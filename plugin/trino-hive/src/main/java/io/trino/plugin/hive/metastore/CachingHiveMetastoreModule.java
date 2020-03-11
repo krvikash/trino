@@ -18,6 +18,7 @@ import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import com.google.inject.Singleton;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.trino.metastore.HiveMetastore;
 import io.trino.metastore.HiveMetastoreFactory;
 import io.trino.metastore.MeasuredHiveMetastore.MeasuredMetastoreFactory;
 import io.trino.metastore.RawHiveMetastoreFactory;
@@ -26,10 +27,17 @@ import io.trino.metastore.cache.CachingHiveMetastoreConfig;
 import io.trino.metastore.cache.ImpersonationCachingConfig;
 import io.trino.metastore.cache.SharedHiveMetastoreCache;
 import io.trino.metastore.cache.SharedHiveMetastoreCache.CachingHiveMetastoreFactory;
+import io.trino.spi.security.ConnectorIdentity;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static java.util.Comparator.comparing;
+import static java.util.Objects.requireNonNull;
 import static org.weakref.jmx.guice.ExportBinder.newExporter;
 
 public final class CachingHiveMetastoreModule
@@ -38,6 +46,7 @@ public final class CachingHiveMetastoreModule
     @Override
     protected void setup(Binder binder)
     {
+        newSetBinder(binder, HiveMetastoreDecorator.class);
         configBinder(binder).bindConfig(CachingHiveMetastoreConfig.class);
         // TODO this should only be bound when impersonation is actually enabled
         configBinder(binder).bindConfig(ImpersonationCachingConfig.class);
@@ -63,10 +72,51 @@ public final class CachingHiveMetastoreModule
     @Singleton
     public static HiveMetastoreFactory createHiveMetastore(
             @RawHiveMetastoreFactory HiveMetastoreFactory metastoreFactory,
+            Set<HiveMetastoreDecorator> decorators,
             SharedHiveMetastoreCache sharedHiveMetastoreCache)
     {
+        metastoreFactory = new DecoratingHiveMetastoreFactory(metastoreFactory, decorators);
+
         // cross TX metastore cache is enabled wrapper with caching metastore
         return sharedHiveMetastoreCache.createCachingHiveMetastoreFactory(new MeasuredMetastoreFactory(metastoreFactory));
+    }
+
+    private static class DecoratingHiveMetastoreFactory
+            implements HiveMetastoreFactory
+    {
+        private final HiveMetastoreFactory delegate;
+        private final List<HiveMetastoreDecorator> sortedDecorators;
+
+        public DecoratingHiveMetastoreFactory(HiveMetastoreFactory delegate, Set<HiveMetastoreDecorator> decorators)
+        {
+            this.delegate = requireNonNull(delegate, "delegate is null");
+
+            this.sortedDecorators = decorators.stream()
+                    .sorted(comparing(HiveMetastoreDecorator::getPriority))
+                    .collect(toImmutableList());
+        }
+
+        @Override
+        public boolean hasBuiltInCaching()
+        {
+            return delegate.hasBuiltInCaching();
+        }
+
+        @Override
+        public boolean isImpersonationEnabled()
+        {
+            return delegate.isImpersonationEnabled();
+        }
+
+        @Override
+        public HiveMetastore createMetastore(Optional<ConnectorIdentity> identity)
+        {
+            HiveMetastore metastore = delegate.createMetastore(identity);
+            for (HiveMetastoreDecorator decorator : sortedDecorators) {
+                metastore = decorator.decorate(metastore);
+            }
+            return metastore;
+        }
     }
 
     @Provides
