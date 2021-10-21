@@ -67,14 +67,14 @@ public class TestQueryTroubleshooting
     protected static final Session TROUBLESHOOTED_SESSION = testSessionBuilder()
             .setClientCapabilities(Set.of(QUERY_TROUBLESHOOTING.name()))
             .setSystemProperty(QUERY_MAX_MEMORY_PER_NODE, "256kB")
-            .setIdentity(Identity.forUser(AUTHORIZED_USER).build())
+            .setIdentity(Identity.ofUser(AUTHORIZED_USER))
             .setCatalog("tpch")
             .build();
 
     protected static final Session TROUBLESHOOTED_SESSION_UNAUTHORIZED = testSessionBuilder()
             .setClientCapabilities(Set.of(QUERY_TROUBLESHOOTING.name()))
             .setSystemProperty(QUERY_MAX_MEMORY_PER_NODE, "256kB")
-            .setIdentity(Identity.forUser(NOT_AUTHORIZED_USER).build())
+            .setIdentity(Identity.ofUser(NOT_AUTHORIZED_USER))
             .build();
 
     private TroubleshootingManager troubleshootingManager;
