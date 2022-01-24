@@ -14,6 +14,7 @@
 package io.trino.plugin.iceberg.catalog;
 
 import io.trino.metastore.TableInfo;
+import io.trino.plugin.base.util.MaybeLazy;
 import io.trino.plugin.iceberg.ColumnIdentity;
 import io.trino.plugin.iceberg.UnknownTableTypeException;
 import io.trino.spi.connector.CatalogSchemaTableName;
@@ -62,6 +63,10 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
  */
 public interface TrinoCatalog
 {
+    MaybeLazy<List<ColumnMetadata>> getTableColumnMetadata(ConnectorSession session, io.trino.metastore.Table metastoreTable);
+
+    MaybeLazy<Optional<String>> getTableComment(ConnectorSession session, io.trino.metastore.Table metastoreTable);
+
     boolean namespaceExists(ConnectorSession session, String namespace);
 
     List<String> listNamespaces(ConnectorSession session);

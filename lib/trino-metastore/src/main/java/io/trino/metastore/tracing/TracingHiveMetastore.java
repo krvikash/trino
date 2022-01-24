@@ -31,6 +31,7 @@ import io.trino.metastore.PrincipalPrivileges;
 import io.trino.metastore.StatisticsUpdateMode;
 import io.trino.metastore.Table;
 import io.trino.metastore.TableInfo;
+import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.function.LanguageFunction;
 import io.trino.spi.metrics.Metrics;
@@ -38,6 +39,7 @@ import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.security.RoleGrant;
 
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -177,6 +179,15 @@ public class TracingHiveMetastore
             span.setAttribute(TABLE_RESPONSE_COUNT, tables.size());
             return tables;
         });
+    }
+
+    @Override
+    public Optional<Iterator<Table>> streamTables(ConnectorSession session, String databaseName)
+    {
+        Span span = tracer.spanBuilder("HiveMetastore.streamTables")
+                .setAttribute(SCHEMA, databaseName)
+                .startSpan();
+        return withTracing(span, () -> delegate.streamTables(session, databaseName));
     }
 
     @Override

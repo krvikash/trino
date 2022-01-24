@@ -126,7 +126,6 @@ public final class GlueMetastoreModule
                           (metadataCacheTtl.toMillis() > 0 || statsCacheTtl.toMillis() > 0);
 
         checkState(config.isPartitionCacheEnabled(), "Disabling partitions cache is not supported with Glue v2");
-        checkState(config.isCacheMissing(), "Disabling cache missing is not supported with Glue v2");
         checkState(config.isCacheMissingPartitions(), "Disabling cache missing partitions is not supported with Glue v2");
         checkState(config.isCacheMissingStats(), "Disabling cache missing stats is not supported with Glue v2");
 

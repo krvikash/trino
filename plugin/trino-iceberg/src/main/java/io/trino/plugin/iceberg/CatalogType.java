@@ -15,6 +15,7 @@ package io.trino.plugin.iceberg;
 
 public enum CatalogType
 {
+    UNITY,
     TESTING_FILE_METASTORE,
     HIVE_METASTORE,
     GLUE,

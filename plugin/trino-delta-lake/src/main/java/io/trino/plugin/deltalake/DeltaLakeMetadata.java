@@ -43,6 +43,7 @@ import io.trino.metastore.TableInfo;
 import io.trino.plugin.base.classloader.ClassLoaderSafeSystemTable;
 import io.trino.plugin.base.filter.UtcConstraintExtractor;
 import io.trino.plugin.base.projection.ApplyProjectionUtil;
+import io.trino.plugin.base.util.MaybeLazy;
 import io.trino.plugin.deltalake.DeltaLakeAnalyzeProperties.AnalyzeMode;
 import io.trino.plugin.deltalake.DeltaLakeTable.DeltaLakeColumn;
 import io.trino.plugin.deltalake.expression.ParsingException;
@@ -856,6 +857,52 @@ public class DeltaLakeMetadata
                 Optional.empty(),
                 tableSnapshot.getVersion(),
                 endVersion.isPresent());
+    }
+
+    public MaybeLazy<List<ColumnMetadata>> getTableColumnMetadata(ConnectorSession session, io.trino.metastore.Table table)
+    {
+        checkArgument(isDeltaLakeTable(table), "Not Delta table: %s", table);
+        DeltaMetastoreTable deltaMetastoreTable = convertToDeltaMetastoreTable(table);
+        String tableLocation = HiveMetastoreBackedDeltaLakeMetastore.getTableLocation(table);
+        return MaybeLazy.ofLazy(() -> {
+            try {
+                TrinoFileSystem fileSystem = fileSystemFactory.create(session, deltaMetastoreTable);
+                if (containsSchemaString(table) && canUseTableParametersFromMetastore(session, fileSystem, table, tableLocation)) {
+                    return metadataScheduler.getColumnsMetadata(table);
+                }
+
+                TableSnapshot tableSnapshot = transactionLogAccess.loadSnapshot(session, deltaMetastoreTable, Optional.empty());
+                MetadataAndProtocolEntries logEntries = transactionLogAccess.getMetadataAndProtocolEntry(session, fileSystem, tableSnapshot);
+                MetadataEntry metadataEntry = (MetadataEntry) logEntries.metadata().orElse(null);
+                ProtocolEntry protocolEntry = (ProtocolEntry) logEntries.protocol().orElse(null);
+                return getTableColumnMetadata(metadataEntry, protocolEntry);
+            }
+            catch (IOException e) {
+                throw new TrinoException(DELTA_LAKE_INVALID_SCHEMA, "Error getting snapshot for " + table, e);
+            }
+        });
+    }
+
+    public MaybeLazy<Optional<String>> getTableComment(ConnectorSession session, io.trino.metastore.Table table)
+    {
+        checkArgument(isDeltaLakeTable(table), "Not Delta table: %s", table);
+        DeltaMetastoreTable deltaMetastoreTable = convertToDeltaMetastoreTable(table);
+        String tableLocation = HiveMetastoreBackedDeltaLakeMetastore.getTableLocation(table);
+        return MaybeLazy.ofLazy(() -> {
+            try {
+                TrinoFileSystem fileSystem = fileSystemFactory.create(session, deltaMetastoreTable);
+                if (canUseTableParametersFromMetastore(session, fileSystem, table, tableLocation)) {
+                    return Optional.ofNullable(table.getParameters().get(TABLE_COMMENT));
+                }
+
+                TableSnapshot tableSnapshot = transactionLogAccess.loadSnapshot(session, deltaMetastoreTable, Optional.empty());
+                MetadataEntry metadataEntry = transactionLogAccess.getMetadataEntry(session, fileSystem, tableSnapshot);
+                return Optional.ofNullable(metadataEntry.getDescription());
+            }
+            catch (IOException e) {
+                throw new TrinoException(DELTA_LAKE_INVALID_SCHEMA, "Error getting snapshot for " + table, e);
+            }
+        });
     }
 
     @Override

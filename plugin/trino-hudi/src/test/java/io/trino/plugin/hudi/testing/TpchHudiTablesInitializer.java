@@ -29,12 +29,12 @@ import io.trino.metastore.PrincipalPrivileges;
 import io.trino.metastore.StorageFormat;
 import io.trino.metastore.Table;
 import io.trino.plugin.hudi.HudiConnector;
-import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.spi.connector.CatalogSchemaName;
 import io.trino.spi.security.ConnectorIdentity;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.MaterializedRow;
 import io.trino.testing.QueryRunner;
+import io.trino.testing.TransactionBuilder;
 import io.trino.tpch.TpchColumn;
 import io.trino.tpch.TpchColumnType;
 import io.trino.tpch.TpchColumnTypes;
@@ -124,14 +124,8 @@ public class TpchHudiTablesInitializer
     public void initializeTables(QueryRunner queryRunner, Location externalLocation, String schemaName)
             throws Exception
     {
-        queryRunner.installPlugin(new TpchPlugin());
-        queryRunner.createCatalog(TPCH_TINY.getCatalogName(), "tpch", ImmutableMap.of());
-        TrinoFileSystem fileSystem = ((HudiConnector) queryRunner.getCoordinator().getConnector("hudi")).getInjector()
-                .getInstance(TrinoFileSystemFactory.class)
-                .create(ConnectorIdentity.ofUser("test"));
-        HiveMetastore metastore = ((HudiConnector) queryRunner.getCoordinator().getConnector("hudi")).getInjector()
-                        .getInstance(HiveMetastoreFactory.class)
-                        .createMetastore(Optional.empty());
+        TrinoFileSystem fileSystem = getTrinoFileSystem(queryRunner);
+        HiveMetastore metastore = getMetastore(queryRunner);
 
         Location dataLocation = externalLocation.appendPath("tpch");
 
@@ -151,6 +145,25 @@ public class TpchHudiTablesInitializer
         finally {
             deleteRecursively(tempDir, ALLOW_INSECURE);
         }
+    }
+
+    protected HiveMetastore getMetastore(QueryRunner queryRunner)
+    {
+        return getHudiConnector(queryRunner).getInjector().getInstance(HiveMetastoreFactory.class)
+                .createMetastore(Optional.empty());
+    }
+
+    protected TrinoFileSystem getTrinoFileSystem(QueryRunner queryRunner)
+    {
+        return getHudiConnector(queryRunner).getInjector().getInstance(TrinoFileSystemFactory.class)
+                .create(ConnectorIdentity.ofUser("test"));
+    }
+
+    protected HudiConnector getHudiConnector(QueryRunner queryRunner)
+    {
+        return TransactionBuilder.transaction(queryRunner.getTransactionManager(), queryRunner.getPlannerContext().getMetadata(), queryRunner.getAccessControl())
+                .readOnly()
+                .execute(queryRunner.getDefaultSession(), transactionSession -> ((HudiConnector) queryRunner.getCoordinator().getConnector(transactionSession, "hudi")));
     }
 
     public void load(TpchTable<?> tpchTables, QueryRunner queryRunner, java.nio.file.Path tableDirectory)

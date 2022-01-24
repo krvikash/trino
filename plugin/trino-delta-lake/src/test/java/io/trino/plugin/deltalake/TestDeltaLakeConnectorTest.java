@@ -192,6 +192,11 @@ public class TestDeltaLakeConnectorTest
         };
     }
 
+    protected boolean isObjectStore()
+    {
+        return false;
+    }
+
     @Override
     protected String errorMessageForInsertIntoNotNullColumn(String columnName)
     {
@@ -226,7 +231,7 @@ public class TestDeltaLakeConnectorTest
     }
 
     @Language("RegExp")
-    private static String transactionConflictErrors()
+    public static String transactionConflictErrors()
     {
         return "Transaction log locked.*" +
                 "|Target file already exists: .*/_delta_log/\\d+.json" +
@@ -569,7 +574,8 @@ public class TestDeltaLakeConnectorTest
                         "   comment varchar\n" +
                         ")\n" +
                         "WITH (\n" +
-                        "   location = \\E'.*/test_schema/orders.*'\n\\Q" +
+                        "   location = \\E'.*/test_schema/orders.*'\\Q" +
+                        (isObjectStore() ? ",\n   type = 'DELTA'\n" : "\n") +
                         ")");
     }
 
@@ -2613,7 +2619,8 @@ public class TestDeltaLakeConnectorTest
                             "   b varchar\n" +
                             "\\)\n" +
                             "WITH \\(\n" +
-                            "   location = '.*'\n" +
+                            "   location = '.*'" +
+                            (isObjectStore() ? ",\n   type = 'DELTA'\n" : "\n") +
                             "\\)");
         }
     }
@@ -5155,7 +5162,7 @@ public class TestDeltaLakeConnectorTest
     {
         try (TestTable testTable = newTrinoTable("test_coercion_add_column", "(a varchar, b row(x integer))")) {
             // TODO: Update this test once the connector supports adding a new field to a row type
-            assertQueryFails("ALTER TABLE " + testTable.getName() + " ADD COLUMN b.y " + columnType, "This connector does not support adding fields");
+            assertQueryFails("ALTER TABLE " + testTable.getName() + " ADD COLUMN b.y " + columnType, "This connector does not support adding fields|Adding fields to Delta Lake tables is not supported");
 
             assertUpdate("ALTER TABLE " + testTable.getName() + " ADD COLUMN c " + columnType);
             assertThat(getColumnType(testTable.getName(), "c")).isEqualTo(expectedColumnType);
@@ -6055,7 +6062,9 @@ public class TestDeltaLakeConnectorTest
                     .containsExactly(ColumnMetadata.builder().setName("col").setType(INTEGER).build());
 
             // Update the following test once the connector supports changing column types
-            assertQueryFails("ALTER TABLE " + table.getName() + " ALTER COLUMN col SET DATA TYPE bigint", "This connector does not support setting column types");
+            assertQueryFails(
+                    "ALTER TABLE " + table.getName() + " ALTER COLUMN col SET DATA TYPE bigint",
+                    "This connector does not support setting column types|Setting column type on Delta Lake tables is not supported");
         }
     }
 

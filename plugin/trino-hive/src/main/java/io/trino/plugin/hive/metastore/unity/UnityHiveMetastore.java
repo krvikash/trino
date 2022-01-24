@@ -26,10 +26,12 @@ import com.databricks.sdk.service.catalog.ColumnTypeName;
 import com.databricks.sdk.service.catalog.CreateSchema;
 import com.databricks.sdk.service.catalog.CreateTableRequest;
 import com.databricks.sdk.service.catalog.DataSourceFormat;
+import com.databricks.sdk.service.catalog.ListTablesRequest;
 import com.databricks.sdk.service.catalog.SchemaInfo;
 import com.databricks.sdk.service.catalog.SchemasAPI;
 import com.databricks.sdk.service.catalog.TablesAPI;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -65,6 +67,7 @@ import io.trino.metastore.type.TypeInfo;
 import io.trino.metastore.type.VarcharTypeInfo;
 import io.trino.plugin.hive.TableType;
 import io.trino.spi.TrinoException;
+import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SchemaNotFoundException;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.TableNotFoundException;
@@ -83,6 +86,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -109,6 +113,7 @@ import static io.trino.plugin.hive.HiveStorageFormat.PARQUET;
 import static io.trino.plugin.hive.HiveStorageFormat.TEXTFILE;
 import static io.trino.plugin.hive.TableType.EXTERNAL_TABLE;
 import static io.trino.plugin.hive.TableType.MANAGED_TABLE;
+import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.connector.SchemaTableName.schemaTableName;
 import static io.trino.spi.security.PrincipalType.USER;
@@ -282,6 +287,45 @@ public class UnityHiveMetastore
     public List<String> getTableNamesWithParameters(String databaseName, String parameterKey, Set<String> parameterValues)
     {
         throw new TrinoException(NOT_SUPPORTED, "getTableNamesWithParameters is not supported for Unity metastore");
+    }
+
+    @Override
+    public Optional<Iterator<Table>> streamTables(ConnectorSession session, String databaseName)
+    {
+        return Optional.of(new AbstractIterator<>()
+        {
+            private Iterator<com.databricks.sdk.service.catalog.TableInfo> delegate;
+
+            @Override
+            protected Table computeNext()
+            {
+                try {
+                    if (delegate == null) {
+                        Iterable<com.databricks.sdk.service.catalog.TableInfo> tables;
+                        try {
+                            ListTablesRequest request = new ListTablesRequest().setCatalogName(catalogName).setSchemaName(databaseName);
+                            tables = tablesApi.list(request);
+                        }
+                        catch (NotFound e) {
+                            LOG.debug("Schema '%s' not found", databaseName);
+                            tables = ImmutableList.of();
+                        }
+                        delegate = Streams.stream(tables).iterator();
+                    }
+
+                    if (!delegate.hasNext()) {
+                        return endOfData();
+                    }
+                    return fromUnityTable(delegate.next()).orElseGet(this::computeNext);
+                }
+                catch (DatabricksError e) {
+                    throw new TrinoException(HIVE_METASTORE_ERROR, firstNonNull(e.getMessage(), e).toString(), e);
+                }
+                catch (RuntimeException e) {
+                    throw new TrinoException(GENERIC_INTERNAL_ERROR, "Error accessing Unity Metastore: " + firstNonNull(e.getMessage(), e), e);
+                }
+            }
+        });
     }
 
     @Override

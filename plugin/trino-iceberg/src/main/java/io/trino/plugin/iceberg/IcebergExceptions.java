@@ -27,7 +27,7 @@ public final class IcebergExceptions
 {
     private IcebergExceptions() {}
 
-    private static boolean isNotFoundException(Throwable failure)
+    public static boolean isNotFoundException(Throwable failure)
     {
         return getCausalChain(failure).stream().anyMatch(e ->
                 e instanceof org.apache.iceberg.exceptions.NotFoundException

@@ -63,8 +63,8 @@ public abstract class BaseIcebergSystemTables
         extends AbstractTestQueryFramework
 {
     private final IcebergFileFormat format;
-    private HiveMetastore metastore;
-    private TrinoFileSystemFactory fileSystemFactory;
+    protected HiveMetastore metastore;
+    protected TrinoFileSystemFactory fileSystemFactory;
 
     protected BaseIcebergSystemTables(IcebergFileFormat format)
     {

@@ -45,6 +45,7 @@ import io.trino.metastore.StatisticsUpdateMode;
 import io.trino.metastore.Table;
 import io.trino.metastore.TableInfo;
 import io.trino.spi.TrinoException;
+import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.function.LanguageFunction;
 import io.trino.spi.metrics.Metrics;
@@ -57,6 +58,7 @@ import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -576,6 +578,15 @@ public final class CachingHiveMetastore
     private List<String> loadTablesMatchingParameter(TablesWithParameterCacheKey key)
     {
         return delegate.getTableNamesWithParameters(key.databaseName(), key.parameterKey(), key.parameterValues());
+    }
+
+    @Override
+    public Optional<Iterator<Table>> streamTables(ConnectorSession session, String databaseName)
+    {
+        // TODO should this cache the list (once iterator is completed)?
+        // TODO should it cache the iterator (smartly) before it's completed? (sharing failures?)
+        // TODO should this put objects into tableCache when iterating?
+        return delegate.streamTables(session, databaseName);
     }
 
     @Override

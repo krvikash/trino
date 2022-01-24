@@ -24,6 +24,7 @@ import io.airlift.units.DataSize;
 import io.trino.Session;
 import io.trino.connector.MockConnectorFactory;
 import io.trino.connector.MockConnectorPlugin;
+import io.trino.connector.alternatives.MockPlanAlternativeConnector;
 import io.trino.execution.QueryInfo;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
@@ -41,6 +42,7 @@ import io.trino.metastore.Storage;
 import io.trino.metastore.Table;
 import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.spi.connector.ColumnMetadata;
+import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.Constraint;
 import io.trino.spi.metrics.Metrics;
 import io.trino.spi.security.ConnectorIdentity;
@@ -146,7 +148,6 @@ import static io.trino.plugin.hive.HiveColumnHandle.FILE_MODIFIED_TIME_COLUMN_NA
 import static io.trino.plugin.hive.HiveColumnHandle.FILE_SIZE_COLUMN_NAME;
 import static io.trino.plugin.hive.HiveColumnHandle.PARTITION_COLUMN_NAME;
 import static io.trino.plugin.hive.HiveColumnHandle.PATH_COLUMN_NAME;
-import static io.trino.plugin.hive.HiveMetadata.MODIFYING_NON_TRANSACTIONAL_TABLE_MESSAGE;
 import static io.trino.plugin.hive.HiveMetadata.TRINO_CREATED_BY;
 import static io.trino.plugin.hive.HiveMetadata.TRINO_QUERY_ID_NAME;
 import static io.trino.plugin.hive.HiveMetadata.TRINO_VERSION_NAME;
@@ -163,7 +164,6 @@ import static io.trino.plugin.hive.HiveTableProperties.BUCKETED_BY_PROPERTY;
 import static io.trino.plugin.hive.HiveTableProperties.BUCKET_COUNT_PROPERTY;
 import static io.trino.plugin.hive.HiveTableProperties.PARTITIONED_BY_PROPERTY;
 import static io.trino.plugin.hive.HiveTableProperties.STORAGE_FORMAT_PROPERTY;
-import static io.trino.plugin.hive.TestingHiveUtils.getConnectorService;
 import static io.trino.plugin.hive.ViewReaderUtil.PRESTO_VIEW_FLAG;
 import static io.trino.plugin.hive.util.HiveTypeTranslator.toHiveType;
 import static io.trino.plugin.hive.util.HiveTypeUtil.getTypeSignature;
@@ -220,6 +220,11 @@ public abstract class BaseHiveConnectorTest
     private static final DateTimeFormatter TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSSSSS");
     private final String catalog;
     private final Session bucketedSession;
+
+    @SuppressWarnings("MemberName")
+    private final String MODIFYING_NON_TRANSACTIONAL_TABLE_MESSAGE = isObjectStore()
+            ? "Modifying Hive table rows is constrained to deletes of whole partitions"
+            : HiveMetadata.MODIFYING_NON_TRANSACTIONAL_TABLE_MESSAGE;
 
     protected BaseHiveConnectorTest()
     {
@@ -308,6 +313,23 @@ public abstract class BaseHiveConnectorTest
             case SUPPORTS_CREATE_FUNCTION -> true;
             default -> super.hasBehavior(connectorBehavior);
         };
+    }
+
+    protected boolean isObjectStore()
+    {
+        return false;
+    }
+
+    protected HiveConnector getHiveConnector(String catalog)
+    {
+        return transaction(getDistributedQueryRunner().getTransactionManager(), getDistributedQueryRunner().getPlannerContext().getMetadata(), getDistributedQueryRunner().getAccessControl())
+                .execute(getSession(), transactionSession -> {
+                    Connector connector = getDistributedQueryRunner().getCoordinator().getConnector(transactionSession, catalog);
+                    if (connector instanceof MockPlanAlternativeConnector mockConnector) {
+                        connector = mockConnector.getDelegate();
+                    }
+                    return (HiveConnector) connector;
+                });
     }
 
     @Test
@@ -3844,7 +3866,7 @@ public abstract class BaseHiveConnectorTest
         assertThat(getQueryRunner().tableExists(getSession(), "test_metadata_delete")).isFalse();
     }
 
-    private TableMetadata getTableMetadata(String catalog, String schema, String tableName)
+    protected TableMetadata getTableMetadata(String catalog, String schema, String tableName)
     {
         Session session = getSession();
         Metadata metadata = getDistributedQueryRunner().getPlannerContext().getMetadata();
@@ -4359,7 +4381,8 @@ public abstract class BaseHiveConnectorTest
                         "   comment varchar(79)\n" +
                         ")\n" +
                         "WITH (\n" +
-                        "   format = 'ORC'\n" +
+                        "   format = 'ORC'" +
+                        (isObjectStore() ? ",\n   type = 'HIVE'\n" : "\n") +
                         ")");
 
         String createTableSql = format("" +
@@ -4371,7 +4394,8 @@ public abstract class BaseHiveConnectorTest
                         "   c5 map(bigint, varchar)\n" +
                         ")\n" +
                         "WITH (\n" +
-                        "   format = 'RCBINARY'\n" +
+                        "   format = 'RCBINARY'" +
+                        (isObjectStore() ? ",\n   type = 'HIVE'\n" : "\n") +
                         ")",
                 getSession().getCatalog().get(),
                 getSession().getSchema().get(),
@@ -4397,7 +4421,8 @@ public abstract class BaseHiveConnectorTest
                         "   orc_bloom_filter_columns = ARRAY['c1','c 2'],\n" +
                         "   orc_bloom_filter_fpp = 7E-1,\n" +
                         "   partitioned_by = ARRAY['c5'],\n" +
-                        "   sorted_by = ARRAY['c1','c 2 DESC']\n" +
+                        "   sorted_by = ARRAY['c1','c 2 DESC']" +
+                        (isObjectStore() ? ",\n   type = 'HIVE'\n" : "\n") +
                         ")",
                 getSession().getCatalog().get(),
                 getSession().getSchema().get(),
@@ -4410,7 +4435,8 @@ public abstract class BaseHiveConnectorTest
                         "CREATE TABLE %s.%s.%s (\n" +
                         "   c1 ROW(\"$a\" bigint, \"$b\" varchar)\n)\n" +
                         "WITH (\n" +
-                        "   format = 'ORC'\n" +
+                        "   format = 'ORC'" +
+                        (isObjectStore() ? ",\n   type = 'HIVE'\n" : "\n") +
                         ")",
                 getSession().getCatalog().get(),
                 getSession().getSchema().get(),
@@ -4439,7 +4465,8 @@ public abstract class BaseHiveConnectorTest
                     "   format = 'ORC',\n" +
                     "   partition_projection_enabled = true,\n" +
                     "   partition_projection_location_template = 's3://example/${b}',\n" +
-                    "   partitioned_by = ARRAY['b']\n" +
+                    "   partitioned_by = ARRAY['b']" +
+                    (isObjectStore() ? ",\n   type = 'HIVE'\n" : "\n") +
                     ")");
         }
     }
@@ -4471,7 +4498,8 @@ public abstract class BaseHiveConnectorTest
                         "   col2 varchar\n" +
                         ")\n" +
                         "WITH (\n" +
-                        "   %s\n" +
+                        "   %s" +
+                        (isObjectStore() ? ",\n   type = 'HIVE'\n" : "\n") +
                         ")",
                 getSession().getCatalog().get(),
                 getSession().getSchema().get(),
@@ -4571,7 +4599,8 @@ public abstract class BaseHiveConnectorTest
                         ")\n" +
                         "WITH (\n" +
                         "   format = '%s',\n" +
-                        "   skip_header_line_count = 1\n" +
+                        "   skip_header_line_count = 1" +
+                        (isObjectStore() ? ",\n   type = 'HIVE'\n" : "\n") +
                         ")",
                 tableName, format);
 
@@ -4587,7 +4616,8 @@ public abstract class BaseHiveConnectorTest
                         ")\n" +
                         "WITH (\n" +
                         "   format = '%s',\n" +
-                        "   skip_footer_line_count = 1\n" +
+                        "   skip_footer_line_count = 1" +
+                        (isObjectStore() ? ",\n   type = 'HIVE'\n" : "\n") +
                         ")",
                 tableName, format);
 
@@ -4604,7 +4634,8 @@ public abstract class BaseHiveConnectorTest
                         "WITH (\n" +
                         "   format = '%s',\n" +
                         "   skip_footer_line_count = 1,\n" +
-                        "   skip_header_line_count = 1\n" +
+                        "   skip_header_line_count = 1" +
+                        (isObjectStore() ? ",\n   type = 'HIVE'\n" : "\n") +
                         ")",
                 tableName, format);
 
@@ -6816,7 +6847,9 @@ public abstract class BaseHiveConnectorTest
     public void testAnalyzePropertiesSystemTable()
     {
         assertQuery(
-                "SELECT * FROM system.metadata.analyze_properties WHERE catalog_name = 'hive'",
+                "SELECT * FROM system.metadata.analyze_properties WHERE catalog_name = 'hive'" +
+                        // ObjectStore's ANALYZE has Delta's and Iceberg's ANALYZE properties too
+                        (isObjectStore() ? " AND property_name NOT IN ('mode', 'files_modified_after') " : ""),
                 "SELECT * FROM VALUES " +
                         "('hive', 'partitions', '', 'array(array(varchar))', 'Partitions to be analyzed'), " +
                         "('hive', 'columns', '', 'array(varchar)', 'Columns to be analyzed')");
@@ -8172,7 +8205,8 @@ public abstract class BaseHiveConnectorTest
                         ")\n" +
                         "WITH (\n" +
                         "   avro_schema_url = '%s',\n" +
-                        "   format = 'AVRO'\n" +
+                        "   format = 'AVRO'" +
+                        (isObjectStore() ? ",\n   type = 'HIVE'\n" : "\n") +
                         ")",
                 getSession().getCatalog().get(),
                 getSession().getSchema().get(),
@@ -8940,7 +8974,7 @@ public abstract class BaseHiveConnectorTest
         Session session = withTimestampPrecision(getSession(), timestampPrecision);
         String catalog = session.getCatalog().orElseThrow();
         // TIMESTAMP WITH LOCAL TIME ZONE is not mapped to any Trino type, so we need to create the metastore entry manually
-        HiveMetastore metastore = getConnectorService(getDistributedQueryRunner(), HiveMetastoreFactory.class)
+        HiveMetastore metastore = getHiveConnector("hive").getInjector().getInstance(HiveMetastoreFactory.class)
                 .createMetastore(Optional.of(session.getIdentity().toConnectorIdentity(catalog)));
         metastore.createTable(
                 new Table(
@@ -9705,7 +9739,7 @@ public abstract class BaseHiveConnectorTest
 
     private TrinoFileSystem getTrinoFileSystem()
     {
-        return getConnectorService(getQueryRunner(), TrinoFileSystemFactory.class).create(ConnectorIdentity.ofUser("test"));
+        return getHiveConnector("hive").getInjector().getInstance(TrinoFileSystemFactory.class).create(ConnectorIdentity.ofUser("test"));
     }
 
     @Override

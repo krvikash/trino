@@ -75,6 +75,35 @@ public final class PropertyMetadata<T>
         this.encoder = encoder;
     }
 
+    public PropertyMetadata<T> withDefault(T defaultValue)
+    {
+        return new PropertyMetadata<>(
+                name,
+                description,
+                sqlType,
+                javaType,
+                defaultValue,
+                hidden,
+                decoder,
+                encoder);
+    }
+
+    public <U> PropertyMetadata<U> convert(
+            Class<U> javaType,
+            Function<T, U> postDecoder,
+            Function<U, T> preEncoder)
+    {
+        return new PropertyMetadata<>(
+                name,
+                description,
+                sqlType,
+                javaType,
+                postDecoder.apply(defaultValue),
+                hidden,
+                decoder.andThen(postDecoder),
+                preEncoder.andThen(encoder));
+    }
+
     /**
      * Name of the property.  This must be a valid identifier.
      */

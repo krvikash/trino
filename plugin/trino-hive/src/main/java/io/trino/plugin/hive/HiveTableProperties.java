@@ -118,7 +118,7 @@ public class HiveTableProperties
                         value -> value),
                 new PropertyMetadata<>(
                         SORTED_BY_PROPERTY,
-                        "Bucket sorting columns",
+                        "Sorted columns",
                         new ArrayType(VARCHAR),
                         List.class,
                         ImmutableList.of(),

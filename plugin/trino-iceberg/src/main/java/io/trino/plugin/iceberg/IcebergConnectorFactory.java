@@ -13,12 +13,14 @@
  */
 package io.trino.plugin.iceberg;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Binder;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.airlift.configuration.ConfigPropertyMetadata;
 import io.airlift.json.JsonModule;
 import io.starburst.ai.client.AiClientModule;
 import io.trino.filesystem.manager.FileSystemModule;
@@ -35,6 +37,9 @@ import org.weakref.jmx.guice.MBeanModule;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import static com.google.common.base.Verify.verify;
 import static com.google.inject.util.Modules.EMPTY_MODULE;
@@ -64,6 +69,18 @@ public class IcebergConnectorFactory
             Module module,
             Optional<Module> icebergCatalogModule)
     {
+        return createConnector(catalogName, config, ImmutableMap.of(), _ -> {}, context, module, icebergCatalogModule);
+    }
+
+    public static Connector createConnector(
+            String catalogName,
+            Map<String, String> requiredConfig,
+            Map<String, String> optionalConfig, // Used from Starburst ObjectStore connector. Unused properties are verified later.
+            Consumer<Set<String>> usedConfigPropertiesConsumer,
+            ConnectorContext context,
+            Module module,
+            Optional<Module> icebergCatalogModule)
+    {
         ClassLoader classLoader = IcebergConnectorFactory.class.getClassLoader();
         try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
             Bootstrap app = new Bootstrap(
@@ -83,12 +100,18 @@ public class IcebergConnectorFactory
                     },
                     module);
 
-            Injector injector = app
+            app
                     .doNotInitializeLogging()
                     .loadSecretsPlugins() // starburst-functions-client requires access to secrets.
                     .disableSystemProperties()
-                    .setRequiredConfigurationProperties(config)
-                    .initialize();
+                    .setRequiredConfigurationProperties(requiredConfig)
+                    .setOptionalConfigurationProperties(optionalConfig);
+
+            usedConfigPropertiesConsumer.accept(app.configure().stream()
+                    .map(ConfigPropertyMetadata::name)
+                    .collect(Collectors.toSet()));
+
+            Injector injector = app.initialize();
 
             verify(!injector.getBindings().containsKey(Key.get(HiveConfig.class)), "HiveConfig should not be bound");
 

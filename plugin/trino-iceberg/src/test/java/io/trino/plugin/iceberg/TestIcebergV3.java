@@ -723,7 +723,7 @@ public class TestIcebergV3
     }
 
     @ParameterizedTest
-    @EnumSource(mode = EnumSource.Mode.EXCLUDE, names = {"DATA", "MATERIALIZED_VIEW_STORAGE"})
+    @EnumSource(mode = EnumSource.Mode.EXCLUDE, names = {"DATA", "MATERIALIZED_VIEW_STORAGE", "ERRORS"})
     void testRowLineageMetadataTables(TableType tableType)
     {
         try (TestTable table = newTrinoTable("test_row_lineage", "(x int)", List.of("1", "2", "3"))) {

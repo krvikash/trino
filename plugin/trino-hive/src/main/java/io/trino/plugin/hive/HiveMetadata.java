@@ -52,6 +52,7 @@ import io.trino.metastore.StorageFormat;
 import io.trino.metastore.Table;
 import io.trino.metastore.TableAlreadyExistsException;
 import io.trino.metastore.TableInfo;
+import io.trino.plugin.base.connector.SystemTableProvider;
 import io.trino.plugin.base.projection.ApplyProjectionUtil;
 import io.trino.plugin.base.projection.ApplyProjectionUtil.ProjectedColumnRepresentation;
 import io.trino.plugin.hive.HiveSessionProperties.InsertExistingPartitionsBehavior;

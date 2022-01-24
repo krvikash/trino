@@ -21,6 +21,7 @@ import io.airlift.log.Logger;
 import io.trino.cache.EvictableCacheBuilder;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.metastore.TableInfo;
+import io.trino.plugin.base.util.MaybeLazy;
 import io.trino.plugin.iceberg.IcebergUtil;
 import io.trino.plugin.iceberg.WorkScheduler;
 import io.trino.plugin.iceberg.catalog.AbstractTrinoCatalog;
@@ -121,6 +122,20 @@ public class TrinoJdbcCatalog
         this.jdbcCatalog = requireNonNull(jdbcCatalog, "jdbcCatalog is null");
         this.jdbcClient = requireNonNull(jdbcClient, "jdbcClient is null");
         this.defaultWarehouseDir = requireNonNull(defaultWarehouseDir, "defaultWarehouseDir is null");
+    }
+
+    @Override
+    public MaybeLazy<List<ColumnMetadata>> getTableColumnMetadata(ConnectorSession session, io.trino.metastore.Table metastoreTable)
+    {
+        // Used by ObjectStore only and ObjectStore cannot be used with JDBC catalog.
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public MaybeLazy<Optional<String>> getTableComment(ConnectorSession session, io.trino.metastore.Table metastoreTable)
+    {
+        // Used by ObjectStore only and ObjectStore cannot be used with JDBC catalog.
+        throw new UnsupportedOperationException();
     }
 
     @Override

@@ -25,6 +25,7 @@ import io.jsonwebtoken.impl.DefaultJwtBuilder;
 import io.jsonwebtoken.jackson.io.JacksonSerializer;
 import io.trino.cache.EvictableCacheBuilder;
 import io.trino.metastore.TableInfo;
+import io.trino.plugin.base.util.MaybeLazy;
 import io.trino.plugin.iceberg.ColumnIdentity;
 import io.trino.plugin.iceberg.IcebergUtil;
 import io.trino.plugin.iceberg.catalog.TrinoCatalog;
@@ -158,6 +159,20 @@ public class TrinoRestCatalog
     public Optional<String> getNamespaceSeparator()
     {
         return Optional.of(NAMESPACE_SEPARATOR);
+    }
+
+    @Override
+    public MaybeLazy<List<ColumnMetadata>> getTableColumnMetadata(ConnectorSession session, io.trino.metastore.Table metastoreTable)
+    {
+        // Used by ObjectStore only and ObjectStore cannot be used with REST catalog.
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public MaybeLazy<Optional<String>> getTableComment(ConnectorSession session, io.trino.metastore.Table metastoreTable)
+    {
+        // Used by ObjectStore only and ObjectStore cannot be used with REST catalog.
+        throw new UnsupportedOperationException();
     }
 
     @Override

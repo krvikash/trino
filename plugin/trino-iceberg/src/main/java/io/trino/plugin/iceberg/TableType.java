@@ -28,4 +28,5 @@ public enum TableType
     PROPERTIES,
     REFS,
     MATERIALIZED_VIEW_STORAGE,
+    ERRORS,
 }

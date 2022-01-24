@@ -19,6 +19,7 @@ import com.google.common.util.concurrent.UncheckedExecutionException;
 import io.trino.cache.EvictableCacheBuilder;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.metastore.TableInfo;
+import io.trino.plugin.base.util.MaybeLazy;
 import io.trino.plugin.iceberg.ColumnIdentity;
 import io.trino.plugin.iceberg.WorkScheduler;
 import io.trino.plugin.iceberg.catalog.AbstractTrinoCatalog;
@@ -62,11 +63,13 @@ import java.util.stream.Stream;
 import static com.google.common.base.Throwables.throwIfUnchecked;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.cache.CacheUtils.uncheckedCacheGet;
+import static io.trino.plugin.iceberg.IcebergUtil.getColumnMetadatas;
 import static io.trino.plugin.iceberg.IcebergUtil.getIcebergTableWithMetadata;
 import static io.trino.plugin.iceberg.IcebergUtil.quotedTableName;
 import static io.trino.spi.StandardErrorCode.NOT_FOUND;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static java.util.Objects.requireNonNull;
+import static org.apache.iceberg.TableUtil.formatVersion;
 
 public class TrinoSnowflakeCatalog
         extends AbstractTrinoCatalog
@@ -99,6 +102,21 @@ public class TrinoSnowflakeCatalog
     public SnowflakeCatalog getSnowflakeCatalog()
     {
         return snowflakeCatalog;
+    }
+
+    @Override
+    public MaybeLazy<List<ColumnMetadata>> getTableColumnMetadata(ConnectorSession session, io.trino.metastore.Table metastoreTable)
+    {
+        return MaybeLazy.ofLazy(() -> {
+            Table icebergTable = loadTable(session, metastoreTable.getSchemaTableName());
+            return getColumnMetadatas(icebergTable.schema(), typeManager, formatVersion(icebergTable));
+        });
+    }
+
+    @Override
+    public MaybeLazy<Optional<String>> getTableComment(ConnectorSession session, io.trino.metastore.Table metastoreTable)
+    {
+        throw new TrinoException(NOT_SUPPORTED, "getTableComment is not supported for Iceberg Snowflake catalogs");
     }
 
     @Override

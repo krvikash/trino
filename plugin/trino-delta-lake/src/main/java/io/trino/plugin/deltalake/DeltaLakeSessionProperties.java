@@ -337,7 +337,12 @@ public final class DeltaLakeSessionProperties
 
     public static HiveCompressionOption getCompressionCodec(ConnectorSession session)
     {
-        return session.getProperty(COMPRESSION_CODEC, HiveCompressionOption.class);
+        HiveCompressionOption value = session.getProperty(COMPRESSION_CODEC, HiveCompressionOption.class);
+        if (value == HiveCompressionOption.LZ4) {
+            // Objectstore connector doesn't call PropertyMetadata's validation of the child constructor
+            throw new TrinoException(INVALID_SESSION_PROPERTY, "Unsupported codec: LZ4");
+        }
+        return value;
     }
 
     public static boolean isProjectionPushdownEnabled(ConnectorSession session)

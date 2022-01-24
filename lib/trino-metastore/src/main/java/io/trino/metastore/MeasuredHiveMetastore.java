@@ -21,6 +21,7 @@ import io.airlift.stats.TDigest;
 import io.trino.plugin.base.metrics.DistributionSnapshot;
 import io.trino.plugin.base.metrics.LongCount;
 import io.trino.plugin.base.metrics.TDigestHistogram;
+import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.function.LanguageFunction;
 import io.trino.spi.metrics.Metric;
@@ -30,6 +31,7 @@ import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.security.RoleGrant;
 
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -127,6 +129,12 @@ public class MeasuredHiveMetastore
     public List<String> getTableNamesWithParameters(String databaseName, String parameterKey, Set<String> parameterValues)
     {
         return wrap("getTableNamesWithParameters", () -> delegate.getTableNamesWithParameters(databaseName, parameterKey, parameterValues));
+    }
+
+    @Override
+    public Optional<Iterator<Table>> streamTables(ConnectorSession session, String databaseName)
+    {
+        return wrap("streamTables", () -> delegate.streamTables(session, databaseName));
     }
 
     @Override

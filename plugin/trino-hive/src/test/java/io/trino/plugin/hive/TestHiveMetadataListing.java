@@ -34,6 +34,7 @@ import io.trino.metastore.StorageFormat;
 import io.trino.metastore.Table;
 import io.trino.metastore.TableInfo;
 import io.trino.spi.TrinoException;
+import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.function.LanguageFunction;
 import io.trino.spi.predicate.TupleDomain;
@@ -43,6 +44,7 @@ import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -56,9 +58,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class TestHiveMetadataListing
         extends AbstractTestQueryFramework
 {
-    private static final String DATABASE_NAME = "database";
-    private static final Column TABLE_COLUMN = new Column(
+    protected static final String DATABASE_NAME = "database";
+    private static final Column DATA_COLUMN = new Column(
             "column",
+            HiveType.HIVE_INT,
+            Optional.of("comment"),
+            ImmutableMap.of());
+    private static final Column PARTITION_COLUMN = new Column(
+            "partition_column",
             HiveType.HIVE_INT,
             Optional.of("comment"),
             ImmutableMap.of());
@@ -75,8 +82,8 @@ public class TestHiveMetadataListing
             Optional.of("owner"),
             "VIRTUAL_VIEW",
             TABLE_STORAGE,
-            ImmutableList.of(TABLE_COLUMN),
-            ImmutableList.of(),
+            ImmutableList.of(DATA_COLUMN),
+            ImmutableList.of(PARTITION_COLUMN),
             ImmutableMap.of("PRESTO_VIEW_FLAG", "value3"),
             Optional.of("SELECT 1"),
             Optional.of("SELECT 1"),
@@ -88,8 +95,8 @@ public class TestHiveMetadataListing
             Optional.of("owner"),
             "VIRTUAL_VIEW",
             TABLE_STORAGE,
-            ImmutableList.of(TABLE_COLUMN),
-            ImmutableList.of(),
+            ImmutableList.of(DATA_COLUMN),
+            ImmutableList.of(PARTITION_COLUMN),
             ImmutableMap.of("PRESTO_VIEW_FLAG", "value3"),
             Optional.of("SELECT 1"),
             Optional.of("SELECT 1"),
@@ -101,8 +108,8 @@ public class TestHiveMetadataListing
             Optional.of("owner"),
             "VIRTUAL_VIEW",
             TABLE_STORAGE,
-            ImmutableList.of(TABLE_COLUMN),
-            ImmutableList.of(),
+            ImmutableList.of(DATA_COLUMN),
+            ImmutableList.of(PARTITION_COLUMN),
             ImmutableMap.of("PRESTO_VIEW_FLAG", "value3"),
             Optional.of("SELECT 1"),
             Optional.of("SELECT 1"),
@@ -114,9 +121,9 @@ public class TestHiveMetadataListing
             Optional.of("owner"),
             "MANAGED_TABLE",
             TABLE_STORAGE,
-            ImmutableList.of(TABLE_COLUMN),
-            ImmutableList.of(),
-            ImmutableMap.of("param", "value3"),
+            ImmutableList.of(DATA_COLUMN),
+            ImmutableList.of(PARTITION_COLUMN),
+            ImmutableMap.of("param", "value3", "comment", "this is a test table comment"),
             Optional.empty(),
             Optional.empty(),
             OptionalLong.empty());
@@ -127,8 +134,8 @@ public class TestHiveMetadataListing
             Optional.of("owner"),
             "MANAGED_TABLE",
             TABLE_STORAGE,
-            ImmutableList.of(TABLE_COLUMN),
-            ImmutableList.of(),
+            ImmutableList.of(DATA_COLUMN),
+            ImmutableList.of(PARTITION_COLUMN),
             ImmutableMap.of("param", "value3"),
             Optional.empty(),
             Optional.empty(),
@@ -140,8 +147,8 @@ public class TestHiveMetadataListing
             Optional.of("owner"),
             "MANAGED_TABLE",
             TABLE_STORAGE,
-            ImmutableList.of(TABLE_COLUMN),
-            ImmutableList.of(),
+            ImmutableList.of(DATA_COLUMN),
+            ImmutableList.of(PARTITION_COLUMN),
             ImmutableMap.of("param", "value3"),
             Optional.empty(),
             Optional.empty(),
@@ -222,7 +229,56 @@ public class TestHiveMetadataListing
         assertQueryReturnsEmptyResult(withSchemaAndFailingGeneralTableFilter);
     }
 
-    private static class TestingHiveMetastore
+    @Test
+    public void testTableCommentsListing() {
+        String withSchemaFilterForComments = format(
+                "SELECT comment FROM system.metadata.table_comments WHERE schema_name = '%s'",
+                DATABASE_NAME);
+        assertQuery(withSchemaFilterForComments,
+                "VALUES " +
+                        "('this is a test table comment')," +
+                        "(null)," +
+                        "(null)," +
+                        "(null)," +
+                        "(null)," +
+                        "(null)");
+    }
+
+    @Test
+    public void testTableColumnsListing()
+    {
+        String withSchemaAndCorrectTableFilter = format(
+                "SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = '%s' AND table_name = '%s'",
+                DATABASE_NAME,
+                CORRECT_TABLE.getSchemaTableName().getTableName());
+        assertQuery(withSchemaAndCorrectTableFilter,
+                "VALUES " +
+                        "('correct_table', 'column'), " +
+                        "('correct_table', 'partition_column')");
+
+        String withSchemaAndFailingSDTableFilter = format(
+                "SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = '%s' AND table_name = '%s'",
+                DATABASE_NAME,
+                FAILING_SERDE_INFO_TABLE.getSchemaTableName().getTableName());
+        assertQueryReturnsEmptyResult(withSchemaAndFailingSDTableFilter);
+
+        String withSchemaAndFailingGeneralTableFilter = format(
+                "SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = '%s' AND table_name = '%s'",
+                DATABASE_NAME,
+                FAILING_GENERAL_TABLE.getSchemaTableName().getTableName());
+        assertQueryReturnsEmptyResult(withSchemaAndFailingGeneralTableFilter);
+    }
+
+    @Test
+    public void testTableColumnsWithOnlySchemaFilter()
+    {
+        // fails because hive uses the default implementation of failing instead of ignoring faulty objects
+        String withSchemaFilter = format(
+                "SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = '%s'", DATABASE_NAME);
+        assertQueryFails(withSchemaFilter, "Error listing table columns for catalog hive: Failed to construct table metadata for table database.failing_general_view");
+    }
+
+    public static class TestingHiveMetastore
             implements HiveMetastore
     {
         @Override
@@ -257,6 +313,9 @@ public class TestHiveMetadataListing
             if (schemaTableName.equals(CORRECT_VIEW.getSchemaTableName())) {
                 return Optional.of(CORRECT_VIEW);
             }
+            if (schemaTableName.equals(CORRECT_TABLE.getSchemaTableName())) {
+                return Optional.of(CORRECT_TABLE);
+            }
             if (schemaTableName.equals(FAILING_STORAGE_DESCRIPTOR_VIEW.getSchemaTableName())) {
                 throw new TrinoException(HIVE_UNSUPPORTED_FORMAT, "Table StorageDescriptor is null for failing_view");
             }
@@ -269,6 +328,12 @@ public class TestHiveMetadataListing
             if (schemaTableName.equals(FAILING_GENERAL_TABLE.getSchemaTableName())) {
                 throw new RuntimeException("General error");
             }
+            return Optional.empty();
+        }
+
+        @Override
+        public Optional<Iterator<Table>> streamTables(ConnectorSession session, String databaseName)
+        {
             return Optional.empty();
         }
 

@@ -82,6 +82,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -272,6 +273,15 @@ public class SemiTransactionalHiveMetastore
             }
         }
         return delegate.getTables(databaseName);
+    }
+
+    public synchronized Optional<Iterator<Table>> streamTables(ConnectorSession session, String databaseName)
+    {
+        checkReadable();
+        if (!tableActions.isEmpty()) {
+            throw new UnsupportedOperationException("Streaming all tables after adding/dropping/altering tables/views in a transaction is not supported");
+        }
+        return delegate.streamTables(session, databaseName);
     }
 
     public synchronized Optional<Table> getTable(String databaseName, String tableName)

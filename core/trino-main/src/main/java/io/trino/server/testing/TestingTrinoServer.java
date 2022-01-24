@@ -728,12 +728,25 @@ public class TestingTrinoServer
         return getConnector(getCatalogHandle(catalogName));
     }
 
+    public Connector getConnector(Session transactionSession, String catalogName)
+    {
+        return getConnector(getCatalogHandle(transactionSession, catalogName));
+    }
+
     public CatalogHandle getCatalogHandle(String catalogName)
     {
         checkState(coordinator, "not a coordinator");
         return catalogManager.orElseThrow().getCatalog(new CatalogName(catalogName))
                 .orElseThrow(() -> new IllegalArgumentException("Catalog '%s' not found".formatted(catalogName)))
                 .getCatalogHandle();
+    }
+
+    public CatalogHandle getCatalogHandle(Session transactionSession, String catalogName)
+    {
+        checkState(coordinator, "not a coordinator");
+        return transactionManager
+                .getCatalogHandle(transactionSession.getRequiredTransactionId(), catalogName)
+                .orElseThrow(() -> new IllegalArgumentException("Catalog '%s' not found".formatted(catalogName)));
     }
 
     public Connector getConnector(CatalogHandle catalogHandle)

@@ -19,6 +19,7 @@ import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.trino.filesystem.cache.CacheKeyProvider;
+import io.trino.plugin.base.connector.SystemTableProvider;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.base.security.ConnectorAccessControlModule;
 import io.trino.plugin.base.session.SessionPropertiesProvider;
@@ -53,7 +54,6 @@ import io.trino.plugin.deltalake.transactionlog.writer.TransactionLogWriterFacto
 import io.trino.plugin.hive.HideDeltaLakeTables;
 import io.trino.plugin.hive.LocationAccessControlModule;
 import io.trino.plugin.hive.PropertiesSystemTableProvider;
-import io.trino.plugin.hive.SystemTableProvider;
 import io.trino.plugin.hive.parquet.ParquetReaderConfig;
 import io.trino.plugin.hive.parquet.ParquetWriterConfig;
 import io.trino.spi.cache.ConnectorCacheMetadata;

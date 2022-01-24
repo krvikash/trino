@@ -48,6 +48,7 @@ import io.trino.plugin.base.classloader.ClassLoaderSafeSystemTable;
 import io.trino.plugin.base.filter.UtcConstraintExtractor;
 import io.trino.plugin.base.projection.ApplyProjectionUtil;
 import io.trino.plugin.base.projection.ApplyProjectionUtil.ProjectedColumnRepresentation;
+import io.trino.plugin.base.util.MaybeLazy;
 import io.trino.plugin.hive.HiveCompressionCodec;
 import io.trino.plugin.hive.HiveStorageFormat;
 import io.trino.plugin.hive.HiveWrittenPartitions;
@@ -389,7 +390,6 @@ import static io.trino.plugin.iceberg.IcebergUtil.getPartitionKeys;
 import static io.trino.plugin.iceberg.IcebergUtil.getPartitionValues;
 import static io.trino.plugin.iceberg.IcebergUtil.getProjectedColumns;
 import static io.trino.plugin.iceberg.IcebergUtil.getSnapshotIdAsOfTime;
-import static io.trino.plugin.iceberg.IcebergUtil.getTableComment;
 import static io.trino.plugin.iceberg.IcebergUtil.getTopLevelColumns;
 import static io.trino.plugin.iceberg.IcebergUtil.newCreateTableTransaction;
 import static io.trino.plugin.iceberg.IcebergUtil.readerForManifest;
@@ -633,6 +633,21 @@ public class IcebergMetadata
                 .filter(function -> function.getFunctionId().equals(functionId))
                 .findFirst()
                 .orElseThrow();
+    }
+
+    public MaybeLazy<List<ColumnMetadata>> getTableColumnMetadata(ConnectorSession session, io.trino.metastore.Table metastoreTable)
+    {
+        return catalog.getTableColumnMetadata(session, metastoreTable);
+    }
+
+    public MaybeLazy<Optional<String>> getTableComment(ConnectorSession session, io.trino.metastore.Table metastoreTable)
+    {
+        return catalog.getTableComment(session, metastoreTable);
+    }
+
+    private static Optional<String> getTableComment(Table icebergTable)
+    {
+        return IcebergUtil.getTableComment(icebergTable);
     }
 
     @Override
@@ -910,7 +925,7 @@ public class IcebergMetadata
 
         TableType tableType = IcebergTableName.tableTypeFrom(tableName.getTableName());
         return switch (tableType) {
-            case DATA, MATERIALIZED_VIEW_STORAGE -> throw new VerifyException("Unexpected table type: " + tableType); // Handled above.
+            case DATA, MATERIALIZED_VIEW_STORAGE, ERRORS -> throw new VerifyException("Unexpected table type: " + tableType); // Handled above.
             case HISTORY -> Optional.of(new HistoryTable(tableName, table));
             case METADATA_LOG_ENTRIES -> Optional.of(new MetadataLogEntriesTable(tableName, table, icebergScanExecutor));
             case SNAPSHOTS -> Optional.of(new SnapshotsTable(tableName, typeManager, table, icebergScanExecutor));
@@ -4729,10 +4744,14 @@ public class IcebergMetadata
 
         List<String> tableDependencies = new ArrayList<>();
         sourceTableHandles.stream()
-                .map(IcebergTableHandle.class::cast)
-                .map(handle -> "%s=%s".formatted(
-                        handle.getSchemaTableName(),
-                        handle.getSnapshotId().map(Object::toString).orElse("")))
+                .map(handle -> {
+                    if (!(handle instanceof IcebergTableHandle icebergHandle)) {
+                        return UNKNOWN_SNAPSHOT_TOKEN;
+                    }
+                    return "%s=%s".formatted(
+                            icebergHandle.getSchemaTableName(),
+                            icebergHandle.getSnapshotId().map(Object::toString).orElse(""));
+                })
                 .forEach(tableDependencies::add);
         if (hasForeignSourceTables) {
             tableDependencies.add(UNKNOWN_SNAPSHOT_TOKEN);

@@ -13,14 +13,17 @@
  */
 package io.trino.plugin.hudi;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.bootstrap.LifeCycleManager;
+import io.airlift.configuration.ConfigPropertyMetadata;
 import io.airlift.json.JsonModule;
 import io.trino.filesystem.manager.FileSystemModule;
+import io.trino.metastore.HiveMetastore;
 import io.trino.plugin.base.ConnectorContextModule;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorPageSourceProvider;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSplitManager;
@@ -40,6 +43,8 @@ import org.weakref.jmx.guice.MBeanModule;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import static com.google.inject.util.Modules.EMPTY_MODULE;
 import static io.trino.plugin.base.Versions.checkStrictSpiVersionMatch;
@@ -57,12 +62,25 @@ public class HudiConnectorFactory
     public Connector create(String catalogName, Map<String, String> config, ConnectorContext context)
     {
         checkStrictSpiVersionMatch(context, this);
-        return createConnector(catalogName, config, context, Optional.empty());
+        return createConnector(catalogName, config, Optional.empty(), context, Optional.empty());
     }
 
     public static Connector createConnector(
             String catalogName,
             Map<String, String> config,
+            Optional<HiveMetastore> metastore,
+            ConnectorContext context,
+            Optional<Module> module)
+    {
+        return createConnector(catalogName, config, ImmutableMap.of(), _ -> {}, metastore, context, module);
+    }
+
+    public static Connector createConnector(
+            String catalogName,
+            Map<String, String> requiredConfig,
+            Map<String, String> optionalConfig, // Used from Starburst ObjectStore connector. Unused properties are verified later.
+            Consumer<Set<String>> usedConfigPropertiesConsumer,
+            Optional<HiveMetastore> metastore,
             ConnectorContext context,
             Optional<Module> module)
     {
@@ -73,17 +91,23 @@ public class HudiConnectorFactory
                     new MBeanModule(),
                     new JsonModule(),
                     new HudiModule(),
-                    new HiveMetastoreModule(Optional.empty(), false, false),
+                    new HiveMetastoreModule(metastore, false, false),
                     new FileSystemModule(catalogName, context, false),
                     new MBeanServerModule(),
                     module.orElse(EMPTY_MODULE),
                     new ConnectorContextModule(catalogName, context));
 
-            Injector injector = app
+            app
                     .doNotInitializeLogging()
                     .disableSystemProperties()
-                    .setRequiredConfigurationProperties(config)
-                    .initialize();
+                    .setRequiredConfigurationProperties(requiredConfig)
+                    .setOptionalConfigurationProperties(optionalConfig);
+
+            usedConfigPropertiesConsumer.accept(app.configure().stream()
+                    .map(ConfigPropertyMetadata::name)
+                    .collect(Collectors.toSet()));
+
+            Injector injector = app.initialize();
 
             LifeCycleManager lifeCycleManager = injector.getInstance(LifeCycleManager.class);
             HudiTransactionManager transactionManager = injector.getInstance(HudiTransactionManager.class);

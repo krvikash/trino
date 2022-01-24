@@ -18,6 +18,7 @@ import com.google.inject.Binder;
 import com.google.inject.Key;
 import com.google.inject.Scopes;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.airlift.log.Logger;
 import io.trino.metastore.HiveMetastoreFactory;
 import io.trino.metastore.RawHiveMetastoreFactory;
 import io.trino.plugin.hive.AllowHiveTableRename;
@@ -38,6 +39,8 @@ import static io.airlift.configuration.ConfigBinder.configBinder;
 public class UnityMetastoreModule
         extends AbstractConfigurationAwareModule
 {
+    private static final Logger log = Logger.get(UnityMetastoreModule.class);
+
     private final boolean isConfiguredWithHive;
 
     public UnityMetastoreModule(boolean isConfiguredWithHive)
@@ -48,7 +51,7 @@ public class UnityMetastoreModule
     @Override
     protected void setup(Binder binder)
     {
-        checkArgument(isConfiguredWithHive, "Unity metastore is only supported with Hive");
+        log.debug("Configuring through Hive connector: %s", isConfiguredWithHive); // Do not throw as Objectstore connector requires to initialize Hudi connector with Unity metastore
         checkArgument(!buildConfigObject(UnityMetastoreConfig.class).isVendedCredentialsEnabled(), "Setting hive.metastore.unity.vended-credentials-enabled to true is supported only with Delta Lake");
         configBinder(binder).bindConfig(UnityMetastoreConfig.class);
 

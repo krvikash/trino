@@ -29,6 +29,7 @@ import io.trino.metastore.HivePrincipal;
 import io.trino.metastore.PrincipalPrivileges;
 import io.trino.metastore.TableInfo;
 import io.trino.metastore.cache.CachingHiveMetastore;
+import io.trino.plugin.base.util.MaybeLazy;
 import io.trino.plugin.hive.HiveSchemaProperties;
 import io.trino.plugin.hive.TrinoViewHiveMetastore;
 import io.trino.plugin.hive.metastore.MetastoreUtil;
@@ -90,6 +91,7 @@ import static io.trino.filesystem.Locations.appendPath;
 import static io.trino.metastore.HiveType.HIVE_STRING;
 import static io.trino.metastore.PrincipalPrivileges.NO_PRIVILEGES;
 import static io.trino.metastore.StorageFormat.VIEW_STORAGE_FORMAT;
+import static io.trino.metastore.Table.TABLE_COMMENT;
 import static io.trino.metastore.TableInfo.ICEBERG_MATERIALIZED_VIEW_COMMENT;
 import static io.trino.plugin.base.util.ExecutorUtil.processWithAdditionalThreads;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_DATABASE_LOCATION_ERROR;
@@ -109,6 +111,7 @@ import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.REFRESH_
 import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.STORAGE_SCHEMA;
 import static io.trino.plugin.iceberg.IcebergSchemaProperties.LOCATION_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isUseFileSizeFromMetadata;
+import static io.trino.plugin.iceberg.IcebergUtil.getColumnMetadatas;
 import static io.trino.plugin.iceberg.IcebergUtil.getIcebergTableWithMetadata;
 import static io.trino.plugin.iceberg.IcebergUtil.loadIcebergTable;
 import static io.trino.plugin.iceberg.IcebergUtil.quotedTableName;
@@ -177,6 +180,26 @@ public class TrinoHiveCatalog
     public CachingHiveMetastore getMetastore()
     {
         return metastore;
+    }
+
+    @Override
+    public MaybeLazy<List<ColumnMetadata>> getTableColumnMetadata(ConnectorSession session, io.trino.metastore.Table metastoreTable)
+    {
+        String metadataLocation = metastoreTable.getParameters().get(METADATA_LOCATION_PROP);
+        return MaybeLazy.ofLazy(() -> {
+            TableMetadata tableMetadata = TableMetadataParser.read(fileIoFactory.create(fileSystemFactory.create(session)), metadataLocation);
+            return getColumnMetadatas(tableMetadata.schema(), typeManager, tableMetadata.formatVersion());
+        });
+    }
+
+    @Override
+    public MaybeLazy<Optional<String>> getTableComment(ConnectorSession session, io.trino.metastore.Table metastoreTable)
+    {
+        String metadataLocation = metastoreTable.getParameters().get(METADATA_LOCATION_PROP);
+        return MaybeLazy.ofLazy(() -> {
+            TableMetadata tableMetadata = TableMetadataParser.read(fileIoFactory.create(fileSystemFactory.create(session)), metadataLocation);
+            return Optional.ofNullable(tableMetadata.properties().get(TABLE_COMMENT));
+        });
     }
 
     @Override

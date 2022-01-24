@@ -102,7 +102,7 @@ public class HudiSessionProperties
                         false),
                 booleanProperty(
                         SIZE_BASED_SPLIT_WEIGHTS_ENABLED,
-                        format("If enabled, size-based splitting ensures that each batch of splits has enough data to process as defined by %s", STANDARD_SPLIT_WEIGHT_SIZE),
+                        "Enable estimating split weights based on size in bytes",
                         hudiConfig.isSizeBasedSplitWeightsEnabled(),
                         false),
                 dataSizeProperty(

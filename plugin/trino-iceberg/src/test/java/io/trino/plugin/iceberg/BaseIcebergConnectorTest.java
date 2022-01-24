@@ -235,6 +235,11 @@ public abstract class BaseIcebergConnectorTest
                 .setInitialTables(REQUIRED_TPCH_TABLES);
     }
 
+    protected boolean isObjectStore()
+    {
+        return false;
+    }
+
     @BeforeAll
     public void initMockMetricsCatalog()
     {
@@ -386,7 +391,7 @@ public abstract class BaseIcebergConnectorTest
     {
         assertThat(computeActual("SHOW CREATE SCHEMA tpch").getOnlyValue().toString())
                 .matches("CREATE SCHEMA iceberg.tpch\n" +
-                        "AUTHORIZATION USER user\n" +
+                        (isObjectStore() ? "" : "AUTHORIZATION USER user\n") +
                         "WITH \\(\n" +
                         "\\s+location = '.*/tpch'\n" +
                         "\\)");
@@ -427,7 +432,8 @@ public abstract class BaseIcebergConnectorTest
                         "WITH (\n" +
                         "   format = '" + format.name() + "',\n" +
                         "   format_version = " + formatVersion + ",\n" +
-                        "   location = '\\E.*/tpch/orders-.*\\Q'\n" +
+                        "   location = '\\E.*/tpch/orders-.*\\Q'" +
+                        (isObjectStore() ? ",\n   type = 'ICEBERG'\n" : "\n") +
                         ")\\E");
     }
 
@@ -1330,7 +1336,8 @@ public abstract class BaseIcebergConnectorTest
                         "   format = '%s',\n" +
                         "   format_version = 2,\n" +
                         "   location = '%s',\n" +
-                        "   partitioning = ARRAY['order_status','ship_priority','bucket(\"order key\", 9)']\n" +
+                        "   partitioning = ARRAY['order_status','ship_priority','bucket(\"order key\", 9)']" +
+                        (isObjectStore() ? ",\n   type = 'ICEBERG'\n" : "\n") +
                         ")",
                 getSession().getCatalog().orElseThrow(),
                 getSession().getSchema().orElseThrow(),
@@ -1696,18 +1703,22 @@ public abstract class BaseIcebergConnectorTest
                 ")\n" +
                 "COMMENT '%s'\n" +
                 "WITH (\n" +
+                "   compression_codec = 'ZSTD',\n" +
                 format("   format = '%s',\n", format) +
                 "   format_version = 2,\n" +
-                format("   location = '%s'\n", tempDirPath) +
+                format("   location = '%s'", tempDirPath) +
+                (isObjectStore() ? ",\n   type = 'ICEBERG'\n" : "\n") +
                 ")";
         String createTableWithoutComment = "" +
                 "CREATE TABLE iceberg.tpch.test_table_comments (\n" +
                 "   _x bigint\n" +
                 ")\n" +
                 "WITH (\n" +
+                "   compression_codec = 'ZSTD',\n" +
                 "   format = '" + format + "',\n" +
                 "   format_version = 2,\n" +
-                "   location = '" + tempDirPath + "'\n" +
+                "   location = '" + tempDirPath + "'" +
+                (isObjectStore() ? ",\n   type = 'ICEBERG'\n" : "\n") +
                 ")";
         String createTableSql = format(createTableTemplate, "test table comment", format);
         assertUpdate(createTableSql);
@@ -2014,11 +2025,12 @@ public abstract class BaseIcebergConnectorTest
                            format = '%s',
                            format_version = %s,
                            location = '%s',
-                           partitioning = ARRAY['adate']
+                           partitioning = ARRAY['adate']%s
                         )""",
                 format,
                 formatVersion,
-                tempDirPath));
+                tempDirPath,
+                (isObjectStore() ? ",\n   type = 'ICEBERG'" : "")));
 
         assertUpdate("CREATE TABLE test_create_table_like_copy0 (LIKE test_create_table_like_original, col2 INTEGER)");
         assertUpdate("INSERT INTO test_create_table_like_copy0 (col1, aDate, col2) VALUES (1, CAST('1950-06-28' AS DATE), 3)", 1);
@@ -2030,11 +2042,12 @@ public abstract class BaseIcebergConnectorTest
                         WITH (
                            format = '%s',
                            format_version = %s,
-                           location = '%s'
+                           location = '%s'%s
                         )""",
                 format,
                 formatVersion,
-                getTableLocation("test_create_table_like_copy1")));
+                getTableLocation("test_create_table_like_copy1"),
+                (isObjectStore() ? ",\n   type = 'ICEBERG'" : "")));
 
         assertUpdate("CREATE TABLE test_create_table_like_copy2 (LIKE test_create_table_like_original EXCLUDING PROPERTIES)");
         assertThat(getTablePropertiesString("test_create_table_like_copy2")).isEqualTo(format(
@@ -2042,11 +2055,12 @@ public abstract class BaseIcebergConnectorTest
                         WITH (
                            format = '%s',
                            format_version = %s,
-                           location = '%s'
+                           location = '%s'%s
                         )""",
                 format,
                 formatVersion,
-                getTableLocation("test_create_table_like_copy2")));
+                getTableLocation("test_create_table_like_copy2"),
+                (isObjectStore() ? ",\n   type = 'ICEBERG'" : "")));
         assertUpdate("DROP TABLE test_create_table_like_copy2");
 
         assertQueryFails("CREATE TABLE test_create_table_like_copy3 (LIKE test_create_table_like_original INCLUDING PROPERTIES)",
@@ -4653,7 +4667,7 @@ public abstract class BaseIcebergConnectorTest
         // Using Iceberg provided file size fails the query
         assertQueryFails(
                 "SELECT * FROM test_iceberg_file_size",
-                "(Malformed ORC file\\. Invalid file metadata.*)|(.*Malformed Parquet file.*)");
+                "(Malformed ORC file\\. Invalid file metadata.*)|(.*Malformed Parquet file.*)|(Error opening Iceberg split.* Incorrect file size \\(%s\\) for file .*)".formatted(alteredValue));
 
         assertUpdate("DROP TABLE test_iceberg_file_size");
     }
@@ -8234,7 +8248,7 @@ public abstract class BaseIcebergConnectorTest
         assertUpdate("CREATE TABLE " + tableName + " (a bigint)");
 
         assertQueryFails("ALTER TABLE " + tableName + " SET PROPERTIES location = '/var/data/table/', orc_bloom_filter_fpp = 0.5",
-                "The following properties cannot be updated: location, orc_bloom_filter_fpp");
+                "The following properties cannot be updated: (location, orc_bloom_filter_fpp|orc_bloom_filter_fpp, location)");
 
         assertUpdate("DROP TABLE " + tableName);
     }

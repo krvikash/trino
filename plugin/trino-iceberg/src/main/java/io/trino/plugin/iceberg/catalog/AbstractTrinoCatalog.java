@@ -513,7 +513,7 @@ public abstract class AbstractTrinoCatalog
                 definition.path());
     }
 
-    protected List<ConnectorMaterializedViewDefinition.Column> toSpiMaterializedViewColumns(List<IcebergMaterializedViewDefinition.Column> columns)
+    public static List<ConnectorMaterializedViewDefinition.Column> toSpiMaterializedViewColumns(List<IcebergMaterializedViewDefinition.Column> columns)
     {
         return columns.stream()
                 .map(column -> new ConnectorMaterializedViewDefinition.Column(column.name(), column.type(), column.comment()))

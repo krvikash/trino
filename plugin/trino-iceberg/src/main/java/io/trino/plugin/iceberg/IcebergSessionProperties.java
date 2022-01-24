@@ -369,7 +369,7 @@ public final class IcebergSessionProperties
                         false))
                 .add(booleanProperty(
                         SORTED_WRITING_ENABLED,
-                        "Enable sorted writing to tables with a specified sort order",
+                        "Enable sorted writes",
                         icebergConfig.isSortedWritingEnabled(),
                         false))
                 .add(booleanProperty(

@@ -21,6 +21,7 @@ import com.google.inject.multibindings.Multibinder;
 import io.trino.filesystem.cache.CacheKeyProvider;
 import io.trino.metastore.HiveMetastoreFactory;
 import io.trino.metastore.RawHiveMetastoreFactory;
+import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorCacheMetadata;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorPageSinkProvider;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorPageSourceProviderFactory;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSplitManager;
@@ -120,7 +121,8 @@ public class IcebergModule
         binder.bind(FileFormatDataSourceStats.class).in(Scopes.SINGLETON);
         newExporter(binder).export(FileFormatDataSourceStats.class).withGeneratedName();
 
-        binder.bind(ConnectorCacheMetadata.class).to(IcebergCacheMetadata.class).in(Scopes.SINGLETON);
+        binder.bind(ConnectorCacheMetadata.class).annotatedWith(ForClassLoaderSafe.class).to(IcebergCacheMetadata.class).in(Scopes.SINGLETON);
+        binder.bind(ConnectorCacheMetadata.class).to(ClassLoaderSafeConnectorCacheMetadata.class).in(Scopes.SINGLETON);
 
         // for table handle, column handle and split ids
         jsonCodecBinder(binder).bindJsonCodec(IcebergCacheTableId.class);

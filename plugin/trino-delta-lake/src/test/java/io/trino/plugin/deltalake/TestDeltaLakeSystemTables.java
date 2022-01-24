@@ -22,6 +22,8 @@ import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
+import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -204,9 +206,8 @@ public class TestDeltaLakeSystemTables
             throws Exception
     {
         String tableName = "test_partitions_table_case_sensitive_columns_" + randomNameSuffix();
-        Path tableLocation = Files.createTempFile(tableName, null);
-        copyDirectoryContents(new File(Resources.getResource("databricks133/partition_values_parsed_case_sensitive").toURI()).toPath(), tableLocation);
-        assertUpdate("CALL system.register_table('%s', '%s', '%s')".formatted(getSession().getSchema().orElseThrow(), tableName, tableLocation.toUri()));
+        String tableLocation = copyTableAndGetLocation(tableName);
+        assertUpdate("CALL system.register_table('%s', '%s', '%s')".formatted(getSession().getSchema().orElseThrow(), tableName, tableLocation));
 
         assertQuery("SELECT count(*) FROM " + tableName, "VALUES 3");
         assertQuery("SELECT * FROM " + tableName, "VALUES (100, 1, 'ala'), (200, 2, 'kota'), (300, 3, 'osla')");
@@ -231,6 +232,14 @@ public class TestDeltaLakeSystemTables
         assertUpdate("INSERT INTO " + tableName + " VALUES (1, 1, 'ala'), (2, 2, 'kota'), (3, 3, 'osla')", 3);
         assertThat(query("SELECT CAST(data.id AS ROW(INTEGER, INTEGER, BIGINT)) FROM \"" + tableName + "$partitions\""))
                 .matches("VALUES ROW(ROW(1, 100, BIGINT '0')), ROW(ROW(2, 200, BIGINT '0')), ROW(ROW(3, 300, BIGINT '0'))");
+    }
+
+    protected String copyTableAndGetLocation(String tableName)
+            throws IOException, URISyntaxException
+    {
+        Path tableLocation = Files.createTempFile(tableName, null);
+        copyDirectoryContents(new File(Resources.getResource("databricks133/partition_values_parsed_case_sensitive").toURI()).toPath(), tableLocation);
+        return tableLocation.toUri().toString();
     }
 
     @Test

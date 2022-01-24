@@ -51,6 +51,7 @@ import io.trino.plugin.hive.metastore.file.FileHiveMetastoreConfig.VersionCompat
 import io.trino.spi.NodeVersion;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ColumnNotFoundException;
+import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SchemaNotFoundException;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.TableNotFoundException;
@@ -68,6 +69,7 @@ import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -565,6 +567,18 @@ public class FileHiveMetastore
         }
         catch (IOException e) {
             throw new TrinoException(HIVE_METASTORE_ERROR, e);
+        }
+    }
+
+    @Override
+    public Optional<Iterator<Table>> streamTables(ConnectorSession session, String databaseName)
+    {
+        synchronized (this) {
+            return Optional.of(doListAllTables(databaseName, _ -> true).stream()
+                    // getTable is synchronized and returns Optional.empty if table disappears during listing
+                    .map(tableInfo -> getTable(tableInfo.tableName().getSchemaName(), tableInfo.tableName().getTableName()))
+                    .flatMap(Optional::stream)
+                    .iterator());
         }
     }
 

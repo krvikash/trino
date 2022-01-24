@@ -1144,6 +1144,7 @@ jobs:
             !:starburst-functions,
             !:starburst-functions-client,
             !:starburst-license,
+            !:starburst-objectstore,
             !:starburst-oracle,
             !:starburst-salesforce,
             !:starburst-sap-hana,
@@ -1363,6 +1364,10 @@ jobs:
             - { modules: plugin/starburst-dynamodb }
             - { modules: plugin/starburst-functions }
             - { modules: lib/starburst-functions-client }
+            - { modules: plugin/starburst-objectstore, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ] }
+            - { modules: plugin/starburst-objectstore, profile: hive-tests, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ] }
+            - { modules: plugin/starburst-objectstore, profile: iceberg-delta, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ] }
+            - { modules: plugin/starburst-objectstore, profile: cloud-tests, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ] }
             - { modules: plugin/starburst-oracle }
             - { modules: plugin/starburst-sap-hana }
             - { modules: plugin/starburst-sqlserver }
@@ -1465,6 +1470,7 @@ jobs:
         if: >-
           matrix.modules != 'plugin/starburst-functions'
           && matrix.modules != 'lib/starburst-functions-client'
+          && ! (contains(matrix.modules, 'starburst-objectstore') && contains(matrix.profile, 'cloud-tests'))
           && ! (contains(matrix.modules, 'trino-mongodb') && contains(matrix.profile, 'cloud-tests'))
           && ! (contains(matrix.modules, 'trino-bigquery') && contains(matrix.profile, 'cloud-tests-2'))
           && ! (contains(matrix.modules, 'trino-delta-lake') && contains(matrix.profile, 'cloud-tests'))
@@ -1543,6 +1549,28 @@ jobs:
         # Cancelled workflows may not have cleaned up the ephemeral bucket
         if: always()
         run: .github/bin/s3/delete-s3-bucket.sh || true
+      - name: Cloud Object Store Tests
+        id: tests-objectstore
+        # Cloud tests are separate because they are time intensive, requiring cross-cloud network communication
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.TRINO_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.TRINO_AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ vars.TRINO_AWS_REGION }}
+          DATABRICKS_UNITY_JDBC_URL: ${{ vars.DATABRICKS_UNITY_JDBC_URL }}
+          DATABRICKS_UNITY_CATALOG_NAME: ${{ vars.DATABRICKS_UNITY_CATALOG_NAME }}
+          DATABRICKS_UNITY_EXTERNAL_LOCATION: ${{ vars.DATABRICKS_UNITY_EXTERNAL_LOCATION }}
+          DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
+          DATABRICKS_LOGIN: token
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_AWS_ACCESS_KEY_ID: ${{ vars.GALAXY_TRINO_DATABRICKS_AWS_ACCESS_KEY_ID }}
+          DATABRICKS_AWS_SECRET_ACCESS_KEY: ${{ secrets.GALAXY_TRINO_DATABRICKS_AWS_SECRET_ACCESS_KEY }}
+          DATABRICKS_AWS_REGION: us-east-1
+        if: >-
+          contains(matrix.modules, 'starburst-objectstore') && contains(matrix.profile, 'cloud-tests') &&
+          (env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || env.AWS_ACCESS_KEY_ID != '' || env.AWS_SECRET_ACCESS_KEY != '' || env.S3_BUCKET != '')
+        run: |
+          $MAVEN test ${MAVEN_TEST} ${{ format('-P {0}', matrix.profile) }} -pl :starburst-objectstore \
+          -Ds3.bucket="galaxy-trino-ci-useast1"
       - name: Azure FileSystem Cloud Tests
         id: tests-azure
         env:
@@ -1794,6 +1822,7 @@ jobs:
               || steps.tests-azure.outcome == 'failure'
               || steps.tests-gcs.outcome == 'failure'
               || steps.tests-delta.outcome == 'failure'
+              || steps.tests-objectstore.outcome == 'failure'
               || steps.tests-mongodb.outcome == 'failure'
               || steps.tests-bq.outcome == 'failure'
               || steps.tests-bq-smoke.outcome == 'failure'
@@ -1886,6 +1915,7 @@ jobs:
             - default
           suite:
             # Starburst suites
+            - suite-objectstore
             - suite-sap-hana
             - suite-stargate
             - suite-subquery-cache

@@ -115,6 +115,11 @@ public class ClassLoaderSafeConnectorMetadata
         this.classLoader = requireNonNull(classLoader, "classLoader is null");
     }
 
+    public ConnectorMetadata unwrap()
+    {
+        return delegate;
+    }
+
     @Override
     public Optional<ConnectorPartitioningHandle> getCommonPartitioningHandle(ConnectorSession session, ConnectorPartitioningHandle left, ConnectorPartitioningHandle right)
     {

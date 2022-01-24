@@ -37,6 +37,7 @@ import io.trino.metastore.Table;
 import io.trino.metastore.TableAlreadyExistsException;
 import io.trino.metastore.TableInfo;
 import io.trino.spi.TrinoException;
+import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SchemaNotFoundException;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.TableNotFoundException;
@@ -45,6 +46,7 @@ import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.security.RoleGrant;
 
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -156,6 +158,12 @@ public class BridgingHiveMetastore
     public List<String> getTableNamesWithParameters(String databaseName, String parameterKey, Set<String> parameterValues)
     {
         return delegate.getTableNamesWithParameters(databaseName, parameterKey, parameterValues);
+    }
+
+    @Override
+    public Optional<Iterator<Table>> streamTables(ConnectorSession session, String databaseName)
+    {
+        return Optional.empty();
     }
 
     @Override

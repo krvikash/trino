@@ -11,17 +11,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.plugin.hive;
+package io.trino.plugin.iceberg.catalog.unity;
 
-import io.trino.spi.connector.ConnectorSession;
-import io.trino.spi.connector.SchemaTableName;
-import io.trino.spi.connector.SystemTable;
+import io.trino.plugin.iceberg.catalog.TrinoCatalog;
+import org.junit.jupiter.api.Test;
 
-import java.util.Optional;
+import static io.trino.testing.InterfaceTestUtils.assertAllMethodsOverridden;
 
-public interface SystemTableProvider
+class TestTrinoUnityCatalog
 {
-    Optional<SchemaTableName> getSourceTableName(SchemaTableName table);
-
-    Optional<SystemTable> getSystemTable(HiveMetadata metadata, ConnectorSession session, SchemaTableName tableName);
+    @Test
+    void testEverythingImplemented()
+    {
+        assertAllMethodsOverridden(TrinoCatalog.class, TrinoUnityCatalog.class);
+    }
 }

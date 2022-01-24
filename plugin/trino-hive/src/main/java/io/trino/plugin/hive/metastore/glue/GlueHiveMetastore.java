@@ -14,6 +14,7 @@
 package io.trino.plugin.hive.metastore.glue;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -45,6 +46,7 @@ import io.trino.plugin.hive.PartitionNotFoundException;
 import io.trino.spi.ErrorCode;
 import io.trino.spi.TrinoException;
 import io.trino.spi.catalog.CatalogName;
+import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SchemaNotFoundException;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.TableNotFoundException;
@@ -84,6 +86,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -114,6 +117,7 @@ import static io.trino.metastore.Table.TABLE_COMMENT;
 import static io.trino.plugin.base.util.ExecutorUtil.processWithAdditionalThreads;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_FILESYSTEM_ERROR;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_METASTORE_ERROR;
+import static io.trino.plugin.hive.HiveErrorCode.HIVE_UNSUPPORTED_FORMAT;
 import static io.trino.plugin.hive.HiveMetadata.TRINO_QUERY_ID_NAME;
 import static io.trino.plugin.hive.TableType.MANAGED_TABLE;
 import static io.trino.plugin.hive.metastore.MetastoreUtil.getHiveBasicStatistics;
@@ -285,6 +289,61 @@ public class GlueHiveMetastore
         catch (SdkException e) {
             throw new TrinoException(HIVE_METASTORE_ERROR, e);
         }
+    }
+
+    @Override
+    public Optional<Iterator<Table>> streamTables(ConnectorSession session, String databaseName)
+    {
+        return Optional.of(new AbstractIterator<>()
+        {
+            private Iterator<software.amazon.awssdk.services.glue.model.Table> delegate;
+
+            @Override
+            protected Table computeNext()
+            {
+                boolean firstCall = false;
+                try {
+                    if (delegate == null) {
+                        firstCall = true;
+                        // TODO should this use GlueCache? Perhaps yes, once it's distributed. For now Table objects are likely too big to cache them all.
+                        delegate = stats.getGetTables().call(() -> glueClient.getTablesPaginator(builder -> builder.databaseName(databaseName)).stream()
+                                .map(GetTablesResponse::tableList)
+                                .flatMap(List::stream)
+                                .filter(tableVisibilityFilter)
+                                .iterator());
+                    }
+
+                    while (delegate.hasNext()) {
+                        software.amazon.awssdk.services.glue.model.Table glueTable = delegate.next();
+                        try {
+                            return GlueConverter.fromGlueTable(glueTable, databaseName);
+                        }
+                        catch (TrinoException e) {
+                            if (e.getErrorCode().equals(HIVE_UNSUPPORTED_FORMAT.toErrorCode())) {
+                                log.debug(e, "Ignore unsupported table: %s.%s", databaseName, glueTable.name());
+                                continue;
+                            }
+                            throw e;
+                        }
+                    }
+                    return endOfData();
+                }
+                catch (EntityNotFoundException e) {
+                    // database does not exist or deleted during iteration
+                    return endOfData();
+                }
+                catch (AccessDeniedException e) {
+                    // permission denied may actually mean "does not exist"
+                    if (!firstCall) {
+                        log.warn(e, "Permission denied when getting next batch of tables from database %s", databaseName);
+                    }
+                    return endOfData();
+                }
+                catch (SdkException e) {
+                    throw new TrinoException(HIVE_METASTORE_ERROR, e);
+                }
+            }
+        });
     }
 
     @Override

@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.hudi;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import io.airlift.log.Level;
 import io.airlift.log.Logger;
@@ -25,6 +26,7 @@ import io.trino.plugin.hive.containers.Hive3MinioDataLake;
 import io.trino.plugin.hudi.testing.HudiTablesInitializer;
 import io.trino.plugin.hudi.testing.ResourceHudiTablesInitializer;
 import io.trino.plugin.hudi.testing.TpchHudiTablesInitializer;
+import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.spi.security.PrincipalType;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
@@ -103,6 +105,9 @@ public final class HudiQueryRunner
         {
             DistributedQueryRunner queryRunner = super.build();
             try {
+                queryRunner.installPlugin(new TpchPlugin());
+                queryRunner.createCatalog("tpch", "tpch", ImmutableMap.of());
+
                 queryRunner.installPlugin(new TestingHudiPlugin(queryRunner.getCoordinator().getBaseDataDir().resolve("hudi_data")));
                 queryRunner.createCatalog("hudi", "hudi", connectorProperties);
 

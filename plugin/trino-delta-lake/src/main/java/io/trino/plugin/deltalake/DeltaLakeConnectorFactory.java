@@ -13,12 +13,14 @@
  */
 package io.trino.plugin.deltalake;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.bootstrap.LifeCycleManager;
+import io.airlift.configuration.ConfigPropertyMetadata;
 import io.airlift.json.JsonModule;
 import io.trino.filesystem.manager.FileSystemModule;
 import io.trino.plugin.base.ConnectorContextModule;
@@ -52,6 +54,8 @@ import org.weakref.jmx.guice.MBeanModule;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import static com.google.common.base.Verify.verify;
 import static com.google.inject.util.Modules.EMPTY_MODULE;
@@ -82,6 +86,18 @@ public class DeltaLakeConnectorFactory
             Optional<Module> metastoreModule,
             Module module)
     {
+        return createConnector(catalogName, config, ImmutableMap.of(), _ -> {}, context, metastoreModule, module);
+    }
+
+    public static Connector createConnector(
+            String catalogName,
+            Map<String, String> requiredConfig,
+            Map<String, String> optionalConfig, // Used from Starburst ObjectStore connector. Unused properties are verified later.
+            Consumer<Set<String>> usedConfigPropertiesConsumer,
+            ConnectorContext context,
+            Optional<Module> metastoreModule,
+            Module module)
+    {
         ClassLoader classLoader = DeltaLakeConnectorFactory.class.getClassLoader();
         try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
             Bootstrap app = new Bootstrap(
@@ -98,11 +114,17 @@ public class DeltaLakeConnectorFactory
                     new ConnectorContextModule(catalogName, context),
                     module);
 
-            Injector injector = app
+            app
                     .doNotInitializeLogging()
                     .disableSystemProperties()
-                    .setRequiredConfigurationProperties(config)
-                    .initialize();
+                    .setRequiredConfigurationProperties(requiredConfig)
+                    .setOptionalConfigurationProperties(optionalConfig);
+
+            usedConfigPropertiesConsumer.accept(app.configure().stream()
+                    .map(ConfigPropertyMetadata::name)
+                    .collect(Collectors.toSet()));
+
+            Injector injector = app.initialize();
 
             LifeCycleManager lifeCycleManager = injector.getInstance(LifeCycleManager.class);
             ConnectorSplitManager splitManager = injector.getInstance(ConnectorSplitManager.class);

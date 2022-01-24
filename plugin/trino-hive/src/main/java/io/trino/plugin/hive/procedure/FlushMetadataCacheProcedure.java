@@ -30,8 +30,6 @@ import io.trino.spi.StandardErrorCode;
 import io.trino.spi.TrinoException;
 import io.trino.spi.classloader.ThreadContextClassLoader;
 import io.trino.spi.connector.ConnectorSession;
-import io.trino.spi.connector.SchemaTableName;
-import io.trino.spi.connector.TableNotFoundException;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.procedure.Procedure;
 import io.trino.spi.type.ArrayType;
@@ -164,9 +162,8 @@ public class FlushMetadataCacheProcedure
         }
         else if (schemaName.isPresent() && tableName.isPresent()) {
             HiveMetastore metastore = hiveMetadataFactory.createMetastore(Optional.of(session.getIdentity()));
-            Table table = metastore.getTable(schemaName.get(), tableName.get())
-                    .orElseThrow(() -> new TableNotFoundException(new SchemaTableName(schemaName.get(), tableName.get())));
-            List<String> partitions;
+            Optional<Table> table = metastore.getTable(schemaName.get(), tableName.get());
+            List<String> partitions = ImmutableList.of();
 
             if (!partitionColumns.isEmpty()) {
                 cachingHiveMetastore.ifPresent(hiveMetastore -> hiveMetastore.flushPartitionCache(schemaName.get(), tableName.get(), partitionColumns, partitionValues));
@@ -175,22 +172,26 @@ public class FlushMetadataCacheProcedure
                 partitions = ImmutableList.of(makePartName(partitionColumns, partitionValues));
             }
             else {
+                if (directoryLister.isPresent() && table.isPresent()) {
+                    List<String> partitionColumnNames = table.get().getPartitionColumns().stream()
+                            .map(Column::getName)
+                            .collect(toImmutableList());
+                    if (!partitionColumnNames.isEmpty()) {
+                        partitions = metastore.getPartitionNamesByFilter(schemaName.get(), tableName.get(), partitionColumnNames, TupleDomain.all())
+                                .orElse(ImmutableList.of());
+                    }
+                }
+
                 cachingHiveMetastore.ifPresent(hiveMetastore -> hiveMetastore.invalidateTable(schemaName.get(), tableName.get()));
                 glueCache.ifPresent(glueCache -> glueCache.invalidateTable(schemaName.get(), tableName.get(), true));
-
-                List<String> partitionColumnNames = table.getPartitionColumns().stream()
-                        .map(Column::getName)
-                        .collect(toImmutableList());
-                partitions = metastore.getPartitionNamesByFilter(schemaName.get(), tableName.get(), partitionColumnNames, TupleDomain.all())
-                        .orElse(ImmutableList.of());
             }
 
-            if (directoryLister.isPresent()) {
+            if (directoryLister.isPresent() && table.isPresent()) {
                 if (partitions.isEmpty()) {
-                    directoryLister.get().invalidate(table);
+                    directoryLister.get().invalidate(table.get());
                 }
                 else {
-                    metastore.getPartitionsByNames(table, partitions).values().stream()
+                    metastore.getPartitionsByNames(table.get(), partitions).values().stream()
                             .filter(Optional::isPresent)
                             .map(Optional::get)
                             .forEach(partition -> directoryLister.get().invalidate(partition));
