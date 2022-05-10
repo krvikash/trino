@@ -27,11 +27,13 @@ import io.trino.filesystem.hdfs.HdfsFileSystemModule;
 import io.trino.hdfs.HdfsEnvironment;
 import io.trino.plugin.base.CatalogName;
 import io.trino.plugin.base.session.SessionPropertiesProvider;
+import io.trino.plugin.deltalake.DeltaLakeGcsModule;
 import io.trino.plugin.deltalake.DeltaLakeMetadata;
 import io.trino.plugin.deltalake.DeltaLakeMetadataFactory;
 import io.trino.plugin.deltalake.DeltaLakeModule;
 import io.trino.plugin.deltalake.metastore.DeltaLakeMetastoreModule;
 import io.trino.plugin.hive.NodeVersion;
+import io.trino.plugin.hive.gcs.HiveGcsModule;
 import io.trino.plugin.hive.metastore.Column;
 import io.trino.plugin.hive.metastore.Database;
 import io.trino.plugin.hive.metastore.HiveMetastore;
@@ -122,6 +124,8 @@ public class TestDeltaLakeGlueMetastore
                 // connector modules
                 new DeltaLakeMetastoreModule(),
                 new DeltaLakeModule(),
+                new HiveGcsModule(),
+                new DeltaLakeGcsModule(),
                 // test setup
                 binder -> {
                     binder.bind(HdfsEnvironment.class).toInstance(HDFS_ENVIRONMENT);
