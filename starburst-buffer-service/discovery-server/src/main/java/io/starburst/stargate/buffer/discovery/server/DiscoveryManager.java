@@ -1,0 +1,154 @@
+/*
+ * Copyright Starburst Data, Inc. All rights reserved.
+ *
+ * THIS IS UNPUBLISHED PROPRIETARY SOURCE CODE OF STARBURST DATA.
+ * The copyright notice above does not evidence any
+ * actual or intended publication of such source code.
+ *
+ * Redistribution of this material is strictly prohibited.
+ */
+
+package io.starburst.stargate.buffer.discovery.server;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Ticker;
+import com.google.common.collect.ImmutableSet;
+import io.airlift.log.Logger;
+import io.airlift.units.Duration;
+import io.starburst.stargate.buffer.discovery.client.BufferNodeInfo;
+
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
+import javax.inject.Inject;
+import javax.inject.Qualifier;
+
+import java.lang.annotation.Retention;
+import java.lang.annotation.Target;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static io.airlift.units.Duration.succinctDuration;
+import static java.lang.annotation.ElementType.FIELD;
+import static java.lang.annotation.ElementType.METHOD;
+import static java.lang.annotation.ElementType.PARAMETER;
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
+import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.MINUTES;
+
+public class DiscoveryManager
+{
+    private static final Logger LOG = Logger.get(DiscoveryManager.class);
+
+    private final Ticker ticker;
+    private final ScheduledExecutorService executor;
+    private final Duration bufferNodeDiscoveryStalenessThreshold;
+    private final Duration startGracePeriod;
+
+    private volatile long startTime;
+    private final AtomicBoolean started = new AtomicBoolean();
+    private final Map<Long, BufferNodeInfoHolder> nodeInfoHolders = new ConcurrentHashMap<>();
+
+    private final AtomicReference<Set<BufferNodeInfo>> nodeInfosCache = new AtomicReference<>(ImmutableSet.of());
+
+    @Inject
+    public DiscoveryManager(@ForDiscoveryManager Ticker ticker, DiscoveryManagerConfig config)
+    {
+        this.ticker = requireNonNull(ticker, "ticker is null");
+        requireNonNull(config, "config is null");
+        this.bufferNodeDiscoveryStalenessThreshold = config.getBufferNodeDiscoveryStalenessThreshold();
+        this.startGracePeriod = config.getStartGracePeriod();
+        this.executor = newSingleThreadScheduledExecutor();
+    }
+
+    @PostConstruct
+    public void start()
+    {
+        checkState(started.compareAndSet(false, true), "Already started");
+        startTime = tickerReadMillis();
+        executor.scheduleWithFixedDelay(this::cleanup, 0, 1, MINUTES);
+    }
+
+    @PreDestroy
+    public synchronized void stop()
+    {
+        executor.shutdownNow();
+    }
+
+    public boolean isInGracePeriod()
+    {
+        if (!started.get()) {
+            return true;
+        }
+        return startTime + startGracePeriod.toMillis() > tickerReadMillis();
+    }
+
+    private long tickerReadMillis()
+    {
+        return ticker.read() / 1_000_000;
+    }
+
+    public void updateNodeInfos(BufferNodeInfo nodeInfo)
+    {
+        long now = tickerReadMillis();
+        BufferNodeInfoHolder holder = nodeInfoHolders.computeIfAbsent(nodeInfo.getNodeId(), ignored -> {
+            LOG.info("discovered new node %s", nodeInfo.getNodeId());
+            return new BufferNodeInfoHolder(nodeInfo, now);
+        });
+        holder.updateNodeInfo(nodeInfo, now);
+        rebuildNodeInfosCache();
+    }
+
+    private void rebuildNodeInfosCache()
+    {
+        while (true) {
+            Set<BufferNodeInfo> oldValue = nodeInfosCache.get();
+            ImmutableSet<BufferNodeInfo> newValue = nodeInfoHolders.values().stream()
+                    .map(BufferNodeInfoHolder::getLastNodeInfo)
+                    .collect(toImmutableSet());
+
+            if (nodeInfosCache.compareAndSet(oldValue, newValue)) {
+                return;
+            }
+        }
+    }
+
+    public Set<BufferNodeInfo> getNodeInfos()
+    {
+        return nodeInfosCache.get();
+    }
+
+    @VisibleForTesting
+    void cleanup()
+    {
+        Iterator<Map.Entry<Long, BufferNodeInfoHolder>> iterator = nodeInfoHolders.entrySet().iterator();
+        long now = tickerReadMillis();
+        long cleanupThreshold = now - bufferNodeDiscoveryStalenessThreshold.toMillis();
+        boolean someRemoved = false;
+        while (iterator.hasNext()) {
+            Map.Entry<Long, BufferNodeInfoHolder> entry = iterator.next();
+            long lastUpdateTime = entry.getValue().getLastUpdateTime();
+            if (lastUpdateTime < cleanupThreshold) {
+                LOG.info("forgetting node %s ; no update for %s", entry.getKey(), succinctDuration(now - lastUpdateTime, MILLISECONDS));
+                iterator.remove();
+                someRemoved = true;
+            }
+        }
+        if (someRemoved) {
+            rebuildNodeInfosCache();
+        }
+    }
+
+    @Retention(RUNTIME)
+    @Target({FIELD, PARAMETER, METHOD})
+    @Qualifier
+    @interface ForDiscoveryManager {}
+}
