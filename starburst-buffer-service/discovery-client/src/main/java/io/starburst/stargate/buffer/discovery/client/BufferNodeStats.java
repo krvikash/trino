@@ -21,17 +21,17 @@ public class BufferNodeStats
 {
     private final long totalMemory;
     private final long freeMemory;
-    private final long trackedExchanges;
-    private final long openChunks;
-    private final long closedChunks;
+    private final int trackedExchanges;
+    private final int openChunks;
+    private final int closedChunks;
 
     @JsonCreator
     public BufferNodeStats(
             @JsonProperty("totalMemory") long totalMemory,
             @JsonProperty("freeMemory") long freeMemory,
-            @JsonProperty("trackedExchanges") long trackedExchanges,
-            @JsonProperty("openChunks") long openChunks,
-            @JsonProperty("closedChunks") long closedChunks)
+            @JsonProperty("trackedExchanges") int trackedExchanges,
+            @JsonProperty("openChunks") int openChunks,
+            @JsonProperty("closedChunks") int closedChunks)
     {
         this.totalMemory = totalMemory;
         this.freeMemory = freeMemory;
@@ -53,19 +53,19 @@ public class BufferNodeStats
     }
 
     @JsonProperty
-    public long getTrackedExchanges()
+    public int getTrackedExchanges()
     {
         return trackedExchanges;
     }
 
     @JsonProperty
-    public long getOpenChunks()
+    public int getOpenChunks()
     {
         return openChunks;
     }
 
     @JsonProperty
-    public long getClosedChunks()
+    public int getClosedChunks()
     {
         return closedChunks;
     }

@@ -22,7 +22,7 @@ import static java.util.Objects.requireNonNull;
 public class BufferNodeInfoResponse
 {
     // should response be considered complete and actionable upon
-    // Discovery servise will return false some time after startup
+    // Discovery service will return false some time after startup
     private final boolean responseComplete;
     private final Set<BufferNodeInfo> bufferNodeInfos;
 

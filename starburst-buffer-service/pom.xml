@@ -39,6 +39,7 @@
     </properties>
 
     <modules>
+        <module>data-client</module>
         <module>discovery-client</module>
         <module>discovery-server</module>
     </modules>
@@ -56,6 +57,12 @@
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>data-client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
             <dependency>
                 <groupId>${project.groupId}</groupId>
                 <artifactId>discovery-client</artifactId>
