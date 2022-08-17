@@ -35,7 +35,7 @@ public class BufferNodeInfo
             @JsonProperty("state") BufferNodeState state)
     {
         this.nodeId = nodeId;
-        this.address = requireNonNull(address, "externalAddress is null");
+        this.address = requireNonNull(address, "address is null");
         this.stats = requireNonNull(stats, "stats is null");
         this.state = requireNonNull(state, "state is null");
     }
