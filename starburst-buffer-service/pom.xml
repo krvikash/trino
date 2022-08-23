@@ -36,9 +36,12 @@
         <project.build.targetJdk>17</project.build.targetJdk>
 
         <dep.airlift.version>219</dep.airlift.version>
+        <dep.errorprone.version>2.15.0</dep.errorprone.version>
+        <dep.trino.version>400</dep.trino.version>
     </properties>
 
     <modules>
+        <module>buffer-exchange</module>
         <module>data-client</module>
         <module>data-server</module>
         <module>discovery-client</module>
@@ -59,6 +62,12 @@
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>buffer-exchange</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
             <dependency>
                 <groupId>${project.groupId}</groupId>
                 <artifactId>data-client</artifactId>
@@ -113,6 +122,12 @@
             </dependency>
 
             <dependency>
+                <groupId>com.google.errorprone</groupId>
+                <artifactId>error_prone_annotations</artifactId>
+                <version>${dep.errorprone.version}</version>
+            </dependency>
+
+            <dependency>
                 <groupId>dev.failsafe</groupId>
                 <artifactId>failsafe</artifactId>
                 <version>3.3.0</version>
@@ -130,6 +145,24 @@
                 <groupId>io.airlift</groupId>
                 <artifactId>units</artifactId>
                 <version>1.7</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.trino</groupId>
+                <artifactId>trino-plugin-toolkit</artifactId>
+                <version>${dep.trino.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.trino</groupId>
+                <artifactId>trino-spi</artifactId>
+                <version>${dep.trino.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.openjdk.jol</groupId>
+                <artifactId>jol-core</artifactId>
+                <version>0.16</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
