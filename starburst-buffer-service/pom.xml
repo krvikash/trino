@@ -35,7 +35,7 @@
         <air.java.version>17.0.1</air.java.version>
         <project.build.targetJdk>17</project.build.targetJdk>
 
-        <dep.airlift.version>217</dep.airlift.version>
+        <dep.airlift.version>218</dep.airlift.version>
     </properties>
 
     <modules>
