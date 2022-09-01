@@ -42,6 +42,7 @@
 
     <modules>
         <module>buffer-exchange</module>
+        <module>buffer-exchange-tests</module>
         <module>data-client</module>
         <module>data-server</module>
         <module>discovery-client</module>
@@ -145,6 +146,19 @@
                 <groupId>io.airlift</groupId>
                 <artifactId>units</artifactId>
                 <version>1.7</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.trino</groupId>
+                <artifactId>trino-memory</artifactId>
+                <version>${dep.trino.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.trino</groupId>
+                <artifactId>trino-memory</artifactId>
+                <version>${dep.trino.version}</version>
+                <type>test-jar</type>
             </dependency>
 
             <dependency>
