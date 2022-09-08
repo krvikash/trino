@@ -7,7 +7,7 @@
  *
  * Redistribution of this material is strictly prohibited.
  */
-package io.starburst.stargate.buffer.discovery.server;
+package io.starburst.stargate.buffer.discovery.server.testing;
 
 import com.google.common.base.Ticker;
 import com.google.common.collect.ImmutableList;
@@ -24,6 +24,8 @@ import io.airlift.json.JsonModule;
 import io.airlift.log.LogJmxModule;
 import io.airlift.node.testing.TestingNodeModule;
 import io.airlift.tracetoken.TraceTokenModule;
+import io.starburst.stargate.buffer.discovery.server.DiscoveryManagerModule;
+import io.starburst.stargate.buffer.discovery.server.ServerModule;
 import org.weakref.jmx.guice.MBeanModule;
 
 import javax.ws.rs.core.UriBuilder;
@@ -110,7 +112,7 @@ public class TestingDiscoveryServer
             return this;
         }
 
-        TestingDiscoveryServer build()
+        public TestingDiscoveryServer build()
         {
             return new TestingDiscoveryServer(discoveryManagerTicker);
         }

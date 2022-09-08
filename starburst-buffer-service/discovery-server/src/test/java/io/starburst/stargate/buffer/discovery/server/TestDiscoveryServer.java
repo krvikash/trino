@@ -17,6 +17,7 @@ import io.starburst.stargate.buffer.discovery.client.BufferNodeInfo;
 import io.starburst.stargate.buffer.discovery.client.BufferNodeInfoResponse;
 import io.starburst.stargate.buffer.discovery.client.BufferNodeStats;
 import io.starburst.stargate.buffer.discovery.client.HttpDiscoveryClient;
+import io.starburst.stargate.buffer.discovery.server.testing.TestingDiscoveryServer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;

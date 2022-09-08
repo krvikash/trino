@@ -7,7 +7,7 @@
  *
  * Redistribution of this material is strictly prohibited.
  */
-package io.starburst.stargate.buffer.data.server;
+package io.starburst.stargate.buffer.data.server.testing;
 
 import com.google.common.io.Closer;
 import com.google.inject.Injector;
@@ -22,6 +22,7 @@ import io.airlift.json.JsonModule;
 import io.airlift.log.LogJmxModule;
 import io.airlift.node.testing.TestingNodeModule;
 import io.airlift.tracetoken.TraceTokenModule;
+import io.starburst.stargate.buffer.data.server.MainModule;
 import org.weakref.jmx.guice.MBeanModule;
 
 import javax.ws.rs.core.UriBuilder;
