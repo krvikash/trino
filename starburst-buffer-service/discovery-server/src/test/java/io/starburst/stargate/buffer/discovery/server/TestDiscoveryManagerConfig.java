@@ -21,7 +21,7 @@ import static io.airlift.units.Duration.succinctDuration;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-class DiscoveryManagerConfigTest
+class TestDiscoveryManagerConfig
 {
     @Test
     public void testDefaults()
