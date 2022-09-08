@@ -43,6 +43,7 @@
         <module>data-server</module>
         <module>discovery-client</module>
         <module>discovery-server</module>
+        <module>testing</module>
     </modules>
 
     <distributionManagement>
@@ -66,6 +67,12 @@
 
             <dependency>
                 <groupId>${project.groupId}</groupId>
+                <artifactId>data-server</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>${project.groupId}</groupId>
                 <artifactId>discovery-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -73,6 +80,12 @@
             <dependency>
                 <groupId>${project.groupId}</groupId>
                 <artifactId>discovery-server</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>testing</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
