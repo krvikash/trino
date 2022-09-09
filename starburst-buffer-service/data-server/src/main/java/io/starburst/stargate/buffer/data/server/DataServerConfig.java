@@ -11,6 +11,8 @@ package io.starburst.stargate.buffer.data.server;
 
 import io.airlift.configuration.Config;
 
+import javax.validation.constraints.NotNull;
+
 import java.net.URI;
 
 public class DataServerConfig
@@ -18,6 +20,7 @@ public class DataServerConfig
     private URI discoveryServiceUri;
     private boolean includeChecksumInDataResponse = true;
 
+    @NotNull
     public URI getDiscoveryServiceUri()
     {
         return discoveryServiceUri;

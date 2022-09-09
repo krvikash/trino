@@ -45,6 +45,11 @@ public class TestingDataServer
 
     private TestingDataServer(boolean discoveryBroadcastEnabled, Map<String, String> configProperties)
     {
+        Map<String, String> finalConfigProperties = new HashMap<>(configProperties);
+        if (!discoveryBroadcastEnabled) {
+            finalConfigProperties.put("discovery-service.uri", "http://dummy"); // this is still needed in config
+        }
+
         Bootstrap app = new Bootstrap(
                 new TestingNodeModule("test"),
                 new TestingHttpServerModule(),
@@ -60,7 +65,7 @@ public class TestingDataServer
         Injector injector = app
                 .quiet()
                 .doNotInitializeLogging()
-                .setRequiredConfigurationProperties(configProperties)
+                .setRequiredConfigurationProperties(finalConfigProperties)
                 .initialize();
 
         LifeCycleManager lifeCycleManager = injector.getInstance(LifeCycleManager.class);
