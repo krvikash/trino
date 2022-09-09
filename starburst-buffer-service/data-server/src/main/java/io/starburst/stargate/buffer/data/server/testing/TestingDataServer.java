@@ -30,6 +30,10 @@ import javax.ws.rs.core.UriBuilder;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
+
+import static java.util.Objects.requireNonNull;
 
 public class TestingDataServer
         implements Closeable
@@ -39,7 +43,7 @@ public class TestingDataServer
     private final URI baseUri;
     private final Closer closer = Closer.create();
 
-    public TestingDataServer(boolean discoveryBroadcastEnabled)
+    private TestingDataServer(boolean discoveryBroadcastEnabled, Map<String, String> configProperties)
     {
         Bootstrap app = new Bootstrap(
                 new TestingNodeModule("test"),
@@ -56,6 +60,7 @@ public class TestingDataServer
         Injector injector = app
                 .quiet()
                 .doNotInitializeLogging()
+                .setRequiredConfigurationProperties(configProperties)
                 .initialize();
 
         LifeCycleManager lifeCycleManager = injector.getInstance(LifeCycleManager.class);
@@ -65,6 +70,41 @@ public class TestingDataServer
         baseUri = UriBuilder.fromUri(httpServerInfo.getHttpsUri() != null ? httpServerInfo.getHttpsUri() : httpServerInfo.getHttpUri())
                 .host("localhost")
                 .build();
+    }
+
+    public static Builder builder()
+    {
+        return new Builder();
+    }
+
+    public static class Builder
+    {
+        private boolean discoveryBroadcastEnabled;
+        private Map<String, String> configProperties = new HashMap<>();
+
+        public Builder setDiscoveryBroadcastEnabled(boolean discoveryBroadcastEnabled)
+        {
+            this.discoveryBroadcastEnabled = discoveryBroadcastEnabled;
+            return this;
+        }
+
+        public Builder setConfigProperties(Map<String, String> configProperties)
+        {
+            requireNonNull(configProperties, "configProperties is null");
+            this.configProperties = new HashMap<>(configProperties);
+            return this;
+        }
+
+        public Builder setConfigProperty(String key, String value)
+        {
+            this.configProperties.put(key, value);
+            return this;
+        }
+
+        public TestingDataServer build()
+        {
+            return new TestingDataServer(discoveryBroadcastEnabled, configProperties);
+        }
     }
 
     public URI getBaseUri()

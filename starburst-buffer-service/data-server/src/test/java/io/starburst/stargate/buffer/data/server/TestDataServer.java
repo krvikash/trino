@@ -56,7 +56,9 @@ public class TestDataServer
     @BeforeAll
     public void setup()
     {
-        dataServer = new TestingDataServer(false);
+        dataServer = TestingDataServer.builder()
+                .setDiscoveryBroadcastEnabled(false)
+                .build();
         httpClient = new JettyHttpClient(new HttpClientConfig());
         dataClient = new HttpDataClient(dataServer.getBaseUri(), httpClient, true);
     }
