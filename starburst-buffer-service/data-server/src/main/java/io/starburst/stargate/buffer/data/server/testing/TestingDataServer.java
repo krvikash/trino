@@ -17,7 +17,7 @@ import io.airlift.event.client.EventModule;
 import io.airlift.http.server.HttpServerInfo;
 import io.airlift.http.server.testing.TestingHttpServerModule;
 import io.airlift.jaxrs.JaxrsModule;
-import io.airlift.jmx.JmxModule;
+import io.airlift.jmx.testing.TestingJmxModule;
 import io.airlift.json.JsonModule;
 import io.airlift.log.LogJmxModule;
 import io.airlift.node.testing.TestingNodeModule;
@@ -51,7 +51,7 @@ public class TestingDataServer
                 new JsonModule(),
                 new JaxrsModule(),
                 new MBeanModule(),
-                new JmxModule(),
+                new TestingJmxModule(),
                 new LogJmxModule(),
                 new TraceTokenModule(),
                 new EventModule(),
