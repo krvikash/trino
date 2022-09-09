@@ -33,6 +33,8 @@ import javax.ws.rs.core.UriBuilder;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
@@ -45,7 +47,9 @@ public class TestingDiscoveryServer
 
     private final Closer closer = Closer.create();
 
-    private TestingDiscoveryServer(Optional<Ticker> discoveryManagerTicker)
+    private TestingDiscoveryServer(
+            Map<String, String> configProperties,
+            Optional<Ticker> discoveryManagerTicker)
     {
         ImmutableList.Builder<Module> modules = ImmutableList.builder();
         modules.add(
@@ -68,6 +72,7 @@ public class TestingDiscoveryServer
         injector = app
                 .quiet()
                 .doNotInitializeLogging()
+                .setRequiredConfigurationProperties(configProperties)
                 .initialize();
 
         LifeCycleManager lifeCycleManager = injector.getInstance(LifeCycleManager.class);
@@ -103,7 +108,21 @@ public class TestingDiscoveryServer
 
     public static class Builder
     {
+        private Map<String, String> configProperties = new HashMap<>();
         private Optional<Ticker> discoveryManagerTicker = Optional.empty();
+
+        public Builder setConfigProperties(Map<String, String> configProperties)
+        {
+            requireNonNull(configProperties, "configProperties is null");
+            this.configProperties = new HashMap<>(configProperties);
+            return this;
+        }
+
+        public Builder setConfigProperty(String key, String value)
+        {
+            this.configProperties.put(key, value);
+            return this;
+        }
 
         public Builder setDiscoveryManagerTicker(Ticker discoveryManagerTicker)
         {
@@ -114,7 +133,7 @@ public class TestingDiscoveryServer
 
         public TestingDiscoveryServer build()
         {
-            return new TestingDiscoveryServer(discoveryManagerTicker);
+            return new TestingDiscoveryServer(configProperties, discoveryManagerTicker);
         }
     }
 }
