@@ -18,7 +18,17 @@
     <dependencies>
         <dependency>
             <groupId>io.starburst.stargate.buffer</groupId>
+            <artifactId>data-client</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.starburst.stargate.buffer</groupId>
             <artifactId>data-server</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.starburst.stargate.buffer</groupId>
+            <artifactId>discovery-client</artifactId>
         </dependency>
 
         <dependency>
@@ -27,8 +37,18 @@
         </dependency>
 
         <dependency>
+            <groupId>com.google.code.findbugs</groupId>
+            <artifactId>jsr305</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.airlift</groupId>
+            <artifactId>slice</artifactId>
         </dependency>
 
         <dependency>
