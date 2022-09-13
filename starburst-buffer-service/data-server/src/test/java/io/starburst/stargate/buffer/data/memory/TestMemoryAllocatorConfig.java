@@ -1,0 +1,44 @@
+/*
+ * Copyright Starburst Data, Inc. All rights reserved.
+ *
+ * THIS IS UNPUBLISHED PROPRIETARY SOURCE CODE OF STARBURST DATA.
+ * The copyright notice above does not evidence any
+ * actual or intended publication of such source code.
+ *
+ * Redistribution of this material is strictly prohibited.
+ */
+package io.starburst.stargate.buffer.data.memory;
+
+import com.google.common.collect.ImmutableMap;
+import io.airlift.units.DataSize;
+import org.junit.jupiter.api.Test;
+
+import java.util.Map;
+
+import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
+import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
+import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
+import static io.airlift.units.DataSize.Unit.GIGABYTE;
+
+public class TestMemoryAllocatorConfig
+{
+    @Test
+    public void assertDefaults()
+    {
+        assertRecordedDefaults(recordDefaults(MemoryAllocatorConfig.class)
+                .setHeapHeadroom(DataSize.ofBytes(Math.round(Runtime.getRuntime().maxMemory() * 0.1))));
+    }
+
+    @Test
+    public void testExplicitPropertyMappings()
+    {
+        Map<String, String> properties = ImmutableMap.<String, String>builder()
+                .put("memory.heap-headroom", "2GB")
+                .buildOrThrow();
+
+        MemoryAllocatorConfig expected = new MemoryAllocatorConfig()
+                .setHeapHeadroom(DataSize.of(2, GIGABYTE));
+
+        assertFullMapping(properties, expected);
+    }
+}

@@ -40,6 +40,7 @@
 
     <modules>
         <module>data-client</module>
+        <module>data-server</module>
         <module>discovery-client</module>
         <module>discovery-server</module>
     </modules>
