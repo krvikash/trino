@@ -27,7 +27,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import static com.google.common.net.HostAndPort.fromHost;
 import static io.airlift.testing.Closeables.closeAll;
 import static io.starburst.stargate.buffer.discovery.client.BufferNodeState.RUNNING;
 import static io.starburst.stargate.buffer.discovery.client.BufferNodeState.STARTING;
@@ -73,7 +72,7 @@ public class TestDiscoveryServer
                         Set.of()));
 
         BufferNodeStats node1Stats1 = new BufferNodeStats(10, 11, 12, 13, 14);
-        BufferNodeInfo node1Info1 = new BufferNodeInfo(1, fromHost("address1"), Optional.of(node1Stats1), RUNNING);
+        BufferNodeInfo node1Info1 = new BufferNodeInfo(1, URI.create("http://address1"), Optional.of(node1Stats1), RUNNING);
         discoveryClient.updateBufferNode(node1Info1);
 
         assertThat(discoveryClient.getBufferNodes()).isEqualTo(
@@ -90,7 +89,7 @@ public class TestDiscoveryServer
 
         // add another node
         BufferNodeStats node2Stats1 = new BufferNodeStats(20, 21, 22, 23, 24);
-        BufferNodeInfo node2Info1 = new BufferNodeInfo(2, fromHost("address2"), Optional.of(node1Stats1), STARTING);
+        BufferNodeInfo node2Info1 = new BufferNodeInfo(2, URI.create("http://address2"), Optional.of(node1Stats1), STARTING);
         discoveryClient.updateBufferNode(node2Info1);
         assertThat(discoveryClient.getBufferNodes()).isEqualTo(
                 new BufferNodeInfoResponse(
@@ -107,7 +106,7 @@ public class TestDiscoveryServer
         // move time and update node 1
         ticker.increment(1000, TimeUnit.MILLISECONDS);
         BufferNodeStats node1Stats2 = new BufferNodeStats(110, 111, 112, 113, 114);
-        BufferNodeInfo node1Info2 = new BufferNodeInfo(1, fromHost("address1"), Optional.of(node1Stats2), RUNNING);
+        BufferNodeInfo node1Info2 = new BufferNodeInfo(1, URI.create("http://address1"), Optional.of(node1Stats2), RUNNING);
         discoveryClient.updateBufferNode(node1Info2);
         assertThat(discoveryClient.getBufferNodes()).isEqualTo(
                 new BufferNodeInfoResponse(

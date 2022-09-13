@@ -12,8 +12,8 @@ package io.starburst.stargate.buffer.discovery.client;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.net.HostAndPort;
 
+import java.net.URI;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -23,19 +23,19 @@ import static java.util.Objects.requireNonNull;
 public class BufferNodeInfo
 {
     private final long nodeId;
-    private final HostAndPort address;
+    private final URI uri;
     private final Optional<BufferNodeStats> stats;
     private final BufferNodeState state;
 
     @JsonCreator
     public BufferNodeInfo(
             @JsonProperty("nodeId") long nodeId,
-            @JsonProperty("address") HostAndPort address,
+            @JsonProperty("uri") URI uri,
             @JsonProperty("stats") Optional<BufferNodeStats> stats,
             @JsonProperty("state") BufferNodeState state)
     {
         this.nodeId = nodeId;
-        this.address = requireNonNull(address, "address is null");
+        this.uri = requireNonNull(uri, "uri is null");
         this.stats = requireNonNull(stats, "stats is null");
         this.state = requireNonNull(state, "state is null");
     }
@@ -47,9 +47,9 @@ public class BufferNodeInfo
     }
 
     @JsonProperty
-    public HostAndPort getAddress()
+    public URI getUri()
     {
-        return address;
+        return uri;
     }
 
     @JsonProperty
@@ -75,7 +75,7 @@ public class BufferNodeInfo
         }
         BufferNodeInfo that = (BufferNodeInfo) o;
         return nodeId == that.nodeId
-                && address.equals(that.address)
+                && uri.equals(that.uri)
                 && stats.equals(that.stats)
                 && state == that.state;
     }
@@ -83,7 +83,7 @@ public class BufferNodeInfo
     @Override
     public int hashCode()
     {
-        return Objects.hash(nodeId, address, stats, state);
+        return Objects.hash(nodeId, uri, stats, state);
     }
 
     @Override
@@ -91,7 +91,7 @@ public class BufferNodeInfo
     {
         return toStringHelper(this)
                 .add("nodeId", nodeId)
-                .add("address", address)
+                .add("uri", uri)
                 .add("stats", stats)
                 .add("state", state)
                 .toString();
