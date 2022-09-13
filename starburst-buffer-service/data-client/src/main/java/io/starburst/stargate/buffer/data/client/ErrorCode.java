@@ -15,7 +15,7 @@ public enum ErrorCode
     DRAINING, // node is draining
     INTERNAL_ERROR, // general internal error
     EXCHANGE_FINISHED, // exchange still exists but already finished
-    EXCHANGE_REMOVED, // exchange already removed
+    EXCHANGE_NOT_FOUND, // exchange not found
     CHUNK_DRAINED, // chunk was drained and will not be served by this buffer node as the node is draining; request should be retried to another RUNNING buffer node.
     CHUNK_NOT_FOUND // chunk not found
 }
