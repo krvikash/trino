@@ -9,6 +9,7 @@
  */
 package io.starburst.stargate.buffer.data.server.testing;
 
+import com.google.common.base.Ticker;
 import com.google.common.io.Closer;
 import com.google.inject.Injector;
 import io.airlift.bootstrap.Bootstrap;
@@ -60,7 +61,7 @@ public class TestingDataServer
                 new LogJmxModule(),
                 new TraceTokenModule(),
                 new EventModule(),
-                new MainModule(BUFFER_NODE_ID, discoveryBroadcastEnabled));
+                new MainModule(BUFFER_NODE_ID, discoveryBroadcastEnabled, Ticker.systemTicker()));
 
         Injector injector = app
                 .quiet()

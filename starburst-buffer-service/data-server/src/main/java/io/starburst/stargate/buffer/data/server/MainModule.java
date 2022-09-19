@@ -9,12 +9,14 @@
  */
 package io.starburst.stargate.buffer.data.server;
 
+import com.google.common.base.Ticker;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.Module;
 import com.google.inject.Provides;
 import io.airlift.http.client.HttpClient;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
+import io.starburst.stargate.buffer.data.execution.ChunkManager.ForChunkManager;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocatorConfig;
@@ -27,12 +29,14 @@ import static com.google.inject.Scopes.SINGLETON;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
+import static java.util.Objects.requireNonNull;
 
 public class MainModule
         implements Module
 {
     private final long bufferNodeId;
     private final boolean discoveryBroadcastEnabled;
+    private final Ticker ticker;
 
     public MainModule()
     {
@@ -41,13 +45,14 @@ public class MainModule
 
     public MainModule(long bufferNodeId)
     {
-        this(bufferNodeId, true);
+        this(bufferNodeId, true, Ticker.systemTicker());
     }
 
-    public MainModule(long bufferNodeId, boolean discoveryBroadcastEnabled)
+    public MainModule(long bufferNodeId, boolean discoveryBroadcastEnabled, Ticker ticker)
     {
         this.bufferNodeId = bufferNodeId;
         this.discoveryBroadcastEnabled = discoveryBroadcastEnabled;
+        this.ticker = requireNonNull(ticker, "ticker is null");
     }
 
     @Override
@@ -62,6 +67,7 @@ public class MainModule
         jaxrsBinder(binder).bind(PagesResponseWriter.class);
         binder.bind(MemoryAllocator.class).in(SINGLETON);
         binder.bind(Long.class).annotatedWith(BufferNodeId.class).toInstance(bufferNodeId);
+        binder.bind(Ticker.class).annotatedWith(ForChunkManager.class).toInstance(ticker);
         binder.bind(ChunkManager.class).in(SINGLETON);
         if (discoveryBroadcastEnabled) {
             binder.bind(DiscoveryBroadcast.class).in(SINGLETON);

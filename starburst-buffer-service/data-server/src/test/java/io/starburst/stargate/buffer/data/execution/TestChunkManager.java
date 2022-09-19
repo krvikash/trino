@@ -9,6 +9,7 @@
  */
 package io.starburst.stargate.buffer.data.execution;
 
+import io.airlift.testing.TestingTicker;
 import io.airlift.units.DataSize;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.ChunkList;
@@ -23,7 +24,9 @@ import java.util.OptionalLong;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.airlift.units.DataSize.Unit.BYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
-import static io.starburst.stargate.buffer.data.server.testing.TestingDataServer.BUFFER_NODE_ID;
+import static io.starburst.stargate.buffer.data.execution.ChunkManagerConfig.DEFAULT_EXCHANGE_STALENESS_THRESHOLD;
+import static io.starburst.stargate.buffer.data.server.TestingDataServer.BUFFER_NODE_ID;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -35,6 +38,7 @@ public class TestChunkManager
     private static final String EXCHANGE_1 = "exchange-1";
 
     private final MemoryAllocator memoryAllocator = new MemoryAllocator(new MemoryAllocatorConfig());
+    private final TestingTicker ticker = new TestingTicker();
 
     @Test
     public void testSingleChunkPerPartition()
@@ -163,6 +167,36 @@ public class TestChunkManager
     }
 
     @Test
+    public void testPingExchange()
+    {
+        ChunkManager chunkManager = createChunkManager(DataSize.of(16, MEGABYTE));
+
+        chunkManager.addDataPage(EXCHANGE_0, 0, 0, 0, 0L, utf8Slice("0"));
+
+        ticker.increment(1000, MILLISECONDS);
+        chunkManager.cleanupStaleExchanges();
+
+        ChunkList chunkList0 = chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty());
+        assertThat(chunkList0.chunks()).isEmpty();
+        assertEquals(chunkList0.nextPagingId(), OptionalLong.of(1L));
+        ChunkList chunkList1 = chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty());
+        assertThat(chunkList1.chunks()).isEmpty();
+        assertEquals(chunkList1.nextPagingId(), OptionalLong.of(1L));
+
+        chunkManager.pingExchange(EXCHANGE_0);
+
+        ticker.increment(DEFAULT_EXCHANGE_STALENESS_THRESHOLD.toMillis() - 500, MILLISECONDS);
+        chunkManager.cleanupStaleExchanges();
+
+        chunkList0 = chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.of(1L));
+        assertThat(chunkList0.chunks()).isEmpty();
+        assertEquals(chunkList0.nextPagingId(), OptionalLong.of(2L));
+        assertThatThrownBy(() -> chunkManager.listClosedChunks(EXCHANGE_1, OptionalLong.empty()))
+                .isInstanceOf(DataServerException.class)
+                .hasMessage("exchange %s not found".formatted(EXCHANGE_1));
+    }
+
+    @Test
     public void testRemoveExchange()
     {
         ChunkManager chunkManager = createChunkManager(DataSize.of(16, MEGABYTE));
@@ -183,6 +217,6 @@ public class TestChunkManager
     private ChunkManager createChunkManager(DataSize chunkSize)
     {
         ChunkManagerConfig config = new ChunkManagerConfig().setChunkSize(chunkSize);
-        return new ChunkManager(BUFFER_NODE_ID, config, memoryAllocator);
+        return new ChunkManager(BUFFER_NODE_ID, config, memoryAllocator, ticker);
     }
 }

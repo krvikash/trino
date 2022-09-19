@@ -49,6 +49,7 @@ public class Exchange
     private final Map<Integer, Partition> partitions = new ConcurrentHashMap<>();
 
     private volatile boolean finished;
+    private volatile long lastUpdateTime;
     @GuardedBy("this")
     private OptionalLong nextPagingId = OptionalLong.of(0);
     @GuardedBy("this")
@@ -63,13 +64,16 @@ public class Exchange
             String exchangeId,
             MemoryAllocator memoryAllocator,
             int chunkSizeInBytes,
-            AtomicLong nextChunkIdGenerator)
+            AtomicLong nextChunkIdGenerator,
+            long currentTime)
     {
         this.bufferNodeId = bufferNodeId;
         this.exchangeId = requireNonNull(exchangeId, "exchangeId is null");
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.chunkSizeInBytes = chunkSizeInBytes;
         this.nextChunkIdGenerator = requireNonNull(nextChunkIdGenerator, "nextChunkIdGenerator is null");
+
+        this.lastUpdateTime = currentTime;
     }
 
     public void addDataPage(int partitionId, int taskId, int attemptId, long dataPageId, Slice data)
@@ -154,6 +158,16 @@ public class Exchange
     public void releaseMemory()
     {
         memoryAllocator.release((getOpenChunksCount() + getClosedChunksCount()) * (long) chunkSizeInBytes);
+    }
+
+    public long getLastUpdateTime()
+    {
+        return lastUpdateTime;
+    }
+
+    public void setLastUpdateTime(long lastUpdateTime)
+    {
+        this.lastUpdateTime = lastUpdateTime;
     }
 
     private Optional<ChunkList> getCachedChunkList(long pagingId)

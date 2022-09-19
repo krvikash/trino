@@ -84,6 +84,9 @@ public class TestDataServer
         addDataPage(EXCHANGE_1, 1, 2, 0, 1L, largePage1);
         addDataPage(EXCHANGE_1, 1, 2, 0, 2L, largePage2);
 
+        pingExchange(EXCHANGE_0);
+        pingExchange(EXCHANGE_1);
+
         ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 11);
         ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 1, 1L, 7);
         ChunkHandle chunkHandle2 = new ChunkHandle(BUFFER_NODE_ID, 0, 2L, 10);
@@ -166,5 +169,10 @@ public class TestDataServer
     private void removeExchange(String exchangeId)
     {
         getFutureValue(dataClient.removeExchange(exchangeId));
+    }
+
+    private void pingExchange(String exchangeId)
+    {
+        getFutureValue(dataClient.pingExchange(exchangeId));
     }
 }
