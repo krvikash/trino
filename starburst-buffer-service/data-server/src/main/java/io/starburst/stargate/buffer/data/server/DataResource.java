@@ -13,6 +13,7 @@ import com.google.common.reflect.TypeToken;
 import io.airlift.slice.Slices;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataPage;
+import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
 
@@ -59,7 +60,7 @@ public class DataResource
             ChunkList chunkList = chunkManager.listClosedChunks(exchangeId, pagingId == null ? OptionalLong.empty() : OptionalLong.of(pagingId));
             return Response.ok().entity(chunkList).build();
         }
-        catch (DataServerException e) {
+        catch (Exception e) {
             return errorResponse(e);
         }
     }
@@ -80,7 +81,7 @@ public class DataResource
         try {
             chunkManager.addDataPage(exchangeId, partitionId, taskId, attemptId, dataPageId, Slices.wrappedBuffer(dataPage));
         }
-        catch (DataServerException e) {
+        catch (Exception e) {
             return errorResponse(e);
         }
         return Response.ok().build();
@@ -101,7 +102,7 @@ public class DataResource
             }
             return Response.ok(new GenericEntity<>(dataPages, new TypeToken<List<DataPage>>() {}.getType())).build();
         }
-        catch (DataServerException e) {
+        catch (Exception e) {
             return errorResponse(e);
         }
     }
@@ -121,7 +122,7 @@ public class DataResource
         try {
             chunkManager.finishExchange(exchangeId);
         }
-        catch (DataServerException e) {
+        catch (Exception e) {
             return errorResponse(e);
         }
         return Response.ok().build();
@@ -135,10 +136,16 @@ public class DataResource
         return Response.ok().build();
     }
 
-    private static Response errorResponse(DataServerException e)
+    private static Response errorResponse(Exception e)
     {
+        if (e instanceof DataServerException dataServerException) {
+            return Response.status(Status.INTERNAL_SERVER_ERROR)
+                    .header(ERROR_CODE_HEADER, dataServerException.getErrorCode())
+                    .entity(e.getMessage())
+                    .build();
+        }
         return Response.status(Status.INTERNAL_SERVER_ERROR)
-                .header(ERROR_CODE_HEADER, e.getErrorCode())
+                .header(ERROR_CODE_HEADER, ErrorCode.INTERNAL_ERROR)
                 .entity(e.getMessage())
                 .build();
     }

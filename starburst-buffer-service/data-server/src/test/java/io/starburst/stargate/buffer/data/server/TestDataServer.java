@@ -131,7 +131,7 @@ public class TestDataServer
         assertThatThrownBy(() -> finishExchange(EXCHANGE_1))
                 .isInstanceOf(DataApiException.class).hasMessage("exchange %s not found".formatted(EXCHANGE_1));
         assertThatThrownBy(() -> listClosedChunks(EXCHANGE_0, OptionalLong.of(Long.MAX_VALUE)))
-                .isInstanceOf(DataApiException.class).hasMessageContaining("Error 500 Request failed.");
+                .isInstanceOf(DataApiException.class).hasMessageContaining("Expected pagingId to equal next pagingId");
         assertThatThrownBy(() -> getChunkData(EXCHANGE_0, new ChunkHandle(-1L, 0, 3L, 0)))
                 .isInstanceOf(DataApiException.class).hasMessage("No closed chunk found for exchange %s, partition 0, chunk 3".formatted(EXCHANGE_0));
 
