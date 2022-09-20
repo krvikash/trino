@@ -67,6 +67,7 @@ import static javax.ws.rs.core.MediaType.TEXT_PLAIN;
 public class HttpDataClient
         implements DataApi
 {
+    public static final String ERROR_CODE_HEADER = "X-trino-buffer-error-code";
     public static final int SERIALIZED_PAGES_MAGIC = 0xfea4f001;
 
     private static final JsonCodec<ChunkList> CHUNK_LIST_JSON_CODEC = jsonCodec(ChunkList.class);
@@ -103,7 +104,7 @@ public class HttpDataClient
 
         return transformAsync(responseFuture, response -> {
             if (response.getStatusCode() != HttpStatus.OK.code()) {
-                String errorCode = response.getHeader(ErrorCode.class.getName());
+                String errorCode = response.getHeader(ERROR_CODE_HEADER);
                 if (errorCode != null) {
                     return immediateFailedFuture(new DataApiException(ErrorCode.valueOf(errorCode), response.getResponseBody()));
                 }
@@ -241,7 +242,7 @@ public class HttpDataClient
                 catch (RuntimeException | IOException e) {
                     // Ignored. Just return whatever message we were able to decode
                 }
-                String errorCode = response.getHeader(ErrorCode.class.getName());
+                String errorCode = response.getHeader(ERROR_CODE_HEADER);
                 if (errorCode != null) {
                     throw new DataApiException(ErrorCode.valueOf(errorCode), body.toString());
                 }
@@ -339,7 +340,7 @@ public class HttpDataClient
     {
         return transformAsync(responseFuture, response -> {
             if (response.getStatusCode() != HttpStatus.OK.code()) {
-                String errorCode = response.getHeader(ErrorCode.class.getName());
+                String errorCode = response.getHeader(ERROR_CODE_HEADER);
                 if (errorCode != null) {
                     return immediateFailedFuture(new DataApiException(ErrorCode.valueOf(errorCode), response.getBody()));
                 }

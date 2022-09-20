@@ -13,7 +13,6 @@ import com.google.common.reflect.TypeToken;
 import io.airlift.slice.Slices;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataPage;
-import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
 
@@ -34,6 +33,7 @@ import javax.ws.rs.core.Response.Status;
 import java.util.List;
 import java.util.OptionalLong;
 
+import static io.starburst.stargate.buffer.data.client.HttpDataClient.ERROR_CODE_HEADER;
 import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_CHUNK_DATA;
 import static java.util.Objects.requireNonNull;
 
@@ -138,7 +138,7 @@ public class DataResource
     private static Response errorResponse(DataServerException e)
     {
         return Response.status(Status.INTERNAL_SERVER_ERROR)
-                .header(ErrorCode.class.getName(), e.getErrorCode())
+                .header(ERROR_CODE_HEADER, e.getErrorCode())
                 .entity(e.getMessage())
                 .build();
     }
