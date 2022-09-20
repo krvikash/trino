@@ -246,9 +246,7 @@ public class HttpDataClient
                 if (errorCode != null) {
                     throw new DataApiException(ErrorCode.valueOf(errorCode), body.toString());
                 }
-                else {
-                    throw new DataApiException(INTERNAL_ERROR, "Expected response code to be 200, but was %d:%n%s".formatted(response.getStatusCode(), body));
-                }
+                throw new DataApiException(INTERNAL_ERROR, "Expected response code to be 200, but was %d:%n%s".formatted(response.getStatusCode(), body));
             }
 
             // invalid content type can happen when an error page is returned, but is unlikely given the above 200
@@ -344,9 +342,7 @@ public class HttpDataClient
                 if (errorCode != null) {
                     return immediateFailedFuture(new DataApiException(ErrorCode.valueOf(errorCode), response.getBody()));
                 }
-                else {
-                    return immediateFailedFuture(new DataApiException(INTERNAL_ERROR, response.getBody()));
-                }
+                return immediateFailedFuture(new DataApiException(INTERNAL_ERROR, response.getBody()));
             }
             return immediateVoidFuture();
         }, directExecutor());
