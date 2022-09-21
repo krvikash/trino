@@ -117,6 +117,21 @@ public class HttpDataClient
     }
 
     @Override
+    public ListenableFuture<Void> registerExchange(String exchangeId)
+    {
+        requireNonNull(exchangeId, "exchangeId is null");
+
+        Request request = prepareGet()
+                .setUri(UriBuilder.fromUri(baseUri)
+                        .path("%s/register".formatted(exchangeId))
+                        .build())
+                .build();
+
+        HttpResponseFuture<StringResponse> responseFuture = httpClient.executeAsync(request, createStringResponseHandler());
+        return translateFailures(responseFuture);
+    }
+
+    @Override
     public ListenableFuture<Void> pingExchange(String exchangeId)
     {
         requireNonNull(exchangeId, "exchangeId is null");

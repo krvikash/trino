@@ -108,6 +108,14 @@ public class DataResource
     }
 
     @GET
+    @Path("{exchangeId}/register")
+    public Response registerExchange(@PathParam("exchangeId") String exchangeId)
+    {
+        chunkManager.registerExchange(exchangeId);
+        return Response.ok().build();
+    }
+
+    @GET
     @Path("{exchangeId}/ping")
     public Response pingExchange(@PathParam("exchangeId") String exchangeId)
     {

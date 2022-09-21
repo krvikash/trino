@@ -27,6 +27,13 @@ public interface DataApi
     ListenableFuture<ChunkList> listClosedChunks(String exchangeId, OptionalLong pagingId);
 
     /**
+     * Register existence of an exchange.
+     *
+     * In case of failure returned future will wrap {@link DataApiException}
+     */
+    ListenableFuture<Void> registerExchange(String exchangeId);
+
+    /**
      * Notification that exchange is still valid and there exists Trino coordinator which is interested in it.
      * If no exchange related request is received by BufferNode for prolonged period of time exchange data is removed from memory as if
      * {@link #removeExchange(String)} was called.

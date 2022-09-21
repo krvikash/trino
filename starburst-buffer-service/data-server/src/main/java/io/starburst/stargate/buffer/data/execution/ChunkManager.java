@@ -89,8 +89,8 @@ public class ChunkManager
         checkArgument(taskId <= Short.MAX_VALUE, "taskId %s larger than %s", taskId, Short.MAX_VALUE);
         checkArgument(attemptId <= Byte.MAX_VALUE, "attemptId %s larger than %s", attemptId, Byte.MAX_VALUE);
 
-        Exchange exchange = exchanges.computeIfAbsent(exchangeId, ignored -> new Exchange(bufferNodeId, exchangeId, memoryAllocator, chunkSizeInBytes, nextChunkIdGenerator, tickerReadMillis()));
-        exchange.addDataPage(partitionId, taskId, attemptId, dataPageId, data);
+        registerExchange(exchangeId);
+        getExchangeOrThrow(exchangeId).addDataPage(partitionId, taskId, attemptId, dataPageId, data);
     }
 
     public List<DataPage> getChunkData(String exchangeId, int partitionId, long chunkId)
@@ -105,9 +105,14 @@ public class ChunkManager
         return exchange.listClosedChunks(pagingId);
     }
 
+    public void registerExchange(String exchangeId)
+    {
+        exchanges.computeIfAbsent(exchangeId, ignored -> new Exchange(bufferNodeId, exchangeId, memoryAllocator, chunkSizeInBytes, nextChunkIdGenerator, tickerReadMillis()));
+    }
+
     public void pingExchange(String exchangeId)
     {
-        getExchangeOrThrow(exchangeId).setLastUpdateTime(tickerReadMillis());
+        getExchangeOrThrow(exchangeId);
     }
 
     public void finishExchange(String exchangeId)
@@ -145,6 +150,7 @@ public class ChunkManager
         if (exchange == null) {
             throw new DataServerException(ErrorCode.EXCHANGE_NOT_FOUND, "exchange %s not found".formatted(exchangeId));
         }
+        exchange.setLastUpdateTime(tickerReadMillis());
         return exchange;
     }
 

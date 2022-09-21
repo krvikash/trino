@@ -45,6 +45,9 @@ public class TestChunkManager
     {
         ChunkManager chunkManager = createChunkManager(DataSize.of(16, MEGABYTE));
 
+        chunkManager.registerExchange(EXCHANGE_0);
+        chunkManager.registerExchange(EXCHANGE_1);
+
         chunkManager.addDataPage(EXCHANGE_0, 0, 0, 0, 0L, utf8Slice("000_0"));
         chunkManager.addDataPage(EXCHANGE_0, 0, 1, 0, 1L, utf8Slice("001_0"));
         chunkManager.addDataPage(EXCHANGE_0, 1, 0, 0, 2L, utf8Slice("010_0"));
@@ -107,6 +110,9 @@ public class TestChunkManager
     public void testMultipleChunksPerPartition()
     {
         ChunkManager chunkManager = createChunkManager(DataSize.of(32, BYTE));
+
+        chunkManager.registerExchange(EXCHANGE_0);
+        chunkManager.registerExchange(EXCHANGE_1);
 
         chunkManager.addDataPage(EXCHANGE_0, 0, 0, 0, 0L, utf8Slice("000_0"));
         chunkManager.addDataPage(EXCHANGE_0, 1, 0, 0, 1L, utf8Slice("010_0"));
@@ -171,7 +177,7 @@ public class TestChunkManager
     {
         ChunkManager chunkManager = createChunkManager(DataSize.of(16, MEGABYTE));
 
-        chunkManager.addDataPage(EXCHANGE_0, 0, 0, 0, 0L, utf8Slice("0"));
+        chunkManager.registerExchange(EXCHANGE_0);
 
         ticker.increment(1000, MILLISECONDS);
         chunkManager.cleanupStaleExchanges();
@@ -201,9 +207,7 @@ public class TestChunkManager
     {
         ChunkManager chunkManager = createChunkManager(DataSize.of(16, MEGABYTE));
 
-        chunkManager.addDataPage(EXCHANGE_0, 0, 0, 0, 0L, utf8Slice("000_0"));
-        chunkManager.addDataPage(EXCHANGE_0, 1, 0, 0, 1L, utf8Slice("010_0"));
-
+        chunkManager.registerExchange(EXCHANGE_0);
         chunkManager.removeExchange(EXCHANGE_0);
 
         assertThatThrownBy(() -> chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty()))

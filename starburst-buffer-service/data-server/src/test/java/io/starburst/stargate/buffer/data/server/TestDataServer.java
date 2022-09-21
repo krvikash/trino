@@ -79,6 +79,10 @@ public class TestDataServer
 
         addDataPage(EXCHANGE_0, 0, 0, 0, 0L, utf8Slice("trino"));
         addDataPage(EXCHANGE_0, 0, 1, 0, 1L, utf8Slice("buffer"));
+
+        registerExchange(EXCHANGE_0);
+        registerExchange(EXCHANGE_1);
+
         addDataPage(EXCHANGE_0, 1, 0, 1, 2L, utf8Slice("service"));
         addDataPage(EXCHANGE_1, 0, 0, 0, 0L, utf8Slice("tardigrade"));
         addDataPage(EXCHANGE_1, 1, 2, 0, 1L, largePage1);
@@ -164,6 +168,11 @@ public class TestDataServer
     private List<DataPage> getChunkData(String exchangeId, ChunkHandle chunkHandle)
     {
         return getFutureValue(dataClient.getChunkData(exchangeId, chunkHandle));
+    }
+
+    private void registerExchange(String exchangeId)
+    {
+        getFutureValue(dataClient.registerExchange(exchangeId));
     }
 
     private void removeExchange(String exchangeId)
