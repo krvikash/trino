@@ -59,10 +59,10 @@ public class Chunk
         return partitionId;
     }
 
-    public void write(int taskId, int attemptId, long dataPageId, Slice data)
+    public void write(int taskId, int attemptId, Slice data)
     {
         checkState(!closed, "write() called on a closed chunk");
-        chunkData.write(taskId, attemptId, dataPageId, data);
+        chunkData.write(taskId, attemptId, data);
     }
 
     public boolean hasEnoughSpace(Slice data)
@@ -108,8 +108,7 @@ public class Chunk
             this.sliceOutput = chunkSlice.getOutput();
         }
 
-        // TODO: use dataPageId to deduplicate
-        public void write(int taskId, int attemptId, long dataPageId, Slice data)
+        public void write(int taskId, int attemptId, Slice data)
         {
             int writableBytes = sliceOutput.writableBytes();
             int dataSize = data.length();

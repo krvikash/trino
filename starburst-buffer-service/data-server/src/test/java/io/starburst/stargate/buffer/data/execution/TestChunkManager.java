@@ -25,7 +25,7 @@ import static io.airlift.slice.Slices.utf8Slice;
 import static io.airlift.units.DataSize.Unit.BYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.starburst.stargate.buffer.data.execution.ChunkManagerConfig.DEFAULT_EXCHANGE_STALENESS_THRESHOLD;
-import static io.starburst.stargate.buffer.data.server.TestingDataServer.BUFFER_NODE_ID;
+import static io.starburst.stargate.buffer.data.server.testing.TestingDataServer.BUFFER_NODE_ID;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -200,6 +200,40 @@ public class TestChunkManager
         assertThatThrownBy(() -> chunkManager.listClosedChunks(EXCHANGE_1, OptionalLong.empty()))
                 .isInstanceOf(DataServerException.class)
                 .hasMessage("exchange %s not found".formatted(EXCHANGE_1));
+    }
+
+    @Test
+    public void testDataPageIdDeduplication()
+    {
+        ChunkManager chunkManager = createChunkManager(DataSize.of(30, BYTE));
+
+        chunkManager.addDataPage(EXCHANGE_0, 0, 0, 0, 0L, utf8Slice("chunk"));
+        chunkManager.addDataPage(EXCHANGE_0, 0, 0, 0, 1L, utf8Slice("manager"));
+        chunkManager.addDataPage(EXCHANGE_0, 0, 0, 0, 1L, utf8Slice("manager"));
+        chunkManager.addDataPage(EXCHANGE_0, 1, 0, 0, 2L, utf8Slice("data"));
+        chunkManager.addDataPage(EXCHANGE_0, 1, 0, 0, 3L, utf8Slice("page"));
+        assertThatThrownBy(() -> chunkManager.addDataPage(EXCHANGE_0, 0, 0, 0, 0L, utf8Slice("chunk")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("dataPageId should not decrease for the same writer: taskId 0, attemptId 0, dataPageId 0, lastDataPageId 1");
+        chunkManager.addDataPage(EXCHANGE_0, 1, 1, 0, 0L, utf8Slice("deduplication"));
+        chunkManager.finishExchange(EXCHANGE_0);
+
+        ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 12);
+        ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 1, 1L, 8);
+        ChunkHandle chunkHandle2 = new ChunkHandle(BUFFER_NODE_ID, 1, 2L, 13);
+
+        ChunkList chunkList0 = chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty());
+        assertThat(chunkList0.chunks()).containsExactlyInAnyOrder(chunkHandle0, chunkHandle1, chunkHandle2);
+        assertTrue(chunkList0.nextPagingId().isEmpty());
+
+        assertThat(chunkManager.getChunkData(EXCHANGE_0, chunkHandle0.partitionId(), chunkHandle0.chunkId())).containsExactlyInAnyOrder(
+                new DataPage(0, 0, utf8Slice("chunk")), new DataPage(0, 0, utf8Slice("manager")));
+        assertThat(chunkManager.getChunkData(EXCHANGE_0, chunkHandle1.partitionId(), chunkHandle1.chunkId())).containsExactlyInAnyOrder(
+                new DataPage(0, 0, utf8Slice("data")), new DataPage(0, 0, utf8Slice("page")));
+        assertThat(chunkManager.getChunkData(EXCHANGE_0, chunkHandle2.partitionId(), chunkHandle2.chunkId())).containsExactlyInAnyOrder(
+                new DataPage(1, 0, utf8Slice("deduplication")));
+
+        chunkManager.removeExchange(EXCHANGE_0);
     }
 
     @Test

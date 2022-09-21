@@ -36,7 +36,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static io.airlift.units.Duration.succinctDuration;
 import static java.lang.Math.toIntExact;
 import static java.lang.annotation.ElementType.FIELD;
@@ -86,9 +85,6 @@ public class ChunkManager
 
     public void addDataPage(String exchangeId, int partitionId, int taskId, int attemptId, long dataPageId, Slice data)
     {
-        checkArgument(taskId <= Short.MAX_VALUE, "taskId %s larger than %s", taskId, Short.MAX_VALUE);
-        checkArgument(attemptId <= Byte.MAX_VALUE, "attemptId %s larger than %s", attemptId, Byte.MAX_VALUE);
-
         registerExchange(exchangeId);
         getExchangeOrThrow(exchangeId).addDataPage(partitionId, taskId, attemptId, dataPageId, data);
     }

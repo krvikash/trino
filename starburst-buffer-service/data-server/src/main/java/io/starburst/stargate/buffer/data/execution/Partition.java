@@ -19,12 +19,14 @@ import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
 import static java.util.Objects.requireNonNull;
@@ -42,6 +44,8 @@ public class Partition
     // chunkId -> closed chunk
     private final Map<Long, Chunk> closedChunks = new ConcurrentHashMap<>();
 
+    @GuardedBy("this")
+    private final Map<TaskAttemptId, Long> lastDataPageIds = new HashMap<>();
     @GuardedBy("this")
     private Chunk openChunk;
 
@@ -63,6 +67,18 @@ public class Partition
 
     public synchronized void addDataPage(int taskId, int attemptId, long dataPageId, Slice data)
     {
+        TaskAttemptId taskAttemptId = new TaskAttemptId(taskId, attemptId);
+        long lastDataPageId = lastDataPageIds.getOrDefault(taskAttemptId, -1L);
+        checkArgument(dataPageId >= lastDataPageId,
+                "dataPageId should not decrease for the same writer: " +
+                        "taskId %d, attemptId %d, dataPageId %d, lastDataPageId %d".formatted(taskId, attemptId, dataPageId, lastDataPageId));
+        if (dataPageId == lastDataPageId) {
+            return;
+        }
+        else {
+            lastDataPageIds.put(taskAttemptId, dataPageId);
+        }
+
         if (openChunk == null) {
             openChunk = createNewOpenChunk();
         }
@@ -72,7 +88,7 @@ public class Partition
             closeChunk(openChunk);
             openChunk = createNewOpenChunk();
         }
-        openChunk.write(taskId, attemptId, dataPageId, data);
+        openChunk.write(taskId, attemptId, data);
     }
 
     public List<DataPage> getChunkData(long chunkId)
@@ -121,5 +137,14 @@ public class Partition
         Slice chunkSlice = memoryAllocator.allocate(chunkSizeInBytes)
                 .orElseThrow(() -> new IllegalStateException("Failed to create a new open chunk due to memory allocation failure"));
         return new Chunk(bufferNodeId, partitionId, chunkId, chunkSlice);
+    }
+
+    private record TaskAttemptId(
+            int taskId,
+            int attemptId) {
+        public TaskAttemptId {
+            checkArgument(taskId <= Short.MAX_VALUE, "taskId %s larger than %s", taskId, Short.MAX_VALUE);
+            checkArgument(attemptId <= Byte.MAX_VALUE, "attemptId %s larger than %s", attemptId, Byte.MAX_VALUE);
+        }
     }
 }

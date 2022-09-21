@@ -38,7 +38,7 @@ public class TestChunk
         long dataPageId = 0;
         for (DataPage dataPage : dataPages) {
             assertTrue(chunk.hasEnoughSpace(dataPage.data()));
-            chunk.write(dataPage.taskId(), dataPage.attemptId(), dataPageId++, dataPage.data());
+            chunk.write(dataPage.taskId(), dataPage.attemptId(), dataPage.data());
         }
         assertFalse(chunk.hasEnoughSpace(extraDataPage.data()));
         chunk.close();
