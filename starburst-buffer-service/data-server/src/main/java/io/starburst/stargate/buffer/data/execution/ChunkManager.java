@@ -20,6 +20,7 @@ import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
+import io.starburst.stargate.buffer.data.server.DataServerStats;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.concurrent.ThreadSafe;
@@ -45,6 +46,7 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 @ThreadSafe
 public class ChunkManager
@@ -56,31 +58,36 @@ public class ChunkManager
     private final Duration exchangeStalenessThreshold;
     private final MemoryAllocator memoryAllocator;
     private final Ticker ticker;
+    private final DataServerStats dataServerStats;
 
     // exchangeId -> exchange
     private final Map<String, Exchange> exchanges = new ConcurrentHashMap<>();
     private final AtomicLong nextChunkIdGenerator = new AtomicLong();
-    private final ScheduledExecutorService executor = newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService cleanupExecutor = newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService statsReportingExecutor = newSingleThreadScheduledExecutor();
 
     @Inject
     public ChunkManager(
             @BufferNodeId long bufferNodeId,
             ChunkManagerConfig config,
             MemoryAllocator memoryAllocator,
-            @ForChunkManager Ticker ticker)
+            @ForChunkManager Ticker ticker,
+            DataServerStats dataServerStats)
     {
         this.bufferNodeId = bufferNodeId;
         this.chunkSizeInBytes = toIntExact(config.getChunkSize().toBytes());
         this.exchangeStalenessThreshold = config.getExchangeStalenessThreshold();
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.ticker = requireNonNull(ticker, "ticker is null");
+        this.dataServerStats = requireNonNull(dataServerStats, "dataServerStats is null");
     }
 
     @PostConstruct
     public void start()
     {
         long interval = exchangeStalenessThreshold.toMillis();
-        executor.scheduleWithFixedDelay(this::cleanupStaleExchanges, interval, interval, MILLISECONDS);
+        cleanupExecutor.scheduleWithFixedDelay(this::cleanupStaleExchanges, interval, interval, MILLISECONDS);
+        statsReportingExecutor.scheduleWithFixedDelay(this::reportStats, 0, 1, SECONDS);
     }
 
     public void addDataPage(String exchangeId, int partitionId, int taskId, int attemptId, long dataPageId, Slice data)
@@ -164,6 +171,13 @@ public class ChunkManager
                 iterator.remove();
             }
         }
+    }
+
+    private void reportStats()
+    {
+        dataServerStats.getTrackedExchanges().add(getTrackedExchanges());
+        dataServerStats.getOpenChunks().add(getOpenChunks());
+        dataServerStats.getClosedChunks().add(getClosedChunks());
     }
 
     private long tickerReadMillis()

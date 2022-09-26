@@ -12,6 +12,7 @@ package io.starburst.stargate.buffer.data.memory;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
+import io.starburst.stargate.buffer.data.server.DataServerStats;
 
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
@@ -21,6 +22,7 @@ import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verify;
+import static java.util.Objects.requireNonNull;
 
 @ThreadSafe
 public class MemoryAllocator
@@ -28,17 +30,20 @@ public class MemoryAllocator
     private static final Logger log = Logger.get(MemoryAllocator.class);
 
     private final long maxBytes;
+    private final DataServerStats dataServerStats;
 
     @GuardedBy("this")
     private long allocatedBytes;
 
     @Inject
-    public MemoryAllocator(MemoryAllocatorConfig config)
+    public MemoryAllocator(MemoryAllocatorConfig config, DataServerStats dataServerStats)
     {
         long heapHeadroom = config.getHeapHeadroom().toBytes();
         long heapSize = Runtime.getRuntime().maxMemory();
         checkArgument(heapHeadroom < heapSize, "Heap headroom %s should be less than available heap size %s", heapHeadroom, heapSize);
         this.maxBytes = heapSize - heapHeadroom;
+        this.dataServerStats = requireNonNull(dataServerStats, "dataServerStats is null");
+        dataServerStats.getTotalMemoryInBytes().add(maxBytes);
     }
 
     public synchronized Optional<Slice> allocate(int bytes)
@@ -49,6 +54,7 @@ public class MemoryAllocator
             return Optional.empty();
         }
         allocatedBytes += bytes;
+        dataServerStats.getFreeMemoryInBytes().add(getFreeMemory());
         return Optional.of(Slices.allocate(bytes));
     }
 
@@ -56,6 +62,7 @@ public class MemoryAllocator
     {
         verify(allocatedBytes >= bytes, "%s bytes allocated, but trying to release %s bytes", allocatedBytes, bytes);
         allocatedBytes -= bytes;
+        dataServerStats.getFreeMemoryInBytes().add(getFreeMemory());
     }
 
     public long getTotalMemory()
@@ -63,7 +70,6 @@ public class MemoryAllocator
         return maxBytes;
     }
 
-    // TODO: expose buffer node metrics via JMX
     public synchronized long getFreeMemory()
     {
         return maxBytes - allocatedBytes;

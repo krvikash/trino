@@ -69,6 +69,7 @@ public class MainModule
         binder.bind(Long.class).annotatedWith(BufferNodeId.class).toInstance(bufferNodeId);
         binder.bind(Ticker.class).annotatedWith(ForChunkManager.class).toInstance(ticker);
         binder.bind(ChunkManager.class).in(SINGLETON);
+        binder.bind(DataServerStats.class).in(SINGLETON);
         if (discoveryBroadcastEnabled) {
             binder.bind(DiscoveryBroadcast.class).in(SINGLETON);
         }

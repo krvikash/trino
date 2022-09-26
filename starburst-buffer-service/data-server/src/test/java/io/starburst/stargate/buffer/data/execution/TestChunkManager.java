@@ -17,6 +17,7 @@ import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocatorConfig;
+import io.starburst.stargate.buffer.data.server.DataServerStats;
 import org.junit.jupiter.api.Test;
 
 import java.util.OptionalLong;
@@ -37,7 +38,7 @@ public class TestChunkManager
     private static final String EXCHANGE_0 = "exchange-0";
     private static final String EXCHANGE_1 = "exchange-1";
 
-    private final MemoryAllocator memoryAllocator = new MemoryAllocator(new MemoryAllocatorConfig());
+    private final MemoryAllocator memoryAllocator = new MemoryAllocator(new MemoryAllocatorConfig(), new DataServerStats());
     private final TestingTicker ticker = new TestingTicker();
 
     @Test
@@ -255,6 +256,6 @@ public class TestChunkManager
     private ChunkManager createChunkManager(DataSize chunkSize)
     {
         ChunkManagerConfig config = new ChunkManagerConfig().setChunkSize(chunkSize);
-        return new ChunkManager(BUFFER_NODE_ID, config, memoryAllocator, ticker);
+        return new ChunkManager(BUFFER_NODE_ID, config, memoryAllocator, ticker, new DataServerStats());
     }
 }
