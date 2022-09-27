@@ -126,18 +126,17 @@ public class Exchange
         return chunkList;
     }
 
-    public void finish()
+    public synchronized void finish()
     {
-        synchronized (this) {
-            if (finished) {
-                return;
-            }
-            finished = true;
+        if (finished) {
+            return;
         }
 
         for (Partition partition : partitions.values()) {
             partition.finish();
         }
+
+        finished = true;
     }
 
     public int getOpenChunksCount()
