@@ -63,6 +63,8 @@ public interface TrinoCatalog
 
     void renameNamespace(ConnectorSession session, String source, String target);
 
+    boolean tableExists(ConnectorSession session, SchemaTableName schemaTableName);
+
     List<SchemaTableName> listTables(ConnectorSession session, Optional<String> namespace);
 
     Transaction newCreateTableTransaction(
@@ -72,6 +74,8 @@ public interface TrinoCatalog
             PartitionSpec partitionSpec,
             String location,
             Map<String, String> properties);
+
+    void registerTable(ConnectorSession session, SchemaTableName tableName, String metadataFileLocation);
 
     void dropTable(ConnectorSession session, SchemaTableName schemaTableName);
 
@@ -92,6 +96,8 @@ public interface TrinoCatalog
     void updateViewComment(ConnectorSession session, SchemaTableName schemaViewName, Optional<String> comment);
 
     String defaultTableLocation(ConnectorSession session, SchemaTableName schemaTableName);
+
+    String latestMetadataLocation(ConnectorSession session, String tableLocation);
 
     void setTablePrincipal(ConnectorSession session, SchemaTableName schemaTableName, TrinoPrincipal principal);
 

@@ -34,6 +34,7 @@ import com.amazonaws.services.glue.model.UpdateTableRequest;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
+import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.plugin.base.CatalogName;
 import io.trino.plugin.hive.SchemaAlreadyExistsException;
@@ -95,6 +96,7 @@ import static io.trino.plugin.iceberg.IcebergSchemaProperties.LOCATION_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.getHiveCatalogName;
 import static io.trino.plugin.iceberg.IcebergUtil.getIcebergTableWithMetadata;
 import static io.trino.plugin.iceberg.IcebergUtil.quotedTableName;
+import static io.trino.plugin.iceberg.IcebergUtil.validateLocation;
 import static io.trino.plugin.iceberg.IcebergUtil.validateTableCanBeDropped;
 import static io.trino.plugin.iceberg.catalog.glue.GlueIcebergUtil.getMaterializedViewTableInput;
 import static io.trino.plugin.iceberg.catalog.glue.GlueIcebergUtil.getTableInput;
@@ -108,7 +110,9 @@ import static java.lang.String.format;
 import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
 import static org.apache.hadoop.hive.metastore.TableType.VIRTUAL_VIEW;
+import static org.apache.iceberg.BaseMetastoreTableOperations.ICEBERG_TABLE_TYPE_VALUE;
 import static org.apache.iceberg.BaseMetastoreTableOperations.METADATA_LOCATION_PROP;
+import static org.apache.iceberg.BaseMetastoreTableOperations.TABLE_TYPE_PROP;
 import static org.apache.iceberg.CatalogUtil.dropTableData;
 
 public class TrinoGlueCatalog
@@ -116,7 +120,6 @@ public class TrinoGlueCatalog
 {
     private static final Logger LOG = Logger.get(TrinoGlueCatalog.class);
 
-    private final TrinoFileSystemFactory fileSystemFactory;
     private final Optional<String> defaultSchemaLocation;
     private final AWSGlueAsync glueClient;
     private final GlueMetastoreStats stats;
@@ -136,8 +139,7 @@ public class TrinoGlueCatalog
             Optional<String> defaultSchemaLocation,
             boolean useUniqueTableLocation)
     {
-        super(catalogName, typeManager, tableOperationsProvider, trinoVersion, useUniqueTableLocation);
-        this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
+        super(catalogName, typeManager, tableOperationsProvider, fileSystemFactory, trinoVersion, useUniqueTableLocation);
         this.glueClient = requireNonNull(glueClient, "glueClient is null");
         this.stats = requireNonNull(stats, "stats is null");
         this.defaultSchemaLocation = requireNonNull(defaultSchemaLocation, "defaultSchemaLocation is null");
@@ -273,6 +275,23 @@ public class TrinoGlueCatalog
     }
 
     @Override
+    public boolean tableExists(ConnectorSession session, SchemaTableName schemaTableName)
+    {
+        return stats.getGetTable().call(() -> {
+            try {
+                glueClient.getTable(new GetTableRequest().withDatabaseName(schemaTableName.getSchemaName()).withName(schemaTableName.getTableName()));
+                return true;
+            }
+            catch (EntityNotFoundException e) {
+                return false;
+            }
+            catch (AmazonServiceException e) {
+                throw new TrinoException(ICEBERG_CATALOG_ERROR, e);
+            }
+        });
+    }
+
+    @Override
     public List<SchemaTableName> listTables(ConnectorSession session, Optional<String> namespace)
     {
         ImmutableList.Builder<SchemaTableName> tables = ImmutableList.builder();
@@ -364,6 +383,23 @@ public class TrinoGlueCatalog
                 location,
                 properties,
                 Optional.of(session.getUser()));
+    }
+
+    @Override
+    public void registerTable(ConnectorSession session, SchemaTableName schemaTableName, String metadataFileLocation)
+    {
+        TrinoFileSystem fileSystem = fileSystemFactory.create(session);
+        validateLocation(fileSystem, metadataFileLocation);
+
+        TableInput tableInput = getTableInput(schemaTableName.getTableName(), getOwner(session), ImmutableMap.<String, String>builder()
+                .put(TABLE_TYPE_PROP, ICEBERG_TABLE_TYPE_VALUE.toUpperCase(ENGLISH))
+                .put(METADATA_LOCATION_PROP, metadataFileLocation)
+                .buildOrThrow());
+
+        CreateTableRequest createTableRequest = new CreateTableRequest()
+                .withDatabaseName(schemaTableName.getSchemaName())
+                .withTableInput(tableInput);
+        stats.getCreateTable().call(() -> glueClient.createTable(createTableRequest));
     }
 
     @Override
@@ -941,5 +977,11 @@ public class TrinoGlueCatalog
             return targetCatalogName.map(catalog -> new CatalogSchemaTableName(catalog, tableName));
         }
         return Optional.empty();
+    }
+
+    @Override
+    protected Optional<String> getOwner(ConnectorSession session)
+    {
+        return Optional.of(session.getUser());
     }
 }

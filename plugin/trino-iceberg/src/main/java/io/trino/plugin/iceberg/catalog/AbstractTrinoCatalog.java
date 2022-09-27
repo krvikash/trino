@@ -15,6 +15,7 @@ package io.trino.plugin.iceberg.catalog;
 
 import com.google.common.collect.ImmutableMap;
 import io.trino.filesystem.TrinoFileSystem;
+import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.plugin.base.CatalogName;
 import io.trino.plugin.hive.HiveMetadata;
 import io.trino.plugin.hive.HiveViewNotSupportedException;
@@ -63,6 +64,7 @@ import static io.trino.plugin.iceberg.IcebergMaterializedViewAdditionalPropertie
 import static io.trino.plugin.iceberg.IcebergMaterializedViewDefinition.decodeMaterializedViewData;
 import static io.trino.plugin.iceberg.IcebergTableProperties.FILE_FORMAT_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergUtil.getIcebergTableProperties;
+import static io.trino.plugin.iceberg.IcebergUtil.getLatestMetadataLocation;
 import static io.trino.spi.StandardErrorCode.TABLE_NOT_FOUND;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -85,6 +87,7 @@ public abstract class AbstractTrinoCatalog
     private final CatalogName catalogName;
     private final TypeManager typeManager;
     protected final IcebergTableOperationsProvider tableOperationsProvider;
+    protected final TrinoFileSystemFactory fileSystemFactory;
     private final String trinoVersion;
     private final boolean useUniqueTableLocation;
 
@@ -92,12 +95,14 @@ public abstract class AbstractTrinoCatalog
             CatalogName catalogName,
             TypeManager typeManager,
             IcebergTableOperationsProvider tableOperationsProvider,
+            TrinoFileSystemFactory fileSystemFactory,
             String trinoVersion,
             boolean useUniqueTableLocation)
     {
         this.catalogName = requireNonNull(catalogName, "catalogName is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.tableOperationsProvider = requireNonNull(tableOperationsProvider, "tableOperationsProvider is null");
+        this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.trinoVersion = requireNonNull(trinoVersion, "trinoVersion is null");
         this.useUniqueTableLocation = useUniqueTableLocation;
     }
@@ -178,6 +183,14 @@ public abstract class AbstractTrinoCatalog
                 owner,
                 Optional.of(location));
         return createTableTransaction(schemaTableName.toString(), ops, metadata);
+    }
+
+    protected abstract Optional<String> getOwner(ConnectorSession session);
+
+    @Override
+    public String latestMetadataLocation(ConnectorSession session, String tableLocation)
+    {
+        return getLatestMetadataLocation(fileSystemFactory.create(session), tableLocation);
     }
 
     protected String createNewTableName(String baseTableName)

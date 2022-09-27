@@ -16,6 +16,7 @@ package io.trino.plugin.iceberg.catalog.hms;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.log.Logger;
+import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.plugin.base.CatalogName;
 import io.trino.plugin.hive.HiveSchemaProperties;
@@ -24,6 +25,7 @@ import io.trino.plugin.hive.ViewAlreadyExistsException;
 import io.trino.plugin.hive.metastore.Column;
 import io.trino.plugin.hive.metastore.Database;
 import io.trino.plugin.hive.metastore.HivePrincipal;
+import io.trino.plugin.hive.metastore.MetastoreUtil;
 import io.trino.plugin.hive.metastore.PrincipalPrivileges;
 import io.trino.plugin.hive.metastore.cache.CachingHiveMetastore;
 import io.trino.plugin.hive.util.HiveUtil;
@@ -42,6 +44,7 @@ import io.trino.spi.connector.TableNotFoundException;
 import io.trino.spi.connector.ViewNotFoundException;
 import io.trino.spi.security.TrinoPrincipal;
 import io.trino.spi.type.TypeManager;
+import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
@@ -81,7 +84,11 @@ import static io.trino.plugin.iceberg.IcebergSessionProperties.getHiveCatalogNam
 import static io.trino.plugin.iceberg.IcebergUtil.getIcebergTableWithMetadata;
 import static io.trino.plugin.iceberg.IcebergUtil.isIcebergTable;
 import static io.trino.plugin.iceberg.IcebergUtil.loadIcebergTable;
+import static io.trino.plugin.iceberg.IcebergUtil.readMetadata;
+import static io.trino.plugin.iceberg.IcebergUtil.validateLocation;
 import static io.trino.plugin.iceberg.IcebergUtil.validateTableCanBeDropped;
+import static io.trino.plugin.iceberg.catalog.AbstractIcebergTableOperations.ICEBERG_METASTORE_STORAGE_FORMAT;
+import static io.trino.plugin.iceberg.catalog.AbstractIcebergTableOperations.toHiveColumns;
 import static io.trino.spi.StandardErrorCode.ALREADY_EXISTS;
 import static io.trino.spi.StandardErrorCode.INVALID_SCHEMA_PROPERTY;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
@@ -93,6 +100,9 @@ import static java.lang.String.join;
 import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
 import static org.apache.hadoop.hive.metastore.TableType.VIRTUAL_VIEW;
+import static org.apache.iceberg.BaseMetastoreTableOperations.ICEBERG_TABLE_TYPE_VALUE;
+import static org.apache.iceberg.BaseMetastoreTableOperations.METADATA_LOCATION_PROP;
+import static org.apache.iceberg.BaseMetastoreTableOperations.TABLE_TYPE_PROP;
 import static org.apache.iceberg.CatalogUtil.dropTableData;
 
 public class TrinoHiveCatalog
@@ -102,7 +112,6 @@ public class TrinoHiveCatalog
     public static final String DEPENDS_ON_TABLES = "dependsOnTables";
 
     private final CachingHiveMetastore metastore;
-    private final TrinoFileSystemFactory fileSystemFactory;
     private final boolean isUsingSystemSecurity;
     private final boolean deleteSchemaLocationsFallback;
 
@@ -119,9 +128,8 @@ public class TrinoHiveCatalog
             boolean isUsingSystemSecurity,
             boolean deleteSchemaLocationsFallback)
     {
-        super(catalogName, typeManager, tableOperationsProvider, trinoVersion, useUniqueTableLocation);
+        super(catalogName, typeManager, tableOperationsProvider, fileSystemFactory, trinoVersion, useUniqueTableLocation);
         this.metastore = requireNonNull(metastore, "metastore is null");
-        this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.isUsingSystemSecurity = isUsingSystemSecurity;
         this.deleteSchemaLocationsFallback = deleteSchemaLocationsFallback;
     }
@@ -254,6 +262,44 @@ public class TrinoHiveCatalog
                 location,
                 properties,
                 isUsingSystemSecurity ? Optional.empty() : Optional.of(session.getUser()));
+    }
+
+    @Override
+    public void registerTable(ConnectorSession session, SchemaTableName schemaTableName, String metadataFileLocation)
+    {
+        TrinoFileSystem fileSystem = fileSystemFactory.create(session);
+
+        validateLocation(fileSystem, metadataFileLocation);
+        TableMetadata tableMetadata = readMetadata(fileSystem, metadataFileLocation);
+        Optional<String> owner = getOwner(session);
+
+        io.trino.plugin.hive.metastore.Table.Builder builder = io.trino.plugin.hive.metastore.Table.builder()
+                .setDatabaseName(schemaTableName.getSchemaName())
+                .setTableName(schemaTableName.getTableName())
+                .setOwner(owner)
+                // Table needs to be EXTERNAL, otherwise table rename in HMS would rename table directory and break table contents.
+                .setTableType(TableType.EXTERNAL_TABLE.name())
+                .setDataColumns(toHiveColumns(tableMetadata.schema().columns()))
+                .withStorage(storage -> storage.setLocation(tableMetadata.location()))
+                .withStorage(storage -> storage.setStorageFormat(ICEBERG_METASTORE_STORAGE_FORMAT))
+                // This is a must-have property for the EXTERNAL_TABLE table type
+                .setParameter("EXTERNAL", "TRUE")
+                .setParameter(TABLE_TYPE_PROP, ICEBERG_TABLE_TYPE_VALUE.toUpperCase(ENGLISH))
+                .setParameter(METADATA_LOCATION_PROP, metadataFileLocation);
+        String tableComment = tableMetadata.properties().get(TABLE_COMMENT);
+        if (tableComment != null) {
+            builder.setParameter(TABLE_COMMENT, tableComment);
+        }
+        io.trino.plugin.hive.metastore.Table table = builder.build();
+
+        PrincipalPrivileges privileges = owner.map(MetastoreUtil::buildInitialPrivilegeSet).orElse(NO_PRIVILEGES);
+        metastore.createTable(table, privileges);
+    }
+
+    @Override
+    public boolean tableExists(ConnectorSession session, SchemaTableName schemaTableName)
+    {
+        return metastore.getTable(schemaTableName.getSchemaName(), schemaTableName.getTableName()).isPresent();
     }
 
     @Override
@@ -639,5 +685,11 @@ public class TrinoHiveCatalog
             return targetCatalogName.map(catalog -> new CatalogSchemaTableName(catalog, tableName));
         }
         return Optional.empty();
+    }
+
+    @Override
+    protected Optional<String> getOwner(ConnectorSession session)
+    {
+        return isUsingSystemSecurity ? Optional.empty() : Optional.of(session.getUser());
     }
 }
