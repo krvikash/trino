@@ -34,12 +34,14 @@ import com.amazonaws.services.glue.model.UpdateTableRequest;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
+import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.plugin.base.CatalogName;
 import io.trino.plugin.hive.SchemaAlreadyExistsException;
 import io.trino.plugin.hive.ViewAlreadyExistsException;
 import io.trino.plugin.hive.metastore.glue.GlueMetastoreStats;
 import io.trino.plugin.iceberg.catalog.AbstractTrinoCatalog;
+import io.trino.plugin.iceberg.catalog.IcebergTableOperations;
 import io.trino.plugin.iceberg.catalog.IcebergTableOperationsProvider;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.CatalogSchemaTableName;
@@ -94,7 +96,10 @@ import static io.trino.plugin.iceberg.IcebergMaterializedViewDefinition.fromConn
 import static io.trino.plugin.iceberg.IcebergSchemaProperties.LOCATION_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.getHiveCatalogName;
 import static io.trino.plugin.iceberg.IcebergUtil.getIcebergTableWithMetadata;
+import static io.trino.plugin.iceberg.IcebergUtil.getMetadataLocation;
 import static io.trino.plugin.iceberg.IcebergUtil.quotedTableName;
+import static io.trino.plugin.iceberg.IcebergUtil.readMetadata;
+import static io.trino.plugin.iceberg.IcebergUtil.validateLocation;
 import static io.trino.plugin.iceberg.IcebergUtil.validateTableCanBeDropped;
 import static io.trino.plugin.iceberg.catalog.glue.GlueIcebergUtil.getMaterializedViewTableInput;
 import static io.trino.plugin.iceberg.catalog.glue.GlueIcebergUtil.getTableInput;
@@ -102,6 +107,8 @@ import static io.trino.plugin.iceberg.catalog.glue.GlueIcebergUtil.getViewTableI
 import static io.trino.spi.StandardErrorCode.ALREADY_EXISTS;
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
+import static io.trino.spi.StandardErrorCode.SCHEMA_NOT_FOUND;
+import static io.trino.spi.StandardErrorCode.TABLE_ALREADY_EXISTS;
 import static io.trino.spi.StandardErrorCode.UNSUPPORTED_TABLE_TYPE;
 import static io.trino.spi.connector.SchemaTableName.schemaTableName;
 import static java.lang.String.format;
@@ -918,5 +925,42 @@ public class TrinoGlueCatalog
             return targetCatalogName.map(catalog -> new CatalogSchemaTableName(catalog, tableName));
         }
         return Optional.empty();
+    }
+
+    private boolean schemaExists(SchemaTableName schemaTableName)
+    {
+        return glueClient.getDatabases(new GetDatabasesRequest()).getDatabaseList()
+                .stream().filter(x -> x.getName().equals(schemaTableName.getSchemaName())).findFirst().isPresent();
+    }
+
+    private boolean tableExists(SchemaTableName schemaTableName)
+    {
+        return glueClient.getTables(new GetTablesRequest().withDatabaseName(schemaTableName.getSchemaName())).getTableList()
+                .stream().filter(x -> x.getName().equals(schemaTableName.getTableName())).findFirst().isPresent();
+    }
+
+    @Override
+    public void registerTable(ConnectorSession session, SchemaTableName schemaTableName, String tableLocation, Optional<String> metadataFileName)
+    {
+        TrinoFileSystem fileSystem = fileSystemFactory.create(session);
+
+        if (!schemaExists(schemaTableName)) {
+            throw new TrinoException(SCHEMA_NOT_FOUND, format("Schema '%s' does not exist", schemaTableName.getSchemaName()));
+        }
+        if (tableExists(schemaTableName)) {
+            throw new TrinoException(TABLE_ALREADY_EXISTS, format("Table '%s' already exists in schema '%s'", schemaTableName.getTableName(), schemaTableName.getSchemaName()));
+        }
+        Optional<String> metadataLocation = getMetadataLocation(fileSystem, tableLocation, metadataFileName);
+        validateLocation(fileSystem, metadataLocation.get());
+
+        TableMetadata tableMetadata = readMetadata(fileSystem, metadataLocation.get());
+        IcebergTableOperations operations = tableOperationsProvider.createTableOperations(
+                this,
+                session,
+                schemaTableName.getSchemaName(),
+                schemaTableName.getTableName(),
+                Optional.of(session.getUser()),
+                Optional.of(tableLocation));
+        operations.commit(null, tableMetadata);
     }
 }

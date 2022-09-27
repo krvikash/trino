@@ -16,6 +16,7 @@ package io.trino.plugin.iceberg.catalog.hms;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.log.Logger;
+import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.plugin.base.CatalogName;
 import io.trino.plugin.hive.HiveSchemaProperties;
@@ -29,6 +30,7 @@ import io.trino.plugin.hive.metastore.cache.CachingHiveMetastore;
 import io.trino.plugin.hive.util.HiveUtil;
 import io.trino.plugin.iceberg.ColumnIdentity;
 import io.trino.plugin.iceberg.catalog.AbstractTrinoCatalog;
+import io.trino.plugin.iceberg.catalog.IcebergTableOperations;
 import io.trino.plugin.iceberg.catalog.IcebergTableOperationsProvider;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.CatalogSchemaTableName;
@@ -79,13 +81,18 @@ import static io.trino.plugin.iceberg.IcebergMaterializedViewDefinition.fromConn
 import static io.trino.plugin.iceberg.IcebergSchemaProperties.getSchemaLocation;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.getHiveCatalogName;
 import static io.trino.plugin.iceberg.IcebergUtil.getIcebergTableWithMetadata;
+import static io.trino.plugin.iceberg.IcebergUtil.getMetadataLocation;
 import static io.trino.plugin.iceberg.IcebergUtil.isIcebergTable;
 import static io.trino.plugin.iceberg.IcebergUtil.loadIcebergTable;
+import static io.trino.plugin.iceberg.IcebergUtil.readMetadata;
+import static io.trino.plugin.iceberg.IcebergUtil.validateLocation;
 import static io.trino.plugin.iceberg.IcebergUtil.validateTableCanBeDropped;
 import static io.trino.spi.StandardErrorCode.ALREADY_EXISTS;
 import static io.trino.spi.StandardErrorCode.INVALID_SCHEMA_PROPERTY;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.StandardErrorCode.SCHEMA_NOT_EMPTY;
+import static io.trino.spi.StandardErrorCode.SCHEMA_NOT_FOUND;
+import static io.trino.spi.StandardErrorCode.TABLE_ALREADY_EXISTS;
 import static io.trino.spi.StandardErrorCode.UNSUPPORTED_TABLE_TYPE;
 import static io.trino.spi.connector.SchemaTableName.schemaTableName;
 import static java.lang.String.format;
@@ -625,5 +632,40 @@ public class TrinoHiveCatalog
             return targetCatalogName.map(catalog -> new CatalogSchemaTableName(catalog, tableName));
         }
         return Optional.empty();
+    }
+
+    private boolean schemaExists(SchemaTableName schemaTableName)
+    {
+        return metastore.getDatabase(schemaTableName.getSchemaName()).isPresent();
+    }
+
+    private boolean tableExists(SchemaTableName schemaTableName)
+    {
+        return metastore.getTable(schemaTableName.getSchemaName(), schemaTableName.getTableName()).isPresent();
+    }
+
+    @Override
+    public void registerTable(ConnectorSession session, SchemaTableName schemaTableName, String tableLocation, Optional<String> metadataFileName)
+    {
+        TrinoFileSystem fileSystem = fileSystemFactory.create(session);
+
+        if (!schemaExists(schemaTableName)) {
+            throw new TrinoException(SCHEMA_NOT_FOUND, format("Schema '%s' does not exist", schemaTableName.getSchemaName()));
+        }
+        if (tableExists(schemaTableName)) {
+            throw new TrinoException(TABLE_ALREADY_EXISTS, format("Table '%s' already exists in schema '%s'", schemaTableName.getTableName(), schemaTableName.getSchemaName()));
+        }
+        Optional<String> metadataLocation = getMetadataLocation(fileSystem, tableLocation, metadataFileName);
+        validateLocation(fileSystem, metadataLocation.get());
+
+        TableMetadata tableMetadata = readMetadata(fileSystem, metadataLocation.get());
+        IcebergTableOperations operations = tableOperationsProvider.createTableOperations(
+                this,
+                session,
+                schemaTableName.getSchemaName(),
+                schemaTableName.getTableName(),
+                isUsingSystemSecurity ? Optional.empty() : Optional.of(session.getUser()),
+                Optional.of(tableLocation));
+        operations.commit(null, tableMetadata);
     }
 }

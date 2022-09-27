@@ -59,7 +59,8 @@ public abstract class AbstractIcebergTableOperations
 {
     private static final Logger log = Logger.get(AbstractIcebergTableOperations.class);
 
-    protected static final String METADATA_FOLDER_NAME = "metadata";
+    public static final String METADATA_FOLDER_NAME = "metadata";
+    public static final String METADATA_FILE_EXTENSION = ".metadata.json";
 
     protected static final StorageFormat STORAGE_FORMAT = StorageFormat.create(
             LazySimpleSerDe.class.getName(),
