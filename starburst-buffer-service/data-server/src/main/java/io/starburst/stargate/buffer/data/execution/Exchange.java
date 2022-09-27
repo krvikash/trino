@@ -141,12 +141,7 @@ public class Exchange
 
     public int getOpenChunksCount()
     {
-        if (finished) {
-            return 0;
-        }
-        else {
-            return partitions.size();
-        }
+        return (int) partitions.values().stream().filter(Partition::hasOpenChunk).count();
     }
 
     public int getClosedChunksCount()
