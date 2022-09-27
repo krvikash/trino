@@ -27,6 +27,7 @@ import com.amazonaws.services.glue.model.GetDatabaseRequest;
 import com.amazonaws.services.glue.model.GetDatabasesRequest;
 import com.amazonaws.services.glue.model.GetDatabasesResult;
 import com.amazonaws.services.glue.model.GetTableRequest;
+import com.amazonaws.services.glue.model.GetTableResult;
 import com.amazonaws.services.glue.model.GetTablesRequest;
 import com.amazonaws.services.glue.model.GetTablesResult;
 import com.amazonaws.services.glue.model.TableInput;
@@ -34,12 +35,14 @@ import com.amazonaws.services.glue.model.UpdateTableRequest;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
+import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.plugin.base.CatalogName;
 import io.trino.plugin.hive.SchemaAlreadyExistsException;
 import io.trino.plugin.hive.ViewAlreadyExistsException;
 import io.trino.plugin.hive.metastore.glue.GlueMetastoreStats;
 import io.trino.plugin.iceberg.catalog.AbstractTrinoCatalog;
+import io.trino.plugin.iceberg.catalog.IcebergTableOperations;
 import io.trino.plugin.iceberg.catalog.IcebergTableOperationsProvider;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.CatalogSchemaTableName;
@@ -88,13 +91,17 @@ import static io.trino.plugin.hive.util.HiveUtil.isHiveSystemSchema;
 import static io.trino.plugin.hive.util.HiveUtil.isIcebergTable;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_BAD_DATA;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_CATALOG_ERROR;
+import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_INVALID_METADATA;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewAdditionalProperties.STORAGE_SCHEMA;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewDefinition.encodeMaterializedViewData;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewDefinition.fromConnectorMaterializedViewDefinition;
 import static io.trino.plugin.iceberg.IcebergSchemaProperties.LOCATION_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.getHiveCatalogName;
 import static io.trino.plugin.iceberg.IcebergUtil.getIcebergTableWithMetadata;
+import static io.trino.plugin.iceberg.IcebergUtil.getMetadataLocation;
 import static io.trino.plugin.iceberg.IcebergUtil.quotedTableName;
+import static io.trino.plugin.iceberg.IcebergUtil.readMetadata;
+import static io.trino.plugin.iceberg.IcebergUtil.validateLocation;
 import static io.trino.plugin.iceberg.IcebergUtil.validateTableCanBeDropped;
 import static io.trino.plugin.iceberg.catalog.glue.GlueIcebergUtil.getMaterializedViewTableInput;
 import static io.trino.plugin.iceberg.catalog.glue.GlueIcebergUtil.getTableInput;
@@ -918,5 +925,52 @@ public class TrinoGlueCatalog
             return targetCatalogName.map(catalog -> new CatalogSchemaTableName(catalog, tableName));
         }
         return Optional.empty();
+    }
+
+    @Override
+    public void registerTable(ConnectorSession session, SchemaTableName schemaTableName, String tableLocation, String metadataFileName)
+    {
+        requireNonNull(session, "session is null");
+        requireNonNull(schemaTableName, "schemaTableName is null");
+        requireNonNull(tableLocation, "tableLocation is null");
+        validateSchemaTable(schemaTableName);
+
+        TrinoFileSystem fileSystem = fileSystemFactory.create(session);
+
+        validateLocation(fileSystem, tableLocation);
+        Optional<String> metadataLocation = getMetadataLocation(fileSystem, tableLocation, Optional.ofNullable(metadataFileName));
+        validateLocation(fileSystem, metadataLocation.orElseThrow());
+
+        TableMetadata tableMetadata = readMetadata(fileSystem, metadataLocation.get());
+        IcebergTableOperations operations = tableOperationsProvider.createTableOperations(
+                this,
+                session,
+                schemaTableName.getSchemaName(),
+                schemaTableName.getTableName(),
+                Optional.of(session.getUser()),
+                Optional.of(tableLocation));
+        operations.commit(null, tableMetadata);
+    }
+
+    private void validateSchemaTable(SchemaTableName schemaTableName)
+    {
+        try {
+            glueClient.getDatabase(new GetDatabaseRequest().withName(schemaTableName.getSchemaName()));
+        }
+        catch (EntityNotFoundException e) {
+            throw new TrinoException(ICEBERG_INVALID_METADATA, format("Schema '%s' does not exist", schemaTableName.getSchemaName()), e);
+        }
+
+        try {
+            Optional<GetTableResult> tablesResult = Optional.ofNullable(glueClient.getTable(new GetTableRequest()
+                    .withDatabaseName(schemaTableName.getSchemaName())
+                    .withName(schemaTableName.getTableName())));
+            if (tablesResult.isPresent()) {
+                throw new TrinoException(ICEBERG_INVALID_METADATA, format("Table '%s' already exists in schema '%s'", schemaTableName.getTableName(), schemaTableName.getSchemaName()));
+            }
+        }
+        catch (EntityNotFoundException e) {
+            // Expected. New table should not exist
+        }
     }
 }

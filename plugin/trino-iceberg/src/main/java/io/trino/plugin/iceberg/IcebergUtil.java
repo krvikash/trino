@@ -22,6 +22,9 @@ import com.google.common.collect.Sets;
 import io.airlift.slice.Slice;
 import io.airlift.slice.SliceUtf8;
 import io.airlift.slice.Slices;
+import io.trino.filesystem.FileEntry;
+import io.trino.filesystem.FileIterator;
+import io.trino.filesystem.TrinoFileSystem;
 import io.trino.plugin.iceberg.PartitionTransforms.ColumnTransform;
 import io.trino.plugin.iceberg.catalog.IcebergTableOperations;
 import io.trino.plugin.iceberg.catalog.IcebergTableOperationsProvider;
@@ -53,14 +56,19 @@ import org.apache.iceberg.Schema;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableMetadata;
+import org.apache.iceberg.TableMetadataParser;
 import org.apache.iceberg.TableOperations;
 import org.apache.iceberg.Transaction;
+import org.apache.iceberg.io.FileIO;
+import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.LocationProvider;
 import org.apache.iceberg.types.Type.PrimitiveType;
 import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.types.Types.NestedField;
 import org.apache.iceberg.types.Types.StructType;
 
+import java.io.File;
+import java.io.IOException;
 import java.lang.invoke.MethodHandle;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -86,6 +94,9 @@ import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.plugin.hive.HiveMetadata.TABLE_COMMENT;
 import static io.trino.plugin.iceberg.ColumnIdentity.createColumnIdentity;
+import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_FILESYSTEM_ERROR;
+import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_FILE_NOT_FOUND;
+import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_INVALID_METADATA;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_INVALID_PARTITION_VALUE;
 import static io.trino.plugin.iceberg.IcebergMetadata.ORC_BLOOM_FILTER_COLUMNS_KEY;
 import static io.trino.plugin.iceberg.IcebergMetadata.ORC_BLOOM_FILTER_FPP_KEY;
@@ -127,6 +138,7 @@ import static io.trino.spi.type.UuidType.javaUuidToTrinoUuid;
 import static java.lang.Double.parseDouble;
 import static java.lang.Float.floatToRawIntBits;
 import static java.lang.Float.parseFloat;
+import static java.lang.Integer.parseInt;
 import static java.lang.Long.parseLong;
 import static java.lang.String.format;
 import static java.util.Comparator.comparing;
@@ -143,9 +155,12 @@ import static org.apache.iceberg.TableProperties.WRITE_LOCATION_PROVIDER_IMPL;
 import static org.apache.iceberg.TableProperties.WRITE_METADATA_LOCATION;
 import static org.apache.iceberg.types.Type.TypeID.BINARY;
 import static org.apache.iceberg.types.Type.TypeID.FIXED;
+import static org.apache.iceberg.util.LocationUtil.stripTrailingSlash;
 
 public final class IcebergUtil
 {
+    public static final String METADATA_FOLDER_NAME = "metadata";
+    public static final String METADATA_FILE_EXTENSION = ".metadata.json";
     private static final Pattern SIMPLE_NAME = Pattern.compile("[a-z][a-z0-9]*");
 
     private IcebergUtil() {}
@@ -621,6 +636,100 @@ public final class IcebergUtil
                 .collect(toImmutableSet());
         if (!allColumns.containsAll(orcBloomFilterColumns)) {
             throw new TrinoException(INVALID_TABLE_PROPERTY, format("Orc bloom filter columns %s not present in schema", Sets.difference(ImmutableSet.copyOf(orcBloomFilterColumns), allColumns)));
+        }
+    }
+
+    public static Optional<String> getLatestMetadataLocation(TrinoFileSystem fileSystem, String location)
+    {
+        List<String> latestMetadataLocations = new ArrayList<>();
+        try {
+            int latestMetadataVersion = -1;
+            String metadataDirectoryLocation = stripTrailingSlash(location) + File.separator + METADATA_FOLDER_NAME;
+            FileIterator fileIterator = fileSystem.listFiles(metadataDirectoryLocation);
+            while (fileIterator.hasNext()) {
+                FileEntry fileEntry = fileIterator.next();
+                if (fileEntry.path().endsWith(METADATA_FILE_EXTENSION)) {
+                    int version = parseVersion(fileEntry.path());
+                    if (version > latestMetadataVersion) {
+                        latestMetadataVersion = version;
+                        latestMetadataLocations.clear();
+                        latestMetadataLocations.add(fileEntry.path());
+                    }
+                    else if (version == latestMetadataVersion) {
+                        latestMetadataLocations.add(fileEntry.path());
+                    }
+                }
+            }
+            if (latestMetadataLocations.isEmpty()) {
+                throw new TrinoException(ICEBERG_INVALID_METADATA, "No metadata file exists at location: " + location);
+            }
+            if (latestMetadataLocations.size() > 1) {
+                throw new TrinoException(ICEBERG_FILESYSTEM_ERROR, format("More than one latest metadata file found at location: %s, latest metadata files are %s",
+                        location, latestMetadataLocations));
+            }
+        }
+        catch (IOException e) {
+            throw new TrinoException(ICEBERG_FILESYSTEM_ERROR, "Failed checking table's location: " + location, e);
+        }
+        return Optional.of(latestMetadataLocations.get(0));
+    }
+
+    /**
+     * Get the latest metadata file location present in location if metadataFileName is not provided, otherwise
+     * form the metadata file location using location and metadataFileName
+     *
+     * @param fileSystem TrinoFileSystem
+     * @param location Table location
+     * @param metadataFileName metadata file name
+     * @return full qualified metadata file location
+     */
+    public static Optional<String> getMetadataLocation(TrinoFileSystem fileSystem, String location, Optional<String> metadataFileName)
+    {
+        if (metadataFileName.isEmpty()) {
+            return getLatestMetadataLocation(fileSystem, location);
+        }
+        else {
+            return Optional.of(stripTrailingSlash(location) + File.separator + METADATA_FOLDER_NAME + File.separator + metadataFileName.get());
+        }
+    }
+
+    private static int parseVersion(String metadataLocation)
+    {
+        // TODO may be make the method at one place. same as AbstractIcebergTableOperations#parseVersion
+        int versionStart = metadataLocation.lastIndexOf('/') + 1; // if '/' isn't found, this will be 0
+        int versionEnd = metadataLocation.indexOf('-', versionStart);
+        try {
+            return parseInt(metadataLocation.substring(versionStart, versionEnd));
+        }
+        catch (NumberFormatException | IndexOutOfBoundsException e) {
+            return -1;
+        }
+    }
+
+    /**
+     * Read metadata from provided metadata file location. This API should be called for valid metadata location.
+     *
+     * @param fileSystem TrinoFileSystem
+     * @param metadataLocation Metadata file location
+     * @return TableMetadata
+     */
+    public static TableMetadata readMetadata(TrinoFileSystem fileSystem, String metadataLocation)
+            throws TrinoException
+    {
+        FileIO fileIO = fileSystem.toFileIo();
+        InputFile metadataFile = fileIO.newInputFile(metadataLocation);
+        return TableMetadataParser.read(fileIO, metadataFile);
+    }
+
+    public static void validateLocation(TrinoFileSystem fileSystem, String location)
+    {
+        try {
+            if (!fileSystem.newInputFile(location).exists()) {
+                throw new TrinoException(ICEBERG_FILE_NOT_FOUND, format("Location %s does not exist", location));
+            }
+        }
+        catch (IOException e) {
+            throw new TrinoException(ICEBERG_FILESYSTEM_ERROR, format("Invalid location: %s", location), e);
         }
     }
 }

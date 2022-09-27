@@ -124,4 +124,6 @@ public interface TrinoCatalog
     void updateColumnComment(ConnectorSession session, SchemaTableName schemaTableName, ColumnIdentity columnIdentity, Optional<String> comment);
 
     Optional<CatalogSchemaTableName> redirectTable(ConnectorSession session, SchemaTableName tableName);
+
+    void registerTable(ConnectorSession session, SchemaTableName tableName, String tableLocation, String metadataFileName);
 }
