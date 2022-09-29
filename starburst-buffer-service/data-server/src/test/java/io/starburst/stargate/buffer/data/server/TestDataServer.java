@@ -9,6 +9,7 @@
  */
 package io.starburst.stargate.buffer.data.server;
 
+import com.google.common.collect.ImmutableList;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.HttpClientConfig;
 import io.airlift.http.client.jetty.JettyHttpClient;
@@ -152,7 +153,7 @@ public class TestDataServer
 
     private void addDataPage(String exchangeId, int partitionId, int taskId, int attemptId, long dataPageId, Slice data)
     {
-        getFutureValue(dataClient.addDataPage(exchangeId, partitionId, taskId, attemptId, dataPageId, data));
+        getFutureValue(dataClient.addDataPages(exchangeId, partitionId, taskId, attemptId, dataPageId, ImmutableList.of(data)));
     }
 
     private void finishExchange(String exchangeId)

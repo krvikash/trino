@@ -66,20 +66,22 @@ public class DataResource
     }
 
     @POST
-    @Path("{exchangeId}/addDataPage/{partitionId}/{taskId}/{attemptId}/{dataPageId}")
+    @Path("{exchangeId}/addDataPages/{partitionId}/{taskId}/{attemptId}/{dataPagesId}")
     @Consumes(MediaType.TEXT_PLAIN)
     public Response addDataPage(
             @PathParam("exchangeId") String exchangeId,
             @PathParam("partitionId") int partitionId,
             @PathParam("taskId") int taskId,
             @PathParam("attemptId") int attemptId,
-            @PathParam("dataPageId") long dataPageId,
-            byte[] dataPage)
+            @PathParam("dataPagesId") long dataPagesId,
+            byte[] dataPagesBytes)
     {
-        requireNonNull(dataPage, "dataPage is null");
+        requireNonNull(dataPagesBytes, "dataPagesBytes is null");
+
+        // todo deserialize dataPagesBytes into series of separate pages (here or deeper in the stack)
 
         try {
-            chunkManager.addDataPage(exchangeId, partitionId, taskId, attemptId, dataPageId, Slices.wrappedBuffer(dataPage));
+            chunkManager.addDataPage(exchangeId, partitionId, taskId, attemptId, dataPagesId, Slices.wrappedBuffer(dataPagesBytes));
         }
         catch (Exception e) {
             return errorResponse(e);

@@ -65,12 +65,12 @@ public interface DataApi
      * @param partitionId partition id
      * @param taskId originating task id
      * @param attemptId originating task attempt id
-     * @param dataPageId client provided data page id for deduplication purposes
-     * @param dataPage data to be recorded in an open chunk for given exchange/partition
+     * @param dataPagesId client provided it for data pages batch for deduplication purposes
+     * @param dataPages data to be recorded in an open chunk for given exchange/partition
      *
      * In case of failure returned future will wrap {@link DataApiException}
      */
-    ListenableFuture<Void> addDataPage(String exchangeId, int partitionId, int taskId, int attemptId, long dataPageId, Slice dataPage);
+    ListenableFuture<Void> addDataPages(String exchangeId, int partitionId, int taskId, int attemptId, long dataPagesId, List<Slice> dataPages);
 
     // a multi-page version of addDataPage. Not obvious if really needed. Will be added if initial tests show we need that.
     //void addDataPages(String exchangeId, int partitionId, int taskId, int attemptId, List<Long> dataPageIds, Long<Slice> dataPages);

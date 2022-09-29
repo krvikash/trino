@@ -162,14 +162,16 @@ public class HttpDataClient
     }
 
     @Override
-    public ListenableFuture<Void> addDataPage(String exchangeId, int partitionId, int taskId, int attemptId, long dataPageId, Slice dataPage)
+    public ListenableFuture<Void> addDataPages(String exchangeId, int partitionId, int taskId, int attemptId, long dataPagesId, List<Slice> dataPages)
     {
         requireNonNull(exchangeId, "exchangeId is null");
-        requireNonNull(dataPage, "dataPage is null");
+        requireNonNull(dataPages, "dataPage is null");
+        checkArgument(dataPages.size() == 1, "exactly one page can be added; got %d", dataPages.size()); // todo
+        Slice dataPage = dataPages.get(0);
 
         Request request = preparePost()
                 .setUri(UriBuilder.fromUri(baseUri)
-                        .path("%s/addDataPage/%d/%d/%d/%d".formatted(exchangeId, partitionId, taskId, attemptId, dataPageId))
+                        .path("%s/addDataPages/%d/%d/%d/%d".formatted(exchangeId, partitionId, taskId, attemptId, dataPagesId))
                         .build())
                 .addHeader(CONTENT_TYPE, TEXT_PLAIN)
                 .setBodyGenerator(createStaticBodyGenerator(dataPage.byteArray()))
