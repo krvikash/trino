@@ -13,6 +13,9 @@
  */
 package io.trino.plugin.iceberg.catalog.glue;
 
+import com.amazonaws.services.glue.AWSGlueAsync;
+import com.amazonaws.services.glue.AWSGlueAsyncClientBuilder;
+import com.amazonaws.services.glue.model.DeleteTableRequest;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.DeleteObjectsRequest;
@@ -24,17 +27,23 @@ import io.trino.plugin.hive.metastore.glue.GlueMetastoreApiStats;
 import io.trino.plugin.iceberg.BaseIcebergConnectorSmokeTest;
 import io.trino.plugin.iceberg.IcebergQueryRunner;
 import io.trino.plugin.iceberg.SchemaInitializer;
+import io.trino.plugin.iceberg.TestIcebergRegisterTableProcedure;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.TestView;
 import org.apache.iceberg.FileFormat;
 import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Parameters;
 import org.testng.annotations.Test;
 
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.plugin.hive.metastore.glue.AwsSdkUtil.getPaginatedResults;
+import static io.trino.plugin.iceberg.TestIcebergRegisterTableProcedure.StorageFormat.ORC;
 import static io.trino.testing.sql.TestTable.randomTableSuffix;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -51,6 +60,8 @@ public class TestIcebergGlueCatalogConnectorSmokeTest
 {
     private final String bucketName;
     private final String schemaName;
+    private final AWSGlueAsync glueClient;
+    private static final String ICEBRG_CATALOG = "iceberg";
 
     @Parameters("s3.bucket")
     public TestIcebergGlueCatalogConnectorSmokeTest(String bucketName)
@@ -58,6 +69,15 @@ public class TestIcebergGlueCatalogConnectorSmokeTest
         super(FileFormat.PARQUET);
         this.bucketName = requireNonNull(bucketName, "bucketName is null");
         this.schemaName = "test_iceberg_smoke_" + randomTableSuffix();
+        glueClient = AWSGlueAsyncClientBuilder.defaultClient();
+    }
+
+    @BeforeClass
+    @Override
+    public void init()
+            throws Exception
+    {
+        super.init();
     }
 
     @Override
@@ -160,13 +180,111 @@ public class TestIcebergGlueCatalogConnectorSmokeTest
         }
     }
 
+    @Test
+    public void testRegisterTableProcedure()
+    {
+        TestIcebergRegisterTableProcedure.StorageFormat storageFormat = ORC;
+        String baseTableName = "test_register_table_with_show_create_table_old_" + storageFormat + "_" + randomTableSuffix();
+        String trinoTableName = getTrinoTableName(baseTableName);
+
+        assertUpdate(format("CREATE TABLE %s (a int, b varchar, c boolean) with (format = '%s', partitioning = ARRAY['a'])", trinoTableName, storageFormat));
+        assertUpdate(format("COMMENT ON TABLE %s IS '%s'", trinoTableName, "This is table comment"));
+        assertUpdate(format("COMMENT ON COLUMN %s.%s IS '%s'", trinoTableName, "b", "This is column comment"));
+        assertUpdate(format("INSERT INTO %s values(1, 'INDIA', true)", trinoTableName), 1);
+        assertUpdate(format("INSERT INTO %s values(2, 'USA', false)", trinoTableName), 1);
+        assertThat(query(format("SELECT * FROM %s", trinoTableName)))
+                .matches("VALUES ROW(INT '1', VARCHAR 'INDIA', BOOLEAN 'true'), ROW(INT '2', VARCHAR 'USA', BOOLEAN 'false')");
+
+        String showCreateTableOld = (String) computeActual("SHOW CREATE TABLE " + trinoTableName).getOnlyValue();
+        String tableLocation = getTableLocation(trinoTableName);
+        // Drop table from glue metastore and use the same table name to register again with the metadata
+        DeleteTableRequest deleteTableRequest = new DeleteTableRequest()
+                .withDatabaseName(schemaName)
+                .withName(baseTableName);
+        glueClient.deleteTable(deleteTableRequest);
+
+        assertUpdate(format("CALL iceberg.system.register_table ('%s', '%s', '%s')", schemaName, baseTableName, tableLocation));
+        assertThat(query(format("SELECT * FROM %s", trinoTableName)))
+                .matches("VALUES ROW(INT '1', VARCHAR 'INDIA', BOOLEAN 'true'), ROW(INT '2', VARCHAR 'USA', BOOLEAN 'false')");
+
+        String showCreateTableNew = (String) computeActual("SHOW CREATE TABLE " + trinoTableName).getOnlyValue();
+
+        assertThat(showCreateTableOld).isEqualTo(showCreateTableNew);
+        assertUpdate(format("DROP TABLE %s", trinoTableName));
+    }
+
+    @Test
+    public void testRegisterTableWithInvalidParameters()
+    {
+        TestIcebergRegisterTableProcedure.StorageFormat storageFormat = TestIcebergRegisterTableProcedure.StorageFormat.ORC;
+        String baseTableName = "test_register_table_with_invalid_parameter_" + storageFormat + "_" + randomTableSuffix();
+        String trinoTableName = getTrinoTableName(baseTableName);
+
+        assertUpdate(format("CREATE TABLE %s (a int, b varchar, c boolean) with (format = '%s')", trinoTableName, storageFormat));
+        assertUpdate(format("INSERT INTO %s values(1, 'INDIA', true)", trinoTableName), 1);
+
+        String tableLocation = getTableLocation(trinoTableName);
+        String baseTableNameNew = "test_register_table_with_invalid_parameter_new_" + storageFormat + "_" + randomTableSuffix();
+
+        assertQueryFails(format("CALL iceberg.system.register_table ('%s', '%s')", schemaName, baseTableNameNew),
+                ".*'TABLE_LOCATION' is missing.*");
+        assertQueryFails(format("CALL iceberg.system.register_table ('%s', null)", schemaName),
+                ".*'TABLE_LOCATION' is missing.*");
+        assertQueryFails("CALL iceberg.system.register_table (null, null)",
+                ".*'TABLE_LOCATION' is missing.*");
+        assertQueryFails(format("CALL iceberg.system.register_table ('%s')", schemaName),
+                ".*'TABLE_NAME' is missing.*");
+        assertQueryFails("CALL iceberg.system.register_table (null)",
+                ".*'TABLE_NAME' is missing.*");
+        assertQueryFails("CALL iceberg.system.register_table ()",
+                ".*'SCHEMA_NAME' is missing.*");
+
+        assertQueryFails(format("CALL iceberg.system.register_table ('%s', '%s', null)", schemaName, baseTableNameNew),
+                ".*Illegal parameter set passed((.|\\n)*)");
+        assertQueryFails(format("CALL iceberg.system.register_table ('%s', null, null)", schemaName),
+                ".*Illegal parameter set passed((.|\\n)*)");
+        assertQueryFails("CALL iceberg.system.register_table (null, null, null)",
+                ".*Illegal parameter set passed((.|\\n)*)");
+
+        assertQueryFails(format("CALL iceberg.system.register_table ('%s', '%s', '%s')", "invalid_schema", baseTableNameNew, tableLocation),
+                ".*Schema '(.*)' does not exist.*");
+        assertQueryFails(format("CALL iceberg.system.register_table ('%s', '%s', '%s')", schemaName, baseTableName, tableLocation),
+                ".*Table '(.*)' already exists in schema '(.*)'.*");
+
+        assertUpdate(format("DROP TABLE %s", trinoTableName));
+    }
+
     private String getTableComment(String tableName)
     {
         return (String) computeScalar("SELECT comment FROM system.metadata.table_comments WHERE catalog_name = 'iceberg' AND schema_name = '" + schemaName + "' AND table_name = '" + tableName + "'");
     }
 
+    private String getTrinoTableName(String tableName)
+    {
+        return format("%s.%s.%s", ICEBRG_CATALOG, schemaName, tableName);
+    }
+
     private String schemaPath()
     {
         return format("s3://%s/%s", bucketName, schemaName);
+    }
+
+    private String getTableLocation(String tableName)
+    {
+        String regex = ".*location = '(.*?)'.*";
+        String text = (String) computeActual("SHOW CREATE TABLE " + tableName).getOnlyValue();
+        return getRegexMatch(text, regex);
+    }
+
+    private String getRegexMatch(String text, String regex)
+    {
+        Pattern pattern = Pattern.compile(regex, Pattern.DOTALL);
+        Matcher m = pattern.matcher(text);
+        if (m.find()) {
+            String value = m.group(1);
+            verify(!m.find(), "Unexpected second match");
+            return value;
+        }
+        throw new IllegalStateException("Pattern not found in the text");
     }
 }

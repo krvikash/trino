@@ -17,12 +17,16 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Streams;
 import io.airlift.concurrent.MoreFutures;
+import io.trino.plugin.hive.metastore.thrift.ThriftMetastoreClient;
+import io.trino.tempto.BeforeTestWithContext;
 import io.trino.tempto.ProductTest;
 import io.trino.tempto.hadoop.hdfs.HdfsClient;
 import io.trino.tempto.query.QueryExecutionException;
 import io.trino.tempto.query.QueryExecutor;
 import io.trino.tempto.query.QueryResult;
 import io.trino.tests.product.hive.Engine;
+import io.trino.tests.product.hive.TestHiveMetastoreClientFactory;
+import org.apache.thrift.TException;
 import org.assertj.core.api.Assertions;
 import org.testng.SkipException;
 import org.testng.annotations.DataProvider;
@@ -71,6 +75,7 @@ import static java.util.Locale.ENGLISH;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.stream.Collectors.toUnmodifiableSet;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
 /**
@@ -81,6 +86,16 @@ public class TestIcebergSparkCompatibility
 {
     @Inject
     private HdfsClient hdfsClient;
+    @Inject
+    TestHiveMetastoreClientFactory testHiveMetastoreClientFactory;
+    ThriftMetastoreClient metastoreClient;
+
+    @BeforeTestWithContext
+    public void setup()
+            throws TException
+    {
+        metastoreClient = testHiveMetastoreClientFactory.createMetastoreClient();
+    }
 
     // see spark-defaults.conf
     private static final String SPARK_CATALOG = "iceberg_test";
@@ -2181,6 +2196,82 @@ public class TestIcebergSparkCompatibility
         assertThat(onSpark().executeQuery("SELECT * FROM " + sparkTableName)).containsOnly(expected);
 
         onTrino().executeQuery("DROP TABLE " + trinoTableName);
+    }
+
+    @Test(dataProvider = "storageFormats")
+    public void testRegisterTableSuccess(StorageFormat storageFormat)
+            throws TException
+    {
+        String baseTableName = "test_register_table_success_" + storageFormat.name().toLowerCase(ENGLISH) + "_" + randomTableSuffix();
+        String trinoTableName = trinoTableName(baseTableName);
+        String sparkTableName = sparkTableName(baseTableName);
+
+        onTrino().executeQuery(format("CREATE TABLE %s (a int, b varchar, c boolean) with (format = '%s', partitioning = ARRAY['a'])", trinoTableName, storageFormat));
+        onTrino().executeQuery(format("INSERT INTO %s values(1, 'INDIA', true)", trinoTableName));
+        onTrino().executeQuery(format("INSERT INTO %s values(2, 'USA', false)", trinoTableName));
+        onTrino().executeQuery(format("COMMENT ON TABLE %s IS '%s'", trinoTableName, "This is table comment"));
+        onTrino().executeQuery(format("COMMENT ON COLUMN %s.%s IS '%s'", trinoTableName, "b", "This is column comment"));
+
+        List<Row> expected = List.of(row(1, "INDIA", true), row(2, "USA", false));
+
+        assertThat(onTrino().executeQuery(format("SELECT * FROM %s", trinoTableName)))
+                .containsOnly(expected);
+        assertThat(onSpark().executeQuery(format("SELECT * FROM %s", sparkTableName)))
+                .containsOnly(expected);
+
+        String describeSparkOldTable = (String) onSpark().executeQuery("DESCRIBE TABLE EXTENDED " + sparkTableName).toString();
+        String showCreateTrinoOldTable = (String) onTrino().executeQuery("SHOW CREATE TABLE " + trinoTableName).toString();
+        String tableLocation = getTableLocation(trinoTableName, true);
+
+        // Drop table from hive metastore and use the same table name to register again with the metadata
+        metastoreClient.dropTable(TEST_SCHEMA_NAME, baseTableName, false);
+        assertFalse(metastoreClient.getAllTables(TEST_SCHEMA_NAME).contains(baseTableName));
+
+        onTrino().executeQuery(format("CALL iceberg.system.register_table ('%s', '%s', '%s')", TEST_SCHEMA_NAME, baseTableName, tableLocation));
+        assertThat(onTrino().executeQuery(format("SELECT * FROM %s", trinoTableName)))
+                .containsOnly(expected);
+        assertThat(onSpark().executeQuery(format("SELECT * FROM %s", sparkTableName)))
+                .containsOnly(expected);
+
+        String describeSparkNewTable = (String) onSpark().executeQuery("DESCRIBE TABLE EXTENDED " + sparkTableName).toString();
+        String showCreateTrinoNewTable = (String) onTrino().executeQuery("SHOW CREATE TABLE " + trinoTableName).toString();
+
+        assertEquals(describeSparkOldTable, describeSparkNewTable);
+        assertEquals(showCreateTrinoOldTable, showCreateTrinoNewTable);
+
+        onTrino().executeQuery(format("DROP TABLE %s", trinoTableName));
+    }
+
+    @Test
+    public void testRegisterTableFailure()
+            throws TException
+    {
+        String baseTableName = "test_register_table_failure_" + randomTableSuffix();
+        String trinoTableName = trinoTableName(baseTableName);
+        String sparkTableName = sparkTableName(baseTableName);
+
+        onTrino().executeQuery(format("CREATE TABLE %s (a int, b varchar, c boolean)", trinoTableName));
+        onTrino().executeQuery(format("INSERT INTO %s values(1, 'INDIA', true)", trinoTableName));
+        onTrino().executeQuery(format("INSERT INTO %s values(2, 'USA', false)", trinoTableName));
+
+        List<Row> expected = List.of(row(1, "INDIA", true), row(2, "USA", false));
+
+        assertThat(onTrino().executeQuery(format("SELECT * FROM %s", trinoTableName)))
+                .containsOnly(expected);
+        assertThat(onSpark().executeQuery(format("SELECT * FROM %s", sparkTableName)))
+                .containsOnly(expected);
+
+        String tableLocation = getTableLocation(trinoTableName, true);
+
+        // Drop table from hive metastore and use the same table name to register again with the metadata
+        onTrino().executeQuery(format("DROP TABLE %s", trinoTableName));
+        assertFalse(metastoreClient.getAllTables(TEST_SCHEMA_NAME).contains(baseTableName));
+
+        String invalidMetadataFileName = "invalid_metadata_file.json";
+        assertQueryFailure(() -> onTrino().executeQuery(format("CALL iceberg.system.register_table ('%s', '%s', '%s')",
+                TEST_SCHEMA_NAME, baseTableName, tableLocation))).hasMessageMatching(".*No metadata file exists at location.*");
+        assertQueryFailure(() -> onTrino().executeQuery(format("CALL iceberg.system.register_table ('%s', '%s', '%s', '%s')",
+                TEST_SCHEMA_NAME, baseTableName, tableLocation, invalidMetadataFileName))).hasMessageMatching(".*Location (.*) does not exist.*");
     }
 
     private int calculateMetadataFilesForPartitionedTable(String tableName)
