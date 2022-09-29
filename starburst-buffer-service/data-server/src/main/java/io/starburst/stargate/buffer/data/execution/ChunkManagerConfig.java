@@ -31,7 +31,6 @@ public class ChunkManagerConfig
 
     @NotNull
     @MinDataSize("16MB")
-    // TODO: Chunk size should be 3 bytes larger than exchange.max-page-storage-size (to store taskId and attemptId).
     // TODO: This may not be an issue any more when we support dynamic chunk sizing.
     public DataSize getChunkSize()
     {

@@ -36,7 +36,9 @@ import java.util.OptionalLong;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static io.airlift.units.Duration.succinctDuration;
+import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
 import static java.lang.Math.toIntExact;
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
@@ -91,6 +93,10 @@ public class ChunkManager
 
     public void addDataPage(String exchangeId, int partitionId, int taskId, int attemptId, long dataPageId, Slice data)
     {
+        int requiredStorageSize = DATA_PAGE_HEADER_SIZE + data.length();
+        checkArgument(requiredStorageSize <= chunkSizeInBytes,
+                "requiredStorageSize %d exceeded chunkSizeInBytes %d", requiredStorageSize, chunkSizeInBytes);
+
         registerExchange(exchangeId);
         getExchangeAndHeartbeat(exchangeId).addDataPage(partitionId, taskId, attemptId, dataPageId, data);
     }
