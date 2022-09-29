@@ -98,6 +98,9 @@ public class TestDataServer
         ChunkHandle chunkHandle3 = new ChunkHandle(BUFFER_NODE_ID, 1, 3L, (int) DataSize.of(10, MEGABYTE).toBytes());
         ChunkHandle chunkHandle4 = new ChunkHandle(BUFFER_NODE_ID, 1, 4L, (int) DataSize.of(10, MEGABYTE).toBytes());
 
+        finishTask(EXCHANGE_0, 0, 0, 0);
+        finishTask(EXCHANGE_0, 0, 1, 0);
+        finishTask(EXCHANGE_0, 1, 0, 1);
         finishExchange(EXCHANGE_0);
 
         ChunkList chunkList0 = listClosedChunks(EXCHANGE_0, OptionalLong.empty());
@@ -108,6 +111,8 @@ public class TestDataServer
         assertTrue(chunkList1.nextPagingId().isPresent());
         assertEquals(chunkList1.nextPagingId().getAsLong(), 1L);
 
+        finishTask(EXCHANGE_1, 0, 0, 0);
+        finishTask(EXCHANGE_1, 1, 2, 0);
         finishExchange(EXCHANGE_1);
 
         chunkList1 = listClosedChunks(EXCHANGE_1, OptionalLong.of(1L));
@@ -154,6 +159,11 @@ public class TestDataServer
     private void addDataPage(String exchangeId, int partitionId, int taskId, int attemptId, long dataPageId, Slice data)
     {
         getFutureValue(dataClient.addDataPages(exchangeId, partitionId, taskId, attemptId, dataPageId, ImmutableList.of(data)));
+    }
+
+    public void finishTask(String exchangeId, int partitionId, int taskId, int attemptId)
+    {
+        getFutureValue(dataClient.finishTask(exchangeId, partitionId, taskId, attemptId));
     }
 
     private void finishExchange(String exchangeId)

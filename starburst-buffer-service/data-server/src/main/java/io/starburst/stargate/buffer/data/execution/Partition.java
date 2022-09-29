@@ -100,6 +100,13 @@ public class Partition
         return chunk.readAll();
     }
 
+    public void finishTask(int taskId, int attemptId)
+    {
+        for (int i = 0; i < attemptId; ++i) {
+            lastDataPageIds.remove(new TaskAttemptId(taskId, attemptId));
+        }
+    }
+
     public void addNewlyClosedChunkHandles(ImmutableList.Builder<ChunkHandle> newlyClosedChunkHandles, Set<Long> consumedChunks)
     {
         for (Chunk chunk : closedChunks.values()) {

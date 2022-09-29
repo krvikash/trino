@@ -86,6 +86,17 @@ public class Exchange
         partition.addDataPage(taskId, attemptId, dataPageId, data);
     }
 
+    public void finishTask(int partitionId, int taskId, int attemptId)
+    {
+        if (finished) {
+            throw new DataServerException(EXCHANGE_FINISHED, "exchange %s already finished".formatted(exchangeId));
+        }
+
+        Partition partition = partitions.get(partitionId);
+        verify(partition != null, "partition %d not found for exchange %s", partitionId, exchangeId);
+        partition.finishTask(taskId, attemptId);
+    }
+
     public List<DataPage> getChunkData(int partitionId, long chunkId)
     {
         Partition partition = partitions.get(partitionId);
