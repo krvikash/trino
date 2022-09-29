@@ -130,6 +130,9 @@ public class ChunkManager
         if (exchange != null) {
             exchange.releaseMemory();
         }
+        else {
+            throw new DataServerException(ErrorCode.EXCHANGE_NOT_FOUND, "exchange %s not found".formatted(exchangeId));
+        }
     }
 
     public int getTrackedExchanges()
