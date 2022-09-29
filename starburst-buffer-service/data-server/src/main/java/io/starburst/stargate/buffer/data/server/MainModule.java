@@ -23,7 +23,7 @@ import io.starburst.stargate.buffer.data.memory.MemoryAllocatorConfig;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 import io.starburst.stargate.buffer.discovery.client.HttpDiscoveryClient;
 
-import java.util.concurrent.ThreadLocalRandom;
+import java.security.SecureRandom;
 
 import static com.google.inject.Scopes.SINGLETON;
 import static io.airlift.configuration.ConfigBinder.configBinder;
@@ -40,7 +40,7 @@ public class MainModule
 
     public MainModule()
     {
-        this(ThreadLocalRandom.current().nextLong());
+        this(new SecureRandom().nextLong());
     }
 
     public MainModule(long bufferNodeId)
