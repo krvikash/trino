@@ -35,7 +35,6 @@ import java.util.Map;
 import java.util.OptionalLong;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.atomic.AtomicLong;
 
 import static io.airlift.units.Duration.succinctDuration;
 import static java.lang.Math.toIntExact;
@@ -62,7 +61,7 @@ public class ChunkManager
 
     // exchangeId -> exchange
     private final Map<String, Exchange> exchanges = new ConcurrentHashMap<>();
-    private final AtomicLong nextChunkIdGenerator = new AtomicLong();
+    private final ChunkIdGenerator chunkIdGenerator = new ChunkIdGenerator();
     private final ScheduledExecutorService cleanupExecutor = newSingleThreadScheduledExecutor();
     private final ScheduledExecutorService statsReportingExecutor = newSingleThreadScheduledExecutor();
 
@@ -116,7 +115,7 @@ public class ChunkManager
 
     public void registerExchange(String exchangeId)
     {
-        exchanges.computeIfAbsent(exchangeId, ignored -> new Exchange(bufferNodeId, exchangeId, memoryAllocator, chunkSizeInBytes, nextChunkIdGenerator, tickerReadMillis()));
+        exchanges.computeIfAbsent(exchangeId, ignored -> new Exchange(bufferNodeId, exchangeId, memoryAllocator, chunkSizeInBytes, chunkIdGenerator, tickerReadMillis()));
     }
 
     public void pingExchange(String exchangeId)

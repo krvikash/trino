@@ -24,7 +24,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -39,7 +38,7 @@ public class Partition
     private final int partitionId;
     private final MemoryAllocator memoryAllocator;
     private final int chunkSizeInBytes;
-    private final AtomicLong nextChunkIdGenerator;
+    private final ChunkIdGenerator chunkIdGenerator;
 
     // chunkId -> closed chunk
     private final Map<Long, Chunk> closedChunks = new ConcurrentHashMap<>();
@@ -55,14 +54,14 @@ public class Partition
             int partitionId,
             MemoryAllocator memoryAllocator,
             int chunkSizeInBytes,
-            AtomicLong nextChunkIdGenerator)
+            ChunkIdGenerator chunkIdGenerator)
     {
         this.bufferNodeId = bufferNodeId;
         this.exchangeId = requireNonNull(exchangeId, "exchangeId is null");
         this.partitionId = partitionId;
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.chunkSizeInBytes = chunkSizeInBytes;
-        this.nextChunkIdGenerator = requireNonNull(nextChunkIdGenerator, "nextChunkIdGenerator is null");
+        this.chunkIdGenerator = requireNonNull(chunkIdGenerator, "chunkIdGenerator is null");
     }
 
     public synchronized void addDataPage(int taskId, int attemptId, long dataPageId, Slice data)
@@ -143,7 +142,7 @@ public class Partition
 
     private Chunk createNewOpenChunk()
     {
-        long chunkId = nextChunkIdGenerator.getAndIncrement();
+        long chunkId = chunkIdGenerator.getNextChunkId();
         // TODO: handle memory allocation failure
         // TODO: support dynamic chunk sizing
         Slice chunkSlice = memoryAllocator.allocate(chunkSizeInBytes)

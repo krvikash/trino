@@ -28,7 +28,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 import static com.google.common.base.Verify.verify;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
@@ -43,7 +42,7 @@ public class Exchange
     private final String exchangeId;
     private final MemoryAllocator memoryAllocator;
     private final int chunkSizeInBytes;
-    private final AtomicLong nextChunkIdGenerator;
+    private final ChunkIdGenerator chunkIdGenerator;
 
     // partitionId -> partition
     private final Map<Integer, Partition> partitions = new ConcurrentHashMap<>();
@@ -64,14 +63,14 @@ public class Exchange
             String exchangeId,
             MemoryAllocator memoryAllocator,
             int chunkSizeInBytes,
-            AtomicLong nextChunkIdGenerator,
+            ChunkIdGenerator chunkIdGenerator,
             long currentTime)
     {
         this.bufferNodeId = bufferNodeId;
         this.exchangeId = requireNonNull(exchangeId, "exchangeId is null");
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.chunkSizeInBytes = chunkSizeInBytes;
-        this.nextChunkIdGenerator = requireNonNull(nextChunkIdGenerator, "nextChunkIdGenerator is null");
+        this.chunkIdGenerator = requireNonNull(chunkIdGenerator, "chunkIdGenerator is null");
 
         this.lastUpdateTime = currentTime;
     }
@@ -82,7 +81,7 @@ public class Exchange
             throw new DataServerException(EXCHANGE_FINISHED, "exchange %s already finished".formatted(exchangeId));
         }
 
-        Partition partition = partitions.computeIfAbsent(partitionId, ignored -> new Partition(bufferNodeId, exchangeId, partitionId, memoryAllocator, chunkSizeInBytes, nextChunkIdGenerator));
+        Partition partition = partitions.computeIfAbsent(partitionId, ignored -> new Partition(bufferNodeId, exchangeId, partitionId, memoryAllocator, chunkSizeInBytes, chunkIdGenerator));
         partition.addDataPage(taskId, attemptId, dataPageId, data);
     }
 
