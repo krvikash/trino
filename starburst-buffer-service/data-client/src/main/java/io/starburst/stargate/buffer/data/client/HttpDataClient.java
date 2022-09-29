@@ -239,8 +239,8 @@ public class HttpDataClient
                 ChunkHandle chunkHandle,
                 boolean dataIntegrityVerificationEnabled)
         {
-            this.exchangeId = exchangeId;
-            this.chunkHandle = chunkHandle;
+            this.exchangeId = requireNonNull(exchangeId, "exchangeId is null");
+            this.chunkHandle = requireNonNull(chunkHandle, "chunkHandle is null");
             this.dataIntegrityVerificationEnabled = dataIntegrityVerificationEnabled;
         }
 
@@ -340,7 +340,7 @@ public class HttpDataClient
 
         private PagesResponse(Iterable<DataPage> pages)
         {
-            this.pages = ImmutableList.copyOf(pages);
+            this.pages = ImmutableList.copyOf(requireNonNull(pages, "pages is null"));
         }
 
         public List<DataPage> getPages()

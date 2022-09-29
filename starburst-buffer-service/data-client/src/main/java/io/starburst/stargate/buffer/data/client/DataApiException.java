@@ -9,6 +9,8 @@
  */
 package io.starburst.stargate.buffer.data.client;
 
+import static java.util.Objects.requireNonNull;
+
 public class DataApiException
         extends RuntimeException
 {
@@ -17,13 +19,13 @@ public class DataApiException
     public DataApiException(ErrorCode errorCode, String message)
     {
         super(message);
-        this.errorCode = errorCode;
+        this.errorCode = requireNonNull(errorCode, "errorCode is null");
     }
 
     public DataApiException(ErrorCode errorCode, String message, Throwable cause)
     {
         super(message, cause);
-        this.errorCode = errorCode;
+        this.errorCode = requireNonNull(errorCode, "errorCode is null");
     }
 
     public ErrorCode getErrorCode()
