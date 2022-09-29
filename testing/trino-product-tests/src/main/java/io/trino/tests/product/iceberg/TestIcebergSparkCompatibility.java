@@ -30,6 +30,7 @@ import org.testng.annotations.Test;
 
 import javax.inject.Inject;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.sql.Date;
@@ -2181,6 +2182,86 @@ public class TestIcebergSparkCompatibility
         assertThat(onSpark().executeQuery("SELECT * FROM " + sparkTableName)).containsOnly(expected);
 
         onTrino().executeQuery("DROP TABLE " + trinoTableName);
+    }
+
+    @Test(dataProvider = "storageFormats")
+    public void testRegisterTableSuccess(StorageFormat storageFormat)
+    {
+        String baseOldTableName = "test_register_table_success_old_" + randomTableSuffix() + "_" + storageFormat.name().toLowerCase();
+        String trinoOldTableName = trinoTableName(baseOldTableName);
+        String sparkOldTableName = sparkTableName(baseOldTableName);
+
+        onTrino().executeQuery(format("CREATE TABLE %s (a int, b varchar, c boolean) with (format = '%s', partitioning = ARRAY['a'])", trinoOldTableName, storageFormat));
+        onTrino().executeQuery(format("INSERT INTO %s values(1, 'INDIA', true)", trinoOldTableName));
+        onTrino().executeQuery(format("INSERT INTO %s values(2, 'USA', false)", trinoOldTableName));
+        onTrino().executeQuery(format("COMMENT ON TABLE %s IS '%s'", trinoOldTableName, "This is table comment"));
+        onTrino().executeQuery(format("COMMENT ON COLUMN %s.%s IS '%s'", trinoOldTableName, "b", "This is column comment"));
+
+        List<Row> expected = List.of(row(1, "INDIA", true), row(2, "USA", false));
+
+        assertThat(onTrino().executeQuery(format("SELECT * FROM %s", trinoOldTableName)))
+                .containsOnly(expected);
+        assertThat(onSpark().executeQuery(format("SELECT * FROM %s", sparkOldTableName)))
+                .containsOnly(expected);
+
+        String tableLocation = getTableLocation(trinoOldTableName, true);
+
+        String baseNewTableName = "test_register_table_success_new_" + randomTableSuffix() + "_" + storageFormat.name().toLowerCase();
+        String trinoNewTableName = trinoTableName(baseNewTableName);
+        String sparkNewTableName = sparkTableName(baseNewTableName);
+
+        onTrino().executeQuery(format("CALL iceberg.system.register_table ('%s', '%s', '%s')", TEST_SCHEMA_NAME, baseNewTableName, tableLocation));
+
+        assertThat(onTrino().executeQuery(format("SELECT * FROM %s", trinoNewTableName)))
+                .containsOnly(expected);
+        assertThat(onSpark().executeQuery(format("SELECT * FROM %s", sparkNewTableName)))
+                .containsOnly(expected);
+
+        String describeSparkOldTable = (String) onSpark().executeQuery("DESCRIBE TABLE EXTENDED " + sparkOldTableName).toString();
+        String describeSparkNewTable = (String) onSpark().executeQuery("DESCRIBE TABLE EXTENDED " + sparkNewTableName).toString();
+
+        assertEquals(describeSparkOldTable.replaceFirst(sparkOldTableName, sparkNewTableName), describeSparkNewTable);
+
+        String showCreateTrinoOldTable = (String) onTrino().executeQuery("SHOW CREATE TABLE " + trinoOldTableName).toString();
+        String showCreateTrinoNewTable = (String) onTrino().executeQuery("SHOW CREATE TABLE " + trinoNewTableName).toString();
+
+        assertEquals(showCreateTrinoOldTable.replaceFirst(trinoOldTableName, trinoNewTableName), showCreateTrinoNewTable);
+
+        onTrino().executeQuery(format("DROP TABLE %s", trinoNewTableName));
+        // TODO How to delete a table whose metadata have been deleted?
+        // onTrino().executeQuery(format("DROP TABLE %s", trinoOldTableName));
+    }
+
+    @Test
+    public void testRegisterTableFailure()
+            throws IOException
+    {
+        String baseOldTableName = "test_register_table_failure_old_" + randomTableSuffix();
+        String trinoOldTableName = trinoTableName(baseOldTableName);
+        String sparkOldTableName = sparkTableName(baseOldTableName);
+
+        onTrino().executeQuery(format("CREATE TABLE %s (a int, b varchar, c boolean)", trinoOldTableName));
+        onTrino().executeQuery(format("INSERT INTO %s values(1, 'INDIA', true)", trinoOldTableName));
+        onTrino().executeQuery(format("INSERT INTO %s values(2, 'USA', false)", trinoOldTableName));
+
+        List<Row> expected = List.of(row(1, "INDIA", true), row(2, "USA", false));
+
+        assertThat(onTrino().executeQuery(format("SELECT * FROM %s", trinoOldTableName)))
+                .containsOnly(expected);
+        assertThat(onSpark().executeQuery(format("SELECT * FROM %s", sparkOldTableName)))
+                .containsOnly(expected);
+
+        String tableLocation = getTableLocation(trinoOldTableName, true);
+        String metadataFileName = "invalid_metadata_file.json";
+        String baseNewTableName = "test_register_table_failure_new_" + randomTableSuffix();
+
+        assertQueryFailure(() -> onTrino().executeQuery(format("CALL iceberg.system.register_table ('%s', '%s', '%s', '%s')", TEST_SCHEMA_NAME, baseNewTableName, tableLocation, metadataFileName)))
+                .hasMessageMatching(".*Location (.*) does not exist.*");
+
+        String invalidTableLocation = tableLocation + "/invalid";
+
+        assertQueryFailure(() -> onTrino().executeQuery(format("CALL iceberg.system.register_table ('%s', '%s', '%s')", TEST_SCHEMA_NAME, baseNewTableName, invalidTableLocation)))
+                .hasMessageMatching(".*Location (.*) does not exist.*");
     }
 
     private int calculateMetadataFilesForPartitionedTable(String tableName)
