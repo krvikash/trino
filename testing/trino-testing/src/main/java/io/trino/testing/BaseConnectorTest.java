@@ -2250,13 +2250,13 @@ public abstract class BaseConnectorTest
         skipTestUnless(hasBehavior(SUPPORTS_CREATE_TABLE));
 
         String tableName = "test_long_column" + randomTableSuffix();
-        String basColumnName = "col";
+        String baseColumnName = "col";
 
         int maxLength = maxColumnNameLength()
                 // Assume 2^16 is enough for most use cases. Add a bit more to ensure 2^16 isn't actual limit.
                 .orElse(65536 + 5);
 
-        String validColumnName = basColumnName + "z".repeat(maxLength - basColumnName.length());
+        String validColumnName = baseColumnName + "z".repeat(maxLength - baseColumnName.length());
         assertUpdate("CREATE TABLE " + tableName + " (" + validColumnName + " bigint)");
         assertTrue(columnExists(tableName, validColumnName));
         assertUpdate("DROP TABLE " + tableName);
