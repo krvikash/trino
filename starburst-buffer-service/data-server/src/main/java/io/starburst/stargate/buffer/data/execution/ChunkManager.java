@@ -93,18 +93,18 @@ public class ChunkManager
     public void addDataPage(String exchangeId, int partitionId, int taskId, int attemptId, long dataPageId, Slice data)
     {
         registerExchange(exchangeId);
-        getExchangeOrThrow(exchangeId).addDataPage(partitionId, taskId, attemptId, dataPageId, data);
+        getExchangeAndHeartbeat(exchangeId).addDataPage(partitionId, taskId, attemptId, dataPageId, data);
     }
 
     public List<DataPage> getChunkData(String exchangeId, int partitionId, long chunkId)
     {
-        Exchange exchange = getExchangeOrThrow(exchangeId);
+        Exchange exchange = getExchangeAndHeartbeat(exchangeId);
         return exchange.getChunkData(partitionId, chunkId);
     }
 
     public ChunkList listClosedChunks(String exchangeId, OptionalLong pagingId)
     {
-        Exchange exchange = getExchangeOrThrow(exchangeId);
+        Exchange exchange = getExchangeAndHeartbeat(exchangeId);
         return exchange.listClosedChunks(pagingId);
     }
 
@@ -115,12 +115,12 @@ public class ChunkManager
 
     public void pingExchange(String exchangeId)
     {
-        getExchangeOrThrow(exchangeId);
+        getExchangeAndHeartbeat(exchangeId);
     }
 
     public void finishExchange(String exchangeId)
     {
-        Exchange exchange = getExchangeOrThrow(exchangeId);
+        Exchange exchange = getExchangeAndHeartbeat(exchangeId);
         exchange.finish();
     }
 
@@ -147,7 +147,7 @@ public class ChunkManager
         return exchanges.values().stream().mapToInt(Exchange::getClosedChunksCount).sum();
     }
 
-    private Exchange getExchangeOrThrow(String exchangeId)
+    private Exchange getExchangeAndHeartbeat(String exchangeId)
     {
         Exchange exchange = exchanges.get(exchangeId);
         if (exchange == null) {
