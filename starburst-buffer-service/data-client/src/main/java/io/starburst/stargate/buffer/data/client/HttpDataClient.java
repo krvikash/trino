@@ -174,7 +174,7 @@ public class HttpDataClient
                         .path("%s/addDataPages/%d/%d/%d/%d".formatted(exchangeId, partitionId, taskId, attemptId, dataPagesId))
                         .build())
                 .addHeader(CONTENT_TYPE, TEXT_PLAIN)
-                .setBodyGenerator(createStaticBodyGenerator(dataPage.byteArray()))
+                .setBodyGenerator(createStaticBodyGenerator(dataPage.byteArrayOffset() == 0 ? dataPage.byteArray() : dataPage.getBytes()))
                 .build();
 
         HttpResponseFuture<StringResponse> responseFuture = httpClient.executeAsync(request, createStringResponseHandler());
