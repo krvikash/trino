@@ -168,7 +168,12 @@ public class TestDataServer
 
     private List<DataPage> getChunkData(String exchangeId, ChunkHandle chunkHandle)
     {
-        return getFutureValue(dataClient.getChunkData(exchangeId, chunkHandle));
+        return getChunkData(exchangeId, chunkHandle.bufferNodeId(), chunkHandle.partitionId(), chunkHandle.chunkId());
+    }
+
+    private List<DataPage> getChunkData(String exchangeId, long bufferNodeId, int partitionId, long chunkId)
+    {
+        return getFutureValue(dataClient.getChunkData(exchangeId, bufferNodeId, partitionId, chunkId));
     }
 
     private void registerExchange(String exchangeId)
