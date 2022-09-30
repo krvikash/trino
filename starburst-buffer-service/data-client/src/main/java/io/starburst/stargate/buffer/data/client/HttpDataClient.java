@@ -182,21 +182,6 @@ public class HttpDataClient
     }
 
     @Override
-    public ListenableFuture<Void> finishTask(String exchangeId, int partitionId, int taskId, int attemptId)
-    {
-        requireNonNull(exchangeId, "exchangeId is null");
-
-        Request request = prepareGet()
-                .setUri(UriBuilder.fromUri(baseUri)
-                        .path("%s/finishTask/%d/%d/%d".formatted(exchangeId, partitionId, taskId, attemptId))
-                        .build())
-                .build();
-
-        HttpResponseFuture<StringResponse> responseFuture = httpClient.executeAsync(request, createStringResponseHandler());
-        return translateFailures(responseFuture);
-    }
-
-    @Override
     public ListenableFuture<Void> finishExchange(String exchangeId)
     {
         requireNonNull(exchangeId, "exchangeId is null");

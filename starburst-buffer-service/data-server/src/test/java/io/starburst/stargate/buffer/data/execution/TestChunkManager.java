@@ -73,13 +73,6 @@ public class TestChunkManager
         assertTrue(chunkList1.chunks().isEmpty());
         assertEquals(chunkList1.nextPagingId(), OptionalLong.of(1L));
 
-        chunkManager.finishTask(EXCHANGE_0, 0, 0, 0);
-        chunkManager.finishTask(EXCHANGE_0, 0, 1, 0);
-        chunkManager.finishTask(EXCHANGE_0, 1, 0, 0);
-        chunkManager.finishTask(EXCHANGE_0, 1, 1, 0);
-        chunkManager.finishTask(EXCHANGE_0, 1, 0, 1);
-        chunkManager.finishTask(EXCHANGE_1, 0, 0, 0);
-
         chunkManager.finishExchange(EXCHANGE_0);
         chunkManager.finishExchange(EXCHANGE_1);
 
@@ -145,12 +138,6 @@ public class TestChunkManager
         ChunkList chunkList1 = chunkManager.listClosedChunks(EXCHANGE_1, OptionalLong.empty());
         assertTrue(chunkList1.chunks().isEmpty());
         assertEquals(chunkList0.nextPagingId(), OptionalLong.of(1L));
-
-        chunkManager.finishTask(EXCHANGE_0, 0, 0, 0);
-        chunkManager.finishTask(EXCHANGE_0, 1, 0, 0);
-        chunkManager.finishTask(EXCHANGE_0, 1, 1, 0);
-        chunkManager.finishTask(EXCHANGE_0, 1, 0, 1);
-        chunkManager.finishTask(EXCHANGE_1, 0, 0, 0);
 
         chunkManager.finishExchange(EXCHANGE_0);
         chunkManager.finishExchange(EXCHANGE_1);

@@ -72,16 +72,6 @@ public interface DataApi
      */
     ListenableFuture<Void> addDataPages(String exchangeId, int partitionId, int taskId, int attemptId, long dataPagesId, List<Slice> dataPages);
 
-    /**
-     * Finish a task for given (exchange, partition)
-     *
-     * @param exchangeId exchange id
-     * @param partitionId partition id
-     * @param taskId originating task id
-     * @param attemptId originating task attempt id
-     */
-    ListenableFuture<Void> finishTask(String exchangeId, int partitionId, int taskId, int attemptId);
-
     // a multi-page version of addDataPage. Not obvious if really needed. Will be added if initial tests show we need that.
     //void addDataPages(String exchangeId, int partitionId, int taskId, int attemptId, List<Long> dataPageIds, Long<Slice> dataPages);
 

@@ -90,17 +90,6 @@ public class DataResource
     }
 
     @GET
-    @Path("{exchangeId}/finishTask/{partitionId}/{taskId}/{attemptId}")
-    public Response finishTask(
-            @PathParam("exchangeId") String exchangeId,
-            @PathParam("partitionId") int partitionId,
-            @PathParam("taskId") int taskId,
-            @PathParam("attemptId") int attemptId)
-    {
-        return Response.ok().build();
-    }
-
-    @GET
     @Path("{exchangeId}/pages/{partitionId}/{chunkId}")
     @Produces(TRINO_CHUNK_DATA)
     public Response getChunkData(
