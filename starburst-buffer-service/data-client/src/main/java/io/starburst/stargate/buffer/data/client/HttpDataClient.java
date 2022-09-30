@@ -34,6 +34,7 @@ import java.io.UncheckedIOException;
 import java.net.URI;
 import java.util.List;
 import java.util.OptionalLong;
+import java.util.function.Supplier;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
@@ -208,24 +209,21 @@ public class HttpDataClient
                         .build())
                 .build();
 
-        HttpResponseFuture<PagesResponse> responseFuture = httpClient.executeAsync(request, new PageResponseHandler(exchangeId, chunkHandle, dataIntegrityVerificationEnabled));
+        HttpResponseFuture<PagesResponse> responseFuture = httpClient.executeAsync(request, new PageResponseHandler(() -> "[%s, %s]".formatted(exchangeId, chunkHandle), dataIntegrityVerificationEnabled));
         return transform(responseFuture, PagesResponse::getPages, directExecutor());
     }
 
     public static class PageResponseHandler
             implements ResponseHandler<PagesResponse, RuntimeException>
     {
-        private final String exchangeId;
-        private final ChunkHandle chunkHandle;
+        private final Supplier<String> chunkToString;
         private final boolean dataIntegrityVerificationEnabled;
 
         private PageResponseHandler(
-                String exchangeId,
-                ChunkHandle chunkHandle,
+                Supplier<String> chunkToString,
                 boolean dataIntegrityVerificationEnabled)
         {
-            this.exchangeId = requireNonNull(exchangeId, "exchangeId is null");
-            this.chunkHandle = requireNonNull(chunkHandle, "chunkHandle is null");
+            this.chunkToString = requireNonNull(chunkToString, "chunkToString is null");
             this.dataIntegrityVerificationEnabled = dataIntegrityVerificationEnabled;
         }
 
@@ -241,7 +239,7 @@ public class HttpDataClient
                 throws RuntimeException
         {
             if (response.getStatusCode() == HttpStatus.NO_CONTENT.code()) {
-                throw new DataApiException(CHUNK_NOT_FOUND, "Chunk not found for exchangeId %s chunkHandle %s".formatted(exchangeId, chunkHandle));
+                throw new DataApiException(CHUNK_NOT_FOUND, "Chunk not found for chunk " + chunkToString.get());
             }
             else if (response.getStatusCode() != HttpStatus.OK.code()) {
                 StringBuilder body = new StringBuilder();
