@@ -241,7 +241,7 @@ public class HttpDataClient
             if (response.getStatusCode() == HttpStatus.NO_CONTENT.code()) {
                 throw new DataApiException(CHUNK_NOT_FOUND, "Chunk not found for chunk " + chunkToString.get());
             }
-            else if (response.getStatusCode() != HttpStatus.OK.code()) {
+            if (response.getStatusCode() != HttpStatus.OK.code()) {
                 StringBuilder body = new StringBuilder();
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.getInputStream(), UTF_8))) {
                     // Get up to 1000 lines for debugging
