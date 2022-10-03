@@ -209,7 +209,7 @@ public class HttpDataClient
                         .build())
                 .build();
 
-        HttpResponseFuture<PagesResponse> responseFuture = httpClient.executeAsync(request, new PageResponseHandler(() -> "[%s/%s/%s/%s]".formatted(exchangeId, bufferNodeId, partitionId, chunkId), dataIntegrityVerificationEnabled));
+        HttpResponseFuture<PagesResponse> responseFuture = httpClient.executeAsync(request, new ChunkDataResponseHandler(() -> "[%s/%s/%s/%s]".formatted(exchangeId, bufferNodeId, partitionId, chunkId), dataIntegrityVerificationEnabled));
         return transform(responseFuture, PagesResponse::getPages, directExecutor());
     }
 
@@ -236,13 +236,13 @@ public class HttpDataClient
         }
     }
 
-    public static class PageResponseHandler
+    public static class ChunkDataResponseHandler
             implements ResponseHandler<PagesResponse, RuntimeException>
     {
         private final Supplier<String> chunkToString;
         private final boolean dataIntegrityVerificationEnabled;
 
-        private PageResponseHandler(
+        private ChunkDataResponseHandler(
                 Supplier<String> chunkToString,
                 boolean dataIntegrityVerificationEnabled)
         {
