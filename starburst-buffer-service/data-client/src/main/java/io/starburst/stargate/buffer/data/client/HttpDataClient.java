@@ -198,13 +198,13 @@ public class HttpDataClient
     }
 
     @Override
-    public ListenableFuture<List<DataPage>> getChunkData(String exchangeId, long bufferNodeId, int partitionId, long chunkId)
+    public ListenableFuture<List<DataPage>> getChunkData(String exchangeId, int partitionId, long chunkId, long bufferNodeId)
     {
         requireNonNull(exchangeId, "exchangeId is null");
 
         Request request = prepareGet()
                 .setUri(UriBuilder.fromUri(baseUri)
-                        .path("%s/pages/%d/%d".formatted(exchangeId, partitionId, chunkId))
+                        .path("%s/pages/%d/%d/%d".formatted(exchangeId, partitionId, chunkId, bufferNodeId))
                         .build())
                 .build();
 

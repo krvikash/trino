@@ -101,7 +101,7 @@ public class ChunkManager
         getExchangeAndHeartbeat(exchangeId).addDataPage(partitionId, taskId, attemptId, dataPageId, data);
     }
 
-    public List<DataPage> getChunkData(String exchangeId, int partitionId, long chunkId)
+    public List<DataPage> getChunkData(String exchangeId, int partitionId, long chunkId, long bufferNodeId)
     {
         Exchange exchange = getExchangeAndHeartbeat(exchangeId);
         return exchange.getChunkData(partitionId, chunkId);

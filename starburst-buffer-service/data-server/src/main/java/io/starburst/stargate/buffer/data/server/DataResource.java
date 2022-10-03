@@ -90,15 +90,16 @@ public class DataResource
     }
 
     @GET
-    @Path("{exchangeId}/pages/{partitionId}/{chunkId}")
+    @Path("{exchangeId}/pages/{partitionId}/{chunkId}/{bufferNodeId}")
     @Produces(TRINO_CHUNK_DATA)
     public Response getChunkData(
             @PathParam("exchangeId") String exchangeId,
             @PathParam("partitionId") int partitionId,
-            @PathParam("chunkId") long chunkId)
+            @PathParam("chunkId") long chunkId,
+            @PathParam("bufferNodeId") long bufferNodeId)
     {
         try {
-            List<DataPage> dataPages = chunkManager.getChunkData(exchangeId, partitionId, chunkId);
+            List<DataPage> dataPages = chunkManager.getChunkData(exchangeId, partitionId, chunkId, bufferNodeId);
             if (dataPages.isEmpty()) {
                 return Response.noContent().build();
             }
