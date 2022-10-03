@@ -133,6 +133,16 @@ public class Partition
         return closedChunks.size();
     }
 
+    public void releaseChunks()
+    {
+        synchronized (this) {
+            if (openChunk != null) {
+                openChunk.release();
+            }
+        }
+        closedChunks.values().forEach(Chunk::release);
+    }
+
     private void closeChunk(Chunk chunk)
     {
         chunk.close();
@@ -142,11 +152,7 @@ public class Partition
     private Chunk createNewOpenChunk()
     {
         long chunkId = chunkIdGenerator.getNextChunkId();
-        // TODO: handle memory allocation failure
-        // TODO: support dynamic chunk sizing
-        Slice chunkSlice = memoryAllocator.allocate(chunkSizeInBytes)
-                .orElseThrow(() -> new IllegalStateException("Failed to create a new open chunk due to memory allocation failure"));
-        return new Chunk(bufferNodeId, partitionId, chunkId, chunkSlice);
+        return new Chunk(bufferNodeId, partitionId, chunkId, memoryAllocator, chunkSizeInBytes);
     }
 
     private record TaskAttemptId(

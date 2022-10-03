@@ -152,9 +152,9 @@ public class Exchange
         return partitions.values().stream().mapToInt(Partition::getClosedChunks).sum();
     }
 
-    public void releaseMemory()
+    public void releaseChunks()
     {
-        memoryAllocator.release((getOpenChunksCount() + getClosedChunksCount()) * (long) chunkSizeInBytes);
+        partitions.values().forEach(Partition::releaseChunks);
     }
 
     public long getLastUpdateTime()

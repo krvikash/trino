@@ -15,6 +15,7 @@ import io.airlift.slice.SliceInput;
 import io.airlift.slice.SliceOutput;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.DataPage;
+import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
@@ -41,12 +42,13 @@ public class Chunk
             long bufferNodeId,
             int partitionId,
             long chunkId,
-            Slice chunkSlice)
+            MemoryAllocator memoryAllocator,
+            int chunkSizeInBytes)
     {
         this.bufferNodeId = bufferNodeId;
         this.partitionId = partitionId;
         this.chunkId = chunkId;
-        this.chunkData = new ChunkData(requireNonNull(chunkSlice, "chunkSlice is null"));
+        this.chunkData = new ChunkData(memoryAllocator, chunkSizeInBytes);
     }
 
     public long getChunkId()
@@ -92,6 +94,11 @@ public class Chunk
         return chunkHandle;
     }
 
+    public void release()
+    {
+        chunkData.release();
+    }
+
     public void close()
     {
         closed = true;
@@ -99,12 +106,21 @@ public class Chunk
 
     private static class ChunkData
     {
+        private final MemoryAllocator memoryAllocator;
+        private final int chunkSizeInBytes;
+        private final Slice chunkSlice;
         private final SliceOutput sliceOutput;
 
         private int dataSizeInBytes;
 
-        public ChunkData(Slice chunkSlice)
+        public ChunkData(MemoryAllocator memoryAllocator, int chunkSizeInBytes)
         {
+            this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
+            this.chunkSizeInBytes = chunkSizeInBytes;
+            // TODO: handle memory allocation failure
+            // TODO: support dynamic chunk sizing
+            this.chunkSlice = memoryAllocator.allocate(chunkSizeInBytes)
+                    .orElseThrow(() -> new IllegalStateException("Failed to create a new open chunk due to memory allocation failure"));
             this.sliceOutput = chunkSlice.getOutput();
         }
 
@@ -113,7 +129,8 @@ public class Chunk
             int writableBytes = sliceOutput.writableBytes();
             int dataSize = data.length();
             int requiredStorageSize = DATA_PAGE_HEADER_SIZE + dataSize;
-            checkArgument(writableBytes >= requiredStorageSize, "writableBytes %s less than requiredStorageSize %s", writableBytes, requiredStorageSize);
+            checkArgument(requiredStorageSize <= chunkSizeInBytes, "requiredStorageSize %s larger than chunkSizeInBytes %s", requiredStorageSize, chunkSizeInBytes);
+            checkArgument(requiredStorageSize <= writableBytes, "requiredStorageSize %s larger than writableBytes %s", requiredStorageSize, writableBytes);
 
             sliceOutput.writeShort(taskId);
             sliceOutput.writeByte(attemptId);
@@ -153,6 +170,11 @@ public class Chunk
                     return new DataPage(taskId, attemptId, data);
                 }
             };
+        }
+
+        public void release()
+        {
+            memoryAllocator.release(chunkSlice);
         }
     }
 }

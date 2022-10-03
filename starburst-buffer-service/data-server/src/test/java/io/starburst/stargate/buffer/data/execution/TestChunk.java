@@ -10,8 +10,10 @@
 package io.starburst.stargate.buffer.data.execution;
 
 import com.google.common.collect.ImmutableList;
-import io.airlift.slice.Slices;
 import io.starburst.stargate.buffer.data.client.DataPage;
+import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
+import io.starburst.stargate.buffer.data.memory.MemoryAllocatorConfig;
+import io.starburst.stargate.buffer.data.server.DataServerStats;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -27,7 +29,8 @@ public class TestChunk
     @Test
     public void testHappyPath()
     {
-        Chunk chunk = new Chunk(0L, 0, 0, Slices.allocate(35));
+        MemoryAllocator memoryAllocator = new MemoryAllocator(new MemoryAllocatorConfig(), new DataServerStats());
+        Chunk chunk = new Chunk(0L, 0, 0, memoryAllocator, 35);
 
         List<DataPage> dataPages = ImmutableList.of(
                 new DataPage(0, 0, utf8Slice("333")),

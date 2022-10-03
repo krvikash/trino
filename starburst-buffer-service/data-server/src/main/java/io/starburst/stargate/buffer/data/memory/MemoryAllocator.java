@@ -58,8 +58,9 @@ public class MemoryAllocator
         return Optional.of(Slices.allocate(bytes));
     }
 
-    public synchronized void release(long bytes)
+    public synchronized void release(Slice slice)
     {
+        int bytes = slice.length();
         verify(allocatedBytes >= bytes, "%s bytes allocated, but trying to release %s bytes", allocatedBytes, bytes);
         allocatedBytes -= bytes;
         dataServerStats.getFreeMemoryInBytes().add(getFreeMemory());
