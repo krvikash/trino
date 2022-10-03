@@ -44,7 +44,7 @@ public class Partition
     private final Map<Long, Chunk> closedChunks = new ConcurrentHashMap<>();
 
     @GuardedBy("this")
-    private final Map<TaskAttemptId, Long> lastDataPageIds = new HashMap<>();
+    private final Map<TaskAttemptId, Long> lastDataPagesIds = new HashMap<>();
     @GuardedBy("this")
     private volatile Chunk openChunk;
 
@@ -64,30 +64,32 @@ public class Partition
         this.chunkIdGenerator = requireNonNull(chunkIdGenerator, "chunkIdGenerator is null");
     }
 
-    public synchronized void addDataPage(int taskId, int attemptId, long dataPageId, Slice data)
+    public synchronized void addDataPages(int taskId, int attemptId, long dataPagesId, List<Slice> pages)
     {
         TaskAttemptId taskAttemptId = new TaskAttemptId(taskId, attemptId);
-        long lastDataPageId = lastDataPageIds.getOrDefault(taskAttemptId, -1L);
-        checkArgument(dataPageId >= lastDataPageId,
-                "dataPageId should not decrease for the same writer: " +
-                        "taskId %d, attemptId %d, dataPageId %d, lastDataPageId %d".formatted(taskId, attemptId, dataPageId, lastDataPageId));
-        if (dataPageId == lastDataPageId) {
+        long lastDataPagesId = lastDataPagesIds.getOrDefault(taskAttemptId, -1L);
+        checkArgument(dataPagesId >= lastDataPagesId,
+                "dataPagesId should not decrease for the same writer: " +
+                        "taskId %d, attemptId %d, dataPagesId %d, lastDataPagesId %d".formatted(taskId, attemptId, dataPagesId, lastDataPagesId));
+        if (dataPagesId == lastDataPagesId) {
             return;
         }
         else {
-            lastDataPageIds.put(taskAttemptId, dataPageId);
+            lastDataPagesIds.put(taskAttemptId, dataPagesId);
         }
 
         if (openChunk == null) {
             openChunk = createNewOpenChunk();
         }
 
-        if (!openChunk.hasEnoughSpace(data)) {
-            // the open chunk doesn't have enough space available, close the chunk and create a new one
-            closeChunk(openChunk);
-            openChunk = createNewOpenChunk();
+        for (Slice page : pages) {
+            if (!openChunk.hasEnoughSpace(page)) {
+                // the open chunk doesn't have enough space available, close the chunk and create a new one
+                closeChunk(openChunk);
+                openChunk = createNewOpenChunk();
+            }
+            openChunk.write(taskId, attemptId, page);
         }
-        openChunk.write(taskId, attemptId, data);
     }
 
     public List<DataPage> getChunkData(long chunkId)

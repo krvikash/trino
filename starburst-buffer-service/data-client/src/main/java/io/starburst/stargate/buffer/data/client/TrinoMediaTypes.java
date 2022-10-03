@@ -13,6 +13,8 @@ import com.google.common.net.MediaType;
 
 public final class TrinoMediaTypes
 {
+    public static final String TRINO_PAGES = "application/X-trino-pages";
+    public static final MediaType TRINO_PAGES_TYPE = MediaType.create("application", "X-trino-pages");
     public static final String TRINO_CHUNK_DATA = "application/X-trino-buffer-chunk-data";
     public static final MediaType TRINO_CHUNK_DATA_TYPE = MediaType.create("application", "X-trino-buffer-chunk-data");
 

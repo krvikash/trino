@@ -151,9 +151,9 @@ public class TestDataServer
         removeExchange(EXCHANGE_0);
     }
 
-    private void addDataPage(String exchangeId, int partitionId, int taskId, int attemptId, long dataPageId, Slice data)
+    private void addDataPage(String exchangeId, int partitionId, int taskId, int attemptId, long dataPagesId, Slice data)
     {
-        getFutureValue(dataClient.addDataPages(exchangeId, partitionId, taskId, attemptId, dataPageId, ImmutableList.of(data)));
+        getFutureValue(dataClient.addDataPages(exchangeId, partitionId, taskId, attemptId, dataPagesId, ImmutableList.of(data)));
     }
 
     private void finishExchange(String exchangeId)

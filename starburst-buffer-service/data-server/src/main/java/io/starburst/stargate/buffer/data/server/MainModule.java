@@ -65,6 +65,7 @@ public class MainModule
         configBinder(binder).bindConfig(DataServerConfig.class);
         jaxrsBinder(binder).bind(DataResource.class);
         jaxrsBinder(binder).bind(PagesResponseWriter.class);
+        jaxrsBinder(binder).bind(PagesResponseReader.class);
         binder.bind(MemoryAllocator.class).in(SINGLETON);
         binder.bind(Long.class).annotatedWith(BufferNodeId.class).toInstance(bufferNodeId);
         binder.bind(Ticker.class).annotatedWith(ForChunkManager.class).toInstance(ticker);

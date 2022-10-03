@@ -14,6 +14,7 @@ import com.google.common.io.LittleEndianDataInputStream;
 import com.google.common.net.HttpHeaders;
 import com.google.common.net.MediaType;
 import com.google.common.util.concurrent.ListenableFuture;
+import io.airlift.http.client.BodyGenerator;
 import io.airlift.http.client.FullJsonResponseHandler.JsonResponse;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.HttpClient.HttpResponseFuture;
@@ -23,13 +24,16 @@ import io.airlift.http.client.Response;
 import io.airlift.http.client.ResponseHandler;
 import io.airlift.http.client.StringResponseHandler.StringResponse;
 import io.airlift.json.JsonCodec;
+import io.airlift.slice.OutputStreamSliceOutput;
 import io.airlift.slice.Slice;
+import io.airlift.slice.SliceOutput;
 
 import javax.ws.rs.core.UriBuilder;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.util.List;
@@ -50,7 +54,6 @@ import static io.airlift.http.client.Request.Builder.prepareDelete;
 import static io.airlift.http.client.Request.Builder.prepareGet;
 import static io.airlift.http.client.Request.Builder.preparePost;
 import static io.airlift.http.client.ResponseHandlerUtils.propagate;
-import static io.airlift.http.client.StaticBodyGenerator.createStaticBodyGenerator;
 import static io.airlift.http.client.StringResponseHandler.createStringResponseHandler;
 import static io.airlift.json.JsonCodec.jsonCodec;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
@@ -59,11 +62,11 @@ import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSU
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.calculateChecksum;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.readSerializedPages;
 import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_CHUNK_DATA_TYPE;
+import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_PAGES;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static javax.ws.rs.core.HttpHeaders.CONTENT_TYPE;
-import static javax.ws.rs.core.MediaType.TEXT_PLAIN;
 
 public class HttpDataClient
         implements DataApi
@@ -167,15 +170,13 @@ public class HttpDataClient
     {
         requireNonNull(exchangeId, "exchangeId is null");
         requireNonNull(dataPages, "dataPage is null");
-        checkArgument(dataPages.size() == 1, "exactly one page can be added; got %d", dataPages.size()); // todo
-        Slice dataPage = dataPages.get(0);
 
         Request request = preparePost()
                 .setUri(UriBuilder.fromUri(baseUri)
                         .path("%s/addDataPages/%d/%d/%d/%d".formatted(exchangeId, partitionId, taskId, attemptId, dataPagesId))
                         .build())
-                .addHeader(CONTENT_TYPE, TEXT_PLAIN)
-                .setBodyGenerator(createStaticBodyGenerator(dataPage.byteArrayOffset() == 0 ? dataPage.byteArray() : dataPage.getBytes()))
+                .addHeader(CONTENT_TYPE, TRINO_PAGES)
+                .setBodyGenerator(new PagesBodyGenerator(dataPages))
                 .build();
 
         HttpResponseFuture<StringResponse> responseFuture = httpClient.executeAsync(request, createStringResponseHandler());
@@ -210,6 +211,29 @@ public class HttpDataClient
 
         HttpResponseFuture<PagesResponse> responseFuture = httpClient.executeAsync(request, new PageResponseHandler(() -> "[%s/%s/%s/%s]".formatted(exchangeId, bufferNodeId, partitionId, chunkId), dataIntegrityVerificationEnabled));
         return transform(responseFuture, PagesResponse::getPages, directExecutor());
+    }
+
+    public static class PagesBodyGenerator
+            implements BodyGenerator
+    {
+        private final List<Slice> pages;
+
+        public PagesBodyGenerator(List<Slice> pages)
+        {
+            this.pages = requireNonNull(pages, "pages is null");
+        }
+
+        @Override
+        public void write(OutputStream output)
+                throws Exception
+        {
+            SliceOutput sliceOutput = new OutputStreamSliceOutput(output);
+            for (Slice page : pages) {
+                sliceOutput.writeInt(page.length());
+                sliceOutput.writeBytes(page);
+            }
+            sliceOutput.flush();
+        }
     }
 
     public static class PageResponseHandler
@@ -299,16 +323,6 @@ public class HttpDataClient
                 }
             }
         }
-
-        private static boolean mediaTypeMatches(String value, MediaType range)
-        {
-            try {
-                return MediaType.parse(value).is(range);
-            }
-            catch (IllegalArgumentException | IllegalStateException e) {
-                return false;
-            }
-        }
     }
 
     public static class PagesResponse
@@ -360,5 +374,15 @@ public class HttpDataClient
             }
             return immediateVoidFuture();
         }, directExecutor());
+    }
+
+    public static boolean mediaTypeMatches(String value, MediaType range)
+    {
+        try {
+            return MediaType.parse(value).is(range);
+        }
+        catch (IllegalArgumentException | IllegalStateException e) {
+            return false;
+        }
     }
 }

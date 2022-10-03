@@ -75,14 +75,14 @@ public class Exchange
         this.lastUpdateTime = currentTime;
     }
 
-    public void addDataPage(int partitionId, int taskId, int attemptId, long dataPageId, Slice data)
+    public void addDataPages(int partitionId, int taskId, int attemptId, long dataPagesId, List<Slice> pages)
     {
         if (finished) {
             throw new DataServerException(EXCHANGE_FINISHED, "exchange %s already finished".formatted(exchangeId));
         }
 
         Partition partition = partitions.computeIfAbsent(partitionId, ignored -> new Partition(bufferNodeId, exchangeId, partitionId, memoryAllocator, chunkSizeInBytes, chunkIdGenerator));
-        partition.addDataPage(taskId, attemptId, dataPageId, data);
+        partition.addDataPages(taskId, attemptId, dataPagesId, pages);
     }
 
     public List<DataPage> getChunkData(int partitionId, long chunkId)

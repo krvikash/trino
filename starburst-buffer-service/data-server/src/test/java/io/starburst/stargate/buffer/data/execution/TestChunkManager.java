@@ -9,6 +9,7 @@
  */
 package io.starburst.stargate.buffer.data.execution;
 
+import com.google.common.collect.ImmutableList;
 import io.airlift.testing.TestingTicker;
 import io.airlift.units.DataSize;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
@@ -49,13 +50,12 @@ public class TestChunkManager
         chunkManager.registerExchange(EXCHANGE_0);
         chunkManager.registerExchange(EXCHANGE_1);
 
-        chunkManager.addDataPage(EXCHANGE_0, 0, 0, 0, 0L, utf8Slice("000_0"));
-        chunkManager.addDataPage(EXCHANGE_0, 0, 1, 0, 1L, utf8Slice("001_0"));
-        chunkManager.addDataPage(EXCHANGE_0, 1, 0, 0, 2L, utf8Slice("010_0"));
-        chunkManager.addDataPage(EXCHANGE_0, 1, 1, 0, 3L, utf8Slice("011_0"));
-        chunkManager.addDataPage(EXCHANGE_0, 1, 0, 1, 4L, utf8Slice("010_0"));
-        chunkManager.addDataPage(EXCHANGE_0, 1, 0, 1, 5L, utf8Slice("010_1"));
-        chunkManager.addDataPage(EXCHANGE_1, 0, 0, 0, 6L, utf8Slice("100_0"));
+        chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("000_0")));
+        chunkManager.addDataPages(EXCHANGE_0, 0, 1, 0, 1L, ImmutableList.of(utf8Slice("001_0")));
+        chunkManager.addDataPages(EXCHANGE_0, 1, 0, 0, 2L, ImmutableList.of(utf8Slice("010_0")));
+        chunkManager.addDataPages(EXCHANGE_0, 1, 1, 0, 3L, ImmutableList.of(utf8Slice("011_0")));
+        chunkManager.addDataPages(EXCHANGE_0, 1, 0, 1, 4L, ImmutableList.of(utf8Slice("010_0"), utf8Slice("010_1")));
+        chunkManager.addDataPages(EXCHANGE_1, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("100_0")));
 
         ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 10);
         ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 1, 1L, 20);
@@ -115,12 +115,11 @@ public class TestChunkManager
         chunkManager.registerExchange(EXCHANGE_0);
         chunkManager.registerExchange(EXCHANGE_1);
 
-        chunkManager.addDataPage(EXCHANGE_0, 0, 0, 0, 0L, utf8Slice("000_0"));
-        chunkManager.addDataPage(EXCHANGE_0, 1, 0, 0, 1L, utf8Slice("010_0"));
-        chunkManager.addDataPage(EXCHANGE_0, 1, 1, 0, 2L, utf8Slice("011_0"));
-        chunkManager.addDataPage(EXCHANGE_0, 1, 0, 1, 3L, utf8Slice("010_0"));
-        chunkManager.addDataPage(EXCHANGE_0, 1, 0, 1, 4L, utf8Slice("010_1"));
-        chunkManager.addDataPage(EXCHANGE_1, 0, 0, 0, 0L, utf8Slice("100_0"));
+        chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("000_0")));
+        chunkManager.addDataPages(EXCHANGE_0, 1, 0, 0, 1L, ImmutableList.of(utf8Slice("010_0")));
+        chunkManager.addDataPages(EXCHANGE_0, 1, 1, 0, 2L, ImmutableList.of(utf8Slice("011_0")));
+        chunkManager.addDataPages(EXCHANGE_0, 1, 0, 1, 3L, ImmutableList.of(utf8Slice("010_0"), utf8Slice("010_1")));
+        chunkManager.addDataPages(EXCHANGE_1, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("100_0")));
 
         ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 5);
         ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 1, 1L, 10);
@@ -204,19 +203,18 @@ public class TestChunkManager
     }
 
     @Test
-    public void testDataPageIdDeduplication()
+    public void testDataPagesIdDeduplication()
     {
         ChunkManager chunkManager = createChunkManager(DataSize.of(30, BYTE));
 
-        chunkManager.addDataPage(EXCHANGE_0, 0, 0, 0, 0L, utf8Slice("chunk"));
-        chunkManager.addDataPage(EXCHANGE_0, 0, 0, 0, 1L, utf8Slice("manager"));
-        chunkManager.addDataPage(EXCHANGE_0, 0, 0, 0, 1L, utf8Slice("manager"));
-        chunkManager.addDataPage(EXCHANGE_0, 1, 0, 0, 2L, utf8Slice("data"));
-        chunkManager.addDataPage(EXCHANGE_0, 1, 0, 0, 3L, utf8Slice("page"));
-        assertThatThrownBy(() -> chunkManager.addDataPage(EXCHANGE_0, 0, 0, 0, 0L, utf8Slice("chunk")))
+        chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("chunk")));
+        chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 1L, ImmutableList.of(utf8Slice("manager")));
+        chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 1L, ImmutableList.of(utf8Slice("manager")));
+        chunkManager.addDataPages(EXCHANGE_0, 1, 0, 0, 2L, ImmutableList.of(utf8Slice("data"), utf8Slice("page")));
+        assertThatThrownBy(() -> chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("chunk"))))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("dataPageId should not decrease for the same writer: taskId 0, attemptId 0, dataPageId 0, lastDataPageId 1");
-        chunkManager.addDataPage(EXCHANGE_0, 1, 1, 0, 0L, utf8Slice("deduplication"));
+                .hasMessage("dataPagesId should not decrease for the same writer: taskId 0, attemptId 0, dataPagesId 0, lastDataPagesId 1");
+        chunkManager.addDataPages(EXCHANGE_0, 1, 1, 0, 0L, ImmutableList.of(utf8Slice("deduplication")));
         chunkManager.finishExchange(EXCHANGE_0);
 
         ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 12);

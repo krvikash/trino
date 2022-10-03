@@ -91,14 +91,16 @@ public class ChunkManager
         statsReportingExecutor.scheduleWithFixedDelay(this::reportStats, 0, 1, SECONDS);
     }
 
-    public void addDataPage(String exchangeId, int partitionId, int taskId, int attemptId, long dataPageId, Slice data)
+    public void addDataPages(String exchangeId, int partitionId, int taskId, int attemptId, long dataPagesId, List<Slice> pages)
     {
-        int requiredStorageSize = DATA_PAGE_HEADER_SIZE + data.length();
-        checkArgument(requiredStorageSize <= chunkSizeInBytes,
-                "requiredStorageSize %d exceeded chunkSizeInBytes %d", requiredStorageSize, chunkSizeInBytes);
+        for (Slice page : pages) {
+            int requiredStorageSize = DATA_PAGE_HEADER_SIZE + page.length();
+            checkArgument(requiredStorageSize <= chunkSizeInBytes,
+                    "requiredStorageSize %d exceeded chunkSizeInBytes %d", requiredStorageSize, chunkSizeInBytes);
+        }
 
         registerExchange(exchangeId);
-        getExchangeAndHeartbeat(exchangeId).addDataPage(partitionId, taskId, attemptId, dataPageId, data);
+        getExchangeAndHeartbeat(exchangeId).addDataPages(partitionId, taskId, attemptId, dataPagesId, pages);
     }
 
     public List<DataPage> getChunkData(String exchangeId, int partitionId, long chunkId, long bufferNodeId)

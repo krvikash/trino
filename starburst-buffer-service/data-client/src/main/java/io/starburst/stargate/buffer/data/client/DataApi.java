@@ -55,11 +55,11 @@ public interface DataApi
      * It is expected that single writer of this method as denoted by (taskId, attemptId) pair is single threaded
      * and only sends new data page upon receiving proper response that previous page was consumed by buffer node.
      *
-     * If response is not received it is responsibility of the writer to retry a request passing same dataPageId.
-     * The dataPageId will be used by buffer node for deduplication purpose in case when previous request was actually registered on
+     * If response is not received it is responsibility of the writer to retry a request passing same dataPagesId.
+     * The dataPagesId will be used by buffer node for deduplication purpose in case when previous request was actually registered on
      * the receiver side.
      *
-     * The dataPageId is expected to be strictly increasing for subsequent data pages sent by single writer.
+     * The dataPagesId is expected to be strictly increasing for subsequent data pages sent by single writer.
      *
      * @param exchangeId exchange id
      * @param partitionId partition id
@@ -71,9 +71,6 @@ public interface DataApi
      * In case of failure returned future will wrap {@link DataApiException}
      */
     ListenableFuture<Void> addDataPages(String exchangeId, int partitionId, int taskId, int attemptId, long dataPagesId, List<Slice> dataPages);
-
-    // a multi-page version of addDataPage. Not obvious if really needed. Will be added if initial tests show we need that.
-    //void addDataPages(String exchangeId, int partitionId, int taskId, int attemptId, List<Long> dataPageIds, Long<Slice> dataPages);
 
     /**
      * Mark exchange as finished. It means that no more data will be recorded for given exchange.

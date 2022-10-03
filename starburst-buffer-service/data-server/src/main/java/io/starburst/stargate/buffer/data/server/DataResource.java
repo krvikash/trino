@@ -10,7 +10,7 @@
 package io.starburst.stargate.buffer.data.server;
 
 import com.google.common.reflect.TypeToken;
-import io.airlift.slice.Slices;
+import io.airlift.slice.Slice;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
@@ -21,6 +21,7 @@ import javax.inject.Inject;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
+import javax.ws.rs.HeaderParam;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -34,9 +35,14 @@ import javax.ws.rs.core.Response.Status;
 import java.util.List;
 import java.util.OptionalLong;
 
+import static com.google.common.base.Preconditions.checkState;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.ERROR_CODE_HEADER;
+import static io.starburst.stargate.buffer.data.client.HttpDataClient.mediaTypeMatches;
 import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_CHUNK_DATA;
+import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_PAGES;
+import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_PAGES_TYPE;
 import static java.util.Objects.requireNonNull;
+import static javax.ws.rs.core.HttpHeaders.CONTENT_TYPE;
 
 @Path("/api/v1/buffer/data")
 public class DataResource
@@ -67,21 +73,22 @@ public class DataResource
 
     @POST
     @Path("{exchangeId}/addDataPages/{partitionId}/{taskId}/{attemptId}/{dataPagesId}")
-    @Consumes(MediaType.TEXT_PLAIN)
+    @Consumes(TRINO_PAGES)
     public Response addDataPage(
+            @HeaderParam(CONTENT_TYPE) String contentType,
             @PathParam("exchangeId") String exchangeId,
             @PathParam("partitionId") int partitionId,
             @PathParam("taskId") int taskId,
             @PathParam("attemptId") int attemptId,
             @PathParam("dataPagesId") long dataPagesId,
-            byte[] dataPagesBytes)
+            List<Slice> pages)
     {
-        requireNonNull(dataPagesBytes, "dataPagesBytes is null");
-
-        // todo deserialize dataPagesBytes into series of separate pages (here or deeper in the stack)
+        requireNonNull(pages, "pages is null");
+        checkState(contentType != null && mediaTypeMatches(contentType, TRINO_PAGES_TYPE),
+                "Expected %s response from server but got %s", TRINO_PAGES_TYPE, contentType);
 
         try {
-            chunkManager.addDataPage(exchangeId, partitionId, taskId, attemptId, dataPagesId, Slices.wrappedBuffer(dataPagesBytes));
+            chunkManager.addDataPages(exchangeId, partitionId, taskId, attemptId, dataPagesId, pages);
         }
         catch (Exception e) {
             return errorResponse(e);

@@ -35,7 +35,6 @@ public class TestChunk
                 new DataPage(1, 0, utf8Slice("55555")));
         DataPage extraDataPage = new DataPage(1, 0, utf8Slice("666666"));
 
-        long dataPageId = 0;
         for (DataPage dataPage : dataPages) {
             assertTrue(chunk.hasEnoughSpace(dataPage.data()));
             chunk.write(dataPage.taskId(), dataPage.attemptId(), dataPage.data());
