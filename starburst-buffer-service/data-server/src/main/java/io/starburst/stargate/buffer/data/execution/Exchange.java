@@ -47,8 +47,6 @@ public class Exchange
     // partitionId -> partition
     private final Map<Integer, Partition> partitions = new ConcurrentHashMap<>();
 
-    private volatile boolean finished;
-    private volatile long lastUpdateTime;
     @GuardedBy("this")
     private OptionalLong nextPagingId = OptionalLong.of(0);
     @GuardedBy("this")
@@ -57,6 +55,9 @@ public class Exchange
     private long lastPagingId = -1;
     @GuardedBy("this")
     private final LongSet consumedChunks = new LongArraySet();
+    @GuardedBy("this")
+    private boolean finished;
+    private volatile long lastUpdateTime;
 
     public Exchange(
             long bufferNodeId,
@@ -77,11 +78,14 @@ public class Exchange
 
     public void addDataPages(int partitionId, int taskId, int attemptId, long dataPagesId, List<Slice> pages)
     {
-        if (finished) {
-            throw new DataServerException(EXCHANGE_FINISHED, "exchange %s already finished".formatted(exchangeId));
+        Partition partition;
+        synchronized (this) {
+            if (finished) {
+                throw new DataServerException(EXCHANGE_FINISHED, "exchange %s already finished".formatted(exchangeId));
+            }
+            partition = partitions.computeIfAbsent(partitionId, ignored -> new Partition(bufferNodeId, exchangeId, partitionId, memoryAllocator, chunkSizeInBytes, chunkIdGenerator));
         }
 
-        Partition partition = partitions.computeIfAbsent(partitionId, ignored -> new Partition(bufferNodeId, exchangeId, partitionId, memoryAllocator, chunkSizeInBytes, chunkIdGenerator));
         partition.addDataPages(taskId, attemptId, dataPagesId, pages);
     }
 

@@ -47,6 +47,8 @@ public class Partition
     private final Map<TaskAttemptId, Long> lastDataPagesIds = new HashMap<>();
     @GuardedBy("this")
     private volatile Chunk openChunk;
+    @GuardedBy("this")
+    private boolean finished;
 
     public Partition(
             long bufferNodeId,
@@ -114,9 +116,11 @@ public class Partition
 
     public synchronized void finish()
     {
+        checkState(!finished, "already finished");
         checkState(openChunk != null, "No open chunk exists for exchange %s partition %d".formatted(exchangeId, partitionId));
         closeChunk(openChunk);
         openChunk = null;
+        finished = true;
     }
 
     public boolean hasOpenChunk()
