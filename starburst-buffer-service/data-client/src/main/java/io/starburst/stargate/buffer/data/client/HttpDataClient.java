@@ -209,8 +209,8 @@ public class HttpDataClient
                         .build())
                 .build();
 
-        HttpResponseFuture<PagesResponse> responseFuture = httpClient.executeAsync(request, new ChunkDataResponseHandler(() -> "[%s/%s/%s/%s]".formatted(exchangeId, bufferNodeId, partitionId, chunkId), dataIntegrityVerificationEnabled));
-        return transform(responseFuture, PagesResponse::getPages, directExecutor());
+        HttpResponseFuture<ChunkDataResponse> responseFuture = httpClient.executeAsync(request, new ChunkDataResponseHandler(() -> "[%s/%s/%s/%s]".formatted(exchangeId, bufferNodeId, partitionId, chunkId), dataIntegrityVerificationEnabled));
+        return transform(responseFuture, ChunkDataResponse::getPages, directExecutor());
     }
 
     public static class PagesBodyGenerator
@@ -237,7 +237,7 @@ public class HttpDataClient
     }
 
     public static class ChunkDataResponseHandler
-            implements ResponseHandler<PagesResponse, RuntimeException>
+            implements ResponseHandler<ChunkDataResponse, RuntimeException>
     {
         private final Supplier<String> chunkToString;
         private final boolean dataIntegrityVerificationEnabled;
@@ -251,14 +251,14 @@ public class HttpDataClient
         }
 
         @Override
-        public PagesResponse handleException(Request request, Exception exception)
+        public ChunkDataResponse handleException(Request request, Exception exception)
                 throws RuntimeException
         {
             throw propagate(request, exception);
         }
 
         @Override
-        public PagesResponse handle(Request request, Response response)
+        public ChunkDataResponse handle(Request request, Response response)
                 throws RuntimeException
         {
             if (response.getStatusCode() == HttpStatus.NO_CONTENT.code()) {
@@ -302,7 +302,7 @@ public class HttpDataClient
                 List<DataPage> pages = ImmutableList.copyOf(readSerializedPages(input));
                 verifyChecksum(checkSum, pages);
                 checkState(pages.size() == pagesCount, "Wrong number of pages, expected %s, but read %s", pagesCount, pages.size());
-                return PagesResponse.createPagesResponse(pages);
+                return ChunkDataResponse.createPagesResponse(pages);
             }
             catch (IOException e) {
                 throw new UncheckedIOException(e);
@@ -325,16 +325,16 @@ public class HttpDataClient
         }
     }
 
-    public static class PagesResponse
+    public static class ChunkDataResponse
     {
-        public static PagesResponse createPagesResponse(Iterable<DataPage> pages)
+        public static ChunkDataResponse createPagesResponse(Iterable<DataPage> pages)
         {
-            return new PagesResponse(pages);
+            return new ChunkDataResponse(pages);
         }
 
         private final List<DataPage> pages;
 
-        private PagesResponse(Iterable<DataPage> pages)
+        private ChunkDataResponse(Iterable<DataPage> pages)
         {
             this.pages = ImmutableList.copyOf(requireNonNull(pages, "pages is null"));
         }
