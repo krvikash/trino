@@ -580,6 +580,21 @@ column add, drop, reorder and rename operations, including in nested structures.
 Table partitioning can also be changed and the connector can still
 query data created before the partitioning change.
 
+Register table
+--------------
+Iceberg and the Iceberg connector can register table into the metastore
+with existing metadata and data files.
+
+A SQL procedure ``system.register_table`` allows the caller to register a new table
+with existing metadata and data files::
+
+    CALL iceberg.system.register_table(schema_name => 'testdb', table_name => 'customer_orders', table_location => 'hdfs://hadoop-master:9000/user/hive/warehouse/customer_orders-581fad8517934af6be1857a903559d44')
+
+In addition, you can provide a specific metadata file name to register table
+with specific metadata::
+
+    CALL iceberg.system.register_table(schema_name => 'testdb', table_name => 'customer_orders', table_location => 'hdfs://hadoop-master:9000/user/hive/warehouse/customer_orders-581fad8517934af6be1857a903559d44', metadata_file_name => '00003-409702ba-4735-4645-8f14-09537cc0b2c8.metadata.json')
+
 Migrating existing tables
 -------------------------
 
