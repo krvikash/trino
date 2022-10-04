@@ -22,7 +22,6 @@ import javax.annotation.concurrent.ThreadSafe;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -49,6 +48,8 @@ public class Partition
     private volatile Chunk openChunk;
     @GuardedBy("this")
     private boolean finished;
+    @GuardedBy("this")
+    private long lastConsumedChunkId = -1;
 
     public Partition(
             long bufferNodeId,
@@ -103,12 +104,12 @@ public class Partition
         return chunk.readAll();
     }
 
-    public void addNewlyClosedChunkHandles(ImmutableList.Builder<ChunkHandle> newlyClosedChunkHandles, Set<Long> consumedChunks)
+    public synchronized void getNewlyClosedChunkHandles(ImmutableList.Builder<ChunkHandle> newlyClosedChunkHandles)
     {
         for (Chunk chunk : closedChunks.values()) {
             long chunkId = chunk.getChunkId();
-            if (!consumedChunks.contains(chunkId)) {
-                consumedChunks.add(chunkId);
+            if (chunkId > lastConsumedChunkId) {
+                lastConsumedChunkId = chunkId;
                 newlyClosedChunkHandles.add(chunk.getHandle());
             }
         }

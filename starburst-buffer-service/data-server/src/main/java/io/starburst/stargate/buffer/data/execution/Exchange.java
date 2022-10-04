@@ -17,8 +17,6 @@ import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
-import it.unimi.dsi.fastutil.longs.LongArraySet;
-import it.unimi.dsi.fastutil.longs.LongSet;
 
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
@@ -53,8 +51,6 @@ public class Exchange
     private ChunkList lastChunkList;
     @GuardedBy("this")
     private long lastPagingId = -1;
-    @GuardedBy("this")
-    private final LongSet consumedChunks = new LongArraySet();
     @GuardedBy("this")
     private boolean finished;
     private volatile long lastUpdateTime;
@@ -111,7 +107,7 @@ public class Exchange
 
         ImmutableList.Builder<ChunkHandle> newlyClosedChunkHandles = ImmutableList.builder();
         for (Partition partition : partitions.values()) {
-            partition.addNewlyClosedChunkHandles(newlyClosedChunkHandles, consumedChunks);
+            partition.getNewlyClosedChunkHandles(newlyClosedChunkHandles);
         }
 
         if (finished) {
