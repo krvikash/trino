@@ -56,11 +56,6 @@ public class Chunk
         return chunkId;
     }
 
-    public int getPartitionId()
-    {
-        return partitionId;
-    }
-
     public void write(int taskId, int attemptId, Slice data)
     {
         checkState(!closed, "write() called on a closed chunk");
