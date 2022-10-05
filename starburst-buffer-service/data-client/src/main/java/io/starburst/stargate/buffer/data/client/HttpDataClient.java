@@ -62,11 +62,9 @@ import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSU
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.calculateChecksum;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.readSerializedPages;
 import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_CHUNK_DATA_TYPE;
-import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_PAGES;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
-import static javax.ws.rs.core.HttpHeaders.CONTENT_TYPE;
 
 public class HttpDataClient
         implements DataApi
@@ -175,7 +173,6 @@ public class HttpDataClient
                 .setUri(UriBuilder.fromUri(baseUri)
                         .path("%s/addDataPages/%d/%d/%d/%d".formatted(exchangeId, partitionId, taskId, attemptId, dataPagesId))
                         .build())
-                .addHeader(CONTENT_TYPE, TRINO_PAGES)
                 .setBodyGenerator(new PagesBodyGenerator(dataPages))
                 .build();
 

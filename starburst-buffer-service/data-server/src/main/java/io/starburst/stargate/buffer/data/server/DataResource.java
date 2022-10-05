@@ -10,18 +10,20 @@
 package io.starburst.stargate.buffer.data.server;
 
 import com.google.common.reflect.TypeToken;
+import io.airlift.slice.InputStreamSliceInput;
 import io.airlift.slice.Slice;
+import io.airlift.slice.SliceInput;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
+import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
-import javax.ws.rs.HeaderParam;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -32,27 +34,28 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
+import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.OptionalLong;
 
-import static com.google.common.base.Preconditions.checkState;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.ERROR_CODE_HEADER;
-import static io.starburst.stargate.buffer.data.client.HttpDataClient.mediaTypeMatches;
 import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_CHUNK_DATA;
-import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_PAGES;
-import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_PAGES_TYPE;
 import static java.util.Objects.requireNonNull;
-import static javax.ws.rs.core.HttpHeaders.CONTENT_TYPE;
 
 @Path("/api/v1/buffer/data")
 public class DataResource
 {
     private final ChunkManager chunkManager;
+    private final MemoryAllocator memoryAllocator;
 
     @Inject
-    public DataResource(ChunkManager chunkManager)
+    public DataResource(
+            ChunkManager chunkManager,
+            MemoryAllocator memoryAllocator)
     {
         this.chunkManager = requireNonNull(chunkManager, "chunkManager is null");
+        this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
     }
 
     @GET
@@ -73,25 +76,34 @@ public class DataResource
 
     @POST
     @Path("{exchangeId}/addDataPages/{partitionId}/{taskId}/{attemptId}/{dataPagesId}")
-    @Consumes(TRINO_PAGES)
+    @Consumes(MediaType.APPLICATION_OCTET_STREAM)
     public Response addDataPage(
-            @HeaderParam(CONTENT_TYPE) String contentType,
             @PathParam("exchangeId") String exchangeId,
             @PathParam("partitionId") int partitionId,
             @PathParam("taskId") int taskId,
             @PathParam("attemptId") int attemptId,
             @PathParam("dataPagesId") long dataPagesId,
-            List<Slice> pages)
+            InputStream inputStream)
     {
-        requireNonNull(pages, "pages is null");
-        checkState(contentType != null && mediaTypeMatches(contentType, TRINO_PAGES_TYPE),
-                "Expected %s response from server but got %s", TRINO_PAGES_TYPE, contentType);
+        requireNonNull(inputStream, "inputStream is null");
 
+        List<Slice> pages = new ArrayList<>();
         try {
+            SliceInput sliceInput = new InputStreamSliceInput(inputStream);
+            while (sliceInput.isReadable()) {
+                int length = sliceInput.readInt();
+                Slice slice = memoryAllocator.allocate(length)
+                        .orElseThrow(() -> new IllegalStateException("Failed to create a new open chunk due to memory allocation failure"));
+                sliceInput.readBytes(slice);
+                pages.add(slice);
+            }
             chunkManager.addDataPages(exchangeId, partitionId, taskId, attemptId, dataPagesId, pages);
         }
         catch (Exception e) {
             return errorResponse(e);
+        }
+        finally {
+            pages.forEach(memoryAllocator::release);
         }
         return Response.ok().build();
     }
