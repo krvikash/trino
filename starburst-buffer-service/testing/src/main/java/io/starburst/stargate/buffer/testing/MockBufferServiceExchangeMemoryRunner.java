@@ -29,6 +29,9 @@ public final class MockBufferServiceExchangeMemoryRunner
         Map<String, String> properties = new HashMap<>();
         properties.putAll(FaultTolerantExecutionConnectorTestHelper.getExtraProperties());
         properties.put("http-server.http.port", "8080");
+        properties.put("task.max-partial-aggregation-memory", "0kB");
+        properties.put("adaptive-partial-aggregation.enabled", "false");
+
         DistributedQueryRunner queryRunner = MemoryQueryRunner.builder()
                 .setExtraProperties(properties)
                 .setAdditionalSetup(runner -> {
