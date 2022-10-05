@@ -67,13 +67,13 @@ public class ChunkManager
 
     @Inject
     public ChunkManager(
-            @BufferNodeId long bufferNodeId,
+            BufferNodeId bufferNodeId,
             ChunkManagerConfig config,
             MemoryAllocator memoryAllocator,
             @ForChunkManager Ticker ticker,
             DataServerStats dataServerStats)
     {
-        this.bufferNodeId = bufferNodeId;
+        this.bufferNodeId = bufferNodeId.getLongValue();
         this.chunkSizeInBytes = toIntExact(config.getChunkSize().toBytes());
         this.exchangeStalenessThreshold = config.getExchangeStalenessThreshold();
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");

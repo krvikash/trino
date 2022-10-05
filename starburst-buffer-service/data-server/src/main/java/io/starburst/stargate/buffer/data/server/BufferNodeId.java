@@ -9,17 +9,17 @@
  */
 package io.starburst.stargate.buffer.data.server;
 
-import javax.inject.Qualifier;
+public class BufferNodeId
+{
+    private final long bufferNodeId;
 
-import java.lang.annotation.Retention;
-import java.lang.annotation.Target;
+    public BufferNodeId(long bufferNodeId)
+    {
+        this.bufferNodeId = bufferNodeId;
+    }
 
-import static java.lang.annotation.ElementType.FIELD;
-import static java.lang.annotation.ElementType.METHOD;
-import static java.lang.annotation.ElementType.PARAMETER;
-import static java.lang.annotation.RetentionPolicy.RUNTIME;
-
-@Retention(RUNTIME)
-@Target({FIELD, PARAMETER, METHOD})
-@Qualifier
-public @interface BufferNodeId {}
+    public long getLongValue()
+    {
+        return bufferNodeId;
+    }
+}

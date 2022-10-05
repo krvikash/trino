@@ -47,14 +47,14 @@ public class DiscoveryBroadcast
     @Inject
     public DiscoveryBroadcast(
             DiscoveryApi discoveryApi,
-            @BufferNodeId long bufferNodeId,
+            BufferNodeId bufferNodeId,
             MemoryAllocator memoryAllocator,
             ChunkManager chunkManager,
             HttpServerInfo httpServerInfo,
             NodeInfo airliftNodeInfo)
     {
         this.discoverApi = requireNonNull(discoveryApi, "discoveryApi is null");
-        this.bufferNodeId = bufferNodeId;
+        this.bufferNodeId = bufferNodeId.getLongValue();
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.chunkManager = requireNonNull(chunkManager, "chunkManager is null");
 

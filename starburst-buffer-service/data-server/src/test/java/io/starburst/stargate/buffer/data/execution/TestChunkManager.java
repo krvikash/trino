@@ -18,6 +18,7 @@ import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocatorConfig;
+import io.starburst.stargate.buffer.data.server.BufferNodeId;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
 import org.junit.jupiter.api.Test;
 
@@ -254,6 +255,6 @@ public class TestChunkManager
     private ChunkManager createChunkManager(DataSize chunkSize)
     {
         ChunkManagerConfig config = new ChunkManagerConfig().setChunkSize(chunkSize);
-        return new ChunkManager(BUFFER_NODE_ID, config, memoryAllocator, ticker, new DataServerStats());
+        return new ChunkManager(new BufferNodeId(BUFFER_NODE_ID), config, memoryAllocator, ticker, new DataServerStats());
     }
 }
