@@ -11,6 +11,7 @@ package io.starburst.stargate.buffer.data.execution;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.airlift.configuration.Config;
+import io.airlift.configuration.ConfigDescription;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 import io.airlift.units.MinDataSize;
@@ -26,21 +27,22 @@ public class ChunkManagerConfig
     @VisibleForTesting
     static final Duration DEFAULT_EXCHANGE_STALENESS_THRESHOLD = succinctDuration(5, MINUTES);
 
-    private DataSize chunkSize = DataSize.of(16, MEGABYTE);
+    private DataSize chunkMaxSize = DataSize.of(16, MEGABYTE);
     private Duration exchangeStalenessThreshold = DEFAULT_EXCHANGE_STALENESS_THRESHOLD;
 
     @NotNull
     @MinDataSize("16MB")
     // TODO: This may not be an issue any more when we support dynamic chunk sizing.
-    public DataSize getChunkSize()
+    public DataSize getChunkMaxSize()
     {
-        return chunkSize;
+        return chunkMaxSize;
     }
 
-    @Config("chunk.size")
-    public ChunkManagerConfig setChunkSize(DataSize chunkSize)
+    @Config("chunk.max-size")
+    @ConfigDescription("Max size of data that a chunk may accommodate")
+    public ChunkManagerConfig setChunkMaxSize(DataSize chunkMaxSize)
     {
-        this.chunkSize = chunkSize;
+        this.chunkMaxSize = chunkMaxSize;
         return this;
     }
 

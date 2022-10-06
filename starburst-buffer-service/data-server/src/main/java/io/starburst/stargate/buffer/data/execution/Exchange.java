@@ -39,7 +39,7 @@ public class Exchange
     private final long bufferNodeId;
     private final String exchangeId;
     private final MemoryAllocator memoryAllocator;
-    private final int chunkSizeInBytes;
+    private final int chunkMaxSizeInBytes;
     private final ChunkIdGenerator chunkIdGenerator;
 
     // partitionId -> partition
@@ -59,14 +59,14 @@ public class Exchange
             long bufferNodeId,
             String exchangeId,
             MemoryAllocator memoryAllocator,
-            int chunkSizeInBytes,
+            int chunkMaxSizeInBytes,
             ChunkIdGenerator chunkIdGenerator,
             long currentTime)
     {
         this.bufferNodeId = bufferNodeId;
         this.exchangeId = requireNonNull(exchangeId, "exchangeId is null");
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
-        this.chunkSizeInBytes = chunkSizeInBytes;
+        this.chunkMaxSizeInBytes = chunkMaxSizeInBytes;
         this.chunkIdGenerator = requireNonNull(chunkIdGenerator, "chunkIdGenerator is null");
 
         this.lastUpdateTime = currentTime;
@@ -79,7 +79,7 @@ public class Exchange
             if (finished) {
                 throw new DataServerException(EXCHANGE_FINISHED, "exchange %s already finished".formatted(exchangeId));
             }
-            partition = partitions.computeIfAbsent(partitionId, ignored -> new Partition(bufferNodeId, exchangeId, partitionId, memoryAllocator, chunkSizeInBytes, chunkIdGenerator));
+            partition = partitions.computeIfAbsent(partitionId, ignored -> new Partition(bufferNodeId, exchangeId, partitionId, memoryAllocator, chunkMaxSizeInBytes, chunkIdGenerator));
         }
 
         partition.addDataPages(taskId, attemptId, dataPagesId, pages);

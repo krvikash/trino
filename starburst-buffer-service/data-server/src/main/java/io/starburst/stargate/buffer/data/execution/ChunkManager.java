@@ -53,7 +53,7 @@ public class ChunkManager
     private static final Logger LOG = Logger.get(ChunkManager.class);
 
     private final long bufferNodeId;
-    private final int chunkSizeInBytes;
+    private final int chunkMaxSizeInBytes;
     private final Duration exchangeStalenessThreshold;
     private final MemoryAllocator memoryAllocator;
     private final Ticker ticker;
@@ -74,7 +74,7 @@ public class ChunkManager
             DataServerStats dataServerStats)
     {
         this.bufferNodeId = bufferNodeId.getLongValue();
-        this.chunkSizeInBytes = toIntExact(config.getChunkSize().toBytes());
+        this.chunkMaxSizeInBytes = toIntExact(config.getChunkMaxSize().toBytes());
         this.exchangeStalenessThreshold = config.getExchangeStalenessThreshold();
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.ticker = requireNonNull(ticker, "ticker is null");
@@ -109,7 +109,7 @@ public class ChunkManager
 
     public void registerExchange(String exchangeId)
     {
-        exchanges.computeIfAbsent(exchangeId, ignored -> new Exchange(bufferNodeId, exchangeId, memoryAllocator, chunkSizeInBytes, chunkIdGenerator, tickerReadMillis()));
+        exchanges.computeIfAbsent(exchangeId, ignored -> new Exchange(bufferNodeId, exchangeId, memoryAllocator, chunkMaxSizeInBytes, chunkIdGenerator, tickerReadMillis()));
     }
 
     public void pingExchange(String exchangeId)

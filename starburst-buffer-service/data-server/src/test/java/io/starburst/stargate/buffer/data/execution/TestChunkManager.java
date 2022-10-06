@@ -254,7 +254,7 @@ public class TestChunkManager
 
     private ChunkManager createChunkManager(DataSize chunkSize)
     {
-        ChunkManagerConfig config = new ChunkManagerConfig().setChunkSize(chunkSize);
+        ChunkManagerConfig config = new ChunkManagerConfig().setChunkMaxSize(chunkSize);
         return new ChunkManager(new BufferNodeId(BUFFER_NODE_ID), config, memoryAllocator, ticker, new DataServerStats());
     }
 }

@@ -43,12 +43,12 @@ public class Chunk
             int partitionId,
             long chunkId,
             MemoryAllocator memoryAllocator,
-            int chunkSizeInBytes)
+            int chunkMaxSizeInBytes)
     {
         this.bufferNodeId = bufferNodeId;
         this.partitionId = partitionId;
         this.chunkId = chunkId;
-        this.chunkData = new ChunkData(memoryAllocator, chunkSizeInBytes);
+        this.chunkData = new ChunkData(memoryAllocator, chunkMaxSizeInBytes);
     }
 
     public long getChunkId()
@@ -102,19 +102,19 @@ public class Chunk
     private static class ChunkData
     {
         private final MemoryAllocator memoryAllocator;
-        private final int chunkSizeInBytes;
+        private final int chunkMaxSizeInBytes;
         private final Slice chunkSlice;
         private final SliceOutput sliceOutput;
 
         private int dataSizeInBytes;
 
-        public ChunkData(MemoryAllocator memoryAllocator, int chunkSizeInBytes)
+        public ChunkData(MemoryAllocator memoryAllocator, int chunkMaxSizeInBytes)
         {
             this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
-            this.chunkSizeInBytes = chunkSizeInBytes;
+            this.chunkMaxSizeInBytes = chunkMaxSizeInBytes;
             // TODO: handle memory allocation failure
             // TODO: support dynamic chunk sizing
-            this.chunkSlice = memoryAllocator.allocate(chunkSizeInBytes)
+            this.chunkSlice = memoryAllocator.allocate(chunkMaxSizeInBytes)
                     .orElseThrow(() -> new IllegalStateException("Failed to create a new open chunk due to memory allocation failure"));
             this.sliceOutput = chunkSlice.getOutput();
         }
@@ -124,7 +124,7 @@ public class Chunk
             int writableBytes = sliceOutput.writableBytes();
             int dataSize = data.length();
             int requiredStorageSize = DATA_PAGE_HEADER_SIZE + dataSize;
-            checkArgument(requiredStorageSize <= chunkSizeInBytes, "requiredStorageSize %s larger than chunkSizeInBytes %s", requiredStorageSize, chunkSizeInBytes);
+            checkArgument(requiredStorageSize <= chunkMaxSizeInBytes, "requiredStorageSize %s larger than chunkMaxSizeInBytes %s", requiredStorageSize, chunkMaxSizeInBytes);
             checkArgument(requiredStorageSize <= writableBytes, "requiredStorageSize %s larger than writableBytes %s", requiredStorageSize, writableBytes);
 
             sliceOutput.writeShort(taskId);

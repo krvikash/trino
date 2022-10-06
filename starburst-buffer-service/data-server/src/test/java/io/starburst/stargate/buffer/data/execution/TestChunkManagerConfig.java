@@ -28,7 +28,7 @@ public class TestChunkManagerConfig
     public void assertDefaults()
     {
         assertRecordedDefaults(recordDefaults(ChunkManagerConfig.class)
-                .setChunkSize(DataSize.of(16, MEGABYTE))
+                .setChunkMaxSize(DataSize.of(16, MEGABYTE))
                 .setExchangeStalenessThreshold(succinctDuration(5, MINUTES)));
     }
 
@@ -36,12 +36,12 @@ public class TestChunkManagerConfig
     public void testExplicitPropertyMappings()
     {
         Map<String, String> properties = ImmutableMap.<String, String>builder()
-                .put("chunk.size", "32MB")
+                .put("chunk.max-size", "32MB")
                 .put("exchange.staleness-threshold", "1m")
                 .buildOrThrow();
 
         ChunkManagerConfig expected = new ChunkManagerConfig()
-                .setChunkSize(DataSize.of(32, MEGABYTE))
+                .setChunkMaxSize(DataSize.of(32, MEGABYTE))
                 .setExchangeStalenessThreshold(succinctDuration(1, MINUTES));
 
         assertFullMapping(properties, expected);

@@ -36,7 +36,7 @@ public class Partition
     private final String exchangeId;
     private final int partitionId;
     private final MemoryAllocator memoryAllocator;
-    private final int chunkSizeInBytes;
+    private final int chunkMaxSizeInBytes;
     private final ChunkIdGenerator chunkIdGenerator;
 
     // chunkId -> closed chunk
@@ -56,14 +56,14 @@ public class Partition
             String exchangeId,
             int partitionId,
             MemoryAllocator memoryAllocator,
-            int chunkSizeInBytes,
+            int chunkMaxSizeInBytes,
             ChunkIdGenerator chunkIdGenerator)
     {
         this.bufferNodeId = bufferNodeId;
         this.exchangeId = requireNonNull(exchangeId, "exchangeId is null");
         this.partitionId = partitionId;
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
-        this.chunkSizeInBytes = chunkSizeInBytes;
+        this.chunkMaxSizeInBytes = chunkMaxSizeInBytes;
         this.chunkIdGenerator = requireNonNull(chunkIdGenerator, "chunkIdGenerator is null");
     }
 
@@ -153,7 +153,7 @@ public class Partition
     private Chunk createNewOpenChunk()
     {
         long chunkId = chunkIdGenerator.getNextChunkId();
-        return new Chunk(bufferNodeId, partitionId, chunkId, memoryAllocator, chunkSizeInBytes);
+        return new Chunk(bufferNodeId, partitionId, chunkId, memoryAllocator, chunkMaxSizeInBytes);
     }
 
     private record TaskAttemptId(
