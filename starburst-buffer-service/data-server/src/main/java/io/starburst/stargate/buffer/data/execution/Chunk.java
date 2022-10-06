@@ -9,22 +9,22 @@
  */
 package io.starburst.stargate.buffer.data.execution;
 
-import com.google.common.collect.ImmutableList;
 import io.airlift.slice.Slice;
-import io.airlift.slice.SliceInput;
 import io.airlift.slice.SliceOutput;
+import io.airlift.slice.XxHash64;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
-import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
-import java.util.Iterator;
+import java.util.ArrayList;
 import java.util.List;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
+import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
 import static java.util.Objects.requireNonNull;
 
 @NotThreadSafe
@@ -43,12 +43,14 @@ public class Chunk
             int partitionId,
             long chunkId,
             MemoryAllocator memoryAllocator,
-            int chunkMaxSizeInBytes)
+            int chunkMaxSizeInBytes,
+            int chunkSliceSizeInBytes,
+            boolean calculateDataPagesChecksum)
     {
         this.bufferNodeId = bufferNodeId;
         this.partitionId = partitionId;
         this.chunkId = chunkId;
-        this.chunkData = new ChunkData(memoryAllocator, chunkMaxSizeInBytes);
+        this.chunkData = new ChunkData(memoryAllocator, chunkMaxSizeInBytes, chunkSliceSizeInBytes, calculateDataPagesChecksum);
     }
 
     public long getChunkId()
@@ -74,10 +76,10 @@ public class Chunk
         return chunkData.dataSizeInBytes();
     }
 
-    public List<DataPage> readAll()
+    public ChunkDataRepresentation getChunkData()
     {
-        checkState(closed, "readAll() called on an open chunk");
-        return ImmutableList.copyOf(chunkData.dataPageIterator());
+        checkState(closed, "getChunkData() called on an open chunk");
+        return chunkData.toRepresentation();
     }
 
     public ChunkHandle getHandle()
@@ -96,6 +98,7 @@ public class Chunk
 
     public void close()
     {
+        chunkData.close();
         closed = true;
     }
 
@@ -103,41 +106,75 @@ public class Chunk
     {
         private final MemoryAllocator memoryAllocator;
         private final int chunkMaxSizeInBytes;
-        private final Slice chunkSlice;
-        private final SliceOutput sliceOutput;
+        private final int chunkSliceSizeInBytes;
+        private final boolean calculateDataPagesChecksum;
+        private final List<SliceOutput> completedSliceOutputs;
 
+        private final XxHash64 hash = new XxHash64();
+
+        private Slice headerSlice;
+        private SliceOutput sliceOutput;
+        private int numBytesWritten;
         private int dataSizeInBytes;
+        private int numDataPages;
 
-        public ChunkData(MemoryAllocator memoryAllocator, int chunkMaxSizeInBytes)
+        public ChunkData(
+                MemoryAllocator memoryAllocator,
+                int chunkMaxSizeInBytes,
+                int chunkSliceSizeInBytes,
+                boolean calculateDataPagesChecksum)
         {
+            checkArgument(chunkMaxSizeInBytes >= chunkSliceSizeInBytes && chunkMaxSizeInBytes % chunkSliceSizeInBytes == 0,
+                    "chunkMaxSizeInBytes %s is not a multiple of chunkSliceSizeInBytes %s", chunkMaxSizeInBytes, chunkSliceSizeInBytes);
             this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
             this.chunkMaxSizeInBytes = chunkMaxSizeInBytes;
-            // TODO: handle memory allocation failure
-            // TODO: support dynamic chunk sizing
-            this.chunkSlice = memoryAllocator.allocate(chunkMaxSizeInBytes)
-                    .orElseThrow(() -> new IllegalStateException("Failed to create a new open chunk due to memory allocation failure"));
-            this.sliceOutput = chunkSlice.getOutput();
+            this.chunkSliceSizeInBytes = chunkSliceSizeInBytes;
+            this.calculateDataPagesChecksum = calculateDataPagesChecksum;
+            this.completedSliceOutputs = new ArrayList<>(chunkMaxSizeInBytes / chunkSliceSizeInBytes);
+
+            this.sliceOutput = createNewSliceOutput();
         }
 
         public void write(int taskId, int attemptId, Slice data)
         {
-            int writableBytes = sliceOutput.writableBytes();
+            int writableBytes = chunkMaxSizeInBytes - numBytesWritten;
             int dataSize = data.length();
             int requiredStorageSize = DATA_PAGE_HEADER_SIZE + dataSize;
-            checkArgument(requiredStorageSize <= chunkMaxSizeInBytes, "requiredStorageSize %s larger than chunkMaxSizeInBytes %s", requiredStorageSize, chunkMaxSizeInBytes);
             checkArgument(requiredStorageSize <= writableBytes, "requiredStorageSize %s larger than writableBytes %s", requiredStorageSize, writableBytes);
 
-            sliceOutput.writeShort(taskId);
-            sliceOutput.writeByte(attemptId);
-            sliceOutput.writeInt(dataSize);
-            sliceOutput.writeBytes(data);
+            if (sliceOutput.writableBytes() >= DATA_PAGE_HEADER_SIZE) {
+                sliceOutput.writeShort(taskId);
+                sliceOutput.writeByte(attemptId);
+                sliceOutput.writeInt(dataSize);
+            }
+            else {
+                if (headerSlice == null) {
+                    // TODO: handle memory allocation failure
+                    headerSlice = memoryAllocator.allocate(DATA_PAGE_HEADER_SIZE)
+                            .orElseThrow(() -> new IllegalStateException("Failed to allocate %d bytes of memory".formatted(DATA_PAGE_HEADER_SIZE)));
+                }
+                SliceOutput headerSliceOutput = headerSlice.getOutput();
+                headerSliceOutput.writeShort(taskId);
+                headerSliceOutput.writeByte(attemptId);
+                headerSliceOutput.writeInt(dataSize);
+                writeData(headerSlice);
+            }
+            writeData(data);
 
+            if (calculateDataPagesChecksum) {
+                hash.update(data);
+            }
+            numDataPages++;
+            numBytesWritten += requiredStorageSize;
             dataSizeInBytes += dataSize;
         }
 
         public boolean hasEnoughSpace(Slice data)
         {
-            return sliceOutput.writableBytes() >= DATA_PAGE_HEADER_SIZE + data.length();
+            int requiredStorageSize = DATA_PAGE_HEADER_SIZE + data.length();
+            int writableBytes = chunkMaxSizeInBytes - numBytesWritten;
+            checkArgument(requiredStorageSize <= chunkMaxSizeInBytes, "requiredStorageSize %s larger than chunkMaxSizeInBytes %s", requiredStorageSize, chunkMaxSizeInBytes);
+            return requiredStorageSize <= writableBytes;
         }
 
         public int dataSizeInBytes()
@@ -145,31 +182,68 @@ public class Chunk
             return dataSizeInBytes;
         }
 
-        public Iterator<DataPage> dataPageIterator()
+        public ChunkDataRepresentation toRepresentation()
         {
-            SliceInput sliceInput = sliceOutput.slice().getInput();
+            List<Slice> chunkSlices = completedSliceOutputs.stream().map(SliceOutput::slice).collect(toImmutableList());
+            if (!calculateDataPagesChecksum) {
+                return new ChunkDataRepresentation(chunkSlices, numDataPages, NO_CHECKSUM);
+            }
 
-            return new Iterator<>() {
-                @Override
-                public boolean hasNext()
-                {
-                    return sliceInput.isReadable();
-                }
+            long checksum = hash.hash();
+            if (checksum == NO_CHECKSUM) {
+                checksum++;
+            }
+            return new ChunkDataRepresentation(chunkSlices, numDataPages, checksum);
+        }
 
-                @Override
-                public DataPage next()
-                {
-                    int taskId = sliceInput.readShort(); // addDataPage() guarantees taskId is no more than 32767
-                    int attemptId = sliceInput.readByte(); // addDataPage() guarantees attemptId is no more than 127
-                    Slice data = sliceInput.readSlice(sliceInput.readInt());
-                    return new DataPage(taskId, attemptId, data);
-                }
-            };
+        public void close()
+        {
+            if (headerSlice != null) {
+                memoryAllocator.release(headerSlice);
+                headerSlice = null;
+            }
+            if (sliceOutput != null) {
+                completedSliceOutputs.add(sliceOutput);
+                sliceOutput = null;
+            }
         }
 
         public void release()
         {
-            memoryAllocator.release(chunkSlice);
+            if (headerSlice != null) {
+                memoryAllocator.release(headerSlice);
+            }
+            completedSliceOutputs.forEach(output -> memoryAllocator.release(output.getUnderlyingSlice()));
         }
+
+        private SliceOutput createNewSliceOutput()
+        {
+            // TODO: handle memory allocation failure
+            return memoryAllocator.allocate(chunkSliceSizeInBytes)
+                    .orElseThrow(() -> new IllegalStateException("Failed to allocate %d bytes of memory".formatted(chunkSliceSizeInBytes)))
+                    .getOutput();
+        }
+
+        private void writeData(Slice data)
+        {
+            int offset = 0;
+            int dataLength = data.length();
+            while (offset < dataLength) {
+                if (!sliceOutput.isWritable()) {
+                    completedSliceOutputs.add(sliceOutput);
+                    sliceOutput = createNewSliceOutput();
+                }
+                int bytesToWrite = Math.min(dataLength - offset, sliceOutput.writableBytes());
+                sliceOutput.writeBytes(data, offset, bytesToWrite);
+                offset += bytesToWrite;
+            }
+        }
+    }
+
+    public record ChunkDataRepresentation(
+            List<Slice> chunkSlices,
+            int numDataPages,
+            long checksum)
+    {
     }
 }

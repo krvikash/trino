@@ -70,7 +70,7 @@ public class HttpDataClient
         implements DataApi
 {
     public static final String ERROR_CODE_HEADER = "X-trino-buffer-error-code";
-    public static final int SERIALIZED_PAGES_MAGIC = 0xfea4f001;
+    public static final int SERIALIZED_CHUNK_DATA_MAGIC = 0xfea4f001;
 
     private static final JsonCodec<ChunkList> CHUNK_LIST_JSON_CODEC = jsonCodec(ChunkList.class);
 
@@ -291,13 +291,13 @@ public class HttpDataClient
 
             try (LittleEndianDataInputStream input = new LittleEndianDataInputStream(response.getInputStream())) {
                 int magic = input.readInt();
-                if (magic != SERIALIZED_PAGES_MAGIC) {
-                    throw new IllegalStateException(format("Invalid stream header, expected 0x%08x, but was 0x%08x", SERIALIZED_PAGES_MAGIC, magic));
+                if (magic != SERIALIZED_CHUNK_DATA_MAGIC) {
+                    throw new IllegalStateException(format("Invalid stream header, expected 0x%08x, but was 0x%08x", SERIALIZED_CHUNK_DATA_MAGIC, magic));
                 }
-                long checkSum = input.readLong();
+                long checksum = input.readLong();
                 int pagesCount = input.readInt();
                 List<DataPage> pages = ImmutableList.copyOf(readSerializedPages(input));
-                verifyChecksum(checkSum, pages);
+                verifyChecksum(checksum, pages);
                 checkState(pages.size() == pagesCount, "Wrong number of pages, expected %s, but read %s", pagesCount, pages.size());
                 return ChunkDataResponse.createPagesResponse(pages);
             }

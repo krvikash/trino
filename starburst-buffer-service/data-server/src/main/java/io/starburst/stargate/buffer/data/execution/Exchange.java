@@ -14,7 +14,6 @@ import io.airlift.slice.Slice;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataApiException;
-import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 
@@ -40,6 +39,8 @@ public class Exchange
     private final String exchangeId;
     private final MemoryAllocator memoryAllocator;
     private final int chunkMaxSizeInBytes;
+    private final int chunkSliceSizeInBytes;
+    private final boolean calculateDataPagesChecksum;
     private final ChunkIdGenerator chunkIdGenerator;
 
     // partitionId -> partition
@@ -60,6 +61,8 @@ public class Exchange
             String exchangeId,
             MemoryAllocator memoryAllocator,
             int chunkMaxSizeInBytes,
+            int chunkSliceSizeInBytes,
+            boolean calculateDataPagesChecksum,
             ChunkIdGenerator chunkIdGenerator,
             long currentTime)
     {
@@ -67,6 +70,8 @@ public class Exchange
         this.exchangeId = requireNonNull(exchangeId, "exchangeId is null");
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.chunkMaxSizeInBytes = chunkMaxSizeInBytes;
+        this.chunkSliceSizeInBytes = chunkSliceSizeInBytes;
+        this.calculateDataPagesChecksum = calculateDataPagesChecksum;
         this.chunkIdGenerator = requireNonNull(chunkIdGenerator, "chunkIdGenerator is null");
 
         this.lastUpdateTime = currentTime;
@@ -79,13 +84,21 @@ public class Exchange
             if (finished) {
                 throw new DataServerException(EXCHANGE_FINISHED, "exchange %s already finished".formatted(exchangeId));
             }
-            partition = partitions.computeIfAbsent(partitionId, ignored -> new Partition(bufferNodeId, exchangeId, partitionId, memoryAllocator, chunkMaxSizeInBytes, chunkIdGenerator));
+            partition = partitions.computeIfAbsent(partitionId, ignored -> new Partition(
+                    bufferNodeId,
+                    exchangeId,
+                    partitionId,
+                    memoryAllocator,
+                    chunkMaxSizeInBytes,
+                    chunkSliceSizeInBytes,
+                    calculateDataPagesChecksum,
+                    chunkIdGenerator));
         }
 
         partition.addDataPages(taskId, attemptId, dataPagesId, pages);
     }
 
-    public List<DataPage> getChunkData(int partitionId, long chunkId)
+    public Chunk.ChunkDataRepresentation getChunkData(int partitionId, long chunkId)
     {
         Partition partition = partitions.get(partitionId);
         if (partition == null) {

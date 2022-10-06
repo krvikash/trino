@@ -18,6 +18,7 @@ import java.util.Map;
 import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
+import static io.airlift.units.DataSize.Unit.KILOBYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.airlift.units.Duration.succinctDuration;
 import static java.util.concurrent.TimeUnit.MINUTES;
@@ -29,6 +30,7 @@ public class TestChunkManagerConfig
     {
         assertRecordedDefaults(recordDefaults(ChunkManagerConfig.class)
                 .setChunkMaxSize(DataSize.of(16, MEGABYTE))
+                .setChunkSliceSize(DataSize.of(128, KILOBYTE))
                 .setExchangeStalenessThreshold(succinctDuration(5, MINUTES)));
     }
 
@@ -37,11 +39,13 @@ public class TestChunkManagerConfig
     {
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("chunk.max-size", "32MB")
+                .put("chunk.slice-size", "1MB")
                 .put("exchange.staleness-threshold", "1m")
                 .buildOrThrow();
 
         ChunkManagerConfig expected = new ChunkManagerConfig()
                 .setChunkMaxSize(DataSize.of(32, MEGABYTE))
+                .setChunkSliceSize(DataSize.of(1, MEGABYTE))
                 .setExchangeStalenessThreshold(succinctDuration(1, MINUTES));
 
         assertFullMapping(properties, expected);

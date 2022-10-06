@@ -15,11 +15,11 @@ import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.data.client.ChunkList;
-import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
+import io.starburst.stargate.buffer.data.server.DataServerConfig;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
 
 import javax.annotation.PostConstruct;
@@ -54,6 +54,8 @@ public class ChunkManager
 
     private final long bufferNodeId;
     private final int chunkMaxSizeInBytes;
+    private final int chunkSliceSizeInBytes;
+    private final boolean calculateDataPagesChecksum;
     private final Duration exchangeStalenessThreshold;
     private final MemoryAllocator memoryAllocator;
     private final Ticker ticker;
@@ -68,14 +70,17 @@ public class ChunkManager
     @Inject
     public ChunkManager(
             BufferNodeId bufferNodeId,
-            ChunkManagerConfig config,
+            ChunkManagerConfig chunkManagerConfig,
+            DataServerConfig dataServerConfig,
             MemoryAllocator memoryAllocator,
             @ForChunkManager Ticker ticker,
             DataServerStats dataServerStats)
     {
         this.bufferNodeId = bufferNodeId.getLongValue();
-        this.chunkMaxSizeInBytes = toIntExact(config.getChunkMaxSize().toBytes());
-        this.exchangeStalenessThreshold = config.getExchangeStalenessThreshold();
+        this.chunkMaxSizeInBytes = toIntExact(chunkManagerConfig.getChunkMaxSize().toBytes());
+        this.chunkSliceSizeInBytes = toIntExact(chunkManagerConfig.getChunkSliceSize().toBytes());
+        this.calculateDataPagesChecksum = dataServerConfig.getIncludeChecksumInDataResponse();
+        this.exchangeStalenessThreshold = chunkManagerConfig.getExchangeStalenessThreshold();
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.ticker = requireNonNull(ticker, "ticker is null");
         this.dataServerStats = requireNonNull(dataServerStats, "dataServerStats is null");
@@ -95,7 +100,7 @@ public class ChunkManager
         getExchangeAndHeartbeat(exchangeId).addDataPages(partitionId, taskId, attemptId, dataPagesId, pages);
     }
 
-    public List<DataPage> getChunkData(String exchangeId, int partitionId, long chunkId, long bufferNodeId)
+    public Chunk.ChunkDataRepresentation getChunkData(String exchangeId, int partitionId, long chunkId, long bufferNodeId)
     {
         Exchange exchange = getExchangeAndHeartbeat(exchangeId);
         return exchange.getChunkData(partitionId, chunkId);
@@ -109,7 +114,15 @@ public class ChunkManager
 
     public void registerExchange(String exchangeId)
     {
-        exchanges.computeIfAbsent(exchangeId, ignored -> new Exchange(bufferNodeId, exchangeId, memoryAllocator, chunkMaxSizeInBytes, chunkIdGenerator, tickerReadMillis()));
+        exchanges.computeIfAbsent(exchangeId, ignored -> new Exchange(
+                bufferNodeId,
+                exchangeId,
+                memoryAllocator,
+                chunkMaxSizeInBytes,
+                chunkSliceSizeInBytes,
+                calculateDataPagesChecksum,
+                chunkIdGenerator,
+                tickerReadMillis()));
     }
 
     public void pingExchange(String exchangeId)

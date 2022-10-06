@@ -12,7 +12,6 @@ package io.starburst.stargate.buffer.data.execution;
 import com.google.common.collect.ImmutableList;
 import io.airlift.slice.Slice;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
-import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 
@@ -37,6 +36,8 @@ public class Partition
     private final int partitionId;
     private final MemoryAllocator memoryAllocator;
     private final int chunkMaxSizeInBytes;
+    private final int chunkSliceSizeInBytes;
+    private final boolean calculateDataPagesChecksum;
     private final ChunkIdGenerator chunkIdGenerator;
 
     // chunkId -> closed chunk
@@ -57,6 +58,8 @@ public class Partition
             int partitionId,
             MemoryAllocator memoryAllocator,
             int chunkMaxSizeInBytes,
+            int chunkSliceSizeInBytes,
+            boolean calculateDataPagesChecksum,
             ChunkIdGenerator chunkIdGenerator)
     {
         this.bufferNodeId = bufferNodeId;
@@ -64,6 +67,8 @@ public class Partition
         this.partitionId = partitionId;
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.chunkMaxSizeInBytes = chunkMaxSizeInBytes;
+        this.chunkSliceSizeInBytes = chunkSliceSizeInBytes;
+        this.calculateDataPagesChecksum = calculateDataPagesChecksum;
         this.chunkIdGenerator = requireNonNull(chunkIdGenerator, "chunkIdGenerator is null");
     }
 
@@ -95,13 +100,13 @@ public class Partition
         }
     }
 
-    public List<DataPage> getChunkData(long chunkId)
+    public Chunk.ChunkDataRepresentation getChunkData(long chunkId)
     {
         Chunk chunk = closedChunks.get(chunkId);
         if (chunk == null) {
             throw new DataServerException(CHUNK_NOT_FOUND, "No closed chunk found for exchange %s, partition %d, chunk %d".formatted(exchangeId, partitionId, chunkId));
         }
-        return chunk.readAll();
+        return chunk.getChunkData();
     }
 
     public synchronized void getNewlyClosedChunkHandles(ImmutableList.Builder<ChunkHandle> newlyClosedChunkHandles)
@@ -153,7 +158,14 @@ public class Partition
     private Chunk createNewOpenChunk()
     {
         long chunkId = chunkIdGenerator.getNextChunkId();
-        return new Chunk(bufferNodeId, partitionId, chunkId, memoryAllocator, chunkMaxSizeInBytes);
+        return new Chunk(
+                bufferNodeId,
+                partitionId,
+                chunkId,
+                memoryAllocator,
+                chunkMaxSizeInBytes,
+                chunkSliceSizeInBytes,
+                calculateDataPagesChecksum);
     }
 
     private record TaskAttemptId(

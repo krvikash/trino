@@ -18,6 +18,7 @@ import io.airlift.units.MinDataSize;
 
 import javax.validation.constraints.NotNull;
 
+import static io.airlift.units.DataSize.Unit.KILOBYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.airlift.units.Duration.succinctDuration;
 import static java.util.concurrent.TimeUnit.MINUTES;
@@ -28,21 +29,36 @@ public class ChunkManagerConfig
     static final Duration DEFAULT_EXCHANGE_STALENESS_THRESHOLD = succinctDuration(5, MINUTES);
 
     private DataSize chunkMaxSize = DataSize.of(16, MEGABYTE);
+    private DataSize chunkSliceSize = DataSize.of(128, KILOBYTE);
     private Duration exchangeStalenessThreshold = DEFAULT_EXCHANGE_STALENESS_THRESHOLD;
 
     @NotNull
     @MinDataSize("16MB")
-    // TODO: This may not be an issue any more when we support dynamic chunk sizing.
     public DataSize getChunkMaxSize()
     {
         return chunkMaxSize;
     }
 
     @Config("chunk.max-size")
-    @ConfigDescription("Max size of data that a chunk may accommodate")
+    @ConfigDescription("Max size of data that a chunk may accommodate. Should be a multiple of chunk.slice-base-size")
     public ChunkManagerConfig setChunkMaxSize(DataSize chunkMaxSize)
     {
         this.chunkMaxSize = chunkMaxSize;
+        return this;
+    }
+
+    @NotNull
+    @MinDataSize("4kB")
+    public DataSize getChunkSliceSize()
+    {
+        return chunkSliceSize;
+    }
+
+    @Config("chunk.slice-size")
+    @ConfigDescription("Size of a chunk slice in an adaptively allocated chunk")
+    public ChunkManagerConfig setChunkSliceSize(DataSize chunkSliceSize)
+    {
+        this.chunkSliceSize = chunkSliceSize;
         return this;
     }
 

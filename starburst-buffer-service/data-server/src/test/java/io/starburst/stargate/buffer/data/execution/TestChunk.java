@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static io.airlift.slice.Slices.utf8Slice;
-import static org.assertj.core.api.Assertions.assertThat;
+import static io.starburst.stargate.buffer.data.execution.ChunkTestHelper.verifyChunkData;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -30,7 +30,7 @@ public class TestChunk
     public void testHappyPath()
     {
         MemoryAllocator memoryAllocator = new MemoryAllocator(new MemoryAllocatorConfig(), new DataServerStats());
-        Chunk chunk = new Chunk(0L, 0, 0, memoryAllocator, 35);
+        Chunk chunk = new Chunk(0L, 0, 0, memoryAllocator, 35, 7, true);
 
         List<DataPage> dataPages = ImmutableList.of(
                 new DataPage(0, 0, utf8Slice("333")),
@@ -46,6 +46,6 @@ public class TestChunk
         chunk.close();
 
         assertEquals(12, chunk.dataSizeInBytes());
-        assertThat(chunk.readAll()).containsExactlyElementsOf(dataPages);
+        verifyChunkData(chunk.getChunkData(), dataPages.get(0), dataPages.get(1), dataPages.get(2));
     }
 }
