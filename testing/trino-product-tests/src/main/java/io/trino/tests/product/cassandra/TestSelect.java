@@ -392,7 +392,7 @@ public class TestSelect
         QueryResult queryResult = onTrino().executeQuery(
                  format("SELECT * FROM %s.%s.%s", CONNECTOR_NAME, KEY_SPACE, tableName));
         assertThat(queryResult).hasRowsCount(1);
-        Assertions.assertThat(queryResult.row(0).get(0)).isEqualTo(1);
+        Assertions.assertThat(queryResult.getOnlyValue()).isEqualTo(1);
         Assertions.assertThat(queryResult.row(0).get(1)).isEqualTo(Row.builder()
                 .addUnnamedField(1)
                 .addUnnamedField("text-1")
@@ -415,7 +415,7 @@ public class TestSelect
 
         Consumer<QueryResult> assertion = queryResult -> {
             assertThat(queryResult).hasRowsCount(1);
-            Assertions.assertThat(queryResult.row(0).get(0)).isEqualTo(1);
+            Assertions.assertThat(queryResult.getOnlyValue()).isEqualTo(1);
             Assertions.assertThat(queryResult.row(0).get(1)).isEqualTo(Row.builder()
                     .addUnnamedField(1)
                     .addUnnamedField("text-1")
@@ -551,7 +551,7 @@ public class TestSelect
 
         Consumer<QueryResult> assertion = queryResult -> {
             assertThat(queryResult).hasRowsCount(1);
-            Assertions.assertThat(queryResult.row(0).get(0)).isEqualTo(1);
+            Assertions.assertThat(queryResult.getOnlyValue()).isEqualTo(1);
             Assertions.assertThat(queryResult.row(0).get(1)).isEqualTo(Row.builder()
                     .addField("field1", "udt-1")
                     .build());

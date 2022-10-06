@@ -30,7 +30,7 @@ public final class IcebergTestUtils
     {
         String regex = format(".*location = '%s(.*?)'.*", withURI ? "" : HDFS_URI);
         Pattern locationPattern = Pattern.compile(regex, Pattern.DOTALL);
-        Matcher m = locationPattern.matcher((String) onTrino().executeQuery("SHOW CREATE TABLE " + tableName).row(0).get(0));
+        Matcher m = locationPattern.matcher((String) onTrino().executeQuery("SHOW CREATE TABLE " + tableName).getOnlyValue());
         if (m.find()) {
             String location = m.group(1);
             verify(!m.find(), "Unexpected second match");

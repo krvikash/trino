@@ -571,7 +571,7 @@ public class TestHiveTransactionalTable
             String insertQuery = format("INSERT INTO %s VALUES (11, 100), (12, 200), (13, 300)", tableName);
 
             // ensure that we treat ACID tables as implicitly bucketed on INSERT
-            String explainOutput = (String) onTrino().executeQuery("EXPLAIN " + insertQuery).row(0).get(0);
+            String explainOutput = (String) onTrino().executeQuery("EXPLAIN " + insertQuery).getOnlyValue();
             Assertions.assertThat(explainOutput).contains("Output partitioning: hive:HivePartitioningHandle{buckets=1");
 
             onTrino().executeQuery(insertQuery);
