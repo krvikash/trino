@@ -39,7 +39,7 @@ import static com.google.common.base.Verify.verify;
 import static java.util.Objects.requireNonNull;
 
 public class BufferExchangeSink
-            implements ExchangeSink
+        implements ExchangeSink
 {
     private static final Logger log = Logger.get(BufferExchangeSink.class);
 
@@ -60,12 +60,12 @@ public class BufferExchangeSink
     @GuardedBy("this")
     private boolean handleUpdateInProgress;
     @GuardedBy("this")
-    private boolean handleUpdateRequired;
+    private volatile boolean handleUpdateRequired;
 
     private final AtomicReference<Throwable> failure = new AtomicReference<>();
     private final AtomicBoolean finishing = new AtomicBoolean();
     private final ExecutorService executor;
-    private volatile CompletableFuture<Void> blockedFuture = CompletableFuture.completedFuture(null);
+    private final AtomicReference<CompletableFuture<Void>> blockedFutureReference = new AtomicReference<>(CompletableFuture.completedFuture(null));
 
     private final SinkDataPool dataPool;
     private final DataPagesIdGenerator dataPagesIdGenerator = new DataPagesIdGenerator();
@@ -234,32 +234,34 @@ public class BufferExchangeSink
     @Override
     public CompletableFuture<Void> isBlocked()
     {
-        if (!blockedFuture.isDone()) {
-            return blockedFuture;
-        }
-        synchronized (this) {
+        while (true) {
             if (failure.get() != null) {
                 return NOT_BLOCKED;
             }
 
-            ListenableFuture<Void> dataPoolBlocked = dataPool.isBlocked();
-            if (!dataPoolBlocked.isDone()) {
-                blockedFuture = new CompletableFuture<>();
-                dataPoolBlocked.addListener(() -> blockedFuture.complete(null), executor);
-                return blockedFuture;
+            CompletableFuture<Void> oldBlockedFuture = blockedFutureReference.get();
+            if (!oldBlockedFuture.isDone()) {
+                return oldBlockedFuture;
             }
+
+            ListenableFuture<Void> dataPoolBlocked = dataPool.isBlocked();
+            if (dataPoolBlocked.isDone()) {
+                return NOT_BLOCKED;
+            }
+
+            blockedFutureReference.compareAndSet(oldBlockedFuture, MoreFutures.toCompletableFuture(dataPoolBlocked));
+            // run one more loop as unblocking in the meantime could happen on old future
         }
-        return NOT_BLOCKED;
     }
 
     private void markFailed(Throwable failure)
     {
         this.failure.compareAndSet(null, failure);
-        blockedFuture.complete(null);
+        blockedFutureReference.get().complete(null);
     }
 
     @Override
-    public synchronized boolean isHandleUpdateRequired()
+    public boolean isHandleUpdateRequired()
     {
         return handleUpdateRequired;
     }

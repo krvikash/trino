@@ -26,6 +26,7 @@ import io.trino.spi.exchange.ExchangeSource;
 import io.trino.spi.exchange.ExchangeSourceHandle;
 import io.trino.spi.exchange.ExchangeSourceOutputSelector;
 import org.openjdk.jol.info.ClassLayout;
+import sun.misc.Unsafe;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
@@ -33,13 +34,13 @@ import javax.annotation.concurrent.NotThreadSafe;
 
 import java.util.ArrayDeque;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -71,18 +72,18 @@ public class BufferExchangeSource
     @GuardedBy("this")
     private ExchangeSourceOutputSelector latestSourceOutputSelector;
     @GuardedBy("this")
-    private final Map<String, Map<Integer, Integer>> speculativeSourceOutputChoices = new HashMap<>();
+    private final Map<String, Map<Integer, Integer>> speculativeSourceOutputChoices = new ConcurrentHashMap<>();
     @GuardedBy("this")
     private final Queue<SourceChunk> sourceChunks = new ArrayDeque<>();
+    @GuardedBy("this")
+    private final AtomicLong sourceChunksEstimatedSize;
     private volatile boolean noMoreChunks;
     @GuardedBy("this")
     private final Queue<Slice> readSlices = new ArrayDeque<>();
-    @GuardedBy("this")
-    private CompletableFuture<Void> isBlocked = completedFuture(null);
-    @GuardedBy("this")
-    private boolean closed;
+    private volatile boolean readSlicesHasElements; // extra duplicated state allows smaller synchronized section in isBlocked
+    private final AtomicReference<CompletableFuture<Void>> isBlockedReference = new AtomicReference<>(completedFuture(null));
+    private volatile boolean closed;
     private final AtomicLong readSlicesMemoryUsage = new AtomicLong(0);
-    @GuardedBy("this")
     private final AtomicReference<Throwable> failure = new AtomicReference<>();
     @GuardedBy("this")
     private SettableFuture<Void> memoryUsageExceeded;
@@ -90,7 +91,7 @@ public class BufferExchangeSource
     private PreserveOrderingMode preserveOrderingMode = PreserveOrderingMode.UNKNOWN;
 
     @GuardedBy("this")
-    private final Set<ChunkReader> currentReaders = new HashSet<>();
+    private final Set<ChunkReader> currentReaders = ConcurrentHashMap.newKeySet();
 
     public BufferExchangeSource(
             DataApiFacade dataApi,
@@ -107,6 +108,7 @@ public class BufferExchangeSource
         this.memoryLowWaterMark = requireNonNull(memoryLowWaterMark, "memoryLowWaterMark is null");
         this.memoryHighWaterMark = requireNonNull(memoryHighWaterMark, "memoryHighWaterMark is null");
         this.parallelism = parallelism;
+        sourceChunksEstimatedSize = new AtomicLong(MoreSizeOf.estimatedSizeOf(sourceChunks, SourceChunk::getRetainedSize));
     }
 
     private synchronized void scheduleReadChunks()
@@ -133,7 +135,7 @@ public class BufferExchangeSource
 
         int missing = selectedParallelism - currentReaders.size();
         for (int i = 0; i < missing; ++i) {
-            SourceChunk chunk = sourceChunks.poll();
+            SourceChunk chunk = pollSourceChunk();
             if (chunk == null) {
                 return;
             }
@@ -149,7 +151,7 @@ public class BufferExchangeSource
         synchronized (this) {
             checkState(currentReaders.remove(chunkReader), "ChunkReader %s not found in currentReaders set", chunkReader);
             if (allDataReturned()) {
-                futureToUnblock = isBlocked;
+                futureToUnblock = isBlockedReference.get();
             }
         }
         if (futureToUnblock != null) {
@@ -174,7 +176,7 @@ public class BufferExchangeSource
     {
         CompletableFuture<Void> futureToUnblock;
         synchronized (this) {
-            futureToUnblock = isBlocked;
+            futureToUnblock = isBlockedReference.get();
             this.failure.compareAndSet(null, throwable);
         }
         if (futureToUnblock != null) {
@@ -202,7 +204,8 @@ public class BufferExchangeSource
                         };
                     }).forEach(page -> {
                         readSlices.offer(page.data());
-                        futureToUnblock.set(isBlocked);
+                        readSlicesHasElements = true;
+                        futureToUnblock.set(isBlockedReference.get());
                         updateReadSlicesMemoryUsage(page.data().getRetainedSize());
                     });
         }
@@ -229,12 +232,30 @@ public class BufferExchangeSource
                 for (int chunkNum = 0; chunkNum < chunksCount; chunkNum++) {
                     long bufferNodeId = bufferSourceHandle.getBufferNodeId(chunkNum);
                     long chunkId = bufferSourceHandle.getChunkId(chunkNum);
-                    sourceChunks.offer(new SourceChunk(bufferSourceHandle.getExternalExchangeId(), bufferNodeId, sourceHandle.getPartitionId(), chunkId));
+                    offerSourceChunk(sourceHandle, bufferSourceHandle, bufferNodeId, chunkId);
                 }
             }
 
             scheduleReadChunks();
         }
+    }
+
+    @GuardedBy("this")
+    private void offerSourceChunk(ExchangeSourceHandle sourceHandle, BufferExchangeSourceHandle bufferSourceHandle, long bufferNodeId, long chunkId)
+    {
+        SourceChunk sourceChunk = new SourceChunk(bufferSourceHandle.getExternalExchangeId(), bufferNodeId, sourceHandle.getPartitionId(), chunkId);
+        sourceChunks.offer(sourceChunk);
+        sourceChunksEstimatedSize.updateAndGet(oldValue -> oldValue + Unsafe.ARRAY_OBJECT_INDEX_SCALE + sourceChunk.getRetainedSize());
+    }
+
+    @GuardedBy("this")
+    private SourceChunk pollSourceChunk()
+    {
+        SourceChunk sourceChunk = sourceChunks.poll();
+        if (sourceChunk != null) {
+            sourceChunksEstimatedSize.updateAndGet(oldValue -> oldValue - Unsafe.ARRAY_OBJECT_INDEX_SCALE - sourceChunk.getRetainedSize());
+        }
+        return sourceChunk;
     }
 
     @GuardedBy("this")
@@ -259,7 +280,7 @@ public class BufferExchangeSource
         synchronized (this) {
             this.noMoreChunks = true;
             if (allDataReturned()) {
-                futureToUnblock = isBlocked;
+                futureToUnblock = isBlockedReference.get();
             }
         }
         if (futureToUnblock != null) {
@@ -312,31 +333,51 @@ public class BufferExchangeSource
     }
 
     @Override
-    public synchronized CompletableFuture<Void> isBlocked()
+    public CompletableFuture<Void> isBlocked()
     {
-        if (failure.get() != null) {
-            return NOT_BLOCKED;
+        while (true) {
+            if (readSlicesHasElements) {
+                return NOT_BLOCKED;
+            }
+
+            if (failure.get() != null) {
+                return NOT_BLOCKED;
+            }
+
+            CompletableFuture<Void> currentIsBlocked = isBlockedReference.get();
+            if (!currentIsBlocked.isDone()) {
+                return currentIsBlocked;
+            }
+
+            synchronized (this) {
+                if (allDataReturned()) {
+                    return NOT_BLOCKED;
+                }
+                isBlockedReference.compareAndSet(currentIsBlocked, new CompletableFuture<>());
+            }
         }
-        if (!readSlices.isEmpty()) {
-            return NOT_BLOCKED;
-        }
-        if (allDataReturned()) {
-            return NOT_BLOCKED;
-        }
-        if (isBlocked.isDone()) {
-            isBlocked = new CompletableFuture<>();
-        }
-        return isBlocked;
     }
 
     @Override
-    public synchronized boolean isFinished()
+    public boolean isFinished()
     {
         if (closed) {
             return true;
         }
-        // if failure is set we cannot return that source is finished. Otherwise, we may continue with query execution based on fractional data.
-        return readSlices.isEmpty() && sourceChunks.isEmpty() && currentReaders.isEmpty() && noMoreChunks && failure.get() == null && latestSourceOutputSelector != null && latestSourceOutputSelector.isFinal();
+
+        // quick checks without synchronization
+        if (!noMoreChunks) {
+            return false;
+        }
+        //noinspection FieldAccessNotGuarded
+        if (!currentReaders.isEmpty()) {
+            return false;
+        }
+
+        synchronized (this) {
+            // if failure is set we cannot return that source is finished. Otherwise, we may continue with query execution based on fractional data.
+            return !readSlicesHasElements && sourceChunks.isEmpty() && currentReaders.isEmpty() && noMoreChunks && failure.get() == null && latestSourceOutputSelector != null && latestSourceOutputSelector.isFinal();
+        }
     }
 
     @Nullable
@@ -349,9 +390,15 @@ public class BufferExchangeSource
             throw new RuntimeException(throwable);
         }
 
+        if (!readSlicesHasElements) {
+            return null;
+        }
+
         Slice slice = readSlices.poll();
-        if (slice != null) {
-            updateReadSlicesMemoryUsage(-slice.getRetainedSize());
+        verify(slice != null, "expected non empty readSlices");
+        updateReadSlicesMemoryUsage(-slice.getRetainedSize());
+        if (readSlices.isEmpty()) {
+            readSlicesHasElements = false;
         }
         return slice;
     }
@@ -371,12 +418,13 @@ public class BufferExchangeSource
         verify(currentMemoryUsage >= 0, "negative memory usage");
     }
 
+    @SuppressWarnings("FieldAccessNotGuarded") // accesses are safe crash-wise; we do not need to 100% accurate in this method
     @Override
-    public synchronized long getMemoryUsage()
+    public long getMemoryUsage()
     {
         return INSTANCE_SIZE
                 + estimatedSizeOf(speculativeSourceOutputChoices, SizeOf::estimatedSizeOf, value -> estimatedSizeOf(value, SizeOf::sizeOf, SizeOf::sizeOf))
-                + MoreSizeOf.estimatedSizeOf(sourceChunks, SourceChunk::getRetainedSize)
+                + sourceChunksEstimatedSize.get()
                 + readSlicesMemoryUsage.get()
                 + estimatedSizeOf(currentReaders, ChunkReader::getRetainedSize);
     }
@@ -387,6 +435,7 @@ public class BufferExchangeSource
         currentReaders.forEach(ChunkReader::close);
 
         readSlices.clear();
+        readSlicesHasElements = false;
         updateReadSlicesMemoryUsage(-readSlicesMemoryUsage.get());
         closed = true;
     }
