@@ -37,7 +37,8 @@
 
         <dep.airlift.version>219</dep.airlift.version>
         <dep.errorprone.version>2.15.0</dep.errorprone.version>
-        <dep.trino.version>400</dep.trino.version>
+        <dep.trino.version>401</dep.trino.version>
+        <dep.joda.version>2.12.0</dep.joda.version> <!-- required by Trino 401 -->
     </properties>
 
     <modules>

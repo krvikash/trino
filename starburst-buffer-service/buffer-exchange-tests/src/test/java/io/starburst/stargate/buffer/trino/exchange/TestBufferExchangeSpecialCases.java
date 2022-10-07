@@ -40,7 +40,7 @@ import static io.starburst.stargate.buffer.testing.MockDataNodeStats.Key.SUCCESS
 import static io.starburst.stargate.buffer.testing.MockDataNodeStats.Key.SUCCESSFUL_GET_CHUNK_DATA_FROM_DRAINED_STORAGE_REQUEST_COUNT;
 import static org.assertj.core.api.Assertions.assertThat;
 
-@Test(enabled = false) // requires event based scheduler
+@Test
 public class TestBufferExchangeSpecialCases
 {
     private final ExecutorService executor = Executors.newCachedThreadPool();
