@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>128</version>
+        <version>130</version>
     </parent>
 
     <groupId>io.starburst.stargate.buffer</groupId>
@@ -35,7 +35,7 @@
         <air.java.version>17.0.1</air.java.version>
         <project.build.targetJdk>17</project.build.targetJdk>
 
-        <dep.airlift.version>218</dep.airlift.version>
+        <dep.airlift.version>219</dep.airlift.version>
     </properties>
 
     <modules>
@@ -129,7 +129,7 @@
             <dependency>
                 <groupId>io.airlift</groupId>
                 <artifactId>units</artifactId>
-                <version>1.6</version>
+                <version>1.7</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
