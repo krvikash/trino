@@ -69,7 +69,7 @@ public class CassandraServer
     public CassandraServer()
             throws Exception
     {
-        this("cassandra:2.2");
+        this("cassandra:3.0");
     }
 
     public CassandraServer(String imageName)
