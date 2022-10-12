@@ -41,6 +41,7 @@ import java.io.IOException;
 import java.security.InvalidKeyException;
 import java.util.ArrayDeque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -64,6 +65,7 @@ import static io.starburst.stargate.buffer.trino.exchange.EncryptionKeys.decodeE
 import static io.starburst.stargate.buffer.trino.exchange.MoreSizeOf.OBJECT_HEADER_SIZE;
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static java.lang.Math.toIntExact;
+import static java.util.Collections.emptySet;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 
@@ -173,8 +175,14 @@ public class BufferExchangeSource
 
     private long selectRandomRunningBufferNode()
     {
+        return selectRandomRunningBufferNodeExcluding(emptySet());
+    }
+
+    private long selectRandomRunningBufferNodeExcluding(Set<Long> excludedNodes)
+    {
         List<BufferNodeInfo> runningNodes = discoveryManager.getBufferNodes().bufferNodeInfos().values().stream()
                 .filter(node -> node.getState() == BufferNodeState.RUNNING)
+                .filter(node -> !excludedNodes.contains(node.getNodeId()))
                 .collect(toImmutableList());
 
         if (runningNodes.isEmpty()) {
@@ -438,6 +446,7 @@ public class BufferExchangeSource
         private final AtomicBoolean closed = new AtomicBoolean();
         private final AtomicReference<ListenableFuture<List<DataPage>>> getChunkDataFutureReference = new AtomicReference<>();
         private final Optional<SecretKey> encryptionKey;
+        private final Set<Long> excludedNodes = new HashSet<>();
         private boolean finished;
 
         public ChunkReader(SourceChunk sourceChunk, Optional<SecretKey> encryptionKey)
@@ -513,7 +522,8 @@ public class BufferExchangeSource
                         switch (dataApiException.getErrorCode()) {
                             case CHUNK_DRAINED -> {
                                 // we need to reach out to different buffer node
-                                long newBufferNodeId = selectRandomRunningBufferNode();
+                                excludedNodes.add(sourceBufferNodeId);
+                                long newBufferNodeId = selectRandomRunningBufferNodeExcluding(excludedNodes);
                                 scheduleReadUsingNode(newBufferNodeId);
                             }
                             case CHUNK_NOT_FOUND -> {
