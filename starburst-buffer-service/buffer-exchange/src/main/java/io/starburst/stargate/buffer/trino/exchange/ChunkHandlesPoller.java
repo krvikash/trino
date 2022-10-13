@@ -32,6 +32,7 @@ import static java.util.Objects.requireNonNull;
 class ChunkHandlesPoller
 {
     private static final Logger log = Logger.get(ChunkHandlesPoller.class);
+    private static final long PING_INTERVAL_MILLIS = TimeUnit.MINUTES.toMillis(1);
 
     private final ScheduledExecutorService executorService;
     private final String externalExchangeId;
@@ -41,6 +42,7 @@ class ChunkHandlesPoller
     private final SettableFuture<Void> registerFuture = SettableFuture.create();
     private volatile OptionalLong pagingId = OptionalLong.empty();
     private volatile boolean closed;
+    private boolean pinging;
 
     public ChunkHandlesPoller(
             ScheduledExecutorService executorService,
@@ -88,13 +90,42 @@ class ChunkHandlesPoller
 
     private void startPolling()
     {
-        executorService.execute(this::doPoll);
+        executorService.execute(this::doPollOrPing);
     }
 
-    private void doPoll()
+    private void doPollOrPing()
     {
         try {
             if (closed) {
+                return;
+            }
+
+            if (pinging) {
+                ListenableFuture<Void> pingFuture = dataApi.pingExchange(dataNodeId, externalExchangeId);
+                addCallback(pingFuture, new FutureCallback<>()
+                {
+                    @Override
+                    public void onSuccess(Void result)
+                    {
+                        try {
+                            if (closed) {
+                                return;
+                            }
+
+                            executorService.schedule(ChunkHandlesPoller.this::doPollOrPing, PING_INTERVAL_MILLIS, TimeUnit.MILLISECONDS);
+                        }
+                        catch (Throwable t) {
+                            // fallback to onFailure
+                            onFailure(t);
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Throwable failure)
+                    {
+                        callback.onFailure(failure);
+                    }
+                }, executorService);
                 return;
             }
 
@@ -117,10 +148,14 @@ class ChunkHandlesPoller
                         }
                         pagingId = result.nextPagingId();
 
+                        if (noMoreChunks) {
+                            pinging = true;
+                        }
+
                         if (!noMoreChunks) {
                             // schedule another request
                             // todo: drop delay when DataApi supports long polling
-                            executorService.schedule(ChunkHandlesPoller.this::doPoll, 10, TimeUnit.MILLISECONDS);
+                            executorService.schedule(ChunkHandlesPoller.this::doPollOrPing, 10, TimeUnit.MILLISECONDS);
                         }
                     }
                     catch (Throwable t) {
