@@ -26,6 +26,7 @@ public class BufferCoordinatorExchangeManager
 {
     private final DataApiFacade dataApi;
     private final BufferNodeDiscoveryManager discoveryManager;
+    private final PartitionNodeMapperFactory partitionNodeMapperFactory;
     private final ScheduledExecutorService scheduledExecutor;
     private final int sourceHandleTargetChunksCount;
     private final DataSize sourceHandleTargetDataSize;
@@ -35,11 +36,13 @@ public class BufferCoordinatorExchangeManager
     public BufferCoordinatorExchangeManager(
             DataApiFacade dataApi,
             BufferNodeDiscoveryManager discoveryManager,
+            PartitionNodeMapperFactory partitionNodeMapperFactory,
             ScheduledExecutorService scheduledExecutor,
             BufferExchangeConfig config)
     {
         this.dataApi = requireNonNull(dataApi, "dataApi is null");
         this.discoveryManager = requireNonNull(discoveryManager, "discoveryManager is null");
+        this.partitionNodeMapperFactory = requireNonNull(partitionNodeMapperFactory, "partitionNodeMapperFactory is null");
         this.scheduledExecutor = requireNonNull(scheduledExecutor, "scheduledExecutor is null");
         requireNonNull(config, "config is null");
         this.sourceHandleTargetChunksCount = config.getSourceHandleTargetChunksCount();
@@ -60,6 +63,7 @@ public class BufferCoordinatorExchangeManager
                 preserveOrderWithinPartition,
                 dataApi,
                 discoveryManager,
+                partitionNodeMapperFactory,
                 scheduledExecutor,
                 sourceHandleTargetChunksCount,
                 sourceHandleTargetDataSize,

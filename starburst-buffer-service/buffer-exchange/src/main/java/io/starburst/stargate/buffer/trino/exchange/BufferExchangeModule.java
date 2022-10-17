@@ -50,6 +50,7 @@ public class BufferExchangeModule
         binder.bind(ScheduledExecutorService.class).toInstance(Executors.newScheduledThreadPool(8)); // todo - configurable?
         binder.bind(ExecutorService.class).toInstance(newCachedThreadPool(daemonThreadsNamed("buffer-exchange-%s"))); // todo - make thread count bounded?
         binder.bind(DataApiFacade.class).in(Scopes.SINGLETON);
+        binder.bind(PartitionNodeMapperFactory.class).to(PinningPartitionNodeMapperFactory.class).in(Scopes.SINGLETON);
 
         if (apiFactory.isEmpty()) {
             install(new RealBufferingServiceApiFactoryModule());

@@ -10,7 +10,6 @@
 package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.log.Logger;
@@ -18,9 +17,6 @@ import io.airlift.units.DataSize;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
-import io.starburst.stargate.buffer.discovery.client.BufferNodeInfo;
-import io.starburst.stargate.buffer.discovery.client.BufferNodeState;
-import io.starburst.stargate.buffer.discovery.client.BufferNodeStats;
 import io.trino.spi.QueryId;
 import io.trino.spi.exchange.Exchange;
 import io.trino.spi.exchange.ExchangeId;
@@ -45,12 +41,10 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.IntStream;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.sortedCopyOf;
-import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.addExceptionCallback;
 import static io.starburst.stargate.buffer.trino.exchange.ExternalExchangeIds.externalExchangeId;
@@ -71,13 +65,12 @@ public class BufferExchange
     private final int sourceHandleTargetChunksCount;
     private final DataSize sourceHandleTargetDataSize;
     private final Optional<SecretKey> encryptionKey;
+    private final PartitionNodeMapper partitionNodeMapper;
 
     private volatile boolean noMoreSinks;
     @GuardedBy("this")
     private boolean allRequiredSinksFinished;
 
-    @GuardedBy("this")
-    private Map<Integer, Long> partitionToNodeMapping;
     private final AtomicBoolean closed = new AtomicBoolean();
 
     @GuardedBy("this")
@@ -104,6 +97,7 @@ public class BufferExchange
             boolean preserveOrderWithinPartition,
             DataApiFacade dataApi,
             BufferNodeDiscoveryManager discoveryManager,
+            PartitionNodeMapperFactory partitionNodeMapperFactory,
             ScheduledExecutorService executorService,
             int sourceHandleTargetChunksCount,
             DataSize sourceHandleTargetDataSize,
@@ -119,6 +113,8 @@ public class BufferExchange
         this.sourceHandleTargetChunksCount = sourceHandleTargetChunksCount;
         this.sourceHandleTargetDataSize = requireNonNull(sourceHandleTargetDataSize, "sourceHandleTargetDataSize is null");
         this.encryptionKey = requireNonNull(encryptionKey, "encryptionKey is null");
+        requireNonNull(partitionNodeMapperFactory, "partitionNodeMapperFactory is null");
+        this.partitionNodeMapper = partitionNodeMapperFactory.getPartitionNodeMapper(outputPartitionCount);
     }
 
     @Override
@@ -147,11 +143,9 @@ public class BufferExchange
 
         BufferExchangeSinkHandle bufferExchangeSinkHandle = (BufferExchangeSinkHandle) sinkHandle;
 
-        if (partitionToNodeMapping == null) {
-            partitionToNodeMapping = newPartitionToNodeMapping();
-            for (long nodeId : partitionToNodeMapping.values()) {
-                addBufferNodeToPoll(nodeId);
-            }
+        Map<Integer, Long> partitionToNodeMapping = partitionNodeMapper.getMapping(bufferExchangeSinkHandle.getTaskPartitionId());
+        for (long nodeId : partitionToNodeMapping.values()) {
+            addBufferNodeToPoll(nodeId);
         }
 
         return new BufferExchangeSinkInstanceHandle(bufferExchangeSinkHandle, taskAttemptId, partitionToNodeMapping);
@@ -161,78 +155,16 @@ public class BufferExchange
     public synchronized ExchangeSinkInstanceHandle updateSinkInstanceHandle(ExchangeSinkHandle sinkHandle, int taskAttemptId)
     {
         checkState(!closed.get(), "already closed");
-        updatePartitionToNodeMapping();
-        return new BufferExchangeSinkInstanceHandle(
-                (BufferExchangeSinkHandle) sinkHandle,
-                taskAttemptId,
-                partitionToNodeMapping);
-    }
-
-    @GuardedBy("this")
-    private void updatePartitionToNodeMapping()
-    {
-        checkState(partitionToNodeMapping != null, "partitionToNodeMapping should be already set");
-        Map<Long, BufferNodeInfo> bufferNodes = discoveryManager.getBufferNodes();
-        Map<Integer, Long> newMapping = newPartitionToNodeMapping();
-        ImmutableMap.Builder<Integer, Long> finalMapping = ImmutableMap.builder();
-
-        for (Map.Entry<Integer, Long> entry : partitionToNodeMapping.entrySet()) {
-            Integer partition = entry.getKey();
-            Long oldBufferNodeId = entry.getValue();
-            BufferNodeInfo oldBufferNodeInfo = bufferNodes.get(oldBufferNodeId);
-            if (oldBufferNodeInfo != null && oldBufferNodeInfo.getState() == BufferNodeState.RUNNING) {
-                // keep old mapping entry
-                finalMapping.put(partition, oldBufferNodeId);
-            }
-            else {
-                // use new mapping
-                finalMapping.put(partition, newMapping.get(partition));
-            }
-        }
-        partitionToNodeMapping = finalMapping.buildOrThrow();
-        for (Long nodeId : partitionToNodeMapping.values()) {
+        BufferExchangeSinkHandle bufferExchangeSinkHandle = (BufferExchangeSinkHandle) sinkHandle;
+        partitionNodeMapper.refreshMapping();
+        Map<Integer, Long> newMapping = partitionNodeMapper.getMapping(bufferExchangeSinkHandle.getTaskPartitionId());
+        for (Long nodeId : newMapping.values()) {
             addBufferNodeToPoll(nodeId);
         }
-    }
-
-    private Map<Integer, Long> newPartitionToNodeMapping()
-    {
-        List<BufferNodeInfo> bufferNodes = discoveryManager.getBufferNodes().values().stream()
-                .filter(node -> node.getState() == BufferNodeState.RUNNING)
-                .filter(node -> node.getStats().isPresent())
-                .collect(toImmutableList());
-
-        if (bufferNodes.size() == 0) {
-            // todo keep trying to get mapping for some time. To be figured out how to do that not blocking call to instantiateSink or refreshSinkInstanceHandle
-            throw new RuntimeException("no RUNNING buffer nodes available");
-        }
-
-        long maxChunksCount = bufferNodes.stream().mapToLong(node -> node.getStats().orElseThrow().getOpenChunks() + node.getStats().orElseThrow().getClosedChunks()).max().orElseThrow();
-        RandomSelector<BufferNodeInfo> selector = RandomSelector.weighted(
-                bufferNodes,
-                node -> {
-                    BufferNodeStats stats = node.getStats().orElseThrow();
-                    double memoryWeight = (double) stats.getFreeMemory() / stats.getTotalMemory();
-                    int chunksCount = stats.getOpenChunks() + stats.getClosedChunks();
-                    double chunksWeight;
-                    if (maxChunksCount == 0) {
-                        chunksWeight = 0.0;
-                    }
-                    else {
-                        chunksWeight = 1.0 - (double) chunksCount / maxChunksCount;
-                    }
-
-                    if (memoryWeight < chunksWeight) {
-                        // if we are constrained more with memory let's just use that
-                        return memoryWeight;
-                    }
-                    // if we have plenty of memory lets take chunks count into account
-                    return (memoryWeight + chunksWeight) / 2;
-                });
-
-        ImmutableMap.Builder<Integer, Long> mapping = ImmutableMap.builder();
-        IntStream.range(0, outputPartitionCount).forEach(partition -> mapping.put(partition, selector.next().getNodeId()));
-        return mapping.buildOrThrow();
+        return new BufferExchangeSinkInstanceHandle(
+                bufferExchangeSinkHandle,
+                taskAttemptId,
+                newMapping);
     }
 
     @Override
