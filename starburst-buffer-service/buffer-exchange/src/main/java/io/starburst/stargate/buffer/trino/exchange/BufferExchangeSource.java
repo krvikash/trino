@@ -72,7 +72,7 @@ public class BufferExchangeSource
     @GuardedBy("this")
     private ExchangeSourceOutputSelector latestSourceOutputSelector;
     @GuardedBy("this")
-    private final Map<String, Map<Integer, Integer>> speculativeSourceOutputChoices = new ConcurrentHashMap<>();
+    private final SpeculativeSourceOutputChoices speculativeSourceOutputChoices = new SpeculativeSourceOutputChoices();
     @GuardedBy("this")
     private final Queue<SourceChunk> sourceChunks = new ArrayDeque<>();
     @GuardedBy("this")
@@ -197,8 +197,7 @@ public class BufferExchangeSource
                             case EXCLUDED -> false;
                             case UNKNOWN -> {
                                 // assume first observed attempt for given partition is the one; will be revalidated later on next call to setOutputSelector
-                                Map<Integer, Integer> exchangeOutputChoices = speculativeSourceOutputChoices.computeIfAbsent(externalExchangeId, ignored -> new HashMap<>());
-                                int selectedAttemptId = exchangeOutputChoices.computeIfAbsent(page.taskId(), ignored -> page.attemptId());
+                                int selectedAttemptId = speculativeSourceOutputChoices.getOrStoreSelectedAttemptId(externalExchangeId, page.taskId(), page.attemptId());
                                 yield selectedAttemptId == page.attemptId();
                             }
                         };
@@ -294,32 +293,7 @@ public class BufferExchangeSource
         if (latestSourceOutputSelector != null && selector.getVersion() <= latestSourceOutputSelector.getVersion()) {
             return;
         }
-        for (Map.Entry<String, Map<Integer, Integer>> exchangesAttemptsEntry : speculativeSourceOutputChoices.entrySet()) {
-            ExchangeId exchangeId = ExternalExchangeIds.internalExchangeId(exchangesAttemptsEntry.getKey());
-            Map<Integer, Integer> partitionToAttempt = exchangesAttemptsEntry.getValue();
-
-            Iterator<Map.Entry<Integer, Integer>> entryIterator = partitionToAttempt.entrySet().iterator();
-            while (entryIterator.hasNext()) {
-                Map.Entry<Integer, Integer> entry = entryIterator.next();
-                int taskPartitionId = entry.getKey();
-                int attemptId = entry.getValue();
-
-                ExchangeSourceOutputSelector.Selection selection = selector.getSelection(exchangeId, taskPartitionId, attemptId);
-                switch (selection) {
-                    case INCLUDED -> {
-                        // entry in speculativeSourceOutputChoices no longer needed
-                        entryIterator.remove();
-                    }
-                    case EXCLUDED -> {
-                        // we made wrong decision in the past
-                        throw new RuntimeException("speculative tasks selection mismatch; picked %s.%s.%s which turned out to be excluded".formatted(exchangeId, taskPartitionId, partitionToAttempt));
-                    }
-                    case UNKNOWN -> {
-                        // keep the speculative choice entry
-                    }
-                }
-            }
-        }
+        speculativeSourceOutputChoices.synchronizeWithNewOutputSelector(selector);
         this.latestSourceOutputSelector = selector;
         if (!sourceChunks.isEmpty()) {
             scheduleReadChunks();
@@ -423,7 +397,7 @@ public class BufferExchangeSource
     public long getMemoryUsage()
     {
         return INSTANCE_SIZE
-                + estimatedSizeOf(speculativeSourceOutputChoices, SizeOf::estimatedSizeOf, value -> estimatedSizeOf(value, SizeOf::sizeOf, SizeOf::sizeOf))
+                + speculativeSourceOutputChoices.getRetainedSize()
                 + sourceChunksEstimatedSize.get()
                 + readSlicesMemoryUsage.get()
                 + estimatedSizeOf(currentReaders, ChunkReader::getRetainedSize);
@@ -570,5 +544,79 @@ public class BufferExchangeSource
         UNKNOWN,
         ALLOW_REORDERING,
         PRESERVE_ORDERING
+    }
+
+    private static class SpeculativeSourceOutputChoices
+    {
+        private static final int INSTANCE_SIZE = toIntExact(ClassLayout.parseClass(SpeculativeSourceOutputChoices.class).instanceSize());
+        private final Map<String, Map<Integer, Integer>> speculativeSourceOutputChoices = new HashMap<>();
+        private final AtomicLong estimatedSize;
+
+        public SpeculativeSourceOutputChoices()
+        {
+            estimatedSize = new AtomicLong(estimateSize());
+        }
+
+        public int getOrStoreSelectedAttemptId(String externalExchangeId, Integer taskId, int observedUnknownAttemptId)
+        {
+            boolean sizeChanged = false;
+            Map<Integer, Integer> exchangeOutputChoices = speculativeSourceOutputChoices.get(externalExchangeId);
+            if (exchangeOutputChoices == null) {
+                exchangeOutputChoices = new HashMap<>();
+                speculativeSourceOutputChoices.put(externalExchangeId, exchangeOutputChoices);
+                sizeChanged = true;
+            }
+            Integer selectedAttemptId = exchangeOutputChoices.get(taskId);
+            if (selectedAttemptId == null) {
+                selectedAttemptId = observedUnknownAttemptId;
+                exchangeOutputChoices.put(taskId, observedUnknownAttemptId);
+                sizeChanged = true;
+            }
+            if (sizeChanged) {
+                estimatedSize.set(estimateSize());
+            }
+            return selectedAttemptId;
+        }
+
+        public void synchronizeWithNewOutputSelector(ExchangeSourceOutputSelector selector)
+        {
+            for (Map.Entry<String, Map<Integer, Integer>> exchangesAttemptsEntry : speculativeSourceOutputChoices.entrySet()) {
+                ExchangeId exchangeId = ExternalExchangeIds.internalExchangeId(exchangesAttemptsEntry.getKey());
+                Map<Integer, Integer> partitionToAttempt = exchangesAttemptsEntry.getValue();
+
+                Iterator<Map.Entry<Integer, Integer>> entryIterator = partitionToAttempt.entrySet().iterator();
+                while (entryIterator.hasNext()) {
+                    Map.Entry<Integer, Integer> entry = entryIterator.next();
+                    int taskPartitionId = entry.getKey();
+                    int attemptId = entry.getValue();
+
+                    ExchangeSourceOutputSelector.Selection selection = selector.getSelection(exchangeId, taskPartitionId, attemptId);
+                    switch (selection) {
+                        case INCLUDED -> {
+                            // entry in speculativeSourceOutputChoices no longer needed
+                            entryIterator.remove();
+                        }
+                        case EXCLUDED -> {
+                            // we made wrong decision in the past
+                            throw new RuntimeException("speculative tasks selection mismatch; picked %s.%s.%s which turned out to be excluded".formatted(exchangeId, taskPartitionId, partitionToAttempt));
+                        }
+                        case UNKNOWN -> {
+                            // keep the speculative choice entry
+                        }
+                    }
+                }
+            }
+            estimatedSize.set(estimateSize());
+        }
+
+        public long getRetainedSize()
+        {
+            return INSTANCE_SIZE + estimatedSize.get();
+        }
+
+        private long estimateSize()
+        {
+            return estimatedSizeOf(speculativeSourceOutputChoices, SizeOf::estimatedSizeOf, value -> estimatedSizeOf(value, SizeOf::sizeOf, SizeOf::sizeOf));
+        }
     }
 }
