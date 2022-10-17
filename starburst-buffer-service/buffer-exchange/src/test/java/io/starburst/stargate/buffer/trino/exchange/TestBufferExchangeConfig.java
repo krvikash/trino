@@ -13,8 +13,6 @@ import com.google.common.collect.ImmutableMap;
 import io.airlift.units.DataSize;
 import org.junit.jupiter.api.Test;
 
-import javax.ws.rs.HEAD;
-
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
@@ -45,7 +43,7 @@ class TestBufferExchangeConfig
                 .setEncryptionEnabled(true)
                 .setSinkTargetWrittenPagesCount(32)
                 .setSinkTargetWrittenPagesSize(DataSize.of(8, MEGABYTE))
-                .setPartitionNodeMappingMode(PINNING));
+                .setPartitionNodeMappingMode(RANDOM));
     }
 
     @Test
@@ -65,7 +63,7 @@ class TestBufferExchangeConfig
                 .put("exchange.encryption-enabled", "false")
                 .put("exchange.sink-target-written-pages-count", "5")
                 .put("exchange.sink-target-written-pages-size", "7MB")
-                .put("exchange.partition-node-mapping-mode", "RANDOM")
+                .put("exchange.partition-node-mapping-mode", "PINNING")
                 .buildOrThrow();
 
         BufferExchangeConfig expected = new BufferExchangeConfig()
@@ -81,7 +79,7 @@ class TestBufferExchangeConfig
                 .setEncryptionEnabled(false)
                 .setSinkTargetWrittenPagesCount(5)
                 .setSinkTargetWrittenPagesSize(DataSize.of(7, MEGABYTE))
-                .setPartitionNodeMappingMode(RANDOM);
+                .setPartitionNodeMappingMode(PINNING);
 
         assertFullMapping(properties, expected);
     }

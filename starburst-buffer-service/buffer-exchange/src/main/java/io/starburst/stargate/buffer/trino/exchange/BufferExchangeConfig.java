@@ -17,7 +17,7 @@ import javax.validation.constraints.NotNull;
 
 import java.net.URI;
 
-import static io.starburst.stargate.buffer.trino.exchange.PartitionNodeMappingMode.PINNING;
+import static io.starburst.stargate.buffer.trino.exchange.PartitionNodeMappingMode.RANDOM;
 
 public class BufferExchangeConfig
 {
@@ -33,7 +33,7 @@ public class BufferExchangeConfig
     private boolean encryptionEnabled = true;
     private int sinkTargetWrittenPagesCount = 32;
     private DataSize sinkTargetWrittenPagesSize = DataSize.of(8, DataSize.Unit.MEGABYTE);
-    private PartitionNodeMappingMode partitionNodeMappingMode = PINNING;
+    private PartitionNodeMappingMode partitionNodeMappingMode = RANDOM;
 
     @NotNull
     public URI getDiscoveryServiceUri()
