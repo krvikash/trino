@@ -123,7 +123,6 @@ public class BufferExchangeConfig
         return dataIntegrityVerificationEnabled;
     }
 
-    @NotNull
     public int getSourceHandleTargetChunksCount()
     {
         return sourceHandleTargetChunksCount;
