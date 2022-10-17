@@ -49,7 +49,7 @@ public class PinningPartitionNodeMapper
 
     private Map<Integer, Long> computeMapping()
     {
-        List<BufferNodeInfo> bufferNodes = discoveryManager.getBufferNodes().values().stream()
+        List<BufferNodeInfo> bufferNodes = discoveryManager.getBufferNodes().bufferNodeInfos().values().stream()
                 .filter(node -> node.getState() == BufferNodeState.RUNNING)
                 .filter(node -> node.getStats().isPresent())
                 .collect(toImmutableList());
@@ -91,7 +91,7 @@ public class PinningPartitionNodeMapper
     public synchronized void refreshMapping()
     {
         checkState(currentMapping != null, "currentMapping should be already set");
-        Map<Long, BufferNodeInfo> bufferNodes = discoveryManager.getBufferNodes();
+        Map<Long, BufferNodeInfo> bufferNodes = discoveryManager.getBufferNodes().bufferNodeInfos();
         Map<Integer, Long> newMapping = computeMapping();
         ImmutableMap.Builder<Integer, Long> finalMapping = ImmutableMap.builder();
 

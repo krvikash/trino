@@ -35,7 +35,7 @@ public class BufferNodeDiscoveryManager
 
     private final DiscoveryApi discoveryApi;
     private final ScheduledExecutorService executorService;
-    private final AtomicReference<Map<Long, BufferNodeInfo>> bufferNodes = new AtomicReference<>(ImmutableMap.of());
+    private final AtomicReference<BufferNodesState> bufferNodes = new AtomicReference<>(new BufferNodesState(0, ImmutableMap.of()));
     private final SettableFuture<Void> readyFuture = SettableFuture.create();
 
     @Inject
@@ -55,7 +55,9 @@ public class BufferNodeDiscoveryManager
                     // todo monitor error rate
                     BufferNodeInfoResponse response = discoveryApi.getBufferNodes();
                     if (response.isResponseComplete()) {
-                        bufferNodes.set(uniqueIndex(response.getBufferNodeInfos(), BufferNodeInfo::getNodeId));
+                        bufferNodes.set(new BufferNodesState(
+                                System.currentTimeMillis(),
+                                uniqueIndex(response.getBufferNodeInfos(), BufferNodeInfo::getNodeId)));
                         readyFuture.set(null);
                     }
                 },
@@ -64,7 +66,7 @@ public class BufferNodeDiscoveryManager
                 MILLISECONDS);
     }
 
-    public Map<Long, BufferNodeInfo> getBufferNodes()
+    public BufferNodesState getBufferNodes()
     {
         try {
             readyFuture.get(READY_TIMEOUT_MILLIS, MILLISECONDS);
@@ -74,4 +76,8 @@ public class BufferNodeDiscoveryManager
         }
         return bufferNodes.get();
     }
+
+    public record BufferNodesState(
+            long timestamp,
+            Map<Long, BufferNodeInfo> bufferNodeInfos) {}
 }

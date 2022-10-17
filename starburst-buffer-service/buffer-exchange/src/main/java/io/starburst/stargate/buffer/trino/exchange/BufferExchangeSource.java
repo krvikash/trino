@@ -173,7 +173,7 @@ public class BufferExchangeSource
 
     private long selectRandomRunningBufferNode()
     {
-        List<BufferNodeInfo> runningNodes = discoveryManager.getBufferNodes().values().stream()
+        List<BufferNodeInfo> runningNodes = discoveryManager.getBufferNodes().bufferNodeInfos().values().stream()
                 .filter(node -> node.getState() == BufferNodeState.RUNNING)
                 .collect(toImmutableList());
 
@@ -449,7 +449,7 @@ public class BufferExchangeSource
         public void start()
         {
             long sourceBufferNodeId = sourceChunk.bufferNodeId();
-            Map<Long, BufferNodeInfo> bufferNodes = discoveryManager.getBufferNodes();
+            Map<Long, BufferNodeInfo> bufferNodes = discoveryManager.getBufferNodes().bufferNodeInfos();
             BufferNodeInfo sourceBufferNodeInfo = bufferNodes.get(sourceBufferNodeId);
             if (sourceBufferNodeInfo == null || !(sourceBufferNodeInfo.getState() == BufferNodeState.RUNNING || sourceBufferNodeInfo.getState() == BufferNodeState.DRAINING)) {
                 sourceBufferNodeId = selectRandomRunningBufferNode();
