@@ -52,14 +52,14 @@ public class BufferExchangeModule
         binder.bind(DataApiFacade.class).in(Scopes.SINGLETON);
 
         if (apiFactory.isEmpty()) {
-            install(new RealBufferingServieApiFactoryModule());
+            install(new RealBufferingServiceApiFactoryModule());
         }
         else {
             binder.bind(ApiFactory.class).toInstance(apiFactory.get());
         }
     }
 
-    private static class RealBufferingServieApiFactoryModule
+    private static class RealBufferingServiceApiFactoryModule
             extends AbstractConfigurationAwareModule
     {
         @Override
