@@ -17,6 +17,8 @@ import javax.validation.constraints.NotNull;
 
 import java.net.URI;
 
+import static io.starburst.stargate.buffer.trino.exchange.PartitionNodeMappingMode.PINNING;
+
 public class BufferExchangeConfig
 {
     private URI discoveryServiceUri;
@@ -31,6 +33,7 @@ public class BufferExchangeConfig
     private boolean encryptionEnabled = true;
     private int sinkTargetWrittenPagesCount = 32;
     private DataSize sinkTargetWrittenPagesSize = DataSize.of(8, DataSize.Unit.MEGABYTE);
+    private PartitionNodeMappingMode partitionNodeMappingMode = PINNING;
 
     @NotNull
     public URI getDiscoveryServiceUri()
@@ -187,5 +190,18 @@ public class BufferExchangeConfig
     {
         this.sinkTargetWrittenPagesSize = sinkTargetWrittenPagesSize;
         return this;
+    }
+
+    @Config("exchange.partition-node-mapping-mode")
+    @ConfigDescription("How are the output partitions of Trino tasks mapped to buffer service nodes")
+    public BufferExchangeConfig setPartitionNodeMappingMode(PartitionNodeMappingMode partitionNodeMappingMode)
+    {
+        this.partitionNodeMappingMode = partitionNodeMappingMode;
+        return this;
+    }
+
+    public PartitionNodeMappingMode getPartitionNodeMappingMode()
+    {
+        return partitionNodeMappingMode;
     }
 }

@@ -23,6 +23,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
+import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static java.util.Objects.requireNonNull;
@@ -50,7 +51,9 @@ public class BufferExchangeModule
         binder.bind(ScheduledExecutorService.class).toInstance(Executors.newScheduledThreadPool(8)); // todo - configurable?
         binder.bind(ExecutorService.class).toInstance(newCachedThreadPool(daemonThreadsNamed("buffer-exchange-%s"))); // todo - make thread count bounded?
         binder.bind(DataApiFacade.class).in(Scopes.SINGLETON);
-        binder.bind(PartitionNodeMapperFactory.class).to(PinningPartitionNodeMapperFactory.class).in(Scopes.SINGLETON);
+
+        bindPartitionNodeMapper(PartitionNodeMappingMode.PINNING, PinningPartitionNodeMapperFactory.class);
+        bindPartitionNodeMapper(PartitionNodeMappingMode.RANDOM, RandomPartitionNodeMapperFactory.class);
 
         if (apiFactory.isEmpty()) {
             install(new RealBufferingServiceApiFactoryModule());
@@ -58,6 +61,14 @@ public class BufferExchangeModule
         else {
             binder.bind(ApiFactory.class).toInstance(apiFactory.get());
         }
+    }
+
+    private void bindPartitionNodeMapper(PartitionNodeMappingMode mode, Class<? extends PartitionNodeMapperFactory> implementation)
+    {
+        super.install(conditionalModule(
+                BufferExchangeConfig.class,
+                bufferExchangeConfig -> bufferExchangeConfig.getPartitionNodeMappingMode() == mode,
+                localBinder -> localBinder.bind(PartitionNodeMapperFactory.class).to(implementation).in(Scopes.SINGLETON)));
     }
 
     private static class RealBufferingServiceApiFactoryModule

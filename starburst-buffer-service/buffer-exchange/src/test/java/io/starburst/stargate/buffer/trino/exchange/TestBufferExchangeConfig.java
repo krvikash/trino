@@ -13,6 +13,8 @@ import com.google.common.collect.ImmutableMap;
 import io.airlift.units.DataSize;
 import org.junit.jupiter.api.Test;
 
+import javax.ws.rs.HEAD;
+
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
@@ -22,6 +24,8 @@ import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDe
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
 import static io.airlift.units.DataSize.Unit.GIGABYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
+import static io.starburst.stargate.buffer.trino.exchange.PartitionNodeMappingMode.PINNING;
+import static io.starburst.stargate.buffer.trino.exchange.PartitionNodeMappingMode.RANDOM;
 
 class TestBufferExchangeConfig
 {
@@ -40,7 +44,8 @@ class TestBufferExchangeConfig
                 .setSourceHandleTargetDataSize(DataSize.of(256, MEGABYTE))
                 .setEncryptionEnabled(true)
                 .setSinkTargetWrittenPagesCount(32)
-                .setSinkTargetWrittenPagesSize(DataSize.of(8, MEGABYTE)));
+                .setSinkTargetWrittenPagesSize(DataSize.of(8, MEGABYTE))
+                .setPartitionNodeMappingMode(PINNING));
     }
 
     @Test
@@ -60,6 +65,7 @@ class TestBufferExchangeConfig
                 .put("exchange.encryption-enabled", "false")
                 .put("exchange.sink-target-written-pages-count", "5")
                 .put("exchange.sink-target-written-pages-size", "7MB")
+                .put("exchange.partition-node-mapping-mode", "RANDOM")
                 .buildOrThrow();
 
         BufferExchangeConfig expected = new BufferExchangeConfig()
@@ -74,7 +80,8 @@ class TestBufferExchangeConfig
                 .setSourceHandleTargetDataSize(DataSize.of(1, GIGABYTE))
                 .setEncryptionEnabled(false)
                 .setSinkTargetWrittenPagesCount(5)
-                .setSinkTargetWrittenPagesSize(DataSize.of(7, MEGABYTE));
+                .setSinkTargetWrittenPagesSize(DataSize.of(7, MEGABYTE))
+                .setPartitionNodeMappingMode(RANDOM);
 
         assertFullMapping(properties, expected);
     }
