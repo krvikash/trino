@@ -75,6 +75,7 @@ public class BufferExchangeSinkHandle
         }
         BufferExchangeSinkHandle that = (BufferExchangeSinkHandle) o;
         return taskPartitionId == that.taskPartitionId
+                && outputPartitionCount == that.outputPartitionCount
                 && preserveOrderWithinPartition == that.preserveOrderWithinPartition
                 && Objects.equals(externalExchangeId, that.externalExchangeId);
     }
@@ -82,7 +83,7 @@ public class BufferExchangeSinkHandle
     @Override
     public int hashCode()
     {
-        return Objects.hash(externalExchangeId, taskPartitionId, preserveOrderWithinPartition);
+        return Objects.hash(externalExchangeId, taskPartitionId, outputPartitionCount, preserveOrderWithinPartition);
     }
 
     @Override
