@@ -23,10 +23,12 @@ import io.trino.spi.exchange.ExchangeSink;
 import io.trino.spi.exchange.ExchangeSinkInstanceHandle;
 
 import javax.annotation.concurrent.GuardedBy;
+import javax.crypto.SecretKey;
 
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -48,6 +50,7 @@ public class BufferExchangeSink
     private final int taskPartitionId;
     private final int taskAttemptId;
     private final boolean preserveOrderWithinPartition;
+    private final Optional<SecretKey> encryptionKey;
 
     @GuardedBy("this")
     private Map<Integer, Long> partitionToBufferNode; // partition -> buffer node (may not match what writers are currently created)
@@ -84,6 +87,7 @@ public class BufferExchangeSink
         this.taskAttemptId = sinkInstanceHandle.getTaskAttemptId();
         this.partitionToBufferNode = ImmutableMap.copyOf(sinkInstanceHandle.getPartitionToBufferNode());
         this.preserveOrderWithinPartition = sinkInstanceHandle.isPreserveOrderWithinPartition();
+        this.encryptionKey = sinkInstanceHandle.getEncryptionKey().map(EncryptionKeys::decodeEncryptionKey);
         this.executor = requireNonNull(executor, "executor is null");
         this.dataPool = new SinkDataPool(memoryLowWaterMark, memoryHighWaterMark);
 
@@ -122,6 +126,7 @@ public class BufferExchangeSink
                 taskPartitionId,
                 taskAttemptId,
                 preserveOrderWithinPartition,
+                encryptionKey,
                 bufferNodeId,
                 managedPartitions,
                 dataPagesIdGenerator,

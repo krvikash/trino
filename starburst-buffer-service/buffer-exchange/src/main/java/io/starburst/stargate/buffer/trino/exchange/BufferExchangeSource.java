@@ -16,11 +16,13 @@ import com.google.common.util.concurrent.SettableFuture;
 import io.airlift.log.Logger;
 import io.airlift.slice.SizeOf;
 import io.airlift.slice.Slice;
+import io.airlift.slice.Slices;
 import io.airlift.units.DataSize;
 import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.discovery.client.BufferNodeInfo;
 import io.starburst.stargate.buffer.discovery.client.BufferNodeState;
+import io.trino.spi.TrinoException;
 import io.trino.spi.exchange.ExchangeId;
 import io.trino.spi.exchange.ExchangeSource;
 import io.trino.spi.exchange.ExchangeSourceHandle;
@@ -31,12 +33,18 @@ import sun.misc.Unsafe;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.NotThreadSafe;
+import javax.crypto.Cipher;
+import javax.crypto.CipherOutputStream;
+import javax.crypto.SecretKey;
 
+import java.io.IOException;
+import java.security.InvalidKeyException;
 import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -52,7 +60,9 @@ import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.slice.SizeOf.estimatedSizeOf;
+import static io.starburst.stargate.buffer.trino.exchange.EncryptionKeys.decodeEncryptionKey;
 import static io.starburst.stargate.buffer.trino.exchange.MoreSizeOf.OBJECT_HEADER_SIZE;
+import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
@@ -89,6 +99,8 @@ public class BufferExchangeSource
     private SettableFuture<Void> memoryUsageExceeded;
     @GuardedBy("this")
     private PreserveOrderingMode preserveOrderingMode = PreserveOrderingMode.UNKNOWN;
+    @GuardedBy("this")
+    private final HashMap<String, SecretKey> exchangeEncryptionKeys = new HashMap<>();
 
     @GuardedBy("this")
     private final Set<ChunkReader> currentReaders = ConcurrentHashMap.newKeySet();
@@ -139,7 +151,7 @@ public class BufferExchangeSource
             if (chunk == null) {
                 return;
             }
-            ChunkReader reader = new ChunkReader(chunk);
+            ChunkReader reader = new ChunkReader(chunk, Optional.ofNullable(exchangeEncryptionKeys.get(chunk.externalExchangeId())));
             currentReaders.add(reader);
             reader.start();
         }
@@ -224,6 +236,11 @@ public class BufferExchangeSource
 
             for (ExchangeSourceHandle sourceHandle : sourceHandles) {
                 BufferExchangeSourceHandle bufferSourceHandle = (BufferExchangeSourceHandle) sourceHandle;
+
+                if (bufferSourceHandle.getEncryptionKey().isPresent() && !exchangeEncryptionKeys.containsKey(bufferSourceHandle.getExternalExchangeId())) {
+                    exchangeEncryptionKeys.put(bufferSourceHandle.getExternalExchangeId(), decodeEncryptionKey(bufferSourceHandle.getEncryptionKey().get()));
+                }
+
                 handlePreserveOrderingFlagFromSourceHandle(bufferSourceHandle);
 
                 int chunksCount = bufferSourceHandle.getChunksCount();
@@ -422,10 +439,12 @@ public class BufferExchangeSource
         private final SourceChunk sourceChunk;
         private final AtomicBoolean closed = new AtomicBoolean();
         private final AtomicReference<ListenableFuture<List<DataPage>>> getChunkDataFutureReference = new AtomicReference<>();
+        private final Optional<SecretKey> encryptionKey;
 
-        public ChunkReader(SourceChunk sourceChunk)
+        public ChunkReader(SourceChunk sourceChunk, Optional<SecretKey> encryptionKey)
         {
             this.sourceChunk = requireNonNull(sourceChunk, "sourceChunk is null");
+            this.encryptionKey = requireNonNull(encryptionKey, "encryptionKey is null");
         }
 
         public void start()
@@ -461,12 +480,17 @@ public class BufferExchangeSource
             }
             Futures.addCallback(future, new FutureCallback<>() {
                 @Override
-                public void onSuccess(List<DataPage> result)
+                public void onSuccess(List<DataPage> dataPages)
                 {
                     try {
                         getChunkDataFutureReference.set(null);
+
+                        if (encryptionKey.isPresent()) {
+                            dataPages = decryptDataPages(dataPages, encryptionKey.get());
+                        }
+
                         synchronized (BufferExchangeSource.this) {
-                            receivedNewDataPages(sourceChunk.externalExchangeId(), result);
+                            receivedNewDataPages(sourceChunk.externalExchangeId(), dataPages);
                             finishChunkReader(ChunkReader.this);
                             scheduleReadChunks();
                         }
@@ -509,6 +533,38 @@ public class BufferExchangeSource
                     }
                 }
             }, directExecutor());
+        }
+
+        private List<DataPage> decryptDataPages(List<DataPage> dataPages, SecretKey encryptionKey)
+        {
+            return dataPages.stream()
+                    .map(page -> decryptDataPage(page, encryptionKey))
+                    .collect(toImmutableList());
+        }
+
+        private DataPage decryptDataPage(DataPage page, SecretKey encryptionKey)
+        {
+            try {
+                Cipher cipher = EncryptionKeys.getCipher();
+                cipher.init(Cipher.DECRYPT_MODE, encryptionKey);
+                Slice pageData = page.data();
+                Slice decryptedData = Slices.allocate(cipher.getOutputSize(pageData.length()));
+                CipherOutputStream decryptedOutputStream = new CipherOutputStream(decryptedData.getOutput(), cipher);
+                if (pageData.hasByteArray()) {
+                    decryptedOutputStream.write(pageData.byteArray(), pageData.byteArrayOffset(), pageData.length());
+                }
+                else {
+                    decryptedOutputStream.write(pageData.getBytes());
+                }
+                decryptedOutputStream.close();
+                return page.withData(decryptedData);
+            }
+            catch (InvalidKeyException e) {
+                throw new TrinoException(GENERIC_INTERNAL_ERROR, "Failed to create CipherOutputStream: " + e.getMessage(), e);
+            }
+            catch (IOException e) {
+                throw new TrinoException(GENERIC_INTERNAL_ERROR, "Failed to decrypt page: " + e.getMessage(), e);
+            }
         }
 
         public void close()

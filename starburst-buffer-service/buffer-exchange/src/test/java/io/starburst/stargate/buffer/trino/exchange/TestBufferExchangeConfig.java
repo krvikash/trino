@@ -37,7 +37,8 @@ class TestBufferExchangeConfig
                 .setSourceParallelism(4)
                 .setDataIntegrityVerificationEnabled(true)
                 .setSourceHandleTargetChunksCount(64)
-                .setSourceHandleTargetDataSize(DataSize.of(256, MEGABYTE)));
+                .setSourceHandleTargetDataSize(DataSize.of(256, MEGABYTE))
+                .setEncryptionEnabled(true));
     }
 
     @Test
@@ -54,6 +55,7 @@ class TestBufferExchangeConfig
                 .put("exchange.data-integrity-verification-enabled", "false")
                 .put("exchange.source-handle-target-chunks-count", "128")
                 .put("exchange.source-handle-target-data-size", "1GB")
+                .put("exchange.encryption-enabled", "false")
                 .buildOrThrow();
 
         BufferExchangeConfig expected = new BufferExchangeConfig()
@@ -65,7 +67,8 @@ class TestBufferExchangeConfig
                 .setSourceParallelism(5)
                 .setDataIntegrityVerificationEnabled(false)
                 .setSourceHandleTargetChunksCount(128)
-                .setSourceHandleTargetDataSize(DataSize.of(1, GIGABYTE));
+                .setSourceHandleTargetDataSize(DataSize.of(1, GIGABYTE))
+                .setEncryptionEnabled(false);
 
         assertFullMapping(properties, expected);
     }

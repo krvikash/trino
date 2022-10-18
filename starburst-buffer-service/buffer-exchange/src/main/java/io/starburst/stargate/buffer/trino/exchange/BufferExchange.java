@@ -30,7 +30,9 @@ import io.trino.spi.exchange.ExchangeSourceHandle;
 import io.trino.spi.exchange.ExchangeSourceHandleSource;
 
 import javax.annotation.concurrent.GuardedBy;
+import javax.crypto.SecretKey;
 
+import java.security.Key;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -39,6 +41,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
@@ -68,6 +71,7 @@ public class BufferExchange
     private final ScheduledExecutorService executorService;
     private final int sourceHandleTargetChunksCount;
     private final DataSize sourceHandleTargetDataSize;
+    private final Optional<SecretKey> encryptionKey;
 
     private volatile boolean noMoreSinks;
     @GuardedBy("this")
@@ -103,7 +107,8 @@ public class BufferExchange
             BufferNodeDiscoveryManager discoveryManager,
             ScheduledExecutorService executorService,
             int sourceHandleTargetChunksCount,
-            DataSize sourceHandleTargetDataSize)
+            DataSize sourceHandleTargetDataSize,
+            Optional<SecretKey> encryptionKey)
     {
         this.exchangeId = requireNonNull(exchangeId, "exchangeId is null");
         this.externalExchangeId = externalExchangeId(queryId, exchangeId);
@@ -114,6 +119,7 @@ public class BufferExchange
         this.executorService = requireNonNull(executorService, "executorService is null");
         this.sourceHandleTargetChunksCount = sourceHandleTargetChunksCount;
         this.sourceHandleTargetDataSize = requireNonNull(sourceHandleTargetDataSize, "sourceHandleTargetDataSize is null");
+        this.encryptionKey = requireNonNull(encryptionKey, "encryptionKey is null");
     }
 
     @Override
@@ -127,7 +133,12 @@ public class BufferExchange
     {
         checkState(!closed.get(), "already closed");
         checkState(!noMoreSinks, "no more sinks can be added");
-        return new BufferExchangeSinkHandle(externalExchangeId, taskPartitionId, outputPartitionCount, preserveOrderWithinPartition);
+        return new BufferExchangeSinkHandle(
+                externalExchangeId,
+                taskPartitionId,
+                outputPartitionCount,
+                preserveOrderWithinPartition,
+                encryptionKey.map(SecretKey::getEncoded));
     }
 
     @Override
@@ -281,7 +292,12 @@ public class BufferExchange
             }
 
             if (preserveOrderWithinPartition) {
-                newReadySourceHandles.add(BufferExchangeSourceHandle.fromChunkHandles(externalExchangeId, partitionId, sortedCopyOf(Comparator.comparingLong(ChunkHandle::chunkId), chunkHandles), true));
+                newReadySourceHandles.add(BufferExchangeSourceHandle.fromChunkHandles(
+                        externalExchangeId,
+                        partitionId,
+                        sortedCopyOf(Comparator.comparingLong(ChunkHandle::chunkId), chunkHandles),
+                        true,
+                        encryptionKey.map(Key::getEncoded)));
                 chunkHandles.clear();
                 continue;
             }
@@ -293,7 +309,12 @@ public class BufferExchange
                 currentSourceHandleChunks.add(chunkHandle);
                 currentSourceHandleDataSize += chunkHandle.dataSizeInBytes();
                 if (currentSourceHandleChunks.size() >= sourceHandleTargetChunksCount || currentSourceHandleDataSize >= sourceHandleTargetDataSize.toBytes()) {
-                    newReadySourceHandles.add(BufferExchangeSourceHandle.fromChunkHandles(externalExchangeId, partitionId, currentSourceHandleChunks, false));
+                    newReadySourceHandles.add(BufferExchangeSourceHandle.fromChunkHandles(
+                            externalExchangeId,
+                            partitionId,
+                            currentSourceHandleChunks,
+                            false,
+                            encryptionKey.map(Key::getEncoded)));
                     usedChunkHandlesCount += currentSourceHandleChunks.size();
                     currentSourceHandleDataSize = 0;
                     currentSourceHandleChunks = new ArrayList<>();
@@ -302,7 +323,12 @@ public class BufferExchange
 
             // if we know no more chunks will be added create source handle from remaining chunks
             if (allChunksDiscovered && !currentSourceHandleChunks.isEmpty()) {
-                newReadySourceHandles.add(BufferExchangeSourceHandle.fromChunkHandles(externalExchangeId, partitionId, currentSourceHandleChunks, false));
+                newReadySourceHandles.add(BufferExchangeSourceHandle.fromChunkHandles(
+                        externalExchangeId,
+                        partitionId,
+                        currentSourceHandleChunks,
+                        false,
+                        encryptionKey.map(Key::getEncoded)));
                 usedChunkHandlesCount += currentSourceHandleChunks.size();
             }
 

@@ -15,17 +15,26 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
+import io.airlift.slice.Slices;
 import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
+import io.trino.spi.TrinoException;
 
 import javax.annotation.concurrent.GuardedBy;
+import javax.crypto.Cipher;
+import javax.crypto.CipherOutputStream;
+import javax.crypto.SecretKey;
 
+import java.io.IOException;
+import java.security.InvalidKeyException;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 
 import static com.google.common.base.Verify.verify;
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static java.util.Objects.requireNonNull;
 
 public class SinkWriter
@@ -39,6 +48,7 @@ public class SinkWriter
     private final int taskPartitionId;
     private final int taskAttemptId;
     private final boolean preserveOrderWithinPartition;
+    private final Optional<SecretKey> encryptionKey;
     private final long bufferNodeId;
     private final Set<Integer> managedPartitions;
     private final DataPagesIdGenerator dataPagesIdGenerator;
@@ -62,6 +72,7 @@ public class SinkWriter
             int taskPartitionId,
             int taskAttemptId,
             boolean preserveOrderWithinPartition,
+            Optional<SecretKey> encryptionKey,
             long bufferNodeId,
             Set<Integer> managedPartitions,
             DataPagesIdGenerator dataPagesIdGenerator,
@@ -74,6 +85,7 @@ public class SinkWriter
         this.taskPartitionId = taskPartitionId;
         this.taskAttemptId = taskAttemptId;
         this.preserveOrderWithinPartition = preserveOrderWithinPartition;
+        this.encryptionKey = requireNonNull(encryptionKey, "encryptionKey is null");
         this.bufferNodeId = bufferNodeId;
         requireNonNull(managedPartitions, "managedPartitions is null");
         this.managedPartitions = ImmutableSet.copyOf(managedPartitions);
@@ -117,7 +129,18 @@ public class SinkWriter
         List<Slice> dataPages = pollResult.getData();
         int partition = pollResult.getPartition();
 
-        currentRequestFuture = dataApi.addDataPages(bufferNodeId, externalExchangeId, partition, taskPartitionId, taskAttemptId, dataPagesIdGenerator.nextId(), dataPages);
+        if (encryptionKey.isPresent()) {
+            dataPages = encryptDataPages(dataPages, encryptionKey.get());
+        }
+
+        currentRequestFuture = dataApi.addDataPages(
+                bufferNodeId,
+                externalExchangeId,
+                partition,
+                taskPartitionId,
+                taskAttemptId,
+                dataPagesIdGenerator.nextId(),
+                dataPages);
         Futures.addCallback(currentRequestFuture, new FutureCallback<>() {
             @Override
             public void onSuccess(Void result)
@@ -190,6 +213,37 @@ public class SinkWriter
                 }
             }
         }, executor);
+    }
+
+    private List<Slice> encryptDataPages(List<Slice> dataPages, SecretKey secretKey)
+    {
+        return dataPages.stream()
+                .map(page -> encryptDataPage(page, secretKey))
+                .collect(toImmutableList());
+    }
+
+    private Slice encryptDataPage(Slice page, SecretKey secretKey)
+    {
+        try {
+            Cipher cipher = EncryptionKeys.getCipher();
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey);
+            Slice encryptedPage = Slices.allocate(cipher.getOutputSize(page.length()));
+            CipherOutputStream encryptedOutputStream = new CipherOutputStream(encryptedPage.getOutput(), cipher);
+            if (page.hasByteArray()) {
+                encryptedOutputStream.write(page.byteArray(), page.byteArrayOffset(), page.length());
+            }
+            else {
+                encryptedOutputStream.write(page.getBytes());
+            }
+            encryptedOutputStream.close();
+            return encryptedPage;
+        }
+        catch (InvalidKeyException e) {
+            throw new TrinoException(GENERIC_INTERNAL_ERROR, "Failed to create CipherOutputStream: " + e.getMessage(), e);
+        }
+        catch (IOException e) {
+            throw new TrinoException(GENERIC_INTERNAL_ERROR, "Failed to encrypt page: " + e.getMessage(), e);
+        }
     }
 
     public void abort()

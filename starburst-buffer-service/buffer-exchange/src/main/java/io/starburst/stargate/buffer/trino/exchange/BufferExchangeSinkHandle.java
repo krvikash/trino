@@ -14,6 +14,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.trino.spi.exchange.ExchangeSinkHandle;
 
 import java.util.Objects;
+import java.util.Optional;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static java.util.Objects.requireNonNull;
@@ -25,19 +26,21 @@ public class BufferExchangeSinkHandle
     private final int taskPartitionId;
     private final int outputPartitionCount;
     private final boolean preserveOrderWithinPartition;
-    // todo encryption related stuff
+    private final Optional<byte[]> encryptionKey;
 
     @JsonCreator
     public BufferExchangeSinkHandle(
             @JsonProperty("externalExchangeId") String externalExchangeId,
             @JsonProperty("taskPartitionId") int taskPartitionId,
             @JsonProperty("outputPartitionCount") int outputPartitionCount,
-            @JsonProperty("preserveOrderWithinPartition") boolean preserveOrderWithinPartition)
+            @JsonProperty("preserveOrderWithinPartition") boolean preserveOrderWithinPartition,
+            @JsonProperty("encryptionKey") Optional<byte[]> encryptionKey)
     {
         this.externalExchangeId = requireNonNull(externalExchangeId, "exchangeId is null");
         this.taskPartitionId = taskPartitionId;
         this.outputPartitionCount = outputPartitionCount;
         this.preserveOrderWithinPartition = preserveOrderWithinPartition;
+        this.encryptionKey = requireNonNull(encryptionKey, "encryptionKey is null");
     }
 
     @JsonProperty
@@ -64,6 +67,12 @@ public class BufferExchangeSinkHandle
         return preserveOrderWithinPartition;
     }
 
+    @JsonProperty
+    public Optional<byte[]> getEncryptionKey()
+    {
+        return encryptionKey;
+    }
+
     @Override
     public boolean equals(Object o)
     {
@@ -77,13 +86,14 @@ public class BufferExchangeSinkHandle
         return taskPartitionId == that.taskPartitionId
                 && outputPartitionCount == that.outputPartitionCount
                 && preserveOrderWithinPartition == that.preserveOrderWithinPartition
-                && Objects.equals(externalExchangeId, that.externalExchangeId);
+                && Objects.equals(externalExchangeId, that.externalExchangeId)
+                && Objects.equals(encryptionKey, that.encryptionKey);
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hash(externalExchangeId, taskPartitionId, outputPartitionCount, preserveOrderWithinPartition);
+        return Objects.hash(externalExchangeId, taskPartitionId, outputPartitionCount, preserveOrderWithinPartition, encryptionKey);
     }
 
     @Override
@@ -94,6 +104,7 @@ public class BufferExchangeSinkHandle
                 .add("taskPartitionId", taskPartitionId)
                 .add("outputPartitionCount", outputPartitionCount)
                 .add("preserveOrderWithinPartition", preserveOrderWithinPartition)
+                .add("encryptionKey", encryptionKey.map(value -> "[REDACTED]"))
                 .toString();
     }
 }
