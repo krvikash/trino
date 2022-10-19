@@ -13,6 +13,7 @@
 
     <properties>
         <air.main.basedir>${project.parent.basedir}</air.main.basedir>
+        <air.readme.file>README.md</air.readme.file>
         <main-class>io.starburst.stargate.buffer.data.server.DataServer</main-class>
     </properties>
 
