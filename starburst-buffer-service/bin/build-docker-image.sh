@@ -5,9 +5,10 @@ set -euo pipefail
 cd ${BASH_SOURCE%/*}
 
 projectName=""
-imageRepository=""
+imageRepositories=()
 projectVersion="1-SNAPSHOT"
 archTypes=""
+pushImages=0
 
 function printUsage(){
     echo "Usage:"
@@ -18,9 +19,10 @@ function printUsage(){
     echo "        -r    Docker repository"
     echo "        -v    Project version"
     echo "        -a    Platform types for multi-arch build"
+    echo "        -P    Push images to remote repository (only used when -a is provided)"
 }
 
-while getopts "hp:r:v:a:" opt; do
+while getopts "hp:r:v:a:P" opt; do
     case ${opt} in
     h )
         printUsage;
@@ -30,13 +32,16 @@ while getopts "hp:r:v:a:" opt; do
         projectName="${OPTARG}"
         ;;
     r )
-        imageRepository="${OPTARG}"
+        imageRepositories+=("${OPTARG}")
         ;;
     v )
         projectVersion="${OPTARG}"
         ;;
     a )
         archTypes="${OPTARG}"
+        ;;
+    P )
+        pushImages=1
         ;;
     esac
 done
@@ -47,21 +52,31 @@ if [[ "${projectName}" == "" ]]; then
     exit 1;
 fi
 
-if [[ "${imageRepository}" != "" && "${imageRepository}" != */ ]]; then
-    imageRepository="${imageRepository}/"
-fi
+imageTags=()
 
-imageTag="${imageRepository}trino-buffer-service/${projectName}:${projectVersion}"
+for imageRepository in ${imageRepositories[@]}; do
+    if [[ "${imageRepository}" != "" && "${imageRepository}" != */ ]]; then
+        imageRepository="${imageRepository}/"
+    fi
+    imageTags+=("${imageRepository}trino-buffer-service/${projectName}:${projectVersion}")
+done
+
+buildArguments=""
+
+for imageTag in ${imageTags[@]}; do
+    buildArguments="${buildArguments} --tag ${imageTag}"
+done
 
 if [[ "${archTypes}" == "" ]]; then
-    docker build \
+    docker build "../${projectName}" \
         --build-arg "PROJECT_VERSION=${projectVersion}" \
-        -t "${imageTag}" \
-        -f "../${projectName}/Dockerfile" "../${projectName}"
+        -f "../${projectName}/Dockerfile" ${buildArguments}
 else
+    if [[ ${pushImages} -eq 1 ]]; then
+        buildArguments="${buildArguments} --push"
+    fi
     docker buildx build "../${projectName}" \
         -f "../${projectName}/Dockerfile" \
         --build-arg "PROJECT_VERSION=${projectVersion}" \
-        --tag "${imageTag}" \
-        --platform "${archTypes}"
+        --platform "${archTypes}" ${buildArguments}
 fi
