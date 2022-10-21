@@ -26,7 +26,8 @@ public class TestDataServerConfig
     {
         assertRecordedDefaults(recordDefaults(DataServerConfig.class)
                 .setDiscoveryServiceUri(null)
-                .setIncludeChecksumInDataResponse(true));
+                .setIncludeChecksumInDataResponse(true)
+                .setTestingDropUploadedPages(false));
     }
 
     @Test
@@ -35,11 +36,13 @@ public class TestDataServerConfig
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("discovery-service.uri", "http://some-discovery-host:123")
                 .put("include-checksum-in-data-response", "false")
+                .put("testing.drop-uploaded-pages", "true")
                 .buildOrThrow();
 
         DataServerConfig expected = new DataServerConfig()
                 .setDiscoveryServiceUri(URI.create("http://some-discovery-host:123"))
-                .setIncludeChecksumInDataResponse(false);
+                .setIncludeChecksumInDataResponse(false)
+                .setTestingDropUploadedPages(true);
 
         assertFullMapping(properties, expected);
     }

@@ -48,14 +48,17 @@ public class DataResource
 {
     private final ChunkManager chunkManager;
     private final MemoryAllocator memoryAllocator;
+    private final boolean dropUploadedPages;
 
     @Inject
     public DataResource(
             ChunkManager chunkManager,
-            MemoryAllocator memoryAllocator)
+            MemoryAllocator memoryAllocator,
+            DataServerConfig config)
     {
         this.chunkManager = requireNonNull(chunkManager, "chunkManager is null");
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
+        this.dropUploadedPages = config.isTestingDropUploadedPages();
     }
 
     @GET
@@ -96,6 +99,9 @@ public class DataResource
                         .orElseThrow(() -> new IllegalStateException("Failed to create a new open chunk due to memory allocation failure"));
                 sliceInput.readBytes(slice);
                 pages.add(slice);
+            }
+            if (dropUploadedPages) {
+                return Response.ok().build();
             }
             chunkManager.addDataPages(exchangeId, partitionId, taskId, attemptId, dataPagesId, pages);
         }

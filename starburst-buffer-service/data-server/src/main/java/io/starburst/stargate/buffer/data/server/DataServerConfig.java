@@ -10,6 +10,7 @@
 package io.starburst.stargate.buffer.data.server;
 
 import io.airlift.configuration.Config;
+import io.airlift.configuration.ConfigHidden;
 
 import javax.validation.constraints.NotNull;
 
@@ -19,6 +20,7 @@ public class DataServerConfig
 {
     private URI discoveryServiceUri;
     private boolean includeChecksumInDataResponse = true;
+    private boolean testingDropUploadedPages;
 
     @NotNull
     public URI getDiscoveryServiceUri()
@@ -42,6 +44,19 @@ public class DataServerConfig
     public DataServerConfig setIncludeChecksumInDataResponse(boolean includeChecksumInDataResponse)
     {
         this.includeChecksumInDataResponse = includeChecksumInDataResponse;
+        return this;
+    }
+
+    public boolean isTestingDropUploadedPages()
+    {
+        return testingDropUploadedPages;
+    }
+
+    @ConfigHidden
+    @Config("testing.drop-uploaded-pages")
+    public DataServerConfig setTestingDropUploadedPages(boolean testingDropUploadedPages)
+    {
+        this.testingDropUploadedPages = testingDropUploadedPages;
         return this;
     }
 }
