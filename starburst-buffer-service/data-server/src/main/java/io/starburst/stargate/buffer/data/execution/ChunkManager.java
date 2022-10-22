@@ -11,6 +11,7 @@ package io.starburst.stargate.buffer.data.execution;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Ticker;
+import com.google.common.io.Closer;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.units.Duration;
@@ -23,10 +24,12 @@ import io.starburst.stargate.buffer.data.server.DataServerConfig;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
 
 import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 import javax.inject.Qualifier;
 
+import java.io.IOException;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 import java.util.Iterator;
@@ -92,6 +95,20 @@ public class ChunkManager
         long interval = exchangeStalenessThreshold.toMillis();
         cleanupExecutor.scheduleWithFixedDelay(this::cleanupStaleExchanges, interval, interval, MILLISECONDS);
         statsReportingExecutor.scheduleWithFixedDelay(this::reportStats, 0, 1, SECONDS);
+    }
+
+    @PreDestroy
+    public void shutdown()
+    {
+        Closer closer = Closer.create();
+        closer.register(cleanupExecutor::shutdownNow);
+        closer.register(statsReportingExecutor::shutdownNow);
+        try {
+            closer.close();
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public void addDataPages(String exchangeId, int partitionId, int taskId, int attemptId, long dataPagesId, List<Slice> pages)
