@@ -440,6 +440,7 @@ public class BufferExchangeSource
         private final AtomicBoolean closed = new AtomicBoolean();
         private final AtomicReference<ListenableFuture<List<DataPage>>> getChunkDataFutureReference = new AtomicReference<>();
         private final Optional<SecretKey> encryptionKey;
+        private boolean finished;
 
         public ChunkReader(SourceChunk sourceChunk, Optional<SecretKey> encryptionKey)
         {
@@ -462,7 +463,7 @@ public class BufferExchangeSource
         {
             if (closed.get()) {
                 // do not schedule a new request if we are closed
-                finishChunkReader(this);
+                finish();
                 return;
             }
 
@@ -491,7 +492,7 @@ public class BufferExchangeSource
 
                         synchronized (BufferExchangeSource.this) {
                             receivedNewDataPages(sourceChunk.externalExchangeId(), dataPages);
-                            finishChunkReader(ChunkReader.this);
+                            finish();
                             scheduleReadChunks();
                         }
                     }
@@ -506,7 +507,7 @@ public class BufferExchangeSource
                     try {
                         getChunkDataFutureReference.set(null);
                         if (!(t instanceof DataApiException dataApiException)) {
-                            finishChunkReader(ChunkReader.this);
+                            finish();
                             setFailed(t);
                             return;
                         }
@@ -519,7 +520,7 @@ public class BufferExchangeSource
                             }
                             case CHUNK_NOT_FOUND -> {
                                 setFailed(new RuntimeException("chunk " + sourceChunk + " not found; reading from " + sourceBufferNodeId));
-                                finishChunkReader(ChunkReader.this);
+                                finish();
                             }
                             default -> setFailed(t);
                         }
@@ -528,11 +529,21 @@ public class BufferExchangeSource
                         if (otherFailure != t) {
                             t.addSuppressed(otherFailure);
                             setFailed(t);
-                            finishChunkReader(ChunkReader.this);
+                            finish();
                         }
                     }
                 }
             }, directExecutor());
+        }
+
+        private void finish()
+        {
+            if (finished) {
+                // ignore another call; finish() maybe be called more than once in case we catch exception and final fallback is called from `catch` clause
+                return;
+            }
+            finished = true;
+            finishChunkReader(this);
         }
 
         private List<DataPage> decryptDataPages(List<DataPage> dataPages, SecretKey encryptionKey)
