@@ -137,6 +137,31 @@ class TestSinkDataPool
         assertThat(returnedIsBlocked).isDone();
     }
 
+    @Test
+    public void testPollBestTakesBiggest()
+    {
+        SinkDataPool dataPool = newDataPool();
+        dataPool.add(1, utf8Slice("1_1234567890"));
+        dataPool.add(2, utf8Slice("1_123456789012345"));
+        dataPool.add(3, utf8Slice("1_123456789012"));
+
+        Optional<SinkDataPool.PollResult> pollResult = dataPool.pollBest(ImmutableSet.of(1, 2, 3));
+        assertThat(pollResult).isPresent();
+        assertThat(pollResult.get().getPartition()).isEqualTo(2);
+        assertThat(pollResult.get().getData()).containsExactly(utf8Slice("1_123456789012345"));
+
+        dataPool = newDataPool();
+        dataPool.add(1, utf8Slice("1_1234567890"));
+        dataPool.add(2, utf8Slice("1_1234567_1"));
+        dataPool.add(2, utf8Slice("1_1234567_2"));
+        dataPool.add(3, utf8Slice("1_123456789012"));
+
+        pollResult = dataPool.pollBest(ImmutableSet.of(1, 2, 3));
+        assertThat(pollResult).isPresent();
+        assertThat(pollResult.get().getPartition()).isEqualTo(2);
+        assertThat(pollResult.get().getData()).containsExactly(utf8Slice("1_1234567_1"), utf8Slice("1_1234567_2"));
+    }
+
     private static SinkDataPool newDataPool()
     {
         return new SinkDataPool(

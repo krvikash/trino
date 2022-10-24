@@ -119,6 +119,7 @@ public class SinkDataPool
             long queueBytes = dataQueueBytes.get(partition).get();
             if (queueBytes > selectedPartitionBytes) {
                 selectedPartition = partition;
+                selectedPartitionBytes = queueBytes;
             }
         }
         if (selectedPartition == -1) {
