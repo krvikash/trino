@@ -38,7 +38,9 @@ class TestBufferExchangeConfig
                 .setDataIntegrityVerificationEnabled(true)
                 .setSourceHandleTargetChunksCount(64)
                 .setSourceHandleTargetDataSize(DataSize.of(256, MEGABYTE))
-                .setEncryptionEnabled(true));
+                .setEncryptionEnabled(true)
+                .setSinkTargetWrittenPagesCount(3)
+                .setSinkTargetWrittenPagesSize(DataSize.of(8, MEGABYTE)));
     }
 
     @Test
@@ -56,6 +58,8 @@ class TestBufferExchangeConfig
                 .put("exchange.source-handle-target-chunks-count", "128")
                 .put("exchange.source-handle-target-data-size", "1GB")
                 .put("exchange.encryption-enabled", "false")
+                .put("exchange.sink-target-written-pages-count", "5")
+                .put("exchange.sink-target-written-pages-size", "7MB")
                 .buildOrThrow();
 
         BufferExchangeConfig expected = new BufferExchangeConfig()
@@ -68,7 +72,9 @@ class TestBufferExchangeConfig
                 .setDataIntegrityVerificationEnabled(false)
                 .setSourceHandleTargetChunksCount(128)
                 .setSourceHandleTargetDataSize(DataSize.of(1, GIGABYTE))
-                .setEncryptionEnabled(false);
+                .setEncryptionEnabled(false)
+                .setSinkTargetWrittenPagesCount(5)
+                .setSinkTargetWrittenPagesSize(DataSize.of(7, MEGABYTE));
 
         assertFullMapping(properties, expected);
     }

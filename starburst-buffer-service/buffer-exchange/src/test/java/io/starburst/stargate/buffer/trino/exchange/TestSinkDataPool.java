@@ -108,7 +108,9 @@ class TestSinkDataPool
     {
         SinkDataPool dataPool = new SinkDataPool(
                 DataSize.of(100, BYTE),
-                DataSize.of(200, BYTE));
+                DataSize.of(200, BYTE),
+                32,
+                DataSize.of(8, MEGABYTE));
 
         // 0
         assertThat(dataPool.isBlocked()).isDone();
@@ -166,6 +168,8 @@ class TestSinkDataPool
     {
         return new SinkDataPool(
                 DataSize.of(1, MEGABYTE),
-                DataSize.of(4, MEGABYTE));
+                DataSize.of(4, MEGABYTE),
+                32,
+                DataSize.of(8, MEGABYTE));
     }
 }

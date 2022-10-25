@@ -47,6 +47,8 @@ public class BufferWorkerExchangeManager
                 bufferExchangeSinkInstanceHandle,
                 config.getSinkBlockedMemoryLowWaterMark(),
                 config.getSinkBlockedMemoryHighWaterMark(),
+                config.getSinkTargetWrittenPagesCount(),
+                config.getSinkTargetWrittenPagesSize(),
                 executor);
     }
 

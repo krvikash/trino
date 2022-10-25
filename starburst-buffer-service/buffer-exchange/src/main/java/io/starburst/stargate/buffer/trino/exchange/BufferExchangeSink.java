@@ -78,6 +78,8 @@ public class BufferExchangeSink
             BufferExchangeSinkInstanceHandle sinkInstanceHandle,
             DataSize memoryLowWaterMark,
             DataSize memoryHighWaterMark,
+            int targetWrittenPagesCount,
+            DataSize targetWrittenPagesSize,
             ExecutorService executor)
     {
         this.dataApi = requireNonNull(dataApi, "dataApi is null");
@@ -89,7 +91,7 @@ public class BufferExchangeSink
         this.preserveOrderWithinPartition = sinkInstanceHandle.isPreserveOrderWithinPartition();
         this.encryptionKey = sinkInstanceHandle.getEncryptionKey().map(EncryptionKeys::decodeEncryptionKey);
         this.executor = requireNonNull(executor, "executor is null");
-        this.dataPool = new SinkDataPool(memoryLowWaterMark, memoryHighWaterMark);
+        this.dataPool = new SinkDataPool(memoryLowWaterMark, memoryHighWaterMark, targetWrittenPagesCount, targetWrittenPagesSize);
 
         createNewWriters();
     }

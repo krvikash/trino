@@ -29,6 +29,8 @@ public class BufferExchangeConfig
     private int sourceHandleTargetChunksCount = 64;
     private DataSize sourceHandleTargetDataSize = DataSize.of(256, DataSize.Unit.MEGABYTE);
     private boolean encryptionEnabled = true;
+    private int sinkTargetWrittenPagesCount = 3;
+    private DataSize sinkTargetWrittenPagesSize = DataSize.of(8, DataSize.Unit.MEGABYTE);
 
     @NotNull
     public URI getDiscoveryServiceUri()
@@ -159,6 +161,32 @@ public class BufferExchangeConfig
     public BufferExchangeConfig setEncryptionEnabled(boolean encryptionEnabled)
     {
         this.encryptionEnabled = encryptionEnabled;
+        return this;
+    }
+
+    public int getSinkTargetWrittenPagesCount()
+    {
+        return sinkTargetWrittenPagesCount;
+    }
+
+    @Config("exchange.sink-target-written-pages-count")
+    @ConfigDescription("Target number of pages to be sent in single HTTP request from sink to buffer service")
+    public BufferExchangeConfig setSinkTargetWrittenPagesCount(int sinkTargetWrittenPagesCount)
+    {
+        this.sinkTargetWrittenPagesCount = sinkTargetWrittenPagesCount;
+        return this;
+    }
+
+    public DataSize getSinkTargetWrittenPagesSize()
+    {
+        return sinkTargetWrittenPagesSize;
+    }
+
+    @Config("exchange.sink-target-written-pages-size")
+    @ConfigDescription("Target size of data to be sent in single HTTP request from sink to buffer service")
+    public BufferExchangeConfig setSinkTargetWrittenPagesSize(DataSize sinkTargetWrittenPagesSize)
+    {
+        this.sinkTargetWrittenPagesSize = sinkTargetWrittenPagesSize;
         return this;
     }
 }

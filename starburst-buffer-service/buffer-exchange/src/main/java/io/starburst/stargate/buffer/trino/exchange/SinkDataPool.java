@@ -35,11 +35,10 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class SinkDataPool
 {
-    private static final int TARGET_PAGES_COUNT = 3;
-    private static final long TARGET_PAGES_SIZE = DataSize.of(8, DataSize.Unit.MEGABYTE).toBytes();
-
     private final DataSize memoryLowWaterMark;
     private final DataSize memoryHighWaterMark;
+    private final int targetWrittenPagesCount;
+    private final long targetWrittenPagesSize;
 
     @GuardedBy("this")
     private final Map<Integer, Deque<Slice>> dataQueues = new HashMap<>();
@@ -59,10 +58,12 @@ public class SinkDataPool
     @GuardedBy("this")
     private boolean noMoreData;
 
-    public SinkDataPool(DataSize memoryLowWaterMark, DataSize memoryHighWaterMark)
+    public SinkDataPool(DataSize memoryLowWaterMark, DataSize memoryHighWaterMark, int targetWrittenPagesCount, DataSize targetWrittenPagesSize)
     {
         this.memoryLowWaterMark = requireNonNull(memoryLowWaterMark, "memoryLowWaterMark is null");
         this.memoryHighWaterMark = requireNonNull(memoryHighWaterMark, "memoryHighWaterMark is null");
+        this.targetWrittenPagesCount = targetWrittenPagesCount;
+        this.targetWrittenPagesSize = targetWrittenPagesSize.toBytes();
         this.finishedFuture = SettableFuture.create();
     }
 
@@ -140,7 +141,7 @@ public class SinkDataPool
         int polledPagesCount = 0;
         int polledPagesSize = 0;
         ImmutableList.Builder<Slice> polledPages = ImmutableList.builder();
-        while (polledPagesCount < TARGET_PAGES_COUNT && polledPagesSize < TARGET_PAGES_SIZE) {
+        while (polledPagesCount < targetWrittenPagesCount && polledPagesSize < targetWrittenPagesSize) {
             Slice page = queue.pollFirst();
             if (page == null) {
                 break;
