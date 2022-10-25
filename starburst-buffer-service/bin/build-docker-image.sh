@@ -68,6 +68,7 @@ for imageTag in ${imageTags[@]}; do
 done
 
 if [[ "${archTypes}" == "" ]]; then
+    buildArguments="${buildArguments} --tag trino-buffer-service/${projectName}:${projectVersion}"
     docker build "../${projectName}" \
         --build-arg "PROJECT_VERSION=${projectVersion}" \
         -f "../${projectName}/Dockerfile" ${buildArguments}
