@@ -372,7 +372,7 @@ public class BufferExchange
             return;
         }
         this.failure = requireNonNull(failure, "failure is null");
-        // explicitly logging failure here for debugging; if this failure results in exchange being non-operational (should not happen if everythin works as expected)
+        // explicitly logging failure here for debugging; if this failure results in exchange being non-operational (should not happen if everything works as expected)
         // the query may fail with exception from workers, failing to access exchange which would mask the root cause of the failure
         log.warn(failure, "Marking exchange " + externalExchangeId + " as failed");
         for (BufferExchangeSourceHandleSource sourceHandleSource : sourceHandleSources) {

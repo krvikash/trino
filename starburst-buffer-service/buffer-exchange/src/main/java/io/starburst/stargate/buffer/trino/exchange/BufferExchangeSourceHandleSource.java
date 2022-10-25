@@ -127,7 +127,7 @@ public class BufferExchangeSourceHandleSource
     private void completeNextBatchFuture(ExchangeSourceHandleBatch batch)
     {
         CompletableFuture<ExchangeSourceHandleBatch> futureToComplete = nextBatchFuture;
-        nextBatchFuture = null; // null before completing future - may inpact registered listeners
+        nextBatchFuture = null; // null before completing future - may impact registered listeners
         futureToComplete.complete(batch);
     }
 
@@ -136,7 +136,7 @@ public class BufferExchangeSourceHandleSource
     {
         if (nextBatchFuture != null) {
             CompletableFuture<ExchangeSourceHandleBatch> futureToComplete = nextBatchFuture;
-            nextBatchFuture = null; // null before completing future - may inpact registered listeners
+            nextBatchFuture = null; // null before completing future - may impact registered listeners
             futureToComplete.completeExceptionally(failure);
         }
     }

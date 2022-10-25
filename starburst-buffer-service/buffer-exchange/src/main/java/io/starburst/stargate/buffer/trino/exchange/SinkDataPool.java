@@ -132,8 +132,8 @@ public class SinkDataPool
     @GuardedBy("this")
     private PollResult poll(int partition)
     {
-        PollResult currenPoll = currentPolls.get(partition);
-        checkArgument(currenPoll == null, "poll already exists for partition %s", partition);
+        PollResult currentPoll = currentPolls.get(partition);
+        checkArgument(currentPoll == null, "poll already exists for partition %s", partition);
         Deque<Slice> queue = dataQueues.get(partition);
         verify(!queue.isEmpty(), "expected non-empty queue");
 
