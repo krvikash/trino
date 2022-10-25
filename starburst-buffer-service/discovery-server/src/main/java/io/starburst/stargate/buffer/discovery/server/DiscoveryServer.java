@@ -44,7 +44,7 @@ public final class DiscoveryServer
                 new ServerModule());
 
         try {
-            app.strictConfig().initialize();
+            app.initialize();
             log.info("======== SERVER STARTED ========");
         }
         catch (ApplicationConfigurationException e) {
