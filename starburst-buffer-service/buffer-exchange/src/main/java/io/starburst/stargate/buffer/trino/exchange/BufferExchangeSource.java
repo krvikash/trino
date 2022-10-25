@@ -116,11 +116,11 @@ public class BufferExchangeSource
         this.discoveryManager = requireNonNull(discoveryManager, "discoveryManager is null");
 
         this.memoryUsageExceeded = SettableFuture.create();
-        memoryUsageExceeded.set(null); // not exceeded initially
+        this.memoryUsageExceeded.set(null); // not exceeded initially
         this.memoryLowWaterMark = requireNonNull(memoryLowWaterMark, "memoryLowWaterMark is null");
         this.memoryHighWaterMark = requireNonNull(memoryHighWaterMark, "memoryHighWaterMark is null");
         this.parallelism = parallelism;
-        sourceChunksEstimatedSize = new AtomicLong(MoreSizeOf.estimatedSizeOf(sourceChunks, SourceChunk::getRetainedSize));
+        this.sourceChunksEstimatedSize = new AtomicLong(MoreSizeOf.estimatedSizeOf(sourceChunks, SourceChunk::getRetainedSize));
     }
 
     private synchronized void scheduleReadChunks()
