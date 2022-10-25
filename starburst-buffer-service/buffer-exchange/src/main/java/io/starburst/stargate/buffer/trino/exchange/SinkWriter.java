@@ -197,7 +197,6 @@ public class SinkWriter
                     }
                     catch (Throwable otherFailure) {
                         failure.addSuppressed(new RuntimeException("unexpected error in onFailureHandling", otherFailure));
-                        callDrainingCallback = false; // ensure we call failure callback
                     }
                 }
                 if (callDrainingCallback) {
