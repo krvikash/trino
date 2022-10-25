@@ -141,8 +141,6 @@ class ChunkHandlesPoller
                         }
 
                         boolean noMoreChunks = result.nextPagingId().isEmpty();
-                        // todo reintroduce depending on https://github.com/starburstdata/trino-buffer-service/pull/7/files#r981351256
-                        //verify(!noMoreChunks || result.chunks().isEmpty(), "no pagingId returned with non-empty list of chunks");
                         if (!result.chunks().isEmpty() || noMoreChunks) {
                             callback.onChunksDiscovered(result.chunks(), noMoreChunks);
                         }
