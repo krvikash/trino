@@ -43,7 +43,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.IntStream;
@@ -85,7 +84,7 @@ public class BufferExchange
     private final Map<Integer, Deque<ChunkHandle>> discoveredChunkHandles = new HashMap<>();
 
     @GuardedBy("this")
-    private final Set<BufferExchangeSourceHandleSource> sourceHandleSources = ConcurrentHashMap.newKeySet();
+    private final Set<BufferExchangeSourceHandleSource> sourceHandleSources = new HashSet<>();
     @GuardedBy("this")
     private final List<ExchangeSourceHandle> readySourceHandles = new ArrayList<>();
     @GuardedBy("this")
