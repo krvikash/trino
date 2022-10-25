@@ -11,6 +11,7 @@ package io.starburst.stargate.buffer.discovery.server;
 
 import io.airlift.bootstrap.ApplicationConfigurationException;
 import io.airlift.bootstrap.Bootstrap;
+import io.airlift.event.client.EventModule;
 import io.airlift.http.server.HttpServerModule;
 import io.airlift.jaxrs.JaxrsModule;
 import io.airlift.jmx.JmxModule;
@@ -30,6 +31,7 @@ public final class DiscoveryServer
     public static void main(String[] args)
     {
         Bootstrap app = new Bootstrap(
+                new EventModule(),
                 new NodeModule(),
                 new HttpServerModule(),
                 new JsonModule(),
