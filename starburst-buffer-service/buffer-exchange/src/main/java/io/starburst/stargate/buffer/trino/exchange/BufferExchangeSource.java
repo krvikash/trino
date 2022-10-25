@@ -203,16 +203,14 @@ public class BufferExchangeSource
             ExchangeId exchangeId = ExternalExchangeIds.internalExchangeId(externalExchangeId);
             verify(latestSourceOutputSelector != null, "latestSourceOutputSelector should have been set already");
             result.stream()
-                    .filter(page -> {
-                        return switch (latestSourceOutputSelector.getSelection(exchangeId, page.taskId(), page.attemptId())) {
-                            case INCLUDED -> true;
-                            case EXCLUDED -> false;
-                            case UNKNOWN -> {
-                                // assume first observed attempt for given partition is the one; will be revalidated later on next call to setOutputSelector
-                                int selectedAttemptId = speculativeSourceOutputChoices.getOrStoreSelectedAttemptId(externalExchangeId, page.taskId(), page.attemptId());
-                                yield selectedAttemptId == page.attemptId();
-                            }
-                        };
+                    .filter(page -> switch (latestSourceOutputSelector.getSelection(exchangeId, page.taskId(), page.attemptId())) {
+                        case INCLUDED -> true;
+                        case EXCLUDED -> false;
+                        case UNKNOWN -> {
+                            // assume first observed attempt for given partition is the one; will be revalidated later on next call to setOutputSelector
+                            int selectedAttemptId = speculativeSourceOutputChoices.getOrStoreSelectedAttemptId(externalExchangeId, page.taskId(), page.attemptId());
+                            yield selectedAttemptId == page.attemptId();
+                        }
                     }).forEach(page -> {
                         readSlices.offer(page.data());
                         readSlicesHasElements = true;
