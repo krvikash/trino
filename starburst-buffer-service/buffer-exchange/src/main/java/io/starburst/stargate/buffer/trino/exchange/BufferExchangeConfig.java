@@ -29,7 +29,7 @@ public class BufferExchangeConfig
     private int sourceHandleTargetChunksCount = 64;
     private DataSize sourceHandleTargetDataSize = DataSize.of(256, DataSize.Unit.MEGABYTE);
     private boolean encryptionEnabled = true;
-    private int sinkTargetWrittenPagesCount = 3;
+    private int sinkTargetWrittenPagesCount = 32;
     private DataSize sinkTargetWrittenPagesSize = DataSize.of(8, DataSize.Unit.MEGABYTE);
 
     @NotNull

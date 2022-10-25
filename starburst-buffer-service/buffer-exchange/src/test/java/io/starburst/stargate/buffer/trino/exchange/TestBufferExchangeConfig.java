@@ -39,7 +39,7 @@ class TestBufferExchangeConfig
                 .setSourceHandleTargetChunksCount(64)
                 .setSourceHandleTargetDataSize(DataSize.of(256, MEGABYTE))
                 .setEncryptionEnabled(true)
-                .setSinkTargetWrittenPagesCount(3)
+                .setSinkTargetWrittenPagesCount(32)
                 .setSinkTargetWrittenPagesSize(DataSize.of(8, MEGABYTE)));
     }
 

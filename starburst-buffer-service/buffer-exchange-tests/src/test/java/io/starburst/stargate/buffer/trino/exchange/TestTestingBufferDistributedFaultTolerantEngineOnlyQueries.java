@@ -59,6 +59,7 @@ public class TestTestingBufferDistributedFaultTolerantEngineOnlyQueries
 
         ImmutableMap<String, String> exchangeManagerProperties = ImmutableMap.<String, String>builder()
                 .put("exchange.buffer-discovery.uri", discoveryServerUri.toString())
+                .put("exchange.sink-target-written-pages-count", "3") // small requests for better test coverage
                 .put("exchange.source-handle-target-chunks-count", "4") // smaller handles make more sense for test env when we do not have too much data
                 .buildOrThrow();
 
