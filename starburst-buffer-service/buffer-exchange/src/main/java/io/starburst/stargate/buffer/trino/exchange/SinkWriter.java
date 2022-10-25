@@ -93,11 +93,6 @@ public class SinkWriter
         this.finishCallback = requireNonNull(finishCallback, "callback is null");
     }
 
-    public long getBufferNodeId()
-    {
-        return bufferNodeId;
-    }
-
     public Set<Integer> getManagedPartitions()
     {
         return managedPartitions;
