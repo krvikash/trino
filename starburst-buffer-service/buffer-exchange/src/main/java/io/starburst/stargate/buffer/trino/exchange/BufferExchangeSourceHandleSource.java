@@ -45,78 +45,72 @@ public class BufferExchangeSourceHandleSource
     @GuardedBy("this")
     private boolean closed;
 
-    public void addSourceHandles(List<ExchangeSourceHandle> sourceHandles, boolean lastBatch)
+    public synchronized void addSourceHandles(List<ExchangeSourceHandle> sourceHandles, boolean lastBatch)
     {
-        synchronized (this) {
-            if (closed) {
-                // BufferExchangeSourceHandleSource may be closed asynchronously by engine any time
-                return;
-            }
-
-            if (lastBatchReceived) {
-                if (sourceHandles.isEmpty() && lastBatch) {
-                    // extra empty call is ok
-                    verify(nextBatchFuture == null, "batch future should have been completed already");
-                    return;
-                }
-                throw new IllegalStateException("already received last batch");
-            }
-
-            if (sourceHandles.isEmpty() && !lastBatch) {
-                // nothing to do
-                return;
-            }
-
-            if (lastBatch) {
-                lastBatchReceived = true;
-            }
-
-            if (failure != null) {
-                verify(nextBatchFuture == null, "batch future should have been complete with failure");
-                // ignore chunks
-                return;
-            }
-
-            if (nextBatchFuture != null) {
-                verify(nextBatchHandles.isEmpty(), "ready handles should be empty if nextBatchFuture is set");
-                completeNextBatchFuture(new ExchangeSourceHandleBatch(sourceHandles, lastBatch));
-                return;
-            }
-
-            nextBatchHandles.addAll(sourceHandles);
+        if (closed) {
+            // BufferExchangeSourceHandleSource may be closed asynchronously by engine any time
+            return;
         }
+
+        if (lastBatchReceived) {
+            if (sourceHandles.isEmpty() && lastBatch) {
+                // extra empty call is ok
+                verify(nextBatchFuture == null, "batch future should have been completed already");
+                return;
+            }
+            throw new IllegalStateException("already received last batch");
+        }
+
+        if (sourceHandles.isEmpty() && !lastBatch) {
+            // nothing to do
+            return;
+        }
+
+        if (lastBatch) {
+            lastBatchReceived = true;
+        }
+
+        if (failure != null) {
+            verify(nextBatchFuture == null, "batch future should have been complete with failure");
+            // ignore chunks
+            return;
+        }
+
+        if (nextBatchFuture != null) {
+            verify(nextBatchHandles.isEmpty(), "ready handles should be empty if nextBatchFuture is set");
+            completeNextBatchFuture(new ExchangeSourceHandleBatch(sourceHandles, lastBatch));
+            return;
+        }
+
+        nextBatchHandles.addAll(sourceHandles);
     }
 
-    public void markFailed(Throwable failure)
+    public synchronized void markFailed(Throwable failure)
     {
-        synchronized (this) {
-            this.failure = failure;
-            completeNextBatchFutureExceptionally(failure);
-        }
+        this.failure = failure;
+        completeNextBatchFutureExceptionally(failure);
     }
 
     @Override
-    public CompletableFuture<ExchangeSourceHandleBatch> getNextBatch()
+    public synchronized CompletableFuture<ExchangeSourceHandleBatch> getNextBatch()
     {
-        synchronized (this) {
-            checkState(!closed, "already closed");
-            checkState(nextBatchFuture == null, "previous batch future not returned yet");
+        checkState(!closed, "already closed");
+        checkState(nextBatchFuture == null, "previous batch future not returned yet");
 
-            if (failure != null) {
-                return CompletableFuture.failedFuture(failure);
-            }
-
-            if (!nextBatchHandles.isEmpty() || lastBatchReceived) {
-                // we can return completed future immediately
-                ExchangeSourceHandleBatch batch = new ExchangeSourceHandleBatch(nextBatchHandles, lastBatchReceived);
-                nextBatchHandles = new ArrayList<>();
-                return CompletableFuture.completedFuture(batch);
-            }
-
-            // create future to be completed later
-            nextBatchFuture = new CompletableFuture<>();
-            return nextBatchFuture;
+        if (failure != null) {
+            return CompletableFuture.failedFuture(failure);
         }
+
+        if (!nextBatchHandles.isEmpty() || lastBatchReceived) {
+            // we can return completed future immediately
+            ExchangeSourceHandleBatch batch = new ExchangeSourceHandleBatch(nextBatchHandles, lastBatchReceived);
+            nextBatchHandles = new ArrayList<>();
+            return CompletableFuture.completedFuture(batch);
+        }
+
+        // create future to be completed later
+        nextBatchFuture = new CompletableFuture<>();
+        return nextBatchFuture;
     }
 
     @Override
