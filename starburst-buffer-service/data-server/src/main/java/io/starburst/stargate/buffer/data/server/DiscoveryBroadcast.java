@@ -10,6 +10,7 @@
 package io.starburst.stargate.buffer.data.server;
 
 import io.airlift.http.server.HttpServerInfo;
+import io.airlift.log.Logger;
 import io.airlift.node.NodeInfo;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
@@ -36,6 +37,10 @@ import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
 public class DiscoveryBroadcast
 {
+    private static final Logger log = Logger.get(DiscoveryBroadcast.class);
+
+    private static final int BROADCAST_INTERVAL_SECONDS = 5;
+
     private final DiscoveryApi discoverApi;
     private final long bufferNodeId;
     private final URI baseUri;
@@ -70,7 +75,7 @@ public class DiscoveryBroadcast
     public void start()
     {
         checkState(bufferNodeState.compareAndSet(BufferNodeState.STARTING, BufferNodeState.RUNNING), "already started");
-        executor.scheduleWithFixedDelay(this::broadcast, 0, 5, TimeUnit.SECONDS);
+        executor.scheduleWithFixedDelay(this::broadcast, 0, BROADCAST_INTERVAL_SECONDS, TimeUnit.SECONDS);
     }
 
     @PreDestroy
@@ -82,7 +87,12 @@ public class DiscoveryBroadcast
 
     private void broadcast()
     {
-        discoverApi.updateBufferNode(new BufferNodeInfo(bufferNodeId, baseUri, getBufferNodeStats(), bufferNodeState.get()));
+        try {
+            discoverApi.updateBufferNode(new BufferNodeInfo(bufferNodeId, baseUri, getBufferNodeStats(), bufferNodeState.get()));
+        }
+        catch (RuntimeException e) {
+            log.warn("Failed to announce to discovery server. Retry in %s s.", BROADCAST_INTERVAL_SECONDS);
+        }
     }
 
     private Optional<BufferNodeStats> getBufferNodeStats()
