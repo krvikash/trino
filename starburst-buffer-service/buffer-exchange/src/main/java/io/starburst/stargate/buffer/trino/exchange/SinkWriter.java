@@ -153,7 +153,10 @@ public class SinkWriter
                                 callFinishCallback = true;
                                 closed = true;
                             }
-                            // else writer was closed in the meantime (probably due to abort)
+                            else {
+                                // writer was closed in the meantime due to abort
+                                verify(aborted, "writer marked as closed asynchronously but aborted flag not set");
+                            }
                         }
                         else if (!closed) {
                             scheduleWriting();
