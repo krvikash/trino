@@ -91,7 +91,7 @@ public class DiscoveryBroadcast
             discoverApi.updateBufferNode(new BufferNodeInfo(bufferNodeId, baseUri, getBufferNodeStats(), bufferNodeState.get()));
         }
         catch (RuntimeException e) {
-            log.warn("Failed to announce to discovery server. Retry in %s s.", BROADCAST_INTERVAL_SECONDS);
+            log.warn(e, "Failed to announce to discovery server. Retry in %s s.", BROADCAST_INTERVAL_SECONDS);
         }
     }
 
