@@ -30,6 +30,7 @@ import static io.airlift.json.JsonCodec.jsonCodec;
 import static java.util.Objects.requireNonNull;
 import static javax.ws.rs.core.HttpHeaders.CONTENT_TYPE;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
+import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 import static javax.ws.rs.core.Response.Status.OK;
 
 public class HttpDiscoveryClient
@@ -66,6 +67,11 @@ public class HttpDiscoveryClient
                 .build();
 
         StringResponse response = httpClient.execute(request, createStringResponseHandler());
+
+        if (response.getStatusCode() == BAD_REQUEST.getStatusCode()) {
+            throw new InvalidBufferNodeUpdateException(response.getBody());
+        }
+
         if (response.getStatusCode() != OK.getStatusCode()) {
             throw new RuntimeException("Unexpected response: " + response.getStatusCode() + "; " + response.getBody());
         }

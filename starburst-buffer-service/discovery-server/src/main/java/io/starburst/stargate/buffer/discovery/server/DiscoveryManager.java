@@ -16,6 +16,7 @@ import com.google.common.collect.ImmutableSet;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.discovery.client.BufferNodeInfo;
+import io.starburst.stargate.buffer.discovery.client.InvalidBufferNodeUpdateException;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -24,6 +25,7 @@ import javax.inject.Qualifier;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
+import java.net.URI;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
@@ -49,7 +51,8 @@ public class DiscoveryManager
 {
     private static final Logger LOG = Logger.get(DiscoveryManager.class);
 
-    private static final Duration STALE_BUFFER_NODE_INFO_CLEANUP_THRESHOLD = succinctDuration(24, HOURS);
+    @VisibleForTesting
+    static final Duration STALE_BUFFER_NODE_INFO_CLEANUP_THRESHOLD = succinctDuration(24, HOURS);
 
     private final Ticker ticker;
     private final ScheduledExecutorService executor;
@@ -100,12 +103,19 @@ public class DiscoveryManager
     }
 
     public void updateNodeInfos(BufferNodeInfo nodeInfo)
+            throws InvalidBufferNodeUpdateException
     {
         long now = tickerReadMillis();
         BufferNodeInfoHolder holder = nodeInfoHolders.computeIfAbsent(nodeInfo.getNodeId(), ignored -> {
             LOG.info("discovered new node %s", nodeInfo.getNodeId());
             return new BufferNodeInfoHolder(nodeInfo, now);
         });
+
+        URI storedNodeUri = holder.getLastNodeInfo().getUri();
+        if (!storedNodeUri.equals(nodeInfo.getUri())) {
+            throw new InvalidBufferNodeUpdateException("buffer node " + nodeInfo.getNodeId() + " already seen with different uri: " + nodeInfo.getUri() + " vs. " + storedNodeUri);
+        }
+
         holder.updateNodeInfo(nodeInfo, now);
         rebuildNodeInfosCache();
     }

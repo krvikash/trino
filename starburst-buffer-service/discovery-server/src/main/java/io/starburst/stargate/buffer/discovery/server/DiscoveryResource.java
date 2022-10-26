@@ -11,6 +11,7 @@ package io.starburst.stargate.buffer.discovery.server;
 
 import io.starburst.stargate.buffer.discovery.client.BufferNodeInfo;
 import io.starburst.stargate.buffer.discovery.client.BufferNodeInfoResponse;
+import io.starburst.stargate.buffer.discovery.client.InvalidBufferNodeUpdateException;
 
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
@@ -24,6 +25,8 @@ import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
+import static javax.ws.rs.core.MediaType.TEXT_PLAIN;
+import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 
 @Produces(APPLICATION_JSON)
 @Path("/api/v1/buffer/discovery")
@@ -42,7 +45,15 @@ public class DiscoveryResource
     @Consumes(APPLICATION_JSON)
     public Response updateBufferNode(BufferNodeInfo nodeInfo)
     {
-        discoveryManager.updateNodeInfos(nodeInfo);
+        try {
+            discoveryManager.updateNodeInfos(nodeInfo);
+        }
+        catch (InvalidBufferNodeUpdateException e) {
+            return Response.status(BAD_REQUEST)
+                    .type(TEXT_PLAIN)
+                    .entity(e.getMessage())
+                    .build();
+        }
         return Response.ok().build();
     }
 
