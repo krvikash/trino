@@ -22,6 +22,8 @@ public class BufferNodeInfoHolder
     private long lastUpdateTime;
     @GuardedBy("this")
     private BufferNodeInfo lastNodeInfo;
+    @GuardedBy("this")
+    private boolean stale;
 
     public BufferNodeInfoHolder(BufferNodeInfo nodeInfo, long updateTime)
     {
@@ -42,5 +44,16 @@ public class BufferNodeInfoHolder
     {
         this.lastNodeInfo = requireNonNull(nodeInfo, "nodeInfo is null");
         this.lastUpdateTime = updateTime;
+        this.stale = false;
+    }
+
+    public synchronized void markStale()
+    {
+        this.stale = true;
+    }
+
+    public synchronized boolean isStale()
+    {
+        return stale;
     }
 }

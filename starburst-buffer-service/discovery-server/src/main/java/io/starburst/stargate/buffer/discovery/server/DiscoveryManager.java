@@ -41,12 +41,15 @@ import static java.lang.annotation.ElementType.PARAMETER;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
+import static java.util.concurrent.TimeUnit.HOURS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.MINUTES;
 
 public class DiscoveryManager
 {
     private static final Logger LOG = Logger.get(DiscoveryManager.class);
+
+    private static final Duration STALE_BUFFER_NODE_INFO_CLEANUP_THRESHOLD = succinctDuration(24, HOURS);
 
     private final Ticker ticker;
     private final ScheduledExecutorService executor;
@@ -112,6 +115,7 @@ public class DiscoveryManager
         while (true) {
             Set<BufferNodeInfo> oldValue = nodeInfosCache.get();
             ImmutableSet<BufferNodeInfo> newValue = nodeInfoHolders.values().stream()
+                    .filter(holder -> !holder.isStale())
                     .map(BufferNodeInfoHolder::getLastNodeInfo)
                     .collect(toImmutableSet());
 
@@ -131,20 +135,22 @@ public class DiscoveryManager
     {
         Iterator<Map.Entry<Long, BufferNodeInfoHolder>> iterator = nodeInfoHolders.entrySet().iterator();
         long now = tickerReadMillis();
-        long cleanupThreshold = now - bufferNodeDiscoveryStalenessThreshold.toMillis();
-        boolean someRemoved = false;
+        long markStaleThreshold = now - bufferNodeDiscoveryStalenessThreshold.toMillis();
+        long cleanupThreshold = now - STALE_BUFFER_NODE_INFO_CLEANUP_THRESHOLD.toMillis();
         while (iterator.hasNext()) {
             Map.Entry<Long, BufferNodeInfoHolder> entry = iterator.next();
-            long lastUpdateTime = entry.getValue().getLastUpdateTime();
+            BufferNodeInfoHolder infoHolder = entry.getValue();
+            long lastUpdateTime = infoHolder.getLastUpdateTime();
+            if (!infoHolder.isStale() && lastUpdateTime < markStaleThreshold) {
+                LOG.info("marking entry for node %s as stale; no update for %s", entry.getKey(), succinctDuration(now - lastUpdateTime, MILLISECONDS));
+                infoHolder.markStale();
+            }
             if (lastUpdateTime < cleanupThreshold) {
-                LOG.info("forgetting node %s ; no update for %s", entry.getKey(), succinctDuration(now - lastUpdateTime, MILLISECONDS));
+                LOG.info("deleting stale entry for node %s ; no update for %s", entry.getKey(), succinctDuration(now - lastUpdateTime, MILLISECONDS));
                 iterator.remove();
-                someRemoved = true;
             }
         }
-        if (someRemoved) {
-            rebuildNodeInfosCache();
-        }
+        rebuildNodeInfosCache();
     }
 
     @Retention(RUNTIME)
