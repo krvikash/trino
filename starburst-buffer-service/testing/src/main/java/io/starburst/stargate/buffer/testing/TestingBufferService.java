@@ -37,8 +37,8 @@ public class TestingBufferService
         dataServerBuilder.setConfigProperty("discovery-service.uri", discoveryServer.getBaseUri().toString());
 
         ImmutableList.Builder<TestingDataServer> dataServers = ImmutableList.builder();
-        for (int i = 0; i < dataServersCount; ++i) {
-            dataServers.add(dataServerBuilder.build());
+        for (int nodeId = 0; nodeId < dataServersCount; ++nodeId) {
+            dataServers.add(dataServerBuilder.build(nodeId));
         }
         this.dataServers = dataServers.build();
     }

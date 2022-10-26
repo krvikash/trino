@@ -39,12 +39,10 @@ import static java.util.Objects.requireNonNull;
 public class TestingDataServer
         implements Closeable
 {
-    public static final long BUFFER_NODE_ID = 0L;
-
     private final URI baseUri;
     private final Closer closer = Closer.create();
 
-    private TestingDataServer(boolean discoveryBroadcastEnabled, Map<String, String> configProperties)
+    private TestingDataServer(long nodeId, boolean discoveryBroadcastEnabled, Map<String, String> configProperties)
     {
         Map<String, String> finalConfigProperties = new HashMap<>(configProperties);
         if (!discoveryBroadcastEnabled) {
@@ -61,7 +59,7 @@ public class TestingDataServer
                 new LogJmxModule(),
                 new TraceTokenModule(),
                 new EventModule(),
-                new MainModule(BUFFER_NODE_ID, discoveryBroadcastEnabled, Ticker.systemTicker()));
+                new MainModule(nodeId, discoveryBroadcastEnabled, Ticker.systemTicker()));
 
         Injector injector = app
                 .quiet()
@@ -109,7 +107,12 @@ public class TestingDataServer
 
         public TestingDataServer build()
         {
-            return new TestingDataServer(discoveryBroadcastEnabled, configProperties);
+            return build(0);
+        }
+
+        public TestingDataServer build(int nodeId)
+        {
+            return new TestingDataServer(nodeId, discoveryBroadcastEnabled, configProperties);
         }
     }
 

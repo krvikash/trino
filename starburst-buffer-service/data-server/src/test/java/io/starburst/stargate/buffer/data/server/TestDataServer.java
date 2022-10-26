@@ -37,7 +37,6 @@ import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.airlift.testing.Closeables.closeAll;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
-import static io.starburst.stargate.buffer.data.server.testing.TestingDataServer.BUFFER_NODE_ID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -49,6 +48,7 @@ public class TestDataServer
 {
     private static final String EXCHANGE_0 = "exchange-0";
     private static final String EXCHANGE_1 = "exchange-1";
+    private static final long BUFFER_NODE_ID = 0;
 
     private TestingDataServer dataServer;
     private HttpClient httpClient;

@@ -31,7 +31,6 @@ import static io.airlift.units.DataSize.Unit.KILOBYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.starburst.stargate.buffer.data.execution.ChunkManagerConfig.DEFAULT_EXCHANGE_STALENESS_THRESHOLD;
 import static io.starburst.stargate.buffer.data.execution.ChunkTestHelper.verifyChunkData;
-import static io.starburst.stargate.buffer.data.server.testing.TestingDataServer.BUFFER_NODE_ID;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -42,6 +41,7 @@ public class TestChunkManager
 {
     private static final String EXCHANGE_0 = "exchange-0";
     private static final String EXCHANGE_1 = "exchange-1";
+    private static final long BUFFER_NODE_ID = 0;
 
     private final MemoryAllocator memoryAllocator = new MemoryAllocator(new MemoryAllocatorConfig(), new DataServerStats());
     private final TestingTicker ticker = new TestingTicker();
