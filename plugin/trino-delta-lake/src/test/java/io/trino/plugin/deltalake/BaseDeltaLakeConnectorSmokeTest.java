@@ -26,6 +26,8 @@ import io.trino.plugin.deltalake.transactionlog.AddFileEntry;
 import io.trino.plugin.hive.TestingHivePlugin;
 import io.trino.plugin.hive.containers.HiveHadoop;
 import io.trino.plugin.hive.containers.HiveMinioDataLake;
+import io.trino.plugin.hive.metastore.HiveMetastore;
+import io.trino.plugin.hive.metastore.thrift.BridgingHiveMetastore;
 import io.trino.spi.QueryId;
 import io.trino.sql.planner.OptimizerConfig.JoinDistributionType;
 import io.trino.testing.BaseConnectorSmokeTest;
@@ -46,7 +48,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.MoreCollectors.onlyElement;
@@ -55,6 +60,7 @@ import static io.trino.SystemSessionProperties.ENABLE_DYNAMIC_FILTERING;
 import static io.trino.SystemSessionProperties.JOIN_DISTRIBUTION_TYPE;
 import static io.trino.plugin.deltalake.DeltaLakeQueryRunner.DELTA_CATALOG;
 import static io.trino.plugin.deltalake.transactionlog.TransactionLogUtil.TRANSACTION_LOG_DIRECTORY;
+import static io.trino.plugin.hive.TestingThriftHiveMetastoreBuilder.testingThriftHiveMetastoreBuilder;
 import static io.trino.testing.TestingAccessControlManager.TestingPrivilegeType.DELETE_TABLE;
 import static io.trino.testing.TestingAccessControlManager.TestingPrivilegeType.INSERT_TABLE;
 import static io.trino.testing.TestingAccessControlManager.privilege;
@@ -111,6 +117,7 @@ public abstract class BaseDeltaLakeConnectorSmokeTest
     protected final String bucketName = "test-delta-lake-integration-smoke-test-" + randomTableSuffix();
 
     protected HiveMinioDataLake hiveMinioDataLake;
+    private HiveMetastore metastore;
 
     protected abstract HiveMinioDataLake createHiveMinioDataLake()
             throws Exception;
@@ -118,7 +125,7 @@ public abstract class BaseDeltaLakeConnectorSmokeTest
     protected abstract QueryRunner createDeltaLakeQueryRunner(Map<String, String> connectorProperties)
             throws Exception;
 
-    protected abstract void createTableFromResources(String table, String resourcePath, QueryRunner queryRunner);
+    protected abstract void registerTableFromResources(String table, String resourcePath, QueryRunner queryRunner);
 
     protected abstract String getLocationForTable(String bucketName, String tableName);
 
@@ -131,12 +138,17 @@ public abstract class BaseDeltaLakeConnectorSmokeTest
             throws Exception
     {
         this.hiveMinioDataLake = closeAfterClass(createHiveMinioDataLake());
+        this.metastore = new BridgingHiveMetastore(
+                testingThriftHiveMetastoreBuilder()
+                        .metastoreClient(hiveMinioDataLake.getHiveHadoop().getHiveMetastoreEndpoint())
+                        .build());
 
         QueryRunner queryRunner = createDeltaLakeQueryRunner(
                 ImmutableMap.<String, String>builder()
                         .put("delta.metadata.cache-ttl", TEST_METADATA_CACHE_TTL_SECONDS + "s")
                         .put("delta.metadata.live-files.cache-ttl", TEST_METADATA_CACHE_TTL_SECONDS + "s")
                         .put("hive.metastore-cache-ttl", TEST_METADATA_CACHE_TTL_SECONDS + "s")
+                        .put("delta.register-table-procedure.enabled", "true")
                         .buildOrThrow());
 
         queryRunner.execute(format("CREATE SCHEMA %s WITH (location = '%s')", SCHEMA, getLocationForTable(bucketName, SCHEMA)));
@@ -164,7 +176,7 @@ public abstract class BaseDeltaLakeConnectorSmokeTest
          */
         NON_TPCH_TABLES.forEach(table -> {
             String resourcePath = "databricks/" + table;
-            createTableFromResources(table, resourcePath, queryRunner);
+            registerTableFromResources(table, resourcePath, queryRunner);
         });
 
         return queryRunner;
@@ -397,7 +409,7 @@ public abstract class BaseDeltaLakeConnectorSmokeTest
 
     private void testDropTable(String tableName, String resourcePath)
     {
-        createTableFromResources(tableName, resourcePath, getQueryRunner());
+        registerTableFromResources(tableName, resourcePath, getQueryRunner());
         assertTrue(getQueryRunner().tableExists(getSession(), tableName));
         assertUpdate("DROP TABLE " + tableName);
         assertFalse(getQueryRunner().tableExists(getSession(), tableName));
@@ -408,11 +420,11 @@ public abstract class BaseDeltaLakeConnectorSmokeTest
     public void testDropAndRecreateTable()
     {
         String tableName = "testDropAndRecreate_" + randomTableSuffix();
-        assertUpdate(format("CREATE TABLE %s (dummy int) WITH (location = '%s')", tableName, getLocationForTable(bucketName, "nation")));
+        assertUpdate(format("CALL system.register_table('%s', '%s', '%s')", SCHEMA, tableName, getLocationForTable(bucketName, "nation")));
         assertQuery("SELECT * FROM " + tableName, "SELECT * FROM nation");
 
         assertUpdate("DROP TABLE " + tableName);
-        assertUpdate(format("CREATE TABLE %s (dummy int) WITH (location = '%s')", tableName, getLocationForTable(bucketName, "customer")));
+        assertUpdate(format("CALL system.register_table('%s', '%s', '%s')", SCHEMA, tableName, getLocationForTable(bucketName, "customer")));
         assertQuery("SELECT * FROM " + tableName, "SELECT * FROM customer");
         assertUpdate("DROP TABLE " + tableName);
     }
@@ -420,7 +432,7 @@ public abstract class BaseDeltaLakeConnectorSmokeTest
     @Test
     public void testDropColumnNotSupported()
     {
-        createTableFromResources("testdropcolumn", "io/trino/plugin/deltalake/testing/resources/databricks/nation", getQueryRunner());
+        registerTableFromResources("testdropcolumn", "io/trino/plugin/deltalake/testing/resources/databricks/nation", getQueryRunner());
         assertQueryFails("ALTER TABLE testdropcolumn DROP COLUMN comment", ".*This connector does not support dropping columns.*");
     }
 
@@ -1313,7 +1325,7 @@ public abstract class BaseDeltaLakeConnectorSmokeTest
                                 "   partitioned_by = ARRAY[%s]\n" +
                                 ")",
                         getSession().getCatalog().orElseThrow(),
-                        getSession().getSchema().orElseThrow(),
+                        SCHEMA,
                         tableName,
                         newLocation,
                         secondPartitioned ? "'a_number'" : ""));
@@ -1397,7 +1409,7 @@ public abstract class BaseDeltaLakeConnectorSmokeTest
     public void testStatsSplitPruningBasedOnSepCreatedCheckpointOnTopOfCheckpointWithJustStructStats()
     {
         String tableName = "test_sep_checkpoint_stats_pruning_struct_stats_" + randomTableSuffix();
-        createTableFromResources(tableName, "databricks/pruning/parquet_struct_statistics", getQueryRunner());
+        registerTableFromResources(tableName, "databricks/pruning/parquet_struct_statistics", getQueryRunner());
         String transactionLogDirectory = format("%s/_delta_log", tableName);
 
         // there should should be one checkpoint already (created by DB)
@@ -1664,7 +1676,7 @@ public abstract class BaseDeltaLakeConnectorSmokeTest
         Set<?> activeFiles = computeActual("SELECT \"$path\" FROM " + tableName).getOnlyColumnAsSet();
         String location = (String) computeScalar(format("SELECT DISTINCT regexp_replace(\"$path\", '/[^/]*$', '') FROM %s", tableName));
         assertUpdate("DROP TABLE " + tableName);
-        assertUpdate(format("CREATE TABLE %s(ignore integer) WITH (location = '%s')", tableName, location));
+        assertUpdate(format("CALL system.register_table('%s', '%s', '%s')", SCHEMA, tableName, location));
         // sanity check
         assertThat(computeActual("SELECT \"$path\" FROM " + tableName).getOnlyColumnAsSet()).as("active files after table recreated")
                 .isEqualTo(activeFiles);
@@ -1751,6 +1763,104 @@ public abstract class BaseDeltaLakeConnectorSmokeTest
         assertThat(getAllDataFilesFromTableDirectory(tableName)).isEqualTo(union(initialFiles, updatedFiles));
     }
 
+    @Test
+    public void testRegisterTable()
+            throws Exception
+    {
+        String tableName = "test_register_table_" + randomTableSuffix();
+        QueryRunner deltaLakeQueryRunner = createDeltaLakeQueryRunner(
+                ImmutableMap.<String, String>builder()
+                        .put("delta.register-table-procedure.enabled", "true")
+                        .buildOrThrow());
+
+        assertUpdate("CREATE TABLE " + tableName + " (a INT, b VARCHAR, c BOOLEAN)");
+        deltaLakeQueryRunner.execute("INSERT INTO " + tableName + " VALUES(1, 'INDIA', true)");
+
+        String tableLocation = getTableLocation(tableName);
+        String showCreateTableOld = (String) computeScalar("SHOW CREATE TABLE " + tableName);
+
+        // Drop table from metastore and use the table content to register a table
+        dropTableFromMetastore(tableName);
+        // Verify that dropTableFromMetastore actually works
+        assertFalse(deltaLakeQueryRunner.tableExists(deltaLakeQueryRunner.getDefaultSession(), tableName));
+
+        assertUpdate("CALL system.register_table (CURRENT_SCHEMA, '" + tableName + "', '" + tableLocation + "')");
+        assertUpdate("INSERT INTO " + tableName + " VALUES(2, 'POLAND', false)", 1);
+        String showCreateTableNew = (String) computeScalar("SHOW CREATE TABLE " + tableName);
+
+        assertThat(showCreateTableOld).isEqualTo(showCreateTableNew);
+        assertQuery("SELECT * FROM " + tableName, "VALUES (1, 'INDIA', true), (2, 'POLAND', false)");
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    @Test
+    public void testRegisterTableWithComments()
+    {
+        String tableName = "test_register_table_with_comments_" + randomTableSuffix();
+
+        assertUpdate("CREATE TABLE " + tableName + " (a INT, b VARCHAR, c BOOLEAN)");
+        assertUpdate("COMMENT ON TABLE " + tableName + " IS 'my-table-comment'");
+        assertUpdate("COMMENT ON COLUMN " + tableName + ".a IS 'a-comment'");
+
+        String tableLocation = getTableLocation(tableName);
+        // Drop table from metastore and use the table content to register a table
+        dropTableFromMetastore(tableName);
+
+        assertUpdate("CALL system.register_table (CURRENT_SCHEMA, '" + tableName + "', '" + tableLocation + "')");
+
+        assertThat(getTableComment(tableName)).isEqualTo("my-table-comment");
+        assertThat(getColumnComment(tableName, "a")).isEqualTo("a-comment");
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    @Test
+    public void testRegisterTableWithNonExistingTableLocation()
+    {
+        String tableName = "test_register_table_with_non_existing_table_location_" + randomTableSuffix();
+        String tableLocation = bucketUrl() + "/test/delta-lake/hive/warehouse/orders_5-581fad8517934af6be1857a903559d44";
+        assertQueryFails("CALL system.register_table (CURRENT_SCHEMA, '" + tableName + "', '" + tableLocation + "')",
+                ".*No transaction log found in location (.*).*");
+    }
+
+    @Test
+    public void testRegisterTableWithDifferentTableName()
+    {
+        String tableName = "test_register_table_with_different_table_name_old_" + randomTableSuffix();
+
+        assertUpdate("CREATE TABLE " + tableName + " (a INT, b VARCHAR, c BOOLEAN)");
+        assertUpdate("INSERT INTO " + tableName + " VALUES(1, 'INDIA', true)", 1);
+
+        String tableLocation = getTableLocation(tableName);
+        // Drop table from metastore and use the table content to register a table
+        dropTableFromMetastore(tableName);
+
+        String tableNameNew = tableName + "_new";
+        assertUpdate("CALL system.register_table (CURRENT_SCHEMA, '" + tableNameNew + "', '" + tableLocation + "')");
+        assertUpdate("INSERT INTO " + tableNameNew + " VALUES(2, 'POLAND', false)", 1);
+
+        assertQuery("SELECT * FROM " + tableNameNew, "VALUES (1, 'INDIA', true), (2, 'POLAND', false)");
+        assertUpdate("DROP TABLE " + tableNameNew);
+    }
+
+    @Test
+    public void testRegisterEmptyTable()
+    {
+        String tableName = "test_register_table_with_no_data_" + randomTableSuffix();
+
+        assertQuerySucceeds("CREATE TABLE " + tableName + "(a INT, b VARCHAR, c BOOLEAN)");
+
+        String tableLocation = getTableLocation(tableName);
+        String tableNameNew = tableName + "_new";
+
+        assertQuerySucceeds(format("CALL system.register_table('%s', '%s', '%s')", SCHEMA, tableNameNew, tableLocation));
+
+        assertThat(query("SELECT * FROM " + tableName))
+                .matches("SELECT * FROM " + tableNameNew);
+        dropTableFromMetastore(tableNameNew);
+        assertUpdate(format("DROP TABLE %s", tableName));
+    }
+
     private Set<String> getActiveFiles(String tableName)
     {
         return getActiveFiles(tableName, getQueryRunner().getDefaultSession());
@@ -1776,5 +1886,41 @@ public abstract class BaseDeltaLakeConnectorSmokeTest
                 .setSystemProperty(JOIN_DISTRIBUTION_TYPE, JoinDistributionType.BROADCAST.name())
                 .setSystemProperty(ENABLE_DYNAMIC_FILTERING, Boolean.toString(dynamicFilteringEnabled))
                 .build();
+    }
+
+    private String getTableLocation(String tableName)
+    {
+        Pattern locationPattern = Pattern.compile(".*location = '(.*?)'.*", Pattern.DOTALL);
+        Matcher m = locationPattern.matcher((String) computeActual("SHOW CREATE TABLE " + tableName).getOnlyValue());
+        if (m.find()) {
+            String location = m.group(1);
+            verify(!m.find(), "Unexpected second match");
+            return location;
+        }
+        throw new IllegalStateException("Location not found in SHOW CREATE TABLE result");
+    }
+
+    private String getTableComment(String tableName)
+    {
+        return (String) computeScalar(format(
+                "SELECT comment FROM system.metadata.table_comments WHERE catalog_name = '%s' AND schema_name = '%s' AND table_name = '%s'",
+                getSession().getCatalog().orElseThrow(),
+                SCHEMA,
+                tableName));
+    }
+
+    private String getColumnComment(String tableName, String columnName)
+    {
+        return (String) computeScalar(format(
+                "SELECT comment FROM information_schema.columns WHERE table_schema = '%s' AND table_name = '%s' AND column_name = '%s'",
+                SCHEMA,
+                tableName,
+                columnName));
+    }
+
+    private void dropTableFromMetastore(String tableName)
+    {
+        metastore.dropTable(SCHEMA, tableName, false);
+        assertThat(metastore.getTable(bucketUrl(), tableName)).isEmpty();
     }
 }
