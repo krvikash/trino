@@ -104,7 +104,7 @@ public class Partition
         }
     }
 
-    public Chunk.ChunkDataRepresentation getChunkData(long chunkId)
+    public ChunkDataHolder getChunkData(long chunkId)
     {
         Chunk chunk = closedChunks.get(chunkId);
         if (chunk == null) {

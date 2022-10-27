@@ -26,18 +26,18 @@ public final class ChunkTestHelper
 {
     private ChunkTestHelper() {}
 
-    public static void verifyChunkData(Chunk.ChunkDataRepresentation chunkDataRepresentation, DataPage... values)
+    public static void verifyChunkData(ChunkDataHolder chunkData, DataPage... values)
     {
-        List<Slice> chunkSlices = chunkDataRepresentation.chunkSlices();
-        int numDataPages = chunkDataRepresentation.numDataPages();
-        long checksum = chunkDataRepresentation.checksum();
+        List<Slice> chunkSlices = chunkData.chunkSlices();
+        long checksum = chunkData.checksum();
+        int numDataPages = chunkData.numDataPages();
 
         SliceOutput sliceOutput = Slices.allocate(chunkSlices.stream().mapToInt(Slice::length).sum()).getOutput();
         chunkSlices.forEach(sliceOutput::writeBytes);
 
         List<DataPage> dataPages = ImmutableList.copyOf(readSerializedPages(sliceOutput.getUnderlyingSlice().getInput()));
-        assertEquals(numDataPages, dataPages.size());
         assertEquals(checksum, calculateChecksum(dataPages));
+        assertEquals(numDataPages, dataPages.size());
 
         assertThat(dataPages).containsExactlyInAnyOrder(values);
     }

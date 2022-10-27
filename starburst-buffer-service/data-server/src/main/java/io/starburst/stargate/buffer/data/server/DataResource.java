@@ -17,7 +17,7 @@ import io.airlift.slice.SliceInput;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
-import io.starburst.stargate.buffer.data.execution.Chunk;
+import io.starburst.stargate.buffer.data.execution.ChunkDataHolder;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.SliceLease;
@@ -122,11 +122,11 @@ public class DataResource
             @PathParam("bufferNodeId") long bufferNodeId)
     {
         try {
-            Chunk.ChunkDataRepresentation chunkDataRepresentation = chunkManager.getChunkData(exchangeId, partitionId, chunkId, bufferNodeId);
-            if (chunkDataRepresentation.chunkSlices().isEmpty()) {
+            ChunkDataHolder chunkData = chunkManager.getChunkData(exchangeId, partitionId, chunkId, bufferNodeId);
+            if (chunkData.chunkSlices().isEmpty()) {
                 return Response.noContent().build();
             }
-            return Response.ok(new GenericEntity<>(chunkDataRepresentation, new TypeToken<Chunk.ChunkDataRepresentation>() {}.getType())).build();
+            return Response.ok(new GenericEntity<>(chunkData, new TypeToken<ChunkDataHolder>() {}.getType())).build();
         }
         catch (Exception e) {
             return errorResponse(e);

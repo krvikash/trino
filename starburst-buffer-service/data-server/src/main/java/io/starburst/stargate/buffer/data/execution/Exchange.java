@@ -98,7 +98,7 @@ public class Exchange
         partition.addDataPages(taskId, attemptId, dataPagesId, sliceLeases);
     }
 
-    public Chunk.ChunkDataRepresentation getChunkData(int partitionId, long chunkId)
+    public ChunkDataHolder getChunkData(int partitionId, long chunkId)
     {
         Partition partition = partitions.get(partitionId);
         if (partition == null) {

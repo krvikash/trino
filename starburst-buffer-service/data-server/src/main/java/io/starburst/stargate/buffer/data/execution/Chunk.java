@@ -76,10 +76,10 @@ public class Chunk
         return chunkData.dataSizeInBytes();
     }
 
-    public ChunkDataRepresentation getChunkData()
+    public ChunkDataHolder getChunkData()
     {
         checkState(closed, "getChunkData() called on an open chunk");
-        return chunkData.toRepresentation();
+        return chunkData.get();
     }
 
     public ChunkHandle getHandle()
@@ -182,18 +182,18 @@ public class Chunk
             return dataSizeInBytes;
         }
 
-        public ChunkDataRepresentation toRepresentation()
+        public ChunkDataHolder get()
         {
             List<Slice> chunkSlices = completedSliceOutputs.stream().map(SliceOutput::slice).collect(toImmutableList());
             if (!calculateDataPagesChecksum) {
-                return new ChunkDataRepresentation(chunkSlices, numDataPages, NO_CHECKSUM);
+                return new ChunkDataHolder(chunkSlices, NO_CHECKSUM, numDataPages);
             }
 
             long checksum = hash.hash();
             if (checksum == NO_CHECKSUM) {
                 checksum++;
             }
-            return new ChunkDataRepresentation(chunkSlices, numDataPages, checksum);
+            return new ChunkDataHolder(chunkSlices, checksum, numDataPages);
         }
 
         public void close()
@@ -238,12 +238,5 @@ public class Chunk
                 offset += bytesToWrite;
             }
         }
-    }
-
-    public record ChunkDataRepresentation(
-            List<Slice> chunkSlices,
-            int numDataPages,
-            long checksum)
-    {
     }
 }
