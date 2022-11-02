@@ -14,12 +14,12 @@ import io.airlift.slice.Slice;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
+import io.starburst.stargate.buffer.data.memory.SliceLease;
 
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -72,7 +72,7 @@ public class Partition
         this.chunkIdGenerator = requireNonNull(chunkIdGenerator, "chunkIdGenerator is null");
     }
 
-    public synchronized void addDataPages(int taskId, int attemptId, long dataPagesId, List<Slice> pages)
+    public synchronized void addDataPages(int taskId, int attemptId, long dataPagesId, Iterable<SliceLease> sliceLeases)
     {
         TaskAttemptId taskAttemptId = new TaskAttemptId(taskId, attemptId);
         long lastDataPagesId = lastDataPagesIds.getOrDefault(taskAttemptId, -1L);
@@ -90,13 +90,15 @@ public class Partition
             openChunk = createNewOpenChunk();
         }
 
-        for (Slice page : pages) {
+        for (SliceLease sliceLease : sliceLeases) {
+            Slice page = sliceLease.getSlice();
             if (!openChunk.hasEnoughSpace(page)) {
                 // the open chunk doesn't have enough space available, close the chunk and create a new one
                 closeChunk(openChunk);
                 openChunk = createNewOpenChunk();
             }
             openChunk.write(taskId, attemptId, page);
+            sliceLease.release();
         }
     }
 

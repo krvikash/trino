@@ -9,6 +9,7 @@
  */
 package io.starburst.stargate.buffer.data.server;
 
+import com.google.common.collect.AbstractIterator;
 import com.google.common.reflect.TypeToken;
 import io.airlift.slice.InputStreamSliceInput;
 import io.airlift.slice.Slice;
@@ -19,6 +20,7 @@ import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.execution.Chunk;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
+import io.starburst.stargate.buffer.data.memory.SliceLease;
 
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
@@ -35,8 +37,6 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.OptionalLong;
 
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.ERROR_CODE_HEADER;
@@ -90,26 +90,15 @@ public class DataResource
     {
         requireNonNull(inputStream, "inputStream is null");
 
-        List<Slice> pages = new ArrayList<>();
+        if (dropUploadedPages) {
+            return Response.ok().build();
+        }
+
         try {
-            SliceInput sliceInput = new InputStreamSliceInput(inputStream);
-            while (sliceInput.isReadable()) {
-                int length = sliceInput.readInt();
-                Slice slice = memoryAllocator.allocate(length)
-                        .orElseThrow(() -> new IllegalStateException("Failed to create a new open chunk due to memory allocation failure"));
-                sliceInput.readBytes(slice);
-                pages.add(slice);
-            }
-            if (dropUploadedPages) {
-                return Response.ok().build();
-            }
-            chunkManager.addDataPages(exchangeId, partitionId, taskId, attemptId, dataPagesId, pages);
+            chunkManager.addDataPages(exchangeId, partitionId, taskId, attemptId, dataPagesId, () -> new SliceLeasesIterator(memoryAllocator, inputStream));
         }
         catch (Exception e) {
             return errorResponse(e);
-        }
-        finally {
-            pages.forEach(memoryAllocator::release);
         }
         return Response.ok().build();
     }
@@ -184,5 +173,32 @@ public class DataResource
                 .header(ERROR_CODE_HEADER, ErrorCode.INTERNAL_ERROR)
                 .entity(e.getMessage())
                 .build();
+    }
+
+    private static class SliceLeasesIterator
+            extends AbstractIterator<SliceLease>
+    {
+        private final MemoryAllocator memoryAllocator;
+        private final SliceInput sliceInput;
+
+        public SliceLeasesIterator(MemoryAllocator memoryAllocator, InputStream inputStream)
+        {
+            this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
+            this.sliceInput = new InputStreamSliceInput(inputStream);
+        }
+
+        @Override
+        protected SliceLease computeNext()
+        {
+            if (!sliceInput.isReadable()) {
+                return endOfData();
+            }
+
+            int length = sliceInput.readInt();
+            Slice page = memoryAllocator.allocate(length)
+                    .orElseThrow(() -> new IllegalStateException("Unable to allocate %d bytes".formatted(length)));
+            sliceInput.readBytes(page);
+            return new SliceLease(memoryAllocator, page);
+        }
     }
 }

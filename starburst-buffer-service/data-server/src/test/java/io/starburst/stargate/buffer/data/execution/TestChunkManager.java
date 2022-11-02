@@ -10,6 +10,8 @@
 package io.starburst.stargate.buffer.data.execution;
 
 import com.google.common.collect.ImmutableList;
+import io.airlift.slice.Slice;
+import io.airlift.slice.SliceOutput;
 import io.airlift.testing.TestingTicker;
 import io.airlift.units.DataSize;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
@@ -18,11 +20,13 @@ import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocatorConfig;
+import io.starburst.stargate.buffer.data.memory.SliceLease;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
 import io.starburst.stargate.buffer.data.server.DataServerConfig;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.OptionalLong;
 
 import static io.airlift.slice.Slices.utf8Slice;
@@ -54,12 +58,12 @@ public class TestChunkManager
         chunkManager.registerExchange(EXCHANGE_0);
         chunkManager.registerExchange(EXCHANGE_1);
 
-        chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("000_0")));
-        chunkManager.addDataPages(EXCHANGE_0, 0, 1, 0, 1L, ImmutableList.of(utf8Slice("001_0")));
-        chunkManager.addDataPages(EXCHANGE_0, 1, 0, 0, 2L, ImmutableList.of(utf8Slice("010_0")));
-        chunkManager.addDataPages(EXCHANGE_0, 1, 1, 0, 3L, ImmutableList.of(utf8Slice("011_0")));
-        chunkManager.addDataPages(EXCHANGE_0, 1, 0, 1, 4L, ImmutableList.of(utf8Slice("010_0"), utf8Slice("010_1")));
-        chunkManager.addDataPages(EXCHANGE_1, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("100_0")));
+        chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, getSliceLeases(ImmutableList.of("000_0")));
+        chunkManager.addDataPages(EXCHANGE_0, 0, 1, 0, 1L, getSliceLeases(ImmutableList.of("001_0")));
+        chunkManager.addDataPages(EXCHANGE_0, 1, 0, 0, 2L, getSliceLeases(ImmutableList.of("010_0")));
+        chunkManager.addDataPages(EXCHANGE_0, 1, 1, 0, 3L, getSliceLeases(ImmutableList.of("011_0")));
+        chunkManager.addDataPages(EXCHANGE_0, 1, 0, 1, 4L, getSliceLeases(ImmutableList.of("010_0", "010_1")));
+        chunkManager.addDataPages(EXCHANGE_1, 0, 0, 0, 0L, getSliceLeases(ImmutableList.of("100_0")));
 
         ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 10);
         ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 1, 1L, 20);
@@ -119,11 +123,11 @@ public class TestChunkManager
         chunkManager.registerExchange(EXCHANGE_0);
         chunkManager.registerExchange(EXCHANGE_1);
 
-        chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("000_0")));
-        chunkManager.addDataPages(EXCHANGE_0, 1, 0, 0, 1L, ImmutableList.of(utf8Slice("010_0")));
-        chunkManager.addDataPages(EXCHANGE_0, 1, 1, 0, 2L, ImmutableList.of(utf8Slice("011_0")));
-        chunkManager.addDataPages(EXCHANGE_0, 1, 0, 1, 3L, ImmutableList.of(utf8Slice("010_0"), utf8Slice("010_1")));
-        chunkManager.addDataPages(EXCHANGE_1, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("100_0")));
+        chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, getSliceLeases(ImmutableList.of("000_0")));
+        chunkManager.addDataPages(EXCHANGE_0, 1, 0, 0, 1L, getSliceLeases(ImmutableList.of("010_0")));
+        chunkManager.addDataPages(EXCHANGE_0, 1, 1, 0, 2L, getSliceLeases(ImmutableList.of("011_0")));
+        chunkManager.addDataPages(EXCHANGE_0, 1, 0, 1, 3L, getSliceLeases(ImmutableList.of("010_0", "010_1")));
+        chunkManager.addDataPages(EXCHANGE_1, 0, 0, 0, 0L, getSliceLeases(ImmutableList.of("100_0")));
 
         ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 5);
         ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 1, 1L, 10);
@@ -211,14 +215,14 @@ public class TestChunkManager
     {
         ChunkManager chunkManager = createChunkManager(DataSize.of(30, BYTE), DataSize.of(10, BYTE));
 
-        chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("chunk")));
-        chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 1L, ImmutableList.of(utf8Slice("manager")));
-        chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 1L, ImmutableList.of(utf8Slice("manager")));
-        chunkManager.addDataPages(EXCHANGE_0, 1, 0, 0, 2L, ImmutableList.of(utf8Slice("data"), utf8Slice("page")));
-        assertThatThrownBy(() -> chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("chunk"))))
+        chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, getSliceLeases(ImmutableList.of("chunk")));
+        chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 1L, getSliceLeases(ImmutableList.of("manager")));
+        chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 1L, getSliceLeases(ImmutableList.of("manager")));
+        chunkManager.addDataPages(EXCHANGE_0, 1, 0, 0, 2L, getSliceLeases(ImmutableList.of("data", "page")));
+        assertThatThrownBy(() -> chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, getSliceLeases(ImmutableList.of("chunk"))))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("dataPagesId should not decrease for the same writer: taskId 0, attemptId 0, dataPagesId 0, lastDataPagesId 1");
-        chunkManager.addDataPages(EXCHANGE_0, 1, 1, 0, 0L, ImmutableList.of(utf8Slice("deduplication")));
+        chunkManager.addDataPages(EXCHANGE_0, 1, 1, 0, 0L, getSliceLeases(ImmutableList.of("deduplication")));
         chunkManager.finishExchange(EXCHANGE_0);
 
         ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 12);
@@ -260,5 +264,18 @@ public class TestChunkManager
         ChunkManagerConfig chunkManagerConfig = new ChunkManagerConfig().setChunkMaxSize(chunkMaxSize).setChunkSliceSize(chunkSliceSize);
         DataServerConfig dataServerConfig = new DataServerConfig().setIncludeChecksumInDataResponse(true);
         return new ChunkManager(new BufferNodeId(BUFFER_NODE_ID), chunkManagerConfig, dataServerConfig, memoryAllocator, ticker, new DataServerStats());
+    }
+
+    public List<SliceLease> getSliceLeases(List<String> strs)
+    {
+        ImmutableList.Builder<SliceLease> sliceLeases = ImmutableList.builder();
+        for (String str : strs) {
+            int length = str.length();
+            Slice slice = memoryAllocator.allocate(length).orElseThrow(() -> new IllegalStateException("Failed to allocate %d bytes".formatted(length)));
+            SliceOutput sliceOutput = slice.getOutput();
+            sliceOutput.writeBytes(utf8Slice(str));
+            sliceLeases.add(new SliceLease(memoryAllocator, slice));
+        }
+        return sliceLeases.build();
     }
 }

@@ -10,17 +10,16 @@
 package io.starburst.stargate.buffer.data.execution;
 
 import com.google.common.collect.ImmutableList;
-import io.airlift.slice.Slice;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
+import io.starburst.stargate.buffer.data.memory.SliceLease;
 
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
@@ -77,7 +76,7 @@ public class Exchange
         this.lastUpdateTime = currentTime;
     }
 
-    public void addDataPages(int partitionId, int taskId, int attemptId, long dataPagesId, List<Slice> pages)
+    public void addDataPages(int partitionId, int taskId, int attemptId, long dataPagesId, Iterable<SliceLease> sliceLeases)
     {
         Partition partition;
         synchronized (this) {
@@ -95,7 +94,7 @@ public class Exchange
                     chunkIdGenerator));
         }
 
-        partition.addDataPages(taskId, attemptId, dataPagesId, pages);
+        partition.addDataPages(taskId, attemptId, dataPagesId, sliceLeases);
     }
 
     public Chunk.ChunkDataRepresentation getChunkData(int partitionId, long chunkId)

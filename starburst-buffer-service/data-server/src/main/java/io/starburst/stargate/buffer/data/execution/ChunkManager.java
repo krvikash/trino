@@ -13,12 +13,12 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Ticker;
 import com.google.common.io.Closer;
 import io.airlift.log.Logger;
-import io.airlift.slice.Slice;
 import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
+import io.starburst.stargate.buffer.data.memory.SliceLease;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
 import io.starburst.stargate.buffer.data.server.DataServerConfig;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
@@ -33,7 +33,6 @@ import java.io.IOException;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.OptionalLong;
 import java.util.concurrent.ConcurrentHashMap;
@@ -111,10 +110,10 @@ public class ChunkManager
         }
     }
 
-    public void addDataPages(String exchangeId, int partitionId, int taskId, int attemptId, long dataPagesId, List<Slice> pages)
+    public void addDataPages(String exchangeId, int partitionId, int taskId, int attemptId, long dataPagesId, Iterable<SliceLease> sliceLeases)
     {
         registerExchange(exchangeId);
-        getExchangeAndHeartbeat(exchangeId).addDataPages(partitionId, taskId, attemptId, dataPagesId, pages);
+        getExchangeAndHeartbeat(exchangeId).addDataPages(partitionId, taskId, attemptId, dataPagesId, sliceLeases);
     }
 
     public Chunk.ChunkDataRepresentation getChunkData(String exchangeId, int partitionId, long chunkId, long bufferNodeId)
