@@ -80,7 +80,7 @@ public class DataResource
     @POST
     @Path("{exchangeId}/addDataPages/{partitionId}/{taskId}/{attemptId}/{dataPagesId}")
     @Consumes(MediaType.APPLICATION_OCTET_STREAM)
-    public Response addDataPage(
+    public Response addDataPages(
             @PathParam("exchangeId") String exchangeId,
             @PathParam("partitionId") int partitionId,
             @PathParam("taskId") int taskId,
