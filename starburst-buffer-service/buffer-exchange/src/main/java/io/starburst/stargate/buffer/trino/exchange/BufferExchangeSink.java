@@ -76,6 +76,8 @@ public class BufferExchangeSink
     private final AtomicBoolean finishing = new AtomicBoolean();
     private final ExecutorService executor;
     private final AtomicReference<CompletableFuture<Void>> blockedFutureReference = new AtomicReference<>(CompletableFuture.completedFuture(null));
+    @GuardedBy("this")
+    private CompletableFuture<Void> finishFuture;
 
     private final SinkDataPool dataPool;
     private final DataPagesIdGenerator dataPagesIdGenerator = new DataPagesIdGenerator();
@@ -271,6 +273,14 @@ public class BufferExchangeSink
     {
         this.failure.compareAndSet(null, failure);
         blockedFutureReference.get().complete(null);
+        CompletableFuture<Void> currentFinishFuture;
+        synchronized (this) {
+            currentFinishFuture = finishFuture;
+        }
+        if (currentFinishFuture != null) {
+            // complete outside synchronized section
+            currentFinishFuture.completeExceptionally(failure);
+        }
     }
 
     @Override
@@ -385,8 +395,8 @@ public class BufferExchangeSink
     public synchronized CompletableFuture<Void> finish()
     {
         Set<SinkWriter> activeWriters;
-        CompletableFuture<Void> finishFuture;
         synchronized (this) {
+            checkState(finishFuture == null, "finish called more than once");
             finishFuture = new CompletableFuture<>();
             dataPool.noMoreData();
             MoreFutures.addSuccessCallback(dataPool.whenFinished(), () -> {
