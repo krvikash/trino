@@ -21,13 +21,10 @@ import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.client.HttpDataClient;
 import io.starburst.stargate.buffer.data.server.testing.TestingDataServer;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
-import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.TestMethodOrder;
 
 import java.io.IOException;
 import java.util.List;
@@ -42,8 +39,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@TestMethodOrder(OrderAnnotation.class)
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestInstance(TestInstance.Lifecycle.PER_METHOD)
 public class TestDataServer
 {
     private static final String EXCHANGE_0 = "exchange-0";
@@ -54,7 +50,7 @@ public class TestDataServer
     private HttpClient httpClient;
     private HttpDataClient dataClient;
 
-    @BeforeAll
+    @BeforeEach
     public void setup()
     {
         dataServer = TestingDataServer.builder()
@@ -64,7 +60,7 @@ public class TestDataServer
         dataClient = new HttpDataClient(dataServer.getBaseUri(), httpClient, true);
     }
 
-    @AfterAll
+    @AfterEach
     public void tearDown()
             throws IOException
     {
@@ -72,7 +68,6 @@ public class TestDataServer
     }
 
     @Test
-    @Order(1)
     public void testHappyPath()
     {
         Slice largePage1 = utf8Slice("1".repeat((int) DataSize.of(10, MEGABYTE).toBytes()));
@@ -131,7 +126,6 @@ public class TestDataServer
     }
 
     @Test
-    @Order(2)
     public void testExceptions()
     {
         addDataPage(EXCHANGE_0, 0, 0, 0, 0L, utf8Slice("error"));
