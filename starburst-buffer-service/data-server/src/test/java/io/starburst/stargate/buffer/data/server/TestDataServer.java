@@ -114,16 +114,16 @@ public class TestDataServer
         assertThat(chunkList1.chunks()).containsExactlyInAnyOrder(chunkHandle2, chunkHandle4);
         assertTrue(chunkList1.nextPagingId().isEmpty());
 
-        assertThat(getChunkData(EXCHANGE_0, chunkHandle0)).containsExactlyInAnyOrder(
+        assertThat(getChunkData(EXCHANGE_0, chunkHandle0)).containsExactly(
                 new DataPage(0, 0, utf8Slice("trino")),
                 new DataPage(1, 0, utf8Slice("buffer")));
-        assertThat(getChunkData(EXCHANGE_0, chunkHandle1)).containsExactlyInAnyOrder(
+        assertThat(getChunkData(EXCHANGE_0, chunkHandle1)).containsExactly(
                 new DataPage(0, 1, utf8Slice("service")));
-        assertThat(getChunkData(EXCHANGE_1, chunkHandle2)).containsExactlyInAnyOrder(
+        assertThat(getChunkData(EXCHANGE_1, chunkHandle2)).containsExactly(
                 new DataPage(0, 0, utf8Slice("tardigrade")));
-        assertThat(getChunkData(EXCHANGE_1, chunkHandle3)).containsExactlyInAnyOrder(
+        assertThat(getChunkData(EXCHANGE_1, chunkHandle3)).containsExactly(
                 new DataPage(2, 0, largePage1));
-        assertThat(getChunkData(EXCHANGE_1, chunkHandle4)).containsExactlyInAnyOrder(
+        assertThat(getChunkData(EXCHANGE_1, chunkHandle4)).containsExactly(
                 new DataPage(2, 0, largePage2));
 
         removeExchange(EXCHANGE_0);
