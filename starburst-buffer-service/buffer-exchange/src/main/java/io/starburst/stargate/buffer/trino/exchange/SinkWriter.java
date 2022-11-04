@@ -9,7 +9,9 @@
  */
 package io.starburst.stargate.buffer.trino.exchange;
 
+import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ListMultimap;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -112,14 +114,17 @@ public class SinkWriter
         List<Slice> dataPages = pollResult.getData();
         int partition = pollResult.getPartition();
 
+        ListMultimap<Integer, Slice> dataPagesByPartition = ImmutableListMultimap.<Integer, Slice>builder()
+                .putAll(partition, dataPages)
+                .build();
+
         currentRequestFuture = dataApi.addDataPages(
                 bufferNodeId,
                 externalExchangeId,
-                partition,
                 taskPartitionId,
                 taskAttemptId,
                 dataPagesIdGenerator.nextId(),
-                dataPages);
+                dataPagesByPartition);
         Futures.addCallback(currentRequestFuture, new FutureCallback<>() {
             @Override
             public void onSuccess(Void result)

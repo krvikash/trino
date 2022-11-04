@@ -10,6 +10,8 @@
 package io.starburst.stargate.buffer.data.client;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ListMultimap;
+import com.google.common.collect.Multimap;
 import com.google.common.io.LittleEndianDataInputStream;
 import com.google.common.net.HttpHeaders;
 import com.google.common.net.MediaType;
@@ -36,7 +38,9 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.net.URI;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.OptionalLong;
 import java.util.function.Supplier;
 
@@ -56,6 +60,7 @@ import static io.airlift.http.client.Request.Builder.preparePost;
 import static io.airlift.http.client.ResponseHandlerUtils.propagate;
 import static io.airlift.http.client.StringResponseHandler.createStringResponseHandler;
 import static io.airlift.json.JsonCodec.jsonCodec;
+import static io.airlift.slice.SizeOf.SIZE_OF_INT;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.INTERNAL_ERROR;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
@@ -164,14 +169,14 @@ public class HttpDataClient
     }
 
     @Override
-    public ListenableFuture<Void> addDataPages(String exchangeId, int partitionId, int taskId, int attemptId, long dataPagesId, List<Slice> dataPages)
+    public ListenableFuture<Void> addDataPages(String exchangeId, int taskId, int attemptId, long dataPagesId, ListMultimap<Integer, Slice> dataPages)
     {
         requireNonNull(exchangeId, "exchangeId is null");
         requireNonNull(dataPages, "dataPage is null");
 
         Request request = preparePost()
                 .setUri(UriBuilder.fromUri(baseUri)
-                        .path("%s/addDataPages/%d/%d/%d/%d".formatted(exchangeId, partitionId, taskId, attemptId, dataPagesId))
+                        .path("%s/addDataPages/%d/%d/%d".formatted(exchangeId, taskId, attemptId, dataPagesId))
                         .build())
                 .setBodyGenerator(new PagesBodyGenerator(dataPages))
                 .build();
@@ -213,11 +218,11 @@ public class HttpDataClient
     public static class PagesBodyGenerator
             implements BodyGenerator
     {
-        private final List<Slice> pages;
+        private final Multimap<Integer, Slice> pagesByPartition;
 
-        public PagesBodyGenerator(List<Slice> pages)
+        public PagesBodyGenerator(Multimap<Integer, Slice> pagesByPartition)
         {
-            this.pages = requireNonNull(pages, "pages is null");
+            this.pagesByPartition = requireNonNull(pagesByPartition, "pages is null");
         }
 
         @Override
@@ -225,11 +230,28 @@ public class HttpDataClient
                 throws Exception
         {
             SliceOutput sliceOutput = new OutputStreamSliceOutput(output);
+            for (Map.Entry<Integer, Collection<Slice>> entry : pagesByPartition.asMap().entrySet()) {
+                Integer partitionId = entry.getKey();
+                Collection<Slice> pages = entry.getValue();
+                write(sliceOutput, partitionId, pages);
+            }
+            sliceOutput.flush();
+        }
+
+        public void write(SliceOutput sliceOutput, int partitionId, Collection<Slice> pages)
+                throws Exception
+        {
+            int totalLength = 0;
+            for (Slice page : pages) {
+                totalLength += SIZE_OF_INT;
+                totalLength += page.length();
+            }
+            sliceOutput.writeInt(partitionId);
+            sliceOutput.writeInt(totalLength);
             for (Slice page : pages) {
                 sliceOutput.writeInt(page.length());
                 sliceOutput.writeBytes(page);
             }
-            sliceOutput.flush();
         }
     }
 

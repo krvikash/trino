@@ -9,6 +9,7 @@
  */
 package io.starburst.stargate.buffer.trino.exchange;
 
+import com.google.common.collect.ListMultimap;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.slice.Slice;
@@ -89,10 +90,10 @@ public class DataApiFacade
         }
     }
 
-    public ListenableFuture<Void> addDataPages(long bufferNodeId, String exchangeId, int partitionId, int taskId, int attemptId, long dataPageId, List<Slice> dataPages)
+    public ListenableFuture<Void> addDataPages(long bufferNodeId, String exchangeId, int taskId, int attemptId, long dataPagesId, ListMultimap<Integer, Slice> dataPagesByPartition)
     {
         try {
-            return getDataApi(bufferNodeId).addDataPages(exchangeId, partitionId, taskId, attemptId, dataPageId, dataPages);
+            return getDataApi(bufferNodeId).addDataPages(exchangeId, taskId, attemptId, dataPagesId, dataPagesByPartition);
         }
         catch (Throwable e) {
             // wrap exception in the future

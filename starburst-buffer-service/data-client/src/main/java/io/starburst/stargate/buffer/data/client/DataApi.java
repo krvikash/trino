@@ -9,6 +9,7 @@
  */
 package io.starburst.stargate.buffer.data.client;
 
+import com.google.common.collect.ListMultimap;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.slice.Slice;
 
@@ -50,10 +51,11 @@ public interface DataApi
     ListenableFuture<Void> removeExchange(String exchangeId);
 
     /**
-     * Adds data page for given (exchange, partition)
+     * Adds data pages for given (exchange). Single request can add pages to a number of partitions.
      *
      * It is expected that single writer of this method as denoted by (taskId, attemptId) pair is single threaded
      * and only sends new data page upon receiving proper response that previous page was consumed by buffer node.
+     * A concurrent requests are allowed if set of partitions written to does not overlap.
      *
      * If response is not received it is responsibility of the writer to retry a request passing same dataPagesId.
      * The dataPagesId will be used by buffer node for deduplication purpose in case when previous request was actually registered on
@@ -62,15 +64,14 @@ public interface DataApi
      * The dataPagesId is expected to be strictly increasing for subsequent data pages sent by single writer.
      *
      * @param exchangeId exchange id
-     * @param partitionId partition id
      * @param taskId originating task id
      * @param attemptId originating task attempt id
      * @param dataPagesId client provided it for data pages batch for deduplication purposes
-     * @param dataPages data to be recorded in an open chunk for given exchange/partition
+     * @param dataPagesByPartition data to be recorded in an open chunk for given exchange; pages are grouped by partitionId
      *
      * In case of failure returned future will wrap {@link DataApiException}
      */
-    ListenableFuture<Void> addDataPages(String exchangeId, int partitionId, int taskId, int attemptId, long dataPagesId, List<Slice> dataPages);
+    ListenableFuture<Void> addDataPages(String exchangeId, int taskId, int attemptId, long dataPagesId, ListMultimap<Integer, Slice> dataPagesByPartition);
 
     /**
      * Mark exchange as finished. It means that no more data will be recorded for given exchange.

@@ -124,10 +124,10 @@ class MockDataNode
     }
 
     @Override
-    public synchronized ListenableFuture<Void> addDataPages(String exchangeId, int partitionId, int taskId, int attemptId, long dataPageId, List<Slice> dataPages)
+    public synchronized ListenableFuture<Void> addDataPages(String exchangeId, int taskId, int attemptId, long dataPageId, ListMultimap<Integer, Slice> dataPagesByPartition)
     {
         throwIfNodeGone();
-        return getOrCreateExchangeData(exchangeId).addDataPages(partitionId, taskId, attemptId, dataPageId, dataPages);
+        return getOrCreateExchangeData(exchangeId).addDataPages(taskId, attemptId, dataPageId, dataPagesByPartition);
     }
 
     @Override
@@ -294,7 +294,7 @@ class MockDataNode
         }
 
         @GuardedBy("MockDataNode.this")
-        public ListenableFuture<Void> addDataPages(int partitionId, int taskId, int attemptId, long dataPageId, List<Slice> dataPages)
+        public ListenableFuture<Void> addDataPages(int taskId, int attemptId, long dataPageId, ListMultimap<Integer, Slice> dataPagesByPartition)
         {
             if (finished) {
                 stats.increment(REJECTED_EXCHANGE_FINISHED_ADD_DATA_PAGES_REQUEST_COUNT);
@@ -306,14 +306,18 @@ class MockDataNode
             }
 
             // todo check for duplicates using dataPageId
-            for (Slice dataPage : dataPages) {
-                pendingDataPages.put(partitionId, new DataPage(taskId, attemptId, dataPage));
-                if (pendingDataPages.get(partitionId).size() >= MockBufferService.PAGES_PER_CHUNK) {
-                    ChunkKey chunkKey = new ChunkKey(partitionId, nextChunkId, nodeId);
-                    ClosedChunkData chunkData = new ClosedChunkData(ImmutableList.copyOf(pendingDataPages.get(partitionId)));
-                    nextChunkId++;
-                    pendingDataPages.removeAll(partitionId);
-                    closedChunks.put(chunkKey, chunkData);
+            for (Map.Entry<Integer, Collection<Slice>> entry : dataPagesByPartition.asMap().entrySet()) {
+                int partitionId = entry.getKey();
+                Collection<Slice> dataPages = entry.getValue();
+                for (Slice dataPage : dataPages) {
+                    pendingDataPages.put(partitionId, new DataPage(taskId, attemptId, dataPage));
+                    if (pendingDataPages.get(partitionId).size() >= MockBufferService.PAGES_PER_CHUNK) {
+                        ChunkKey chunkKey = new ChunkKey(partitionId, nextChunkId, nodeId);
+                        ClosedChunkData chunkData = new ClosedChunkData(ImmutableList.copyOf(pendingDataPages.get(partitionId)));
+                        nextChunkId++;
+                        pendingDataPages.removeAll(partitionId);
+                        closedChunks.put(chunkKey, chunkData);
+                    }
                 }
             }
             stats.increment(SUCCESSFUL_ADD_DATA_PAGES_REQUEST_COUNT);

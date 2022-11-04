@@ -9,7 +9,8 @@
  */
 package io.starburst.stargate.buffer.data.server;
 
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableListMultimap;
+import com.google.common.collect.ListMultimap;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.HttpClientConfig;
 import io.airlift.http.client.jetty.JettyHttpClient;
@@ -126,6 +127,64 @@ public class TestDataServer
     }
 
     @Test
+    public void testAddPagesMultiplePartitions()
+    {
+        Slice largePage1 = utf8Slice("1".repeat((int) DataSize.of(10, MEGABYTE).toBytes()));
+        Slice largePage2 = utf8Slice("2".repeat((int) DataSize.of(10, MEGABYTE).toBytes()));
+
+        registerExchange(EXCHANGE_0);
+
+        ImmutableListMultimap.Builder<Integer, Slice> dataPages = ImmutableListMultimap.<Integer, Slice>builder();
+        dataPages.put(0, utf8Slice("a"));
+        dataPages.put(0, utf8Slice("b"));
+        dataPages.put(0, utf8Slice("c"));
+        dataPages.put(0, largePage1);
+        dataPages.put(0, utf8Slice("d"));
+        dataPages.put(0, largePage2);
+        dataPages.put(0, utf8Slice("e"));
+        dataPages.put(1, utf8Slice("v"));
+        dataPages.put(1, utf8Slice("x"));
+        dataPages.put(1, largePage1);
+        dataPages.put(1, utf8Slice("y"));
+        dataPages.put(1, largePage2);
+        dataPages.put(1, utf8Slice("z"));
+
+        addDataPages(EXCHANGE_0, 0, 0, 0, dataPages.build());
+
+        // Note: this is not a strict contract that we will get chunks for partition 0 before chunks for partition 1, but
+        // it is an implication of use of ImmutableListMultimap above which returns keys in order in which they were added to the map.
+        ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 4 + largePage1.length()); // a, b, c, largePage1, d
+        ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 0, 1L, 1 + largePage2.length()); // largePage2, e
+        ChunkHandle chunkHandle2 = new ChunkHandle(BUFFER_NODE_ID, 1, 2L, 3 + largePage1.length()); // v, x, largePage1, y
+        ChunkHandle chunkHandle3 = new ChunkHandle(BUFFER_NODE_ID, 1, 3L, 1 + largePage2.length()); // largePage2, z
+
+        finishExchange(EXCHANGE_0);
+
+        ChunkList chunkList0 = listClosedChunks(EXCHANGE_0, OptionalLong.empty());
+        assertThat(chunkList0.chunks()).containsExactlyInAnyOrder(chunkHandle0, chunkHandle1, chunkHandle2, chunkHandle3);
+        assertTrue(chunkList0.nextPagingId().isEmpty());
+        assertThat(getChunkData(EXCHANGE_0, chunkHandle0)).containsExactly(
+                new DataPage(0, 0, utf8Slice("a")),
+                new DataPage(0, 0, utf8Slice("b")),
+                new DataPage(0, 0, utf8Slice("c")),
+                new DataPage(0, 0, largePage1),
+                new DataPage(0, 0, utf8Slice("d")));
+        assertThat(getChunkData(EXCHANGE_0, chunkHandle1)).containsExactly(
+                new DataPage(0, 0, largePage2),
+                new DataPage(0, 0, utf8Slice("e")));
+        assertThat(getChunkData(EXCHANGE_0, chunkHandle2)).containsExactly(
+                new DataPage(0, 0, utf8Slice("v")),
+                new DataPage(0, 0, utf8Slice("x")),
+                new DataPage(0, 0, largePage1),
+                new DataPage(0, 0, utf8Slice("y")));
+        assertThat(getChunkData(EXCHANGE_0, chunkHandle3)).containsExactly(
+                new DataPage(0, 0, largePage2),
+                new DataPage(0, 0, utf8Slice("z")));
+
+        removeExchange(EXCHANGE_0);
+    }
+
+    @Test
     public void testExceptions()
     {
         addDataPage(EXCHANGE_0, 0, 0, 0, 0L, utf8Slice("error"));
@@ -147,7 +206,12 @@ public class TestDataServer
 
     private void addDataPage(String exchangeId, int partitionId, int taskId, int attemptId, long dataPagesId, Slice data)
     {
-        getFutureValue(dataClient.addDataPages(exchangeId, partitionId, taskId, attemptId, dataPagesId, ImmutableList.of(data)));
+        getFutureValue(dataClient.addDataPages(exchangeId, taskId, attemptId, dataPagesId, ImmutableListMultimap.of(partitionId, data)));
+    }
+
+    private void addDataPages(String exchangeId, int taskId, int attemptId, long dataPagesId, ListMultimap<Integer, Slice> dataPagesByPartition)
+    {
+        getFutureValue(dataClient.addDataPages(exchangeId, taskId, attemptId, dataPagesId, dataPagesByPartition));
     }
 
     private void finishExchange(String exchangeId)

@@ -37,8 +37,11 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
 import java.io.InputStream;
+import java.util.Optional;
 import java.util.OptionalLong;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.ERROR_CODE_HEADER;
 import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_CHUNK_DATA;
 import static java.util.Objects.requireNonNull;
@@ -78,11 +81,10 @@ public class DataResource
     }
 
     @POST
-    @Path("{exchangeId}/addDataPages/{partitionId}/{taskId}/{attemptId}/{dataPagesId}")
+    @Path("{exchangeId}/addDataPages/{taskId}/{attemptId}/{dataPagesId}")
     @Consumes(MediaType.APPLICATION_OCTET_STREAM)
     public Response addDataPages(
             @PathParam("exchangeId") String exchangeId,
-            @PathParam("partitionId") int partitionId,
             @PathParam("taskId") int taskId,
             @PathParam("attemptId") int attemptId,
             @PathParam("dataPagesId") long dataPagesId,
@@ -95,7 +97,14 @@ public class DataResource
         }
 
         try {
-            chunkManager.addDataPages(exchangeId, partitionId, taskId, attemptId, dataPagesId, new SliceLeasesIterator(memoryAllocator, inputStream));
+            SliceInput input = new InputStreamSliceInput(inputStream);
+            while (true) {
+                Optional<SliceLeasesIterator> pagesIterator = getNextPartitionPages(input);
+                if (pagesIterator.isEmpty()) {
+                    break;
+                }
+                chunkManager.addDataPages(exchangeId, pagesIterator.get().getPartitionId(), taskId, attemptId, dataPagesId, pagesIterator.get());
+            }
         }
         catch (Exception e) {
             return errorResponse(e);
@@ -175,30 +184,59 @@ public class DataResource
                 .build();
     }
 
+    private Optional<SliceLeasesIterator> getNextPartitionPages(SliceInput sliceInput)
+    {
+        if (!sliceInput.isReadable()) {
+            return Optional.empty();
+        }
+
+        int partitionId = sliceInput.readInt();
+        int length = sliceInput.readInt();
+        checkArgument(length > 0, "length should be greater than 0; got %s", length);
+        // todo check if length <= HTTP content length
+        return Optional.of(new SliceLeasesIterator(partitionId, memoryAllocator, sliceInput, length));
+    }
+
     private static class SliceLeasesIterator
             extends AbstractIterator<SliceLease>
     {
+        private final int partitionId;
         private final MemoryAllocator memoryAllocator;
         private final SliceInput sliceInput;
+        private int remainingBytes;
 
-        public SliceLeasesIterator(MemoryAllocator memoryAllocator, InputStream inputStream)
+        public SliceLeasesIterator(int partitionId, MemoryAllocator memoryAllocator, SliceInput sliceInput, int length)
         {
+            this.partitionId = partitionId;
             this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
-            this.sliceInput = new InputStreamSliceInput(inputStream);
+            this.sliceInput = sliceInput;
+            this.remainingBytes = length;
         }
 
         @Override
         protected SliceLease computeNext()
         {
-            if (!sliceInput.isReadable()) {
+            if (remainingBytes == 0 || !sliceInput.isReadable()) {
+                checkArgument(sliceInput.isReadable() || remainingBytes == 0, "no more data in input stream but remaining bytes counter > 0 (%s)", remainingBytes);
                 return endOfData();
             }
 
+            checkState(remainingBytes >= 4, "expected at least 4 bytes remaining; got %s", remainingBytes);
             int length = sliceInput.readInt();
+            remainingBytes -= 4;
+
+            checkArgument(length >= 0, "length should be greater than 0; got %s", length);
+            checkArgument(remainingBytes >= length, "page length is %s but have only %s bytes remaining", length, remainingBytes);
             Slice page = memoryAllocator.allocate(length)
                     .orElseThrow(() -> new IllegalStateException("Unable to allocate %d bytes".formatted(length)));
             sliceInput.readBytes(page);
+            remainingBytes -= length;
             return new SliceLease(memoryAllocator, page);
+        }
+
+        public int getPartitionId()
+        {
+            return partitionId;
         }
     }
 }
