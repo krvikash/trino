@@ -11,6 +11,7 @@ package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.collect.ImmutableMap;
 import io.airlift.units.DataSize;
+import io.airlift.units.Duration;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
@@ -24,6 +25,7 @@ import static io.airlift.units.DataSize.Unit.GIGABYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.starburst.stargate.buffer.trino.exchange.PartitionNodeMappingMode.PINNING;
 import static io.starburst.stargate.buffer.trino.exchange.PartitionNodeMappingMode.RANDOM;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 class TestBufferExchangeConfig
 {
@@ -43,7 +45,12 @@ class TestBufferExchangeConfig
                 .setEncryptionEnabled(true)
                 .setSinkTargetWrittenPagesCount(32)
                 .setSinkTargetWrittenPagesSize(DataSize.of(8, MEGABYTE))
-                .setPartitionNodeMappingMode(RANDOM));
+                .setPartitionNodeMappingMode(RANDOM)
+                .setDataClientMaxRetries(5)
+                .setDataClientRetryBackoffInitial(Duration.succinctDuration(1.0, SECONDS))
+                .setDataClientRetryBackoffMax(Duration.succinctDuration(10.0, SECONDS))
+                .setDataClientRetryBackoffFactor(2.0)
+                .setDataClientRetryBackoffJitter(0.5));
     }
 
     @Test
@@ -64,6 +71,11 @@ class TestBufferExchangeConfig
                 .put("exchange.sink-target-written-pages-count", "5")
                 .put("exchange.sink-target-written-pages-size", "7MB")
                 .put("exchange.partition-node-mapping-mode", "PINNING")
+                .put("exchange.buffer-data.max-retries", "6")
+                .put("exchange.buffer-data.retry-backoff-initial", "3s")
+                .put("exchange.buffer-data.retry-backoff-max", "20s")
+                .put("exchange.buffer-data.retry-backoff-factor", "4.0")
+                .put("exchange.buffer-data.retry-backoff-jitter", "0.25")
                 .buildOrThrow();
 
         BufferExchangeConfig expected = new BufferExchangeConfig()
@@ -79,7 +91,12 @@ class TestBufferExchangeConfig
                 .setEncryptionEnabled(false)
                 .setSinkTargetWrittenPagesCount(5)
                 .setSinkTargetWrittenPagesSize(DataSize.of(7, MEGABYTE))
-                .setPartitionNodeMappingMode(PINNING);
+                .setPartitionNodeMappingMode(PINNING)
+                .setDataClientMaxRetries(6)
+                .setDataClientRetryBackoffInitial(Duration.succinctDuration(3.0, SECONDS))
+                .setDataClientRetryBackoffMax(Duration.succinctDuration(20.0, SECONDS))
+                .setDataClientRetryBackoffFactor(4.0)
+                .setDataClientRetryBackoffJitter(0.25);
 
         assertFullMapping(properties, expected);
     }
