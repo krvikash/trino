@@ -20,6 +20,7 @@ import io.starburst.stargate.buffer.data.memory.SliceLease;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
@@ -76,7 +77,7 @@ public class Exchange
         this.lastUpdateTime = currentTime;
     }
 
-    public void addDataPages(int partitionId, int taskId, int attemptId, long dataPagesId, Iterable<SliceLease> sliceLeases)
+    public void addDataPages(int partitionId, int taskId, int attemptId, long dataPagesId, Iterator<SliceLease> sliceLeases)
     {
         Partition partition;
         synchronized (this) {

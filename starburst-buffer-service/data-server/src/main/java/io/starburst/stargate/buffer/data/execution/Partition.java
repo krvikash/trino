@@ -20,6 +20,7 @@ import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -72,7 +73,7 @@ public class Partition
         this.chunkIdGenerator = requireNonNull(chunkIdGenerator, "chunkIdGenerator is null");
     }
 
-    public synchronized void addDataPages(int taskId, int attemptId, long dataPagesId, Iterable<SliceLease> sliceLeases)
+    public synchronized void addDataPages(int taskId, int attemptId, long dataPagesId, Iterator<SliceLease> sliceLeases)
     {
         TaskAttemptId taskAttemptId = new TaskAttemptId(taskId, attemptId);
         long lastDataPagesId = lastDataPagesIds.getOrDefault(taskAttemptId, -1L);
@@ -90,7 +91,8 @@ public class Partition
             openChunk = createNewOpenChunk();
         }
 
-        for (SliceLease sliceLease : sliceLeases) {
+        while (sliceLeases.hasNext()) {
+            SliceLease sliceLease = sliceLeases.next();
             Slice page = sliceLease.getSlice();
             if (!openChunk.hasEnoughSpace(page)) {
                 // the open chunk doesn't have enough space available, close the chunk and create a new one

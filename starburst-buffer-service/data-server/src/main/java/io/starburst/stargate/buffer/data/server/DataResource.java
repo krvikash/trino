@@ -95,7 +95,7 @@ public class DataResource
         }
 
         try {
-            chunkManager.addDataPages(exchangeId, partitionId, taskId, attemptId, dataPagesId, () -> new SliceLeasesIterator(memoryAllocator, inputStream));
+            chunkManager.addDataPages(exchangeId, partitionId, taskId, attemptId, dataPagesId, new SliceLeasesIterator(memoryAllocator, inputStream));
         }
         catch (Exception e) {
             return errorResponse(e);

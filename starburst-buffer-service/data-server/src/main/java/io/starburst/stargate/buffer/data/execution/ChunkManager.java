@@ -110,7 +110,7 @@ public class ChunkManager
         }
     }
 
-    public void addDataPages(String exchangeId, int partitionId, int taskId, int attemptId, long dataPagesId, Iterable<SliceLease> sliceLeases)
+    public void addDataPages(String exchangeId, int partitionId, int taskId, int attemptId, long dataPagesId, Iterator<SliceLease> sliceLeases)
     {
         registerExchange(exchangeId);
         getExchangeAndHeartbeat(exchangeId).addDataPages(partitionId, taskId, attemptId, dataPagesId, sliceLeases);

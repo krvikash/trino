@@ -26,6 +26,7 @@ import io.starburst.stargate.buffer.data.server.DataServerConfig;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
 import org.junit.jupiter.api.Test;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.OptionalLong;
 
@@ -266,7 +267,7 @@ public class TestChunkManager
         return new ChunkManager(new BufferNodeId(BUFFER_NODE_ID), chunkManagerConfig, dataServerConfig, memoryAllocator, ticker, new DataServerStats());
     }
 
-    public List<SliceLease> getSliceLeases(List<String> strs)
+    public Iterator<SliceLease> getSliceLeases(List<String> strs)
     {
         ImmutableList.Builder<SliceLease> sliceLeases = ImmutableList.builder();
         for (String str : strs) {
@@ -276,6 +277,6 @@ public class TestChunkManager
             sliceOutput.writeBytes(utf8Slice(str));
             sliceLeases.add(new SliceLease(memoryAllocator, slice));
         }
-        return sliceLeases.build();
+        return sliceLeases.build().stream().iterator();
     }
 }
