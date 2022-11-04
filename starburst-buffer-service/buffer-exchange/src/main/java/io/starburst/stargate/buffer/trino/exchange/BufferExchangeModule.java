@@ -14,6 +14,7 @@ import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.http.client.HttpClient;
+import io.airlift.units.DataSize;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 import io.starburst.stargate.buffer.discovery.client.HttpDiscoveryClient;
 
@@ -26,6 +27,7 @@ import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
+import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newCachedThreadPool;
 
@@ -78,7 +80,9 @@ public class BufferExchangeModule
         protected void setup(Binder binder)
         {
             httpClientBinder(binder).bindHttpClient("exchange.buffer-discovery.http", ForBufferDiscoveryClient.class);
-            httpClientBinder(binder).bindHttpClient("exchange.buffer-data.http", ForBufferDataClient.class);
+            httpClientBinder(binder)
+                    .bindHttpClient("exchange.buffer-data.http", ForBufferDataClient.class)
+                    .withConfigDefaults(config -> config.setMaxContentLength(DataSize.of(32, MEGABYTE)));
             binder.bind(ApiFactory.class).to(RealBufferingServiceApiFactory.class);
         }
 
