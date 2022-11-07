@@ -10,6 +10,7 @@
 package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
@@ -218,11 +219,12 @@ public class SinkDataPool
             synchronized (SinkDataPool.this) {
                 int slicesCount = data.size();
                 Deque<Slice> dataQueue = dataQueues.get(partition);
+
                 // reinsert slices into queue
-                for (int i = slicesCount - 1; i >= 0; i--) {
-                    Slice slice = data.get(i);
+                for (Slice slice : Lists.reverse(data)) {
                     dataQueue.addFirst(slice);
                 }
+
                 PollResult removedPollResult = currentPolls.remove(partition);
                 verify(removedPollResult == this, "unexpected poll result removed; %s", removedPollResult);
             }
