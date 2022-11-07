@@ -34,8 +34,8 @@ public class BufferExchangeConfig
     private int sourceHandleTargetChunksCount = 64;
     private DataSize sourceHandleTargetDataSize = DataSize.of(256, DataSize.Unit.MEGABYTE);
     private boolean encryptionEnabled = true;
-    private int sinkTargetWrittenPagesCount = 32;
-    private DataSize sinkTargetWrittenPagesSize = DataSize.of(8, DataSize.Unit.MEGABYTE);
+    private int sinkTargetWrittenPagesCount = 512;
+    private DataSize sinkTargetWrittenPagesSize = DataSize.of(16, DataSize.Unit.MEGABYTE);
     private PartitionNodeMappingMode partitionNodeMappingMode = RANDOM;
     private int dataClientMaxRetries = 5;
     private Duration dataClientRetryBackoffInitial = succinctDuration(1.0, SECONDS);
