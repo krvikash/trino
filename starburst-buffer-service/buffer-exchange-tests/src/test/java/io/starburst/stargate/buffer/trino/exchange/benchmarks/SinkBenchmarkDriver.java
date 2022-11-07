@@ -43,6 +43,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
+import static com.google.common.base.Verify.verify;
 import static com.google.common.util.concurrent.Futures.allAsList;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
@@ -97,11 +98,22 @@ public class SinkBenchmarkDriver
             List<? extends ListenableFuture<?>> futures = writers.stream()
                     .map(executorService::submit)
                     .collect(Collectors.toList());
-            ListenableFuture<List<Object>> allFuture = allAsList(futures);
+            ListenableFuture<List<Object>> allWritersFuture = allAsList(futures);
 
+            CompletableFuture<Void> finishFuture = null;
             do {
                 try {
-                    allFuture.get(1, TimeUnit.SECONDS);
+                    if (finishFuture != null) {
+                        // finishing
+                        verify(allWritersFuture.isDone());
+                        finishFuture.get(1, TimeUnit.SECONDS);
+                    }
+                    else {
+                        allWritersFuture.get(1, TimeUnit.SECONDS);
+                        // all writers done - transition to finishing
+                        verify(allWritersFuture.isDone());
+                        finishFuture = sink.finish();
+                    }
                 }
                 catch (TimeoutException e) {
                     // ignored
@@ -110,7 +122,7 @@ public class SinkBenchmarkDriver
                 long written = dataCounter.get();
                 log.info("wrote %s in %.3f; throughput %s/s", DataSize.succinctBytes(written), elapsed.toMillis() / 1000.0, DataSize.succinctBytes((long) (written * 1000.0 / elapsed.toMillis())));
             }
-            while (!allFuture.isDone());
+            while (finishFuture == null || !finishFuture.isDone());
 
             Duration elapsed = stopwatch.elapsed();
             long written = dataCounter.get();
@@ -186,7 +198,6 @@ public class SinkBenchmarkDriver
                     dataCounter.addAndGet(page.length());
                     partition = (partition + 1) % outputPartitionsCount;
                 }
-                sink.finish().get();
             }
             catch (Exception e) {
                 throw new RuntimeException(e);
