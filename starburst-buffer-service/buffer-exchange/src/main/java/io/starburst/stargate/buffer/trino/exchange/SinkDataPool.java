@@ -73,9 +73,8 @@ public class SinkDataPool
     {
         Deque<Slice> queue = dataQueues.computeIfAbsent(partitionId, ignored -> new ArrayDeque<>());
         queue.add(data);
-        long dataSize = data.getRetainedSize();
-        dataQueueBytes.computeIfAbsent(partitionId, ignored -> new AtomicLong()).addAndGet(dataSize);
-        updateMemoryUsage(dataSize);
+        dataQueueBytes.computeIfAbsent(partitionId, ignored -> new AtomicLong()).addAndGet(data.length());
+        updateMemoryUsage(data.getRetainedSize());
     }
 
     public void noMoreData()
@@ -197,11 +196,13 @@ public class SinkDataPool
             synchronized (SinkDataPool.this) {
                 // commit global and per queue memory usage (slices are removed from queue on poll)
                 long dataSize = 0;
+                long retainedSize = 0;
                 for (Slice slice : data) {
-                    dataSize += slice.getRetainedSize();
+                    dataSize += slice.length();
+                    retainedSize += slice.getRetainedSize();
                 }
                 dataQueueBytes.computeIfAbsent(partition, ignored -> new AtomicLong()).addAndGet(-dataSize);
-                updateMemoryUsage(-dataSize);
+                updateMemoryUsage(-retainedSize);
 
                 verify(currentPolls.remove(partition), "poll was not registered; %s", partition);
                 if (noMoreData && memoryUsageBytes == 0) {
