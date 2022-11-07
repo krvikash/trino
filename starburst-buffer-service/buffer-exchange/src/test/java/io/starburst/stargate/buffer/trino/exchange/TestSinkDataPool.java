@@ -9,9 +9,9 @@
  */
 package io.starburst.stargate.buffer.trino.exchange;
 
+import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ListenableFuture;
-import io.airlift.slice.Slice;
 import io.airlift.units.DataSize;
 import org.junit.jupiter.api.Test;
 
@@ -26,81 +26,135 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class TestSinkDataPool
 {
     @Test
-    public void testHappy()
+    public void testPoolsFromEmpty()
     {
-        SinkDataPool dataPool = newDataPool();
-
-        // empty pool
+        SinkDataPool dataPool = newDataPool(4, DataSize.of(8, MEGABYTE), 2);
         assertThat(dataPool.pollBest(ImmutableSet.of(1, 2))).isEmpty();
+    }
 
+    @Test
+    public void testPoolsOnlyFromTracked()
+    {
+        SinkDataPool dataPool = newDataPool(4, DataSize.of(8, MEGABYTE), 2);
         // add data for 3
         dataPool.add(3, utf8Slice("data_for_3_0"));
-
-        // still no data for 1 or 2
+        // poll for 1 and 2
         assertThat(dataPool.pollBest(ImmutableSet.of(1, 2))).isEmpty();
+    }
 
-        // add data for 2
-        dataPool.add(2, utf8Slice("data_for_2_0"));
-
-        // poll
+    @Test
+    public void testPoolsUpToTargetPagesCount()
+    {
+        SinkDataPool dataPool = newDataPool(4, DataSize.of(8, MEGABYTE), 4);
+        dataPool.add(1, utf8Slice("page1"));
+        dataPool.add(1, utf8Slice("page2"));
+        dataPool.add(1, utf8Slice("page3"));
+        dataPool.add(2, utf8Slice("page4"));
+        dataPool.add(2, utf8Slice("page5"));
+        // poll for 1 and 2
         Optional<SinkDataPool.PollResult> pollResult = dataPool.pollBest(ImmutableSet.of(1, 2));
         assertThat(pollResult).isPresent();
-        assertThat(pollResult.get().getPartition()).isEqualTo(2);
-        assertThat(pollResult.get().getData()).containsExactly(utf8Slice("data_for_2_0"));
+        assertThat(pollResult.get().getDataByPartition()).isEqualTo(ImmutableListMultimap.of(
+                1, utf8Slice("page1"),
+                1, utf8Slice("page2"),
+                1, utf8Slice("page3"),
+                2, utf8Slice("page4")));
+    }
 
-        // rollback
-        pollResult.get().rollback();
+    @Test
+    public void testPoolsUpToTargetPagesSize()
+    {
+        SinkDataPool dataPool = newDataPool(8, DataSize.of(16, BYTE), 4);
+        dataPool.add(1, utf8Slice("page1"));
+        dataPool.add(1, utf8Slice("page2x")); // make value longer so partition 1 has higher priority than partition 2
+        dataPool.add(2, utf8Slice("page3"));
+        dataPool.add(2, utf8Slice("page4"));
+        // poll for 1 and 2
+        Optional<SinkDataPool.PollResult> pollResult = dataPool.pollBest(ImmutableSet.of(1, 2));
+        assertThat(pollResult).isPresent();
+        assertThat(pollResult.get().getDataByPartition()).isEqualTo(ImmutableListMultimap.of(
+                1, utf8Slice("page1"),
+                1, utf8Slice("page2x"),
+                2, utf8Slice("page3")));
+    }
 
-        // poll again
+    @Test
+    public void testPoolsUpToTargetPartitionsCount()
+    {
+        SinkDataPool dataPool = newDataPool(8, DataSize.of(8, MEGABYTE), 2);
+        // add data for 3
+        dataPool.add(1, utf8Slice("page1"));
+        dataPool.add(2, utf8Slice("page2x"));
+        dataPool.add(3, utf8Slice("page3xy"));
+        // poll for 1 and 2
+        Optional<SinkDataPool.PollResult> pollResult = dataPool.pollBest(ImmutableSet.of(1, 2));
+        assertThat(pollResult).isPresent();
+        assertThat(pollResult.get().getDataByPartition()).isEqualTo(ImmutableListMultimap.of(
+                1, utf8Slice("page1"),
+                2, utf8Slice("page2x")));
+    }
+
+    @Test
+    public void testRollbackCommit()
+    {
+        SinkDataPool dataPool = newDataPool(4, DataSize.of(8, MEGABYTE), 4);
+        dataPool.add(1, utf8Slice("page1"));
+        dataPool.add(1, utf8Slice("page2"));
+        dataPool.add(1, utf8Slice("page3"));
+        dataPool.add(2, utf8Slice("page4"));
+        dataPool.add(2, utf8Slice("page5"));
+
+        Optional<SinkDataPool.PollResult> pollResult;
+
+        // poll
         pollResult = dataPool.pollBest(ImmutableSet.of(1, 2));
         assertThat(pollResult).isPresent();
-        assertThat(pollResult.get().getPartition()).isEqualTo(2);
-        assertThat(pollResult.get().getData()).containsExactly(utf8Slice("data_for_2_0"));
+        assertThat(pollResult.get().getDataByPartition()).isEqualTo(ImmutableListMultimap.of(
+                1, utf8Slice("page1"),
+                1, utf8Slice("page2"),
+                1, utf8Slice("page3"),
+                2, utf8Slice("page4")));
 
-        // commit
+        // rollback and poll again
+        pollResult.get().rollback();
+        pollResult = dataPool.pollBest(ImmutableSet.of(1, 2));
+        assertThat(pollResult).isPresent();
+        assertThat(pollResult.get().getDataByPartition()).isEqualTo(ImmutableListMultimap.of(
+                1, utf8Slice("page1"),
+                1, utf8Slice("page2"),
+                1, utf8Slice("page3"),
+                2, utf8Slice("page4")));
+
+        // commit and poll again
         pollResult.get().commit();
-
-        // no more data
-        assertThat(dataPool.pollBest(ImmutableSet.of(1, 2))).isEmpty();
-
-        // not done yet - data for partition 3 and noMoreDataFlag not set
-        assertThat(dataPool.whenFinished()).isNotDone();
-
-        // clear partition 3
-        pollResult = dataPool.pollBest(ImmutableSet.of(3));
-        assertThat(pollResult).isNotEmpty();
-        pollResult.get().commit();
-
-        // not done yet -  noMoreDataFlag not set
-        assertThat(dataPool.whenFinished()).isNotDone();
-
-        // mark noMoreData
-        dataPool.noMoreData();
-
-        // not done yet -  noMoreDataFlag not set
-        assertThat(dataPool.whenFinished()).isDone();
+        pollResult = dataPool.pollBest(ImmutableSet.of(1, 2));
+        assertThat(pollResult).isPresent();
+        assertThat(pollResult.get().getDataByPartition()).isEqualTo(ImmutableListMultimap.of(
+                2, utf8Slice("page5")));
     }
 
     @Test
     public void testWhenFinished()
     {
         // test empty pool
-        SinkDataPool dataPool = newDataPool();
+        SinkDataPool dataPool = newDataPool(32, DataSize.of(8, MEGABYTE), 8);
         assertThat(dataPool.whenFinished()).isNotDone();
         dataPool.noMoreData();
         assertThat(dataPool.whenFinished()).isDone();
 
         // non-empty pool; noMoreData called
-        dataPool = newDataPool();
+        dataPool = newDataPool(32, DataSize.of(8, MEGABYTE), 8);
         dataPool.add(1, utf8Slice("data"));
         dataPool.noMoreData();
+        assertThat(dataPool.whenFinished()).isNotDone();
         dataPool.pollBest(ImmutableSet.of(1)).orElseThrow().commit();
         assertThat(dataPool.whenFinished()).isDone();
 
         // non-empty pool; pollBest called first
-        dataPool = newDataPool();
+        dataPool = newDataPool(32, DataSize.of(8, MEGABYTE), 8);
         dataPool.add(1, utf8Slice("data"));
         dataPool.pollBest(ImmutableSet.of(1)).orElseThrow().commit();
+        assertThat(dataPool.whenFinished()).isNotDone();
         dataPool.noMoreData();
         assertThat(dataPool.whenFinished()).isDone();
     }
@@ -112,7 +166,8 @@ class TestSinkDataPool
                 DataSize.of(100, BYTE),
                 DataSize.of(200, BYTE),
                 32,
-                DataSize.of(8, MEGABYTE));
+                DataSize.of(8, MEGABYTE),
+                8);
 
         // 0
         assertThat(dataPool.isBlocked()).isDone();
@@ -142,45 +197,40 @@ class TestSinkDataPool
     }
 
     @Test
-    public void testPollBestTakesBiggest()
+    public void testPoolsBiggestPartitions()
     {
-        SinkDataPool dataPool = newDataPool();
-        dataPool.add(1, utf8Slice("1_1234567890"));
-        dataPool.add(2, utf8Slice("1_123456789012345"));
-        dataPool.add(3, utf8Slice("1_123456789012"));
+        SinkDataPool dataPool = newDataPool(4, DataSize.of(8, MEGABYTE), 4);
+        dataPool.add(1, utf8Slice("page1"));
+        dataPool.add(1, utf8Slice("page2"));
+        dataPool.add(1, utf8Slice("page3"));
+        dataPool.add(2, utf8Slice("page4"));
+        dataPool.add(2, utf8Slice("page5_is_bigger_than_others"));
 
-        Optional<SinkDataPool.PollResult> pollResult = dataPool.pollBest(ImmutableSet.of(1, 2, 3));
+        Optional<SinkDataPool.PollResult> pollResult = dataPool.pollBest(ImmutableSet.of(1, 2));
         assertThat(pollResult).isPresent();
-        assertThat(pollResult.get().getPartition()).isEqualTo(2);
-        assertThat(pollResult.get().getData()).containsExactly(utf8Slice("1_123456789012345"));
-
-        dataPool = newDataPool();
-        dataPool.add(1, utf8Slice("1_1234567890"));
-        dataPool.add(2, utf8Slice("1_1234567_1"));
-        dataPool.add(2, utf8Slice("1_1234567_2"));
-        dataPool.add(3, utf8Slice("1_123456789012"));
-
-        pollResult = dataPool.pollBest(ImmutableSet.of(1, 2, 3));
-        assertThat(pollResult).isPresent();
-        assertThat(pollResult.get().getPartition()).isEqualTo(2);
-        assertThat(pollResult.get().getData()).containsExactly(utf8Slice("1_1234567_1"), utf8Slice("1_1234567_2"));
+        assertThat(pollResult.get().getDataByPartition()).isEqualTo(ImmutableListMultimap.of(
+                2, utf8Slice("page4"),
+                2, utf8Slice("page5_is_bigger_than_others"),
+                1, utf8Slice("page1"),
+                1, utf8Slice("page2")));
     }
 
     @Test
     public void testAddEmptyDataPage()
     {
-        SinkDataPool dataPool = newDataPool();
+        SinkDataPool dataPool = newDataPool(4, DataSize.of(8, MEGABYTE), 4);
         assertThatThrownBy(() -> dataPool.add(1, utf8Slice("")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("cannot add empty data page");
     }
 
-    private static SinkDataPool newDataPool()
+    private static SinkDataPool newDataPool(int targetWrittenPagesCount, DataSize targetWrittenPagesSize, int targetWrittenPartitionsCount)
     {
         return new SinkDataPool(
                 DataSize.of(1, MEGABYTE),
                 DataSize.of(4, MEGABYTE),
-                32,
-                DataSize.of(8, MEGABYTE));
+                targetWrittenPagesCount,
+                targetWrittenPagesSize,
+                targetWrittenPartitionsCount);
     }
 }

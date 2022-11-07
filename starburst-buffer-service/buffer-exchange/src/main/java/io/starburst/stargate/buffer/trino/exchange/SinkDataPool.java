@@ -10,6 +10,8 @@
 package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableListMultimap;
+import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -21,6 +23,8 @@ import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.util.ArrayDeque;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -41,6 +45,7 @@ public class SinkDataPool
     private final DataSize memoryHighWaterMark;
     private final int targetWrittenPagesCount;
     private final long targetWrittenPagesSize;
+    private final int targetWrittenPartitionsCount;
 
     @GuardedBy("this")
     private final Map<Integer, Deque<Slice>> dataQueues = new HashMap<>();
@@ -60,12 +65,13 @@ public class SinkDataPool
     @GuardedBy("this")
     private boolean noMoreData;
 
-    public SinkDataPool(DataSize memoryLowWaterMark, DataSize memoryHighWaterMark, int targetWrittenPagesCount, DataSize targetWrittenPagesSize)
+    public SinkDataPool(DataSize memoryLowWaterMark, DataSize memoryHighWaterMark, int targetWrittenPagesCount, DataSize targetWrittenPagesSize, int targetWrittenPartitionsCount)
     {
         this.memoryLowWaterMark = requireNonNull(memoryLowWaterMark, "memoryLowWaterMark is null");
         this.memoryHighWaterMark = requireNonNull(memoryHighWaterMark, "memoryHighWaterMark is null");
         this.targetWrittenPagesCount = targetWrittenPagesCount;
         this.targetWrittenPagesSize = targetWrittenPagesSize.toBytes();
+        this.targetWrittenPartitionsCount = targetWrittenPartitionsCount;
         this.finishedFuture = SettableFuture.create();
     }
 
@@ -112,48 +118,51 @@ public class SinkDataPool
 
     public synchronized Optional<PollResult> pollBest(Set<Integer> partitionSet)
     {
-        int selectedPartition = -1;
-        long selectedPartitionBytes = 0;
-        for (int partition : partitionSet) {
-            Deque<Slice> queue = dataQueues.get(partition);
-            if (queue == null) {
-                continue;
+        Comparator<Integer> byQueueBytes = Comparator.comparing(partition -> {
+            AtomicLong queueBytes = dataQueueBytes.get(partition);
+            if (queueBytes == null) {
+                return 0L;
             }
-            long queueBytes = dataQueueBytes.get(partition).get();
-            if (queueBytes > selectedPartitionBytes) {
-                selectedPartition = partition;
-                selectedPartitionBytes = queueBytes;
-            }
-        }
-        if (selectedPartition == -1) {
-            return Optional.empty();
-        }
+            return -queueBytes.get(); // reversed order
+        });
 
-        return Optional.of(poll(selectedPartition));
-    }
+        List<Integer> partitionsOrdered = ImmutableList.sortedCopyOf(byQueueBytes, partitionSet);
 
-    @GuardedBy("this")
-    private PollResult poll(int partition)
-    {
-        checkArgument(!currentPolls.contains(partition), "poll already exists for partition %s", partition);
-        Deque<Slice> queue = dataQueues.get(partition);
-        verify(!queue.isEmpty(), "expected non-empty queue");
+        ImmutableListMultimap.Builder<Integer, Slice> dataByPartition = ImmutableListMultimap.builder();
+        boolean resultEmpty = true;
 
         int polledPagesCount = 0;
         int polledPagesSize = 0;
-        ImmutableList.Builder<Slice> polledPages = ImmutableList.builder();
-        while (polledPagesCount < targetWrittenPagesCount && polledPagesSize < targetWrittenPagesSize) {
-            Slice page = queue.pollFirst();
-            if (page == null) {
-                break;
+        int polledPartitionsCount = 0;
+        for (int partition : partitionsOrdered) {
+            if (polledPagesCount >= targetWrittenPagesCount || polledPagesSize >= targetWrittenPagesSize || polledPartitionsCount >= targetWrittenPartitionsCount) {
+                break; // collected enough
             }
-            polledPagesCount++;
-            polledPagesSize += page.length();
-            polledPages.add(page);
+
+            checkArgument(!currentPolls.contains(partition), "poll already exists for partition %s", partition);
+            Deque<Slice> queue = dataQueues.get(partition);
+            if (queue == null || queue.isEmpty()) {
+                break; // no need to go further when we see first empty queue
+            }
+
+            while (polledPagesCount < targetWrittenPagesCount && polledPagesSize < targetWrittenPagesSize) {
+                Slice page = queue.pollFirst();
+                if (page == null) {
+                    break;
+                }
+                polledPagesCount++;
+                polledPagesSize += page.length();
+                dataByPartition.put(partition, page);
+                resultEmpty = false;
+            }
+            polledPartitionsCount++;
+            currentPolls.add(partition);
         }
-        PollResult pollResult = new PollResult(partition, polledPages.build());
-        currentPolls.add(partition);
-        return pollResult;
+
+        if (resultEmpty) {
+            return Optional.empty();
+        }
+        return Optional.of(new PollResult(dataByPartition.build()));
     }
 
     public synchronized ListenableFuture<Void> isBlocked()
@@ -171,46 +180,44 @@ public class SinkDataPool
 
     public class PollResult
     {
-        private final int partition;
-        private final List<Slice> data;
+        private final ListMultimap<Integer, Slice> dataByPartition;
 
-        public PollResult(int partition, List<Slice> data)
+        public PollResult(ListMultimap<Integer, Slice> dataByPartition)
         {
-            this.partition = partition;
-            requireNonNull(data, "data is null");
-            this.data = ImmutableList.copyOf(data);
+            requireNonNull(dataByPartition, "dataByPartition is null");
+            this.dataByPartition = ImmutableListMultimap.copyOf(dataByPartition);
         }
 
-        public int getPartition()
+        public ListMultimap<Integer, Slice> getDataByPartition()
         {
-            return partition;
-        }
-
-        public List<Slice> getData()
-        {
-            return data;
+            return dataByPartition;
         }
 
         public void commit()
         {
             boolean poolFinished = false;
             synchronized (SinkDataPool.this) {
-                // commit global and per queue memory usage (slices are removed from queue on poll)
-                long dataSize = 0;
-                long retainedSize = 0;
-                for (Slice slice : data) {
-                    dataSize += slice.length();
-                    retainedSize += slice.getRetainedSize();
-                }
-                dataQueueBytes.computeIfAbsent(partition, ignored -> new AtomicLong()).addAndGet(-dataSize);
-                updateMemoryUsage(-retainedSize);
+                for (Map.Entry<Integer, Collection<Slice>> entry : dataByPartition.asMap().entrySet()) {
+                    int partition = entry.getKey();
+                    List<Slice> data = (List<Slice>) entry.getValue();
 
-                verify(currentPolls.remove(partition), "poll was not registered; %s", partition);
-                if (noMoreData && memoryUsageBytes == 0) {
-                    poolFinished = true;
-                }
-                if (poolFinished) {
-                    finishedFuture.set(null);
+                    // commit global and per queue memory usage (slices are removed from queue on poll)
+                    long dataSize = 0;
+                    long retainedSize = 0;
+                    for (Slice slice : data) {
+                        dataSize += slice.length();
+                        retainedSize += slice.getRetainedSize();
+                    }
+                    dataQueueBytes.computeIfAbsent(partition, ignored -> new AtomicLong()).addAndGet(-dataSize);
+                    updateMemoryUsage(-retainedSize);
+
+                    verify(currentPolls.remove(partition), "poll was not registered; %s", partition);
+                    if (noMoreData && memoryUsageBytes == 0) {
+                        poolFinished = true;
+                    }
+                    if (poolFinished) {
+                        finishedFuture.set(null);
+                    }
                 }
             }
         }
@@ -218,15 +225,17 @@ public class SinkDataPool
         public void rollback()
         {
             synchronized (SinkDataPool.this) {
-                int slicesCount = data.size();
-                Deque<Slice> dataQueue = dataQueues.get(partition);
+                for (Map.Entry<Integer, Collection<Slice>> entry : dataByPartition.asMap().entrySet()) {
+                    int partition = entry.getKey();
+                    List<Slice> data = (List<Slice>) entry.getValue();
 
-                // reinsert slices into queue
-                for (Slice slice : Lists.reverse(data)) {
-                    dataQueue.addFirst(slice);
+                    Deque<Slice> dataQueue = dataQueues.get(partition);
+                    // reinsert slices into queue
+                    for (Slice slice : Lists.reverse(data)) {
+                        dataQueue.addFirst(slice);
+                    }
+                    verify(currentPolls.remove(partition), "poll was not registered; %s", partition);
                 }
-
-                verify(currentPolls.remove(partition), "poll was not registered; %s", partition);
             }
         }
     }

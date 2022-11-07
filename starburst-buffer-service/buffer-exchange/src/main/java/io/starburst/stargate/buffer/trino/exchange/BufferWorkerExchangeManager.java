@@ -49,6 +49,7 @@ public class BufferWorkerExchangeManager
                 config.getSinkBlockedMemoryHighWaterMark(),
                 config.getSinkTargetWrittenPagesCount(),
                 config.getSinkTargetWrittenPagesSize(),
+                config.getSinkTargetWrittenPartitionsCount(),
                 executor);
     }
 

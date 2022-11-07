@@ -36,6 +36,7 @@ public class BufferExchangeConfig
     private boolean encryptionEnabled = true;
     private int sinkTargetWrittenPagesCount = 512;
     private DataSize sinkTargetWrittenPagesSize = DataSize.of(16, DataSize.Unit.MEGABYTE);
+    private int sinkTargetWrittenPartitionsCount = 16;
     private PartitionNodeMappingMode partitionNodeMappingMode = RANDOM;
     private int dataClientMaxRetries = 5;
     private Duration dataClientRetryBackoffInitial = succinctDuration(1.0, SECONDS);
@@ -197,6 +198,19 @@ public class BufferExchangeConfig
     public BufferExchangeConfig setSinkTargetWrittenPagesSize(DataSize sinkTargetWrittenPagesSize)
     {
         this.sinkTargetWrittenPagesSize = sinkTargetWrittenPagesSize;
+        return this;
+    }
+
+    public int getSinkTargetWrittenPartitionsCount()
+    {
+        return sinkTargetWrittenPartitionsCount;
+    }
+
+    @Config("exchange.sink-target-written-partitions-count")
+    @ConfigDescription("Target number of partitions written to in a single HTTP request from sink to buffer service")
+    public BufferExchangeConfig setSinkTargetWrittenPartitionsCount(int sinkTargetWrittenPartitionsCount)
+    {
+        this.sinkTargetWrittenPartitionsCount = sinkTargetWrittenPartitionsCount;
         return this;
     }
 
