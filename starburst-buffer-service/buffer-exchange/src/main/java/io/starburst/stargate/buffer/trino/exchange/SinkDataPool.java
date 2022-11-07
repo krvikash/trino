@@ -23,6 +23,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -47,7 +48,7 @@ public class SinkDataPool
     private final Map<Integer, AtomicLong> dataQueueBytes = new HashMap<>();
 
     @GuardedBy("this")
-    private final Map<Integer, PollResult> currentPolls = new HashMap<>();
+    private final Set<Integer> currentPolls = new HashSet<>();
 
     @GuardedBy("this")
     private volatile long memoryUsageBytes;
@@ -134,8 +135,7 @@ public class SinkDataPool
     @GuardedBy("this")
     private PollResult poll(int partition)
     {
-        PollResult currentPoll = currentPolls.get(partition);
-        checkArgument(currentPoll == null, "poll already exists for partition %s", partition);
+        checkArgument(!currentPolls.contains(partition), "poll already exists for partition %s", partition);
         Deque<Slice> queue = dataQueues.get(partition);
         verify(!queue.isEmpty(), "expected non-empty queue");
 
@@ -152,7 +152,7 @@ public class SinkDataPool
             polledPages.add(page);
         }
         PollResult pollResult = new PollResult(partition, polledPages.build());
-        currentPolls.put(partition, pollResult);
+        currentPolls.add(partition);
         return pollResult;
     }
 
@@ -203,8 +203,7 @@ public class SinkDataPool
                 dataQueueBytes.computeIfAbsent(partition, ignored -> new AtomicLong()).addAndGet(-dataSize);
                 updateMemoryUsage(-dataSize);
 
-                PollResult removedPollResult = currentPolls.remove(partition);
-                verify(removedPollResult == this, "unexpected poll result removed; %s", removedPollResult);
+                verify(currentPolls.remove(partition), "poll was not registered; %s", partition);
                 if (noMoreData && memoryUsageBytes == 0) {
                     poolFinished = true;
                 }
@@ -225,8 +224,7 @@ public class SinkDataPool
                     dataQueue.addFirst(slice);
                 }
 
-                PollResult removedPollResult = currentPolls.remove(partition);
-                verify(removedPollResult == this, "unexpected poll result removed; %s", removedPollResult);
+                verify(currentPolls.remove(partition), "poll was not registered; %s", partition);
             }
         }
     }
