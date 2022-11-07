@@ -11,6 +11,7 @@ package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ListenableFuture;
+import io.airlift.slice.Slice;
 import io.airlift.units.DataSize;
 import org.junit.jupiter.api.Test;
 
@@ -20,6 +21,7 @@ import static io.airlift.slice.Slices.utf8Slice;
 import static io.airlift.units.DataSize.Unit.BYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TestSinkDataPool
 {
@@ -162,6 +164,15 @@ class TestSinkDataPool
         assertThat(pollResult).isPresent();
         assertThat(pollResult.get().getPartition()).isEqualTo(2);
         assertThat(pollResult.get().getData()).containsExactly(utf8Slice("1_1234567_1"), utf8Slice("1_1234567_2"));
+    }
+
+    @Test
+    public void testAddEmptyDataPage()
+    {
+        SinkDataPool dataPool = newDataPool();
+        assertThatThrownBy(() -> dataPool.add(1, utf8Slice("")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("cannot add empty data page");
     }
 
     private static SinkDataPool newDataPool()

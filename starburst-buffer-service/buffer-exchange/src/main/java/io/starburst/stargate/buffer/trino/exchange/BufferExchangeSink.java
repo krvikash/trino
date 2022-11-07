@@ -336,6 +336,11 @@ public class BufferExchangeSink
         throwIfFailed();
         checkState(!finishing.get(), "data cannot be added to finished sink");
 
+        if (data.length() == 0) {
+            // ignore empty pages
+            return;
+        }
+
         if (encryptionKey.isPresent()) {
             data = encryptDataPage(data, encryptionKey.get());
         }
