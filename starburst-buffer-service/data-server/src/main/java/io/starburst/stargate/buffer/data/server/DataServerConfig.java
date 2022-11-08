@@ -12,6 +12,7 @@ package io.starburst.stargate.buffer.data.server;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigHidden;
 
+import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 
 import java.net.URI;
@@ -21,6 +22,7 @@ public class DataServerConfig
     private URI discoveryServiceUri;
     private boolean includeChecksumInDataResponse = true;
     private boolean testingDropUploadedPages;
+    private int httpResponseThreads = 100;
 
     @NotNull
     public URI getDiscoveryServiceUri()
@@ -57,6 +59,19 @@ public class DataServerConfig
     public DataServerConfig setTestingDropUploadedPages(boolean testingDropUploadedPages)
     {
         this.testingDropUploadedPages = testingDropUploadedPages;
+        return this;
+    }
+
+    @Min(1)
+    public int getHttpResponseThreads()
+    {
+        return httpResponseThreads;
+    }
+
+    @Config("http-response-threads")
+    public DataServerConfig setHttpResponseThreads(int httpResponseThreads)
+    {
+        this.httpResponseThreads = httpResponseThreads;
         return this;
     }
 }

@@ -14,6 +14,8 @@ import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.Module;
 import com.google.inject.Provides;
+import com.google.inject.Singleton;
+import io.airlift.concurrent.BoundedExecutor;
 import io.airlift.http.client.HttpClient;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
 import io.starburst.stargate.buffer.data.execution.ChunkManager.ForChunkManager;
@@ -24,12 +26,15 @@ import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 import io.starburst.stargate.buffer.discovery.client.HttpDiscoveryClient;
 
 import java.security.SecureRandom;
+import java.util.concurrent.ExecutorService;
 
 import static com.google.inject.Scopes.SINGLETON;
+import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.Executors.newCachedThreadPool;
 
 public class MainModule
         implements Module
@@ -70,6 +75,7 @@ public class MainModule
         binder.bind(Ticker.class).annotatedWith(ForChunkManager.class).toInstance(ticker);
         binder.bind(ChunkManager.class).in(SINGLETON);
         binder.bind(DataServerStats.class).in(SINGLETON);
+        binder.bind(ExecutorService.class).toInstance(newCachedThreadPool(daemonThreadsNamed("chunk-write-%s")));
         if (discoveryBroadcastEnabled) {
             binder.bind(DiscoveryBroadcast.class).in(SINGLETON);
         }
@@ -80,5 +86,13 @@ public class MainModule
     public DiscoveryApi getDiscoveryApi(DataServerConfig config, @ForBufferDiscoveryClient HttpClient httpClient)
     {
         return new HttpDiscoveryClient(config.getDiscoveryServiceUri(), httpClient);
+    }
+
+    @Provides
+    @Singleton
+    @ForAsyncHttp
+    public static BoundedExecutor createAsyncHttpResponseExecutor(DataServerConfig config)
+    {
+        return new BoundedExecutor(newCachedThreadPool(daemonThreadsNamed("async-http-response-%s")), config.getHttpResponseThreads());
     }
 }

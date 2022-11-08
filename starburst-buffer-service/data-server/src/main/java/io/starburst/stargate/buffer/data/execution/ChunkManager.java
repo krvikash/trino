@@ -12,13 +12,14 @@ package io.starburst.stargate.buffer.data.execution;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Ticker;
 import com.google.common.io.Closer;
+import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.log.Logger;
+import io.airlift.slice.Slice;
 import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
-import io.starburst.stargate.buffer.data.memory.SliceLease;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
 import io.starburst.stargate.buffer.data.server.DataServerConfig;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
@@ -33,9 +34,11 @@ import java.io.IOException;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.OptionalLong;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static io.airlift.units.Duration.succinctDuration;
@@ -62,6 +65,7 @@ public class ChunkManager
     private final MemoryAllocator memoryAllocator;
     private final Ticker ticker;
     private final DataServerStats dataServerStats;
+    private final ExecutorService executor;
 
     // exchangeId -> exchange
     private final Map<String, Exchange> exchanges = new ConcurrentHashMap<>();
@@ -76,7 +80,8 @@ public class ChunkManager
             DataServerConfig dataServerConfig,
             MemoryAllocator memoryAllocator,
             @ForChunkManager Ticker ticker,
-            DataServerStats dataServerStats)
+            DataServerStats dataServerStats,
+            ExecutorService executor)
     {
         this.bufferNodeId = bufferNodeId.getLongValue();
         this.chunkMaxSizeInBytes = toIntExact(chunkManagerConfig.getChunkMaxSize().toBytes());
@@ -86,6 +91,7 @@ public class ChunkManager
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.ticker = requireNonNull(ticker, "ticker is null");
         this.dataServerStats = requireNonNull(dataServerStats, "dataServerStats is null");
+        this.executor = requireNonNull(executor, "executor is null");
     }
 
     @PostConstruct
@@ -110,10 +116,16 @@ public class ChunkManager
         }
     }
 
-    public void addDataPages(String exchangeId, int partitionId, int taskId, int attemptId, long dataPagesId, Iterator<SliceLease> sliceLeases)
+    public ListenableFuture<Void> addDataPages(
+            String exchangeId,
+            int partitionId,
+            int taskId,
+            int attemptId,
+            long dataPagesId,
+            List<Slice> pages)
     {
         registerExchange(exchangeId);
-        getExchangeAndHeartbeat(exchangeId).addDataPages(partitionId, taskId, attemptId, dataPagesId, sliceLeases);
+        return getExchangeAndHeartbeat(exchangeId).addDataPages(partitionId, taskId, attemptId, dataPagesId, pages);
     }
 
     public ChunkDataHolder getChunkData(String exchangeId, int partitionId, long chunkId, long bufferNodeId)
@@ -138,6 +150,7 @@ public class ChunkManager
                 chunkSliceSizeInBytes,
                 calculateDataPagesChecksum,
                 chunkIdGenerator,
+                executor,
                 tickerReadMillis()));
     }
 

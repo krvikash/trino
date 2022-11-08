@@ -10,21 +10,23 @@
 package io.starburst.stargate.buffer.data.execution;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.ListenableFuture;
+import io.airlift.slice.Slice;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
-import io.starburst.stargate.buffer.data.memory.SliceLease;
 
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
-import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 
 import static com.google.common.base.Verify.verify;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
@@ -42,6 +44,7 @@ public class Exchange
     private final int chunkSliceSizeInBytes;
     private final boolean calculateDataPagesChecksum;
     private final ChunkIdGenerator chunkIdGenerator;
+    private final ExecutorService executor;
 
     // partitionId -> partition
     private final Map<Integer, Partition> partitions = new ConcurrentHashMap<>();
@@ -64,6 +67,7 @@ public class Exchange
             int chunkSliceSizeInBytes,
             boolean calculateDataPagesChecksum,
             ChunkIdGenerator chunkIdGenerator,
+            ExecutorService executor,
             long currentTime)
     {
         this.bufferNodeId = bufferNodeId;
@@ -73,11 +77,12 @@ public class Exchange
         this.chunkSliceSizeInBytes = chunkSliceSizeInBytes;
         this.calculateDataPagesChecksum = calculateDataPagesChecksum;
         this.chunkIdGenerator = requireNonNull(chunkIdGenerator, "chunkIdGenerator is null");
+        this.executor = requireNonNull(executor, "executor is null");
 
         this.lastUpdateTime = currentTime;
     }
 
-    public void addDataPages(int partitionId, int taskId, int attemptId, long dataPagesId, Iterator<SliceLease> sliceLeases)
+    public ListenableFuture<Void> addDataPages(int partitionId, int taskId, int attemptId, long dataPagesId, List<Slice> pages)
     {
         Partition partition;
         synchronized (this) {
@@ -92,10 +97,11 @@ public class Exchange
                     chunkMaxSizeInBytes,
                     chunkSliceSizeInBytes,
                     calculateDataPagesChecksum,
-                    chunkIdGenerator));
+                    chunkIdGenerator,
+                    executor));
         }
 
-        partition.addDataPages(taskId, attemptId, dataPagesId, sliceLeases);
+        return partition.addDataPages(taskId, attemptId, dataPagesId, pages);
     }
 
     public ChunkDataHolder getChunkData(int partitionId, long chunkId)

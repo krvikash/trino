@@ -9,6 +9,7 @@
  */
 package io.starburst.stargate.buffer.data.memory;
 
+import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
@@ -18,10 +19,10 @@ import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 
-import java.util.Optional;
-
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verify;
+import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
+import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static java.util.Objects.requireNonNull;
 
 @ThreadSafe
@@ -46,16 +47,17 @@ public class MemoryAllocator
         dataServerStats.getTotalMemoryInBytes().add(maxBytes);
     }
 
-    public synchronized Optional<Slice> allocate(int bytes)
+    public synchronized ListenableFuture<Slice> allocate(int bytes)
     {
         long availableBytes = maxBytes - allocatedBytes;
         if (bytes > availableBytes) {
-            log.info("%d bytes available, but trying to allocate %d bytes", availableBytes, bytes);
-            return Optional.empty();
+            // TODO: change to wait on background spooling after spooling utility gets added
+            log.warn("%d bytes available, but trying to allocate %d bytes", availableBytes, bytes);
+            return immediateFailedFuture(new IllegalStateException("Failed to allocate %d bytes of memory".formatted(bytes)));
         }
         allocatedBytes += bytes;
         dataServerStats.getFreeMemoryInBytes().add(getFreeMemory());
-        return Optional.of(Slices.allocate(bytes));
+        return immediateFuture(Slices.allocate(bytes));
     }
 
     public synchronized void release(Slice slice)

@@ -39,6 +39,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 @TestInstance(TestInstance.Lifecycle.PER_METHOD)
 public class TestDataServer
@@ -151,17 +152,16 @@ public class TestDataServer
 
         addDataPages(EXCHANGE_0, 0, 0, 0, dataPages.build());
 
-        // Note: this is not a strict contract that we will get chunks for partition 0 before chunks for partition 1, but
-        // it is an implication of use of ImmutableListMultimap above which returns keys in order in which they were added to the map.
-        ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 4 + largePage1.length()); // a, b, c, largePage1, d
-        ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 0, 1L, 1 + largePage2.length()); // largePage2, e
-        ChunkHandle chunkHandle2 = new ChunkHandle(BUFFER_NODE_ID, 1, 2L, 3 + largePage1.length()); // v, x, largePage1, y
-        ChunkHandle chunkHandle3 = new ChunkHandle(BUFFER_NODE_ID, 1, 3L, 1 + largePage2.length()); // largePage2, z
-
         finishExchange(EXCHANGE_0);
 
         ChunkList chunkList0 = listClosedChunks(EXCHANGE_0, OptionalLong.empty());
-        assertThat(chunkList0.chunks()).containsExactlyInAnyOrder(chunkHandle0, chunkHandle1, chunkHandle2, chunkHandle3);
+        assertEquals(4, chunkList0.chunks().size());
+        // Note: partition writes happen concurrently, so chunk ids assignment will be non-deterministic
+        ChunkHandle chunkHandle0 = getChunkHandleOrThrow(chunkList0.chunks(), 0, 4 + largePage1.length()); // a, b, c, largePage1, d
+        ChunkHandle chunkHandle1 = getChunkHandleOrThrow(chunkList0.chunks(), 0, 1 + largePage2.length()); // largePage2, e
+        ChunkHandle chunkHandle2 = getChunkHandleOrThrow(chunkList0.chunks(), 1, 3 + largePage1.length()); // v, x, largePage1, y
+        ChunkHandle chunkHandle3 = getChunkHandleOrThrow(chunkList0.chunks(), 1, 1 + largePage2.length()); // largePage2, z
+
         assertTrue(chunkList0.nextPagingId().isEmpty());
         assertThat(getChunkData(EXCHANGE_0, chunkHandle0)).containsExactly(
                 new DataPage(0, 0, utf8Slice("a")),
@@ -247,5 +247,15 @@ public class TestDataServer
     private void pingExchange(String exchangeId)
     {
         getFutureValue(dataClient.pingExchange(exchangeId));
+    }
+
+    private ChunkHandle getChunkHandleOrThrow(List<ChunkHandle> chunkHandles, int partitionId, int dataSizeInBytes)
+    {
+        for (ChunkHandle chunkHandle : chunkHandles) {
+            if (chunkHandle.partitionId() == partitionId && chunkHandle.dataSizeInBytes() == dataSizeInBytes) {
+                return chunkHandle;
+            }
+        }
+        return fail();
     }
 }

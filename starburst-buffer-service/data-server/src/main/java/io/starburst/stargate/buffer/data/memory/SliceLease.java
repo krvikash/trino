@@ -9,35 +9,47 @@
  */
 package io.starburst.stargate.buffer.data.memory;
 
+import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.slice.Slice;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import static com.google.common.base.Preconditions.checkState;
+import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Lease class for slice allocated from {@link MemoryAllocator}.
+ * Lease class for slice allocated from {@link MemoryAllocator}. Obtained slice can be obtained via
+ * {@link SliceLease#getSliceFuture} method. The slice may not be available immediately. Calling party needs to wait
+ * until future returned is done.
  *
  * It is obligatory for the calling party to release all the leases they obtained via {@link SliceLease#release()}.
  */
 public class SliceLease
 {
     private final MemoryAllocator memoryAllocator;
-    private final Slice slice;
+    private final ListenableFuture<Slice> sliceFuture;
+    private final AtomicBoolean released = new AtomicBoolean();
 
     public SliceLease(
             MemoryAllocator memoryAllocator,
-            Slice slice)
+            int sliceLength)
     {
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
-        this.slice = requireNonNull(slice, "slice is null");
+        this.sliceFuture = memoryAllocator.allocate(sliceLength);
     }
 
-    public Slice getSlice()
+    public ListenableFuture<Slice> getSliceFuture()
     {
-        return slice;
+        return sliceFuture;
     }
 
     public void release()
     {
-        memoryAllocator.release(slice);
+        checkState(released.compareAndSet(false, true), "already released");
+        sliceFuture.cancel(true);
+        if (sliceFuture.isDone() && !sliceFuture.isCancelled()) {
+            memoryAllocator.release(getFutureValue(sliceFuture));
+        }
     }
 }

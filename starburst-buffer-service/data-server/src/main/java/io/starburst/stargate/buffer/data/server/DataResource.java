@@ -9,11 +9,14 @@
  */
 package io.starburst.stargate.buffer.data.server;
 
-import com.google.common.collect.AbstractIterator;
+import com.google.common.collect.ImmutableList;
 import com.google.common.reflect.TypeToken;
-import io.airlift.slice.InputStreamSliceInput;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import io.airlift.concurrent.BoundedExecutor;
 import io.airlift.slice.Slice;
 import io.airlift.slice.SliceInput;
+import io.airlift.slice.SliceOutput;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
@@ -26,22 +29,30 @@ import javax.inject.Inject;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
+import javax.ws.rs.HeaderParam;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.GenericEntity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
 import java.io.InputStream;
-import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.net.HttpHeaders.CONTENT_LENGTH;
+import static com.google.common.util.concurrent.Futures.immediateFuture;
+import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
+import static io.airlift.concurrent.MoreFutures.asVoid;
+import static io.airlift.jaxrs.AsyncResponseHandler.bindAsyncResponse;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.ERROR_CODE_HEADER;
 import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_CHUNK_DATA;
 import static java.util.Objects.requireNonNull;
@@ -52,16 +63,22 @@ public class DataResource
     private final ChunkManager chunkManager;
     private final MemoryAllocator memoryAllocator;
     private final boolean dropUploadedPages;
+    private final Executor responseExecutor;
+    private final ExecutorService chunkWriteExecutor;
 
     @Inject
     public DataResource(
             ChunkManager chunkManager,
             MemoryAllocator memoryAllocator,
-            DataServerConfig config)
+            DataServerConfig config,
+            @ForAsyncHttp BoundedExecutor responseExecutor,
+            ExecutorService chunkWriteExecutor)
     {
         this.chunkManager = requireNonNull(chunkManager, "chunkManager is null");
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.dropUploadedPages = config.isTestingDropUploadedPages();
+        this.responseExecutor = requireNonNull(responseExecutor, "responseExecutor is null");
+        this.chunkWriteExecutor = requireNonNull(chunkWriteExecutor, "chunkWriteExecutor is null");
     }
 
     @GET
@@ -83,33 +100,60 @@ public class DataResource
     @POST
     @Path("{exchangeId}/addDataPages/{taskId}/{attemptId}/{dataPagesId}")
     @Consumes(MediaType.APPLICATION_OCTET_STREAM)
-    public Response addDataPages(
+    public void addDataPages(
             @PathParam("exchangeId") String exchangeId,
             @PathParam("taskId") int taskId,
             @PathParam("attemptId") int attemptId,
             @PathParam("dataPagesId") long dataPagesId,
+            @HeaderParam(CONTENT_LENGTH) Integer contentLength,
+            @Suspended AsyncResponse asyncResponse,
             InputStream inputStream)
     {
         requireNonNull(inputStream, "inputStream is null");
 
         if (dropUploadedPages) {
-            return Response.ok().build();
+            asyncResponse.resume(Response.ok().build());
         }
 
-        try {
-            SliceInput input = new InputStreamSliceInput(inputStream);
-            while (true) {
-                Optional<SliceLeasesIterator> pagesIterator = getNextPartitionPages(input);
-                if (pagesIterator.isEmpty()) {
-                    break;
-                }
-                chunkManager.addDataPages(exchangeId, pagesIterator.get().getPartitionId(), taskId, attemptId, dataPagesId, pagesIterator.get());
-            }
-        }
-        catch (Exception e) {
-            return errorResponse(e);
-        }
-        return Response.ok().build();
+        SliceLease sliceLease = new SliceLease(memoryAllocator, contentLength);
+        ListenableFuture<Void> addDataPagesFuture = Futures.transformAsync(
+                sliceLease.getSliceFuture(),
+                slice -> {
+                    SliceOutput sliceOutput = slice.getOutput();
+                    sliceOutput.writeBytes(inputStream, contentLength);
+
+                    ImmutableList.Builder<ListenableFuture<Void>> addDataPagesFutures = ImmutableList.builder();
+                    SliceInput sliceInput = slice.getInput();
+                    while (sliceInput.isReadable()) {
+                        int partitionId = sliceInput.readInt();
+                        int bytes = sliceInput.readInt();
+                        ImmutableList.Builder<Slice> pages = ImmutableList.builder();
+                        while (bytes > 0 && sliceInput.isReadable()) {
+                            int pageLength = sliceInput.readInt();
+                            bytes -= Integer.BYTES;
+                            pages.add(sliceInput.readSlice(pageLength));
+                            bytes -= pageLength;
+                        }
+                        checkState(bytes == 0, "no more data in input stream but remaining bytes counter > 0 (%d)".formatted(bytes));
+                        addDataPagesFutures.add(chunkManager.addDataPages(
+                                exchangeId,
+                                partitionId,
+                                taskId,
+                                attemptId,
+                                dataPagesId,
+                                pages.build()));
+                    }
+                    return asVoid(Futures.allAsList(addDataPagesFutures.build()));
+                },
+                chunkWriteExecutor);
+        addDataPagesFuture.addListener(sliceLease::release, chunkWriteExecutor);
+        bindAsyncResponse(
+                asyncResponse,
+                translateExceptions(Futures.transform(
+                        addDataPagesFuture,
+                        ignored -> Response.ok().build(),
+                        directExecutor())),
+                responseExecutor);
     }
 
     @GET
@@ -184,59 +228,8 @@ public class DataResource
                 .build();
     }
 
-    private Optional<SliceLeasesIterator> getNextPartitionPages(SliceInput sliceInput)
+    public static ListenableFuture<Response> translateExceptions(ListenableFuture<Response> listenableFuture)
     {
-        if (!sliceInput.isReadable()) {
-            return Optional.empty();
-        }
-
-        int partitionId = sliceInput.readInt();
-        int length = sliceInput.readInt();
-        checkArgument(length > 0, "length should be greater than 0; got %s", length);
-        // todo check if length <= HTTP content length
-        return Optional.of(new SliceLeasesIterator(partitionId, memoryAllocator, sliceInput, length));
-    }
-
-    private static class SliceLeasesIterator
-            extends AbstractIterator<SliceLease>
-    {
-        private final int partitionId;
-        private final MemoryAllocator memoryAllocator;
-        private final SliceInput sliceInput;
-        private int remainingBytes;
-
-        public SliceLeasesIterator(int partitionId, MemoryAllocator memoryAllocator, SliceInput sliceInput, int length)
-        {
-            this.partitionId = partitionId;
-            this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
-            this.sliceInput = sliceInput;
-            this.remainingBytes = length;
-        }
-
-        @Override
-        protected SliceLease computeNext()
-        {
-            if (remainingBytes == 0 || !sliceInput.isReadable()) {
-                checkArgument(sliceInput.isReadable() || remainingBytes == 0, "no more data in input stream but remaining bytes counter > 0 (%s)", remainingBytes);
-                return endOfData();
-            }
-
-            checkState(remainingBytes >= 4, "expected at least 4 bytes remaining; got %s", remainingBytes);
-            int length = sliceInput.readInt();
-            remainingBytes -= 4;
-
-            checkArgument(length >= 0, "length should be greater than 0; got %s", length);
-            checkArgument(remainingBytes >= length, "page length is %s but have only %s bytes remaining", length, remainingBytes);
-            Slice page = memoryAllocator.allocate(length)
-                    .orElseThrow(() -> new IllegalStateException("Unable to allocate %d bytes".formatted(length)));
-            sliceInput.readBytes(page);
-            remainingBytes -= length;
-            return new SliceLease(memoryAllocator, page);
-        }
-
-        public int getPartitionId()
-        {
-            return partitionId;
-        }
+        return Futures.catchingAsync(listenableFuture, Exception.class, e -> immediateFuture(errorResponse(e)), directExecutor());
     }
 }

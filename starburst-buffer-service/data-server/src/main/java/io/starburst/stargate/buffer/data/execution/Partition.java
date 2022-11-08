@@ -10,22 +10,30 @@
 package io.starburst.stargate.buffer.data.execution;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.AbstractFuture;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.slice.Slice;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
-import io.starburst.stargate.buffer.data.memory.SliceLease;
 
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
 import static java.util.Objects.requireNonNull;
 
@@ -40,6 +48,7 @@ public class Partition
     private final int chunkSliceSizeInBytes;
     private final boolean calculateDataPagesChecksum;
     private final ChunkIdGenerator chunkIdGenerator;
+    private final ExecutorService executor;
 
     // chunkId -> closed chunk
     private final Map<Long, Chunk> closedChunks = new ConcurrentHashMap<>();
@@ -52,6 +61,10 @@ public class Partition
     private boolean finished;
     @GuardedBy("this")
     private long lastConsumedChunkId = -1;
+    @GuardedBy("this")
+    private final Deque<AddDataPagesFuture> addDataPagesFutures = new ArrayDeque<>();
+    @GuardedBy("this")
+    private boolean released;
 
     public Partition(
             long bufferNodeId,
@@ -61,7 +74,8 @@ public class Partition
             int chunkMaxSizeInBytes,
             int chunkSliceSizeInBytes,
             boolean calculateDataPagesChecksum,
-            ChunkIdGenerator chunkIdGenerator)
+            ChunkIdGenerator chunkIdGenerator,
+            ExecutorService executor)
     {
         this.bufferNodeId = bufferNodeId;
         this.exchangeId = requireNonNull(exchangeId, "exchangeId is null");
@@ -71,9 +85,12 @@ public class Partition
         this.chunkSliceSizeInBytes = chunkSliceSizeInBytes;
         this.calculateDataPagesChecksum = calculateDataPagesChecksum;
         this.chunkIdGenerator = requireNonNull(chunkIdGenerator, "chunkIdGenerator is null");
+        this.executor = requireNonNull(executor, "executor is null");
+
+        this.openChunk = createNewOpenChunk();
     }
 
-    public synchronized void addDataPages(int taskId, int attemptId, long dataPagesId, Iterator<SliceLease> sliceLeases)
+    public synchronized ListenableFuture<Void> addDataPages(int taskId, int attemptId, long dataPagesId, List<Slice> pages)
     {
         TaskAttemptId taskAttemptId = new TaskAttemptId(taskId, attemptId);
         long lastDataPagesId = lastDataPagesIds.getOrDefault(taskAttemptId, -1L);
@@ -81,27 +98,19 @@ public class Partition
                 "dataPagesId should not decrease for the same writer: " +
                         "taskId %d, attemptId %d, dataPagesId %d, lastDataPagesId %d".formatted(taskId, attemptId, dataPagesId, lastDataPagesId));
         if (dataPagesId == lastDataPagesId) {
-            return;
+            return immediateVoidFuture();
         }
         else {
             lastDataPagesIds.put(taskAttemptId, dataPagesId);
         }
 
-        if (openChunk == null) {
-            openChunk = createNewOpenChunk();
+        AddDataPagesFuture addDataPagesFuture = new AddDataPagesFuture(taskId, attemptId, pages);
+        addDataPagesFutures.add(addDataPagesFuture);
+        if (addDataPagesFutures.size() == 1) {
+            addDataPagesFuture.process();
         }
 
-        while (sliceLeases.hasNext()) {
-            SliceLease sliceLease = sliceLeases.next();
-            Slice page = sliceLease.getSlice();
-            if (!openChunk.hasEnoughSpace(page)) {
-                // the open chunk doesn't have enough space available, close the chunk and create a new one
-                closeChunk(openChunk);
-                openChunk = createNewOpenChunk();
-            }
-            openChunk.write(taskId, attemptId, page);
-            sliceLease.release();
-        }
+        return addDataPagesFuture;
     }
 
     public ChunkDataHolder getChunkData(long chunkId)
@@ -127,6 +136,7 @@ public class Partition
     public synchronized void finish()
     {
         checkState(!finished, "already finished");
+        checkState(addDataPagesFutures.isEmpty(), "finish() called when addDataPages is in progress");
         checkState(openChunk != null, "No open chunk exists for exchange %s partition %d".formatted(exchangeId, partitionId));
         closeChunk(openChunk);
         openChunk = null;
@@ -146,9 +156,11 @@ public class Partition
     public void releaseChunks()
     {
         synchronized (this) {
+            addDataPagesFutures.forEach(future -> future.cancel(true));
             if (openChunk != null) {
                 openChunk.release();
             }
+            released = true;
         }
         closedChunks.values().forEach(Chunk::release);
     }
@@ -159,14 +171,17 @@ public class Partition
         closedChunks.put(chunk.getChunkId(), chunk);
     }
 
+    @GuardedBy("this")
     private Chunk createNewOpenChunk()
     {
+        checkState(!released, "new chunk creation after release of all chunks");
         long chunkId = chunkIdGenerator.getNextChunkId();
         return new Chunk(
                 bufferNodeId,
                 partitionId,
                 chunkId,
                 memoryAllocator,
+                executor,
                 chunkMaxSizeInBytes,
                 chunkSliceSizeInBytes,
                 calculateDataPagesChecksum);
@@ -178,6 +193,96 @@ public class Partition
         public TaskAttemptId {
             checkArgument(taskId <= Short.MAX_VALUE, "taskId %s larger than %s", taskId, Short.MAX_VALUE);
             checkArgument(attemptId <= Byte.MAX_VALUE, "attemptId %s larger than %s", attemptId, Byte.MAX_VALUE);
+        }
+    }
+
+    private class AddDataPagesFuture
+            extends AbstractFuture<Void>
+    {
+        private final int taskId;
+        private final int attemptId;
+        private final Iterator<Slice> pages;
+
+        @GuardedBy("Partition.this")
+        private ListenableFuture<Void> currentChunkWriteFuture = immediateVoidFuture();
+
+        AddDataPagesFuture(
+                int taskId,
+                int attemptId,
+                List<Slice> pages)
+        {
+            this.taskId = taskId;
+            this.attemptId = attemptId;
+            this.pages = requireNonNull(pages, "pages is null").iterator();
+            checkArgument(!pages.isEmpty(), "empty pages");
+        }
+
+        public void process()
+        {
+            synchronized (Partition.this) {
+                if (currentChunkWriteFuture == null) {
+                    checkState(isCancelled(), "PartitionAddDataPagesFuture should be in cancelled state");
+                }
+                checkState(currentChunkWriteFuture.isDone(), "trying to process next page before previous page is done");
+
+                Slice page = pages.next();
+                if (!openChunk.hasEnoughSpace(page)) {
+                    // the open chunk doesn't have enough space available, close the chunk and create a new one
+                    closeChunk(openChunk);
+                    openChunk = createNewOpenChunk();
+                }
+
+                currentChunkWriteFuture = openChunk.write(taskId, attemptId, page);
+                Futures.addCallback(
+                        currentChunkWriteFuture,
+                        new FutureCallback<>()
+                        {
+                            @Override
+                            public void onSuccess(Void result)
+                            {
+                                try {
+                                    boolean completeFuture = false;
+                                    synchronized (Partition.this) {
+                                        if (!pages.hasNext()) {
+                                            addDataPagesFutures.removeFirst();
+                                            if (!addDataPagesFutures.isEmpty()) {
+                                                addDataPagesFutures.peek().process();
+                                            }
+                                            completeFuture = true;
+                                        }
+                                        else {
+                                            process();
+                                        }
+                                    }
+                                    // complete future outside the lock
+                                    if (completeFuture) {
+                                        set(null);
+                                    }
+                                }
+                                catch (Exception e) {
+                                    onFailure(e);
+                                }
+                            }
+
+                            @Override
+                            public void onFailure(Throwable throwable)
+                            {
+                                setException(throwable);
+                            }
+                        },
+                        executor);
+            }
+        }
+
+        @Override
+        protected void interruptTask()
+        {
+            synchronized (Partition.this) {
+                if (currentChunkWriteFuture != null) {
+                    currentChunkWriteFuture.cancel(true);
+                    currentChunkWriteFuture = null;
+                }
+            }
         }
     }
 }
