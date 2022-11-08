@@ -55,7 +55,7 @@ public interface DataApi
      *
      * It is expected that single writer of this method as denoted by (taskId, attemptId) pair is single threaded
      * and only sends new data page upon receiving proper response that previous page was consumed by buffer node.
-     * A concurrent requests are allowed if set of partitions written to does not overlap.
+     * Concurrent requests are allowed if set of partitions written to does not overlap.
      *
      * If response is not received it is responsibility of the writer to retry a request passing same dataPagesId.
      * The dataPagesId will be used by buffer node for deduplication purpose in case when previous request was actually registered on
