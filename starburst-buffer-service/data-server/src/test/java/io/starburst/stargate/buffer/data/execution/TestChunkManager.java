@@ -80,11 +80,11 @@ public class TestChunkManager
 
         ChunkList chunkList0 = chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty());
         assertTrue(chunkList0.chunks().isEmpty());
-        assertEquals(chunkList0.nextPagingId(), OptionalLong.of(1L));
+        assertEquals(OptionalLong.of(1L), chunkList0.nextPagingId());
 
         ChunkList chunkList1 = chunkManager.listClosedChunks(EXCHANGE_1, OptionalLong.empty());
         assertTrue(chunkList1.chunks().isEmpty());
-        assertEquals(chunkList1.nextPagingId(), OptionalLong.of(1L));
+        assertEquals(OptionalLong.of(1L), chunkList1.nextPagingId());
 
         chunkManager.finishExchange(EXCHANGE_0);
         chunkManager.finishExchange(EXCHANGE_1);
@@ -112,7 +112,7 @@ public class TestChunkManager
         verifyChunkData(chunkManager.getChunkData(EXCHANGE_1, chunkHandle2.partitionId(), chunkHandle2.chunkId(), BUFFER_NODE_ID),
                 new DataPage(0, 0, utf8Slice("100_0")));
 
-        assertEquals(memoryAllocator.getTotalMemory() - memoryAllocator.getFreeMemory(), DataSize.of(384, KILOBYTE).toBytes());
+        assertEquals(DataSize.of(384, KILOBYTE).toBytes(), memoryAllocator.getTotalMemory() - memoryAllocator.getFreeMemory());
 
         chunkManager.removeExchange(EXCHANGE_0);
         chunkManager.removeExchange(EXCHANGE_1);
@@ -145,11 +145,11 @@ public class TestChunkManager
 
         ChunkList chunkList0 = chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty());
         assertThat(chunkList0.chunks()).containsExactlyInAnyOrder(chunkHandle1);
-        assertEquals(chunkList0.nextPagingId(), OptionalLong.of(1L));
+        assertEquals(OptionalLong.of(1L), chunkList0.nextPagingId());
 
         ChunkList chunkList1 = chunkManager.listClosedChunks(EXCHANGE_1, OptionalLong.empty());
         assertTrue(chunkList1.chunks().isEmpty());
-        assertEquals(chunkList0.nextPagingId(), OptionalLong.of(1L));
+        assertEquals(OptionalLong.of(1L), chunkList0.nextPagingId());
 
         chunkManager.finishExchange(EXCHANGE_0);
         chunkManager.finishExchange(EXCHANGE_1);
@@ -177,7 +177,7 @@ public class TestChunkManager
         verifyChunkData(chunkManager.getChunkData(EXCHANGE_1, chunkHandle3.partitionId(), chunkHandle3.chunkId(), BUFFER_NODE_ID),
                 new DataPage(0, 0, utf8Slice("100_0")));
 
-        assertEquals(memoryAllocator.getTotalMemory() - memoryAllocator.getFreeMemory(), DataSize.of(96, BYTE).toBytes());
+        assertEquals(DataSize.of(96, BYTE).toBytes(), memoryAllocator.getTotalMemory() - memoryAllocator.getFreeMemory());
 
         chunkManager.removeExchange(EXCHANGE_0);
         chunkManager.removeExchange(EXCHANGE_1);
@@ -197,10 +197,10 @@ public class TestChunkManager
 
         ChunkList chunkList0 = chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty());
         assertThat(chunkList0.chunks()).isEmpty();
-        assertEquals(chunkList0.nextPagingId(), OptionalLong.of(1L));
+        assertEquals(OptionalLong.of(1L), chunkList0.nextPagingId());
         ChunkList chunkList1 = chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty());
         assertThat(chunkList1.chunks()).isEmpty();
-        assertEquals(chunkList1.nextPagingId(), OptionalLong.of(1L));
+        assertEquals(OptionalLong.of(1L), chunkList1.nextPagingId());
 
         chunkManager.pingExchange(EXCHANGE_0);
 
@@ -209,7 +209,7 @@ public class TestChunkManager
 
         chunkList0 = chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.of(1L));
         assertThat(chunkList0.chunks()).isEmpty();
-        assertEquals(chunkList0.nextPagingId(), OptionalLong.of(2L));
+        assertEquals(OptionalLong.of(2L), chunkList0.nextPagingId());
         assertThatThrownBy(() -> chunkManager.listClosedChunks(EXCHANGE_1, OptionalLong.empty()))
                 .isInstanceOf(DataServerException.class)
                 .hasMessage("exchange %s not found".formatted(EXCHANGE_1));

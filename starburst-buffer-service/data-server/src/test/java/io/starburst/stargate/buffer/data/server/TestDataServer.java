@@ -103,7 +103,7 @@ public class TestDataServer
         ChunkList chunkList1 = listClosedChunks(EXCHANGE_1, OptionalLong.empty());
         assertThat(chunkList1.chunks()).containsExactlyInAnyOrder(chunkHandle3);
         assertTrue(chunkList1.nextPagingId().isPresent());
-        assertEquals(chunkList1.nextPagingId().getAsLong(), 1L);
+        assertEquals(1L, chunkList1.nextPagingId().getAsLong());
 
         finishExchange(EXCHANGE_1);
 
