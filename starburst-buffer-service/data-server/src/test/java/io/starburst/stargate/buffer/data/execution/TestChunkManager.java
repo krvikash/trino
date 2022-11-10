@@ -10,6 +10,7 @@
 package io.starburst.stargate.buffer.data.execution;
 
 import com.google.common.collect.ImmutableList;
+import io.airlift.slice.Slice;
 import io.airlift.testing.TestingTicker;
 import io.airlift.units.DataSize;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
@@ -34,6 +35,7 @@ import static io.airlift.slice.Slices.utf8Slice;
 import static io.airlift.units.DataSize.Unit.BYTE;
 import static io.airlift.units.DataSize.Unit.KILOBYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
+import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
 import static io.starburst.stargate.buffer.data.execution.ChunkManagerConfig.DEFAULT_EXCHANGE_STALENESS_THRESHOLD;
 import static io.starburst.stargate.buffer.data.execution.ChunkTestHelper.verifyChunkData;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -266,6 +268,31 @@ public class TestChunkManager
                 .hasMessage("exchange %s not found".formatted(EXCHANGE_0));
 
         assertEquals(memoryAllocator.getTotalMemory(), memoryAllocator.getFreeMemory());
+    }
+
+    @Test
+    public void testAddDataPagesFailure()
+            throws InterruptedException
+    {
+        DataSize chunkMaxSize = DataSize.of(12, BYTE);
+        ChunkManager chunkManager = createChunkManager(chunkMaxSize, chunkMaxSize);
+        Slice largePage = utf8Slice("8".repeat((int) DataSize.of(8, MEGABYTE).toBytes()));
+
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("dummy"))));
+        assertThatThrownBy(() -> getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 1, 1, 1L, ImmutableList.of(utf8Slice("dummy"), largePage))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("requiredStorageSize %d larger than chunkMaxSizeInBytes %d".formatted(DATA_PAGE_HEADER_SIZE + largePage.length(), chunkMaxSize.toBytes()));
+        Thread.sleep(10); // make sure exception callback has executed and failure has been set
+        // all future operations (except releaseChunks) to the exchange will fail
+        assertThatThrownBy(() -> getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 2, 2, 2, 2L, ImmutableList.of(utf8Slice("dummy")))))
+                .isInstanceOf(DataServerException.class)
+                .hasMessage("exchange %s is in inconsistent state".formatted(EXCHANGE_0));
+        assertThatThrownBy(() -> chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty()))
+                .isInstanceOf(DataServerException.class)
+                .hasMessage("exchange %s is in inconsistent state".formatted(EXCHANGE_0));
+        assertThatThrownBy(() -> chunkManager.finishExchange(EXCHANGE_0))
+                .isInstanceOf(DataServerException.class)
+                .hasMessage("exchange %s is in inconsistent state".formatted(EXCHANGE_0));
     }
 
     private ChunkManager createChunkManager(DataSize chunkMaxSize, DataSize chunkSliceSize)

@@ -16,6 +16,7 @@ public enum ErrorCode
     INTERNAL_ERROR, // general internal error
     EXCHANGE_FINISHED, // exchange still exists but already finished
     EXCHANGE_NOT_FOUND, // exchange not found
+    EXCHANGE_CORRUPTED, // exchange in inconsistent state due to unexpected error when adding data pages
     CHUNK_DRAINED, // chunk was drained and will not be served by this buffer node as the node is draining; request should be retried to another RUNNING buffer node.
     CHUNK_NOT_FOUND, // chunk not found
     USER_ERROR, // unexpected input from the client

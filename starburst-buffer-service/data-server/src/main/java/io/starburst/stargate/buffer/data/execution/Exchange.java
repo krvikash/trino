@@ -27,9 +27,12 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.common.base.Verify.verify;
+import static io.airlift.concurrent.MoreFutures.addExceptionCallback;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
+import static io.starburst.stargate.buffer.data.client.ErrorCode.EXCHANGE_CORRUPTED;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.EXCHANGE_FINISHED;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.USER_ERROR;
 import static java.util.Objects.requireNonNull;
@@ -58,6 +61,7 @@ public class Exchange
     @GuardedBy("this")
     private boolean finished;
     private volatile long lastUpdateTime;
+    private final AtomicReference<Throwable> failure = new AtomicReference<>();
 
     public Exchange(
             long bufferNodeId,
@@ -84,6 +88,8 @@ public class Exchange
 
     public ListenableFuture<Void> addDataPages(int partitionId, int taskId, int attemptId, long dataPagesId, List<Slice> pages)
     {
+        throwIfFailed();
+
         Partition partition;
         synchronized (this) {
             if (finished) {
@@ -101,11 +107,18 @@ public class Exchange
                     executor));
         }
 
-        return partition.addDataPages(taskId, attemptId, dataPagesId, pages);
+        ListenableFuture<Void> addDataPagesFuture = partition.addDataPages(taskId, attemptId, dataPagesId, pages);
+        addExceptionCallback(addDataPagesFuture, throwable -> {
+            failure.compareAndSet(null, throwable);
+            this.releaseChunks();
+        }, executor);
+        return addDataPagesFuture;
     }
 
     public ChunkDataHolder getChunkData(int partitionId, long chunkId)
     {
+        throwIfFailed();
+
         Partition partition = partitions.get(partitionId);
         if (partition == null) {
             throw new DataServerException(CHUNK_NOT_FOUND, "partition %d not found for exchange %s".formatted(partitionId, exchangeId));
@@ -115,6 +128,8 @@ public class Exchange
 
     public synchronized ChunkList listClosedChunks(OptionalLong pagingIdOptional)
     {
+        throwIfFailed();
+
         long pagingId = pagingIdOptional.orElse(0);
         Optional<ChunkList> cachedChunkList = getCachedChunkList(pagingId);
         if (cachedChunkList.isPresent()) {
@@ -146,6 +161,8 @@ public class Exchange
 
     public synchronized void finish()
     {
+        throwIfFailed();
+
         if (finished) {
             return;
         }
@@ -153,7 +170,6 @@ public class Exchange
         for (Partition partition : partitions.values()) {
             partition.finish();
         }
-
         finished = true;
     }
 
@@ -167,9 +183,10 @@ public class Exchange
         return partitions.values().stream().mapToInt(Partition::getClosedChunks).sum();
     }
 
-    public void releaseChunks()
+    public synchronized void releaseChunks()
     {
         partitions.values().forEach(Partition::releaseChunks);
+        partitions.clear();
     }
 
     public long getLastUpdateTime()
@@ -212,5 +229,13 @@ public class Exchange
         }
 
         return Optional.empty();
+    }
+
+    private void throwIfFailed()
+    {
+        Throwable throwable = failure.get();
+        if (throwable != null) {
+            throw new DataServerException(EXCHANGE_CORRUPTED, "exchange %s is in inconsistent state".formatted(exchangeId), throwable);
+        }
     }
 }
