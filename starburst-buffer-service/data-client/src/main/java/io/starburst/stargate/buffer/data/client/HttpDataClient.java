@@ -47,6 +47,7 @@ import java.util.function.Supplier;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.net.HttpHeaders.CONTENT_LENGTH;
 import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
 import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
@@ -174,11 +175,19 @@ public class HttpDataClient
         requireNonNull(exchangeId, "exchangeId is null");
         requireNonNull(dataPages, "dataPage is null");
 
+        int contentLength = 0;
+        for (Map.Entry<Integer, Collection<Slice>> entry : dataPages.asMap().entrySet()) {
+            Collection<Slice> pages = entry.getValue();
+            contentLength += Integer.BYTES * 2; // partitionId, totalLength
+            contentLength += pages.stream().mapToInt(slice -> Integer.BYTES + slice.length()).sum();
+        }
+
         Request request = preparePost()
                 .setUri(UriBuilder.fromUri(baseUri)
                         .path("%s/addDataPages/%d/%d/%d".formatted(exchangeId, taskId, attemptId, dataPagesId))
                         .build())
                 .setBodyGenerator(new PagesBodyGenerator(dataPages))
+                .setHeader(CONTENT_LENGTH, String.valueOf(contentLength))
                 .build();
 
         HttpResponseFuture<StringResponse> responseFuture = httpClient.executeAsync(request, createStringResponseHandler());
