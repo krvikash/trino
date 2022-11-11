@@ -209,10 +209,12 @@ public class ChunkManager
         long cleanupThreshold = now - exchangeStalenessThreshold.toMillis();
         while (iterator.hasNext()) {
             Map.Entry<String, Exchange> entry = iterator.next();
-            long lastUpdateTime = entry.getValue().getLastUpdateTime();
+            Exchange exchange = entry.getValue();
+            long lastUpdateTime = exchange.getLastUpdateTime();
             if (lastUpdateTime < cleanupThreshold) {
                 LOG.info("forgetting exchange %s; no update for %s", entry.getKey(), succinctDuration(now - lastUpdateTime, MILLISECONDS));
                 iterator.remove();
+                exchange.releaseChunks();
             }
         }
     }

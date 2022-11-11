@@ -191,17 +191,21 @@ public class TestChunkManager
         ChunkManager chunkManager = createChunkManager(DataSize.of(16, MEGABYTE), DataSize.of(1, MEGABYTE));
 
         chunkManager.registerExchange(EXCHANGE_0);
+        chunkManager.registerExchange(EXCHANGE_1);
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_1, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("dummy"))));
 
         ticker.increment(1000, MILLISECONDS);
         chunkManager.cleanupStaleExchanges();
+        assertEquals(DataSize.of(1, MEGABYTE).toBytes(), memoryAllocator.getTotalMemory() - memoryAllocator.getFreeMemory());
 
         ChunkList chunkList0 = chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty());
         assertThat(chunkList0.chunks()).isEmpty();
         assertEquals(OptionalLong.of(1L), chunkList0.nextPagingId());
-        ChunkList chunkList1 = chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty());
+        ChunkList chunkList1 = chunkManager.listClosedChunks(EXCHANGE_1, OptionalLong.empty());
         assertThat(chunkList1.chunks()).isEmpty();
         assertEquals(OptionalLong.of(1L), chunkList1.nextPagingId());
 
+        ticker.increment(1000, MILLISECONDS);
         chunkManager.pingExchange(EXCHANGE_0);
 
         ticker.increment(DEFAULT_EXCHANGE_STALENESS_THRESHOLD.toMillis() - 500, MILLISECONDS);
