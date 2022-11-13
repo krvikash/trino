@@ -57,6 +57,7 @@ public class TestDataServer
     {
         dataServer = TestingDataServer.builder()
                 .setDiscoveryBroadcastEnabled(false)
+                .setConfigProperty("spooling.directory", System.getProperty("java.io.tmpdir") + "/spooling-storage")
                 .build();
         httpClient = new JettyHttpClient(new HttpClientConfig());
         dataClient = new HttpDataClient(dataServer.getBaseUri(), httpClient, true);

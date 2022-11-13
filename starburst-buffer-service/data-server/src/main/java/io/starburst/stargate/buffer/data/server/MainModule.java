@@ -12,19 +12,22 @@ package io.starburst.stargate.buffer.data.server;
 import com.google.common.base.Ticker;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
-import com.google.inject.Module;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import io.airlift.concurrent.BoundedExecutor;
+import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.http.client.HttpClient;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
 import io.starburst.stargate.buffer.data.execution.ChunkManager.ForChunkManager;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocatorConfig;
+import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
+import io.starburst.stargate.buffer.data.spooling.local.LocalSpoolingStorage;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 import io.starburst.stargate.buffer.discovery.client.HttpDiscoveryClient;
 
+import java.net.URI;
 import java.security.SecureRandom;
 import java.util.concurrent.ExecutorService;
 
@@ -37,7 +40,7 @@ import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newCachedThreadPool;
 
 public class MainModule
-        implements Module
+        extends AbstractConfigurationAwareModule
 {
     private final long bufferNodeId;
     private final boolean discoveryBroadcastEnabled;
@@ -61,7 +64,7 @@ public class MainModule
     }
 
     @Override
-    public void configure(Binder binder)
+    protected void setup(Binder binder)
     {
         httpClientBinder(binder).bindHttpClient("buffer-discovery.http", ForBufferDiscoveryClient.class);
 
@@ -78,6 +81,15 @@ public class MainModule
         binder.bind(ExecutorService.class).toInstance(newCachedThreadPool(daemonThreadsNamed("chunk-write-%s")));
         if (discoveryBroadcastEnabled) {
             binder.bind(DiscoveryBroadcast.class).in(SINGLETON);
+        }
+
+        URI spoolingBaseDirectory = buildConfigObject(ChunkManagerConfig.class).getSpoolingDirectory();
+        String scheme = spoolingBaseDirectory.getScheme();
+        if (scheme == null || scheme.equals("file")) {
+            binder.bind(SpoolingStorage.class).to(LocalSpoolingStorage.class).in(SINGLETON);
+        }
+        else {
+            binder.addError("Scheme %s is not supported as buffer spooling storage".formatted(scheme));
         }
     }
 

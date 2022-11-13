@@ -11,7 +11,7 @@ package io.starburst.stargate.buffer.data.client;
 
 public enum ErrorCode
 {
-    // OVERLOADED, // node is overloaded // todo
+    // OVERLOADED, // node is overloaded
     DRAINING, // node is draining
     INTERNAL_ERROR, // general internal error
     EXCHANGE_FINISHED, // exchange still exists but already finished

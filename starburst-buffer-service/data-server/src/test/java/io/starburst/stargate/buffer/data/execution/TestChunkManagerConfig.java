@@ -31,7 +31,8 @@ public class TestChunkManagerConfig
         assertRecordedDefaults(recordDefaults(ChunkManagerConfig.class)
                 .setChunkMaxSize(DataSize.of(16, MEGABYTE))
                 .setChunkSliceSize(DataSize.of(128, KILOBYTE))
-                .setExchangeStalenessThreshold(succinctDuration(5, MINUTES)));
+                .setExchangeStalenessThreshold(succinctDuration(5, MINUTES))
+                .setSpoolingDirectory(null));
     }
 
     @Test
@@ -41,12 +42,14 @@ public class TestChunkManagerConfig
                 .put("chunk.max-size", "32MB")
                 .put("chunk.slice-size", "1MB")
                 .put("exchange.staleness-threshold", "1m")
+                .put("spooling.directory", "/spooling-bucket")
                 .buildOrThrow();
 
         ChunkManagerConfig expected = new ChunkManagerConfig()
                 .setChunkMaxSize(DataSize.of(32, MEGABYTE))
                 .setChunkSliceSize(DataSize.of(1, MEGABYTE))
-                .setExchangeStalenessThreshold(succinctDuration(1, MINUTES));
+                .setExchangeStalenessThreshold(succinctDuration(1, MINUTES))
+                .setSpoolingDirectory("/spooling-bucket/");
 
         assertFullMapping(properties, expected);
     }

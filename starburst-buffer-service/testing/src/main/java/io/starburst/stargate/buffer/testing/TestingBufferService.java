@@ -35,6 +35,7 @@ public class TestingBufferService
         // connect to discovery server
         dataServerBuilder.setDiscoveryBroadcastEnabled(true);
         dataServerBuilder.setConfigProperty("discovery-service.uri", discoveryServer.getBaseUri().toString());
+        dataServerBuilder.setConfigProperty("spooling.directory", System.getProperty("java.io.tmpdir") + "/spooling-storage");
 
         ImmutableList.Builder<TestingDataServer> dataServers = ImmutableList.builder();
         for (int nodeId = 0; nodeId < dataServersCount; ++nodeId) {

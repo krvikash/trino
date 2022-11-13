@@ -18,9 +18,12 @@ import io.airlift.units.MinDataSize;
 
 import javax.validation.constraints.NotNull;
 
+import java.net.URI;
+
 import static io.airlift.units.DataSize.Unit.KILOBYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.airlift.units.Duration.succinctDuration;
+import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.PATH_SEPARATOR;
 import static java.util.concurrent.TimeUnit.MINUTES;
 
 public class ChunkManagerConfig
@@ -31,6 +34,7 @@ public class ChunkManagerConfig
     private DataSize chunkMaxSize = DataSize.of(16, MEGABYTE);
     private DataSize chunkSliceSize = DataSize.of(128, KILOBYTE);
     private Duration exchangeStalenessThreshold = DEFAULT_EXCHANGE_STALENESS_THRESHOLD;
+    private URI spoolingDirectory;
 
     @NotNull
     @MinDataSize("16MB")
@@ -72,6 +76,24 @@ public class ChunkManagerConfig
     public ChunkManagerConfig setExchangeStalenessThreshold(Duration exchangeStalenessThreshold)
     {
         this.exchangeStalenessThreshold = exchangeStalenessThreshold;
+        return this;
+    }
+
+    @NotNull
+    public URI getSpoolingDirectory()
+    {
+        return spoolingDirectory;
+    }
+
+    @Config("spooling.directory")
+    public ChunkManagerConfig setSpoolingDirectory(String spoolingDirectory)
+    {
+        if (spoolingDirectory != null) {
+            if (!spoolingDirectory.endsWith(PATH_SEPARATOR)) {
+                spoolingDirectory += PATH_SEPARATOR;
+            }
+            this.spoolingDirectory = URI.create(spoolingDirectory);
+        }
         return this;
     }
 }
