@@ -24,4 +24,9 @@ public record ChunkDataHolder(
     public ChunkDataHolder {
         chunkSlices = ImmutableList.copyOf(requireNonNull(chunkSlices, "chunkSlices is null"));
     }
+
+    public int serializedSizeInBytes()
+    {
+        return chunkSlices.stream().mapToInt(Slice::length).sum() + Long.BYTES + Integer.BYTES;
+    }
 }

@@ -42,14 +42,14 @@ public class TestChunkManagerConfig
                 .put("chunk.max-size", "32MB")
                 .put("chunk.slice-size", "1MB")
                 .put("exchange.staleness-threshold", "1m")
-                .put("spooling.directory", "/spooling-bucket")
+                .put("spooling.directory", "s3://spooling-bucket")
                 .buildOrThrow();
 
         ChunkManagerConfig expected = new ChunkManagerConfig()
                 .setChunkMaxSize(DataSize.of(32, MEGABYTE))
                 .setChunkSliceSize(DataSize.of(1, MEGABYTE))
                 .setExchangeStalenessThreshold(succinctDuration(1, MINUTES))
-                .setSpoolingDirectory("/spooling-bucket/");
+                .setSpoolingDirectory("s3://spooling-bucket/");
 
         assertFullMapping(properties, expected);
     }

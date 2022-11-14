@@ -61,4 +61,15 @@ public final class SpoolingUtils
         List<Slice> chunkSlices = ImmutableList.of(slice.slice(CHUNK_FILE_HEADER_SIZE, slice.length() - CHUNK_FILE_HEADER_SIZE));
         return new ChunkDataHolder(chunkSlices, checksum, numDataPages);
     }
+
+    // Helper function that translates exceptions to avoid abstraction leak
+    public static <T> ListenableFuture<T> translateFailures(ListenableFuture<T> listenableFuture)
+    {
+        return Futures.catchingAsync(listenableFuture, Throwable.class, throwable -> {
+            if (throwable instanceof Error || throwable instanceof IOException) {
+                return immediateFailedFuture(throwable);
+            }
+            return immediateFailedFuture(new IOException(throwable));
+        }, directExecutor());
+    }
 }

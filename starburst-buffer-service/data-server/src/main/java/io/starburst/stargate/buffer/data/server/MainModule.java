@@ -24,6 +24,8 @@ import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocatorConfig;
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.local.LocalSpoolingStorage;
+import io.starburst.stargate.buffer.data.spooling.s3.S3SpoolingStorage;
+import io.starburst.stargate.buffer.data.spooling.s3.SpoolingS3Config;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 import io.starburst.stargate.buffer.discovery.client.HttpDiscoveryClient;
 
@@ -87,6 +89,10 @@ public class MainModule
         String scheme = spoolingBaseDirectory.getScheme();
         if (scheme == null || scheme.equals("file")) {
             binder.bind(SpoolingStorage.class).to(LocalSpoolingStorage.class).in(SINGLETON);
+        }
+        else if (scheme.equals("s3")) {
+            configBinder(binder).bindConfig(SpoolingS3Config.class);
+            binder.bind(SpoolingStorage.class).to(S3SpoolingStorage.class).in(SINGLETON);
         }
         else {
             binder.addError("Scheme %s is not supported as buffer spooling storage".formatted(scheme));
