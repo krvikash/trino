@@ -9,7 +9,7 @@
     </parent>
 
     <artifactId>buffer-exchange</artifactId>
-    <description>Buffer Service Data Client</description>
+    <description>Buffer Service base Trino Exchange</description>
     <packaging>trino-plugin</packaging>
 
     <properties>
