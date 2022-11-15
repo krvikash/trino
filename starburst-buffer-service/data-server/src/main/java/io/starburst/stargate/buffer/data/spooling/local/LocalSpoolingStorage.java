@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.net.URI;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.ExecutorService;
@@ -43,6 +44,7 @@ import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.CHUNK_FILE_HEADER_SIZE;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getChunkDataHolder;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getFileName;
+import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getPrefixedDirectories;
 import static java.lang.StrictMath.toIntExact;
 import static java.util.Objects.requireNonNull;
 
@@ -112,11 +114,16 @@ public class LocalSpoolingStorage
     @Override
     public ListenableFuture<Void> removeExchange(String exchangeId)
     {
-        try {
-            MoreFiles.deleteRecursively(Paths.get(spoolingDirectory.resolve(exchangeId).getPath()), ALLOW_INSECURE);
-        }
-        catch (IOException e) {
-            return immediateFailedFuture(e);
+        for (String prefixedDirectory : getPrefixedDirectories(exchangeId)) {
+            Path path = Paths.get(spoolingDirectory.resolve(prefixedDirectory).getPath());
+            if (Files.exists(path)) {
+                try {
+                    MoreFiles.deleteRecursively(path, ALLOW_INSECURE);
+                }
+                catch (IOException e) {
+                    return immediateFailedFuture(e);
+                }
+            }
         }
 
         return immediateVoidFuture();

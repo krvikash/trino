@@ -54,6 +54,7 @@ import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.concurrent.MoreFutures.toListenableFuture;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getFileName;
+import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getPrefixedDirectories;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.translateFailures;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
@@ -147,21 +148,11 @@ public class S3SpoolingStorage
     public ListenableFuture<Void> removeExchange(String exchangeId)
     {
         fileSizes.remove(exchangeId);
-        ImmutableList.Builder<String> keys = ImmutableList.builder();
-        return translateFailures(asVoid(Futures.transformAsync(
-                toListenableFuture((listObjectsRecursively(exchangeId)
-                        .subscribe(listObjectsV2Response -> listObjectsV2Response.contents().stream()
-                                .map(S3Object::key)
-                                .forEach(keys::add)))),
-                // deleteObjects has a limit of 1000
-                ignored -> Futures.allAsList(Lists.partition(keys.build(), 1000).stream().map(list -> {
-                    DeleteObjectsRequest request = DeleteObjectsRequest.builder()
-                            .bucket(bucketName)
-                            .delete(Delete.builder().objects(list.stream().map(key -> ObjectIdentifier.builder().key(key).build()).collect(toImmutableList())).build())
-                            .build();
-                    return toListenableFuture(s3AsyncClient.deleteObjects(request));
-                }).collect(toImmutableList())),
-                directExecutor())));
+        ImmutableList.Builder<ListenableFuture<Void>> deleteDirectoryFutures = ImmutableList.builder();
+        for (String prefixedDirectory : getPrefixedDirectories(exchangeId)) {
+            deleteDirectoryFutures.add(deleteDirectory(prefixedDirectory));
+        }
+        return translateFailures(asVoid(Futures.allAsList((deleteDirectoryFutures.build()))));
     }
 
     @PreDestroy
@@ -227,5 +218,24 @@ public class S3SpoolingStorage
                 .build();
 
         return s3AsyncClient.listObjectsV2Paginator(request);
+    }
+
+    public ListenableFuture<Void> deleteDirectory(String directoryName)
+    {
+        ImmutableList.Builder<String> keys = ImmutableList.builder();
+        return asVoid(Futures.transformAsync(
+                toListenableFuture((listObjectsRecursively(directoryName)
+                        .subscribe(listObjectsV2Response -> listObjectsV2Response.contents().stream()
+                                .map(S3Object::key)
+                                .forEach(keys::add)))),
+                // deleteObjects has a limit of 1000
+                ignored -> Futures.allAsList(Lists.partition(keys.build(), 1000).stream().map(list -> {
+                    DeleteObjectsRequest request = DeleteObjectsRequest.builder()
+                            .bucket(bucketName)
+                            .delete(Delete.builder().objects(list.stream().map(key -> ObjectIdentifier.builder().key(key).build()).collect(toImmutableList())).build())
+                            .build();
+                    return toListenableFuture(s3AsyncClient.deleteObjects(request));
+                }).collect(toImmutableList())),
+                directExecutor()));
     }
 }
