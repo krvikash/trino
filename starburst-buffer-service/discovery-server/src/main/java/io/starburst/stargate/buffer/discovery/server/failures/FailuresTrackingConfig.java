@@ -11,7 +11,6 @@ package io.starburst.stargate.buffer.discovery.server.failures;
 
 import io.airlift.configuration.Config;
 import io.airlift.units.Duration;
-import io.airlift.units.MinDuration;
 
 import static io.airlift.units.Duration.succinctDuration;
 import static java.util.concurrent.TimeUnit.MINUTES;
@@ -20,7 +19,6 @@ public class FailuresTrackingConfig
 {
     private Duration failuresCounterDecayDuration = succinctDuration(5, MINUTES);
 
-    @MinDuration("1m")
     public Duration getFailuresCounterDecayDuration()
     {
         return failuresCounterDecayDuration;

@@ -49,6 +49,7 @@
         <module>data-server</module>
         <module>discovery-client</module>
         <module>discovery-server</module>
+        <module>fallbacking-buffer-exchange</module>
         <module>testing</module>
     </modules>
 
@@ -109,6 +110,12 @@
 
             <dependency>
                 <groupId>${project.groupId}</groupId>
+                <artifactId>fallbacking-buffer-exchange</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>${project.groupId}</groupId>
                 <artifactId>testing</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -160,6 +167,12 @@
                 <groupId>io.airlift</groupId>
                 <artifactId>units</artifactId>
                 <version>1.7</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.trino</groupId>
+                <artifactId>trino-exchange-filesystem</artifactId>
+                <version>${dep.trino.version}</version>
             </dependency>
 
             <dependency>
