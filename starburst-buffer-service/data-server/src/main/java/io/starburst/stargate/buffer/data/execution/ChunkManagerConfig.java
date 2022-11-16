@@ -14,6 +14,7 @@ import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
+import io.airlift.units.MaxDataSize;
 import io.airlift.units.MinDataSize;
 
 import javax.validation.constraints.NotNull;
@@ -38,6 +39,7 @@ public class ChunkManagerConfig
 
     @NotNull
     @MinDataSize("16MB")
+    @MaxDataSize("128MB")
     public DataSize getChunkMaxSize()
     {
         return chunkMaxSize;
@@ -53,6 +55,7 @@ public class ChunkManagerConfig
 
     @NotNull
     @MinDataSize("4kB")
+    @MaxDataSize("128MB")
     public DataSize getChunkSliceSize()
     {
         return chunkSliceSize;
