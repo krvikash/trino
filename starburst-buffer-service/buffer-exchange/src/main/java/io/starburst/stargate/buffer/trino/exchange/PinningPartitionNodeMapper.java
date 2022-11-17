@@ -50,8 +50,8 @@ public class PinningPartitionNodeMapper
     private Map<Integer, Long> computeMapping()
     {
         List<BufferNodeInfo> bufferNodes = discoveryManager.getBufferNodes().bufferNodeInfos().values().stream()
-                .filter(node -> node.getState() == BufferNodeState.RUNNING)
-                .filter(node -> node.getStats().isPresent())
+                .filter(node -> node.state() == BufferNodeState.RUNNING)
+                .filter(node -> node.stats().isPresent())
                 .collect(toImmutableList());
 
         if (bufferNodes.size() == 0) {
@@ -59,13 +59,13 @@ public class PinningPartitionNodeMapper
             throw new RuntimeException("no RUNNING buffer nodes available");
         }
 
-        long maxChunksCount = bufferNodes.stream().mapToLong(node -> node.getStats().orElseThrow().getOpenChunks() + node.getStats().orElseThrow().getClosedChunks()).max().orElseThrow();
+        long maxChunksCount = bufferNodes.stream().mapToLong(node -> node.stats().orElseThrow().openChunks() + node.stats().orElseThrow().closedChunks()).max().orElseThrow();
         RandomSelector<BufferNodeInfo> selector = RandomSelector.weighted(
                 bufferNodes,
                 node -> {
-                    BufferNodeStats stats = node.getStats().orElseThrow();
-                    double memoryWeight = (double) stats.getFreeMemory() / stats.getTotalMemory();
-                    int chunksCount = stats.getOpenChunks() + stats.getClosedChunks();
+                    BufferNodeStats stats = node.stats().orElseThrow();
+                    double memoryWeight = (double) stats.freeMemory() / stats.totalMemory();
+                    int chunksCount = stats.openChunks() + stats.closedChunks();
                     double chunksWeight;
                     if (maxChunksCount == 0) {
                         chunksWeight = 0.0;
@@ -83,7 +83,7 @@ public class PinningPartitionNodeMapper
                 });
 
         ImmutableMap.Builder<Integer, Long> mapping = ImmutableMap.builder();
-        IntStream.range(0, outputPartitionCount).forEach(partition -> mapping.put(partition, selector.next().getNodeId()));
+        IntStream.range(0, outputPartitionCount).forEach(partition -> mapping.put(partition, selector.next().nodeId()));
         return mapping.buildOrThrow();
     }
 
@@ -99,7 +99,7 @@ public class PinningPartitionNodeMapper
             Integer partition = entry.getKey();
             Long oldBufferNodeId = entry.getValue();
             BufferNodeInfo oldBufferNodeInfo = bufferNodes.get(oldBufferNodeId);
-            if (oldBufferNodeInfo != null && oldBufferNodeInfo.getState() == BufferNodeState.RUNNING) {
+            if (oldBufferNodeInfo != null && oldBufferNodeInfo.state() == BufferNodeState.RUNNING) {
                 // keep old mapping entry
                 finalMapping.put(partition, oldBufferNodeId);
             }

@@ -44,7 +44,7 @@ public class MockBufferExchangePlugin
             @Override
             public DataApi createDataApi(BufferNodeInfo nodeInfo)
             {
-                return bufferService.getDataApi(nodeInfo.getNodeId());
+                return bufferService.getDataApi(nodeInfo.nodeId());
             }
         }));
     }

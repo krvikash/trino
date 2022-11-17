@@ -54,10 +54,10 @@ public class BufferNodeDiscoveryManager
                 () -> {
                     // todo monitor error rate
                     BufferNodeInfoResponse response = discoveryApi.getBufferNodes();
-                    if (response.isResponseComplete()) {
+                    if (response.responseComplete()) {
                         bufferNodes.set(new BufferNodesState(
                                 System.currentTimeMillis(),
-                                uniqueIndex(response.getBufferNodeInfos(), BufferNodeInfo::getNodeId)));
+                                uniqueIndex(response.bufferNodeInfos(), BufferNodeInfo::nodeId)));
                         readyFuture.set(null);
                     }
                 },

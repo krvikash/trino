@@ -7,93 +7,18 @@
  *
  * Redistribution of this material is strictly prohibited.
  */
-
 package io.starburst.stargate.buffer.discovery.client;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 import java.net.URI;
-import java.util.Objects;
 import java.util.Optional;
 
-import static com.google.common.base.MoreObjects.toStringHelper;
 import static java.util.Objects.requireNonNull;
 
-public class BufferNodeInfo
+public record BufferNodeInfo(long nodeId, URI uri, Optional<BufferNodeStats> stats, BufferNodeState state)
 {
-    private final long nodeId;
-    private final URI uri;
-    private final Optional<BufferNodeStats> stats;
-    private final BufferNodeState state;
-
-    @JsonCreator
-    public BufferNodeInfo(
-            @JsonProperty("nodeId") long nodeId,
-            @JsonProperty("uri") URI uri,
-            @JsonProperty("stats") Optional<BufferNodeStats> stats,
-            @JsonProperty("state") BufferNodeState state)
-    {
-        this.nodeId = nodeId;
-        this.uri = requireNonNull(uri, "uri is null");
-        this.stats = requireNonNull(stats, "stats is null");
-        this.state = requireNonNull(state, "state is null");
-    }
-
-    @JsonProperty
-    public long getNodeId()
-    {
-        return nodeId;
-    }
-
-    @JsonProperty
-    public URI getUri()
-    {
-        return uri;
-    }
-
-    @JsonProperty
-    public Optional<BufferNodeStats> getStats()
-    {
-        return stats;
-    }
-
-    @JsonProperty
-    public BufferNodeState getState()
-    {
-        return state;
-    }
-
-    @Override
-    public boolean equals(Object o)
-    {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-        BufferNodeInfo that = (BufferNodeInfo) o;
-        return nodeId == that.nodeId
-                && uri.equals(that.uri)
-                && stats.equals(that.stats)
-                && state == that.state;
-    }
-
-    @Override
-    public int hashCode()
-    {
-        return Objects.hash(nodeId, uri, stats, state);
-    }
-
-    @Override
-    public String toString()
-    {
-        return toStringHelper(this)
-                .add("nodeId", nodeId)
-                .add("uri", uri)
-                .add("stats", stats)
-                .add("state", state)
-                .toString();
+    public BufferNodeInfo {
+        requireNonNull(uri, "uri is null");
+        requireNonNull(stats, "stats is null");
+        requireNonNull(state, "state is null");
     }
 }

@@ -181,15 +181,15 @@ public class BufferExchangeSource
     private long selectRandomRunningBufferNodeExcluding(Set<Long> excludedNodes)
     {
         List<BufferNodeInfo> runningNodes = discoveryManager.getBufferNodes().bufferNodeInfos().values().stream()
-                .filter(node -> node.getState() == BufferNodeState.RUNNING)
-                .filter(node -> !excludedNodes.contains(node.getNodeId()))
+                .filter(node -> node.state() == BufferNodeState.RUNNING)
+                .filter(node -> !excludedNodes.contains(node.nodeId()))
                 .collect(toImmutableList());
 
         if (runningNodes.isEmpty()) {
             throw new RuntimeException("no RUNNING nodes available");
         }
 
-        return runningNodes.get(ThreadLocalRandom.current().nextInt(runningNodes.size())).getNodeId();
+        return runningNodes.get(ThreadLocalRandom.current().nextInt(runningNodes.size())).nodeId();
     }
 
     private void setFailed(Throwable throwable)
@@ -460,7 +460,7 @@ public class BufferExchangeSource
             long sourceBufferNodeId = sourceChunk.bufferNodeId();
             Map<Long, BufferNodeInfo> bufferNodes = discoveryManager.getBufferNodes().bufferNodeInfos();
             BufferNodeInfo sourceBufferNodeInfo = bufferNodes.get(sourceBufferNodeId);
-            if (sourceBufferNodeInfo == null || !(sourceBufferNodeInfo.getState() == BufferNodeState.RUNNING || sourceBufferNodeInfo.getState() == BufferNodeState.DRAINING)) {
+            if (sourceBufferNodeInfo == null || !(sourceBufferNodeInfo.state() == BufferNodeState.RUNNING || sourceBufferNodeInfo.state() == BufferNodeState.DRAINING)) {
                 sourceBufferNodeId = selectRandomRunningBufferNode();
             }
             scheduleReadUsingNode(sourceBufferNodeId);

@@ -106,14 +106,14 @@ public class DiscoveryManager
             throws InvalidBufferNodeUpdateException
     {
         long now = tickerReadMillis();
-        BufferNodeInfoHolder holder = nodeInfoHolders.computeIfAbsent(nodeInfo.getNodeId(), ignored -> {
-            LOG.info("discovered new node %s", nodeInfo.getNodeId());
+        BufferNodeInfoHolder holder = nodeInfoHolders.computeIfAbsent(nodeInfo.nodeId(), ignored -> {
+            LOG.info("discovered new node %s", nodeInfo.nodeId());
             return new BufferNodeInfoHolder(nodeInfo, now);
         });
 
-        URI storedNodeUri = holder.getLastNodeInfo().getUri();
-        if (!storedNodeUri.equals(nodeInfo.getUri())) {
-            throw new InvalidBufferNodeUpdateException("buffer node " + nodeInfo.getNodeId() + " already seen with different uri: " + nodeInfo.getUri() + " vs. " + storedNodeUri);
+        URI storedNodeUri = holder.getLastNodeInfo().uri();
+        if (!storedNodeUri.equals(nodeInfo.uri())) {
+            throw new InvalidBufferNodeUpdateException("buffer node " + nodeInfo.nodeId() + " already seen with different uri: " + nodeInfo.uri() + " vs. " + storedNodeUri);
         }
 
         holder.updateNodeInfo(nodeInfo, now);
