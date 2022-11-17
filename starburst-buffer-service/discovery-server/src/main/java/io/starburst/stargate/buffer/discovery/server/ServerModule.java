@@ -11,6 +11,7 @@ package io.starburst.stargate.buffer.discovery.server;
 
 import com.google.inject.Binder;
 import com.google.inject.Module;
+import io.starburst.stargate.buffer.discovery.server.failures.FailureTrackingResource;
 
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
 
@@ -21,5 +22,6 @@ public class ServerModule
     public void configure(Binder binder)
     {
         jaxrsBinder(binder).bind(DiscoveryResource.class);
+        jaxrsBinder(binder).bind(FailureTrackingResource.class);
     }
 }

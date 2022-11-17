@@ -26,6 +26,7 @@ import io.airlift.node.testing.TestingNodeModule;
 import io.airlift.tracetoken.TraceTokenModule;
 import io.starburst.stargate.buffer.discovery.server.DiscoveryManagerModule;
 import io.starburst.stargate.buffer.discovery.server.ServerModule;
+import io.starburst.stargate.buffer.discovery.server.failures.FailuresTrackingManagerModule;
 import org.weakref.jmx.guice.MBeanModule;
 
 import javax.ws.rs.core.UriBuilder;
@@ -49,7 +50,7 @@ public class TestingDiscoveryServer
 
     private TestingDiscoveryServer(
             Map<String, String> configProperties,
-            Optional<Ticker> discoveryManagerTicker)
+            Optional<Ticker> timeTicker)
     {
         ImmutableList.Builder<Module> modules = ImmutableList.builder();
         modules.add(
@@ -63,9 +64,13 @@ public class TestingDiscoveryServer
                 new TraceTokenModule(),
                 new ServerModule());
 
-        modules.add(discoveryManagerTicker
+        modules.add(timeTicker
                 .map(DiscoveryManagerModule::withTicker)
                 .orElse(DiscoveryManagerModule.withSystemTicker()));
+
+        modules.add(timeTicker
+                .map(FailuresTrackingManagerModule::withTicker)
+                .orElse(FailuresTrackingManagerModule.withSystemTicker()));
 
         Bootstrap app = new Bootstrap(modules.build());
 
