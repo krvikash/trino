@@ -118,17 +118,16 @@ public class S3SpoolingStorage
             // TODO: measure metrics to requesting file size from S3
             sliceLength = getFileSize(fileName);
         }
-        SliceLease sliceLease = new SliceLease(memoryAllocator, sliceLength);
 
+        SliceLease sliceLease = new SliceLease(memoryAllocator, sliceLength);
         GetObjectRequest getObjectRequest = GetObjectRequest.builder()
                 .bucket(bucketName)
                 .key(fileName)
                 .build();
-        ListenableFuture<ChunkDataHolder> chunkDataHolderFuture = Futures.transformAsync(
-                sliceLease.getSliceFuture(),
-                slice -> toListenableFuture(s3AsyncClient.getObject(getObjectRequest, ChunkDataAsyncResponseTransformer.toChunkDataHolder(slice))),
+        return ChunkDataLease.forSliceLeaseAsync(
+                sliceLease,
+                slice -> translateFailures(toListenableFuture(s3AsyncClient.getObject(getObjectRequest, ChunkDataAsyncResponseTransformer.toChunkDataHolder(slice)))),
                 executor);
-        return new ChunkDataLease(sliceLease, chunkDataHolderFuture);
     }
 
     @Override

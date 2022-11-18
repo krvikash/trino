@@ -11,7 +11,6 @@ package io.starburst.stargate.buffer.data.spooling.local;
 
 import com.google.common.io.ByteStreams;
 import com.google.common.io.MoreFiles;
-import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.slice.OutputStreamSliceOutput;
 import io.airlift.slice.SliceOutput;
@@ -73,9 +72,8 @@ public class LocalSpoolingStorage
         int fileLength = toIntExact(file.length());
         verify(fileLength > CHUNK_FILE_HEADER_SIZE,
                 "fileLength %s should be larger than CHUNK_FILE_HEADER_SIZE", fileLength, CHUNK_FILE_HEADER_SIZE);
-        SliceLease sliceLease = new SliceLease(memoryAllocator, fileLength);
-        ListenableFuture<ChunkDataHolder> chunkDataHolderFuture = Futures.transform(
-                sliceLease.getSliceFuture(),
+        return ChunkDataLease.forSliceLease(
+                new SliceLease(memoryAllocator, fileLength),
                 slice -> {
                     int bytesRead;
                     try (InputStream inputStream = new FileInputStream(file)) {
@@ -89,7 +87,6 @@ public class LocalSpoolingStorage
                     return getChunkDataHolder(slice);
                 },
                 executor);
-        return new ChunkDataLease(sliceLease, chunkDataHolderFuture);
     }
 
     @Override
