@@ -80,7 +80,7 @@ public class MainModule
         binder.bind(Ticker.class).annotatedWith(ForChunkManager.class).toInstance(ticker);
         binder.bind(ChunkManager.class).in(SINGLETON);
         binder.bind(DataServerStats.class).in(SINGLETON);
-        binder.bind(ExecutorService.class).toInstance(newCachedThreadPool(daemonThreadsNamed("chunk-write-%s")));
+        binder.bind(ExecutorService.class).toInstance(newCachedThreadPool(daemonThreadsNamed("buffer-node-execution-%s")));
         if (discoveryBroadcastEnabled) {
             binder.bind(DiscoveryBroadcast.class).in(SINGLETON);
         }

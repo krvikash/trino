@@ -64,7 +64,7 @@ public class DataResource
     private final MemoryAllocator memoryAllocator;
     private final boolean dropUploadedPages;
     private final Executor responseExecutor;
-    private final ExecutorService chunkWriteExecutor;
+    private final ExecutorService executor;
 
     @Inject
     public DataResource(
@@ -72,13 +72,13 @@ public class DataResource
             MemoryAllocator memoryAllocator,
             DataServerConfig config,
             @ForAsyncHttp BoundedExecutor responseExecutor,
-            ExecutorService chunkWriteExecutor)
+            ExecutorService executor)
     {
         this.chunkManager = requireNonNull(chunkManager, "chunkManager is null");
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.dropUploadedPages = config.isTestingDropUploadedPages();
         this.responseExecutor = requireNonNull(responseExecutor, "responseExecutor is null");
-        this.chunkWriteExecutor = requireNonNull(chunkWriteExecutor, "chunkWriteExecutor is null");
+        this.executor = requireNonNull(executor, "executor is null");
     }
 
     @GET
@@ -145,8 +145,8 @@ public class DataResource
                     }
                     return asVoid(Futures.allAsList(addDataPagesFutures.build()));
                 },
-                chunkWriteExecutor);
-        addDataPagesFuture.addListener(sliceLease::release, chunkWriteExecutor);
+                executor);
+        addDataPagesFuture.addListener(sliceLease::release, executor);
         bindAsyncResponse(
                 asyncResponse,
                 translateExceptions(Futures.transform(
