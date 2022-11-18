@@ -13,6 +13,7 @@ import com.google.common.base.Ticker;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Injector;
 import io.airlift.bootstrap.Bootstrap;
+import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.execution.ChunkDataHolder;
 import io.starburst.stargate.buffer.data.server.MainModule;
 import org.junit.jupiter.api.AfterAll;
@@ -28,6 +29,7 @@ import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
 import static java.util.Objects.requireNonNull;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -136,7 +138,9 @@ public abstract class AbstractTestSpoolingStorage
         // verify spooling files are removed
         for (long chunkId = 0; chunkId < numChunks; ++chunkId) {
             long finalChunkId = chunkId;
-            assertThrows(RuntimeException.class, () -> spoolingStorage.readChunk(EXCHANGE_ID, finalChunkId, BUFFER_NODE_ID));
+            assertThatThrownBy(() -> getFutureValue(spoolingStorage.readChunk(EXCHANGE_ID, finalChunkId, BUFFER_NODE_ID).getChunkDataHolderFuture()))
+                    .isInstanceOf(DataServerException.class)
+                    .hasMessage("No closed chunk found for exchange %s, chunk %d, bufferNodeId %d".formatted(EXCHANGE_ID, chunkId, BUFFER_NODE_ID));
         }
     }
 

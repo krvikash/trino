@@ -14,6 +14,7 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.execution.ChunkDataHolder;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
@@ -34,6 +35,7 @@ import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Object;
@@ -53,6 +55,7 @@ import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.concurrent.MoreFutures.toListenableFuture;
+import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getFileName;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getPrefixedDirectories;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.translateFailures;
@@ -109,14 +112,20 @@ public class S3SpoolingStorage
         String fileName = getFileName(exchangeId, chunkId, bufferNodeId);
         Map<Long, Integer> chunkIdToFileSizes = fileSizes.get(exchangeId);
         int sliceLength;
-        if (chunkIdToFileSizes != null && bufferNodeId == this.bufferNodeId) {
-            Integer fileSize = chunkIdToFileSizes.get(chunkId);
-            sliceLength = requireNonNullElseGet(fileSize, () -> getFileSize(fileName));
+        try {
+            if (chunkIdToFileSizes != null && bufferNodeId == this.bufferNodeId) {
+                Integer fileSize = chunkIdToFileSizes.get(chunkId);
+                sliceLength = requireNonNullElseGet(fileSize, () -> getFileSize(fileName));
+            }
+            else {
+                // Synchronous communication to S3 for file size is rare and will only happen when a node dies
+                // TODO: measure metrics to requesting file size from S3
+                sliceLength = getFileSize(fileName);
+            }
         }
-        else {
-            // Synchronous communication to S3 for file size is rare and will only happen when a node dies
-            // TODO: measure metrics to requesting file size from S3
-            sliceLength = getFileSize(fileName);
+        catch (NoSuchKeyException e) {
+            throw new DataServerException(CHUNK_NOT_FOUND,
+                    "No closed chunk found for exchange %s, chunk %d, bufferNodeId %d".formatted(exchangeId, chunkId, bufferNodeId));
         }
 
         SliceLease sliceLease = new SliceLease(memoryAllocator, sliceLength);

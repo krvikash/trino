@@ -14,6 +14,7 @@ import com.google.common.io.MoreFiles;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.slice.OutputStreamSliceOutput;
 import io.airlift.slice.SliceOutput;
+import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.execution.ChunkDataHolder;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
@@ -40,6 +41,7 @@ import static com.google.common.base.Verify.verify;
 import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
 import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
 import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
+import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.CHUNK_FILE_HEADER_SIZE;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getChunkDataHolder;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getFileName;
@@ -69,6 +71,9 @@ public class LocalSpoolingStorage
     public ChunkDataLease readChunk(String exchangeId, long chunkId, long bufferNodeId)
     {
         File file = getFilePath(exchangeId, chunkId, bufferNodeId).toFile();
+        if (!file.exists()) {
+            throw new DataServerException(CHUNK_NOT_FOUND, "No closed chunk found for exchange %s, chunk %d, bufferNodeId %d".formatted(exchangeId, chunkId, bufferNodeId));
+        }
         int fileLength = toIntExact(file.length());
         verify(fileLength > CHUNK_FILE_HEADER_SIZE,
                 "fileLength %s should be larger than CHUNK_FILE_HEADER_SIZE", fileLength, CHUNK_FILE_HEADER_SIZE);
