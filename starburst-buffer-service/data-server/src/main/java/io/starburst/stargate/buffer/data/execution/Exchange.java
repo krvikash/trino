@@ -17,6 +17,8 @@ import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
+import io.starburst.stargate.buffer.data.spooling.ChunkDataLease;
+import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
 
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
@@ -43,6 +45,7 @@ public class Exchange
     private final long bufferNodeId;
     private final String exchangeId;
     private final MemoryAllocator memoryAllocator;
+    private final SpoolingStorage spoolingStorage;
     private final int chunkMaxSizeInBytes;
     private final int chunkSliceSizeInBytes;
     private final boolean calculateDataPagesChecksum;
@@ -67,6 +70,7 @@ public class Exchange
             long bufferNodeId,
             String exchangeId,
             MemoryAllocator memoryAllocator,
+            SpoolingStorage spoolingStorage,
             int chunkMaxSizeInBytes,
             int chunkSliceSizeInBytes,
             boolean calculateDataPagesChecksum,
@@ -77,6 +81,7 @@ public class Exchange
         this.bufferNodeId = bufferNodeId;
         this.exchangeId = requireNonNull(exchangeId, "exchangeId is null");
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
+        this.spoolingStorage = requireNonNull(spoolingStorage, "spoolingStorage is null");
         this.chunkMaxSizeInBytes = chunkMaxSizeInBytes;
         this.chunkSliceSizeInBytes = chunkSliceSizeInBytes;
         this.calculateDataPagesChecksum = calculateDataPagesChecksum;
@@ -100,6 +105,7 @@ public class Exchange
                     exchangeId,
                     partitionId,
                     memoryAllocator,
+                    spoolingStorage,
                     chunkMaxSizeInBytes,
                     chunkSliceSizeInBytes,
                     calculateDataPagesChecksum,
@@ -115,7 +121,7 @@ public class Exchange
         return addDataPagesFuture;
     }
 
-    public ChunkDataHolder getChunkData(int partitionId, long chunkId)
+    public ChunkDataLease getChunkData(int partitionId, long chunkId, long bufferNodeId)
     {
         throwIfFailed();
 
@@ -123,7 +129,7 @@ public class Exchange
         if (partition == null) {
             throw new DataServerException(CHUNK_NOT_FOUND, "partition %d not found for exchange %s".formatted(partitionId, exchangeId));
         }
-        return partition.getChunkData(chunkId);
+        return partition.getChunkData(chunkId, bufferNodeId);
     }
 
     public synchronized ChunkList listClosedChunks(OptionalLong pagingIdOptional)

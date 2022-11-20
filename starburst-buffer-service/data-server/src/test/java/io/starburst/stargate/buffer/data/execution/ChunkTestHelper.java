@@ -14,9 +14,11 @@ import io.airlift.slice.Slice;
 import io.airlift.slice.SliceOutput;
 import io.airlift.slice.Slices;
 import io.starburst.stargate.buffer.data.client.DataPage;
+import io.starburst.stargate.buffer.data.spooling.ChunkDataLease;
 
 import java.util.List;
 
+import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.calculateChecksum;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.readSerializedPages;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -26,8 +28,9 @@ public final class ChunkTestHelper
 {
     private ChunkTestHelper() {}
 
-    public static void verifyChunkData(ChunkDataHolder chunkData, DataPage... values)
+    public static void verifyChunkData(ChunkDataLease chunkDataLease, DataPage... values)
     {
+        ChunkDataHolder chunkData = getFutureValue(chunkDataLease.getChunkDataHolderFuture());
         List<Slice> chunkSlices = chunkData.chunkSlices();
         long checksum = chunkData.checksum();
         int numDataPages = chunkData.numDataPages();
@@ -40,5 +43,7 @@ public final class ChunkTestHelper
         assertEquals(numDataPages, dataPages.size());
 
         assertThat(dataPages).containsExactlyInAnyOrder(values);
+
+        chunkDataLease.release();
     }
 }

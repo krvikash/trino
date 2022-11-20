@@ -22,6 +22,8 @@ import io.starburst.stargate.buffer.data.memory.MemoryAllocatorConfig;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
 import io.starburst.stargate.buffer.data.server.DataServerConfig;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
+import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
+import io.starburst.stargate.buffer.data.spooling.local.LocalSpoolingStorage;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -301,13 +303,19 @@ public class TestChunkManager
 
     private ChunkManager createChunkManager(DataSize chunkMaxSize, DataSize chunkSliceSize)
     {
-        ChunkManagerConfig chunkManagerConfig = new ChunkManagerConfig().setChunkMaxSize(chunkMaxSize).setChunkSliceSize(chunkSliceSize);
+        ChunkManagerConfig chunkManagerConfig = new ChunkManagerConfig()
+                .setChunkMaxSize(chunkMaxSize)
+                .setChunkSliceSize(chunkSliceSize)
+                .setSpoolingDirectory(System.getProperty("java.io.tmpdir") + "/spooling-storage");
         DataServerConfig dataServerConfig = new DataServerConfig().setIncludeChecksumInDataResponse(true);
+        // TODO: change to use S3SpoolingStorage
+        SpoolingStorage spoolingStorage = new LocalSpoolingStorage(memoryAllocator, chunkManagerConfig, executor);
         return new ChunkManager(
                 new BufferNodeId(BUFFER_NODE_ID),
                 chunkManagerConfig,
                 dataServerConfig,
                 memoryAllocator,
+                spoolingStorage,
                 ticker,
                 new DataServerStats(),
                 executor);

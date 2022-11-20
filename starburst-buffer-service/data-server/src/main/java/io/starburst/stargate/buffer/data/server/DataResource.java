@@ -24,6 +24,7 @@ import io.starburst.stargate.buffer.data.execution.ChunkDataHolder;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.SliceLease;
+import io.starburst.stargate.buffer.data.spooling.ChunkDataLease;
 
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
@@ -159,21 +160,27 @@ public class DataResource
     @GET
     @Path("{exchangeId}/pages/{partitionId}/{chunkId}/{bufferNodeId}")
     @Produces(TRINO_CHUNK_DATA)
-    public Response getChunkData(
+    public void getChunkData(
             @PathParam("exchangeId") String exchangeId,
             @PathParam("partitionId") int partitionId,
             @PathParam("chunkId") long chunkId,
-            @PathParam("bufferNodeId") long bufferNodeId)
+            @PathParam("bufferNodeId") long bufferNodeId,
+            @Suspended AsyncResponse asyncResponse)
     {
         try {
-            ChunkDataHolder chunkData = chunkManager.getChunkData(exchangeId, partitionId, chunkId, bufferNodeId);
-            if (chunkData.chunkSlices().isEmpty()) {
-                return Response.noContent().build();
-            }
-            return Response.ok(new GenericEntity<>(chunkData, new TypeToken<ChunkDataHolder>() {}.getType())).build();
+            ChunkDataLease chunkDataLease = chunkManager.getChunkData(exchangeId, partitionId, chunkId, bufferNodeId);
+            ListenableFuture<ChunkDataHolder> chunkDataHolderFuture = chunkDataLease.getChunkDataHolderFuture();
+            bindAsyncResponse(
+                    asyncResponse,
+                    translateExceptions(Futures.transform(
+                            chunkDataHolderFuture,
+                            chunkDataHolder -> Response.ok(new GenericEntity<>(chunkDataHolder, new TypeToken<ChunkDataHolder>() {}.getType())).build(),
+                            directExecutor())),
+                    responseExecutor);
+            asyncResponse.register((CompletionCallback) throwable -> chunkDataLease.release());
         }
         catch (Exception e) {
-            return errorResponse(e);
+            asyncResponse.resume(errorResponse(e));
         }
     }
 

@@ -16,8 +16,9 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.slice.Slice;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
-import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
+import io.starburst.stargate.buffer.data.spooling.ChunkDataLease;
+import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
 
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
@@ -34,7 +35,6 @@ import java.util.concurrent.ExecutorService;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
-import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
 import static java.util.Objects.requireNonNull;
 
 @ThreadSafe
@@ -44,6 +44,7 @@ public class Partition
     private final String exchangeId;
     private final int partitionId;
     private final MemoryAllocator memoryAllocator;
+    private final SpoolingStorage spoolingStorage;
     private final int chunkMaxSizeInBytes;
     private final int chunkSliceSizeInBytes;
     private final boolean calculateDataPagesChecksum;
@@ -71,6 +72,7 @@ public class Partition
             String exchangeId,
             int partitionId,
             MemoryAllocator memoryAllocator,
+            SpoolingStorage spoolingStorage,
             int chunkMaxSizeInBytes,
             int chunkSliceSizeInBytes,
             boolean calculateDataPagesChecksum,
@@ -81,6 +83,7 @@ public class Partition
         this.exchangeId = requireNonNull(exchangeId, "exchangeId is null");
         this.partitionId = partitionId;
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
+        this.spoolingStorage = requireNonNull(spoolingStorage, "spoolingStorage is null");
         this.chunkMaxSizeInBytes = chunkMaxSizeInBytes;
         this.chunkSliceSizeInBytes = chunkSliceSizeInBytes;
         this.calculateDataPagesChecksum = calculateDataPagesChecksum;
@@ -113,13 +116,14 @@ public class Partition
         return addDataPagesFuture;
     }
 
-    public ChunkDataHolder getChunkData(long chunkId)
+    public ChunkDataLease getChunkData(long chunkId, long bufferNodeId)
     {
         Chunk chunk = closedChunks.get(chunkId);
         if (chunk == null) {
-            throw new DataServerException(CHUNK_NOT_FOUND, "No closed chunk found for exchange %s, partition %d, chunk %d".formatted(exchangeId, partitionId, chunkId));
+            // chunk not in memory
+            return spoolingStorage.readChunk(exchangeId, chunkId, bufferNodeId);
         }
-        return chunk.getChunkData();
+        return ChunkDataLease.immediate(chunk.getChunkData());
     }
 
     public synchronized void getNewlyClosedChunkHandles(ImmutableList.Builder<ChunkHandle> newlyClosedChunkHandles)

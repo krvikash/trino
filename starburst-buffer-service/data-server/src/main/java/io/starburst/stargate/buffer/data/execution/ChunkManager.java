@@ -23,6 +23,8 @@ import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
 import io.starburst.stargate.buffer.data.server.DataServerConfig;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
+import io.starburst.stargate.buffer.data.spooling.ChunkDataLease;
+import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -63,6 +65,7 @@ public class ChunkManager
     private final boolean calculateDataPagesChecksum;
     private final Duration exchangeStalenessThreshold;
     private final MemoryAllocator memoryAllocator;
+    private final SpoolingStorage spoolingStorage;
     private final Ticker ticker;
     private final DataServerStats dataServerStats;
     private final ExecutorService executor;
@@ -79,6 +82,7 @@ public class ChunkManager
             ChunkManagerConfig chunkManagerConfig,
             DataServerConfig dataServerConfig,
             MemoryAllocator memoryAllocator,
+            SpoolingStorage spoolingStorage,
             @ForChunkManager Ticker ticker,
             DataServerStats dataServerStats,
             ExecutorService executor)
@@ -89,6 +93,7 @@ public class ChunkManager
         this.calculateDataPagesChecksum = dataServerConfig.getIncludeChecksumInDataResponse();
         this.exchangeStalenessThreshold = chunkManagerConfig.getExchangeStalenessThreshold();
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
+        this.spoolingStorage = requireNonNull(spoolingStorage, "spoolingStorage is null");
         this.ticker = requireNonNull(ticker, "ticker is null");
         this.dataServerStats = requireNonNull(dataServerStats, "dataServerStats is null");
         this.executor = requireNonNull(executor, "executor is null");
@@ -128,10 +133,10 @@ public class ChunkManager
         return getExchangeAndHeartbeat(exchangeId).addDataPages(partitionId, taskId, attemptId, dataPagesId, pages);
     }
 
-    public ChunkDataHolder getChunkData(String exchangeId, int partitionId, long chunkId, long bufferNodeId)
+    public ChunkDataLease getChunkData(String exchangeId, int partitionId, long chunkId, long bufferNodeId)
     {
         Exchange exchange = getExchangeAndHeartbeat(exchangeId);
-        return exchange.getChunkData(partitionId, chunkId);
+        return exchange.getChunkData(partitionId, chunkId, bufferNodeId);
     }
 
     public ChunkList listClosedChunks(String exchangeId, OptionalLong pagingId)
@@ -146,6 +151,7 @@ public class ChunkManager
                 bufferNodeId,
                 exchangeId,
                 memoryAllocator,
+                spoolingStorage,
                 chunkMaxSizeInBytes,
                 chunkSliceSizeInBytes,
                 calculateDataPagesChecksum,
