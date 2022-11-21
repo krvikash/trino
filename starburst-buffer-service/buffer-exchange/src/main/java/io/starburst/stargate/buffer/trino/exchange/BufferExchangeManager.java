@@ -39,7 +39,9 @@ public class BufferExchangeManager
     @Inject
     public BufferExchangeManager(
             BufferCoordinatorExchangeManager coordinatorExchangeManager,
-            BufferWorkerExchangeManager workerExchangeManager, ExecutorService executorService, ScheduledExecutorService scheduledExecutorService)
+            BufferWorkerExchangeManager workerExchangeManager,
+            ExecutorService executorService,
+            ScheduledExecutorService scheduledExecutorService)
     {
         this.coordinatorExchangeManager = requireNonNull(coordinatorExchangeManager, "coordinatorExchangeManager is null");
         this.workerExchangeManager = requireNonNull(workerExchangeManager, "workerExchangeManager is null");
