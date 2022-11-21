@@ -9,9 +9,10 @@
  */
 package io.starburst.stargate.buffer.data.spooling.local;
 
-import com.google.common.collect.ImmutableMap;
 import io.starburst.stargate.buffer.data.spooling.AbstractTestSpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
+
+import static io.starburst.stargate.buffer.data.spooling.SpoolTestHelper.createLocalSpoolingStorage;
 
 public class TestLocalSpoolingStorage
         extends AbstractTestSpoolingStorage
@@ -19,9 +20,6 @@ public class TestLocalSpoolingStorage
     @Override
     protected SpoolingStorage createSpoolingStorage()
     {
-        return createSpoolingStorage(ImmutableMap.<String, String>builder()
-                .put("discovery-service.uri", "http://dummy") // needed for bootstrap
-                .put("spooling.directory", System.getProperty("java.io.tmpdir") + "/spooling-storage")
-                .build());
+        return createLocalSpoolingStorage();
     }
 }

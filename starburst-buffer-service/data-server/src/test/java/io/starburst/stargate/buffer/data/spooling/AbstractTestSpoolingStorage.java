@@ -9,26 +9,20 @@
  */
 package io.starburst.stargate.buffer.data.spooling;
 
-import com.google.common.base.Ticker;
 import com.google.common.collect.ImmutableList;
-import com.google.inject.Injector;
-import io.airlift.bootstrap.Bootstrap;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.execution.ChunkDataHolder;
-import io.starburst.stargate.buffer.data.server.MainModule;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
 import java.util.Random;
 
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
-import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -142,20 +136,6 @@ public abstract class AbstractTestSpoolingStorage
                     .isInstanceOf(DataServerException.class)
                     .hasMessage("No closed chunk found for exchange %s, chunk %d, bufferNodeId %d".formatted(EXCHANGE_ID, chunkId, BUFFER_NODE_ID));
         }
-    }
-
-    protected static SpoolingStorage createSpoolingStorage(Map<String, String> config)
-    {
-        requireNonNull(config, "config is null");
-
-        Bootstrap app = new Bootstrap(new MainModule(0L, false, Ticker.systemTicker()));
-
-        Injector injector = app
-                .doNotInitializeLogging()
-                .setRequiredConfigurationProperties(config)
-                .initialize();
-
-        return injector.getInstance(SpoolingStorage.class);
     }
 
     private static String getRandomLargeString()

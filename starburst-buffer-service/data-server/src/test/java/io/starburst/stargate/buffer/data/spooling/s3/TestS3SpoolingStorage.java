@@ -9,11 +9,11 @@
  */
 package io.starburst.stargate.buffer.data.spooling.s3;
 
-import com.google.common.collect.ImmutableMap;
 import io.starburst.stargate.buffer.data.spooling.AbstractTestSpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
 import org.junit.jupiter.api.AfterAll;
 
+import static io.starburst.stargate.buffer.data.spooling.SpoolTestHelper.createS3SpoolingStorage;
 import static java.util.UUID.randomUUID;
 
 public class TestS3SpoolingStorage
@@ -27,14 +27,7 @@ public class TestS3SpoolingStorage
         this.minioStorage = new MinioStorage("spooling-storage-" + randomUUID());
         minioStorage.start();
 
-        return createSpoolingStorage(ImmutableMap.<String, String>builder()
-                .put("discovery-service.uri", "http://dummy") // needed for bootstrap
-                .put("spooling.directory", "s3://" + minioStorage.getBucketName())
-                .put("spooling.s3.aws-access-key", MinioStorage.ACCESS_KEY)
-                .put("spooling.s3.aws-secret-key", MinioStorage.SECRET_KEY)
-                .put("spooling.s3.region", "us-east-1")
-                .put("spooling.s3.endpoint", "http://" + minioStorage.getMinio().getMinioApiEndpoint())
-                .build());
+        return createS3SpoolingStorage(minioStorage);
     }
 
     @Override
