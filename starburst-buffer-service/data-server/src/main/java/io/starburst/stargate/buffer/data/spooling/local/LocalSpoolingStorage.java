@@ -35,7 +35,10 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.google.common.base.Verify.verify;
 import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
@@ -55,6 +58,8 @@ public class LocalSpoolingStorage
     private final MemoryAllocator memoryAllocator;
     private final URI spoolingDirectory;
     private final ExecutorService executor;
+
+    private final Map<String, AtomicInteger> counts = new ConcurrentHashMap<>();
 
     @Inject
     public LocalSpoolingStorage(
@@ -110,12 +115,14 @@ public class LocalSpoolingStorage
         catch (IOException e) {
             return immediateFailedFuture(e);
         }
+        counts.computeIfAbsent(exchangeId, ignored -> new AtomicInteger()).incrementAndGet();
         return immediateVoidFuture();
     }
 
     @Override
     public ListenableFuture<Void> removeExchange(String exchangeId)
     {
+        counts.remove(exchangeId);
         for (String prefixedDirectory : getPrefixedDirectories(exchangeId)) {
             Path path = Paths.get(spoolingDirectory.resolve(prefixedDirectory).getPath());
             if (Files.exists(path)) {
@@ -129,6 +136,12 @@ public class LocalSpoolingStorage
         }
 
         return immediateVoidFuture();
+    }
+
+    @Override
+    public int getSpooledChunks()
+    {
+        return counts.values().stream().mapToInt(AtomicInteger::get).sum();
     }
 
     private Path getFilePath(String exchangeId, long chunkId, long bufferNodeId)

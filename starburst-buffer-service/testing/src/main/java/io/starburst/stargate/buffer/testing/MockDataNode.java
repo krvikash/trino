@@ -82,7 +82,8 @@ class MockDataNode
                 64_000_000_000L,
                 exchangesData.size(),
                 exchangesData.values().stream().mapToInt(ExchangeData::getOpenChunksCount).sum(),
-                exchangesData.values().stream().mapToInt(ExchangeData::getClosedChunksCount).sum()));
+                exchangesData.values().stream().mapToInt(ExchangeData::getClosedChunksCount).sum(),
+                0));
         BufferNodeState bufferNodeState = switch (this.nodeState) {
             case RUNNING -> BufferNodeState.RUNNING;
             case DRAINING, DRAINED -> BufferNodeState.DRAINING;

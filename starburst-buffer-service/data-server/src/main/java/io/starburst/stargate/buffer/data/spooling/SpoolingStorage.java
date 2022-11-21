@@ -20,4 +20,6 @@ public interface SpoolingStorage
     ListenableFuture<Void> writeChunk(String exchangeId, long chunkId, long bufferNodeId, ChunkDataHolder chunkDataHolder);
 
     ListenableFuture<Void> removeExchange(String exchangeId);
+
+    int getSpooledChunks();
 }

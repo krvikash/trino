@@ -75,7 +75,7 @@ public class TestDiscoveryServer
                         false,
                         Set.of()));
 
-        BufferNodeStats node1Stats1 = new BufferNodeStats(10, 11, 12, 13, 14);
+        BufferNodeStats node1Stats1 = new BufferNodeStats(10, 11, 12, 13, 14, 15);
         BufferNodeInfo node1Info1 = new BufferNodeInfo(1, URI.create("http://address1"), Optional.of(node1Stats1), RUNNING);
         discoveryClient.updateBufferNode(node1Info1);
 
@@ -92,8 +92,8 @@ public class TestDiscoveryServer
                         Set.of(node1Info1)));
 
         // add another node
-        BufferNodeStats node2Stats1 = new BufferNodeStats(20, 21, 22, 23, 24);
-        BufferNodeInfo node2Info1 = new BufferNodeInfo(2, URI.create("http://address2"), Optional.of(node1Stats1), STARTING);
+        BufferNodeStats node2Stats1 = new BufferNodeStats(20, 21, 22, 23, 24, 25);
+        BufferNodeInfo node2Info1 = new BufferNodeInfo(2, URI.create("http://address2"), Optional.of(node2Stats1), STARTING);
         discoveryClient.updateBufferNode(node2Info1);
         assertThat(discoveryClient.getBufferNodes()).isEqualTo(
                 new BufferNodeInfoResponse(
@@ -109,7 +109,7 @@ public class TestDiscoveryServer
 
         // move time and update node 1
         ticker.increment(1000, TimeUnit.MILLISECONDS);
-        BufferNodeStats node1Stats2 = new BufferNodeStats(110, 111, 112, 113, 114);
+        BufferNodeStats node1Stats2 = new BufferNodeStats(110, 111, 112, 113, 114, 115);
         BufferNodeInfo node1Info2 = new BufferNodeInfo(1, URI.create("http://address1"), Optional.of(node1Stats2), RUNNING);
         discoveryClient.updateBufferNode(node1Info2);
         assertThat(discoveryClient.getBufferNodes()).isEqualTo(
@@ -145,7 +145,7 @@ public class TestDiscoveryServer
         ticker.increment(DEFAULT_START_GRACE_PERIOD.toMillis(), TimeUnit.MILLISECONDS);
 
         // add a node
-        BufferNodeStats stats = new BufferNodeStats(20, 21, 22, 23, 24);
+        BufferNodeStats stats = new BufferNodeStats(20, 21, 22, 23, 24, 25);
         BufferNodeInfo info = new BufferNodeInfo(1, URI.create("http://some_address"), Optional.of(stats), STARTING);
         BufferNodeInfo infoWithOtherUri = new BufferNodeInfo(1, URI.create("http://other_address"), Optional.of(stats), STARTING);
         discoveryClient.updateBufferNode(info);

@@ -102,7 +102,8 @@ public class DiscoveryBroadcast
                 memoryAllocator.getFreeMemory(),
                 chunkManager.getTrackedExchanges(),
                 chunkManager.getOpenChunks(),
-                chunkManager.getClosedChunks());
+                chunkManager.getClosedChunks(),
+                chunkManager.getSpooledChunks());
         return Optional.of(bufferNodeStats);
     }
 }

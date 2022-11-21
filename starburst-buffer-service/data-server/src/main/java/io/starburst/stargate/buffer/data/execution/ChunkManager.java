@@ -204,6 +204,11 @@ public class ChunkManager
         return exchanges.values().stream().mapToInt(Exchange::getClosedChunksCount).sum();
     }
 
+    public int getSpooledChunks()
+    {
+        return spoolingStorage.getSpooledChunks();
+    }
+
     private Exchange getExchangeAndHeartbeat(String exchangeId)
     {
         Exchange exchange = exchanges.get(exchangeId);
@@ -237,6 +242,7 @@ public class ChunkManager
         dataServerStats.getTrackedExchanges().add(getTrackedExchanges());
         dataServerStats.getOpenChunks().add(getOpenChunks());
         dataServerStats.getClosedChunks().add(getClosedChunks());
+        dataServerStats.getSpooledChunks().add(getSpooledChunks());
     }
 
     private long tickerReadMillis()

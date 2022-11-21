@@ -163,6 +163,12 @@ public class S3SpoolingStorage
         return translateFailures(asVoid(Futures.allAsList((deleteDirectoryFutures.build()))));
     }
 
+    @Override
+    public int getSpooledChunks()
+    {
+        return fileSizes.values().stream().mapToInt(Map::size).sum();
+    }
+
     @PreDestroy
     @Override
     public void close()

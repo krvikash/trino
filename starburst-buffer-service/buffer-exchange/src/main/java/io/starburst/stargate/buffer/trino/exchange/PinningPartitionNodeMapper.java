@@ -65,7 +65,7 @@ public class PinningPartitionNodeMapper
                 node -> {
                     BufferNodeStats stats = node.stats().orElseThrow();
                     double memoryWeight = (double) stats.freeMemory() / stats.totalMemory();
-                    int chunksCount = stats.openChunks() + stats.closedChunks();
+                    int chunksCount = stats.openChunks() + stats.closedChunks() + stats.spooledChunks();
                     double chunksWeight;
                     if (maxChunksCount == 0) {
                         chunksWeight = 0.0;

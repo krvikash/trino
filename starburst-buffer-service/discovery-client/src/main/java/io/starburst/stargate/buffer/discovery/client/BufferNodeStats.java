@@ -9,4 +9,10 @@
  */
 package io.starburst.stargate.buffer.discovery.client;
 
-public record BufferNodeStats(long totalMemory, long freeMemory, int trackedExchanges, int openChunks, int closedChunks) {}
+public record BufferNodeStats(
+        long totalMemory,
+        long freeMemory,
+        int trackedExchanges,
+        int openChunks,
+        int closedChunks,
+        int spooledChunks) {}

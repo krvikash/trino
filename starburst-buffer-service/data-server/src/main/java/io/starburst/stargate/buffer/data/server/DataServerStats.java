@@ -20,6 +20,7 @@ public class DataServerStats
     private final DistributionStat trackedExchanges = new DistributionStat();
     private final DistributionStat openChunks = new DistributionStat();
     private final DistributionStat closedChunks = new DistributionStat();
+    private final DistributionStat spooledChunks = new DistributionStat();
 
     @Managed
     @Nested
@@ -54,5 +55,12 @@ public class DataServerStats
     public DistributionStat getClosedChunks()
     {
         return closedChunks;
+    }
+
+    @Managed
+    @Nested
+    public DistributionStat getSpooledChunks()
+    {
+        return spooledChunks;
     }
 }

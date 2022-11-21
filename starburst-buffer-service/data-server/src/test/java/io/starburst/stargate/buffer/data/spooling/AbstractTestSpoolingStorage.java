@@ -127,7 +127,9 @@ public abstract class AbstractTestSpoolingStorage
             chunkDataLease.release();
         }
 
+        assertEquals(32, spoolingStorage.getSpooledChunks());
         getFutureValue(spoolingStorage.removeExchange(EXCHANGE_ID));
+        assertEquals(0, spoolingStorage.getSpooledChunks());
 
         // verify spooling files are removed
         for (long chunkId = 0; chunkId < numChunks; ++chunkId) {
