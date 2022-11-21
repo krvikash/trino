@@ -102,8 +102,15 @@ public class ChunkManager
     @PostConstruct
     public void start()
     {
-        long interval = exchangeStalenessThreshold.toMillis();
-        cleanupExecutor.scheduleWithFixedDelay(this::cleanupStaleExchanges, interval, interval, MILLISECONDS);
+        long exchangeCleanupInterval = exchangeStalenessThreshold.toMillis();
+        cleanupExecutor.scheduleWithFixedDelay(() -> {
+            try {
+                cleanupStaleExchanges();
+            }
+            catch (Throwable e) {
+                LOG.error(e, "Error cleaning up stale exchanges");
+            }
+        }, exchangeCleanupInterval, exchangeCleanupInterval, MILLISECONDS);
         statsReportingExecutor.scheduleWithFixedDelay(this::reportStats, 0, 1, SECONDS);
     }
 
