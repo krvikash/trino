@@ -26,7 +26,9 @@ public class TestMemoryAllocatorConfig
     public void assertDefaults()
     {
         assertRecordedDefaults(recordDefaults(MemoryAllocatorConfig.class)
-                .setHeapHeadroom(DataSize.ofBytes(Math.round(Runtime.getRuntime().maxMemory() * 0.1))));
+                .setHeapHeadroom(DataSize.ofBytes(Math.round(Runtime.getRuntime().maxMemory() * 0.1)))
+                .setAllocationRatioLowWatermark(0.75)
+                .setAllocationRatioHighWatermark(0.9));
     }
 
     @Test
@@ -34,10 +36,14 @@ public class TestMemoryAllocatorConfig
     {
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("memory.heap-headroom", "2GB")
+                .put("memory.allocation-low-watermark", "0.5")
+                .put("memory.allocation-high-watermark", "0.99")
                 .buildOrThrow();
 
         MemoryAllocatorConfig expected = new MemoryAllocatorConfig()
-                .setHeapHeadroom(DataSize.of(2, GIGABYTE));
+                .setHeapHeadroom(DataSize.of(2, GIGABYTE))
+                .setAllocationRatioLowWatermark(0.5)
+                .setAllocationRatioHighWatermark(0.99);
 
         assertFullMapping(properties, expected);
     }

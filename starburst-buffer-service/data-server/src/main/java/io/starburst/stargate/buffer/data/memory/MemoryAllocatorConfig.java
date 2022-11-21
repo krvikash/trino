@@ -18,6 +18,8 @@ import javax.validation.constraints.NotNull;
 public class MemoryAllocatorConfig
 {
     private DataSize heapHeadroom = DataSize.ofBytes(Math.round(Runtime.getRuntime().maxMemory() * 0.1));
+    private double allocationRatioLowWatermark = 0.75;
+    private double allocationRatioHighWatermark = 0.9;
 
     @NotNull
     public DataSize getHeapHeadroom()
@@ -30,6 +32,32 @@ public class MemoryAllocatorConfig
     public MemoryAllocatorConfig setHeapHeadroom(DataSize heapHeadroom)
     {
         this.heapHeadroom = heapHeadroom;
+        return this;
+    }
+
+    public double getAllocationRatioLowWatermark()
+    {
+        return allocationRatioLowWatermark;
+    }
+
+    @Config("memory.allocation-low-watermark")
+    @ConfigDescription("Memory blocked low allocation watermark")
+    public MemoryAllocatorConfig setAllocationRatioLowWatermark(double allocationRatioLowWatermark)
+    {
+        this.allocationRatioLowWatermark = allocationRatioLowWatermark;
+        return this;
+    }
+
+    public double getAllocationRatioHighWatermark()
+    {
+        return allocationRatioHighWatermark;
+    }
+
+    @Config("memory.allocation-high-watermark")
+    @ConfigDescription("Memory blocked high allocation watermark")
+    public MemoryAllocatorConfig setAllocationRatioHighWatermark(double allocationRatioHighWatermark)
+    {
+        this.allocationRatioHighWatermark = allocationRatioHighWatermark;
         return this;
     }
 }

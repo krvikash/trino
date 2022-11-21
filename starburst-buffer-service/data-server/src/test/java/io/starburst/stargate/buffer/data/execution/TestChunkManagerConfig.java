@@ -21,7 +21,10 @@ import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
 import static io.airlift.units.DataSize.Unit.KILOBYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.airlift.units.Duration.succinctDuration;
+import static io.starburst.stargate.buffer.data.execution.ChunkManagerConfig.DEFAULT_EXCHANGE_STALENESS_THRESHOLD;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.MINUTES;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class TestChunkManagerConfig
 {
@@ -31,8 +34,10 @@ public class TestChunkManagerConfig
         assertRecordedDefaults(recordDefaults(ChunkManagerConfig.class)
                 .setChunkMaxSize(DataSize.of(16, MEGABYTE))
                 .setChunkSliceSize(DataSize.of(128, KILOBYTE))
-                .setExchangeStalenessThreshold(succinctDuration(5, MINUTES))
-                .setSpoolingDirectory(null));
+                .setExchangeStalenessThreshold(DEFAULT_EXCHANGE_STALENESS_THRESHOLD)
+                .setSpoolingDirectory(null)
+                .setChunkSpoolInterval(succinctDuration(200, MILLISECONDS))
+                .setChunkSpoolConcurrency(8));
     }
 
     @Test
@@ -43,13 +48,17 @@ public class TestChunkManagerConfig
                 .put("chunk.slice-size", "1MB")
                 .put("exchange.staleness-threshold", "1m")
                 .put("spooling.directory", "s3://spooling-bucket")
+                .put("chunk.spool-interval", "5s")
+                .put("chunk.spool-concurrency", "10")
                 .buildOrThrow();
 
         ChunkManagerConfig expected = new ChunkManagerConfig()
                 .setChunkMaxSize(DataSize.of(32, MEGABYTE))
                 .setChunkSliceSize(DataSize.of(1, MEGABYTE))
                 .setExchangeStalenessThreshold(succinctDuration(1, MINUTES))
-                .setSpoolingDirectory("s3://spooling-bucket/");
+                .setSpoolingDirectory("s3://spooling-bucket/")
+                .setChunkSpoolInterval(succinctDuration(5, SECONDS))
+                .setChunkSpoolConcurrency(10);
 
         assertFullMapping(properties, expected);
     }

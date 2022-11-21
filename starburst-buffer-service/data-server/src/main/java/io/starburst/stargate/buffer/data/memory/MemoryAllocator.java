@@ -10,7 +10,7 @@
 package io.starburst.stargate.buffer.data.memory;
 
 import com.google.common.util.concurrent.ListenableFuture;
-import io.airlift.log.Logger;
+import com.google.common.util.concurrent.SettableFuture;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
@@ -19,19 +19,23 @@ import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 
+import java.util.ArrayDeque;
+import java.util.Queue;
+
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verify;
-import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
 import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static java.util.Objects.requireNonNull;
 
 @ThreadSafe
 public class MemoryAllocator
 {
-    private static final Logger log = Logger.get(MemoryAllocator.class);
-
     private final long maxBytes;
+    private final long lowWatermark;
+    private final long highWatermark;
     private final DataServerStats dataServerStats;
+    @GuardedBy("this")
+    private final Queue<PendingAllocation> pendingAllocations = new ArrayDeque<>();
 
     @GuardedBy("this")
     private long allocatedBytes;
@@ -43,21 +47,22 @@ public class MemoryAllocator
         long heapSize = Runtime.getRuntime().maxMemory();
         checkArgument(heapHeadroom < heapSize, "Heap headroom %s should be less than available heap size %s", heapHeadroom, heapSize);
         this.maxBytes = heapSize - heapHeadroom;
+        this.lowWatermark = (long) (maxBytes * config.getAllocationRatioLowWatermark());
+        this.highWatermark = (long) (maxBytes * config.getAllocationRatioHighWatermark());
         this.dataServerStats = requireNonNull(dataServerStats, "dataServerStats is null");
         dataServerStats.getTotalMemoryInBytes().add(maxBytes);
     }
 
     public synchronized ListenableFuture<Slice> allocate(int bytes)
     {
-        long availableBytes = maxBytes - allocatedBytes;
-        if (bytes > availableBytes) {
-            // TODO: change to wait on background spooling after spooling utility gets added
-            log.warn("%d bytes available, but trying to allocate %d bytes", availableBytes, bytes);
-            return immediateFailedFuture(new IllegalStateException("Failed to allocate %d bytes of memory".formatted(bytes)));
+        if (!hasEnoughSpace(bytes)) {
+            SettableFuture<Slice> future = SettableFuture.create();
+            PendingAllocation pendingAllocation = new PendingAllocation(bytes, future);
+            pendingAllocations.add(pendingAllocation);
+            return future;
         }
-        allocatedBytes += bytes;
-        dataServerStats.getFreeMemoryInBytes().add(getFreeMemory());
-        return immediateFuture(Slices.allocate(bytes));
+
+        return immediateFuture(allocateInternal(bytes));
     }
 
     public synchronized void release(Slice slice)
@@ -66,6 +71,8 @@ public class MemoryAllocator
         verify(allocatedBytes >= bytes, "%s bytes allocated, but trying to release %s bytes", allocatedBytes, bytes);
         allocatedBytes -= bytes;
         dataServerStats.getFreeMemoryInBytes().add(getFreeMemory());
+
+        processPendingAllocations();
     }
 
     public long getTotalMemory()
@@ -73,8 +80,72 @@ public class MemoryAllocator
         return maxBytes;
     }
 
+    public synchronized long getAllocatedMemory()
+    {
+        return allocatedBytes;
+    }
+
     public synchronized long getFreeMemory()
     {
         return maxBytes - allocatedBytes;
+    }
+
+    public synchronized boolean aboveHighWatermark()
+    {
+        return allocatedBytes > highWatermark;
+    }
+
+    public synchronized boolean belowLowWatermark()
+    {
+        return allocatedBytes < lowWatermark;
+    }
+
+    @GuardedBy("this")
+    private boolean hasEnoughSpace(int bytes)
+    {
+        long availableBytes = maxBytes - allocatedBytes;
+        return availableBytes >= bytes;
+    }
+
+    @GuardedBy("this")
+    private Slice allocateInternal(int bytes)
+    {
+        allocatedBytes += bytes;
+        dataServerStats.getFreeMemoryInBytes().add(getFreeMemory());
+        return Slices.allocate(bytes);
+    }
+
+    @GuardedBy("this")
+    private void processPendingAllocations()
+    {
+        // first in first out
+        while (!pendingAllocations.isEmpty()) {
+            PendingAllocation pendingAllocation = pendingAllocations.peek();
+            SettableFuture<Slice> future = pendingAllocation.future();
+            if (future.isCancelled()) {
+                pendingAllocations.poll();
+            }
+            else {
+                int bytes = pendingAllocation.bytes();
+                if (hasEnoughSpace(bytes)) {
+                    Slice slice = allocateInternal(bytes);
+                    future.set(slice);
+                    pendingAllocations.poll();
+                    if (future.isCancelled()) {
+                        release(slice);
+                    }
+                }
+                else {
+                    break;
+                }
+            }
+        }
+    }
+
+    private record PendingAllocation(int bytes, SettableFuture<Slice> future)
+    {
+        public PendingAllocation {
+            requireNonNull(future, "future is null");
+        }
     }
 }

@@ -17,6 +17,7 @@ import io.airlift.units.Duration;
 import io.airlift.units.MaxDataSize;
 import io.airlift.units.MinDataSize;
 
+import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 
 import java.net.URI;
@@ -25,6 +26,7 @@ import static io.airlift.units.DataSize.Unit.KILOBYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.PATH_SEPARATOR;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.MINUTES;
 
 public class ChunkManagerConfig
@@ -36,6 +38,8 @@ public class ChunkManagerConfig
     private DataSize chunkSliceSize = DataSize.of(128, KILOBYTE);
     private Duration exchangeStalenessThreshold = DEFAULT_EXCHANGE_STALENESS_THRESHOLD;
     private URI spoolingDirectory;
+    private Duration chunkSpoolInterval = succinctDuration(200, MILLISECONDS);
+    private int chunkSpoolConcurrency = 8;
 
     @NotNull
     @MinDataSize("16MB")
@@ -97,6 +101,32 @@ public class ChunkManagerConfig
             }
             this.spoolingDirectory = URI.create(spoolingDirectory);
         }
+        return this;
+    }
+
+    @NotNull
+    public Duration getChunkSpoolInterval()
+    {
+        return chunkSpoolInterval;
+    }
+
+    @Config("chunk.spool-interval")
+    public ChunkManagerConfig setChunkSpoolInterval(Duration chunkSpoolInterval)
+    {
+        this.chunkSpoolInterval = chunkSpoolInterval;
+        return this;
+    }
+
+    @Min(1)
+    public int getChunkSpoolConcurrency()
+    {
+        return chunkSpoolConcurrency;
+    }
+
+    @Config("chunk.spool-concurrency")
+    public ChunkManagerConfig setChunkSpoolConcurrency(int chunkSpoolConcurrency)
+    {
+        this.chunkSpoolConcurrency = chunkSpoolConcurrency;
         return this;
     }
 }

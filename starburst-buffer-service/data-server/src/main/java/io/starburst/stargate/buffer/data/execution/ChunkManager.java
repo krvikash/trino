@@ -35,6 +35,7 @@ import javax.inject.Qualifier;
 import java.io.IOException;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -42,7 +43,9 @@ import java.util.OptionalLong;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Predicate;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.units.Duration.succinctDuration;
 import static java.lang.Math.toIntExact;
 import static java.lang.annotation.ElementType.FIELD;
@@ -64,6 +67,8 @@ public class ChunkManager
     private final int chunkSliceSizeInBytes;
     private final boolean calculateDataPagesChecksum;
     private final Duration exchangeStalenessThreshold;
+    private final Duration chunkSpoolInterval;
+    private final int chunkSpoolConcurrency;
     private final MemoryAllocator memoryAllocator;
     private final SpoolingStorage spoolingStorage;
     private final Ticker ticker;
@@ -75,6 +80,7 @@ public class ChunkManager
     private final ChunkIdGenerator chunkIdGenerator = new ChunkIdGenerator();
     private final ScheduledExecutorService cleanupExecutor = newSingleThreadScheduledExecutor();
     private final ScheduledExecutorService statsReportingExecutor = newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService chunkSpoolExecutor = newSingleThreadScheduledExecutor();
 
     @Inject
     public ChunkManager(
@@ -92,6 +98,8 @@ public class ChunkManager
         this.chunkSliceSizeInBytes = toIntExact(chunkManagerConfig.getChunkSliceSize().toBytes());
         this.calculateDataPagesChecksum = dataServerConfig.getIncludeChecksumInDataResponse();
         this.exchangeStalenessThreshold = chunkManagerConfig.getExchangeStalenessThreshold();
+        this.chunkSpoolInterval = chunkManagerConfig.getChunkSpoolInterval();
+        this.chunkSpoolConcurrency = chunkManagerConfig.getChunkSpoolConcurrency();
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.spoolingStorage = requireNonNull(spoolingStorage, "spoolingStorage is null");
         this.ticker = requireNonNull(ticker, "ticker is null");
@@ -112,6 +120,15 @@ public class ChunkManager
             }
         }, exchangeCleanupInterval, exchangeCleanupInterval, MILLISECONDS);
         statsReportingExecutor.scheduleWithFixedDelay(this::reportStats, 0, 1, SECONDS);
+        long spoolInterval = chunkSpoolInterval.toMillis();
+        chunkSpoolExecutor.scheduleWithFixedDelay(() -> {
+            try {
+                spoolIfNecessary();
+            }
+            catch (Throwable e) {
+                LOG.error(e, "Error spooling chunks");
+            }
+        }, spoolInterval, spoolInterval, MILLISECONDS);
     }
 
     @PreDestroy
@@ -162,6 +179,7 @@ public class ChunkManager
                 chunkMaxSizeInBytes,
                 chunkSliceSizeInBytes,
                 calculateDataPagesChecksum,
+                chunkSpoolConcurrency,
                 chunkIdGenerator,
                 executor,
                 tickerReadMillis()));
@@ -234,6 +252,35 @@ public class ChunkManager
                 iterator.remove();
                 exchange.releaseChunks();
             }
+        }
+    }
+
+    void spoolIfNecessary()
+    {
+        if (memoryAllocator.aboveHighWatermark()) {
+            Predicate<MemoryAllocator> stopCriteria = MemoryAllocator::belowLowWatermark;
+            List<Exchange> exchangesSortedBySizeDesc = exchanges.values().stream()
+                    .sorted(Comparator.comparingInt(Exchange::getClosedChunksCount).reversed())
+                    .collect(toImmutableList());
+            for (Exchange exchange : exchangesSortedBySizeDesc) {
+                exchange.spool(stopCriteria);
+                if (stopCriteria.test(memoryAllocator)) {
+                    return;
+                }
+            }
+
+            LOG.info("Having spooled all closed chunks, memory allocation ratio %.2f%%, starting to spool open chunks",
+                    100.0 * memoryAllocator.getAllocatedMemory() / memoryAllocator.getTotalMemory());
+            // To avoid deadlock, now we start to close and spool open chunks that are not pending
+            for (Exchange exchange : exchangesSortedBySizeDesc) {
+                exchange.closeOpenChunksAndSpool(stopCriteria);
+                if (stopCriteria.test(memoryAllocator)) {
+                    return;
+                }
+            }
+
+            // It's still possible for us to reach here, as we fulfill memory requests as soon as we release new
+            // memory. It's totally fine as long as we don't deadlock.
         }
     }
 

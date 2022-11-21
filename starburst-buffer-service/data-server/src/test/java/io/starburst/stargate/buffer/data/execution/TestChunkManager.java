@@ -10,6 +10,7 @@
 package io.starburst.stargate.buffer.data.execution;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.testing.TestingTicker;
@@ -39,6 +40,7 @@ import static io.airlift.slice.Slices.utf8Slice;
 import static io.airlift.units.DataSize.Unit.BYTE;
 import static io.airlift.units.DataSize.Unit.KILOBYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
+import static io.airlift.units.DataSize.succinctBytes;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
 import static io.starburst.stargate.buffer.data.execution.ChunkManagerConfig.DEFAULT_EXCHANGE_STALENESS_THRESHOLD;
 import static io.starburst.stargate.buffer.data.execution.ChunkTestHelper.verifyChunkData;
@@ -48,7 +50,10 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
+import static org.testcontainers.shaded.org.awaitility.Durations.ONE_SECOND;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class TestChunkManager
@@ -321,6 +326,73 @@ public class TestChunkManager
         assertThatThrownBy(() -> chunkManager.finishExchange(EXCHANGE_0))
                 .isInstanceOf(DataServerException.class)
                 .hasMessage("exchange %s is in inconsistent state".formatted(EXCHANGE_0));
+    }
+
+    @Test
+    public void testSpoolChunks()
+    {
+        long maxBytes = 96L;
+        MemoryAllocator memoryAllocator = new MemoryAllocator(
+                new MemoryAllocatorConfig()
+                        .setHeapHeadroom(succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes))
+                        .setAllocationRatioHighWatermark(0.8)
+                        .setAllocationRatioLowWatermark(0.5),
+                new DataServerStats());
+        ChunkManager chunkManager = createChunkManager(memoryAllocator, DataSize.of(64, BYTE), DataSize.of(32, BYTE));
+
+        chunkManager.registerExchange(EXCHANGE_0);
+        chunkManager.registerExchange(EXCHANGE_1);
+
+        ListenableFuture<Void> addDataPagesFuture1 = chunkManager.addDataPages(
+                EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("test"), utf8Slice("spool"), utf8Slice("chunks")));
+        await().atMost(ONE_SECOND).until(addDataPagesFuture1::isDone);
+        assertEquals(32, memoryAllocator.getFreeMemory());
+
+        ListenableFuture<Void> addDataPagesFuture2 = chunkManager.addDataPages(
+                EXCHANGE_0, 0, 0, 0, 1L, ImmutableList.of(utf8Slice("add"), utf8Slice("data"), utf8Slice("pages")));
+        await().atMost(ONE_SECOND).until(addDataPagesFuture2::isDone);
+        assertEquals(0, memoryAllocator.getFreeMemory());
+
+        ListenableFuture<Void> addDataPagesFuture3 = chunkManager.addDataPages(
+                EXCHANGE_1, 1, 1, 1, 2L, ImmutableList.of(utf8Slice("dummy")));
+        assertFalse(addDataPagesFuture3.isDone()); // no memory available yet
+
+        chunkManager.spoolIfNecessary();
+        assertEquals(0, chunkManager.getClosedChunks());
+        assertEquals(2, chunkManager.getSpooledChunks()); // the open chunk should have spooled too
+
+        await().atMost(ONE_SECOND).until(addDataPagesFuture3::isDone);
+        assertEquals(64, memoryAllocator.getFreeMemory());
+
+        ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 22);
+        ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 0, 1L, 5);
+        assertThat(chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty()).chunks())
+                .containsExactlyInAnyOrder(chunkHandle0, chunkHandle1);
+
+        verifyChunkData(chunkManager.getChunkData(EXCHANGE_0, chunkHandle0.partitionId(), chunkHandle0.chunkId(), BUFFER_NODE_ID),
+                new DataPage(0, 0, utf8Slice("test")),
+                new DataPage(0, 0, utf8Slice("spool")),
+                new DataPage(0, 0, utf8Slice("chunks")),
+                new DataPage(0, 0, utf8Slice("add")),
+                new DataPage(0, 0, utf8Slice("data")));
+        verifyChunkData(chunkManager.getChunkData(EXCHANGE_0, chunkHandle1.partitionId(), chunkHandle1.chunkId(), BUFFER_NODE_ID),
+                new DataPage(0, 0, utf8Slice("pages")));
+
+        chunkManager.finishExchange(EXCHANGE_0);
+        chunkManager.finishExchange(EXCHANGE_1);
+
+        ChunkHandle chunkHandle2 = new ChunkHandle(BUFFER_NODE_ID, 1, 2L, 5);
+        assertThat(chunkManager.listClosedChunks(EXCHANGE_1, OptionalLong.empty()).chunks())
+                .containsExactlyInAnyOrder(chunkHandle2);
+        verifyChunkData(chunkManager.getChunkData(EXCHANGE_1, chunkHandle2.partitionId(), chunkHandle2.chunkId(), BUFFER_NODE_ID),
+                new DataPage(1, 1, utf8Slice("dummy")));
+
+        chunkManager.removeExchange(EXCHANGE_0);
+        chunkManager.removeExchange(EXCHANGE_1);
+
+        assertEquals(0, chunkManager.getClosedChunks());
+        assertEquals(0, chunkManager.getSpooledChunks());
+        assertEquals(96, memoryAllocator.getFreeMemory());
     }
 
     private ChunkManager createChunkManager(

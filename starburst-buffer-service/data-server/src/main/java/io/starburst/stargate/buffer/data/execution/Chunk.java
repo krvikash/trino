@@ -9,6 +9,7 @@
  */
 package io.starburst.stargate.buffer.data.execution;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.AbstractFuture;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -41,8 +42,9 @@ public class Chunk
     private final long bufferNodeId;
     private final int partitionId;
     private final long chunkId;
-    private final ChunkData chunkData;
 
+    private ChunkData chunkData;
+    private int dataSizeInBytes;
     private boolean closed;
     private ChunkHandle chunkHandle;
 
@@ -84,15 +86,20 @@ public class Chunk
         return chunkData.hasEnoughSpace(data);
     }
 
-    public int dataSizeInBytes()
+    @VisibleForTesting
+    int dataSizeInBytes()
     {
         checkState(closed, "dataSizeInBytes() called on an open chunk");
         return chunkData.dataSizeInBytes();
     }
 
+    // null means chunk data has spooled
     public ChunkDataHolder getChunkData()
     {
         checkState(closed, "getChunkData() called on an open chunk");
+        if (chunkData == null) {
+            return null;
+        }
         return chunkData.get();
     }
 
@@ -100,19 +107,23 @@ public class Chunk
     {
         checkState(closed, "getHandle() called on an open chunk");
         if (chunkHandle == null) {
-            chunkHandle = new ChunkHandle(bufferNodeId, partitionId, chunkId, chunkData.dataSizeInBytes());
+            chunkHandle = new ChunkHandle(bufferNodeId, partitionId, chunkId, dataSizeInBytes);
         }
         return chunkHandle;
     }
 
     public void release()
     {
-        chunkData.release();
+        if (chunkData != null) {
+            chunkData.release();
+            chunkData = null;
+        }
     }
 
     public void close()
     {
         chunkData.close();
+        dataSizeInBytes = chunkData.dataSizeInBytes();
         closed = true;
     }
 
