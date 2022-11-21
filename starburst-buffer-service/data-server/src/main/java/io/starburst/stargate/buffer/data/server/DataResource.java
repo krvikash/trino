@@ -37,6 +37,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.container.CompletionCallback;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.GenericEntity;
 import javax.ws.rs.core.MediaType;
@@ -147,7 +148,6 @@ public class DataResource
                     return asVoid(Futures.allAsList(addDataPagesFutures.build()));
                 },
                 executor);
-        addDataPagesFuture.addListener(sliceLease::release, executor);
         bindAsyncResponse(
                 asyncResponse,
                 translateExceptions(Futures.transform(
@@ -155,6 +155,7 @@ public class DataResource
                         ignored -> Response.ok().build(),
                         directExecutor())),
                 responseExecutor);
+        asyncResponse.register((CompletionCallback) throwable -> sliceLease.release());
     }
 
     @GET
