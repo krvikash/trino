@@ -10,6 +10,7 @@
 
     <artifactId>buffer-exchange</artifactId>
     <description>Buffer Service Data Client</description>
+    <packaging>trino-plugin</packaging>
 
     <properties>
         <air.main.basedir>${project.parent.basedir}</air.main.basedir>
