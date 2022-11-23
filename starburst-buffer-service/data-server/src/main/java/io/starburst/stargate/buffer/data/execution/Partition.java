@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Predicate;
 
@@ -55,8 +56,8 @@ public class Partition
     private final ChunkIdGenerator chunkIdGenerator;
     private final ExecutorService executor;
 
-    @GuardedBy("this")
-    private final Map<Long, Chunk> closedChunks = new HashMap<>();
+    private final Map<Long, Chunk> closedChunks = new ConcurrentHashMap<>();
+    private final Object spoolLock = new Object();
     @GuardedBy("this")
     private final Map<TaskAttemptId, Long> lastDataPagesIds = new HashMap<>();
     @GuardedBy("this")
@@ -121,7 +122,7 @@ public class Partition
         return addDataPagesFuture;
     }
 
-    public synchronized ChunkDataLease getChunkData(long chunkId, long bufferNodeId)
+    public ChunkDataLease getChunkData(long chunkId, long bufferNodeId)
     {
         Chunk chunk = closedChunks.get(chunkId);
         if (chunk == null || chunk.getChunkData() == null) {
@@ -159,45 +160,49 @@ public class Partition
         return openChunk != null;
     }
 
-    public synchronized int getClosedChunks()
+    public int getClosedChunks()
     {
         return (int) closedChunks.values().stream().filter(chunk -> chunk.getChunkData() != null).count();
     }
 
-    public synchronized void releaseChunks()
+    public void releaseChunks()
     {
-        addDataPagesFutures.forEach(future -> future.cancel(true));
-        if (openChunk != null) {
-            openChunk.release();
+        synchronized (this) {
+            addDataPagesFutures.forEach(future -> future.cancel(true));
+            if (openChunk != null) {
+                openChunk.release();
+            }
+            released = true;
         }
-        released = true;
         closedChunks.values().forEach(Chunk::release);
     }
 
     // TODO: consider concurrent spooling on the exchange level to increase parallelism
-    // TODO: spooling blocks access of the partition data is not ideal
-    public synchronized void spool(Predicate<MemoryAllocator> stopCriteria)
+    public void spool(Predicate<MemoryAllocator> stopCriteria)
     {
-        Iterator<Map.Entry<Long, Chunk>> iterator = closedChunks.entrySet().iterator();
-        while (iterator.hasNext()) {
-            List<Chunk> chunks = new ArrayList<>();
-            ImmutableList.Builder<ListenableFuture<Void>> spoolFutures = ImmutableList.builder();
-            while (chunks.size() < chunkSpoolConcurrency && iterator.hasNext()) {
-                Chunk chunk = iterator.next().getValue();
-                ChunkDataHolder chunkData = chunk.getChunkData();
-                if (chunkData == null) {
-                    // already spooled
-                    continue;
+        // at most one spool can be in progress
+        synchronized (spoolLock) {
+            Iterator<Map.Entry<Long, Chunk>> iterator = closedChunks.entrySet().iterator();
+            while (iterator.hasNext()) {
+                List<Chunk> chunks = new ArrayList<>();
+                ImmutableList.Builder<ListenableFuture<Void>> spoolFutures = ImmutableList.builder();
+                while (chunks.size() < chunkSpoolConcurrency && iterator.hasNext()) {
+                    Chunk chunk = iterator.next().getValue();
+                    ChunkDataHolder chunkData = chunk.getChunkData();
+                    if (chunkData == null) {
+                        // already spooled
+                        continue;
+                    }
+                    chunks.add(chunk);
+                    spoolFutures.add(spoolingStorage.writeChunk(exchangeId, chunk.getChunkId(), bufferNodeId, chunkData));
                 }
-                chunks.add(chunk);
-                spoolFutures.add(spoolingStorage.writeChunk(exchangeId, chunk.getChunkId(), bufferNodeId, chunkData));
-            }
 
-            getFutureValue(allAsList(spoolFutures.build()));
-            chunks.forEach(Chunk::release);
+                getFutureValue(allAsList(spoolFutures.build()));
+                chunks.forEach(Chunk::release);
 
-            if (stopCriteria.test(memoryAllocator)) {
-                return;
+                if (stopCriteria.test(memoryAllocator)) {
+                    return;
+                }
             }
         }
     }
