@@ -20,7 +20,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 public class DiscoveryManagerConfig
 {
     @VisibleForTesting
-    static final Duration DEFAULT_BUFFER_NODE_DISCOVERY_STALENESS_THRESHOLD = succinctDuration(5, MINUTES);
+    static final Duration DEFAULT_BUFFER_NODE_DISCOVERY_STALENESS_THRESHOLD = succinctDuration(1, MINUTES);
     @VisibleForTesting
     static final Duration DEFAULT_START_GRACE_PERIOD = succinctDuration(30, SECONDS);
 
