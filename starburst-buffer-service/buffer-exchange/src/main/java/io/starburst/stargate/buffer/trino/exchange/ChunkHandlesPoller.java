@@ -150,11 +150,9 @@ class ChunkHandlesPoller
                             pinging = true;
                         }
 
-                        if (!noMoreChunks) {
-                            // schedule another request
-                            // todo: drop delay when DataApi supports long polling
-                            executorService.schedule(ChunkHandlesPoller.this::doPollOrPing, 10, TimeUnit.MILLISECONDS);
-                        }
+                        // schedule another request
+                        // todo: drop delay when DataApi supports long polling
+                        executorService.schedule(ChunkHandlesPoller.this::doPollOrPing, 10, TimeUnit.MILLISECONDS);
                     }
                     catch (Throwable t) {
                         // fallback to onFailure
