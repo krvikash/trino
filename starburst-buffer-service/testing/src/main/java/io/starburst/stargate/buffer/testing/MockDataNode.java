@@ -85,7 +85,7 @@ class MockDataNode
                 exchangesData.values().stream().mapToInt(ExchangeData::getClosedChunksCount).sum(),
                 0));
         BufferNodeState bufferNodeState = switch (this.nodeState) {
-            case RUNNING -> BufferNodeState.RUNNING;
+            case RUNNING -> BufferNodeState.ACTIVE;
             case DRAINING, DRAINED -> BufferNodeState.DRAINING;
             case GONE -> throw new IllegalArgumentException("not supported");
         };

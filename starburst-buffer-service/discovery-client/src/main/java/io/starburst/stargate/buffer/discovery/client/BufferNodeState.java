@@ -13,6 +13,6 @@ package io.starburst.stargate.buffer.discovery.client;
 public enum BufferNodeState
 {
     STARTING,
-    RUNNING,
+    ACTIVE,
     DRAINING
 }

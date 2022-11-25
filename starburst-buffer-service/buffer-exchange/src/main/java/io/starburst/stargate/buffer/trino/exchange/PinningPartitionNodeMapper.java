@@ -50,7 +50,7 @@ public class PinningPartitionNodeMapper
     private Map<Integer, Long> computeMapping()
     {
         List<BufferNodeInfo> bufferNodes = discoveryManager.getBufferNodes().bufferNodeInfos().values().stream()
-                .filter(node -> node.state() == BufferNodeState.RUNNING)
+                .filter(node -> node.state() == BufferNodeState.ACTIVE)
                 .filter(node -> node.stats().isPresent())
                 .collect(toImmutableList());
 
@@ -99,7 +99,7 @@ public class PinningPartitionNodeMapper
             Integer partition = entry.getKey();
             Long oldBufferNodeId = entry.getValue();
             BufferNodeInfo oldBufferNodeInfo = bufferNodes.get(oldBufferNodeId);
-            if (oldBufferNodeInfo != null && oldBufferNodeInfo.state() == BufferNodeState.RUNNING) {
+            if (oldBufferNodeInfo != null && oldBufferNodeInfo.state() == BufferNodeState.ACTIVE) {
                 // keep old mapping entry
                 finalMapping.put(partition, oldBufferNodeId);
             }

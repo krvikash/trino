@@ -30,7 +30,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static io.airlift.testing.Closeables.closeAll;
-import static io.starburst.stargate.buffer.discovery.client.BufferNodeState.RUNNING;
+import static io.starburst.stargate.buffer.discovery.client.BufferNodeState.ACTIVE;
 import static io.starburst.stargate.buffer.discovery.client.BufferNodeState.STARTING;
 import static io.starburst.stargate.buffer.discovery.server.DiscoveryManager.STALE_BUFFER_NODE_INFO_CLEANUP_THRESHOLD;
 import static io.starburst.stargate.buffer.discovery.server.DiscoveryManagerConfig.DEFAULT_BUFFER_NODE_DISCOVERY_STALENESS_THRESHOLD;
@@ -76,7 +76,7 @@ public class TestDiscoveryServer
                         Set.of()));
 
         BufferNodeStats node1Stats1 = new BufferNodeStats(10, 11, 12, 13, 14, 15);
-        BufferNodeInfo node1Info1 = new BufferNodeInfo(1, URI.create("http://address1"), Optional.of(node1Stats1), RUNNING);
+        BufferNodeInfo node1Info1 = new BufferNodeInfo(1, URI.create("http://address1"), Optional.of(node1Stats1), ACTIVE);
         discoveryClient.updateBufferNode(node1Info1);
 
         assertThat(discoveryClient.getBufferNodes()).isEqualTo(
@@ -110,7 +110,7 @@ public class TestDiscoveryServer
         // move time and update node 1
         ticker.increment(1000, TimeUnit.MILLISECONDS);
         BufferNodeStats node1Stats2 = new BufferNodeStats(110, 111, 112, 113, 114, 115);
-        BufferNodeInfo node1Info2 = new BufferNodeInfo(1, URI.create("http://address1"), Optional.of(node1Stats2), RUNNING);
+        BufferNodeInfo node1Info2 = new BufferNodeInfo(1, URI.create("http://address1"), Optional.of(node1Stats2), ACTIVE);
         discoveryClient.updateBufferNode(node1Info2);
         assertThat(discoveryClient.getBufferNodes()).isEqualTo(
                 new BufferNodeInfoResponse(

@@ -67,7 +67,7 @@ public class RandomPartitionNodeMapper
     private RandomSelector<BufferNodeInfo> buildBufferNodeSelector(BufferNodeDiscoveryManager.BufferNodesState bufferNodesState)
     {
         List<BufferNodeInfo> bufferNodes = bufferNodesState.bufferNodeInfos().values().stream()
-                .filter(node -> node.state() == BufferNodeState.RUNNING)
+                .filter(node -> node.state() == BufferNodeState.ACTIVE)
                 .filter(node -> node.stats().isPresent())
                 .collect(toImmutableList());
 
