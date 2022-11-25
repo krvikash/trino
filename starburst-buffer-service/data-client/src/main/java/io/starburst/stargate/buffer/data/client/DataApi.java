@@ -12,12 +12,19 @@ package io.starburst.stargate.buffer.data.client;
 import com.google.common.collect.ListMultimap;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.slice.Slice;
+import io.starburst.stargate.buffer.BufferNodeInfo;
 
 import java.util.List;
 import java.util.OptionalLong;
 
 public interface DataApi
 {
+    /**
+     * Returns node runtime information like
+     * nodeId, node uri and exchange + memory statistics.
+     */
+    BufferNodeInfo getInfo();
+
     /**
      * List chunks for given exchange and acknowledges receiving of
      * previous set of chunks for which ChunkList.nextPagingId was set to pagingId passed in the

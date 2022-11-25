@@ -71,25 +71,31 @@ class MockDataNode
         this.drainedStorage = requireNonNull(drainedStorage, "drainedStorage is null");
     }
 
-    public synchronized Optional<BufferNodeInfo> getNodeInfo()
+    public synchronized Optional<BufferNodeInfo> getMockInfo()
     {
         if (nodeState == GONE) {
             // drained node is effectively gone, there is no externally visible BufferNodeInfo for it
             return Optional.empty();
         }
-        Optional<BufferNodeStats> stats = Optional.of(new BufferNodeStats(
+        return Optional.of(getInfo());
+    }
+
+    @Override
+    public BufferNodeInfo getInfo()
+    {
+        BufferNodeStats stats = new BufferNodeStats(
                 64_000_000_000L,
                 64_000_000_000L,
                 exchangesData.size(),
                 exchangesData.values().stream().mapToInt(ExchangeData::getOpenChunksCount).sum(),
                 exchangesData.values().stream().mapToInt(ExchangeData::getClosedChunksCount).sum(),
-                0));
+                0);
         BufferNodeState bufferNodeState = switch (this.nodeState) {
             case RUNNING -> BufferNodeState.ACTIVE;
             case DRAINING, DRAINED -> BufferNodeState.DRAINING;
             case GONE -> throw new IllegalArgumentException("not supported");
         };
-        return Optional.of(new BufferNodeInfo(nodeId, URI.create("http://mock." + nodeId), stats, bufferNodeState));
+        return new BufferNodeInfo(nodeId, URI.create("http://mock." + nodeId), Optional.of(stats), bufferNodeState);
     }
 
     @Override

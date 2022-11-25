@@ -67,7 +67,7 @@ public class MockBufferService
         return new BufferNodeInfoResponse(
                 true,
                 dataNodes.values().stream()
-                        .map(MockDataNode::getNodeInfo)
+                        .map(MockDataNode::getMockInfo)
                         .filter(Optional::isPresent)
                         .map(Optional::orElseThrow)
                         .collect(toImmutableSet()));

@@ -30,6 +30,7 @@ import io.airlift.json.JsonCodec;
 import io.airlift.slice.OutputStreamSliceOutput;
 import io.airlift.slice.Slice;
 import io.airlift.slice.SliceOutput;
+import io.starburst.stargate.buffer.BufferNodeInfo;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -79,6 +80,7 @@ public class HttpDataClient
     public static final int SERIALIZED_CHUNK_DATA_MAGIC = 0xfea4f001;
 
     private static final JsonCodec<ChunkList> CHUNK_LIST_JSON_CODEC = jsonCodec(ChunkList.class);
+    private static final JsonCodec<BufferNodeInfo> BUFFER_NODE_INFO_JSON_CODEC = jsonCodec(BufferNodeInfo.class);
 
     private final URI baseUri;
     private final HttpClient httpClient;
@@ -94,6 +96,16 @@ public class HttpDataClient
                 .build();
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
         this.dataIntegrityVerificationEnabled = dataIntegrityVerificationEnabled;
+    }
+
+    @Override
+    public BufferNodeInfo getInfo()
+    {
+        HttpUriBuilder uri = uriBuilderFrom(baseUri).appendPath("info");
+        Request request = prepareGet()
+                .setUri(uri.build())
+                .build();
+        return httpClient.execute(request, createFullJsonResponseHandler(BUFFER_NODE_INFO_JSON_CODEC)).getValue();
     }
 
     @Override
