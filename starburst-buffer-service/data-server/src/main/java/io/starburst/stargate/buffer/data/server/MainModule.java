@@ -35,6 +35,7 @@ import java.util.concurrent.ExecutorService;
 
 import static com.google.inject.Scopes.SINGLETON;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
+import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
@@ -84,6 +85,11 @@ public class MainModule
         if (discoveryBroadcastEnabled) {
             binder.bind(DiscoveryBroadcast.class).in(SINGLETON);
         }
+
+        install(conditionalModule(
+                DataServerConfig.class,
+                DataServerConfig::isTestingEnableStatsLogging,
+                innerBinder -> innerBinder.bind(DataServerStatsLogger.class).in(SINGLETON)));
 
         URI spoolingBaseDirectory = buildConfigObject(ChunkManagerConfig.class).getSpoolingDirectory();
         String scheme = spoolingBaseDirectory.getScheme();

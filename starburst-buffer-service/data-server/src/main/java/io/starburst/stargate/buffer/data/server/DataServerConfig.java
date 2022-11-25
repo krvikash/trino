@@ -23,6 +23,7 @@ public class DataServerConfig
     private boolean includeChecksumInDataResponse = true;
     private boolean testingDropUploadedPages;
     private int httpResponseThreads = 100;
+    private boolean testingEnableStatsLogging = true; // true for now
 
     @NotNull
     public URI getDiscoveryServiceUri()
@@ -72,6 +73,19 @@ public class DataServerConfig
     public DataServerConfig setHttpResponseThreads(int httpResponseThreads)
     {
         this.httpResponseThreads = httpResponseThreads;
+        return this;
+    }
+
+    public boolean isTestingEnableStatsLogging()
+    {
+        return testingEnableStatsLogging;
+    }
+
+    @ConfigHidden
+    @Config("testing.enable-stats-logging")
+    public DataServerConfig setTestingEnableStatsLogging(boolean testingEnableStatsLogging)
+    {
+        this.testingEnableStatsLogging = testingEnableStatsLogging;
         return this;
     }
 }

@@ -28,7 +28,8 @@ public class TestDataServerConfig
                 .setDiscoveryServiceUri(null)
                 .setIncludeChecksumInDataResponse(true)
                 .setTestingDropUploadedPages(false)
-                .setHttpResponseThreads(100));
+                .setHttpResponseThreads(100)
+                .setTestingEnableStatsLogging(true));
     }
 
     @Test
@@ -39,13 +40,15 @@ public class TestDataServerConfig
                 .put("include-checksum-in-data-response", "false")
                 .put("testing.drop-uploaded-pages", "true")
                 .put("http-response-threads", "88")
+                .put("testing.enable-stats-logging", "false")
                 .buildOrThrow();
 
         DataServerConfig expected = new DataServerConfig()
                 .setDiscoveryServiceUri(URI.create("http://some-discovery-host:123"))
                 .setIncludeChecksumInDataResponse(false)
                 .setTestingDropUploadedPages(true)
-                .setHttpResponseThreads(88);
+                .setHttpResponseThreads(88)
+                .setTestingEnableStatsLogging(false);
 
         assertFullMapping(properties, expected);
     }
