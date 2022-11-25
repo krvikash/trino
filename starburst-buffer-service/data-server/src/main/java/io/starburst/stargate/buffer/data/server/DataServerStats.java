@@ -9,58 +9,82 @@
  */
 package io.starburst.stargate.buffer.data.server;
 
-import io.airlift.stats.DistributionStat;
 import org.weakref.jmx.Managed;
-import org.weakref.jmx.Nested;
+
+import java.util.concurrent.atomic.AtomicLong;
 
 public class DataServerStats
 {
-    private final DistributionStat totalMemoryInBytes = new DistributionStat();
-    private final DistributionStat freeMemoryInBytes = new DistributionStat();
-    private final DistributionStat trackedExchanges = new DistributionStat();
-    private final DistributionStat openChunks = new DistributionStat();
-    private final DistributionStat closedChunks = new DistributionStat();
-    private final DistributionStat spooledChunks = new DistributionStat();
+    private AtomicLong totalMemoryInBytes = new AtomicLong();
+    private AtomicLong freeMemoryInBytes = new AtomicLong();
+    private AtomicLong trackedExchanges = new AtomicLong();
+    private AtomicLong openChunks = new AtomicLong();
+    private AtomicLong closedChunks = new AtomicLong();
+    private AtomicLong spooledChunks = new AtomicLong();
 
-    @Managed
-    @Nested
-    public DistributionStat getTotalMemoryInBytes()
+    public void updateTotalMemoryInBytes(long totalMemoryInBytes)
     {
-        return totalMemoryInBytes;
+        this.totalMemoryInBytes.set(totalMemoryInBytes);
     }
 
     @Managed
-    @Nested
-    public DistributionStat getFreeMemoryInBytes()
+    public long getTotalMemoryInBytes()
     {
-        return freeMemoryInBytes;
+        return totalMemoryInBytes.get();
+    }
+
+    public void updateFreeMemoryInBytes(long freeMemoryInBytes)
+    {
+        this.freeMemoryInBytes.set(freeMemoryInBytes);
     }
 
     @Managed
-    @Nested
-    public DistributionStat getTrackedExchanges()
+    public long getFreeMemoryInBytes()
     {
-        return trackedExchanges;
+        return freeMemoryInBytes.get();
+    }
+
+    public void updateTrackedExchanges(long trackedExchanges)
+    {
+        this.trackedExchanges.set(trackedExchanges);
     }
 
     @Managed
-    @Nested
-    public DistributionStat getOpenChunks()
+    public long getTrackedExchanges()
     {
-        return openChunks;
+        return trackedExchanges.get();
+    }
+
+    public void updateOpenChunks(long openChunks)
+    {
+        this.openChunks.set(openChunks);
     }
 
     @Managed
-    @Nested
-    public DistributionStat getClosedChunks()
+    public long getOpenChunks()
     {
-        return closedChunks;
+        return openChunks.get();
+    }
+
+    public void updateClosedChunks(long closedChunks)
+    {
+        this.closedChunks.set(closedChunks);
     }
 
     @Managed
-    @Nested
-    public DistributionStat getSpooledChunks()
+    public long getClosedChunks()
     {
-        return spooledChunks;
+        return closedChunks.get();
+    }
+
+    public void updateSpooledChunks(long spooledChunks)
+    {
+        this.spooledChunks.set(spooledChunks);
+    }
+
+    @Managed
+    public long getSpooledChunks()
+    {
+        return spooledChunks.get();
     }
 }

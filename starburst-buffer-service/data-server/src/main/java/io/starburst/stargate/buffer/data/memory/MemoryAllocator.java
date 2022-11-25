@@ -50,7 +50,7 @@ public class MemoryAllocator
         this.lowWatermark = (long) (maxBytes * config.getAllocationRatioLowWatermark());
         this.highWatermark = (long) (maxBytes * config.getAllocationRatioHighWatermark());
         this.dataServerStats = requireNonNull(dataServerStats, "dataServerStats is null");
-        dataServerStats.getTotalMemoryInBytes().add(maxBytes);
+        dataServerStats.updateTotalMemoryInBytes(maxBytes);
     }
 
     public synchronized ListenableFuture<Slice> allocate(int bytes)
@@ -70,7 +70,7 @@ public class MemoryAllocator
         int bytes = slice.length();
         verify(allocatedBytes >= bytes, "%s bytes allocated, but trying to release %s bytes", allocatedBytes, bytes);
         allocatedBytes -= bytes;
-        dataServerStats.getFreeMemoryInBytes().add(getFreeMemory());
+        dataServerStats.updateFreeMemoryInBytes(getFreeMemory());
 
         processPendingAllocations();
     }
@@ -111,7 +111,7 @@ public class MemoryAllocator
     private Slice allocateInternal(int bytes)
     {
         allocatedBytes += bytes;
-        dataServerStats.getFreeMemoryInBytes().add(getFreeMemory());
+        dataServerStats.updateFreeMemoryInBytes(getFreeMemory());
         return Slices.allocate(bytes);
     }
 

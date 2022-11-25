@@ -286,10 +286,10 @@ public class ChunkManager
 
     private void reportStats()
     {
-        dataServerStats.getTrackedExchanges().add(getTrackedExchanges());
-        dataServerStats.getOpenChunks().add(getOpenChunks());
-        dataServerStats.getClosedChunks().add(getClosedChunks());
-        dataServerStats.getSpooledChunks().add(getSpooledChunks());
+        dataServerStats.updateTrackedExchanges(getTrackedExchanges());
+        dataServerStats.updateOpenChunks(getOpenChunks());
+        dataServerStats.updateClosedChunks(getClosedChunks());
+        dataServerStats.updateSpooledChunks(getSpooledChunks());
     }
 
     private long tickerReadMillis()
