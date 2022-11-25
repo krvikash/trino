@@ -27,6 +27,8 @@ public class DataServerStats
     private final CounterStat spoolingFailures = new CounterStat();
     private final CounterStat unspooledDataSize = new CounterStat();
     private final CounterStat unspoolingFailures = new CounterStat();
+    private final CounterStat writtenDataSize = new CounterStat();
+    private final CounterStat readDataSize = new CounterStat();
 
     public void updateTotalMemoryInBytes(long totalMemoryInBytes)
     {
@@ -120,5 +122,19 @@ public class DataServerStats
     public CounterStat getUnspoolingFailures()
     {
         return unspoolingFailures;
+    }
+
+    @Managed
+    @Nested
+    public CounterStat getWrittenDataSize()
+    {
+        return writtenDataSize;
+    }
+
+    @Managed
+    @Nested
+    public CounterStat getReadDataSize()
+    {
+        return readDataSize;
     }
 }

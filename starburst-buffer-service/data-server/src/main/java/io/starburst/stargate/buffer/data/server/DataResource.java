@@ -17,6 +17,7 @@ import io.airlift.concurrent.BoundedExecutor;
 import io.airlift.slice.Slice;
 import io.airlift.slice.SliceInput;
 import io.airlift.slice.SliceOutput;
+import io.airlift.stats.CounterStat;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
@@ -48,6 +49,7 @@ import java.io.InputStream;
 import java.util.OptionalLong;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.net.HttpHeaders.CONTENT_LENGTH;
@@ -67,6 +69,8 @@ public class DataResource
     private final boolean dropUploadedPages;
     private final Executor responseExecutor;
     private final ExecutorService executor;
+    private final CounterStat writtenDataSize;
+    private final CounterStat readDataSize;
 
     @Inject
     public DataResource(
@@ -75,6 +79,7 @@ public class DataResource
             DataServerConfig config,
             @ForAsyncHttp BoundedExecutor responseExecutor,
             DataServerStats dataServerStats,
+            DataServerStats stats,
             ExecutorService executor)
     {
         this.chunkManager = requireNonNull(chunkManager, "chunkManager is null");
@@ -82,6 +87,9 @@ public class DataResource
         this.dropUploadedPages = config.isTestingDropUploadedPages();
         this.responseExecutor = requireNonNull(responseExecutor, "responseExecutor is null");
         this.executor = requireNonNull(executor, "executor is null");
+
+        writtenDataSize = stats.getWrittenDataSize();
+        readDataSize = stats.getReadDataSize();
     }
 
     @GET
@@ -146,6 +154,7 @@ public class DataResource
                                 dataPagesId,
                                 pages.build()));
                     }
+                    writtenDataSize.update(contentLength);
                     return asVoid(Futures.allAsList(addDataPagesFutures.build()));
                 },
                 executor);
@@ -172,14 +181,23 @@ public class DataResource
         try {
             ChunkDataLease chunkDataLease = chunkManager.getChunkData(exchangeId, partitionId, chunkId, bufferNodeId);
             ListenableFuture<ChunkDataHolder> chunkDataHolderFuture = chunkDataLease.getChunkDataHolderFuture();
+            AtomicLong chunkSize = new AtomicLong();
             bindAsyncResponse(
                     asyncResponse,
                     translateExceptions(Futures.transform(
                             chunkDataHolderFuture,
-                            chunkDataHolder -> Response.ok(new GenericEntity<>(chunkDataHolder, new TypeToken<ChunkDataHolder>() {}.getType())).build(),
+                            chunkDataHolder -> {
+                                chunkSize.set(chunkDataHolder.serializedSizeInBytes()); // not strictly accurate but good enough for stats
+                                return Response.ok(new GenericEntity<>(chunkDataHolder, new TypeToken<ChunkDataHolder>() {}.getType())).build();
+                            },
                             directExecutor())),
                     responseExecutor);
-            asyncResponse.register((CompletionCallback) throwable -> chunkDataLease.release());
+            asyncResponse.register((CompletionCallback) throwable -> {
+                if (throwable == null) {
+                    readDataSize.update(chunkSize.get());
+                }
+                chunkDataLease.release();
+            });
         }
         catch (Exception e) {
             asyncResponse.resume(errorResponse(e));
