@@ -74,6 +74,7 @@ public class DataResource
             MemoryAllocator memoryAllocator,
             DataServerConfig config,
             @ForAsyncHttp BoundedExecutor responseExecutor,
+            DataServerStats dataServerStats,
             ExecutorService executor)
     {
         this.chunkManager = requireNonNull(chunkManager, "chunkManager is null");

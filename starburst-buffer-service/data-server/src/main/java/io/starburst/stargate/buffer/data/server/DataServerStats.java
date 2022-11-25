@@ -9,7 +9,9 @@
  */
 package io.starburst.stargate.buffer.data.server;
 
+import io.airlift.stats.CounterStat;
 import org.weakref.jmx.Managed;
+import org.weakref.jmx.Nested;
 
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -21,6 +23,10 @@ public class DataServerStats
     private AtomicLong openChunks = new AtomicLong();
     private AtomicLong closedChunks = new AtomicLong();
     private AtomicLong spooledChunks = new AtomicLong();
+    private final CounterStat spooledDataSize = new CounterStat();
+    private final CounterStat spoolingFailures = new CounterStat();
+    private final CounterStat unspooledDataSize = new CounterStat();
+    private final CounterStat unspoolingFailures = new CounterStat();
 
     public void updateTotalMemoryInBytes(long totalMemoryInBytes)
     {
@@ -86,5 +92,33 @@ public class DataServerStats
     public long getSpooledChunks()
     {
         return spooledChunks.get();
+    }
+
+    @Managed
+    @Nested
+    public CounterStat getSpooledDataSize()
+    {
+        return spooledDataSize;
+    }
+
+    @Managed
+    @Nested
+    public CounterStat getSpoolingFailures()
+    {
+        return spoolingFailures;
+    }
+
+    @Managed
+    @Nested
+    public CounterStat getUnspooledDataSize()
+    {
+        return unspooledDataSize;
+    }
+
+    @Managed
+    @Nested
+    public CounterStat getUnspoolingFailures()
+    {
+        return unspoolingFailures;
     }
 }

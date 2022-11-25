@@ -14,12 +14,14 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import io.airlift.stats.CounterStat;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.execution.ChunkDataHolder;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.SliceLease;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
+import io.starburst.stargate.buffer.data.server.DataServerStats;
 import io.starburst.stargate.buffer.data.spooling.ChunkDataLease;
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -38,6 +40,7 @@ import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Publisher;
 
@@ -47,6 +50,7 @@ import javax.inject.Inject;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 
@@ -72,6 +76,10 @@ public class S3SpoolingStorage
     private final MemoryAllocator memoryAllocator;
     private final String bucketName;
     private final S3AsyncClient s3AsyncClient;
+    private final CounterStat spooledDataSize;
+    private final CounterStat spoolingFailures;
+    private final CounterStat unspooledDataSize;
+    private final CounterStat unspoolingFailures;
     private final ExecutorService executor;
 
     // exchangeId -> chunkId -> fileSize
@@ -83,6 +91,7 @@ public class S3SpoolingStorage
             MemoryAllocator memoryAllocator,
             ChunkManagerConfig chunkManagerConfig,
             SpoolingS3Config spoolingS3Config,
+            DataServerStats dataServerStats,
             ExecutorService executor)
     {
         this.bufferNodeId = bufferNodeId.getLongValue();
@@ -103,6 +112,10 @@ public class S3SpoolingStorage
                 .region(spoolingS3Config.getRegion());
         spoolingS3Config.getS3Endpoint().map(s3Endpoint -> s3AsyncClientBuilder.endpointOverride(URI.create(s3Endpoint)));
         this.s3AsyncClient = s3AsyncClientBuilder.build();
+        spooledDataSize = dataServerStats.getSpooledDataSize();
+        spoolingFailures = dataServerStats.getSpoolingFailures();
+        unspooledDataSize = dataServerStats.getUnspooledDataSize();
+        unspoolingFailures = dataServerStats.getUnspoolingFailures();
         this.executor = requireNonNull(executor, "executor is null");
     }
 
@@ -135,7 +148,15 @@ public class S3SpoolingStorage
                 .build();
         return ChunkDataLease.forSliceLeaseAsync(
                 sliceLease,
-                slice -> translateFailures(toListenableFuture(s3AsyncClient.getObject(getObjectRequest, ChunkDataAsyncResponseTransformer.toChunkDataHolder(slice)))),
+                slice -> translateFailures(toListenableFuture(s3AsyncClient.getObject(getObjectRequest, ChunkDataAsyncResponseTransformer.toChunkDataHolder(slice))
+                        .whenComplete((holder, failure) -> {
+                            if (failure == null) {
+                                unspooledDataSize.update(sliceLength);
+                            }
+                            else {
+                                unspoolingFailures.update(1);
+                            }
+                        }))),
                 executor);
     }
 
@@ -148,8 +169,17 @@ public class S3SpoolingStorage
                 .key(fileName)
                 .build();
         fileSizes.computeIfAbsent(exchangeId, ignored -> new ConcurrentHashMap<>()).put(chunkId, chunkDataHolder.serializedSizeInBytes());
-        return translateFailures(asVoid(toListenableFuture(
-                s3AsyncClient.putObject(putObjectRequest, ChunkDataAsyncRequestBody.fromChunkDataHolder(chunkDataHolder)))));
+        CompletableFuture<PutObjectResponse> putObjectCompletableFuture = s3AsyncClient.putObject(putObjectRequest, ChunkDataAsyncRequestBody.fromChunkDataHolder(chunkDataHolder));
+        // not chaining result with whenComplete as it breaks cancellation
+        putObjectCompletableFuture.whenComplete((response, failure) -> {
+            if (failure == null) {
+                spooledDataSize.update(chunkDataHolder.serializedSizeInBytes());
+            }
+            else {
+                spoolingFailures.update(1);
+            }
+        });
+        return translateFailures(asVoid(toListenableFuture(putObjectCompletableFuture)));
     }
 
     @Override
