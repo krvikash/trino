@@ -74,6 +74,7 @@ public class DiscoveryBroadcast
     @PostConstruct
     public void start()
     {
+        log.info("Starting broadcasting info buffer node " + bufferNodeId);
         checkState(bufferNodeState.compareAndSet(BufferNodeState.STARTING, BufferNodeState.RUNNING), "already started");
         executor.scheduleWithFixedDelay(this::broadcast, 0, BROADCAST_INTERVAL_SECONDS, TimeUnit.SECONDS);
     }
