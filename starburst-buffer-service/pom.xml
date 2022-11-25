@@ -44,6 +44,7 @@
     <modules>
         <module>buffer-exchange</module>
         <module>buffer-exchange-tests</module>
+        <module>buffer-status</module>
         <module>data-client</module>
         <module>data-server</module>
         <module>discovery-client</module>
@@ -73,6 +74,12 @@
             <dependency>
                 <groupId>${project.groupId}</groupId>
                 <artifactId>buffer-exchange-tests</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>buffer-status</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

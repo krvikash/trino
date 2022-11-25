@@ -23,7 +23,11 @@ import io.airlift.json.JsonModule;
 import io.airlift.log.LogJmxModule;
 import io.airlift.node.testing.TestingNodeModule;
 import io.airlift.tracetoken.TraceTokenModule;
+import io.starburst.stargate.buffer.data.server.BufferNodeStateManager;
+import io.starburst.stargate.buffer.data.server.DataServerStatusProvider;
 import io.starburst.stargate.buffer.data.server.MainModule;
+import io.starburst.stargate.buffer.status.StatusModule;
+import io.starburst.stargate.buffer.status.StatusProvider;
 import org.weakref.jmx.guice.MBeanModule;
 
 import javax.ws.rs.core.UriBuilder;
@@ -34,12 +38,15 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 
+import static io.starburst.stargate.buffer.discovery.client.BufferNodeState.ACTIVE;
+import static io.starburst.stargate.buffer.discovery.client.BufferNodeState.STARTED;
 import static java.util.Objects.requireNonNull;
 
 public class TestingDataServer
         implements Closeable
 {
     private final URI baseUri;
+    private final DataServerStatusProvider statusProvider;
     private final Closer closer = Closer.create();
 
     private TestingDataServer(long nodeId, boolean discoveryBroadcastEnabled, Map<String, String> configProperties)
@@ -59,6 +66,7 @@ public class TestingDataServer
                 new LogJmxModule(),
                 new TraceTokenModule(),
                 new EventModule(),
+                new StatusModule(),
                 new MainModule(nodeId, discoveryBroadcastEnabled, Ticker.systemTicker()));
 
         Injector injector = app
@@ -67,6 +75,13 @@ public class TestingDataServer
                 .setRequiredConfigurationProperties(finalConfigProperties)
                 .initialize();
 
+        BufferNodeStateManager stateManager = injector.getInstance(BufferNodeStateManager.class);
+        stateManager.transitionState(STARTED);
+        if (!discoveryBroadcastEnabled) {
+            stateManager.transitionState(ACTIVE);
+        }
+        this.statusProvider = injector.getInstance(DataServerStatusProvider.class);
+
         LifeCycleManager lifeCycleManager = injector.getInstance(LifeCycleManager.class);
         closer.register(lifeCycleManager::stop);
 
@@ -74,6 +89,11 @@ public class TestingDataServer
         baseUri = UriBuilder.fromUri(httpServerInfo.getHttpsUri() != null ? httpServerInfo.getHttpsUri() : httpServerInfo.getHttpUri())
                 .host("localhost")
                 .build();
+    }
+
+    public StatusProvider getStatusProvider()
+    {
+        return this.statusProvider;
     }
 
     public static Builder builder()

@@ -15,7 +15,6 @@ import io.airlift.node.NodeInfo;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.discovery.client.BufferNodeInfo;
-import io.starburst.stargate.buffer.discovery.client.BufferNodeState;
 import io.starburst.stargate.buffer.discovery.client.BufferNodeStats;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 
@@ -32,6 +31,9 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.http.client.HttpUriBuilder.uriBuilderFrom;
+import static io.starburst.stargate.buffer.discovery.client.BufferNodeState.ACTIVE;
+import static io.starburst.stargate.buffer.discovery.client.BufferNodeState.STARTING;
+import static java.util.Objects.isNull;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
@@ -40,14 +42,15 @@ public class DiscoveryBroadcast
     private static final Logger log = Logger.get(DiscoveryBroadcast.class);
 
     private static final int BROADCAST_INTERVAL_SECONDS = 5;
-
     private final DiscoveryApi discoverApi;
     private final long bufferNodeId;
     private final URI baseUri;
     private final MemoryAllocator memoryAllocator;
     private final ChunkManager chunkManager;
+    private final BufferNodeStateManager stateManager;
 
     private final ScheduledExecutorService executor = newSingleThreadScheduledExecutor();
+    private final AtomicReference<Boolean> discoveryRegistrationState = new AtomicReference<>(null);
 
     @Inject
     public DiscoveryBroadcast(
@@ -56,27 +59,32 @@ public class DiscoveryBroadcast
             MemoryAllocator memoryAllocator,
             ChunkManager chunkManager,
             HttpServerInfo httpServerInfo,
-            NodeInfo airliftNodeInfo)
+            NodeInfo airliftNodeInfo,
+            BufferNodeStateManager stateManager)
     {
         this.discoverApi = requireNonNull(discoveryApi, "discoveryApi is null");
         this.bufferNodeId = bufferNodeId.getLongValue();
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.chunkManager = requireNonNull(chunkManager, "chunkManager is null");
+        this.stateManager = requireNonNull(stateManager, "stateManager is null");
 
         baseUri = uriBuilderFrom(httpServerInfo.getHttpsUri() != null ? httpServerInfo.getHttpsUri() : httpServerInfo.getHttpUri())
                 .host(airliftNodeInfo.getExternalAddress())
                 .build();
     }
 
-    private final AtomicReference<BufferNodeState> bufferNodeState = new AtomicReference<>(BufferNodeState.STARTING);
     private final AtomicBoolean stopped = new AtomicBoolean();
 
     @PostConstruct
     public void start()
     {
         log.info("Starting broadcasting info buffer node " + bufferNodeId);
-        checkState(bufferNodeState.compareAndSet(BufferNodeState.STARTING, BufferNodeState.ACTIVE), "already started");
         executor.scheduleWithFixedDelay(this::broadcast, 0, BROADCAST_INTERVAL_SECONDS, TimeUnit.SECONDS);
+    }
+
+    public boolean isRegistered()
+    {
+        return Optional.ofNullable(discoveryRegistrationState.get()).orElse(false);
     }
 
     @PreDestroy
@@ -88,11 +96,20 @@ public class DiscoveryBroadcast
 
     private void broadcast()
     {
-        try {
-            discoverApi.updateBufferNode(new BufferNodeInfo(bufferNodeId, baseUri, getBufferNodeStats(), bufferNodeState.get()));
-        }
-        catch (RuntimeException e) {
-            log.warn(e, "Failed to announce to discovery server. Retry in %s s.", BROADCAST_INTERVAL_SECONDS);
+        if (stateManager.getState() != STARTING) {
+            try {
+                discoverApi.updateBufferNode(new BufferNodeInfo(bufferNodeId, baseUri, getBufferNodeStats(), stateManager.getState()));
+                if (isNull(discoveryRegistrationState.getAndSet(true))) {
+                    // Only first registering to discovery server marks Data Server as ACTIVE
+                    stateManager.transitionState(ACTIVE);
+                }
+            }
+            catch (RuntimeException e) {
+                if (isRegistered()) {
+                    discoveryRegistrationState.set(false);
+                }
+                log.warn(e, "Failed to announce to discovery server. Retry in %s s.", BROADCAST_INTERVAL_SECONDS);
+            }
         }
     }
 

@@ -23,6 +23,11 @@
 
         <dependency>
             <groupId>io.starburst.stargate.buffer</groupId>
+            <artifactId>buffer-status</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.starburst.stargate.buffer</groupId>
             <artifactId>data-client</artifactId>
         </dependency>
 

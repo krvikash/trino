@@ -10,9 +10,29 @@
 
 package io.starburst.stargate.buffer.discovery.client;
 
+import com.google.common.collect.ImmutableSet;
+
+import java.util.Set;
+
+import static java.util.Objects.requireNonNull;
+
 public enum BufferNodeState
 {
-    STARTING,
-    ACTIVE,
-    DRAINING
+    STARTING(ImmutableSet.of()),
+    STARTED(ImmutableSet.of(STARTING)),
+    ACTIVE(ImmutableSet.of(STARTED)),
+    DRAINING(ImmutableSet.of(ACTIVE)),
+    DRAINED(ImmutableSet.of(DRAINING));
+
+    private final Set<BufferNodeState> canTransitionFrom;
+
+    BufferNodeState(Set<BufferNodeState> canTransitionFrom)
+    {
+        this.canTransitionFrom = requireNonNull(canTransitionFrom, "canTransitionFrom is null");
+    }
+
+    public boolean canTransitionFrom(BufferNodeState state)
+    {
+        return this.canTransitionFrom.contains(state);
+    }
 }

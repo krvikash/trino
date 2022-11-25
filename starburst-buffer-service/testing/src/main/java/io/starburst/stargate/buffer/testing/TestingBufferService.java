@@ -42,6 +42,15 @@ public class TestingBufferService
             dataServers.add(dataServerBuilder.build(nodeId));
         }
         this.dataServers = dataServers.build();
+        long start = System.currentTimeMillis();
+        while (!this.dataServers.stream()
+                .map(dataServer -> dataServer.getStatusProvider().isReady())
+                .reduce(true, (a, b) -> a && b)) {
+            // We wait 10s for Data Servers to start and register
+            if (System.currentTimeMillis() - start > 10 * 1000) {
+                throw new IllegalStateException("Failed to start Buffer Service Data Servers after 10s.");
+            }
+        }
     }
 
     public TestingDiscoveryServer getDiscoveryServer()

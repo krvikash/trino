@@ -28,12 +28,15 @@ import io.starburst.stargate.buffer.data.spooling.s3.S3SpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.s3.SpoolingS3Config;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 import io.starburst.stargate.buffer.discovery.client.HttpDiscoveryClient;
+import io.starburst.stargate.buffer.status.StatusProvider;
 
 import java.net.URI;
 import java.security.SecureRandom;
 import java.util.concurrent.ExecutorService;
 
 import static com.google.inject.Scopes.SINGLETON;
+import static com.google.inject.multibindings.Multibinder.newSetBinder;
+import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
@@ -81,7 +84,11 @@ public class MainModule
         binder.bind(Ticker.class).annotatedWith(ForChunkManager.class).toInstance(ticker);
         binder.bind(ChunkManager.class).in(SINGLETON);
         binder.bind(DataServerStats.class).in(SINGLETON);
+        binder.bind(BufferNodeStateManager.class).in(SINGLETON);
+        binder.bind(DataServerStatusProvider.class).in(SINGLETON);
+        newSetBinder(binder, StatusProvider.class).addBinding().to(DataServerStatusProvider.class);
         binder.bind(ExecutorService.class).toInstance(newCachedThreadPool(daemonThreadsNamed("buffer-node-execution-%s")));
+        newOptionalBinder(binder, DiscoveryBroadcast.class);
         if (discoveryBroadcastEnabled) {
             binder.bind(DiscoveryBroadcast.class).in(SINGLETON);
         }

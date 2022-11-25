@@ -9,6 +9,7 @@
  */
 package io.starburst.stargate.buffer.data.server;
 
+import com.google.inject.Injector;
 import io.airlift.bootstrap.ApplicationConfigurationException;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.event.client.EventModule;
@@ -20,7 +21,10 @@ import io.airlift.log.LogJmxModule;
 import io.airlift.log.Logger;
 import io.airlift.node.NodeModule;
 import io.airlift.tracetoken.TraceTokenModule;
+import io.starburst.stargate.buffer.status.StatusModule;
 import org.weakref.jmx.guice.MBeanModule;
+
+import static io.starburst.stargate.buffer.discovery.client.BufferNodeState.STARTED;
 
 public final class DataServer
 {
@@ -40,10 +44,12 @@ public final class DataServer
                 new LogJmxModule(),
                 new TraceTokenModule(),
                 new EventModule(),
+                new StatusModule(),
                 new MainModule());
 
         try {
-            app.initialize();
+            Injector injector = app.initialize();
+            injector.getInstance(BufferNodeStateManager.class).transitionState(STARTED);
 
             log.info("======== SERVER STARTED ========");
         }
