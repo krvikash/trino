@@ -21,6 +21,7 @@ import io.airlift.http.client.FullJsonResponseHandler.JsonResponse;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.HttpClient.HttpResponseFuture;
 import io.airlift.http.client.HttpStatus;
+import io.airlift.http.client.HttpUriBuilder;
 import io.airlift.http.client.Request;
 import io.airlift.http.client.Response;
 import io.airlift.http.client.ResponseHandler;
@@ -29,8 +30,6 @@ import io.airlift.json.JsonCodec;
 import io.airlift.slice.OutputStreamSliceOutput;
 import io.airlift.slice.Slice;
 import io.airlift.slice.SliceOutput;
-
-import javax.ws.rs.core.UriBuilder;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -55,6 +54,7 @@ import static com.google.common.util.concurrent.Futures.transform;
 import static com.google.common.util.concurrent.Futures.transformAsync;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.http.client.FullJsonResponseHandler.createFullJsonResponseHandler;
+import static io.airlift.http.client.HttpUriBuilder.uriBuilderFrom;
 import static io.airlift.http.client.Request.Builder.prepareDelete;
 import static io.airlift.http.client.Request.Builder.prepareGet;
 import static io.airlift.http.client.Request.Builder.preparePost;
@@ -89,7 +89,7 @@ public class HttpDataClient
         requireNonNull(baseUri, "baseUri is null");
         requireNonNull(httpClient, "httpClient is null");
         checkArgument(baseUri.getPath().isBlank(), "expected base URI with no path; got " + baseUri);
-        this.baseUri = UriBuilder.fromUri(requireNonNull(baseUri, "baseUri is null"))
+        this.baseUri = uriBuilderFrom(requireNonNull(baseUri, "baseUri is null"))
                 .replacePath("/api/v1/buffer/data")
                 .build();
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
@@ -102,8 +102,8 @@ public class HttpDataClient
         requireNonNull(exchangeId, "exchangeId is null");
         requireNonNull(pagingId, "pagingId is null");
 
-        UriBuilder uri = UriBuilder.fromUri(baseUri).path("%s/closedChunks".formatted(exchangeId));
-        pagingId.ifPresent(id -> uri.queryParam("pagingId", id));
+        HttpUriBuilder uri = uriBuilderFrom(baseUri).appendPath("%s/closedChunks".formatted(exchangeId));
+        pagingId.ifPresent(id -> uri.addParameter("pagingId", String.valueOf(id)));
         Request request = prepareGet()
                 .setUri(uri.build())
                 .build();
@@ -130,8 +130,8 @@ public class HttpDataClient
         requireNonNull(exchangeId, "exchangeId is null");
 
         Request request = prepareGet()
-                .setUri(UriBuilder.fromUri(baseUri)
-                        .path("%s/register".formatted(exchangeId))
+                .setUri(uriBuilderFrom(baseUri)
+                        .appendPath("%s/register".formatted(exchangeId))
                         .build())
                 .build();
 
@@ -145,8 +145,8 @@ public class HttpDataClient
         requireNonNull(exchangeId, "exchangeId is null");
 
         Request request = prepareGet()
-                .setUri(UriBuilder.fromUri(baseUri)
-                        .path("%s/ping".formatted(exchangeId))
+                .setUri(uriBuilderFrom(baseUri)
+                        .appendPath("%s/ping".formatted(exchangeId))
                         .build())
                 .build();
 
@@ -160,8 +160,8 @@ public class HttpDataClient
         requireNonNull(exchangeId, "exchangeId is null");
 
         Request request = prepareDelete()
-                .setUri(UriBuilder.fromUri(baseUri)
-                        .path(exchangeId)
+                .setUri(uriBuilderFrom(baseUri)
+                        .appendPath(exchangeId)
                         .build())
                 .build();
 
@@ -183,8 +183,8 @@ public class HttpDataClient
         }
 
         Request request = preparePost()
-                .setUri(UriBuilder.fromUri(baseUri)
-                        .path("%s/addDataPages/%d/%d/%d".formatted(exchangeId, taskId, attemptId, dataPagesId))
+                .setUri(uriBuilderFrom(baseUri)
+                        .appendPath("%s/addDataPages/%d/%d/%d".formatted(exchangeId, taskId, attemptId, dataPagesId))
                         .build())
                 .setBodyGenerator(new PagesBodyGenerator(dataPages))
                 .setHeader(CONTENT_LENGTH, String.valueOf(contentLength))
@@ -200,8 +200,8 @@ public class HttpDataClient
         requireNonNull(exchangeId, "exchangeId is null");
 
         Request request = prepareGet()
-                .setUri(UriBuilder.fromUri(baseUri)
-                        .path("%s/finish".formatted(exchangeId))
+                .setUri(uriBuilderFrom(baseUri)
+                        .appendPath("%s/finish".formatted(exchangeId))
                         .build())
                 .build();
 
@@ -215,8 +215,8 @@ public class HttpDataClient
         requireNonNull(exchangeId, "exchangeId is null");
 
         Request request = prepareGet()
-                .setUri(UriBuilder.fromUri(baseUri)
-                        .path("%s/pages/%d/%d/%d".formatted(exchangeId, partitionId, chunkId, bufferNodeId))
+                .setUri(uriBuilderFrom(baseUri)
+                        .appendPath("%s/pages/%d/%d/%d".formatted(exchangeId, partitionId, chunkId, bufferNodeId))
                         .build())
                 .build();
 

@@ -22,7 +22,6 @@ import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.inject.Inject;
-import javax.ws.rs.core.UriBuilder;
 
 import java.net.URI;
 import java.util.Optional;
@@ -32,6 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.common.base.Preconditions.checkState;
+import static io.airlift.http.client.HttpUriBuilder.uriBuilderFrom;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
@@ -63,7 +63,7 @@ public class DiscoveryBroadcast
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.chunkManager = requireNonNull(chunkManager, "chunkManager is null");
 
-        baseUri = UriBuilder.fromUri(httpServerInfo.getHttpsUri() != null ? httpServerInfo.getHttpsUri() : httpServerInfo.getHttpUri())
+        baseUri = uriBuilderFrom(httpServerInfo.getHttpsUri() != null ? httpServerInfo.getHttpsUri() : httpServerInfo.getHttpUri())
                 .host(airliftNodeInfo.getExternalAddress())
                 .build();
     }

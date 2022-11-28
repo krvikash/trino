@@ -17,11 +17,10 @@ import io.airlift.http.client.Request;
 import io.airlift.http.client.StringResponseHandler.StringResponse;
 import io.airlift.json.JsonCodec;
 
-import javax.ws.rs.core.UriBuilder;
-
 import java.net.URI;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static io.airlift.http.client.HttpUriBuilder.uriBuilderFrom;
 import static io.airlift.http.client.JsonBodyGenerator.jsonBodyGenerator;
 import static io.airlift.http.client.Request.Builder.prepareGet;
 import static io.airlift.http.client.Request.Builder.preparePost;
@@ -47,7 +46,7 @@ public class HttpDiscoveryClient
         requireNonNull(baseUri, "baseUri is null");
         requireNonNull(httpClient, "httpClient is null");
         checkArgument(baseUri.getPath().isBlank(), "expected base URI with no path; got " + baseUri);
-        this.baseUri = UriBuilder.fromUri(requireNonNull(baseUri, "baseUri is null"))
+        this.baseUri = uriBuilderFrom(requireNonNull(baseUri, "baseUri is null"))
                 .replacePath("/api/v1/buffer/discovery")
                 .build();
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
@@ -59,8 +58,8 @@ public class HttpDiscoveryClient
         requireNonNull(bufferNodeInfo, "bufferNodeInfo is null");
 
         Request request = preparePost()
-                .setUri(UriBuilder.fromUri(baseUri)
-                        .path("nodes/update")
+                .setUri(uriBuilderFrom(baseUri)
+                        .appendPath("nodes/update")
                         .build())
                 .addHeader(CONTENT_TYPE, APPLICATION_JSON)
                 .setBodyGenerator(jsonBodyGenerator(BUFFER_NODE_INFO_CODEC, bufferNodeInfo))
@@ -81,8 +80,8 @@ public class HttpDiscoveryClient
     public BufferNodeInfoResponse getBufferNodes()
     {
         Request request = prepareGet()
-                .setUri(UriBuilder.fromUri(baseUri)
-                        .path("nodes")
+                .setUri(uriBuilderFrom(baseUri)
+                        .appendPath("nodes")
                         .build())
                 .build();
 
