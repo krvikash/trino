@@ -33,7 +33,6 @@ public class BufferExchangeConfig
     private boolean dataIntegrityVerificationEnabled = true;
     private int sourceHandleTargetChunksCount = 64;
     private DataSize sourceHandleTargetDataSize = DataSize.of(256, DataSize.Unit.MEGABYTE);
-    private boolean encryptionEnabled = true;
     private int sinkTargetWrittenPagesCount = 512;
     private DataSize sinkTargetWrittenPagesSize = DataSize.of(16, DataSize.Unit.MEGABYTE);
     private int sinkTargetWrittenPartitionsCount = 16;
@@ -159,19 +158,6 @@ public class BufferExchangeConfig
     public BufferExchangeConfig setSourceHandleTargetDataSize(DataSize sourceHandleTargetDataSize)
     {
         this.sourceHandleTargetDataSize = sourceHandleTargetDataSize;
-        return this;
-    }
-
-    public boolean isEncryptionEnabled()
-    {
-        return encryptionEnabled;
-    }
-
-    @Config("exchange.encryption-enabled")
-    @ConfigDescription("Should data sent to buffer service be encrypted with per-exchange key")
-    public BufferExchangeConfig setEncryptionEnabled(boolean encryptionEnabled)
-    {
-        this.encryptionEnabled = encryptionEnabled;
         return this;
     }
 

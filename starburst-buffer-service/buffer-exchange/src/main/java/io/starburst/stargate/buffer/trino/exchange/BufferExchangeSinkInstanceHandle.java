@@ -15,7 +15,6 @@ import com.google.common.collect.ImmutableMap;
 import io.trino.spi.exchange.ExchangeSinkInstanceHandle;
 
 import java.util.Map;
-import java.util.Optional;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static java.util.Objects.requireNonNull;
@@ -75,11 +74,6 @@ public class BufferExchangeSinkInstanceHandle
     public int getOutputPartitionCount()
     {
         return sinkHandle.getOutputPartitionCount();
-    }
-
-    public Optional<byte[]> getEncryptionKey()
-    {
-        return sinkHandle.getEncryptionKey();
     }
 
     @Override

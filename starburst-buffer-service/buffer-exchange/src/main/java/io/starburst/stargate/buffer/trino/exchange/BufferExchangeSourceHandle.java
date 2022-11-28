@@ -11,13 +11,11 @@ package io.starburst.stargate.buffer.trino.exchange;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.airlift.slice.SizeOf;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.trino.spi.exchange.ExchangeSourceHandle;
 import org.openjdk.jol.info.ClassLayout;
 
 import java.util.List;
-import java.util.Optional;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
@@ -38,7 +36,6 @@ public class BufferExchangeSourceHandle
     private final long[] chunkIds;
     private final long dataSizeInBytes;
     private final boolean preserveOrderWithinPartition;
-    private final Optional<byte[]> encryptionKey;
 
     @JsonCreator
     @Deprecated // for Jackson and internal use
@@ -48,8 +45,7 @@ public class BufferExchangeSourceHandle
             @JsonProperty("bufferNodeIds") long[] bufferNodeIds,
             @JsonProperty("chunkIds") long[] chunkIds,
             @JsonProperty("dataSizeInBytes") long dataSizeInBytes,
-            @JsonProperty("preserveOrderWithinPartition") boolean preserveOrderWithinPartition,
-            @JsonProperty("encryptionKey") Optional<byte[]> encryptionKey)
+            @JsonProperty("preserveOrderWithinPartition") boolean preserveOrderWithinPartition)
     {
         this.externalExchangeId = requireNonNull(externalExchangeId, "externalExchangeId is null");
         this.partitionId = partitionId;
@@ -58,15 +54,13 @@ public class BufferExchangeSourceHandle
         checkArgument(bufferNodeIds.length == chunkIds.length, "length of bufferNodeIds(%d) and chunkIds(%d) should be equal", bufferNodeIds.length, chunkIds.length);
         this.dataSizeInBytes = dataSizeInBytes;
         this.preserveOrderWithinPartition = preserveOrderWithinPartition;
-        this.encryptionKey = requireNonNull(encryptionKey, "encryptionKey is null");
     }
 
     public static BufferExchangeSourceHandle fromChunkHandles(
             String externalExchangeId,
             int partitionId,
             List<ChunkHandle> chunkHandles,
-            boolean preserveOrderWithinPartition,
-            Optional<byte[]> encryptionKey)
+            boolean preserveOrderWithinPartition)
     {
         long[] bufferNodeIds = new long[chunkHandles.size()];
         long[] chunkIds = new long[chunkHandles.size()];
@@ -86,8 +80,7 @@ public class BufferExchangeSourceHandle
                 bufferNodeIds,
                 chunkIds,
                 dataSizeInBytes,
-                preserveOrderWithinPartition,
-                encryptionKey);
+                preserveOrderWithinPartition);
     }
 
     @JsonProperty
@@ -147,20 +140,13 @@ public class BufferExchangeSourceHandle
         return preserveOrderWithinPartition;
     }
 
-    @JsonProperty
-    public Optional<byte[]> getEncryptionKey()
-    {
-        return encryptionKey;
-    }
-
     @Override
     public long getRetainedSizeInBytes()
     {
         return INSTANCE_SIZE
                 + estimatedSizeOf(externalExchangeId)
                 + sizeOf(bufferNodeIds)
-                + sizeOf(chunkIds)
-                + sizeOf(encryptionKey, SizeOf::sizeOf);
+                + sizeOf(chunkIds);
     }
 
     @Override
@@ -172,7 +158,6 @@ public class BufferExchangeSourceHandle
                 .add("bufferNodeIds", bufferNodeIds)
                 .add("chunkIds", chunkIds)
                 .add("dataSizeInBytes", dataSizeInBytes)
-                .add("encryptionKey", encryptionKey.map(value -> "[REDACTED]"))
                 .toString();
     }
 }

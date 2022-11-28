@@ -210,8 +210,7 @@ public class SourceBenchmarkDriver
                 bufferIds,
                 chunkIds,
                 receivedSourceHandle.getDataSizeInBytes() * chunksPerSourceHandle,
-                receivedSourceHandle.isPreserveOrderWithinPartition(),
-                receivedSourceHandle.getEncryptionKey());
+                receivedSourceHandle.isPreserveOrderWithinPartition());
     }
 
     private static Slice buildDataPage(DataSize pageSize)

@@ -13,13 +13,10 @@ import io.airlift.units.DataSize;
 import io.trino.spi.exchange.Exchange;
 import io.trino.spi.exchange.ExchangeContext;
 
-import javax.crypto.SecretKey;
 import javax.inject.Inject;
 
-import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 
-import static io.starburst.stargate.buffer.trino.exchange.EncryptionKeys.generateNewEncryptionKey;
 import static java.util.Objects.requireNonNull;
 
 public class BufferCoordinatorExchangeManager
@@ -30,7 +27,6 @@ public class BufferCoordinatorExchangeManager
     private final ScheduledExecutorService scheduledExecutor;
     private final int sourceHandleTargetChunksCount;
     private final DataSize sourceHandleTargetDataSize;
-    private final boolean encryptionEnabled;
 
     @Inject
     public BufferCoordinatorExchangeManager(
@@ -47,15 +43,10 @@ public class BufferCoordinatorExchangeManager
         requireNonNull(config, "config is null");
         this.sourceHandleTargetChunksCount = config.getSourceHandleTargetChunksCount();
         this.sourceHandleTargetDataSize = requireNonNull(config.getSourceHandleTargetDataSize(), "sourceHandleTargetDataSize is null");
-        this.encryptionEnabled = config.isEncryptionEnabled();
     }
 
     public Exchange createExchange(ExchangeContext context, int outputPartitionCount, boolean preserveOrderWithinPartition)
     {
-        Optional<SecretKey> encryptionKey = Optional.empty();
-        if (encryptionEnabled) {
-            encryptionKey = Optional.of(generateNewEncryptionKey());
-        }
         return new BufferExchange(
                 context.getQueryId(),
                 context.getExchangeId(),
@@ -66,7 +57,6 @@ public class BufferCoordinatorExchangeManager
                 partitionNodeMapperFactory,
                 scheduledExecutor,
                 sourceHandleTargetChunksCount,
-                sourceHandleTargetDataSize,
-                encryptionKey);
+                sourceHandleTargetDataSize);
     }
 }

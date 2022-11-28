@@ -18,23 +18,15 @@ import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.concurrent.MoreFutures;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
-import io.airlift.slice.Slices;
 import io.airlift.units.DataSize;
-import io.trino.spi.TrinoException;
 import io.trino.spi.exchange.ExchangeSink;
 import io.trino.spi.exchange.ExchangeSinkInstanceHandle;
 
 import javax.annotation.concurrent.GuardedBy;
-import javax.crypto.Cipher;
-import javax.crypto.CipherOutputStream;
-import javax.crypto.SecretKey;
 
-import java.io.IOException;
-import java.security.InvalidKeyException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -44,7 +36,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Throwables.throwIfUnchecked;
 import static com.google.common.base.Verify.verify;
-import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static java.util.Objects.requireNonNull;
 
 public class BufferExchangeSink
@@ -57,7 +48,6 @@ public class BufferExchangeSink
     private final int taskPartitionId;
     private final int taskAttemptId;
     private final boolean preserveOrderWithinPartition;
-    private final Optional<SecretKey> encryptionKey;
 
     @GuardedBy("this")
     private Map<Integer, Long> partitionToBufferNode; // partition -> buffer node (may not match what writers are currently created)
@@ -99,7 +89,6 @@ public class BufferExchangeSink
         this.taskAttemptId = sinkInstanceHandle.getTaskAttemptId();
         this.partitionToBufferNode = ImmutableMap.copyOf(sinkInstanceHandle.getPartitionToBufferNode());
         this.preserveOrderWithinPartition = sinkInstanceHandle.isPreserveOrderWithinPartition();
-        this.encryptionKey = sinkInstanceHandle.getEncryptionKey().map(EncryptionKeys::decodeEncryptionKey);
         this.executor = requireNonNull(executor, "executor is null");
         this.dataPool = new SinkDataPool(memoryLowWaterMark, memoryHighWaterMark, targetWrittenPagesCount, targetWrittenPagesSize, targetWrittenPartitionsCount);
 
@@ -342,10 +331,6 @@ public class BufferExchangeSink
             return;
         }
 
-        if (encryptionKey.isPresent()) {
-            data = encryptDataPage(data, encryptionKey.get());
-        }
-
         dataPool.add(partitionId, data);
 
         SinkWriter sinkWriter;
@@ -355,30 +340,6 @@ public class BufferExchangeSink
         if (sinkWriter != null) {
             // can be null if we are in progress of writers update
             sinkWriter.scheduleWriting();
-        }
-    }
-
-    private Slice encryptDataPage(Slice page, SecretKey secretKey)
-    {
-        try {
-            Cipher cipher = EncryptionKeys.getCipher();
-            cipher.init(Cipher.ENCRYPT_MODE, secretKey);
-            Slice encryptedPage = Slices.allocate(cipher.getOutputSize(page.length()));
-            CipherOutputStream encryptedOutputStream = new CipherOutputStream(encryptedPage.getOutput(), cipher);
-            if (page.hasByteArray()) {
-                encryptedOutputStream.write(page.byteArray(), page.byteArrayOffset(), page.length());
-            }
-            else {
-                encryptedOutputStream.write(page.getBytes());
-            }
-            encryptedOutputStream.close();
-            return encryptedPage;
-        }
-        catch (InvalidKeyException e) {
-            throw new TrinoException(GENERIC_INTERNAL_ERROR, "Failed to create CipherOutputStream: " + e.getMessage(), e);
-        }
-        catch (IOException e) {
-            throw new TrinoException(GENERIC_INTERNAL_ERROR, "Failed to encrypt page: " + e.getMessage(), e);
         }
     }
 

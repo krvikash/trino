@@ -26,9 +26,7 @@ import io.trino.spi.exchange.ExchangeSourceHandle;
 import io.trino.spi.exchange.ExchangeSourceHandleSource;
 
 import javax.annotation.concurrent.GuardedBy;
-import javax.crypto.SecretKey;
 
-import java.security.Key;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -37,7 +35,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -64,7 +61,6 @@ public class BufferExchange
     private final ScheduledExecutorService executorService;
     private final int sourceHandleTargetChunksCount;
     private final DataSize sourceHandleTargetDataSize;
-    private final Optional<SecretKey> encryptionKey;
     private final PartitionNodeMapper partitionNodeMapper;
 
     private volatile boolean noMoreSinks;
@@ -100,8 +96,7 @@ public class BufferExchange
             PartitionNodeMapperFactory partitionNodeMapperFactory,
             ScheduledExecutorService executorService,
             int sourceHandleTargetChunksCount,
-            DataSize sourceHandleTargetDataSize,
-            Optional<SecretKey> encryptionKey)
+            DataSize sourceHandleTargetDataSize)
     {
         this.exchangeId = requireNonNull(exchangeId, "exchangeId is null");
         this.externalExchangeId = externalExchangeId(queryId, exchangeId);
@@ -112,7 +107,6 @@ public class BufferExchange
         this.executorService = requireNonNull(executorService, "executorService is null");
         this.sourceHandleTargetChunksCount = sourceHandleTargetChunksCount;
         this.sourceHandleTargetDataSize = requireNonNull(sourceHandleTargetDataSize, "sourceHandleTargetDataSize is null");
-        this.encryptionKey = requireNonNull(encryptionKey, "encryptionKey is null");
         requireNonNull(partitionNodeMapperFactory, "partitionNodeMapperFactory is null");
         this.partitionNodeMapper = partitionNodeMapperFactory.getPartitionNodeMapper(outputPartitionCount);
     }
@@ -132,8 +126,7 @@ public class BufferExchange
                 externalExchangeId,
                 taskPartitionId,
                 outputPartitionCount,
-                preserveOrderWithinPartition,
-                encryptionKey.map(SecretKey::getEncoded));
+                preserveOrderWithinPartition);
     }
 
     @Override
@@ -234,8 +227,7 @@ public class BufferExchange
                         externalExchangeId,
                         partitionId,
                         sortedCopyOf(Comparator.comparingLong(ChunkHandle::chunkId), chunkHandles),
-                        true,
-                        encryptionKey.map(Key::getEncoded)));
+                        true));
                 chunkHandles.clear();
                 continue;
             }
@@ -251,8 +243,7 @@ public class BufferExchange
                             externalExchangeId,
                             partitionId,
                             currentSourceHandleChunks,
-                            false,
-                            encryptionKey.map(Key::getEncoded)));
+                            false));
                     usedChunkHandlesCount += currentSourceHandleChunks.size();
                     currentSourceHandleDataSize = 0;
                     currentSourceHandleChunks = new ArrayList<>();
@@ -265,8 +256,7 @@ public class BufferExchange
                         externalExchangeId,
                         partitionId,
                         currentSourceHandleChunks,
-                        false,
-                        encryptionKey.map(Key::getEncoded)));
+                        false));
                 usedChunkHandlesCount += currentSourceHandleChunks.size();
             }
 
