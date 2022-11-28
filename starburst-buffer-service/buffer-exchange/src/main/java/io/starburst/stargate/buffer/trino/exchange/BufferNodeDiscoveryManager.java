@@ -11,6 +11,7 @@ package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.SettableFuture;
+import io.airlift.log.Logger;
 import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.discovery.client.BufferNodeInfo;
 import io.starburst.stargate.buffer.discovery.client.BufferNodeInfoResponse;
@@ -21,6 +22,7 @@ import javax.inject.Inject;
 
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.common.collect.Maps.uniqueIndex;
@@ -30,6 +32,8 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class BufferNodeDiscoveryManager
 {
+    private static final Logger log = Logger.get(BufferNodeDiscoveryManager.class);
+
     private static final Duration REFRESH_INTERVAL = new Duration(5, SECONDS);
     private static final long READY_TIMEOUT_MILLIS = 30_000;
 
@@ -50,15 +54,29 @@ public class BufferNodeDiscoveryManager
     @PostConstruct
     public void start()
     {
+        AtomicBoolean logNextSuccess = new AtomicBoolean(true);
         executorService.scheduleWithFixedDelay(
                 () -> {
-                    // todo monitor error rate
-                    BufferNodeInfoResponse response = discoveryApi.getBufferNodes();
-                    if (response.responseComplete()) {
-                        bufferNodes.set(new BufferNodesState(
-                                System.currentTimeMillis(),
-                                uniqueIndex(response.bufferNodeInfos(), BufferNodeInfo::nodeId)));
-                        readyFuture.set(null);
+                    try {
+                        // todo monitor error rate
+                        BufferNodeInfoResponse response = discoveryApi.getBufferNodes();
+                        if (response.responseComplete()) {
+                            if (logNextSuccess.compareAndSet(true, false)) {
+                                log.info("received COMPLETE buffer nodes info");
+                            }
+                            bufferNodes.set(new BufferNodesState(
+                                    System.currentTimeMillis(),
+                                    uniqueIndex(response.bufferNodeInfos(), BufferNodeInfo::nodeId)));
+                            readyFuture.set(null);
+                        }
+                        else {
+                            log.info("received INCOMPLETE buffer nodes info");
+                            logNextSuccess.set(true);
+                        }
+                    }
+                    catch (Exception e) {
+                        log.error(e, "Error getting buffer nodes info");
+                        logNextSuccess.set(true);
                     }
                 },
                 0,
