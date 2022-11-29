@@ -18,6 +18,7 @@ import io.airlift.units.DataSize;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataPage;
+import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocatorConfig;
@@ -414,6 +415,25 @@ public class TestChunkManager
                 ticker,
                 new DataServerStats(),
                 executor);
+    }
+
+    @Test
+    public void testAddToRemovedExchange()
+    {
+        MemoryAllocator memoryAllocator = new MemoryAllocator(new MemoryAllocatorConfig(), new DataServerStats());
+        ChunkManager chunkManager = createChunkManager(memoryAllocator, DataSize.of(16, MEGABYTE), DataSize.of(128, KILOBYTE));
+
+        assertThat(chunkManager.getTrackedExchanges()).isEqualTo(0);
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("000_0"))));
+        assertThat(chunkManager.getTrackedExchanges()).isEqualTo(1);
+
+        chunkManager.removeExchange(EXCHANGE_0);
+        assertThat(chunkManager.getTrackedExchanges()).isEqualTo(0);
+        assertThatThrownBy(() -> getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("000_0")))))
+                .isInstanceOf(DataServerException.class)
+                .matches(t -> (((DataServerException) t).getErrorCode()) == ErrorCode.EXCHANGE_NOT_FOUND)
+                .hasMessage("exchange %s already removed".formatted(EXCHANGE_0));
+        assertThat(chunkManager.getTrackedExchanges()).isEqualTo(0);
     }
 
     @AfterAll

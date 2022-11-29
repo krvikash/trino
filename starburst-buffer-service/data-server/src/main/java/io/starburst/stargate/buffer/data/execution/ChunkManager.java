@@ -11,6 +11,8 @@ package io.starburst.stargate.buffer.data.execution;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Ticker;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.log.Logger;
@@ -47,6 +49,7 @@ import java.util.function.Predicate;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.units.Duration.succinctDuration;
+import static io.starburst.stargate.buffer.data.client.ErrorCode.EXCHANGE_NOT_FOUND;
 import static java.lang.Math.toIntExact;
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
@@ -55,6 +58,7 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 @ThreadSafe
@@ -81,6 +85,7 @@ public class ChunkManager
     private final ScheduledExecutorService cleanupExecutor = newSingleThreadScheduledExecutor();
     private final ScheduledExecutorService statsReportingExecutor = newSingleThreadScheduledExecutor();
     private final ScheduledExecutorService chunkSpoolExecutor = newSingleThreadScheduledExecutor();
+    private final Cache<String, Object> recentlyRemovedExchanges = CacheBuilder.newBuilder().expireAfterWrite(5, MINUTES).build();
 
     @Inject
     public ChunkManager(
@@ -171,18 +176,24 @@ public class ChunkManager
 
     public void registerExchange(String exchangeId)
     {
-        exchanges.computeIfAbsent(exchangeId, ignored -> new Exchange(
-                bufferNodeId,
-                exchangeId,
-                memoryAllocator,
-                spoolingStorage,
-                chunkMaxSizeInBytes,
-                chunkSliceSizeInBytes,
-                calculateDataPagesChecksum,
-                chunkSpoolConcurrency,
-                chunkIdGenerator,
-                executor,
-                tickerReadMillis()));
+        exchanges.computeIfAbsent(exchangeId, ignored -> {
+            if (recentlyRemovedExchanges.getIfPresent(exchangeId) != null) {
+                throw new DataServerException(EXCHANGE_NOT_FOUND, "exchange %s already removed".formatted(exchangeId));
+            }
+
+            return new Exchange(
+                    bufferNodeId,
+                    exchangeId,
+                    memoryAllocator,
+                    spoolingStorage,
+                    chunkMaxSizeInBytes,
+                    chunkSliceSizeInBytes,
+                    calculateDataPagesChecksum,
+                    chunkSpoolConcurrency,
+                    chunkIdGenerator,
+                    executor,
+                    tickerReadMillis());
+        });
     }
 
     public void pingExchange(String exchangeId)
@@ -198,6 +209,7 @@ public class ChunkManager
 
     public void removeExchange(String exchangeId)
     {
+        recentlyRemovedExchanges.put(exchangeId, "marker");
         Exchange exchange = exchanges.remove(exchangeId);
         if (exchange != null) {
             exchange.releaseChunks();
@@ -231,7 +243,7 @@ public class ChunkManager
     {
         Exchange exchange = exchanges.get(exchangeId);
         if (exchange == null) {
-            throw new DataServerException(ErrorCode.EXCHANGE_NOT_FOUND, "exchange %s not found".formatted(exchangeId));
+            throw new DataServerException(EXCHANGE_NOT_FOUND, "exchange %s not found".formatted(exchangeId));
         }
         exchange.setLastUpdateTime(tickerReadMillis());
         return exchange;
