@@ -18,6 +18,7 @@ import io.airlift.slice.Slice;
 import io.airlift.slice.SliceInput;
 import io.airlift.slice.SliceOutput;
 import io.airlift.stats.CounterStat;
+import io.airlift.stats.DistributionStat;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
@@ -70,7 +71,10 @@ public class DataResource
     private final Executor responseExecutor;
     private final ExecutorService executor;
     private final CounterStat writtenDataSize;
+    private final DistributionStat writtenDataSizeDistribution;
+    private final DistributionStat writtenDataSizePerPartitionDistribution;
     private final CounterStat readDataSize;
+    private final DistributionStat readDataSizeDistribution;
 
     @Inject
     public DataResource(
@@ -89,7 +93,10 @@ public class DataResource
         this.executor = requireNonNull(executor, "executor is null");
 
         writtenDataSize = stats.getWrittenDataSize();
+        writtenDataSizeDistribution = stats.getWrittenDataSizeDistribution();
+        writtenDataSizePerPartitionDistribution = stats.getWrittenDataSizePerPartitionDistribution();
         readDataSize = stats.getReadDataSize();
+        readDataSizeDistribution = stats.getReadDataSizeDistribution();
     }
 
     @GET
@@ -138,6 +145,7 @@ public class DataResource
                     while (sliceInput.isReadable()) {
                         int partitionId = sliceInput.readInt();
                         int bytes = sliceInput.readInt();
+                        writtenDataSizePerPartitionDistribution.add(bytes);
                         ImmutableList.Builder<Slice> pages = ImmutableList.builder();
                         while (bytes > 0 && sliceInput.isReadable()) {
                             int pageLength = sliceInput.readInt();
@@ -155,6 +163,7 @@ public class DataResource
                                 pages.build()));
                     }
                     writtenDataSize.update(contentLength);
+                    writtenDataSizeDistribution.add(contentLength);
                     return asVoid(Futures.allAsList(addDataPagesFutures.build()));
                 },
                 executor);
@@ -195,6 +204,7 @@ public class DataResource
             asyncResponse.register((CompletionCallback) throwable -> {
                 if (throwable == null) {
                     readDataSize.update(chunkSize.get());
+                    readDataSizeDistribution.add(chunkSize.get());
                 }
                 chunkDataLease.release();
             });

@@ -88,7 +88,10 @@ public class DataServerStatsLogger
         logBuilder.append("unspooling_failures: %s, %s/s\n".formatted(unspoolingFailures.getCounter(), unspoolingFailures.getRate()));
         logBuilder.append("unspooled_chunk_size_distribution: %s\n".formatted(dataServerStats.getUnspooledChunkSizeDistribution().snapshot()));
         logBuilder.append("written_data_size: %s, %s/s\n".formatted(succinctBytes(writtenDataSize.getCounter()), succinctBytes((long) writtenDataSize.getRate())));
+        logBuilder.append("written_data_size_distribution: %s\n".formatted(dataServerStats.getWrittenDataSizeDistribution().snapshot()));
+        logBuilder.append("written_data_size_per_partition_distribution: %s\n".formatted(dataServerStats.getWrittenDataSizePerPartitionDistribution().snapshot()));
         logBuilder.append("read_data_size: %s, %s/s\n".formatted(succinctBytes(readDataSize.getCounter()), succinctBytes((long) readDataSize.getRate())));
+        logBuilder.append("read_data_size_distribution: %s\n".formatted(dataServerStats.getReadDataSizeDistribution().snapshot()));
         logBuilder.append("STATS END\n");
         log.info(logBuilder.toString());
     }

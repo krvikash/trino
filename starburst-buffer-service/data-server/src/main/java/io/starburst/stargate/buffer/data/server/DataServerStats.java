@@ -31,7 +31,10 @@ public class DataServerStats
     private final CounterStat unspoolingFailures = new CounterStat();
     private final DistributionStat unspooledChunkSizeDistribution = new DistributionStat();
     private final CounterStat writtenDataSize = new CounterStat();
+    private final DistributionStat writtenDataSizeDistribution = new DistributionStat();
+    private final DistributionStat writtenDataSizePerPartitionDistribution = new DistributionStat();
     private final CounterStat readDataSize = new CounterStat();
+    private final DistributionStat readDataSizeDistribution = new DistributionStat();
 
     public void updateTotalMemoryInBytes(long totalMemoryInBytes)
     {
@@ -150,8 +153,29 @@ public class DataServerStats
 
     @Managed
     @Nested
+    public DistributionStat getWrittenDataSizeDistribution()
+    {
+        return writtenDataSizeDistribution;
+    }
+
+    @Managed
+    @Nested
+    public DistributionStat getWrittenDataSizePerPartitionDistribution()
+    {
+        return writtenDataSizePerPartitionDistribution;
+    }
+
+    @Managed
+    @Nested
     public CounterStat getReadDataSize()
     {
         return readDataSize;
+    }
+
+    @Managed
+    @Nested
+    public DistributionStat getReadDataSizeDistribution()
+    {
+        return readDataSizeDistribution;
     }
 }
