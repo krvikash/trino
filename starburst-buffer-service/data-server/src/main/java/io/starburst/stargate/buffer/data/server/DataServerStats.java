@@ -10,6 +10,7 @@
 package io.starburst.stargate.buffer.data.server;
 
 import io.airlift.stats.CounterStat;
+import io.airlift.stats.DistributionStat;
 import org.weakref.jmx.Managed;
 import org.weakref.jmx.Nested;
 
@@ -25,8 +26,10 @@ public class DataServerStats
     private AtomicLong spooledChunks = new AtomicLong();
     private final CounterStat spooledDataSize = new CounterStat();
     private final CounterStat spoolingFailures = new CounterStat();
+    private final DistributionStat spooledChunkSizeDistribution = new DistributionStat();
     private final CounterStat unspooledDataSize = new CounterStat();
     private final CounterStat unspoolingFailures = new CounterStat();
+    private final DistributionStat unspooledChunkSizeDistribution = new DistributionStat();
     private final CounterStat writtenDataSize = new CounterStat();
     private final CounterStat readDataSize = new CounterStat();
 
@@ -112,6 +115,13 @@ public class DataServerStats
 
     @Managed
     @Nested
+    public DistributionStat getSpooledChunkSizeDistribution()
+    {
+        return spooledChunkSizeDistribution;
+    }
+
+    @Managed
+    @Nested
     public CounterStat getUnspooledDataSize()
     {
         return unspooledDataSize;
@@ -122,6 +132,13 @@ public class DataServerStats
     public CounterStat getUnspoolingFailures()
     {
         return unspoolingFailures;
+    }
+
+    @Managed
+    @Nested
+    public DistributionStat getUnspooledChunkSizeDistribution()
+    {
+        return unspooledChunkSizeDistribution;
     }
 
     @Managed

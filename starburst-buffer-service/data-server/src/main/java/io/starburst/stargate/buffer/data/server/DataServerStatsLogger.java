@@ -83,8 +83,10 @@ public class DataServerStatsLogger
         logBuilder.append("spooled_chunks: %s\n".formatted(dataServerStats.getSpooledChunks()));
         logBuilder.append("spooled_data_size: %s, %s/s\n".formatted(succinctBytes(spooledDataSize.getCounter()), succinctBytes((long) spooledDataSize.getRate())));
         logBuilder.append("spooling_failures: %s, %s/s\n".formatted(spoolingFailures.getCounter(), spoolingFailures.getRate()));
+        logBuilder.append("spooled_chunk_size_distribution: %s\n".formatted(dataServerStats.getSpooledChunkSizeDistribution().snapshot()));
         logBuilder.append("unspooled_data_size: %s, %s/s\n".formatted(succinctBytes(unspooledDataSize.getCounter()), succinctBytes((long) unspooledDataSize.getRate())));
         logBuilder.append("unspooling_failures: %s, %s/s\n".formatted(unspoolingFailures.getCounter(), unspoolingFailures.getRate()));
+        logBuilder.append("unspooled_chunk_size_distribution: %s\n".formatted(dataServerStats.getUnspooledChunkSizeDistribution().snapshot()));
         logBuilder.append("written_data_size: %s, %s/s\n".formatted(succinctBytes(writtenDataSize.getCounter()), succinctBytes((long) writtenDataSize.getRate())));
         logBuilder.append("read_data_size: %s, %s/s\n".formatted(succinctBytes(readDataSize.getCounter()), succinctBytes((long) readDataSize.getRate())));
         logBuilder.append("STATS END\n");

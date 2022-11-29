@@ -15,6 +15,7 @@ import com.google.common.io.Closer;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.stats.CounterStat;
+import io.airlift.stats.DistributionStat;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.execution.ChunkDataHolder;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
@@ -80,6 +81,8 @@ public class S3SpoolingStorage
     private final CounterStat spoolingFailures;
     private final CounterStat unspooledDataSize;
     private final CounterStat unspoolingFailures;
+    private final DistributionStat spooledChunkSizeDistribution;
+    private final DistributionStat unspooledChunkSizeDistribution;
     private final ExecutorService executor;
 
     // exchangeId -> chunkId -> fileSize
@@ -114,8 +117,10 @@ public class S3SpoolingStorage
         this.s3AsyncClient = s3AsyncClientBuilder.build();
         spooledDataSize = dataServerStats.getSpooledDataSize();
         spoolingFailures = dataServerStats.getSpoolingFailures();
+        spooledChunkSizeDistribution = dataServerStats.getSpooledChunkSizeDistribution();
         unspooledDataSize = dataServerStats.getUnspooledDataSize();
         unspoolingFailures = dataServerStats.getUnspoolingFailures();
+        unspooledChunkSizeDistribution = dataServerStats.getUnspooledChunkSizeDistribution();
         this.executor = requireNonNull(executor, "executor is null");
     }
 
@@ -152,6 +157,7 @@ public class S3SpoolingStorage
                         .whenComplete((holder, failure) -> {
                             if (failure == null) {
                                 unspooledDataSize.update(sliceLength);
+                                unspooledChunkSizeDistribution.add(sliceLength);
                             }
                             else {
                                 unspoolingFailures.update(1);
@@ -174,6 +180,7 @@ public class S3SpoolingStorage
         putObjectCompletableFuture.whenComplete((response, failure) -> {
             if (failure == null) {
                 spooledDataSize.update(chunkDataHolder.serializedSizeInBytes());
+                spooledChunkSizeDistribution.add(chunkDataHolder.serializedSizeInBytes());
             }
             else {
                 spoolingFailures.update(1);
