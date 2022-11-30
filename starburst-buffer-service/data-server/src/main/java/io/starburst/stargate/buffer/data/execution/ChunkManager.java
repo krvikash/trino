@@ -267,9 +267,12 @@ public class ChunkManager
         }
     }
 
+    @VisibleForTesting
     void spoolIfNecessary()
     {
         if (memoryAllocator.aboveHighWatermark()) {
+            LOG.info("Memory allocation ratio %.2f%%, starting to spool closed chunks",
+                    memoryAllocator.getAllocationPercentage());
             Predicate<MemoryAllocator> stopCriteria = MemoryAllocator::belowLowWatermark;
             List<Exchange> exchangesSortedBySizeDesc = exchanges.values().stream()
                     .sorted(Comparator.comparingInt(Exchange::getClosedChunksCount).reversed())
@@ -282,7 +285,7 @@ public class ChunkManager
             }
 
             LOG.info("Having spooled all closed chunks, memory allocation ratio %.2f%%, starting to spool open chunks",
-                    100.0 * memoryAllocator.getAllocatedMemory() / memoryAllocator.getTotalMemory());
+                    memoryAllocator.getAllocationPercentage());
             // To avoid deadlock, now we start to close and spool open chunks that are not pending
             for (Exchange exchange : exchangesSortedBySizeDesc) {
                 exchange.closeOpenChunksAndSpool(stopCriteria);

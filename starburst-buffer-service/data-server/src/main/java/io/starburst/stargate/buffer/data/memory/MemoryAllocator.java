@@ -80,9 +80,9 @@ public class MemoryAllocator
         return maxBytes;
     }
 
-    public synchronized long getAllocatedMemory()
+    public synchronized double getAllocationPercentage()
     {
-        return allocatedBytes;
+        return 100.0 * allocatedBytes / maxBytes;
     }
 
     public synchronized long getFreeMemory()
