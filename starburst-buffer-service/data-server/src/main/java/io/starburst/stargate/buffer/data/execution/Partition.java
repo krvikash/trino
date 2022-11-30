@@ -216,7 +216,9 @@ public class Partition
 
         Chunk chunk = openChunk;
         closeChunk(chunk);
-        getFutureValue(spoolingStorage.writeChunk(exchangeId, chunk.getChunkId(), bufferNodeId, chunk.getChunkData()));
+        if (chunk.dataSizeInBytes() > 0) {
+            getFutureValue(spoolingStorage.writeChunk(exchangeId, chunk.getChunkId(), bufferNodeId, chunk.getChunkData()));
+        }
         chunk.release();
 
         openChunk = createNewOpenChunk();
@@ -226,7 +228,10 @@ public class Partition
     private void closeChunk(Chunk chunk)
     {
         chunk.close();
-        closedChunks.put(chunk.getChunkId(), chunk);
+        // ignore empty chunks
+        if (chunk.dataSizeInBytes() > 0) {
+            closedChunks.put(chunk.getChunkId(), chunk);
+        }
     }
 
     @GuardedBy("this")
