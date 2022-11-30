@@ -209,6 +209,10 @@ public class Partition
 
     public synchronized void closeOpenChunkAndSpool()
     {
+        if (openChunk == null) {
+            // partition already closed
+            return;
+        }
         if (!addDataPagesFutures.isEmpty()) {
             // we have pending writes, closing the open chunk will cause loss of data
             return;

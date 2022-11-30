@@ -42,12 +42,14 @@ import static io.airlift.units.DataSize.Unit.BYTE;
 import static io.airlift.units.DataSize.Unit.KILOBYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.airlift.units.DataSize.succinctBytes;
+import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
 import static io.starburst.stargate.buffer.data.execution.ChunkManagerConfig.DEFAULT_EXCHANGE_STALENESS_THRESHOLD;
 import static io.starburst.stargate.buffer.data.execution.ChunkTestHelper.verifyChunkData;
 import static io.starburst.stargate.buffer.data.spooling.SpoolTestHelper.createS3SpoolingStorage;
 import static java.util.UUID.randomUUID;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -382,6 +384,15 @@ public class TestChunkManager
         chunkManager.finishExchange(EXCHANGE_0);
         chunkManager.finishExchange(EXCHANGE_1);
 
+        ListenableFuture<Slice> sliceFuture = memoryAllocator.allocate(64);
+        await().atMost(ONE_SECOND).until(sliceFuture::isDone);
+
+        chunkManager.spoolIfNecessary(); // only one closed chunk can be spooled at this point
+        assertEquals(0, chunkManager.getClosedChunks());
+        assertEquals(3, chunkManager.getSpooledChunks());
+        assertEquals(32, memoryAllocator.getFreeMemory());
+        memoryAllocator.release(getFutureValue(sliceFuture));
+
         ChunkHandle chunkHandle2 = new ChunkHandle(BUFFER_NODE_ID, 1, 2L, 5);
         assertThat(chunkManager.listClosedChunks(EXCHANGE_1, OptionalLong.empty()).chunks())
                 .containsExactlyInAnyOrder(chunkHandle2);
@@ -404,7 +415,8 @@ public class TestChunkManager
         ChunkManagerConfig chunkManagerConfig = new ChunkManagerConfig()
                 .setChunkMaxSize(chunkMaxSize)
                 .setChunkSliceSize(chunkSliceSize)
-                .setSpoolingDirectory("s3://" + minioStorage.getBucketName());
+                .setSpoolingDirectory("s3://" + minioStorage.getBucketName())
+                .setChunkSpoolInterval(succinctDuration(100, SECONDS)); // only manual triggering in tests
         DataServerConfig dataServerConfig = new DataServerConfig().setIncludeChecksumInDataResponse(true);
         return new ChunkManager(
                 new BufferNodeId(BUFFER_NODE_ID),
