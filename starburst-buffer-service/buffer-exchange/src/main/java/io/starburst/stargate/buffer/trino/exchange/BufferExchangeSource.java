@@ -449,13 +449,22 @@ public class BufferExchangeSource
 
         public void start()
         {
-            long sourceBufferNodeId = sourceChunk.bufferNodeId();
-            Map<Long, BufferNodeInfo> bufferNodes = discoveryManager.getBufferNodes().bufferNodeInfos();
-            BufferNodeInfo sourceBufferNodeInfo = bufferNodes.get(sourceBufferNodeId);
-            if (sourceBufferNodeInfo == null || !(sourceBufferNodeInfo.state() == BufferNodeState.ACTIVE || sourceBufferNodeInfo.state() == BufferNodeState.DRAINING)) {
-                sourceBufferNodeId = selectRandomRunningBufferNode();
+            try {
+                long sourceBufferNodeId = sourceChunk.bufferNodeId();
+                Map<Long, BufferNodeInfo> bufferNodes = discoveryManager.getBufferNodes().bufferNodeInfos();
+                BufferNodeInfo sourceBufferNodeInfo = bufferNodes.get(sourceBufferNodeId);
+                if (sourceBufferNodeInfo == null || !(sourceBufferNodeInfo.state() == BufferNodeState.ACTIVE || sourceBufferNodeInfo.state() == BufferNodeState.DRAINING)) {
+                    sourceBufferNodeId = selectRandomRunningBufferNode();
+                }
+                scheduleReadUsingNode(sourceBufferNodeId);
             }
-            scheduleReadUsingNode(sourceBufferNodeId);
+            catch (RuntimeException e) {
+                // marking ExchangeSource as failed here is important; Otherwise we can observe isFinished() returning true
+                // after finish() below, even though not all data was read and source is in error state.
+                setFailed(e);
+                finish();
+                throw e;
+            }
         }
 
         private void scheduleReadUsingNode(long sourceBufferNodeId)
