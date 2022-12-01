@@ -10,6 +10,7 @@
 package io.starburst.server.troubleshooting;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
 import io.trino.execution.StateMachine;
 import io.trino.spi.QueryId;
 
@@ -19,14 +20,18 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 
+import static com.google.common.base.MoreObjects.toStringHelper;
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.FINISHED;
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.INITIALIZED;
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.REMOVED;
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.STARTED;
 import static java.util.Objects.requireNonNull;
+import static java.util.UUID.randomUUID;
+import static java.util.stream.Collectors.joining;
 
 public class TroubleshootingContext
 {
+    private final String contextId;
     private final QueryId queryId;
     private final StateMachine<State> state;
 
@@ -34,6 +39,7 @@ public class TroubleshootingContext
 
     public TroubleshootingContext(QueryId queryId, ExecutorService executorService)
     {
+        this.contextId = randomUUID().toString().replace("-", "");
         this.queryId = requireNonNull(queryId, "queryId is null");
         this.state = new StateMachine<>("troubleshooting-" + queryId.getId(), executorService, INITIALIZED, Set.of(REMOVED));
     }
@@ -69,18 +75,30 @@ public class TroubleshootingContext
         return get(clazz).orElseThrow();
     }
 
-    public boolean start()
+    public boolean start(Set<TroubleshootingProvider> dataProviders)
     {
+        if (is(STARTED)) {
+            return false;
+        }
+        dataProviders.forEach(provider -> provider.onContextStarted(this));
         return state.compareAndSet(INITIALIZED, STARTED);
     }
 
-    public boolean finish()
+    public boolean finish(Set<TroubleshootingProvider> dataProviders)
     {
+        if (is(FINISHED)) {
+            return false;
+        }
+        dataProviders.forEach(provider -> provider.onContextFinished(this));
         return state.compareAndSet(STARTED, FINISHED);
     }
 
-    public boolean remove()
+    public boolean remove(Set<TroubleshootingProvider> dataProviders)
     {
+        if (is(REMOVED)) {
+            return false;
+        }
+        dataProviders.forEach(provider -> provider.onContextRemoved(this));
         return state.setIf(State.REMOVED, oldState -> oldState == STARTED || oldState == FINISHED);
     }
 
@@ -100,5 +118,18 @@ public class TroubleshootingContext
         STARTED,
         FINISHED,
         REMOVED;
+    }
+
+    @Override
+    public String toString()
+    {
+        return toStringHelper(this)
+                .add("id", contextId)
+                .add("queryId", queryId)
+                .add("currentState", state.get())
+                .add("values", values.entrySet().stream()
+                        .map(entry -> "%s@%s".formatted(entry.getKey(), entry.getValue().hashCode()))
+                        .collect(joining(", ")))
+                .toString();
     }
 }

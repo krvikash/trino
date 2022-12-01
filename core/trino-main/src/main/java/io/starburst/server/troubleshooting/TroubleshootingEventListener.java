@@ -11,6 +11,7 @@ package io.starburst.server.troubleshooting;
 
 import com.starburstdata.presto.server.security.webui.access.WebUiAccessControl;
 import io.trino.eventlistener.EventListenerManager;
+import io.trino.spi.QueryId;
 import io.trino.spi.eventlistener.EventListener;
 import io.trino.spi.eventlistener.QueryCompletedEvent;
 import io.trino.spi.eventlistener.QueryContext;
@@ -47,7 +48,7 @@ public class TroubleshootingEventListener
 
         // queryCreated is fired before query has even started planning. We need to eagerly start collecting data,
         // to stop and discard immediately when we learn which nodes are actually processing this query.
-        troubleshootingManager.start(queryCreatedEvent);
+        troubleshootingManager.start(QueryId.valueOf(queryCreatedEvent.getMetadata().getQueryId()));
     }
 
     @Override
@@ -56,7 +57,7 @@ public class TroubleshootingEventListener
         if (!isTroubleshootingEnabled(event.getContext())) {
             return;
         }
-        troubleshootingManager.finish(event);
+        troubleshootingManager.finish(QueryId.valueOf(event.getMetadata().getQueryId()));
     }
 
     public boolean isTroubleshootingEnabled(QueryContext context)

@@ -11,7 +11,7 @@ package io.starburst.server.troubleshooting.providers;
 
 import com.google.common.collect.ImmutableMap;
 import io.starburst.server.troubleshooting.TroubleshootingContext;
-import io.trino.spi.eventlistener.QueryCompletedEvent;
+import io.trino.execution.QueryInfo;
 
 import java.io.InputStream;
 import java.util.Map;
@@ -24,10 +24,8 @@ public class RawQueryProvider
     @Override
     public Map<String, InputStream> getInputStreams(TroubleshootingContext context)
     {
-        if (context.has(QueryCompletedEvent.class)) {
-            return ImmutableMap.of("query.sql", toInputStream(context.getOrThrow(QueryCompletedEvent.class).getMetadata().getQuery()));
-        }
-
-        return ImmutableMap.of();
+        return context.get(QueryInfo.class)
+                .map(info -> ImmutableMap.of("query.sql", toInputStream(info.getQuery())))
+                .orElse(ImmutableMap.of());
     }
 }

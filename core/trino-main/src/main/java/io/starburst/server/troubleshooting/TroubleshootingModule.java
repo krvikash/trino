@@ -12,6 +12,7 @@ package io.starburst.server.troubleshooting;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
+import io.starburst.server.troubleshooting.jfr.FlightRecorderModule;
 import io.starburst.server.troubleshooting.providers.FailureInfoProvider;
 import io.starburst.server.troubleshooting.providers.QueryPlanProvider;
 import io.starburst.server.troubleshooting.providers.RawQueryProvider;
@@ -20,6 +21,7 @@ import io.starburst.server.troubleshooting.providers.SoftwareVersionProvider;
 import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.trino.server.ServerConfig;
+import jdk.jfr.FlightRecorder;
 
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -35,6 +37,10 @@ public class TroubleshootingModule
     @Override
     protected void setup(Binder binder)
     {
+        if (FlightRecorder.isAvailable()) {
+            install(new FlightRecorderModule());
+        }
+
         if (!buildConfigObject(ServerConfig.class).isCoordinator()) {
             return;
         }

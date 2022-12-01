@@ -9,38 +9,30 @@
  */
 package io.starburst.server.troubleshooting.providers;
 
+import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import io.starburst.server.troubleshooting.TroubleshootingContext;
 import io.trino.execution.ExecutionFailureInfo;
 import io.trino.execution.QueryInfo;
-import io.trino.spi.eventlistener.QueryCompletedEvent;
-import io.trino.spi.eventlistener.QueryFailureInfo;
 
 import java.io.InputStream;
 import java.util.Map;
-import java.util.Optional;
 
 import static io.starburst.server.troubleshooting.providers.TroubleshootingProvider.toInputStream;
 
 public class FailureInfoProvider
         implements TroubleshootingProvider
 {
+    private static final Joiner JOINER = Joiner.on('\n');
+
     @Override
     public Map<String, InputStream> getInputStreams(TroubleshootingContext context)
     {
-        Optional<ExecutionFailureInfo> executionFailureInfo = context.get(QueryInfo.class).map(QueryInfo::getFailureInfo);
-        if (executionFailureInfo.isPresent()) {
-            return ImmutableMap.of("failure_info.txt", toInputStream(mapToString(executionFailureInfo.get())));
-        }
-
-        if (context.has(QueryCompletedEvent.class)) {
-            QueryCompletedEvent event = context.getOrThrow(QueryCompletedEvent.class);
-            if (event.getFailureInfo().isPresent()) {
-                return ImmutableMap.of("failure_info.txt", toInputStream(mapToString(event.getFailureInfo().get())));
-            }
-        }
-
-        return ImmutableMap.of();
+        return context.get(QueryInfo.class)
+                .map(QueryInfo::getFailureInfo)
+                .map(failureInfo -> ImmutableMap.of(
+                        "failure_info.txt", toInputStream(mapToString(failureInfo)),
+                        "failure_stack_trace.txt", toInputStream(JOINER.join(failureInfo.getStack())))).orElseGet(ImmutableMap::of);
     }
 
     private String mapToString(ExecutionFailureInfo failureInfo)
@@ -50,18 +42,9 @@ public class FailureInfoProvider
         builder.append("Error message: ").append(failureInfo.getMessage()).append('\n');
         builder.append("Error location: ").append(failureInfo.getErrorLocation()).append('\n');
         builder.append("Remote host: ").append(failureInfo.getRemoteHost()).append('\n');
-        builder.append("Stack trace: ").append(failureInfo.getStack()).append('\n');
-        return builder.toString();
-    }
-
-    private String mapToString(QueryFailureInfo info)
-    {
-        StringBuilder builder = new StringBuilder();
-        builder.append("Error code: ").append(info.getErrorCode()).append('\n');
-        info.getFailureMessage().ifPresent(value -> builder.append("Failure message: ").append(value).append('\n'));
-        info.getFailureType().ifPresent(value -> builder.append("Failure type: ").append(value).append('\n'));
-        info.getFailureHost().ifPresent(value -> builder.append("Host: ").append(value).append('\n'));
-        info.getFailureTask().ifPresent(value -> builder.append("Failed task: ").append(value).append('\n'));
+        if (failureInfo.getCause() != null) {
+            builder.append("Cause: ").append(mapToString(failureInfo.getCause())).append('\n');
+        }
         return builder.toString();
     }
 }

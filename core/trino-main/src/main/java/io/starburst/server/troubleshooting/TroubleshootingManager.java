@@ -17,11 +17,9 @@ import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
 import io.trino.collect.cache.EvictableCacheBuilder;
+import io.trino.dispatcher.DispatchManager;
 import io.trino.execution.QueryInfo;
-import io.trino.execution.QueryManager;
 import io.trino.spi.QueryId;
-import io.trino.spi.eventlistener.QueryCompletedEvent;
-import io.trino.spi.eventlistener.QueryCreatedEvent;
 
 import javax.inject.Inject;
 
@@ -33,7 +31,6 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.function.Function;
 
 import static com.google.common.base.Verify.verify;
 import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
@@ -48,16 +45,17 @@ public class TroubleshootingManager
 {
     private static final Logger log = Logger.get(TroubleshootingManager.class);
 
-    private final QueryManager queryManager;
+    private final DispatchManager dispatchManager;
     private final Cache<QueryId, TroubleshootingContext> contexts;
     private final Set<TroubleshootingProvider> dataProviders;
     private final ScheduledExecutorService executorService;
     private final Duration destroyAfterFinishDelay;
+    private final Duration finishAfterStartDelay;
 
     @Inject
-    public TroubleshootingManager(TroubleshootingConfig config, QueryManager queryManager, Set<TroubleshootingProvider> dataProviders, @ForTroubleshooting ScheduledExecutorService executorService)
+    public TroubleshootingManager(TroubleshootingConfig config, DispatchManager dispatchManager, Set<TroubleshootingProvider> dataProviders, @ForTroubleshooting ScheduledExecutorService executorService)
     {
-        this.queryManager = requireNonNull(queryManager, "queryManager is null");
+        this.dispatchManager = requireNonNull(dispatchManager, "dispatchManager is null");
         this.contexts = EvictableCacheBuilder.newBuilder()
                 .maximumSize(config.getMaxActiveQueries())
                 .shareNothingWhenDisabled()
@@ -65,101 +63,83 @@ public class TroubleshootingManager
         this.dataProviders = ImmutableSet.copyOf(requireNonNull(dataProviders, "dataProviders is null"));
         this.executorService = requireNonNull(executorService, "executorService is null");
         this.destroyAfterFinishDelay = requireNonNull(config, "config is null").getMaxAccessDuration();
+        this.finishAfterStartDelay = config.getMaxCaptureDuration();
     }
 
-    public void start(QueryCreatedEvent event)
+    public void start(QueryId queryId)
     {
-        QueryId queryId = QueryId.valueOf(event.getMetadata().getQueryId());
         try {
-            log.info("Starting new troubleshooting context %s", queryId);
-            contexts.get(queryId, () -> createNewContext(executorService, queryId, event));
+            TroubleshootingContext context = contexts.get(queryId, () -> createNewContext(executorService, queryId));
+            log.info("Started new %s", context);
+            executorService.schedule(() -> finish(queryId), finishAfterStartDelay.toMillis(), MILLISECONDS);
         }
         catch (ExecutionException e) {
             throw new RuntimeException("Could not start new troubleshooting context", e);
         }
     }
 
-    public void finish(QueryCompletedEvent event)
+    public void finish(QueryId queryId)
     {
-        QueryId queryId = QueryId.valueOf(event.getMetadata().getQueryId());
         getContext(queryId).ifPresent(context -> {
-            context.set(QueryCompletedEvent.class, event);
-            try {
-                context.set(QueryInfo.class, queryManager.getFullQueryInfo(queryId));
-            }
-            catch (NoSuchElementException e) {
-                log.warn(e, "Could not fetch query %s full info, was query executed?", queryId);
-            }
+            if (transitionContextTo(context, FINISHED)) {
+                dispatchManager.getFullQueryInfo(queryId)
+                        .ifPresent(value -> context.set(QueryInfo.class, value));
 
-            verify(transitionContextTo(context, FINISHED), "Troubleshooting context is already finished or destroyed");
-            log.info("Troubleshooting context for %s has finished", queryId);
-            executorService.schedule(() -> remove(queryId), destroyAfterFinishDelay.toMillis(), MILLISECONDS);
+                log.info("%s has finished", context);
+                executorService.schedule(() -> {
+                    remove(queryId);
+                    log.info("Removed %s after timeout %s", context, destroyAfterFinishDelay);
+                }, destroyAfterFinishDelay.toMillis(), MILLISECONDS);
+            }
         });
     }
 
     public void remove(QueryId queryId)
     {
         getContext(queryId).ifPresent(context -> {
-            verify(transitionContextTo(context, REMOVED), "Context for " + queryId + " was already removed");
+            verify(transitionContextTo(context, REMOVED), "%s was already removed", context);
             contexts.invalidate(queryId);
         });
     }
 
-    private TroubleshootingContext createNewContext(ExecutorService executorService, QueryId queryId, QueryCreatedEvent event)
+    private TroubleshootingContext createNewContext(ExecutorService executorService, QueryId queryId)
     {
         TroubleshootingContext context = new TroubleshootingContext(queryId, executorService);
-        context.set(QueryCreatedEvent.class, event);
-
-        verify(transitionContextTo(context, STARTED), "Context for " + queryId + " was already started");
+        verify(transitionContextTo(context, STARTED), "%s was already started", context);
         return context;
     }
 
     private boolean transitionContextTo(TroubleshootingContext context, TroubleshootingContext.State nextState)
     {
         TroubleshootingContext.State currentState = context.getState();
-
         if (currentState == nextState) {
-            throw new IllegalStateException("Context for %s was going to transition to %s but it's already in that state".formatted(context.getQueryId(), currentState));
+            return false;
         }
 
-        boolean transitioned = false;
-
-        // Events are fired before the actual transition so the state is not observed first
-        switch (nextState) {
-            case STARTED -> {
-                transitioned = context.start();
-            }
-            case FINISHED -> {
-                transitioned = context.finish();
-            }
-            case REMOVED -> {
-                transitioned = context.remove();
-            }
-        }
-
-        return transitioned;
+        // Events are fired before the actual transition so the state change is not observed first
+        return switch (nextState) {
+            case STARTED -> context.start(dataProviders);
+            case FINISHED -> context.finish(dataProviders);
+            case REMOVED -> context.remove(dataProviders);
+            default -> throw new IllegalArgumentException("Cannot transition to %s state".formatted(nextState));
+        };
     }
 
     public ListenableFuture<Map<String, InputStream>> getInputStreams(QueryId queryId)
     {
         Optional<TroubleshootingContext> context = getContext(queryId);
         if (context.isEmpty()) {
-            return immediateFailedFuture(new NoSuchElementException("Troubleshooting context for query " + queryId + " does not exist"));
+            return immediateFailedFuture(new NoSuchElementException("Troubleshooting context for " + queryId + " does not exist"));
         }
 
         return transform(context.get().getStartedStateChange(), state -> {
-            verify(state == FINISHED, "Troubleshooting context for %s is not in the %s state but %s", queryId, FINISHED, state);
+            verify(state == FINISHED, "%s is not in the %s state but %s", context.get(), FINISHED, state);
             ImmutableMap.Builder<String, InputStream> builder = ImmutableMap.builder();
             for (TroubleshootingProvider dataProvider : dataProviders) {
                 builder.putAll(dataProvider.getInputStreams(context.get()));
             }
             return builder.buildOrThrow();
         }, executorService);
-    }
-
-    private <T> Optional<T> runWithContext(QueryId queryId, Function<TroubleshootingContext, T> callable)
-    {
-        return getContext(queryId).map(callable);
     }
 
     private Optional<TroubleshootingContext> getContext(QueryId queryId)

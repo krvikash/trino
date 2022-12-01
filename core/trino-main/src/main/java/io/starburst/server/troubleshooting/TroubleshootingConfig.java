@@ -12,13 +12,18 @@ package io.starburst.server.troubleshooting;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.units.Duration;
+import io.airlift.units.MaxDuration;
+import io.airlift.units.MinDuration;
 
+import static io.airlift.units.Duration.succinctDuration;
 import static java.util.concurrent.TimeUnit.MINUTES;
 
 public class TroubleshootingConfig
 {
-    private int maxActiveQueries = 32;
-    private Duration maxAccessDuration = Duration.succinctDuration(15, MINUTES);
+    private int maxActiveQueries = 128;
+    private Duration maxAccessDuration = succinctDuration(5, MINUTES);
+    private Duration maxCaptureDuration = succinctDuration(15, MINUTES);
+
     private boolean anonymizedPlan = true;
 
     public int getMaxActiveQueries()
@@ -34,16 +39,33 @@ public class TroubleshootingConfig
         return this;
     }
 
+    @MinDuration("1s")
+    @MaxDuration("1h")
     public Duration getMaxAccessDuration()
     {
         return maxAccessDuration;
     }
 
     @Config("troubleshooting.max-access-duration")
-    @ConfigDescription("Duration for which troubleshooting information will be available after query finishes")
+    @ConfigDescription("Time span for which troubleshooting information will be accessible after it's finished")
     public TroubleshootingConfig setMaxAccessDuration(Duration maxAccessDuration)
     {
         this.maxAccessDuration = maxAccessDuration;
+        return this;
+    }
+
+    @MinDuration("5s")
+    @MaxDuration("1h")
+    public Duration getMaxCaptureDuration()
+    {
+        return maxCaptureDuration;
+    }
+
+    @Config("troubleshooting.max-capture-duration")
+    @ConfigDescription("Time span for which troubleshooting information will be captured after query starts")
+    public TroubleshootingConfig setMaxCaptureDuration(Duration maxCaptureDuration)
+    {
+        this.maxCaptureDuration = maxCaptureDuration;
         return this;
     }
 

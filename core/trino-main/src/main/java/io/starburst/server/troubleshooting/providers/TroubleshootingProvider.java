@@ -29,4 +29,10 @@ public interface TroubleshootingProvider
     {
         return new ByteArrayInputStream(value.getBytes(UTF_8));
     }
+
+    default void onContextStarted(TroubleshootingContext context) {}
+
+    default void onContextFinished(TroubleshootingContext context) {}
+
+    default void onContextRemoved(TroubleshootingContext context) {}
 }

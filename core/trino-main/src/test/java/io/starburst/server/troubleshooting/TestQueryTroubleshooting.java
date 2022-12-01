@@ -9,10 +9,20 @@
  */
 package io.starburst.server.troubleshooting;
 
+import com.google.common.base.VerifyException;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.Key;
 import com.starburstdata.presto.server.StarburstQueryRunner;
 import com.starburstdata.presto.server.StarburstServerExtensionsModule;
+import io.airlift.units.Duration;
 import io.trino.Session;
+import io.trino.execution.QueryInfo;
+import io.trino.execution.QueryManager;
+import io.trino.execution.StageInfo;
+import io.trino.execution.TaskInfo;
+import io.trino.execution.TaskStatus;
+import io.trino.metadata.InternalNodeManager;
 import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.spi.QueryId;
 import io.trino.spi.security.Identity;
@@ -27,6 +37,7 @@ import org.intellij.lang.annotations.Language;
 import org.testng.annotations.Test;
 
 import java.io.InputStream;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -35,9 +46,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.starburstdata.presto.server.StarburstClientCapabilities.QUERY_TROUBLESHOOTING;
 import static io.trino.SystemSessionProperties.QUERY_MAX_MEMORY_PER_NODE;
 import static io.trino.testing.TestingSession.testSessionBuilder;
+import static io.trino.testing.assertions.Assert.assertEventually;
+import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.fail;
 
@@ -54,6 +68,7 @@ public class TestQueryTroubleshooting
             .setClientCapabilities(Set.of(QUERY_TROUBLESHOOTING.name()))
             .setSystemProperty(QUERY_MAX_MEMORY_PER_NODE, "256kB")
             .setIdentity(Identity.forUser(AUTHORIZED_USER).build())
+            .setCatalog("tpch")
             .build();
 
     protected static final Session TROUBLESHOOTED_SESSION_UNAUTHORIZED = testSessionBuilder()
@@ -63,6 +78,8 @@ public class TestQueryTroubleshooting
             .build();
 
     private TroubleshootingManager troubleshootingManager;
+    private QueryManager queryManager;
+    private String coordinatorId;
 
     @Override
     protected QueryRunner createQueryRunner()
@@ -70,13 +87,15 @@ public class TestQueryTroubleshooting
     {
         DistributedQueryRunner queryRunner = StarburstQueryRunner.builder(SESSION)
                 .setAdditionalModule(new StarburstServerExtensionsModule())
-                .setCoordinatorProperties(Map.of("insights.authorized-users", AUTHORIZED_USER, "troubleshooting.max-access-duration", "500ms"))
+                .setCoordinatorProperties(Map.of("insights.authorized-users", AUTHORIZED_USER, "troubleshooting.max-access-duration", "5s", "troubleshooting.max-capture-duration", "15s"))
                 .build();
 
         queryRunner.installPlugin(new TpchPlugin());
         queryRunner.createCatalog("tpch", "tpch");
 
         troubleshootingManager = queryRunner.getCoordinator().getInstance(Key.get(TroubleshootingManager.class));
+        queryManager = queryRunner.getCoordinator().getQueryManager();
+        coordinatorId = queryRunner.getCoordinator().getInstance(Key.get(InternalNodeManager.class)).getCurrentNode().getNodeIdentifier();
 
         return queryRunner;
     }
@@ -85,35 +104,42 @@ public class TestQueryTroubleshooting
     public void testTroubleshootingDataNotAvailableWithoutCapability()
     {
         String troubleshootedQuery = "SHOW CATALOGS";
-        Optional<Map<String, InputStream>> inputs = getTroubleshootingDataForQuery(SESSION, troubleshootedQuery);
-        assertThat(inputs).isEmpty();
+        TroubleshootingData data = getTroubleshootingDataForQuery(SESSION, troubleshootedQuery);
+        assertThat(data.getStreams()).isEmpty();
     }
 
     @Test
     public void testTroubleshootingDataNotAvailableForUnauthorizedUser()
     {
         String troubleshootedQuery = "SHOW CATALOGS";
-        Optional<Map<String, InputStream>> inputs = getTroubleshootingDataForQuery(TROUBLESHOOTED_SESSION_UNAUTHORIZED, troubleshootedQuery);
-        assertThat(inputs).isEmpty();
+        TroubleshootingData data = getTroubleshootingDataForQuery(TROUBLESHOOTED_SESSION_UNAUTHORIZED, troubleshootedQuery);
+        assertThat(data.getStreams()).isEmpty();
     }
 
     @Test
     public void testTroubleshootingDataAvailableForAuthorizedUser()
     {
         String troubleshootedQuery = "SHOW CATALOGS";
-        Optional<Map<String, InputStream>> inputs = getTroubleshootingDataForQuery(TROUBLESHOOTED_SESSION, troubleshootedQuery);
-        assertThat(inputs).isPresent();
-        Map<String, InputStream> inputsMap = inputs.get();
+        TroubleshootingData data = getTroubleshootingDataForQuery(TROUBLESHOOTED_SESSION, troubleshootedQuery);
+        assertThat(data.getStreams()).isPresent();
+        Map<String, InputStream> inputsMap = data.getRequiredStreams();
+
         assertThat(inputsMap.get("session.txt")).hasContent("query_max_memory_per_node = 256kB\n");
         assertThat(inputsMap.get("version.txt")).hasContent("testversion");
         assertThat(inputsMap.get("query.sql")).hasContent(troubleshootedQuery);
         assertThat(inputsMap.get("query_plan.txt")).isNotEmpty();
+        assertThat(inputsMap.get("recordings/coordinator.jfr")).isNotEmpty();
+        for (String workerId : getNodesProcessingQuery(data.getQueryId())) {
+            assertThat(inputsMap.get("recordings/worker-%s.jfr".formatted(workerId)))
+                    .describedAs("worker %s recording", workerId)
+                    .isNotEmpty();
+        }
     }
 
     @Test
     public void testTroubleshootingDataAvailableForFailedQuery()
     {
-        String troubleshootedQuery = "SELECT * FROM not valid query";
+        String troubleshootedQuery = "SELECT * FROM table_does_not_exist";
         QueryId queryId = null;
 
         try (TestingTrinoClient client = new TestingTrinoClient(getDistributedQueryRunner().getCoordinator(), TROUBLESHOOTED_SESSION)) {
@@ -126,35 +152,36 @@ public class TestQueryTroubleshooting
 
         Optional<Map<String, InputStream>> inputs = awaitForTroubleshootingData(queryId);
         assertThat(inputs).isPresent();
-
-        Map<String, InputStream> inputsMap = inputs.get();
+        Map<String, InputStream> inputsMap = inputs.orElseThrow();
         assertThat(inputsMap.get("session.txt")).hasContent("query_max_memory_per_node = 256kB\n");
         assertThat(inputsMap.get("version.txt")).hasContent("testversion");
         assertThat(inputsMap.get("query.sql")).hasContent(troubleshootedQuery);
+        assertThat(inputsMap.get("query_plan.txt")).isNull();
         assertThat(inputsMap.get("failure_info.txt")).hasContent("""
-                Error code: SYNTAX_ERROR:1
-                Failure message: line 1:15: mismatched input 'not'. Expecting: '(', 'LATERAL', 'TABLE', 'UNNEST', <identifier>
-                Failure type: io.trino.sql.parser.ParsingException""");
+                Error code: SCHEMA_NOT_FOUND:45
+                Error message: line 1:15: Schema 'schema' does not exist
+                Error location: ErrorLocation{lineNumber=1, columnNumber=15}
+                Remote host: null""");
+        assertThat(inputsMap.get("failure_stack_trace.txt")).isNotEmpty();
     }
 
-    @Test(timeOut = 10_000)
+    @Test
     public void testTroubleshootingIsRemovedAfterDuration()
-            throws InterruptedException
     {
         String exampleQuery = "SELECT count(comment) FROM tpch.tiny.lineitem";
         try (TestingTrinoClient client = new TestingTrinoClient(getDistributedQueryRunner().getCoordinator(), TROUBLESHOOTED_SESSION)) {
             ResultWithQueryId<MaterializedResult> result = client.execute(exampleQuery);
             assertThat(awaitForTroubleshootingData(result.getQueryId())).isPresent();
-            Thread.sleep(700);
-            assertThat(awaitForTroubleshootingData(result.getQueryId())).isEmpty();
+
+            assertEventually(Duration.valueOf("10s"), () -> assertThat(awaitForTroubleshootingData(result.getQueryId())).isEmpty());
         }
     }
 
-    private Optional<Map<String, InputStream>> getTroubleshootingDataForQuery(Session session, @Language("sql") String query)
+    private TroubleshootingData getTroubleshootingDataForQuery(Session session, @Language("sql") String query)
     {
         try (TestingTrinoClient client = new TestingTrinoClient(getDistributedQueryRunner().getCoordinator(), session)) {
             ResultWithQueryId<MaterializedResult> result = client.execute(query);
-            return awaitForTroubleshootingData(result.getQueryId());
+            return new TroubleshootingData(result.getQueryId(), awaitForTroubleshootingData(result.getQueryId()));
         }
     }
 
@@ -167,11 +194,78 @@ public class TestQueryTroubleshooting
             if (e.getCause() instanceof NoSuchElementException) {
                 return Optional.empty();
             }
+            if (e.getCause() instanceof VerifyException ve && ve.getMessage().contains("already removed")) {
+                return Optional.empty();
+            }
             throw new RuntimeException(e);
         }
         catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException(e);
+        }
+    }
+
+    private Set<String> getNodesProcessingQuery(QueryId queryId)
+    {
+        try {
+            QueryInfo queryInfo = queryManager.getFullQueryInfo(queryId);
+            return queryInfo.getOutputStage().map(this::getNodeIdsProcessingQuery).orElse(ImmutableSet.of());
+        }
+        catch (Exception e) {
+            return Set.of();
+        }
+    }
+
+    private List<TaskInfo> gatherAllTasks(StageInfo stageInfo)
+    {
+        ImmutableList.Builder<TaskInfo> builder = ImmutableList.builder();
+        builder.addAll(stageInfo.getTasks());
+        for (StageInfo subStage : stageInfo.getSubStages()) {
+            builder.addAll(gatherAllTasks(subStage));
+        }
+        return builder.build();
+    }
+
+    private Set<String> getNodeIdsProcessingQuery(StageInfo outputStage)
+    {
+        List<TaskInfo> tasks = gatherAllTasks(outputStage);
+
+        return tasks.stream()
+                .map(TaskInfo::getTaskStatus)
+                .map(TaskStatus::getNodeId)
+                .filter(this::isNotCoordinator)
+                .collect(toImmutableSet());
+    }
+
+    private boolean isNotCoordinator(String nodeId)
+    {
+        return !nodeId.equalsIgnoreCase(coordinatorId);
+    }
+
+    private static class TroubleshootingData
+    {
+        private final QueryId queryId;
+        private final Optional<Map<String, InputStream>> streams;
+
+        private TroubleshootingData(QueryId queryId, Optional<Map<String, InputStream>> streams)
+        {
+            this.queryId = requireNonNull(queryId, "queryId is null");
+            this.streams = requireNonNull(streams, "streams is null");
+        }
+
+        public QueryId getQueryId()
+        {
+            return queryId;
+        }
+
+        public Optional<Map<String, InputStream>> getStreams()
+        {
+            return streams;
+        }
+
+        public Map<String, InputStream> getRequiredStreams()
+        {
+            return streams.orElseThrow();
         }
     }
 }

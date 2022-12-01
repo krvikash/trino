@@ -13,7 +13,6 @@ import com.google.common.collect.ImmutableMap;
 import io.starburst.server.troubleshooting.TroubleshootingContext;
 import io.trino.SessionRepresentation;
 import io.trino.execution.QueryInfo;
-import io.trino.spi.eventlistener.QueryCompletedEvent;
 
 import java.io.InputStream;
 import java.util.Map;
@@ -26,15 +25,9 @@ public class SessionInfoProvider
     @Override
     public Map<String, InputStream> getInputStreams(TroubleshootingContext context)
     {
-        if (context.has(QueryInfo.class)) {
-            return ImmutableMap.of("session.txt", toInputStream(mapToString(context.getOrThrow(QueryInfo.class).getSession())));
-        }
-
-        if (context.has(QueryCompletedEvent.class)) {
-            return ImmutableMap.of("session.txt", toInputStream(mapToString("", context.getOrThrow(QueryCompletedEvent.class).getContext().getSessionProperties())));
-        }
-
-        return ImmutableMap.of();
+        return context.get(QueryInfo.class)
+                .map(info -> ImmutableMap.of("session.txt", toInputStream(mapToString(info.getSession()))))
+                .orElse(ImmutableMap.of());
     }
 
     private String mapToString(String prefix, Map<String, String> values)
