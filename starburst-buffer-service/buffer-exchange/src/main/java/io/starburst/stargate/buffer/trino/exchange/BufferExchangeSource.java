@@ -9,6 +9,7 @@
  */
 package io.starburst.stargate.buffer.trino.exchange;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -113,21 +114,28 @@ public class BufferExchangeSource
         this.sourceChunksEstimatedSize = new AtomicLong(MoreSizeOf.estimatedSizeOf(sourceChunks, SourceChunk::getRetainedSize));
     }
 
-    private synchronized void scheduleReadChunks()
+    private void scheduleReadChunks()
     {
-        if (latestSourceOutputSelector == null) {
-            // wait for initial output selector before scheduling reading
-            return;
+        List<ChunkReader> newChunkReaders;
+        synchronized (this) {
+            if (latestSourceOutputSelector == null) {
+                // wait for initial output selector before scheduling reading
+                return;
+            }
+            if (!memoryUsageExceeded.isDone()) {
+                // no need to wrap `this::doScheduleReadChunks` in `try...catch` as we are using directExecutor; exception will be propagated outside
+                memoryUsageExceeded.addListener(this::scheduleReadChunks, directExecutor());
+                return;
+            }
+            newChunkReaders = doScheduleReadChunks();
         }
-        if (!memoryUsageExceeded.isDone()) {
-            // no need to wrap `this::doScheduleReadChunks` in `try...catch` as we are using directExecutor; exception will be propagated outside
-            memoryUsageExceeded.addListener(this::doScheduleReadChunks, directExecutor());
-            return;
+        for (ChunkReader chunkReader : newChunkReaders) {
+            chunkReader.start();
         }
-        doScheduleReadChunks();
     }
 
-    private synchronized void doScheduleReadChunks()
+    @GuardedBy("this")
+    private List<ChunkReader> doScheduleReadChunks()
     {
         int selectedParallelism = switch (preserveOrderingMode) {
             case ALLOW_REORDERING -> parallelism;
@@ -136,15 +144,17 @@ public class BufferExchangeSource
         };
 
         int missing = selectedParallelism - currentReaders.size();
+        ImmutableList.Builder<ChunkReader> newReaders = ImmutableList.builder();
         for (int i = 0; i < missing; ++i) {
             SourceChunk chunk = pollSourceChunk();
             if (chunk == null) {
-                return;
+                return newReaders.build();
             }
             ChunkReader reader = new ChunkReader(chunk);
+            newReaders.add(reader);
             currentReaders.add(reader);
-            reader.start();
         }
+        return newReaders.build();
     }
 
     private void finishChunkReader(ChunkReader chunkReader)
