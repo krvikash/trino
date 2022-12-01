@@ -1,0 +1,152 @@
+/*
+ * Copyright Starburst Data, Inc. All rights reserved.
+ *
+ * THIS IS UNPUBLISHED PROPRIETARY SOURCE CODE OF STARBURST DATA.
+ * The copyright notice above does not evidence any
+ * actual or intended publication of such source code.
+ *
+ * Redistribution of this material is strictly prohibited.
+ */
+package io.starburst.server.troubleshooting;
+
+import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableMap;
+import com.google.errorprone.annotations.FormatMethod;
+import com.google.errorprone.annotations.FormatString;
+import com.google.inject.Inject;
+import com.starburstdata.presto.server.security.webui.access.WebUiAccessControl;
+import com.starburstdata.presto.server.ui.WebSessionRequest;
+import io.trino.server.security.ResourceSecurity;
+import io.trino.spi.QueryId;
+import io.trino.spi.security.Identity;
+import io.trino.spi.security.SelectedRole;
+
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.Response;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+
+import static com.google.common.base.Strings.isNullOrEmpty;
+import static io.starburst.server.troubleshooting.TroubleshootingCoordinatorResource.BASE_PATH_API_V1;
+import static io.trino.server.security.ResourceSecurity.AccessType.AUTHENTICATED_USER;
+import static java.lang.String.format;
+import static java.net.URLDecoder.decode;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Objects.requireNonNull;
+import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
+import static javax.ws.rs.core.Response.Status.FORBIDDEN;
+import static javax.ws.rs.core.Response.Status.NOT_FOUND;
+
+@ResourceSecurity(AUTHENTICATED_USER)
+@Path(BASE_PATH_API_V1)
+public class TroubleshootingCoordinatorResource
+{
+    public static final String BASE_PATH_API_V1 = "/api/v1/troubleshooting";
+    private final WebUiAccessControl accessControl;
+    private final TroubleshootingManager troubleshootingManager;
+
+    @Inject
+    public TroubleshootingCoordinatorResource(WebUiAccessControl accessControl, TroubleshootingManager troubleshootingManager)
+    {
+        this.accessControl = requireNonNull(accessControl, "accessControl is null");
+        this.troubleshootingManager = requireNonNull(troubleshootingManager, "troubleshootingManager is null");
+    }
+
+    @ResourceSecurity(AUTHENTICATED_USER)
+    @GET
+    public Response getTroubleshootingArchive(@QueryParam("queryId") QueryId queryId, @QueryParam("selectedRole") String selectedRole, @Context WebSessionRequest webRequest, @Context HttpHeaders httpHeaders)
+    {
+        assertRequest(!isNullOrEmpty(selectedRole), "Selected role was not provided");
+        assertRequest(queryId != null, "Query is was not provided");
+
+        Identity identity = setSelectedRole(webRequest.getIdentity(), selectedRole);
+        if (!accessControl.isPrivilegedUser(identity)) {
+            return Response.status(FORBIDDEN.getStatusCode(), "You need admin privileges to download troubleshooting archives").build();
+        }
+
+        return troubleshootingManager.getInputStreams(queryId)
+                .map(streams -> createArchiveFromStreams(streams, queryId))
+                .orElse(Response.status(NOT_FOUND)
+                        .entity("Troubleshooting archive is not available for this query or has expired"))
+                .build();
+    }
+
+    private Identity setSelectedRole(Identity identity, String roleQueryParam)
+    {
+        SelectedRole selectedRole = parseSelectedRole(roleQueryParam)
+                .entrySet()
+                .stream()
+                .filter(entry -> entry.getKey().equalsIgnoreCase("system"))
+                .map(Map.Entry::getValue)
+                .map(SelectedRole::valueOf)
+                .findFirst()
+                .orElseThrow();
+
+        return Identity.from(identity)
+                .withEnabledRoles(Set.of(selectedRole.getRole().orElseThrow()))
+                .build();
+    }
+
+    private static Map<String, String> parseSelectedRole(String selectedRole)
+    {
+        Splitter splitter = Splitter.on(',').trimResults().omitEmptyStrings();
+        Splitter keyValueSplitter = Splitter.on('=').trimResults();
+
+        ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
+        for (String role : splitter.splitToList(selectedRole)) {
+            List<String> parts = keyValueSplitter.splitToList(role);
+            assertRequest(parts.size() == 2, "Invalid role value: %s", role);
+
+            try {
+                builder.put(parts.get(0), decode(parts.get(1), UTF_8));
+            }
+            catch (IllegalArgumentException e) {
+                throw new WebApplicationException("Invalid selected role: " + parts.get(1), BAD_REQUEST);
+            }
+        }
+
+        return builder.buildOrThrow();
+    }
+
+    @FormatMethod
+    private static void assertRequest(boolean expression, @FormatString String format, Object... args)
+    {
+        if (!expression) {
+            throw new WebApplicationException(format(format, args), BAD_REQUEST);
+        }
+    }
+
+    private Response.ResponseBuilder createArchiveFromStreams(Map<String, InputStream> inputStream, QueryId queryId)
+    {
+        try (ByteArrayOutputStream output = new ByteArrayOutputStream(); ZipOutputStream archive = new ZipOutputStream(output)) {
+            for (Map.Entry<String, InputStream> entry : inputStream.entrySet()) {
+                archive.putNextEntry(new ZipEntry(queryId + "/" + entry.getKey()));
+                archive.write(entry.getValue().readAllBytes());
+                archive.closeEntry();
+            }
+
+            archive.flush();
+            archive.finish();
+
+            return Response.ok(new ByteArrayInputStream(output.toByteArray()))
+                    .header("Content-Type", "application/zip")
+                    .header("Content-disposition", "attachment; filename=\"starburst-query-troubleshooting-%s.zip\"".formatted(queryId));
+        }
+        catch (IOException e) {
+            throw new WebApplicationException("Could not create troubleshooting archive: " + e.getMessage());
+        }
+    }
+}
