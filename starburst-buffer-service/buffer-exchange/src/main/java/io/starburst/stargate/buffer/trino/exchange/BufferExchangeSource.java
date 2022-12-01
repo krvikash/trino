@@ -475,11 +475,9 @@ public class BufferExchangeSource
                     try {
                         getChunkDataFutureReference.set(null);
 
-                        synchronized (BufferExchangeSource.this) {
-                            receivedNewDataPages(sourceChunk.externalExchangeId(), dataPages);
-                            finish();
-                            scheduleReadChunks();
-                        }
+                        receivedNewDataPages(sourceChunk.externalExchangeId(), dataPages);
+                        finish();
+                        scheduleReadChunks();
                     }
                     catch (Throwable t) {
                         onFailure(t);
