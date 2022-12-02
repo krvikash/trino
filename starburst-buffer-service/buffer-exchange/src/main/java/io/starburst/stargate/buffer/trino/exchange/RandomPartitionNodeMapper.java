@@ -72,7 +72,7 @@ public class RandomPartitionNodeMapper
                 .collect(toImmutableList());
 
         if (bufferNodes.size() == 0) {
-            throw new RuntimeException("no RUNNING buffer nodes available");
+            throw new RuntimeException("no ACTIVE buffer nodes available");
         }
 
         long maxChunksCount = bufferNodes.stream().mapToLong(node -> node.stats().orElseThrow().openChunks() + node.stats().orElseThrow().closedChunks()).max().orElseThrow();
