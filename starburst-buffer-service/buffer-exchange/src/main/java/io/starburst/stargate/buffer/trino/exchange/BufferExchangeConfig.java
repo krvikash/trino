@@ -26,9 +26,9 @@ public class BufferExchangeConfig
 {
     private URI discoveryServiceUri;
     private DataSize sinkBlockedMemoryLowWaterMark = DataSize.of(128, DataSize.Unit.MEGABYTE);
-    private DataSize sinkBlockedMemoryHighWaterMark = DataSize.of(512, DataSize.Unit.MEGABYTE);
-    private DataSize sourceBlockedMemoryLowWaterMark = DataSize.of(128, DataSize.Unit.MEGABYTE);
-    private DataSize sourceBlockedMemoryHighWaterMark = DataSize.of(512, DataSize.Unit.MEGABYTE);
+    private DataSize sinkBlockedMemoryHighWaterMark = DataSize.of(256, DataSize.Unit.MEGABYTE);
+    private DataSize sourceBlockedMemoryLowWaterMark = DataSize.of(32, DataSize.Unit.MEGABYTE);
+    private DataSize sourceBlockedMemoryHighWaterMark = DataSize.of(64, DataSize.Unit.MEGABYTE);
     private int sourceParallelism = 4;
     private boolean dataIntegrityVerificationEnabled = true;
     private int sourceHandleTargetChunksCount = 64;
