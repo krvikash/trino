@@ -131,6 +131,7 @@ public class DataResource
 
         if (dropUploadedPages) {
             asyncResponse.resume(Response.ok().build());
+            return;
         }
 
         SliceLease sliceLease = new SliceLease(memoryAllocator, contentLength);
