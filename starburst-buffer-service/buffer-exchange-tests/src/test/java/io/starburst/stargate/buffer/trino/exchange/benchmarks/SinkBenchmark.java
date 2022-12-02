@@ -31,12 +31,13 @@ public final class SinkBenchmark
     {
         DataSize dataPerWriter = DataSize.of(4, DataSize.Unit.GIGABYTE);
         List<SinkBenchmarkSetup> setups = ImmutableList.of(
-                new SinkBenchmarkSetup(8, 1, DataSize.of(32, DataSize.Unit.KILOBYTE), dataPerWriter, DataSize.of(128, DataSize.Unit.MEGABYTE), DataSize.of(512, DataSize.Unit.MEGABYTE)),
-                new SinkBenchmarkSetup(8, 100, DataSize.of(32, DataSize.Unit.KILOBYTE), dataPerWriter, DataSize.of(128, DataSize.Unit.MEGABYTE), DataSize.of(512, DataSize.Unit.MEGABYTE)),
-                new SinkBenchmarkSetup(8, 1000, DataSize.of(32, DataSize.Unit.KILOBYTE), dataPerWriter, DataSize.of(128, DataSize.Unit.MEGABYTE), DataSize.of(512, DataSize.Unit.MEGABYTE)),
-                new SinkBenchmarkSetup(8, 1, DataSize.of(320, DataSize.Unit.KILOBYTE), dataPerWriter, DataSize.of(128, DataSize.Unit.MEGABYTE), DataSize.of(512, DataSize.Unit.MEGABYTE)),
-                new SinkBenchmarkSetup(8, 100, DataSize.of(320, DataSize.Unit.KILOBYTE), dataPerWriter, DataSize.of(128, DataSize.Unit.MEGABYTE), DataSize.of(512, DataSize.Unit.MEGABYTE)),
-                new SinkBenchmarkSetup(8, 1, DataSize.of(32, DataSize.Unit.MEGABYTE), dataPerWriter, DataSize.of(128, DataSize.Unit.MEGABYTE), DataSize.of(512, DataSize.Unit.MEGABYTE)));
+                new SinkBenchmarkSetup(8, 1000, DataSize.of(32, DataSize.Unit.KILOBYTE), dataPerWriter, DataSize.of(128, DataSize.Unit.MEGABYTE), DataSize.of(256, DataSize.Unit.MEGABYTE)),
+                new SinkBenchmarkSetup(8, 1, DataSize.of(32, DataSize.Unit.KILOBYTE), dataPerWriter, DataSize.of(128, DataSize.Unit.MEGABYTE), DataSize.of(256, DataSize.Unit.MEGABYTE)),
+                new SinkBenchmarkSetup(8, 100, DataSize.of(32, DataSize.Unit.KILOBYTE), dataPerWriter, DataSize.of(128, DataSize.Unit.MEGABYTE), DataSize.of(256, DataSize.Unit.MEGABYTE)),
+                new SinkBenchmarkSetup(8, 1000, DataSize.of(32, DataSize.Unit.KILOBYTE), dataPerWriter, DataSize.of(128, DataSize.Unit.MEGABYTE), DataSize.of(256, DataSize.Unit.MEGABYTE)),
+                new SinkBenchmarkSetup(8, 1, DataSize.of(320, DataSize.Unit.KILOBYTE), dataPerWriter, DataSize.of(128, DataSize.Unit.MEGABYTE), DataSize.of(256, DataSize.Unit.MEGABYTE)),
+                new SinkBenchmarkSetup(8, 100, DataSize.of(320, DataSize.Unit.KILOBYTE), dataPerWriter, DataSize.of(128, DataSize.Unit.MEGABYTE), DataSize.of(256, DataSize.Unit.MEGABYTE)),
+                new SinkBenchmarkSetup(8, 1, DataSize.of(32, DataSize.Unit.MEGABYTE), dataPerWriter, DataSize.of(128, DataSize.Unit.MEGABYTE), DataSize.of(256, DataSize.Unit.MEGABYTE)));
 
         Map<SinkBenchmarkSetup, SinkBenchmarkResult> results = new LinkedHashMap<>();
         for (SinkBenchmarkSetup setup : setups) {
