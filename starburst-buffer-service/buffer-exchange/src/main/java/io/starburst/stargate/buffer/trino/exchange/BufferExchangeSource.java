@@ -221,7 +221,7 @@ public class BufferExchangeSource
                         readSlices.offer(page.data());
                         readSlicesHasElements = true;
                         futureToUnblock.set(isBlockedReference.get());
-                        updateReadSlicesMemoryUsage(page.data().getRetainedSize());
+                        increaseReadSlicesMemoryUsage(page.data().getRetainedSize());
                     });
         }
         if (futureToUnblock.get() != null) {
@@ -375,38 +375,52 @@ public class BufferExchangeSource
     @Override
     public synchronized Slice read()
     {
-        Throwable throwable = failure.get();
-        if (throwable != null) {
-            throwIfUnchecked(throwable);
-            throw new RuntimeException(throwable);
-        }
+        SettableFuture<Void> memoryFutureToUnblock;
+        Slice slice;
+        synchronized (this) {
+            Throwable throwable = failure.get();
+            if (throwable != null) {
+                throwIfUnchecked(throwable);
+                throw new RuntimeException(throwable);
+            }
 
-        if (!readSlicesHasElements) {
-            return null;
-        }
+            if (!readSlicesHasElements) {
+                return null;
+            }
 
-        Slice slice = readSlices.poll();
-        verify(slice != null, "expected non empty readSlices");
-        updateReadSlicesMemoryUsage(-slice.getRetainedSize());
-        if (readSlices.isEmpty()) {
-            readSlicesHasElements = false;
+            slice = readSlices.poll();
+            verify(slice != null, "expected non empty readSlices");
+            memoryFutureToUnblock = decreaseReadSlicesMemoryUsage(slice.getRetainedSize());
+            if (readSlices.isEmpty()) {
+                readSlicesHasElements = false;
+            }
+        }
+        if (memoryFutureToUnblock != null) {
+            // complete future outside the synchronized block
+            memoryFutureToUnblock.set(null);
         }
         return slice;
     }
 
-    private synchronized void updateReadSlicesMemoryUsage(long delta)
+    @GuardedBy("this")
+    private void increaseReadSlicesMemoryUsage(long delta)
     {
         long currentMemoryUsage = readSlicesMemoryUsage.addAndGet(delta);
-        if (currentMemoryUsage < memoryLowWaterMark.toBytes() && !memoryUsageExceeded.isDone()) {
-            // TODO refactor to not set in synchronized section if possible
-            memoryUsageExceeded.set(null);
-        }
-
         if (currentMemoryUsage > memoryHighWaterMark.toBytes() && memoryUsageExceeded.isDone()) {
             memoryUsageExceeded = SettableFuture.create();
         }
+    }
 
+    @Nullable
+    @GuardedBy("this")
+    private SettableFuture<Void> decreaseReadSlicesMemoryUsage(long delta)
+    {
+        long currentMemoryUsage = readSlicesMemoryUsage.addAndGet(-delta);
         verify(currentMemoryUsage >= 0, "negative memory usage");
+        if (currentMemoryUsage < memoryLowWaterMark.toBytes() && !memoryUsageExceeded.isDone()) {
+            return memoryUsageExceeded;
+        }
+        return null;
     }
 
     @SuppressWarnings("FieldAccessNotGuarded") // accesses are safe crash-wise; we do not need to 100% accurate in this method
@@ -421,14 +435,21 @@ public class BufferExchangeSource
     }
 
     @Override
-    public synchronized void close()
+    public void close()
     {
-        currentReaders.forEach(ChunkReader::close);
+        SettableFuture<Void> memoryFutureToUnblock;
+        synchronized (this) {
+            currentReaders.forEach(ChunkReader::close);
 
-        readSlices.clear();
-        readSlicesHasElements = false;
-        updateReadSlicesMemoryUsage(-readSlicesMemoryUsage.get());
-        closed = true;
+            readSlices.clear();
+            readSlicesHasElements = false;
+            memoryFutureToUnblock = decreaseReadSlicesMemoryUsage(readSlicesMemoryUsage.get());
+            closed = true;
+        }
+        if (memoryFutureToUnblock != null) {
+            // complete future outside the synchronized block
+            memoryFutureToUnblock.set(null);
+        }
     }
 
     @NotThreadSafe
