@@ -102,6 +102,8 @@ public class DiscoveryBroadcast
                 if (isNull(discoveryRegistrationState.getAndSet(true))) {
                     // Only first registering to discovery server marks Data Server as ACTIVE
                     stateManager.transitionState(ACTIVE);
+                    // update the state in discovery server immediately
+                    discoverApi.updateBufferNode(new BufferNodeInfo(bufferNodeId, baseUri, getBufferNodeStats(), stateManager.getState()));
                 }
             }
             catch (RuntimeException e) {
