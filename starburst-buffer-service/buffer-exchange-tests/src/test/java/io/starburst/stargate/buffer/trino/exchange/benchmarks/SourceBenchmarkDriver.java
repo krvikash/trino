@@ -75,7 +75,6 @@ public class SourceBenchmarkDriver
     }
 
     public SourceBenchmarkResult benchmark()
-            throws Exception
     {
         try (Closer closer = Closer.create()) {
             // use bing chunk size to be sure DataServer will allocate just one chunk for all the pages we pass it
