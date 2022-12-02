@@ -35,25 +35,19 @@ public final class SourceBenchmark
     {
         DataSize totalDataSize = DataSize.of(32, GIGABYTE);
         List<SourceBenchmarkSetup> setups = ImmutableList.of(
-                // different page size; encryption off
-                new SourceBenchmarkSetup(8, totalDataSize, DataSize.of(8, MEGABYTE), DataSize.of(32, KILOBYTE), 1, 4, DataSize.of(128, MEGABYTE), DataSize.of(512, MEGABYTE), false),
-                new SourceBenchmarkSetup(8, totalDataSize, DataSize.of(8, MEGABYTE), DataSize.of(256, KILOBYTE), 1, 4, DataSize.of(128, MEGABYTE), DataSize.of(512, MEGABYTE), false),
-                new SourceBenchmarkSetup(8, totalDataSize, DataSize.of(8, MEGABYTE), DataSize.of(2, MEGABYTE), 1, 4, DataSize.of(128, MEGABYTE), DataSize.of(512, MEGABYTE), false),
+                new SourceBenchmarkSetup(8, totalDataSize, DataSize.of(8, MEGABYTE), DataSize.of(32, KILOBYTE), 1, 4, DataSize.of(128, MEGABYTE), DataSize.of(512, MEGABYTE)),
+                new SourceBenchmarkSetup(8, totalDataSize, DataSize.of(8, MEGABYTE), DataSize.of(256, KILOBYTE), 1, 4, DataSize.of(128, MEGABYTE), DataSize.of(512, MEGABYTE)),
+                new SourceBenchmarkSetup(8, totalDataSize, DataSize.of(8, MEGABYTE), DataSize.of(2, MEGABYTE), 1, 4, DataSize.of(128, MEGABYTE), DataSize.of(512, MEGABYTE)),
 
-                // small page; encryption off; test changes to other options
-                new SourceBenchmarkSetup(8, totalDataSize, DataSize.of(2, MEGABYTE), DataSize.of(32, KILOBYTE), 1, 4, DataSize.of(128, MEGABYTE), DataSize.of(512, MEGABYTE), false),
-                new SourceBenchmarkSetup(8, totalDataSize, DataSize.of(16, MEGABYTE), DataSize.of(32, KILOBYTE), 1, 4, DataSize.of(128, MEGABYTE), DataSize.of(512, MEGABYTE), false),
-                new SourceBenchmarkSetup(8, totalDataSize, DataSize.of(8, MEGABYTE), DataSize.of(32, KILOBYTE), 4, 4, DataSize.of(128, MEGABYTE), DataSize.of(512, MEGABYTE), false),
-                new SourceBenchmarkSetup(8, totalDataSize, DataSize.of(8, MEGABYTE), DataSize.of(32, KILOBYTE), 1, 4, DataSize.of(32, MEGABYTE), DataSize.of(128, MEGABYTE), false),
-                new SourceBenchmarkSetup(8, totalDataSize, DataSize.of(8, MEGABYTE), DataSize.of(32, KILOBYTE), 1, 1, DataSize.of(128, MEGABYTE), DataSize.of(512, MEGABYTE), false),
-                new SourceBenchmarkSetup(8, totalDataSize, DataSize.of(8, MEGABYTE), DataSize.of(32, KILOBYTE), 8, 1, DataSize.of(128, MEGABYTE), DataSize.of(512, MEGABYTE), false),
-                new SourceBenchmarkSetup(1, totalDataSize, DataSize.of(8, MEGABYTE), DataSize.of(32, KILOBYTE), 1, 4, DataSize.of(128, MEGABYTE), DataSize.of(512, MEGABYTE), false),
-                new SourceBenchmarkSetup(1, totalDataSize, DataSize.of(8, MEGABYTE), DataSize.of(32, KILOBYTE), 1, 1, DataSize.of(128, MEGABYTE), DataSize.of(512, MEGABYTE), false),
-
-                // different page size; encryption on
-                new SourceBenchmarkSetup(8, totalDataSize, DataSize.of(8, MEGABYTE), DataSize.of(32, KILOBYTE), 1, 4, DataSize.of(128, MEGABYTE), DataSize.of(512, MEGABYTE), true),
-                new SourceBenchmarkSetup(8, totalDataSize, DataSize.of(8, MEGABYTE), DataSize.of(256, KILOBYTE), 1, 4, DataSize.of(128, MEGABYTE), DataSize.of(512, MEGABYTE), true),
-                new SourceBenchmarkSetup(8, totalDataSize, DataSize.of(8, MEGABYTE), DataSize.of(2, MEGABYTE), 1, 4, DataSize.of(128, MEGABYTE), DataSize.of(512, MEGABYTE), true));
+                // small page; test changes to other options
+                new SourceBenchmarkSetup(8, totalDataSize, DataSize.of(2, MEGABYTE), DataSize.of(32, KILOBYTE), 1, 4, DataSize.of(128, MEGABYTE), DataSize.of(512, MEGABYTE)),
+                new SourceBenchmarkSetup(8, totalDataSize, DataSize.of(16, MEGABYTE), DataSize.of(32, KILOBYTE), 1, 4, DataSize.of(128, MEGABYTE), DataSize.of(512, MEGABYTE)),
+                new SourceBenchmarkSetup(8, totalDataSize, DataSize.of(8, MEGABYTE), DataSize.of(32, KILOBYTE), 4, 4, DataSize.of(128, MEGABYTE), DataSize.of(512, MEGABYTE)),
+                new SourceBenchmarkSetup(8, totalDataSize, DataSize.of(8, MEGABYTE), DataSize.of(32, KILOBYTE), 1, 4, DataSize.of(32, MEGABYTE), DataSize.of(128, MEGABYTE)),
+                new SourceBenchmarkSetup(8, totalDataSize, DataSize.of(8, MEGABYTE), DataSize.of(32, KILOBYTE), 1, 1, DataSize.of(128, MEGABYTE), DataSize.of(512, MEGABYTE)),
+                new SourceBenchmarkSetup(8, totalDataSize, DataSize.of(8, MEGABYTE), DataSize.of(32, KILOBYTE), 8, 1, DataSize.of(128, MEGABYTE), DataSize.of(512, MEGABYTE)),
+                new SourceBenchmarkSetup(1, totalDataSize, DataSize.of(8, MEGABYTE), DataSize.of(32, KILOBYTE), 1, 4, DataSize.of(128, MEGABYTE), DataSize.of(512, MEGABYTE)),
+                new SourceBenchmarkSetup(1, totalDataSize, DataSize.of(8, MEGABYTE), DataSize.of(32, KILOBYTE), 1, 1, DataSize.of(128, MEGABYTE), DataSize.of(512, MEGABYTE)));
 
         Map<SourceBenchmarkSetup, Optional<SourceBenchmarkResult>> results = new LinkedHashMap<>();
         for (SourceBenchmarkSetup setup : setups) {

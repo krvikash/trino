@@ -93,7 +93,6 @@ public class SourceBenchmarkDriver
                     .put("exchange.buffer-discovery.uri", bufferService.getDiscoveryServer().getBaseUri().toString())
                     .put("exchange.source-blocked-memory-low", setup.sourceBlockedLow().toString())
                     .put("exchange.source-blocked-memory-high", setup.sourceBlockedHigh().toString())
-                    .put("exchange.encryption-enabled", String.valueOf(setup.encryptionEnabled()))
                     .put("exchange.source-parallelism", String.valueOf(setup.parallelism()))
                     .buildOrThrow();
             ExchangeManager exchangeManager = BufferExchangeManagerFactory.forRealBufferService().create(config);

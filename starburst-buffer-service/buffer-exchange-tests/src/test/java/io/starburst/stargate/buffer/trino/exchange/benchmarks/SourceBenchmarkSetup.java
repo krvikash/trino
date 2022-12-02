@@ -19,5 +19,4 @@ public record SourceBenchmarkSetup(
         int chunksPerSourceHandle,
         int parallelism,
         DataSize sourceBlockedLow,
-        DataSize sourceBlockedHigh,
-        boolean encryptionEnabled) {}
+        DataSize sourceBlockedHigh) {}
