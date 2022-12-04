@@ -35,7 +35,6 @@ import javax.annotation.concurrent.NotThreadSafe;
 
 import java.util.ArrayDeque;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -466,8 +465,8 @@ public class BufferExchangeSource
         private final SourceChunk sourceChunk;
         private final AtomicBoolean closed = new AtomicBoolean();
         private final AtomicReference<ListenableFuture<List<DataPage>>> getChunkDataFutureReference = new AtomicReference<>();
-        private final Set<Long> excludedNodes = new HashSet<>();
-        private boolean finished;
+        private final Set<Long> excludedNodes = ConcurrentHashMap.newKeySet();
+        private final AtomicBoolean finished = new AtomicBoolean();
 
         public ChunkReader(SourceChunk sourceChunk)
         {
@@ -568,11 +567,10 @@ public class BufferExchangeSource
 
         private void finish()
         {
-            if (finished) {
+            if (!finished.compareAndSet(false, true)) {
                 // ignore another call; finish() maybe be called more than once in case we catch exception and final fallback is called from `catch` clause
                 return;
             }
-            finished = true;
             finishChunkReader(this);
         }
 
