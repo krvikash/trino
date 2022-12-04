@@ -551,7 +551,10 @@ public class BufferExchangeSource
                                 setFailed(new RuntimeException("chunk " + sourceChunk + " not found; reading from " + sourceBufferNodeId));
                                 finish();
                             }
-                            default -> setFailed(t);
+                            default -> {
+                                setFailed(t);
+                                finish();
+                            }
                         }
                     }
                     catch (Throwable otherFailure) {
