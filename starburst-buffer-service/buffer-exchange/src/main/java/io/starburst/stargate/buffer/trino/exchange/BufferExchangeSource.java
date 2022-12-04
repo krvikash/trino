@@ -535,8 +535,8 @@ public class BufferExchangeSource
                     try {
                         getChunkDataFutureReference.set(null);
                         if (!(t instanceof DataApiException dataApiException)) {
-                            finish();
                             setFailed(t);
+                            finish();
                             return;
                         }
 
