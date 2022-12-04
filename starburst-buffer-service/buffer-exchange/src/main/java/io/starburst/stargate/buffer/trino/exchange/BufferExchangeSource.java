@@ -123,8 +123,14 @@ public class BufferExchangeSource
                 return;
             }
             if (!memoryUsageExceeded.isDone()) {
-                // no need to wrap `this::doScheduleReadChunks` in `try...catch` as we are using directExecutor; exception will be propagated outside
-                memoryUsageExceeded.addListener(this::scheduleReadChunks, directExecutor());
+                memoryUsageExceeded.addListener(() -> {
+                    try {
+                        scheduleReadChunks();
+                    }
+                    catch (Exception e) {
+                        setFailed(e);
+                    }
+                }, directExecutor());
                 return;
             }
             newChunkReaders = doScheduleReadChunks();
