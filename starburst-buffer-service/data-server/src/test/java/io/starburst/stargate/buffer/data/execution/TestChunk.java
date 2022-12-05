@@ -41,6 +41,7 @@ public class TestChunk
         MemoryAllocator memoryAllocator = new MemoryAllocator(new MemoryAllocatorConfig(), new DataServerStats());
         Chunk chunk = new Chunk(
                 0L,
+                "exchange-id",
                 0,
                 0,
                 memoryAllocator,

@@ -245,6 +245,7 @@ public class Partition
         long chunkId = chunkIdGenerator.getNextChunkId();
         return new Chunk(
                 bufferNodeId,
+                exchangeId,
                 partitionId,
                 chunkId,
                 memoryAllocator,

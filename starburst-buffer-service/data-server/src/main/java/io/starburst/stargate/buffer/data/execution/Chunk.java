@@ -41,6 +41,7 @@ import static java.util.Objects.requireNonNull;
 public class Chunk
 {
     private final long bufferNodeId;
+    private final String exchangeId;
     private final int partitionId;
     private final long chunkId;
 
@@ -51,6 +52,7 @@ public class Chunk
 
     public Chunk(
             long bufferNodeId,
+            String exchangeId,
             int partitionId,
             long chunkId,
             MemoryAllocator memoryAllocator,
@@ -60,6 +62,7 @@ public class Chunk
             boolean calculateDataPagesChecksum)
     {
         this.bufferNodeId = bufferNodeId;
+        this.exchangeId = requireNonNull(exchangeId, "exchangeId is null");
         this.partitionId = partitionId;
         this.chunkId = chunkId;
         this.chunkData = new ChunkData(
@@ -68,6 +71,11 @@ public class Chunk
                 chunkMaxSizeInBytes,
                 chunkSliceSizeInBytes,
                 calculateDataPagesChecksum);
+    }
+
+    public String getExchangeId()
+    {
+        return exchangeId;
     }
 
     public long getChunkId()
