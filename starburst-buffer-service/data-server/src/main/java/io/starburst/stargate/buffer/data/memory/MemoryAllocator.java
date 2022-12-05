@@ -90,14 +90,19 @@ public class MemoryAllocator
         return maxBytes - allocatedBytes;
     }
 
-    public synchronized boolean aboveHighWatermark()
+    public synchronized boolean belowHighWatermark()
     {
-        return allocatedBytes > highWatermark;
+        return allocatedBytes < highWatermark;
     }
 
-    public synchronized boolean belowLowWatermark()
+    public synchronized boolean aboveLowWatermark()
     {
-        return allocatedBytes < lowWatermark;
+        return allocatedBytes > lowWatermark;
+    }
+
+    public synchronized long getRequiredMemoryToRelease()
+    {
+        return Math.max(0, allocatedBytes - lowWatermark);
     }
 
     @GuardedBy("this")

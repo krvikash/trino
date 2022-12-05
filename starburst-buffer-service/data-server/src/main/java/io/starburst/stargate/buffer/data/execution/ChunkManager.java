@@ -13,7 +13,9 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Ticker;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.ImmutableList;
 import com.google.common.io.Closer;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
@@ -41,13 +43,16 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.function.Predicate;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
+import static io.airlift.concurrent.AsyncSemaphore.processAll;
+import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.EXCHANGE_NOT_FOUND;
 import static java.lang.Math.toIntExact;
@@ -190,7 +195,6 @@ public class ChunkManager
                     chunkMaxSizeInBytes,
                     chunkSliceSizeInBytes,
                     calculateDataPagesChecksum,
-                    chunkSpoolConcurrency,
                     chunkIdGenerator,
                     executor,
                     tickerReadMillis());
@@ -271,33 +275,94 @@ public class ChunkManager
     @VisibleForTesting
     void spoolIfNecessary()
     {
-        if (memoryAllocator.aboveHighWatermark()) {
-            LOG.info("Memory allocation ratio %.2f%%, starting to spool closed chunks",
-                    memoryAllocator.getAllocationPercentage());
-            Predicate<MemoryAllocator> stopCriteria = MemoryAllocator::belowLowWatermark;
+        if (memoryAllocator.belowHighWatermark()) {
+            return;
+        }
+
+        do {
             List<Exchange> exchangesSortedBySizeDesc = exchanges.values().stream()
                     .sorted(Comparator.comparingInt(Exchange::getClosedChunksCount).reversed())
                     .collect(toImmutableList());
+            long requiredMemory = memoryAllocator.getRequiredMemoryToRelease();
+            long nominatedMemory = 0L;
+            ImmutableList.Builder<Chunk> chunks = ImmutableList.builder();
             for (Exchange exchange : exchangesSortedBySizeDesc) {
-                exchange.spool(stopCriteria);
-                if (stopCriteria.test(memoryAllocator)) {
-                    return;
+                for (Partition partition : exchange.getPartitionsSortedBySizeDesc()) {
+                    for (Chunk chunk : partition.getClosedChunks()) {
+                        int allocatedMemory = chunk.getAllocatedMemory();
+                        if (allocatedMemory > 0) {
+                            chunks.add(chunk);
+                        }
+                        nominatedMemory += allocatedMemory;
+                        if (nominatedMemory >= requiredMemory) {
+                            break;
+                        }
+                    }
+                    if (nominatedMemory >= requiredMemory) {
+                        break;
+                    }
+                }
+                if (nominatedMemory >= requiredMemory) {
+                    break;
                 }
             }
 
-            LOG.info("Having spooled all closed chunks, memory allocation ratio %.2f%%, starting to spool open chunks",
-                    memoryAllocator.getAllocationPercentage());
-            // To avoid deadlock, now we start to close and spool open chunks that are not pending
-            for (Exchange exchange : exchangesSortedBySizeDesc) {
-                exchange.closeOpenChunksAndSpool(stopCriteria);
-                if (stopCriteria.test(memoryAllocator)) {
+            List<Chunk> spoolCandidates = chunks.build();
+            if (spoolCandidates.isEmpty()) {
+                LOG.info("Memory allocation ratio %.2f%%, starting to close open chunks",
+                        memoryAllocator.getAllocationPercentage());
+
+                requiredMemory = memoryAllocator.getRequiredMemoryToRelease();
+                nominatedMemory = 0L;
+                for (Exchange exchange : exchangesSortedBySizeDesc) {
+                    for (Partition partition : exchange.getPartitionsSortedBySizeDesc()) {
+                        Optional<Chunk> candidate = partition.closeOpenChunkAndGet();
+                        if (candidate.isPresent()) {
+                            nominatedMemory += candidate.get().getAllocatedMemory();
+                        }
+                        if (nominatedMemory >= requiredMemory) {
+                            break;
+                        }
+                    }
+                    if (nominatedMemory >= requiredMemory) {
+                        break;
+                    }
+                }
+
+                if (nominatedMemory == 0) {
+                    // No more chunks can be spooled at this point.
+                    // It's possible for us to reach here, since we fulfill memory requests as soon as we release new
+                    // memory. It's totally fine as long as we don't deadlock.
                     return;
                 }
             }
+            else {
+                LOG.info("Memory allocation ratio %.2f%%, starting to spool closed chunks",
+                        memoryAllocator.getAllocationPercentage());
 
-            // It's still possible for us to reach here, as we fulfill memory requests as soon as we release new
-            // memory. It's totally fine as long as we don't deadlock.
-        }
+                // blocking call here to make sure:
+                // 1. No duplicate spooling
+                // 2. Wait for pending writes to make progress as we release memory as a result of chunk spooling
+                getFutureValue(processAll(
+                        spoolCandidates,
+                        chunk -> {
+                            ChunkDataHolder chunkDataHolder = chunk.getChunkData();
+                            if (chunkDataHolder == null) {
+                                // already released
+                                return immediateVoidFuture();
+                            }
+                            return Futures.transform(
+                                    spoolingStorage.writeChunk(bufferNodeId, chunk.getExchangeId(), chunk.getChunkId(), chunkDataHolder),
+                                    ignored -> {
+                                        chunk.release();
+                                        return null;
+                                    },
+                                    executor);
+                        },
+                        chunkSpoolConcurrency,
+                        executor));
+            }
+        } while (memoryAllocator.aboveLowWatermark());
     }
 
     private void reportStats()

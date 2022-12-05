@@ -36,7 +36,7 @@ import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
 import static java.util.Objects.requireNonNull;
 
-// Note on thread-safety: only release() and getChunkData() may be concurrently called after Chunk is closed
+// Note on thread-safety: only release(), getChunkData() and getAllocatedMemory() may be concurrently called after Chunk is closed
 @NotThreadSafe
 public class Chunk
 {
@@ -49,6 +49,7 @@ public class Chunk
     private int dataSizeInBytes;
     private boolean closed;
     private ChunkHandle chunkHandle;
+    private volatile boolean empty = true;
 
     public Chunk(
             long bufferNodeId,
@@ -86,6 +87,7 @@ public class Chunk
     public ListenableFuture<Void> write(int taskId, int attemptId, Slice data)
     {
         checkState(!closed, "write() called on a closed chunk");
+        empty = false;
         return chunkData.write(taskId, attemptId, data);
     }
 
@@ -112,6 +114,15 @@ public class Chunk
         return chunkData.get();
     }
 
+    public synchronized int getAllocatedMemory()
+    {
+        checkState(closed, "getAllocatedMemory() called on an open check");
+        if (chunkData == null) {
+            return 0;
+        }
+        return chunkData.getAllocatedMemory();
+    }
+
     public ChunkHandle getHandle()
     {
         checkState(closed, "getHandle() called on an open chunk");
@@ -127,6 +138,11 @@ public class Chunk
             chunkData.release();
             chunkData = null;
         }
+    }
+
+    public boolean isEmpty()
+    {
+        return empty;
     }
 
     public void close()
@@ -235,6 +251,11 @@ public class Chunk
                 checksum++;
             }
             return new ChunkDataHolder(completedSlices, checksum, numDataPages);
+        }
+
+        public synchronized int getAllocatedMemory()
+        {
+            return completedSlices.size() * chunkSliceSizeInBytes;
         }
 
         public synchronized void close()

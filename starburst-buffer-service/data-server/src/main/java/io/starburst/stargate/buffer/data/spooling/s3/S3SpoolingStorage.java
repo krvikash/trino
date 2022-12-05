@@ -57,6 +57,7 @@ import java.util.concurrent.ExecutorService;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
@@ -170,6 +171,10 @@ public class S3SpoolingStorage
     @Override
     public ListenableFuture<Void> writeChunk(long bufferNodeId, String exchangeId, long chunkId, ChunkDataHolder chunkDataHolder)
     {
+        if (chunkDataHolder == null) {
+            // chunk already released
+            return immediateVoidFuture();
+        }
         checkArgument(!chunkDataHolder.chunkSlices().isEmpty(), "unexpected empty chunk when spooling");
 
         String fileName = getFileName(exchangeId, chunkId, bufferNodeId);

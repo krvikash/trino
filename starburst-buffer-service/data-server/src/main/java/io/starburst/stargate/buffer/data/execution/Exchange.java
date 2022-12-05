@@ -23,6 +23,8 @@ import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -30,9 +32,9 @@ import java.util.OptionalLong;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Predicate;
 
 import static com.google.common.base.Verify.verify;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.concurrent.MoreFutures.addExceptionCallback;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.EXCHANGE_CORRUPTED;
@@ -49,7 +51,6 @@ public class Exchange
     private final SpoolingStorage spoolingStorage;
     private final int chunkMaxSizeInBytes;
     private final int chunkSliceSizeInBytes;
-    private final int chunkSpoolConcurrency;
     private final boolean calculateDataPagesChecksum;
     private final ChunkIdGenerator chunkIdGenerator;
     private final ExecutorService executor;
@@ -76,7 +77,6 @@ public class Exchange
             int chunkMaxSizeInBytes,
             int chunkSliceSizeInBytes,
             boolean calculateDataPagesChecksum,
-            int chunkSpoolConcurrency,
             ChunkIdGenerator chunkIdGenerator,
             ExecutorService executor,
             long currentTime)
@@ -88,7 +88,6 @@ public class Exchange
         this.chunkMaxSizeInBytes = chunkMaxSizeInBytes;
         this.chunkSliceSizeInBytes = chunkSliceSizeInBytes;
         this.calculateDataPagesChecksum = calculateDataPagesChecksum;
-        this.chunkSpoolConcurrency = chunkSpoolConcurrency;
         this.chunkIdGenerator = requireNonNull(chunkIdGenerator, "chunkIdGenerator is null");
         this.executor = requireNonNull(executor, "executor is null");
 
@@ -113,7 +112,6 @@ public class Exchange
                     chunkMaxSizeInBytes,
                     chunkSliceSizeInBytes,
                     calculateDataPagesChecksum,
-                    chunkSpoolConcurrency,
                     chunkIdGenerator,
                     executor));
         }
@@ -184,27 +182,6 @@ public class Exchange
         finished = true;
     }
 
-    public void spool(Predicate<MemoryAllocator> stopCriteria)
-    {
-        // TODO: consider gradually distribute over partitions
-        for (Partition partition : partitions.values()) {
-            partition.spool(stopCriteria);
-            if (stopCriteria.test(memoryAllocator)) {
-                return;
-            }
-        }
-    }
-
-    public void closeOpenChunksAndSpool(Predicate<MemoryAllocator> stopCriteria)
-    {
-        for (Partition partition : partitions.values()) {
-            partition.closeOpenChunkAndSpool();
-            if (stopCriteria.test(memoryAllocator)) {
-                return;
-            }
-        }
-    }
-
     public int getOpenChunksCount()
     {
         return (int) partitions.values().stream().filter(Partition::hasOpenChunk).count();
@@ -212,7 +189,7 @@ public class Exchange
 
     public int getClosedChunksCount()
     {
-        return partitions.values().stream().mapToInt(Partition::getClosedChunks).sum();
+        return partitions.values().stream().mapToInt(Partition::getClosedChunksCount).sum();
     }
 
     public synchronized void releaseChunks()
@@ -231,6 +208,13 @@ public class Exchange
     public void setLastUpdateTime(long lastUpdateTime)
     {
         this.lastUpdateTime = lastUpdateTime;
+    }
+
+    public Collection<Partition> getPartitionsSortedBySizeDesc()
+    {
+        return partitions.values().stream()
+                .sorted(Comparator.comparingInt(Partition::getClosedChunksCount).reversed())
+                .collect(toImmutableList());
     }
 
     private Optional<ChunkList> getCachedChunkList(long pagingId)

@@ -24,21 +24,19 @@ import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.util.ArrayDeque;
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.function.Predicate;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.util.concurrent.Futures.allAsList;
 import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
-import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static java.util.Objects.requireNonNull;
 
 @ThreadSafe
@@ -52,12 +50,10 @@ public class Partition
     private final int chunkMaxSizeInBytes;
     private final int chunkSliceSizeInBytes;
     private final boolean calculateDataPagesChecksum;
-    private final int chunkSpoolConcurrency;
     private final ChunkIdGenerator chunkIdGenerator;
     private final ExecutorService executor;
 
     private final Map<Long, Chunk> closedChunks = new ConcurrentHashMap<>();
-    private final Object spoolLock = new Object();
     @GuardedBy("this")
     private final Map<TaskAttemptId, Long> lastDataPagesIds = new HashMap<>();
     @GuardedBy("this")
@@ -80,7 +76,6 @@ public class Partition
             int chunkMaxSizeInBytes,
             int chunkSliceSizeInBytes,
             boolean calculateDataPagesChecksum,
-            int chunkSpoolConcurrency,
             ChunkIdGenerator chunkIdGenerator,
             ExecutorService executor)
     {
@@ -92,7 +87,6 @@ public class Partition
         this.chunkMaxSizeInBytes = chunkMaxSizeInBytes;
         this.chunkSliceSizeInBytes = chunkSliceSizeInBytes;
         this.calculateDataPagesChecksum = calculateDataPagesChecksum;
-        this.chunkSpoolConcurrency = chunkSpoolConcurrency;
         this.chunkIdGenerator = requireNonNull(chunkIdGenerator, "chunkIdGenerator is null");
         this.executor = requireNonNull(executor, "executor is null");
 
@@ -125,13 +119,14 @@ public class Partition
     public ChunkDataLease getChunkData(long chunkId, long bufferNodeId)
     {
         Chunk chunk = closedChunks.get(chunkId);
-        if (chunk == null || chunk.getChunkData() == null) {
+        ChunkDataHolder chunkDataHolder = (chunk == null ? null : chunk.getChunkData());
+        if (chunkDataHolder == null) {
             // chunk already spooled
             return spoolingStorage.readChunk(bufferNodeId, exchangeId, chunkId);
         }
         // TODO: memory account inaccuracy exists here: getChunkData and spooling can happen concurrently.
         // ChunkDataLease can hold a reference to ChunkData after spooling releases the chunk early.
-        return ChunkDataLease.immediate(chunk.getChunkData());
+        return ChunkDataLease.immediate(chunkDataHolder);
     }
 
     public synchronized void getNewlyClosedChunkHandles(ImmutableList.Builder<ChunkHandle> newlyClosedChunkHandles)
@@ -160,7 +155,7 @@ public class Partition
         return openChunk != null;
     }
 
-    public int getClosedChunks()
+    public int getClosedChunksCount()
     {
         return (int) closedChunks.values().stream().filter(chunk -> chunk.getChunkData() != null).count();
     }
@@ -177,63 +172,36 @@ public class Partition
         closedChunks.values().forEach(Chunk::release);
     }
 
-    // TODO: consider concurrent spooling on the exchange level to increase parallelism
-    public void spool(Predicate<MemoryAllocator> stopCriteria)
-    {
-        // at most one spool can be in progress
-        synchronized (spoolLock) {
-            Iterator<Map.Entry<Long, Chunk>> iterator = closedChunks.entrySet().iterator();
-            while (iterator.hasNext()) {
-                List<Chunk> chunks = new ArrayList<>();
-                ImmutableList.Builder<ListenableFuture<Void>> spoolFutures = ImmutableList.builder();
-                while (chunks.size() < chunkSpoolConcurrency && iterator.hasNext()) {
-                    Chunk chunk = iterator.next().getValue();
-                    ChunkDataHolder chunkData = chunk.getChunkData();
-                    if (chunkData == null) {
-                        // already spooled
-                        continue;
-                    }
-                    chunks.add(chunk);
-                    spoolFutures.add(spoolingStorage.writeChunk(bufferNodeId, exchangeId, chunk.getChunkId(), chunkData));
-                }
-
-                getFutureValue(allAsList(spoolFutures.build()));
-                chunks.forEach(Chunk::release);
-
-                if (stopCriteria.test(memoryAllocator)) {
-                    return;
-                }
-            }
-        }
-    }
-
-    public synchronized void closeOpenChunkAndSpool()
+    public synchronized Optional<Chunk> closeOpenChunkAndGet()
     {
         if (openChunk == null) {
             // partition already closed
-            return;
+            return Optional.empty();
         }
         if (!addDataPagesFutures.isEmpty()) {
             // we have pending writes, closing the open chunk will cause loss of data
-            return;
+            return Optional.empty();
+        }
+        if (openChunk.isEmpty()) {
+            return Optional.empty();
         }
 
         Chunk chunk = openChunk;
         closeChunk(chunk);
-        if (chunk.dataSizeInBytes() > 0) {
-            getFutureValue(spoolingStorage.writeChunk(bufferNodeId, exchangeId, chunk.getChunkId(), chunk.getChunkData()));
-        }
-        chunk.release();
-
         openChunk = createNewOpenChunk();
+
+        return Optional.of(chunk);
     }
 
     @GuardedBy("this")
     private void closeChunk(Chunk chunk)
     {
         chunk.close();
-        // ignore empty chunks
-        if (chunk.dataSizeInBytes() > 0) {
+        // ignored empty chunks
+        if (chunk.isEmpty()) {
+            chunk.release();
+        }
+        else {
             closedChunks.put(chunk.getChunkId(), chunk);
         }
     }
@@ -253,6 +221,11 @@ public class Partition
                 chunkMaxSizeInBytes,
                 chunkSliceSizeInBytes,
                 calculateDataPagesChecksum);
+    }
+
+    public Collection<Chunk> getClosedChunks()
+    {
+        return ImmutableList.copyOf(closedChunks.values());
     }
 
     private record TaskAttemptId(

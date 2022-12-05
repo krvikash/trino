@@ -103,6 +103,10 @@ public class LocalSpoolingStorage
     @Override
     public ListenableFuture<Void> writeChunk(long bufferNodeId, String exchangeId, long chunkId, ChunkDataHolder chunkDataHolder)
     {
+        if (chunkDataHolder == null) {
+            // chunk already released
+            return immediateVoidFuture();
+        }
         checkArgument(!chunkDataHolder.chunkSlices().isEmpty(), "unexpected empty chunk when spooling");
 
         File file = getFilePath(exchangeId, chunkId, bufferNodeId).toFile();
