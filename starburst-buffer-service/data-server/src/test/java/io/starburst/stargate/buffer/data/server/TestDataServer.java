@@ -195,7 +195,7 @@ public class TestDataServer
         assertThatThrownBy(() -> listClosedChunks(EXCHANGE_0, OptionalLong.of(Long.MAX_VALUE)))
                 .isInstanceOf(DataApiException.class).hasMessageContaining("Expected pagingId to equal next pagingId");
         assertThatThrownBy(() -> getChunkData(EXCHANGE_0, new ChunkHandle(BUFFER_NODE_ID, 0, 3L, 0)))
-                .isInstanceOf(DataApiException.class).hasMessage("No closed chunk found for exchange %s, chunk 3, bufferNodeId %d".formatted(EXCHANGE_0, BUFFER_NODE_ID));
+                .isInstanceOf(DataApiException.class).hasMessage("No closed chunk found for bufferNodeId %d, exchange %s, chunk 3".formatted(BUFFER_NODE_ID, EXCHANGE_0));
 
         finishExchange(EXCHANGE_0);
 

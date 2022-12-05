@@ -126,7 +126,7 @@ public class S3SpoolingStorage
     }
 
     @Override
-    public ChunkDataLease readChunk(String exchangeId, long chunkId, long bufferNodeId)
+    public ChunkDataLease readChunk(long bufferNodeId, String exchangeId, long chunkId)
     {
         String fileName = getFileName(exchangeId, chunkId, bufferNodeId);
         Map<Long, Integer> chunkIdToFileSizes = fileSizes.get(exchangeId);
@@ -144,7 +144,7 @@ public class S3SpoolingStorage
         }
         catch (NoSuchKeyException e) {
             throw new DataServerException(CHUNK_NOT_FOUND,
-                    "No closed chunk found for exchange %s, chunk %d, bufferNodeId %d".formatted(exchangeId, chunkId, bufferNodeId));
+                    "No closed chunk found for bufferNodeId %d, exchange %s, chunk %d".formatted(bufferNodeId, exchangeId, chunkId));
         }
 
         SliceLease sliceLease = new SliceLease(memoryAllocator, sliceLength);
@@ -168,7 +168,7 @@ public class S3SpoolingStorage
     }
 
     @Override
-    public ListenableFuture<Void> writeChunk(String exchangeId, long chunkId, long bufferNodeId, ChunkDataHolder chunkDataHolder)
+    public ListenableFuture<Void> writeChunk(long bufferNodeId, String exchangeId, long chunkId, ChunkDataHolder chunkDataHolder)
     {
         checkArgument(!chunkDataHolder.chunkSlices().isEmpty(), "unexpected empty chunk when spooling");
 

@@ -58,13 +58,13 @@ public abstract class AbstractTestSpoolingStorage
     @Test
     public void testHappyPath()
     {
-        getFutureValue(spoolingStorage.writeChunk(EXCHANGE_ID, CHUNK_ID_0, BUFFER_NODE_ID, new ChunkDataHolder(
+        getFutureValue(spoolingStorage.writeChunk(BUFFER_NODE_ID, EXCHANGE_ID, CHUNK_ID_0, new ChunkDataHolder(
                 ImmutableList.of(utf8Slice("test"), utf8Slice("Spooling"), utf8Slice("Storage")),
                 NO_CHECKSUM,
                 3)));
         // verify we can read a single chunk multiple times
         for (int i = 0; i < 2; ++i) {
-            ChunkDataLease chunkDataLease = spoolingStorage.readChunk(EXCHANGE_ID, CHUNK_ID_0, BUFFER_NODE_ID);
+            ChunkDataLease chunkDataLease = spoolingStorage.readChunk(BUFFER_NODE_ID, EXCHANGE_ID, CHUNK_ID_0);
             assertEquals(new ChunkDataHolder(
                     ImmutableList.of(utf8Slice("testSpoolingStorage")),
                     NO_CHECKSUM,
@@ -74,7 +74,7 @@ public abstract class AbstractTestSpoolingStorage
         getFutureValue(spoolingStorage.removeExchange(EXCHANGE_ID));
 
         // verify file is actually removed
-        assertThrows(RuntimeException.class, () -> spoolingStorage.readChunk(EXCHANGE_ID, CHUNK_ID_0, BUFFER_NODE_ID));
+        assertThrows(RuntimeException.class, () -> spoolingStorage.readChunk(BUFFER_NODE_ID, EXCHANGE_ID, CHUNK_ID_0));
     }
 
     @Test
@@ -82,11 +82,11 @@ public abstract class AbstractTestSpoolingStorage
     {
         String randomLongString1 = getRandomLargeString();
         String randomLongString2 = getRandomLargeString();
-        getFutureValue(spoolingStorage.writeChunk(EXCHANGE_ID, CHUNK_ID_0, BUFFER_NODE_ID, new ChunkDataHolder(
+        getFutureValue(spoolingStorage.writeChunk(BUFFER_NODE_ID, EXCHANGE_ID, CHUNK_ID_0, new ChunkDataHolder(
                 ImmutableList.of(utf8Slice(randomLongString1), utf8Slice(randomLongString2)),
                 NO_CHECKSUM,
                 2)));
-        ChunkDataLease chunkDataLease = spoolingStorage.readChunk(EXCHANGE_ID, CHUNK_ID_0, BUFFER_NODE_ID);
+        ChunkDataLease chunkDataLease = spoolingStorage.readChunk(BUFFER_NODE_ID, EXCHANGE_ID, CHUNK_ID_0);
         assertEquals(new ChunkDataHolder(
                 ImmutableList.of(utf8Slice(randomLongString1 + randomLongString2)),
                 NO_CHECKSUM,
@@ -94,11 +94,11 @@ public abstract class AbstractTestSpoolingStorage
         chunkDataLease.release();
 
         // overwriting with order reversed
-        getFutureValue(spoolingStorage.writeChunk(EXCHANGE_ID, CHUNK_ID_0, BUFFER_NODE_ID, new ChunkDataHolder(
+        getFutureValue(spoolingStorage.writeChunk(BUFFER_NODE_ID, EXCHANGE_ID, CHUNK_ID_0, new ChunkDataHolder(
                 ImmutableList.of(utf8Slice(randomLongString2), utf8Slice(randomLongString1)),
                 NO_CHECKSUM,
                 2)));
-        chunkDataLease = spoolingStorage.readChunk(EXCHANGE_ID, CHUNK_ID_0, BUFFER_NODE_ID);
+        chunkDataLease = spoolingStorage.readChunk(BUFFER_NODE_ID, EXCHANGE_ID, CHUNK_ID_0);
         assertEquals(new ChunkDataHolder(
                 ImmutableList.of(utf8Slice(randomLongString2 + randomLongString1)),
                 NO_CHECKSUM,
@@ -113,13 +113,13 @@ public abstract class AbstractTestSpoolingStorage
     {
         long numChunks = 32L;
         for (long chunkId = 0; chunkId < numChunks; ++chunkId) {
-            getFutureValue(spoolingStorage.writeChunk(EXCHANGE_ID, chunkId, BUFFER_NODE_ID, new ChunkDataHolder(
+            getFutureValue(spoolingStorage.writeChunk(BUFFER_NODE_ID, EXCHANGE_ID, chunkId, new ChunkDataHolder(
                     ImmutableList.of(utf8Slice(String.valueOf(chunkId))),
                     NO_CHECKSUM,
                     1)));
         }
         for (long chunkId = 0; chunkId < numChunks; ++chunkId) {
-            ChunkDataLease chunkDataLease = spoolingStorage.readChunk(EXCHANGE_ID, chunkId, BUFFER_NODE_ID);
+            ChunkDataLease chunkDataLease = spoolingStorage.readChunk(BUFFER_NODE_ID, EXCHANGE_ID, chunkId);
             assertEquals(new ChunkDataHolder(
                     ImmutableList.of(utf8Slice(String.valueOf(chunkId))),
                     NO_CHECKSUM,
@@ -134,9 +134,9 @@ public abstract class AbstractTestSpoolingStorage
         // verify spooling files are removed
         for (long chunkId = 0; chunkId < numChunks; ++chunkId) {
             long finalChunkId = chunkId;
-            assertThatThrownBy(() -> getFutureValue(spoolingStorage.readChunk(EXCHANGE_ID, finalChunkId, BUFFER_NODE_ID).getChunkDataHolderFuture()))
+            assertThatThrownBy(() -> getFutureValue(spoolingStorage.readChunk(BUFFER_NODE_ID, EXCHANGE_ID, finalChunkId).getChunkDataHolderFuture()))
                     .isInstanceOf(DataServerException.class)
-                    .hasMessage("No closed chunk found for exchange %s, chunk %d, bufferNodeId %d".formatted(EXCHANGE_ID, chunkId, BUFFER_NODE_ID));
+                    .hasMessage("No closed chunk found for bufferNodeId %d, exchange %s, chunk %d".formatted(BUFFER_NODE_ID, EXCHANGE_ID, chunkId));
         }
     }
 

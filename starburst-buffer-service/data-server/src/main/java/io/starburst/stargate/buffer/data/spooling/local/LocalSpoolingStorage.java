@@ -74,11 +74,11 @@ public class LocalSpoolingStorage
     }
 
     @Override
-    public ChunkDataLease readChunk(String exchangeId, long chunkId, long bufferNodeId)
+    public ChunkDataLease readChunk(long bufferNodeId, String exchangeId, long chunkId)
     {
         File file = getFilePath(exchangeId, chunkId, bufferNodeId).toFile();
         if (!file.exists()) {
-            throw new DataServerException(CHUNK_NOT_FOUND, "No closed chunk found for exchange %s, chunk %d, bufferNodeId %d".formatted(exchangeId, chunkId, bufferNodeId));
+            throw new DataServerException(CHUNK_NOT_FOUND, "No closed chunk found for bufferNodeId %d, exchange %s, chunk %d".formatted(bufferNodeId, exchangeId, chunkId));
         }
         int fileLength = toIntExact(file.length());
         verify(fileLength > CHUNK_FILE_HEADER_SIZE,
@@ -101,7 +101,7 @@ public class LocalSpoolingStorage
     }
 
     @Override
-    public ListenableFuture<Void> writeChunk(String exchangeId, long chunkId, long bufferNodeId, ChunkDataHolder chunkDataHolder)
+    public ListenableFuture<Void> writeChunk(long bufferNodeId, String exchangeId, long chunkId, ChunkDataHolder chunkDataHolder)
     {
         checkArgument(!chunkDataHolder.chunkSlices().isEmpty(), "unexpected empty chunk when spooling");
 

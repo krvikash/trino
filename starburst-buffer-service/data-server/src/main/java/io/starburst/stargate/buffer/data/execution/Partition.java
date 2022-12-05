@@ -127,7 +127,7 @@ public class Partition
         Chunk chunk = closedChunks.get(chunkId);
         if (chunk == null || chunk.getChunkData() == null) {
             // chunk already spooled
-            return spoolingStorage.readChunk(exchangeId, chunkId, bufferNodeId);
+            return spoolingStorage.readChunk(bufferNodeId, exchangeId, chunkId);
         }
         // TODO: memory account inaccuracy exists here: getChunkData and spooling can happen concurrently.
         // ChunkDataLease can hold a reference to ChunkData after spooling releases the chunk early.
@@ -194,7 +194,7 @@ public class Partition
                         continue;
                     }
                     chunks.add(chunk);
-                    spoolFutures.add(spoolingStorage.writeChunk(exchangeId, chunk.getChunkId(), bufferNodeId, chunkData));
+                    spoolFutures.add(spoolingStorage.writeChunk(bufferNodeId, exchangeId, chunk.getChunkId(), chunkData));
                 }
 
                 getFutureValue(allAsList(spoolFutures.build()));
@@ -221,7 +221,7 @@ public class Partition
         Chunk chunk = openChunk;
         closeChunk(chunk);
         if (chunk.dataSizeInBytes() > 0) {
-            getFutureValue(spoolingStorage.writeChunk(exchangeId, chunk.getChunkId(), bufferNodeId, chunk.getChunkData()));
+            getFutureValue(spoolingStorage.writeChunk(bufferNodeId, exchangeId, chunk.getChunkId(), chunk.getChunkData()));
         }
         chunk.release();
 

@@ -15,9 +15,9 @@ import io.starburst.stargate.buffer.data.execution.ChunkDataHolder;
 public interface SpoolingStorage
         extends AutoCloseable
 {
-    ChunkDataLease readChunk(String exchangeId, long chunkId, long bufferNodeId);
+    ChunkDataLease readChunk(long bufferNodeId, String exchangeId, long chunkId);
 
-    ListenableFuture<Void> writeChunk(String exchangeId, long chunkId, long bufferNodeId, ChunkDataHolder chunkDataHolder);
+    ListenableFuture<Void> writeChunk(long bufferNodeId, String exchangeId, long chunkId, ChunkDataHolder chunkDataHolder);
 
     ListenableFuture<Void> removeExchange(String exchangeId);
 
