@@ -142,6 +142,7 @@ public class ChunkManager
         Closer closer = Closer.create();
         closer.register(cleanupExecutor::shutdownNow);
         closer.register(statsReportingExecutor::shutdownNow);
+        closer.register(chunkSpoolExecutor::shutdownNow);
         try {
             closer.close();
         }
