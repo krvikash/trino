@@ -219,16 +219,26 @@ public class DataResource
     @Path("{exchangeId}/register")
     public Response registerExchange(@PathParam("exchangeId") String exchangeId)
     {
-        chunkManager.registerExchange(exchangeId);
-        return Response.ok().build();
+        try {
+            chunkManager.registerExchange(exchangeId);
+            return Response.ok().build();
+        }
+        catch (RuntimeException e) {
+            return errorResponse(e);
+        }
     }
 
     @GET
     @Path("{exchangeId}/ping")
     public Response pingExchange(@PathParam("exchangeId") String exchangeId)
     {
-        chunkManager.pingExchange(exchangeId);
-        return Response.ok().build();
+        try {
+            chunkManager.pingExchange(exchangeId);
+            return Response.ok().build();
+        }
+        catch (RuntimeException e) {
+            return errorResponse(e);
+        }
     }
 
     @GET
@@ -248,8 +258,13 @@ public class DataResource
     @Path("{exchangeId}")
     public Response removeExchange(@PathParam("exchangeId") String exchangeId)
     {
-        chunkManager.removeExchange(exchangeId);
-        return Response.ok().build();
+        try {
+            chunkManager.removeExchange(exchangeId);
+            return Response.ok().build();
+        }
+        catch (RuntimeException e) {
+            return errorResponse(e);
+        }
     }
 
     private static Response errorResponse(Exception e)
