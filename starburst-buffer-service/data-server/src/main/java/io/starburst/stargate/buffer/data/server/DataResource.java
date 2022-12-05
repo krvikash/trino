@@ -110,7 +110,7 @@ public class DataResource
             ChunkList chunkList = chunkManager.listClosedChunks(exchangeId, pagingId == null ? OptionalLong.empty() : OptionalLong.of(pagingId));
             return Response.ok().entity(chunkList).build();
         }
-        catch (Exception e) {
+        catch (RuntimeException e) {
             return errorResponse(e);
         }
     }
@@ -210,7 +210,7 @@ public class DataResource
                 chunkDataLease.release();
             });
         }
-        catch (Exception e) {
+        catch (RuntimeException e) {
             asyncResponse.resume(errorResponse(e));
         }
     }
@@ -237,11 +237,11 @@ public class DataResource
     {
         try {
             chunkManager.finishExchange(exchangeId);
+            return Response.ok().build();
         }
-        catch (Exception e) {
+        catch (RuntimeException e) {
             return errorResponse(e);
         }
-        return Response.ok().build();
     }
 
     @DELETE
