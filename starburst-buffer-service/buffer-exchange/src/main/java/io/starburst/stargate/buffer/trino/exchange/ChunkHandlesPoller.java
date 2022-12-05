@@ -15,6 +15,8 @@ import com.google.common.util.concurrent.SettableFuture;
 import io.airlift.log.Logger;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.ChunkList;
+import io.starburst.stargate.buffer.data.client.DataApiException;
+import io.starburst.stargate.buffer.data.client.ErrorCode;
 
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -123,6 +125,12 @@ class ChunkHandlesPoller
                     @Override
                     public void onFailure(Throwable failure)
                     {
+                        if (failure instanceof DataApiException dataApiException) {
+                            if (dataApiException.getErrorCode() == ErrorCode.EXCHANGE_NOT_FOUND) {
+                                // ignore
+                                return;
+                            }
+                        }
                         callback.onFailure(failure);
                     }
                 }, executorService);
