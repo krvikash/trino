@@ -217,6 +217,7 @@ public class Exchange
                 .collect(toImmutableList());
     }
 
+    @GuardedBy("this")
     private Optional<ChunkList> getCachedChunkList(long pagingId)
     {
         // is this the first request
