@@ -7,7 +7,7 @@
  *
  * Redistribution of this material is strictly prohibited.
  */
-package io.starburst.stargate.buffer.discovery.client;
+package io.starburst.stargate.buffer;
 
 import java.net.URI;
 import java.util.Optional;

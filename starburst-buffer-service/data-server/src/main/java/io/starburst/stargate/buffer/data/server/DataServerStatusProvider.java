@@ -15,8 +15,8 @@ import javax.inject.Inject;
 
 import java.util.Optional;
 
-import static io.starburst.stargate.buffer.discovery.client.BufferNodeState.STARTED;
-import static io.starburst.stargate.buffer.discovery.client.BufferNodeState.STARTING;
+import static io.starburst.stargate.buffer.BufferNodeState.STARTED;
+import static io.starburst.stargate.buffer.BufferNodeState.STARTING;
 import static java.util.Objects.requireNonNull;
 
 public class DataServerStatusProvider

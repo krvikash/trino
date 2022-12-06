@@ -11,10 +11,10 @@ package io.starburst.stargate.buffer.trino.exchange;
 
 import io.airlift.http.client.HttpClient;
 import io.airlift.units.Duration;
+import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.data.client.DataApi;
 import io.starburst.stargate.buffer.data.client.HttpDataClient;
 import io.starburst.stargate.buffer.data.client.RetryingDataApi;
-import io.starburst.stargate.buffer.discovery.client.BufferNodeInfo;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 
 import javax.inject.Inject;

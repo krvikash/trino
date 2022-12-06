@@ -10,9 +10,9 @@
 package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.collect.ImmutableMap;
-import io.starburst.stargate.buffer.discovery.client.BufferNodeInfo;
-import io.starburst.stargate.buffer.discovery.client.BufferNodeState;
-import io.starburst.stargate.buffer.discovery.client.BufferNodeStats;
+import io.starburst.stargate.buffer.BufferNodeInfo;
+import io.starburst.stargate.buffer.BufferNodeState;
+import io.starburst.stargate.buffer.BufferNodeStats;
 
 import javax.annotation.concurrent.GuardedBy;
 

@@ -16,6 +16,7 @@ import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.Request;
 import io.airlift.http.client.StringResponseHandler.StringResponse;
 import io.airlift.json.JsonCodec;
+import io.starburst.stargate.buffer.BufferNodeInfo;
 
 import java.net.URI;
 

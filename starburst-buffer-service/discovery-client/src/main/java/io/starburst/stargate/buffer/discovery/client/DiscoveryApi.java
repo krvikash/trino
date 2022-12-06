@@ -10,6 +10,8 @@
 
 package io.starburst.stargate.buffer.discovery.client;
 
+import io.starburst.stargate.buffer.BufferNodeInfo;
+
 public interface DiscoveryApi
 {
     void updateBufferNode(BufferNodeInfo bufferNodeInfo);

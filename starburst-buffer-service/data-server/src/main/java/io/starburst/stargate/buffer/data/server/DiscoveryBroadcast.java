@@ -24,8 +24,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.common.base.Preconditions.checkState;
-import static io.starburst.stargate.buffer.discovery.client.BufferNodeState.ACTIVE;
-import static io.starburst.stargate.buffer.discovery.client.BufferNodeState.STARTING;
+import static io.starburst.stargate.buffer.BufferNodeState.ACTIVE;
+import static io.starburst.stargate.buffer.BufferNodeState.STARTING;
 import static java.util.Objects.isNull;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;

@@ -15,7 +15,7 @@ import com.google.common.base.Ticker;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
-import io.starburst.stargate.buffer.discovery.client.BufferNodeInfo;
+import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.discovery.client.InvalidBufferNodeUpdateException;
 
 import javax.annotation.PostConstruct;

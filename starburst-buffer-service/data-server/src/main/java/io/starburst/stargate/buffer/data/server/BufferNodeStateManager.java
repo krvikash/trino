@@ -9,7 +9,7 @@
  */
 package io.starburst.stargate.buffer.data.server;
 
-import io.starburst.stargate.buffer.discovery.client.BufferNodeState;
+import io.starburst.stargate.buffer.BufferNodeState;
 
 import java.util.concurrent.atomic.AtomicReference;
 

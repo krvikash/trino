@@ -13,7 +13,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.SettableFuture;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
-import io.starburst.stargate.buffer.discovery.client.BufferNodeInfo;
+import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.discovery.client.BufferNodeInfoResponse;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 

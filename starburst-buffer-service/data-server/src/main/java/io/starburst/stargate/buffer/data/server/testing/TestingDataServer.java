@@ -38,8 +38,8 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 
-import static io.starburst.stargate.buffer.discovery.client.BufferNodeState.ACTIVE;
-import static io.starburst.stargate.buffer.discovery.client.BufferNodeState.STARTED;
+import static io.starburst.stargate.buffer.BufferNodeState.ACTIVE;
+import static io.starburst.stargate.buffer.BufferNodeState.STARTED;
 import static java.util.Objects.requireNonNull;
 
 public class TestingDataServer

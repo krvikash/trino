@@ -9,6 +9,8 @@
  */
 package io.starburst.stargate.buffer.discovery.client;
 
+import io.starburst.stargate.buffer.BufferNodeInfo;
+
 import java.util.Set;
 
 import static java.util.Objects.requireNonNull;

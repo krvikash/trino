@@ -10,8 +10,8 @@
 package io.starburst.stargate.buffer.testing;
 
 import com.google.common.collect.ImmutableSet;
+import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.data.client.DataApi;
-import io.starburst.stargate.buffer.discovery.client.BufferNodeInfo;
 import io.starburst.stargate.buffer.discovery.client.BufferNodeInfoResponse;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 

@@ -9,8 +9,8 @@
  */
 package io.starburst.stargate.buffer.trino.exchange;
 
+import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.data.client.DataApi;
-import io.starburst.stargate.buffer.discovery.client.BufferNodeInfo;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 
 public interface ApiFactory

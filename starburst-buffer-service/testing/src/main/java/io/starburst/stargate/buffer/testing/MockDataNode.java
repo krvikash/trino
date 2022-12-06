@@ -14,15 +14,15 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ListMultimap;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.slice.Slice;
+import io.starburst.stargate.buffer.BufferNodeInfo;
+import io.starburst.stargate.buffer.BufferNodeState;
+import io.starburst.stargate.buffer.BufferNodeStats;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataApi;
 import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
-import io.starburst.stargate.buffer.discovery.client.BufferNodeInfo;
-import io.starburst.stargate.buffer.discovery.client.BufferNodeState;
-import io.starburst.stargate.buffer.discovery.client.BufferNodeStats;
 
 import javax.annotation.concurrent.GuardedBy;
 

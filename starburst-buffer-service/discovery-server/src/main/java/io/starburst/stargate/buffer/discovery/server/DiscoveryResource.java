@@ -9,7 +9,7 @@
  */
 package io.starburst.stargate.buffer.discovery.server;
 
-import io.starburst.stargate.buffer.discovery.client.BufferNodeInfo;
+import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.discovery.client.BufferNodeInfoResponse;
 import io.starburst.stargate.buffer.discovery.client.InvalidBufferNodeUpdateException;
 

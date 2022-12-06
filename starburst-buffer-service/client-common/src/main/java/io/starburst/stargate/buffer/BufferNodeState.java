@@ -8,7 +8,7 @@
  * Redistribution of this material is strictly prohibited.
  */
 
-package io.starburst.stargate.buffer.discovery.client;
+package io.starburst.stargate.buffer;
 
 import com.google.common.collect.ImmutableSet;
 

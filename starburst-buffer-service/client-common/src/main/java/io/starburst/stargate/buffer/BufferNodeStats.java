@@ -7,7 +7,7 @@
  *
  * Redistribution of this material is strictly prohibited.
  */
-package io.starburst.stargate.buffer.discovery.client;
+package io.starburst.stargate.buffer;
 
 public record BufferNodeStats(
         long totalMemory,

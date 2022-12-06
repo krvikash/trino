@@ -24,7 +24,7 @@ import io.airlift.tracetoken.TraceTokenModule;
 import io.starburst.stargate.buffer.status.StatusModule;
 import org.weakref.jmx.guice.MBeanModule;
 
-import static io.starburst.stargate.buffer.discovery.client.BufferNodeState.STARTED;
+import static io.starburst.stargate.buffer.BufferNodeState.STARTED;
 
 public final class DataServer
 {
