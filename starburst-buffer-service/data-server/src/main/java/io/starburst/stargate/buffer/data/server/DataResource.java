@@ -27,6 +27,7 @@ import io.starburst.stargate.buffer.data.execution.ChunkManager;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.SliceLease;
 import io.starburst.stargate.buffer.data.spooling.ChunkDataLease;
+import io.starburst.stargate.buffer.discovery.client.BufferNodeInfo;
 
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
@@ -75,6 +76,7 @@ public class DataResource
     private final DistributionStat writtenDataSizePerPartitionDistribution;
     private final CounterStat readDataSize;
     private final DistributionStat readDataSizeDistribution;
+    private final BufferNodeInfoService bufferNodeInfoService;
 
     @Inject
     public DataResource(
@@ -82,21 +84,30 @@ public class DataResource
             MemoryAllocator memoryAllocator,
             DataServerConfig config,
             @ForAsyncHttp BoundedExecutor responseExecutor,
-            DataServerStats dataServerStats,
             DataServerStats stats,
-            ExecutorService executor)
+            ExecutorService executor,
+            BufferNodeInfoService bufferNodeInfoService)
     {
         this.chunkManager = requireNonNull(chunkManager, "chunkManager is null");
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.dropUploadedPages = config.isTestingDropUploadedPages();
         this.responseExecutor = requireNonNull(responseExecutor, "responseExecutor is null");
         this.executor = requireNonNull(executor, "executor is null");
+        this.bufferNodeInfoService = requireNonNull(bufferNodeInfoService, "bufferNodeInfoService is null");
 
         writtenDataSize = stats.getWrittenDataSize();
         writtenDataSizeDistribution = stats.getWrittenDataSizeDistribution();
         writtenDataSizePerPartitionDistribution = stats.getWrittenDataSizePerPartitionDistribution();
         readDataSize = stats.getReadDataSize();
         readDataSizeDistribution = stats.getReadDataSizeDistribution();
+    }
+
+    @GET
+    @Path("/info")
+    @Produces(MediaType.APPLICATION_JSON)
+    public BufferNodeInfo getInfo()
+    {
+        return bufferNodeInfoService.getNodeInfo();
     }
 
     @GET

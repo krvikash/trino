@@ -16,6 +16,8 @@ import io.airlift.http.client.HttpClientConfig;
 import io.airlift.http.client.jetty.JettyHttpClient;
 import io.airlift.slice.Slice;
 import io.airlift.units.DataSize;
+import io.starburst.stargate.buffer.BufferNodeInfo;
+import io.starburst.stargate.buffer.BufferNodeStats;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataApiException;
@@ -35,6 +37,7 @@ import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.airlift.testing.Closeables.closeAll;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
+import static io.starburst.stargate.buffer.BufferNodeState.ACTIVE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -71,6 +74,15 @@ public class TestDataServer
     }
 
     @Test
+    public void testBufferNodeInfo()
+    {
+        BufferNodeInfo bufferNodeInfo = dataClient.getInfo();
+        assertThat(bufferNodeInfo.nodeId()).isEqualTo(0);
+        assertThat(bufferNodeInfo.state()).isEqualTo(ACTIVE);
+        assertThat(bufferNodeInfo.stats()).isNotEmpty();
+    }
+
+    @Test
     public void testHappyPath()
     {
         Slice largePage1 = utf8Slice("1".repeat((int) DataSize.of(10, MEGABYTE).toBytes()));
@@ -79,8 +91,12 @@ public class TestDataServer
         addDataPage(EXCHANGE_0, 0, 0, 0, 0L, utf8Slice("trino"));
         addDataPage(EXCHANGE_0, 0, 1, 0, 1L, utf8Slice("buffer"));
 
+        assertNodeStats(1, 1, 0, 0);
+
         registerExchange(EXCHANGE_0);
         registerExchange(EXCHANGE_1);
+
+        assertNodeStats(2, 1, 0, 0);
 
         addDataPage(EXCHANGE_0, 1, 0, 1, 2L, utf8Slice("service"));
         addDataPage(EXCHANGE_1, 0, 0, 0, 0L, utf8Slice("tardigrade"));
@@ -90,6 +106,8 @@ public class TestDataServer
         pingExchange(EXCHANGE_0);
         pingExchange(EXCHANGE_1);
 
+        assertNodeStats(2, 4, 0, 1);
+
         ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 11);
         ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 1, 1L, 7);
         ChunkHandle chunkHandle2 = new ChunkHandle(BUFFER_NODE_ID, 0, 2L, 10);
@@ -97,6 +115,7 @@ public class TestDataServer
         ChunkHandle chunkHandle4 = new ChunkHandle(BUFFER_NODE_ID, 1, 4L, (int) DataSize.of(10, MEGABYTE).toBytes());
 
         finishExchange(EXCHANGE_0);
+        assertNodeStats(2, 2, 0, 3);
 
         ChunkList chunkList0 = listClosedChunks(EXCHANGE_0, OptionalLong.empty());
         assertThat(chunkList0.chunks()).containsExactlyInAnyOrder(chunkHandle0, chunkHandle1);
@@ -107,6 +126,7 @@ public class TestDataServer
         assertEquals(1L, chunkList1.nextPagingId().getAsLong());
 
         finishExchange(EXCHANGE_1);
+        assertNodeStats(2, 0, 0, 5);
 
         chunkList1 = listClosedChunks(EXCHANGE_1, OptionalLong.of(1L));
         assertThat(chunkList1.chunks()).containsExactlyInAnyOrder(chunkHandle2, chunkHandle4);
@@ -126,6 +146,7 @@ public class TestDataServer
 
         removeExchange(EXCHANGE_0);
         removeExchange(EXCHANGE_1);
+        assertNodeStats(0, 0, 0, 0);
     }
 
     @Test
@@ -258,5 +279,14 @@ public class TestDataServer
             }
         }
         return fail();
+    }
+
+    private void assertNodeStats(long trackedExchanges, int openChunks, int spooledChunks, int closedChunks)
+    {
+        BufferNodeStats bufferNodeStats = dataClient.getInfo().stats().get();
+        assertThat(bufferNodeStats.trackedExchanges()).isEqualTo(trackedExchanges);
+        assertThat(bufferNodeStats.openChunks()).isEqualTo(openChunks);
+        assertThat(bufferNodeStats.spooledChunks()).isEqualTo(spooledChunks);
+        assertThat(bufferNodeStats.closedChunks()).isEqualTo(closedChunks);
     }
 }

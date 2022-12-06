@@ -82,6 +82,7 @@ public class MainModule
         jaxrsBinder(binder).bind(ChunkDataResponseWriter.class);
         binder.bind(MemoryAllocator.class).in(SINGLETON);
         binder.bind(BufferNodeId.class).toInstance(new BufferNodeId(bufferNodeId));
+        binder.bind(BufferNodeInfoService.class).in(SINGLETON);
         binder.bind(Ticker.class).annotatedWith(ForChunkManager.class).toInstance(ticker);
         binder.bind(ChunkManager.class).in(SINGLETON);
         binder.bind(DataServerStats.class).in(SINGLETON);
