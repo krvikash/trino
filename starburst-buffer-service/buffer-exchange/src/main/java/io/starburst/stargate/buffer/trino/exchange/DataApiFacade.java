@@ -115,7 +115,7 @@ public class DataApiFacade
     public ListenableFuture<List<DataPage>> getChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId, long chunkBufferNodeId)
     {
         try {
-            return getDataApi(bufferNodeId).getChunkData(exchangeId, partitionId, chunkId, chunkBufferNodeId);
+            return getDataApi(bufferNodeId).getChunkData(chunkBufferNodeId, exchangeId, partitionId, chunkId);
         }
         catch (Throwable e) {
             // wrap exception in the future

@@ -222,17 +222,17 @@ public class HttpDataClient
     }
 
     @Override
-    public ListenableFuture<List<DataPage>> getChunkData(String exchangeId, int partitionId, long chunkId, long bufferNodeId)
+    public ListenableFuture<List<DataPage>> getChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId)
     {
         requireNonNull(exchangeId, "exchangeId is null");
 
         Request request = prepareGet()
                 .setUri(uriBuilderFrom(baseUri)
-                        .appendPath("%s/pages/%d/%d/%d".formatted(exchangeId, partitionId, chunkId, bufferNodeId))
+                        .appendPath("%d/%s/pages/%d/%d".formatted(bufferNodeId, exchangeId, partitionId, chunkId))
                         .build())
                 .build();
 
-        HttpResponseFuture<ChunkDataResponse> responseFuture = httpClient.executeAsync(request, new ChunkDataResponseHandler(() -> "[%s/%s/%s/%s]".formatted(exchangeId, bufferNodeId, partitionId, chunkId), dataIntegrityVerificationEnabled));
+        HttpResponseFuture<ChunkDataResponse> responseFuture = httpClient.executeAsync(request, new ChunkDataResponseHandler(() -> "[%s/%s/%s/%s]".formatted(bufferNodeId, exchangeId, partitionId, chunkId), dataIntegrityVerificationEnabled));
         return transform(responseFuture, ChunkDataResponse::getPages, directExecutor());
     }
 

@@ -197,17 +197,17 @@ public class DataResource
     }
 
     @GET
-    @Path("{exchangeId}/pages/{partitionId}/{chunkId}/{bufferNodeId}")
+    @Path("{bufferNodeId}/{exchangeId}/pages/{partitionId}/{chunkId}")
     @Produces(TRINO_CHUNK_DATA)
     public void getChunkData(
+            @PathParam("bufferNodeId") long bufferNodeId,
             @PathParam("exchangeId") String exchangeId,
             @PathParam("partitionId") int partitionId,
             @PathParam("chunkId") long chunkId,
-            @PathParam("bufferNodeId") long bufferNodeId,
             @Suspended AsyncResponse asyncResponse)
     {
         try {
-            ChunkDataLease chunkDataLease = chunkManager.getChunkData(exchangeId, partitionId, chunkId, bufferNodeId);
+            ChunkDataLease chunkDataLease = chunkManager.getChunkData(bufferNodeId, exchangeId, partitionId, chunkId);
             ListenableFuture<ChunkDataHolder> chunkDataHolderFuture = chunkDataLease.getChunkDataHolderFuture();
             AtomicLong chunkSize = new AtomicLong();
             bindAsyncResponse(

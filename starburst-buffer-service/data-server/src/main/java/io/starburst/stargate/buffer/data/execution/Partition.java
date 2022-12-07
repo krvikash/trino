@@ -121,7 +121,7 @@ public class Partition
         return addDataPagesFuture;
     }
 
-    public ChunkDataLease getChunkData(long chunkId, long bufferNodeId)
+    public ChunkDataLease getChunkData(long bufferNodeId, long chunkId)
     {
         Chunk chunk = closedChunks.get(chunkId);
         ChunkDataHolder chunkDataHolder = (chunk == null ? null : chunk.getChunkData());

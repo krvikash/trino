@@ -128,15 +128,15 @@ public class TestChunkManager
         assertThat(chunkList1.chunks()).containsExactlyInAnyOrder(chunkHandle2);
         assertTrue(chunkList1.nextPagingId().isEmpty());
 
-        verifyChunkData(chunkManager.getChunkData(EXCHANGE_0, chunkHandle0.partitionId(), chunkHandle0.chunkId(), BUFFER_NODE_ID),
+        verifyChunkData(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle0.partitionId(), chunkHandle0.chunkId()),
                 new DataPage(0, 0, utf8Slice("000_0")),
                 new DataPage(1, 0, utf8Slice("001_0")));
-        verifyChunkData(chunkManager.getChunkData(EXCHANGE_0, chunkHandle1.partitionId(), chunkHandle1.chunkId(), BUFFER_NODE_ID),
+        verifyChunkData(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle1.partitionId(), chunkHandle1.chunkId()),
                 new DataPage(0, 0, utf8Slice("010_0")),
                 new DataPage(1, 0, utf8Slice("011_0")),
                 new DataPage(0, 1, utf8Slice("010_0")),
                 new DataPage(0, 1, utf8Slice("010_1")));
-        verifyChunkData(chunkManager.getChunkData(EXCHANGE_1, chunkHandle2.partitionId(), chunkHandle2.chunkId(), BUFFER_NODE_ID),
+        verifyChunkData(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_1, chunkHandle2.partitionId(), chunkHandle2.chunkId()),
                 new DataPage(0, 0, utf8Slice("100_0")));
 
         assertEquals(DataSize.of(384, KILOBYTE).toBytes(), memoryAllocator.getTotalMemory() - memoryAllocator.getFreeMemory());
@@ -194,15 +194,15 @@ public class TestChunkManager
         assertThat(chunkList1.chunks()).containsExactlyInAnyOrder(chunkHandle3);
         assertTrue(chunkList1.nextPagingId().isEmpty());
 
-        verifyChunkData(chunkManager.getChunkData(EXCHANGE_0, chunkHandle0.partitionId(), chunkHandle0.chunkId(), BUFFER_NODE_ID),
+        verifyChunkData(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle0.partitionId(), chunkHandle0.chunkId()),
                 new DataPage(0, 0, utf8Slice("000_0")));
-        verifyChunkData(chunkManager.getChunkData(EXCHANGE_0, chunkHandle1.partitionId(), chunkHandle1.chunkId(), BUFFER_NODE_ID),
+        verifyChunkData(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle1.partitionId(), chunkHandle1.chunkId()),
                 new DataPage(0, 0, utf8Slice("010_0")),
                 new DataPage(1, 0, utf8Slice("011_0")));
-        verifyChunkData(chunkManager.getChunkData(EXCHANGE_0, chunkHandle2.partitionId(), chunkHandle2.chunkId(), BUFFER_NODE_ID),
+        verifyChunkData(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle2.partitionId(), chunkHandle2.chunkId()),
                 new DataPage(0, 1, utf8Slice("010_0")),
                 new DataPage(0, 1, utf8Slice("010_1")));
-        verifyChunkData(chunkManager.getChunkData(EXCHANGE_1, chunkHandle3.partitionId(), chunkHandle3.chunkId(), BUFFER_NODE_ID),
+        verifyChunkData(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_1, chunkHandle3.partitionId(), chunkHandle3.chunkId()),
                 new DataPage(0, 0, utf8Slice("100_0")));
 
         assertEquals(DataSize.of(96, BYTE).toBytes(), memoryAllocator.getTotalMemory() - memoryAllocator.getFreeMemory());
@@ -274,11 +274,11 @@ public class TestChunkManager
         assertThat(chunkList0.chunks()).containsExactlyInAnyOrder(chunkHandle0, chunkHandle1, chunkHandle2);
         assertTrue(chunkList0.nextPagingId().isEmpty());
 
-        verifyChunkData(chunkManager.getChunkData(EXCHANGE_0, chunkHandle0.partitionId(), chunkHandle0.chunkId(), BUFFER_NODE_ID),
+        verifyChunkData(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle0.partitionId(), chunkHandle0.chunkId()),
                 new DataPage(0, 0, utf8Slice("chunk")), new DataPage(0, 0, utf8Slice("manager")));
-        verifyChunkData(chunkManager.getChunkData(EXCHANGE_0, chunkHandle1.partitionId(), chunkHandle1.chunkId(), BUFFER_NODE_ID),
+        verifyChunkData(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle1.partitionId(), chunkHandle1.chunkId()),
                 new DataPage(0, 0, utf8Slice("data")), new DataPage(0, 0, utf8Slice("page")));
-        verifyChunkData(chunkManager.getChunkData(EXCHANGE_0, chunkHandle2.partitionId(), chunkHandle2.chunkId(), BUFFER_NODE_ID),
+        verifyChunkData(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle2.partitionId(), chunkHandle2.chunkId()),
                 new DataPage(1, 0, utf8Slice("deduplication")));
 
         chunkManager.removeExchange(EXCHANGE_0);
@@ -298,7 +298,7 @@ public class TestChunkManager
         assertThatThrownBy(() -> chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty()))
                 .isInstanceOf(DataServerException.class)
                 .hasMessage("exchange %s not found".formatted(EXCHANGE_0));
-        assertThatThrownBy(() -> chunkManager.getChunkData(EXCHANGE_0, 1, 0, BUFFER_NODE_ID))
+        assertThatThrownBy(() -> chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, 1, 0))
                 .isInstanceOf(DataServerException.class)
                 .hasMessage("exchange %s not found".formatted(EXCHANGE_0));
 
@@ -372,13 +372,13 @@ public class TestChunkManager
         assertThat(chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty()).chunks())
                 .containsExactlyInAnyOrder(chunkHandle0, chunkHandle1);
 
-        verifyChunkData(chunkManager.getChunkData(EXCHANGE_0, chunkHandle0.partitionId(), chunkHandle0.chunkId(), BUFFER_NODE_ID),
+        verifyChunkData(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle0.partitionId(), chunkHandle0.chunkId()),
                 new DataPage(0, 0, utf8Slice("test")),
                 new DataPage(0, 0, utf8Slice("spool")),
                 new DataPage(0, 0, utf8Slice("chunks")),
                 new DataPage(0, 0, utf8Slice("add")),
                 new DataPage(0, 0, utf8Slice("data")));
-        verifyChunkData(chunkManager.getChunkData(EXCHANGE_0, chunkHandle1.partitionId(), chunkHandle1.chunkId(), BUFFER_NODE_ID),
+        verifyChunkData(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle1.partitionId(), chunkHandle1.chunkId()),
                 new DataPage(0, 0, utf8Slice("pages")));
 
         chunkManager.finishExchange(EXCHANGE_0);
@@ -396,7 +396,7 @@ public class TestChunkManager
         ChunkHandle chunkHandle2 = new ChunkHandle(BUFFER_NODE_ID, 1, 2L, 5);
         assertThat(chunkManager.listClosedChunks(EXCHANGE_1, OptionalLong.empty()).chunks())
                 .containsExactlyInAnyOrder(chunkHandle2);
-        verifyChunkData(chunkManager.getChunkData(EXCHANGE_1, chunkHandle2.partitionId(), chunkHandle2.chunkId(), BUFFER_NODE_ID),
+        verifyChunkData(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_1, chunkHandle2.partitionId(), chunkHandle2.chunkId()),
                 new DataPage(1, 1, utf8Slice("dummy")));
 
         chunkManager.removeExchange(EXCHANGE_0);

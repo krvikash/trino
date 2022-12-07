@@ -168,10 +168,10 @@ public class ChunkManager
         return getExchangeAndHeartbeat(exchangeId).addDataPages(partitionId, taskId, attemptId, dataPagesId, pages);
     }
 
-    public ChunkDataLease getChunkData(String exchangeId, int partitionId, long chunkId, long bufferNodeId)
+    public ChunkDataLease getChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId)
     {
         Exchange exchange = getExchangeAndHeartbeat(exchangeId);
-        return exchange.getChunkData(partitionId, chunkId, bufferNodeId);
+        return exchange.getChunkData(bufferNodeId, partitionId, chunkId);
     }
 
     public ChunkList listClosedChunks(String exchangeId, OptionalLong pagingId)

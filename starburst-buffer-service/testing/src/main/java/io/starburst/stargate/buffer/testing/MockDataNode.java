@@ -146,10 +146,10 @@ class MockDataNode
     }
 
     @Override
-    public synchronized ListenableFuture<List<DataPage>> getChunkData(String exchangeId, int partitionId, long chunkId, long bufferNodeId)
+    public synchronized ListenableFuture<List<DataPage>> getChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId)
     {
         throwIfNodeGone();
-        return getExchangeData(exchangeId).getChunkData(exchangeId, partitionId, chunkId, bufferNodeId);
+        return getExchangeData(exchangeId).getChunkData(bufferNodeId, exchangeId, partitionId, chunkId);
     }
 
     public synchronized MockDataNodeStats getStats()
@@ -273,13 +273,13 @@ class MockDataNode
         }
 
         @GuardedBy("MockDataNode.this")
-        public ListenableFuture<List<DataPage>> getChunkData(String exchangeId, int partitionId, long chunkId, long bufferNodeId)
+        public ListenableFuture<List<DataPage>> getChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId)
         {
-            ChunkKey key = new ChunkKey(partitionId, chunkId, bufferNodeId);
+            ChunkKey key = new ChunkKey(bufferNodeId, partitionId, chunkId);
             ClosedChunkData chunkData = closedChunks.get(key);
 
             if (bufferNodeId != nodeId) {
-                Optional<List<DataPage>> drainedChunkData = drainedStorage.getChunkData(exchangeId, partitionId, chunkId, bufferNodeId);
+                Optional<List<DataPage>> drainedChunkData = drainedStorage.getChunkData(bufferNodeId, exchangeId, partitionId, chunkId);
                 if (drainedChunkData.isEmpty()) {
                     stats.increment(FAILED_GET_CHUNK_DATA_NOT_FOUND_IN_DRAINED_STORAGE_REQUEST_COUNT);
                     return immediateFailedFuture(new DataApiException(CHUNK_NOT_FOUND, "not present in drained storage"));
@@ -319,7 +319,7 @@ class MockDataNode
                 for (Slice dataPage : dataPages) {
                     pendingDataPages.put(partitionId, new DataPage(taskId, attemptId, dataPage));
                     if (pendingDataPages.get(partitionId).size() >= MockBufferService.PAGES_PER_CHUNK) {
-                        ChunkKey chunkKey = new ChunkKey(partitionId, nextChunkId, nodeId);
+                        ChunkKey chunkKey = new ChunkKey(nodeId, partitionId, nextChunkId);
                         ClosedChunkData chunkData = new ClosedChunkData(ImmutableList.copyOf(pendingDataPages.get(partitionId)));
                         nextChunkId++;
                         pendingDataPages.removeAll(partitionId);
@@ -344,7 +344,7 @@ class MockDataNode
         {
             for (Map.Entry<Integer, Collection<DataPage>> entry : pendingDataPages.asMap().entrySet()) {
                 int partitionId = entry.getKey();
-                ChunkKey chunkKey = new ChunkKey(partitionId, nextChunkId, nodeId);
+                ChunkKey chunkKey = new ChunkKey(nodeId, partitionId, nextChunkId);
                 ClosedChunkData chunkData = new ClosedChunkData(ImmutableList.copyOf(entry.getValue()));
                 nextChunkId++;
                 closedChunks.put(chunkKey, chunkData);

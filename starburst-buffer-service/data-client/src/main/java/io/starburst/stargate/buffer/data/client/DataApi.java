@@ -91,12 +91,12 @@ public interface DataApi
      * Retrieves closed chunk data as list of data pages. Each data page recorded on call to addDataPage will be
      * returned as separate entry in the list.
      *
+     * @param bufferNodeId id of buffer node which created chunk (from {@link ChunkHandle})
      * @param exchangeId exchange id
      * @param partitionId partition id (from {@link ChunkHandle})
      * @param chunkId chunk id (from {@link ChunkHandle})
-     * @param bufferNodeId id of buffer node which created chunk (from {@link ChunkHandle})
      *
      * In case of failure returned future will wrap {@link DataApiException}
      */
-    ListenableFuture<List<DataPage>> getChunkData(String exchangeId, int partitionId, long chunkId, long bufferNodeId);
+    ListenableFuture<List<DataPage>> getChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId);
 }

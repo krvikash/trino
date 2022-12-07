@@ -9,4 +9,4 @@
  */
 package io.starburst.stargate.buffer.testing;
 
-record ChunkKey(int partitionId, long chunkId, long bufferNodeId) {}
+record ChunkKey(long bufferNodeId, int partitionId, long chunkId) {}
