@@ -24,11 +24,15 @@ import static java.util.Objects.requireNonNull;
 public class LifecycleResource
 {
     private final DrainService drainService;
+    private final BufferNodeStateManager bufferNodeStateManager;
 
     @Inject
-    public LifecycleResource(DrainService drainService)
+    public LifecycleResource(
+            DrainService drainService,
+            BufferNodeStateManager bufferNodeStateManager)
     {
         this.drainService = requireNonNull(drainService, "drainService is null");
+        this.bufferNodeStateManager = requireNonNull(bufferNodeStateManager, "bufferNodeStateManager is null");
     }
 
     @GET
@@ -37,6 +41,19 @@ public class LifecycleResource
     {
         try {
             drainService.drain();
+        }
+        catch (Exception e) {
+            return errorResponse(e);
+        }
+        return Response.ok().build();
+    }
+
+    @GET
+    @Path("preShutdown")
+    public Response preShutdown()
+    {
+        try {
+            bufferNodeStateManager.preShutdownCleanup();
         }
         catch (Exception e) {
             return errorResponse(e);

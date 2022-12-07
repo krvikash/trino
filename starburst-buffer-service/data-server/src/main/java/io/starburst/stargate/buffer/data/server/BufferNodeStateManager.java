@@ -9,15 +9,26 @@
  */
 package io.starburst.stargate.buffer.data.server;
 
+import io.airlift.bootstrap.LifeCycleManager;
 import io.starburst.stargate.buffer.BufferNodeState;
+
+import javax.inject.Inject;
 
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.common.base.Preconditions.checkState;
+import static java.util.Objects.requireNonNull;
 
 public class BufferNodeStateManager
 {
     private final AtomicReference<BufferNodeState> state = new AtomicReference<>(BufferNodeState.STARTING);
+    private final LifeCycleManager lifeCycleManager;
+
+    @Inject
+    public BufferNodeStateManager(LifeCycleManager lifeCycleManager)
+    {
+        this.lifeCycleManager = requireNonNull(lifeCycleManager, "lifeCycleManager is null");
+    }
 
     public void transitionState(BufferNodeState targetState)
     {
@@ -30,5 +41,12 @@ public class BufferNodeStateManager
     public BufferNodeState getState()
     {
         return state.get();
+    }
+
+    public void preShutdownCleanup()
+    {
+        BufferNodeState currentState = getState();
+        checkState(currentState == BufferNodeState.DRAINED, "can't cleanup when in %s state".formatted(currentState));
+        lifeCycleManager.stop();
     }
 }
