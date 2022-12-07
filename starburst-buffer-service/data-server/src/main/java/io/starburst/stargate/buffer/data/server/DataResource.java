@@ -295,19 +295,6 @@ public class DataResource
         }
     }
 
-    @GET
-    @Path("drain")
-    public Response drain()
-    {
-        try {
-            drainService.drain();
-        }
-        catch (Exception e) {
-            return errorResponse(e);
-        }
-        return Response.ok().build();
-    }
-
     private static Response errorResponse(Exception e)
     {
         if (e instanceof DataServerException dataServerException) {
