@@ -415,7 +415,7 @@ public class TestChunkManager
         ChunkManagerConfig chunkManagerConfig = new ChunkManagerConfig()
                 .setChunkMaxSize(chunkMaxSize)
                 .setChunkSliceSize(chunkSliceSize)
-                .setSpoolingDirectory("s3://" + minioStorage.getBucketName())
+                .setSpoolingDirectories("s3://" + minioStorage.getBucketName())
                 .setChunkSpoolInterval(succinctDuration(100, SECONDS)); // only manual triggering in tests
         DataServerConfig dataServerConfig = new DataServerConfig().setIncludeChecksumInDataResponse(true);
         return new ChunkManager(

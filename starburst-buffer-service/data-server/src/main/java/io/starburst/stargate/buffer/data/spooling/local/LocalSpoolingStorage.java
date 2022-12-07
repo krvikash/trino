@@ -35,6 +35,7 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -69,7 +70,11 @@ public class LocalSpoolingStorage
             ExecutorService executor)
     {
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
-        this.spoolingDirectory = requireNonNull(config.getSpoolingDirectory(), "spoolingDirectory is null");
+        List<URI> spoolingDirectories = requireNonNull(config.getSpoolingDirectories(), "spoolingDirectory is null");
+        if (spoolingDirectories.size() != 1) {
+            throw new IllegalArgumentException("Multiple spooling directories not supported");
+        }
+        this.spoolingDirectory = spoolingDirectories.get(0);
         this.executor = requireNonNull(executor, "executor is null");
     }
 

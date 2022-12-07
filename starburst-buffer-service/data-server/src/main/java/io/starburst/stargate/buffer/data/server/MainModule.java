@@ -32,6 +32,7 @@ import io.starburst.stargate.buffer.status.StatusProvider;
 
 import java.net.URI;
 import java.security.SecureRandom;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 
 import static com.google.inject.Scopes.SINGLETON;
@@ -98,8 +99,13 @@ public class MainModule
                 DataServerConfig::isTestingEnableStatsLogging,
                 innerBinder -> innerBinder.bind(DataServerStatsLogger.class).in(SINGLETON)));
 
-        URI spoolingBaseDirectory = buildConfigObject(ChunkManagerConfig.class).getSpoolingDirectory();
-        String scheme = spoolingBaseDirectory.getScheme();
+        List<URI> spoolingBaseDirectories = buildConfigObject(ChunkManagerConfig.class).getSpoolingDirectories();
+        if (spoolingBaseDirectories.stream().map(URI::getScheme).distinct().count() != 1) {
+            binder.addError("Multiple schemes in exchange base directories");
+            return;
+        }
+
+        String scheme = spoolingBaseDirectories.get(0).getScheme();
         if (scheme == null || scheme.equals("file")) {
             binder.bind(SpoolingStorage.class).to(LocalSpoolingStorage.class).in(SINGLETON);
         }

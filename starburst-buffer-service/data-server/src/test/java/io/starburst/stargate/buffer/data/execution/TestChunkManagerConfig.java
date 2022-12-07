@@ -35,7 +35,7 @@ public class TestChunkManagerConfig
                 .setChunkMaxSize(DataSize.of(16, MEGABYTE))
                 .setChunkSliceSize(DataSize.of(128, KILOBYTE))
                 .setExchangeStalenessThreshold(DEFAULT_EXCHANGE_STALENESS_THRESHOLD)
-                .setSpoolingDirectory(null)
+                .setSpoolingDirectories(null)
                 .setChunkSpoolInterval(succinctDuration(200, MILLISECONDS))
                 .setChunkSpoolConcurrency(8));
     }
@@ -47,7 +47,7 @@ public class TestChunkManagerConfig
                 .put("chunk.max-size", "32MB")
                 .put("chunk.slice-size", "1MB")
                 .put("exchange.staleness-threshold", "1m")
-                .put("spooling.directory", "s3://spooling-bucket")
+                .put("spooling.directory", "s3://spooling-bucket,s3://other-spooling-bucket")
                 .put("chunk.spool-interval", "5s")
                 .put("chunk.spool-concurrency", "10")
                 .buildOrThrow();
@@ -56,7 +56,7 @@ public class TestChunkManagerConfig
                 .setChunkMaxSize(DataSize.of(32, MEGABYTE))
                 .setChunkSliceSize(DataSize.of(1, MEGABYTE))
                 .setExchangeStalenessThreshold(succinctDuration(1, MINUTES))
-                .setSpoolingDirectory("s3://spooling-bucket/")
+                .setSpoolingDirectories("s3://spooling-bucket/,s3://other-spooling-bucket/")
                 .setChunkSpoolInterval(succinctDuration(5, SECONDS))
                 .setChunkSpoolConcurrency(10);
 
