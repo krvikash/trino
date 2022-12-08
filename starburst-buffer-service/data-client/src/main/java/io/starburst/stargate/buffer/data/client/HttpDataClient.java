@@ -128,9 +128,7 @@ public class HttpDataClient
                 if (errorCode != null) {
                     return immediateFailedFuture(new DataApiException(ErrorCode.valueOf(errorCode), response.getResponseBody()));
                 }
-                else {
-                    return immediateFailedFuture(new DataApiException(INTERNAL_ERROR, response.getResponseBody()));
-                }
+                return immediateFailedFuture(new DataApiException(INTERNAL_ERROR, response.getResponseBody()));
             }
             return immediateFuture(response.getValue());
         }, directExecutor());
