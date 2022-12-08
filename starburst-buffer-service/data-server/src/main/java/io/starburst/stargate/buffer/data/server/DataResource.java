@@ -14,6 +14,7 @@ import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.concurrent.BoundedExecutor;
+import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.SliceInput;
 import io.airlift.slice.SliceOutput;
@@ -52,6 +53,7 @@ import java.util.OptionalLong;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.net.HttpHeaders.CONTENT_LENGTH;
@@ -66,6 +68,8 @@ import static java.util.Objects.requireNonNull;
 @Path("/api/v1/buffer/data")
 public class DataResource
 {
+    private static final Logger logger = Logger.get(DataResource.class);
+
     private final ChunkManager chunkManager;
     private final MemoryAllocator memoryAllocator;
     private final boolean dropUploadedPages;
@@ -122,6 +126,7 @@ public class DataResource
             return Response.ok().entity(chunkList).build();
         }
         catch (RuntimeException e) {
+            logger.warn(e, "error on GET /%s/closedChunks?pagingId=%s", exchangeId, pagingId);
             return errorResponse(e);
         }
     }
@@ -181,10 +186,12 @@ public class DataResource
                 executor);
         bindAsyncResponse(
                 asyncResponse,
-                translateExceptions(Futures.transform(
-                        addDataPagesFuture,
-                        ignored -> Response.ok().build(),
-                        directExecutor())),
+                logAndTranslateExceptions(
+                        Futures.transform(
+                                addDataPagesFuture,
+                                ignored -> Response.ok().build(),
+                                directExecutor()),
+                        () -> "POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId)),
                 responseExecutor);
         asyncResponse.register((CompletionCallback) throwable -> sliceLease.release());
     }
@@ -205,13 +212,15 @@ public class DataResource
             AtomicLong chunkSize = new AtomicLong();
             bindAsyncResponse(
                     asyncResponse,
-                    translateExceptions(Futures.transform(
-                            chunkDataHolderFuture,
-                            chunkDataHolder -> {
-                                chunkSize.set(chunkDataHolder.serializedSizeInBytes()); // not strictly accurate but good enough for stats
-                                return Response.ok(new GenericEntity<>(chunkDataHolder, new TypeToken<ChunkDataHolder>() {}.getType())).build();
-                            },
-                            directExecutor())),
+                    logAndTranslateExceptions(
+                            Futures.transform(
+                                    chunkDataHolderFuture,
+                                    chunkDataHolder -> {
+                                        chunkSize.set(chunkDataHolder.serializedSizeInBytes()); // not strictly accurate but good enough for stats
+                                        return Response.ok(new GenericEntity<>(chunkDataHolder, new TypeToken<ChunkDataHolder>() {}.getType())).build();
+                                    },
+                                    directExecutor()),
+                            () -> "GET /%s/pages/%s/%s/%s".formatted(exchangeId, partitionId, chunkId, bufferNodeId)),
                     responseExecutor);
             asyncResponse.register((CompletionCallback) throwable -> {
                 if (throwable == null) {
@@ -222,6 +231,7 @@ public class DataResource
             });
         }
         catch (RuntimeException e) {
+            logger.warn(e, "error on GET /%s/pages/%s/%s/%s", exchangeId, partitionId, chunkId, bufferNodeId);
             asyncResponse.resume(errorResponse(e));
         }
     }
@@ -235,6 +245,7 @@ public class DataResource
             return Response.ok().build();
         }
         catch (RuntimeException e) {
+            logger.warn(e, "error on GET /%s/register", exchangeId);
             return errorResponse(e);
         }
     }
@@ -248,6 +259,7 @@ public class DataResource
             return Response.ok().build();
         }
         catch (RuntimeException e) {
+            logger.warn(e, "error on GET /%s/ping", exchangeId);
             return errorResponse(e);
         }
     }
@@ -261,6 +273,7 @@ public class DataResource
             return Response.ok().build();
         }
         catch (RuntimeException e) {
+            logger.warn(e, "error on GET /%s/finish", exchangeId);
             return errorResponse(e);
         }
     }
@@ -274,6 +287,7 @@ public class DataResource
             return Response.ok().build();
         }
         catch (RuntimeException e) {
+            logger.warn(e, "error on DELETE /%s", exchangeId);
             return errorResponse(e);
         }
     }
@@ -292,8 +306,11 @@ public class DataResource
                 .build();
     }
 
-    public static ListenableFuture<Response> translateExceptions(ListenableFuture<Response> listenableFuture)
+    private static ListenableFuture<Response> logAndTranslateExceptions(ListenableFuture<Response> listenableFuture, Supplier<String> loggingContext)
     {
-        return Futures.catchingAsync(listenableFuture, Exception.class, e -> immediateFuture(errorResponse(e)), directExecutor());
+        return Futures.catchingAsync(listenableFuture, Exception.class, e -> {
+            logger.warn(e, "error on %s", loggingContext.get());
+            return immediateFuture(errorResponse(e));
+        }, directExecutor());
     }
 }
