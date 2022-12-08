@@ -36,7 +36,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.UncheckedIOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.List;
@@ -46,7 +45,6 @@ import java.util.function.Supplier;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.net.HttpHeaders.CONTENT_LENGTH;
 import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
 import static com.google.common.util.concurrent.Futures.immediateFuture;
@@ -125,10 +123,11 @@ public class HttpDataClient
         return transformAsync(responseFuture, response -> {
             if (response.getStatusCode() != HttpStatus.OK.code()) {
                 String errorCode = response.getHeader(ERROR_CODE_HEADER);
+                String errorMessage = requestErrorMessage(request, response.getResponseBody());
                 if (errorCode != null) {
-                    return immediateFailedFuture(new DataApiException(ErrorCode.valueOf(errorCode), response.getResponseBody()));
+                    return immediateFailedFuture(new DataApiException(ErrorCode.valueOf(errorCode), errorMessage));
                 }
-                return immediateFailedFuture(new DataApiException(INTERNAL_ERROR, response.getResponseBody()));
+                return immediateFailedFuture(new DataApiException(INTERNAL_ERROR, errorMessage));
             }
             return immediateFuture(response.getValue());
         }, directExecutor());
@@ -146,7 +145,7 @@ public class HttpDataClient
                 .build();
 
         HttpResponseFuture<StringResponse> responseFuture = httpClient.executeAsync(request, createStringResponseHandler());
-        return translateFailures(responseFuture);
+        return translateFailures(request, responseFuture);
     }
 
     @Override
@@ -161,7 +160,7 @@ public class HttpDataClient
                 .build();
 
         HttpResponseFuture<StringResponse> responseFuture = httpClient.executeAsync(request, createStringResponseHandler());
-        return translateFailures(responseFuture);
+        return translateFailures(request, responseFuture);
     }
 
     @Override
@@ -176,7 +175,7 @@ public class HttpDataClient
                 .build();
 
         HttpResponseFuture<StringResponse> responseFuture = httpClient.executeAsync(request, createStringResponseHandler());
-        return translateFailures(responseFuture);
+        return translateFailures(request, responseFuture);
     }
 
     @Override
@@ -201,7 +200,7 @@ public class HttpDataClient
                 .build();
 
         HttpResponseFuture<StringResponse> responseFuture = httpClient.executeAsync(request, createStringResponseHandler());
-        return translateFailures(responseFuture);
+        return translateFailures(request, responseFuture);
     }
 
     @Override
@@ -216,7 +215,7 @@ public class HttpDataClient
                 .build();
 
         HttpResponseFuture<StringResponse> responseFuture = httpClient.executeAsync(request, createStringResponseHandler());
-        return translateFailures(responseFuture);
+        return translateFailures(request, responseFuture);
     }
 
     @Override
@@ -300,7 +299,7 @@ public class HttpDataClient
                 throws RuntimeException
         {
             if (response.getStatusCode() == HttpStatus.NO_CONTENT.code()) {
-                throw new DataApiException(CHUNK_NOT_FOUND, "Chunk not found for chunk " + chunkToString.get());
+                throw new DataApiException(CHUNK_NOT_FOUND, requestErrorMessage(request, "Chunk not found for chunk " + chunkToString.get()));
             }
             if (response.getStatusCode() != HttpStatus.OK.code()) {
                 StringBuilder body = new StringBuilder();
@@ -320,30 +319,33 @@ public class HttpDataClient
                 }
                 String errorCode = response.getHeader(ERROR_CODE_HEADER);
                 if (errorCode != null) {
-                    throw new DataApiException(ErrorCode.valueOf(errorCode), body.toString());
+                    throw new DataApiException(ErrorCode.valueOf(errorCode), requestErrorMessage(request, body.toString()));
                 }
-                throw new DataApiException(INTERNAL_ERROR, "Expected response code to be 200, but was %d:%n%s".formatted(response.getStatusCode(), body));
+                throw new DataApiException(INTERNAL_ERROR, requestErrorMessage(request, "Expected response code to be 200, but was %d:%n%s".formatted(response.getStatusCode(), body)));
             }
 
             // invalid content type can happen when an error page is returned, but is unlikely given the above 200
             String contentType = response.getHeader(HttpHeaders.CONTENT_TYPE);
-            checkState(contentType != null && mediaTypeMatches(contentType, TRINO_CHUNK_DATA_TYPE),
-                    "Expected %s response from server but got %s", TRINO_CHUNK_DATA_TYPE, contentType);
+            if (contentType == null || !mediaTypeMatches(contentType, TRINO_CHUNK_DATA_TYPE)) {
+                throw new DataApiException(INTERNAL_ERROR, requestErrorMessage(request, "Expected %s response from server but got %s").formatted(TRINO_CHUNK_DATA_TYPE, contentType));
+            }
 
             try (LittleEndianDataInputStream input = new LittleEndianDataInputStream(response.getInputStream())) {
                 int magic = input.readInt();
                 if (magic != SERIALIZED_CHUNK_DATA_MAGIC) {
-                    throw new IllegalStateException(format("Invalid stream header, expected 0x%08x, but was 0x%08x", SERIALIZED_CHUNK_DATA_MAGIC, magic));
+                    throw new DataApiException(INTERNAL_ERROR, requestErrorMessage(request, "Invalid stream header, expected 0x%08x, but was 0x%08x".formatted(SERIALIZED_CHUNK_DATA_MAGIC, magic)));
                 }
                 long checksum = input.readLong();
                 int pagesCount = input.readInt();
                 List<DataPage> pages = ImmutableList.copyOf(readSerializedPages(input));
                 verifyChecksum(checksum, pages);
-                checkState(pages.size() == pagesCount, "Wrong number of pages, expected %s, but read %s", pagesCount, pages.size());
+                if (pages.size() != pagesCount) {
+                    throw new DataApiException(INTERNAL_ERROR, requestErrorMessage(request, "Wrong number of pages, expected %s, but read %s".formatted(pagesCount, pages.size())));
+                }
                 return ChunkDataResponse.createPagesResponse(pages);
             }
             catch (IOException e) {
-                throw new UncheckedIOException(e);
+                throw new DataApiException(INTERNAL_ERROR, requestErrorMessage(request, "IOException"), e);
             }
         }
 
@@ -400,15 +402,16 @@ public class HttpDataClient
         }
     }
 
-    private ListenableFuture<Void> translateFailures(HttpResponseFuture<StringResponse> responseFuture)
+    private ListenableFuture<Void> translateFailures(Request request, HttpResponseFuture<StringResponse> responseFuture)
     {
         return transformAsync(responseFuture, response -> {
             if (response.getStatusCode() != HttpStatus.OK.code()) {
                 String errorCode = response.getHeader(ERROR_CODE_HEADER);
+                String errorMessage = requestErrorMessage(request, response.getBody());
                 if (errorCode != null) {
-                    return immediateFailedFuture(new DataApiException(ErrorCode.valueOf(errorCode), response.getBody()));
+                    return immediateFailedFuture(new DataApiException(ErrorCode.valueOf(errorCode), errorMessage));
                 }
-                return immediateFailedFuture(new DataApiException(INTERNAL_ERROR, response.getBody()));
+                return immediateFailedFuture(new DataApiException(INTERNAL_ERROR, errorMessage));
             }
             return immediateVoidFuture();
         }, directExecutor());
@@ -422,5 +425,10 @@ public class HttpDataClient
         catch (IllegalArgumentException | IllegalStateException e) {
             return false;
         }
+    }
+
+    private static String requestErrorMessage(Request request, String message)
+    {
+        return "error on %s %s: %s".formatted(request.getMethod(), request.getUri(), message);
     }
 }

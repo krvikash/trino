@@ -261,16 +261,19 @@ public class TestDataServer
         addDataPage(EXCHANGE_0, 0, 0, 0, 0L, utf8Slice("error"));
 
         assertThatThrownBy(() -> finishExchange(EXCHANGE_1))
-                .isInstanceOf(DataApiException.class).hasMessage("exchange %s not found".formatted(EXCHANGE_1));
+                .isInstanceOf(DataApiException.class)
+                .hasMessage("error on GET %s/api/v1/buffer/data/exchange-1/finish: exchange %s not found".formatted(dataServer.getBaseUri(), EXCHANGE_1));
         assertThatThrownBy(() -> listClosedChunks(EXCHANGE_0, OptionalLong.of(Long.MAX_VALUE)))
                 .isInstanceOf(DataApiException.class).hasMessageContaining("Expected pagingId to equal next pagingId");
         assertThatThrownBy(() -> getChunkData(EXCHANGE_0, new ChunkHandle(BUFFER_NODE_ID, 0, 3L, 0)))
-                .isInstanceOf(DataApiException.class).hasMessage("No closed chunk found for bufferNodeId %d, exchange %s, chunk 3".formatted(BUFFER_NODE_ID, EXCHANGE_0));
+                .isInstanceOf(DataApiException.class)
+                .hasMessage("error on GET %s/api/v1/buffer/data/exchange-0/pages/0/3/0: No closed chunk found for bufferNodeId %d, exchange %s, chunk 3".formatted(dataServer.getBaseUri(), BUFFER_NODE_ID, EXCHANGE_0));
 
         finishExchange(EXCHANGE_0);
 
         assertThatThrownBy(() -> addDataPage(EXCHANGE_0, 0, 0, 0, 0L, utf8Slice("exception")))
-                .isInstanceOf(DataApiException.class).hasMessage("exchange %s already finished".formatted(EXCHANGE_0));
+                .isInstanceOf(DataApiException.class)
+                .hasMessage("error on POST %s/api/v1/buffer/data/exchange-0/addDataPages/0/0/0: exchange %s already finished".formatted(dataServer.getBaseUri(), EXCHANGE_0));
 
         removeExchange(EXCHANGE_0);
     }
