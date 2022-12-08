@@ -147,12 +147,17 @@ public class Partition
 
     public synchronized void finish()
     {
-        checkState(!finished, "already finished");
-        checkState(addDataPagesFutures.isEmpty(), "finish() called when addDataPages is in progress");
+        // it's possible for finish() to be called multiple times due to retries, or we finish an exchange after it's drained
+        if (finished) {
+            return;
+        }
+        finished = true;
+
+        // it's possible for finish() to be called when we have writes in progress, we simply cancel such writes
+        addDataPagesFutures.forEach(future -> future.cancel(true));
         checkState(openChunk != null, "No open chunk exists for exchange %s partition %d".formatted(exchangeId, partitionId));
         closeChunk(openChunk);
         openChunk = null;
-        finished = true;
     }
 
     public boolean hasOpenChunk()
