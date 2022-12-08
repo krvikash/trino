@@ -40,6 +40,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Throwables.throwIfUnchecked;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.sortedCopyOf;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
@@ -120,6 +121,7 @@ public class BufferExchange
     @Override
     public synchronized ExchangeSinkHandle addSink(int taskPartitionId)
     {
+        throwIfFailed();
         checkState(!closed.get(), "already closed");
         checkState(!noMoreSinks, "no more sinks can be added");
         return new BufferExchangeSinkHandle(
@@ -132,6 +134,7 @@ public class BufferExchange
     @Override
     public synchronized ExchangeSinkInstanceHandle instantiateSink(ExchangeSinkHandle sinkHandle, int taskAttemptId)
     {
+        throwIfFailed();
         checkState(!closed.get(), "already closed");
 
         BufferExchangeSinkHandle bufferExchangeSinkHandle = (BufferExchangeSinkHandle) sinkHandle;
@@ -147,6 +150,7 @@ public class BufferExchange
     @Override
     public synchronized ExchangeSinkInstanceHandle updateSinkInstanceHandle(ExchangeSinkHandle sinkHandle, int taskAttemptId)
     {
+        throwIfFailed();
         checkState(!closed.get(), "already closed");
         BufferExchangeSinkHandle bufferExchangeSinkHandle = (BufferExchangeSinkHandle) sinkHandle;
         partitionNodeMapper.refreshMapping();
@@ -175,6 +179,7 @@ public class BufferExchange
     @Override
     public synchronized void allRequiredSinksFinished()
     {
+        throwIfFailed();
         verify(noMoreSinks, "noMoreSinks should be called already");
         verify(!allRequiredSinksFinished, "allRequiredSinksFinished called already");
         allRequiredSinksFinished = true;
@@ -307,6 +312,15 @@ public class BufferExchange
             sourceHandleSource.markFailed(failure);
         }
         close();
+    }
+
+    @GuardedBy("this")
+    private void throwIfFailed()
+    {
+        if (failure != null) {
+            throwIfUnchecked(failure);
+            throw new RuntimeException(failure);
+        }
     }
 
     @GuardedBy("this")
