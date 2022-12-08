@@ -93,6 +93,11 @@ public class Partition
         this.openChunk = createNewOpenChunk();
     }
 
+    public int getPartitionId()
+    {
+        return partitionId;
+    }
+
     public synchronized ListenableFuture<Void> addDataPages(int taskId, int attemptId, long dataPagesId, List<Slice> pages)
     {
         TaskAttemptId taskAttemptId = new TaskAttemptId(taskId, attemptId);

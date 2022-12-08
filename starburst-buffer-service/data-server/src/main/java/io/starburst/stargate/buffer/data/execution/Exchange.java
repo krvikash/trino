@@ -32,9 +32,11 @@ import java.util.OptionalLong;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.ToIntFunction;
 
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.airlift.concurrent.MoreFutures.addExceptionCallback;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.EXCHANGE_CORRUPTED;
@@ -212,8 +214,13 @@ public class Exchange
 
     public Collection<Partition> getPartitionsSortedBySizeDesc()
     {
+        Map<Integer, Integer> partitionSizes = partitions.entrySet().stream().collect(toImmutableMap(
+                Map.Entry::getKey,
+                entry -> entry.getValue().getClosedChunksCount()));
+        ToIntFunction<Object> partitionSizeFunction = partition -> partitionSizes.getOrDefault(((Partition) partition).getPartitionId(), 0);
+
         return partitions.values().stream()
-                .sorted(Comparator.comparingInt(Partition::getClosedChunksCount).reversed())
+                .sorted(Comparator.comparingInt(partitionSizeFunction).reversed())
                 .collect(toImmutableList());
     }
 
