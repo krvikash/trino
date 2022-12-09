@@ -124,10 +124,7 @@ public class HttpDataClient
             if (response.getStatusCode() != HttpStatus.OK.code()) {
                 String errorCode = response.getHeader(ERROR_CODE_HEADER);
                 String errorMessage = requestErrorMessage(request, response.getResponseBody());
-                if (errorCode != null) {
-                    return immediateFailedFuture(new DataApiException(ErrorCode.valueOf(errorCode), errorMessage));
-                }
-                return immediateFailedFuture(new DataApiException(INTERNAL_ERROR, errorMessage));
+                return immediateFailedFuture(new DataApiException(errorCode == null ? INTERNAL_ERROR : ErrorCode.valueOf(errorCode), errorMessage));
             }
             return immediateFuture(response.getValue());
         }, directExecutor());
@@ -408,10 +405,7 @@ public class HttpDataClient
             if (response.getStatusCode() != HttpStatus.OK.code()) {
                 String errorCode = response.getHeader(ERROR_CODE_HEADER);
                 String errorMessage = requestErrorMessage(request, response.getBody());
-                if (errorCode != null) {
-                    return immediateFailedFuture(new DataApiException(ErrorCode.valueOf(errorCode), errorMessage));
-                }
-                return immediateFailedFuture(new DataApiException(INTERNAL_ERROR, errorMessage));
+                return immediateFailedFuture(new DataApiException(errorCode == null ? INTERNAL_ERROR : ErrorCode.valueOf(errorCode), errorMessage));
             }
             return immediateVoidFuture();
         }, directExecutor());
