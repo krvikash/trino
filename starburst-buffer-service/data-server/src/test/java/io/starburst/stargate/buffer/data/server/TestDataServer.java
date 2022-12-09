@@ -76,6 +76,9 @@ public class TestDataServer
                 .build();
         httpClient = new JettyHttpClient(new HttpClientConfig());
         dataClient = new HttpDataClient(dataServer.getBaseUri(), httpClient, true);
+
+        await().atMost(ONE_SECOND).until(() -> dataClient.getInfo().state(),
+                BufferNodeState.ACTIVE::equals);
     }
 
     @AfterEach
@@ -89,8 +92,6 @@ public class TestDataServer
     public void testBufferNodeInfo()
     {
         BufferNodeInfo bufferNodeInfo = dataClient.getInfo();
-        await().atMost(ONE_SECOND).until(() -> dataClient.getInfo().state(),
-                BufferNodeState.ACTIVE::equals);
         assertThat(bufferNodeInfo.nodeId()).isEqualTo(0);
         assertThat(bufferNodeInfo.stats()).isNotEmpty();
     }
