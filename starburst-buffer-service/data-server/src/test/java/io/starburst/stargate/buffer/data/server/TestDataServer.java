@@ -13,6 +13,7 @@ import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ListMultimap;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.HttpClientConfig;
+import io.airlift.http.client.Request;
 import io.airlift.http.client.jetty.JettyHttpClient;
 import io.airlift.slice.Slice;
 import io.airlift.units.DataSize;
@@ -30,10 +31,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.List;
 import java.util.OptionalLong;
 
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
+import static io.airlift.http.client.StatusResponseHandler.createStatusResponseHandler;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.airlift.testing.Closeables.closeAll;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
@@ -204,6 +207,19 @@ public class TestDataServer
                 new DataPage(0, 0, utf8Slice("z")));
 
         removeExchange(EXCHANGE_0);
+    }
+
+    @Test
+    public void testDraining()
+    {
+        Request drainRequest = Request.builder()
+                .setMethod("GET")
+                .setUri(URI.create(dataServer.getBaseUri() + "/api/v1/buffer/data/drain"))
+                .build();
+
+        assertThat(httpClient.execute(drainRequest, createStatusResponseHandler()).getStatusCode())
+                .isEqualTo(200);
+        // TODO: add some kind of Fake BroadCast receiver
     }
 
     @Test

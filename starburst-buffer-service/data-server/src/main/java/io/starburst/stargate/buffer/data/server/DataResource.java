@@ -20,7 +20,6 @@ import io.airlift.slice.SliceInput;
 import io.airlift.slice.SliceOutput;
 import io.airlift.stats.CounterStat;
 import io.airlift.stats.DistributionStat;
-import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
@@ -81,6 +80,7 @@ public class DataResource
     private final CounterStat readDataSize;
     private final DistributionStat readDataSizeDistribution;
     private final BufferNodeInfoService bufferNodeInfoService;
+    private final DrainService drainService;
 
     @Inject
     public DataResource(
@@ -90,7 +90,8 @@ public class DataResource
             @ForAsyncHttp BoundedExecutor responseExecutor,
             DataServerStats stats,
             ExecutorService executor,
-            BufferNodeInfoService bufferNodeInfoService)
+            BufferNodeInfoService bufferNodeInfoService,
+            DrainService drainService)
     {
         this.chunkManager = requireNonNull(chunkManager, "chunkManager is null");
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
@@ -98,6 +99,7 @@ public class DataResource
         this.responseExecutor = requireNonNull(responseExecutor, "responseExecutor is null");
         this.executor = requireNonNull(executor, "executor is null");
         this.bufferNodeInfoService = requireNonNull(bufferNodeInfoService, "bufferNodeInfoService is null");
+        this.drainService = requireNonNull(drainService, "drainService is null");
 
         writtenDataSize = stats.getWrittenDataSize();
         writtenDataSizeDistribution = stats.getWrittenDataSizeDistribution();
@@ -290,6 +292,19 @@ public class DataResource
             logger.warn(e, "error on DELETE /%s", exchangeId);
             return errorResponse(e);
         }
+    }
+
+    @GET
+    @Path("drain")
+    public Response drain()
+    {
+        try {
+            drainService.drain();
+        }
+        catch (Exception e) {
+            return errorResponse(e);
+        }
+        return Response.ok().build();
     }
 
     private static Response errorResponse(Exception e)

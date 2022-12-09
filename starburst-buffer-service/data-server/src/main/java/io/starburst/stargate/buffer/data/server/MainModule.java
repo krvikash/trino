@@ -88,6 +88,7 @@ public class MainModule
         binder.bind(DataServerStats.class).in(SINGLETON);
         binder.bind(BufferNodeStateManager.class).in(SINGLETON);
         binder.bind(DataServerStatusProvider.class).in(SINGLETON);
+        binder.bind(DrainService.class).in(SINGLETON);
         newSetBinder(binder, StatusProvider.class).addBinding().to(DataServerStatusProvider.class);
         binder.bind(ExecutorService.class).toInstance(newCachedThreadPool(daemonThreadsNamed("buffer-node-execution-%s")));
         newOptionalBinder(binder, DiscoveryBroadcast.class);
