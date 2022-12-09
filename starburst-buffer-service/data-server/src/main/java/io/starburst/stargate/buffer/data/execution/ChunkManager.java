@@ -244,16 +244,6 @@ public class ChunkManager
         return spoolingStorage.getSpooledChunks();
     }
 
-    private Exchange getExchangeAndHeartbeat(String exchangeId)
-    {
-        Exchange exchange = exchanges.get(exchangeId);
-        if (exchange == null) {
-            throw new DataServerException(EXCHANGE_NOT_FOUND, "exchange %s not found".formatted(exchangeId));
-        }
-        exchange.setLastUpdateTime(tickerReadMillis());
-        return exchange;
-    }
-
     @VisibleForTesting
     void cleanupStaleExchanges()
     {
@@ -343,26 +333,41 @@ public class ChunkManager
                 // blocking call here to make sure:
                 // 1. No duplicate spooling
                 // 2. Wait for pending writes to make progress as we release memory as a result of chunk spooling
-                getFutureValue(processAll(
-                        spoolCandidates,
-                        chunk -> {
-                            ChunkDataHolder chunkDataHolder = chunk.getChunkData();
-                            if (chunkDataHolder == null) {
-                                // already released
-                                return immediateVoidFuture();
-                            }
-                            return Futures.transform(
-                                    spoolingStorage.writeChunk(bufferNodeId, chunk.getExchangeId(), chunk.getChunkId(), chunkDataHolder),
-                                    ignored -> {
-                                        chunk.release();
-                                        return null;
-                                    },
-                                    executor);
-                        },
-                        chunkSpoolConcurrency,
-                        executor));
+                spoolChunksSync(spoolCandidates);
             }
         } while (memoryAllocator.aboveLowWatermark());
+    }
+
+    private Exchange getExchangeAndHeartbeat(String exchangeId)
+    {
+        Exchange exchange = exchanges.get(exchangeId);
+        if (exchange == null) {
+            throw new DataServerException(EXCHANGE_NOT_FOUND, "exchange %s not found".formatted(exchangeId));
+        }
+        exchange.setLastUpdateTime(tickerReadMillis());
+        return exchange;
+    }
+
+    private void spoolChunksSync(List<Chunk> chunks)
+    {
+        getFutureValue(processAll(
+                chunks,
+                chunk -> {
+                    ChunkDataHolder chunkDataHolder = chunk.getChunkData();
+                    if (chunkDataHolder == null) {
+                        // already released
+                        return immediateVoidFuture();
+                    }
+                    return Futures.transform(
+                            spoolingStorage.writeChunk(bufferNodeId, chunk.getExchangeId(), chunk.getChunkId(), chunkDataHolder),
+                            ignored -> {
+                                chunk.release();
+                                return null;
+                            },
+                            executor);
+                },
+                chunkSpoolConcurrency,
+                executor));
     }
 
     private void reportStats()
