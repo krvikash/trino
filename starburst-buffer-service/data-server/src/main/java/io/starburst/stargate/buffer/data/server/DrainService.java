@@ -11,17 +11,17 @@ package io.starburst.stargate.buffer.data.server;
 
 import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.BufferNodeState;
+import io.starburst.stargate.buffer.data.execution.ChunkManager;
 
 import javax.annotation.PreDestroy;
 import javax.inject.Inject;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadLocalRandom;
 
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static java.util.Objects.requireNonNull;
-import static java.util.concurrent.TimeUnit.SECONDS;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 /**
  * The service responsible for handling the DRAINING of the Server Node.
@@ -30,45 +30,51 @@ import static java.util.concurrent.TimeUnit.SECONDS;
  */
 public class DrainService
 {
-    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(daemonThreadsNamed("data-server-drain-service"));
-    private final BufferNodeStateManager statusManager;
-    private final Duration drainDurationLimit;
+    private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(daemonThreadsNamed("data-server-drain-service"));
+    private final BufferNodeStateManager bufferNodeStateManager;
+    private final DataResource dataResource;
+    private final ChunkManager chunkManager;
+    private final Duration drainDelay;
 
     @Inject
-    public DrainService(BufferNodeStateManager statusManager, DataServerConfig dataServerConfig)
+    public DrainService(
+            BufferNodeStateManager bufferNodeStateManager,
+            DataResource dataResource,
+            ChunkManager chunkManager,
+            DataServerConfig dataServerConfig)
     {
-        this.statusManager = requireNonNull(statusManager, "statusManager is null");
-        this.drainDurationLimit = requireNonNull(dataServerConfig.getTestingDrainDurationLimit(), "drainDuration is null");
+        this.bufferNodeStateManager = requireNonNull(bufferNodeStateManager, "bufferNodeStateManager is null");
+        this.dataResource = requireNonNull(dataResource, "dataResource is null");
+        this.chunkManager = requireNonNull(chunkManager, "chunkManager is null");
+        this.drainDelay = requireNonNull(dataServerConfig.getTestingDrainDelay(), "drainDelay is null");
     }
 
     @PreDestroy
     public void stop()
     {
-        scheduler.shutdownNow();
+        executor.shutdownNow();
     }
 
     public synchronized void drain()
     {
-        if (!BufferNodeState.DRAINING.equals(statusManager.getState())) {
-            startDraining();
+        if (bufferNodeStateManager.isDrainingStarted()) {
+            return;
         }
-    }
+        bufferNodeStateManager.transitionState(BufferNodeState.DRAINING);
 
-    private void startDraining()
-    {
-        statusManager.transitionState(BufferNodeState.DRAINING);
-        scheduler.schedule(this::drained, getDrainDelay(), SECONDS);
-    }
+        executor.schedule(() -> {
+            while (dataResource.getInProgressAddDataPagesRequests() > 0) {
+                // busy looping is fine here as we expect in flight requests to finish fast
+                try {
+                    Thread.sleep(100);
+                }
+                catch (InterruptedException e) {
+                    // ignore
+                }
+            }
+            chunkManager.drainAllChunks();
 
-    private void drained()
-    {
-        statusManager.transitionState(BufferNodeState.DRAINED);
-    }
-
-    private long getDrainDelay()
-    {
-        // arbitrarily chosen range (0 -- drainDurationLimit s) for tests
-        long limitSeconds = drainDurationLimit.roundTo(SECONDS);
-        return limitSeconds <= 0 ? 0 : Math.max(5, ThreadLocalRandom.current().nextLong(limitSeconds));
+            bufferNodeStateManager.transitionState(BufferNodeState.DRAINED);
+        }, drainDelay.roundTo(MILLISECONDS), MILLISECONDS);
     }
 }

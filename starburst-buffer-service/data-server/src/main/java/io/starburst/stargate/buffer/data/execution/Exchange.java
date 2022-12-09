@@ -126,7 +126,7 @@ public class Exchange
         return addDataPagesFuture;
     }
 
-    public ChunkDataLease getChunkData(long bufferNodeId, int partitionId, long chunkId)
+    public ChunkDataLease getChunkData(long bufferNodeId, int partitionId, long chunkId, boolean startedDraining)
     {
         throwIfFailed();
 
@@ -134,7 +134,7 @@ public class Exchange
         if (partition == null) {
             throw new DataServerException(CHUNK_NOT_FOUND, "partition %d not found for exchange %s".formatted(partitionId, exchangeId));
         }
-        return partition.getChunkData(bufferNodeId, chunkId);
+        return partition.getChunkData(bufferNodeId, chunkId, startedDraining);
     }
 
     public synchronized ChunkList listClosedChunks(OptionalLong pagingIdOptional)

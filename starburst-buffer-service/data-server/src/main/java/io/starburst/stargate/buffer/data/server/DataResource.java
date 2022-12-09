@@ -52,6 +52,7 @@ import java.io.InputStream;
 import java.util.OptionalLong;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
@@ -61,6 +62,7 @@ import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.jaxrs.AsyncResponseHandler.bindAsyncResponse;
+import static io.starburst.stargate.buffer.data.client.ErrorCode.DRAINING;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.ERROR_CODE_HEADER;
 import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_CHUNK_DATA;
 import static java.util.Objects.requireNonNull;
@@ -70,8 +72,10 @@ public class DataResource
 {
     private static final Logger logger = Logger.get(DataResource.class);
 
+    private final long bufferNodeId;
     private final ChunkManager chunkManager;
     private final MemoryAllocator memoryAllocator;
+    private final BufferNodeStateManager bufferNodeStateManager;
     private final boolean dropUploadedPages;
     private final Executor responseExecutor;
     private final ExecutorService executor;
@@ -81,26 +85,29 @@ public class DataResource
     private final CounterStat readDataSize;
     private final DistributionStat readDataSizeDistribution;
     private final BufferNodeInfoService bufferNodeInfoService;
-    private final DrainService drainService;
+
+    private final AtomicInteger inProgressAddDataPagesRequests = new AtomicInteger();
 
     @Inject
     public DataResource(
+            BufferNodeId bufferNodeId,
             ChunkManager chunkManager,
             MemoryAllocator memoryAllocator,
+            BufferNodeStateManager bufferNodeStateManager,
             DataServerConfig config,
             @ForAsyncHttp BoundedExecutor responseExecutor,
             DataServerStats stats,
             ExecutorService executor,
-            BufferNodeInfoService bufferNodeInfoService,
-            DrainService drainService)
+            BufferNodeInfoService bufferNodeInfoService)
     {
+        this.bufferNodeId = requireNonNull(bufferNodeId, "bufferNodeId is null").getLongValue();
         this.chunkManager = requireNonNull(chunkManager, "chunkManager is null");
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
+        this.bufferNodeStateManager = requireNonNull(bufferNodeStateManager, "bufferNodeStateManager is null");
         this.dropUploadedPages = config.isTestingDropUploadedPages();
         this.responseExecutor = requireNonNull(responseExecutor, "responseExecutor is null");
         this.executor = requireNonNull(executor, "executor is null");
         this.bufferNodeInfoService = requireNonNull(bufferNodeInfoService, "bufferNodeInfoService is null");
-        this.drainService = requireNonNull(drainService, "drainService is null");
 
         writtenDataSize = stats.getWrittenDataSize();
         writtenDataSizeDistribution = stats.getWrittenDataSizeDistribution();
@@ -153,6 +160,13 @@ public class DataResource
             return;
         }
 
+        inProgressAddDataPagesRequests.incrementAndGet();
+        if (bufferNodeStateManager.isDrainingStarted()) {
+            inProgressAddDataPagesRequests.decrementAndGet();
+            asyncResponse.resume(errorResponse(new DataServerException(DRAINING, "Node %d is draining and not accepting any more data".formatted(bufferNodeId))));
+            return;
+        }
+
         SliceLease sliceLease = new SliceLease(memoryAllocator, contentLength);
         ListenableFuture<Void> addDataPagesFuture = Futures.transformAsync(
                 sliceLease.getSliceFuture(),
@@ -196,7 +210,10 @@ public class DataResource
                                 directExecutor()),
                         () -> "POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId)),
                 responseExecutor);
-        asyncResponse.register((CompletionCallback) throwable -> sliceLease.release());
+        asyncResponse.register((CompletionCallback) throwable -> {
+            sliceLease.release();
+            inProgressAddDataPagesRequests.decrementAndGet();
+        });
     }
 
     @GET
@@ -293,6 +310,11 @@ public class DataResource
             logger.warn(e, "error on DELETE /%s", exchangeId);
             return errorResponse(e);
         }
+    }
+
+    public int getInProgressAddDataPagesRequests()
+    {
+        return inProgressAddDataPagesRequests.get();
     }
 
     private static Response errorResponse(Exception e)

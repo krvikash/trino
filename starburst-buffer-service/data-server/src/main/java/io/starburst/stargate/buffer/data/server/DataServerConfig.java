@@ -12,8 +12,10 @@ package io.starburst.stargate.buffer.data.server;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigHidden;
 import io.airlift.units.Duration;
+import io.airlift.units.MaxDuration;
 
 import javax.validation.constraints.Min;
+import javax.validation.constraints.NotNull;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -23,8 +25,9 @@ public class DataServerConfig
     private boolean testingDropUploadedPages;
     private int httpResponseThreads = 100;
     private boolean testingEnableStatsLogging = true; // true for now
-    private Duration testingDrainDurationLimit = Duration.succinctDuration(30, SECONDS);
     private Duration broadcastInterval = Duration.succinctDuration(5, SECONDS);
+    private Duration testingDrainDelay = Duration.succinctDuration(0, SECONDS);
+    private int drainingMaxAttempts = 4;
 
     public boolean getIncludeChecksumInDataResponse()
     {
@@ -77,19 +80,7 @@ public class DataServerConfig
         return this;
     }
 
-    public Duration getTestingDrainDurationLimit()
-    {
-        return testingDrainDurationLimit;
-    }
-
-    @ConfigHidden
-    @Config("testing.drain-duration")
-    public DataServerConfig setTestingDrainDurationLimit(Duration testingDrainDurationLimit)
-    {
-        this.testingDrainDurationLimit = testingDrainDurationLimit;
-        return this;
-    }
-
+    @NotNull
     public Duration getBroadcastInterval()
     {
         return broadcastInterval;
@@ -99,6 +90,33 @@ public class DataServerConfig
     public DataServerConfig setBroadcastInterval(Duration broadcastInterval)
     {
         this.broadcastInterval = broadcastInterval;
+        return this;
+    }
+
+    @NotNull
+    @MaxDuration("5s")
+    public Duration getTestingDrainDelay()
+    {
+        return testingDrainDelay;
+    }
+
+    @ConfigHidden
+    @Config("testing.drain-delay")
+    public DataServerConfig setTestingDrainDelay(Duration testingDrainDelay)
+    {
+        this.testingDrainDelay = testingDrainDelay;
+        return this;
+    }
+
+    public int getDrainingMaxAttempts()
+    {
+        return drainingMaxAttempts;
+    }
+
+    @Config("draining.max-attempts")
+    public DataServerConfig setDrainingMaxAttempts(int drainingMaxAttempts)
+    {
+        this.drainingMaxAttempts = drainingMaxAttempts;
         return this;
     }
 }

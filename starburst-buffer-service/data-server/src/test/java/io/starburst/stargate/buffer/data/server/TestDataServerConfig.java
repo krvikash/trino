@@ -10,15 +10,16 @@
 package io.starburst.stargate.buffer.data.server;
 
 import com.google.common.collect.ImmutableMap;
-import io.airlift.units.Duration;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
+import static io.airlift.units.Duration.succinctDuration;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class TestDataServerConfig
 {
@@ -30,8 +31,9 @@ public class TestDataServerConfig
                 .setTestingDropUploadedPages(false)
                 .setHttpResponseThreads(100)
                 .setTestingEnableStatsLogging(true)
-                .setBroadcastInterval(Duration.succinctDuration(5, TimeUnit.SECONDS))
-                .setTestingDrainDurationLimit(Duration.succinctDuration(30, TimeUnit.SECONDS)));
+                .setBroadcastInterval(succinctDuration(5, SECONDS))
+                .setTestingDrainDelay(succinctDuration(0, SECONDS))
+                .setDrainingMaxAttempts(4));
     }
 
     @Test
@@ -43,7 +45,8 @@ public class TestDataServerConfig
                 .put("http-response-threads", "88")
                 .put("testing.enable-stats-logging", "false")
                 .put("discovery-broadcast-interval", "102ms")
-                .put("testing.drain-duration", "11s")
+                .put("testing.drain-delay", "5s")
+                .put("draining.max-attempts", "5")
                 .buildOrThrow();
 
         DataServerConfig expected = new DataServerConfig()
@@ -51,8 +54,9 @@ public class TestDataServerConfig
                 .setTestingDropUploadedPages(true)
                 .setHttpResponseThreads(88)
                 .setTestingEnableStatsLogging(false)
-                .setBroadcastInterval(Duration.succinctDuration(102, TimeUnit.MILLISECONDS))
-                .setTestingDrainDurationLimit(Duration.succinctDuration(11, TimeUnit.SECONDS));
+                .setBroadcastInterval(succinctDuration(102, MILLISECONDS))
+                .setTestingDrainDelay(succinctDuration(5, SECONDS))
+                .setDrainingMaxAttempts(5);
 
         assertFullMapping(properties, expected);
     }

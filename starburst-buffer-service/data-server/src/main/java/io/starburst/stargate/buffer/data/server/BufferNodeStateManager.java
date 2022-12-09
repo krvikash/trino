@@ -49,4 +49,10 @@ public class BufferNodeStateManager
         checkState(currentState == BufferNodeState.DRAINED, "can't cleanup when in %s state".formatted(currentState));
         lifeCycleManager.stop();
     }
+
+    public boolean isDrainingStarted()
+    {
+        BufferNodeState bufferNodeState = state.get();
+        return bufferNodeState == BufferNodeState.DRAINING || bufferNodeState == BufferNodeState.DRAINED;
+    }
 }

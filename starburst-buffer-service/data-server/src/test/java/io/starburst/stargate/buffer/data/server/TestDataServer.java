@@ -48,8 +48,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 import static org.awaitility.Durations.ONE_SECOND;
-import static org.awaitility.Durations.TEN_SECONDS;
-import static org.awaitility.Durations.TWO_SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -71,7 +69,7 @@ public class TestDataServer
         dataServer = TestingDataServer.builder()
                 .withDiscoveryApiModule(new TestingDiscoveryApiModule())
                 .setConfigProperty("spooling.directory", System.getProperty("java.io.tmpdir") + "/spooling-storage")
-                .setConfigProperty("testing.drain-duration", "5s")
+                .setConfigProperty("testing.drain-delay", "0.5s")
                 .setConfigProperty("discovery-broadcast-interval", "10ms")
                 .build();
         httpClient = new JettyHttpClient(new HttpClientConfig());
@@ -228,6 +226,8 @@ public class TestDataServer
                         .orElse(null),
                 BufferNodeState.ACTIVE::equals);
 
+        addDataPage(EXCHANGE_0, 0, 0, 0, 0L, utf8Slice("dummy"));
+
         Request drainRequest = Request.builder()
                 .setMethod("GET")
                 .setUri(uriBuilderFrom(requireNonNull(dataServer.getBaseUri(), "baseUri is null"))
@@ -237,16 +237,28 @@ public class TestDataServer
 
         assertThat(httpClient.execute(drainRequest, createStatusResponseHandler()).getStatusCode())
                 .isEqualTo(200);
-
-        await().atMost(TWO_SECONDS).until(() -> getNodeInfo()
+        await().atMost(ONE_SECOND).until(() -> getNodeInfo()
                         .map(BufferNodeInfo::state)
                         .orElse(null),
                 BufferNodeState.DRAINING::equals);
 
-        await().atMost(TEN_SECONDS).until(() -> getNodeInfo()
+        assertThatThrownBy(() -> addDataPage(EXCHANGE_0, 1, 1, 1, 1L, utf8Slice("dummy")))
+                .isInstanceOf(DataApiException.class)
+                .hasMessage("error on POST %s/api/v1/buffer/data/%s/addDataPages/1/1/1: Node %d is draining and not accepting any more data"
+                        .formatted(dataServer.getBaseUri(), EXCHANGE_0, BUFFER_NODE_ID));
+
+        await().atMost(ONE_SECOND).until(() -> getNodeInfo()
                         .map(BufferNodeInfo::state)
                         .orElse(null),
                 BufferNodeState.DRAINED::equals);
+
+        ChunkList chunkList = listClosedChunks(EXCHANGE_0, OptionalLong.empty());
+        ChunkHandle chunkHandle = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 5);
+        assertThat(chunkList.chunks()).containsExactly(chunkHandle);
+        assertThatThrownBy(() -> getChunkData(EXCHANGE_0, chunkHandle))
+                .isInstanceOf(DataApiException.class)
+                .hasMessage("error on GET %s/api/v1/buffer/data/0/%s/pages/0/0: Chunk 0 already drained on node %d"
+                        .formatted(dataServer.getBaseUri(), EXCHANGE_0, BUFFER_NODE_ID));
     }
 
     private Optional<BufferNodeInfo> getNodeInfo()
@@ -267,7 +279,7 @@ public class TestDataServer
                 .isInstanceOf(DataApiException.class).hasMessageContaining("Expected pagingId to equal next pagingId");
         assertThatThrownBy(() -> getChunkData(EXCHANGE_0, new ChunkHandle(BUFFER_NODE_ID, 0, 3L, 0)))
                 .isInstanceOf(DataApiException.class)
-                .hasMessage("error on GET %s/api/v1/buffer/data/exchange-0/pages/0/3/0: No closed chunk found for bufferNodeId %d, exchange %s, chunk 3".formatted(dataServer.getBaseUri(), BUFFER_NODE_ID, EXCHANGE_0));
+                .hasMessage("error on GET %s/api/v1/buffer/data/0/exchange-0/pages/0/3: No closed chunk found for bufferNodeId %d, exchange %s, chunk 3".formatted(dataServer.getBaseUri(), BUFFER_NODE_ID, EXCHANGE_0));
 
         finishExchange(EXCHANGE_0);
 

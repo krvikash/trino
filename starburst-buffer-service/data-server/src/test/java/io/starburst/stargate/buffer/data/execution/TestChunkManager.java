@@ -407,6 +407,49 @@ public class TestChunkManager
         assertEquals(96, memoryAllocator.getFreeMemory());
     }
 
+    @Test
+    public void testDrainAllChunks()
+    {
+        long maxBytes = 64L;
+        MemoryAllocator memoryAllocator = new MemoryAllocator(
+                new MemoryAllocatorConfig()
+                        .setHeapHeadroom(succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes))
+                        .setAllocationRatioHighWatermark(0.8)
+                        .setAllocationRatioLowWatermark(0.5),
+                new DataServerStats());
+        ChunkManager chunkManager = createChunkManager(memoryAllocator, DataSize.of(16, BYTE), DataSize.of(8, BYTE));
+
+        chunkManager.registerExchange(EXCHANGE_0);
+        chunkManager.registerExchange(EXCHANGE_1);
+
+        ListenableFuture<Void> addDataPagesFuture1 = chunkManager.addDataPages(
+                EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("a"), utf8Slice("b"), utf8Slice("c")));
+        await().atMost(ONE_SECOND).until(addDataPagesFuture1::isDone);
+        assertEquals(40, memoryAllocator.getFreeMemory());
+
+        ListenableFuture<Void> addDataPagesFuture2 = chunkManager.addDataPages(
+                EXCHANGE_0, 1, 1, 1, 1L, ImmutableList.of(utf8Slice("d"), utf8Slice("e"), utf8Slice("f")));
+        await().atMost(ONE_SECOND).until(addDataPagesFuture2::isDone);
+        assertEquals(16, memoryAllocator.getFreeMemory());
+
+        ListenableFuture<Void> addDataPagesFuture3 = chunkManager.addDataPages(
+                EXCHANGE_1, 2, 2, 2, 2L, ImmutableList.of(utf8Slice("g"), utf8Slice("h"), utf8Slice("i")));
+        assertFalse(addDataPagesFuture3.isDone()); // not enough memory available yet
+
+        // wait for all addDataPagesFutures to finish
+        chunkManager.spoolIfNecessary();
+        await().atMost(ONE_SECOND).until(addDataPagesFuture3::isDone);
+
+        chunkManager.drainAllChunks();
+        assertEquals(0, chunkManager.getClosedChunks());
+        assertEquals(6, chunkManager.getSpooledChunks());
+        assertEquals(maxBytes, memoryAllocator.getFreeMemory());
+
+        assertThatThrownBy(() -> getFutureValue(chunkManager.addDataPages(EXCHANGE_1, 3, 3, 3, 3L, ImmutableList.of(utf8Slice("dummy")))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("addDataPages called in ChunkManager after we started draining");
+    }
+
     private ChunkManager createChunkManager(
             MemoryAllocator memoryAllocator,
             DataSize chunkMaxSize,

@@ -49,6 +49,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
 import static io.airlift.concurrent.AsyncSemaphore.processAll;
@@ -75,6 +77,7 @@ public class ChunkManager
     private final int chunkMaxSizeInBytes;
     private final int chunkSliceSizeInBytes;
     private final boolean calculateDataPagesChecksum;
+    private final int drainingMaxAttempts;
     private final Duration exchangeStalenessThreshold;
     private final Duration chunkSpoolInterval;
     private final int chunkSpoolConcurrency;
@@ -92,6 +95,8 @@ public class ChunkManager
     private final ScheduledExecutorService chunkSpoolExecutor = newSingleThreadScheduledExecutor();
     private final Cache<String, Object> recentlyRemovedExchanges = CacheBuilder.newBuilder().expireAfterWrite(5, MINUTES).build();
 
+    private volatile boolean startedDraining;
+
     @Inject
     public ChunkManager(
             BufferNodeId bufferNodeId,
@@ -107,6 +112,7 @@ public class ChunkManager
         this.chunkMaxSizeInBytes = toIntExact(chunkManagerConfig.getChunkMaxSize().toBytes());
         this.chunkSliceSizeInBytes = toIntExact(chunkManagerConfig.getChunkSliceSize().toBytes());
         this.calculateDataPagesChecksum = dataServerConfig.getIncludeChecksumInDataResponse();
+        this.drainingMaxAttempts = dataServerConfig.getDrainingMaxAttempts();
         this.exchangeStalenessThreshold = chunkManagerConfig.getExchangeStalenessThreshold();
         this.chunkSpoolInterval = chunkManagerConfig.getChunkSpoolInterval();
         this.chunkSpoolConcurrency = chunkManagerConfig.getChunkSpoolConcurrency();
@@ -147,7 +153,9 @@ public class ChunkManager
         Closer closer = Closer.create();
         closer.register(cleanupExecutor::shutdownNow);
         closer.register(statsReportingExecutor::shutdownNow);
-        closer.register(chunkSpoolExecutor::shutdownNow);
+        if (!startedDraining) {
+            closer.register(chunkSpoolExecutor::shutdownNow);
+        }
         try {
             closer.close();
         }
@@ -164,6 +172,8 @@ public class ChunkManager
             long dataPagesId,
             List<Slice> pages)
     {
+        checkState(!startedDraining, "addDataPages called in ChunkManager after we started draining");
+
         registerExchange(exchangeId);
         return getExchangeAndHeartbeat(exchangeId).addDataPages(partitionId, taskId, attemptId, dataPagesId, pages);
     }
@@ -171,7 +181,7 @@ public class ChunkManager
     public ChunkDataLease getChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId)
     {
         Exchange exchange = getExchangeAndHeartbeat(exchangeId);
-        return exchange.getChunkData(bufferNodeId, partitionId, chunkId);
+        return exchange.getChunkData(bufferNodeId, partitionId, chunkId, startedDraining);
     }
 
     public ChunkList listClosedChunks(String exchangeId, OptionalLong pagingId)
@@ -244,6 +254,54 @@ public class ChunkManager
         return spoolingStorage.getSpooledChunks();
     }
 
+    public synchronized void drainAllChunks()
+    {
+        checkState(!startedDraining, "already started draining");
+        startedDraining = true;
+
+        LOG.info("Start draining all chunks");
+        chunkSpoolExecutor.shutdownNow(); // deschedule background spooling
+
+        // finish all exchanges
+        exchanges.values().forEach(Exchange::finish);
+
+        // spool all chunks
+        long backoff = 1_000;
+        long maxBackOff = 60_000;
+        int delayScaleFactor = 2;
+        for (int i = 0; i < drainingMaxAttempts; ++i) {
+            try {
+                ImmutableList.Builder<Chunk> chunks = ImmutableList.builder();
+                for (Exchange exchange : exchanges.values()) {
+                    for (Partition partition : exchange.getPartitionsSortedBySizeDesc()) {
+                        for (Chunk chunk : partition.getClosedChunks()) {
+                            if (!chunk.isEmpty()) {
+                                chunks.add(chunk);
+                            }
+                        }
+                    }
+                }
+                spoolChunksSync(chunks.build());
+                break;
+            }
+            catch (Throwable e) {
+                LOG.warn(e, "spooling all chunks failed, retrying in %d milliseconds", backoff);
+                try {
+                    Thread.sleep(backoff);
+                }
+                catch (InterruptedException ignored) {
+                    // ignore
+                }
+                backoff = Math.min(backoff * delayScaleFactor, maxBackOff);
+            }
+        }
+
+        verify(getOpenChunks() == 0, "open chunks exist after spooling all chunks");
+        verify(getClosedChunks() == 0, "closed chunks exist after spooling all chunks");
+
+        LOG.info("Finished draining all chunks");
+    }
+
     @VisibleForTesting
     void cleanupStaleExchanges()
     {
@@ -263,9 +321,9 @@ public class ChunkManager
     }
 
     @VisibleForTesting
-    void spoolIfNecessary()
+    synchronized void spoolIfNecessary()
     {
-        if (memoryAllocator.belowHighWatermark()) {
+        if (startedDraining || memoryAllocator.belowHighWatermark()) {
             return;
         }
 
