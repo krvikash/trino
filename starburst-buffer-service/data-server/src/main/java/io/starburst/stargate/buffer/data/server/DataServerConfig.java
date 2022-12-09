@@ -11,32 +11,20 @@ package io.starburst.stargate.buffer.data.server;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigHidden;
+import io.airlift.units.Duration;
 
 import javax.validation.constraints.Min;
-import javax.validation.constraints.NotNull;
 
-import java.net.URI;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class DataServerConfig
 {
-    private URI discoveryServiceUri;
     private boolean includeChecksumInDataResponse = true;
     private boolean testingDropUploadedPages;
     private int httpResponseThreads = 100;
     private boolean testingEnableStatsLogging = true; // true for now
-
-    @NotNull
-    public URI getDiscoveryServiceUri()
-    {
-        return discoveryServiceUri;
-    }
-
-    @Config("discovery-service.uri")
-    public DataServerConfig setDiscoveryServiceUri(URI discoveryServiceUri)
-    {
-        this.discoveryServiceUri = discoveryServiceUri;
-        return this;
-    }
+    private Duration testingDrainDurationLimit = Duration.succinctDuration(30, SECONDS);
+    private Duration broadcastInterval = Duration.succinctDuration(5, SECONDS);
 
     public boolean getIncludeChecksumInDataResponse()
     {
@@ -86,6 +74,31 @@ public class DataServerConfig
     public DataServerConfig setTestingEnableStatsLogging(boolean testingEnableStatsLogging)
     {
         this.testingEnableStatsLogging = testingEnableStatsLogging;
+        return this;
+    }
+
+    public Duration getTestingDrainDurationLimit()
+    {
+        return testingDrainDurationLimit;
+    }
+
+    @ConfigHidden
+    @Config("testing.drain-duration")
+    public DataServerConfig setTestingDrainDurationLimit(Duration testingDrainDurationLimit)
+    {
+        this.testingDrainDurationLimit = testingDrainDurationLimit;
+        return this;
+    }
+
+    public Duration getBroadcastInterval()
+    {
+        return broadcastInterval;
+    }
+
+    @Config("discovery-broadcast-interval")
+    public DataServerConfig setBroadcastInterval(Duration broadcastInterval)
+    {
+        this.broadcastInterval = broadcastInterval;
         return this;
     }
 }

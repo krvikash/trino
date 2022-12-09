@@ -35,7 +35,6 @@ public final class SpoolTestHelper
     public static SpoolingStorage createS3SpoolingStorage(MinioStorage minioStorage)
     {
         return createSpoolingStorage(ImmutableMap.<String, String>builder()
-                .put("discovery-service.uri", "http://dummy") // needed for bootstrap
                 .put("spooling.directory", "s3://" + minioStorage.getBucketName())
                 .put("spooling.s3.aws-access-key", MinioStorage.ACCESS_KEY)
                 .put("spooling.s3.aws-secret-key", MinioStorage.SECRET_KEY)
@@ -47,7 +46,6 @@ public final class SpoolTestHelper
     public static SpoolingStorage createLocalSpoolingStorage()
     {
         return createSpoolingStorage(ImmutableMap.<String, String>builder()
-                .put("discovery-service.uri", "http://dummy") // needed for bootstrap
                 .put("spooling.directory", System.getProperty("java.io.tmpdir") + "/spooling-storage")
                 .build());
     }

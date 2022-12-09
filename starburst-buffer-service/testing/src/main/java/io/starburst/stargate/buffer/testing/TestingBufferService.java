@@ -33,7 +33,7 @@ public class TestingBufferService
         discoveryServer = discoveryServerBuilder.build();
 
         // connect to discovery server
-        dataServerBuilder.setDiscoveryBroadcastEnabled(true);
+        dataServerBuilder.withDefaultDiscoveryApiModule();
         dataServerBuilder.setConfigProperty("discovery-service.uri", discoveryServer.getBaseUri().toString());
         dataServerBuilder.setConfigProperty("spooling.directory", System.getProperty("java.io.tmpdir") + "/spooling-storage");
 

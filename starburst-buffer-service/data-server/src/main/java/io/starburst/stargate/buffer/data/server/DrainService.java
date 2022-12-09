@@ -9,7 +9,8 @@
  */
 package io.starburst.stargate.buffer.data.server;
 
-import io.starburst.stargate.buffer.discovery.client.BufferNodeState;
+import io.airlift.units.Duration;
+import io.starburst.stargate.buffer.BufferNodeState;
 
 import javax.annotation.PreDestroy;
 import javax.inject.Inject;
@@ -17,10 +18,10 @@ import javax.inject.Inject;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
 
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 /**
  * The service responsible for handling the DRAINING of the Server Node.
@@ -29,17 +30,15 @@ import static java.util.Objects.requireNonNull;
  */
 public class DrainService
 {
-    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1, daemonThreadsNamed("data-server-drain-service"));
+    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(daemonThreadsNamed("data-server-drain-service"));
     private final BufferNodeStateManager statusManager;
-    private final int drainDurationLimit;
-
-    private volatile boolean draining;
+    private final Duration drainDurationLimit;
 
     @Inject
     public DrainService(BufferNodeStateManager statusManager, DataServerConfig dataServerConfig)
     {
         this.statusManager = requireNonNull(statusManager, "statusManager is null");
-        this.drainDurationLimit = dataServerConfig.getTestingDrainDurationLimit();
+        this.drainDurationLimit = requireNonNull(dataServerConfig.getTestingDrainDurationLimit(), "drainDuration is null");
     }
 
     @PreDestroy
@@ -50,7 +49,7 @@ public class DrainService
 
     public synchronized void drain()
     {
-        if (!draining) {
+        if (!BufferNodeState.DRAINING.equals(statusManager.getState())) {
             startDraining();
         }
     }
@@ -58,19 +57,18 @@ public class DrainService
     private void startDraining()
     {
         statusManager.transitionState(BufferNodeState.DRAINING);
-        scheduler.schedule(this::drained, getDrainDelay(), TimeUnit.SECONDS);
-        draining = true;
+        scheduler.schedule(this::drained, getDrainDelay(), SECONDS);
     }
 
     private void drained()
     {
         statusManager.transitionState(BufferNodeState.DRAINED);
-        draining = false;
     }
 
-    private int getDrainDelay()
+    private long getDrainDelay()
     {
         // arbitrarily chosen range (0 -- drainDurationLimit s) for tests
-        return drainDurationLimit <= 0 ? 0 : ThreadLocalRandom.current().nextInt(drainDurationLimit);
+        long limitSeconds = drainDurationLimit.roundTo(SECONDS);
+        return limitSeconds <= 0 ? 0 : Math.max(5, ThreadLocalRandom.current().nextLong(limitSeconds));
     }
 }

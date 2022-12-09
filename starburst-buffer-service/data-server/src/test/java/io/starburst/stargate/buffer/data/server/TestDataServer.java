@@ -18,6 +18,7 @@ import io.airlift.http.client.jetty.JettyHttpClient;
 import io.airlift.slice.Slice;
 import io.airlift.units.DataSize;
 import io.starburst.stargate.buffer.BufferNodeInfo;
+import io.starburst.stargate.buffer.BufferNodeState;
 import io.starburst.stargate.buffer.BufferNodeStats;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.ChunkList;
@@ -25,24 +26,30 @@ import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.client.HttpDataClient;
 import io.starburst.stargate.buffer.data.server.testing.TestingDataServer;
+import io.starburst.stargate.buffer.data.server.testing.TestingDiscoveryApiModule;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalLong;
 
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
+import static io.airlift.http.client.HttpUriBuilder.uriBuilderFrom;
 import static io.airlift.http.client.StatusResponseHandler.createStatusResponseHandler;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.airlift.testing.Closeables.closeAll;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
-import static io.starburst.stargate.buffer.BufferNodeState.ACTIVE;
+import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
+import static org.awaitility.Durations.ONE_SECOND;
+import static org.awaitility.Durations.TEN_SECONDS;
+import static org.awaitility.Durations.TWO_SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -62,8 +69,10 @@ public class TestDataServer
     public void setup()
     {
         dataServer = TestingDataServer.builder()
-                .setDiscoveryBroadcastEnabled(false)
+                .withDiscoveryApiModule(new TestingDiscoveryApiModule())
                 .setConfigProperty("spooling.directory", System.getProperty("java.io.tmpdir") + "/spooling-storage")
+                .setConfigProperty("testing.drain-duration", "5s")
+                .setConfigProperty("discovery-broadcast-interval", "10ms")
                 .build();
         httpClient = new JettyHttpClient(new HttpClientConfig());
         dataClient = new HttpDataClient(dataServer.getBaseUri(), httpClient, true);
@@ -80,8 +89,9 @@ public class TestDataServer
     public void testBufferNodeInfo()
     {
         BufferNodeInfo bufferNodeInfo = dataClient.getInfo();
+        await().atMost(ONE_SECOND).until(() -> dataClient.getInfo().state(),
+                BufferNodeState.ACTIVE::equals);
         assertThat(bufferNodeInfo.nodeId()).isEqualTo(0);
-        assertThat(bufferNodeInfo.state()).isEqualTo(ACTIVE);
         assertThat(bufferNodeInfo.stats()).isNotEmpty();
     }
 
@@ -212,14 +222,36 @@ public class TestDataServer
     @Test
     public void testDraining()
     {
+        await().atMost(ONE_SECOND).until(() -> getNodeInfo()
+                        .map(BufferNodeInfo::state)
+                        .orElse(null),
+                BufferNodeState.ACTIVE::equals);
+
         Request drainRequest = Request.builder()
                 .setMethod("GET")
-                .setUri(URI.create(dataServer.getBaseUri() + "/api/v1/buffer/data/drain"))
+                .setUri(uriBuilderFrom(requireNonNull(dataServer.getBaseUri(), "baseUri is null"))
+                        .replacePath("/api/v1/buffer/data/drain")
+                        .build())
                 .build();
 
         assertThat(httpClient.execute(drainRequest, createStatusResponseHandler()).getStatusCode())
                 .isEqualTo(200);
-        // TODO: add some kind of Fake BroadCast receiver
+
+        await().atMost(TWO_SECONDS).until(() -> getNodeInfo()
+                        .map(BufferNodeInfo::state)
+                        .orElse(null),
+                BufferNodeState.DRAINING::equals);
+
+        await().atMost(TEN_SECONDS).until(() -> getNodeInfo()
+                        .map(BufferNodeInfo::state)
+                        .orElse(null),
+                BufferNodeState.DRAINED::equals);
+    }
+
+    private Optional<BufferNodeInfo> getNodeInfo()
+    {
+        return dataServer.getDiscovery()
+                .flatMap(d -> d.getBufferNodes().bufferNodeInfos().stream().findFirst());
     }
 
     @Test

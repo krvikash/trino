@@ -10,6 +10,7 @@
 package io.starburst.stargate.buffer.data.server;
 
 import io.airlift.log.Logger;
+import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 
@@ -34,8 +35,6 @@ public class DiscoveryBroadcast
 {
     private static final Logger log = Logger.get(DiscoveryBroadcast.class);
 
-    private static final int BROADCAST_INTERVAL_SECONDS = 5;
-
     private final long bufferNodeId;
     private final DiscoveryApi discoverApi;
     private final BufferNodeStateManager stateManager;
@@ -44,17 +43,21 @@ public class DiscoveryBroadcast
     private final ScheduledExecutorService executor = newSingleThreadScheduledExecutor();
     private final AtomicReference<Boolean> discoveryRegistrationState = new AtomicReference<>(null);
 
+    private final Duration broadcastInterval;
+
     @Inject
     public DiscoveryBroadcast(
             BufferNodeId bufferNodeId,
             DiscoveryApi discoveryApi,
             BufferNodeStateManager stateManager,
-            BufferNodeInfoService bufferNodeInfoService)
+            BufferNodeInfoService bufferNodeInfoService,
+            DataServerConfig config)
     {
         this.bufferNodeId = bufferNodeId.getLongValue();
         this.discoverApi = requireNonNull(discoveryApi, "discoveryApi is null");
         this.stateManager = requireNonNull(stateManager, "stateManager is null");
         this.bufferNodeInfoService = requireNonNull(bufferNodeInfoService, "bufferNodeInfoService is null");
+        this.broadcastInterval = config.getBroadcastInterval();
     }
 
     private final AtomicBoolean stopped = new AtomicBoolean();
@@ -63,7 +66,7 @@ public class DiscoveryBroadcast
     public void start()
     {
         log.info("Starting broadcasting info buffer node " + bufferNodeId);
-        executor.scheduleWithFixedDelay(this::broadcast, 0, BROADCAST_INTERVAL_SECONDS, TimeUnit.SECONDS);
+        executor.scheduleWithFixedDelay(this::broadcast, 0, broadcastInterval.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     public boolean isRegistered()
@@ -95,7 +98,7 @@ public class DiscoveryBroadcast
                 if (isRegistered()) {
                     discoveryRegistrationState.set(false);
                 }
-                log.warn(e, "Failed to announce to discovery server. Retry in %s s.", BROADCAST_INTERVAL_SECONDS);
+                log.warn(e, "Failed to announce to discovery server. Retry in %s.", broadcastInterval);
             }
         }
     }

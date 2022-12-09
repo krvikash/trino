@@ -21,7 +21,7 @@ public enum BufferNodeState
     STARTING(ImmutableSet.of()),
     STARTED(ImmutableSet.of(STARTING)),
     ACTIVE(ImmutableSet.of(STARTED)),
-    DRAINING(ImmutableSet.of(ACTIVE)),
+    DRAINING(ImmutableSet.of(ACTIVE, STARTED, STARTING)),
     DRAINED(ImmutableSet.of(DRAINING));
 
     private final Set<BufferNodeState> canTransitionFrom;

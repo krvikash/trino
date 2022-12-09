@@ -45,6 +45,7 @@ public final class DataServer
                 new TraceTokenModule(),
                 new EventModule(),
                 new StatusModule(),
+                new DiscoveryApiModule(),
                 new MainModule());
 
         try {

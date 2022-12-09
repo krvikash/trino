@@ -12,6 +12,7 @@ package io.starburst.stargate.buffer.data.server.testing;
 import com.google.common.base.Ticker;
 import com.google.common.io.Closer;
 import com.google.inject.Injector;
+import com.google.inject.Module;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.bootstrap.LifeCycleManager;
 import io.airlift.event.client.EventModule;
@@ -25,7 +26,9 @@ import io.airlift.node.testing.TestingNodeModule;
 import io.airlift.tracetoken.TraceTokenModule;
 import io.starburst.stargate.buffer.data.server.BufferNodeStateManager;
 import io.starburst.stargate.buffer.data.server.DataServerStatusProvider;
+import io.starburst.stargate.buffer.data.server.DiscoveryApiModule;
 import io.starburst.stargate.buffer.data.server.MainModule;
+import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 import io.starburst.stargate.buffer.status.StatusModule;
 import io.starburst.stargate.buffer.status.StatusProvider;
 import org.weakref.jmx.guice.MBeanModule;
@@ -35,8 +38,12 @@ import javax.ws.rs.core.UriBuilder;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static io.starburst.stargate.buffer.BufferNodeState.ACTIVE;
 import static io.starburst.stargate.buffer.BufferNodeState.STARTED;
@@ -48,15 +55,12 @@ public class TestingDataServer
     private final URI baseUri;
     private final DataServerStatusProvider statusProvider;
     private final Closer closer = Closer.create();
+    private final Optional<DiscoveryApi> discovery;
 
-    private TestingDataServer(long nodeId, boolean discoveryBroadcastEnabled, Map<String, String> configProperties)
+    private TestingDataServer(long nodeId, Optional<Module> discoveryApiModule, Map<String, String> configProperties)
     {
         Map<String, String> finalConfigProperties = new HashMap<>(configProperties);
-        if (!discoveryBroadcastEnabled) {
-            finalConfigProperties.put("discovery-service.uri", "http://dummy"); // this is still needed in config
-        }
-
-        Bootstrap app = new Bootstrap(
+        List<Module> modules = new ArrayList<>(Arrays.asList(
                 new TestingNodeModule("test"),
                 new TestingHttpServerModule(),
                 new JsonModule(),
@@ -67,7 +71,10 @@ public class TestingDataServer
                 new TraceTokenModule(),
                 new EventModule(),
                 new StatusModule(),
-                new MainModule(nodeId, discoveryBroadcastEnabled, Ticker.systemTicker()));
+                new MainModule(nodeId, discoveryApiModule.isPresent(), Ticker.systemTicker())));
+        discoveryApiModule.ifPresent(modules::add);
+
+        Bootstrap app = new Bootstrap(modules);
 
         Injector injector = app
                 .quiet()
@@ -77,7 +84,7 @@ public class TestingDataServer
 
         BufferNodeStateManager stateManager = injector.getInstance(BufferNodeStateManager.class);
         stateManager.transitionState(STARTED);
-        if (!discoveryBroadcastEnabled) {
+        if (!discoveryApiModule.isPresent()) {
             stateManager.transitionState(ACTIVE);
         }
         this.statusProvider = injector.getInstance(DataServerStatusProvider.class);
@@ -89,11 +96,22 @@ public class TestingDataServer
         baseUri = UriBuilder.fromUri(httpServerInfo.getHttpsUri() != null ? httpServerInfo.getHttpsUri() : httpServerInfo.getHttpUri())
                 .host("localhost")
                 .build();
+        if (discoveryApiModule.isPresent()) {
+            discovery = Optional.of(injector.getInstance(DiscoveryApi.class));
+        }
+        else {
+            discovery = Optional.empty();
+        }
     }
 
     public StatusProvider getStatusProvider()
     {
         return this.statusProvider;
+    }
+
+    public Optional<DiscoveryApi> getDiscovery()
+    {
+        return discovery;
     }
 
     public static Builder builder()
@@ -103,12 +121,18 @@ public class TestingDataServer
 
     public static class Builder
     {
-        private boolean discoveryBroadcastEnabled;
+        private Optional<Module> discoveryApiModule = Optional.empty();
         private Map<String, String> configProperties = new HashMap<>();
 
-        public Builder setDiscoveryBroadcastEnabled(boolean discoveryBroadcastEnabled)
+        public Builder withDefaultDiscoveryApiModule()
         {
-            this.discoveryBroadcastEnabled = discoveryBroadcastEnabled;
+            discoveryApiModule = Optional.of(new DiscoveryApiModule());
+            return this;
+        }
+
+        public Builder withDiscoveryApiModule(Module module)
+        {
+            discoveryApiModule = Optional.of(requireNonNull(module, "module is not null"));
             return this;
         }
 
@@ -132,7 +156,7 @@ public class TestingDataServer
 
         public TestingDataServer build(int nodeId)
         {
-            return new TestingDataServer(nodeId, discoveryBroadcastEnabled, configProperties);
+            return new TestingDataServer(nodeId, discoveryApiModule, configProperties);
         }
     }
 

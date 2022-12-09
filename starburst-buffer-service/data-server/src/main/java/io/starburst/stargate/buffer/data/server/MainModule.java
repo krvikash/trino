@@ -11,12 +11,10 @@ package io.starburst.stargate.buffer.data.server;
 
 import com.google.common.base.Ticker;
 import com.google.inject.Binder;
-import com.google.inject.Inject;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import io.airlift.concurrent.BoundedExecutor;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
-import io.airlift.http.client.HttpClient;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
 import io.starburst.stargate.buffer.data.execution.ChunkManager.ForChunkManager;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
@@ -26,8 +24,6 @@ import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.local.LocalSpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.s3.S3SpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.s3.SpoolingS3Config;
-import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
-import io.starburst.stargate.buffer.discovery.client.HttpDiscoveryClient;
 import io.starburst.stargate.buffer.status.StatusProvider;
 
 import java.net.URI;
@@ -118,13 +114,6 @@ public class MainModule
         else {
             binder.addError("Scheme %s is not supported as buffer spooling storage".formatted(scheme));
         }
-    }
-
-    @Inject
-    @Provides
-    public DiscoveryApi getDiscoveryApi(DataServerConfig config, @ForBufferDiscoveryClient HttpClient httpClient)
-    {
-        return new HttpDiscoveryClient(config.getDiscoveryServiceUri(), httpClient);
     }
 
     @Provides
