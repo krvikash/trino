@@ -23,7 +23,7 @@ import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDe
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
 import static io.airlift.units.DataSize.Unit.GIGABYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
-import static io.starburst.stargate.buffer.trino.exchange.PartitionNodeMappingMode.PINNING;
+import static io.starburst.stargate.buffer.trino.exchange.PartitionNodeMappingMode.PINNING_SINGLE;
 import static io.starburst.stargate.buffer.trino.exchange.PartitionNodeMappingMode.RANDOM;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -50,7 +50,9 @@ class TestBufferExchangeConfig
                 .setDataClientRetryBackoffInitial(Duration.succinctDuration(1.0, SECONDS))
                 .setDataClientRetryBackoffMax(Duration.succinctDuration(10.0, SECONDS))
                 .setDataClientRetryBackoffFactor(2.0)
-                .setDataClientRetryBackoffJitter(0.5));
+                .setDataClientRetryBackoffJitter(0.5)
+                .setMinBufferNodesPerPartition(2)
+                .setMaxBufferNodesPerPartition(32));
     }
 
     @Test
@@ -70,12 +72,14 @@ class TestBufferExchangeConfig
                 .put("exchange.sink-target-written-pages-count", "5")
                 .put("exchange.sink-target-written-pages-size", "7MB")
                 .put("exchange.sink-target-written-partitions-count", "9")
-                .put("exchange.partition-node-mapping-mode", "PINNING")
+                .put("exchange.partition-node-mapping-mode", "PINNING_SINGLE")
                 .put("exchange.buffer-data.max-retries", "6")
                 .put("exchange.buffer-data.retry-backoff-initial", "3s")
                 .put("exchange.buffer-data.retry-backoff-max", "20s")
                 .put("exchange.buffer-data.retry-backoff-factor", "4.0")
                 .put("exchange.buffer-data.retry-backoff-jitter", "0.25")
+                .put("exchange.min-buffer-nodes-per-partition", "3")
+                .put("exchange.max-buffer-nodes-per-partition", "33")
                 .buildOrThrow();
 
         BufferExchangeConfig expected = new BufferExchangeConfig()
@@ -91,12 +95,14 @@ class TestBufferExchangeConfig
                 .setSinkTargetWrittenPagesCount(5)
                 .setSinkTargetWrittenPagesSize(DataSize.of(7, MEGABYTE))
                 .setSinkTargetWrittenPartitionsCount(9)
-                .setPartitionNodeMappingMode(PINNING)
+                .setPartitionNodeMappingMode(PINNING_SINGLE)
                 .setDataClientMaxRetries(6)
                 .setDataClientRetryBackoffInitial(Duration.succinctDuration(3.0, SECONDS))
                 .setDataClientRetryBackoffMax(Duration.succinctDuration(20.0, SECONDS))
                 .setDataClientRetryBackoffFactor(4.0)
-                .setDataClientRetryBackoffJitter(0.25);
+                .setDataClientRetryBackoffJitter(0.25)
+                .setMinBufferNodesPerPartition(3)
+                .setMaxBufferNodesPerPartition(33);
 
         assertFullMapping(properties, expected);
     }

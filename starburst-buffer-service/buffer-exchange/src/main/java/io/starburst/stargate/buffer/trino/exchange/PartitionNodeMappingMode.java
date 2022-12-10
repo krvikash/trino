@@ -11,6 +11,7 @@ package io.starburst.stargate.buffer.trino.exchange;
 
 public enum PartitionNodeMappingMode
 {
-    PINNING,
+    PINNING_SINGLE,
+    PINNING_MULTI,
     RANDOM
 }

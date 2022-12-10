@@ -14,6 +14,7 @@ import io.airlift.configuration.ConfigDescription;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 
+import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 
 import java.net.URI;
@@ -42,6 +43,8 @@ public class BufferExchangeConfig
     private Duration dataClientRetryBackoffMax = succinctDuration(10.0, SECONDS);
     private double dataClientRetryBackoffFactor = 2.0;
     private double dataClientRetryBackoffJitter = 0.5;
+    private int minBufferNodesPerPartition = 2;
+    private int maxBufferNodesPerPartition = 32;
 
     @NotNull
     public URI getDiscoveryServiceUri()
@@ -270,6 +273,32 @@ public class BufferExchangeConfig
     public BufferExchangeConfig setDataClientRetryBackoffJitter(double dataClientRetryBackoffJitter)
     {
         this.dataClientRetryBackoffJitter = dataClientRetryBackoffJitter;
+        return this;
+    }
+
+    @Min(1)
+    public int getMinBufferNodesPerPartition()
+    {
+        return minBufferNodesPerPartition;
+    }
+
+    @Config("exchange.min-buffer-nodes-per-partition")
+    public BufferExchangeConfig setMinBufferNodesPerPartition(int minBufferNodesPerPartition)
+    {
+        this.minBufferNodesPerPartition = minBufferNodesPerPartition;
+        return this;
+    }
+
+    @Min(1)
+    public int getMaxBufferNodesPerPartition()
+    {
+        return maxBufferNodesPerPartition;
+    }
+
+    @Config("exchange.max-buffer-nodes-per-partition")
+    public BufferExchangeConfig setMaxBufferNodesPerPartition(int maxBufferNodesPerPartition)
+    {
+        this.maxBufferNodesPerPartition = maxBufferNodesPerPartition;
         return this;
     }
 }
