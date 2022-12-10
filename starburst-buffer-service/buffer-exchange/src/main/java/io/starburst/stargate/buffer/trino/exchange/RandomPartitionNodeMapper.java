@@ -11,16 +11,14 @@ package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.collect.ImmutableMap;
 import io.starburst.stargate.buffer.BufferNodeInfo;
-import io.starburst.stargate.buffer.BufferNodeState;
 import io.starburst.stargate.buffer.BufferNodeStats;
 
 import javax.annotation.concurrent.GuardedBy;
 
-import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.IntStream;
 
-import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.util.Objects.requireNonNull;
 
 public class RandomPartitionNodeMapper
@@ -56,9 +54,9 @@ public class RandomPartitionNodeMapper
     private RandomSelector<BufferNodeInfo> getBufferNodeSelector()
     {
         BufferNodeDiscoveryManager.BufferNodesState bufferNodesState = discoveryManager.getBufferNodes();
-        if (bufferNodesState.timestamp() > currentNodeSelectorTimestamp) {
+        if (bufferNodesState.getTimestamp() > currentNodeSelectorTimestamp) {
             currentNodeSelector = buildBufferNodeSelector(bufferNodesState);
-            currentNodeSelectorTimestamp = bufferNodesState.timestamp();
+            currentNodeSelectorTimestamp = bufferNodesState.getTimestamp();
         }
 
         return currentNodeSelector;
@@ -66,10 +64,7 @@ public class RandomPartitionNodeMapper
 
     private RandomSelector<BufferNodeInfo> buildBufferNodeSelector(BufferNodeDiscoveryManager.BufferNodesState bufferNodesState)
     {
-        List<BufferNodeInfo> bufferNodes = bufferNodesState.bufferNodeInfos().values().stream()
-                .filter(node -> node.state() == BufferNodeState.ACTIVE)
-                .filter(node -> node.stats().isPresent())
-                .collect(toImmutableList());
+        Set<BufferNodeInfo> bufferNodes = bufferNodesState.getActiveBufferNodesSet();
 
         if (bufferNodes.size() == 0) {
             throw new RuntimeException("no ACTIVE buffer nodes available");

@@ -11,17 +11,15 @@ package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.collect.ImmutableMap;
 import io.starburst.stargate.buffer.BufferNodeInfo;
-import io.starburst.stargate.buffer.BufferNodeState;
 import io.starburst.stargate.buffer.BufferNodeStats;
 
 import javax.annotation.concurrent.GuardedBy;
 
-import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.IntStream;
 
 import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.collect.ImmutableList.toImmutableList;
 
 public class PinningPartitionNodeMapper
         implements PartitionNodeMapper
@@ -49,10 +47,7 @@ public class PinningPartitionNodeMapper
 
     private Map<Integer, Long> computeMapping()
     {
-        List<BufferNodeInfo> bufferNodes = discoveryManager.getBufferNodes().bufferNodeInfos().values().stream()
-                .filter(node -> node.state() == BufferNodeState.ACTIVE)
-                .filter(node -> node.stats().isPresent())
-                .collect(toImmutableList());
+        Set<BufferNodeInfo> bufferNodes = discoveryManager.getBufferNodes().getActiveBufferNodesSet();
 
         if (bufferNodes.size() == 0) {
             // todo keep trying to get mapping for some time. To be figured out how to do that not blocking call to instantiateSink or refreshSinkInstanceHandle
@@ -91,15 +86,14 @@ public class PinningPartitionNodeMapper
     public synchronized void refreshMapping()
     {
         checkState(currentMapping != null, "currentMapping should be already set");
-        Map<Long, BufferNodeInfo> bufferNodes = discoveryManager.getBufferNodes().bufferNodeInfos();
+        Map<Long, BufferNodeInfo> activeBufferNodes = discoveryManager.getBufferNodes().getActiveBufferNodes();
         Map<Integer, Long> newMapping = computeMapping();
         ImmutableMap.Builder<Integer, Long> finalMapping = ImmutableMap.builder();
 
         for (Map.Entry<Integer, Long> entry : currentMapping.entrySet()) {
             Integer partition = entry.getKey();
             Long oldBufferNodeId = entry.getValue();
-            BufferNodeInfo oldBufferNodeInfo = bufferNodes.get(oldBufferNodeId);
-            if (oldBufferNodeInfo != null && oldBufferNodeInfo.state() == BufferNodeState.ACTIVE) {
+            if (activeBufferNodes.containsKey(oldBufferNodeId)) {
                 // keep old mapping entry
                 finalMapping.put(partition, oldBufferNodeId);
             }

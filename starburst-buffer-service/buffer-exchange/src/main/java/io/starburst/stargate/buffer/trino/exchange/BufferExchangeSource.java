@@ -183,8 +183,7 @@ public class BufferExchangeSource
 
     private long selectRandomRunningBufferNodeExcluding(Set<Long> excludedNodes)
     {
-        List<BufferNodeInfo> runningNodes = discoveryManager.getBufferNodes().bufferNodeInfos().values().stream()
-                .filter(node -> node.state() == BufferNodeState.ACTIVE)
+        List<BufferNodeInfo> runningNodes = discoveryManager.getBufferNodes().getActiveBufferNodes().values().stream()
                 .filter(node -> !excludedNodes.contains(node.nodeId()))
                 .collect(toImmutableList());
 
@@ -477,7 +476,7 @@ public class BufferExchangeSource
         {
             try {
                 long sourceBufferNodeId = sourceChunk.bufferNodeId();
-                Map<Long, BufferNodeInfo> bufferNodes = discoveryManager.getBufferNodes().bufferNodeInfos();
+                Map<Long, BufferNodeInfo> bufferNodes = discoveryManager.getBufferNodes().getAllBufferNodes();
                 BufferNodeInfo sourceBufferNodeInfo = bufferNodes.get(sourceBufferNodeId);
                 if (sourceBufferNodeInfo == null || !(sourceBufferNodeInfo.state() == BufferNodeState.ACTIVE || sourceBufferNodeInfo.state() == BufferNodeState.DRAINING)) {
                     sourceBufferNodeId = selectRandomRunningBufferNode();

@@ -14,6 +14,7 @@ import com.google.common.util.concurrent.SettableFuture;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.BufferNodeInfo;
+import io.starburst.stargate.buffer.BufferNodeState;
 import io.starburst.stargate.buffer.discovery.client.BufferNodeInfoResponse;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 
@@ -21,10 +22,15 @@ import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static com.google.common.base.MoreObjects.toStringHelper;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Maps.uniqueIndex;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -95,7 +101,57 @@ public class BufferNodeDiscoveryManager
         return bufferNodes.get();
     }
 
-    public record BufferNodesState(
-            long timestamp,
-            Map<Long, BufferNodeInfo> bufferNodeInfos) {}
+    public static class BufferNodesState
+    {
+        private final long timestamp;
+        private final Map<Long, BufferNodeInfo> allBufferNodes;
+        private final Map<Long, BufferNodeInfo> activeBufferNodes;
+        private final Set<BufferNodeInfo> activeBufferNodesSet;
+
+        BufferNodesState(
+                long timestamp,
+                Map<Long, BufferNodeInfo> allBufferNodes)
+        {
+            this.timestamp = timestamp;
+            this.allBufferNodes = ImmutableMap.copyOf(allBufferNodes);
+            this.activeBufferNodes = allBufferNodes.entrySet().stream()
+                    .filter(entry -> entry.getValue().state() == BufferNodeState.ACTIVE)
+                    .peek(entry -> checkArgument(entry.getValue().stats().isPresent(), "stats not set for ACTIVE node %s", entry.getValue()))
+                    .collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
+            this.activeBufferNodesSet = allBufferNodes.values().stream()
+                    .filter(info -> info.state() == BufferNodeState.ACTIVE)
+                    .peek(info -> checkArgument(info.stats().isPresent(), "stats not set for ACTIVE node %s", info))
+                    .collect(toImmutableSet());
+        }
+
+        public long getTimestamp()
+        {
+            return timestamp;
+        }
+
+        public Map<Long, BufferNodeInfo> getAllBufferNodes()
+        {
+            return allBufferNodes;
+        }
+
+        public Map<Long, BufferNodeInfo> getActiveBufferNodes()
+        {
+            return activeBufferNodes;
+        }
+
+        public Set<BufferNodeInfo> getActiveBufferNodesSet()
+        {
+            return activeBufferNodesSet;
+        }
+
+        @Override
+        public String toString()
+        {
+            return toStringHelper(this)
+                    .add("timestamp", timestamp)
+                    .add("allBufferNodes", allBufferNodes)
+                    .add("activeBufferNodes", activeBufferNodes)
+                    .toString();
+        }
+    }
 }

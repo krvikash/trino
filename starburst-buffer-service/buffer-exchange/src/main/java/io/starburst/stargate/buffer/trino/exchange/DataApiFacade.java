@@ -143,7 +143,7 @@ public class DataApiFacade
 
     private DataApi createDataApi(long bufferNodeId)
     {
-        BufferNodeInfo bufferNodeInfo = discoveryManager.getBufferNodes().bufferNodeInfos().get(bufferNodeId);
+        BufferNodeInfo bufferNodeInfo = discoveryManager.getBufferNodes().getAllBufferNodes().get(bufferNodeId);
         if (bufferNodeInfo == null) {
             // todo: for created clients periodically check if node is still around
             throw new DataApiException(ErrorCode.BUFFER_NODE_NOT_FOUND, "Buffer node " + bufferNodeId + " not found");
