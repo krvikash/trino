@@ -46,7 +46,7 @@ public class BufferExchangeModule
     {
         configBinder(binder).bindConfig(BufferExchangeConfig.class);
 
-        binder.bind(BufferNodeDiscoveryManager.class).in(Scopes.SINGLETON);
+        binder.bind(BufferNodeDiscoveryManager.class).to(ApiBasedBufferNodeDiscoveryManager.class).in(Scopes.SINGLETON);
         binder.bind(BufferExchangeManager.class).in(Scopes.SINGLETON);
         binder.bind(BufferCoordinatorExchangeManager.class).in(Scopes.SINGLETON);
         binder.bind(BufferWorkerExchangeManager.class).in(Scopes.SINGLETON);
