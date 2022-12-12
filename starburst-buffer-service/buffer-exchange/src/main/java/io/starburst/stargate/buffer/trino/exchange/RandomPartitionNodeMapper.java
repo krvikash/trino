@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.IntStream;
 
+import static java.lang.Math.max;
 import static java.util.Objects.requireNonNull;
 
 public class RandomPartitionNodeMapper
@@ -70,19 +71,22 @@ public class RandomPartitionNodeMapper
             throw new RuntimeException("no ACTIVE buffer nodes available");
         }
 
-        long maxChunksCount = bufferNodes.stream().mapToLong(node -> node.stats().orElseThrow().openChunks() + node.stats().orElseThrow().closedChunks()).max().orElseThrow();
+        long maxChunksCount = bufferNodes.stream().mapToLong(node ->
+                node.stats().orElseThrow().openChunks()
+                        + node.stats().orElseThrow().closedChunks()
+                        + node.stats().orElseThrow().spooledChunks()).max().orElseThrow();
         return RandomSelector.weighted(
                 bufferNodes,
                 node -> {
                     BufferNodeStats stats = node.stats().orElseThrow();
                     double memoryWeight = (double) stats.freeMemory() / stats.totalMemory();
-                    int chunksCount = stats.openChunks() + stats.closedChunks();
+                    int chunksCount = stats.openChunks() + stats.closedChunks() + stats.spooledChunks();
                     double chunksWeight;
                     if (maxChunksCount == 0) {
                         chunksWeight = 0.0;
                     }
                     else {
-                        chunksWeight = 1.0 - (double) chunksCount / maxChunksCount;
+                        chunksWeight = max(0.0, 1.0 - (double) chunksCount / maxChunksCount);
                     }
 
                     if (memoryWeight < chunksWeight) {

@@ -20,6 +20,7 @@ import java.util.Set;
 import java.util.stream.IntStream;
 
 import static com.google.common.base.Preconditions.checkState;
+import static java.lang.Math.max;
 
 public class PinningPartitionNodeMapper
         implements PartitionNodeMapper
@@ -54,7 +55,10 @@ public class PinningPartitionNodeMapper
             throw new RuntimeException("no ACTIVE buffer nodes available");
         }
 
-        long maxChunksCount = bufferNodes.stream().mapToLong(node -> node.stats().orElseThrow().openChunks() + node.stats().orElseThrow().closedChunks()).max().orElseThrow();
+        long maxChunksCount = bufferNodes.stream().mapToLong(node ->
+                node.stats().orElseThrow().openChunks()
+                        + node.stats().orElseThrow().closedChunks()
+                        + node.stats().orElseThrow().spooledChunks()).max().orElseThrow();
         RandomSelector<BufferNodeInfo> selector = RandomSelector.weighted(
                 bufferNodes,
                 node -> {
@@ -66,7 +70,7 @@ public class PinningPartitionNodeMapper
                         chunksWeight = 0.0;
                     }
                     else {
-                        chunksWeight = 1.0 - (double) chunksCount / maxChunksCount;
+                        chunksWeight = max(0.0, 1.0 - (double) chunksCount / maxChunksCount);
                     }
 
                     if (memoryWeight < chunksWeight) {
