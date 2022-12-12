@@ -55,6 +55,7 @@ public interface RandomSelector<T>
             int i = 0;
             for (T object : collection) {
                 double weight = weightFunction.applyAsDouble(object);
+                checkArgument(weight >= 0, "got negative weight for %s", object);
                 objects[i] = object;
                 weights[i] = weight;
                 totalWeight += weight;
