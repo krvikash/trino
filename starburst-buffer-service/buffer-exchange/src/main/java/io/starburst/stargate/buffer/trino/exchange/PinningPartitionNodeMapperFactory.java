@@ -9,6 +9,8 @@
  */
 package io.starburst.stargate.buffer.trino.exchange;
 
+import io.trino.spi.exchange.ExchangeId;
+
 import javax.inject.Inject;
 
 import static java.util.Objects.requireNonNull;
@@ -25,7 +27,7 @@ public class PinningPartitionNodeMapperFactory
     }
 
     @Override
-    public PartitionNodeMapper getPartitionNodeMapper(int outputPartitionCount)
+    public PartitionNodeMapper getPartitionNodeMapper(ExchangeId exchangeId, int outputPartitionCount)
     {
         return new PinningPartitionNodeMapper(discoveryManager, outputPartitionCount);
     }

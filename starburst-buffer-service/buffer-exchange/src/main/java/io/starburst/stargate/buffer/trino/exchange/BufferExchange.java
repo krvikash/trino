@@ -109,7 +109,7 @@ public class BufferExchange
         this.sourceHandleTargetChunksCount = sourceHandleTargetChunksCount;
         this.sourceHandleTargetDataSize = requireNonNull(sourceHandleTargetDataSize, "sourceHandleTargetDataSize is null");
         requireNonNull(partitionNodeMapperFactory, "partitionNodeMapperFactory is null");
-        this.partitionNodeMapper = partitionNodeMapperFactory.getPartitionNodeMapper(outputPartitionCount);
+        this.partitionNodeMapper = partitionNodeMapperFactory.getPartitionNodeMapper(exchangeId, outputPartitionCount);
     }
 
     @Override

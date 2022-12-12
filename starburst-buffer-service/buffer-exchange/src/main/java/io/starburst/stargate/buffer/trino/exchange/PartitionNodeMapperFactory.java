@@ -9,7 +9,9 @@
  */
 package io.starburst.stargate.buffer.trino.exchange;
 
+import io.trino.spi.exchange.ExchangeId;
+
 public interface PartitionNodeMapperFactory
 {
-    PartitionNodeMapper getPartitionNodeMapper(int outputPartitionCount);
+    PartitionNodeMapper getPartitionNodeMapper(ExchangeId exchangeId, int outputPartitionCount);
 }
