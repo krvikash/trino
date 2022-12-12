@@ -23,8 +23,8 @@ import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDe
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
 import static io.airlift.units.DataSize.Unit.GIGABYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
+import static io.starburst.stargate.buffer.trino.exchange.PartitionNodeMappingMode.PINNING_MULTI;
 import static io.starburst.stargate.buffer.trino.exchange.PartitionNodeMappingMode.PINNING_SINGLE;
-import static io.starburst.stargate.buffer.trino.exchange.PartitionNodeMappingMode.RANDOM;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 class TestBufferExchangeConfig
@@ -45,7 +45,7 @@ class TestBufferExchangeConfig
                 .setSinkTargetWrittenPagesCount(512)
                 .setSinkTargetWrittenPagesSize(DataSize.of(16, MEGABYTE))
                 .setSinkTargetWrittenPartitionsCount(16)
-                .setPartitionNodeMappingMode(RANDOM)
+                .setPartitionNodeMappingMode(PINNING_MULTI)
                 .setDataClientMaxRetries(5)
                 .setDataClientRetryBackoffInitial(Duration.succinctDuration(1.0, SECONDS))
                 .setDataClientRetryBackoffMax(Duration.succinctDuration(10.0, SECONDS))

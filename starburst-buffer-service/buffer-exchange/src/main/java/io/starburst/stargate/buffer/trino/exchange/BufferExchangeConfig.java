@@ -20,7 +20,7 @@ import javax.validation.constraints.NotNull;
 import java.net.URI;
 
 import static io.airlift.units.Duration.succinctDuration;
-import static io.starburst.stargate.buffer.trino.exchange.PartitionNodeMappingMode.RANDOM;
+import static io.starburst.stargate.buffer.trino.exchange.PartitionNodeMappingMode.PINNING_MULTI;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class BufferExchangeConfig
@@ -37,7 +37,7 @@ public class BufferExchangeConfig
     private int sinkTargetWrittenPagesCount = 512;
     private DataSize sinkTargetWrittenPagesSize = DataSize.of(16, DataSize.Unit.MEGABYTE);
     private int sinkTargetWrittenPartitionsCount = 16;
-    private PartitionNodeMappingMode partitionNodeMappingMode = RANDOM;
+    private PartitionNodeMappingMode partitionNodeMappingMode = PINNING_MULTI;
     private int dataClientMaxRetries = 5;
     private Duration dataClientRetryBackoffInitial = succinctDuration(1.0, SECONDS);
     private Duration dataClientRetryBackoffMax = succinctDuration(10.0, SECONDS);
