@@ -55,7 +55,11 @@ public class LifecycleResource
     public Response state()
     {
         try {
-            return Response.ok(bufferNodeStateManager.getState().toString()).build();
+            return Response.ok(
+                            "%s%n".formatted(
+                                    bufferNodeStateManager.getState()
+                                            .toString()))
+                    .build();
         }
         catch (Exception e) {
             return errorResponse(e);

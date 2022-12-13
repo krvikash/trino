@@ -277,7 +277,7 @@ public class TestDataServer
                         .setUri(uriBuilderFrom(requireNonNull(dataServer.getBaseUri(), "baseUri is null"))
                                 .replacePath("/api/v1/buffer/data/state")
                                 .build())
-                        .build(), createStringResponseHandler()).getBody());
+                        .build(), createStringResponseHandler()).getBody().trim());
     }
 
     @Test
