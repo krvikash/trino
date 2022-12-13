@@ -14,6 +14,7 @@ import io.starburst.stargate.buffer.data.client.ErrorCode;
 import javax.inject.Inject;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
@@ -46,6 +47,19 @@ public class LifecycleResource
             return errorResponse(e);
         }
         return Response.ok().build();
+    }
+
+    @GET
+    @Path("state")
+    @Produces("text/plain")
+    public Response state()
+    {
+        try {
+            return Response.ok(bufferNodeStateManager.getState().toString()).build();
+        }
+        catch (Exception e) {
+            return errorResponse(e);
+        }
     }
 
     @GET

@@ -34,12 +34,12 @@ import org.junit.jupiter.api.TestInstance;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Optional;
 import java.util.OptionalLong;
 
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.http.client.HttpUriBuilder.uriBuilderFrom;
 import static io.airlift.http.client.StatusResponseHandler.createStatusResponseHandler;
+import static io.airlift.http.client.StringResponseHandler.createStringResponseHandler;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.airlift.testing.Closeables.closeAll;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
@@ -48,6 +48,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 import static org.awaitility.Durations.ONE_SECOND;
+import static org.awaitility.Durations.TEN_SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -75,7 +76,9 @@ public class TestDataServer
         httpClient = new JettyHttpClient(new HttpClientConfig());
         dataClient = new HttpDataClient(dataServer.getBaseUri(), httpClient, true);
 
-        await().atMost(ONE_SECOND).until(() -> dataClient.getInfo().state(),
+        // Wait for Node to become ready
+        await().atMost(TEN_SECONDS).until(
+                () -> dataClient.getInfo().state(),
                 BufferNodeState.ACTIVE::equals);
     }
 
@@ -92,6 +95,18 @@ public class TestDataServer
         BufferNodeInfo bufferNodeInfo = dataClient.getInfo();
         assertThat(bufferNodeInfo.nodeId()).isEqualTo(0);
         assertThat(bufferNodeInfo.stats()).isNotEmpty();
+
+        // Assure Node status is propagated to Discovery server
+        assertThat(
+                dataServer.getDiscovery().get()
+                        .getBufferNodes()
+                        .bufferNodeInfos()
+                        .stream()
+                        .filter(node -> node.nodeId() == bufferNodeInfo.nodeId())
+                        .findFirst()
+                        .map(BufferNodeInfo::state)
+                        .orElse(null))
+                .isEqualTo(dataClient.getInfo().state());
     }
 
     @Test
@@ -221,11 +236,6 @@ public class TestDataServer
     @Test
     public void testDraining()
     {
-        await().atMost(ONE_SECOND).until(() -> getNodeInfo()
-                        .map(BufferNodeInfo::state)
-                        .orElse(null),
-                BufferNodeState.ACTIVE::equals);
-
         addDataPage(EXCHANGE_0, 0, 0, 0, 0L, utf8Slice("dummy"));
 
         Request drainRequest = Request.builder()
@@ -237,9 +247,8 @@ public class TestDataServer
 
         assertThat(httpClient.execute(drainRequest, createStatusResponseHandler()).getStatusCode())
                 .isEqualTo(200);
-        await().atMost(ONE_SECOND).until(() -> getNodeInfo()
-                        .map(BufferNodeInfo::state)
-                        .orElse(null),
+        await().atMost(ONE_SECOND).until(
+                () -> getNodeState(),
                 BufferNodeState.DRAINING::equals);
 
         assertThatThrownBy(() -> addDataPage(EXCHANGE_0, 1, 1, 1, 1L, utf8Slice("dummy")))
@@ -247,9 +256,8 @@ public class TestDataServer
                 .hasMessage("error on POST %s/api/v1/buffer/data/%s/addDataPages/1/1/1: Node %d is draining and not accepting any more data"
                         .formatted(dataServer.getBaseUri(), EXCHANGE_0, BUFFER_NODE_ID));
 
-        await().atMost(ONE_SECOND).until(() -> getNodeInfo()
-                        .map(BufferNodeInfo::state)
-                        .orElse(null),
+        await().atMost(ONE_SECOND).until(
+                () -> getNodeState(),
                 BufferNodeState.DRAINED::equals);
 
         ChunkList chunkList = listClosedChunks(EXCHANGE_0, OptionalLong.empty());
@@ -261,10 +269,15 @@ public class TestDataServer
                         .formatted(dataServer.getBaseUri(), EXCHANGE_0, BUFFER_NODE_ID));
     }
 
-    private Optional<BufferNodeInfo> getNodeInfo()
+    private BufferNodeState getNodeState()
     {
-        return dataServer.getDiscovery()
-                .flatMap(d -> d.getBufferNodes().bufferNodeInfos().stream().findFirst());
+        return BufferNodeState.valueOf(httpClient.execute(
+                Request.builder()
+                        .setMethod("GET")
+                        .setUri(uriBuilderFrom(requireNonNull(dataServer.getBaseUri(), "baseUri is null"))
+                                .replacePath("/api/v1/buffer/data/state")
+                                .build())
+                        .build(), createStringResponseHandler()).getBody());
     }
 
     @Test
