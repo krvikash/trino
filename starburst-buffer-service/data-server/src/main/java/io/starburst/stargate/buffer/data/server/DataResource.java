@@ -141,6 +141,20 @@ public class DataResource
         }
     }
 
+    @GET
+    @Path("{exchangeId}/markAllClosedChunksReceived")
+    public Response markAllClosedChunksReceived(@PathParam("exchangeId") String exchangeId)
+    {
+        try {
+            chunkManager.markAllClosedChunksReceived(exchangeId);
+            return Response.ok().build();
+        }
+        catch (RuntimeException e) {
+            logger.warn(e, "error on GET /%s/markAllClosedChunksReceived", exchangeId);
+            return errorResponse(e);
+        }
+    }
+
     @POST
     @Path("{exchangeId}/addDataPages/{taskId}/{attemptId}/{dataPagesId}")
     @Consumes(MediaType.APPLICATION_OCTET_STREAM)

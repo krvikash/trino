@@ -35,6 +35,9 @@ import org.junit.jupiter.api.TestInstance;
 import java.io.IOException;
 import java.util.List;
 import java.util.OptionalLong;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.http.client.HttpUriBuilder.uriBuilderFrom;
@@ -64,6 +67,8 @@ public class TestDataServer
     private HttpClient httpClient;
     private HttpDataClient dataClient;
 
+    private final ExecutorService executor = Executors.newCachedThreadPool();
+
     @BeforeEach
     public void setup()
     {
@@ -86,6 +91,7 @@ public class TestDataServer
     public void tearDown()
             throws IOException
     {
+        executor.shutdownNow();
         closeAll(dataServer, httpClient);
     }
 
@@ -248,7 +254,7 @@ public class TestDataServer
         assertThat(httpClient.execute(drainRequest, createStatusResponseHandler()).getStatusCode())
                 .isEqualTo(200);
         await().atMost(ONE_SECOND).until(
-                () -> getNodeState(),
+                this::getNodeState,
                 BufferNodeState.DRAINING::equals);
 
         assertThatThrownBy(() -> addDataPage(EXCHANGE_0, 1, 1, 1, 1L, utf8Slice("dummy")))
@@ -256,17 +262,37 @@ public class TestDataServer
                 .hasMessage("error on POST %s/api/v1/buffer/data/%s/addDataPages/1/1/1: Node %d is draining and not accepting any more data"
                         .formatted(dataServer.getBaseUri(), EXCHANGE_0, BUFFER_NODE_ID));
 
-        await().atMost(ONE_SECOND).until(
-                () -> getNodeState(),
-                BufferNodeState.DRAINED::equals);
+        Future<ChunkList> chunkListFuture = executor.submit(() -> {
+            OptionalLong pagingId = OptionalLong.empty();
+            for (int i = 0; i < 10; ++i) {
+                ChunkList chunkList = listClosedChunks(EXCHANGE_0, pagingId);
+                pagingId = chunkList.nextPagingId();
+                if (pagingId.isEmpty()) {
+                    markAllClosedChunksReceived(EXCHANGE_0);
+                    return chunkList;
+                }
+                try {
+                    Thread.sleep(100);
+                }
+                catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException(e);
+                }
+            }
+            return fail();
+        });
 
-        ChunkList chunkList = listClosedChunks(EXCHANGE_0, OptionalLong.empty());
+        await().atMost(ONE_SECOND).until(chunkListFuture::isDone);
         ChunkHandle chunkHandle = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 5);
-        assertThat(chunkList.chunks()).containsExactly(chunkHandle);
+        assertThat(getFutureValue(chunkListFuture).chunks()).containsExactly(chunkHandle);
         assertThatThrownBy(() -> getChunkData(EXCHANGE_0, chunkHandle))
                 .isInstanceOf(DataApiException.class)
                 .hasMessage("error on GET %s/api/v1/buffer/data/0/%s/pages/0/0: Chunk 0 already drained on node %d"
                         .formatted(dataServer.getBaseUri(), EXCHANGE_0, BUFFER_NODE_ID));
+
+        await().atMost(ONE_SECOND).until(
+                this::getNodeState,
+                BufferNodeState.DRAINED::equals);
     }
 
     private BufferNodeState getNodeState()
@@ -321,6 +347,11 @@ public class TestDataServer
     private ChunkList listClosedChunks(String exchangeId, OptionalLong pagingId)
     {
         return getFutureValue(dataClient.listClosedChunks(exchangeId, pagingId));
+    }
+
+    private void markAllClosedChunksReceived(String exchangeId)
+    {
+        getFutureValue(dataClient.markAllClosedChunksReceived(exchangeId));
     }
 
     private List<DataPage> getChunkData(String exchangeId, ChunkHandle chunkHandle)

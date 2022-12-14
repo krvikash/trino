@@ -35,6 +35,7 @@ import org.junit.jupiter.api.TestInstance;
 import java.util.OptionalLong;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.slice.Slices.utf8Slice;
@@ -55,6 +56,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 import static org.testcontainers.shaded.org.awaitility.Durations.ONE_SECOND;
 
@@ -420,7 +422,6 @@ public class TestChunkManager
         ChunkManager chunkManager = createChunkManager(memoryAllocator, DataSize.of(16, BYTE), DataSize.of(8, BYTE));
 
         chunkManager.registerExchange(EXCHANGE_0);
-        chunkManager.registerExchange(EXCHANGE_1);
 
         ListenableFuture<Void> addDataPagesFuture1 = chunkManager.addDataPages(
                 EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("a"), utf8Slice("b"), utf8Slice("c")));
@@ -433,19 +434,44 @@ public class TestChunkManager
         assertEquals(16, memoryAllocator.getFreeMemory());
 
         ListenableFuture<Void> addDataPagesFuture3 = chunkManager.addDataPages(
-                EXCHANGE_1, 2, 2, 2, 2L, ImmutableList.of(utf8Slice("g"), utf8Slice("h"), utf8Slice("i")));
+                EXCHANGE_0, 2, 2, 2, 2L, ImmutableList.of(utf8Slice("g"), utf8Slice("h"), utf8Slice("i")));
         assertFalse(addDataPagesFuture3.isDone()); // not enough memory available yet
 
         // wait for all addDataPagesFutures to finish
         chunkManager.spoolIfNecessary();
         await().atMost(ONE_SECOND).until(addDataPagesFuture3::isDone);
 
+        Future<Integer> numClosedChunksFuture = executor.submit(() -> {
+            OptionalLong pagingId = OptionalLong.empty();
+            int numChunks = 0;
+            for (int i = 0; i < 10; ++i) {
+                ChunkList chunkList = chunkManager.listClosedChunks(EXCHANGE_0, pagingId);
+                pagingId = chunkList.nextPagingId();
+                numChunks += chunkList.chunks().size();
+                if (pagingId.isEmpty()) {
+                    chunkManager.markAllClosedChunksReceived(EXCHANGE_0);
+                    return numChunks;
+                }
+                try {
+                    Thread.sleep(100);
+                }
+                catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException(e);
+                }
+            }
+            return fail();
+        });
+
         chunkManager.drainAllChunks();
+
+        assertTrue(numClosedChunksFuture.isDone());
+        assertEquals(6, getFutureValue(numClosedChunksFuture));
         assertEquals(0, chunkManager.getClosedChunks());
         assertEquals(6, chunkManager.getSpooledChunks());
         assertEquals(maxBytes, memoryAllocator.getFreeMemory());
 
-        assertThatThrownBy(() -> getFutureValue(chunkManager.addDataPages(EXCHANGE_1, 3, 3, 3, 3L, ImmutableList.of(utf8Slice("dummy")))))
+        assertThatThrownBy(() -> getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 3, 3, 3, 3L, ImmutableList.of(utf8Slice("dummy")))))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("addDataPages called in ChunkManager after we started draining");
     }

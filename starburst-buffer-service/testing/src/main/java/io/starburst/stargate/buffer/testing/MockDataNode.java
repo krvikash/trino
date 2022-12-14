@@ -106,6 +106,14 @@ class MockDataNode
     }
 
     @Override
+    public ListenableFuture<Void> markAllClosedChunksReceived(String exchangeId)
+    {
+        throwIfNodeGone();
+        // do nothing
+        return immediateVoidFuture();
+    }
+
+    @Override
     public synchronized ListenableFuture<Void> registerExchange(String exchangeId)
     {
         throwIfNodeGone();

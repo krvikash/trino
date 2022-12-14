@@ -57,6 +57,17 @@ public class DataApiFacade
         }
     }
 
+    public ListenableFuture<Void> markAllClosedChunksReceived(long bufferNodeId, String exchangeId)
+    {
+        try {
+            return getDataApi(bufferNodeId).markAllClosedChunksReceived(exchangeId);
+        }
+        catch (Throwable e) {
+            // wrap exception in the future
+            return Futures.immediateFailedFuture(e);
+        }
+    }
+
     public ListenableFuture<Void> registerExchange(long bufferNodeId, String exchangeId)
     {
         try {

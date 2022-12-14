@@ -190,6 +190,12 @@ public class ChunkManager
         return exchange.listClosedChunks(pagingId);
     }
 
+    public void markAllClosedChunksReceived(String exchangeId)
+    {
+        Exchange exchange = getExchangeAndHeartbeat(exchangeId);
+        exchange.markAllClosedChunksReceived();
+    }
+
     public void registerExchange(String exchangeId)
     {
         exchanges.computeIfAbsent(exchangeId, ignored -> {
@@ -300,6 +306,30 @@ public class ChunkManager
         verify(getClosedChunks() == 0, "closed chunks exist after spooling all chunks");
 
         LOG.info("Finished draining all chunks");
+
+        LOG.info("Waiting for Trino to acknowledge all closed chunks of all exchanges");
+        for (int i = 0; i < 1000; ++i) {
+            if (exchanges.values().stream().allMatch(Exchange::isAllClosedChunksReceived)) {
+                LOG.info("All closed chunks of all exchanges have been consumed by Trino, transition node state to DRAINED");
+                return;
+            }
+            try {
+                Thread.sleep(100);
+            }
+            catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException("Interrupted while waiting for all closed chunks to be acknowledged", e);
+            }
+        }
+
+        for (Map.Entry<String, Exchange> entry : exchanges.entrySet()) {
+            String exchangeId = entry.getKey();
+            Exchange exchange = entry.getValue();
+            if (!exchange.isAllClosedChunksReceived()) {
+                LOG.warn("Failed to receive acknowledgement of receiving all closed chunks from exchange " + exchangeId);
+            }
+        }
+        LOG.info("Transition node state to DRAINED");
     }
 
     @VisibleForTesting

@@ -69,6 +69,7 @@ public class Exchange
     @GuardedBy("this")
     private boolean finished;
     private volatile long lastUpdateTime;
+    private volatile boolean allClosedChunksReceived;
     private final AtomicReference<Throwable> failure = new AtomicReference<>();
 
     public Exchange(
@@ -168,6 +169,16 @@ public class Exchange
         lastChunkList = chunkList;
 
         return chunkList;
+    }
+
+    public void markAllClosedChunksReceived()
+    {
+        allClosedChunksReceived = true;
+    }
+
+    public boolean isAllClosedChunksReceived()
+    {
+        return allClosedChunksReceived;
     }
 
     public synchronized void finish()

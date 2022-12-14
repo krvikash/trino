@@ -155,6 +155,7 @@ class ChunkHandlesPoller
                         pagingId = result.nextPagingId();
 
                         if (noMoreChunks) {
+                            markAllClosedChunksReceived();
                             pinging = true;
                         }
 
@@ -188,6 +189,19 @@ class ChunkHandlesPoller
                 () -> {
                     ListenableFuture<Void> finishFuture = dataApi.finishExchange(dataNodeId, externalExchangeId);
                     addExceptionCallback(finishFuture, callback::onFailure);
+                },
+                executorService);
+    }
+
+    private void markAllClosedChunksReceived()
+    {
+        addSuccessCallback(
+                // wait until exchange is registered before sending acknowledgement on all closed chunks
+                registerFuture,
+                () -> {
+                    ListenableFuture<Void> markAllClosedChunksReceivedFuture = dataApi.markAllClosedChunksReceived(dataNodeId, externalExchangeId);
+                    addExceptionCallback(markAllClosedChunksReceivedFuture,
+                            () -> log.warn("Failed to mark all closed chunks received for externalExchangeId %s dataNodeId %d", externalExchangeId, dataNodeId));
                 },
                 executorService);
     }

@@ -131,6 +131,21 @@ public class HttpDataClient
     }
 
     @Override
+    public ListenableFuture<Void> markAllClosedChunksReceived(String exchangeId)
+    {
+        requireNonNull(exchangeId, "exchangeId is null");
+
+        Request request = prepareGet()
+                .setUri(uriBuilderFrom(baseUri)
+                        .appendPath("%s/markAllClosedChunksReceived".formatted(exchangeId))
+                        .build())
+                .build();
+
+        HttpResponseFuture<StringResponse> responseFuture = httpClient.executeAsync(request, createStringResponseHandler());
+        return translateFailures(request, responseFuture);
+    }
+
+    @Override
     public ListenableFuture<Void> registerExchange(String exchangeId)
     {
         requireNonNull(exchangeId, "exchangeId is null");

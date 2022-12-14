@@ -35,6 +35,15 @@ public interface DataApi
     ListenableFuture<ChunkList> listClosedChunks(String exchangeId, OptionalLong pagingId);
 
     /**
+     * Mark last set of chunks returned from {@link #listClosedChunks(String, OptionalLong)}
+     * has been received. After Trino acknowledges that all chunk lists have been received,
+     * we can transition the data node state to be DRAINED, and safely shut it down.
+     *
+     * In case of failure returned future will wrap {@link DataApiException}
+     */
+    ListenableFuture<Void> markAllClosedChunksReceived(String exchangeId);
+
+    /**
      * Register existence of an exchange.
      *
      * In case of failure returned future will wrap {@link DataApiException}
