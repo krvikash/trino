@@ -329,7 +329,6 @@ public class ChunkManager
                 LOG.warn("Failed to receive acknowledgement of receiving all closed chunks from exchange " + exchangeId);
             }
         }
-        LOG.info("Transition node state to DRAINED");
     }
 
     @VisibleForTesting

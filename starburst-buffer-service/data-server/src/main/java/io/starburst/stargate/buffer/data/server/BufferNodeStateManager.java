@@ -10,6 +10,7 @@
 package io.starburst.stargate.buffer.data.server;
 
 import io.airlift.bootstrap.LifeCycleManager;
+import io.airlift.log.Logger;
 import io.starburst.stargate.buffer.BufferNodeState;
 
 import javax.inject.Inject;
@@ -21,6 +22,8 @@ import static java.util.Objects.requireNonNull;
 
 public class BufferNodeStateManager
 {
+    private static final Logger LOG = Logger.get(BufferNodeStateManager.class);
+
     private final AtomicReference<BufferNodeState> state = new AtomicReference<>(BufferNodeState.STARTING);
     private final LifeCycleManager lifeCycleManager;
 
@@ -34,6 +37,7 @@ public class BufferNodeStateManager
     {
         state.getAndUpdate(currentState -> {
             checkState(targetState.canTransitionFrom(currentState), "can't transition from %s to %s".formatted(currentState, targetState));
+            LOG.info("Transition node state from %s to %s", currentState, targetState);
             return targetState;
         });
     }
