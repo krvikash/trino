@@ -86,7 +86,7 @@ public class TestChunkManager
     @Test
     public void testSingleChunkPerPartition()
     {
-        MemoryAllocator memoryAllocator = new MemoryAllocator(new MemoryAllocatorConfig(), new DataServerStats());
+        MemoryAllocator memoryAllocator = defaultMemoryAllocator();
         ChunkManager chunkManager = createChunkManager(memoryAllocator, DataSize.of(16, MEGABYTE), DataSize.of(128, KILOBYTE));
 
         chunkManager.registerExchange(EXCHANGE_0);
@@ -152,7 +152,7 @@ public class TestChunkManager
     @Test
     public void testMultipleChunksPerPartition()
     {
-        MemoryAllocator memoryAllocator = new MemoryAllocator(new MemoryAllocatorConfig(), new DataServerStats());
+        MemoryAllocator memoryAllocator = defaultMemoryAllocator();
         ChunkManager chunkManager = createChunkManager(memoryAllocator, DataSize.of(32, BYTE), DataSize.of(16, BYTE));
 
         chunkManager.registerExchange(EXCHANGE_0);
@@ -218,7 +218,7 @@ public class TestChunkManager
     @Test
     public void testPingExchange()
     {
-        MemoryAllocator memoryAllocator = new MemoryAllocator(new MemoryAllocatorConfig(), new DataServerStats());
+        MemoryAllocator memoryAllocator = defaultMemoryAllocator();
         ChunkManager chunkManager = createChunkManager(memoryAllocator, DataSize.of(16, MEGABYTE), DataSize.of(1, MEGABYTE));
 
         chunkManager.registerExchange(EXCHANGE_0);
@@ -255,7 +255,7 @@ public class TestChunkManager
     @Test
     public void testDataPagesIdDeduplication()
     {
-        MemoryAllocator memoryAllocator = new MemoryAllocator(new MemoryAllocatorConfig(), new DataServerStats());
+        MemoryAllocator memoryAllocator = defaultMemoryAllocator();
         ChunkManager chunkManager = createChunkManager(memoryAllocator, DataSize.of(30, BYTE), DataSize.of(10, BYTE));
 
         getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("chunk"))));
@@ -291,7 +291,7 @@ public class TestChunkManager
     @Test
     public void testRemoveExchange()
     {
-        MemoryAllocator memoryAllocator = new MemoryAllocator(new MemoryAllocatorConfig(), new DataServerStats());
+        MemoryAllocator memoryAllocator = defaultMemoryAllocator();
         ChunkManager chunkManager = createChunkManager(memoryAllocator, DataSize.of(16, MEGABYTE), DataSize.of(4, MEGABYTE));
 
         chunkManager.registerExchange(EXCHANGE_0);
@@ -311,7 +311,7 @@ public class TestChunkManager
     public void testAddDataPagesFailure()
             throws InterruptedException
     {
-        MemoryAllocator memoryAllocator = new MemoryAllocator(new MemoryAllocatorConfig(), new DataServerStats());
+        MemoryAllocator memoryAllocator = defaultMemoryAllocator();
         DataSize chunkMaxSize = DataSize.of(12, BYTE);
         ChunkManager chunkManager = createChunkManager(memoryAllocator, chunkMaxSize, chunkMaxSize);
         Slice largePage = utf8Slice("8".repeat((int) DataSize.of(8, MEGABYTE).toBytes()));
@@ -476,33 +476,10 @@ public class TestChunkManager
                 .hasMessage("addDataPages called in ChunkManager after we started draining");
     }
 
-    private ChunkManager createChunkManager(
-            MemoryAllocator memoryAllocator,
-            DataSize chunkMaxSize,
-            DataSize chunkSliceSize)
-    {
-        ChunkManagerConfig chunkManagerConfig = new ChunkManagerConfig()
-                .setChunkMaxSize(chunkMaxSize)
-                .setChunkSliceSize(chunkSliceSize)
-                .setSpoolingDirectories("s3://" + minioStorage.getBucketName())
-                .setChunkSpoolInterval(succinctDuration(100, SECONDS)); // only manual triggering in tests
-        DataServerConfig dataServerConfig = new DataServerConfig().setIncludeChecksumInDataResponse(true);
-        return new ChunkManager(
-                new BufferNodeId(BUFFER_NODE_ID),
-                chunkManagerConfig,
-                dataServerConfig,
-                memoryAllocator,
-                spoolingStorage,
-                ticker,
-                new DataServerStats(),
-                executor);
-    }
-
     @Test
     public void testAddToRemovedExchange()
     {
-        MemoryAllocator memoryAllocator = new MemoryAllocator(new MemoryAllocatorConfig(), new DataServerStats());
-        ChunkManager chunkManager = createChunkManager(memoryAllocator, DataSize.of(16, MEGABYTE), DataSize.of(128, KILOBYTE));
+        ChunkManager chunkManager = createChunkManager(defaultMemoryAllocator(), DataSize.of(16, MEGABYTE), DataSize.of(128, KILOBYTE));
 
         assertThat(chunkManager.getTrackedExchanges()).isEqualTo(0);
         getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("000_0"))));
@@ -539,5 +516,32 @@ public class TestChunkManager
             }
             minioStorage = null;
         }
+    }
+
+    private MemoryAllocator defaultMemoryAllocator()
+    {
+        return new MemoryAllocator(new MemoryAllocatorConfig(), new DataServerStats());
+    }
+
+    private ChunkManager createChunkManager(
+            MemoryAllocator memoryAllocator,
+            DataSize chunkMaxSize,
+            DataSize chunkSliceSize)
+    {
+        ChunkManagerConfig chunkManagerConfig = new ChunkManagerConfig()
+                .setChunkMaxSize(chunkMaxSize)
+                .setChunkSliceSize(chunkSliceSize)
+                .setSpoolingDirectories("s3://" + minioStorage.getBucketName())
+                .setChunkSpoolInterval(succinctDuration(100, SECONDS)); // only manual triggering in tests
+        DataServerConfig dataServerConfig = new DataServerConfig().setIncludeChecksumInDataResponse(true);
+        return new ChunkManager(
+                new BufferNodeId(BUFFER_NODE_ID),
+                chunkManagerConfig,
+                dataServerConfig,
+                memoryAllocator,
+                spoolingStorage,
+                ticker,
+                new DataServerStats(),
+                executor);
     }
 }
