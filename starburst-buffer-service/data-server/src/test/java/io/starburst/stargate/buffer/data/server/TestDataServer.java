@@ -75,7 +75,6 @@ public class TestDataServer
         dataServer = TestingDataServer.builder()
                 .withDiscoveryApiModule(new TestingDiscoveryApiModule())
                 .setConfigProperty("spooling.directory", System.getProperty("java.io.tmpdir") + "/spooling-storage")
-                .setConfigProperty("testing.drain-delay", "0.5s")
                 .setConfigProperty("discovery-broadcast-interval", "10ms")
                 .build();
         httpClient = new JettyHttpClient(new HttpClientConfig());

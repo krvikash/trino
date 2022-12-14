@@ -9,7 +9,6 @@
  */
 package io.starburst.stargate.buffer.data.server;
 
-import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.BufferNodeState;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
 
@@ -21,7 +20,6 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static java.util.Objects.requireNonNull;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 /**
  * The service responsible for handling the DRAINING of the Server Node.
@@ -34,19 +32,16 @@ public class DrainService
     private final BufferNodeStateManager bufferNodeStateManager;
     private final DataResource dataResource;
     private final ChunkManager chunkManager;
-    private final Duration drainDelay;
 
     @Inject
     public DrainService(
             BufferNodeStateManager bufferNodeStateManager,
             DataResource dataResource,
-            ChunkManager chunkManager,
-            DataServerConfig dataServerConfig)
+            ChunkManager chunkManager)
     {
         this.bufferNodeStateManager = requireNonNull(bufferNodeStateManager, "bufferNodeStateManager is null");
         this.dataResource = requireNonNull(dataResource, "dataResource is null");
         this.chunkManager = requireNonNull(chunkManager, "chunkManager is null");
-        this.drainDelay = requireNonNull(dataServerConfig.getTestingDrainDelay(), "drainDelay is null");
     }
 
     @PreDestroy
@@ -62,7 +57,7 @@ public class DrainService
         }
         bufferNodeStateManager.transitionState(BufferNodeState.DRAINING);
 
-        executor.schedule(() -> {
+        executor.submit(() -> {
             while (dataResource.getInProgressAddDataPagesRequests() > 0) {
                 // busy looping is fine here as we expect in flight requests to finish fast
                 try {
@@ -75,6 +70,6 @@ public class DrainService
             chunkManager.drainAllChunks();
 
             bufferNodeStateManager.transitionState(BufferNodeState.DRAINED);
-        }, drainDelay.roundTo(MILLISECONDS), MILLISECONDS);
+        });
     }
 }
