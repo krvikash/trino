@@ -11,8 +11,10 @@ package io.starburst.stargate.buffer.data.memory;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
+import io.airlift.units.DataSize;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
 
 import javax.annotation.concurrent.GuardedBy;
@@ -30,6 +32,8 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class MemoryAllocator
 {
+    private static final Logger log = Logger.get(MemoryAllocator.class);
+
     private final long maxBytes;
     private final long lowWatermark;
     private final long highWatermark;
@@ -51,6 +55,13 @@ public class MemoryAllocator
         this.highWatermark = (long) (maxBytes * config.getAllocationRatioHighWatermark());
         this.dataServerStats = requireNonNull(dataServerStats, "dataServerStats is null");
         dataServerStats.updateTotalMemoryInBytes(maxBytes);
+
+        log.info("Initializing MemoryAllocator; heapSize=%s, heapHeadroom=%s, maxBytes=%s, lowWatermark=%s, highWatermark=%s",
+                DataSize.ofBytes(heapSize),
+                DataSize.ofBytes(heapHeadroom),
+                DataSize.ofBytes(maxBytes),
+                DataSize.ofBytes(lowWatermark),
+                DataSize.ofBytes(highWatermark));
     }
 
     public synchronized ListenableFuture<Slice> allocate(int bytes)
