@@ -63,7 +63,7 @@ public class Partition
     @GuardedBy("this")
     private boolean finished;
     @GuardedBy("this")
-    private long lastConsumedChunkId = -1;
+    private long lastConsumedChunkId = -1L;
     @GuardedBy("this")
     private final Deque<AddDataPagesFuture> addDataPagesFutures = new ArrayDeque<>();
     @GuardedBy("this")
@@ -142,13 +142,15 @@ public class Partition
 
     public synchronized void getNewlyClosedChunkHandles(ImmutableList.Builder<ChunkHandle> newlyClosedChunkHandles)
     {
+        long maxChunkId = lastConsumedChunkId;
         for (Chunk chunk : closedChunks.values()) {
             long chunkId = chunk.getChunkId();
             if (chunkId > lastConsumedChunkId) {
-                lastConsumedChunkId = chunkId;
+                maxChunkId = Math.max(maxChunkId, chunkId);
                 newlyClosedChunkHandles.add(chunk.getHandle());
             }
         }
+        lastConsumedChunkId = maxChunkId;
     }
 
     public synchronized void finish()
