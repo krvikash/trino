@@ -20,6 +20,7 @@ public class MemoryAllocatorConfig
     private DataSize heapHeadroom = DataSize.ofBytes(Math.round(Runtime.getRuntime().maxMemory() * 0.1));
     private double allocationRatioLowWatermark = 0.75;
     private double allocationRatioHighWatermark = 0.9;
+    private double chunkSlicePoolingFraction = 0.8;
 
     @NotNull
     public DataSize getHeapHeadroom()
@@ -58,6 +59,19 @@ public class MemoryAllocatorConfig
     public MemoryAllocatorConfig setAllocationRatioHighWatermark(double allocationRatioHighWatermark)
     {
         this.allocationRatioHighWatermark = allocationRatioHighWatermark;
+        return this;
+    }
+
+    public double getChunkSlicePoolingFraction()
+    {
+        return chunkSlicePoolingFraction;
+    }
+
+    @Config("memory.chunk-slice-pool-fraction")
+    @ConfigDescription("Max fraction of available bytes for chunk slices pooling")
+    public MemoryAllocatorConfig setChunkSlicePoolingFraction(double chunkSlicePoolingFraction)
+    {
+        this.chunkSlicePoolingFraction = chunkSlicePoolingFraction;
         return this;
     }
 }
