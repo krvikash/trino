@@ -494,6 +494,46 @@ public class TestChunkManager
         assertThat(chunkManager.getTrackedExchanges()).isEqualTo(0);
     }
 
+    @Test
+    public void testListClosedChunks()
+    {
+        ChunkManager chunkManager = createChunkManager(defaultMemoryAllocator(), DataSize.of(12, BYTE), DataSize.of(12, BYTE));
+
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("page0"))));
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 1L, ImmutableList.of(utf8Slice("page1"))));
+        OptionalLong pagingId = OptionalLong.empty();
+        ChunkList chunkList = chunkManager.listClosedChunks(EXCHANGE_0, pagingId); // only chunk 0 closed at this point
+        pagingId = chunkList.nextPagingId();
+        assertTrue(pagingId.isPresent());
+        assertEquals(1L, pagingId.getAsLong());
+        assertThat(chunkList.chunks()).containsExactly(new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 5));
+
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 2L, ImmutableList.of(utf8Slice("page2"))));
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 3L, ImmutableList.of(utf8Slice("page3"))));
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 4L, ImmutableList.of(utf8Slice("page4"))));
+        chunkList = chunkManager.listClosedChunks(EXCHANGE_0, pagingId); // chunk 1, 2, 3 are newly closed
+        pagingId = chunkList.nextPagingId();
+        assertTrue(pagingId.isPresent());
+        assertEquals(2L, pagingId.getAsLong());
+        assertThat(chunkList.chunks()).containsExactly(
+                new ChunkHandle(BUFFER_NODE_ID, 0, 1L, 5),
+                new ChunkHandle(BUFFER_NODE_ID, 0, 2L, 5),
+                new ChunkHandle(BUFFER_NODE_ID, 0, 3L, 5));
+
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 5L, ImmutableList.of(utf8Slice("page5"))));
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 6L, ImmutableList.of(utf8Slice("page6"))));
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 7L, ImmutableList.of(utf8Slice("page7"))));
+        chunkManager.finishExchange(EXCHANGE_0);
+        chunkList = chunkManager.listClosedChunks(EXCHANGE_0, pagingId); // chunk 4, 5, 6, 7 are newly closed
+        pagingId = chunkList.nextPagingId();
+        assertTrue(pagingId.isEmpty());
+        assertThat(chunkList.chunks()).containsExactly(
+                new ChunkHandle(BUFFER_NODE_ID, 0, 4L, 5),
+                new ChunkHandle(BUFFER_NODE_ID, 0, 5L, 5),
+                new ChunkHandle(BUFFER_NODE_ID, 0, 6L, 5),
+                new ChunkHandle(BUFFER_NODE_ID, 0, 7L, 5));
+    }
+
     @AfterAll
     public void destroy()
     {
