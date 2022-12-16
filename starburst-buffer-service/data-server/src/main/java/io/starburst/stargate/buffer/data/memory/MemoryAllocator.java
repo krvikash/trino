@@ -104,6 +104,7 @@ public class MemoryAllocator
         }
         else {
             nonPoolableAllocatedBytes -= bytes;
+            dataServerStats.updateNonPoolableAllocatedMemoryInBytes(nonPoolableAllocatedBytes);
         }
         allocatedBytes -= bytes;
         dataServerStats.updateFreeMemoryInBytes(getFreeMemory());
@@ -164,6 +165,7 @@ public class MemoryAllocator
         }
         if (bytes != chunkSliceSizeInBytes) {
             nonPoolableAllocatedBytes += bytes;
+            dataServerStats.updateNonPoolableAllocatedMemoryInBytes(nonPoolableAllocatedBytes);
         }
         return Slices.allocate(bytes);
     }

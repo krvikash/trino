@@ -18,12 +18,13 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class DataServerStats
 {
-    private AtomicLong totalMemoryInBytes = new AtomicLong();
-    private AtomicLong freeMemoryInBytes = new AtomicLong();
-    private AtomicLong trackedExchanges = new AtomicLong();
-    private AtomicLong openChunks = new AtomicLong();
-    private AtomicLong closedChunks = new AtomicLong();
-    private AtomicLong spooledChunks = new AtomicLong();
+    private final AtomicLong totalMemoryInBytes = new AtomicLong();
+    private final AtomicLong freeMemoryInBytes = new AtomicLong();
+    private final AtomicLong nonPoolableAllocatedMemoryInBytes = new AtomicLong();
+    private final AtomicLong trackedExchanges = new AtomicLong();
+    private final AtomicLong openChunks = new AtomicLong();
+    private final AtomicLong closedChunks = new AtomicLong();
+    private final AtomicLong spooledChunks = new AtomicLong();
     private final CounterStat spooledDataSize = new CounterStat();
     private final CounterStat spoolingFailures = new CounterStat();
     private final DistributionStat spooledChunkSizeDistribution = new DistributionStat();
@@ -56,6 +57,17 @@ public class DataServerStats
     public long getFreeMemoryInBytes()
     {
         return freeMemoryInBytes.get();
+    }
+
+    public void updateNonPoolableAllocatedMemoryInBytes(long nonPoolableAllocatedMemoryInBytes)
+    {
+        this.nonPoolableAllocatedMemoryInBytes.set(nonPoolableAllocatedMemoryInBytes);
+    }
+
+    @Managed
+    public long getNonPoolableAllocatedMemoryInBytes()
+    {
+        return nonPoolableAllocatedMemoryInBytes.get();
     }
 
     public void updateTrackedExchanges(long trackedExchanges)
