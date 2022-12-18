@@ -20,8 +20,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeoutException;
 
-import static io.starburst.server.troubleshooting.TroubleshootingContext.State.CREATED;
-import static io.starburst.server.troubleshooting.TroubleshootingContext.State.REMOVED;
+import static io.starburst.server.troubleshooting.TroubleshootingContext.State.STARTED;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -35,7 +34,7 @@ public class TroubleshootingContext
     public TroubleshootingContext(QueryId queryId, ExecutorService executorService)
     {
         this.queryId = requireNonNull(queryId, "queryId is null");
-        this.state = new StateMachine<>("troubleshooting-" + queryId.getId(), executorService, CREATED);
+        this.state = new StateMachine<>("troubleshooting-" + queryId.getId(), executorService, STARTED);
     }
 
     public QueryId getQueryId()
@@ -57,7 +56,7 @@ public class TroubleshootingContext
     public void awaitTermination(Duration duration)
     {
         try {
-            state.getStateChange(CREATED).get(duration.toMillis(), MILLISECONDS);
+            state.getStateChange(STARTED).get(duration.toMillis(), MILLISECONDS);
         }
         catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -80,12 +79,12 @@ public class TroubleshootingContext
 
     public boolean finish()
     {
-        return state.compareAndSet(CREATED, State.FINISHED);
+        return state.compareAndSet(STARTED, State.FINISHED);
     }
 
     public boolean remove()
     {
-        return state.setIf(State.REMOVED, oldState -> oldState == CREATED || oldState == State.FINISHED);
+        return state.setIf(State.REMOVED, oldState -> oldState == STARTED || oldState == State.FINISHED);
     }
 
     public State getState()
@@ -100,7 +99,7 @@ public class TroubleshootingContext
 
     public enum State
     {
-        CREATED,
+        STARTED,
         FINISHED,
         REMOVED;
     }
