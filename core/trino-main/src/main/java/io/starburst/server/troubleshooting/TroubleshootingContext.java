@@ -21,6 +21,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeoutException;
 
+import static io.starburst.server.troubleshooting.TroubleshootingContext.State.FINISHED;
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.INITIALIZED;
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.REMOVED;
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.STARTED;
@@ -87,12 +88,12 @@ public class TroubleshootingContext
 
     public boolean finish()
     {
-        return state.compareAndSet(STARTED, State.FINISHED);
+        return state.compareAndSet(STARTED, FINISHED);
     }
 
     public boolean remove()
     {
-        return state.setIf(State.REMOVED, oldState -> oldState == STARTED || oldState == State.FINISHED);
+        return state.setIf(State.REMOVED, oldState -> oldState == STARTED || oldState == FINISHED);
     }
 
     public State getState()
