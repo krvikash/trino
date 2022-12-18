@@ -15,11 +15,14 @@ import io.trino.spi.QueryId;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeoutException;
 
+import static io.starburst.server.troubleshooting.TroubleshootingContext.State.INITIALIZED;
+import static io.starburst.server.troubleshooting.TroubleshootingContext.State.REMOVED;
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.STARTED;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -34,7 +37,7 @@ public class TroubleshootingContext
     public TroubleshootingContext(QueryId queryId, ExecutorService executorService)
     {
         this.queryId = requireNonNull(queryId, "queryId is null");
-        this.state = new StateMachine<>("troubleshooting-" + queryId.getId(), executorService, STARTED);
+        this.state = new StateMachine<>("troubleshooting-" + queryId.getId(), executorService, INITIALIZED, Set.of(REMOVED));
     }
 
     public QueryId getQueryId()
@@ -77,6 +80,11 @@ public class TroubleshootingContext
         return get(clazz).orElseThrow();
     }
 
+    public boolean start()
+    {
+        return state.compareAndSet(INITIALIZED, STARTED);
+    }
+
     public boolean finish()
     {
         return state.compareAndSet(STARTED, State.FINISHED);
@@ -99,6 +107,7 @@ public class TroubleshootingContext
 
     public enum State
     {
+        INITIALIZED,
         STARTED,
         FINISHED,
         REMOVED;

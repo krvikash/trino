@@ -36,7 +36,9 @@ import java.util.function.Function;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
+import static io.starburst.server.troubleshooting.TroubleshootingContext.State.FINISHED;
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.REMOVED;
+import static io.starburst.server.troubleshooting.TroubleshootingContext.State.STARTED;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -87,7 +89,7 @@ public class TroubleshootingManager
                 log.warn(e, "Could not fetch query %s full info, was query executed?", queryId);
             }
 
-            verify(context.finish(), "Troubleshooting context is already finished or destroyed");
+            verify(transitionContextTo(context, FINISHED), "Troubleshooting context is already finished or destroyed");
             log.info("Troubleshooting context for %s has finished", queryId);
             executorService.schedule(() -> remove(queryId), destroyAfterFinishDelay.toMillis(), MILLISECONDS);
         });
@@ -96,7 +98,7 @@ public class TroubleshootingManager
     public void remove(QueryId queryId)
     {
         getContext(queryId).ifPresent(context -> {
-            verify(context.remove(), "Context for " + queryId + " was already removed");
+            verify(transitionContextTo(context, REMOVED), "Context for " + queryId + " was already removed");
             contexts.invalidate(queryId);
         });
     }
@@ -105,7 +107,35 @@ public class TroubleshootingManager
     {
         TroubleshootingContext context = new TroubleshootingContext(queryId, executorService);
         context.set(QueryCreatedEvent.class, event);
+
+        verify(transitionContextTo(context, STARTED), "Context for " + queryId + " was already started");
         return context;
+    }
+
+    private boolean transitionContextTo(TroubleshootingContext context, TroubleshootingContext.State nextState)
+    {
+        TroubleshootingContext.State currentState = context.getState();
+
+        if (currentState == nextState) {
+            throw new IllegalStateException("Context for %s was going to transition to %s but it's already in that state".formatted(context.getQueryId(), currentState));
+        }
+
+        boolean transitioned = false;
+
+        // Events are fired before the actual transition so the state is not observed first
+        switch (nextState) {
+            case STARTED -> {
+                transitioned = context.start();
+            }
+            case FINISHED -> {
+                transitioned = context.finish();
+            }
+            case REMOVED -> {
+                transitioned = context.remove();
+            }
+        }
+
+        return transitioned;
     }
 
     public Optional<Map<String, InputStream>> getInputStreams(QueryId queryId)
