@@ -48,7 +48,7 @@ import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.Futures.transform;
 import static io.starburst.server.troubleshooting.TroubleshootingCoordinatorResource.BASE_PATH_API_V1;
 import static io.airlift.jaxrs.AsyncResponseHandler.bindAsyncResponse;
-import static io.trino.server.security.ResourceSecurity.AccessType.AUTHENTICATED_USER;
+import static io.trino.server.security.ResourceSecurity.AccessType.WEB_UI;
 import static java.lang.String.format;
 import static java.net.URLDecoder.decode;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -56,12 +56,12 @@ import static java.util.Objects.requireNonNull;
 import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 import static javax.ws.rs.core.Response.Status.FORBIDDEN;
 
-@ResourceSecurity(AUTHENTICATED_USER)
+@ResourceSecurity(WEB_UI)
 @Path(BASE_PATH_API_V1)
 public class TroubleshootingCoordinatorResource
 {
     private static final Duration MAX_POOL_TIME_MS = Duration.valueOf("5s");
-    public static final String BASE_PATH_API_V1 = "/api/v1/troubleshooting";
+    public static final String BASE_PATH_API_V1 = "/ui/troubleshooting";
     private final WebUiAccessControl accessControl;
     private final TroubleshootingManager troubleshootingManager;
     private final ScheduledExecutorService executorService;
@@ -74,7 +74,7 @@ public class TroubleshootingCoordinatorResource
         this.executorService = requireNonNull(executorService, "executorService is null");
     }
 
-    @ResourceSecurity(AUTHENTICATED_USER)
+    @ResourceSecurity(WEB_UI)
     @GET
     public void getTroubleshootingArchive(@QueryParam("queryId") QueryId queryId, @QueryParam("selectedRole") String selectedRole, @Context WebSessionRequest webRequest, @Context ContainerRequestContext request, @Context @Suspended AsyncResponse asyncResponse)
     {
