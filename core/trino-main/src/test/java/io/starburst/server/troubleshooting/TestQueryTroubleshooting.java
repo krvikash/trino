@@ -28,8 +28,12 @@ import org.testng.annotations.Test;
 
 import java.io.InputStream;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static com.starburstdata.presto.server.StarburstClientCapabilities.QUERY_TROUBLESHOOTING;
 import static io.trino.SystemSessionProperties.QUERY_MAX_MEMORY_PER_NODE;
@@ -120,7 +124,7 @@ public class TestQueryTroubleshooting
             queryId = e.getQueryId();
         }
 
-        Optional<Map<String, InputStream>> inputs = troubleshootingManager.getInputStreams(queryId);
+        Optional<Map<String, InputStream>> inputs = awaitForTroubleshootingData(queryId);
         assertThat(inputs).isPresent();
 
         Map<String, InputStream> inputsMap = inputs.get();
@@ -140,9 +144,9 @@ public class TestQueryTroubleshooting
         String exampleQuery = "SELECT count(comment) FROM tpch.tiny.lineitem";
         try (TestingTrinoClient client = new TestingTrinoClient(getDistributedQueryRunner().getCoordinator(), TROUBLESHOOTED_SESSION)) {
             ResultWithQueryId<MaterializedResult> result = client.execute(exampleQuery);
-            assertThat(troubleshootingManager.getInputStreams(result.getQueryId())).isPresent();
+            assertThat(awaitForTroubleshootingData(result.getQueryId())).isPresent();
             Thread.sleep(700);
-            assertThat(troubleshootingManager.getInputStreams(result.getQueryId())).isEmpty();
+            assertThat(awaitForTroubleshootingData(result.getQueryId())).isEmpty();
         }
     }
 
@@ -150,7 +154,24 @@ public class TestQueryTroubleshooting
     {
         try (TestingTrinoClient client = new TestingTrinoClient(getDistributedQueryRunner().getCoordinator(), session)) {
             ResultWithQueryId<MaterializedResult> result = client.execute(query);
-            return troubleshootingManager.getInputStreams(result.getQueryId());
+            return awaitForTroubleshootingData(result.getQueryId());
+        }
+    }
+
+    private Optional<Map<String, InputStream>> awaitForTroubleshootingData(QueryId queryId)
+    {
+        try {
+            return Optional.of(troubleshootingManager.getInputStreams(queryId).get(10, TimeUnit.SECONDS));
+        }
+        catch (ExecutionException | TimeoutException e) {
+            if (e.getCause() instanceof NoSuchElementException) {
+                return Optional.empty();
+            }
+            throw new RuntimeException(e);
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
         }
     }
 }

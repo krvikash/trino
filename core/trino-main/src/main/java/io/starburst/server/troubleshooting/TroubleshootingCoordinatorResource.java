@@ -16,6 +16,7 @@ import com.google.errorprone.annotations.FormatString;
 import com.google.inject.Inject;
 import com.starburstdata.presto.server.security.webui.access.WebUiAccessControl;
 import com.starburstdata.presto.server.ui.WebSessionRequest;
+import io.airlift.units.Duration;
 import io.trino.server.security.ResourceSecurity;
 import io.trino.spi.QueryId;
 import io.trino.spi.security.Identity;
@@ -25,8 +26,10 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.container.ContainerRequestContext;
+import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Context;
-import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 
 import java.io.ByteArrayInputStream;
@@ -36,11 +39,15 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
+import static com.google.common.util.concurrent.Futures.immediateFuture;
+import static com.google.common.util.concurrent.Futures.transform;
 import static io.starburst.server.troubleshooting.TroubleshootingCoordinatorResource.BASE_PATH_API_V1;
+import static io.airlift.jaxrs.AsyncResponseHandler.bindAsyncResponse;
 import static io.trino.server.security.ResourceSecurity.AccessType.AUTHENTICATED_USER;
 import static java.lang.String.format;
 import static java.net.URLDecoder.decode;
@@ -48,40 +55,40 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 import static javax.ws.rs.core.Response.Status.FORBIDDEN;
-import static javax.ws.rs.core.Response.Status.NOT_FOUND;
 
 @ResourceSecurity(AUTHENTICATED_USER)
 @Path(BASE_PATH_API_V1)
 public class TroubleshootingCoordinatorResource
 {
+    private static final Duration MAX_POOL_TIME_MS = Duration.valueOf("5s");
     public static final String BASE_PATH_API_V1 = "/api/v1/troubleshooting";
     private final WebUiAccessControl accessControl;
     private final TroubleshootingManager troubleshootingManager;
+    private final ScheduledExecutorService executorService;
 
     @Inject
-    public TroubleshootingCoordinatorResource(WebUiAccessControl accessControl, TroubleshootingManager troubleshootingManager)
+    public TroubleshootingCoordinatorResource(WebUiAccessControl accessControl, TroubleshootingManager troubleshootingManager, @ForTroubleshooting ScheduledExecutorService executorService)
     {
         this.accessControl = requireNonNull(accessControl, "accessControl is null");
         this.troubleshootingManager = requireNonNull(troubleshootingManager, "troubleshootingManager is null");
+        this.executorService = requireNonNull(executorService, "executorService is null");
     }
 
     @ResourceSecurity(AUTHENTICATED_USER)
     @GET
-    public Response getTroubleshootingArchive(@QueryParam("queryId") QueryId queryId, @QueryParam("selectedRole") String selectedRole, @Context WebSessionRequest webRequest, @Context HttpHeaders httpHeaders)
+    public void getTroubleshootingArchive(@QueryParam("queryId") QueryId queryId, @QueryParam("selectedRole") String selectedRole, @Context WebSessionRequest webRequest, @Context ContainerRequestContext request, @Context @Suspended AsyncResponse asyncResponse)
     {
         assertRequest(!isNullOrEmpty(selectedRole), "Selected role was not provided");
         assertRequest(queryId != null, "Query id was not provided");
 
         Identity identity = setSelectedRole(webRequest.getIdentity(), selectedRole);
         if (!accessControl.isPrivilegedUser(identity)) {
-            return Response.status(FORBIDDEN.getStatusCode(), "You are not allowed to download troubleshooting archive").build();
+            bindAsyncResponse(asyncResponse, immediateFuture(Response.status(FORBIDDEN.getStatusCode(), "You are not allowed to download troubleshooting archive").build()), executorService);
+            return;
         }
 
-        return troubleshootingManager.getInputStreams(queryId)
-                .map(streams -> createArchiveFromStreams(streams, queryId))
-                .orElse(Response.status(NOT_FOUND)
-                        .entity("Troubleshooting archive is not available for this query or has expired"))
-                .build();
+        bindAsyncResponse(asyncResponse, transform(troubleshootingManager.getInputStreams(queryId), streams -> createArchiveFromStreams(streams, queryId), executorService), executorService)
+                .withTimeout(MAX_POOL_TIME_MS, retryPollingResponse(request));
     }
 
     private Identity setSelectedRole(Identity identity, String roleQueryParam)
@@ -148,5 +155,10 @@ public class TroubleshootingCoordinatorResource
         catch (IOException e) {
             throw new WebApplicationException("Could not create troubleshooting archive: " + e.getMessage());
         }
+    }
+
+    private static Response retryPollingResponse(ContainerRequestContext request)
+    {
+        return Response.seeOther(request.getUriInfo().getRequestUri()).build();
     }
 }

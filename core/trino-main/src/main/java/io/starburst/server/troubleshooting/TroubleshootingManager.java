@@ -12,6 +12,7 @@ package io.starburst.server.troubleshooting;
 import com.google.common.cache.Cache;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.util.concurrent.ListenableFuture;
 import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
@@ -34,8 +35,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 
-import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
+import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
+import static com.google.common.util.concurrent.Futures.transform;
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.FINISHED;
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.REMOVED;
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.STARTED;
@@ -45,7 +47,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 public class TroubleshootingManager
 {
     private static final Logger log = Logger.get(TroubleshootingManager.class);
-    private static final Duration TERMINATION_DELAY = Duration.valueOf("1s");
+
     private final QueryManager queryManager;
     private final Cache<QueryId, TroubleshootingContext> contexts;
     private final Set<TroubleshootingProvider> dataProviders;
@@ -138,17 +140,21 @@ public class TroubleshootingManager
         return transitioned;
     }
 
-    public Optional<Map<String, InputStream>> getInputStreams(QueryId queryId)
+    public ListenableFuture<Map<String, InputStream>> getInputStreams(QueryId queryId)
     {
-        return runWithContext(queryId, context -> {
-            context.awaitTermination(TERMINATION_DELAY);
-            checkState(!context.is(REMOVED), "Context for " + context.getQueryId() + " has been removed");
+        Optional<TroubleshootingContext> context = getContext(queryId);
+        if (context.isEmpty()) {
+            return immediateFailedFuture(new NoSuchElementException("Troubleshooting context for query " + queryId + " does not exist"));
+        }
+
+        return transform(context.get().getStartedStateChange(), state -> {
+            verify(state == FINISHED, "Troubleshooting context for %s is not in the %s state but %s", queryId, FINISHED, state);
             ImmutableMap.Builder<String, InputStream> builder = ImmutableMap.builder();
             for (TroubleshootingProvider dataProvider : dataProviders) {
-                builder.putAll(dataProvider.getInputStreams(context));
+                builder.putAll(dataProvider.getInputStreams(context.get()));
             }
             return builder.buildOrThrow();
-        });
+        }, executorService);
     }
 
     private <T> Optional<T> runWithContext(QueryId queryId, Function<TroubleshootingContext, T> callable)

@@ -9,7 +9,7 @@
  */
 package io.starburst.server.troubleshooting;
 
-import io.airlift.units.Duration;
+import com.google.common.util.concurrent.ListenableFuture;
 import io.trino.execution.StateMachine;
 import io.trino.spi.QueryId;
 
@@ -17,16 +17,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeoutException;
 
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.FINISHED;
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.INITIALIZED;
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.REMOVED;
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.STARTED;
 import static java.util.Objects.requireNonNull;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 public class TroubleshootingContext
 {
@@ -57,18 +54,9 @@ public class TroubleshootingContext
                 .map(clazz::cast);
     }
 
-    public void awaitTermination(Duration duration)
+    public ListenableFuture<State> getStartedStateChange()
     {
-        try {
-            state.getStateChange(STARTED).get(duration.toMillis(), MILLISECONDS);
-        }
-        catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException(e);
-        }
-        catch (ExecutionException | TimeoutException e) {
-            throw new RuntimeException(e);
-        }
+        return state.getStateChange(STARTED);
     }
 
     public <T> boolean has(Class<T> clazz)
