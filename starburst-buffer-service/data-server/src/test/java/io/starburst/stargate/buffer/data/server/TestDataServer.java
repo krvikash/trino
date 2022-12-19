@@ -46,6 +46,7 @@ import static io.airlift.http.client.StringResponseHandler.createStringResponseH
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.airlift.testing.Closeables.closeAll;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
+import static io.starburst.stargate.buffer.data.client.ErrorCode.USER_ERROR;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -326,6 +327,17 @@ public class TestDataServer
                 .hasMessage("error on POST %s/api/v1/buffer/data/exchange-0/addDataPages/0/0/0?targetBufferNodeId=0: exchange %s already finished".formatted(dataServer.getBaseUri(), EXCHANGE_0));
 
         removeExchange(EXCHANGE_0);
+    }
+
+    @Test
+    public void testInvalidTargetDataNodeId()
+    {
+        HttpDataClient invalidDataClient = new HttpDataClient(dataServer.getBaseUri(), BUFFER_NODE_ID + 1, httpClient, true);
+
+        assertThatThrownBy(() -> getFutureValue(invalidDataClient.addDataPages(EXCHANGE_0, 0, 0, 0, ImmutableListMultimap.of())))
+                .isInstanceOf(DataApiException.class)
+                .matches(e -> ((DataApiException) e).getErrorCode() == USER_ERROR)
+                .hasMessageContaining("target buffer node mismatch (1 vs 0)");
     }
 
     private void addDataPage(String exchangeId, int partitionId, int taskId, int attemptId, long dataPagesId, Slice data)

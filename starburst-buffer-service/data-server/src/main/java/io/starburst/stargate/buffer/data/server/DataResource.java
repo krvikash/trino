@@ -20,7 +20,6 @@ import io.airlift.slice.SliceInput;
 import io.airlift.slice.SliceOutput;
 import io.airlift.stats.CounterStat;
 import io.airlift.stats.DistributionStat;
-import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
@@ -30,6 +29,7 @@ import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.SliceLease;
 import io.starburst.stargate.buffer.data.spooling.ChunkDataLease;
 
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -63,6 +63,7 @@ import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.jaxrs.AsyncResponseHandler.bindAsyncResponse;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.DRAINING;
+import static io.starburst.stargate.buffer.data.client.ErrorCode.USER_ERROR;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.ERROR_CODE_HEADER;
 import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_CHUNK_DATA;
 import static java.util.Objects.requireNonNull;
@@ -119,9 +120,16 @@ public class DataResource
     @GET
     @Path("/info")
     @Produces(MediaType.APPLICATION_JSON)
-    public BufferNodeInfo getInfo()
+    public Response getInfo(@QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId)
     {
-        return bufferNodeInfoService.getNodeInfo();
+        try {
+            checkTargetBufferNodeId(targetBufferNodeId);
+            return Response.ok().entity(bufferNodeInfoService.getNodeInfo()).build();
+        }
+        catch (RuntimeException e) {
+            logger.warn(e, "error on GET /info");
+            return errorResponse(e);
+        }
     }
 
     @GET
@@ -129,9 +137,11 @@ public class DataResource
     @Produces(MediaType.APPLICATION_JSON)
     public Response listClosedChunks(
             @PathParam("exchangeId") String exchangeId,
-            @QueryParam("pagingId") Long pagingId)
+            @QueryParam("pagingId") Long pagingId,
+            @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId)
     {
         try {
+            checkTargetBufferNodeId(targetBufferNodeId);
             ChunkList chunkList = chunkManager.listClosedChunks(exchangeId, pagingId == null ? OptionalLong.empty() : OptionalLong.of(pagingId));
             return Response.ok().entity(chunkList).build();
         }
@@ -143,9 +153,12 @@ public class DataResource
 
     @GET
     @Path("{exchangeId}/markAllClosedChunksReceived")
-    public Response markAllClosedChunksReceived(@PathParam("exchangeId") String exchangeId)
+    public Response markAllClosedChunksReceived(
+            @PathParam("exchangeId") String exchangeId,
+            @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId)
     {
         try {
+            checkTargetBufferNodeId(targetBufferNodeId);
             chunkManager.markAllClosedChunksReceived(exchangeId);
             return Response.ok().build();
         }
@@ -163,11 +176,18 @@ public class DataResource
             @PathParam("taskId") int taskId,
             @PathParam("attemptId") int attemptId,
             @PathParam("dataPagesId") long dataPagesId,
+            @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId,
             @HeaderParam(CONTENT_LENGTH) Integer contentLength,
             @Suspended AsyncResponse asyncResponse,
             InputStream inputStream)
     {
         requireNonNull(inputStream, "inputStream is null");
+        try {
+            checkTargetBufferNodeId(targetBufferNodeId);
+        }
+        catch (RuntimeException e) {
+            asyncResponse.resume(errorResponse(e));
+        }
 
         if (dropUploadedPages) {
             asyncResponse.resume(Response.ok().build());
@@ -238,9 +258,11 @@ public class DataResource
             @PathParam("exchangeId") String exchangeId,
             @PathParam("partitionId") int partitionId,
             @PathParam("chunkId") long chunkId,
+            @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId,
             @Suspended AsyncResponse asyncResponse)
     {
         try {
+            checkTargetBufferNodeId(targetBufferNodeId);
             ChunkDataLease chunkDataLease = chunkManager.getChunkData(bufferNodeId, exchangeId, partitionId, chunkId);
             ListenableFuture<ChunkDataHolder> chunkDataHolderFuture = chunkDataLease.getChunkDataHolderFuture();
             AtomicLong chunkSize = new AtomicLong();
@@ -272,9 +294,12 @@ public class DataResource
 
     @GET
     @Path("{exchangeId}/register")
-    public Response registerExchange(@PathParam("exchangeId") String exchangeId)
+    public Response registerExchange(
+            @PathParam("exchangeId") String exchangeId,
+            @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId)
     {
         try {
+            checkTargetBufferNodeId(targetBufferNodeId);
             chunkManager.registerExchange(exchangeId);
             return Response.ok().build();
         }
@@ -286,9 +311,12 @@ public class DataResource
 
     @GET
     @Path("{exchangeId}/ping")
-    public Response pingExchange(@PathParam("exchangeId") String exchangeId)
+    public Response pingExchange(
+            @PathParam("exchangeId") String exchangeId,
+            @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId)
     {
         try {
+            checkTargetBufferNodeId(targetBufferNodeId);
             chunkManager.pingExchange(exchangeId);
             return Response.ok().build();
         }
@@ -300,9 +328,12 @@ public class DataResource
 
     @GET
     @Path("{exchangeId}/finish")
-    public Response finishExchange(@PathParam("exchangeId") String exchangeId)
+    public Response finishExchange(
+            @PathParam("exchangeId") String exchangeId,
+            @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId)
     {
         try {
+            checkTargetBufferNodeId(targetBufferNodeId);
             chunkManager.finishExchange(exchangeId);
             return Response.ok().build();
         }
@@ -314,9 +345,12 @@ public class DataResource
 
     @DELETE
     @Path("{exchangeId}")
-    public Response removeExchange(@PathParam("exchangeId") String exchangeId)
+    public Response removeExchange(
+            @PathParam("exchangeId") String exchangeId,
+            @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId)
     {
         try {
+            checkTargetBufferNodeId(targetBufferNodeId);
             chunkManager.removeExchange(exchangeId);
             return Response.ok().build();
         }
@@ -329,6 +363,16 @@ public class DataResource
     public int getInProgressAddDataPagesRequests()
     {
         return inProgressAddDataPagesRequests.get();
+    }
+
+    private void checkTargetBufferNodeId(@Nullable Long targetBufferNodeId)
+    {
+        if (targetBufferNodeId == null) {
+            return;
+        }
+        if (bufferNodeId != targetBufferNodeId) {
+            throw new DataServerException(USER_ERROR, "target buffer node mismatch (%s vs %s)".formatted(targetBufferNodeId, bufferNodeId));
+        }
     }
 
     private static Response errorResponse(Exception e)
