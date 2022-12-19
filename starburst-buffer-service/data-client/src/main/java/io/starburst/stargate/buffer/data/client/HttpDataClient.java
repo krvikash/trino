@@ -99,9 +99,10 @@ public class HttpDataClient
     @Override
     public BufferNodeInfo getInfo()
     {
-        HttpUriBuilder uri = uriBuilderFrom(baseUri).appendPath("info");
         Request request = prepareGet()
-                .setUri(uri.build())
+                .setUri(uriBuilderFrom(baseUri)
+                        .appendPath("info")
+                        .build())
                 .build();
         return httpClient.execute(request, createFullJsonResponseHandler(BUFFER_NODE_INFO_JSON_CODEC)).getValue();
     }
