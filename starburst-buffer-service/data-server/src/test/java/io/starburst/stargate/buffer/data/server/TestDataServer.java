@@ -78,7 +78,7 @@ public class TestDataServer
                 .setConfigProperty("discovery-broadcast-interval", "10ms")
                 .build();
         httpClient = new JettyHttpClient(new HttpClientConfig());
-        dataClient = new HttpDataClient(dataServer.getBaseUri(), httpClient, true);
+        dataClient = new HttpDataClient(dataServer.getBaseUri(), BUFFER_NODE_ID, httpClient, true);
 
         // Wait for Node to become ready
         await().atMost(TEN_SECONDS).until(
@@ -258,7 +258,7 @@ public class TestDataServer
 
         assertThatThrownBy(() -> addDataPage(EXCHANGE_0, 1, 1, 1, 1L, utf8Slice("dummy")))
                 .isInstanceOf(DataApiException.class)
-                .hasMessage("error on POST %s/api/v1/buffer/data/%s/addDataPages/1/1/1: Node %d is draining and not accepting any more data"
+                .hasMessage("error on POST %s/api/v1/buffer/data/%s/addDataPages/1/1/1?targetBufferNodeId=0: Node %d is draining and not accepting any more data"
                         .formatted(dataServer.getBaseUri(), EXCHANGE_0, BUFFER_NODE_ID));
 
         Future<ChunkList> chunkListFuture = executor.submit(() -> {
@@ -286,7 +286,7 @@ public class TestDataServer
         assertThat(getFutureValue(chunkListFuture).chunks()).containsExactly(chunkHandle);
         assertThatThrownBy(() -> getChunkData(EXCHANGE_0, chunkHandle))
                 .isInstanceOf(DataApiException.class)
-                .hasMessage("error on GET %s/api/v1/buffer/data/0/%s/pages/0/0: Chunk 0 already drained on node %d"
+                .hasMessage("error on GET %s/api/v1/buffer/data/0/%s/pages/0/0?targetBufferNodeId=0: Chunk 0 already drained on node %d"
                         .formatted(dataServer.getBaseUri(), EXCHANGE_0, BUFFER_NODE_ID));
 
         await().atMost(ONE_SECOND).until(
@@ -312,18 +312,18 @@ public class TestDataServer
 
         assertThatThrownBy(() -> finishExchange(EXCHANGE_1))
                 .isInstanceOf(DataApiException.class)
-                .hasMessage("error on GET %s/api/v1/buffer/data/exchange-1/finish: exchange %s not found".formatted(dataServer.getBaseUri(), EXCHANGE_1));
+                .hasMessage("error on GET %s/api/v1/buffer/data/exchange-1/finish?targetBufferNodeId=0: exchange %s not found".formatted(dataServer.getBaseUri(), EXCHANGE_1));
         assertThatThrownBy(() -> listClosedChunks(EXCHANGE_0, OptionalLong.of(Long.MAX_VALUE)))
                 .isInstanceOf(DataApiException.class).hasMessageContaining("Expected pagingId to equal next pagingId");
         assertThatThrownBy(() -> getChunkData(EXCHANGE_0, new ChunkHandle(BUFFER_NODE_ID, 0, 3L, 0)))
                 .isInstanceOf(DataApiException.class)
-                .hasMessage("error on GET %s/api/v1/buffer/data/0/exchange-0/pages/0/3: No closed chunk found for bufferNodeId %d, exchange %s, chunk 3".formatted(dataServer.getBaseUri(), BUFFER_NODE_ID, EXCHANGE_0));
+                .hasMessage("error on GET %s/api/v1/buffer/data/0/exchange-0/pages/0/3?targetBufferNodeId=0: No closed chunk found for bufferNodeId %d, exchange %s, chunk 3".formatted(dataServer.getBaseUri(), BUFFER_NODE_ID, EXCHANGE_0));
 
         finishExchange(EXCHANGE_0);
 
         assertThatThrownBy(() -> addDataPage(EXCHANGE_0, 0, 0, 0, 0L, utf8Slice("exception")))
                 .isInstanceOf(DataApiException.class)
-                .hasMessage("error on POST %s/api/v1/buffer/data/exchange-0/addDataPages/0/0/0: exchange %s already finished".formatted(dataServer.getBaseUri(), EXCHANGE_0));
+                .hasMessage("error on POST %s/api/v1/buffer/data/exchange-0/addDataPages/0/0/0?targetBufferNodeId=0: exchange %s already finished".formatted(dataServer.getBaseUri(), EXCHANGE_0));
 
         removeExchange(EXCHANGE_0);
     }

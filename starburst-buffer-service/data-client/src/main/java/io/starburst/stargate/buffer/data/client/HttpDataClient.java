@@ -81,10 +81,11 @@ public class HttpDataClient
     private static final JsonCodec<BufferNodeInfo> BUFFER_NODE_INFO_JSON_CODEC = jsonCodec(BufferNodeInfo.class);
 
     private final URI baseUri;
+    private final long targetBufferNodeId;
     private final HttpClient httpClient;
     private final boolean dataIntegrityVerificationEnabled;
 
-    public HttpDataClient(URI baseUri, HttpClient httpClient, boolean dataIntegrityVerificationEnabled)
+    public HttpDataClient(URI baseUri, long targetBufferNodeId, HttpClient httpClient, boolean dataIntegrityVerificationEnabled)
     {
         requireNonNull(baseUri, "baseUri is null");
         requireNonNull(httpClient, "httpClient is null");
@@ -92,6 +93,7 @@ public class HttpDataClient
         this.baseUri = uriBuilderFrom(requireNonNull(baseUri, "baseUri is null"))
                 .replacePath("/api/v1/buffer/data")
                 .build();
+        this.targetBufferNodeId = targetBufferNodeId;
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
         this.dataIntegrityVerificationEnabled = dataIntegrityVerificationEnabled;
     }
@@ -102,6 +104,7 @@ public class HttpDataClient
         Request request = prepareGet()
                 .setUri(uriBuilderFrom(baseUri)
                         .appendPath("info")
+                        .addParameter("targetBufferNodeId", String.valueOf(targetBufferNodeId))
                         .build())
                 .build();
         return httpClient.execute(request, createFullJsonResponseHandler(BUFFER_NODE_INFO_JSON_CODEC)).getValue();
@@ -115,6 +118,7 @@ public class HttpDataClient
 
         HttpUriBuilder uri = uriBuilderFrom(baseUri).appendPath("%s/closedChunks".formatted(exchangeId));
         pagingId.ifPresent(id -> uri.addParameter("pagingId", String.valueOf(id)));
+        uri.addParameter("targetBufferNodeId", String.valueOf(targetBufferNodeId));
         Request request = prepareGet()
                 .setUri(uri.build())
                 .build();
@@ -139,6 +143,7 @@ public class HttpDataClient
         Request request = prepareGet()
                 .setUri(uriBuilderFrom(baseUri)
                         .appendPath("%s/markAllClosedChunksReceived".formatted(exchangeId))
+                        .addParameter("targetBufferNodeId", String.valueOf(targetBufferNodeId))
                         .build())
                 .build();
 
@@ -154,6 +159,7 @@ public class HttpDataClient
         Request request = prepareGet()
                 .setUri(uriBuilderFrom(baseUri)
                         .appendPath("%s/register".formatted(exchangeId))
+                        .addParameter("targetBufferNodeId", String.valueOf(targetBufferNodeId))
                         .build())
                 .build();
 
@@ -169,6 +175,7 @@ public class HttpDataClient
         Request request = prepareGet()
                 .setUri(uriBuilderFrom(baseUri)
                         .appendPath("%s/ping".formatted(exchangeId))
+                        .addParameter("targetBufferNodeId", String.valueOf(targetBufferNodeId))
                         .build())
                 .build();
 
@@ -184,6 +191,7 @@ public class HttpDataClient
         Request request = prepareDelete()
                 .setUri(uriBuilderFrom(baseUri)
                         .appendPath(exchangeId)
+                        .addParameter("targetBufferNodeId", String.valueOf(targetBufferNodeId))
                         .build())
                 .build();
 
@@ -207,6 +215,7 @@ public class HttpDataClient
         Request request = preparePost()
                 .setUri(uriBuilderFrom(baseUri)
                         .appendPath("%s/addDataPages/%d/%d/%d".formatted(exchangeId, taskId, attemptId, dataPagesId))
+                        .addParameter("targetBufferNodeId", String.valueOf(targetBufferNodeId))
                         .build())
                 .setBodyGenerator(new PagesBodyGenerator(dataPages))
                 .setHeader(CONTENT_LENGTH, String.valueOf(contentLength))
@@ -224,6 +233,7 @@ public class HttpDataClient
         Request request = prepareGet()
                 .setUri(uriBuilderFrom(baseUri)
                         .appendPath("%s/finish".formatted(exchangeId))
+                        .addParameter("targetBufferNodeId", String.valueOf(targetBufferNodeId))
                         .build())
                 .build();
 
@@ -239,6 +249,7 @@ public class HttpDataClient
         Request request = prepareGet()
                 .setUri(uriBuilderFrom(baseUri)
                         .appendPath("%d/%s/pages/%d/%d".formatted(bufferNodeId, exchangeId, partitionId, chunkId))
+                        .addParameter("targetBufferNodeId", String.valueOf(targetBufferNodeId))
                         .build())
                 .build();
 

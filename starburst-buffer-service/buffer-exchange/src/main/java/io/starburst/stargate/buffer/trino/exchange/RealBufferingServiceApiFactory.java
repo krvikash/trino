@@ -63,7 +63,7 @@ public class RealBufferingServiceApiFactory
     @Override
     public DataApi createDataApi(BufferNodeInfo bufferNodeInfo)
     {
-        HttpDataClient httpDataClient = new HttpDataClient(bufferNodeInfo.uri(), dataHttpClient, dataIntegrityVerificationEnabled);
+        HttpDataClient httpDataClient = new HttpDataClient(bufferNodeInfo.uri(), bufferNodeInfo.nodeId(), dataHttpClient, dataIntegrityVerificationEnabled);
         return new RetryingDataApi(httpDataClient, maxRetries, backoffInitial, backoffMax, backoffFactor, backoffJitter, executorService);
     }
 }
