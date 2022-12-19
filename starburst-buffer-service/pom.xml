@@ -54,14 +54,41 @@
         <module>testing</module>
     </modules>
 
+    <repositories>
+        <repository>
+            <id>starburstdata-sep.snapshots</id>
+            <url>https://starburstdata-sep-cicd-843985043183.d.codeartifact.us-east-2.amazonaws.com/maven/snapshots/</url>
+            <releases>
+                <enabled>false</enabled>
+                <checksumPolicy>fail</checksumPolicy>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+                <checksumPolicy>warn</checksumPolicy>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>starburstdata-sep.releases</id>
+            <url>https://starburstdata-sep-cicd-843985043183.d.codeartifact.us-east-2.amazonaws.com/maven/releases/</url>
+            <releases>
+                <enabled>true</enabled>
+                <checksumPolicy>fail</checksumPolicy>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+                <checksumPolicy>warn</checksumPolicy>
+            </snapshots>
+        </repository>
+    </repositories>
+
     <distributionManagement>
         <repository>
-            <id>starburstdata.releases</id>
-            <url>https://maven.starburstdata.net/starburstdata-artifacts/releases</url>
+            <id>starburstdata-sep.releases</id>
+            <url>https://starburstdata-sep-cicd-843985043183.d.codeartifact.us-east-2.amazonaws.com/maven/releases/</url>
         </repository>
         <snapshotRepository>
-            <id>starburstdata.snapshots</id>
-            <url>https://maven.starburstdata.net/starburstdata-artifacts/snapshots</url>
+            <id>starburstdata-sep.snapshots</id>
+            <url>https://starburstdata-sep-cicd-843985043183.d.codeartifact.us-east-2.amazonaws.com/maven/snapshots/</url>
         </snapshotRepository>
     </distributionManagement>
 
