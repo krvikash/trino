@@ -70,11 +70,11 @@ public class TroubleshootingCoordinatorResource
     public Response getTroubleshootingArchive(@QueryParam("queryId") QueryId queryId, @QueryParam("selectedRole") String selectedRole, @Context WebSessionRequest webRequest, @Context HttpHeaders httpHeaders)
     {
         assertRequest(!isNullOrEmpty(selectedRole), "Selected role was not provided");
-        assertRequest(queryId != null, "Query is was not provided");
+        assertRequest(queryId != null, "Query id was not provided");
 
         Identity identity = setSelectedRole(webRequest.getIdentity(), selectedRole);
         if (!accessControl.isPrivilegedUser(identity)) {
-            return Response.status(FORBIDDEN.getStatusCode(), "You need admin privileges to download troubleshooting archives").build();
+            return Response.status(FORBIDDEN.getStatusCode(), "You are not allowed to download troubleshooting archive").build();
         }
 
         return troubleshootingManager.getInputStreams(queryId)

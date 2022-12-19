@@ -27,7 +27,7 @@ public class TroubleshootingConfig
     }
 
     @Config("troubleshooting.max-queries")
-    @ConfigDescription("Maximum number of queries that will have troubleshooting information available")
+    @ConfigDescription("Maximum number of queries for which troubleshooting information will be collected in a single session")
     public TroubleshootingConfig setMaxActiveQueries(int maxActiveQueries)
     {
         this.maxActiveQueries = maxActiveQueries;

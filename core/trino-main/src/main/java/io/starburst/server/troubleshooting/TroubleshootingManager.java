@@ -71,8 +71,7 @@ public class TroubleshootingManager
             contexts.get(queryId, () -> createNewContext(executorService, queryId, event));
         }
         catch (ExecutionException e) {
-            log.warn(e, "Could not start new troubleshooting context");
-            throw new RuntimeException(e);
+            throw new RuntimeException("Could not start new troubleshooting context", e);
         }
     }
 
