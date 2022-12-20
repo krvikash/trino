@@ -120,7 +120,7 @@ public class S3SpoolingStorage
                 .credentialsProvider(credentialsProvider)
                 .overrideConfiguration(overrideConfig)
                 .region(spoolingS3Config.getRegion());
-        spoolingS3Config.getS3Endpoint().map(s3Endpoint -> s3AsyncClientBuilder.endpointOverride(URI.create(s3Endpoint)));
+        spoolingS3Config.getS3Endpoint().ifPresent(s3Endpoint -> s3AsyncClientBuilder.endpointOverride(URI.create(s3Endpoint)));
         this.s3AsyncClient = s3AsyncClientBuilder.build();
         spooledDataSize = dataServerStats.getSpooledDataSize();
         spoolingFailures = dataServerStats.getSpoolingFailures();
