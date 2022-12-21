@@ -19,7 +19,6 @@ import io.starburst.stargate.buffer.discovery.client.HttpDiscoveryClient;
 
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
@@ -29,6 +28,7 @@ import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.starburst.stargate.buffer.data.client.DataApiBinder.dataApiBinder;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newCachedThreadPool;
+import static java.util.concurrent.Executors.newScheduledThreadPool;
 
 public class BufferExchangeModule
         extends AbstractConfigurationAwareModule
@@ -49,7 +49,7 @@ public class BufferExchangeModule
         binder.bind(BufferExchangeManager.class).in(Scopes.SINGLETON);
         binder.bind(BufferCoordinatorExchangeManager.class).in(Scopes.SINGLETON);
         binder.bind(BufferWorkerExchangeManager.class).in(Scopes.SINGLETON);
-        binder.bind(ScheduledExecutorService.class).toInstance(Executors.newScheduledThreadPool(8)); // todo - configurable?
+        binder.bind(ScheduledExecutorService.class).toInstance(newScheduledThreadPool(8, daemonThreadsNamed("buffer-exchange-scheduled-%s"))); // todo - configurable?
         binder.bind(ExecutorService.class).toInstance(newCachedThreadPool(daemonThreadsNamed("buffer-exchange-%s"))); // todo - make thread count bounded?
         binder.bind(DataApiFacade.class).in(Scopes.SINGLETON);
 

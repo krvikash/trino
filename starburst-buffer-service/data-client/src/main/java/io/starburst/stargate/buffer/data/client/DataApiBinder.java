@@ -9,6 +9,7 @@
  */
 package io.starburst.stargate.buffer.data.client;
 
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import io.airlift.configuration.ConfigDefaults;
@@ -22,6 +23,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
+import static java.util.Objects.requireNonNull;
 
 public class DataApiBinder
 {
@@ -30,8 +32,7 @@ public class DataApiBinder
 
     public static DataApiBinder dataApiBinder(Binder binder)
     {
-        DataApiBinder dataApiBinder = new DataApiBinder(binder);
-        return dataApiBinder;
+        return new DataApiBinder(requireNonNull(binder, "binder is null"));
     }
 
     private DataApiBinder(Binder binder)
@@ -40,6 +41,7 @@ public class DataApiBinder
         this.httpClientBinder = HttpClientBinder.httpClientBinder(binder);
     }
 
+    @CanIgnoreReturnValue
     public DataApiBinder bindHttpDataApi(String dataApiName)
     {
         bindCommon(dataApiName);
@@ -49,6 +51,7 @@ public class DataApiBinder
         return this;
     }
 
+    @CanIgnoreReturnValue
     public DataApiBinder bindRetryingHttpDataApi(String dataApiName)
     {
         bindCommon(dataApiName);
@@ -72,12 +75,14 @@ public class DataApiBinder
         configBinder(binder).bindConfig(DataApiConfig.class, dataApiName);
     }
 
+    @CanIgnoreReturnValue
     public DataApiBinder withRetryingDataApiConfigDefaults(ConfigDefaults<DataApiConfig> configDefaults)
     {
         configBinder(binder).bindConfigDefaults(DataApiConfig.class, configDefaults);
         return this;
     }
 
+    @CanIgnoreReturnValue
     public DataApiBinder withHttpClientConfigDefaults(ConfigDefaults<HttpClientConfig> configDefaults)
     {
         configBinder(binder).bindConfigDefaults(HttpClientConfig.class, ForBufferDataClient.class, configDefaults);
