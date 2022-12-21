@@ -9,12 +9,9 @@
  */
 package io.starburst.stargate.buffer.trino.exchange;
 
-import io.airlift.http.client.HttpClient;
-import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.data.client.DataApi;
-import io.starburst.stargate.buffer.data.client.HttpDataClient;
-import io.starburst.stargate.buffer.data.client.RetryingDataApi;
+import io.starburst.stargate.buffer.data.client.DataApiFactory;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 
 import javax.inject.Inject;
@@ -26,32 +23,18 @@ import static java.util.Objects.requireNonNull;
 public class RealBufferingServiceApiFactory
         implements ApiFactory
 {
-    private final HttpClient dataHttpClient;
     private final DiscoveryApi discoveryApi;
-    private final boolean dataIntegrityVerificationEnabled;
-    private final ScheduledExecutorService executorService;
-    private final int maxRetries;
-    private final Duration backoffInitial;
-    private final Duration backoffMax;
-    private final double backoffFactor;
-    private final double backoffJitter;
+    private final DataApiFactory dataApiFactory;
 
     @Inject
     public RealBufferingServiceApiFactory(
-            @ForBufferDataClient HttpClient dataHttpClient,
             DiscoveryApi discoveryApi,
+            DataApiFactory dataApiFactory,
             BufferExchangeConfig config,
             ScheduledExecutorService executorService)
     {
-        this.dataHttpClient = requireNonNull(dataHttpClient, "dataHttpClient is null");
         this.discoveryApi = requireNonNull(discoveryApi, "discoveryApi is null");
-        this.dataIntegrityVerificationEnabled = config.isDataIntegrityVerificationEnabled();
-        this.executorService = executorService;
-        this.maxRetries = config.getDataClientMaxRetries();
-        this.backoffInitial = config.getDataClientRetryBackoffInitial();
-        this.backoffMax = config.getDataClientRetryBackoffMax();
-        this.backoffFactor = config.getDataClientRetryBackoffFactor();
-        this.backoffJitter = config.getDataClientRetryBackoffJitter();
+        this.dataApiFactory = requireNonNull(dataApiFactory, "dataApiFactory is null");
     }
 
     @Override
@@ -63,7 +46,6 @@ public class RealBufferingServiceApiFactory
     @Override
     public DataApi createDataApi(BufferNodeInfo bufferNodeInfo)
     {
-        HttpDataClient httpDataClient = new HttpDataClient(bufferNodeInfo.uri(), bufferNodeInfo.nodeId(), dataHttpClient, dataIntegrityVerificationEnabled);
-        return new RetryingDataApi(httpDataClient, maxRetries, backoffInitial, backoffMax, backoffFactor, backoffJitter, executorService);
+        return dataApiFactory.createDataApi(bufferNodeInfo.uri(), bufferNodeInfo.nodeId());
     }
 }

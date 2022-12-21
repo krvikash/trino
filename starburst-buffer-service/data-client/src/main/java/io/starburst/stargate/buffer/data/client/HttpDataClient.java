@@ -61,7 +61,6 @@ import static io.airlift.http.client.ResponseHandlerUtils.propagate;
 import static io.airlift.http.client.StringResponseHandler.createStringResponseHandler;
 import static io.airlift.json.JsonCodec.jsonCodec;
 import static io.airlift.slice.SizeOf.SIZE_OF_INT;
-import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.INTERNAL_ERROR;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.calculateChecksum;
