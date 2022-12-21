@@ -63,17 +63,9 @@ public class MemoryAllocator
         long heapSize = Runtime.getRuntime().maxMemory();
         checkArgument(heapHeadroom < heapSize, "Heap headroom %s should be less than available heap size %s", heapHeadroom, heapSize);
         this.maxBytes = heapSize - heapHeadroom;
-        double lowWatermarkRatio = memoryAllocatorConfig.getAllocationRatioLowWatermark();
-        double highWatermarkRatio = memoryAllocatorConfig.getAllocationRatioHighWatermark();
-        checkArgument(0.0 <= lowWatermarkRatio && lowWatermarkRatio <= 1.0, "lowWatermarkRatio expected to be in range [0.0, 1.0], but is %s", lowWatermarkRatio);
-        checkArgument(0.0 <= highWatermarkRatio && highWatermarkRatio <= 1.0, "highWatermarkRatio expected to be in range [0.0, 1.0], but is %s", highWatermarkRatio);
-        checkArgument(lowWatermarkRatio <= highWatermarkRatio, "lowWatermarkRatio %s should be no larger than highWatermarkRatio %s", lowWatermarkRatio, highWatermarkRatio);
-        this.lowWatermark = (long) (maxBytes * lowWatermarkRatio);
-        this.highWatermark = (long) (maxBytes * highWatermarkRatio);
-        double chunkSlicePoolingFraction = memoryAllocatorConfig.getChunkSlicePoolingFraction();
-        checkArgument(0.0 <= chunkSlicePoolingFraction && chunkSlicePoolingFraction < 1.0,
-                "chunkSlicePoolingFraction expected to be in range [0.0, 1.0), but is %s", chunkSlicePoolingFraction);
-        this.chunkSlicePoolingLimit = (long) (maxBytes * chunkSlicePoolingFraction);
+        this.lowWatermark = (long) (maxBytes * memoryAllocatorConfig.getAllocationRatioLowWatermark());
+        this.highWatermark = (long) (maxBytes * memoryAllocatorConfig.getAllocationRatioHighWatermark());
+        this.chunkSlicePoolingLimit = (long) (maxBytes * memoryAllocatorConfig.getChunkSlicePoolingFraction());
         this.chunkSliceSizeInBytes = toIntExact(chunkManagerConfig.getChunkSliceSize().toBytes());
         this.chunkSlicePool = new ArrayDeque<>(toIntExact(chunkSlicePoolingLimit / chunkSliceSizeInBytes));
         this.dataServerStats = requireNonNull(dataServerStats, "dataServerStats is null");
