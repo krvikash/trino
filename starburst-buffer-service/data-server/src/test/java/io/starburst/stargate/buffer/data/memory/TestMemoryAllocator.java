@@ -9,17 +9,13 @@
  */
 package io.starburst.stargate.buffer.data.memory;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.slice.Slice;
 import io.airlift.units.DataSize;
-import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
 import org.junit.jupiter.api.Test;
 
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
-import static io.airlift.units.DataSize.Unit.KILOBYTE;
-import static java.lang.Math.toIntExact;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -32,7 +28,6 @@ public class TestMemoryAllocator
         long maxBytes = 100L;
         MemoryAllocator memoryAllocator = new MemoryAllocator(
                 new MemoryAllocatorConfig().setHeapHeadroom(DataSize.succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes)),
-                new ChunkManagerConfig(),
                 new DataServerStats());
         assertEquals(100L, memoryAllocator.getFreeMemory());
 
@@ -73,39 +68,5 @@ public class TestMemoryAllocator
         memoryAllocator.release(getFutureValue(sliceFuture3));
         memoryAllocator.release(getFutureValue(sliceFuture6));
         assertEquals(100L, memoryAllocator.getFreeMemory());
-    }
-
-    @Test
-    public void testMemoryPooling()
-    {
-        long maxBytes = DataSize.of(1000, KILOBYTE).toBytes();
-        DataSize chunkSliceSize = DataSize.of(1, KILOBYTE);
-        MemoryAllocator memoryAllocator = new MemoryAllocator(
-                new MemoryAllocatorConfig()
-                        .setHeapHeadroom(DataSize.succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes))
-                        .setChunkSlicePoolingFraction(0.8),
-                new ChunkManagerConfig().setChunkSliceSize(chunkSliceSize),
-                new DataServerStats());
-
-        for (int i = 0; i < 10_000_000; ++i) {
-            ListenableFuture<Slice> sliceFuture1 = memoryAllocator.allocate(toIntExact(chunkSliceSize.toBytes()));
-            assertTrue(sliceFuture1.isDone());
-
-            ListenableFuture<Slice> sliceFuture2 = memoryAllocator.allocate(1);
-            assertTrue(sliceFuture2.isDone());
-
-            memoryAllocator.release(getFutureValue(sliceFuture1));
-            memoryAllocator.release(getFutureValue(sliceFuture2));
-        }
-        assertEquals(1, memoryAllocator.getChunkSlicePoolSize());
-
-        ImmutableList.Builder<ListenableFuture<Slice>> sliceFutures = ImmutableList.builder();
-        for (int i = 0; i < 1000; ++i) {
-            ListenableFuture<Slice> sliceFuture = memoryAllocator.allocate(toIntExact(chunkSliceSize.toBytes()));
-            assertTrue(sliceFuture.isDone());
-            sliceFutures.add(sliceFuture);
-        }
-        sliceFutures.build().forEach(sliceFuture -> memoryAllocator.release(getFutureValue(sliceFuture)));
-        assertEquals(800, memoryAllocator.getChunkSlicePoolSize());
     }
 }

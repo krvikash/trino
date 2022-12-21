@@ -342,7 +342,6 @@ public class TestChunkManager
                         .setHeapHeadroom(succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes))
                         .setAllocationRatioHighWatermark(0.8)
                         .setAllocationRatioLowWatermark(0.5),
-                new ChunkManagerConfig(),
                 new DataServerStats());
         ChunkManager chunkManager = createChunkManager(memoryAllocator, DataSize.of(64, BYTE), DataSize.of(32, BYTE));
 
@@ -419,7 +418,6 @@ public class TestChunkManager
                         .setHeapHeadroom(succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes))
                         .setAllocationRatioHighWatermark(0.8)
                         .setAllocationRatioLowWatermark(0.5),
-                new ChunkManagerConfig(),
                 new DataServerStats());
         ChunkManager chunkManager = createChunkManager(memoryAllocator, DataSize.of(16, BYTE), DataSize.of(8, BYTE));
 
@@ -562,7 +560,7 @@ public class TestChunkManager
 
     private MemoryAllocator defaultMemoryAllocator()
     {
-        return new MemoryAllocator(new MemoryAllocatorConfig(), new ChunkManagerConfig(), new DataServerStats());
+        return new MemoryAllocator(new MemoryAllocatorConfig(), new DataServerStats());
     }
 
     private ChunkManager createChunkManager(
