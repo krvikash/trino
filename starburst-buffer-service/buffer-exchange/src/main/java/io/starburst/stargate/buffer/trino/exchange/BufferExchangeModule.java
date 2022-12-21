@@ -80,9 +80,9 @@ public class BufferExchangeModule
         @Override
         protected void setup(Binder binder)
         {
-            httpClientBinder(binder).bindHttpClient("exchange.buffer-discovery.http", ForBufferDiscoveryClient.class);
+            httpClientBinder(binder).bindHttpClient("exchange.buffer-discovery", ForBufferDiscoveryClient.class);
             httpClientBinder(binder)
-                    .bindHttpClient("exchange.buffer-data.http", ForBufferDataClient.class)
+                    .bindHttpClient("exchange.buffer-data", ForBufferDataClient.class)
                     .withConfigDefaults(config -> config.setMaxContentLength(DataSize.of(32, MEGABYTE)));
             binder.bind(ApiFactory.class).to(RealBufferingServiceApiFactory.class);
         }
