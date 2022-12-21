@@ -322,9 +322,6 @@ public class HttpDataClient
         public ChunkDataResponse handle(Request request, Response response)
                 throws RuntimeException
         {
-            if (response.getStatusCode() == HttpStatus.NO_CONTENT.code()) {
-                throw new DataApiException(CHUNK_NOT_FOUND, requestErrorMessage(request, "Chunk not found for chunk " + chunkToString.get()));
-            }
             if (response.getStatusCode() != HttpStatus.OK.code()) {
                 StringBuilder body = new StringBuilder();
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.getInputStream(), UTF_8))) {
