@@ -77,7 +77,6 @@ public class DataServerStatsLogger
         logBuilder.append("STATS START\n");
         logBuilder.append("total_memory: %s\n".formatted(succinctBytes(dataServerStats.getTotalMemoryInBytes())));
         logBuilder.append("free_memory: %s\n".formatted(succinctBytes(dataServerStats.getFreeMemoryInBytes())));
-        logBuilder.append("non_poolable_memory: %s\n".formatted(succinctBytes(dataServerStats.getNonPoolableAllocatedMemoryInBytes())));
         logBuilder.append("exchanges: %s\n".formatted(dataServerStats.getTrackedExchanges()));
         logBuilder.append("open_chunks: %s\n".formatted(dataServerStats.getOpenChunks()));
         logBuilder.append("closed_chunks: %s\n".formatted(dataServerStats.getClosedChunks()));
