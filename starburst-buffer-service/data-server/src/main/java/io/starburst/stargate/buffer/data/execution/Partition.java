@@ -18,7 +18,6 @@ import io.airlift.slice.Slice;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
-import io.starburst.stargate.buffer.data.spooling.ChunkDataLease;
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
 
 import javax.annotation.concurrent.GuardedBy;
@@ -123,7 +122,7 @@ public class Partition
         return addDataPagesFuture;
     }
 
-    public ChunkDataLease getChunkData(long bufferNodeId, long chunkId, boolean startedDraining)
+    public ChunkDataResult getChunkData(long bufferNodeId, long chunkId, boolean startedDraining)
     {
         Chunk chunk = closedChunks.get(chunkId);
         ChunkDataHolder chunkDataHolder = (chunk == null ? null : chunk.getChunkData());
@@ -133,11 +132,11 @@ public class Partition
                 throw new DataServerException(CHUNK_DRAINED, "Chunk %d already drained on node %d".formatted(chunkId, bufferNodeId));
             }
             // chunk already spooled
-            return spoolingStorage.readChunk(bufferNodeId, exchangeId, chunkId);
+            return ChunkDataResult.of(spoolingStorage.getSpoolingFile(bufferNodeId, exchangeId, chunkId));
         }
         // TODO: memory account inaccuracy exists here: getChunkData and spooling can happen concurrently.
         // ChunkDataLease can hold a reference to ChunkData after spooling releases the chunk early.
-        return ChunkDataLease.immediate(chunkDataHolder);
+        return ChunkDataResult.of(chunkDataHolder);
     }
 
     public synchronized void getNewlyClosedChunkHandles(ImmutableList.Builder<ChunkHandle> newlyClosedChunkHandles)

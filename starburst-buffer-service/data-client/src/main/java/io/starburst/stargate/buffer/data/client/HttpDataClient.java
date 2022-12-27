@@ -33,6 +33,7 @@ import io.airlift.slice.SliceOutput;
 import io.airlift.slice.XxHash64;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
+import io.starburst.stargate.buffer.data.client.spooling.SpoolingFile;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -42,16 +43,17 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalLong;
-import java.util.function.Supplier;
 
+import static com.google.common.base.MoreObjects.ToStringHelper;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Verify.verify;
 import static com.google.common.net.HttpHeaders.CONTENT_LENGTH;
 import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
 import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
-import static com.google.common.util.concurrent.Futures.transform;
 import static com.google.common.util.concurrent.Futures.transformAsync;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.http.client.FullJsonResponseHandler.createFullJsonResponseHandler;
@@ -64,6 +66,7 @@ import static io.airlift.http.client.StringResponseHandler.createStringResponseH
 import static io.airlift.json.JsonCodec.jsonCodec;
 import static io.airlift.slice.SizeOf.SIZE_OF_INT;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.INTERNAL_ERROR;
+import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
 import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_CHUNK_DATA_TYPE;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.toDataPages;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -73,6 +76,8 @@ public class HttpDataClient
         implements DataApi
 {
     public static final String ERROR_CODE_HEADER = "X-trino-buffer-error-code";
+    public static final String SPOOLING_FILE_LOCATION_HEADER = "X-trino-buffer-spooling-file-location";
+    public static final String SPOOLING_FILE_SIZE_HEADER = "X-trino-buffer-spooling-file-size";
     public static final int SERIALIZED_CHUNK_DATA_MAGIC = 0xfea4f001;
 
     private static final JsonCodec<ChunkList> CHUNK_LIST_JSON_CODEC = jsonCodec(ChunkList.class);
@@ -258,8 +263,14 @@ public class HttpDataClient
                         .build())
                 .build();
 
-        HttpResponseFuture<ChunkDataResponse> responseFuture = httpClient.executeAsync(request, new ChunkDataResponseHandler(() -> "[%s/%s/%s/%s]".formatted(bufferNodeId, exchangeId, partitionId, chunkId), dataIntegrityVerificationEnabled));
-        return transform(responseFuture, ChunkDataResponse::getPages, directExecutor());
+        HttpResponseFuture<ChunkDataResponse> responseFuture = httpClient.executeAsync(request, new ChunkDataResponseHandler(dataIntegrityVerificationEnabled));
+        return transformAsync(responseFuture, chunkDataResponse -> {
+            if (chunkDataResponse.getPages().isPresent()) {
+                return immediateFuture(chunkDataResponse.getPages().get());
+            }
+            verify(chunkDataResponse.getSpoolingFile().isPresent(), "Either pages or spoolingFile should be present");
+            return spooledChunkReader.getDataPages(chunkDataResponse.getSpoolingFile().get());
+        }, directExecutor());
     }
 
     public static class PagesBodyGenerator
@@ -325,14 +336,10 @@ public class HttpDataClient
     public static class ChunkDataResponseHandler
             implements ResponseHandler<ChunkDataResponse, RuntimeException>
     {
-        private final Supplier<String> chunkToString;
         private final boolean dataIntegrityVerificationEnabled;
 
-        private ChunkDataResponseHandler(
-                Supplier<String> chunkToString,
-                boolean dataIntegrityVerificationEnabled)
+        private ChunkDataResponseHandler(boolean dataIntegrityVerificationEnabled)
         {
-            this.chunkToString = requireNonNull(chunkToString, "chunkToString is null");
             this.dataIntegrityVerificationEnabled = dataIntegrityVerificationEnabled;
         }
 
@@ -347,6 +354,17 @@ public class HttpDataClient
         public ChunkDataResponse handle(Request request, Response response)
                 throws RuntimeException
         {
+            if (response.getStatusCode() == HttpStatus.NOT_FOUND.code() && response.getHeader(SPOOLING_FILE_LOCATION_HEADER) != null) {
+                String location = response.getHeader(SPOOLING_FILE_LOCATION_HEADER);
+                String length = response.getHeader(SPOOLING_FILE_SIZE_HEADER);
+
+                if (length == null) {
+                    throw new DataApiException(INTERNAL_ERROR, requestErrorMessage(request,
+                            "Expected %s and %s to be both present in response")
+                            .formatted(SPOOLING_FILE_LOCATION_HEADER, SPOOLING_FILE_SIZE_HEADER));
+                }
+                return ChunkDataResponse.createSpoolingFileResponse(location, Integer.parseInt(length));
+            }
             if (response.getStatusCode() != HttpStatus.OK.code()) {
                 StringBuilder body = new StringBuilder();
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.getInputStream(), UTF_8))) {
@@ -393,27 +411,43 @@ public class HttpDataClient
     {
         public static ChunkDataResponse createPagesResponse(Iterable<DataPage> pages)
         {
-            return new ChunkDataResponse(pages);
+            return new ChunkDataResponse(Optional.of(pages), Optional.empty());
         }
 
-        private final List<DataPage> pages;
-
-        private ChunkDataResponse(Iterable<DataPage> pages)
+        public static ChunkDataResponse createSpoolingFileResponse(String location, int length)
         {
-            this.pages = ImmutableList.copyOf(requireNonNull(pages, "pages is null"));
+            return new ChunkDataResponse(Optional.empty(), Optional.of(new SpoolingFile(location, length)));
         }
 
-        public List<DataPage> getPages()
+        private final Optional<List<DataPage>> pages;
+        private final Optional<SpoolingFile> spoolingFile;
+
+        private ChunkDataResponse(Optional<Iterable<DataPage>> pages, Optional<SpoolingFile> spoolingFile)
+        {
+            this.pages = requireNonNull(pages, "pages is null").map(ImmutableList::copyOf);
+            this.spoolingFile = requireNonNull(spoolingFile, "spoolingFile is null");
+            checkArgument(pages.isPresent() ^ spoolingFile.isPresent(), "Either pages or spoolingFile should be present");
+        }
+
+        public Optional<List<DataPage>> getPages()
         {
             return pages;
+        }
+
+        public Optional<SpoolingFile> getSpoolingFile()
+        {
+            return spoolingFile;
         }
 
         @Override
         public String toString()
         {
-            return toStringHelper(this)
-                    .add("pagesSize", pages.size())
-                    .toString();
+            ToStringHelper helper = toStringHelper(this);
+            pages.ifPresent(pages -> helper.add("pagesSize", pages.size()));
+            spoolingFile.ifPresent(spoolingFile -> helper
+                    .add("spoolingFileLocation", spoolingFile.location())
+                    .add("spoolingFileLength", spoolingFile.length()));
+            return helper.toString();
         }
     }
 

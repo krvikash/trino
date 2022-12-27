@@ -17,7 +17,6 @@ import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
-import io.starburst.stargate.buffer.data.spooling.ChunkDataLease;
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
 
 import javax.annotation.concurrent.GuardedBy;
@@ -127,7 +126,7 @@ public class Exchange
         return addDataPagesFuture;
     }
 
-    public ChunkDataLease getChunkData(long bufferNodeId, int partitionId, long chunkId, boolean startedDraining)
+    public ChunkDataResult getChunkData(long bufferNodeId, int partitionId, long chunkId, boolean startedDraining)
     {
         throwIfFailed();
 

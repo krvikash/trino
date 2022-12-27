@@ -9,9 +9,11 @@
  */
 package io.starburst.stargate.buffer.data.spooling.local;
 
+import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
 import io.starburst.stargate.buffer.data.spooling.AbstractTestSpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
 
+import static io.starburst.stargate.buffer.data.spooling.SpoolTestHelper.createLocalSpooledChunkReader;
 import static io.starburst.stargate.buffer.data.spooling.SpoolTestHelper.createLocalSpoolingStorage;
 
 public class TestLocalSpoolingStorage
@@ -21,5 +23,11 @@ public class TestLocalSpoolingStorage
     protected SpoolingStorage createSpoolingStorage()
     {
         return createLocalSpoolingStorage();
+    }
+
+    @Override
+    protected SpooledChunkReader createSpooledChunkReader()
+    {
+        return createLocalSpooledChunkReader();
     }
 }

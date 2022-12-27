@@ -9,24 +9,20 @@
  */
 package io.starburst.stargate.buffer.data.spooling;
 
-import com.google.common.base.Ticker;
-import com.google.common.collect.ImmutableMap;
-import com.google.inject.AbstractModule;
-import com.google.inject.Injector;
-import com.google.inject.Provides;
-import com.google.inject.Singleton;
-import io.airlift.bootstrap.Bootstrap;
-import io.airlift.http.server.HttpServerConfig;
-import io.airlift.http.server.HttpServerInfo;
-import io.airlift.node.NodeInfo;
-import io.airlift.node.testing.TestingNodeModule;
-import io.starburst.stargate.buffer.data.server.MainModule;
+import io.starburst.stargate.buffer.data.client.DataApiConfig;
+import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
+import io.starburst.stargate.buffer.data.client.spooling.local.LocalSpooledChunkReader;
+import io.starburst.stargate.buffer.data.client.spooling.s3.S3SpooledChunkReader;
+import io.starburst.stargate.buffer.data.client.spooling.s3.SpoolingS3ReaderConfig;
+import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
+import io.starburst.stargate.buffer.data.server.BufferNodeId;
+import io.starburst.stargate.buffer.data.server.DataServerStats;
+import io.starburst.stargate.buffer.data.spooling.local.LocalSpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.s3.MinioStorage;
+import io.starburst.stargate.buffer.data.spooling.s3.S3SpoolingStorage;
+import io.starburst.stargate.buffer.data.spooling.s3.SpoolingS3Config;
 
-import java.net.URI;
-import java.util.Map;
-
-import static java.util.Objects.requireNonNull;
+import java.util.concurrent.ExecutorService;
 
 public final class SpoolTestHelper
 {
@@ -34,59 +30,36 @@ public final class SpoolTestHelper
 
     public static SpoolingStorage createS3SpoolingStorage(MinioStorage minioStorage)
     {
-        return createSpoolingStorage(ImmutableMap.<String, String>builder()
-                .put("spooling.directory", "s3://" + minioStorage.getBucketName())
-                .put("spooling.s3.aws-access-key", MinioStorage.ACCESS_KEY)
-                .put("spooling.s3.aws-secret-key", MinioStorage.SECRET_KEY)
-                .put("spooling.s3.region", "us-east-1")
-                .put("spooling.s3.endpoint", "http://" + minioStorage.getMinio().getMinioApiEndpoint())
-                .build());
+        return new S3SpoolingStorage(
+                new BufferNodeId(0L),
+                new ChunkManagerConfig().setSpoolingDirectories("s3://" + minioStorage.getBucketName()),
+                new SpoolingS3Config()
+                        .setS3AwsAccessKey(MinioStorage.ACCESS_KEY)
+                        .setS3AwsSecretKey(MinioStorage.SECRET_KEY)
+                        .setRegion("us-east-1")
+                        .setS3Endpoint("http://" + minioStorage.getMinio().getMinioApiEndpoint()),
+                new DataServerStats());
+    }
+
+    public static SpooledChunkReader createS3SpooledChunkReader(MinioStorage minioStorage, ExecutorService executor)
+    {
+        return new S3SpooledChunkReader(
+                new SpoolingS3ReaderConfig()
+                        .setS3AwsAccessKey(MinioStorage.ACCESS_KEY)
+                        .setS3AwsSecretKey(MinioStorage.SECRET_KEY)
+                        .setRegion("us-east-1")
+                        .setS3Endpoint("http://" + minioStorage.getMinio().getMinioApiEndpoint()),
+                new DataApiConfig(),
+                executor);
     }
 
     public static SpoolingStorage createLocalSpoolingStorage()
     {
-        return createSpoolingStorage(ImmutableMap.<String, String>builder()
-                .put("spooling.directory", System.getProperty("java.io.tmpdir") + "/spooling-storage")
-                .build());
+        return new LocalSpoolingStorage(new ChunkManagerConfig().setSpoolingDirectories(System.getProperty("java.io.tmpdir") + "/spooling-storage"));
     }
 
-    private static SpoolingStorage createSpoolingStorage(Map<String, String> config)
+    public static SpooledChunkReader createLocalSpooledChunkReader()
     {
-        requireNonNull(config, "config is null");
-
-        Bootstrap app = new Bootstrap(
-                new TestingNodeModule(),
-                new TestingHttpServerModule(),
-                new MainModule(0L, false, Ticker.systemTicker()));
-
-        Injector injector = app
-                .doNotInitializeLogging()
-                .setRequiredConfigurationProperties(config)
-                .initialize();
-
-        return injector.getInstance(SpoolingStorage.class);
-    }
-
-    /**
-     * Added to fulfill dependencies needs. But in this case we do not
-     * need to start whole HTTP server, so we just mock it existence
-     */
-    private static class TestingHttpServerModule
-            extends AbstractModule
-    {
-        @Provides
-        @Singleton
-        public HttpServerInfo getHttpServerInfo(NodeInfo nodeInfo)
-        {
-            return new HttpServerInfo(new HttpServerConfig()
-                    .setHttpEnabled(false), nodeInfo)
-            {
-                @Override
-                public URI getHttpUri()
-                {
-                    return URI.create("http://%s".formatted(nodeInfo.getExternalAddress()));
-                }
-            };
-        }
+        return new LocalSpooledChunkReader(new DataApiConfig());
     }
 }

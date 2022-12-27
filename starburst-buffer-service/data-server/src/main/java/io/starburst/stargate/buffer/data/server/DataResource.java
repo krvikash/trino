@@ -23,12 +23,13 @@ import io.airlift.stats.CounterStat;
 import io.airlift.stats.DistributionStat;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
+import io.starburst.stargate.buffer.data.client.spooling.SpoolingFile;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.execution.ChunkDataHolder;
+import io.starburst.stargate.buffer.data.execution.ChunkDataResult;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.SliceLease;
-import io.starburst.stargate.buffer.data.spooling.ChunkDataLease;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
@@ -54,10 +55,10 @@ import java.util.OptionalLong;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Verify.verify;
 import static com.google.common.net.HttpHeaders.CONTENT_LENGTH;
 import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
@@ -66,6 +67,8 @@ import static io.airlift.jaxrs.AsyncResponseHandler.bindAsyncResponse;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.DRAINING;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.USER_ERROR;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.ERROR_CODE_HEADER;
+import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLING_FILE_LOCATION_HEADER;
+import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLING_FILE_SIZE_HEADER;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
 import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_CHUNK_DATA;
 import static java.lang.String.format;
@@ -283,42 +286,35 @@ public class DataResource
     @GET
     @Path("{bufferNodeId}/{exchangeId}/pages/{partitionId}/{chunkId}")
     @Produces(TRINO_CHUNK_DATA)
-    public void getChunkData(
+    public Response getChunkData(
             @PathParam("bufferNodeId") long bufferNodeId,
             @PathParam("exchangeId") String exchangeId,
             @PathParam("partitionId") int partitionId,
             @PathParam("chunkId") long chunkId,
-            @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId,
-            @Suspended AsyncResponse asyncResponse)
+            @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId)
     {
         try {
             checkTargetBufferNodeId(targetBufferNodeId);
-            ChunkDataLease chunkDataLease = chunkManager.getChunkData(bufferNodeId, exchangeId, partitionId, chunkId);
-            ListenableFuture<ChunkDataHolder> chunkDataHolderFuture = chunkDataLease.getChunkDataHolderFuture();
-            AtomicLong chunkSize = new AtomicLong();
-            bindAsyncResponse(
-                    asyncResponse,
-                    logAndTranslateExceptions(
-                            Futures.transform(
-                                    chunkDataHolderFuture,
-                                    chunkDataHolder -> {
-                                        chunkSize.set(chunkDataHolder.serializedSizeInBytes()); // not strictly accurate but good enough for stats
-                                        return Response.ok(new GenericEntity<>(chunkDataHolder, new TypeToken<ChunkDataHolder>() {}.getType())).build();
-                                    },
-                                    directExecutor()),
-                            () -> "GET /%s/pages/%s/%s/%s".formatted(exchangeId, partitionId, chunkId, bufferNodeId)),
-                    responseExecutor);
-            asyncResponse.register((CompletionCallback) throwable -> {
-                if (throwable == null) {
-                    readDataSize.update(chunkSize.get());
-                    readDataSizeDistribution.add(chunkSize.get());
-                }
-                chunkDataLease.release();
-            });
+            ChunkDataResult chunkDataResult = chunkManager.getChunkData(bufferNodeId, exchangeId, partitionId, chunkId);
+            if (chunkDataResult.chunkDataHolder().isPresent()) {
+                ChunkDataHolder chunkDataHolder = chunkDataResult.chunkDataHolder().get();
+                int serializedSizeInBytes = chunkDataHolder.serializedSizeInBytes(); // not strictly accurate but good enough for stats
+                readDataSize.update(serializedSizeInBytes);
+                readDataSizeDistribution.add(serializedSizeInBytes);
+                return Response.ok(new GenericEntity<>(chunkDataResult.chunkDataHolder().get(), new TypeToken<ChunkDataHolder>() {}.getType())).build();
+            }
+            else {
+                verify(chunkDataResult.spoolingFile().isPresent(), "Either chunkDataHolder or spoolingFile should be present");
+                SpoolingFile spoolingFile = chunkDataResult.spoolingFile().get();
+                return Response.status(Status.NOT_FOUND)
+                        .header(SPOOLING_FILE_LOCATION_HEADER, spoolingFile.location())
+                        .header(SPOOLING_FILE_SIZE_HEADER, String.valueOf(spoolingFile.length()))
+                        .build();
+            }
         }
         catch (RuntimeException e) {
             logger.warn(e, "error on GET /%s/pages/%s/%s/%s", exchangeId, partitionId, chunkId, bufferNodeId);
-            asyncResponse.resume(errorResponse(e));
+            return errorResponse(e);
         }
     }
 

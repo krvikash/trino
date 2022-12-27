@@ -10,12 +10,13 @@
 package io.starburst.stargate.buffer.data.spooling;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import io.starburst.stargate.buffer.data.client.spooling.SpoolingFile;
 import io.starburst.stargate.buffer.data.execution.ChunkDataHolder;
 
 public interface SpoolingStorage
         extends AutoCloseable
 {
-    ChunkDataLease readChunk(long bufferNodeId, String exchangeId, long chunkId);
+    SpoolingFile getSpoolingFile(long bufferNodeId, String exchangeId, long chunkId);
 
     ListenableFuture<Void> writeChunk(long bufferNodeId, String exchangeId, long chunkId, ChunkDataHolder chunkDataHolder);
 

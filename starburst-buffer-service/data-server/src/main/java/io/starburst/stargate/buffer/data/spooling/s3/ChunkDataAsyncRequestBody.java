@@ -23,7 +23,7 @@ import software.amazon.awssdk.core.internal.util.Mimetype;
 import java.nio.ByteBuffer;
 import java.util.Optional;
 
-import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.CHUNK_FILE_HEADER_SIZE;
+import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.CHUNK_FILE_HEADER_SIZE;
 import static java.util.Objects.requireNonNull;
 
 /**

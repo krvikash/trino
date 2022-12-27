@@ -9,16 +9,23 @@
  */
 package io.starburst.stargate.buffer.data.spooling.s3;
 
+import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
 import io.starburst.stargate.buffer.data.spooling.AbstractTestSpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
 import org.junit.jupiter.api.AfterAll;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import static io.starburst.stargate.buffer.data.spooling.SpoolTestHelper.createS3SpooledChunkReader;
 import static io.starburst.stargate.buffer.data.spooling.SpoolTestHelper.createS3SpoolingStorage;
 import static java.util.UUID.randomUUID;
 
 public class TestS3SpoolingStorage
         extends AbstractTestSpoolingStorage
 {
+    private final ExecutorService executor = Executors.newCachedThreadPool();
+
     private MinioStorage minioStorage;
 
     @Override
@@ -28,6 +35,12 @@ public class TestS3SpoolingStorage
         minioStorage.start();
 
         return createS3SpoolingStorage(minioStorage);
+    }
+
+    @Override
+    protected SpooledChunkReader createSpooledChunkReader()
+    {
+        return createS3SpooledChunkReader(minioStorage, executor);
     }
 
     @Override

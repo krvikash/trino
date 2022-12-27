@@ -27,7 +27,6 @@ import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
 import io.starburst.stargate.buffer.data.server.DataServerConfig;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
-import io.starburst.stargate.buffer.data.spooling.ChunkDataLease;
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
 
 import javax.annotation.PostConstruct;
@@ -178,7 +177,7 @@ public class ChunkManager
         return getExchangeAndHeartbeat(exchangeId).addDataPages(partitionId, taskId, attemptId, dataPagesId, pages);
     }
 
-    public ChunkDataLease getChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId)
+    public ChunkDataResult getChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId)
     {
         Exchange exchange = getExchangeAndHeartbeat(exchangeId);
         return exchange.getChunkData(bufferNodeId, partitionId, chunkId, startedDraining);

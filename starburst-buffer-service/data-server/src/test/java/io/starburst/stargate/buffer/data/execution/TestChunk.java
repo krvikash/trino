@@ -14,7 +14,6 @@ import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocatorConfig;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
-import io.starburst.stargate.buffer.data.spooling.ChunkDataLease;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -64,7 +63,7 @@ public class TestChunk
         chunk.close();
 
         assertEquals(12, chunk.dataSizeInBytes());
-        verifyChunkData(ChunkDataLease.immediate(chunk.getChunkData()), dataPages.get(0), dataPages.get(1), dataPages.get(2));
+        verifyChunkData(chunk.getChunkData(), dataPages.get(0), dataPages.get(1), dataPages.get(2));
     }
 
     @AfterAll
