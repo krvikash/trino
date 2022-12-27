@@ -25,6 +25,7 @@ import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.client.HttpDataClient;
+import io.starburst.stargate.buffer.data.client.spooling.noop.NoopSpooledChunkReader;
 import io.starburst.stargate.buffer.data.server.testing.TestingDataServer;
 import io.starburst.stargate.buffer.data.server.testing.TestingDiscoveryApiModule;
 import org.junit.jupiter.api.AfterEach;
@@ -79,7 +80,7 @@ public class TestDataServer
                 .setConfigProperty("discovery-broadcast-interval", "10ms")
                 .build();
         httpClient = new JettyHttpClient(new HttpClientConfig());
-        dataClient = new HttpDataClient(dataServer.getBaseUri(), BUFFER_NODE_ID, httpClient, true);
+        dataClient = new HttpDataClient(dataServer.getBaseUri(), BUFFER_NODE_ID, httpClient, new NoopSpooledChunkReader(), true);
 
         // Wait for Node to become ready
         await().atMost(TEN_SECONDS).until(
@@ -332,7 +333,7 @@ public class TestDataServer
     @Test
     public void testInvalidTargetDataNodeId()
     {
-        HttpDataClient invalidDataClient = new HttpDataClient(dataServer.getBaseUri(), BUFFER_NODE_ID + 1, httpClient, true);
+        HttpDataClient invalidDataClient = new HttpDataClient(dataServer.getBaseUri(), BUFFER_NODE_ID + 1, httpClient, new NoopSpooledChunkReader(), true);
 
         assertThatThrownBy(() -> getFutureValue(invalidDataClient.addDataPages(EXCHANGE_0, 0, 0, 0, ImmutableListMultimap.of())))
                 .isInstanceOf(DataApiException.class)

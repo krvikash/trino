@@ -80,7 +80,7 @@ public class BufferExchangeModule
         protected void setup(Binder binder)
         {
             httpClientBinder(binder).bindHttpClient("exchange.buffer-discovery", ForBufferDiscoveryClient.class);
-            dataApiBinder(binder).bindRetryingHttpDataApi("exchange.buffer-data");
+            dataApiBinder(binder, super::install).bindRetryingHttpDataApi("exchange.buffer-data");
             binder.bind(ApiFactory.class).to(RealBufferingServiceApiFactory.class);
         }
 

@@ -11,14 +11,23 @@ package io.starburst.stargate.buffer.data.client;
 
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.google.inject.Binder;
+import com.google.inject.Module;
 import com.google.inject.Scopes;
+import io.airlift.configuration.ConditionalModule;
 import io.airlift.configuration.ConfigDefaults;
 import io.airlift.http.client.HttpClientBinder;
 import io.airlift.http.client.HttpClientConfig;
 import io.airlift.units.DataSize;
+import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
+import io.starburst.stargate.buffer.data.client.spooling.SpoolingStorageType;
+import io.starburst.stargate.buffer.data.client.spooling.local.LocalSpooledChunkReader;
+import io.starburst.stargate.buffer.data.client.spooling.noop.NoopSpooledChunkReader;
+import io.starburst.stargate.buffer.data.client.spooling.s3.S3SpooledChunkReader;
+import io.starburst.stargate.buffer.data.client.spooling.s3.SpoolingS3ReaderConfig;
 
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.function.Consumer;
 
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.configuration.ConfigBinder.configBinder;
@@ -28,23 +37,25 @@ import static java.util.Objects.requireNonNull;
 public class DataApiBinder
 {
     private final Binder binder;
+    private final Consumer<Module> moduleInstall;
     private final HttpClientBinder httpClientBinder;
 
-    public static DataApiBinder dataApiBinder(Binder binder)
+    public static DataApiBinder dataApiBinder(Binder binder, Consumer<Module> moduleInstall)
     {
-        return new DataApiBinder(requireNonNull(binder, "binder is null"));
+        return new DataApiBinder(requireNonNull(binder, "binder is null"), requireNonNull(moduleInstall, "moduleInstall is null"));
     }
 
-    private DataApiBinder(Binder binder)
+    private DataApiBinder(Binder binder, Consumer<Module> moduleInstall)
     {
         this.binder = binder;
+        this.moduleInstall = moduleInstall;
         this.httpClientBinder = HttpClientBinder.httpClientBinder(binder);
     }
 
     @CanIgnoreReturnValue
     public DataApiBinder bindHttpDataApi(String dataApiName)
     {
-        bindCommon(dataApiName);
+        bindCommon(dataApiName, moduleInstall);
         binder.bind(DataApiFactory.class)
                 .to(HttpDataApiFactory.class)
                 .in(Scopes.SINGLETON);
@@ -54,7 +65,7 @@ public class DataApiBinder
     @CanIgnoreReturnValue
     public DataApiBinder bindRetryingHttpDataApi(String dataApiName)
     {
-        bindCommon(dataApiName);
+        bindCommon(dataApiName, moduleInstall);
         binder.bind(DataApiFactory.class)
                 .annotatedWith(ForRetryingDataApiFactory.class)
                 .to(HttpDataApiFactory.class)
@@ -68,11 +79,29 @@ public class DataApiBinder
         return this;
     }
 
-    private void bindCommon(String dataApiName)
+    private void bindCommon(String dataApiName, Consumer<Module> moduleInstall)
     {
         httpClientBinder.bindHttpClient(dataApiName, ForBufferDataClient.class)
                 .withConfigDefaults(config -> config.setMaxContentLength(DataSize.of(32, MEGABYTE)));
         configBinder(binder).bindConfig(DataApiConfig.class, dataApiName);
+
+        moduleInstall.accept(ConditionalModule.conditionalModule(
+                DataApiConfig.class,
+                config -> config.getSpoolingStorageType() == SpoolingStorageType.NONE,
+                binder -> binder.bind(SpooledChunkReader.class).to(NoopSpooledChunkReader.class).in(Scopes.SINGLETON)));
+
+        moduleInstall.accept(ConditionalModule.conditionalModule(
+                DataApiConfig.class,
+                config -> config.getSpoolingStorageType() == SpoolingStorageType.LOCAL,
+                binder -> binder.bind(SpooledChunkReader.class).to(LocalSpooledChunkReader.class).in(Scopes.SINGLETON)));
+
+        moduleInstall.accept(ConditionalModule.conditionalModule(
+                DataApiConfig.class,
+                config -> config.getSpoolingStorageType() == SpoolingStorageType.S3,
+                binder -> {
+                    configBinder(binder).bindConfig(SpoolingS3ReaderConfig.class, dataApiName);
+                    binder.bind(SpooledChunkReader.class).to(S3SpooledChunkReader.class).in(Scopes.SINGLETON);
+                }));
     }
 
     @CanIgnoreReturnValue

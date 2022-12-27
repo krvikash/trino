@@ -11,6 +11,9 @@ package io.starburst.stargate.buffer.data.client;
 
 import io.airlift.configuration.Config;
 import io.airlift.units.Duration;
+import io.starburst.stargate.buffer.data.client.spooling.SpoolingStorageType;
+
+import javax.validation.constraints.NotNull;
 
 import static io.airlift.units.Duration.succinctDuration;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -23,6 +26,7 @@ public class DataApiConfig
     private Duration dataClientRetryBackoffMax = succinctDuration(10.0, SECONDS);
     private double dataClientRetryBackoffFactor = 2.0;
     private double dataClientRetryBackoffJitter = 0.5;
+    private SpoolingStorageType spoolingStorageType = SpoolingStorageType.NONE;
 
     public int getDataClientMaxRetries()
     {
@@ -93,6 +97,19 @@ public class DataApiConfig
     public DataApiConfig setDataClientRetryBackoffJitter(double dataClientRetryBackoffJitter)
     {
         this.dataClientRetryBackoffJitter = dataClientRetryBackoffJitter;
+        return this;
+    }
+
+    @NotNull
+    public SpoolingStorageType getSpoolingStorageType()
+    {
+        return spoolingStorageType;
+    }
+
+    @Config("spooling-storage-type")
+    public DataApiConfig setSpoolingStorageType(SpoolingStorageType spoolingStorageType)
+    {
+        this.spoolingStorageType = spoolingStorageType;
         return this;
     }
 }

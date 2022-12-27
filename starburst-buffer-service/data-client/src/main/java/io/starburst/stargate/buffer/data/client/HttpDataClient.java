@@ -32,6 +32,7 @@ import io.airlift.slice.Slice;
 import io.airlift.slice.SliceOutput;
 import io.airlift.slice.XxHash64;
 import io.starburst.stargate.buffer.BufferNodeInfo;
+import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -63,11 +64,8 @@ import static io.airlift.http.client.StringResponseHandler.createStringResponseH
 import static io.airlift.json.JsonCodec.jsonCodec;
 import static io.airlift.slice.SizeOf.SIZE_OF_INT;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.INTERNAL_ERROR;
-import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
-import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.calculateChecksum;
-import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.readSerializedPages;
 import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_CHUNK_DATA_TYPE;
-import static java.lang.String.format;
+import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.toDataPages;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 
@@ -83,9 +81,15 @@ public class HttpDataClient
     private final URI baseUri;
     private final long targetBufferNodeId;
     private final HttpClient httpClient;
+    private final SpooledChunkReader spooledChunkReader;
     private final boolean dataIntegrityVerificationEnabled;
 
-    public HttpDataClient(URI baseUri, long targetBufferNodeId, HttpClient httpClient, boolean dataIntegrityVerificationEnabled)
+    public HttpDataClient(
+            URI baseUri,
+            long targetBufferNodeId,
+            HttpClient httpClient,
+            SpooledChunkReader spooledChunkReader,
+            boolean dataIntegrityVerificationEnabled)
     {
         requireNonNull(baseUri, "baseUri is null");
         requireNonNull(httpClient, "httpClient is null");
@@ -95,6 +99,7 @@ public class HttpDataClient
                 .build();
         this.targetBufferNodeId = targetBufferNodeId;
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
+        this.spooledChunkReader = requireNonNull(spooledChunkReader, "spooledChunkReader is null");
         this.dataIntegrityVerificationEnabled = dataIntegrityVerificationEnabled;
     }
 
@@ -376,32 +381,10 @@ public class HttpDataClient
                 if (magic != SERIALIZED_CHUNK_DATA_MAGIC) {
                     throw new DataApiException(INTERNAL_ERROR, requestErrorMessage(request, "Invalid stream header, expected 0x%08x, but was 0x%08x".formatted(SERIALIZED_CHUNK_DATA_MAGIC, magic)));
                 }
-                long checksum = input.readLong();
-                int pagesCount = input.readInt();
-                List<DataPage> pages = ImmutableList.copyOf(readSerializedPages(input));
-                verifyChecksum(checksum, pages);
-                if (pages.size() != pagesCount) {
-                    throw new DataApiException(INTERNAL_ERROR, requestErrorMessage(request, "Wrong number of pages, expected %s, but read %s".formatted(pagesCount, pages.size())));
-                }
-                return ChunkDataResponse.createPagesResponse(pages);
+                return ChunkDataResponse.createPagesResponse(toDataPages(input, dataIntegrityVerificationEnabled));
             }
             catch (IOException e) {
                 throw new DataApiException(INTERNAL_ERROR, requestErrorMessage(request, "IOException"), e);
-            }
-        }
-
-        private void verifyChecksum(long readChecksum, List<DataPage> pages)
-        {
-            if (dataIntegrityVerificationEnabled) {
-                long calculatedChecksum = calculateChecksum(pages);
-                if (readChecksum != calculatedChecksum) {
-                    throw new ChecksumVerificationException(format("Data corruption, read checksum: 0x%08x, calculated checksum: 0x%08x", readChecksum, calculatedChecksum));
-                }
-            }
-            else {
-                if (readChecksum != NO_CHECKSUM) {
-                    throw new ChecksumVerificationException(format("Expected checksum to be NO_CHECKSUM (0x%08x) but is 0x%08x", NO_CHECKSUM, readChecksum));
-                }
             }
         }
     }
@@ -431,15 +414,6 @@ public class HttpDataClient
             return toStringHelper(this)
                     .add("pagesSize", pages.size())
                     .toString();
-        }
-    }
-
-    private static class ChecksumVerificationException
-            extends RuntimeException
-    {
-        public ChecksumVerificationException(String message)
-        {
-            super(requireNonNull(message, "message is null"));
         }
     }
 

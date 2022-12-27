@@ -11,6 +11,7 @@ package io.starburst.stargate.buffer.data.client;
 
 import com.google.common.collect.ImmutableMap;
 import io.airlift.units.Duration;
+import io.starburst.stargate.buffer.data.client.spooling.SpoolingStorageType;
 import org.junit.jupiter.api.Test;
 
 import java.net.URISyntaxException;
@@ -32,7 +33,8 @@ class TestDataApiConfig
                 .setDataClientRetryBackoffInitial(Duration.succinctDuration(1.0, SECONDS))
                 .setDataClientRetryBackoffMax(Duration.succinctDuration(10.0, SECONDS))
                 .setDataClientRetryBackoffFactor(2.0)
-                .setDataClientRetryBackoffJitter(0.5));
+                .setDataClientRetryBackoffJitter(0.5)
+                .setSpoolingStorageType(SpoolingStorageType.NONE));
     }
 
     @Test
@@ -46,6 +48,7 @@ class TestDataApiConfig
                 .put("retry-backoff-max", "20s")
                 .put("retry-backoff-factor", "4.0")
                 .put("retry-backoff-jitter", "0.25")
+                .put("spooling-storage-type", "s3")
                 .buildOrThrow();
 
         DataApiConfig expected = new DataApiConfig()
@@ -54,7 +57,8 @@ class TestDataApiConfig
                 .setDataClientRetryBackoffInitial(Duration.succinctDuration(3.0, SECONDS))
                 .setDataClientRetryBackoffMax(Duration.succinctDuration(20.0, SECONDS))
                 .setDataClientRetryBackoffFactor(4.0)
-                .setDataClientRetryBackoffJitter(0.25);
+                .setDataClientRetryBackoffJitter(0.25)
+                .setSpoolingStorageType(SpoolingStorageType.S3);
 
         assertFullMapping(properties, expected);
     }
