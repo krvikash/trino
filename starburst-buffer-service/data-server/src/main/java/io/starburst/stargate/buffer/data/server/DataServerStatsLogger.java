@@ -35,12 +35,9 @@ public class DataServerStatsLogger
 
     private final ScheduledExecutorService executorService;
     private final DataServerStats dataServerStats;
-    private final Ticker ticker = Ticker.systemTicker();
 
     private final CounterWithRate spooledDataSize;
     private final CounterWithRate spoolingFailures;
-    private final CounterWithRate unspooledDataSize;
-    private final CounterWithRate unspoolingFailures;
     private final CounterWithRate writtenDataSize;
     private final CounterWithRate readDataSize;
 
@@ -50,10 +47,9 @@ public class DataServerStatsLogger
         this.dataServerStats = requireNonNull(dataServerStats, "dataServerStats is null");
         executorService = Executors.newSingleThreadScheduledExecutor(daemonThreadsNamed("data-server-stats-logger"));
 
+        Ticker ticker = Ticker.systemTicker();
         this.spooledDataSize = new CounterWithRate(dataServerStats.getSpooledDataSize(), ticker);
         this.spoolingFailures = new CounterWithRate(dataServerStats.getSpoolingFailures(), ticker);
-        this.unspooledDataSize = new CounterWithRate(dataServerStats.getUnspooledDataSize(), ticker);
-        this.unspoolingFailures = new CounterWithRate(dataServerStats.getUnspoolingFailures(), ticker);
         this.writtenDataSize = new CounterWithRate(dataServerStats.getWrittenDataSize(), ticker);
         this.readDataSize = new CounterWithRate(dataServerStats.getReadDataSize(), ticker);
     }
@@ -68,32 +64,25 @@ public class DataServerStatsLogger
     {
         spooledDataSize.update();
         spoolingFailures.update();
-        unspooledDataSize.update();
-        unspoolingFailures.update();
         writtenDataSize.update();
         readDataSize.update();
 
-        StringBuilder logBuilder = new StringBuilder();
-        logBuilder.append("STATS START\n");
-        logBuilder.append("total_memory: %s\n".formatted(succinctBytes(dataServerStats.getTotalMemoryInBytes())));
-        logBuilder.append("free_memory: %s\n".formatted(succinctBytes(dataServerStats.getFreeMemoryInBytes())));
-        logBuilder.append("exchanges: %s\n".formatted(dataServerStats.getTrackedExchanges()));
-        logBuilder.append("open_chunks: %s\n".formatted(dataServerStats.getOpenChunks()));
-        logBuilder.append("closed_chunks: %s\n".formatted(dataServerStats.getClosedChunks()));
-        logBuilder.append("spooled_chunks: %s\n".formatted(dataServerStats.getSpooledChunks()));
-        logBuilder.append("spooled_data_size: %s, %s/s\n".formatted(succinctBytes(spooledDataSize.getCounter()), succinctBytes((long) spooledDataSize.getRate())));
-        logBuilder.append("spooling_failures: %s, %s/s\n".formatted(spoolingFailures.getCounter(), spoolingFailures.getRate()));
-        logBuilder.append("spooled_chunk_size_distribution: %s\n".formatted(dataServerStats.getSpooledChunkSizeDistribution().snapshot()));
-        logBuilder.append("unspooled_data_size: %s, %s/s\n".formatted(succinctBytes(unspooledDataSize.getCounter()), succinctBytes((long) unspooledDataSize.getRate())));
-        logBuilder.append("unspooling_failures: %s, %s/s\n".formatted(unspoolingFailures.getCounter(), unspoolingFailures.getRate()));
-        logBuilder.append("unspooled_chunk_size_distribution: %s\n".formatted(dataServerStats.getUnspooledChunkSizeDistribution().snapshot()));
-        logBuilder.append("written_data_size: %s, %s/s\n".formatted(succinctBytes(writtenDataSize.getCounter()), succinctBytes((long) writtenDataSize.getRate())));
-        logBuilder.append("written_data_size_distribution: %s\n".formatted(dataServerStats.getWrittenDataSizeDistribution().snapshot()));
-        logBuilder.append("written_data_size_per_partition_distribution: %s\n".formatted(dataServerStats.getWrittenDataSizePerPartitionDistribution().snapshot()));
-        logBuilder.append("read_data_size: %s, %s/s\n".formatted(succinctBytes(readDataSize.getCounter()), succinctBytes((long) readDataSize.getRate())));
-        logBuilder.append("read_data_size_distribution: %s\n".formatted(dataServerStats.getReadDataSizeDistribution().snapshot()));
-        logBuilder.append("STATS END\n");
-        log.info(logBuilder.toString());
+        log.info("STATS START\n" +
+                "total_memory: %s\n".formatted(succinctBytes(dataServerStats.getTotalMemoryInBytes())) +
+                "free_memory: %s\n".formatted(succinctBytes(dataServerStats.getFreeMemoryInBytes())) +
+                "exchanges: %s\n".formatted(dataServerStats.getTrackedExchanges()) +
+                "open_chunks: %s\n".formatted(dataServerStats.getOpenChunks()) +
+                "closed_chunks: %s\n".formatted(dataServerStats.getClosedChunks()) +
+                "spooled_chunks: %s\n".formatted(dataServerStats.getSpooledChunks()) +
+                "spooled_data_size: %s, %s/s\n".formatted(succinctBytes(spooledDataSize.getCounter()), succinctBytes((long) spooledDataSize.getRate())) +
+                "spooling_failures: %s, %s/s\n".formatted(spoolingFailures.getCounter(), spoolingFailures.getRate()) +
+                "spooled_chunk_size_distribution: %s\n".formatted(dataServerStats.getSpooledChunkSizeDistribution().snapshot()) +
+                "written_data_size: %s, %s/s\n".formatted(succinctBytes(writtenDataSize.getCounter()), succinctBytes((long) writtenDataSize.getRate())) +
+                "written_data_size_distribution: %s\n".formatted(dataServerStats.getWrittenDataSizeDistribution().snapshot()) +
+                "written_data_size_per_partition_distribution: %s\n".formatted(dataServerStats.getWrittenDataSizePerPartitionDistribution().snapshot()) +
+                "read_data_size: %s, %s/s\n".formatted(succinctBytes(readDataSize.getCounter()), succinctBytes((long) readDataSize.getRate())) +
+                "read_data_size_distribution: %s\n".formatted(dataServerStats.getReadDataSizeDistribution().snapshot()) +
+                "STATS END\n");
     }
 
     @PreDestroy

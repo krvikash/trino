@@ -18,18 +18,15 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class DataServerStats
 {
-    private AtomicLong totalMemoryInBytes = new AtomicLong();
-    private AtomicLong freeMemoryInBytes = new AtomicLong();
-    private AtomicLong trackedExchanges = new AtomicLong();
-    private AtomicLong openChunks = new AtomicLong();
-    private AtomicLong closedChunks = new AtomicLong();
-    private AtomicLong spooledChunks = new AtomicLong();
+    private final AtomicLong totalMemoryInBytes = new AtomicLong();
+    private final AtomicLong freeMemoryInBytes = new AtomicLong();
+    private final AtomicLong trackedExchanges = new AtomicLong();
+    private final AtomicLong openChunks = new AtomicLong();
+    private final AtomicLong closedChunks = new AtomicLong();
+    private final AtomicLong spooledChunks = new AtomicLong();
     private final CounterStat spooledDataSize = new CounterStat();
     private final CounterStat spoolingFailures = new CounterStat();
     private final DistributionStat spooledChunkSizeDistribution = new DistributionStat();
-    private final CounterStat unspooledDataSize = new CounterStat();
-    private final CounterStat unspoolingFailures = new CounterStat();
-    private final DistributionStat unspooledChunkSizeDistribution = new DistributionStat();
     private final CounterStat writtenDataSize = new CounterStat();
     private final DistributionStat writtenDataSizeDistribution = new DistributionStat();
     private final DistributionStat writtenDataSizePerPartitionDistribution = new DistributionStat();
@@ -121,27 +118,6 @@ public class DataServerStats
     public DistributionStat getSpooledChunkSizeDistribution()
     {
         return spooledChunkSizeDistribution;
-    }
-
-    @Managed
-    @Nested
-    public CounterStat getUnspooledDataSize()
-    {
-        return unspooledDataSize;
-    }
-
-    @Managed
-    @Nested
-    public CounterStat getUnspoolingFailures()
-    {
-        return unspoolingFailures;
-    }
-
-    @Managed
-    @Nested
-    public DistributionStat getUnspooledChunkSizeDistribution()
-    {
-        return unspooledChunkSizeDistribution;
     }
 
     @Managed
