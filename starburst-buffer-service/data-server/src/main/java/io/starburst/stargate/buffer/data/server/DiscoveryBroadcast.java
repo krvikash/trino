@@ -81,7 +81,7 @@ public class DiscoveryBroadcast
         executor.shutdownNow();
     }
 
-    private void broadcast()
+    public void broadcast()
     {
         BufferNodeInfo nodeInfo = bufferNodeInfoService.getNodeInfo();
         if (nodeInfo.state() != STARTING) {

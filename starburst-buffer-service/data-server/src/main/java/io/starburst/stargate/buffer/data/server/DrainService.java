@@ -16,6 +16,7 @@ import io.starburst.stargate.buffer.data.execution.ChunkManager;
 import javax.annotation.PreDestroy;
 import javax.inject.Inject;
 
+import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -35,16 +36,19 @@ public class DrainService
     private final BufferNodeStateManager bufferNodeStateManager;
     private final DataResource dataResource;
     private final ChunkManager chunkManager;
+    private final Optional<DiscoveryBroadcast> discoveryBroadcast;
 
     @Inject
     public DrainService(
             BufferNodeStateManager bufferNodeStateManager,
             DataResource dataResource,
-            ChunkManager chunkManager)
+            ChunkManager chunkManager,
+            Optional<DiscoveryBroadcast> discoveryBroadcast)
     {
         this.bufferNodeStateManager = requireNonNull(bufferNodeStateManager, "bufferNodeStateManager is null");
         this.dataResource = requireNonNull(dataResource, "dataResource is null");
         this.chunkManager = requireNonNull(chunkManager, "chunkManager is null");
+        this.discoveryBroadcast = requireNonNull(discoveryBroadcast, "discoveryBroadcast is null");
     }
 
     @PreDestroy
@@ -59,6 +63,7 @@ public class DrainService
             return;
         }
         bufferNodeStateManager.transitionState(BufferNodeState.DRAINING);
+        discoveryBroadcast.ifPresent(DiscoveryBroadcast::broadcast);
 
         executor.submit(() -> {
             try {
@@ -84,6 +89,7 @@ public class DrainService
             // we mark node as DRAINED even on failure. It is not great but leaving node in DRAINING state
             // does not buy us anything and we will block external processes waiting for draining completion.
             bufferNodeStateManager.transitionState(BufferNodeState.DRAINED);
+            discoveryBroadcast.ifPresent(DiscoveryBroadcast::broadcast);
         });
     }
 }
