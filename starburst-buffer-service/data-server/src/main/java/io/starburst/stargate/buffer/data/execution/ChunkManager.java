@@ -111,7 +111,7 @@ public class ChunkManager
         this.bufferNodeId = bufferNodeId.getLongValue();
         this.chunkMaxSizeInBytes = toIntExact(chunkManagerConfig.getChunkMaxSize().toBytes());
         this.chunkSliceSizeInBytes = toIntExact(chunkManagerConfig.getChunkSliceSize().toBytes());
-        this.calculateDataPagesChecksum = dataServerConfig.getIncludeChecksumInDataResponse();
+        this.calculateDataPagesChecksum = dataServerConfig.isDataIntegrityVerificationEnabled();
         this.drainingMaxAttempts = dataServerConfig.getDrainingMaxAttempts();
         this.exchangeStalenessThreshold = chunkManagerConfig.getExchangeStalenessThreshold();
         this.chunkSpoolInterval = chunkManagerConfig.getChunkSpoolInterval();

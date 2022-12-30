@@ -20,22 +20,22 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class DataServerConfig
 {
-    private boolean includeChecksumInDataResponse = true;
+    private boolean dataIntegrityVerificationEnabled = true;
     private boolean testingDropUploadedPages;
     private int httpResponseThreads = 100;
     private boolean testingEnableStatsLogging = true; // true for now
     private Duration broadcastInterval = Duration.succinctDuration(5, SECONDS);
     private int drainingMaxAttempts = 4;
 
-    public boolean getIncludeChecksumInDataResponse()
+    public boolean isDataIntegrityVerificationEnabled()
     {
-        return includeChecksumInDataResponse;
+        return dataIntegrityVerificationEnabled;
     }
 
-    @Config("include-checksum-in-data-response")
-    public DataServerConfig setIncludeChecksumInDataResponse(boolean includeChecksumInDataResponse)
+    @Config("data-integrity-verification-enabled")
+    public DataServerConfig setDataIntegrityVerificationEnabled(boolean dataIntegrityVerificationEnabled)
     {
-        this.includeChecksumInDataResponse = includeChecksumInDataResponse;
+        this.dataIntegrityVerificationEnabled = dataIntegrityVerificationEnabled;
         return this;
     }
 

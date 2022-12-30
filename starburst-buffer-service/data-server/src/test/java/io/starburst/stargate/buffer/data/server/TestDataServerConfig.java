@@ -27,7 +27,7 @@ public class TestDataServerConfig
     public void assertDefaults()
     {
         assertRecordedDefaults(recordDefaults(DataServerConfig.class)
-                .setIncludeChecksumInDataResponse(true)
+                .setDataIntegrityVerificationEnabled(true)
                 .setTestingDropUploadedPages(false)
                 .setHttpResponseThreads(100)
                 .setTestingEnableStatsLogging(true)
@@ -39,7 +39,7 @@ public class TestDataServerConfig
     public void testExplicitPropertyMappings()
     {
         Map<String, String> properties = ImmutableMap.<String, String>builder()
-                .put("include-checksum-in-data-response", "false")
+                .put("data-integrity-verification-enabled", "false")
                 .put("testing.drop-uploaded-pages", "true")
                 .put("http-response-threads", "88")
                 .put("testing.enable-stats-logging", "false")
@@ -48,7 +48,7 @@ public class TestDataServerConfig
                 .buildOrThrow();
 
         DataServerConfig expected = new DataServerConfig()
-                .setIncludeChecksumInDataResponse(false)
+                .setDataIntegrityVerificationEnabled(false)
                 .setTestingDropUploadedPages(true)
                 .setHttpResponseThreads(88)
                 .setTestingEnableStatsLogging(false)
