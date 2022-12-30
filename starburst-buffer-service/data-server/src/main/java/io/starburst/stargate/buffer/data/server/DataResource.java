@@ -18,6 +18,7 @@ import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.SliceInput;
 import io.airlift.slice.SliceOutput;
+import io.airlift.slice.XxHash64;
 import io.airlift.stats.CounterStat;
 import io.airlift.stats.DistributionStat;
 import io.starburst.stargate.buffer.data.client.ChunkList;
@@ -65,7 +66,9 @@ import static io.airlift.jaxrs.AsyncResponseHandler.bindAsyncResponse;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.DRAINING;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.USER_ERROR;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.ERROR_CODE_HEADER;
+import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
 import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_CHUNK_DATA;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 @Path("/api/v1/buffer/data")
@@ -77,6 +80,7 @@ public class DataResource
     private final ChunkManager chunkManager;
     private final MemoryAllocator memoryAllocator;
     private final BufferNodeStateManager bufferNodeStateManager;
+    private final boolean dataIntegrityVerificationEnabled;
     private final boolean dropUploadedPages;
     private final Executor responseExecutor;
     private final ExecutorService executor;
@@ -105,6 +109,7 @@ public class DataResource
         this.chunkManager = requireNonNull(chunkManager, "chunkManager is null");
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.bufferNodeStateManager = requireNonNull(bufferNodeStateManager, "bufferNodeStateManager is null");
+        this.dataIntegrityVerificationEnabled = config.isDataIntegrityVerificationEnabled();
         this.dropUploadedPages = config.isTestingDropUploadedPages();
         this.responseExecutor = requireNonNull(responseExecutor, "responseExecutor is null");
         this.executor = requireNonNull(executor, "executor is null");
@@ -210,6 +215,8 @@ public class DataResource
 
                     ImmutableList.Builder<ListenableFuture<Void>> addDataPagesFutures = ImmutableList.builder();
                     SliceInput sliceInput = slice.getInput();
+                    long readChecksum = sliceInput.readLong();
+                    XxHash64 hash = new XxHash64();
                     while (sliceInput.isReadable()) {
                         int partitionId = sliceInput.readInt();
                         int bytes = sliceInput.readInt();
@@ -218,7 +225,11 @@ public class DataResource
                         while (bytes > 0 && sliceInput.isReadable()) {
                             int pageLength = sliceInput.readInt();
                             bytes -= Integer.BYTES;
-                            pages.add(sliceInput.readSlice(pageLength));
+                            Slice page = sliceInput.readSlice(pageLength);
+                            if (dataIntegrityVerificationEnabled) {
+                                hash = hash.update(page);
+                            }
+                            pages.add(page);
                             bytes -= pageLength;
                         }
                         checkState(bytes == 0, "no more data in input stream but remaining bytes counter > 0 (%d)".formatted(bytes));
@@ -230,6 +241,21 @@ public class DataResource
                                 dataPagesId,
                                 pages.build()));
                     }
+                    if (dataIntegrityVerificationEnabled) {
+                        long calculatedChecksum = hash.hash();
+                        if (calculatedChecksum == NO_CHECKSUM) {
+                            calculatedChecksum++;
+                        }
+                        if (readChecksum != calculatedChecksum) {
+                            throw new DataServerException(USER_ERROR, format("Data corruption, read checksum: 0x%08x, calculated checksum: 0x%08x", readChecksum, calculatedChecksum));
+                        }
+                    }
+                    else {
+                        if (readChecksum != NO_CHECKSUM) {
+                            throw new DataServerException(USER_ERROR, format("Expected checksum to be NO_CHECKSUM (0x%08x) but is 0x%08x", NO_CHECKSUM, readChecksum));
+                        }
+                    }
+
                     writtenDataSize.update(contentLength);
                     writtenDataSizeDistribution.add(contentLength);
                     return asVoid(Futures.allAsList(addDataPagesFutures.build()));

@@ -30,6 +30,7 @@ import io.airlift.json.JsonCodec;
 import io.airlift.slice.OutputStreamSliceOutput;
 import io.airlift.slice.Slice;
 import io.airlift.slice.SliceOutput;
+import io.airlift.slice.XxHash64;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 
 import java.io.BufferedReader;
@@ -204,7 +205,7 @@ public class HttpDataClient
         requireNonNull(exchangeId, "exchangeId is null");
         requireNonNull(dataPages, "dataPage is null");
 
-        int contentLength = 0;
+        int contentLength = Long.BYTES; // checksum
         for (Map.Entry<Integer, Collection<Slice>> entry : dataPages.asMap().entrySet()) {
             Collection<Slice> pages = entry.getValue();
             contentLength += Integer.BYTES * 2; // partitionId, totalLength
@@ -216,7 +217,7 @@ public class HttpDataClient
                         .appendPath("%s/addDataPages/%d/%d/%d".formatted(exchangeId, taskId, attemptId, dataPagesId))
                         .addParameter("targetBufferNodeId", String.valueOf(targetBufferNodeId))
                         .build())
-                .setBodyGenerator(new PagesBodyGenerator(dataPages))
+                .setBodyGenerator(new PagesBodyGenerator(dataPages, dataIntegrityVerificationEnabled))
                 .setHeader(CONTENT_LENGTH, String.valueOf(contentLength))
                 .build();
 
@@ -260,10 +261,14 @@ public class HttpDataClient
             implements BodyGenerator
     {
         private final Multimap<Integer, Slice> pagesByPartition;
+        private final boolean dataIntegrityVerificationEnabled;
 
-        public PagesBodyGenerator(Multimap<Integer, Slice> pagesByPartition)
+        public PagesBodyGenerator(
+                Multimap<Integer, Slice> pagesByPartition,
+                boolean dataIntegrityVerificationEnabled)
         {
             this.pagesByPartition = requireNonNull(pagesByPartition, "pages is null");
+            this.dataIntegrityVerificationEnabled = dataIntegrityVerificationEnabled;
         }
 
         @Override
@@ -271,6 +276,22 @@ public class HttpDataClient
                 throws Exception
         {
             SliceOutput sliceOutput = new OutputStreamSliceOutput(output);
+            if (dataIntegrityVerificationEnabled) {
+                XxHash64 hash = new XxHash64();
+                for (Collection<Slice> pages : pagesByPartition.asMap().values()) {
+                    for (Slice page : pages) {
+                        hash = hash.update(page);
+                    }
+                }
+                long checksum = hash.hash();
+                if (checksum == NO_CHECKSUM) {
+                    checksum++;
+                }
+                sliceOutput.writeLong(checksum);
+            }
+            else {
+                sliceOutput.writeLong(NO_CHECKSUM);
+            }
             for (Map.Entry<Integer, Collection<Slice>> entry : pagesByPartition.asMap().entrySet()) {
                 Integer partitionId = entry.getKey();
                 Collection<Slice> pages = entry.getValue();
