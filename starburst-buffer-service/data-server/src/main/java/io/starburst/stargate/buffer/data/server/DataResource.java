@@ -261,6 +261,14 @@ public class DataResource
                     return asVoid(Futures.allAsList(addDataPagesFutures.build()));
                 },
                 executor);
+
+        // asyncResponse callback must be registered before bindAsyncResponse is called; otherwise callback may be not called
+        // if request is completed quickly
+        asyncResponse.register((CompletionCallback) throwable -> {
+            sliceLease.release();
+            inProgressAddDataPagesRequests.decrementAndGet();
+        });
+
         bindAsyncResponse(
                 asyncResponse,
                 logAndTranslateExceptions(
@@ -270,10 +278,6 @@ public class DataResource
                                 directExecutor()),
                         () -> "POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId)),
                 responseExecutor);
-        asyncResponse.register((CompletionCallback) throwable -> {
-            sliceLease.release();
-            inProgressAddDataPagesRequests.decrementAndGet();
-        });
     }
 
     @GET
