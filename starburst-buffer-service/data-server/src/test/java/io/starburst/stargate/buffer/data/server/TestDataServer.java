@@ -22,9 +22,11 @@ import io.starburst.stargate.buffer.BufferNodeState;
 import io.starburst.stargate.buffer.BufferNodeStats;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.ChunkList;
+import io.starburst.stargate.buffer.data.client.DataApiConfig;
 import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.client.HttpDataClient;
+import io.starburst.stargate.buffer.data.client.spooling.local.LocalSpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.noop.NoopSpooledChunkReader;
 import io.starburst.stargate.buffer.data.server.testing.TestingDataServer;
 import io.starburst.stargate.buffer.data.server.testing.TestingDiscoveryApiModule;
@@ -47,7 +49,9 @@ import static io.airlift.http.client.StringResponseHandler.createStringResponseH
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.airlift.testing.Closeables.closeAll;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
+import static io.airlift.units.DataSize.succinctBytes;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.USER_ERROR;
+import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -64,6 +68,7 @@ public class TestDataServer
     private static final String EXCHANGE_0 = "exchange-0";
     private static final String EXCHANGE_1 = "exchange-1";
     private static final long BUFFER_NODE_ID = 0;
+    private static final DataSize DATA_SERVER_AVAILABLE_MEMORY = DataSize.of(70, MEGABYTE);
 
     private TestingDataServer dataServer;
     private HttpClient httpClient;
@@ -78,9 +83,12 @@ public class TestDataServer
                 .withDiscoveryApiModule(new TestingDiscoveryApiModule())
                 .setConfigProperty("spooling.directory", System.getProperty("java.io.tmpdir") + "/spooling-storage")
                 .setConfigProperty("discovery-broadcast-interval", "10ms")
+                .setConfigProperty("memory.heap-headroom", succinctBytes(Runtime.getRuntime().maxMemory() - DATA_SERVER_AVAILABLE_MEMORY.toBytes()).toString())
+                .setConfigProperty("memory.allocation-low-watermark", "0.99")
+                .setConfigProperty("memory.allocation-high-watermark", "0.99")
                 .build();
         httpClient = new JettyHttpClient(new HttpClientConfig());
-        dataClient = new HttpDataClient(dataServer.getBaseUri(), BUFFER_NODE_ID, httpClient, new NoopSpooledChunkReader(), true);
+        dataClient = new HttpDataClient(dataServer.getBaseUri(), BUFFER_NODE_ID, httpClient, new LocalSpooledChunkReader(new DataApiConfig()), true);
 
         // Wait for Node to become ready
         await().atMost(TEN_SECONDS).until(
@@ -339,6 +347,28 @@ public class TestDataServer
                 .isInstanceOf(DataApiException.class)
                 .matches(e -> ((DataApiException) e).getErrorCode() == USER_ERROR)
                 .hasMessageContaining("target buffer node mismatch (1 vs 0)");
+    }
+
+    @Test
+    public void testSpooling()
+    {
+        int pageSizeInBytes = (int) DataSize.of(10, MEGABYTE).toBytes() - DATA_PAGE_HEADER_SIZE;
+        for (int index = 0; index < 10; ++index) {
+            addDataPage(EXCHANGE_0, index, index, index, index, utf8Slice(String.valueOf(index).repeat(pageSizeInBytes)));
+        }
+        finishExchange(EXCHANGE_0);
+
+        List<ChunkHandle> chunkHandles = listClosedChunks(EXCHANGE_0, OptionalLong.empty()).chunks();
+        assertEquals(10, chunkHandles.size());
+
+        assertNodeStats(1, 0, 5, 5);
+
+        for (ChunkHandle chunkHandle : chunkHandles) {
+            int index = chunkHandle.partitionId();
+            assertThat(getChunkData(EXCHANGE_0, chunkHandle)).containsExactly(new DataPage(index, index, utf8Slice(String.valueOf(index).repeat(pageSizeInBytes))));
+        }
+
+        removeExchange(EXCHANGE_0);
     }
 
     private void addDataPage(String exchangeId, int partitionId, int taskId, int attemptId, long dataPagesId, Slice data)
