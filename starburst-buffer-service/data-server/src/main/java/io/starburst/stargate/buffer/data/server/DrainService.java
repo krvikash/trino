@@ -9,6 +9,7 @@
  */
 package io.starburst.stargate.buffer.data.server;
 
+import io.airlift.log.Logger;
 import io.starburst.stargate.buffer.BufferNodeState;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
 
@@ -28,6 +29,8 @@ import static java.util.Objects.requireNonNull;
  */
 public class DrainService
 {
+    private static final Logger LOG = Logger.get(DrainService.class);
+
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(daemonThreadsNamed("data-server-drain-service"));
     private final BufferNodeStateManager bufferNodeStateManager;
     private final DataResource dataResource;
@@ -58,17 +61,28 @@ public class DrainService
         bufferNodeStateManager.transitionState(BufferNodeState.DRAINING);
 
         executor.submit(() -> {
-            while (dataResource.getInProgressAddDataPagesRequests() > 0) {
-                // busy looping is fine here as we expect in flight requests to finish fast
-                try {
-                    Thread.sleep(100);
+            try {
+                while (true) {
+                    int inProgressAddDataPagesRequests = dataResource.getInProgressAddDataPagesRequests();
+                    if (inProgressAddDataPagesRequests == 0) {
+                        break;
+                    }
+                    LOG.info("Waiting until remaining %s in flight addData requests complete", inProgressAddDataPagesRequests);
+                    // busy looping is fine here as we expect in flight requests to finish fast
+                    try {
+                        Thread.sleep(500);
+                    }
+                    catch (InterruptedException e) {
+                        // ignore
+                    }
                 }
-                catch (InterruptedException e) {
-                    // ignore
-                }
+                chunkManager.drainAllChunks();
             }
-            chunkManager.drainAllChunks();
-
+            catch (Exception e) {
+                LOG.error(e, "Unexpected failure while draining node");
+            }
+            // we mark node as DRAINED even on failure. It is not great but leaving node in DRAINING state
+            // does not buy us anything and we will block external processes waiting for draining completion.
             bufferNodeStateManager.transitionState(BufferNodeState.DRAINED);
         });
     }
