@@ -13,7 +13,6 @@ import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Scopes;
-import io.airlift.configuration.ConditionalModule;
 import io.airlift.configuration.ConfigDefaults;
 import io.airlift.http.client.HttpClientBinder;
 import io.airlift.http.client.HttpClientConfig;
@@ -87,16 +86,19 @@ public class DataApiBinder
 
         moduleInstall.accept(ConditionalModule.conditionalModule(
                 DataApiConfig.class,
+                dataApiName,
                 config -> config.getSpoolingStorageType() == SpoolingStorageType.NONE,
                 binder -> binder.bind(SpooledChunkReader.class).to(NoopSpooledChunkReader.class).in(Scopes.SINGLETON)));
 
         moduleInstall.accept(ConditionalModule.conditionalModule(
                 DataApiConfig.class,
+                dataApiName,
                 config -> config.getSpoolingStorageType() == SpoolingStorageType.LOCAL,
                 binder -> binder.bind(SpooledChunkReader.class).to(LocalSpooledChunkReader.class).in(Scopes.SINGLETON)));
 
         moduleInstall.accept(ConditionalModule.conditionalModule(
                 DataApiConfig.class,
+                dataApiName,
                 config -> config.getSpoolingStorageType() == SpoolingStorageType.S3,
                 binder -> {
                     configBinder(binder).bindConfig(SpoolingS3ReaderConfig.class, dataApiName);
