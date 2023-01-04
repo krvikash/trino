@@ -149,6 +149,11 @@
                     <groupId>com.linkedin.coral</groupId>
                     <artifactId>coral-hive</artifactId>
                 </exclusion>
+                <exclusion>
+                    <!-- conflicts with org.apache.orc:orc-core:1.8.0:jar:nohive regarding some .proto files -->
+                    <groupId>org.alluxio</groupId>
+                    <artifactId>alluxio-shaded-client</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
 
@@ -232,6 +237,13 @@
         <dependency>
             <groupId>io.trino</groupId>
             <artifactId>trino-testing-containers</artifactId>
+            <version>${dep.trino.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-testing-services</artifactId>
             <version>${dep.trino.version}</version>
             <scope>test</scope>
         </dependency>

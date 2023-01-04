@@ -65,7 +65,6 @@ public class TestTestingBufferIcebergQueryFailureRecoveryTest
                 .setInitialTables(requiredTpchTables)
                 .setCoordinatorProperties(coordinatorProperties)
                 .setExtraProperties(configProperties)
-                .setIcebergProperties(Map.of("iceberg.experimental.extended-statistics.enabled", "true"))
                 .setAdditionalSetup(runner -> {
                     runner.installPlugin(new BufferExchangePlugin());
                     runner.loadExchangeManager("buffer", exchangeManagerProperties);
