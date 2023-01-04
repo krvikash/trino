@@ -51,6 +51,7 @@ import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.net.HttpHeaders.CONTENT_LENGTH;
+import static com.google.common.util.concurrent.Futures.catchingAsync;
 import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
 import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
@@ -453,7 +454,12 @@ public class HttpDataClient
 
     private ListenableFuture<Void> translateFailures(Request request, HttpResponseFuture<StringResponse> responseFuture)
     {
-        return transformAsync(responseFuture, response -> {
+        ListenableFuture<StringResponse> catchingResponseFuture = catchingAsync(responseFuture, RuntimeException.class, exception -> {
+            // add request info to an exception
+            throw new RuntimeException("Unexpected exception on %s %s".formatted(request.getMethod(), request.getUri()), exception);
+        }, directExecutor());
+
+        return transformAsync(catchingResponseFuture, response -> {
             if (response.getStatusCode() != HttpStatus.OK.code()) {
                 String errorCode = response.getHeader(ERROR_CODE_HEADER);
                 String errorMessage = requestErrorMessage(request, response.getBody());
