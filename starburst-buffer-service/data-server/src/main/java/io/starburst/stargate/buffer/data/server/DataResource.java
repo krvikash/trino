@@ -54,6 +54,7 @@ import java.io.InputStream;
 import java.util.OptionalLong;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
@@ -268,6 +269,9 @@ public class DataResource
         // asyncResponse callback must be registered before bindAsyncResponse is called; otherwise callback may be not called
         // if request is completed quickly
         asyncResponse.register((CompletionCallback) throwable -> {
+            if (throwable != null) {
+                logger.warn(throwable, "Unmapped throwable when processing POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
+            }
             sliceLease.release();
             inProgressAddDataPagesRequests.decrementAndGet();
         });
