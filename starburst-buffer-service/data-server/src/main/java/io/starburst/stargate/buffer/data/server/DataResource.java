@@ -44,6 +44,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.CompletionCallback;
+import javax.ws.rs.container.ConnectionCallback;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.GenericEntity;
 import javax.ws.rs.core.MediaType;
@@ -266,11 +267,24 @@ public class DataResource
                 },
                 executor);
 
-        // asyncResponse callback must be registered before bindAsyncResponse is called; otherwise callback may be not called
+        // callbacks must be registered before bindAsyncResponse is called; otherwise callback may be not called
         // if request is completed quickly
+        AtomicBoolean completionFlag = new AtomicBoolean(); // guard in case both callback would trigger (not sure if possible)
         asyncResponse.register((CompletionCallback) throwable -> {
             if (throwable != null) {
                 logger.warn(throwable, "Unmapped throwable when processing POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
+            }
+            if (completionFlag.getAndSet(true)) {
+                return;
+            }
+            sliceLease.release();
+            inProgressAddDataPagesRequests.decrementAndGet();
+        });
+
+        asyncResponse.register((ConnectionCallback) response -> {
+            logger.warn("Client disconnected when processing POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
+            if (completionFlag.getAndSet(true)) {
+                return;
             }
             sliceLease.release();
             inProgressAddDataPagesRequests.decrementAndGet();
