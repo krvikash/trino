@@ -364,7 +364,7 @@ public class Chunk
             }
 
             @Override
-            protected synchronized void interruptTask()
+            protected void interruptTask()
             {
                 synchronized (ChunkData.this) {
                     if (currentSliceOutput != null) {
