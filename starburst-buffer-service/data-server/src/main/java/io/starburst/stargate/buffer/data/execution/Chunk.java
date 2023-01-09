@@ -366,11 +366,13 @@ public class Chunk
             @Override
             protected void interruptTask()
             {
+                ListenableFuture<SliceOutput> futureToBeCancelled;
                 synchronized (ChunkData.this) {
-                    if (currentSliceOutput != null) {
-                        currentSliceOutput.cancel(true);
-                        currentSliceOutput = null;
-                    }
+                    futureToBeCancelled = currentSliceOutput;
+                    currentSliceOutput = null;
+                }
+                if (futureToBeCancelled != null) {
+                    futureToBeCancelled.cancel(true);
                 }
             }
         }

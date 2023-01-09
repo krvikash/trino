@@ -152,19 +152,24 @@ public class Partition
         lastConsumedChunkId = maxChunkId;
     }
 
-    public synchronized void finish()
+    public void finish()
     {
-        // it's possible for finish() to be called multiple times due to retries, or we finish an exchange after it's drained
-        if (finished) {
-            return;
+        List<AddDataPagesFuture> futuresToBeCancelled;
+        synchronized (this) {
+            // it's possible for finish() to be called multiple times due to retries, or we finish an exchange after it's drained
+            if (finished) {
+                return;
+            }
+            finished = true;
+            futuresToBeCancelled = ImmutableList.copyOf(addDataPagesFutures);
         }
-        finished = true;
-
         // it's possible for finish() to be called when we have writes in progress, we simply cancel such writes
-        addDataPagesFutures.forEach(future -> future.cancel(true));
-        checkState(openChunk != null, "No open chunk exists for exchange %s partition %d".formatted(exchangeId, partitionId));
-        closeChunk(openChunk);
-        openChunk = null;
+        futuresToBeCancelled.forEach(future -> future.cancel(true));
+        synchronized (this) {
+            checkState(openChunk != null, "No open chunk exists for exchange %s partition %d".formatted(exchangeId, partitionId));
+            closeChunk(openChunk);
+            openChunk = null;
+        }
     }
 
     public boolean hasOpenChunk()
@@ -335,11 +340,13 @@ public class Partition
         @Override
         protected void interruptTask()
         {
+            ListenableFuture<Void> futureToBeCancelled;
             synchronized (Partition.this) {
-                if (currentChunkWriteFuture != null) {
-                    currentChunkWriteFuture.cancel(true);
-                    currentChunkWriteFuture = null;
-                }
+                futureToBeCancelled = currentChunkWriteFuture;
+                currentChunkWriteFuture = null;
+            }
+            if (futureToBeCancelled != null) {
+                futureToBeCancelled.cancel(true);
             }
         }
     }
