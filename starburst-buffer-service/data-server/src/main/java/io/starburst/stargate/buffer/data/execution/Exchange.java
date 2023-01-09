@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
@@ -120,8 +121,11 @@ public class Exchange
 
         ListenableFuture<Void> addDataPagesFuture = partition.addDataPages(taskId, attemptId, dataPagesId, pages);
         addExceptionCallback(addDataPagesFuture, throwable -> {
-            failure.compareAndSet(null, throwable);
-            this.releaseChunks();
+            // ignore CancellationException as we may explicitly cancel in-progress writes when finishing a partition
+            if (!(throwable instanceof CancellationException)) {
+                failure.compareAndSet(null, throwable);
+                this.releaseChunks();
+            }
         }, executor);
         return addDataPagesFuture;
     }

@@ -539,6 +539,41 @@ public class TestChunkManager
                 new ChunkHandle(BUFFER_NODE_ID, 0, 7L, 5));
     }
 
+    @Test
+    public void testIgnoreCancellationException()
+    {
+        long maxBytes = 16L;
+        MemoryAllocator memoryAllocator = new MemoryAllocator(
+                new MemoryAllocatorConfig()
+                        .setHeapHeadroom(succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes))
+                        .setAllocationRatioHighWatermark(1.0)
+                        .setAllocationRatioLowWatermark(1.0),
+                new DataServerStats());
+        ChunkManager chunkManager = createChunkManager(memoryAllocator, DataSize.of(8, BYTE), DataSize.of(8, BYTE));
+
+        ListenableFuture<Void> addDataPagesFuture1 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 1L, ImmutableList.of(utf8Slice("1")));
+        ListenableFuture<Void> addDataPagesFuture2 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 2L, ImmutableList.of(utf8Slice("2")));
+        ListenableFuture<Void> addDataPagesFuture3 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 3L, ImmutableList.of(utf8Slice("3")));
+
+        await().atMost(ONE_SECOND).until(addDataPagesFuture1::isDone);
+        await().atMost(ONE_SECOND).until(addDataPagesFuture2::isDone);
+        assertFalse(addDataPagesFuture3.isDone());
+
+        chunkManager.finishExchange(EXCHANGE_0);
+        assertTrue(addDataPagesFuture3.isCancelled());
+
+        ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 1);
+        ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 0, 1L, 1);
+
+        ChunkList chunkList = chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty());
+        assertThat(chunkList.chunks()).containsExactlyInAnyOrder(chunkHandle0, chunkHandle1);
+
+        verifyChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle0.partitionId(), chunkHandle0.chunkId()),
+                new DataPage(0, 0, utf8Slice("1")));
+        verifyChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle1.partitionId(), chunkHandle1.chunkId()),
+                new DataPage(0, 0, utf8Slice("2")));
+    }
+
     @AfterAll
     public void destroy()
     {
