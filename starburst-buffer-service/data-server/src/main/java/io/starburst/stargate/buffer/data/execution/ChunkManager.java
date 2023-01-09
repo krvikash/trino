@@ -280,9 +280,7 @@ public class ChunkManager
                 for (Exchange exchange : exchanges.values()) {
                     for (Partition partition : exchange.getPartitionsSortedBySizeDesc()) {
                         for (Chunk chunk : partition.getClosedChunks()) {
-                            if (!chunk.isEmpty()) {
-                                chunks.add(chunk);
-                            }
+                            chunks.add(chunk);
                         }
                     }
                 }

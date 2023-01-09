@@ -49,7 +49,6 @@ public class Chunk
     private int dataSizeInBytes;
     private boolean closed;
     private ChunkHandle chunkHandle;
-    private volatile boolean empty = true;
 
     public Chunk(
             long bufferNodeId,
@@ -87,7 +86,6 @@ public class Chunk
     public ListenableFuture<Void> write(int taskId, int attemptId, Slice data)
     {
         checkState(!closed, "write() called on a closed chunk");
-        empty = false;
         return chunkData.write(taskId, attemptId, data);
     }
 
@@ -95,6 +93,13 @@ public class Chunk
     {
         checkState(!closed, "hasEnoughSpace() called on a closed chunk");
         return chunkData.hasEnoughSpace(data);
+    }
+
+    public boolean isEmpty()
+    {
+        checkState(!closed, "isEmpty() called on a closed chunk");
+        checkState(chunkData != null, "isEmpty() called after release");
+        return chunkData.isEmpty();
     }
 
     @VisibleForTesting
@@ -138,11 +143,6 @@ public class Chunk
             chunkData.release();
             chunkData = null;
         }
-    }
-
-    public boolean isEmpty()
-    {
-        return empty;
     }
 
     public void close()
@@ -238,6 +238,11 @@ public class Chunk
         public int dataSizeInBytes()
         {
             return dataSizeInBytes;
+        }
+
+        public synchronized boolean isEmpty()
+        {
+            return completedSlices.isEmpty() && sliceOutput == null;
         }
 
         public synchronized ChunkDataHolder get()

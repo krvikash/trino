@@ -218,12 +218,12 @@ public class Partition
     @GuardedBy("this")
     private void closeChunk(Chunk chunk)
     {
-        chunk.close();
         // ignored empty chunks
         if (chunk.isEmpty()) {
             chunk.release();
         }
         else {
+            chunk.close();
             closedChunks.put(chunk.getChunkId(), chunk);
         }
     }
