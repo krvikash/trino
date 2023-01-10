@@ -45,7 +45,7 @@ import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 import static java.util.concurrent.TimeUnit.HOURS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static java.util.concurrent.TimeUnit.MINUTES;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class DiscoveryManager
 {
@@ -80,7 +80,7 @@ public class DiscoveryManager
     {
         checkState(started.compareAndSet(false, true), "Already started");
         startTime = tickerReadMillis();
-        executor.scheduleWithFixedDelay(this::cleanup, 0, 1, MINUTES);
+        executor.scheduleWithFixedDelay(this::cleanup, 0, 5, SECONDS);
     }
 
     @PreDestroy

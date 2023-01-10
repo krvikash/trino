@@ -27,8 +27,8 @@ class TestDiscoveryManagerConfig
     public void testDefaults()
     {
         assertRecordedDefaults(recordDefaults(DiscoveryManagerConfig.class)
-                .setBufferNodeDiscoveryStalenessThreshold(succinctDuration(1, MINUTES))
-                .setStartGracePeriod(succinctDuration(30, SECONDS)));
+                .setBufferNodeDiscoveryStalenessThreshold(succinctDuration(20, SECONDS))
+                .setStartGracePeriod(succinctDuration(20, SECONDS)));
     }
 
     @Test

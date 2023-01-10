@@ -14,15 +14,14 @@ import io.airlift.configuration.Config;
 import io.airlift.units.Duration;
 
 import static io.airlift.units.Duration.succinctDuration;
-import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class DiscoveryManagerConfig
 {
     @VisibleForTesting
-    static final Duration DEFAULT_BUFFER_NODE_DISCOVERY_STALENESS_THRESHOLD = succinctDuration(1, MINUTES);
+    static final Duration DEFAULT_BUFFER_NODE_DISCOVERY_STALENESS_THRESHOLD = succinctDuration(20, SECONDS);
     @VisibleForTesting
-    static final Duration DEFAULT_START_GRACE_PERIOD = succinctDuration(30, SECONDS);
+    static final Duration DEFAULT_START_GRACE_PERIOD = succinctDuration(20, SECONDS);
 
     private Duration bufferNodeDiscoveryStalenessThreshold = DEFAULT_BUFFER_NODE_DISCOVERY_STALENESS_THRESHOLD;
 
