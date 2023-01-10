@@ -32,6 +32,7 @@ public class TestDataServerConfig
                 .setHttpResponseThreads(100)
                 .setTestingEnableStatsLogging(true)
                 .setBroadcastInterval(succinctDuration(5, SECONDS))
+                .setMinDrainingDuration(succinctDuration(30, SECONDS))
                 .setDrainingMaxAttempts(4));
     }
 
@@ -44,6 +45,7 @@ public class TestDataServerConfig
                 .put("http-response-threads", "88")
                 .put("testing.enable-stats-logging", "false")
                 .put("discovery-broadcast-interval", "102ms")
+                .put("draining.min-duration", "103s")
                 .put("draining.max-attempts", "5")
                 .buildOrThrow();
 
@@ -53,6 +55,7 @@ public class TestDataServerConfig
                 .setHttpResponseThreads(88)
                 .setTestingEnableStatsLogging(false)
                 .setBroadcastInterval(succinctDuration(102, MILLISECONDS))
+                .setMinDrainingDuration(succinctDuration(103, SECONDS))
                 .setDrainingMaxAttempts(5);
 
         assertFullMapping(properties, expected);

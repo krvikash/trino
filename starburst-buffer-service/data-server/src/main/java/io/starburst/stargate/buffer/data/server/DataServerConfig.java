@@ -26,6 +26,7 @@ public class DataServerConfig
     private boolean testingEnableStatsLogging = true; // true for now
     private Duration broadcastInterval = Duration.succinctDuration(5, SECONDS);
     private int drainingMaxAttempts = 4;
+    private Duration minDrainingDuration = Duration.succinctDuration(30, SECONDS);
 
     public boolean isDataIntegrityVerificationEnabled()
     {
@@ -88,6 +89,19 @@ public class DataServerConfig
     public DataServerConfig setBroadcastInterval(Duration broadcastInterval)
     {
         this.broadcastInterval = broadcastInterval;
+        return this;
+    }
+
+    @NotNull
+    public Duration getMinDrainingDuration()
+    {
+        return minDrainingDuration;
+    }
+
+    @Config("draining.min-duration")
+    public DataServerConfig setMinDrainingDuration(Duration minDrainingDuration)
+    {
+        this.minDrainingDuration = minDrainingDuration;
         return this;
     }
 
