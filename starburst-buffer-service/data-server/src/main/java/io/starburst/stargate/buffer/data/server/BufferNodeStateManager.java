@@ -36,6 +36,10 @@ public class BufferNodeStateManager
     public void transitionState(BufferNodeState targetState)
     {
         state.getAndUpdate(currentState -> {
+            if (currentState == targetState) {
+                // ignore no-op transition
+                return currentState;
+            }
             checkState(targetState.canTransitionFrom(currentState), "can't transition from %s to %s".formatted(currentState, targetState));
             LOG.info("Transition node state from %s to %s", currentState, targetState);
             return targetState;
