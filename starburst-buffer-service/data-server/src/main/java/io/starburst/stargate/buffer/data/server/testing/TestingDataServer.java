@@ -156,6 +156,9 @@ public class TestingDataServer
 
         public TestingDataServer build(int nodeId)
         {
+            if (!configProperties.containsKey("spooling.directory")) {
+                configProperties.put("spooling.directory", System.getProperty("java.io.tmpdir") + "/spooling-storage");
+            }
             return new TestingDataServer(nodeId, discoveryApiModule, configProperties);
         }
     }
