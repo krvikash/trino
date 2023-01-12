@@ -20,6 +20,7 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.awscore.endpoint.DefaultServiceEndpointBuilder;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.retry.RetryPolicy;
 import software.amazon.awssdk.regions.Region;
@@ -78,8 +79,15 @@ public class S3SpooledChunkReader
                 .credentialsProvider(credentialsProvider)
                 .overrideConfiguration(overrideConfig);
 
+        s3AsyncClientBuilder.endpointOverride(
+                endpoint.map(URI::create)
+                        .orElseGet(() -> {
+                            DefaultServiceEndpointBuilder endPointBuilder = new DefaultServiceEndpointBuilder("s3", "http");
+                            region.ifPresent(endPointBuilder::withRegion);
+                            return endPointBuilder.getServiceEndpoint();
+                        }));
+
         region.ifPresent(s3AsyncClientBuilder::region);
-        endpoint.ifPresent(s3Endpoint -> s3AsyncClientBuilder.endpointOverride(URI.create(s3Endpoint)));
 
         this.s3AsyncClient = s3AsyncClientBuilder.build();
         this.dataIntegrityVerificationEnabled = dataApiConfig.isDataIntegrityVerificationEnabled();
