@@ -41,8 +41,8 @@ public class ChunkManagerConfig
     private DataSize chunkSliceSize = DataSize.of(128, KILOBYTE);
     private Duration exchangeStalenessThreshold = DEFAULT_EXCHANGE_STALENESS_THRESHOLD;
     private List<URI> spoolingDirectories;
-    private Duration chunkSpoolInterval = succinctDuration(200, MILLISECONDS);
-    private int chunkSpoolConcurrency = 8;
+    private Duration chunkSpoolInterval = succinctDuration(50, MILLISECONDS);
+    private int chunkSpoolConcurrency = 16;
 
     @NotNull
     @MinDataSize("16MB")

@@ -36,8 +36,8 @@ public class TestChunkManagerConfig
                 .setChunkSliceSize(DataSize.of(128, KILOBYTE))
                 .setExchangeStalenessThreshold(DEFAULT_EXCHANGE_STALENESS_THRESHOLD)
                 .setSpoolingDirectories(null)
-                .setChunkSpoolInterval(succinctDuration(200, MILLISECONDS))
-                .setChunkSpoolConcurrency(8));
+                .setChunkSpoolInterval(succinctDuration(50, MILLISECONDS))
+                .setChunkSpoolConcurrency(16));
     }
 
     @Test
