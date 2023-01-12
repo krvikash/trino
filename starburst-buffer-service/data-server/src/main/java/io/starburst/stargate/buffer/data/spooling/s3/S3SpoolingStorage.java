@@ -30,6 +30,7 @@ import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.retry.RetryPolicy;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3AsyncClientBuilder;
 import software.amazon.awssdk.services.s3.model.Delete;
@@ -50,6 +51,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -106,11 +108,21 @@ public class S3SpoolingStorage
                 .putAdvancedOption(USER_AGENT_PREFIX, "")
                 .putAdvancedOption(USER_AGENT_SUFFIX, "Trino-exchange")
                 .build();
+
+        Optional<Region> region = spoolingS3Config.getRegion();
+        Optional<String> endpoint = spoolingS3Config.getS3Endpoint();
+
+        if (endpoint.isPresent() && region.isPresent()) {
+            throw new IllegalArgumentException("Either S3 endpoint or region can be specified");
+        }
+
         S3AsyncClientBuilder s3AsyncClientBuilder = S3AsyncClient.builder()
                 .credentialsProvider(credentialsProvider)
-                .overrideConfiguration(overrideConfig)
-                .region(spoolingS3Config.getRegion());
-        spoolingS3Config.getS3Endpoint().ifPresent(s3Endpoint -> s3AsyncClientBuilder.endpointOverride(URI.create(s3Endpoint)));
+                .overrideConfiguration(overrideConfig);
+
+        endpoint.ifPresent(s3Endpoint -> s3AsyncClientBuilder.endpointOverride(URI.create(s3Endpoint)));
+        region.ifPresent(s3AsyncClientBuilder::region);
+
         this.s3AsyncClient = s3AsyncClientBuilder.build();
         spooledDataSize = dataServerStats.getSpooledDataSize();
         spoolingFailures = dataServerStats.getSpoolingFailures();

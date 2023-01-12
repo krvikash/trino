@@ -36,7 +36,6 @@ public final class SpoolTestHelper
                 new SpoolingS3Config()
                         .setS3AwsAccessKey(MinioStorage.ACCESS_KEY)
                         .setS3AwsSecretKey(MinioStorage.SECRET_KEY)
-                        .setRegion("us-east-1")
                         .setS3Endpoint("http://" + minioStorage.getMinio().getMinioApiEndpoint()),
                 new DataServerStats());
     }
