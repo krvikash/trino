@@ -10,8 +10,8 @@
 package io.starburst.server.troubleshooting;
 
 import com.google.inject.Key;
+import com.starburstdata.presto.server.StarburstQueryRunner;
 import com.starburstdata.presto.server.StarburstServerExtensionsModule;
-import com.starburstdata.presto.testing.StarburstDistributedQueryRunner;
 import io.trino.Session;
 import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.spi.QueryId;
@@ -68,7 +68,7 @@ public class TestQueryTroubleshooting
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        DistributedQueryRunner queryRunner = StarburstDistributedQueryRunner.builder(SESSION)
+        DistributedQueryRunner queryRunner = StarburstQueryRunner.builder(SESSION)
                 .setAdditionalModule(new StarburstServerExtensionsModule())
                 .setCoordinatorProperties(Map.of("insights.authorized-users", AUTHORIZED_USER, "troubleshooting.max-access-duration", "500ms"))
                 .build();
