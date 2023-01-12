@@ -47,10 +47,12 @@ import java.util.OptionalLong;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.ToIntFunction;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
 import static io.airlift.concurrent.AsyncSemaphore.processAll;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
@@ -354,8 +356,13 @@ public class ChunkManager
         }
 
         do {
+            Map<String, Integer> exchangeSizes = exchanges.entrySet().stream().collect(toImmutableMap(
+                    Map.Entry::getKey,
+                    entry -> entry.getValue().getClosedChunksCount()));
+            ToIntFunction<Exchange> exchangeSizeFunction = exchange -> exchangeSizes.getOrDefault(exchange.getExchangeId(), 0);
+
             List<Exchange> exchangesSortedBySizeDesc = exchanges.values().stream()
-                    .sorted(Comparator.comparingInt(Exchange::getClosedChunksCount).reversed())
+                    .sorted(Comparator.comparingInt(exchangeSizeFunction).reversed())
                     .collect(toImmutableList());
             long requiredMemory = memoryAllocator.getRequiredMemoryToRelease();
             long nominatedMemory = 0L;

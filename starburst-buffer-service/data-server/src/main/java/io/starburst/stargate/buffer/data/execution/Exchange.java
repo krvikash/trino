@@ -231,11 +231,16 @@ public class Exchange
         Map<Integer, Integer> partitionSizes = partitions.entrySet().stream().collect(toImmutableMap(
                 Map.Entry::getKey,
                 entry -> entry.getValue().getClosedChunksCount()));
-        ToIntFunction<Object> partitionSizeFunction = partition -> partitionSizes.getOrDefault(((Partition) partition).getPartitionId(), 0);
+        ToIntFunction<Partition> partitionSizeFunction = partition -> partitionSizes.getOrDefault(partition.getPartitionId(), 0);
 
         return partitions.values().stream()
                 .sorted(Comparator.comparingInt(partitionSizeFunction).reversed())
                 .collect(toImmutableList());
+    }
+
+    public String getExchangeId()
+    {
+        return exchangeId;
     }
 
     @GuardedBy("this")
