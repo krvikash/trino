@@ -96,6 +96,7 @@ public class DataResource
     private final boolean dropUploadedPages;
     private final Executor responseExecutor;
     private final ExecutorService executor;
+    private final DataServerStats stats;
     private final CounterStat writtenDataSize;
     private final DistributionStat writtenDataSizeDistribution;
     private final DistributionStat writtenDataSizePerPartitionDistribution;
@@ -129,6 +130,7 @@ public class DataResource
         this.bufferNodeInfoService = requireNonNull(bufferNodeInfoService, "bufferNodeInfoService is null");
         this.maxInProgressAddDataPagesRequests = config.getMaxInProgressAddDataPagesRequests();
 
+        this.stats = requireNonNull(stats, "stats is null");
         writtenDataSize = stats.getWrittenDataSize();
         writtenDataSizeDistribution = stats.getWrittenDataSizeDistribution();
         writtenDataSizePerPartitionDistribution = stats.getWrittenDataSizePerPartitionDistribution();
@@ -214,15 +216,15 @@ public class DataResource
             return;
         }
 
-        int currentInProgressAddDataPagesRequests = inProgressAddDataPagesRequests.incrementAndGet();
+        int currentInProgressAddDataPagesRequests = incrementAddDataPagesRequests();
         if (bufferNodeStateManager.isDrainingStarted()) {
-            inProgressAddDataPagesRequests.decrementAndGet();
+            decrementAddDataPagesRequests();
             asyncResponse.resume(errorResponse(new DataServerException(DRAINING, "Node %d is draining and not accepting any more data".formatted(bufferNodeId))));
             return;
         }
 
         if (currentInProgressAddDataPagesRequests > maxInProgressAddDataPagesRequests) {
-            inProgressAddDataPagesRequests.decrementAndGet();
+            decrementAddDataPagesRequests();
             asyncResponse.resume(errorResponse(
                     new DataServerException(INTERNAL_ERROR, "Exceeded maximum in progress addDataPages requests (%s)".formatted(maxInProgressAddDataPagesRequests))));
             return;
@@ -295,7 +297,7 @@ public class DataResource
                 return;
             }
             sliceLease.release();
-            inProgressAddDataPagesRequests.decrementAndGet();
+            decrementAddDataPagesRequests();
         });
 
         asyncResponse.register((ConnectionCallback) response -> {
@@ -304,7 +306,7 @@ public class DataResource
                 return;
             }
             sliceLease.release();
-            inProgressAddDataPagesRequests.decrementAndGet();
+            decrementAddDataPagesRequests();
         });
 
         bindAsyncResponse(
@@ -317,6 +319,19 @@ public class DataResource
                         () -> "POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId)),
                 responseExecutor)
                 .withTimeout(getAsyncTimeout(clientMaxWait));
+    }
+
+    private int incrementAddDataPagesRequests()
+    {
+        int currentRequestsCount = inProgressAddDataPagesRequests.incrementAndGet();
+        stats.updateInProgressAddDataPagesRequests(currentRequestsCount);
+        return currentRequestsCount;
+    }
+
+    private void decrementAddDataPagesRequests()
+    {
+        int currentRequestsCount = inProgressAddDataPagesRequests.decrementAndGet();
+        stats.updateInProgressAddDataPagesRequests(currentRequestsCount);
     }
 
     Duration getAsyncTimeout(@Nullable Duration clientMaxWait)

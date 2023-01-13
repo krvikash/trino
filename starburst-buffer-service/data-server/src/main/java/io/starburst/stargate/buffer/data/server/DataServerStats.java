@@ -32,6 +32,7 @@ public class DataServerStats
     private final DistributionStat writtenDataSizePerPartitionDistribution = new DistributionStat();
     private final CounterStat readDataSize = new CounterStat();
     private final DistributionStat readDataSizeDistribution = new DistributionStat();
+    private final AtomicLong inProgressAddDataPagesRequests = new AtomicLong();
 
     public void updateTotalMemoryInBytes(long totalMemoryInBytes)
     {
@@ -153,5 +154,16 @@ public class DataServerStats
     public DistributionStat getReadDataSizeDistribution()
     {
         return readDataSizeDistribution;
+    }
+
+    @Managed
+    public long getInProgressAddDataPagesRequests()
+    {
+        return inProgressAddDataPagesRequests.get();
+    }
+
+    public void updateInProgressAddDataPagesRequests(long inProgressAddDataPagesRequests)
+    {
+        this.inProgressAddDataPagesRequests.set(inProgressAddDataPagesRequests);
     }
 }

@@ -82,6 +82,7 @@ public class DataServerStatsLogger
                 "written_data_size_per_partition_distribution: %s\n".formatted(dataServerStats.getWrittenDataSizePerPartitionDistribution().snapshot()) +
                 "read_data_size: %s, %s/s\n".formatted(succinctBytes(readDataSize.getCounter()), succinctBytes((long) readDataSize.getRate())) +
                 "read_data_size_distribution: %s\n".formatted(dataServerStats.getReadDataSizeDistribution().snapshot()) +
+                "in_progress_add_data_pages_requests: %s\n".formatted(dataServerStats.getInProgressAddDataPagesRequests()) +
                 "STATS END\n");
     }
 
