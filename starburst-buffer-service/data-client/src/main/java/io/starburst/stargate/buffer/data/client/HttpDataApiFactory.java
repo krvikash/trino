@@ -21,17 +21,17 @@ import static java.util.Objects.requireNonNull;
 public class HttpDataApiFactory
         implements DataApiFactory
 {
-    private final HttpClient dataHttpClient;
+    private final HttpClient httpClient;
     private final SpooledChunkReader spooledChunkReader;
     private final boolean dataIntegrityVerificationEnabled;
 
     @Inject
     public HttpDataApiFactory(
-            @ForBufferDataClient HttpClient dataHttpClient,
+            @ForBufferDataClient HttpClient httpClient,
             SpooledChunkReader spooledChunkReader,
             DataApiConfig config)
     {
-        this.dataHttpClient = requireNonNull(dataHttpClient, "dataHttpClient is null");
+        this.httpClient = requireNonNull(httpClient, "httpClient is null");
         this.spooledChunkReader = requireNonNull(spooledChunkReader, "spooledChunkReader is null");
         requireNonNull(config, "config is null");
         dataIntegrityVerificationEnabled = config.isDataIntegrityVerificationEnabled();
@@ -40,6 +40,6 @@ public class HttpDataApiFactory
     @Override
     public DataApi createDataApi(URI baseUri, long targetBufferNodeId)
     {
-        return new HttpDataClient(baseUri, targetBufferNodeId, dataHttpClient, spooledChunkReader, dataIntegrityVerificationEnabled);
+        return new HttpDataClient(baseUri, targetBufferNodeId, httpClient, spooledChunkReader, dataIntegrityVerificationEnabled);
     }
 }
