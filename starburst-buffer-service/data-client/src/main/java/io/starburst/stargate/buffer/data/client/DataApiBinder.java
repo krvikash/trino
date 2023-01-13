@@ -31,7 +31,9 @@ import java.util.function.Consumer;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
+import static io.airlift.units.Duration.succinctDuration;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class DataApiBinder
 {
@@ -81,7 +83,9 @@ public class DataApiBinder
     private void bindCommon(String dataApiName, Consumer<Module> moduleInstall)
     {
         httpClientBinder.bindHttpClient(dataApiName, ForBufferDataClient.class)
-                .withConfigDefaults(config -> config.setMaxContentLength(DataSize.of(32, MEGABYTE)));
+                .withConfigDefaults(config -> config
+                        .setMaxContentLength(DataSize.of(32, MEGABYTE))
+                        .setIdleTimeout(succinctDuration(30, SECONDS)));
         configBinder(binder).bindConfig(DataApiConfig.class, dataApiName);
 
         moduleInstall.accept(ConditionalModule.conditionalModule(
