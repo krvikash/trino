@@ -31,6 +31,7 @@ import io.airlift.slice.OutputStreamSliceOutput;
 import io.airlift.slice.Slice;
 import io.airlift.slice.SliceOutput;
 import io.airlift.slice.XxHash64;
+import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.SpoolingFile;
@@ -66,6 +67,7 @@ import static io.airlift.http.client.ResponseHandlerUtils.propagate;
 import static io.airlift.http.client.StringResponseHandler.createStringResponseHandler;
 import static io.airlift.json.JsonCodec.jsonCodec;
 import static io.airlift.slice.SizeOf.SIZE_OF_INT;
+import static io.starburst.stargate.buffer.data.client.DataClientHeaders.MAX_WAIT;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.INTERNAL_ERROR;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
 import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_CHUNK_DATA_TYPE;
@@ -87,6 +89,7 @@ public class HttpDataClient
     private final URI baseUri;
     private final long targetBufferNodeId;
     private final HttpClient httpClient;
+    private final Duration httpIdleTimeout;
     private final SpooledChunkReader spooledChunkReader;
     private final boolean dataIntegrityVerificationEnabled;
 
@@ -94,9 +97,11 @@ public class HttpDataClient
             URI baseUri,
             long targetBufferNodeId,
             HttpClient httpClient,
+            Duration httpIdleTimeout,
             SpooledChunkReader spooledChunkReader,
             boolean dataIntegrityVerificationEnabled)
     {
+        this.httpIdleTimeout = httpIdleTimeout;
         requireNonNull(baseUri, "baseUri is null");
         requireNonNull(httpClient, "httpClient is null");
         checkArgument(baseUri.getPath().isBlank(), "expected base URI with no path; got " + baseUri);
@@ -230,6 +235,7 @@ public class HttpDataClient
                         .build())
                 .setBodyGenerator(new PagesBodyGenerator(dataPages, dataIntegrityVerificationEnabled))
                 .setHeader(CONTENT_LENGTH, String.valueOf(contentLength))
+                .setHeader(MAX_WAIT, httpIdleTimeout.toString())
                 .build();
 
         HttpResponseFuture<StringResponse> responseFuture = httpClient.executeAsync(request, createStringResponseHandler());

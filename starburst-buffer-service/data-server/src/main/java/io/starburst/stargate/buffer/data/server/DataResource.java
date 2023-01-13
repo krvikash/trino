@@ -21,6 +21,7 @@ import io.airlift.slice.SliceOutput;
 import io.airlift.slice.XxHash64;
 import io.airlift.stats.CounterStat;
 import io.airlift.stats.DistributionStat;
+import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.starburst.stargate.buffer.data.client.spooling.SpoolingFile;
@@ -55,6 +56,7 @@ import java.io.InputStream;
 import java.util.OptionalLong;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
@@ -66,6 +68,8 @@ import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.jaxrs.AsyncResponseHandler.bindAsyncResponse;
+import static io.airlift.units.Duration.succinctDuration;
+import static io.starburst.stargate.buffer.data.client.DataClientHeaders.MAX_WAIT;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.DRAINING;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.USER_ERROR;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.ERROR_CODE_HEADER;
@@ -80,6 +84,8 @@ import static java.util.Objects.requireNonNull;
 public class DataResource
 {
     private static final Logger logger = Logger.get(DataResource.class);
+
+    private static final Duration CLIENT_MAX_WAIT_LIMIT = succinctDuration(60, TimeUnit.SECONDS);
 
     private final long bufferNodeId;
     private final ChunkManager chunkManager;
@@ -188,6 +194,7 @@ public class DataResource
             @PathParam("dataPagesId") long dataPagesId,
             @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId,
             @HeaderParam(CONTENT_LENGTH) Integer contentLength,
+            @HeaderParam(MAX_WAIT) Duration clientMaxWait,
             @Suspended AsyncResponse asyncResponse,
             InputStream inputStream)
     {
@@ -298,7 +305,16 @@ public class DataResource
                                 ignored -> Response.ok().build(),
                                 directExecutor()),
                         () -> "POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId)),
-                responseExecutor);
+                responseExecutor)
+                .withTimeout(getAsyncTimeout(clientMaxWait));
+    }
+
+    Duration getAsyncTimeout(@Nullable Duration clientMaxWait)
+    {
+        if (clientMaxWait == null || clientMaxWait.toMillis() == 0 || clientMaxWait.compareTo(CLIENT_MAX_WAIT_LIMIT) > 0) {
+            return CLIENT_MAX_WAIT_LIMIT;
+        }
+        return succinctDuration(clientMaxWait.toMillis() * 0.9, TimeUnit.MILLISECONDS);
     }
 
     @GET

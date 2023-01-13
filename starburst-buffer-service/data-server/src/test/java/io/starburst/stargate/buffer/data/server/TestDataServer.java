@@ -50,9 +50,11 @@ import static io.airlift.slice.Slices.utf8Slice;
 import static io.airlift.testing.Closeables.closeAll;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.airlift.units.DataSize.succinctBytes;
+import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.USER_ERROR;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
@@ -88,7 +90,7 @@ public class TestDataServer
                 .setConfigProperty("memory.allocation-high-watermark", "0.99")
                 .build();
         httpClient = new JettyHttpClient(new HttpClientConfig());
-        dataClient = new HttpDataClient(dataServer.getBaseUri(), BUFFER_NODE_ID, httpClient, new LocalSpooledChunkReader(new DataApiConfig()), true);
+        dataClient = new HttpDataClient(dataServer.getBaseUri(), BUFFER_NODE_ID, httpClient, succinctDuration(60, SECONDS), new LocalSpooledChunkReader(new DataApiConfig()), true);
 
         // Wait for Node to become ready
         await().atMost(TEN_SECONDS).until(
@@ -341,7 +343,7 @@ public class TestDataServer
     @Test
     public void testInvalidTargetDataNodeId()
     {
-        HttpDataClient invalidDataClient = new HttpDataClient(dataServer.getBaseUri(), BUFFER_NODE_ID + 1, httpClient, new NoopSpooledChunkReader(), true);
+        HttpDataClient invalidDataClient = new HttpDataClient(dataServer.getBaseUri(), BUFFER_NODE_ID + 1, httpClient, succinctDuration(60, SECONDS), new NoopSpooledChunkReader(), true);
 
         assertThatThrownBy(() -> getFutureValue(invalidDataClient.addDataPages(EXCHANGE_0, 0, 0, 0, ImmutableListMultimap.of())))
                 .isInstanceOf(DataApiException.class)
