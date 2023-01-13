@@ -71,6 +71,7 @@ import static io.airlift.jaxrs.AsyncResponseHandler.bindAsyncResponse;
 import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.data.client.DataClientHeaders.MAX_WAIT;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.DRAINING;
+import static io.starburst.stargate.buffer.data.client.ErrorCode.INTERNAL_ERROR;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.USER_ERROR;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.ERROR_CODE_HEADER;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLING_FILE_LOCATION_HEADER;
@@ -101,6 +102,7 @@ public class DataResource
     private final CounterStat readDataSize;
     private final DistributionStat readDataSizeDistribution;
     private final BufferNodeInfoService bufferNodeInfoService;
+    private final int maxInProgressAddDataPagesRequests;
 
     private final AtomicInteger inProgressAddDataPagesRequests = new AtomicInteger();
 
@@ -125,6 +127,7 @@ public class DataResource
         this.responseExecutor = requireNonNull(responseExecutor, "responseExecutor is null");
         this.executor = requireNonNull(executor, "executor is null");
         this.bufferNodeInfoService = requireNonNull(bufferNodeInfoService, "bufferNodeInfoService is null");
+        this.maxInProgressAddDataPagesRequests = config.getMaxInProgressAddDataPagesRequests();
 
         writtenDataSize = stats.getWrittenDataSize();
         writtenDataSizeDistribution = stats.getWrittenDataSizeDistribution();
@@ -211,10 +214,17 @@ public class DataResource
             return;
         }
 
-        inProgressAddDataPagesRequests.incrementAndGet();
+        int currentInProgressAddDataPagesRequests = inProgressAddDataPagesRequests.incrementAndGet();
         if (bufferNodeStateManager.isDrainingStarted()) {
             inProgressAddDataPagesRequests.decrementAndGet();
             asyncResponse.resume(errorResponse(new DataServerException(DRAINING, "Node %d is draining and not accepting any more data".formatted(bufferNodeId))));
+            return;
+        }
+
+        if (currentInProgressAddDataPagesRequests > maxInProgressAddDataPagesRequests) {
+            inProgressAddDataPagesRequests.decrementAndGet();
+            asyncResponse.resume(errorResponse(
+                    new DataServerException(INTERNAL_ERROR, "Exceeded maximum in progress addDataPages requests (%s)".formatted(maxInProgressAddDataPagesRequests))));
             return;
         }
 

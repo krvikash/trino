@@ -27,6 +27,7 @@ public class DataServerConfig
     private Duration broadcastInterval = Duration.succinctDuration(5, SECONDS);
     private int drainingMaxAttempts = 4;
     private Duration minDrainingDuration = Duration.succinctDuration(30, SECONDS);
+    private int maxInProgressAddDataPagesRequests = 500;
 
     public boolean isDataIntegrityVerificationEnabled()
     {
@@ -115,5 +116,17 @@ public class DataServerConfig
     {
         this.drainingMaxAttempts = drainingMaxAttempts;
         return this;
+    }
+
+    @Config("max-in-progress-add-data-pages-requests")
+    public DataServerConfig setMaxInProgressAddDataPagesRequests(int maxInProgressAddDataPagesRequests)
+    {
+        this.maxInProgressAddDataPagesRequests = maxInProgressAddDataPagesRequests;
+        return this;
+    }
+
+    public int getMaxInProgressAddDataPagesRequests()
+    {
+        return maxInProgressAddDataPagesRequests;
     }
 }

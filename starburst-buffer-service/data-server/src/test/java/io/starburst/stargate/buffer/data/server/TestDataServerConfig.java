@@ -33,7 +33,8 @@ public class TestDataServerConfig
                 .setTestingEnableStatsLogging(true)
                 .setBroadcastInterval(succinctDuration(5, SECONDS))
                 .setMinDrainingDuration(succinctDuration(30, SECONDS))
-                .setDrainingMaxAttempts(4));
+                .setDrainingMaxAttempts(4)
+                .setMaxInProgressAddDataPagesRequests(500));
     }
 
     @Test
@@ -47,6 +48,7 @@ public class TestDataServerConfig
                 .put("discovery-broadcast-interval", "102ms")
                 .put("draining.min-duration", "103s")
                 .put("draining.max-attempts", "5")
+                .put("max-in-progress-add-data-pages-requests", "600")
                 .buildOrThrow();
 
         DataServerConfig expected = new DataServerConfig()
@@ -56,7 +58,8 @@ public class TestDataServerConfig
                 .setTestingEnableStatsLogging(false)
                 .setBroadcastInterval(succinctDuration(102, MILLISECONDS))
                 .setMinDrainingDuration(succinctDuration(103, SECONDS))
-                .setDrainingMaxAttempts(5);
+                .setDrainingMaxAttempts(5)
+                .setMaxInProgressAddDataPagesRequests(600);
 
         assertFullMapping(properties, expected);
     }
