@@ -13,6 +13,7 @@ import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Scopes;
+import io.airlift.configuration.ConditionalModule;
 import io.airlift.configuration.ConfigDefaults;
 import io.airlift.http.client.HttpClientBinder;
 import io.airlift.http.client.HttpClientConfig;
