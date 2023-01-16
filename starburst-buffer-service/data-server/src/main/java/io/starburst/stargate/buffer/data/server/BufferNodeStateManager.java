@@ -72,7 +72,7 @@ public class BufferNodeStateManager
             remainingDrainingWaitMillis = Instant.now().toEpochMilli() - drainingStart.orElseThrow().toEpochMilli();
         }
         if (remainingDrainingWaitMillis > 0) {
-            LOG.info("Sleeping for %s so buffer node is kept in DRAINING state for at least %s", minDrainingDuration);
+            LOG.info("Sleeping for %s so buffer node is kept in DRAINING state for at least %s", remainingDrainingWaitMillis, minDrainingDuration);
             sleepUninterruptibly(remainingDrainingWaitMillis, TimeUnit.MILLISECONDS);
         }
         lifeCycleManager.stop();
