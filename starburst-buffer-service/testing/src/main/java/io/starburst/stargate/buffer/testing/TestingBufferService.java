@@ -16,14 +16,19 @@ import io.starburst.stargate.buffer.discovery.server.testing.TestingDiscoverySer
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+
+import static com.google.common.base.Preconditions.checkArgument;
 
 public class TestingBufferService
         implements Closeable
 {
     private final TestingDiscoveryServer discoveryServer;
     private final List<TestingDataServer> dataServers;
+    private final TestingDataServer.Builder dataServerBuilder;
+    private int lastDataServerNodeId;
 
     private TestingBufferService(
             TestingDiscoveryServer.Builder discoveryServerBuilder,
@@ -31,16 +36,15 @@ public class TestingBufferService
             int dataServersCount)
     {
         discoveryServer = discoveryServerBuilder.build();
-
         // connect to discovery server
         dataServerBuilder.withDefaultDiscoveryApiModule();
         dataServerBuilder.setConfigProperty("discovery-service.uri", discoveryServer.getBaseUri().toString());
+        this.dataServerBuilder = dataServerBuilder;
 
-        ImmutableList.Builder<TestingDataServer> dataServers = ImmutableList.builder();
-        for (int nodeId = 0; nodeId < dataServersCount; ++nodeId) {
-            dataServers.add(dataServerBuilder.build(nodeId));
+        this.dataServers = new ArrayList<>();
+        for (int i = 0; i < dataServersCount; ++i) {
+            addDataServer();
         }
-        this.dataServers = dataServers.build();
         long start = System.currentTimeMillis();
         while (!this.dataServers.stream()
                 .map(dataServer -> dataServer.getStatusProvider().isReady())
@@ -59,12 +63,25 @@ public class TestingBufferService
 
     public List<TestingDataServer> getDataServers()
     {
-        return dataServers;
+        return ImmutableList.copyOf(dataServers);
     }
 
     public static Builder builder()
     {
         return new Builder();
+    }
+
+    public void removeDataServer(TestingDataServer testingDataServer)
+    {
+        boolean removed = dataServers.remove(testingDataServer);
+        checkArgument(removed, "Data server %s not found among %s", testingDataServer, dataServers);
+    }
+
+    public TestingDataServer addDataServer()
+    {
+        TestingDataServer addedDataServer = dataServerBuilder.build(lastDataServerNodeId++);
+        dataServers.add(addedDataServer);
+        return addedDataServer;
     }
 
     public static class Builder

@@ -45,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static com.google.common.base.MoreObjects.toStringHelper;
 import static io.starburst.stargate.buffer.BufferNodeState.ACTIVE;
 import static io.starburst.stargate.buffer.BufferNodeState.STARTED;
 import static java.util.Objects.requireNonNull;
@@ -56,9 +57,11 @@ public class TestingDataServer
     private final DataServerStatusProvider statusProvider;
     private final Closer closer = Closer.create();
     private final Optional<DiscoveryApi> discovery;
+    private final long nodeId;
 
     private TestingDataServer(long nodeId, Optional<Module> discoveryApiModule, Map<String, String> configProperties)
     {
+        this.nodeId = nodeId;
         Map<String, String> finalConfigProperties = new HashMap<>(configProperties);
         List<Module> modules = new ArrayList<>(Arrays.asList(
                 new TestingNodeModule("test"),
@@ -166,6 +169,20 @@ public class TestingDataServer
     public URI getBaseUri()
     {
         return baseUri;
+    }
+
+    public long getNodeId()
+    {
+        return nodeId;
+    }
+
+    @Override
+    public String toString()
+    {
+        return toStringHelper(this)
+                .add("baseUri", baseUri)
+                .add("nodeId", nodeId)
+                .toString();
     }
 
     @Override
