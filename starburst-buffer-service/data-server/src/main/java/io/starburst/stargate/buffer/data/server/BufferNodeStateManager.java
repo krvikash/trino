@@ -76,7 +76,7 @@ public class BufferNodeStateManager
         synchronized (this) {
             BufferNodeState currentState = getState();
             checkState(currentState == BufferNodeState.DRAINED, "can't cleanup when in %s state".formatted(currentState));
-            remainingDrainingWaitMillis = Instant.now().toEpochMilli() - drainingStart.orElseThrow().toEpochMilli();
+            remainingDrainingWaitMillis = minDrainingDuration.toMillis() - (Instant.now().toEpochMilli() - drainingStart.orElseThrow().toEpochMilli());
         }
         if (remainingDrainingWaitMillis > 0) {
             LOG.info("Sleeping for %s so buffer node is kept in DRAINING state for at least %s", remainingDrainingWaitMillis, minDrainingDuration);
