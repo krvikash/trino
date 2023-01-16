@@ -9,6 +9,8 @@
  */
 package io.starburst.stargate.buffer.trino.exchange;
 
+import com.google.common.util.concurrent.ListeningScheduledExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Binder;
 import com.google.inject.Provides;
 import com.google.inject.Scopes;
@@ -49,7 +51,8 @@ public class BufferExchangeModule
         binder.bind(BufferExchangeManager.class).in(Scopes.SINGLETON);
         binder.bind(BufferCoordinatorExchangeManager.class).in(Scopes.SINGLETON);
         binder.bind(BufferWorkerExchangeManager.class).in(Scopes.SINGLETON);
-        binder.bind(ScheduledExecutorService.class).toInstance(newScheduledThreadPool(8, daemonThreadsNamed("buffer-exchange-scheduled-%s"))); // todo - configurable?
+        binder.bind(ListeningScheduledExecutorService.class).toInstance(MoreExecutors.listeningDecorator(newScheduledThreadPool(8, daemonThreadsNamed("buffer-exchange-scheduled-%s")))); // todo - configurable?
+        binder.bind(ScheduledExecutorService.class).to(ListeningScheduledExecutorService.class);
         binder.bind(ExecutorService.class).toInstance(newCachedThreadPool(daemonThreadsNamed("buffer-exchange-%s"))); // todo - make thread count bounded?
         binder.bind(DataApiFacade.class).in(Scopes.SINGLETON);
 

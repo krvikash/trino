@@ -15,6 +15,7 @@ import com.google.common.collect.ImmutableSetMultimap;
 import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
 import com.google.common.math.Stats;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import io.airlift.units.DataSize;
 import io.starburst.stargate.buffer.BufferNodeInfo;
@@ -37,6 +38,7 @@ import java.util.stream.LongStream;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Ordering.natural;
+import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
 import static io.starburst.stargate.buffer.BufferNodeState.ACTIVE;
 import static io.starburst.stargate.buffer.BufferNodeState.DRAINING;
 import static java.util.Objects.requireNonNull;
@@ -242,6 +244,13 @@ public class TestSmartPinningPartitionNodeMapper
         public BufferNodesState getBufferNodes()
         {
             return bufferNodesState;
+        }
+
+        @Override
+        public ListenableFuture<Void> forceRefresh()
+        {
+            // noop
+            return immediateVoidFuture();
         }
     }
 

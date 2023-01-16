@@ -10,6 +10,7 @@
 package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.util.concurrent.ListenableFuture;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeState;
 
@@ -24,6 +25,8 @@ import static com.google.common.collect.ImmutableSet.toImmutableSet;
 public interface BufferNodeDiscoveryManager
 {
     BufferNodesState getBufferNodes();
+
+    ListenableFuture<Void> forceRefresh();
 
     class BufferNodesState
     {
