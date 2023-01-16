@@ -35,7 +35,7 @@
         <air.java.version>17.0.1</air.java.version>
         <project.build.targetJdk>17</project.build.targetJdk>
 
-        <dep.airlift.version>219</dep.airlift.version>
+        <dep.airlift.version>221</dep.airlift.version>
         <dep.errorprone.version>2.15.0</dep.errorprone.version>
         <dep.trino.version>405</dep.trino.version>
         <dep.joda.version>2.12.0</dep.joda.version> <!-- required by Trino 401 -->
