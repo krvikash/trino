@@ -26,8 +26,10 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.concurrent.Threads.threadsNamed;
+import static io.airlift.units.Duration.succinctDuration;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newSingleThreadExecutor;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 public class BufferNodeStateManager
 {
@@ -78,7 +80,7 @@ public class BufferNodeStateManager
         }
         if (remainingDrainingWaitMillis > 0) {
             LOG.info("Sleeping for %s so buffer node is kept in DRAINING state for at least %s", remainingDrainingWaitMillis, minDrainingDuration);
-            sleepUninterruptibly(remainingDrainingWaitMillis, TimeUnit.MILLISECONDS);
+            sleepUninterruptibly(remainingDrainingWaitMillis, MILLISECONDS);
         }
         lifeCycleStopper.submit(lifeCycleManager::stop);
     }
