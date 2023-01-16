@@ -19,16 +19,21 @@ import javax.inject.Inject;
 
 import java.time.Instant;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
+import static io.airlift.concurrent.Threads.daemonThreadsNamed;
+import static io.airlift.concurrent.Threads.threadsNamed;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.Executors.newSingleThreadExecutor;
 
 public class BufferNodeStateManager
 {
     private static final Logger LOG = Logger.get(BufferNodeStateManager.class);
 
+    private final ExecutorService lifeCycleStopper = newSingleThreadExecutor(daemonThreadsNamed("lifecycle-stopper-%s"));
     private final LifeCycleManager lifeCycleManager;
     private final Duration minDrainingDuration;
 
@@ -75,7 +80,7 @@ public class BufferNodeStateManager
             LOG.info("Sleeping for %s so buffer node is kept in DRAINING state for at least %s", remainingDrainingWaitMillis, minDrainingDuration);
             sleepUninterruptibly(remainingDrainingWaitMillis, TimeUnit.MILLISECONDS);
         }
-        lifeCycleManager.stop();
+        lifeCycleStopper.submit(lifeCycleManager::stop);
     }
 
     public boolean isDrainingStarted()
