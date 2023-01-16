@@ -298,10 +298,6 @@ public class TestDataServer
         await().atMost(ONE_SECOND).until(chunkListFuture::isDone);
         ChunkHandle chunkHandle = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 5);
         assertThat(getFutureValue(chunkListFuture).chunks()).containsExactly(chunkHandle);
-        assertThatThrownBy(() -> getChunkData(EXCHANGE_0, chunkHandle))
-                .isInstanceOf(DataApiException.class)
-                .hasMessage("error on GET %s/api/v1/buffer/data/0/%s/pages/0/0?targetBufferNodeId=0: Chunk 0 already drained on node %d"
-                        .formatted(dataServer.getBaseUri(), EXCHANGE_0, BUFFER_NODE_ID));
 
         await().atMost(FIVE_SECONDS).until(
                 this::getNodeState,

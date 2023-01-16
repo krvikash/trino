@@ -190,7 +190,7 @@ public class ChunkManager
         }
 
         Exchange exchange = getExchangeAndHeartbeat(exchangeId);
-        return exchange.getChunkData(bufferNodeId, partitionId, chunkId, startedDraining);
+        return exchange.getChunkData(bufferNodeId, partitionId, chunkId);
     }
 
     public ChunkList listClosedChunks(String exchangeId, OptionalLong pagingId)

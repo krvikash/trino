@@ -16,7 +16,6 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.slice.Slice;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
-import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
 
@@ -37,7 +36,6 @@ import java.util.concurrent.ExecutorService;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
-import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_DRAINED;
 import static java.util.Objects.requireNonNull;
 
 @ThreadSafe
@@ -122,15 +120,11 @@ public class Partition
         return addDataPagesFuture;
     }
 
-    public ChunkDataResult getChunkData(long bufferNodeId, long chunkId, boolean startedDraining)
+    public ChunkDataResult getChunkData(long bufferNodeId, long chunkId)
     {
         Chunk chunk = closedChunks.get(chunkId);
         ChunkDataHolder chunkDataHolder = (chunk == null ? null : chunk.getChunkData());
         if (chunkDataHolder == null) {
-            if (startedDraining) {
-                // chunk already drained
-                throw new DataServerException(CHUNK_DRAINED, "Chunk %d already drained on node %d".formatted(chunkId, bufferNodeId));
-            }
             // chunk already spooled
             return ChunkDataResult.of(spoolingStorage.getSpoolingFile(bufferNodeId, exchangeId, chunkId));
         }
