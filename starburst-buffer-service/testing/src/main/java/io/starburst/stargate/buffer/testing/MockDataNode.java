@@ -40,10 +40,8 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
 import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
-import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_DRAINED;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
 import static io.starburst.stargate.buffer.testing.MockBufferNodeState.DRAINED;
-import static io.starburst.stargate.buffer.testing.MockBufferNodeState.DRAINING;
 import static io.starburst.stargate.buffer.testing.MockBufferNodeState.GONE;
 import static io.starburst.stargate.buffer.testing.MockDataNodeStats.Key.FAILED_GET_CHUNK_DATA_CHUNK_DRAINED_REQUEST_COUNT;
 import static io.starburst.stargate.buffer.testing.MockDataNodeStats.Key.FAILED_GET_CHUNK_DATA_NOT_FOUND_IN_DRAINED_STORAGE_REQUEST_COUNT;
@@ -167,7 +165,7 @@ class MockDataNode
 
     public synchronized void markNodeDraining()
     {
-        transitionToState(DRAINING);
+        transitionToState(MockBufferNodeState.DRAINING);
         closeAllChunks();
     }
 
@@ -256,7 +254,7 @@ class MockDataNode
 
             OptionalLong nextPagingId;
 
-            if ((nodeState == DRAINING || nodeState == DRAINED || finished) && chunkHandles.isEmpty()) {
+            if ((nodeState == MockBufferNodeState.DRAINING || nodeState == DRAINED || finished) && chunkHandles.isEmpty()) {
                 nextPagingId = OptionalLong.empty();
             }
             else {
@@ -298,7 +296,7 @@ class MockDataNode
 
             if (nodeState == MockBufferNodeState.DRAINED) {
                 stats.increment(FAILED_GET_CHUNK_DATA_CHUNK_DRAINED_REQUEST_COUNT);
-                return immediateFailedFuture(new DataApiException(CHUNK_DRAINED, "Node %d is already drained".formatted(nodeId)));
+                return immediateFailedFuture(new DataApiException(ErrorCode.DRAINING, "Node %d is already drained".formatted(nodeId)));
             }
 
             if (chunkData == null) {
