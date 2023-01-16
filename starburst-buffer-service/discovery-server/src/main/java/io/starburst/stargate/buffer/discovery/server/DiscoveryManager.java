@@ -152,7 +152,10 @@ public class DiscoveryManager
             BufferNodeInfoHolder infoHolder = entry.getValue();
             long lastUpdateTime = infoHolder.getLastUpdateTime();
             if (!infoHolder.isStale() && lastUpdateTime < markStaleThreshold) {
-                LOG.info("marking entry for node %s as stale; no update for %s", entry.getKey(), succinctDuration(now - lastUpdateTime, MILLISECONDS));
+                LOG.info("marking entry for node %s as stale; no update for %s; last state %s",
+                        entry.getKey(),
+                        succinctDuration(now - lastUpdateTime, MILLISECONDS),
+                        infoHolder.getLastNodeInfo().state());
                 infoHolder.markStale();
             }
             if (lastUpdateTime < cleanupThreshold) {
