@@ -9,50 +9,30 @@
  */
 package io.starburst.stargate.buffer.trino.exchange;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSetMultimap;
 import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
 import com.google.common.math.Stats;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.errorprone.annotations.CanIgnoreReturnValue;
-import io.airlift.units.DataSize;
-import io.starburst.stargate.buffer.BufferNodeInfo;
-import io.starburst.stargate.buffer.BufferNodeState;
-import io.starburst.stargate.buffer.BufferNodeStats;
-import io.starburst.stargate.buffer.trino.exchange.BufferNodeDiscoveryManager.BufferNodesState;
 import io.trino.spi.exchange.ExchangeId;
 import org.assertj.core.data.Percentage;
 import org.junit.jupiter.api.Test;
 
-import java.net.URI;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
-import java.util.function.Consumer;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Ordering.natural;
-import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
 import static io.starburst.stargate.buffer.BufferNodeState.ACTIVE;
 import static io.starburst.stargate.buffer.BufferNodeState.DRAINING;
-import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestSmartPinningPartitionNodeMapper
 {
-    private static final BufferNodeStats DEFAULT_NODE_STATS = new BufferNodeStats(
-            DataSize.of(32, DataSize.Unit.GIGABYTE).toBytes(),
-            DataSize.of(16, DataSize.Unit.GIGABYTE).toBytes(),
-            10,
-            1000,
-            500,
-            1000);
     public static final ExchangeId EXCHANGE_ID = new ExchangeId("some-exchange");
 
     @Test
@@ -213,89 +193,5 @@ public class TestSmartPinningPartitionNodeMapper
             mapping.forEach(distribution::put);
         }
         return distribution.build();
-    }
-
-    private static class TestingBufferNodeDiscoveryManager
-            implements BufferNodeDiscoveryManager
-    {
-        private BufferNodesState bufferNodesState;
-
-        public void setBufferNodes(BufferNodesState state)
-        {
-            this.bufferNodesState = state;
-        }
-
-        public void setBufferNodes(Consumer<BufferNodesStateBuilder> builderConsumer)
-        {
-            BufferNodesStateBuilder builder = BufferNodesStateBuilder.empty();
-            builderConsumer.accept(builder);
-            bufferNodesState = builder.build();
-        }
-
-        public void updateBufferNodes(Consumer<BufferNodesStateBuilder> builderConsumer)
-        {
-            requireNonNull(bufferNodesState, "bufferNodeState is null");
-            BufferNodesStateBuilder builder = BufferNodesStateBuilder.ofState(bufferNodesState);
-            builderConsumer.accept(builder);
-            bufferNodesState = builder.build();
-        }
-
-        @Override
-        public BufferNodesState getBufferNodes()
-        {
-            return bufferNodesState;
-        }
-
-        @Override
-        public ListenableFuture<Void> forceRefresh()
-        {
-            // noop
-            return immediateVoidFuture();
-        }
-    }
-
-    private static class BufferNodesStateBuilder
-    {
-        private final Map<Long, BufferNodeInfo> bufferNodesMap;
-
-        private BufferNodesStateBuilder(Map<Long, BufferNodeInfo> bufferNodesMap)
-        {
-            this.bufferNodesMap = new HashMap<>(bufferNodesMap);
-        }
-
-        public static BufferNodesStateBuilder empty()
-        {
-            return new BufferNodesStateBuilder(ImmutableMap.of());
-        }
-
-        public static BufferNodesStateBuilder ofState(BufferNodesState state)
-        {
-            return new BufferNodesStateBuilder(state.getAllBufferNodes());
-        }
-
-        @CanIgnoreReturnValue
-        public BufferNodesStateBuilder putNode(long nodeId, BufferNodeState state)
-        {
-            return putNode(nodeId, state, DEFAULT_NODE_STATS);
-        }
-
-        @CanIgnoreReturnValue
-        public BufferNodesStateBuilder putNode(long nodeId, BufferNodeState state, BufferNodeStats stats)
-        {
-            bufferNodesMap.put(nodeId, new BufferNodeInfo(nodeId, URI.create("http://node_" + nodeId), Optional.of(stats), state));
-            return this;
-        }
-
-        @CanIgnoreReturnValue
-        BufferNodesStateBuilder removeNode(long nodeId)
-        {
-            bufferNodesMap.remove(nodeId);
-            return this;
-        }
-
-        public BufferNodesState build()
-        {
-            return new BufferNodesState(System.nanoTime(), bufferNodesMap);
-        }
     }
 }
