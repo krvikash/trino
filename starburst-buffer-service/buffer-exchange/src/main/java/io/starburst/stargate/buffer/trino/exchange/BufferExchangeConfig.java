@@ -12,13 +12,16 @@ package io.starburst.stargate.buffer.trino.exchange;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.units.DataSize;
+import io.airlift.units.Duration;
 
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 
 import java.net.URI;
 
+import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.trino.exchange.PartitionNodeMappingMode.PINNING_MULTI;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class BufferExchangeConfig
 {
@@ -36,6 +39,11 @@ public class BufferExchangeConfig
     private PartitionNodeMappingMode partitionNodeMappingMode = PINNING_MULTI;
     private int minBufferNodesPerPartition = 2;
     private int maxBufferNodesPerPartition = 32;
+    private int dataClientMaxRetries = 5;
+    private Duration dataClientRetryBackoffInitial = succinctDuration(1.0, SECONDS);
+    private Duration dataClientRetryBackoffMax = succinctDuration(10.0, SECONDS);
+    private double dataClientRetryBackoffFactor = 2.0;
+    private double dataClientRetryBackoffJitter = 0.5;
 
     @NotNull
     public URI getDiscoveryServiceUri()
@@ -218,6 +226,66 @@ public class BufferExchangeConfig
     public BufferExchangeConfig setMaxBufferNodesPerPartition(int maxBufferNodesPerPartition)
     {
         this.maxBufferNodesPerPartition = maxBufferNodesPerPartition;
+        return this;
+    }
+
+    public int getDataClientMaxRetries()
+    {
+        return dataClientMaxRetries;
+    }
+
+    @Config("exchange.buffer-data.max-retries")
+    public BufferExchangeConfig setDataClientMaxRetries(int dataClientMaxRetries)
+    {
+        this.dataClientMaxRetries = dataClientMaxRetries;
+        return this;
+    }
+
+    public Duration getDataClientRetryBackoffInitial()
+    {
+        return dataClientRetryBackoffInitial;
+    }
+
+    @Config("exchange.buffer-data.retry-backoff-initial")
+    public BufferExchangeConfig setDataClientRetryBackoffInitial(Duration dataClientRetryBackoffInitial)
+    {
+        this.dataClientRetryBackoffInitial = dataClientRetryBackoffInitial;
+        return this;
+    }
+
+    public Duration getDataClientRetryBackoffMax()
+    {
+        return dataClientRetryBackoffMax;
+    }
+
+    @Config("exchange.buffer-data.retry-backoff-max")
+    public BufferExchangeConfig setDataClientRetryBackoffMax(Duration dataClientRetryBackoffMax)
+    {
+        this.dataClientRetryBackoffMax = dataClientRetryBackoffMax;
+        return this;
+    }
+
+    public double getDataClientRetryBackoffFactor()
+    {
+        return dataClientRetryBackoffFactor;
+    }
+
+    @Config("exchange.buffer-data.retry-backoff-factor")
+    public BufferExchangeConfig setDataClientRetryBackoffFactor(double dataClientRetryBackoffFactor)
+    {
+        this.dataClientRetryBackoffFactor = dataClientRetryBackoffFactor;
+        return this;
+    }
+
+    public double getDataClientRetryBackoffJitter()
+    {
+        return dataClientRetryBackoffJitter;
+    }
+
+    @Config("exchange.buffer-data.retry-backoff-jitter")
+    public BufferExchangeConfig setDataClientRetryBackoffJitter(double dataClientRetryBackoffJitter)
+    {
+        this.dataClientRetryBackoffJitter = dataClientRetryBackoffJitter;
         return this;
     }
 }

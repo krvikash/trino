@@ -25,11 +25,8 @@ import io.starburst.stargate.buffer.data.client.spooling.noop.NoopSpooledChunkRe
 import io.starburst.stargate.buffer.data.client.spooling.s3.S3SpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.s3.SpoolingS3ReaderConfig;
 
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.function.Consumer;
 
-import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.airlift.units.Duration.succinctDuration;
@@ -60,23 +57,6 @@ public class DataApiBinder
         bindCommon(dataApiName, moduleInstall);
         binder.bind(DataApiFactory.class)
                 .to(HttpDataApiFactory.class)
-                .in(Scopes.SINGLETON);
-        return this;
-    }
-
-    @CanIgnoreReturnValue
-    public DataApiBinder bindRetryingHttpDataApi(String dataApiName)
-    {
-        bindCommon(dataApiName, moduleInstall);
-        binder.bind(DataApiFactory.class)
-                .annotatedWith(ForRetryingDataApiFactory.class)
-                .to(HttpDataApiFactory.class)
-                .in(Scopes.SINGLETON);
-        binder.bind(ScheduledExecutorService.class)
-                .annotatedWith(ForRetryingDataApiFactory.class)
-                .toInstance(new ScheduledThreadPoolExecutor(4, daemonThreadsNamed("retrying-data-api-%s")));
-        binder.bind(DataApiFactory.class)
-                .to(RetryingDataApiFactory.class)
                 .in(Scopes.SINGLETON);
         return this;
     }
