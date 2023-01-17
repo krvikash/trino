@@ -51,6 +51,7 @@ public class ApiBasedBufferNodeDiscoveryManager
     private final AtomicLong lastRefresh = new AtomicLong(0);
     @GuardedBy("this")
     private ListenableFuture<Void> forceRefreshFuture;
+    private final AtomicBoolean logNextSuccessfulRefresh = new AtomicBoolean(true);
 
     @Inject
     public ApiBasedBufferNodeDiscoveryManager(
@@ -88,12 +89,11 @@ public class ApiBasedBufferNodeDiscoveryManager
 
     private void doRefresh()
     {
-        AtomicBoolean logNextSuccessful = new AtomicBoolean(true);
         try {
             BufferNodeInfoResponse response = discoveryApi.getBufferNodes();
             lastRefresh.set(System.currentTimeMillis());
             if (response.responseComplete()) {
-                if (logNextSuccessful.compareAndSet(true, false)) {
+                if (logNextSuccessfulRefresh.compareAndSet(true, false)) {
                     log.info("received COMPLETE buffer nodes info");
                 }
                 bufferNodes.set(new BufferNodesState(
@@ -103,12 +103,12 @@ public class ApiBasedBufferNodeDiscoveryManager
             }
             else {
                 log.info("received INCOMPLETE buffer nodes info");
-                logNextSuccessful.set(true);
+                logNextSuccessfulRefresh.set(true);
             }
         }
         catch (Exception e) {
             log.error(e, "Error getting buffer nodes info");
-            logNextSuccessful.set(true);
+            logNextSuccessfulRefresh.set(true);
         }
     }
 
