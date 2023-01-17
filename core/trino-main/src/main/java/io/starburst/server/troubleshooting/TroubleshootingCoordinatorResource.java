@@ -136,7 +136,7 @@ public class TroubleshootingCoordinatorResource
         }
     }
 
-    private Response.ResponseBuilder createArchiveFromStreams(Map<String, InputStream> inputStream, QueryId queryId)
+    private Response createArchiveFromStreams(Map<String, InputStream> inputStream, QueryId queryId)
     {
         try (ByteArrayOutputStream output = new ByteArrayOutputStream(); ZipOutputStream archive = new ZipOutputStream(output)) {
             for (Map.Entry<String, InputStream> entry : inputStream.entrySet()) {
@@ -150,7 +150,8 @@ public class TroubleshootingCoordinatorResource
 
             return Response.ok(new ByteArrayInputStream(output.toByteArray()))
                     .header("Content-Type", "application/zip")
-                    .header("Content-disposition", "attachment; filename=\"starburst-query-troubleshooting-%s.zip\"".formatted(queryId));
+                    .header("Content-disposition", "attachment; filename=\"starburst-query-troubleshooting-%s.zip\"".formatted(queryId))
+                    .build();
         }
         catch (IOException e) {
             throw new WebApplicationException("Could not create troubleshooting archive: " + e.getMessage());
