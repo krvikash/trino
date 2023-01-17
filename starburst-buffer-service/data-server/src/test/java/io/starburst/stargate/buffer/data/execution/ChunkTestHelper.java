@@ -17,6 +17,7 @@ import io.starburst.stargate.buffer.data.client.DataPage;
 
 import java.util.List;
 
+import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.calculateChecksum;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.readSerializedPages;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,5 +41,22 @@ public final class ChunkTestHelper
         assertEquals(numDataPages, dataPages.size());
 
         assertThat(dataPages).containsExactlyInAnyOrder(values);
+    }
+
+    public static ChunkDataHolder toChunkDataHolder(List<DataPage> dataPages)
+    {
+        int length = dataPages.stream().mapToInt(dataPage -> dataPage.data().length() + DATA_PAGE_HEADER_SIZE).sum();
+        Slice slice = Slices.allocate(length);
+        SliceOutput sliceOutput = slice.getOutput();
+        for (DataPage dataPage : dataPages) {
+            sliceOutput.writeShort(dataPage.taskId());
+            sliceOutput.writeByte(dataPage.attemptId());
+            sliceOutput.writeInt(dataPage.data().length());
+            sliceOutput.writeBytes(dataPage.data());
+        }
+        return new ChunkDataHolder(
+                ImmutableList.of(slice),
+                calculateChecksum(dataPages),
+                dataPages.size());
     }
 }

@@ -48,6 +48,7 @@ import static io.airlift.units.DataSize.succinctBytes;
 import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
 import static io.starburst.stargate.buffer.data.execution.ChunkManagerConfig.DEFAULT_EXCHANGE_STALENESS_THRESHOLD;
+import static io.starburst.stargate.buffer.data.execution.ChunkTestHelper.toChunkDataHolder;
 import static io.starburst.stargate.buffer.data.execution.ChunkTestHelper.verifyChunkData;
 import static io.starburst.stargate.buffer.data.spooling.SpoolTestHelper.createS3SpooledChunkReader;
 import static io.starburst.stargate.buffer.data.spooling.SpoolTestHelper.createS3SpoolingStorage;
@@ -574,6 +575,32 @@ public class TestChunkManager
                 new DataPage(0, 0, utf8Slice("2")));
     }
 
+    @Test
+    public void testGetDrainedChunkDataOnAnotherNode()
+    {
+        long drainedBufferNodeId = BUFFER_NODE_ID + 1;
+        List<DataPage> dataPages = ImmutableList.of(
+                new DataPage(0, 0, utf8Slice("test")),
+                new DataPage(0, 1, utf8Slice("Spooling")),
+                new DataPage(1, 0, utf8Slice("Storage")));
+        getFutureValue(spoolingStorage.writeChunk(drainedBufferNodeId, EXCHANGE_0, 0L, toChunkDataHolder(dataPages)));
+
+        ChunkManager chunkManager = createChunkManager(defaultMemoryAllocator(), DataSize.of(16, MEGABYTE), DataSize.of(128, KILOBYTE));
+
+        // exchange missing
+        assertDrainedChunkDataResult(chunkManager, drainedBufferNodeId);
+
+        // exchange exists, but partition missing
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 1, 1, 1L, ImmutableList.of(utf8Slice("dummy1"))));
+        assertDrainedChunkDataResult(chunkManager, drainedBufferNodeId);
+
+        // exchange exists, partition exists, but chunk missing
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("dummy0"))));
+        assertDrainedChunkDataResult(chunkManager, drainedBufferNodeId);
+
+        chunkManager.removeExchange(EXCHANGE_0);
+    }
+
     @AfterAll
     public void destroy()
     {
@@ -635,5 +662,13 @@ public class TestChunkManager
                 ticker,
                 new DataServerStats(),
                 executor);
+    }
+
+    private void assertDrainedChunkDataResult(ChunkManager chunkManager, long drainedBufferNodeId)
+    {
+        ChunkDataResult chunkDataResult = chunkManager.getChunkData(drainedBufferNodeId, EXCHANGE_0, 0, 0L);
+        assertTrue(chunkDataResult.spoolingFile().isPresent());
+        assertEquals(52, chunkDataResult.spoolingFile().get().length());
+        assertEquals("s3://" + minioStorage.getBucketName() + "/0a.exchange-0/0-1", chunkDataResult.spoolingFile().get().location());
     }
 }

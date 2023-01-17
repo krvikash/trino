@@ -10,13 +10,9 @@
 package io.starburst.stargate.buffer.data.spooling;
 
 import com.google.common.collect.ImmutableList;
-import io.airlift.slice.Slice;
-import io.airlift.slice.SliceOutput;
-import io.airlift.slice.Slices;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
-import io.starburst.stargate.buffer.data.execution.ChunkDataHolder;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -28,8 +24,7 @@ import java.util.Random;
 
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.slice.Slices.utf8Slice;
-import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
-import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.calculateChecksum;
+import static io.starburst.stargate.buffer.data.execution.ChunkTestHelper.toChunkDataHolder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -133,23 +128,6 @@ public abstract class AbstractTestSpoolingStorage
                     .isInstanceOf(DataServerException.class)
                     .hasMessage("No closed chunk found for bufferNodeId %d, exchange %s, chunk %d".formatted(BUFFER_NODE_ID, EXCHANGE_ID, chunkId));
         }
-    }
-
-    private static ChunkDataHolder toChunkDataHolder(List<DataPage> dataPages)
-    {
-        int length = dataPages.stream().mapToInt(dataPage -> dataPage.data().length() + DATA_PAGE_HEADER_SIZE).sum();
-        Slice slice = Slices.allocate(length);
-        SliceOutput sliceOutput = slice.getOutput();
-        for (DataPage dataPage : dataPages) {
-            sliceOutput.writeShort(dataPage.taskId());
-            sliceOutput.writeByte(dataPage.attemptId());
-            sliceOutput.writeInt(dataPage.data().length());
-            sliceOutput.writeBytes(dataPage.data());
-        }
-        return new ChunkDataHolder(
-                ImmutableList.of(slice),
-                calculateChecksum(dataPages),
-                dataPages.size());
     }
 
     private static String getRandomLargeString()

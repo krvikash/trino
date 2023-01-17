@@ -181,6 +181,11 @@ public class ChunkManager
 
     public ChunkDataResult getChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId)
     {
+        if (bufferNodeId != this.bufferNodeId) {
+            // this is a request to get drained chunk data on a different node, return spooling file info directly
+            return ChunkDataResult.of(spoolingStorage.getSpoolingFile(bufferNodeId, exchangeId, chunkId));
+        }
+
         Exchange exchange = getExchangeAndHeartbeat(exchangeId);
         return exchange.getChunkData(bufferNodeId, partitionId, chunkId, startedDraining);
     }
