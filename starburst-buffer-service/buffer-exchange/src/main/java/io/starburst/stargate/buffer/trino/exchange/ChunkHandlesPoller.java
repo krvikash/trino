@@ -130,6 +130,10 @@ class ChunkHandlesPoller
                                 // ignore
                                 return;
                             }
+                            if (dataApiException.getErrorCode() == ErrorCode.DRAINING) {
+                                // ignore - nothing more to be done here
+                                return;
+                            }
                         }
                         callback.onFailure(failure);
                     }
@@ -188,7 +192,15 @@ class ChunkHandlesPoller
                 registerFuture,
                 () -> {
                     ListenableFuture<Void> finishFuture = dataApi.finishExchange(dataNodeId, externalExchangeId);
-                    addExceptionCallback(finishFuture, callback::onFailure);
+                    addExceptionCallback(finishFuture, failure -> {
+                        if (failure instanceof DataApiException dataApiException) {
+                            if (dataApiException.getErrorCode() == ErrorCode.DRAINING) {
+                                // ignore - node gone during query runtime
+                                return;
+                            }
+                        }
+                        callback.onFailure(failure);
+                    });
                 },
                 executorService);
     }
@@ -201,7 +213,13 @@ class ChunkHandlesPoller
                 () -> {
                     ListenableFuture<Void> markAllClosedChunksReceivedFuture = dataApi.markAllClosedChunksReceived(dataNodeId, externalExchangeId);
                     addExceptionCallback(markAllClosedChunksReceivedFuture,
-                            () -> log.warn("Failed to mark all closed chunks received for externalExchangeId %s dataNodeId %d", externalExchangeId, dataNodeId));
+                            failure -> {
+                                if (failure instanceof DataApiException dataApiException && dataApiException.getErrorCode() == ErrorCode.DRAINING) {
+                                    // ignore - node gone in the meantime
+                                    return;
+                                }
+                                log.warn("Failed to mark all closed chunks received for externalExchangeId %s dataNodeId %d", externalExchangeId, dataNodeId);
+                            });
                 },
                 executorService);
     }
