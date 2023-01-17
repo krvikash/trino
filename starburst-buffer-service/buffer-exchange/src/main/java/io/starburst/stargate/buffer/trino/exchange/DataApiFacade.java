@@ -23,6 +23,7 @@ import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.BufferNodeInfo;
+import io.starburst.stargate.buffer.BufferNodeState;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataApi;
 import io.starburst.stargate.buffer.data.client.DataApiException;
@@ -228,7 +229,9 @@ public class DataApiFacade
     private ListenableFuture<Void> internalAddDataPages(long bufferNodeId, String exchangeId, int taskId, int attemptId, long dataPagesId, ListMultimap<Integer, Slice> dataPagesByPartition)
     {
         try {
-            return getDataApi(bufferNodeId).addDataPages(exchangeId, taskId, attemptId, dataPagesId, dataPagesByPartition);
+            // short-circuiting DRAINING error code too. No point in sending request then.
+            return getDataApi(bufferNodeId, true)
+                    .addDataPages(exchangeId, taskId, attemptId, dataPagesId, dataPagesByPartition);
         }
         catch (Throwable e) {
             // wrap exception in the future
@@ -300,6 +303,21 @@ public class DataApiFacade
 
     private DataApi getDataApi(long bufferNodeId)
     {
+        return getDataApi(bufferNodeId, false);
+    }
+
+    private DataApi getDataApi(long bufferNodeId, boolean shortCircuitDraining)
+    {
+        BufferNodeDiscoveryManager.BufferNodesState bufferNodes = discoveryManager.getBufferNodes();
+        BufferNodeInfo bufferNodeInfo = bufferNodes.getAllBufferNodes().get(bufferNodeId);
+        if (bufferNodeInfo != null && bufferNodeInfo.state() == BufferNodeState.DRAINED) {
+            // Node already DRAINED according to DiscoveryService. Short-circuiting error code.
+            throw new DataApiException(ErrorCode.DRAINING, "Node already DRAINED");
+        }
+        if (shortCircuitDraining && bufferNodeInfo != null && bufferNodeInfo.state() == BufferNodeState.DRAINING) {
+            // Node already started DRAINING according to DiscoveryService. Short-circuiting error code.
+            throw new DataApiException(ErrorCode.DRAINING, "Node is DRAINING");
+        }
         return dataApiClients.computeIfAbsent(bufferNodeId, this::createDataApi);
     }
 

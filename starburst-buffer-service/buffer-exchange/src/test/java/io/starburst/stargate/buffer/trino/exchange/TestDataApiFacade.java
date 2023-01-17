@@ -41,6 +41,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Supplier;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -211,6 +212,40 @@ public class TestDataApiFacade
                 .succeedsWithin(100, MILLISECONDS) // returns immediately
                 .isEqualTo(result);
         assertThat(dataApiDelegate.getListClosedChunksCallCount("exchange-1", OptionalLong.empty())).isEqualTo(1);
+    }
+
+    @Test
+    public void testShortCircuitResponseIfNodeDrained()
+    {
+        TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
+        discoveryManager.setBufferNodes(builder -> builder.putNode(TestingDataApi.NODE_ID, BufferNodeState.DRAINED));
+        TestingApiFactory apiFactory = new TestingApiFactory();
+        TestingDataApi dataApiDelegate = new TestingDataApi();
+        apiFactory.setDataApi(TestingDataApi.NODE_ID, dataApiDelegate);
+        DataApiFacade dataApiFacade = new DataApiFacade(discoveryManager, apiFactory, 2, Duration.valueOf("1000ms"), Duration.valueOf("2000ms"), 2.0, 0.0, executor);
+
+        ChunkList result = new ChunkList(ImmutableList.of(), OptionalLong.of(7));
+        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFuture(result));
+        assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty()));
+        // we expect no communication with client
+        assertThat(dataApiDelegate.getListClosedChunksCallCount("exchange-1", OptionalLong.empty())).isEqualTo(0);
+
+        // check other calls too
+        assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.pingExchange(TestingDataApi.NODE_ID, "exchange-1"));
+        assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.finishExchange(TestingDataApi.NODE_ID, "exchange-1"));
+        assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.removeExchange(TestingDataApi.NODE_ID, "exchange-1"));
+        assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.getChunkData(TestingDataApi.NODE_ID, "exchange-1", 1, 1L, 1L));
+        assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.registerExchange(TestingDataApi.NODE_ID, "exchange-1"));
+        assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.addDataPages(TestingDataApi.NODE_ID, "exchange-1", 1, 1, 1L, ImmutableListMultimap.of()));
+    }
+
+    private static void assertShortCircuitResponseIfNodeDrained(Supplier<ListenableFuture<?>> call)
+    {
+        assertThat(call.get())
+                .failsWithin(100, MILLISECONDS) // returns immediatelly
+                .withThrowableOfType(ExecutionException.class)
+                .matches(e -> ((DataApiException) e.getCause()).getErrorCode().equals(ErrorCode.DRAINING))
+                .withMessageContaining("Node already DRAINED");
     }
 
     private static class TestingDataApi

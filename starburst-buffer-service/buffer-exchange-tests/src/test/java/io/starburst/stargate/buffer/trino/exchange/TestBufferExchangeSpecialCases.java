@@ -35,7 +35,6 @@ import java.util.concurrent.Future;
 import static io.airlift.testing.Closeables.closeAll;
 import static io.starburst.stargate.buffer.testing.MockDataNodeStats.Key.FAILED_GET_CHUNK_DATA_CHUNK_DRAINED_REQUEST_COUNT;
 import static io.starburst.stargate.buffer.testing.MockDataNodeStats.Key.FAILED_GET_CHUNK_DATA_NOT_FOUND_IN_DRAINED_STORAGE_REQUEST_COUNT;
-import static io.starburst.stargate.buffer.testing.MockDataNodeStats.Key.REJECTED_DRAINING_ADD_DATA_PAGES_REQUEST_COUNT;
 import static io.starburst.stargate.buffer.testing.MockDataNodeStats.Key.SUCCESSFUL_ADD_DATA_PAGES_REQUEST_COUNT;
 import static io.starburst.stargate.buffer.testing.MockDataNodeStats.Key.SUCCESSFUL_GET_CHUNK_DATA_FROM_DRAINED_STORAGE_REQUEST_COUNT;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -74,9 +73,7 @@ public class TestBufferExchangeSpecialCases
             MockDataNodeStats newNodeStats = mockBufferService.getNodeStats(addedNode);
 
             assertThat(drainedNodeStats.get(SUCCESSFUL_ADD_DATA_PAGES_REQUEST_COUNT)).isGreaterThan(0);
-            assertThat(drainedNodeStats.get(REJECTED_DRAINING_ADD_DATA_PAGES_REQUEST_COUNT)).isGreaterThan(0);
             assertThat(newNodeStats.get(SUCCESSFUL_ADD_DATA_PAGES_REQUEST_COUNT)).isGreaterThan(0);
-            assertThat(newNodeStats.get(REJECTED_DRAINING_ADD_DATA_PAGES_REQUEST_COUNT)).isEqualTo(0);
 
             // all data is served from node it was written to (no drained storage access)
             mockBufferService.getAllNodeIds().forEach(nodeId -> {
@@ -115,9 +112,7 @@ public class TestBufferExchangeSpecialCases
             MockDataNodeStats newNodeStats = mockBufferService.getNodeStats(addedNode);
 
             assertThat(drainedNodeStats.get(SUCCESSFUL_ADD_DATA_PAGES_REQUEST_COUNT)).isGreaterThan(0);
-            assertThat(drainedNodeStats.get(REJECTED_DRAINING_ADD_DATA_PAGES_REQUEST_COUNT)).isGreaterThan(0);
             assertThat(newNodeStats.get(SUCCESSFUL_ADD_DATA_PAGES_REQUEST_COUNT)).isGreaterThan(0);
-            assertThat(newNodeStats.get(REJECTED_DRAINING_ADD_DATA_PAGES_REQUEST_COUNT)).isEqualTo(0);
 
             // drained node rejected on some getChunkData requests
             assertThat(drainedNodeStats.get(FAILED_GET_CHUNK_DATA_CHUNK_DRAINED_REQUEST_COUNT)).isGreaterThan(0);
