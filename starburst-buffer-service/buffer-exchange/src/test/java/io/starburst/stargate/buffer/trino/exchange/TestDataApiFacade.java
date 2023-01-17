@@ -15,7 +15,6 @@ import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ListMultimap;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.UncheckedExecutionException;
 import io.airlift.slice.Slice;
 import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.BufferNodeInfo;
@@ -46,7 +45,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 @TestInstance(PER_CLASS)
@@ -104,11 +102,12 @@ public class TestDataApiFacade
         ChunkList result = new ChunkList(ImmutableList.of(), OptionalLong.of(7));
         dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFuture(result));
 
-        ListenableFuture<ChunkList> future = dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty());
+        assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty()))
+                .succeedsWithin(5, SECONDS)
+                .isEqualTo(result);
 
-        assertThat(future).succeedsWithin(5, SECONDS);
-        assertThat(Futures.getDone(future)).isEqualTo(result);
-        assertThat(dataApiDelegate.getListClosedChunksCallCount("exchange-1", OptionalLong.empty())).isEqualTo(3);
+        assertThat(dataApiDelegate.getListClosedChunksCallCount("exchange-1", OptionalLong.empty()))
+                .isEqualTo(3);
     }
 
     @Test
@@ -128,10 +127,9 @@ public class TestDataApiFacade
         ChunkList result = new ChunkList(ImmutableList.of(), OptionalLong.of(7));
         dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFuture(result));
 
-        ListenableFuture<ChunkList> future = dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty());
-
-        assertThat(future).succeedsWithin(5, SECONDS);
-        assertThat(Futures.getDone(future)).isEqualTo(result);
+        assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty()))
+                .succeedsWithin(5, SECONDS)
+                .isEqualTo(result);
         assertThat(dataApiDelegate.getListClosedChunksCallCount("exchange-1", OptionalLong.empty())).isEqualTo(3);
     }
 
@@ -151,13 +149,12 @@ public class TestDataApiFacade
         DataApiFacade dataApiFacade = new DataApiFacade(discoveryManager, apiFactory, 2, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, executor);
 
         dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFailedFuture(new DataApiException(errorCode, "blah")));
-        ListenableFuture<ChunkList> future = dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty());
 
-        assertThat(future).failsWithin(1, SECONDS);
-
-        assertThatThrownBy(() -> Futures.getUnchecked(future))
-                .isInstanceOf(UncheckedExecutionException.class)
+        assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty()))
+                .failsWithin(1, SECONDS)
+                .withThrowableOfType(ExecutionException.class)
                 .matches(e -> ((DataApiException) e.getCause()).getErrorCode().equals(errorCode));
+
         assertThat(dataApiDelegate.getListClosedChunksCallCount("exchange-1", OptionalLong.empty())).isEqualTo(1);
     }
 
@@ -174,28 +171,26 @@ public class TestDataApiFacade
         // OK after INTERNAL_ERROR
         dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, Futures.immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
         dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, Futures.immediateVoidFuture());
-        ListenableFuture<Void> future1 = dataApiFacade.addDataPages(TestingDataApi.NODE_ID, "exchange-1", 0, 0, 0, ImmutableListMultimap.of());
-        assertThat(future1).succeedsWithin(5, SECONDS);
+        assertThat(dataApiFacade.addDataPages(TestingDataApi.NODE_ID, "exchange-1", 0, 0, 0, ImmutableListMultimap.of()))
+                .succeedsWithin(5, SECONDS);
         assertThat(dataApiDelegate.getAddDataPagesCallCount("exchange-1", 0, 0, 0)).isEqualTo(2);
 
         // Immediate DRAINING
         dataApiDelegate.recordAddDataPages("exchange-2", 0, 0, 0, Futures.immediateFailedFuture(new DataApiException(ErrorCode.DRAINING, "blah")));
-        ListenableFuture<Void> future2 = dataApiFacade.addDataPages(TestingDataApi.NODE_ID, "exchange-2", 0, 0, 0, ImmutableListMultimap.of());
-        assertThat(future2).failsWithin(1, SECONDS);
-        assertThatThrownBy(() -> Futures.getUnchecked(future2))
-                .isInstanceOf(UncheckedExecutionException.class)
+        assertThat(dataApiFacade.addDataPages(TestingDataApi.NODE_ID, "exchange-2", 0, 0, 0, ImmutableListMultimap.of()))
+                .failsWithin(1, SECONDS)
+                .withThrowableOfType(ExecutionException.class)
                 .matches(e -> ((DataApiException) e.getCause()).getErrorCode().equals(ErrorCode.DRAINING));
         assertThat(dataApiDelegate.getAddDataPagesCallCount("exchange-2", 0, 0, 0)).isEqualTo(1);
 
         // DRAINING after INTERNAL_ERROR
         dataApiDelegate.recordAddDataPages("exchange-3", 0, 0, 0, Futures.immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
         dataApiDelegate.recordAddDataPages("exchange-3", 0, 0, 0, Futures.immediateFailedFuture(new DataApiException(ErrorCode.DRAINING, "blah")));
-        ListenableFuture<Void> future3 = dataApiFacade.addDataPages(TestingDataApi.NODE_ID, "exchange-3", 0, 0, 0, ImmutableListMultimap.of());
-        assertThat(future3).failsWithin(1, SECONDS);
-        assertThatThrownBy(() -> Futures.getUnchecked(future3))
-                .isInstanceOf(UncheckedExecutionException.class)
+        assertThat(dataApiFacade.addDataPages(TestingDataApi.NODE_ID, "exchange-3", 0, 0, 0, ImmutableListMultimap.of()))
+                .failsWithin(1, SECONDS)
+                .withThrowableOfType(ExecutionException.class)
                 .matches(e -> ((DataApiException) e.getCause()).getErrorCode().equals(ErrorCode.DRAINING_ON_RETRY))
-                .hasMessageContaining("Received DRAINING error code on retry");
+                .withMessageContaining("Received DRAINING error code on retry");
         assertThat(dataApiDelegate.getAddDataPagesCallCount("exchange-3", 0, 0, 0)).isEqualTo(2);
     }
 
@@ -212,11 +207,9 @@ public class TestDataApiFacade
 
         ChunkList result = new ChunkList(ImmutableList.of(), OptionalLong.of(7));
         dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFuture(result));
-        ListenableFuture<ChunkList> future = dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty());
-
-        assertThat(future).succeedsWithin(100, MILLISECONDS); // returns immediately
-
-        assertThat(Futures.getDone(future)).isEqualTo(result);
+        assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty()))
+                .succeedsWithin(100, MILLISECONDS) // returns immediately
+                .isEqualTo(result);
         assertThat(dataApiDelegate.getListClosedChunksCallCount("exchange-1", OptionalLong.empty())).isEqualTo(1);
     }
 
