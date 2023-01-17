@@ -83,7 +83,11 @@ public class LocalSpoolingStorage
 
         File file = getFilePath(exchangeId, chunkId, bufferNodeId).toFile();
         File parent = file.getParentFile();
-        if (parent != null && !parent.exists() && !parent.mkdirs()) {
+        if (parent != null && !parent.exists() && !parent.mkdirs() && !parent.exists()) {
+            // It is possible that directory does not exist when first
+            // `parent.exists()` is called but then is created by some other thread and
+            // `parent.mkdirs()` returns false. To treat such race condition as success
+            // we add yet another call to `parent.exists()` at the end of the chain.
             throw new IllegalStateException("Couldn't create dir: " + parent);
         }
         try (SliceOutput sliceOutput = new OutputStreamSliceOutput(new FileOutputStream(file))) {
