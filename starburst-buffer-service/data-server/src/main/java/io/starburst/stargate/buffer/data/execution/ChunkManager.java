@@ -54,6 +54,7 @@ import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static io.airlift.concurrent.AsyncSemaphore.processAll;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.units.Duration.succinctDuration;
@@ -79,6 +80,7 @@ public class ChunkManager
     private final int chunkSliceSizeInBytes;
     private final boolean calculateDataPagesChecksum;
     private final int drainingMaxAttempts;
+    private final Duration minDrainingDuration;
     private final Duration exchangeStalenessThreshold;
     private final Duration chunkSpoolInterval;
     private final int chunkSpoolConcurrency;
@@ -114,6 +116,7 @@ public class ChunkManager
         this.chunkSliceSizeInBytes = toIntExact(chunkManagerConfig.getChunkSliceSize().toBytes());
         this.calculateDataPagesChecksum = dataServerConfig.isDataIntegrityVerificationEnabled();
         this.drainingMaxAttempts = dataServerConfig.getDrainingMaxAttempts();
+        this.minDrainingDuration = dataServerConfig.getMinDrainingDuration();
         this.exchangeStalenessThreshold = chunkManagerConfig.getExchangeStalenessThreshold();
         this.chunkSpoolInterval = chunkManagerConfig.getChunkSpoolInterval();
         this.chunkSpoolConcurrency = chunkManagerConfig.getChunkSpoolConcurrency();
@@ -272,6 +275,7 @@ public class ChunkManager
         startedDraining = true;
 
         LOG.info("Start draining all chunks");
+        long draininingStart = System.currentTimeMillis();
         chunkSpoolExecutor.shutdownNow(); // deschedule background spooling
 
         // finish all exchanges
@@ -310,6 +314,18 @@ public class ChunkManager
         verify(getClosedChunks() == 0, "closed chunks exist after spooling all chunks");
 
         LOG.info("Finished draining all chunks");
+
+        long remainingDrainingWaitMillis = minDrainingDuration.toMillis() - (System.currentTimeMillis() - draininingStart);
+
+        if (remainingDrainingWaitMillis > 0) {
+            // Ensure enough time passed before we enter phase when we wait for all exchanges has be acknowledged by owning Trino coordinators.
+            // We want to be sure DRAINING state of buffer node is propagated to all Trino clusters and no new exchanges will be registered after
+            // we are past that phase. If some exchanges are returned after that it does not impose correctness errors but queries which would use those
+            // will fail eventually, when data node is shut down.
+
+            LOG.info("Sleeping for %s so buffer node is kept in DRAINING state for at least %s", succinctDuration(remainingDrainingWaitMillis, MILLISECONDS), minDrainingDuration);
+            sleepUninterruptibly(remainingDrainingWaitMillis, MILLISECONDS);
+        }
 
         LOG.info("Waiting for Trino to acknowledge all closed chunks of all exchanges");
         for (int i = 0; i < 1000; ++i) {

@@ -58,6 +58,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
+import static org.awaitility.Durations.FIVE_SECONDS;
 import static org.awaitility.Durations.ONE_SECOND;
 import static org.awaitility.Durations.TEN_SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -88,6 +89,7 @@ public class TestDataServer
                 .setConfigProperty("memory.heap-headroom", succinctBytes(Runtime.getRuntime().maxMemory() - DATA_SERVER_AVAILABLE_MEMORY.toBytes()).toString())
                 .setConfigProperty("memory.allocation-low-watermark", "0.99")
                 .setConfigProperty("memory.allocation-high-watermark", "0.99")
+                .setConfigProperty("draining.min-duration", "2s")
                 .build();
         httpClient = new JettyHttpClient(new HttpClientConfig());
         dataClient = new HttpDataClient(dataServer.getBaseUri(), BUFFER_NODE_ID, httpClient, succinctDuration(60, SECONDS), new LocalSpooledChunkReader(new DataApiConfig()), true);
@@ -301,7 +303,7 @@ public class TestDataServer
                 .hasMessage("error on GET %s/api/v1/buffer/data/0/%s/pages/0/0?targetBufferNodeId=0: Chunk 0 already drained on node %d"
                         .formatted(dataServer.getBaseUri(), EXCHANGE_0, BUFFER_NODE_ID));
 
-        await().atMost(ONE_SECOND).until(
+        await().atMost(FIVE_SECONDS).until(
                 this::getNodeState,
                 BufferNodeState.DRAINED::equals);
     }

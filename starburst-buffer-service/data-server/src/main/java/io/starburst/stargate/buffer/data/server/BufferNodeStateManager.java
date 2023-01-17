@@ -11,25 +11,17 @@ package io.starburst.stargate.buffer.data.server;
 
 import io.airlift.bootstrap.LifeCycleManager;
 import io.airlift.log.Logger;
-import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.BufferNodeState;
 
 import javax.annotation.concurrent.GuardedBy;
 import javax.inject.Inject;
 
-import java.time.Instant;
-import java.util.Optional;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
-import static io.airlift.concurrent.Threads.threadsNamed;
-import static io.airlift.units.Duration.succinctDuration;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newSingleThreadExecutor;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 public class BufferNodeStateManager
 {
@@ -37,18 +29,14 @@ public class BufferNodeStateManager
 
     private final ExecutorService lifeCycleStopper = newSingleThreadExecutor(daemonThreadsNamed("lifecycle-stopper-%s"));
     private final LifeCycleManager lifeCycleManager;
-    private final Duration minDrainingDuration;
 
     @GuardedBy("this")
     private BufferNodeState state = BufferNodeState.STARTING;
-    @GuardedBy("this")
-    private Optional<Instant> drainingStart = Optional.empty();
 
     @Inject
-    public BufferNodeStateManager(LifeCycleManager lifeCycleManager, DataServerConfig config)
+    public BufferNodeStateManager(LifeCycleManager lifeCycleManager)
     {
         this.lifeCycleManager = requireNonNull(lifeCycleManager, "lifeCycleManager is null");
-        this.minDrainingDuration = config.getMinDrainingDuration();
     }
 
     public synchronized void transitionState(BufferNodeState targetState)
@@ -60,9 +48,6 @@ public class BufferNodeStateManager
         checkState(targetState.canTransitionFrom(state), "can't transition from %s to %s".formatted(state, targetState));
         LOG.info("Transition node state from %s to %s", state, targetState);
         state = targetState;
-        if (drainingStart.isEmpty() && state == BufferNodeState.DRAINED || state == BufferNodeState.DRAINING) {
-            drainingStart = Optional.of(Instant.now());
-        }
     }
 
     public synchronized BufferNodeState getState()
@@ -72,15 +57,9 @@ public class BufferNodeStateManager
 
     public void preShutdownCleanup()
     {
-        long remainingDrainingWaitMillis;
         synchronized (this) {
             BufferNodeState currentState = getState();
             checkState(currentState == BufferNodeState.DRAINED, "can't cleanup when in %s state".formatted(currentState));
-            remainingDrainingWaitMillis = minDrainingDuration.toMillis() - (Instant.now().toEpochMilli() - drainingStart.orElseThrow().toEpochMilli());
-        }
-        if (remainingDrainingWaitMillis > 0) {
-            LOG.info("Sleeping for %s so buffer node is kept in DRAINING state for at least %s", remainingDrainingWaitMillis, minDrainingDuration);
-            sleepUninterruptibly(remainingDrainingWaitMillis, MILLISECONDS);
         }
         lifeCycleStopper.submit(lifeCycleManager::stop);
     }

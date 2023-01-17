@@ -43,7 +43,8 @@ public class DrainService
             BufferNodeStateManager bufferNodeStateManager,
             DataResource dataResource,
             ChunkManager chunkManager,
-            Optional<DiscoveryBroadcast> discoveryBroadcast)
+            Optional<DiscoveryBroadcast> discoveryBroadcast,
+            DataServerConfig config)
     {
         this.bufferNodeStateManager = requireNonNull(bufferNodeStateManager, "bufferNodeStateManager is null");
         this.dataResource = requireNonNull(dataResource, "dataResource is null");
@@ -86,6 +87,7 @@ public class DrainService
             catch (Exception e) {
                 LOG.error(e, "Unexpected failure while draining node");
             }
+
             // we mark node as DRAINED even on failure. It is not great but leaving node in DRAINING state
             // does not buy us anything and we will block external processes waiting for draining completion.
             bufferNodeStateManager.transitionState(BufferNodeState.DRAINED);
