@@ -36,6 +36,7 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.io.MoreFiles.deleteRecursively;
+import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
 import static java.nio.file.Files.delete;
 import static java.nio.file.Files.deleteIfExists;
 import static java.nio.file.Files.exists;
@@ -160,11 +161,13 @@ public final class LocalRecordingFactory
 
     private static void ensurePathDeleted(Path dir)
     {
-        try {
-            deleteRecursively(dir);
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
+        if (exists(dir)) {
+            try {
+                deleteRecursively(dir, ALLOW_INSECURE);
+            }
+            catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
         }
     }
 
