@@ -10,7 +10,6 @@
 package io.starburst.stargate.buffer.data.server;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.concurrent.BoundedExecutor;
@@ -18,6 +17,7 @@ import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.SliceInput;
 import io.airlift.slice.SliceOutput;
+import io.airlift.slice.Slices;
 import io.airlift.slice.XxHash64;
 import io.airlift.stats.CounterStat;
 import io.airlift.stats.DistributionStat;
@@ -34,6 +34,11 @@ import io.starburst.stargate.buffer.data.memory.SliceLease;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
+import javax.servlet.AsyncContext;
+import javax.servlet.ServletOutputStream;
+import javax.servlet.ServletResponse;
+import javax.servlet.WriteListener;
+import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
@@ -47,12 +52,14 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.CompletionCallback;
 import javax.ws.rs.container.ConnectionCallback;
 import javax.ws.rs.container.Suspended;
-import javax.ws.rs.core.GenericEntity;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayDeque;
 import java.util.OptionalLong;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -74,10 +81,12 @@ import static io.starburst.stargate.buffer.data.client.ErrorCode.DRAINING;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.INTERNAL_ERROR;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.USER_ERROR;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.ERROR_CODE_HEADER;
+import static io.starburst.stargate.buffer.data.client.HttpDataClient.SERIALIZED_CHUNK_DATA_MAGIC;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLING_FILE_LOCATION_HEADER;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLING_FILE_SIZE_HEADER;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
 import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_CHUNK_DATA;
+import static io.starburst.stargate.buffer.data.execution.ChunkDataHolder.CHUNK_SLICES_METADATA_SIZE;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -344,13 +353,15 @@ public class DataResource
 
     @GET
     @Path("{bufferNodeId}/{exchangeId}/pages/{partitionId}/{chunkId}")
-    @Produces(TRINO_CHUNK_DATA)
-    public Response getChunkData(
+    public void getChunkData(
+            @Context HttpServletRequest request,
             @PathParam("bufferNodeId") long bufferNodeId,
             @PathParam("exchangeId") String exchangeId,
             @PathParam("partitionId") int partitionId,
             @PathParam("chunkId") long chunkId,
-            @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId)
+            @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId,
+            @HeaderParam(MAX_WAIT) Duration clientMaxWait,
+            @Suspended AsyncResponse asyncResponse)
     {
         try {
             checkTargetBufferNodeId(targetBufferNodeId);
@@ -360,20 +371,59 @@ public class DataResource
                 int serializedSizeInBytes = chunkDataHolder.serializedSizeInBytes(); // not strictly accurate but good enough for stats
                 readDataSize.update(serializedSizeInBytes);
                 readDataSizeDistribution.add(serializedSizeInBytes);
-                return Response.ok(new GenericEntity<>(chunkDataResult.chunkDataHolder().get(), new TypeToken<ChunkDataHolder>() {}.getType())).build();
+
+                AsyncContext asyncContext = request.getAsyncContext();
+                asyncContext.setTimeout(getAsyncTimeout(clientMaxWait).toMillis());
+                ServletResponse response = asyncContext.getResponse();
+                ServletOutputStream outputStream = response.getOutputStream();
+                response.setContentType(TRINO_CHUNK_DATA);
+
+                Slice metaDataSlice = Slices.allocate(CHUNK_SLICES_METADATA_SIZE);
+                SliceOutput sliceOutput = metaDataSlice.getOutput();
+                sliceOutput.writeInt(SERIALIZED_CHUNK_DATA_MAGIC);
+                sliceOutput.writeLong(chunkDataHolder.checksum());
+                sliceOutput.writeInt(chunkDataHolder.numDataPages());
+
+                ArrayDeque<Slice> sliceQueue = new ArrayDeque<>(chunkDataHolder.chunkSlices().size() + 1);
+                sliceQueue.add(metaDataSlice);
+                sliceQueue.addAll(chunkDataHolder.chunkSlices());
+
+                outputStream.setWriteListener(new WriteListener() {
+                    @Override
+                    public void onWritePossible()
+                            throws IOException
+                    {
+                        while (outputStream.isReady()) {
+                            if (sliceQueue.isEmpty()) {
+                                asyncContext.complete();
+                                return;
+                            }
+
+                            Slice slice = sliceQueue.poll();
+                            outputStream.write(slice.byteArray(), slice.byteArrayOffset(), slice.length());
+                        }
+                    }
+
+                    @Override
+                    public void onError(Throwable throwable)
+                    {
+                        logger.error(throwable);
+                        asyncContext.complete();
+                    }
+                });
             }
             else {
                 verify(chunkDataResult.spoolingFile().isPresent(), "Either chunkDataHolder or spoolingFile should be present");
                 SpoolingFile spoolingFile = chunkDataResult.spoolingFile().get();
-                return Response.status(Status.NOT_FOUND)
+                asyncResponse.resume(Response.status(Status.NOT_FOUND)
                         .header(SPOOLING_FILE_LOCATION_HEADER, spoolingFile.location())
                         .header(SPOOLING_FILE_SIZE_HEADER, String.valueOf(spoolingFile.length()))
-                        .build();
+                        .build());
             }
         }
-        catch (RuntimeException e) {
+        catch (RuntimeException | IOException e) {
             logger.warn(e, "error on GET /%s/pages/%s/%s/%s", exchangeId, partitionId, chunkId, bufferNodeId);
-            return errorResponse(e);
+            asyncResponse.resume(errorResponse(e));
         }
     }
 

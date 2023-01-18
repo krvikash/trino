@@ -76,7 +76,6 @@ public class MainModule
         configBinder(binder).bindConfig(DataServerConfig.class);
         jaxrsBinder(binder).bind(DataResource.class);
         jaxrsBinder(binder).bind(LifecycleResource.class);
-        jaxrsBinder(binder).bind(ChunkDataResponseWriter.class);
         binder.bind(MemoryAllocator.class).in(SINGLETON);
         binder.bind(BufferNodeId.class).toInstance(new BufferNodeId(bufferNodeId));
         binder.bind(BufferNodeInfoService.class).in(SINGLETON);
