@@ -35,7 +35,7 @@ import static javax.ws.rs.core.Response.serverError;
 @Path(BASE_PATH_API_V1)
 public class FlightRecorderWorkerResource
 {
-    public static final String BASE_PATH_API_V1 = "/api/v1/jfr/{queryId}";
+    public static final String BASE_PATH_API_V1 = "/api/v1/jfr/{queryId}/";
     private final LocalRecordingFactory recordingFactory;
 
     @Inject
