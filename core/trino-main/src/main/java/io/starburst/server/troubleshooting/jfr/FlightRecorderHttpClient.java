@@ -10,20 +10,27 @@
 package io.starburst.server.troubleshooting.jfr;
 
 import com.google.common.collect.ImmutableMap;
+import io.starburst.server.troubleshooting.ForTroubleshooting;
 import io.airlift.discovery.client.ServiceDescriptor;
 import io.airlift.discovery.client.ServiceSelector;
+import io.airlift.discovery.client.ServiceType;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.Request;
 import io.airlift.http.client.Response;
 import io.airlift.http.client.ResponseHandler;
 import io.airlift.http.client.ResponseHandlerUtils;
+import io.trino.server.InternalCommunicationConfig;
 import io.trino.spi.QueryId;
+
+import javax.inject.Inject;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.starburst.server.troubleshooting.jfr.FlightRecorderWorkerResource.BASE_PATH_API_V1;
@@ -40,11 +47,13 @@ class FlightRecorderHttpClient
     private final HttpClient client;
     private final QueryId queryId;
     private final WorkerNodesProvider workerNodesProvider;
+    private final ExecutorService executorService;
 
-    public FlightRecorderHttpClient(QueryId queryId, HttpClient client, WorkerNodesProvider workerNodesProvider)
+    private FlightRecorderHttpClient(QueryId queryId, HttpClient client, ExecutorService executorService, WorkerNodesProvider workerNodesProvider)
     {
         this.queryId = requireNonNull(queryId, "queryId is null");
         this.client = requireNonNull(client, "client is null");
+        this.executorService = requireNonNull(executorService, "executorService is null");
         this.workerNodesProvider = requireNonNull(workerNodesProvider, "workerNodesProvider is null");
     }
 
@@ -135,11 +144,36 @@ class FlightRecorderHttpClient
         }
     }
 
-    public record WorkerNodesProvider(ServiceSelector selector, boolean isHttpsRequired)
+    public static class Factory
     {
-        public WorkerNodesProvider
+        private final HttpClient client;
+        private final ExecutorService executorService;
+        private final WorkerNodesProvider workerNodesProvider;
+
+        @Inject
+        public Factory(@ForTroubleshooting HttpClient client, @ForTroubleshooting ScheduledExecutorService executorService, WorkerNodesProvider workerNodesProvider)
         {
-            requireNonNull(selector, "selector is null");
+            this.client = requireNonNull(client, "client is null");
+            this.executorService = requireNonNull(executorService, "executorService is null");
+            this.workerNodesProvider = requireNonNull(workerNodesProvider, "workerNodesProvider is null");
+        }
+
+        public FlightRecorderHttpClient create(QueryId queryId)
+        {
+            return new FlightRecorderHttpClient(queryId, client, executorService, workerNodesProvider);
+        }
+    }
+
+    public static class WorkerNodesProvider
+    {
+        private final ServiceSelector selector;
+        private final boolean isHttpsRequired;
+
+        @Inject
+        public WorkerNodesProvider(@ServiceType("trino") ServiceSelector selector, InternalCommunicationConfig internalCommunicationConfig)
+        {
+            this.selector = requireNonNull(selector, "selector is null");
+            this.isHttpsRequired = requireNonNull(internalCommunicationConfig, "internalCommunicationConfig is null").isHttpsRequired();
         }
 
         public Map<String, ServiceDescriptor> getWorkerNodes()

@@ -10,12 +10,7 @@
 package io.starburst.server.troubleshooting.jfr;
 
 import com.google.inject.Inject;
-import io.starburst.server.troubleshooting.ForTroubleshooting;
-import io.airlift.discovery.client.ServiceSelector;
-import io.airlift.discovery.client.ServiceType;
-import io.airlift.http.client.HttpClient;
 import io.airlift.log.Logger;
-import io.trino.server.InternalCommunicationConfig;
 import io.trino.spi.QueryId;
 
 import java.io.InputStream;
@@ -33,16 +28,14 @@ public final class RemoteRecordingFactory
 {
     private static final Logger log = Logger.get(RemoteRecordingFactory.class);
 
-    private final HttpClient httpClient;
     private final FlightRecorderHttpClient.WorkerNodesProvider nodesProvider;
+    private final FlightRecorderHttpClient.Factory clientFactory;
 
     @Inject
-    public RemoteRecordingFactory(@ForTroubleshooting HttpClient httpClient, @ServiceType("trino") ServiceSelector selector, InternalCommunicationConfig internalCommunicationConfig)
+    public RemoteRecordingFactory(FlightRecorderHttpClient.Factory factory, FlightRecorderHttpClient.WorkerNodesProvider workerNodesProvider)
     {
-        this.httpClient = requireNonNull(httpClient, "httpClient is null");
-        this.nodesProvider = new FlightRecorderHttpClient.WorkerNodesProvider(
-                requireNonNull(selector, "selector is null"),
-                requireNonNull(internalCommunicationConfig, "internalCommunicationConfig is null").isHttpsRequired());
+        this.clientFactory = requireNonNull(factory, "factory is null");
+        this.nodesProvider = requireNonNull(workerNodesProvider, "workerNodesProvider is null");
     }
 
     @Override
@@ -52,7 +45,7 @@ public final class RemoteRecordingFactory
             return Optional.empty();
         }
 
-        RemoteRecording recording = new RemoteRecording(queryId, httpClient, nodesProvider);
+        RemoteRecording recording = new RemoteRecording(queryId, clientFactory.create(queryId));
         // Initially keep all nodes as retained
         recording.retainForNodes(nodesProvider.getWorkerNodesIds());
         return Optional.of(recording);
@@ -65,11 +58,10 @@ public final class RemoteRecordingFactory
         private final FlightRecorderHttpClient client;
         private Set<String> currentLiveNodeIds = Set.of();
 
-        public RemoteRecording(QueryId queryId, HttpClient httpClient, FlightRecorderHttpClient.WorkerNodesProvider workerNodesProvider)
+        public RemoteRecording(QueryId queryId, FlightRecorderHttpClient client)
         {
             this.queryId = requireNonNull(queryId, "queryId is null");
-            this.client = new FlightRecorderHttpClient(queryId, httpClient, workerNodesProvider);
-            this.currentLiveNodeIds = workerNodesProvider.getWorkerNodesIds();
+            this.client = requireNonNull(client, "client is null");
         }
 
         @Override

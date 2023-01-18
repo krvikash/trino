@@ -42,6 +42,8 @@ public class FlightRecorderModule
             Multibinder<TroubleshootingProvider> setBinder = newSetBinder(binder, TroubleshootingProvider.class);
             setBinder.addBinding().to(FlightRecordingProvider.class);
             binder.bind(FlightRecordingFactory.class).toProvider(AggregatingRecordingFactoryProvider.class).in(Scopes.SINGLETON);
+            binder.bind(FlightRecorderHttpClient.Factory.class).in(Scopes.SINGLETON);
+            binder.bind(FlightRecorderHttpClient.WorkerNodesProvider.class).in(Scopes.SINGLETON);
         }
         else {
             jaxrsBinder(binder).bind(FlightRecorderWorkerResource.class);
