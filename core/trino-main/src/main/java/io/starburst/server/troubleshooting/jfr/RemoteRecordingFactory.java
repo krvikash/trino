@@ -52,7 +52,10 @@ public final class RemoteRecordingFactory
             return Optional.empty();
         }
 
-        return Optional.of(new RemoteRecording(queryId, httpClient, nodesProvider));
+        RemoteRecording recording = new RemoteRecording(queryId, httpClient, nodesProvider);
+        // Initially keep all nodes as retained
+        recording.retainForNodes(nodesProvider.getWorkerNodesIds());
+        return Optional.of(recording);
     }
 
     static final class RemoteRecording
@@ -60,7 +63,7 @@ public final class RemoteRecordingFactory
     {
         private final QueryId queryId;
         private final FlightRecorderHttpClient client;
-        private Set<String> currentLiveNodeIds;
+        private Set<String> currentLiveNodeIds = Set.of();
 
         public RemoteRecording(QueryId queryId, HttpClient httpClient, FlightRecorderHttpClient.WorkerNodesProvider workerNodesProvider)
         {
@@ -95,6 +98,7 @@ public final class RemoteRecordingFactory
         public void retainForNodes(Set<String> retainedNodes)
         {
             if (currentLiveNodeIds.isEmpty()) {
+                currentLiveNodeIds = Set.copyOf(retainedNodes);
                 return;
             }
 
