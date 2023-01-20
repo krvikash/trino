@@ -313,6 +313,8 @@ public final class LocalRecordingFactory
             catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
+
+            log.info("Removed %s", this);
         }
 
         @Override
