@@ -9,6 +9,10 @@
  */
 package io.starburst.stargate.buffer.trino.exchange;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Ticker;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -24,14 +28,21 @@ import javax.annotation.PostConstruct;
 import javax.annotation.concurrent.GuardedBy;
 import javax.inject.Inject;
 
+import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static com.google.common.collect.Maps.uniqueIndex;
+import static com.google.common.base.Ticker.systemTicker;
 import static com.google.common.util.concurrent.Futures.nonCancellationPropagating;
 import static io.airlift.concurrent.MoreFutures.asVoid;
+import static io.airlift.units.Duration.succinctDuration;
+import static io.starburst.stargate.buffer.BufferNodeState.DRAINED;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.HOURS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -42,10 +53,18 @@ public class ApiBasedBufferNodeDiscoveryManager
 
     private static final Duration REFRESH_INTERVAL = new Duration(5, SECONDS);
     private static final Duration MIN_FORCE_REFRESH_DELAY = new Duration(200, MILLISECONDS);
-    private static final long READY_TIMEOUT_MILLIS = 30_000;
+    private static final Duration READY_TIMEOUT_MILLIS = succinctDuration(30, SECONDS);
+    @VisibleForTesting
+    static final Duration DRAINED_NODES_KEEP_TIMEOUT = succinctDuration(12, HOURS);
+    private static final Object MARKER = new Object();
 
     private final DiscoveryApi discoveryApi;
     private final ListeningScheduledExecutorService executorService;
+    private final Duration minForceRefreshDelay;
+    private final Duration readyTimout;
+    @GuardedBy("this")
+    private final Map<Long, BufferNodeInfo> bufferNodeInfos = new HashMap<>();
+    private final Cache<Long, Object> drainedNodes;
     private final AtomicReference<BufferNodesState> bufferNodes = new AtomicReference<>(new BufferNodesState(0, ImmutableMap.of()));
     private final SettableFuture<Void> readyFuture = SettableFuture.create();
     private final AtomicLong lastRefresh = new AtomicLong(0);
@@ -58,8 +77,25 @@ public class ApiBasedBufferNodeDiscoveryManager
             ApiFactory apiFactory,
             ListeningScheduledExecutorService executorService)
     {
+        this(apiFactory, executorService, MIN_FORCE_REFRESH_DELAY, READY_TIMEOUT_MILLIS, systemTicker());
+    }
+
+    @VisibleForTesting
+    ApiBasedBufferNodeDiscoveryManager(
+            ApiFactory apiFactory,
+            ListeningScheduledExecutorService executorService,
+            Duration minForceRefreshDelay,
+            Duration readyTimout,
+            Ticker ticker)
+    {
         this.discoveryApi = apiFactory.createDiscoveryApi();
         this.executorService = requireNonNull(executorService, "executorService is null");
+        this.minForceRefreshDelay = requireNonNull(minForceRefreshDelay, "minForceRefreshDelay is null");
+        this.readyTimout = requireNonNull(readyTimout, "readyTimout is null");
+        this.drainedNodes = CacheBuilder.newBuilder()
+                .ticker(ticker)
+                .expireAfterWrite(DRAINED_NODES_KEEP_TIMEOUT.toMillis(), MILLISECONDS)
+                .build();
     }
 
     @PostConstruct
@@ -80,7 +116,7 @@ public class ApiBasedBufferNodeDiscoveryManager
             return forceRefreshFuture;
         }
         long now = System.currentTimeMillis();
-        if (now - lastRefresh.get() < MIN_FORCE_REFRESH_DELAY.toMillis()) {
+        if (now - lastRefresh.get() < minForceRefreshDelay.toMillis()) {
             return Futures.immediateVoidFuture();
         }
         forceRefreshFuture = nonCancellationPropagating(asVoid(executorService.submit(this::doRefresh)));
@@ -92,18 +128,33 @@ public class ApiBasedBufferNodeDiscoveryManager
         try {
             BufferNodeInfoResponse response = discoveryApi.getBufferNodes();
             lastRefresh.set(System.currentTimeMillis());
-            if (response.responseComplete()) {
-                if (logNextSuccessfulRefresh.compareAndSet(true, false)) {
-                    log.info("received COMPLETE buffer nodes info");
+            boolean completeReadyFuture = false;
+            synchronized (this) {
+                if (response.responseComplete()) {
+                    if (logNextSuccessfulRefresh.compareAndSet(true, false)) {
+                        log.info("received COMPLETE buffer nodes info");
+                    }
+                    bufferNodeInfos.clear();
                 }
-                bufferNodes.set(new BufferNodesState(
-                        System.currentTimeMillis(),
-                        uniqueIndex(response.bufferNodeInfos(), BufferNodeInfo::nodeId)));
-                readyFuture.set(null);
+                else {
+                    log.info("received INCOMPLETE buffer nodes info");
+                    logNextSuccessfulRefresh.set(true);
+                }
+
+                for (BufferNodeInfo bufferNodeInfo : response.bufferNodeInfos()) {
+                    bufferNodeInfos.put(bufferNodeInfo.nodeId(), bufferNodeInfo);
+                    if (bufferNodeInfo.state() == DRAINED) {
+                        drainedNodes.put(bufferNodeInfo.nodeId(), MARKER);
+                    }
+                }
+                bufferNodes.set(buildBufferNodesState());
+
+                if (response.responseComplete()) {
+                    completeReadyFuture = true;
+                }
             }
-            else {
-                log.info("received INCOMPLETE buffer nodes info");
-                logNextSuccessfulRefresh.set(true);
+            if (completeReadyFuture) {
+                readyFuture.set(null);
             }
         }
         catch (Exception e) {
@@ -112,11 +163,27 @@ public class ApiBasedBufferNodeDiscoveryManager
         }
     }
 
+    @GuardedBy("this")
+    private BufferNodesState buildBufferNodesState()
+    {
+        Map<Long, BufferNodeInfo> bufferNodeInfosWithDrained = new HashMap<>(bufferNodeInfos);
+        for (Long drainedNodeId : drainedNodes.asMap().keySet()) {
+            if (bufferNodeInfosWithDrained.containsKey(drainedNodeId) && bufferNodeInfosWithDrained.get(drainedNodeId).state() != DRAINED) {
+                log.warn("Discovery server reported node which was DRAINED previously %s", bufferNodeInfosWithDrained.get(drainedNodeId));
+                continue;
+            }
+            bufferNodeInfosWithDrained.put(drainedNodeId, new BufferNodeInfo(drainedNodeId, URI.create("http://drained_" + drainedNodeId), Optional.empty(), DRAINED));
+        }
+        return new BufferNodesState(
+                System.currentTimeMillis(),
+                bufferNodeInfosWithDrained);
+    }
+
     @Override
     public BufferNodesState getBufferNodes()
     {
         try {
-            readyFuture.get(READY_TIMEOUT_MILLIS, MILLISECONDS);
+            readyFuture.get(readyTimout.toMillis(), MILLISECONDS);
         }
         catch (Exception e) {
             throw new RuntimeException("Could not get initial cluster state", e);
