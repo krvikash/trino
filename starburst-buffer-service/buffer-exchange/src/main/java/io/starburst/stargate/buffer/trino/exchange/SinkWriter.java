@@ -163,7 +163,8 @@ public class SinkWriter
                         verify(!closed, "unexpected failure after writer was already closed; %s", failure.getMessage());
 
                         if (failure instanceof DataApiException dataApiException) {
-                            if (dataApiException.getErrorCode() == ErrorCode.DRAINING) {
+                            ErrorCode errorCode = dataApiException.getErrorCode();
+                            if (errorCode == ErrorCode.DRAINING || errorCode == ErrorCode.DRAINED) {
                                 if (preserveOrderWithinPartition && someDataSent) {
                                     // todo[https://github.com/starburstdata/trino-buffer-service/issues/34] we cannot switch buffer node now
                                     failure = new RuntimeException("target node draining when preserving order", failure);

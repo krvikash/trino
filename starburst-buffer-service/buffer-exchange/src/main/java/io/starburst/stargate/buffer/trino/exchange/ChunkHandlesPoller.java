@@ -126,12 +126,9 @@ class ChunkHandlesPoller
                     public void onFailure(Throwable failure)
                     {
                         if (failure instanceof DataApiException dataApiException) {
-                            if (dataApiException.getErrorCode() == ErrorCode.EXCHANGE_NOT_FOUND) {
+                            ErrorCode errorCode = dataApiException.getErrorCode();
+                            if (errorCode == ErrorCode.EXCHANGE_NOT_FOUND || errorCode == ErrorCode.DRAINING || errorCode == ErrorCode.DRAINED) {
                                 // ignore
-                                return;
-                            }
-                            if (dataApiException.getErrorCode() == ErrorCode.DRAINING) {
-                                // ignore - nothing more to be done here
                                 return;
                             }
                         }
@@ -194,7 +191,7 @@ class ChunkHandlesPoller
                     ListenableFuture<Void> finishFuture = dataApi.finishExchange(dataNodeId, externalExchangeId);
                     addExceptionCallback(finishFuture, failure -> {
                         if (failure instanceof DataApiException dataApiException) {
-                            if (dataApiException.getErrorCode() == ErrorCode.DRAINING) {
+                            if (dataApiException.getErrorCode() == ErrorCode.DRAINED) {
                                 // ignore - node gone during query runtime
                                 return;
                             }
@@ -214,7 +211,7 @@ class ChunkHandlesPoller
                     ListenableFuture<Void> markAllClosedChunksReceivedFuture = dataApi.markAllClosedChunksReceived(dataNodeId, externalExchangeId);
                     addExceptionCallback(markAllClosedChunksReceivedFuture,
                             failure -> {
-                                if (failure instanceof DataApiException dataApiException && dataApiException.getErrorCode() == ErrorCode.DRAINING) {
+                                if (failure instanceof DataApiException dataApiException && dataApiException.getErrorCode() == ErrorCode.DRAINED) {
                                     // ignore - node gone in the meantime
                                     return;
                                 }

@@ -213,8 +213,8 @@ public class DataApiFacade
                 @Override
                 public void onFailure(Throwable failure)
                 {
-                    if ((failure instanceof DataApiException dataApiException) && dataApiException.getErrorCode() == ErrorCode.DRAINING) {
-                        resultFuture.setException(new DataApiException(ErrorCode.DRAINING_ON_RETRY, "Received DRAINING error code on retry", failure));
+                    if ((failure instanceof DataApiException dataApiException) && (dataApiException.getErrorCode() == ErrorCode.DRAINING || dataApiException.getErrorCode() == ErrorCode.DRAINED)) {
+                        resultFuture.setException(new DataApiException(ErrorCode.DRAINING_ON_RETRY, "Received %s error code on retry".formatted(dataApiException.getErrorCode()), failure));
                         return;
                     }
                     resultFuture.setException(failure);
@@ -312,7 +312,7 @@ public class DataApiFacade
         BufferNodeInfo bufferNodeInfo = bufferNodes.getAllBufferNodes().get(bufferNodeId);
         if (bufferNodeInfo != null && bufferNodeInfo.state() == BufferNodeState.DRAINED) {
             // Node already DRAINED according to DiscoveryService. Short-circuiting error code.
-            throw new DataApiException(ErrorCode.DRAINING, "Node already DRAINED");
+            throw new DataApiException(ErrorCode.DRAINED, "Node already DRAINED");
         }
         if (shortCircuitDraining && bufferNodeInfo != null && bufferNodeInfo.state() == BufferNodeState.DRAINING) {
             // Node already started DRAINING according to DiscoveryService. Short-circuiting error code.
