@@ -78,6 +78,7 @@ public class TestDataApiFacade
 
         ListenableFuture<ChunkList> future = dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty());
 
+        Thread.sleep(100);
         assertThat(dataApiDelegate.getListClosedChunksCallCount("exchange-1", OptionalLong.empty())).isEqualTo(1);
         Thread.sleep(550);
         assertThat(dataApiDelegate.getListClosedChunksCallCount("exchange-1", OptionalLong.empty())).isEqualTo(2);
