@@ -21,7 +21,7 @@ public record ChunkDataHolder(
         long checksum,
         int numDataPages)
 {
-    public static final int CHUNK_SLICES_METADATA_SIZE = Integer.BYTES + Long.BYTES + Integer.BYTES;
+    public static final int CHUNK_SLICES_METADATA_SIZE = Long.BYTES + Integer.BYTES;
 
     public ChunkDataHolder {
         chunkSlices = ImmutableList.copyOf(requireNonNull(chunkSlices, "chunkSlices is null"));
@@ -29,6 +29,6 @@ public record ChunkDataHolder(
 
     public int serializedSizeInBytes()
     {
-        return chunkSlices.stream().mapToInt(Slice::length).sum() + Long.BYTES + Integer.BYTES;
+        return chunkSlices.stream().mapToInt(Slice::length).sum() + CHUNK_SLICES_METADATA_SIZE;
     }
 }

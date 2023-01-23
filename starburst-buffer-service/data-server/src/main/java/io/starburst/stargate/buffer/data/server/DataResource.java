@@ -368,17 +368,18 @@ public class DataResource
             ChunkDataResult chunkDataResult = chunkManager.getChunkData(bufferNodeId, exchangeId, partitionId, chunkId);
             if (chunkDataResult.chunkDataHolder().isPresent()) {
                 ChunkDataHolder chunkDataHolder = chunkDataResult.chunkDataHolder().get();
-                int serializedSizeInBytes = chunkDataHolder.serializedSizeInBytes(); // not strictly accurate but good enough for stats
-                readDataSize.update(serializedSizeInBytes);
-                readDataSizeDistribution.add(serializedSizeInBytes);
+                int dataSize = chunkDataHolder.serializedSizeInBytes() - CHUNK_SLICES_METADATA_SIZE;
+                readDataSize.update(dataSize);
+                readDataSizeDistribution.add(dataSize);
 
                 AsyncContext asyncContext = request.getAsyncContext();
                 asyncContext.setTimeout(getAsyncTimeout(clientMaxWait).toMillis());
                 ServletResponse response = asyncContext.getResponse();
                 ServletOutputStream outputStream = response.getOutputStream();
                 response.setContentType(TRINO_CHUNK_DATA);
+                response.setContentLength(Integer.BYTES + chunkDataHolder.serializedSizeInBytes());
 
-                Slice metaDataSlice = Slices.allocate(CHUNK_SLICES_METADATA_SIZE);
+                Slice metaDataSlice = Slices.allocate(Integer.BYTES + CHUNK_SLICES_METADATA_SIZE);
                 SliceOutput sliceOutput = metaDataSlice.getOutput();
                 sliceOutput.writeInt(SERIALIZED_CHUNK_DATA_MAGIC);
                 sliceOutput.writeLong(chunkDataHolder.checksum());
