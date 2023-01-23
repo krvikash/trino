@@ -407,7 +407,7 @@ public class DataResource
                     @Override
                     public void onError(Throwable throwable)
                     {
-                        logger.error(throwable);
+                        logger.warn(throwable, "error on GET /%s/pages/%s/%s/%s", exchangeId, partitionId, chunkId, bufferNodeId);
                         asyncContext.complete();
                     }
                 });
