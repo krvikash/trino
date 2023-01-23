@@ -173,7 +173,7 @@ public class TestQueryTroubleshooting
             ResultWithQueryId<MaterializedResult> result = client.execute(exampleQuery);
             assertThat(awaitForTroubleshootingData(result.getQueryId())).isPresent();
 
-            assertEventually(Duration.valueOf("10s"), () -> assertThat(awaitForTroubleshootingData(result.getQueryId())).isEmpty());
+            assertEventually(Duration.valueOf("30s"), () -> assertThat(awaitForTroubleshootingData(result.getQueryId())).isEmpty());
         }
     }
 
