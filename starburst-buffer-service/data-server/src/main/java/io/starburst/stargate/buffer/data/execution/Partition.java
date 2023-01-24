@@ -173,7 +173,7 @@ public class Partition
 
     public int getClosedChunksCount()
     {
-        return (int) closedChunks.values().stream().filter(chunk -> chunk.getChunkData() != null).count();
+        return (int) closedChunks.values().stream().filter(Chunk::chunkDataInMemory).count();
     }
 
     public void releaseChunks()

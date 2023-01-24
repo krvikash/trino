@@ -36,7 +36,8 @@ import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
 import static java.util.Objects.requireNonNull;
 
-// Note on thread-safety: only release(), getChunkData() and getAllocatedMemory() may be concurrently called after Chunk is closed
+// Note on thread-safety: only release(), getChunkData(), getAllocatedMemory() and chunkDataInMemory()
+// may be concurrently called after Chunk is closed
 @NotThreadSafe
 public class Chunk
 {
@@ -117,6 +118,12 @@ public class Chunk
             return null;
         }
         return chunkData.get();
+    }
+
+    public synchronized boolean chunkDataInMemory()
+    {
+        checkState(closed, "chunkDataInMemory() called on an open chunk");
+        return chunkData != null;
     }
 
     public synchronized int getAllocatedMemory()
