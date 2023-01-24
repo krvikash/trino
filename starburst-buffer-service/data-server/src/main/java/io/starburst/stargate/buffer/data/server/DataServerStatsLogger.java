@@ -70,6 +70,7 @@ public class DataServerStatsLogger
         log.info("STATS START\n" +
                 "total_memory: %s\n".formatted(succinctBytes(dataServerStats.getTotalMemoryInBytes())) +
                 "free_memory: %s\n".formatted(succinctBytes(dataServerStats.getFreeMemoryInBytes())) +
+                "non_poolable_memory: %s\n".formatted(succinctBytes(dataServerStats.getNonPoolableAllocatedMemoryInBytes())) +
                 "exchanges: %s\n".formatted(dataServerStats.getTrackedExchanges()) +
                 "open_chunks: %s\n".formatted(dataServerStats.getOpenChunks()) +
                 "closed_chunks: %s\n".formatted(dataServerStats.getClosedChunks()) +
