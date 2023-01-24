@@ -485,6 +485,7 @@ public class ChunkManager
                     return Futures.transform(
                             spoolingStorage.writeChunk(bufferNodeId, chunk.getExchangeId(), chunk.getChunkId(), chunkDataHolder),
                             ignored -> {
+                                chunkDataHolder.release();
                                 chunk.release();
                                 return null;
                             },

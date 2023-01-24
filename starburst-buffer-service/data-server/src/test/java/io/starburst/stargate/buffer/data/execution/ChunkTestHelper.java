@@ -41,6 +41,8 @@ public final class ChunkTestHelper
         assertEquals(numDataPages, dataPages.size());
 
         assertThat(dataPages).containsExactlyInAnyOrder(values);
+
+        chunkData.release();
     }
 
     public static ChunkDataHolder toChunkDataHolder(List<DataPage> dataPages)
@@ -57,6 +59,7 @@ public final class ChunkTestHelper
         return new ChunkDataHolder(
                 ImmutableList.of(slice),
                 calculateChecksum(dataPages),
-                dataPages.size());
+                dataPages.size(),
+                () -> {});
     }
 }

@@ -19,16 +19,23 @@ import static java.util.Objects.requireNonNull;
 public record ChunkDataHolder(
         List<Slice> chunkSlices,
         long checksum,
-        int numDataPages)
+        int numDataPages,
+        Runnable releaseCallback)
 {
     public static final int CHUNK_SLICES_METADATA_SIZE = Long.BYTES + Integer.BYTES;
 
     public ChunkDataHolder {
         chunkSlices = ImmutableList.copyOf(requireNonNull(chunkSlices, "chunkSlices is null"));
+        requireNonNull(releaseCallback, "releaseCallback is null");
     }
 
     public int serializedSizeInBytes()
     {
         return chunkSlices.stream().mapToInt(Slice::length).sum() + CHUNK_SLICES_METADATA_SIZE;
+    }
+
+    public void release()
+    {
+        releaseCallback.run();
     }
 }

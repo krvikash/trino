@@ -180,7 +180,9 @@ public class Chunk
         @GuardedBy("this")
         private SliceOutput sliceOutput;
         @GuardedBy("this")
-        private boolean released;
+        private boolean releaseRequested;
+        @GuardedBy("this")
+        private byte referenceCount;
 
         public ChunkData(
                 MemoryAllocator memoryAllocator,
@@ -254,15 +256,34 @@ public class Chunk
 
         public synchronized ChunkDataHolder get()
         {
+            referenceCount++;
+            Runnable releaseCallback = () -> {
+                synchronized (this) {
+                    referenceCount--;
+                    checkState(referenceCount >= 0, "negative referenceCount %s for chunkData", referenceCount);
+                    if (releaseRequested && referenceCount == 0) {
+                        chunkSliceLeases.forEach(SliceLease::release);
+                    }
+                }
+            };
+
             if (!calculateDataPagesChecksum) {
-                return new ChunkDataHolder(completedSlices, NO_CHECKSUM, numDataPages);
+                return new ChunkDataHolder(
+                        completedSlices,
+                        NO_CHECKSUM,
+                        numDataPages,
+                        releaseCallback);
             }
 
             long checksum = hash.hash();
             if (checksum == NO_CHECKSUM) {
                 checksum++;
             }
-            return new ChunkDataHolder(completedSlices, checksum, numDataPages);
+            return new ChunkDataHolder(
+                    completedSlices,
+                    checksum,
+                    numDataPages,
+                    releaseCallback);
         }
 
         public synchronized int getAllocatedMemory()
@@ -280,8 +301,10 @@ public class Chunk
 
         public synchronized void release()
         {
-            chunkSliceLeases.forEach(SliceLease::release);
-            released = true;
+            if (referenceCount == 0) {
+                chunkSliceLeases.forEach(SliceLease::release);
+            }
+            releaseRequested = true;
         }
 
         private class ChunkWriteFuture
@@ -366,7 +389,7 @@ public class Chunk
             @GuardedBy("ChunkData.this")
             private ListenableFuture<SliceOutput> createNewSliceOutput()
             {
-                checkState(!released, "new Slice allocation after release of ChunkData");
+                checkState(!releaseRequested, "new Slice allocation after release requested of ChunkData");
                 SliceLease sliceLease = new SliceLease(memoryAllocator, ChunkData.this.chunkSliceSizeInBytes);
                 ChunkData.this.chunkSliceLeases.add(sliceLease);
                 return Futures.transform(

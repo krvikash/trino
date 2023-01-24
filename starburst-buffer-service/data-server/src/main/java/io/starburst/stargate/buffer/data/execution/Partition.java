@@ -130,8 +130,6 @@ public class Partition
             // chunk already spooled
             return ChunkDataResult.of(spoolingStorage.getSpoolingFile(bufferNodeId, exchangeId, chunkId));
         }
-        // TODO: memory account inaccuracy exists here: getChunkData and spooling can happen concurrently.
-        // ChunkDataLease can hold a reference to ChunkData after spooling releases the chunk early.
         return ChunkDataResult.of(chunkDataHolder);
     }
 

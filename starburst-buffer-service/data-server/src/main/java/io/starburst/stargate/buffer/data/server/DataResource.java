@@ -430,9 +430,10 @@ public class DataResource
             @HeaderParam(MAX_WAIT) Duration clientMaxWait,
             @Suspended AsyncResponse asyncResponse)
     {
+        ChunkDataResult chunkDataResult = null;
         try {
             checkTargetBufferNodeId(targetBufferNodeId);
-            ChunkDataResult chunkDataResult = chunkManager.getChunkData(bufferNodeId, exchangeId, partitionId, chunkId);
+            chunkDataResult = chunkManager.getChunkData(bufferNodeId, exchangeId, partitionId, chunkId);
             if (chunkDataResult.chunkDataHolder().isPresent()) {
                 ChunkDataHolder chunkDataHolder = chunkDataResult.chunkDataHolder().get();
                 int dataSize = chunkDataHolder.serializedSizeInBytes() - CHUNK_SLICES_METADATA_SIZE;
@@ -463,6 +464,7 @@ public class DataResource
                     {
                         while (outputStream.isReady()) {
                             if (sliceQueue.isEmpty()) {
+                                chunkDataHolder.release();
                                 asyncContext.complete();
                                 return;
                             }
@@ -476,6 +478,7 @@ public class DataResource
                     public void onError(Throwable throwable)
                     {
                         logger.warn(throwable, "error on GET /%s/pages/%s/%s/%s", exchangeId, partitionId, chunkId, bufferNodeId);
+                        chunkDataHolder.release();
                         asyncContext.complete();
                     }
                 });
@@ -491,6 +494,9 @@ public class DataResource
         }
         catch (RuntimeException | IOException e) {
             logger.warn(e, "error on GET /%s/pages/%s/%s/%s", exchangeId, partitionId, chunkId, bufferNodeId);
+            if (chunkDataResult != null && chunkDataResult.chunkDataHolder().isPresent()) {
+                chunkDataResult.chunkDataHolder().get().release();
+            }
             asyncResponse.resume(errorResponse(e));
         }
     }

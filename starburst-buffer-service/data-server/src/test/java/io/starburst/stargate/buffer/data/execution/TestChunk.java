@@ -37,7 +37,7 @@ public class TestChunk
     @Test
     public void testHappyPath()
     {
-        MemoryAllocator memoryAllocator = new MemoryAllocator(new MemoryAllocatorConfig(), new DataServerStats());
+        MemoryAllocator memoryAllocator = new MemoryAllocator(new MemoryAllocatorConfig(), new ChunkManagerConfig(), new DataServerStats());
         Chunk chunk = new Chunk(
                 0L,
                 "exchange-id",

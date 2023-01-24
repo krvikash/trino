@@ -28,7 +28,8 @@ public class TestMemoryAllocatorConfig
         assertRecordedDefaults(recordDefaults(MemoryAllocatorConfig.class)
                 .setHeapHeadroom(DataSize.ofBytes(Math.round(Runtime.getRuntime().maxMemory() * 0.15)))
                 .setAllocationRatioLowWatermark(0.75)
-                .setAllocationRatioHighWatermark(0.9));
+                .setAllocationRatioHighWatermark(0.9)
+                .setChunkSlicePoolingFraction(0.8));
     }
 
     @Test
@@ -38,12 +39,14 @@ public class TestMemoryAllocatorConfig
                 .put("memory.heap-headroom", "2GB")
                 .put("memory.allocation-low-watermark", "0.5")
                 .put("memory.allocation-high-watermark", "0.99")
+                .put("memory.chunk-slice-pool-fraction", "0.66")
                 .buildOrThrow();
 
         MemoryAllocatorConfig expected = new MemoryAllocatorConfig()
                 .setHeapHeadroom(DataSize.of(2, GIGABYTE))
                 .setAllocationRatioLowWatermark(0.5)
-                .setAllocationRatioHighWatermark(0.99);
+                .setAllocationRatioHighWatermark(0.99)
+                .setChunkSlicePoolingFraction(0.66);
 
         assertFullMapping(properties, expected);
     }
