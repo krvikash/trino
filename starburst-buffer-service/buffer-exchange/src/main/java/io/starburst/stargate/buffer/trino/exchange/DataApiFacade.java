@@ -327,6 +327,8 @@ public class DataApiFacade
     {
         BufferNodeInfo bufferNodeInfo = discoveryManager.getBufferNodes().getAllBufferNodes().get(bufferNodeId);
         if (bufferNodeInfo == null) {
+            // we may be not up-to-date so force refresh
+            discoveryManager.forceRefresh();
             // todo: for created clients periodically check if node is still around
             throw new DataApiException(ErrorCode.BUFFER_NODE_NOT_FOUND, "Buffer node " + bufferNodeId + " not found");
         }
