@@ -99,7 +99,7 @@ public class DataApiFacade
                     if (!(throwable instanceof DataApiException dataApiException)) {
                         return true;
                     }
-                    return dataApiException.getErrorCode() == ErrorCode.INTERNAL_ERROR;
+                    return dataApiException.getErrorCode() == ErrorCode.INTERNAL_ERROR || dataApiException.getErrorCode() == ErrorCode.BUFFER_NODE_NOT_FOUND;
                 })
                 .build();
 

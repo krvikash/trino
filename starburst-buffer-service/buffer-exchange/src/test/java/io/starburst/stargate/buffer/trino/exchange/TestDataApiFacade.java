@@ -139,7 +139,7 @@ public class TestDataApiFacade
     @EnumSource(value = ErrorCode.class)
     public void testDoNotRetryOnMostDataApiExceptions(ErrorCode errorCode)
     {
-        if (errorCode == ErrorCode.INTERNAL_ERROR) {
+        if (errorCode == ErrorCode.INTERNAL_ERROR || errorCode == ErrorCode.BUFFER_NODE_NOT_FOUND) {
             return; // skip
         }
         TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
