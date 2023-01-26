@@ -10,12 +10,14 @@
 package io.starburst.stargate.buffer.data.server;
 
 import io.airlift.configuration.Config;
+import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.ConfigHidden;
 import io.airlift.units.Duration;
 
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class DataServerConfig
@@ -28,6 +30,9 @@ public class DataServerConfig
     private int drainingMaxAttempts = 4;
     private Duration minDrainingDuration = Duration.succinctDuration(30, SECONDS);
     private int maxInProgressAddDataPagesRequests = 500;
+    private int chunkListTargetSize = 1;
+    private int chunkListMaxSize = 100;
+    private Duration chunkListPollTimeout = Duration.succinctDuration(100, MILLISECONDS);
 
     public boolean isDataIntegrityVerificationEnabled()
     {
@@ -128,5 +133,44 @@ public class DataServerConfig
     public int getMaxInProgressAddDataPagesRequests()
     {
         return maxInProgressAddDataPagesRequests;
+    }
+
+    public int getChunkListTargetSize()
+    {
+        return chunkListTargetSize;
+    }
+
+    @Config("chunk-list.target-size")
+    @ConfigDescription("The minimum number of chunks we'd prefer to have in a list.")
+    public DataServerConfig setChunkListTargetSize(int chunkListTargetSize)
+    {
+        this.chunkListTargetSize = chunkListTargetSize;
+        return this;
+    }
+
+    public int getChunkListMaxSize()
+    {
+        return chunkListMaxSize;
+    }
+
+    @Config("chunk-list.max-size")
+    @ConfigDescription("The maximum number of chunks to return on a single chunk list request.")
+    public DataServerConfig setChunkListMaxSize(int chunkListMaxSize)
+    {
+        this.chunkListMaxSize = chunkListMaxSize;
+        return this;
+    }
+
+    public Duration getChunkListPollTimeout()
+    {
+        return chunkListPollTimeout;
+    }
+
+    @Config("chunk-list.poll-timeout")
+    @ConfigDescription("The maximum amount of time to wait for chunk-list.target-size number of chunks before returning whatever we have.")
+    public DataServerConfig setChunkListPollTimeout(Duration chunkListPollTimeout)
+    {
+        this.chunkListPollTimeout = chunkListPollTimeout;
+        return this;
     }
 }

@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Consumer;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -51,6 +52,7 @@ public class Partition
     private final boolean calculateDataPagesChecksum;
     private final ChunkIdGenerator chunkIdGenerator;
     private final ExecutorService executor;
+    private final Consumer<ChunkHandle> closedChunkConsumer;
 
     private final Map<Long, Chunk> closedChunks = new ConcurrentHashMap<>();
     @GuardedBy("this")
@@ -59,8 +61,6 @@ public class Partition
     private volatile Chunk openChunk;
     @GuardedBy("this")
     private boolean finished;
-    @GuardedBy("this")
-    private long lastConsumedChunkId = -1L;
     @GuardedBy("this")
     private final Deque<AddDataPagesFuture> addDataPagesFutures = new ArrayDeque<>();
     @GuardedBy("this")
@@ -76,7 +76,8 @@ public class Partition
             int chunkSliceSizeInBytes,
             boolean calculateDataPagesChecksum,
             ChunkIdGenerator chunkIdGenerator,
-            ExecutorService executor)
+            ExecutorService executor,
+            Consumer<ChunkHandle> closedChunkConsumer)
     {
         this.bufferNodeId = bufferNodeId;
         this.exchangeId = requireNonNull(exchangeId, "exchangeId is null");
@@ -88,6 +89,7 @@ public class Partition
         this.calculateDataPagesChecksum = calculateDataPagesChecksum;
         this.chunkIdGenerator = requireNonNull(chunkIdGenerator, "chunkIdGenerator is null");
         this.executor = requireNonNull(executor, "executor is null");
+        this.closedChunkConsumer = requireNonNull(closedChunkConsumer, "closedChunkConsumer is null");
 
         this.openChunk = createNewOpenChunk();
     }
@@ -131,19 +133,6 @@ public class Partition
         // TODO: memory account inaccuracy exists here: getChunkData and spooling can happen concurrently.
         // ChunkDataLease can hold a reference to ChunkData after spooling releases the chunk early.
         return ChunkDataResult.of(chunkDataHolder);
-    }
-
-    public synchronized void getNewlyClosedChunkHandles(ImmutableList.Builder<ChunkHandle> newlyClosedChunkHandles)
-    {
-        long maxChunkId = lastConsumedChunkId;
-        for (Chunk chunk : closedChunks.values()) {
-            long chunkId = chunk.getChunkId();
-            if (chunkId > lastConsumedChunkId) {
-                maxChunkId = Math.max(maxChunkId, chunkId);
-                newlyClosedChunkHandles.add(chunk.getHandle());
-            }
-        }
-        lastConsumedChunkId = maxChunkId;
     }
 
     public void finish()
@@ -219,6 +208,7 @@ public class Partition
         else {
             chunk.close();
             closedChunks.put(chunk.getChunkId(), chunk);
+            closedChunkConsumer.accept(chunk.getHandle());
         }
     }
 

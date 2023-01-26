@@ -34,7 +34,10 @@ public class TestDataServerConfig
                 .setBroadcastInterval(succinctDuration(5, SECONDS))
                 .setMinDrainingDuration(succinctDuration(30, SECONDS))
                 .setDrainingMaxAttempts(4)
-                .setMaxInProgressAddDataPagesRequests(500));
+                .setMaxInProgressAddDataPagesRequests(500)
+                .setChunkListTargetSize(1)
+                .setChunkListMaxSize(100)
+                .setChunkListPollTimeout(succinctDuration(100, MILLISECONDS)));
     }
 
     @Test
@@ -49,6 +52,9 @@ public class TestDataServerConfig
                 .put("draining.min-duration", "103s")
                 .put("draining.max-attempts", "5")
                 .put("max-in-progress-add-data-pages-requests", "600")
+                .put("chunk-list.target-size", "42")
+                .put("chunk-list.max-size", "1000")
+                .put("chunk-list.poll-timeout", "12345ms")
                 .buildOrThrow();
 
         DataServerConfig expected = new DataServerConfig()
@@ -59,7 +65,10 @@ public class TestDataServerConfig
                 .setBroadcastInterval(succinctDuration(102, MILLISECONDS))
                 .setMinDrainingDuration(succinctDuration(103, SECONDS))
                 .setDrainingMaxAttempts(5)
-                .setMaxInProgressAddDataPagesRequests(600);
+                .setMaxInProgressAddDataPagesRequests(600)
+                .setChunkListTargetSize(42)
+                .setChunkListMaxSize(1000)
+                .setChunkListPollTimeout(succinctDuration(12345, MILLISECONDS));
 
         assertFullMapping(properties, expected);
     }

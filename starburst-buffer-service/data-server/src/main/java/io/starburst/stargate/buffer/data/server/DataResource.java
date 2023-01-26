@@ -10,6 +10,7 @@
 package io.starburst.stargate.buffer.data.server;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.FluentFuture;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.concurrent.BoundedExecutor;
@@ -165,20 +166,27 @@ public class DataResource
     @GET
     @Path("{exchangeId}/closedChunks")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response listClosedChunks(
+    public void listClosedChunks(
             @PathParam("exchangeId") String exchangeId,
             @QueryParam("pagingId") Long pagingId,
-            @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId)
+            @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId,
+            @HeaderParam(MAX_WAIT) Duration clientMaxWait,
+            @Suspended AsyncResponse asyncResponse)
     {
-        try {
-            checkTargetBufferNodeId(targetBufferNodeId);
-            ChunkList chunkList = chunkManager.listClosedChunks(exchangeId, pagingId == null ? OptionalLong.empty() : OptionalLong.of(pagingId));
-            return Response.ok().entity(chunkList).build();
-        }
-        catch (RuntimeException e) {
-            logger.warn(e, "error on GET /%s/closedChunks?pagingId=%s", exchangeId, pagingId);
-            return errorResponse(e);
-        }
+        checkTargetBufferNodeId(targetBufferNodeId);
+        ListenableFuture<ChunkList> chunkListFuture = chunkManager.listClosedChunks(
+                exchangeId,
+                pagingId == null ? OptionalLong.empty() : OptionalLong.of(pagingId));
+        bindAsyncResponse(
+                asyncResponse,
+                FluentFuture.from(chunkListFuture)
+                        .transform(chunkList -> Response.ok().entity(chunkList).build(), directExecutor())
+                        .catching(RuntimeException.class, e -> {
+                            logger.warn(e, "error on GET /%s/closedChunks?pagingId=%s", exchangeId, pagingId);
+                            return errorResponse(e);
+                        }, directExecutor()),
+                responseExecutor)
+                .withTimeout(getAsyncTimeout(clientMaxWait));
     }
 
     @GET

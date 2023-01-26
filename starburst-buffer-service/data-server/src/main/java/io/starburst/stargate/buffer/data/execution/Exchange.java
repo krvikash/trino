@@ -9,9 +9,13 @@
  */
 package io.starburst.stargate.buffer.data.execution;
 
+import com.google.common.base.VerifyException;
 import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.FluentFuture;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import io.airlift.slice.Slice;
+import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataApiException;
@@ -22,6 +26,7 @@ import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -31,18 +36,24 @@ import java.util.OptionalLong;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.function.ToIntFunction;
 
-import static com.google.common.base.Verify.verify;
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
+import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static io.airlift.concurrent.MoreFutures.addExceptionCallback;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.EXCHANGE_CORRUPTED;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.EXCHANGE_FINISHED;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.USER_ERROR;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 @ThreadSafe
 public class Exchange
@@ -53,17 +64,25 @@ public class Exchange
     private final SpoolingStorage spoolingStorage;
     private final int chunkMaxSizeInBytes;
     private final int chunkSliceSizeInBytes;
+    private final int chunkListTargetSize;
+    private final int chunkListMaxSize;
+    private final Duration chunkListPollTimeout;
     private final boolean calculateDataPagesChecksum;
     private final ChunkIdGenerator chunkIdGenerator;
     private final ExecutorService executor;
 
     // partitionId -> partition
     private final Map<Integer, Partition> partitions = new ConcurrentHashMap<>();
+    private final ScheduledExecutorService longPollTimeoutExecutor;
 
     @GuardedBy("this")
     private OptionalLong nextPagingId = OptionalLong.of(0);
     @GuardedBy("this")
     private ChunkList lastChunkList;
+    @GuardedBy("this")
+    private SettableFuture<ChunkList> pendingChunkListFuture;
+    @GuardedBy("this")
+    private List<ChunkHandle> pendingChunkList;
     @GuardedBy("this")
     private long lastPagingId = -1;
     @GuardedBy("this")
@@ -80,8 +99,12 @@ public class Exchange
             int chunkMaxSizeInBytes,
             int chunkSliceSizeInBytes,
             boolean calculateDataPagesChecksum,
+            int chunkListTargetSize,
+            int chunkListMaxSize,
+            Duration chunkListPollTimeout,
             ChunkIdGenerator chunkIdGenerator,
             ExecutorService executor,
+            ScheduledExecutorService longPollTimeoutExecutor,
             long currentTime)
     {
         this.bufferNodeId = bufferNodeId;
@@ -91,9 +114,15 @@ public class Exchange
         this.chunkMaxSizeInBytes = chunkMaxSizeInBytes;
         this.chunkSliceSizeInBytes = chunkSliceSizeInBytes;
         this.calculateDataPagesChecksum = calculateDataPagesChecksum;
+        checkArgument(chunkListTargetSize >= 0, "chunkListTargetSize is less than 0");
+        this.chunkListTargetSize = chunkListTargetSize;
+        checkArgument(chunkListMaxSize >= chunkListTargetSize, "chunkListMaxSize is less than chunkListTargetSize");
+        this.chunkListMaxSize = chunkListMaxSize;
+        this.chunkListPollTimeout = chunkListPollTimeout;
         this.chunkIdGenerator = requireNonNull(chunkIdGenerator, "chunkIdGenerator is null");
         this.executor = requireNonNull(executor, "executor is null");
-
+        this.longPollTimeoutExecutor = requireNonNull(longPollTimeoutExecutor, "longPollTimeoutExecutor is null");
+        this.pendingChunkList = new ArrayList<>(chunkListTargetSize);
         this.lastUpdateTime = currentTime;
     }
 
@@ -116,7 +145,8 @@ public class Exchange
                     chunkSliceSizeInBytes,
                     calculateDataPagesChecksum,
                     chunkIdGenerator,
-                    executor));
+                    executor,
+                    closedChunkConsumer()));
         }
 
         ListenableFuture<Void> addDataPagesFuture = partition.addDataPages(taskId, attemptId, dataPagesId, pages);
@@ -141,31 +171,88 @@ public class Exchange
         return partition.getChunkData(bufferNodeId, chunkId);
     }
 
-    public synchronized ChunkList listClosedChunks(OptionalLong pagingIdOptional)
+    private Consumer<ChunkHandle> closedChunkConsumer()
+    {
+        return handle -> {
+            requireNonNull(handle, "ChunkHandle passed to consumer is null");
+            SettableFuture<ChunkList> future;
+            ChunkList chunkList = null;
+            synchronized (this) {
+                future = pendingChunkListFuture;
+                pendingChunkList.add(handle);
+                if (pendingChunkListFuture != null && pendingChunkList.size() >= chunkListTargetSize) {
+                    chunkList = nextChunkList(nextPagingId.orElseThrow());
+                    pendingChunkListFuture = null;
+                }
+            }
+            // Avoid a deadlock from triggered callbacks by doing this outside `synchronized`
+            if (chunkList != null) {
+                future.set(chunkList);
+            }
+        };
+    }
+
+    public synchronized ListenableFuture<ChunkList> listClosedChunks(OptionalLong pagingIdOptional)
     {
         throwIfFailed();
 
         long pagingId = pagingIdOptional.orElse(0);
-        Optional<ChunkList> cachedChunkList = getCachedChunkList(pagingId);
+        Optional<ListenableFuture<ChunkList>> cachedChunkList = getCachedChunkList(pagingId);
         if (cachedChunkList.isPresent()) {
             return cachedChunkList.get();
         }
 
-        verify(nextPagingId.isPresent(), "Cannot generate next list of closed chunks when nextPagingId is not present");
-        verify(pagingId == nextPagingId.getAsLong(), "Expected pagingId to equal next pagingId");
-
-        ImmutableList.Builder<ChunkHandle> newlyClosedChunkHandles = ImmutableList.builder();
-        for (Partition partition : partitions.values()) {
-            partition.getNewlyClosedChunkHandles(newlyClosedChunkHandles);
+        if (nextPagingId.isEmpty()) {
+            return immediateFailedFuture(new VerifyException("Cannot generate next list of closed chunks when nextPagingId is not present"));
+        }
+        if (pagingId != nextPagingId.getAsLong()) {
+            return immediateFailedFuture(new VerifyException("Expected pagingId to equal next pagingId"));
         }
 
-        if (finished) {
+        if (pendingChunkList.size() >= chunkListTargetSize) {
+            return immediateFuture(nextChunkList(pagingId));
+        }
+
+        pendingChunkListFuture = SettableFuture.create();
+        SettableFuture<ChunkList> originalFuture = pendingChunkListFuture;
+
+        return FluentFuture.from(pendingChunkListFuture)
+                .withTimeout(chunkListPollTimeout.toMillis(), MILLISECONDS, longPollTimeoutExecutor)
+                .catchingAsync(
+                        TimeoutException.class,
+                        timeoutException -> {
+                            synchronized (this) {
+                                // Without this, if we timed out while another thread has the lock in closedChunkConsumer,
+                                // we'd wait here, that other thread would try to set the underlying pendingChunkListFuture,
+                                // and then we would resolve this FluentFuture with an *additional* new chunk list,
+                                // losing a ChunkList.
+                                if (pendingChunkListFuture == originalFuture) {
+                                    pendingChunkListFuture = null;
+                                    return immediateFuture(nextChunkList(pagingId));
+                                }
+                                else {
+                                    return listClosedChunks(OptionalLong.of(pagingId));
+                                }
+                            }
+                        },
+                        longPollTimeoutExecutor);
+    }
+
+    @GuardedBy("this")
+    private ChunkList nextChunkList(long pagingId)
+    {
+        checkArgument(nextPagingId.isEmpty() || nextPagingId.getAsLong() == pagingId, "Expected pagingId %s but got %s", nextPagingId, pagingId);
+        int chunkListSize = Math.min(chunkListMaxSize, pendingChunkList.size());
+        List<ChunkHandle> chunks = ImmutableList.copyOf(pendingChunkList.subList(0, chunkListSize));
+        pendingChunkList = pendingChunkList.subList(chunkListSize, pendingChunkList.size());
+
+        if (finished && pendingChunkList.size() == 0) {
             nextPagingId = OptionalLong.empty();
         }
         else {
             nextPagingId = OptionalLong.of(pagingId + 1);
         }
-        ChunkList chunkList = new ChunkList(newlyClosedChunkHandles.build(), nextPagingId);
+        ChunkList chunkList = new ChunkList(chunks, nextPagingId);
 
         // cache the chunk list
         lastPagingId = pagingId;
@@ -244,8 +331,19 @@ public class Exchange
     }
 
     @GuardedBy("this")
-    private Optional<ChunkList> getCachedChunkList(long pagingId)
+    private Optional<ListenableFuture<ChunkList>> getCachedChunkList(long pagingId)
     {
+        if (pendingChunkListFuture != null) {
+            // is this a repeated request for the current ongoing long poll chunk list
+            if (pagingId == lastPagingId) {
+                return Optional.of(pendingChunkListFuture);
+            }
+            else {
+                return Optional.of(immediateFailedFuture(new DataApiException(USER_ERROR,
+                        "Provided pagingId %d during ongoing long poll, but lastPagingId is %d".formatted(pagingId, lastPagingId))));
+            }
+        }
+
         // is this the first request
         if (lastChunkList == null) {
             return Optional.empty();
@@ -253,24 +351,26 @@ public class Exchange
 
         // is this a repeated request for the last chunk list
         if (pagingId == lastPagingId) {
-            return Optional.of(lastChunkList);
+            return Optional.of(immediateFuture(lastChunkList));
         }
 
         // if this is a chunk list before the lastChunkList, the data is gone
         if (pagingId < lastPagingId) {
-            throw new DataApiException(USER_ERROR, "Provided pagingId %d but lastPagingId is %d".formatted(pagingId, lastPagingId));
+            return Optional.of(immediateFailedFuture(new DataApiException(USER_ERROR,
+                    "Provided pagingId %d but lastPagingId is %d".formatted(pagingId, lastPagingId))));
         }
 
         // if this is a request for a chunk list after the end of the stream, return not found
         if (nextPagingId.isEmpty()) {
-            throw new DataApiException(USER_ERROR,
-                    "Unexpected request pagingId %d after exchange %s finished and all chunk handles got acknowledged".formatted(pagingId, exchangeId));
+            return Optional.of(immediateFailedFuture(new DataApiException(USER_ERROR,
+                    "Unexpected request pagingId %d after exchange %s finished and all chunk handles got acknowledged".formatted(pagingId, exchangeId))));
         }
 
         // if this is not a request for the next chunk list, return not found
         if (pagingId != nextPagingId.getAsLong()) {
             // unknown pagingId
-            throw new DataServerException(USER_ERROR, "pagingId %d does not equal nextPagingId %d".formatted(pagingId, nextPagingId.getAsLong()));
+            return Optional.of(immediateFailedFuture(new DataServerException(USER_ERROR,
+                    "pagingId %d does not equal nextPagingId %d".formatted(pagingId, nextPagingId.getAsLong()))));
         }
 
         return Optional.empty();

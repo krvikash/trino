@@ -15,6 +15,7 @@ import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.testing.TestingTicker;
 import io.airlift.units.DataSize;
+import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataPage;
@@ -113,11 +114,11 @@ public class TestChunkManager
         assertEquals(3, chunkManager.getOpenChunks());
         assertEquals(0, chunkManager.getClosedChunks());
 
-        ChunkList chunkList0 = chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty());
+        ChunkList chunkList0 = getFutureValue(chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty()));
         assertTrue(chunkList0.chunks().isEmpty());
         assertEquals(OptionalLong.of(1L), chunkList0.nextPagingId());
 
-        ChunkList chunkList1 = chunkManager.listClosedChunks(EXCHANGE_1, OptionalLong.empty());
+        ChunkList chunkList1 = getFutureValue(chunkManager.listClosedChunks(EXCHANGE_1, OptionalLong.empty()));
         assertTrue(chunkList1.chunks().isEmpty());
         assertEquals(OptionalLong.of(1L), chunkList1.nextPagingId());
 
@@ -128,11 +129,11 @@ public class TestChunkManager
         assertEquals(0, chunkManager.getOpenChunks());
         assertEquals(3, chunkManager.getClosedChunks());
 
-        chunkList0 = chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.of(1L));
+        chunkList0 = getFutureValue(chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.of(1L)));
         assertThat(chunkList0.chunks()).containsExactlyInAnyOrder(chunkHandle0, chunkHandle1);
         assertTrue(chunkList0.nextPagingId().isEmpty());
 
-        chunkList1 = chunkManager.listClosedChunks(EXCHANGE_1, OptionalLong.of(1L));
+        chunkList1 = getFutureValue(chunkManager.listClosedChunks(EXCHANGE_1, OptionalLong.of(1L)));
         assertThat(chunkList1.chunks()).containsExactlyInAnyOrder(chunkHandle2);
         assertTrue(chunkList1.nextPagingId().isEmpty());
 
@@ -179,11 +180,11 @@ public class TestChunkManager
         assertEquals(3, chunkManager.getOpenChunks());
         assertEquals(1, chunkManager.getClosedChunks());
 
-        ChunkList chunkList0 = chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty());
+        ChunkList chunkList0 = getFutureValue(chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty()));
         assertThat(chunkList0.chunks()).containsExactlyInAnyOrder(chunkHandle1);
         assertEquals(OptionalLong.of(1L), chunkList0.nextPagingId());
 
-        ChunkList chunkList1 = chunkManager.listClosedChunks(EXCHANGE_1, OptionalLong.empty());
+        ChunkList chunkList1 = getFutureValue(chunkManager.listClosedChunks(EXCHANGE_1, OptionalLong.empty()));
         assertTrue(chunkList1.chunks().isEmpty());
         assertEquals(OptionalLong.of(1L), chunkList0.nextPagingId());
 
@@ -194,11 +195,11 @@ public class TestChunkManager
         assertEquals(0, chunkManager.getOpenChunks());
         assertEquals(4, chunkManager.getClosedChunks());
 
-        chunkList0 = chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.of(1L));
+        chunkList0 = getFutureValue(chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.of(1L)));
         assertThat(chunkList0.chunks()).containsExactlyInAnyOrder(chunkHandle0, chunkHandle2);
         assertTrue(chunkList0.nextPagingId().isEmpty());
 
-        chunkList1 = chunkManager.listClosedChunks(EXCHANGE_1, OptionalLong.of(1L));
+        chunkList1 = getFutureValue(chunkManager.listClosedChunks(EXCHANGE_1, OptionalLong.of(1L)));
         assertThat(chunkList1.chunks()).containsExactlyInAnyOrder(chunkHandle3);
         assertTrue(chunkList1.nextPagingId().isEmpty());
 
@@ -235,10 +236,10 @@ public class TestChunkManager
         chunkManager.cleanupStaleExchanges();
         assertEquals(DataSize.of(1, MEGABYTE).toBytes(), memoryAllocator.getTotalMemory() - memoryAllocator.getFreeMemory());
 
-        ChunkList chunkList0 = chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty());
+        ChunkList chunkList0 = getFutureValue(chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty()));
         assertThat(chunkList0.chunks()).isEmpty();
         assertEquals(OptionalLong.of(1L), chunkList0.nextPagingId());
-        ChunkList chunkList1 = chunkManager.listClosedChunks(EXCHANGE_1, OptionalLong.empty());
+        ChunkList chunkList1 = getFutureValue(chunkManager.listClosedChunks(EXCHANGE_1, OptionalLong.empty()));
         assertThat(chunkList1.chunks()).isEmpty();
         assertEquals(OptionalLong.of(1L), chunkList1.nextPagingId());
 
@@ -248,7 +249,7 @@ public class TestChunkManager
         ticker.increment(DEFAULT_EXCHANGE_STALENESS_THRESHOLD.toMillis() - 500, MILLISECONDS);
         chunkManager.cleanupStaleExchanges();
 
-        chunkList0 = chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.of(1L));
+        chunkList0 = getFutureValue(chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.of(1L)));
         assertThat(chunkList0.chunks()).isEmpty();
         assertEquals(OptionalLong.of(2L), chunkList0.nextPagingId());
         assertThatThrownBy(() -> chunkManager.listClosedChunks(EXCHANGE_1, OptionalLong.empty()))
@@ -278,7 +279,7 @@ public class TestChunkManager
         ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 1, 1L, 8);
         ChunkHandle chunkHandle2 = new ChunkHandle(BUFFER_NODE_ID, 1, 2L, 13);
 
-        ChunkList chunkList0 = chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty());
+        ChunkList chunkList0 = getFutureValue(chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty()));
         assertThat(chunkList0.chunks()).containsExactlyInAnyOrder(chunkHandle0, chunkHandle1, chunkHandle2);
         assertTrue(chunkList0.nextPagingId().isEmpty());
 
@@ -377,7 +378,7 @@ public class TestChunkManager
 
         ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 22);
         ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 0, 1L, 5);
-        assertThat(chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty()).chunks())
+        assertThat(getFutureValue(chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty())).chunks())
                 .containsExactlyInAnyOrder(chunkHandle0, chunkHandle1);
 
         verifyChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle0.partitionId(), chunkHandle0.chunkId()),
@@ -402,7 +403,7 @@ public class TestChunkManager
         memoryAllocator.release(getFutureValue(sliceFuture));
 
         ChunkHandle chunkHandle2 = new ChunkHandle(BUFFER_NODE_ID, 1, 2L, 5);
-        assertThat(chunkManager.listClosedChunks(EXCHANGE_1, OptionalLong.empty()).chunks())
+        assertThat(getFutureValue(chunkManager.listClosedChunks(EXCHANGE_1, OptionalLong.empty())).chunks())
                 .containsExactlyInAnyOrder(chunkHandle2);
         verifyChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_1, chunkHandle2.partitionId(), chunkHandle2.chunkId()),
                 new DataPage(1, 1, utf8Slice("dummy")));
@@ -451,7 +452,7 @@ public class TestChunkManager
             OptionalLong pagingId = OptionalLong.empty();
             int numChunks = 0;
             for (int i = 0; i < 10; ++i) {
-                ChunkList chunkList = chunkManager.listClosedChunks(EXCHANGE_0, pagingId);
+                ChunkList chunkList = getFutureValue(chunkManager.listClosedChunks(EXCHANGE_0, pagingId));
                 pagingId = chunkList.nextPagingId();
                 numChunks += chunkList.chunks().size();
                 if (pagingId.isEmpty()) {
@@ -508,7 +509,7 @@ public class TestChunkManager
         getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("page0"))));
         getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 1L, ImmutableList.of(utf8Slice("page1"))));
         OptionalLong pagingId = OptionalLong.empty();
-        ChunkList chunkList = chunkManager.listClosedChunks(EXCHANGE_0, pagingId); // only chunk 0 closed at this point
+        ChunkList chunkList = getFutureValue(chunkManager.listClosedChunks(EXCHANGE_0, pagingId)); // only chunk 0 closed at this point
         pagingId = chunkList.nextPagingId();
         assertTrue(pagingId.isPresent());
         assertEquals(1L, pagingId.getAsLong());
@@ -517,7 +518,7 @@ public class TestChunkManager
         getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 2L, ImmutableList.of(utf8Slice("page2"))));
         getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 3L, ImmutableList.of(utf8Slice("page3"))));
         getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 4L, ImmutableList.of(utf8Slice("page4"))));
-        chunkList = chunkManager.listClosedChunks(EXCHANGE_0, pagingId); // chunk 1, 2, 3 are newly closed
+        chunkList = getFutureValue(chunkManager.listClosedChunks(EXCHANGE_0, pagingId)); // chunk 1, 2, 3 are newly closed
         pagingId = chunkList.nextPagingId();
         assertTrue(pagingId.isPresent());
         assertEquals(2L, pagingId.getAsLong());
@@ -530,7 +531,7 @@ public class TestChunkManager
         getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 6L, ImmutableList.of(utf8Slice("page6"))));
         getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 7L, ImmutableList.of(utf8Slice("page7"))));
         chunkManager.finishExchange(EXCHANGE_0);
-        chunkList = chunkManager.listClosedChunks(EXCHANGE_0, pagingId); // chunk 4, 5, 6, 7 are newly closed
+        chunkList = getFutureValue(chunkManager.listClosedChunks(EXCHANGE_0, pagingId)); // chunk 4, 5, 6, 7 are newly closed
         pagingId = chunkList.nextPagingId();
         assertTrue(pagingId.isEmpty());
         assertThat(chunkList.chunks()).containsExactly(
@@ -566,7 +567,7 @@ public class TestChunkManager
         ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 1);
         ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 0, 1L, 1);
 
-        ChunkList chunkList = chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty());
+        ChunkList chunkList = getFutureValue(chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty()));
         assertThat(chunkList.chunks()).containsExactlyInAnyOrder(chunkHandle0, chunkHandle1);
 
         verifyChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle0.partitionId(), chunkHandle0.chunkId()),
@@ -654,7 +655,9 @@ public class TestChunkManager
                 .setChunkSpoolInterval(succinctDuration(100, SECONDS)); // only manual triggering in tests
         DataServerConfig dataServerConfig = new DataServerConfig()
                 .setDataIntegrityVerificationEnabled(true)
-                .setMinDrainingDuration(succinctDuration(0, SECONDS)); // don't wait for extra time in tests
+                .setMinDrainingDuration(succinctDuration(0, SECONDS)) // don't wait for extra time in tests
+                // Reduce timeout here for calls when we expect zero results - we want those to return ASAP to reduce test duration
+                .setChunkListPollTimeout(Duration.succinctDuration(5, MILLISECONDS));
         return new ChunkManager(
                 new BufferNodeId(BUFFER_NODE_ID),
                 chunkManagerConfig,

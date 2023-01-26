@@ -81,6 +81,9 @@ public class ChunkManager
     private final boolean calculateDataPagesChecksum;
     private final int drainingMaxAttempts;
     private final Duration minDrainingDuration;
+    private final int chunkListTargetSize;
+    private final int chunkListMaxSize;
+    private final Duration chunkListPollTimeout;
     private final Duration exchangeStalenessThreshold;
     private final Duration chunkSpoolInterval;
     private final int chunkSpoolConcurrency;
@@ -96,6 +99,7 @@ public class ChunkManager
     private final ScheduledExecutorService cleanupExecutor = newSingleThreadScheduledExecutor();
     private final ScheduledExecutorService statsReportingExecutor = newSingleThreadScheduledExecutor();
     private final ScheduledExecutorService chunkSpoolExecutor = newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService exchangeTimeoutExecutor = newSingleThreadScheduledExecutor();
     private final Cache<String, Object> recentlyRemovedExchanges = CacheBuilder.newBuilder().expireAfterWrite(5, MINUTES).build();
 
     private volatile boolean startedDraining;
@@ -117,6 +121,9 @@ public class ChunkManager
         this.calculateDataPagesChecksum = dataServerConfig.isDataIntegrityVerificationEnabled();
         this.drainingMaxAttempts = dataServerConfig.getDrainingMaxAttempts();
         this.minDrainingDuration = dataServerConfig.getMinDrainingDuration();
+        this.chunkListTargetSize = dataServerConfig.getChunkListTargetSize();
+        this.chunkListMaxSize = dataServerConfig.getChunkListMaxSize();
+        this.chunkListPollTimeout = dataServerConfig.getChunkListPollTimeout();
         this.exchangeStalenessThreshold = chunkManagerConfig.getExchangeStalenessThreshold();
         this.chunkSpoolInterval = chunkManagerConfig.getChunkSpoolInterval();
         this.chunkSpoolConcurrency = chunkManagerConfig.getChunkSpoolConcurrency();
@@ -157,6 +164,7 @@ public class ChunkManager
         Closer closer = Closer.create();
         closer.register(cleanupExecutor::shutdownNow);
         closer.register(statsReportingExecutor::shutdownNow);
+        closer.register(exchangeTimeoutExecutor::shutdownNow);
         if (!startedDraining) {
             closer.register(chunkSpoolExecutor::shutdownNow);
         }
@@ -193,7 +201,7 @@ public class ChunkManager
         return exchange.getChunkData(bufferNodeId, partitionId, chunkId);
     }
 
-    public ChunkList listClosedChunks(String exchangeId, OptionalLong pagingId)
+    public ListenableFuture<ChunkList> listClosedChunks(String exchangeId, OptionalLong pagingId)
     {
         Exchange exchange = getExchangeAndHeartbeat(exchangeId);
         return exchange.listClosedChunks(pagingId);
@@ -220,8 +228,12 @@ public class ChunkManager
                     chunkMaxSizeInBytes,
                     chunkSliceSizeInBytes,
                     calculateDataPagesChecksum,
+                    chunkListTargetSize,
+                    chunkListMaxSize,
+                    chunkListPollTimeout,
                     chunkIdGenerator,
                     executor,
+                    exchangeTimeoutExecutor,
                     tickerReadMillis());
         });
     }
