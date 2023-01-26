@@ -11,6 +11,7 @@ package io.starburst.stargate.buffer.data.server;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FluentFuture;
+import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.concurrent.BoundedExecutor;
@@ -36,6 +37,8 @@ import io.starburst.stargate.buffer.data.memory.SliceLease;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.servlet.AsyncContext;
+import javax.servlet.ReadListener;
+import javax.servlet.ServletInputStream;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.ServletResponse;
 import javax.servlet.WriteListener;
@@ -59,7 +62,6 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayDeque;
 import java.util.OptionalLong;
 import java.util.concurrent.Executor;
@@ -210,6 +212,7 @@ public class DataResource
     @Path("{exchangeId}/addDataPages/{taskId}/{attemptId}/{dataPagesId}")
     @Consumes(MediaType.APPLICATION_OCTET_STREAM)
     public void addDataPages(
+            @Context HttpServletRequest request,
             @PathParam("exchangeId") String exchangeId,
             @PathParam("taskId") int taskId,
             @PathParam("attemptId") int attemptId,
@@ -217,10 +220,8 @@ public class DataResource
             @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId,
             @HeaderParam(CONTENT_LENGTH) Integer contentLength,
             @HeaderParam(MAX_WAIT) Duration clientMaxWait,
-            @Suspended AsyncResponse asyncResponse,
-            InputStream inputStream)
+            @Suspended AsyncResponse asyncResponse)
     {
-        requireNonNull(inputStream, "inputStream is null");
         try {
             checkTargetBufferNodeId(targetBufferNodeId);
         }
@@ -247,61 +248,19 @@ public class DataResource
             return;
         }
 
+        AsyncContext asyncContext = request.getAsyncContext();
+        asyncContext.setTimeout(getAsyncTimeout(clientMaxWait).toMillis());
+        ServletInputStream inputStream;
+        try {
+            inputStream = asyncContext.getRequest().getInputStream();
+        }
+        catch (IOException e) {
+            logger.warn(e, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
+            asyncResponse.resume(errorResponse(e));
+            return;
+        }
+
         SliceLease sliceLease = new SliceLease(memoryAllocator, contentLength);
-        ListenableFuture<Void> addDataPagesFuture = Futures.transformAsync(
-                sliceLease.getSliceFuture(),
-                slice -> {
-                    SliceOutput sliceOutput = slice.getOutput();
-                    sliceOutput.writeBytes(inputStream, contentLength);
-
-                    ImmutableList.Builder<ListenableFuture<Void>> addDataPagesFutures = ImmutableList.builder();
-                    SliceInput sliceInput = slice.getInput();
-                    long readChecksum = sliceInput.readLong();
-                    XxHash64 hash = new XxHash64();
-                    while (sliceInput.isReadable()) {
-                        int partitionId = sliceInput.readInt();
-                        int bytes = sliceInput.readInt();
-                        writtenDataSizePerPartitionDistribution.add(bytes);
-                        ImmutableList.Builder<Slice> pages = ImmutableList.builder();
-                        while (bytes > 0 && sliceInput.isReadable()) {
-                            int pageLength = sliceInput.readInt();
-                            bytes -= Integer.BYTES;
-                            Slice page = sliceInput.readSlice(pageLength);
-                            if (dataIntegrityVerificationEnabled) {
-                                hash = hash.update(page);
-                            }
-                            pages.add(page);
-                            bytes -= pageLength;
-                        }
-                        checkState(bytes == 0, "no more data in input stream but remaining bytes counter > 0 (%d)".formatted(bytes));
-                        addDataPagesFutures.add(chunkManager.addDataPages(
-                                exchangeId,
-                                partitionId,
-                                taskId,
-                                attemptId,
-                                dataPagesId,
-                                pages.build()));
-                    }
-                    if (dataIntegrityVerificationEnabled) {
-                        long calculatedChecksum = hash.hash();
-                        if (calculatedChecksum == NO_CHECKSUM) {
-                            calculatedChecksum++;
-                        }
-                        if (readChecksum != calculatedChecksum) {
-                            throw new DataServerException(USER_ERROR, format("Data corruption, read checksum: 0x%08x, calculated checksum: 0x%08x", readChecksum, calculatedChecksum));
-                        }
-                    }
-                    else {
-                        if (readChecksum != NO_CHECKSUM) {
-                            throw new DataServerException(USER_ERROR, format("Expected checksum to be NO_CHECKSUM (0x%08x) but is 0x%08x", NO_CHECKSUM, readChecksum));
-                        }
-                    }
-
-                    writtenDataSize.update(contentLength);
-                    writtenDataSizeDistribution.add(contentLength);
-                    return asVoid(Futures.allAsList(addDataPagesFutures.build()));
-                },
-                executor);
 
         // callbacks must be registered before bindAsyncResponse is called; otherwise callback may be not called
         // if request is completed quickly
@@ -326,16 +285,116 @@ public class DataResource
             decrementAddDataPagesRequests();
         });
 
-        bindAsyncResponse(
-                asyncResponse,
-                logAndTranslateExceptions(
-                        Futures.transform(
-                                addDataPagesFuture,
-                                ignored -> Response.ok().build(),
-                                directExecutor()),
-                        () -> "POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId)),
-                responseExecutor)
-                .withTimeout(getAsyncTimeout(clientMaxWait));
+        Futures.addCallback(
+                sliceLease.getSliceFuture(),
+                new FutureCallback<>() {
+                    @Override
+                    public void onSuccess(Slice slice)
+                    {
+                        inputStream.setReadListener(new ReadListener() {
+                            private int bytesRead;
+
+                            @Override
+                            public void onDataAvailable()
+                                    throws IOException
+                            {
+                                while (inputStream.isReady()) {
+                                    int n = inputStream.read(slice.byteArray(), slice.byteArrayOffset() + bytesRead, contentLength - bytesRead);
+                                    if (n == -1) {
+                                        break;
+                                    }
+                                    bytesRead += n;
+                                }
+                            }
+
+                            @Override
+                            public void onAllDataRead()
+                            {
+                                verify(bytesRead == contentLength,
+                                        "Actual number of bytes read %s not equal to contentLength %s", bytesRead, contentLength);
+
+                                executor.submit(() -> {
+                                    try {
+                                        ImmutableList.Builder<ListenableFuture<Void>> addDataPagesFutures = ImmutableList.builder();
+                                        SliceInput sliceInput = slice.getInput();
+                                        long readChecksum = sliceInput.readLong();
+                                        XxHash64 hash = new XxHash64();
+                                        while (sliceInput.isReadable()) {
+                                            int partitionId = sliceInput.readInt();
+                                            int bytes = sliceInput.readInt();
+                                            writtenDataSizePerPartitionDistribution.add(bytes);
+                                            ImmutableList.Builder<Slice> pages = ImmutableList.builder();
+                                            while (bytes > 0 && sliceInput.isReadable()) {
+                                                int pageLength = sliceInput.readInt();
+                                                bytes -= Integer.BYTES;
+                                                Slice page = sliceInput.readSlice(pageLength);
+                                                if (dataIntegrityVerificationEnabled) {
+                                                    hash = hash.update(page);
+                                                }
+                                                pages.add(page);
+                                                bytes -= pageLength;
+                                            }
+                                            checkState(bytes == 0, "no more data in input stream but remaining bytes counter > 0 (%d)".formatted(bytes));
+                                            addDataPagesFutures.add(chunkManager.addDataPages(
+                                                    exchangeId,
+                                                    partitionId,
+                                                    taskId,
+                                                    attemptId,
+                                                    dataPagesId,
+                                                    pages.build()));
+                                        }
+                                        if (dataIntegrityVerificationEnabled) {
+                                            long calculatedChecksum = hash.hash();
+                                            if (calculatedChecksum == NO_CHECKSUM) {
+                                                calculatedChecksum++;
+                                            }
+                                            if (readChecksum != calculatedChecksum) {
+                                                throw new DataServerException(USER_ERROR, format("Data corruption, read checksum: 0x%08x, calculated checksum: 0x%08x", readChecksum, calculatedChecksum));
+                                            }
+                                        }
+                                        else {
+                                            if (readChecksum != NO_CHECKSUM) {
+                                                throw new DataServerException(USER_ERROR, format("Expected checksum to be NO_CHECKSUM (0x%08x) but is 0x%08x", NO_CHECKSUM, readChecksum));
+                                            }
+                                        }
+
+                                        writtenDataSize.update(contentLength);
+                                        writtenDataSizeDistribution.add(contentLength);
+
+                                        ListenableFuture<Void> addDataPagesFuture = asVoid(Futures.allAsList(addDataPagesFutures.build()));
+                                        bindAsyncResponse(
+                                                asyncResponse,
+                                                logAndTranslateExceptions(
+                                                        Futures.transform(
+                                                                addDataPagesFuture,
+                                                                ignored -> Response.ok().build(),
+                                                                directExecutor()),
+                                                        () -> "POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId)),
+                                                responseExecutor);
+                                    }
+                                    catch (Throwable throwable) {
+                                        this.onError(throwable);
+                                    }
+                                });
+                            }
+
+                            @Override
+                            public void onError(Throwable throwable)
+                            {
+                                logger.warn(throwable, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
+                                asyncResponse.resume(errorResponse(throwable));
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void onFailure(Throwable t)
+                    {
+                        logger.warn(t, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
+                        asyncResponse.resume(errorResponse(t));
+                    }
+                },
+                executor);
     }
 
     private int incrementAddDataPagesRequests()
@@ -519,17 +578,17 @@ public class DataResource
         }
     }
 
-    private static Response errorResponse(Exception e)
+    private static Response errorResponse(Throwable throwable)
     {
-        if (e instanceof DataServerException dataServerException) {
+        if (throwable instanceof DataServerException dataServerException) {
             return Response.status(Status.INTERNAL_SERVER_ERROR)
                     .header(ERROR_CODE_HEADER, dataServerException.getErrorCode())
-                    .entity(e.getMessage())
+                    .entity(throwable.getMessage())
                     .build();
         }
         return Response.status(Status.INTERNAL_SERVER_ERROR)
                 .header(ERROR_CODE_HEADER, ErrorCode.INTERNAL_ERROR)
-                .entity(e.getMessage())
+                .entity(throwable.getMessage())
                 .build();
     }
 
