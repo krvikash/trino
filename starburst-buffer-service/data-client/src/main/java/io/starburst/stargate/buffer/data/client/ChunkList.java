@@ -24,7 +24,8 @@ import static java.util.Objects.requireNonNull;
  */
 public record ChunkList(
         List<ChunkHandle> chunks,
-        OptionalLong nextPagingId) {
+        OptionalLong nextPagingId)
+{
     public ChunkList
     {
         chunks = ImmutableList.copyOf(requireNonNull(chunks, "chunks is null"));

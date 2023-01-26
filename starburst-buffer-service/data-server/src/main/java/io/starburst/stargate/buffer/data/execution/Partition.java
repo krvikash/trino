@@ -236,7 +236,8 @@ public class Partition
 
     private record TaskAttemptId(
             int taskId,
-            int attemptId) {
+            int attemptId)
+    {
         public TaskAttemptId {
             checkArgument(taskId <= Short.MAX_VALUE, "taskId %s larger than %s", taskId, Short.MAX_VALUE);
             checkArgument(attemptId <= Byte.MAX_VALUE, "attemptId %s larger than %s", attemptId, Byte.MAX_VALUE);

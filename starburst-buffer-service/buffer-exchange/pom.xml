@@ -102,7 +102,6 @@
             <artifactId>validation-api</artifactId>
         </dependency>
 
-
         <dependency>
             <groupId>org.weakref</groupId>
             <artifactId>jmxutils</artifactId>

@@ -14,7 +14,8 @@ import io.airlift.slice.Slice;
 public record DataPage(
         int taskId,
         int attemptId,
-        Slice data) {
+        Slice data)
+{
     public DataPage withData(Slice newData)
     {
         return new DataPage(taskId, attemptId, newData);

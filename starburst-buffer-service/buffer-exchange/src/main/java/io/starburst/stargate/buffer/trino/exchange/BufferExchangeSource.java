@@ -598,7 +598,8 @@ public class BufferExchangeSource
             String externalExchangeId,
             long bufferNodeId,
             int partitionId,
-            long chunkId) {
+            long chunkId)
+    {
         public long getRetainedSize()
         {
             return OBJECT_HEADER_SIZE + Long.BYTES + Integer.BYTES + Long.BYTES;

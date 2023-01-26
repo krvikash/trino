@@ -147,11 +147,6 @@
                     <artifactId>commons-lang3</artifactId>
                 </exclusion>
                 <exclusion>
-                    <!-- conflicts with version pulled by guava:31.1-jre -->
-                    <groupId>com.github.ben-manes.caffeine</groupId>
-                    <artifactId>caffeine</artifactId>
-                </exclusion>
-                <exclusion>
                     <!-- maven fails with "Could not collect dependencies: io.starburst.stargate.buffer:buffer-exchange-tests:jar" if we leave this transitive dependency -->
                     <groupId>com.linkedin.coral</groupId>
                     <artifactId>coral-hive</artifactId>

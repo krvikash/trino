@@ -13,7 +13,8 @@ import static java.util.Objects.requireNonNull;
 
 public record SpoolingFile(
         String location,
-        int length) {
+        int length)
+{
     public SpoolingFile {
         requireNonNull(location, "location is null");
     }
