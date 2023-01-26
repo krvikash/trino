@@ -478,7 +478,7 @@ public class BufferExchangeSource
                 long sourceBufferNodeId = sourceChunk.bufferNodeId();
                 Map<Long, BufferNodeInfo> bufferNodes = discoveryManager.getBufferNodes().getAllBufferNodes();
                 BufferNodeInfo sourceBufferNodeInfo = bufferNodes.get(sourceBufferNodeId);
-                if (sourceBufferNodeInfo == null || !(sourceBufferNodeInfo.state() == BufferNodeState.ACTIVE || sourceBufferNodeInfo.state() == BufferNodeState.DRAINING)) {
+                if (sourceBufferNodeInfo != null && sourceBufferNodeInfo.state() == BufferNodeState.DRAINED) {
                     sourceBufferNodeId = selectRandomRunningBufferNode();
                 }
                 scheduleReadUsingNode(sourceBufferNodeId);
