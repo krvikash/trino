@@ -296,7 +296,7 @@ class MockDataNode
 
             if (nodeState == MockBufferNodeState.DRAINED) {
                 stats.increment(FAILED_GET_CHUNK_DATA_CHUNK_DRAINED_REQUEST_COUNT);
-                return immediateFailedFuture(new DataApiException(ErrorCode.DRAINING, "Node %d is already drained".formatted(nodeId)));
+                return immediateFailedFuture(new DataApiException(ErrorCode.DRAINED, "Node %d is already drained".formatted(nodeId)));
             }
 
             if (chunkData == null) {

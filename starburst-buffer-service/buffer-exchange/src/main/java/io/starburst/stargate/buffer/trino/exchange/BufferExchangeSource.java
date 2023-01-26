@@ -540,7 +540,7 @@ public class BufferExchangeSource
                         }
 
                         switch (dataApiException.getErrorCode()) {
-                            case DRAINING, DRAINED -> {
+                            case DRAINED -> {
                                 // we need to reach out to different buffer node
                                 excludedNodes.add(sourceBufferNodeId);
                                 long newBufferNodeId = selectRandomRunningBufferNodeExcluding(excludedNodes);
