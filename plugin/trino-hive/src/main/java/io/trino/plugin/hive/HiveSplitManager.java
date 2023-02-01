@@ -215,7 +215,7 @@ public class HiveSplitManager
 
         // get table metadata
         TransactionalMetadata transactionalMetadata = transactionManager.get(transaction, session.getIdentity());
-        SemiTransactionalHiveMetastore metastore = transactionalMetadata.getMetastore();
+        SemiTransactionalHiveMetastore metastore = transactionalMetadata.getMetastore(Optional.of(session));
         if (!metastore.isReadableWithinTransaction(tableName.getSchemaName(), tableName.getTableName())) {
             // Until transaction is committed, the table data may or may not be visible.
             throw new TrinoException(NOT_SUPPORTED, format(
