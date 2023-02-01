@@ -16,11 +16,19 @@ package io.trino.plugin.hive;
 import io.trino.plugin.hive.fs.DirectoryLister;
 import io.trino.plugin.hive.metastore.SemiTransactionalHiveMetastore;
 import io.trino.spi.connector.ConnectorMetadata;
+import io.trino.spi.connector.ConnectorSession;
+
+import java.util.Optional;
 
 public interface TransactionalMetadata
         extends ConnectorMetadata
 {
-    SemiTransactionalHiveMetastore getMetastore();
+    default SemiTransactionalHiveMetastore getMetastore()
+    {
+        return getMetastore(Optional.empty());
+    }
+
+    SemiTransactionalHiveMetastore getMetastore(Optional<ConnectorSession> session);
 
     DirectoryLister getDirectoryLister();
 

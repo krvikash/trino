@@ -495,9 +495,9 @@ public class HiveMetadata
     }
 
     @Override
-    public SemiTransactionalHiveMetastore getMetastore()
+    public SemiTransactionalHiveMetastore getMetastore(Optional<ConnectorSession> session)
     {
-        return doNotUseDirectlyMetastore;
+        return session.map(this::getMetastore).orElse(doNotUseDirectlyMetastore);
     }
 
     @Override
@@ -832,7 +832,7 @@ public class HiveMetadata
                         .collect(toImmutableList()))
                 .orElse(ImmutableList.of());
 
-        Table table = getMetastore().getTable(hiveTableHandle.getSchemaName(), hiveTableHandle.getTableName())
+        Table table = getMetastore(session).getTable(hiveTableHandle.getSchemaName(), hiveTableHandle.getTableName())
                 .orElseThrow(() -> new TableNotFoundException(hiveTableHandle.getSchemaTableName()));
         Optional<String> tableDefaultFileFormat = HiveStorageFormat
                 .getHiveStorageFormat(table.getStorage().getStorageFormat())
@@ -847,7 +847,7 @@ public class HiveMetadata
     public Metrics getMetrics(ConnectorSession session)
     {
         // HiveMetadata and metastore are created per session
-        return getMetastore().getMetrics();
+        return getMetastore(session).getMetrics();
     }
 
     @Override
@@ -868,7 +868,7 @@ public class HiveMetadata
     private Stream<TableInfo> streamTables(ConnectorSession session, Optional<String> optionalSchemaName)
     {
         List<Callable<List<TableInfo>>> tasks = listSchemas(session, optionalSchemaName).stream()
-                .map(schemaName -> (Callable<List<TableInfo>>) () -> getMetastore().getTables(schemaName))
+                .map(schemaName -> (Callable<List<TableInfo>>) () -> getMetastore(session).getTables(schemaName))
                 .collect(toImmutableList());
         try {
             return processWithAdditionalThreads(tasks, metadataFetchingExecutor).stream()
@@ -2881,7 +2881,7 @@ public class HiveMetadata
             throw new ViewNotFoundException(viewName);
         }
         try {
-            Table view = getMetastore().getTable(viewName.getSchemaName(), viewName.getTableName()).orElseThrow(() -> new ViewNotFoundException(viewName));
+            Table view = getMetastore(session).getTable(viewName.getSchemaName(), viewName.getTableName()).orElseThrow(() -> new ViewNotFoundException(viewName));
             replaceView(session, viewName, view, viewDefinition);
         }
         catch (TableNotFoundException e) {
