@@ -35,7 +35,7 @@
         <air.java.version>17.0.1</air.java.version>
         <project.build.targetJdk>17</project.build.targetJdk>
 
-        <dep.airlift.version>222</dep.airlift.version>
+        <dep.airlift.version>224</dep.airlift.version>
         <dep.errorprone.version>2.18.0</dep.errorprone.version>
         <dep.trino.version>406</dep.trino.version>
         <dep.joda.version>2.12.2</dep.joda.version> <!-- required by Trino 406 -->
@@ -259,6 +259,12 @@
                 <groupId>org.openjdk.jol</groupId>
                 <artifactId>jol-core</artifactId>
                 <version>0.16</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.weakref</groupId>
+                <artifactId>jmxutils</artifactId>
+                <version>1.22</version>
             </dependency>
 
             <dependency>

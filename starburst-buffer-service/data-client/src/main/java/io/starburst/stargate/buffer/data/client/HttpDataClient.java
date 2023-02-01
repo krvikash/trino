@@ -11,12 +11,11 @@ package io.starburst.stargate.buffer.data.client;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ListMultimap;
-import com.google.common.collect.Multimap;
 import com.google.common.io.LittleEndianDataInputStream;
 import com.google.common.net.HttpHeaders;
 import com.google.common.net.MediaType;
 import com.google.common.util.concurrent.ListenableFuture;
-import io.airlift.http.client.BodyGenerator;
+import io.airlift.http.client.ByteBufferBodyGenerator;
 import io.airlift.http.client.FullJsonResponseHandler.JsonResponse;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.HttpClient.HttpResponseFuture;
@@ -27,9 +26,7 @@ import io.airlift.http.client.Response;
 import io.airlift.http.client.ResponseHandler;
 import io.airlift.http.client.StringResponseHandler.StringResponse;
 import io.airlift.json.JsonCodec;
-import io.airlift.slice.OutputStreamSliceOutput;
 import io.airlift.slice.Slice;
-import io.airlift.slice.SliceOutput;
 import io.airlift.slice.XxHash64;
 import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.BufferNodeInfo;
@@ -39,8 +36,8 @@ import io.starburst.stargate.buffer.data.client.spooling.SpoolingFile;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.net.URI;
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -72,6 +69,7 @@ import static io.starburst.stargate.buffer.data.client.ErrorCode.INTERNAL_ERROR;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
 import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_CHUNK_DATA_TYPE;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.toDataPages;
+import static java.nio.ByteOrder.LITTLE_ENDIAN;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 
@@ -222,10 +220,46 @@ public class HttpDataClient
         requireNonNull(dataPages, "dataPage is null");
 
         int contentLength = Long.BYTES; // checksum
+        int numByteBuffers = 1;
         for (Map.Entry<Integer, Collection<Slice>> entry : dataPages.asMap().entrySet()) {
             Collection<Slice> pages = entry.getValue();
             contentLength += Integer.BYTES * 2; // partitionId, totalLength
+            numByteBuffers++;
             contentLength += pages.stream().mapToInt(slice -> Integer.BYTES + slice.length()).sum();
+            numByteBuffers += 2 * pages.size();
+        }
+
+        ByteBuffer[] byteBuffers = new ByteBuffer[numByteBuffers];
+        int index = 0;
+        if (dataIntegrityVerificationEnabled) {
+            XxHash64 hash = new XxHash64();
+            for (Collection<Slice> pages : dataPages.asMap().values()) {
+                for (Slice page : pages) {
+                    hash = hash.update(page);
+                }
+            }
+            long checksum = hash.hash();
+            if (checksum == NO_CHECKSUM) {
+                checksum++;
+            }
+            byteBuffers[index++] = toByteBuffer(checksum);
+        }
+        else {
+            byteBuffers[index++] = toByteBuffer(NO_CHECKSUM);
+        }
+        for (Map.Entry<Integer, Collection<Slice>> entry : dataPages.asMap().entrySet()) {
+            Integer partitionId = entry.getKey();
+            Collection<Slice> pages = entry.getValue();
+            int totalLength = 0;
+            for (Slice page : pages) {
+                totalLength += SIZE_OF_INT;
+                totalLength += page.length();
+            }
+            byteBuffers[index++] = toByteBuffer(partitionId, totalLength);
+            for (Slice page : pages) {
+                byteBuffers[index++] = toByteBuffer(page.length());
+                byteBuffers[index++] = page.toByteBuffer();
+            }
         }
 
         Request request = preparePost()
@@ -233,7 +267,7 @@ public class HttpDataClient
                         .appendPath("%s/addDataPages/%d/%d/%d".formatted(exchangeId, taskId, attemptId, dataPagesId))
                         .addParameter("targetBufferNodeId", String.valueOf(targetBufferNodeId))
                         .build())
-                .setBodyGenerator(new PagesBodyGenerator(dataPages, dataIntegrityVerificationEnabled))
+                .setBodyGenerator(new ByteBufferBodyGenerator(byteBuffers))
                 .setHeader(CONTENT_LENGTH, String.valueOf(contentLength))
                 .setHeader(MAX_WAIT, httpIdleTimeout.toString())
                 .build();
@@ -278,66 +312,6 @@ public class HttpDataClient
             verify(chunkDataResponse.getSpoolingFile().isPresent(), "Either pages or spoolingFile should be present");
             return spooledChunkReader.getDataPages(chunkDataResponse.getSpoolingFile().get());
         }, directExecutor());
-    }
-
-    public static class PagesBodyGenerator
-            implements BodyGenerator
-    {
-        private final Multimap<Integer, Slice> pagesByPartition;
-        private final boolean dataIntegrityVerificationEnabled;
-
-        public PagesBodyGenerator(
-                Multimap<Integer, Slice> pagesByPartition,
-                boolean dataIntegrityVerificationEnabled)
-        {
-            this.pagesByPartition = requireNonNull(pagesByPartition, "pages is null");
-            this.dataIntegrityVerificationEnabled = dataIntegrityVerificationEnabled;
-        }
-
-        @Override
-        public void write(OutputStream output)
-                throws Exception
-        {
-            SliceOutput sliceOutput = new OutputStreamSliceOutput(output);
-            if (dataIntegrityVerificationEnabled) {
-                XxHash64 hash = new XxHash64();
-                for (Collection<Slice> pages : pagesByPartition.asMap().values()) {
-                    for (Slice page : pages) {
-                        hash = hash.update(page);
-                    }
-                }
-                long checksum = hash.hash();
-                if (checksum == NO_CHECKSUM) {
-                    checksum++;
-                }
-                sliceOutput.writeLong(checksum);
-            }
-            else {
-                sliceOutput.writeLong(NO_CHECKSUM);
-            }
-            for (Map.Entry<Integer, Collection<Slice>> entry : pagesByPartition.asMap().entrySet()) {
-                Integer partitionId = entry.getKey();
-                Collection<Slice> pages = entry.getValue();
-                write(sliceOutput, partitionId, pages);
-            }
-            sliceOutput.flush();
-        }
-
-        public void write(SliceOutput sliceOutput, int partitionId, Collection<Slice> pages)
-                throws Exception
-        {
-            int totalLength = 0;
-            for (Slice page : pages) {
-                totalLength += SIZE_OF_INT;
-                totalLength += page.length();
-            }
-            sliceOutput.writeInt(partitionId);
-            sliceOutput.writeInt(totalLength);
-            for (Slice page : pages) {
-                sliceOutput.writeInt(page.length());
-                sliceOutput.writeBytes(page);
-            }
-        }
     }
 
     public static class ChunkDataResponseHandler
@@ -488,5 +462,23 @@ public class HttpDataClient
     private static String requestErrorMessage(Request request, String message)
     {
         return "error on %s %s: %s".formatted(request.getMethod(), request.getUri(), message);
+    }
+
+    private static ByteBuffer toByteBuffer(long... numbers)
+    {
+        ByteBuffer byteBuffer = ByteBuffer.allocate(numbers.length * Long.BYTES).order(LITTLE_ENDIAN);
+        for (long number : numbers) {
+            byteBuffer.putLong(number);
+        }
+        return byteBuffer.rewind();
+    }
+
+    private static ByteBuffer toByteBuffer(int... numbers)
+    {
+        ByteBuffer byteBuffer = ByteBuffer.allocate(numbers.length * Integer.BYTES).order(LITTLE_ENDIAN);
+        for (int number : numbers) {
+            byteBuffer.putInt(number);
+        }
+        return byteBuffer.rewind();
     }
 }
