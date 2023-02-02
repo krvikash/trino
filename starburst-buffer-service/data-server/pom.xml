@@ -15,20 +15,7 @@
         <air.main.basedir>${project.parent.basedir}</air.main.basedir>
         <air.readme.file>README.md</air.readme.file>
         <main-class>io.starburst.stargate.buffer.data.server.DataServer</main-class>
-        <dep.awsjavasdk.version>2.17.151</dep.awsjavasdk.version>
     </properties>
-
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>software.amazon.awssdk</groupId>
-                <artifactId>bom</artifactId>
-                <type>pom</type>
-                <version>${dep.awsjavasdk.version}</version>
-                <scope>import</scope>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
 
     <dependencies>
         <dependency>
