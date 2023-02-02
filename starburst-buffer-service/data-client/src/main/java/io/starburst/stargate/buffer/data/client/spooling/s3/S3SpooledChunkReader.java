@@ -16,10 +16,7 @@ import io.starburst.stargate.buffer.data.client.DataApiConfig;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.SpoolingFile;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.awscore.endpoint.DefaultServiceEndpointBuilder;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.retry.RetryPolicy;
@@ -39,6 +36,7 @@ import java.util.concurrent.ExecutorService;
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.airlift.concurrent.MoreFutures.toListenableFuture;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.toDataPages;
+import static io.starburst.stargate.buffer.data.client.spooling.s3.S3SpoolUtils.createAwsCredentialsProvider;
 import static io.starburst.stargate.buffer.data.client.spooling.s3.S3SpoolUtils.getBucketName;
 import static io.starburst.stargate.buffer.data.client.spooling.s3.S3SpoolUtils.keyFromUri;
 import static java.util.Objects.requireNonNull;
@@ -58,7 +56,9 @@ public class S3SpooledChunkReader
             DataApiConfig dataApiConfig,
             ExecutorService executor)
     {
-        AwsCredentialsProvider credentialsProvider = createAwsCredentialsProvider(spoolingS3ReaderConfig);
+        AwsCredentialsProvider credentialsProvider = createAwsCredentialsProvider(
+                spoolingS3ReaderConfig.getS3AwsAccessKey(),
+                spoolingS3ReaderConfig.getS3AwsSecretKey());
         RetryPolicy retryPolicy = RetryPolicy.builder(spoolingS3ReaderConfig.getRetryMode())
                 .numRetries(spoolingS3ReaderConfig.getMaxErrorRetries())
                 .build();
@@ -92,20 +92,6 @@ public class S3SpooledChunkReader
         this.s3AsyncClient = s3AsyncClientBuilder.build();
         this.dataIntegrityVerificationEnabled = dataApiConfig.isDataIntegrityVerificationEnabled();
         this.executor = requireNonNull(executor, "executor is null");
-    }
-
-    private static AwsCredentialsProvider createAwsCredentialsProvider(SpoolingS3ReaderConfig config)
-    {
-        String accessKey = config.getS3AwsAccessKey();
-        String secretKey = config.getS3AwsSecretKey();
-
-        if (accessKey != null && secretKey != null) {
-            return StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey));
-        }
-        if (accessKey == null && secretKey == null) {
-            return DefaultCredentialsProvider.create();
-        }
-        throw new IllegalArgumentException("AWS access key and secret key should be either both set or both not set");
     }
 
     @Override

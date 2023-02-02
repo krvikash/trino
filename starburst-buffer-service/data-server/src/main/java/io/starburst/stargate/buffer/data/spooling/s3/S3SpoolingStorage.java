@@ -24,10 +24,7 @@ import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.awscore.endpoint.DefaultServiceEndpointBuilder;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.retry.RetryPolicy;
@@ -65,6 +62,7 @@ import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.concurrent.MoreFutures.toListenableFuture;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.PATH_SEPARATOR;
+import static io.starburst.stargate.buffer.data.client.spooling.s3.S3SpoolUtils.createAwsCredentialsProvider;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getFileName;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getPrefixedDirectories;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.translateFailures;
@@ -100,7 +98,9 @@ public class S3SpoolingStorage
         this.bucketNames = requireNonNull(chunkManagerConfig.getSpoolingDirectories(), "spoolingDirectory is null").stream()
                 .map(S3SpoolUtils::getBucketName)
                 .collect(toImmutableList());
-        AwsCredentialsProvider credentialsProvider = createAwsCredentialsProvider(spoolingS3Config);
+        AwsCredentialsProvider credentialsProvider = createAwsCredentialsProvider(
+                spoolingS3Config.getS3AwsAccessKey(),
+                spoolingS3Config.getS3AwsSecretKey());
         RetryPolicy retryPolicy = RetryPolicy.builder(spoolingS3Config.getRetryMode())
                 .numRetries(spoolingS3Config.getMaxErrorRetries())
                 .build();
@@ -228,20 +228,6 @@ public class S3SpoolingStorage
         try (Closer closer = Closer.create()) {
             closer.register(s3AsyncClient::close);
         }
-    }
-
-    private static AwsCredentialsProvider createAwsCredentialsProvider(SpoolingS3Config config)
-    {
-        String accessKey = config.getS3AwsAccessKey();
-        String secretKey = config.getS3AwsSecretKey();
-
-        if (accessKey != null && secretKey != null) {
-            return StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey));
-        }
-        if (accessKey == null && secretKey == null) {
-            return DefaultCredentialsProvider.create();
-        }
-        throw new IllegalArgumentException("AWS access key and secret key should be either both set or both not set");
     }
 
     private int getFileSize(String bucketName, String fileName)
