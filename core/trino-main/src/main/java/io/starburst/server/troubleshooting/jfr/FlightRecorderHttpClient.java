@@ -11,6 +11,9 @@ package io.starburst.server.troubleshooting.jfr;
 
 import com.google.common.collect.ImmutableMap;
 import io.starburst.server.troubleshooting.ForTroubleshooting;
+import dev.failsafe.Failsafe;
+import dev.failsafe.FailsafeExecutor;
+import dev.failsafe.RetryPolicy;
 import io.airlift.discovery.client.ServiceDescriptor;
 import io.airlift.discovery.client.ServiceSelector;
 import io.airlift.discovery.client.ServiceType;
@@ -21,9 +24,6 @@ import io.airlift.http.client.ResponseHandler;
 import io.airlift.http.client.ResponseHandlerUtils;
 import io.trino.server.InternalCommunicationConfig;
 import io.trino.spi.QueryId;
-import net.jodah.failsafe.Failsafe;
-import net.jodah.failsafe.FailsafeExecutor;
-import net.jodah.failsafe.RetryPolicy;
 
 import javax.inject.Inject;
 
@@ -63,11 +63,12 @@ class FlightRecorderHttpClient
         this.client = requireNonNull(client, "client is null");
         this.workerNodesProvider = requireNonNull(workerNodesProvider, "workerNodesProvider is null");
 
-        this.failsafeExecutor = Failsafe.with(new RetryPolicy<>()
+        this.failsafeExecutor = Failsafe.with(RetryPolicy.builder()
                 .withMaxDuration(Duration.of(3, SECONDS))
                 .withMaxAttempts(-1)
                 .withBackoff(10, 250, MILLIS)
-                .handleIf(FlightRecorderHttpClient::requestCanBeRetried))
+                .handleIf(FlightRecorderHttpClient::requestCanBeRetried)
+                .build())
             .with(executorService);
     }
 
@@ -160,8 +161,8 @@ class FlightRecorderHttpClient
             final String currentNodeId = nodeId;
 
             failsafeExecutor.onComplete(event -> {
-                if (event.getFailure() != null) {
-                    exceptions.put(currentNodeId, (E) event.getFailure());
+                if (event.getException() != null) {
+                    exceptions.put(currentNodeId, (E) event.getException());
                 }
                 else {
                     responses.put(currentNodeId, (R) event.getResult());
