@@ -39,6 +39,7 @@
         <dep.errorprone.version>2.18.0</dep.errorprone.version>
         <dep.trino.version>406</dep.trino.version>
         <dep.joda.version>2.12.2</dep.joda.version> <!-- required by Trino 406 -->
+        <dep.datadog-agent.version>0.114.0</dep.datadog-agent.version>
 
         <dep.awsjavasdk.version>2.17.151</dep.awsjavasdk.version>
     </properties>
@@ -154,6 +155,12 @@
                 <groupId>${project.groupId}</groupId>
                 <artifactId>testing</artifactId>
                 <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.datadoghq</groupId>
+                <artifactId>dd-java-agent</artifactId>
+                <version>${dep.datadog-agent.version}</version>
             </dependency>
 
             <!-- TODO: move to Airbase -->

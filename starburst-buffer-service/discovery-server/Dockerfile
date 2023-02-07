@@ -2,6 +2,7 @@ FROM eclipse-temurin:17-jdk
 
 ARG PROJECT_NAME=discovery-server
 ARG PROJECT_VERSION
+ARG PROJECT_DIR="/opt/${PROJECT_NAME}"
 ARG CHOWN="${PROJECT_NAME}:${PROJECT_NAME}"
 
 # Install python
@@ -17,17 +18,20 @@ RUN \
 # Add project files
 ADD target/${PROJECT_NAME}-${PROJECT_VERSION}.tar.gz /tmp/${PROJECT_NAME}
 RUN \
-    mkdir -p /opt/${PROJECT_NAME} && \
-    chown -R "${CHOWN}" /opt/${PROJECT_NAME} && \
-    mv /tmp/${PROJECT_NAME}/${PROJECT_NAME}-${PROJECT_VERSION}/* /opt/${PROJECT_NAME} && \
-    chown ${CHOWN} -R /opt/${PROJECT_NAME} && \
+    mkdir -p ${PROJECT_DIR} && \
+    chown -R "${CHOWN}" ${PROJECT_DIR} && \
+    mv /tmp/${PROJECT_NAME}/${PROJECT_NAME}-${PROJECT_VERSION}/* ${PROJECT_DIR} && \
+    chown ${CHOWN} -R ${PROJECT_DIR} && \
     rm -rf /tmp/${PROJECT_NAME} && \
-    echo "/opt/${PROJECT_NAME}/bin/launcher run --config=/opt/${PROJECT_NAME}/etc/config.properties" > /start.sh && \
+    DD_AGENT_JAR="${PROJECT_DIR}/lib/$(ls ${PROJECT_DIR}/lib | grep dd-java-agent | head -n 1)" && \
+    test -f ${DD_AGENT_JAR} && \
+    ln -s ${DD_AGENT_JAR} ${PROJECT_DIR}/lib/dd-java-agent.jar && \
+    echo "${PROJECT_DIR}/bin/launcher run --config=${PROJECT_DIR}/etc/config.properties" > /start.sh && \
     chown -R "${CHOWN}" /start.sh && \
     chmod +x /start.sh
 
-COPY --chown=${CHOWN} etc /opt/${PROJECT_NAME}/etc
-VOLUME /opt/${PROJECT_NAME}/etc
+COPY --chown=${CHOWN} etc ${PROJECT_DIR}/etc
+VOLUME ${PROJECT_DIR}/etc
 
 EXPOSE 8080
 USER ${CHOWN}
