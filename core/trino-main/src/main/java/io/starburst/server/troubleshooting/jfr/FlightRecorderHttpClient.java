@@ -10,6 +10,7 @@
 package io.starburst.server.troubleshooting.jfr;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.util.concurrent.FutureCallback;
 import io.starburst.server.troubleshooting.ForTroubleshooting;
 import dev.failsafe.Failsafe;
 import dev.failsafe.FailsafeExecutor;
@@ -38,6 +39,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static com.google.common.util.concurrent.Futures.addCallback;
 import static io.starburst.server.troubleshooting.jfr.FlightRecorderHttpClient.InputStreamResponseHandler.createInputStreamResponseHandler;
 import static io.starburst.server.troubleshooting.jfr.FlightRecorderHttpClient.StatusCheckingResponseHandler.createStatusCheckingHandler;
 import static io.starburst.server.troubleshooting.jfr.FlightRecorderWorkerResource.BASE_PATH_API_V1;
@@ -56,6 +58,7 @@ class FlightRecorderHttpClient
     private final QueryId queryId;
     private final WorkerNodesProvider workerNodesProvider;
     private final FailsafeExecutor<Object> failsafeExecutor;
+    private final ScheduledExecutorService executorService;
 
     private FlightRecorderHttpClient(QueryId queryId, HttpClient client, ScheduledExecutorService executorService, WorkerNodesProvider workerNodesProvider)
     {
@@ -63,6 +66,7 @@ class FlightRecorderHttpClient
         this.client = requireNonNull(client, "client is null");
         this.workerNodesProvider = requireNonNull(workerNodesProvider, "workerNodesProvider is null");
 
+        this.executorService = requireNonNull(executorService, "executorService is null");
         this.failsafeExecutor = Failsafe.with(RetryPolicy.builder()
                 .withMaxDuration(Duration.of(3, SECONDS))
                 .withMaxAttempts(-1)
@@ -98,7 +102,7 @@ class FlightRecorderHttpClient
 
     public Map<String, InputStream> getInputStreams(Set<String> nodeIds)
     {
-        HttpResponses<InputStreamResponseHandler.InputStreamResponse, RuntimeException> results = paralellExecute(nodeIds, this::inputStreamRequest, createInputStreamResponseHandler());
+        HttpResponses<InputStreamResponseHandler.InputStreamResponse, HttpStatusException> results = paralellExecute(nodeIds, this::inputStreamRequest, createInputStreamResponseHandler());
         if (!results.exceptions().isEmpty()) {
             throw new RuntimeException("Could not get recordings from nodes: %s due to: %s".formatted(results.exceptions().keySet(), results.exceptions.values()));
         }
@@ -160,15 +164,31 @@ class FlightRecorderHttpClient
             Request request = requestFactory.apply(nodeId);
             final String currentNodeId = nodeId;
 
-            failsafeExecutor.onComplete(event -> {
-                if (event.getException() != null) {
-                    exceptions.put(currentNodeId, (E) event.getException());
+            failsafeExecutor.getAsyncExecution(execution -> {
+                addCallback(client.executeAsync(request, handler), new FutureCallback<>() {
+                    @Override
+                    public void onSuccess(R result)
+                    {
+                        execution.recordResult(result);
+                        execution.complete();
+                    }
+
+                    @Override
+                    public void onFailure(Throwable throwable)
+                    {
+                        execution.recordException(throwable);
+                    }
+                }, executorService);
+            }).whenCompleteAsync((result, exception) -> {
+                if (result != null) {
+                    responses.put(currentNodeId, (R) result);
                 }
-                else {
-                    responses.put(currentNodeId, (R) event.getResult());
+                if (exception != null) {
+                    exceptions.put(currentNodeId, (E) exception);
                 }
+
                 latch.countDown();
-            }).get(() -> client.execute(request, handler));
+            });
         }
 
         try {
@@ -179,7 +199,7 @@ class FlightRecorderHttpClient
             throw new RuntimeException(e);
         }
 
-        return new HttpResponses<>(responses.buildOrThrow(), exceptions.buildOrThrow());
+        return new HttpResponses<>(responses.buildOrThrow(), exceptions.buildKeepingLast());
     }
 
     @SuppressWarnings("UnusedVariable") // error-prone is too dumb to see access to both responses and exceptions fields
@@ -188,7 +208,7 @@ class FlightRecorderHttpClient
     }
 
     static final class InputStreamResponseHandler
-            implements ResponseHandler<InputStreamResponseHandler.InputStreamResponse, RuntimeException>
+            implements ResponseHandler<InputStreamResponseHandler.InputStreamResponse, HttpStatusException>
     {
         private static final InputStreamResponseHandler INPUT_STREAM_RESPONSE_HANDLER = new InputStreamResponseHandler();
 
