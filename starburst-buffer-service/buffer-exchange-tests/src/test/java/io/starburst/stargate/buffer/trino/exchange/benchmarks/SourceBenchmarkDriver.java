@@ -103,7 +103,7 @@ public class SourceBenchmarkDriver
             closer.register(exchange);
             ExchangeSinkHandle sinkHandle = exchange.addSink(0);
             exchange.noMoreSinks();
-            ExchangeSinkInstanceHandle sinkInstanceHandle = exchange.instantiateSink(sinkHandle, 0);
+            ExchangeSinkInstanceHandle sinkInstanceHandle = exchange.instantiateSink(sinkHandle, 0).get();
             ExchangeSink sink = exchangeManager.createSink(sinkInstanceHandle);
             Slice dataPage = buildDataPage(setup.pageSize());
 

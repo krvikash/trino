@@ -36,6 +36,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -47,6 +48,7 @@ import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.addExceptionCallback;
 import static io.starburst.stargate.buffer.trino.exchange.ExternalExchangeIds.externalExchangeId;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.CompletableFuture.completedFuture;
 
 public class BufferExchange
         implements Exchange
@@ -132,7 +134,7 @@ public class BufferExchange
     }
 
     @Override
-    public synchronized ExchangeSinkInstanceHandle instantiateSink(ExchangeSinkHandle sinkHandle, int taskAttemptId)
+    public synchronized CompletableFuture<ExchangeSinkInstanceHandle> instantiateSink(ExchangeSinkHandle sinkHandle, int taskAttemptId)
     {
         throwIfFailed();
         checkState(!closed.get(), "already closed");
@@ -144,11 +146,11 @@ public class BufferExchange
             addBufferNodeToPoll(nodeId);
         }
 
-        return new BufferExchangeSinkInstanceHandle(bufferExchangeSinkHandle, taskAttemptId, partitionToNodeMapping);
+        return completedFuture(new BufferExchangeSinkInstanceHandle(bufferExchangeSinkHandle, taskAttemptId, partitionToNodeMapping));
     }
 
     @Override
-    public synchronized ExchangeSinkInstanceHandle updateSinkInstanceHandle(ExchangeSinkHandle sinkHandle, int taskAttemptId)
+    public synchronized CompletableFuture<ExchangeSinkInstanceHandle> updateSinkInstanceHandle(ExchangeSinkHandle sinkHandle, int taskAttemptId)
     {
         throwIfFailed();
         checkState(!closed.get(), "already closed");
@@ -158,10 +160,10 @@ public class BufferExchange
         for (Long nodeId : newMapping.values()) {
             addBufferNodeToPoll(nodeId);
         }
-        return new BufferExchangeSinkInstanceHandle(
+        return completedFuture(new BufferExchangeSinkInstanceHandle(
                 bufferExchangeSinkHandle,
                 taskAttemptId,
-                newMapping);
+                newMapping));
     }
 
     @Override

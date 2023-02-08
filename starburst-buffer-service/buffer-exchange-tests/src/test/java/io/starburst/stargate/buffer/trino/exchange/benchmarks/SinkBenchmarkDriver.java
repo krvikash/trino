@@ -85,7 +85,7 @@ public class SinkBenchmarkDriver
             ExchangeContext exchangeContext = new ExchangeContext(new QueryId("dummy"), new ExchangeId("dummy"));
             Exchange exchange = exchangeManager.createExchange(exchangeContext, setup.outputPartitionsCount(), false);
             ExchangeSinkHandle sinkHandle = exchange.addSink(0);
-            ExchangeSinkInstanceHandle sinkeInstanceHandle = exchange.instantiateSink(sinkHandle, 0);
+            ExchangeSinkInstanceHandle sinkeInstanceHandle = exchange.instantiateSink(sinkHandle, 0).get();
             ExchangeSink sink = exchangeManager.createSink(sinkeInstanceHandle);
 
             AtomicLong dataCounter = new AtomicLong();
