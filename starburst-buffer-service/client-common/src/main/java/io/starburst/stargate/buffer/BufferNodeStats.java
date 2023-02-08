@@ -15,4 +15,7 @@ public record BufferNodeStats(
         int trackedExchanges,
         int openChunks,
         int closedChunks,
-        int spooledChunks) {}
+        int spooledChunks,
+        long spooledDataSize,
+        long readDataSize,
+        long writtenDataSize) {}

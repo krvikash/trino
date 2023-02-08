@@ -32,6 +32,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -254,8 +255,9 @@ public class TestDataApiFacade
     {
         public static final int NODE_ID = 1;
 
-        private record ListClosedChunksKey(String exchangeId, OptionalLong pagingId) {};
-        private record AddDataPagesKey(String exchangeId, int taskId, int attemptId, long dataPagesId) {};
+        private record ListClosedChunksKey(String exchangeId, OptionalLong pagingId) {}
+
+        private record AddDataPagesKey(String exchangeId, int taskId, int attemptId, long dataPagesId) {}
 
         private final ListMultimap<ListClosedChunksKey, ListenableFuture<ChunkList>> listClosedChunksResponses = ArrayListMultimap.create();
         private final Map<ListClosedChunksKey, AtomicLong> listClosedChunksCounters = new HashMap<>();
@@ -265,7 +267,7 @@ public class TestDataApiFacade
         @Override
         public BufferNodeInfo getInfo()
         {
-            return new BufferNodeInfo(NODE_ID, URI.create("http://testing"), Optional.empty(), BufferNodeState.ACTIVE);
+            return new BufferNodeInfo(NODE_ID, URI.create("http://testing"), Optional.empty(), BufferNodeState.ACTIVE, Instant.now());
         }
 
         @Override

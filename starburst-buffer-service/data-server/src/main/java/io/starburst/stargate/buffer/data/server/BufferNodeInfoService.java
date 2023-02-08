@@ -13,12 +13,12 @@ import io.airlift.http.server.HttpServerInfo;
 import io.airlift.node.NodeInfo;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeStats;
-import io.starburst.stargate.buffer.data.execution.ChunkManager;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 
 import javax.inject.Inject;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.Optional;
 
 import static io.airlift.http.client.HttpUriBuilder.uriBuilderFrom;
@@ -30,22 +30,22 @@ public class BufferNodeInfoService
     private final long bufferNodeId;
     private final URI baseUri;
     private final MemoryAllocator memoryAllocator;
-    private final ChunkManager chunkManager;
     private final BufferNodeStateManager stateManager;
+    private final DataServerStats dataServerStats;
 
     @Inject
     public BufferNodeInfoService(
             BufferNodeId bufferNodeId,
             MemoryAllocator memoryAllocator,
-            ChunkManager chunkManager,
             HttpServerInfo httpServerInfo,
             NodeInfo airliftNodeInfo,
-            BufferNodeStateManager stateManager)
+            BufferNodeStateManager stateManager,
+            DataServerStats dataServerStats)
     {
         this.bufferNodeId = bufferNodeId.getLongValue();
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
-        this.chunkManager = requireNonNull(chunkManager, "chunkManager is null");
         this.stateManager = requireNonNull(stateManager, "stateManager is null");
+        this.dataServerStats = requireNonNull(dataServerStats, "dataServerStats is null");
 
         baseUri = uriBuilderFrom(getBaseUri(httpServerInfo))
                 .host(airliftNodeInfo.getExternalAddress())
@@ -62,7 +62,7 @@ public class BufferNodeInfoService
 
     public BufferNodeInfo getNodeInfo()
     {
-        return new BufferNodeInfo(bufferNodeId, baseUri, getBufferNodeStats(), stateManager.getState());
+        return new BufferNodeInfo(bufferNodeId, baseUri, getBufferNodeStats(), stateManager.getState(), Instant.now());
     }
 
     private Optional<BufferNodeStats> getBufferNodeStats()
@@ -70,10 +70,13 @@ public class BufferNodeInfoService
         BufferNodeStats bufferNodeStats = new BufferNodeStats(
                 memoryAllocator.getTotalMemory(),
                 memoryAllocator.getFreeMemory(),
-                chunkManager.getTrackedExchanges(),
-                chunkManager.getOpenChunks(),
-                chunkManager.getClosedChunks(),
-                chunkManager.getSpooledChunks());
+                (int) dataServerStats.getTrackedExchanges(),
+                (int) dataServerStats.getOpenChunks(),
+                (int) dataServerStats.getClosedChunks(),
+                (int) dataServerStats.getSpooledChunks(),
+                dataServerStats.getSpooledDataSize().getTotalCount(),
+                dataServerStats.getReadDataSize().getTotalCount(),
+                dataServerStats.getWrittenDataSize().getTotalCount());
         return Optional.of(bufferNodeStats);
     }
 }

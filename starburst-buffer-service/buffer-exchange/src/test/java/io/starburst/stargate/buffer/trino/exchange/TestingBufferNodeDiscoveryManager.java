@@ -18,6 +18,7 @@ import io.starburst.stargate.buffer.BufferNodeState;
 import io.starburst.stargate.buffer.BufferNodeStats;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -35,7 +36,10 @@ class TestingBufferNodeDiscoveryManager
             10,
             1000,
             500,
-            1000);
+            1000,
+            1,
+            2,
+            3);
 
     private BufferNodesState bufferNodesState;
 
@@ -100,7 +104,7 @@ class TestingBufferNodeDiscoveryManager
         @CanIgnoreReturnValue
         public BufferNodesStateBuilder putNode(long nodeId, BufferNodeState state, BufferNodeStats stats)
         {
-            bufferNodesMap.put(nodeId, new BufferNodeInfo(nodeId, URI.create("http://node_" + nodeId), Optional.of(stats), state));
+            bufferNodesMap.put(nodeId, new BufferNodeInfo(nodeId, URI.create("http://node_" + nodeId), Optional.of(stats), state, Instant.now()));
             return this;
         }
 

@@ -27,6 +27,7 @@ import io.starburst.stargate.buffer.data.client.ErrorCode;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -87,13 +88,16 @@ class MockDataNode
                 exchangesData.size(),
                 exchangesData.values().stream().mapToInt(ExchangeData::getOpenChunksCount).sum(),
                 exchangesData.values().stream().mapToInt(ExchangeData::getClosedChunksCount).sum(),
+                0,
+                0,
+                0,
                 0);
         BufferNodeState bufferNodeState = switch (this.nodeState) {
             case RUNNING -> BufferNodeState.ACTIVE;
             case DRAINING, DRAINED -> BufferNodeState.DRAINING;
             case GONE -> throw new IllegalArgumentException("not supported");
         };
-        return new BufferNodeInfo(nodeId, URI.create("http://mock." + nodeId), Optional.of(stats), bufferNodeState);
+        return new BufferNodeInfo(nodeId, URI.create("http://mock." + nodeId), Optional.of(stats), bufferNodeState, Instant.now());
     }
 
     @Override

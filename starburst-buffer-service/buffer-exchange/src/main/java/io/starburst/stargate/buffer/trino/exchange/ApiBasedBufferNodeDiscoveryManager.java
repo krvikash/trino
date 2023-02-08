@@ -29,6 +29,7 @@ import javax.annotation.concurrent.GuardedBy;
 import javax.inject.Inject;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -172,7 +173,7 @@ public class ApiBasedBufferNodeDiscoveryManager
                 log.warn("Discovery server reported node which was DRAINED previously %s", bufferNodeInfosWithDrained.get(drainedNodeId));
                 continue;
             }
-            bufferNodeInfosWithDrained.put(drainedNodeId, new BufferNodeInfo(drainedNodeId, URI.create("http://drained_" + drainedNodeId), Optional.empty(), DRAINED));
+            bufferNodeInfosWithDrained.put(drainedNodeId, new BufferNodeInfo(drainedNodeId, URI.create("http://drained_" + drainedNodeId), Optional.empty(), DRAINED, Instant.now()));
         }
         return new BufferNodesState(
                 System.currentTimeMillis(),

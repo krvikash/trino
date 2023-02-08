@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -75,8 +76,8 @@ public class TestDiscoveryServer
                         false,
                         Set.of()));
 
-        BufferNodeStats node1Stats1 = new BufferNodeStats(10, 11, 12, 13, 14, 15);
-        BufferNodeInfo node1Info1 = new BufferNodeInfo(1, URI.create("http://address1"), Optional.of(node1Stats1), ACTIVE);
+        BufferNodeStats node1Stats1 = new BufferNodeStats(10, 11, 12, 13, 14, 15, 16, 17, 18);
+        BufferNodeInfo node1Info1 = new BufferNodeInfo(1, URI.create("http://address1"), Optional.of(node1Stats1), ACTIVE, Instant.now());
         discoveryClient.updateBufferNode(node1Info1);
 
         assertThat(discoveryClient.getBufferNodes()).isEqualTo(
@@ -92,8 +93,8 @@ public class TestDiscoveryServer
                         Set.of(node1Info1)));
 
         // add another node
-        BufferNodeStats node2Stats1 = new BufferNodeStats(20, 21, 22, 23, 24, 25);
-        BufferNodeInfo node2Info1 = new BufferNodeInfo(2, URI.create("http://address2"), Optional.of(node2Stats1), STARTING);
+        BufferNodeStats node2Stats1 = new BufferNodeStats(20, 21, 22, 23, 24, 25, 26, 27, 28);
+        BufferNodeInfo node2Info1 = new BufferNodeInfo(2, URI.create("http://address2"), Optional.of(node2Stats1), STARTING, Instant.now());
         discoveryClient.updateBufferNode(node2Info1);
         assertThat(discoveryClient.getBufferNodes()).isEqualTo(
                 new BufferNodeInfoResponse(
@@ -109,8 +110,8 @@ public class TestDiscoveryServer
 
         // move time and update node 1
         ticker.increment(1000, TimeUnit.MILLISECONDS);
-        BufferNodeStats node1Stats2 = new BufferNodeStats(110, 111, 112, 113, 114, 115);
-        BufferNodeInfo node1Info2 = new BufferNodeInfo(1, URI.create("http://address1"), Optional.of(node1Stats2), ACTIVE);
+        BufferNodeStats node1Stats2 = new BufferNodeStats(110, 111, 112, 113, 114, 115, 116, 117, 118);
+        BufferNodeInfo node1Info2 = new BufferNodeInfo(1, URI.create("http://address1"), Optional.of(node1Stats2), ACTIVE, Instant.now());
         discoveryClient.updateBufferNode(node1Info2);
         assertThat(discoveryClient.getBufferNodes()).isEqualTo(
                 new BufferNodeInfoResponse(
@@ -145,9 +146,9 @@ public class TestDiscoveryServer
         ticker.increment(DEFAULT_START_GRACE_PERIOD.toMillis(), TimeUnit.MILLISECONDS);
 
         // add a node
-        BufferNodeStats stats = new BufferNodeStats(20, 21, 22, 23, 24, 25);
-        BufferNodeInfo info = new BufferNodeInfo(1, URI.create("http://some_address"), Optional.of(stats), STARTING);
-        BufferNodeInfo infoWithOtherUri = new BufferNodeInfo(1, URI.create("http://other_address"), Optional.of(stats), STARTING);
+        BufferNodeStats stats = new BufferNodeStats(20, 21, 22, 23, 24, 25, 26, 27, 28);
+        BufferNodeInfo info = new BufferNodeInfo(1, URI.create("http://some_address"), Optional.of(stats), STARTING, Instant.now());
+        BufferNodeInfo infoWithOtherUri = new BufferNodeInfo(1, URI.create("http://other_address"), Optional.of(stats), STARTING, Instant.now());
         discoveryClient.updateBufferNode(info);
         assertThat(discoveryClient.getBufferNodes()).isEqualTo(
                 new BufferNodeInfoResponse(

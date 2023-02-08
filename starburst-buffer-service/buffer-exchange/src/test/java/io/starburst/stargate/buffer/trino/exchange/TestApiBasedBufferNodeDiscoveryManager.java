@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -213,8 +214,8 @@ class TestApiBasedBufferNodeDiscoveryManager
 
     private static BufferNodeInfo bufferNode(int nodeId, BufferNodeState state)
     {
-        Optional<BufferNodeStats> stats = state == ACTIVE ? Optional.of(new BufferNodeStats(1, 2, 3, 4, 5, 6)) : Optional.empty();
-        return new BufferNodeInfo(nodeId, URI.create("http://blah" + nodeId), stats, state);
+        Optional<BufferNodeStats> stats = state == ACTIVE ? Optional.of(new BufferNodeStats(1, 2, 3, 4, 5, 6, 7, 8, 9)) : Optional.empty();
+        return new BufferNodeInfo(nodeId, URI.create("http://blah" + nodeId), stats, state, Instant.now());
     }
 
     private static class BufferNodesStateAssert
@@ -282,7 +283,8 @@ class TestApiBasedBufferNodeDiscoveryManager
 
         public ApiFactory getApiFactory()
         {
-            return new ApiFactory() {
+            return new ApiFactory()
+            {
                 @Override
                 public DiscoveryApi createDiscoveryApi()
                 {

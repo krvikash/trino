@@ -61,6 +61,7 @@ import static org.awaitility.Awaitility.await;
 import static org.awaitility.Durations.FIVE_SECONDS;
 import static org.awaitility.Durations.ONE_SECOND;
 import static org.awaitility.Durations.TEN_SECONDS;
+import static org.awaitility.Durations.TWO_SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -433,10 +434,16 @@ public class TestDataServer
 
     private void assertNodeStats(long trackedExchanges, int openChunks, int spooledChunks, int closedChunks)
     {
+        await().atMost(TWO_SECONDS)
+                .until(() -> nodeStatsEqual(trackedExchanges, openChunks, spooledChunks, closedChunks));
+    }
+
+    private boolean nodeStatsEqual(long trackedExchanges, int openChunks, int spooledChunks, int closedChunks)
+    {
         BufferNodeStats bufferNodeStats = dataClient.getInfo().stats().get();
-        assertThat(bufferNodeStats.trackedExchanges()).isEqualTo(trackedExchanges);
-        assertThat(bufferNodeStats.openChunks()).isEqualTo(openChunks);
-        assertThat(bufferNodeStats.spooledChunks()).isEqualTo(spooledChunks);
-        assertThat(bufferNodeStats.closedChunks()).isEqualTo(closedChunks);
+        return bufferNodeStats.trackedExchanges() == trackedExchanges &&
+                bufferNodeStats.openChunks() == openChunks &&
+                bufferNodeStats.spooledChunks() == spooledChunks &&
+                bufferNodeStats.closedChunks() == closedChunks;
     }
 }
