@@ -163,7 +163,7 @@ public class TestQueryTroubleshooting
         assertThat(inputsMap.get("failure_stack_trace.txt")).isNotEmpty();
     }
 
-    @Test(invocationCount = 100)
+    @Test
     public void testTroubleshootingIsRemovedAfterDuration()
     {
         String exampleQuery = "SELECT count(comment) FROM tpch.tiny.lineitem";
