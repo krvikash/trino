@@ -325,7 +325,8 @@ public class TestDataServer
                 .isInstanceOf(DataApiException.class)
                 .hasMessage("error on GET %s/api/v1/buffer/data/exchange-1/finish?targetBufferNodeId=0: exchange %s not found".formatted(dataServer.getBaseUri(), EXCHANGE_1));
         assertThatThrownBy(() -> listClosedChunks(EXCHANGE_0, OptionalLong.of(Long.MAX_VALUE)))
-                .isInstanceOf(DataApiException.class).hasMessageContaining("Expected pagingId to equal next pagingId");
+                .isInstanceOf(DataApiException.class)
+                .hasMessageContaining("pagingId %s does not equal nextPagingId 0".formatted(Long.MAX_VALUE));
         assertThatThrownBy(() -> getChunkData(EXCHANGE_0, new ChunkHandle(BUFFER_NODE_ID, 0, 3L, 0)))
                 .isInstanceOf(DataApiException.class)
                 .hasMessage("error on GET %s/api/v1/buffer/data/0/exchange-0/pages/0/3?targetBufferNodeId=0: No closed chunk found for bufferNodeId %d, exchange %s, chunk 3".formatted(dataServer.getBaseUri(), BUFFER_NODE_ID, EXCHANGE_0));

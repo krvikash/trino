@@ -9,7 +9,6 @@
  */
 package io.starburst.stargate.buffer.data.execution;
 
-import com.google.common.base.VerifyException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FluentFuture;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -202,13 +201,6 @@ public class Exchange
             return cachedChunkList.get();
         }
 
-        if (nextPagingId.isEmpty()) {
-            return immediateFailedFuture(new VerifyException("Cannot generate next list of closed chunks when nextPagingId is not present"));
-        }
-        if (pagingId != nextPagingId.getAsLong()) {
-            return immediateFailedFuture(new VerifyException("Expected pagingId to equal next pagingId"));
-        }
-
         if (pendingChunkList.size() >= chunkListTargetSize) {
             return immediateFuture(nextChunkList(pagingId));
         }
@@ -333,24 +325,12 @@ public class Exchange
     @GuardedBy("this")
     private Optional<ListenableFuture<ChunkList>> getCachedChunkList(long pagingId)
     {
-        if (pendingChunkListFuture != null) {
-            // is this a repeated request for the current ongoing long poll chunk list
-            if (pagingId == lastPagingId) {
-                return Optional.of(pendingChunkListFuture);
-            }
-            else {
-                return Optional.of(immediateFailedFuture(new DataApiException(USER_ERROR,
-                        "Provided pagingId %d during ongoing long poll, but lastPagingId is %d".formatted(pagingId, lastPagingId))));
-            }
-        }
-
-        // is this the first request
-        if (lastChunkList == null) {
-            return Optional.empty();
-        }
-
         // is this a repeated request for the last chunk list
         if (pagingId == lastPagingId) {
+            if (lastChunkList == null) {
+                return Optional.of(immediateFailedFuture(new DataServerException(USER_ERROR,
+                        "Provided pagingId %d, which is equal to lastPagingId, but lastChunkList is null".formatted(pagingId))));
+            }
             return Optional.of(immediateFuture(lastChunkList));
         }
 
@@ -373,7 +353,8 @@ public class Exchange
                     "pagingId %d does not equal nextPagingId %d".formatted(pagingId, nextPagingId.getAsLong()))));
         }
 
-        return Optional.empty();
+        // This is either the first request for the next chunk list, or a repeated request during an ongoing long-poll
+        return Optional.ofNullable(pendingChunkListFuture);
     }
 
     private void throwIfFailed()
