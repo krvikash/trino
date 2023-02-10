@@ -10,6 +10,7 @@
 package io.starburst.stargate.buffer.data.server;
 
 import io.airlift.log.Logger;
+import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.BufferNodeState;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
 
@@ -19,6 +20,7 @@ import javax.inject.Inject;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static java.util.Objects.requireNonNull;
@@ -31,6 +33,7 @@ import static java.util.Objects.requireNonNull;
 public class DrainService
 {
     private static final Logger LOG = Logger.get(DrainService.class);
+    private static final Duration MAX_WAIT_NO_IN_PROGRESS_ADD_DATA_PAGES_REQUESTS = Duration.succinctDuration(2, TimeUnit.MINUTES);
 
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(daemonThreadsNamed("data-server-drain-service"));
     private final BufferNodeStateManager bufferNodeStateManager;
@@ -84,10 +87,14 @@ public class DrainService
 
     private void waitNoInProgressAddDataPagesRequests()
     {
+        long waitStart = System.currentTimeMillis();
         while (true) {
             int inProgressAddDataPagesRequests = dataResource.getInProgressAddDataPagesRequests();
             if (inProgressAddDataPagesRequests == 0) {
                 break;
+            }
+            if (System.currentTimeMillis() > waitStart + MAX_WAIT_NO_IN_PROGRESS_ADD_DATA_PAGES_REQUESTS.toMillis()) {
+                throw new RuntimeException("Still %s in flight addData requests after waiting %s".formatted(inProgressAddDataPagesRequests, MAX_WAIT_NO_IN_PROGRESS_ADD_DATA_PAGES_REQUESTS));
             }
             LOG.info("Waiting until remaining %s in flight addData requests complete", inProgressAddDataPagesRequests);
             // busy looping is fine here as we expect in flight requests to finish fast
