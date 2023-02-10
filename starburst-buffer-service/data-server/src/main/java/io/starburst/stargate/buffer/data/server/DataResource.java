@@ -175,7 +175,14 @@ public class DataResource
             @HeaderParam(MAX_WAIT) Duration clientMaxWait,
             @Suspended AsyncResponse asyncResponse)
     {
-        checkTargetBufferNodeId(targetBufferNodeId);
+        try {
+            checkTargetBufferNodeId(targetBufferNodeId);
+        }
+        catch (RuntimeException e) {
+            asyncResponse.resume(errorResponse(e));
+            return;
+        }
+
         ListenableFuture<ChunkList> chunkListFuture = chunkManager.listClosedChunks(
                 exchangeId,
                 pagingId == null ? OptionalLong.empty() : OptionalLong.of(pagingId));
@@ -227,6 +234,7 @@ public class DataResource
         }
         catch (RuntimeException e) {
             asyncResponse.resume(errorResponse(e));
+            return;
         }
 
         if (dropUploadedPages) {
