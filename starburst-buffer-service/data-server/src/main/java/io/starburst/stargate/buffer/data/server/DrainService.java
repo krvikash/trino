@@ -68,20 +68,7 @@ public class DrainService
 
         executor.submit(() -> {
             try {
-                while (true) {
-                    int inProgressAddDataPagesRequests = dataResource.getInProgressAddDataPagesRequests();
-                    if (inProgressAddDataPagesRequests == 0) {
-                        break;
-                    }
-                    LOG.info("Waiting until remaining %s in flight addData requests complete", inProgressAddDataPagesRequests);
-                    // busy looping is fine here as we expect in flight requests to finish fast
-                    try {
-                        Thread.sleep(500);
-                    }
-                    catch (InterruptedException e) {
-                        // ignore
-                    }
-                }
+                waitNoInProgressAddDataPagesRequests();
                 chunkManager.drainAllChunks();
             }
             catch (Exception e) {
@@ -93,5 +80,23 @@ public class DrainService
             bufferNodeStateManager.transitionState(BufferNodeState.DRAINED);
             discoveryBroadcast.ifPresent(DiscoveryBroadcast::broadcast);
         });
+    }
+
+    private void waitNoInProgressAddDataPagesRequests()
+    {
+        while (true) {
+            int inProgressAddDataPagesRequests = dataResource.getInProgressAddDataPagesRequests();
+            if (inProgressAddDataPagesRequests == 0) {
+                break;
+            }
+            LOG.info("Waiting until remaining %s in flight addData requests complete", inProgressAddDataPagesRequests);
+            // busy looping is fine here as we expect in flight requests to finish fast
+            try {
+                Thread.sleep(500);
+            }
+            catch (InterruptedException e) {
+                // ignore
+            }
+        }
     }
 }
