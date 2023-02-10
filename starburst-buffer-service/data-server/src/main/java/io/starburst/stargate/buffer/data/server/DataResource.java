@@ -255,9 +255,14 @@ public class DataResource
             inputStream = asyncContext.getRequest().getInputStream();
         }
         catch (IOException e) {
-            logger.warn(e, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
-            asyncResponse.resume(errorResponse(e));
-            return;
+            try {
+                logger.warn(e, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
+                asyncResponse.resume(errorResponse(e));
+                return;
+            }
+            finally {
+                decrementAddDataPagesRequests();
+            }
         }
 
         SliceLease sliceLease = new SliceLease(memoryAllocator, contentLength);
@@ -272,8 +277,12 @@ public class DataResource
             if (completionFlag.getAndSet(true)) {
                 return;
             }
-            sliceLease.release();
-            decrementAddDataPagesRequests();
+            try {
+                sliceLease.release();
+            }
+            finally {
+                decrementAddDataPagesRequests();
+            }
         });
 
         asyncResponse.register((ConnectionCallback) response -> {
@@ -281,8 +290,12 @@ public class DataResource
             if (completionFlag.getAndSet(true)) {
                 return;
             }
-            sliceLease.release();
-            decrementAddDataPagesRequests();
+            try {
+                sliceLease.release();
+            }
+            finally {
+                decrementAddDataPagesRequests();
+            }
         });
 
         Futures.addCallback(
