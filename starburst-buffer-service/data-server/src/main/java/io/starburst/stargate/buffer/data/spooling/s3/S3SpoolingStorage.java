@@ -47,6 +47,7 @@ import javax.inject.Inject;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -207,9 +208,7 @@ public class S3SpoolingStorage
         fileSizes.remove(exchangeId);
         ImmutableList.Builder<ListenableFuture<Void>> deleteDirectoryFutures = ImmutableList.builder();
         for (String bucketName : bucketNames) {
-            for (String prefixedDirectory : getPrefixedDirectories(exchangeId)) {
-                deleteDirectoryFutures.add(deleteDirectory(bucketName, prefixedDirectory));
-            }
+            deleteDirectoryFutures.add(deleteDirectories(bucketName, getPrefixedDirectories(exchangeId)));
         }
         return translateFailures(asVoid(Futures.allAsList((deleteDirectoryFutures.build()))));
     }
@@ -244,6 +243,32 @@ public class S3SpoolingStorage
         return "s3://" + bucketName + PATH_SEPARATOR + fileName;
     }
 
+    private ListenableFuture<Void> deleteDirectories(String bucketName, List<String> directoryNames)
+    {
+        ImmutableList.Builder<ListenableFuture<List<String>>> listObjectsFuturesBuilder = ImmutableList.builder();
+        for (String directoryName : directoryNames) {
+            ImmutableList.Builder<String> keys = ImmutableList.builder();
+            ListenableFuture<List<String>> listObjectsFuture = Futures.transform(
+                    toListenableFuture((listObjectsRecursively(bucketName, directoryName)
+                            .subscribe(listObjectsV2Response -> listObjectsV2Response.contents().stream()
+                                    .map(S3Object::key)
+                                    .forEach(keys::add)))),
+                    ignored -> keys.build(),
+                    directExecutor());
+            listObjectsFuturesBuilder.add(listObjectsFuture);
+        }
+        return asVoid(Futures.transformAsync(
+                Futures.allAsList(listObjectsFuturesBuilder.build()),
+                nestedList -> Futures.allAsList(Lists.partition(nestedList.stream().flatMap(Collection::stream).collect(toImmutableList()), 1000).stream().map(list -> {
+                    DeleteObjectsRequest request = DeleteObjectsRequest.builder()
+                            .bucket(bucketName)
+                            .delete(Delete.builder().objects(list.stream().map(key -> ObjectIdentifier.builder().key(key).build()).collect(toImmutableList())).build())
+                            .build();
+                    return toListenableFuture(s3AsyncClient.deleteObjects(request));
+                }).collect(toImmutableList())),
+                directExecutor()));
+    }
+
     private ListObjectsV2Publisher listObjectsRecursively(String bucketName, String exchangeId)
     {
         ListObjectsV2Request request = ListObjectsV2Request.builder()
@@ -252,24 +277,5 @@ public class S3SpoolingStorage
                 .build();
 
         return s3AsyncClient.listObjectsV2Paginator(request);
-    }
-
-    private ListenableFuture<Void> deleteDirectory(String bucketName, String directoryName)
-    {
-        ImmutableList.Builder<String> keys = ImmutableList.builder();
-        return asVoid(Futures.transformAsync(
-                toListenableFuture((listObjectsRecursively(bucketName, directoryName)
-                        .subscribe(listObjectsV2Response -> listObjectsV2Response.contents().stream()
-                                .map(S3Object::key)
-                                .forEach(keys::add)))),
-                // deleteObjects has a limit of 1000
-                ignored -> Futures.allAsList(Lists.partition(keys.build(), 1000).stream().map(list -> {
-                    DeleteObjectsRequest request = DeleteObjectsRequest.builder()
-                            .bucket(bucketName)
-                            .delete(Delete.builder().objects(list.stream().map(key -> ObjectIdentifier.builder().key(key).build()).collect(toImmutableList())).build())
-                            .build();
-                    return toListenableFuture(s3AsyncClient.deleteObjects(request));
-                }).collect(toImmutableList())),
-                directExecutor()));
     }
 }
