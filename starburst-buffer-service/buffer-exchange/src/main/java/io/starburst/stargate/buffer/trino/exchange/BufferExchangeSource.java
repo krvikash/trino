@@ -42,6 +42,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -51,7 +52,6 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Throwables.throwIfUnchecked;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.slice.SizeOf.estimatedSizeOf;
 import static io.starburst.stargate.buffer.trino.exchange.MoreSizeOf.OBJECT_HEADER_SIZE;
 import static java.lang.Math.toIntExact;
@@ -67,6 +67,7 @@ public class BufferExchangeSource
 
     private final DataApiFacade dataApi;
     private final BufferNodeDiscoveryManager discoveryManager;
+    private final ExecutorService executor;
     private final DataSize memoryLowWaterMark;
     private final DataSize memoryHighWaterMark;
     private final int parallelism;
@@ -98,12 +99,14 @@ public class BufferExchangeSource
     public BufferExchangeSource(
             DataApiFacade dataApi,
             BufferNodeDiscoveryManager discoveryManager,
+            ExecutorService executor,
             DataSize memoryLowWaterMark,
             DataSize memoryHighWaterMark,
             int parallelism)
     {
         this.dataApi = requireNonNull(dataApi, "dataApi is null");
         this.discoveryManager = requireNonNull(discoveryManager, "discoveryManager is null");
+        this.executor = requireNonNull(executor, "executor is null");
 
         this.memoryUsageExceeded = SettableFuture.create();
         this.memoryUsageExceeded.set(null); // not exceeded initially
@@ -129,7 +132,7 @@ public class BufferExchangeSource
                     catch (Exception e) {
                         setFailed(e);
                     }
-                }, directExecutor());
+                }, executor);
                 return;
             }
             newChunkReaders = doScheduleReadChunks();
@@ -564,7 +567,7 @@ public class BufferExchangeSource
                         }
                     }
                 }
-            }, directExecutor());
+            }, executor);
         }
 
         private void finish()

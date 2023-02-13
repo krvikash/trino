@@ -58,6 +58,7 @@ public class BufferWorkerExchangeManager
         return new BufferExchangeSource(
                 dataApi,
                 discoveryManager,
+                executor,
                 config.getSourceBlockedMemoryLowWaterMark(),
                 config.getSourceBlockedMemoryHighWaterMark(),
                 config.getSourceParallelism());
