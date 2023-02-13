@@ -32,7 +32,7 @@ public final class SpoolTestHelper
     {
         return new S3SpoolingStorage(
                 new BufferNodeId(0L),
-                new ChunkManagerConfig().setSpoolingDirectories("s3://" + minioStorage.getBucketName()),
+                new ChunkManagerConfig().setSpoolingDirectory("s3://" + minioStorage.getBucketName()),
                 new SpoolingS3Config()
                         .setS3AwsAccessKey(MinioStorage.ACCESS_KEY)
                         .setS3AwsSecretKey(MinioStorage.SECRET_KEY)
@@ -53,7 +53,7 @@ public final class SpoolTestHelper
 
     public static SpoolingStorage createLocalSpoolingStorage()
     {
-        return new LocalSpoolingStorage(new ChunkManagerConfig().setSpoolingDirectories(System.getProperty("java.io.tmpdir") + "/spooling-storage"));
+        return new LocalSpoolingStorage(new ChunkManagerConfig().setSpoolingDirectory(System.getProperty("java.io.tmpdir") + "/spooling-storage"));
     }
 
     public static SpooledChunkReader createLocalSpooledChunkReader()

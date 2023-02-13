@@ -29,7 +29,6 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -56,11 +55,7 @@ public class LocalSpoolingStorage
     @Inject
     public LocalSpoolingStorage(ChunkManagerConfig config)
     {
-        List<URI> spoolingDirectories = requireNonNull(config.getSpoolingDirectories(), "spoolingDirectory is null");
-        if (spoolingDirectories.size() != 1) {
-            throw new IllegalArgumentException("Multiple spooling directories not supported");
-        }
-        this.spoolingDirectory = spoolingDirectories.get(0);
+        this.spoolingDirectory = requireNonNull(config.getSpoolingDirectory(), "spoolingDirectory is null");
     }
 
     @Override

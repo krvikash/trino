@@ -10,7 +10,6 @@
 package io.starburst.stargate.buffer.data.execution;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.units.DataSize;
@@ -19,11 +18,9 @@ import io.airlift.units.MaxDataSize;
 import io.airlift.units.MinDataSize;
 
 import javax.validation.constraints.Min;
-import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 
 import java.net.URI;
-import java.util.List;
 
 import static io.airlift.units.DataSize.Unit.KILOBYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
@@ -40,7 +37,7 @@ public class ChunkManagerConfig
     private DataSize chunkMaxSize = DataSize.of(16, MEGABYTE);
     private DataSize chunkSliceSize = DataSize.of(128, KILOBYTE);
     private Duration exchangeStalenessThreshold = DEFAULT_EXCHANGE_STALENESS_THRESHOLD;
-    private List<URI> spoolingDirectories;
+    private URI spoolingDirectory;
     private Duration chunkSpoolInterval = succinctDuration(50, MILLISECONDS);
     private int chunkSpoolConcurrency = 16;
 
@@ -90,24 +87,19 @@ public class ChunkManagerConfig
     }
 
     @NotNull
-    @NotEmpty(message = "At least one spooling directory needs to be configured")
-    public List<URI> getSpoolingDirectories()
+    public URI getSpoolingDirectory()
     {
-        return spoolingDirectories;
+        return spoolingDirectory;
     }
 
     @Config("spooling.directory")
-    public ChunkManagerConfig setSpoolingDirectories(String spoolingDirectories)
+    public ChunkManagerConfig setSpoolingDirectory(String spoolingDirectory)
     {
-        if (spoolingDirectories != null) {
-            ImmutableList.Builder<URI> builder = ImmutableList.builder();
-            for (String spoolingDirectory : spoolingDirectories.split(",")) {
-                if (!spoolingDirectory.endsWith(PATH_SEPARATOR)) {
-                    spoolingDirectory += PATH_SEPARATOR;
-                }
-                builder.add(URI.create(spoolingDirectory));
+        if (spoolingDirectory != null) {
+            if (!spoolingDirectory.endsWith(PATH_SEPARATOR)) {
+                spoolingDirectory += PATH_SEPARATOR;
             }
-            this.spoolingDirectories = builder.build();
+            this.spoolingDirectory = URI.create(spoolingDirectory);
         }
         return this;
     }
