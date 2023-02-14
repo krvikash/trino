@@ -268,6 +268,7 @@ public class Partition
             synchronized (Partition.this) {
                 if (currentChunkWriteFuture == null) {
                     checkState(isCancelled(), "PartitionAddDataPagesFuture should be in cancelled state");
+                    return;
                 }
                 checkState(currentChunkWriteFuture.isDone(), "trying to process next page before previous page is done");
 
