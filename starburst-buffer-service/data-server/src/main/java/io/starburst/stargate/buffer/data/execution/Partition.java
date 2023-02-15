@@ -263,62 +263,61 @@ public class Partition
             checkArgument(!pages.isEmpty(), "empty pages");
         }
 
+        @GuardedBy("Partition.this")
         public void process()
         {
-            synchronized (Partition.this) {
-                if (currentChunkWriteFuture == null) {
-                    checkState(isCancelled(), "PartitionAddDataPagesFuture should be in cancelled state");
-                    return;
-                }
-                checkState(currentChunkWriteFuture.isDone(), "trying to process next page before previous page is done");
-
-                Slice page = pages.next();
-                if (!openChunk.hasEnoughSpace(page)) {
-                    // the open chunk doesn't have enough space available, close the chunk and create a new one
-                    closeChunk(openChunk);
-                    openChunk = createNewOpenChunk();
-                }
-
-                currentChunkWriteFuture = openChunk.write(taskId, attemptId, page);
-                Futures.addCallback(
-                        currentChunkWriteFuture,
-                        new FutureCallback<>()
-                        {
-                            @Override
-                            public void onSuccess(Void result)
-                            {
-                                try {
-                                    boolean completeFuture = false;
-                                    synchronized (Partition.this) {
-                                        if (!pages.hasNext()) {
-                                            addDataPagesFutures.removeFirst();
-                                            if (!addDataPagesFutures.isEmpty()) {
-                                                addDataPagesFutures.peek().process();
-                                            }
-                                            completeFuture = true;
-                                        }
-                                        else {
-                                            process();
-                                        }
-                                    }
-                                    // complete future outside the lock
-                                    if (completeFuture) {
-                                        set(null);
-                                    }
-                                }
-                                catch (Exception e) {
-                                    onFailure(e);
-                                }
-                            }
-
-                            @Override
-                            public void onFailure(Throwable throwable)
-                            {
-                                setException(throwable);
-                            }
-                        },
-                        executor);
+            if (currentChunkWriteFuture == null) {
+                checkState(isCancelled(), "PartitionAddDataPagesFuture should be in cancelled state");
+                return;
             }
+            checkState(currentChunkWriteFuture.isDone(), "trying to process next page before previous page is done");
+
+            Slice page = pages.next();
+            if (!openChunk.hasEnoughSpace(page)) {
+                // the open chunk doesn't have enough space available, close the chunk and create a new one
+                closeChunk(openChunk);
+                openChunk = createNewOpenChunk();
+            }
+
+            currentChunkWriteFuture = openChunk.write(taskId, attemptId, page);
+            Futures.addCallback(
+                    currentChunkWriteFuture,
+                    new FutureCallback<>()
+                    {
+                        @Override
+                        public void onSuccess(Void result)
+                        {
+                            try {
+                                boolean completeFuture = false;
+                                synchronized (Partition.this) {
+                                    if (!pages.hasNext()) {
+                                        addDataPagesFutures.removeFirst();
+                                        if (!addDataPagesFutures.isEmpty()) {
+                                            addDataPagesFutures.peek().process();
+                                        }
+                                        completeFuture = true;
+                                    }
+                                    else {
+                                        process();
+                                    }
+                                }
+                                // complete future outside the lock
+                                if (completeFuture) {
+                                    set(null);
+                                }
+                            }
+                            catch (Exception e) {
+                                onFailure(e);
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(Throwable throwable)
+                        {
+                            setException(throwable);
+                        }
+                    },
+                    executor);
         }
 
         @Override
