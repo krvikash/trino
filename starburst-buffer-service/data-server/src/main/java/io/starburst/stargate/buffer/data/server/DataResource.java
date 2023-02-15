@@ -256,8 +256,9 @@ public class DataResource
             return;
         }
 
+        asyncResponse.setTimeout(getAsyncTimeout(clientMaxWait).toMillis(), TimeUnit.MILLISECONDS);
+
         AsyncContext asyncContext = request.getAsyncContext();
-        asyncContext.setTimeout(getAsyncTimeout(clientMaxWait).toMillis());
         ServletInputStream inputStream;
         try {
             inputStream = asyncContext.getRequest().getInputStream();
