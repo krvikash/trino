@@ -22,6 +22,7 @@ import io.trino.spi.QueryId;
 import io.trino.spi.security.Identity;
 import io.trino.spi.security.SelectedRole;
 
+import javax.annotation.Nullable;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
@@ -38,12 +39,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.Futures.transform;
 import static io.starburst.server.troubleshooting.TroubleshootingCoordinatorResource.BASE_PATH_API_V1;
@@ -78,10 +79,9 @@ public class TroubleshootingCoordinatorResource
     @GET
     public void getTroubleshootingArchive(@QueryParam("queryId") QueryId queryId, @QueryParam("selectedRole") String selectedRole, @Context WebSessionRequest webRequest, @Context ContainerRequestContext request, @Context @Suspended AsyncResponse asyncResponse)
     {
-        assertRequest(!isNullOrEmpty(selectedRole), "Selected role was not provided");
         assertRequest(queryId != null, "Query id was not provided");
 
-        Identity identity = setSelectedRole(webRequest.getIdentity(), selectedRole);
+        Identity identity = setSelectedRoleIfPresent(webRequest.getIdentity(), selectedRole);
         if (!accessControl.isPrivilegedUser(identity)) {
             bindAsyncResponse(asyncResponse, immediateFuture(Response.status(FORBIDDEN.getStatusCode(), "You are not allowed to download troubleshooting archive").build()), executorService);
             return;
@@ -91,20 +91,26 @@ public class TroubleshootingCoordinatorResource
                 .withTimeout(MAX_POOL_TIME_MS, retryPollingResponse(request));
     }
 
-    private Identity setSelectedRole(Identity identity, String roleQueryParam)
+    private Identity setSelectedRoleIfPresent(Identity identity, @Nullable String roleQueryParam)
     {
-        SelectedRole selectedRole = parseSelectedRole(roleQueryParam)
+        Optional<String> selectedRole = Optional.ofNullable(roleQueryParam)
+                .flatMap(TroubleshootingCoordinatorResource::getSelectedRole);
+
+        Identity.Builder identityBuilder = Identity.from(identity);
+        selectedRole.ifPresent(role -> identityBuilder.withEnabledRoles(Set.of(role)));
+        return identityBuilder.build();
+    }
+
+    private static Optional<String> getSelectedRole(String selectedRole)
+    {
+        return parseSelectedRole(selectedRole)
                 .entrySet()
                 .stream()
                 .filter(entry -> entry.getKey().equalsIgnoreCase("system"))
                 .map(Map.Entry::getValue)
                 .map(SelectedRole::valueOf)
                 .findFirst()
-                .orElseThrow();
-
-        return Identity.from(identity)
-                .withEnabledRoles(Set.of(selectedRole.getRole().orElseThrow()))
-                .build();
+                .flatMap(SelectedRole::getRole);
     }
 
     private static Map<String, String> parseSelectedRole(String selectedRole)
