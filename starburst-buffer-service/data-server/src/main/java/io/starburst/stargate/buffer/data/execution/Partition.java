@@ -326,6 +326,11 @@ public class Partition
         {
             ListenableFuture<Void> futureToBeCancelled;
             synchronized (Partition.this) {
+                addDataPagesFutures.removeFirst();
+                if (!addDataPagesFutures.isEmpty()) {
+                    addDataPagesFutures.peek().process();
+                }
+
                 futureToBeCancelled = currentChunkWriteFuture;
                 currentChunkWriteFuture = null;
             }
