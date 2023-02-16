@@ -437,7 +437,7 @@ public class DataResource
         if (clientMaxWait == null || clientMaxWait.toMillis() == 0 || clientMaxWait.compareTo(CLIENT_MAX_WAIT_LIMIT) > 0) {
             return CLIENT_MAX_WAIT_LIMIT;
         }
-        return succinctDuration(clientMaxWait.toMillis() * 0.9, TimeUnit.MILLISECONDS);
+        return succinctDuration(clientMaxWait.toMillis() * 0.95, TimeUnit.MILLISECONDS);
     }
 
     @GET
