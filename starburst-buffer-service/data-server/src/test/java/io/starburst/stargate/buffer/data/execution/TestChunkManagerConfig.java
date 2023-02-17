@@ -37,7 +37,7 @@ public class TestChunkManagerConfig
                 .setExchangeStalenessThreshold(DEFAULT_EXCHANGE_STALENESS_THRESHOLD)
                 .setSpoolingDirectory(null)
                 .setChunkSpoolInterval(succinctDuration(50, MILLISECONDS))
-                .setChunkSpoolConcurrency(16));
+                .setChunkSpoolConcurrency(25));
     }
 
     @Test
