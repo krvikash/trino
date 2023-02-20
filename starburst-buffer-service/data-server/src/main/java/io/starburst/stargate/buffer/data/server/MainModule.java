@@ -41,6 +41,7 @@ import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newCachedThreadPool;
+import static org.weakref.jmx.guice.ExportBinder.newExporter;
 
 public class MainModule
         extends AbstractConfigurationAwareModule
@@ -82,6 +83,7 @@ public class MainModule
         binder.bind(Ticker.class).annotatedWith(ForChunkManager.class).toInstance(ticker);
         binder.bind(ChunkManager.class).in(SINGLETON);
         binder.bind(DataServerStats.class).in(SINGLETON);
+        newExporter(binder).export(DataServerStats.class).withGeneratedName();
         binder.bind(BufferNodeStateManager.class).in(SINGLETON);
         binder.bind(DataServerStatusProvider.class).in(SINGLETON);
         binder.bind(DrainService.class).in(SINGLETON);
