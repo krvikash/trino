@@ -137,7 +137,7 @@ public class HttpDataClient
                 .setUri(uri.build())
                 .build();
 
-        HttpResponseFuture<JsonResponse<ChunkList>> responseFuture = httpClient.executeAsync(request, createFullJsonResponseHandler(CHUNK_LIST_JSON_CODEC));
+        ListenableFuture<JsonResponse<ChunkList>> responseFuture = catchAndDecorateExceptions(request, httpClient.executeAsync(request, createFullJsonResponseHandler(CHUNK_LIST_JSON_CODEC)));
 
         return transformAsync(responseFuture, response -> {
             if (response.getStatusCode() != HttpStatus.OK.code()) {
@@ -304,7 +304,8 @@ public class HttpDataClient
                         .build())
                 .build();
 
-        HttpResponseFuture<ChunkDataResponse> responseFuture = httpClient.executeAsync(request, new ChunkDataResponseHandler(dataIntegrityVerificationEnabled));
+        ListenableFuture<ChunkDataResponse> responseFuture = catchAndDecorateExceptions(request, httpClient.executeAsync(request, new ChunkDataResponseHandler(dataIntegrityVerificationEnabled)));
+
         return transformAsync(responseFuture, chunkDataResponse -> {
             if (chunkDataResponse.getPages().isPresent()) {
                 return immediateFuture(chunkDataResponse.getPages().get());
@@ -434,10 +435,7 @@ public class HttpDataClient
 
     private ListenableFuture<Void> translateFailures(Request request, HttpResponseFuture<StringResponse> responseFuture)
     {
-        ListenableFuture<StringResponse> catchingResponseFuture = catchingAsync(responseFuture, RuntimeException.class, exception -> {
-            // add request info to an exception
-            throw new RuntimeException("Unexpected exception on %s %s".formatted(request.getMethod(), request.getUri()), exception);
-        }, directExecutor());
+        ListenableFuture<StringResponse> catchingResponseFuture = catchAndDecorateExceptions(request, responseFuture);
 
         return transformAsync(catchingResponseFuture, response -> {
             if (response.getStatusCode() != HttpStatus.OK.code()) {
@@ -446,6 +444,17 @@ public class HttpDataClient
                 return immediateFailedFuture(new DataApiException(errorCode == null ? INTERNAL_ERROR : ErrorCode.valueOf(errorCode), errorMessage));
             }
             return immediateVoidFuture();
+        }, directExecutor());
+    }
+
+    private static <T> ListenableFuture<T> catchAndDecorateExceptions(Request request, HttpResponseFuture<T> responseFuture)
+    {
+        return catchingAsync(responseFuture, RuntimeException.class, exception -> {
+            if (exception instanceof DataApiException dataApiException) {
+                throw dataApiException;
+            }
+            // add request info to an exception
+            throw new RuntimeException("Unexpected exception on %s %s".formatted(request.getMethod(), request.getUri()), exception);
         }, directExecutor());
     }
 
