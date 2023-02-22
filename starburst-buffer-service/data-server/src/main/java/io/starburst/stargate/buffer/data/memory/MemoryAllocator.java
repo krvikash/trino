@@ -100,11 +100,11 @@ public class MemoryAllocator
         return immediateFuture(allocateInternal(bytes));
     }
 
-    public synchronized void release(Slice slice)
+    public synchronized void release(Slice slice, boolean poolable)
     {
         int bytes = slice.length();
         verify(allocatedBytes >= bytes, "%s bytes allocated, but trying to release %s bytes", allocatedBytes, bytes);
-        if (bytes == chunkSliceSizeInBytes) {
+        if (bytes == chunkSliceSizeInBytes && poolable) {
             long poolableAllocatedBytes = allocatedBytes - nonPoolableAllocatedBytes;
             if (poolableAllocatedBytes <= chunkSlicePoolingLimit) {
                 chunkSlicePool.offer(slice);
@@ -201,7 +201,7 @@ public class MemoryAllocator
                     future.set(slice);
                     pendingAllocations.poll();
                     if (future.isCancelled()) {
-                        release(slice);
+                        release(slice, true);
                     }
                 }
                 else {

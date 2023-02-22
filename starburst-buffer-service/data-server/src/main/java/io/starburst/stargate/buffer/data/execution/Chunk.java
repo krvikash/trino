@@ -262,7 +262,7 @@ public class Chunk
                     referenceCount--;
                     checkState(referenceCount >= 0, "negative referenceCount %s for chunkData", referenceCount);
                     if (releaseRequested && referenceCount == 0) {
-                        chunkSliceLeases.forEach(SliceLease::release);
+                        chunkSliceLeases.forEach(sliceLease -> sliceLease.release(true));
                     }
                 }
             };
@@ -302,7 +302,7 @@ public class Chunk
         public synchronized void release()
         {
             if (referenceCount == 0) {
-                chunkSliceLeases.forEach(SliceLease::release);
+                chunkSliceLeases.forEach(sliceLease -> sliceLease.release(true));
             }
             releaseRequested = true;
         }

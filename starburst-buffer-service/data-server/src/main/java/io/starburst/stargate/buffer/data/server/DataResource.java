@@ -287,7 +287,7 @@ public class DataResource
                 return;
             }
             try {
-                sliceLease.release();
+                sliceLease.release(false);
             }
             finally {
                 decrementAddDataPagesRequests();
@@ -300,7 +300,7 @@ public class DataResource
                 return;
             }
             try {
-                sliceLease.release();
+                sliceLease.release(false);
             }
             finally {
                 decrementAddDataPagesRequests();

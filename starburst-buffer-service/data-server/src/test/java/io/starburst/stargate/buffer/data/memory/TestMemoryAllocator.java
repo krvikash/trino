@@ -64,7 +64,7 @@ public class TestMemoryAllocator
         ListenableFuture<Slice> sliceFuture5 = memoryAllocator.allocate(10);
         assertTrue(sliceFuture5.isDone());
 
-        memoryAllocator.release(getFutureValue(sliceFuture5));
+        memoryAllocator.release(getFutureValue(sliceFuture5), true);
         assertEquals(10L, memoryAllocator.getFreeMemory());
         assertFalse(sliceFuture3.isDone());
         assertFalse(sliceFuture4.isDone());
@@ -73,18 +73,18 @@ public class TestMemoryAllocator
         assertFalse(sliceFuture6.isDone());
 
         sliceFuture4.cancel(true);
-        memoryAllocator.release(getFutureValue(sliceFuture2));
+        memoryAllocator.release(getFutureValue(sliceFuture2), true);
         // allocation should happen in FIFO order
         assertTrue(sliceFuture3.isDone());
         assertFalse(sliceFuture6.isDone());
         assertEquals(20L, memoryAllocator.getFreeMemory());
 
-        memoryAllocator.release(getFutureValue(sliceFuture1));
+        memoryAllocator.release(getFutureValue(sliceFuture1), true);
         assertTrue(sliceFuture6.isDone());
         assertEquals(45L, memoryAllocator.getFreeMemory());
 
-        memoryAllocator.release(getFutureValue(sliceFuture3));
-        memoryAllocator.release(getFutureValue(sliceFuture6));
+        memoryAllocator.release(getFutureValue(sliceFuture3), true);
+        memoryAllocator.release(getFutureValue(sliceFuture6), true);
         assertEquals(100L, memoryAllocator.getFreeMemory());
     }
 
@@ -107,8 +107,8 @@ public class TestMemoryAllocator
             ListenableFuture<Slice> sliceFuture2 = memoryAllocator.allocate(1);
             assertTrue(sliceFuture2.isDone());
 
-            memoryAllocator.release(getFutureValue(sliceFuture1));
-            memoryAllocator.release(getFutureValue(sliceFuture2));
+            memoryAllocator.release(getFutureValue(sliceFuture1), true);
+            memoryAllocator.release(getFutureValue(sliceFuture2), true);
         }
         assertEquals(1, memoryAllocator.getChunkSlicePoolSize());
 
@@ -118,7 +118,7 @@ public class TestMemoryAllocator
             assertTrue(sliceFuture.isDone());
             sliceFutures.add(sliceFuture);
         }
-        sliceFutures.build().forEach(sliceFuture -> memoryAllocator.release(getFutureValue(sliceFuture)));
+        sliceFutures.build().forEach(sliceFuture -> memoryAllocator.release(getFutureValue(sliceFuture), true));
         assertEquals(800, memoryAllocator.getChunkSlicePoolSize());
     }
 
