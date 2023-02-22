@@ -10,7 +10,6 @@
 package io.starburst.stargate.buffer.data.server;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.util.concurrent.FluentFuture;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -74,7 +73,6 @@ import java.util.function.Supplier;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.net.HttpHeaders.CONTENT_LENGTH;
-import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.jaxrs.AsyncResponseHandler.bindAsyncResponse;
@@ -188,12 +186,9 @@ public class DataResource
                 pagingId == null ? OptionalLong.empty() : OptionalLong.of(pagingId));
         bindAsyncResponse(
                 asyncResponse,
-                FluentFuture.from(chunkListFuture)
-                        .transform(chunkList -> Response.ok().entity(chunkList).build(), directExecutor())
-                        .catching(RuntimeException.class, e -> {
-                            logger.warn(e, "error on GET /%s/closedChunks?pagingId=%s", exchangeId, pagingId);
-                            return errorResponse(e);
-                        }, directExecutor()),
+                logAndTranslateExceptions(
+                        Futures.transform(chunkListFuture, chunkList -> Response.ok().entity(chunkList).build(), directExecutor()),
+                        () -> "GET /%s/closedChunks?pagingId=%s".formatted(exchangeId, pagingId)),
                 responseExecutor)
                 .withTimeout(getAsyncTimeout(clientMaxWait));
     }
@@ -622,9 +617,9 @@ public class DataResource
 
     private static ListenableFuture<Response> logAndTranslateExceptions(ListenableFuture<Response> listenableFuture, Supplier<String> loggingContext)
     {
-        return Futures.catchingAsync(listenableFuture, Exception.class, e -> {
+        return Futures.catching(listenableFuture, Exception.class, e -> {
             logger.warn(e, "error on %s", loggingContext.get());
-            return immediateFuture(errorResponse(e));
+            return errorResponse(e);
         }, directExecutor());
     }
 }
