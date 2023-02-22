@@ -330,16 +330,18 @@ public class Partition
         {
             ListenableFuture<Void> futureToBeCancelled;
             synchronized (Partition.this) {
-                addDataPagesFutures.removeFirst();
-                if (!addDataPagesFutures.isEmpty()) {
-                    addDataPagesFutures.peek().process();
-                }
-
                 futureToBeCancelled = currentChunkWriteFuture;
                 currentChunkWriteFuture = null;
             }
             if (futureToBeCancelled != null) {
                 futureToBeCancelled.cancel(true);
+            }
+
+            synchronized (Partition.this) {
+                addDataPagesFutures.removeFirst();
+                if (!addDataPagesFutures.isEmpty()) {
+                    addDataPagesFutures.peek().process();
+                }
             }
         }
     }
