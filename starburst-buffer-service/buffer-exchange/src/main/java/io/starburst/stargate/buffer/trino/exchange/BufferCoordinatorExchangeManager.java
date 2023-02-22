@@ -22,7 +22,6 @@ import static java.util.Objects.requireNonNull;
 public class BufferCoordinatorExchangeManager
 {
     private final DataApiFacade dataApi;
-    private final BufferNodeDiscoveryManager discoveryManager;
     private final PartitionNodeMapperFactory partitionNodeMapperFactory;
     private final ScheduledExecutorService scheduledExecutor;
     private final int sourceHandleTargetChunksCount;
@@ -31,13 +30,11 @@ public class BufferCoordinatorExchangeManager
     @Inject
     public BufferCoordinatorExchangeManager(
             DataApiFacade dataApi,
-            BufferNodeDiscoveryManager discoveryManager,
             PartitionNodeMapperFactory partitionNodeMapperFactory,
             ScheduledExecutorService scheduledExecutor,
             BufferExchangeConfig config)
     {
         this.dataApi = requireNonNull(dataApi, "dataApi is null");
-        this.discoveryManager = requireNonNull(discoveryManager, "discoveryManager is null");
         this.partitionNodeMapperFactory = requireNonNull(partitionNodeMapperFactory, "partitionNodeMapperFactory is null");
         this.scheduledExecutor = requireNonNull(scheduledExecutor, "scheduledExecutor is null");
         requireNonNull(config, "config is null");
@@ -53,7 +50,6 @@ public class BufferCoordinatorExchangeManager
                 outputPartitionCount,
                 preserveOrderWithinPartition,
                 dataApi,
-                discoveryManager,
                 partitionNodeMapperFactory,
                 scheduledExecutor,
                 sourceHandleTargetChunksCount,

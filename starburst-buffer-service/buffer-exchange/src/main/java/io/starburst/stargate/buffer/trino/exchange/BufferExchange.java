@@ -60,7 +60,6 @@ public class BufferExchange
     private final int outputPartitionCount;
     private final boolean preserveOrderWithinPartition;
     private final DataApiFacade dataApi;
-    private final BufferNodeDiscoveryManager discoveryManager;
     private final ScheduledExecutorService executorService;
     private final int sourceHandleTargetChunksCount;
     private final DataSize sourceHandleTargetDataSize;
@@ -95,7 +94,6 @@ public class BufferExchange
             int outputPartitionCount,
             boolean preserveOrderWithinPartition,
             DataApiFacade dataApi,
-            BufferNodeDiscoveryManager discoveryManager,
             PartitionNodeMapperFactory partitionNodeMapperFactory,
             ScheduledExecutorService executorService,
             int sourceHandleTargetChunksCount,
@@ -106,7 +104,6 @@ public class BufferExchange
         this.outputPartitionCount = outputPartitionCount;
         this.preserveOrderWithinPartition = preserveOrderWithinPartition;
         this.dataApi = requireNonNull(dataApi, "dataApi is null");
-        this.discoveryManager = requireNonNull(discoveryManager, "discoveryManager is null");
         this.executorService = requireNonNull(executorService, "executorService is null");
         this.sourceHandleTargetChunksCount = sourceHandleTargetChunksCount;
         this.sourceHandleTargetDataSize = requireNonNull(sourceHandleTargetDataSize, "sourceHandleTargetDataSize is null");
