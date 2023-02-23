@@ -222,18 +222,9 @@ public class Chunk
             headerSliceOutput.writeByte(attemptId);
             headerSliceOutput.writeInt(dataSize);
 
-            ChunkWriteFuture headerWriteFuture = new ChunkWriteFuture(headerSlice);
-            headerWriteFuture.process();
-
-            return Futures.transformAsync(
-                    headerWriteFuture,
-                    ignored -> {
-                        ChunkWriteFuture dataWriteFuture = new ChunkWriteFuture(data);
-                        dataWriteFuture.process();
-
-                        return dataWriteFuture;
-                    },
-                    executor);
+            ChunkWriteFuture chunkWriteFuture = new ChunkWriteFuture(headerSlice, data);
+            chunkWriteFuture.process();
+            return chunkWriteFuture;
         }
 
         public boolean hasEnoughSpace(Slice data)
@@ -310,16 +301,20 @@ public class Chunk
         private class ChunkWriteFuture
                 extends AbstractFuture<Void>
         {
+            private final Slice header;
             private final Slice data;
+            private final int totalLength;
 
             @GuardedBy("ChunkData.this")
             private int offset;
             @GuardedBy("ChunkData.this")
             private ListenableFuture<SliceOutput> currentSliceOutput;
 
-            ChunkWriteFuture(Slice data)
+            ChunkWriteFuture(Slice header, Slice data)
             {
+                this.header = requireNonNull(header, "header is null");
                 this.data = requireNonNull(data, "data is null");
+                this.totalLength = header.length() + data.length();
                 synchronized (ChunkData.this) {
                     if (sliceOutput != null) {
                         this.currentSliceOutput = immediateFuture(ChunkData.this.sliceOutput);
@@ -354,11 +349,19 @@ public class Chunk
                                                 return;
                                             }
 
-                                            int bytesToWrite = Math.min(data.length() - offset, sliceOutput.writableBytes());
-                                            sliceOutput.writeBytes(data, offset, bytesToWrite);
-                                            offset += bytesToWrite;
+                                            if (offset < header.length()) {
+                                                int bytesToWrite = Math.min(header.length() - offset, sliceOutput.writableBytes());
+                                                sliceOutput.writeBytes(header, offset, bytesToWrite);
+                                                offset += bytesToWrite;
+                                            }
 
-                                            if (offset == data.length()) {
+                                            if (header.length() <= offset && offset < totalLength) {
+                                                int bytesToWrite = Math.min(totalLength - offset, sliceOutput.writableBytes());
+                                                sliceOutput.writeBytes(data, offset - header.length(), bytesToWrite);
+                                                offset += bytesToWrite;
+                                            }
+
+                                            if (offset == totalLength) {
                                                 ChunkData.this.sliceOutput = sliceOutput;
                                                 completeFuture = true;
                                             }
