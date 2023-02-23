@@ -135,6 +135,7 @@ public class HttpDataClient
         uri.addParameter("targetBufferNodeId", String.valueOf(targetBufferNodeId));
         Request request = prepareGet()
                 .setUri(uri.build())
+                .setHeader(MAX_WAIT, httpIdleTimeout.toString())
                 .build();
 
         ListenableFuture<JsonResponse<ChunkList>> responseFuture = catchAndDecorateExceptions(request, httpClient.executeAsync(request, createFullJsonResponseHandler(CHUNK_LIST_JSON_CODEC)));
@@ -286,6 +287,7 @@ public class HttpDataClient
                         .appendPath("%s/finish".formatted(exchangeId))
                         .addParameter("targetBufferNodeId", String.valueOf(targetBufferNodeId))
                         .build())
+                .setHeader(MAX_WAIT, httpIdleTimeout.toString())
                 .build();
 
         HttpResponseFuture<StringResponse> responseFuture = httpClient.executeAsync(request, createStringResponseHandler());
@@ -302,6 +304,7 @@ public class HttpDataClient
                         .appendPath("%d/%s/pages/%d/%d".formatted(bufferNodeId, exchangeId, partitionId, chunkId))
                         .addParameter("targetBufferNodeId", String.valueOf(targetBufferNodeId))
                         .build())
+                .setHeader(MAX_WAIT, httpIdleTimeout.toString())
                 .build();
 
         ListenableFuture<ChunkDataResponse> responseFuture = catchAndDecorateExceptions(request, httpClient.executeAsync(request, new ChunkDataResponseHandler(dataIntegrityVerificationEnabled)));
