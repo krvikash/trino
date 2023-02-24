@@ -62,6 +62,8 @@ import javax.ws.rs.core.Response.Status;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.OptionalLong;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -74,7 +76,6 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.net.HttpHeaders.CONTENT_LENGTH;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
-import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.jaxrs.AsyncResponseHandler.bindAsyncResponse;
 import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.data.client.DataClientHeaders.MAX_WAIT;
@@ -89,6 +90,7 @@ import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSU
 import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_CHUNK_DATA;
 import static io.starburst.stargate.buffer.data.execution.ChunkDataLease.CHUNK_SLICES_METADATA_SIZE;
 import static java.lang.String.format;
+import static java.util.Collections.emptyList;
 import static java.util.Objects.requireNonNull;
 
 @Path("/api/v1/buffer/data")
@@ -115,6 +117,9 @@ public class DataResource
     private final BufferNodeInfoService bufferNodeInfoService;
     private final int maxInProgressAddDataPagesRequests;
 
+    // tracks addDataPages requests for which HTTP response was not yet returned
+    private final AtomicInteger servedAddDataPagesRequests = new AtomicInteger();
+    // tracks addDataPages requests for which HTTP response may have already been returned (e.g. due to timeout) but we still need to finish processing incoming data
     private final AtomicInteger inProgressAddDataPagesRequests = new AtomicInteger();
 
     @Inject
@@ -237,20 +242,21 @@ public class DataResource
             return;
         }
 
-        int currentInProgressAddDataPagesRequests = incrementAddDataPagesRequests();
+        int currentInProgressAddDataPagesRequests = incrementInProgressAddDataPagesRequests();
         if (bufferNodeStateManager.isDrainingStarted()) {
-            decrementAddDataPagesRequests();
+            decrementInProgressAddDataPagesRequests();
             asyncResponse.resume(errorResponse(new DataServerException(DRAINING, "Node %d is draining and not accepting any more data".formatted(bufferNodeId))));
             return;
         }
 
         if (currentInProgressAddDataPagesRequests > maxInProgressAddDataPagesRequests) {
-            decrementAddDataPagesRequests();
+            decrementInProgressAddDataPagesRequests();
             asyncResponse.resume(errorResponse(
                     new DataServerException(INTERNAL_ERROR, "Exceeded maximum in progress addDataPages requests (%s)".formatted(maxInProgressAddDataPagesRequests))));
             return;
         }
 
+        incrementServedAddDataPagesRequests();
         asyncResponse.setTimeout(getAsyncTimeout(clientMaxWait).toMillis(), TimeUnit.MILLISECONDS);
 
         AsyncContext asyncContext = request.getAsyncContext();
@@ -265,43 +271,54 @@ public class DataResource
                 return;
             }
             finally {
-                decrementAddDataPagesRequests();
+                decrementInProgressAddDataPagesRequests();
+                decrementServedAddDataPagesRequests();
             }
         }
 
         SliceLease sliceLease = new SliceLease(memoryAllocator, contentLength);
 
-        // callbacks must be registered before bindAsyncResponse is called; otherwise callback may be not called
-        // if request is completed quickly
-        AtomicBoolean completionFlag = new AtomicBoolean(); // guard in case both callback would trigger (not sure if possible)
-        asyncResponse.register((CompletionCallback) throwable -> {
-            if (throwable != null) {
-                logger.warn(throwable, "Unmapped throwable when processing POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
-            }
-            if (completionFlag.getAndSet(true)) {
-                return;
-            }
-            try {
-                sliceLease.release(false);
-            }
-            finally {
-                decrementAddDataPagesRequests();
-            }
-        });
+        try {
+            // callbacks must be registered before bindAsyncResponse is called; otherwise callback may be not called
+            // if request is completed quickly
+            AtomicBoolean servingCompletionFlag = new AtomicBoolean(); // guard in case both callback would trigger (not sure if possible)
+            asyncResponse.register((CompletionCallback) throwable -> {
+                if (throwable != null) {
+                    logger.warn(throwable, "Unmapped throwable when processing POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
+                }
+                if (servingCompletionFlag.getAndSet(true)) {
+                    return;
+                }
+                try {
+                    sliceLease.release(false);
+                }
+                finally {
+                    // just decrement served request counter here
+                    decrementServedAddDataPagesRequests();
+                }
+            });
 
-        asyncResponse.register((ConnectionCallback) response -> {
-            logger.warn("Client disconnected when processing POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
-            if (completionFlag.getAndSet(true)) {
-                return;
-            }
-            try {
-                sliceLease.release(false);
-            }
-            finally {
-                decrementAddDataPagesRequests();
-            }
-        });
+            asyncResponse.register((ConnectionCallback) response -> {
+                logger.warn("Client disconnected when processing POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
+                if (servingCompletionFlag.getAndSet(true)) {
+                    return;
+                }
+                try {
+                    sliceLease.release(false);
+                }
+                finally {
+                    // just decrement served request counter here
+                    decrementServedAddDataPagesRequests();
+                }
+            });
+        }
+        catch (Exception e) {
+            // unexpected exception; catch just to handle decrementing of inProgress response counter
+            decrementInProgressAddDataPagesRequests();
+            throw e;
+        }
 
+        AtomicBoolean inProgressCompletionFlag = new AtomicBoolean();
         Futures.addCallback(
                 sliceLease.getSliceFuture(),
                 new FutureCallback<>() {
@@ -331,8 +348,8 @@ public class DataResource
                                         "Actual number of bytes read %s not equal to contentLength %s", bytesRead, contentLength);
 
                                 executor.submit(() -> {
+                                    List<ListenableFuture<Void>> addDataPagesFutures = new ArrayList<>();
                                     try {
-                                        ImmutableList.Builder<ListenableFuture<Void>> addDataPagesFutures = ImmutableList.builder();
                                         SliceInput sliceInput = slice.getInput();
                                         long readChecksum = sliceInput.readLong();
                                         XxHash64 hash = new XxHash64();
@@ -378,19 +395,22 @@ public class DataResource
                                         writtenDataSize.update(contentLength);
                                         writtenDataSizeDistribution.add(contentLength);
 
-                                        ListenableFuture<Void> addDataPagesFuture = asVoid(Futures.allAsList(addDataPagesFutures.build()));
+                                        finalizeAddDataPagesRequest(addDataPagesFutures);
+
                                         bindAsyncResponse(
                                                 asyncResponse,
                                                 logAndTranslateExceptions(
                                                         Futures.transform(
-                                                                addDataPagesFuture,
+                                                                Futures.allAsList(addDataPagesFutures),
                                                                 ignored -> Response.ok().build(),
                                                                 directExecutor()),
                                                         () -> "POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId)),
                                                 responseExecutor);
                                     }
                                     catch (Throwable throwable) {
-                                        this.onError(throwable);
+                                        finalizeAddDataPagesRequest(addDataPagesFutures);
+                                        logger.warn(throwable, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
+                                        asyncResponse.resume(errorResponse(throwable));
                                     }
                                 });
                             }
@@ -398,6 +418,7 @@ public class DataResource
                             @Override
                             public void onError(Throwable throwable)
                             {
+                                finalizeAddDataPagesRequest(emptyList());
                                 logger.warn(throwable, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
                                 asyncResponse.resume(errorResponse(throwable));
                             }
@@ -407,21 +428,49 @@ public class DataResource
                     @Override
                     public void onFailure(Throwable t)
                     {
+                        finalizeAddDataPagesRequest(emptyList());
                         logger.warn(t, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
                         asyncResponse.resume(errorResponse(t));
+                    }
+
+                    private void finalizeAddDataPagesRequest(List<ListenableFuture<Void>> addDataPagesFutures)
+                    {
+                        Futures.whenAllComplete(addDataPagesFutures).run(() -> {
+                            // only mark request no longer in progress when all futures completed.
+                            // the HTTP request may return to caller earlier if one of the futures
+                            // returned by chunkManager.addDataPages() failed.
+                            // then allAsList(addDataPagesFuturesList), used below completed immediatelly
+                            // and generated HTTP response to the user.
+                            if (!inProgressCompletionFlag.getAndSet(true)) {
+                                decrementInProgressAddDataPagesRequests();
+                            }
+                        }, directExecutor());
                     }
                 },
                 executor);
     }
 
-    private int incrementAddDataPagesRequests()
+    private int incrementServedAddDataPagesRequests()
+    {
+        int currentRequestsCount = servedAddDataPagesRequests.incrementAndGet();
+        stats.updateServedAddDataPagesRequests(currentRequestsCount);
+        return currentRequestsCount;
+    }
+
+    private void decrementServedAddDataPagesRequests()
+    {
+        int currentRequestsCount = servedAddDataPagesRequests.decrementAndGet();
+        stats.updateServedAddDataPagesRequests(currentRequestsCount);
+    }
+
+    private int incrementInProgressAddDataPagesRequests()
     {
         int currentRequestsCount = inProgressAddDataPagesRequests.incrementAndGet();
         stats.updateInProgressAddDataPagesRequests(currentRequestsCount);
         return currentRequestsCount;
     }
 
-    private void decrementAddDataPagesRequests()
+    private void decrementInProgressAddDataPagesRequests()
     {
         int currentRequestsCount = inProgressAddDataPagesRequests.decrementAndGet();
         stats.updateInProgressAddDataPagesRequests(currentRequestsCount);
