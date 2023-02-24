@@ -78,6 +78,7 @@ public class MemoryAllocator
         this.chunkSlicePool = new ArrayDeque<>(toIntExact(chunkSlicePoolingLimit / chunkSliceSizeInBytes));
         this.dataServerStats = requireNonNull(dataServerStats, "dataServerStats is null");
         dataServerStats.updateTotalMemoryInBytes(maxBytes);
+        dataServerStats.updateFreeMemoryInBytes(getFreeMemory());
 
         log.info("Initializing MemoryAllocator; heapSize=%s, heapHeadroom=%s, maxBytes=%s, lowWatermark=%s, highWatermark=%s, chunkSlicePoolingLimit=%s",
                 DataSize.ofBytes(heapSize),
