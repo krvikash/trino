@@ -66,7 +66,7 @@ public class DataApiBinder
         httpClientBinder.bindHttpClient(dataApiName, ForBufferDataClient.class)
                 .withConfigDefaults(config -> config
                         .setMaxContentLength(DataSize.of(32, MEGABYTE))
-                        .setIdleTimeout(succinctDuration(60, SECONDS)));
+                        .setIdleTimeout(succinctDuration(30, SECONDS)));
         configBinder(binder).bindConfig(DataApiConfig.class, dataApiName);
 
         moduleInstall.accept(ConditionalModule.conditionalModule(
