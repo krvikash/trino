@@ -39,7 +39,7 @@ public class ChunkManagerConfig
     private Duration exchangeStalenessThreshold = DEFAULT_EXCHANGE_STALENESS_THRESHOLD;
     private URI spoolingDirectory;
     private Duration chunkSpoolInterval = succinctDuration(50, MILLISECONDS);
-    private int chunkSpoolConcurrency = 25;
+    private int chunkSpoolConcurrency = 32;
 
     @NotNull
     @MinDataSize("16MB")
