@@ -29,15 +29,18 @@ import javax.annotation.concurrent.ThreadSafe;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.ToIntFunction;
@@ -77,6 +80,13 @@ public class Exchange
     private final Map<Integer, Partition> partitions = new ConcurrentHashMap<>();
     private final ScheduledExecutorService longPollTimeoutExecutor;
 
+    // temporary queue for newly closed chunks to allow desynchronization of code which closes chunks
+    // and code which handles polling for newly closed chunks to return those to the user
+    private final Deque<ChunkHandle> recentlyClosedChunks = new ConcurrentLinkedDeque<>();
+    // we track the number of recently closed chunks and decrment it only after those are moved to pendingChunkList.
+    // this is needed, so we are sure we retrun all the clased chunks to the user in nextChunkList() before signaling
+    // that there will no more.
+    private final AtomicInteger recentlyClosedChunksCount = new AtomicInteger();
     @GuardedBy("this")
     private OptionalLong nextPagingId = OptionalLong.of(0);
     @GuardedBy("this")
@@ -184,21 +194,50 @@ public class Exchange
     {
         return handle -> {
             requireNonNull(handle, "ChunkHandle passed to consumer is null");
-            SettableFuture<ChunkList> future;
-            ChunkList chunkList = null;
-            synchronized (this) {
-                future = pendingChunkListFuture;
-                pendingChunkList.add(handle);
-                if (pendingChunkListFuture != null && pendingChunkList.size() >= chunkListTargetSize) {
-                    chunkList = nextChunkList(nextPagingId.orElseThrow());
-                    pendingChunkListFuture = null;
+            // record closed chunk without synchronized section; routine returned by closedChunkConsumer()
+            // can be called in arbitrary synchronized section and taking monitor here may lead to a deadlocks
+            recentlyClosedChunksCount.incrementAndGet();
+            recentlyClosedChunks.add(handle);
+            // schedule a task to handle newly recorded closed chunks asynchronousle
+            executor.submit(() -> {
+                try {
+                    handleRecentlyClosedChunks();
                 }
-            }
-            // Avoid a deadlock from triggered callbacks by doing this outside `synchronized`
-            if (chunkList != null) {
-                future.set(chunkList);
-            }
+                catch (Exception e) {
+                    log.error(e, "Unexpected error in handleRecentlyClosedChunks");
+                }
+            });
         };
+    }
+
+    private void handleRecentlyClosedChunks()
+    {
+        if (recentlyClosedChunks.isEmpty()) {
+            return;
+        }
+        SettableFuture<ChunkList> future;
+        ChunkList chunkList = null;
+        synchronized (this) {
+            while (true) {
+                // move all recently closed chunks to pendingChunkList
+                ChunkHandle handle = recentlyClosedChunks.poll();
+                if (handle == null) {
+                    break;
+                }
+                pendingChunkList.add(handle);
+                recentlyClosedChunksCount.decrementAndGet();
+            }
+
+            future = pendingChunkListFuture;
+            if (pendingChunkListFuture != null && pendingChunkList.size() >= chunkListTargetSize) {
+                chunkList = nextChunkList(nextPagingId.orElseThrow());
+                pendingChunkListFuture = null;
+            }
+        }
+        // Avoid a deadlock from triggered callbacks by doing this outside `synchronized`
+        if (chunkList != null) {
+            future.set(chunkList);
+        }
     }
 
     public synchronized ListenableFuture<ChunkList> listClosedChunks(OptionalLong pagingIdOptional)
@@ -248,7 +287,7 @@ public class Exchange
         List<ChunkHandle> chunks = ImmutableList.copyOf(pendingChunkList.subList(0, chunkListSize));
         pendingChunkList = pendingChunkList.subList(chunkListSize, pendingChunkList.size());
 
-        if (finished && pendingChunkList.size() == 0) {
+        if (finished && pendingChunkList.size() == 0 && recentlyClosedChunksCount.get() == 0) {
             nextPagingId = OptionalLong.empty();
         }
         else {
