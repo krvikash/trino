@@ -44,7 +44,7 @@ class ChunkHandlesPoller
     private final SettableFuture<Void> registerFuture = SettableFuture.create();
     private volatile OptionalLong pagingId = OptionalLong.empty();
     private volatile boolean closed;
-    private boolean pinging;
+    private volatile boolean pinging;
 
     public ChunkHandlesPoller(
             ScheduledExecutorService executorService,
