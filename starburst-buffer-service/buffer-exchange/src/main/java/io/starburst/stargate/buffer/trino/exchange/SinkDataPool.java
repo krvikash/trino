@@ -212,13 +212,15 @@ public class SinkDataPool
                     updateMemoryUsage(-retainedSize);
 
                     verify(currentPolls.remove(partition), "poll was not registered; %s", partition);
-                    if (noMoreData && memoryUsageBytes == 0) {
-                        poolFinished = true;
-                    }
-                    if (poolFinished) {
-                        finishedFuture.set(null);
-                    }
                 }
+
+                if (noMoreData && memoryUsageBytes == 0) {
+                    poolFinished = true;
+                }
+            }
+            if (poolFinished) {
+                // complete the future outside the synchronized section
+                finishedFuture.set(null);
             }
         }
 
