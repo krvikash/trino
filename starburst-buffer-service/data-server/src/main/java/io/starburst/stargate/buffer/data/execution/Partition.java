@@ -232,6 +232,11 @@ public class Partition
         return ImmutableList.copyOf(closedChunks.values());
     }
 
+    public synchronized boolean isFinished()
+    {
+        return finished;
+    }
+
     private record TaskAttemptId(
             int taskId,
             int attemptId)

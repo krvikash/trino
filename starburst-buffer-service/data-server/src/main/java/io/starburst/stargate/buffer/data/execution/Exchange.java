@@ -13,6 +13,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FluentFuture;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
@@ -57,6 +58,8 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 @ThreadSafe
 public class Exchange
 {
+    private static final Logger log = Logger.get(Exchange.class);
+
     private final long bufferNodeId;
     private final String exchangeId;
     private final MemoryAllocator memoryAllocator;
@@ -150,11 +153,18 @@ public class Exchange
 
         ListenableFuture<Void> addDataPagesFuture = partition.addDataPages(taskId, attemptId, dataPagesId, pages);
         addExceptionCallback(addDataPagesFuture, throwable -> {
-            // ignore CancellationException as we may explicitly cancel in-progress writes when finishing a partition
-            if (!(throwable instanceof CancellationException)) {
-                failure.compareAndSet(null, throwable);
-                this.releaseChunks();
+            if (throwable instanceof CancellationException) {
+                // ignore CancellationException as we may explicitly cancel in-progress writes when finishing a partition
+                if (!partition.isFinished()) {
+                    // check if partition is finished - this the only case when we can expect CancellationException
+                    IllegalStateException illegalStateFailure = new IllegalStateException(String.format("Got CancellationException for addPages on non-finished partition %s.%s", exchangeId, partition.getPartitionId()));
+                    log.error(illegalStateFailure);
+                    failure.compareAndSet(null, illegalStateFailure);
+                }
+                return;
             }
+            failure.compareAndSet(null, throwable);
+            this.releaseChunks();
         }, executor);
         return addDataPagesFuture;
     }
