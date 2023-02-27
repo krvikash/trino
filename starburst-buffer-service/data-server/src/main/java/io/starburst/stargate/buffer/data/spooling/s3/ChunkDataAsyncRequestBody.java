@@ -72,8 +72,6 @@ public class ChunkDataAsyncRequestBody
         try {
             s.onSubscribe(
                     new Subscription() {
-                        private boolean headerSliceWritten;
-                        private int index;
                         private boolean done;
 
                         @Override
@@ -83,24 +81,15 @@ public class ChunkDataAsyncRequestBody
                                 return;
                             }
                             if (n > 0) {
-                                if (!headerSliceWritten) {
-                                    Slice headerSlice = Slices.allocate(CHUNK_FILE_HEADER_SIZE);
-                                    SliceOutput headerSliceOutput = headerSlice.getOutput();
-                                    headerSliceOutput.writeLong(chunkDataHolder.checksum());
-                                    headerSliceOutput.writeInt(chunkDataHolder.numDataPages());
-                                    s.onNext(headerSlice.toByteBuffer());
-                                    headerSliceWritten = true;
-                                    --n;
+                                done = true;
+                                SliceOutput sliceOutput = Slices.allocate(CHUNK_FILE_HEADER_SIZE).getOutput();
+                                sliceOutput.writeLong(chunkDataHolder.checksum());
+                                sliceOutput.writeInt(chunkDataHolder.numDataPages());
+                                s.onNext(ByteBuffer.wrap(sliceOutput.slice().byteArray()));
+                                for (Slice chunkSlice : chunkDataHolder.chunkSlices()) {
+                                    s.onNext(ByteBuffer.wrap(chunkSlice.byteArray(), chunkSlice.byteArrayOffset(), chunkSlice.length()));
                                 }
-
-                                for (; n > 0 && index < chunkDataHolder.chunkSlices().size(); ++index, --n) {
-                                    s.onNext(chunkDataHolder.chunkSlices().get(index).toByteBuffer());
-                                }
-
-                                if (index == chunkDataHolder.chunkSlices().size()) {
-                                    s.onComplete();
-                                    done = true;
-                                }
+                                s.onComplete();
                             }
                             else {
                                 s.onError(new IllegalArgumentException("§3.9: non-positive requests are not allowed!"));
