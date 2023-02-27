@@ -48,8 +48,8 @@ class TestBufferExchangeConfig
                 .setMinBufferNodesPerPartition(2)
                 .setMaxBufferNodesPerPartition(32)
                 .setDataClientMaxRetries(5)
-                .setDataClientRetryBackoffInitial(Duration.succinctDuration(1.0, SECONDS))
-                .setDataClientRetryBackoffMax(Duration.succinctDuration(10.0, SECONDS))
+                .setDataClientRetryBackoffInitial(Duration.succinctDuration(4.0, SECONDS))
+                .setDataClientRetryBackoffMax(Duration.succinctDuration(60.0, SECONDS))
                 .setDataClientRetryBackoffFactor(2.0)
                 .setDataClientRetryBackoffJitter(0.5));
     }

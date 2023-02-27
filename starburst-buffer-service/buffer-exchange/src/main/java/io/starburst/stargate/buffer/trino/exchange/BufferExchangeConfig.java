@@ -40,8 +40,8 @@ public class BufferExchangeConfig
     private int minBufferNodesPerPartition = 2;
     private int maxBufferNodesPerPartition = 32;
     private int dataClientMaxRetries = 5;
-    private Duration dataClientRetryBackoffInitial = succinctDuration(1.0, SECONDS);
-    private Duration dataClientRetryBackoffMax = succinctDuration(10.0, SECONDS);
+    private Duration dataClientRetryBackoffInitial = succinctDuration(4.0, SECONDS);
+    private Duration dataClientRetryBackoffMax = succinctDuration(60.0, SECONDS);
     private double dataClientRetryBackoffFactor = 2.0;
     private double dataClientRetryBackoffJitter = 0.5;
 
