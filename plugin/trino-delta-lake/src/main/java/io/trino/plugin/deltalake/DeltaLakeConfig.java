@@ -49,12 +49,6 @@ public class DeltaLakeConfig
     @VisibleForTesting
     static final DataSize DEFAULT_DATA_FILE_CACHE_SIZE = DataSize.succinctBytes(Math.floorDiv(Runtime.getRuntime().maxMemory(), 10L));
 
-    public static final int MIN_READER_VERSION = 1;
-    public static final int MIN_WRITER_VERSION = 2;
-    // The highest reader and writer versions Trino supports writing to
-    public static final int MAX_READER_VERSION = 2;
-    public static final int MAX_WRITER_VERSION = 4;
-
     private Duration metadataCacheTtl = new Duration(5, TimeUnit.MINUTES);
     private long metadataCacheMaxSize = 1000;
     private DataSize dataFileCacheSize = DEFAULT_DATA_FILE_CACHE_SIZE;
@@ -84,8 +78,6 @@ public class DeltaLakeConfig
     private boolean uniqueTableLocation = true;
     private boolean legacyCreateTableWithExistingLocationEnabled;
     private boolean registerTableProcedureEnabled;
-    private int defaultReaderVersion = MIN_READER_VERSION;
-    private int defaultWriterVersion = MIN_WRITER_VERSION;
 
     public Duration getMetadataCacheTtl()
     {
@@ -482,36 +474,6 @@ public class DeltaLakeConfig
     public DeltaLakeConfig setRegisterTableProcedureEnabled(boolean registerTableProcedureEnabled)
     {
         this.registerTableProcedureEnabled = registerTableProcedureEnabled;
-        return this;
-    }
-
-    @Min(value = MIN_READER_VERSION, message = "Must be in between " + MIN_READER_VERSION + " and " + MAX_READER_VERSION)
-    @Max(value = MAX_READER_VERSION, message = "Must be in between " + MIN_READER_VERSION + " and " + MAX_READER_VERSION)
-    public int getDefaultReaderVersion()
-    {
-        return defaultReaderVersion;
-    }
-
-    @Config("delta.default-reader-version")
-    @ConfigDescription("The default reader version used by new tables")
-    public DeltaLakeConfig setDefaultReaderVersion(int defaultReaderVersion)
-    {
-        this.defaultReaderVersion = defaultReaderVersion;
-        return this;
-    }
-
-    @Min(value = MIN_WRITER_VERSION, message = "Must be in between " + MIN_WRITER_VERSION + " and " + MAX_WRITER_VERSION)
-    @Max(value = MAX_WRITER_VERSION, message = "Must be in between " + MIN_WRITER_VERSION + " and " + MAX_WRITER_VERSION)
-    public int getDefaultWriterVersion()
-    {
-        return defaultWriterVersion;
-    }
-
-    @Config("delta.default-writer-version")
-    @ConfigDescription("The default writer version used by new tables")
-    public DeltaLakeConfig setDefaultWriterVersion(int defaultWriterVersion)
-    {
-        this.defaultWriterVersion = defaultWriterVersion;
         return this;
     }
 }
