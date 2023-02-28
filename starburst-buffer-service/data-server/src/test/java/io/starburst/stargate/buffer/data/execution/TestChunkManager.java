@@ -33,6 +33,8 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -67,6 +69,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 import static org.testcontainers.shaded.org.awaitility.Durations.ONE_SECOND;
 
+@Execution(ExecutionMode.SAME_THREAD)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class TestChunkManager
 {
@@ -319,7 +322,6 @@ public class TestChunkManager
 
     @Test
     public void testAddDataPagesFailure()
-            throws InterruptedException
     {
         MemoryAllocator memoryAllocator = defaultMemoryAllocator();
         DataSize chunkMaxSize = DataSize.of(12, BYTE);
@@ -330,7 +332,7 @@ public class TestChunkManager
         assertThatThrownBy(() -> getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 1, 1, 1L, ImmutableList.of(utf8Slice("dummy"), largePage))))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("requiredStorageSize %d larger than chunkMaxSizeInBytes %d".formatted(DATA_PAGE_HEADER_SIZE + largePage.length(), chunkMaxSize.toBytes()));
-        Thread.sleep(10); // make sure exception callback has executed and failure has been set
+        sleepUninterruptibly(100, MILLISECONDS); // make sure exception callback has executed and failure has been set
         // all future operations (except releaseChunks) to the exchange will fail
         assertThatThrownBy(() -> getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 2, 2, 2, 2L, ImmutableList.of(utf8Slice("dummy")))))
                 .isInstanceOf(DataServerException.class)
@@ -464,13 +466,8 @@ public class TestChunkManager
                     chunkManager.markAllClosedChunksReceived(EXCHANGE_0);
                     return numChunks;
                 }
-                try {
-                    Thread.sleep(100);
-                }
-                catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    throw new RuntimeException(e);
-                }
+
+                sleepUninterruptibly(100, MILLISECONDS);
             }
             return fail();
         });

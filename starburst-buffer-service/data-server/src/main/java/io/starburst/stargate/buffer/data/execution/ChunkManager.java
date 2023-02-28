@@ -288,7 +288,7 @@ public class ChunkManager
         startedDraining = true;
 
         LOG.info("Start draining all chunks");
-        long draininingStart = System.currentTimeMillis();
+        long drainingStart = System.currentTimeMillis();
         chunkSpoolExecutor.shutdownNow(); // deschedule background spooling
 
         // finish all exchanges
@@ -328,7 +328,7 @@ public class ChunkManager
 
         LOG.info("Finished draining all chunks");
 
-        long remainingDrainingWaitMillis = minDrainingDuration.toMillis() - (System.currentTimeMillis() - draininingStart);
+        long remainingDrainingWaitMillis = minDrainingDuration.toMillis() - (System.currentTimeMillis() - drainingStart);
 
         if (remainingDrainingWaitMillis > 0) {
             // Ensure enough time passed before we enter phase when we wait for all exchanges has be acknowledged by owning Trino coordinators.
