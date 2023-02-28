@@ -36,12 +36,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.OptionalLong;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.http.client.HttpUriBuilder.uriBuilderFrom;
 import static io.airlift.http.client.StatusResponseHandler.createStatusResponseHandler;
@@ -54,6 +56,7 @@ import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.USER_ERROR;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -62,7 +65,6 @@ import static org.awaitility.Durations.FIVE_SECONDS;
 import static org.awaitility.Durations.ONE_SECOND;
 import static org.awaitility.Durations.TEN_SECONDS;
 import static org.awaitility.Durations.TWO_SECONDS;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -164,18 +166,17 @@ public class TestDataServer
         finishExchange(EXCHANGE_0);
         assertNodeStats(2, 2, 0, 3);
 
-        ChunkList chunkList0 = listClosedChunks(EXCHANGE_0, OptionalLong.empty());
+        ChunkList chunkList0 = listClosedChunks(EXCHANGE_0, OptionalLong.empty(), 2);
         assertThat(chunkList0.chunks()).containsExactlyInAnyOrder(chunkHandle0, chunkHandle1);
         assertTrue(chunkList0.nextPagingId().isEmpty());
-        ChunkList chunkList1 = listClosedChunks(EXCHANGE_1, OptionalLong.empty());
+        ChunkList chunkList1 = listClosedChunks(EXCHANGE_1, OptionalLong.empty(), 1);
         assertThat(chunkList1.chunks()).containsExactlyInAnyOrder(chunkHandle3);
         assertTrue(chunkList1.nextPagingId().isPresent());
-        assertEquals(1L, chunkList1.nextPagingId().getAsLong());
 
         finishExchange(EXCHANGE_1);
         assertNodeStats(2, 0, 0, 5);
 
-        chunkList1 = listClosedChunks(EXCHANGE_1, OptionalLong.of(1L));
+        chunkList1 = listClosedChunks(EXCHANGE_1, chunkList1.nextPagingId(), 2);
         assertThat(chunkList1.chunks()).containsExactlyInAnyOrder(chunkHandle2, chunkHandle4);
         assertTrue(chunkList1.nextPagingId().isEmpty());
 
@@ -223,8 +224,7 @@ public class TestDataServer
 
         finishExchange(EXCHANGE_0);
 
-        ChunkList chunkList0 = listClosedChunks(EXCHANGE_0, OptionalLong.empty());
-        assertEquals(4, chunkList0.chunks().size());
+        ChunkList chunkList0 = listClosedChunks(EXCHANGE_0, OptionalLong.empty(), 4);
         // Note: partition writes happen concurrently, so chunk ids assignment will be non-deterministic
         ChunkHandle chunkHandle0 = getChunkHandleOrThrow(chunkList0.chunks(), 0, 4 + largePage1.length()); // a, b, c, largePage1, d
         ChunkHandle chunkHandle1 = getChunkHandleOrThrow(chunkList0.chunks(), 0, 1 + largePage2.length()); // largePage2, e
@@ -279,7 +279,7 @@ public class TestDataServer
         Future<ChunkList> chunkListFuture = executor.submit(() -> {
             OptionalLong pagingId = OptionalLong.empty();
             for (int i = 0; i < 10; ++i) {
-                ChunkList chunkList = listClosedChunks(EXCHANGE_0, pagingId);
+                ChunkList chunkList = getFutureValue(dataClient.listClosedChunks(EXCHANGE_0, pagingId));
                 pagingId = chunkList.nextPagingId();
                 if (pagingId.isEmpty()) {
                     markAllClosedChunksReceived(EXCHANGE_0);
@@ -324,7 +324,7 @@ public class TestDataServer
         assertThatThrownBy(() -> finishExchange(EXCHANGE_1))
                 .isInstanceOf(DataApiException.class)
                 .hasMessage("error on GET %s/api/v1/buffer/data/exchange-1/finish?targetBufferNodeId=0: exchange %s not found".formatted(dataServer.getBaseUri(), EXCHANGE_1));
-        assertThatThrownBy(() -> listClosedChunks(EXCHANGE_0, OptionalLong.of(Long.MAX_VALUE)))
+        assertThatThrownBy(() -> getFutureValue(dataClient.listClosedChunks(EXCHANGE_0, OptionalLong.of(Long.MAX_VALUE))))
                 .isInstanceOf(DataApiException.class)
                 .hasMessageContaining("pagingId %s does not equal nextPagingId 0".formatted(Long.MAX_VALUE));
         assertThatThrownBy(() -> getChunkData(EXCHANGE_0, new ChunkHandle(BUFFER_NODE_ID, 0, 3L, 0)))
@@ -360,9 +360,7 @@ public class TestDataServer
         }
         finishExchange(EXCHANGE_0);
 
-        List<ChunkHandle> chunkHandles = listClosedChunks(EXCHANGE_0, OptionalLong.empty()).chunks();
-        assertEquals(10, chunkHandles.size());
-
+        List<ChunkHandle> chunkHandles = listClosedChunks(EXCHANGE_0, OptionalLong.empty(), 10).chunks();
         assertNodeStats(1, 0, 5, 5);
 
         for (ChunkHandle chunkHandle : chunkHandles) {
@@ -388,9 +386,24 @@ public class TestDataServer
         getFutureValue(dataClient.finishExchange(exchangeId));
     }
 
-    private ChunkList listClosedChunks(String exchangeId, OptionalLong pagingId)
+    private ChunkList listClosedChunks(String exchangeId, OptionalLong pagingId, int expectedChunkListSize)
     {
-        return getFutureValue(dataClient.listClosedChunks(exchangeId, pagingId));
+        List<ChunkHandle> chunkHandles = new ArrayList<>();
+        for (int i = 0; i < 10; ++i) {
+            ChunkList chunkList = getFutureValue(dataClient.listClosedChunks(exchangeId, pagingId));
+            chunkHandles.addAll(chunkList.chunks());
+            pagingId = chunkList.nextPagingId();
+
+            if (chunkHandles.size() == expectedChunkListSize) {
+                return new ChunkList(chunkHandles, pagingId);
+            }
+            if (chunkHandles.size() > expectedChunkListSize) {
+                return fail();
+            }
+
+            sleepUninterruptibly(100, MILLISECONDS);
+        }
+        return fail();
     }
 
     private void markAllClosedChunksReceived(String exchangeId)
