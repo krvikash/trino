@@ -15,6 +15,7 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Closer;
+import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.log.Logger;
@@ -482,14 +483,27 @@ public class ChunkManager
                         // already released
                         return immediateVoidFuture();
                     }
-                    return Futures.transform(
-                            spoolingStorage.writeChunk(bufferNodeId, chunk.getExchangeId(), chunk.getChunkId(), chunkDataLease),
-                            ignored -> {
-                                chunkDataLease.release();
-                                chunk.release();
-                                return null;
-                            },
-                            executor);
+
+                    ListenableFuture<Void> spoolingFuture = spoolingStorage.writeChunk(bufferNodeId, chunk.getExchangeId(), chunk.getChunkId(), chunkDataLease);
+
+                    Futures.addCallback(spoolingFuture, new FutureCallback<>() {
+                        @Override
+                        public void onSuccess(Void result)
+                        {
+                            // release chunkDataLease and chunk
+                            chunkDataLease.release();
+                            chunk.release();
+                        }
+
+                        @Override
+                        public void onFailure(Throwable t)
+                        {
+                            // on failure just release chunkDataLease
+                            chunkDataLease.release();
+                        }
+                    }, executor);
+
+                    return spoolingFuture;
                 },
                 chunkSpoolConcurrency,
                 executor));
