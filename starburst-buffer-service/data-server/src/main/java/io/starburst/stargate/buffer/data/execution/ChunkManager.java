@@ -477,15 +477,15 @@ public class ChunkManager
         getFutureValue(processAll(
                 chunks,
                 chunk -> {
-                    ChunkDataHolder chunkDataHolder = chunk.getChunkData();
-                    if (chunkDataHolder == null) {
+                    ChunkDataLease chunkDataLease = chunk.getChunkDataLease();
+                    if (chunkDataLease == null) {
                         // already released
                         return immediateVoidFuture();
                     }
                     return Futures.transform(
-                            spoolingStorage.writeChunk(bufferNodeId, chunk.getExchangeId(), chunk.getChunkId(), chunkDataHolder),
+                            spoolingStorage.writeChunk(bufferNodeId, chunk.getExchangeId(), chunk.getChunkId(), chunkDataLease),
                             ignored -> {
-                                chunkDataHolder.release();
+                                chunkDataLease.release();
                                 chunk.release();
                                 return null;
                             },

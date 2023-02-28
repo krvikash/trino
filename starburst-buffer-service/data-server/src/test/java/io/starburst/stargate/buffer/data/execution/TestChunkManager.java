@@ -51,7 +51,7 @@ import static io.airlift.units.DataSize.succinctBytes;
 import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
 import static io.starburst.stargate.buffer.data.execution.ChunkManagerConfig.DEFAULT_EXCHANGE_STALENESS_THRESHOLD;
-import static io.starburst.stargate.buffer.data.execution.ChunkTestHelper.toChunkDataHolder;
+import static io.starburst.stargate.buffer.data.execution.ChunkTestHelper.toChunkDataLease;
 import static io.starburst.stargate.buffer.data.execution.ChunkTestHelper.verifyChunkData;
 import static io.starburst.stargate.buffer.data.spooling.SpoolTestHelper.createS3SpooledChunkReader;
 import static io.starburst.stargate.buffer.data.spooling.SpoolTestHelper.createS3SpoolingStorage;
@@ -588,7 +588,7 @@ public class TestChunkManager
                 new DataPage(0, 0, utf8Slice("test")),
                 new DataPage(0, 1, utf8Slice("Spooling")),
                 new DataPage(1, 0, utf8Slice("Storage")));
-        getFutureValue(spoolingStorage.writeChunk(drainedBufferNodeId, EXCHANGE_0, 0L, toChunkDataHolder(dataPages)));
+        getFutureValue(spoolingStorage.writeChunk(drainedBufferNodeId, EXCHANGE_0, 0L, toChunkDataLease(dataPages)));
 
         ChunkManager chunkManager = createChunkManager(defaultMemoryAllocator(), DataSize.of(16, MEGABYTE), DataSize.of(128, KILOBYTE));
 
@@ -632,8 +632,8 @@ public class TestChunkManager
 
     private void verifyChunkDataResult(ChunkDataResult chunkDataResult, DataPage... values)
     {
-        if (chunkDataResult.chunkDataHolder().isPresent()) {
-            verifyChunkData(chunkDataResult.chunkDataHolder().get(), values);
+        if (chunkDataResult.chunkDataLease().isPresent()) {
+            verifyChunkData(chunkDataResult.chunkDataLease().get(), values);
         }
         else {
             assertTrue(chunkDataResult.spoolingFile().isPresent());

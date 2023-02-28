@@ -111,7 +111,7 @@ public class Chunk
     }
 
     // null means chunk data has spooled
-    public synchronized ChunkDataHolder getChunkData()
+    public synchronized ChunkDataLease getChunkDataLease()
     {
         checkState(closed, "getChunkData() called on an open chunk");
         if (chunkData == null) {
@@ -245,7 +245,7 @@ public class Chunk
             return completedSlices.isEmpty() && sliceOutput == null;
         }
 
-        public synchronized ChunkDataHolder get()
+        public synchronized ChunkDataLease get()
         {
             referenceCount++;
             Runnable releaseCallback = () -> {
@@ -259,7 +259,7 @@ public class Chunk
             };
 
             if (!calculateDataPagesChecksum) {
-                return new ChunkDataHolder(
+                return new ChunkDataLease(
                         completedSlices,
                         NO_CHECKSUM,
                         numDataPages,
@@ -270,7 +270,7 @@ public class Chunk
             if (checksum == NO_CHECKSUM) {
                 checksum++;
             }
-            return new ChunkDataHolder(
+            return new ChunkDataLease(
                     completedSlices,
                     checksum,
                     numDataPages,

@@ -63,7 +63,7 @@ public class TestChunk
         chunk.close();
 
         assertEquals(12, chunk.dataSizeInBytes());
-        verifyChunkData(chunk.getChunkData(), dataPages.get(0), dataPages.get(1), dataPages.get(2));
+        verifyChunkData(chunk.getChunkDataLease(), dataPages.get(0), dataPages.get(1), dataPages.get(2));
     }
 
     @AfterAll

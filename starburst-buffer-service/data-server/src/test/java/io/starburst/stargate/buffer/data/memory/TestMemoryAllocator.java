@@ -15,7 +15,7 @@ import io.airlift.slice.Slice;
 import io.airlift.units.DataSize;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.execution.Chunk;
-import io.starburst.stargate.buffer.data.execution.ChunkDataHolder;
+import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
 import org.junit.jupiter.api.AfterAll;
@@ -143,12 +143,12 @@ public class TestMemoryAllocator
         getFutureValue(chunk0.write(dataPage.taskId(), dataPage.attemptId(), dataPage.data()));
         chunk0.close();
 
-        ChunkDataHolder chunkDataHolder0 = chunk0.getChunkData();
+        ChunkDataLease chunkDataLease0 = chunk0.getChunkDataLease();
         chunk0.release();
         assertEquals(0, memoryAllocator.getChunkSlicePoolSize());
         assertEquals(chunkSliceSizeInBytes, memoryAllocator.getAllocatedMemory());
 
-        chunkDataHolder0.release();
+        chunkDataLease0.release();
         assertEquals(1, memoryAllocator.getChunkSlicePoolSize());
         assertEquals(0, memoryAllocator.getAllocatedMemory());
 
@@ -165,8 +165,8 @@ public class TestMemoryAllocator
         getFutureValue(chunk1.write(dataPage.taskId(), dataPage.attemptId(), dataPage.data()));
         chunk1.close();
 
-        ChunkDataHolder chunkDataHolder1 = chunk1.getChunkData();
-        chunkDataHolder1.release();
+        ChunkDataLease chunkDataLease1 = chunk1.getChunkDataLease();
+        chunkDataLease1.release();
         assertEquals(0, memoryAllocator.getChunkSlicePoolSize());
         assertEquals(chunkSliceSizeInBytes, memoryAllocator.getAllocatedMemory());
 

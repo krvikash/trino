@@ -27,7 +27,7 @@ import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.starburst.stargate.buffer.data.client.spooling.SpoolingFile;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
-import io.starburst.stargate.buffer.data.execution.ChunkDataHolder;
+import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
 import io.starburst.stargate.buffer.data.execution.ChunkDataResult;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
@@ -87,7 +87,7 @@ import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLING_F
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLING_FILE_SIZE_HEADER;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
 import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_CHUNK_DATA;
-import static io.starburst.stargate.buffer.data.execution.ChunkDataHolder.CHUNK_SLICES_METADATA_SIZE;
+import static io.starburst.stargate.buffer.data.execution.ChunkDataLease.CHUNK_SLICES_METADATA_SIZE;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -451,9 +451,9 @@ public class DataResource
         try {
             checkTargetBufferNodeId(targetBufferNodeId);
             chunkDataResult = chunkManager.getChunkData(bufferNodeId, exchangeId, partitionId, chunkId);
-            if (chunkDataResult.chunkDataHolder().isPresent()) {
-                ChunkDataHolder chunkDataHolder = chunkDataResult.chunkDataHolder().get();
-                int dataSize = chunkDataHolder.serializedSizeInBytes() - CHUNK_SLICES_METADATA_SIZE;
+            if (chunkDataResult.chunkDataLease().isPresent()) {
+                ChunkDataLease chunkDataLease = chunkDataResult.chunkDataLease().get();
+                int dataSize = chunkDataLease.serializedSizeInBytes() - CHUNK_SLICES_METADATA_SIZE;
                 readDataSize.update(dataSize);
                 readDataSizeDistribution.add(dataSize);
 
@@ -462,17 +462,17 @@ public class DataResource
                 ServletResponse response = asyncContext.getResponse();
                 ServletOutputStream outputStream = response.getOutputStream();
                 response.setContentType(TRINO_CHUNK_DATA);
-                response.setContentLength(Integer.BYTES + chunkDataHolder.serializedSizeInBytes());
+                response.setContentLength(Integer.BYTES + chunkDataLease.serializedSizeInBytes());
 
                 Slice metaDataSlice = Slices.allocate(Integer.BYTES + CHUNK_SLICES_METADATA_SIZE);
                 SliceOutput sliceOutput = metaDataSlice.getOutput();
                 sliceOutput.writeInt(SERIALIZED_CHUNK_DATA_MAGIC);
-                sliceOutput.writeLong(chunkDataHolder.checksum());
-                sliceOutput.writeInt(chunkDataHolder.numDataPages());
+                sliceOutput.writeLong(chunkDataLease.checksum());
+                sliceOutput.writeInt(chunkDataLease.numDataPages());
 
-                ArrayDeque<Slice> sliceQueue = new ArrayDeque<>(chunkDataHolder.chunkSlices().size() + 1);
+                ArrayDeque<Slice> sliceQueue = new ArrayDeque<>(chunkDataLease.chunkSlices().size() + 1);
                 sliceQueue.add(metaDataSlice);
-                sliceQueue.addAll(chunkDataHolder.chunkSlices());
+                sliceQueue.addAll(chunkDataLease.chunkSlices());
 
                 outputStream.setWriteListener(new WriteListener() {
                     @Override
@@ -481,7 +481,7 @@ public class DataResource
                     {
                         while (outputStream.isReady()) {
                             if (sliceQueue.isEmpty()) {
-                                chunkDataHolder.release();
+                                chunkDataLease.release();
                                 asyncContext.complete();
                                 return;
                             }
@@ -495,13 +495,13 @@ public class DataResource
                     public void onError(Throwable throwable)
                     {
                         logger.warn(throwable, "error on GET /%s/pages/%s/%s/%s", exchangeId, partitionId, chunkId, bufferNodeId);
-                        chunkDataHolder.release();
+                        chunkDataLease.release();
                         asyncContext.complete();
                     }
                 });
             }
             else {
-                verify(chunkDataResult.spoolingFile().isPresent(), "Either chunkDataHolder or spoolingFile should be present");
+                verify(chunkDataResult.spoolingFile().isPresent(), "Either chunkDataLease or spoolingFile should be present");
                 SpoolingFile spoolingFile = chunkDataResult.spoolingFile().get();
                 asyncResponse.resume(Response.status(Status.NOT_FOUND)
                         .header(SPOOLING_FILE_LOCATION_HEADER, spoolingFile.location())
@@ -511,8 +511,8 @@ public class DataResource
         }
         catch (RuntimeException | IOException e) {
             logger.warn(e, "error on GET /%s/pages/%s/%s/%s", exchangeId, partitionId, chunkId, bufferNodeId);
-            if (chunkDataResult != null && chunkDataResult.chunkDataHolder().isPresent()) {
-                chunkDataResult.chunkDataHolder().get().release();
+            if (chunkDataResult != null && chunkDataResult.chunkDataLease().isPresent()) {
+                chunkDataResult.chunkDataLease().get().release();
             }
             asyncResponse.resume(errorResponse(e));
         }

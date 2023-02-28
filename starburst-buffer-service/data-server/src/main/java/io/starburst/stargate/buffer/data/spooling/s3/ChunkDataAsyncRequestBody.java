@@ -13,7 +13,7 @@ import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.SliceOutput;
 import io.airlift.slice.Slices;
-import io.starburst.stargate.buffer.data.execution.ChunkDataHolder;
+import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
@@ -28,7 +28,7 @@ import static java.util.Objects.requireNonNull;
 
 /**
  * This class mimics the implementation of {@link ByteArrayAsyncRequestBody} except for we directly
- * write chunkDataHolder to avoid unnecessary memory copy
+ * write chunkDataLease to avoid unnecessary memory copy
  *
  * An implementation of {@link AsyncRequestBody} for providing data from memory.
  */
@@ -37,15 +37,15 @@ public class ChunkDataAsyncRequestBody
 {
     private static final Logger log = Logger.get(ChunkDataAsyncRequestBody.class);
 
-    private final ChunkDataHolder chunkDataHolder;
+    private final ChunkDataLease chunkDataLease;
     private final String mimetype;
     private final long contentLength;
 
-    public ChunkDataAsyncRequestBody(ChunkDataHolder chunkDataHolder, String mimetype)
+    public ChunkDataAsyncRequestBody(ChunkDataLease chunkDataLease, String mimetype)
     {
-        this.chunkDataHolder = requireNonNull(chunkDataHolder, "chunkDataHolder is null");
+        this.chunkDataLease = requireNonNull(chunkDataLease, "chunkDataLease is null");
         this.mimetype = requireNonNull(mimetype, "mimeType is null");
-        this.contentLength = chunkDataHolder.serializedSizeInBytes();
+        this.contentLength = chunkDataLease.serializedSizeInBytes();
     }
 
     @Override
@@ -83,10 +83,10 @@ public class ChunkDataAsyncRequestBody
                             if (n > 0) {
                                 done = true;
                                 SliceOutput sliceOutput = Slices.allocate(CHUNK_FILE_HEADER_SIZE).getOutput();
-                                sliceOutput.writeLong(chunkDataHolder.checksum());
-                                sliceOutput.writeInt(chunkDataHolder.numDataPages());
+                                sliceOutput.writeLong(chunkDataLease.checksum());
+                                sliceOutput.writeInt(chunkDataLease.numDataPages());
                                 s.onNext(ByteBuffer.wrap(sliceOutput.slice().byteArray()));
-                                for (Slice chunkSlice : chunkDataHolder.chunkSlices()) {
+                                for (Slice chunkSlice : chunkDataLease.chunkSlices()) {
                                     s.onNext(ByteBuffer.wrap(chunkSlice.byteArray(), chunkSlice.byteArrayOffset(), chunkSlice.length()));
                                 }
                                 s.onComplete();
@@ -112,8 +112,8 @@ public class ChunkDataAsyncRequestBody
         }
     }
 
-    static AsyncRequestBody fromChunkDataHolder(ChunkDataHolder chunkDataHolder)
+    static AsyncRequestBody fromChunkDataLease(ChunkDataLease chunkDataLease)
     {
-        return new ChunkDataAsyncRequestBody(chunkDataHolder, Mimetype.MIMETYPE_OCTET_STREAM);
+        return new ChunkDataAsyncRequestBody(chunkDataLease, Mimetype.MIMETYPE_OCTET_STREAM);
     }
 }

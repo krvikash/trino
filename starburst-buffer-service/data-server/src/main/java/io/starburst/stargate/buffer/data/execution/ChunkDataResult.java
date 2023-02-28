@@ -17,18 +17,18 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 public record ChunkDataResult(
-        Optional<ChunkDataHolder> chunkDataHolder,
+        Optional<ChunkDataLease> chunkDataLease,
         Optional<SpoolingFile> spoolingFile)
 {
     public ChunkDataResult {
-        requireNonNull(chunkDataHolder, "chunkDataHolder is null");
+        requireNonNull(chunkDataLease, "chunkDataLease is null");
         requireNonNull(spoolingFile, "spoolingFile is null");
-        checkArgument(chunkDataHolder.isPresent() ^ spoolingFile.isPresent(), "Either chunkDataHolder or spoolingFile should be present");
+        checkArgument(chunkDataLease.isPresent() ^ spoolingFile.isPresent(), "Either chunkDataLease or spoolingFile should be present");
     }
 
-    public static ChunkDataResult of(ChunkDataHolder chunkDataHolder)
+    public static ChunkDataResult of(ChunkDataLease chunkDataLease)
     {
-        return new ChunkDataResult(Optional.of(chunkDataHolder), Optional.empty());
+        return new ChunkDataResult(Optional.of(chunkDataLease), Optional.empty());
     }
 
     public static ChunkDataResult of(SpoolingFile spoolingFile)

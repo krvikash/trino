@@ -15,7 +15,7 @@ import io.airlift.slice.OutputStreamSliceOutput;
 import io.airlift.slice.SliceOutput;
 import io.starburst.stargate.buffer.data.client.spooling.SpoolingFile;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
-import io.starburst.stargate.buffer.data.execution.ChunkDataHolder;
+import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
 
@@ -72,9 +72,9 @@ public class LocalSpoolingStorage
     }
 
     @Override
-    public ListenableFuture<Void> writeChunk(long bufferNodeId, String exchangeId, long chunkId, ChunkDataHolder chunkDataHolder)
+    public ListenableFuture<Void> writeChunk(long bufferNodeId, String exchangeId, long chunkId, ChunkDataLease chunkDataLease)
     {
-        checkArgument(!chunkDataHolder.chunkSlices().isEmpty(), "unexpected empty chunk when spooling");
+        checkArgument(!chunkDataLease.chunkSlices().isEmpty(), "unexpected empty chunk when spooling");
 
         File file = getFilePath(exchangeId, chunkId, bufferNodeId).toFile();
         File parent = file.getParentFile();
@@ -86,9 +86,9 @@ public class LocalSpoolingStorage
             throw new IllegalStateException("Couldn't create dir: " + parent);
         }
         try (SliceOutput sliceOutput = new OutputStreamSliceOutput(new FileOutputStream(file))) {
-            sliceOutput.writeLong(chunkDataHolder.checksum());
-            sliceOutput.writeInt(chunkDataHolder.numDataPages());
-            chunkDataHolder.chunkSlices().forEach(sliceOutput::writeBytes);
+            sliceOutput.writeLong(chunkDataLease.checksum());
+            sliceOutput.writeInt(chunkDataLease.numDataPages());
+            chunkDataLease.chunkSlices().forEach(sliceOutput::writeBytes);
         }
         catch (IOException e) {
             return immediateFailedFuture(e);

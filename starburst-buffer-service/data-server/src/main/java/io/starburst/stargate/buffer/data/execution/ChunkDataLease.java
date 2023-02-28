@@ -16,7 +16,7 @@ import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
-public record ChunkDataHolder(
+public record ChunkDataLease(
         List<Slice> chunkSlices,
         long checksum,
         int numDataPages,
@@ -24,7 +24,8 @@ public record ChunkDataHolder(
 {
     public static final int CHUNK_SLICES_METADATA_SIZE = Long.BYTES + Integer.BYTES;
 
-    public ChunkDataHolder {
+    public ChunkDataLease
+    {
         chunkSlices = ImmutableList.copyOf(requireNonNull(chunkSlices, "chunkSlices is null"));
         requireNonNull(releaseCallback, "releaseCallback is null");
     }

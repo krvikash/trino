@@ -24,7 +24,7 @@ import java.util.Random;
 
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.slice.Slices.utf8Slice;
-import static io.starburst.stargate.buffer.data.execution.ChunkTestHelper.toChunkDataHolder;
+import static io.starburst.stargate.buffer.data.execution.ChunkTestHelper.toChunkDataLease;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -69,7 +69,7 @@ public abstract class AbstractTestSpoolingStorage
                 new DataPage(0, 0, utf8Slice("test")),
                 new DataPage(0, 1, utf8Slice("Spooling")),
                 new DataPage(1, 0, utf8Slice("Storage")));
-        getFutureValue(spoolingStorage.writeChunk(BUFFER_NODE_ID, EXCHANGE_ID, CHUNK_ID_0, toChunkDataHolder(dataPages)));
+        getFutureValue(spoolingStorage.writeChunk(BUFFER_NODE_ID, EXCHANGE_ID, CHUNK_ID_0, toChunkDataLease(dataPages)));
         // verify we can read a single chunk multiple times
         for (int i = 0; i < 2; ++i) {
             assertThat(getFutureValue(spooledChunkReader.getDataPages(spoolingStorage.getSpoolingFile(BUFFER_NODE_ID, EXCHANGE_ID, CHUNK_ID_0))))
@@ -89,7 +89,7 @@ public abstract class AbstractTestSpoolingStorage
         List<DataPage> dataPages = ImmutableList.of(
                 new DataPage(0, 0, utf8Slice(randomLongString1)),
                 new DataPage(1, 1, utf8Slice(randomLongString2)));
-        getFutureValue(spoolingStorage.writeChunk(BUFFER_NODE_ID, EXCHANGE_ID, CHUNK_ID_0, toChunkDataHolder(dataPages)));
+        getFutureValue(spoolingStorage.writeChunk(BUFFER_NODE_ID, EXCHANGE_ID, CHUNK_ID_0, toChunkDataLease(dataPages)));
         assertThat(getFutureValue(spooledChunkReader.getDataPages(spoolingStorage.getSpoolingFile(BUFFER_NODE_ID, EXCHANGE_ID, CHUNK_ID_0))))
                 .containsExactlyElementsOf(dataPages);
 
@@ -97,7 +97,7 @@ public abstract class AbstractTestSpoolingStorage
         List<DataPage> reversedDataPages = ImmutableList.of(
                 new DataPage(0, 0, utf8Slice(randomLongString2)),
                 new DataPage(1, 1, utf8Slice(randomLongString1)));
-        getFutureValue(spoolingStorage.writeChunk(BUFFER_NODE_ID, EXCHANGE_ID, CHUNK_ID_0, toChunkDataHolder(reversedDataPages)));
+        getFutureValue(spoolingStorage.writeChunk(BUFFER_NODE_ID, EXCHANGE_ID, CHUNK_ID_0, toChunkDataLease(reversedDataPages)));
         assertThat(getFutureValue(spooledChunkReader.getDataPages(spoolingStorage.getSpoolingFile(BUFFER_NODE_ID, EXCHANGE_ID, CHUNK_ID_0))))
                 .containsExactlyElementsOf(reversedDataPages);
 
@@ -110,7 +110,7 @@ public abstract class AbstractTestSpoolingStorage
         long numChunks = 32L;
         for (long chunkId = 0; chunkId < numChunks; ++chunkId) {
             getFutureValue(spoolingStorage.writeChunk(BUFFER_NODE_ID, EXCHANGE_ID, chunkId,
-                    toChunkDataHolder(ImmutableList.of(new DataPage(0, 0, utf8Slice(String.valueOf(chunkId)))))));
+                    toChunkDataLease(ImmutableList.of(new DataPage(0, 0, utf8Slice(String.valueOf(chunkId)))))));
         }
         for (long chunkId = 0; chunkId < numChunks; ++chunkId) {
             assertThat(getFutureValue(spooledChunkReader.getDataPages(spoolingStorage.getSpoolingFile(BUFFER_NODE_ID, EXCHANGE_ID, chunkId))))

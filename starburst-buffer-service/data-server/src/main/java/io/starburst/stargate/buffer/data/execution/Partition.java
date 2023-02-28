@@ -125,12 +125,12 @@ public class Partition
     public ChunkDataResult getChunkData(long bufferNodeId, long chunkId)
     {
         Chunk chunk = closedChunks.get(chunkId);
-        ChunkDataHolder chunkDataHolder = (chunk == null ? null : chunk.getChunkData());
-        if (chunkDataHolder == null) {
+        ChunkDataLease chunkDataLease = (chunk == null ? null : chunk.getChunkDataLease());
+        if (chunkDataLease == null) {
             // chunk already spooled
             return ChunkDataResult.of(spoolingStorage.getSpoolingFile(bufferNodeId, exchangeId, chunkId));
         }
-        return ChunkDataResult.of(chunkDataHolder);
+        return ChunkDataResult.of(chunkDataLease);
     }
 
     public void finish()

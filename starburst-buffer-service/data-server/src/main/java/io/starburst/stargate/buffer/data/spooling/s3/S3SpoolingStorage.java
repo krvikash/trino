@@ -18,7 +18,7 @@ import io.airlift.stats.CounterStat;
 import io.airlift.stats.DistributionStat;
 import io.starburst.stargate.buffer.data.client.spooling.SpoolingFile;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
-import io.starburst.stargate.buffer.data.execution.ChunkDataHolder;
+import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
@@ -158,22 +158,22 @@ public class S3SpoolingStorage
     }
 
     @Override
-    public ListenableFuture<Void> writeChunk(long bufferNodeId, String exchangeId, long chunkId, ChunkDataHolder chunkDataHolder)
+    public ListenableFuture<Void> writeChunk(long bufferNodeId, String exchangeId, long chunkId, ChunkDataLease chunkDataLease)
     {
-        checkArgument(!chunkDataHolder.chunkSlices().isEmpty(), "unexpected empty chunk when spooling");
+        checkArgument(!chunkDataLease.chunkSlices().isEmpty(), "unexpected empty chunk when spooling");
 
         String fileName = getFileName(exchangeId, chunkId, bufferNodeId);
         PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                 .bucket(bucketName)
                 .key(fileName)
                 .build();
-        fileSizes.computeIfAbsent(exchangeId, ignored -> new ConcurrentHashMap<>()).put(chunkId, chunkDataHolder.serializedSizeInBytes());
-        CompletableFuture<PutObjectResponse> putObjectCompletableFuture = s3AsyncClient.putObject(putObjectRequest, ChunkDataAsyncRequestBody.fromChunkDataHolder(chunkDataHolder));
+        fileSizes.computeIfAbsent(exchangeId, ignored -> new ConcurrentHashMap<>()).put(chunkId, chunkDataLease.serializedSizeInBytes());
+        CompletableFuture<PutObjectResponse> putObjectCompletableFuture = s3AsyncClient.putObject(putObjectRequest, ChunkDataAsyncRequestBody.fromChunkDataLease(chunkDataLease));
         // not chaining result with whenComplete as it breaks cancellation
         putObjectCompletableFuture.whenComplete((response, failure) -> {
             if (failure == null) {
-                spooledDataSize.update(chunkDataHolder.serializedSizeInBytes());
-                spooledChunkSizeDistribution.add(chunkDataHolder.serializedSizeInBytes());
+                spooledDataSize.update(chunkDataLease.serializedSizeInBytes());
+                spooledChunkSizeDistribution.add(chunkDataLease.serializedSizeInBytes());
             }
             else {
                 spoolingFailures.update(1);

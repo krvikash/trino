@@ -27,7 +27,7 @@ public final class ChunkTestHelper
 {
     private ChunkTestHelper() {}
 
-    public static void verifyChunkData(ChunkDataHolder chunkData, DataPage... values)
+    public static void verifyChunkData(ChunkDataLease chunkData, DataPage... values)
     {
         List<Slice> chunkSlices = chunkData.chunkSlices();
         long checksum = chunkData.checksum();
@@ -45,7 +45,7 @@ public final class ChunkTestHelper
         chunkData.release();
     }
 
-    public static ChunkDataHolder toChunkDataHolder(List<DataPage> dataPages)
+    public static ChunkDataLease toChunkDataLease(List<DataPage> dataPages)
     {
         int length = dataPages.stream().mapToInt(dataPage -> dataPage.data().length() + DATA_PAGE_HEADER_SIZE).sum();
         Slice slice = Slices.allocate(length);
@@ -56,7 +56,7 @@ public final class ChunkTestHelper
             sliceOutput.writeInt(dataPage.data().length());
             sliceOutput.writeBytes(dataPage.data());
         }
-        return new ChunkDataHolder(
+        return new ChunkDataLease(
                 ImmutableList.of(slice),
                 calculateChecksum(dataPages),
                 dataPages.size(),
