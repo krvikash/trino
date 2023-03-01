@@ -336,7 +336,7 @@ public class Exchange
         return partitions.values().stream().mapToInt(Partition::getClosedChunksCount).sum();
     }
 
-    public synchronized void releaseChunks()
+    public void releaseChunks()
     {
         partitions.values().forEach(Partition::releaseChunks);
         partitions.clear();
