@@ -26,12 +26,12 @@ import java.util.Optional;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.starburst.server.troubleshooting.jfr.FlightRecorderWorkerResource.BASE_PATH_API_V1;
 import static io.starburst.server.troubleshooting.jfr.LocalRecordingFactory.RECORDING_FILENAME;
-import static io.trino.server.security.ResourceSecurity.AccessType.PUBLIC;
+import static io.trino.server.security.ResourceSecurity.AccessType.INTERNAL_ONLY;
 import static java.util.Objects.requireNonNull;
 import static javax.ws.rs.core.Response.accepted;
 import static javax.ws.rs.core.Response.serverError;
 
-@ResourceSecurity(PUBLIC)
+@ResourceSecurity(INTERNAL_ONLY)
 @Path(BASE_PATH_API_V1)
 public class FlightRecorderWorkerResource
 {
