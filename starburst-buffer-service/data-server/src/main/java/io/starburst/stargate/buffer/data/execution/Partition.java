@@ -60,7 +60,7 @@ public class Partition
     @GuardedBy("this")
     private volatile Chunk openChunk;
     @GuardedBy("this")
-    private boolean finished;
+    private ListenableFuture<Void> finishFuture;
     @GuardedBy("this")
     private final Deque<AddDataPagesFuture> addDataPagesFutures = new ArrayDeque<>();
     @GuardedBy("this")
@@ -101,6 +101,8 @@ public class Partition
 
     public synchronized ListenableFuture<Void> addDataPages(int taskId, int attemptId, long dataPagesId, List<Slice> pages)
     {
+        checkState(finishFuture == null, "exchange %s partition %s already finished", exchangeId, partitionId);
+
         TaskAttemptId taskAttemptId = new TaskAttemptId(taskId, attemptId);
         long lastDataPagesId = lastDataPagesIds.getOrDefault(taskAttemptId, -1L);
         checkArgument(dataPagesId >= lastDataPagesId,
@@ -133,24 +135,36 @@ public class Partition
         return ChunkDataResult.of(chunkDataLease);
     }
 
-    public void finish()
+    public synchronized ListenableFuture<Void> finish()
     {
-        List<AddDataPagesFuture> futuresToBeCancelled;
-        synchronized (this) {
-            // it's possible for finish() to be called multiple times due to retries, or we finish an exchange after it's drained
-            if (finished) {
-                return;
-            }
-            finished = true;
-            futuresToBeCancelled = ImmutableList.copyOf(addDataPagesFutures);
+        if (finishFuture != null) {
+            return finishFuture;
         }
-        // it's possible for finish() to be called when we have writes in progress, we simply cancel such writes
-        futuresToBeCancelled.forEach(future -> future.cancel(true));
-        synchronized (this) {
-            checkState(openChunk != null, "No open chunk exists for exchange %s partition %d".formatted(exchangeId, partitionId));
-            closeChunk(openChunk);
-            openChunk = null;
+
+        ListenableFuture<Void> inProgressAddDataPagesFuture;
+        if (!addDataPagesFutures.isEmpty()) {
+            // When we finish a partition while there are still in-progress writes,
+            // we need to guarantee that the chunk won't get corrupted
+            inProgressAddDataPagesFuture = addDataPagesFutures.poll();
+            // addDataPagesFutures execute sequentially, so we can safely ignore the rest of futures
+            addDataPagesFutures.clear();
         }
+        else {
+            inProgressAddDataPagesFuture = immediateVoidFuture();
+        }
+
+        finishFuture = Futures.transform(
+                inProgressAddDataPagesFuture,
+                ignored -> {
+                    synchronized (this) {
+                        checkState(openChunk != null, "No open chunk exists for exchange %s partition %d".formatted(exchangeId, partitionId));
+                        closeChunk(openChunk);
+                        openChunk = null;
+                    }
+                    return null;
+                },
+                executor);
+        return finishFuture;
     }
 
     public boolean hasOpenChunk()
@@ -232,11 +246,6 @@ public class Partition
         return ImmutableList.copyOf(closedChunks.values());
     }
 
-    public synchronized boolean isFinished()
-    {
-        return finished;
-    }
-
     private record TaskAttemptId(
             int taskId,
             int attemptId)
@@ -295,7 +304,11 @@ public class Partition
                             try {
                                 boolean completeFuture = false;
                                 synchronized (Partition.this) {
-                                    if (!pages.hasNext()) {
+                                    if (addDataPagesFutures.isEmpty()) {
+                                        // meaning partition already finished, we can terminate early
+                                        completeFuture = true;
+                                    }
+                                    else if (!pages.hasNext()) {
                                         addDataPagesFutures.removeFirst();
                                         if (!addDataPagesFutures.isEmpty()) {
                                             addDataPagesFutures.peek().process();
@@ -335,12 +348,11 @@ public class Partition
             }
             if (futureToBeCancelled != null) {
                 futureToBeCancelled.cancel(true);
-            }
-
-            synchronized (Partition.this) {
-                addDataPagesFutures.removeFirst();
-                if (!addDataPagesFutures.isEmpty()) {
-                    addDataPagesFutures.peek().process();
+                synchronized (Partition.this) {
+                    addDataPagesFutures.removeFirst();
+                    if (!addDataPagesFutures.isEmpty()) {
+                        addDataPagesFutures.peek().process();
+                    }
                 }
             }
         }

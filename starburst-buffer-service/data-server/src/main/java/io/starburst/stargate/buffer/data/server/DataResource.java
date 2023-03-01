@@ -554,18 +554,28 @@ public class DataResource
 
     @GET
     @Path("{exchangeId}/finish")
-    public Response finishExchange(
+    public void finishExchange(
             @PathParam("exchangeId") String exchangeId,
-            @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId)
+            @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId,
+            @HeaderParam(MAX_WAIT) Duration clientMaxWait,
+            @Suspended AsyncResponse asyncResponse)
     {
         try {
             checkTargetBufferNodeId(targetBufferNodeId);
-            chunkManager.finishExchange(exchangeId);
-            return Response.ok().build();
+            bindAsyncResponse(
+                    asyncResponse,
+                    logAndTranslateExceptions(
+                            Futures.transform(
+                                    chunkManager.finishExchange(exchangeId),
+                                    ignored -> Response.ok().build(),
+                                    directExecutor()),
+                            () -> "GET /%s/finish".formatted(exchangeId)),
+                    responseExecutor)
+                    .withTimeout(getAsyncTimeout(clientMaxWait));
         }
         catch (RuntimeException e) {
             logger.warn(e, "error on GET /%s/finish", exchangeId);
-            return errorResponse(e);
+            asyncResponse.resume(errorResponse(e));
         }
     }
 

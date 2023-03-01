@@ -124,8 +124,8 @@ public class TestChunkManager
         assertTrue(chunkList1.chunks().isEmpty());
         assertTrue(chunkList1.nextPagingId().isPresent());
 
-        chunkManager.finishExchange(EXCHANGE_0);
-        chunkManager.finishExchange(EXCHANGE_1);
+        getFutureValue(chunkManager.finishExchange(EXCHANGE_0));
+        getFutureValue(chunkManager.finishExchange(EXCHANGE_1));
 
         assertEquals(2, chunkManager.getTrackedExchanges());
         assertEquals(0, chunkManager.getOpenChunks());
@@ -190,8 +190,8 @@ public class TestChunkManager
         assertTrue(chunkList1.chunks().isEmpty());
         assertTrue(chunkList1.nextPagingId().isPresent());
 
-        chunkManager.finishExchange(EXCHANGE_0);
-        chunkManager.finishExchange(EXCHANGE_1);
+        getFutureValue(chunkManager.finishExchange(EXCHANGE_0));
+        getFutureValue(chunkManager.finishExchange(EXCHANGE_1));
 
         assertEquals(2, chunkManager.getTrackedExchanges());
         assertEquals(0, chunkManager.getOpenChunks());
@@ -276,7 +276,7 @@ public class TestChunkManager
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("dataPagesId should not decrease for the same writer: taskId 0, attemptId 0, dataPagesId 0, lastDataPagesId 1");
         getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 1, 0, 0L, ImmutableList.of(utf8Slice("deduplication"))));
-        chunkManager.finishExchange(EXCHANGE_0);
+        getFutureValue(chunkManager.finishExchange(EXCHANGE_0));
 
         ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 12);
         ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 1, 1L, 8);
@@ -337,7 +337,7 @@ public class TestChunkManager
         assertThatThrownBy(() -> chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty()))
                 .isInstanceOf(DataServerException.class)
                 .hasMessage("exchange %s is in inconsistent state".formatted(EXCHANGE_0));
-        assertThatThrownBy(() -> chunkManager.finishExchange(EXCHANGE_0))
+        assertThatThrownBy(() -> getFutureValue(chunkManager.finishExchange(EXCHANGE_0)))
                 .isInstanceOf(DataServerException.class)
                 .hasMessage("exchange %s is in inconsistent state".formatted(EXCHANGE_0));
     }
@@ -393,8 +393,8 @@ public class TestChunkManager
         verifyChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle1.partitionId(), chunkHandle1.chunkId()),
                 new DataPage(0, 0, utf8Slice("pages")));
 
-        chunkManager.finishExchange(EXCHANGE_0);
-        chunkManager.finishExchange(EXCHANGE_1);
+        getFutureValue(chunkManager.finishExchange(EXCHANGE_0));
+        getFutureValue(chunkManager.finishExchange(EXCHANGE_1));
 
         ListenableFuture<Slice> sliceFuture = memoryAllocator.allocate(64);
         await().atMost(ONE_SECOND).until(sliceFuture::isDone);
@@ -527,7 +527,7 @@ public class TestChunkManager
         getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 5L, ImmutableList.of(utf8Slice("page5"))));
         getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 6L, ImmutableList.of(utf8Slice("page6"))));
         getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 7L, ImmutableList.of(utf8Slice("page7"))));
-        chunkManager.finishExchange(EXCHANGE_0);
+        getFutureValue(chunkManager.finishExchange(EXCHANGE_0));
         chunkList = listClosedChunks(chunkManager, EXCHANGE_0, pagingId, 4); // chunk 4, 5, 6, 7 are newly closed
         pagingId = chunkList.nextPagingId();
         assertTrue(pagingId.isEmpty());
@@ -539,7 +539,7 @@ public class TestChunkManager
     }
 
     @Test
-    public void testIgnoreCancellationException()
+    public void testWaitForInProgressAddDataPages()
     {
         long maxBytes = 16L;
         MemoryAllocator memoryAllocator = new MemoryAllocator(
@@ -550,28 +550,36 @@ public class TestChunkManager
                 new ChunkManagerConfig(),
                 new DataServerStats());
         ChunkManager chunkManager = createChunkManager(memoryAllocator, DataSize.of(8, BYTE), DataSize.of(8, BYTE));
-
         ListenableFuture<Void> addDataPagesFuture1 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 1L, ImmutableList.of(utf8Slice("1")));
         ListenableFuture<Void> addDataPagesFuture2 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 2L, ImmutableList.of(utf8Slice("2")));
         ListenableFuture<Void> addDataPagesFuture3 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 3L, ImmutableList.of(utf8Slice("3")));
-
+        ListenableFuture<Void> addDataPagesFuture4 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 4L, ImmutableList.of(utf8Slice("4")));
         await().atMost(ONE_SECOND).until(addDataPagesFuture1::isDone);
         await().atMost(ONE_SECOND).until(addDataPagesFuture2::isDone);
         assertFalse(addDataPagesFuture3.isDone());
+        assertFalse(addDataPagesFuture4.isDone());
 
-        chunkManager.finishExchange(EXCHANGE_0);
-        assertTrue(addDataPagesFuture3.isCancelled());
+        ListenableFuture<Void> exchangeFinishFuture = chunkManager.finishExchange(EXCHANGE_0);
+        assertFalse(exchangeFinishFuture.isDone());
+
+        chunkManager.spoolIfNecessary();
+        await().atMost(ONE_SECOND).until(addDataPagesFuture3::isDone);
+        await().atMost(ONE_SECOND).until(exchangeFinishFuture::isDone);
+        assertFalse(addDataPagesFuture4.isDone());
 
         ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 1);
         ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 0, 1L, 1);
+        ChunkHandle chunkHandle2 = new ChunkHandle(BUFFER_NODE_ID, 0, 2L, 1);
 
-        ChunkList chunkList = listClosedChunks(chunkManager, EXCHANGE_0, OptionalLong.empty(), 2);
-        assertThat(chunkList.chunks()).containsExactlyInAnyOrder(chunkHandle0, chunkHandle1);
+        ChunkList chunkList = getFutureValue(chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty()));
+        assertThat(chunkList.chunks()).containsExactlyInAnyOrder(chunkHandle0, chunkHandle1, chunkHandle2);
 
         verifyChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle0.partitionId(), chunkHandle0.chunkId()),
                 new DataPage(0, 0, utf8Slice("1")));
         verifyChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle1.partitionId(), chunkHandle1.chunkId()),
                 new DataPage(0, 0, utf8Slice("2")));
+        verifyChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle2.partitionId(), chunkHandle2.chunkId()),
+                new DataPage(0, 0, utf8Slice("3")));
     }
 
     @Test

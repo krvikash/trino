@@ -34,7 +34,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutorService;
@@ -48,9 +47,11 @@ import java.util.function.ToIntFunction;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static com.google.common.util.concurrent.Futures.allAsList;
 import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
 import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static io.airlift.concurrent.MoreFutures.addExceptionCallback;
+import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.EXCHANGE_CORRUPTED;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.EXCHANGE_FINISHED;
@@ -98,7 +99,7 @@ public class Exchange
     @GuardedBy("this")
     private long lastPagingId = -1;
     @GuardedBy("this")
-    private boolean finished;
+    private ListenableFuture<Void> finishFuture;
     private volatile long lastUpdateTime;
     private volatile boolean allClosedChunksReceived;
     private final AtomicReference<Throwable> failure = new AtomicReference<>();
@@ -144,7 +145,7 @@ public class Exchange
 
         Partition partition;
         synchronized (this) {
-            if (finished) {
+            if (finishFuture != null) {
                 throw new DataServerException(EXCHANGE_FINISHED, "exchange %s already finished".formatted(exchangeId));
             }
             partition = partitions.computeIfAbsent(partitionId, ignored -> new Partition(
@@ -163,16 +164,6 @@ public class Exchange
 
         ListenableFuture<Void> addDataPagesFuture = partition.addDataPages(taskId, attemptId, dataPagesId, pages);
         addExceptionCallback(addDataPagesFuture, throwable -> {
-            if (throwable instanceof CancellationException) {
-                // ignore CancellationException as we may explicitly cancel in-progress writes when finishing a partition
-                if (!partition.isFinished()) {
-                    // check if partition is finished - this the only case when we can expect CancellationException
-                    IllegalStateException illegalStateFailure = new IllegalStateException(String.format("Got CancellationException for addPages on non-finished partition %s.%s", exchangeId, partition.getPartitionId()));
-                    log.error(illegalStateFailure);
-                    failure.compareAndSet(null, illegalStateFailure);
-                }
-                return;
-            }
             failure.compareAndSet(null, throwable);
             this.releaseChunks();
         }, executor);
@@ -287,7 +278,7 @@ public class Exchange
         List<ChunkHandle> chunks = ImmutableList.copyOf(pendingChunkList.subList(0, chunkListSize));
         pendingChunkList = pendingChunkList.subList(chunkListSize, pendingChunkList.size());
 
-        if (finished && pendingChunkList.size() == 0 && recentlyClosedChunksCount.get() == 0) {
+        if (finishFuture != null && finishFuture.isDone() && pendingChunkList.size() == 0 && recentlyClosedChunksCount.get() == 0) {
             nextPagingId = OptionalLong.empty();
         }
         else {
@@ -312,18 +303,14 @@ public class Exchange
         return allClosedChunksReceived;
     }
 
-    public synchronized void finish()
+    public synchronized ListenableFuture<Void> finish()
     {
         throwIfFailed();
 
-        if (finished) {
-            return;
+        if (finishFuture == null) {
+            finishFuture = asVoid(allAsList(partitions.values().stream().map(Partition::finish).collect(toImmutableList())));
         }
-
-        for (Partition partition : partitions.values()) {
-            partition.finish();
-        }
-        finished = true;
+        return finishFuture;
     }
 
     public int getOpenChunksCount()

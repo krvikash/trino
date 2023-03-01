@@ -244,10 +244,10 @@ public class ChunkManager
         getExchangeAndHeartbeat(exchangeId);
     }
 
-    public void finishExchange(String exchangeId)
+    public ListenableFuture<Void> finishExchange(String exchangeId)
     {
         Exchange exchange = getExchangeAndHeartbeat(exchangeId);
-        exchange.finish();
+        return exchange.finish();
     }
 
     public void removeExchange(String exchangeId)
@@ -292,7 +292,7 @@ public class ChunkManager
         chunkSpoolExecutor.shutdownNow(); // deschedule background spooling
 
         // finish all exchanges
-        exchanges.values().forEach(Exchange::finish);
+        exchanges.values().forEach(exchange -> getFutureValue(exchange.finish()));
 
         // spool all chunks
         long backoff = 1_000;
