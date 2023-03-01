@@ -15,7 +15,6 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Closer;
-import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.log.Logger;
@@ -57,6 +56,7 @@ import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
 import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static io.airlift.concurrent.AsyncSemaphore.processAll;
+import static io.airlift.concurrent.MoreFutures.addExceptionCallback;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.EXCHANGE_NOT_FOUND;
@@ -485,25 +485,17 @@ public class ChunkManager
                     }
 
                     ListenableFuture<Void> spoolingFuture = spoolingStorage.writeChunk(bufferNodeId, chunk.getExchangeId(), chunk.getChunkId(), chunkDataLease);
+                    // in case of failure we still need to decrease reference count to avoid memory leak
+                    addExceptionCallback(spoolingFuture, failure -> chunkDataLease.release());
 
-                    Futures.addCallback(spoolingFuture, new FutureCallback<>() {
-                        @Override
-                        public void onSuccess(Void result)
-                        {
-                            // release chunkDataLease and chunk
-                            chunkDataLease.release();
-                            chunk.release();
-                        }
-
-                        @Override
-                        public void onFailure(Throwable t)
-                        {
-                            // on failure just release chunkDataLease
-                            chunkDataLease.release();
-                        }
-                    }, executor);
-
-                    return spoolingFuture;
+                    return Futures.transform(
+                            spoolingFuture,
+                            ignored -> {
+                                chunkDataLease.release();
+                                chunk.release();
+                                return null;
+                            },
+                            executor);
                 },
                 chunkSpoolConcurrency,
                 executor));
