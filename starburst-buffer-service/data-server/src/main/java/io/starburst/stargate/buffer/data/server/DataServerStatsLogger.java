@@ -15,6 +15,7 @@ import io.airlift.stats.CounterStat;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
+import javax.annotation.concurrent.GuardedBy;
 import javax.inject.Inject;
 
 import java.util.concurrent.Executors;
@@ -57,10 +58,22 @@ public class DataServerStatsLogger
     @PostConstruct
     public void start()
     {
-        executorService.scheduleWithFixedDelay(this::logStats, 0, LOG_INTERVAL_SECONDS, TimeUnit.SECONDS);
+        executorService.scheduleWithFixedDelay(this::logStatsSafe, 0, LOG_INTERVAL_SECONDS, TimeUnit.SECONDS);
     }
 
-    private synchronized void logStats()
+    private synchronized void logStatsSafe()
+    {
+        try {
+            logStats();
+        }
+        catch (Exception e) {
+            // catch exception so we are not unscheduled
+            log.error(e, "Unexpected execption in logStats");
+        }
+    }
+
+    @GuardedBy("this")
+    private void logStats()
     {
         spooledDataSize.update();
         spoolingFailures.update();
@@ -122,8 +135,10 @@ public class DataServerStatsLogger
         {
             if (lastUpdateTimeNanos != 0) {
                 double timeDelta = (currentTimeNanos - lastUpdateTimeNanos) / 1_000_000_000d;
-                long counterDelta = counter - lastCounter;
-                rate = (double) counterDelta / timeDelta;
+                if (timeDelta != 0) {
+                    long counterDelta = counter - lastCounter;
+                    rate = (double) counterDelta / timeDelta;
+                }
             }
             lastUpdateTimeNanos = currentTimeNanos;
             lastCounter = counter;
