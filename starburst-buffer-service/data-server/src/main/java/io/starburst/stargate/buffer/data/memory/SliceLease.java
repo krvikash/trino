@@ -52,6 +52,11 @@ public class SliceLease
         return sliceFuture;
     }
 
+    public void cancel()
+    {
+        sliceFuture.cancel(true);
+    }
+
     public void release(boolean poolable)
     {
         checkState(released.compareAndSet(false, true), "already released");

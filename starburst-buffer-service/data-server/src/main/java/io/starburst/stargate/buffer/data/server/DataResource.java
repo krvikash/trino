@@ -289,13 +289,9 @@ public class DataResource
                 if (servingCompletionFlag.getAndSet(true)) {
                     return;
                 }
-                try {
-                    sliceLease.release(false);
-                }
-                finally {
-                    // just decrement served request counter here
-                    decrementServedAddDataPagesRequests();
-                }
+                // try to cancel opportunistically to prevent from `Futures.addCallback` running if possible
+                sliceLease.cancel();
+                decrementServedAddDataPagesRequests();
             });
 
             asyncResponse.register((ConnectionCallback) response -> {
@@ -303,18 +299,20 @@ public class DataResource
                 if (servingCompletionFlag.getAndSet(true)) {
                     return;
                 }
-                try {
-                    sliceLease.release(false);
-                }
-                finally {
-                    // just decrement served request counter here
-                    decrementServedAddDataPagesRequests();
-                }
+                // try to cancel opportunistically to prevent from `Futures.addCallback` running if possible
+                sliceLease.cancel();
+                decrementServedAddDataPagesRequests();
             });
         }
         catch (Exception e) {
-            // unexpected exception; catch just to handle decrementing of inProgress response counter
-            decrementInProgressAddDataPagesRequests();
+            // Unexpected exception; catch just to handle decrementing of inProgress response counter
+            // We also immediately release sliceLease. This is ok as we know underlying slice is not yet used by any backgroud processes.
+            try {
+                sliceLease.release(false);
+            }
+            finally {
+                decrementInProgressAddDataPagesRequests();
+            }
             throw e;
         }
 
@@ -395,7 +393,7 @@ public class DataResource
                                         writtenDataSize.update(contentLength);
                                         writtenDataSizeDistribution.add(contentLength);
 
-                                        finalizeAddDataPagesRequest(addDataPagesFutures);
+                                        finalizeAddDataPagesRequest(addDataPagesFutures, sliceLease);
 
                                         bindAsyncResponse(
                                                 asyncResponse,
@@ -408,7 +406,7 @@ public class DataResource
                                                 responseExecutor);
                                     }
                                     catch (Throwable throwable) {
-                                        finalizeAddDataPagesRequest(addDataPagesFutures);
+                                        finalizeAddDataPagesRequest(addDataPagesFutures, sliceLease);
                                         logger.warn(throwable, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
                                         asyncResponse.resume(errorResponse(throwable));
                                     }
@@ -418,7 +416,7 @@ public class DataResource
                             @Override
                             public void onError(Throwable throwable)
                             {
-                                finalizeAddDataPagesRequest(emptyList());
+                                finalizeAddDataPagesRequest(emptyList(), sliceLease);
                                 logger.warn(throwable, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
                                 asyncResponse.resume(errorResponse(throwable));
                             }
@@ -428,12 +426,12 @@ public class DataResource
                     @Override
                     public void onFailure(Throwable t)
                     {
-                        finalizeAddDataPagesRequest(emptyList());
+                        finalizeAddDataPagesRequest(emptyList(), sliceLease);
                         logger.warn(t, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
                         asyncResponse.resume(errorResponse(t));
                     }
 
-                    private void finalizeAddDataPagesRequest(List<ListenableFuture<Void>> addDataPagesFutures)
+                    private void finalizeAddDataPagesRequest(List<ListenableFuture<Void>> addDataPagesFutures, SliceLease sliceLease)
                     {
                         Futures.whenAllComplete(addDataPagesFutures).run(() -> {
                             // only mark request no longer in progress when all futures completed.
@@ -442,7 +440,12 @@ public class DataResource
                             // then allAsList(addDataPagesFuturesList), used below completed immediatelly
                             // and generated HTTP response to the user.
                             if (!inProgressCompletionFlag.getAndSet(true)) {
-                                decrementInProgressAddDataPagesRequests();
+                                try {
+                                    sliceLease.release(false);
+                                }
+                                finally {
+                                    decrementInProgressAddDataPagesRequests();
+                                }
                             }
                         }, directExecutor());
                     }
