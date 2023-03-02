@@ -25,7 +25,7 @@ public class DataServerConfig
     private boolean dataIntegrityVerificationEnabled = true;
     private boolean testingDropUploadedPages;
     private int httpResponseThreads = 100;
-    private boolean testingEnableStatsLogging = true; // true for now
+    private boolean testingEnableStatsLogging;
     private Duration broadcastInterval = Duration.succinctDuration(5, SECONDS);
     private int drainingMaxAttempts = 4;
     private Duration minDrainingDuration = Duration.succinctDuration(30, SECONDS);
