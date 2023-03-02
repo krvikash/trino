@@ -50,7 +50,7 @@ public class BufferExchangeConfig
     private Duration dataClientCircuitBreakerDelay = succinctDuration(30.0, SECONDS);
 
     private int dataClientAddDataPagesMaxRetries = 5;
-    private Duration dataClientAddDataPagesRetryBackoffInitial = succinctDuration(8.0, SECONDS);
+    private Duration dataClientAddDataPagesRetryBackoffInitial = succinctDuration(16.0, SECONDS);
     private Duration dataClientAddDataPagesRetryBackoffMax = succinctDuration(120.0, SECONDS);
     private double dataClientAddDataPagesRetryBackoffFactor = 2.0;
     private double dataClientAddDataPagesRetryBackoffJitter = 0.5;

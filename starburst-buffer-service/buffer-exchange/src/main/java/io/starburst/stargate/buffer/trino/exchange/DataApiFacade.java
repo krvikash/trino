@@ -425,7 +425,10 @@ public class DataApiFacade
                     if (!(throwable instanceof DataApiException dataApiException)) {
                         return true;
                     }
-                    return dataApiException.getErrorCode() == ErrorCode.INTERNAL_ERROR || dataApiException.getErrorCode() == ErrorCode.BUFFER_NODE_NOT_FOUND;
+                    return switch (dataApiException.getErrorCode()) {
+                        case INTERNAL_ERROR, BUFFER_NODE_NOT_FOUND, OVERLOADED -> true;
+                        default -> false;
+                    };
                 })
                 .build();
     }
@@ -443,7 +446,10 @@ public class DataApiFacade
                     if (!(throwable instanceof DataApiException dataApiException)) {
                         return true;
                     }
-                    return dataApiException.getErrorCode() == ErrorCode.INTERNAL_ERROR;
+                    return switch (dataApiException.getErrorCode()) {
+                        case INTERNAL_ERROR, OVERLOADED -> true;
+                        default -> false;
+                    };
                 })
                 .build();
     }

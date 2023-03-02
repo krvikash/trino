@@ -155,7 +155,7 @@ public class TestDataApiFacade
     @EnumSource(value = ErrorCode.class)
     public void testDoNotRetryOnMostDataApiExceptions(ErrorCode errorCode)
     {
-        if (errorCode == ErrorCode.INTERNAL_ERROR || errorCode == ErrorCode.BUFFER_NODE_NOT_FOUND) {
+        if (errorCode == ErrorCode.INTERNAL_ERROR || errorCode == ErrorCode.BUFFER_NODE_NOT_FOUND || errorCode == ErrorCode.OVERLOADED) {
             return; // skip
         }
         TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
@@ -348,7 +348,7 @@ public class TestDataApiFacade
     @EnumSource(value = ErrorCode.class)
     public void testNoCircuitBreakerOnMostDataApiExceptions(ErrorCode errorCode)
     {
-        if (errorCode == ErrorCode.INTERNAL_ERROR) {
+        if (errorCode == ErrorCode.INTERNAL_ERROR || errorCode == ErrorCode.OVERLOADED) {
             return; // skip
         }
 
