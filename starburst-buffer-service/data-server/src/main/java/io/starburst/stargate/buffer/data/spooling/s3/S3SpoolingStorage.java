@@ -30,6 +30,7 @@ import software.amazon.awssdk.core.retry.RetryPolicy;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3AsyncClientBuilder;
+import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.model.Delete;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
@@ -115,6 +116,9 @@ public class S3SpoolingStorage
 
         S3AsyncClientBuilder s3AsyncClientBuilder = S3AsyncClient.builder()
                 .credentialsProvider(credentialsProvider)
+                .serviceConfiguration(S3Configuration.builder()
+                        .checksumValidationEnabled(false)
+                        .build())
                 .overrideConfiguration(overrideConfig);
 
         s3AsyncClientBuilder.endpointOverride(
