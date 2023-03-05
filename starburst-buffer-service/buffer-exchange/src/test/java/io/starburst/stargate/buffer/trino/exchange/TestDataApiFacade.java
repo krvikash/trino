@@ -25,6 +25,7 @@ import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
+import io.starburst.stargate.buffer.trino.exchange.DataApiFacade.RetryExecutorConfig;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -70,7 +71,7 @@ public class TestDataApiFacade
         TestingDataApi dataApiDelegate = new TestingDataApi();
         apiFactory.setDataApi(TestingDataApi.NODE_ID, dataApiDelegate);
 
-        DataApiFacade dataApiFacade = new DataApiFacade(discoveryManager, apiFactory, 2, Duration.valueOf("500ms"), Duration.valueOf("1000ms"), 2.0, 0.0, executor);
+        DataApiFacade dataApiFacade = new DataApiFacade(discoveryManager, apiFactory, new RetryExecutorConfig(2, Duration.valueOf("500ms"), Duration.valueOf("1000ms"), 2.0, 0.0), executor);
 
         dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFailedFuture(new RuntimeException("random exception")));
         dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFailedFuture(new RuntimeException("random exception")));
@@ -98,7 +99,7 @@ public class TestDataApiFacade
         TestingDataApi dataApiDelegate = new TestingDataApi();
         apiFactory.setDataApi(TestingDataApi.NODE_ID, dataApiDelegate);
 
-        DataApiFacade dataApiFacade = new DataApiFacade(discoveryManager, apiFactory, 2, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, executor);
+        DataApiFacade dataApiFacade = new DataApiFacade(discoveryManager, apiFactory, new RetryExecutorConfig(2, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0), executor);
 
         dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFailedFuture(new RuntimeException("random exception")));
         dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFailedFuture(new RuntimeException("random exception")));
@@ -123,7 +124,7 @@ public class TestDataApiFacade
         TestingDataApi dataApiDelegate = new TestingDataApi();
         apiFactory.setDataApi(TestingDataApi.NODE_ID, dataApiDelegate);
 
-        DataApiFacade dataApiFacade = new DataApiFacade(discoveryManager, apiFactory, 2, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, executor);
+        DataApiFacade dataApiFacade = new DataApiFacade(discoveryManager, apiFactory, new RetryExecutorConfig(2, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0), executor);
 
         dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
         dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
@@ -149,7 +150,7 @@ public class TestDataApiFacade
         TestingDataApi dataApiDelegate = new TestingDataApi();
         apiFactory.setDataApi(TestingDataApi.NODE_ID, dataApiDelegate);
 
-        DataApiFacade dataApiFacade = new DataApiFacade(discoveryManager, apiFactory, 2, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, executor);
+        DataApiFacade dataApiFacade = new DataApiFacade(discoveryManager, apiFactory, new RetryExecutorConfig(2, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0), executor);
 
         dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFailedFuture(new DataApiException(errorCode, "blah")));
 
@@ -169,7 +170,7 @@ public class TestDataApiFacade
         TestingApiFactory apiFactory = new TestingApiFactory();
         TestingDataApi dataApiDelegate = new TestingDataApi();
         apiFactory.setDataApi(TestingDataApi.NODE_ID, dataApiDelegate);
-        DataApiFacade dataApiFacade = new DataApiFacade(discoveryManager, apiFactory, 2, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, executor);
+        DataApiFacade dataApiFacade = new DataApiFacade(discoveryManager, apiFactory, new RetryExecutorConfig(2, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0), executor);
 
         // OK after INTERNAL_ERROR
         dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, Futures.immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
@@ -206,7 +207,7 @@ public class TestDataApiFacade
         TestingApiFactory apiFactory = new TestingApiFactory();
         TestingDataApi dataApiDelegate = new TestingDataApi();
         apiFactory.setDataApi(TestingDataApi.NODE_ID, dataApiDelegate);
-        DataApiFacade dataApiFacade = new DataApiFacade(discoveryManager, apiFactory, 2, Duration.valueOf("1000ms"), Duration.valueOf("2000ms"), 2.0, 0.0, executor);
+        DataApiFacade dataApiFacade = new DataApiFacade(discoveryManager, apiFactory, new RetryExecutorConfig(2, Duration.valueOf("1000ms"), Duration.valueOf("2000ms"), 2.0, 0.0), executor);
 
         ChunkList result = new ChunkList(ImmutableList.of(), OptionalLong.of(7));
         dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFuture(result));
@@ -224,7 +225,7 @@ public class TestDataApiFacade
         TestingApiFactory apiFactory = new TestingApiFactory();
         TestingDataApi dataApiDelegate = new TestingDataApi();
         apiFactory.setDataApi(TestingDataApi.NODE_ID, dataApiDelegate);
-        DataApiFacade dataApiFacade = new DataApiFacade(discoveryManager, apiFactory, 2, Duration.valueOf("1000ms"), Duration.valueOf("2000ms"), 2.0, 0.0, executor);
+        DataApiFacade dataApiFacade = new DataApiFacade(discoveryManager, apiFactory, new RetryExecutorConfig(2, Duration.valueOf("1000ms"), Duration.valueOf("2000ms"), 2.0, 0.0), executor);
 
         ChunkList result = new ChunkList(ImmutableList.of(), OptionalLong.of(7));
         dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFuture(result));

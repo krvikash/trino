@@ -65,9 +65,16 @@ public class DataApiFacade
     private final ApiFactory apiFactory;
     private final Map<Long, DataApi> dataApiClients = new ConcurrentHashMap<>();
     private final Map<Long, FailsafeExecutor<Object>> retryExecutors = new ConcurrentHashMap<>();
-    private final RetryPolicy<Object> retryPolicy;
+    private final RetryExecutorConfig retryExecutorConfig;
     private final ScheduledExecutorService executor;
     private final Closer destroyCloser = Closer.create();
+
+    record RetryExecutorConfig(
+            int maxRetries,
+            Duration backoffInitial,
+            Duration backoffMax,
+            double backoffFactor,
+            double backoffJitter) {}
 
     @Inject
     public DataApiFacade(
@@ -79,11 +86,12 @@ public class DataApiFacade
         this(
                 discoveryManager,
                 apiFactory,
-                config.getDataClientMaxRetries(),
-                config.getDataClientRetryBackoffInitial(),
-                config.getDataClientRetryBackoffMax(),
-                config.getDataClientRetryBackoffFactor(),
-                config.getDataClientRetryBackoffJitter(),
+                new RetryExecutorConfig(
+                        config.getDataClientMaxRetries(),
+                        config.getDataClientRetryBackoffInitial(),
+                        config.getDataClientRetryBackoffMax(),
+                        config.getDataClientRetryBackoffFactor(),
+                        config.getDataClientRetryBackoffJitter()),
                 executor);
     }
 
@@ -91,31 +99,12 @@ public class DataApiFacade
     DataApiFacade(
             BufferNodeDiscoveryManager discoveryManager,
             ApiFactory apiFactory,
-            int maxRetries,
-            Duration backoffInitial,
-            Duration backoffMax,
-            double backoffFactor,
-            double backoffJitter,
+            RetryExecutorConfig retryExecutorConfig,
             ScheduledExecutorService executor)
     {
         this.discoveryManager = requireNonNull(discoveryManager, "discoveryManager is null");
         this.apiFactory = requireNonNull(apiFactory, "apiFactory is null");
-        this.retryPolicy = RetryPolicy.builder()
-                .withBackoff(
-                        java.time.Duration.ofMillis(backoffInitial.toMillis()),
-                        java.time.Duration.ofMillis(backoffMax.toMillis()),
-                        backoffFactor)
-                .withMaxRetries(maxRetries)
-                .withJitter(backoffJitter)
-                .onRetry(event -> log.warn(event.getLastException(), "retrying DataApi request (%s)".formatted(event.getAttemptCount())))
-                .handleIf(throwable -> {
-                    if (!(throwable instanceof DataApiException dataApiException)) {
-                        return true;
-                    }
-                    return dataApiException.getErrorCode() == ErrorCode.INTERNAL_ERROR || dataApiException.getErrorCode() == ErrorCode.BUFFER_NODE_NOT_FOUND;
-                })
-                .build();
-
+        this.retryExecutorConfig = requireNonNull(retryExecutorConfig, "retryExecutorConfig is null");
         this.executor = requireNonNull(executor, "executor is null");
     }
 
@@ -359,8 +348,27 @@ public class DataApiFacade
     private FailsafeExecutor<Object> getRetryExecutor(long bufferNodeId)
     {
         return retryExecutors.computeIfAbsent(bufferNodeId, ignored ->
-                Failsafe.with(retryPolicy)
+                Failsafe.with(createRetryPolicy(retryExecutorConfig))
                         .with(executor));
+    }
+
+    private static RetryPolicy<Object> createRetryPolicy(RetryExecutorConfig config)
+    {
+        return RetryPolicy.builder()
+                .withBackoff(
+                        java.time.Duration.ofMillis(config.backoffInitial().toMillis()),
+                        java.time.Duration.ofMillis(config.backoffMax().toMillis()),
+                        config.backoffFactor())
+                .withMaxRetries(config.maxRetries())
+                .withJitter(config.backoffJitter())
+                .onRetry(event -> log.warn(event.getLastException(), "retrying DataApi request (%s)".formatted(event.getAttemptCount())))
+                .handleIf(throwable -> {
+                    if (!(throwable instanceof DataApiException dataApiException)) {
+                        return true;
+                    }
+                    return dataApiException.getErrorCode() == ErrorCode.INTERNAL_ERROR || dataApiException.getErrorCode() == ErrorCode.BUFFER_NODE_NOT_FOUND;
+                })
+                .build();
     }
 
     private DataApi getDataApi(long bufferNodeId)
