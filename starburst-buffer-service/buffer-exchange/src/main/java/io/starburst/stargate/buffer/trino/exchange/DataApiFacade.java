@@ -48,6 +48,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Predicate;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
@@ -63,6 +64,7 @@ public class DataApiFacade
     private final BufferNodeDiscoveryManager discoveryManager;
     private final ApiFactory apiFactory;
     private final Map<Long, DataApi> dataApiClients = new ConcurrentHashMap<>();
+    private final Map<Long, FailsafeExecutor<Object>> retryExecutors = new ConcurrentHashMap<>();
     private final RetryPolicy<Object> retryPolicy;
     private final ScheduledExecutorService executor;
     private final Closer destroyCloser = Closer.create();
@@ -147,21 +149,27 @@ public class DataApiFacade
     {
         BufferNodeDiscoveryManager.BufferNodesState bufferNodes = discoveryManager.getBufferNodes();
 
+        Predicate<Long> isBufferNodeStale = bufferNodeId -> {
+            BufferNodeInfo bufferNodeInfo = bufferNodes.getAllBufferNodes().get(bufferNodeId);
+            return bufferNodeInfo == null || bufferNodeInfo.state() == BufferNodeState.DRAINED;
+        };
+
         Set<Long> staleDataApiBufferNodeIds = dataApiClients.keySet().stream()
-                .filter(bufferNodeId -> {
-                    BufferNodeInfo bufferNodeInfo = bufferNodes.getAllBufferNodes().get(bufferNodeId);
-                    return bufferNodeInfo == null || bufferNodeInfo.state() == BufferNodeState.DRAINED;
-                })
+                .filter(isBufferNodeStale)
                 .collect(toImmutableSet());
-
         log.info("cleaning up stale dataApi clients for buffer nodes %s", staleDataApiBufferNodeIds);
-
         staleDataApiBufferNodeIds.forEach(dataApiClients::remove);
+
+        Set<Long> staleRetryExecutors = retryExecutors.keySet().stream()
+                .filter(isBufferNodeStale)
+                .collect(toImmutableSet());
+        log.info("cleaning up stale retry executors for buffer nodes %s", staleRetryExecutors);
+        staleRetryExecutors.forEach(retryExecutors::remove);
     }
 
     public ListenableFuture<ChunkList> listClosedChunks(long bufferNodeId, String exchangeId, OptionalLong pagingId)
     {
-        return runWithRetry(() -> internalListClosedChunks(bufferNodeId, exchangeId, pagingId));
+        return runWithRetry(bufferNodeId, () -> internalListClosedChunks(bufferNodeId, exchangeId, pagingId));
     }
 
     private ListenableFuture<ChunkList> internalListClosedChunks(long bufferNodeId, String exchangeId, OptionalLong pagingId)
@@ -177,7 +185,7 @@ public class DataApiFacade
 
     public ListenableFuture<Void> markAllClosedChunksReceived(long bufferNodeId, String exchangeId)
     {
-        return runWithRetry(() -> internalMarkAllClosedChunksReceived(bufferNodeId, exchangeId));
+        return runWithRetry(bufferNodeId, () -> internalMarkAllClosedChunksReceived(bufferNodeId, exchangeId));
     }
 
     private ListenableFuture<Void> internalMarkAllClosedChunksReceived(long bufferNodeId, String exchangeId)
@@ -193,7 +201,7 @@ public class DataApiFacade
 
     public ListenableFuture<Void> registerExchange(long bufferNodeId, String exchangeId)
     {
-        return runWithRetry(() -> internalRegisterExchange(bufferNodeId, exchangeId));
+        return runWithRetry(bufferNodeId, () -> internalRegisterExchange(bufferNodeId, exchangeId));
     }
 
     private ListenableFuture<Void> internalRegisterExchange(long bufferNodeId, String exchangeId)
@@ -209,7 +217,7 @@ public class DataApiFacade
 
     public ListenableFuture<Void> pingExchange(long bufferNodeId, String exchangeId)
     {
-        return runWithRetry(() -> internalPingExchange(bufferNodeId, exchangeId));
+        return runWithRetry(bufferNodeId, () -> internalPingExchange(bufferNodeId, exchangeId));
     }
 
     private ListenableFuture<Void> internalPingExchange(long bufferNodeId, String exchangeId)
@@ -225,7 +233,7 @@ public class DataApiFacade
 
     public ListenableFuture<Void> removeExchange(long bufferNodeId, String exchangeId)
     {
-        return runWithRetry(() -> internalRemoveExchange(bufferNodeId, exchangeId));
+        return runWithRetry(bufferNodeId, () -> internalRemoveExchange(bufferNodeId, exchangeId));
     }
 
     private ListenableFuture<Void> internalRemoveExchange(long bufferNodeId, String exchangeId)
@@ -276,7 +284,7 @@ public class DataApiFacade
 
             return resultFuture;
         };
-        return runWithRetry(call);
+        return runWithRetry(bufferNodeId, call);
     }
 
     private ListenableFuture<Void> internalAddDataPages(long bufferNodeId, String exchangeId, int taskId, int attemptId, long dataPagesId, ListMultimap<Integer, Slice> dataPagesByPartition)
@@ -294,7 +302,7 @@ public class DataApiFacade
 
     public ListenableFuture<Void> finishExchange(long bufferNodeId, String exchangeId)
     {
-        return runWithRetry(() -> internalFinishExchange(bufferNodeId, exchangeId));
+        return runWithRetry(bufferNodeId, () -> internalFinishExchange(bufferNodeId, exchangeId));
     }
 
     private ListenableFuture<Void> internalFinishExchange(long bufferNodeId, String exchangeId)
@@ -310,7 +318,7 @@ public class DataApiFacade
 
     public ListenableFuture<List<DataPage>> getChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId, long chunkBufferNodeId)
     {
-        return runWithRetry(() -> internalGetChunkData(bufferNodeId, exchangeId, partitionId, chunkId, chunkBufferNodeId));
+        return runWithRetry(bufferNodeId, () -> internalGetChunkData(bufferNodeId, exchangeId, partitionId, chunkId, chunkBufferNodeId));
     }
 
     private ListenableFuture<List<DataPage>> internalGetChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId, long chunkBufferNodeId)
@@ -324,9 +332,9 @@ public class DataApiFacade
         }
     }
 
-    private <T> ListenableFuture<T> runWithRetry(Callable<ListenableFuture<T>> routine)
+    private <T> ListenableFuture<T> runWithRetry(long bufferNodeId, Callable<ListenableFuture<T>> routine)
     {
-        CompletableFuture<T> finalFuture = getRetryExecutor()
+        CompletableFuture<T> finalFuture = getRetryExecutor(bufferNodeId)
                 .getAsyncExecution(execution -> {
                     ListenableFuture<T> future = routine.call();
                     Futures.addCallback(future, new FutureCallback<>()
@@ -348,10 +356,11 @@ public class DataApiFacade
         return MoreFutures.toListenableFuture(finalFuture);
     }
 
-    private FailsafeExecutor<Object> getRetryExecutor()
+    private FailsafeExecutor<Object> getRetryExecutor(long bufferNodeId)
     {
-        return Failsafe.with(retryPolicy)
-                .with(executor);
+        return retryExecutors.computeIfAbsent(bufferNodeId, ignored ->
+                Failsafe.with(retryPolicy)
+                        .with(executor));
     }
 
     private DataApi getDataApi(long bufferNodeId)
