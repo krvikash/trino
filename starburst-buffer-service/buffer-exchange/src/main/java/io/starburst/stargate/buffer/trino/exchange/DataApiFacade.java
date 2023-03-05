@@ -11,6 +11,7 @@ package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ListMultimap;
+import com.google.common.io.Closer;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -30,18 +31,25 @@ import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
 
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalLong;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static java.util.Objects.requireNonNull;
 
@@ -50,11 +58,14 @@ public class DataApiFacade
 {
     private static final Logger log = Logger.get(DataApiFacade.class);
 
+    private static final Duration CLEANUP_DELAY = Duration.succinctDuration(5, TimeUnit.MINUTES);
+
     private final BufferNodeDiscoveryManager discoveryManager;
     private final ApiFactory apiFactory;
     private final Map<Long, DataApi> dataApiClients = new ConcurrentHashMap<>();
     private final RetryPolicy<Object> retryPolicy;
     private final ScheduledExecutorService executor;
+    private final Closer destroyCloser = Closer.create();
 
     @Inject
     public DataApiFacade(
@@ -104,6 +115,48 @@ public class DataApiFacade
                 .build();
 
         this.executor = requireNonNull(executor, "executor is null");
+    }
+
+    @PostConstruct
+    private void init()
+    {
+        ScheduledFuture<?> future = this.executor.scheduleWithFixedDelay(() -> {
+            try {
+                cleanUp();
+            }
+            catch (Exception e) {
+                // catch all so we are not unscheduled
+                log.error(e, "Unexpected error caught in cleanUp");
+            }
+        }, CLEANUP_DELAY.toMillis(), CLEANUP_DELAY.toMillis(), TimeUnit.MILLISECONDS);
+        destroyCloser.register(() -> future.cancel(true));
+    }
+
+    @PreDestroy
+    private void destroy()
+    {
+        try {
+            destroyCloser.close();
+        }
+        catch (IOException e) {
+            log.error(e, "Unexpected error in destroy");
+        }
+    }
+
+    private void cleanUp()
+    {
+        BufferNodeDiscoveryManager.BufferNodesState bufferNodes = discoveryManager.getBufferNodes();
+
+        Set<Long> staleDataApiBufferNodeIds = dataApiClients.keySet().stream()
+                .filter(bufferNodeId -> {
+                    BufferNodeInfo bufferNodeInfo = bufferNodes.getAllBufferNodes().get(bufferNodeId);
+                    return bufferNodeInfo == null || bufferNodeInfo.state() == BufferNodeState.DRAINED;
+                })
+                .collect(toImmutableSet());
+
+        log.info("cleaning up stale dataApi clients for buffer nodes %s", staleDataApiBufferNodeIds);
+
+        staleDataApiBufferNodeIds.forEach(dataApiClients::remove);
     }
 
     public ListenableFuture<ChunkList> listClosedChunks(long bufferNodeId, String exchangeId, OptionalLong pagingId)
@@ -321,8 +374,6 @@ public class DataApiFacade
         return dataApiClients.computeIfAbsent(bufferNodeId, this::createDataApi);
     }
 
-    // todo periodically destroy DataApi objects for buffer nodes which disappeared
-
     private DataApi createDataApi(long bufferNodeId)
     {
         BufferNodeInfo bufferNodeInfo = discoveryManager.getBufferNodes().getAllBufferNodes().get(bufferNodeId);
@@ -338,10 +389,5 @@ public class DataApiFacade
     private DataApi createDataApi(BufferNodeInfo bufferNodeInfo)
     {
         return apiFactory.createDataApi(bufferNodeInfo);
-    }
-
-    private void closeDataApi(DataApi dataApi)
-    {
-        // todo
     }
 }
