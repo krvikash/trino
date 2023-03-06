@@ -54,7 +54,15 @@ class TestBufferExchangeConfig
                 .setDataClientRetryBackoffJitter(0.5)
                 .setDataClientCircuitBreakerFailureThreshold(10)
                 .setDataClientCircuitBreakerSuccessThreshold(5)
-                .setDataClientCircuitBreakerDelay(Duration.succinctDuration(30.0, SECONDS)));
+                .setDataClientCircuitBreakerDelay(Duration.succinctDuration(30.0, SECONDS))
+                .setDataClientAddDataPagesMaxRetries(5)
+                .setDataClientAddDataPagesRetryBackoffInitial(Duration.succinctDuration(4.0, SECONDS))
+                .setDataClientAddDataPagesRetryBackoffMax(Duration.succinctDuration(60.0, SECONDS))
+                .setDataClientAddDataPagesRetryBackoffFactor(2.0)
+                .setDataClientAddDataPagesRetryBackoffJitter(0.5)
+                .setDataClientAddDataPagesCircuitBreakerFailureThreshold(10)
+                .setDataClientAddDataPagesCircuitBreakerSuccessThreshold(5)
+                .setDataClientAddDataPagesCircuitBreakerDelay(Duration.succinctDuration(30.0, SECONDS)));
     }
 
     @Test
@@ -84,6 +92,14 @@ class TestBufferExchangeConfig
                 .put("exchange.buffer-data.circuit-breaker-failure-threshold", "11")
                 .put("exchange.buffer-data.circuit-breaker-success-threshold", "6")
                 .put("exchange.buffer-data.circuit-breaker-delay", "31s")
+                .put("exchange.buffer-data.add-data-pages-max-retries", "6")
+                .put("exchange.buffer-data.add-data-pages-retry-backoff-initial", "3s")
+                .put("exchange.buffer-data.add-data-pages-retry-backoff-max", "20s")
+                .put("exchange.buffer-data.add-data-pages-retry-backoff-factor", "4.0")
+                .put("exchange.buffer-data.add-data-pages-retry-backoff-jitter", "0.25")
+                .put("exchange.buffer-data.add-data-pages-circuit-breaker-failure-threshold", "11")
+                .put("exchange.buffer-data.add-data-pages-circuit-breaker-success-threshold", "6")
+                .put("exchange.buffer-data.add-data-pages-circuit-breaker-delay", "31s")
                 .buildOrThrow();
 
         BufferExchangeConfig expected = new BufferExchangeConfig()
@@ -108,7 +124,15 @@ class TestBufferExchangeConfig
                 .setDataClientRetryBackoffJitter(0.25)
                 .setDataClientCircuitBreakerFailureThreshold(11)
                 .setDataClientCircuitBreakerSuccessThreshold(6)
-                .setDataClientCircuitBreakerDelay(Duration.succinctDuration(31, SECONDS));
+                .setDataClientCircuitBreakerDelay(Duration.succinctDuration(31, SECONDS))
+                .setDataClientAddDataPagesMaxRetries(6)
+                .setDataClientAddDataPagesRetryBackoffInitial(Duration.succinctDuration(3.0, SECONDS))
+                .setDataClientAddDataPagesRetryBackoffMax(Duration.succinctDuration(20.0, SECONDS))
+                .setDataClientAddDataPagesRetryBackoffFactor(4.0)
+                .setDataClientAddDataPagesRetryBackoffJitter(0.25)
+                .setDataClientAddDataPagesCircuitBreakerFailureThreshold(11)
+                .setDataClientAddDataPagesCircuitBreakerSuccessThreshold(6)
+                .setDataClientAddDataPagesCircuitBreakerDelay(Duration.succinctDuration(31, SECONDS));
 
         assertFullMapping(properties, expected);
     }

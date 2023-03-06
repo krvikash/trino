@@ -49,6 +49,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
@@ -65,8 +66,10 @@ public class DataApiFacade
     private final BufferNodeDiscoveryManager discoveryManager;
     private final ApiFactory apiFactory;
     private final Map<Long, DataApi> dataApiClients = new ConcurrentHashMap<>();
-    private final Map<Long, FailsafeExecutor<Object>> retryExecutors = new ConcurrentHashMap<>();
-    private final RetryExecutorConfig retryExecutorConfig;
+    private final Map<Long, FailsafeExecutor<Object>> defaultRetryExecutors = new ConcurrentHashMap<>();
+    private final Map<Long, FailsafeExecutor<Object>> addDataPagesRetryExecutors = new ConcurrentHashMap<>();
+    private final RetryExecutorConfig defaultRetryExecutorConfig;
+    private final RetryExecutorConfig addDataPagesRetryExecutorConfig;
     private final ScheduledExecutorService executor;
     private final Closer destroyCloser = Closer.create();
 
@@ -99,6 +102,15 @@ public class DataApiFacade
                         config.getDataClientCircuitBreakerFailureThreshold(),
                         config.getDataClientCircuitBreakerSuccessThreshold(),
                         config.getDataClientCircuitBreakerDelay()),
+                new RetryExecutorConfig(
+                        config.getDataClientAddDataPagesMaxRetries(),
+                        config.getDataClientAddDataPagesRetryBackoffInitial(),
+                        config.getDataClientAddDataPagesRetryBackoffMax(),
+                        config.getDataClientAddDataPagesRetryBackoffFactor(),
+                        config.getDataClientAddDataPagesRetryBackoffJitter(),
+                        config.getDataClientAddDataPagesCircuitBreakerFailureThreshold(),
+                        config.getDataClientAddDataPagesCircuitBreakerSuccessThreshold(),
+                        config.getDataClientAddDataPagesCircuitBreakerDelay()),
                 executor);
     }
 
@@ -106,12 +118,14 @@ public class DataApiFacade
     DataApiFacade(
             BufferNodeDiscoveryManager discoveryManager,
             ApiFactory apiFactory,
-            RetryExecutorConfig retryExecutorConfig,
+            RetryExecutorConfig defaultRetryExecutorConfig,
+            RetryExecutorConfig addDataPagesRetryExecutorConfig,
             ScheduledExecutorService executor)
     {
         this.discoveryManager = requireNonNull(discoveryManager, "discoveryManager is null");
         this.apiFactory = requireNonNull(apiFactory, "apiFactory is null");
-        this.retryExecutorConfig = requireNonNull(retryExecutorConfig, "retryExecutorConfig is null");
+        this.defaultRetryExecutorConfig = requireNonNull(defaultRetryExecutorConfig, "defaultRetryExecutorConfig is null");
+        this.addDataPagesRetryExecutorConfig = requireNonNull(addDataPagesRetryExecutorConfig, "addDataPagesRetryExecutorConfig is null");
         this.executor = requireNonNull(executor, "executor is null");
     }
 
@@ -156,11 +170,17 @@ public class DataApiFacade
         log.info("cleaning up stale dataApi clients for buffer nodes %s", staleDataApiBufferNodeIds);
         staleDataApiBufferNodeIds.forEach(dataApiClients::remove);
 
-        Set<Long> staleRetryExecutors = retryExecutors.keySet().stream()
+        Set<Long> staleDefaultRetryExecutors = defaultRetryExecutors.keySet().stream()
                 .filter(isBufferNodeStale)
                 .collect(toImmutableSet());
-        log.info("cleaning up stale retry executors for buffer nodes %s", staleRetryExecutors);
-        staleRetryExecutors.forEach(retryExecutors::remove);
+        log.info("cleaning up stale retry executors for buffer nodes %s", staleDefaultRetryExecutors);
+        staleDefaultRetryExecutors.forEach(defaultRetryExecutors::remove);
+
+        Set<Long> staleAddDataPagesRetryExecutors = addDataPagesRetryExecutors.keySet().stream()
+                .filter(isBufferNodeStale)
+                .collect(toImmutableSet());
+        log.info("cleaning up stale add data pages retry executors for buffer nodes %s", staleAddDataPagesRetryExecutors);
+        staleAddDataPagesRetryExecutors.forEach(addDataPagesRetryExecutors::remove);
     }
 
     public ListenableFuture<ChunkList> listClosedChunks(long bufferNodeId, String exchangeId, OptionalLong pagingId)
@@ -280,7 +300,7 @@ public class DataApiFacade
 
             return resultFuture;
         };
-        return runWithRetry(bufferNodeId, call);
+        return runWithRetry(bufferNodeId, this::getAddDataPagesRetryExecutor, call);
     }
 
     private ListenableFuture<Void> internalAddDataPages(long bufferNodeId, String exchangeId, int taskId, int attemptId, long dataPagesId, ListMultimap<Integer, Slice> dataPagesByPartition)
@@ -330,7 +350,12 @@ public class DataApiFacade
 
     private <T> ListenableFuture<T> runWithRetry(long bufferNodeId, Callable<ListenableFuture<T>> routine)
     {
-        CompletableFuture<T> finalFuture = getRetryExecutor(bufferNodeId)
+        return runWithRetry(bufferNodeId, this::getDefaultRetryExecutor, routine);
+    }
+
+    private <T> ListenableFuture<T> runWithRetry(long bufferNodeId, Function<Long, FailsafeExecutor<Object>> retryExecutorProvider, Callable<ListenableFuture<T>> routine)
+    {
+        CompletableFuture<T> finalFuture = retryExecutorProvider.apply(bufferNodeId)
                 .getAsyncExecution(execution -> {
                     ListenableFuture<T> future = routine.call();
                     Futures.addCallback(future, new FutureCallback<>()
@@ -352,11 +377,38 @@ public class DataApiFacade
         return MoreFutures.toListenableFuture(finalFuture);
     }
 
-    private FailsafeExecutor<Object> getRetryExecutor(long bufferNodeId)
+    private FailsafeExecutor<Object> getDefaultRetryExecutor(long bufferNodeId)
     {
-        return retryExecutors.computeIfAbsent(bufferNodeId, ignored ->
-                Failsafe.with(createRetryPolicy(retryExecutorConfig), createCircuitBreakerPolicy(bufferNodeId, retryExecutorConfig))
+        return defaultRetryExecutors.computeIfAbsent(bufferNodeId, ignored ->
+                Failsafe.with(createDefaultRetryPolicy(), createDefaultCircuitBreakerPolicy(bufferNodeId))
                         .with(executor));
+    }
+
+    private FailsafeExecutor<Object> getAddDataPagesRetryExecutor(long bufferNodeId)
+    {
+        return addDataPagesRetryExecutors.computeIfAbsent(bufferNodeId, ignored ->
+                Failsafe.with(createAddDataPagesRetryPolicy(), createAddDataPagesCircuitBreakerPolicy(bufferNodeId))
+                        .with(executor));
+    }
+
+    private RetryPolicy<Object> createDefaultRetryPolicy()
+    {
+        return createRetryPolicy(defaultRetryExecutorConfig);
+    }
+
+    private CircuitBreaker<Object> createDefaultCircuitBreakerPolicy(long bufferNodeId)
+    {
+        return createCircuitBreakerPolicy(bufferNodeId, defaultRetryExecutorConfig);
+    }
+
+    private RetryPolicy<Object> createAddDataPagesRetryPolicy()
+    {
+        return createRetryPolicy(addDataPagesRetryExecutorConfig);
+    }
+
+    private CircuitBreaker<Object> createAddDataPagesCircuitBreakerPolicy(long bufferNodeId)
+    {
+        return createCircuitBreakerPolicy(bufferNodeId, addDataPagesRetryExecutorConfig);
     }
 
     private static RetryPolicy<Object> createRetryPolicy(RetryExecutorConfig config)

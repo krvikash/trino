@@ -39,6 +39,7 @@ public class BufferExchangeConfig
     private PartitionNodeMappingMode partitionNodeMappingMode = PINNING_MULTI;
     private int minBufferNodesPerPartition = 2;
     private int maxBufferNodesPerPartition = 32;
+
     private int dataClientMaxRetries = 5;
     private Duration dataClientRetryBackoffInitial = succinctDuration(4.0, SECONDS);
     private Duration dataClientRetryBackoffMax = succinctDuration(60.0, SECONDS);
@@ -47,6 +48,15 @@ public class BufferExchangeConfig
     private int dataClientCircuitBreakerFailureThreshold = 10;
     private int dataClientCircuitBreakerSuccessThreshold = 5;
     private Duration dataClientCircuitBreakerDelay = succinctDuration(30.0, SECONDS);
+
+    private int dataClientAddDataPagesMaxRetries = 5;
+    private Duration dataClientAddDataPagesRetryBackoffInitial = succinctDuration(4.0, SECONDS);
+    private Duration dataClientAddDataPagesRetryBackoffMax = succinctDuration(60.0, SECONDS);
+    private double dataClientAddDataPagesRetryBackoffFactor = 2.0;
+    private double dataClientAddDataPagesRetryBackoffJitter = 0.5;
+    private int dataClientAddDataPagesCircuitBreakerFailureThreshold = 10;
+    private int dataClientAddDataPagesCircuitBreakerSuccessThreshold = 5;
+    private Duration dataClientAddDataPagesCircuitBreakerDelay = succinctDuration(30.0, SECONDS);
 
     @NotNull
     public URI getDiscoveryServiceUri()
@@ -325,6 +335,102 @@ public class BufferExchangeConfig
     public BufferExchangeConfig setDataClientCircuitBreakerDelay(Duration dataClientCircuitBreakerDelay)
     {
         this.dataClientCircuitBreakerDelay = dataClientCircuitBreakerDelay;
+        return this;
+    }
+
+    public int getDataClientAddDataPagesMaxRetries()
+    {
+        return dataClientAddDataPagesMaxRetries;
+    }
+
+    @Config("exchange.buffer-data.add-data-pages-max-retries")
+    public BufferExchangeConfig setDataClientAddDataPagesMaxRetries(int dataClientAddDataPagesMaxRetries)
+    {
+        this.dataClientAddDataPagesMaxRetries = dataClientAddDataPagesMaxRetries;
+        return this;
+    }
+
+    public Duration getDataClientAddDataPagesRetryBackoffInitial()
+    {
+        return dataClientAddDataPagesRetryBackoffInitial;
+    }
+
+    @Config("exchange.buffer-data.add-data-pages-retry-backoff-initial")
+    public BufferExchangeConfig setDataClientAddDataPagesRetryBackoffInitial(Duration dataClientAddDataPagesRetryBackoffInitial)
+    {
+        this.dataClientAddDataPagesRetryBackoffInitial = dataClientAddDataPagesRetryBackoffInitial;
+        return this;
+    }
+
+    public Duration getDataClientAddDataPagesRetryBackoffMax()
+    {
+        return dataClientAddDataPagesRetryBackoffMax;
+    }
+
+    @Config("exchange.buffer-data.add-data-pages-retry-backoff-max")
+    public BufferExchangeConfig setDataClientAddDataPagesRetryBackoffMax(Duration dataClientAddDataPagesRetryBackoffMax)
+    {
+        this.dataClientAddDataPagesRetryBackoffMax = dataClientAddDataPagesRetryBackoffMax;
+        return this;
+    }
+
+    public double getDataClientAddDataPagesRetryBackoffFactor()
+    {
+        return dataClientAddDataPagesRetryBackoffFactor;
+    }
+
+    @Config("exchange.buffer-data.add-data-pages-retry-backoff-factor")
+    public BufferExchangeConfig setDataClientAddDataPagesRetryBackoffFactor(double dataClientAddDataPagesRetryBackoffFactor)
+    {
+        this.dataClientAddDataPagesRetryBackoffFactor = dataClientAddDataPagesRetryBackoffFactor;
+        return this;
+    }
+
+    public double getDataClientAddDataPagesRetryBackoffJitter()
+    {
+        return dataClientAddDataPagesRetryBackoffJitter;
+    }
+
+    @Config("exchange.buffer-data.add-data-pages-retry-backoff-jitter")
+    public BufferExchangeConfig setDataClientAddDataPagesRetryBackoffJitter(double dataClientAddDataPagesRetryBackoffJitter)
+    {
+        this.dataClientAddDataPagesRetryBackoffJitter = dataClientAddDataPagesRetryBackoffJitter;
+        return this;
+    }
+
+    public int getDataClientAddDataPagesCircuitBreakerFailureThreshold()
+    {
+        return dataClientAddDataPagesCircuitBreakerFailureThreshold;
+    }
+
+    @Config("exchange.buffer-data.add-data-pages-circuit-breaker-failure-threshold")
+    public BufferExchangeConfig setDataClientAddDataPagesCircuitBreakerFailureThreshold(int dataClientAddDataPagesCircuitBreakerFailureThreshold)
+    {
+        this.dataClientAddDataPagesCircuitBreakerFailureThreshold = dataClientAddDataPagesCircuitBreakerFailureThreshold;
+        return this;
+    }
+
+    public int getDataClientAddDataPagesCircuitBreakerSuccessThreshold()
+    {
+        return dataClientAddDataPagesCircuitBreakerSuccessThreshold;
+    }
+
+    @Config("exchange.buffer-data.add-data-pages-circuit-breaker-success-threshold")
+    public BufferExchangeConfig setDataClientAddDataPagesCircuitBreakerSuccessThreshold(int dataClientAddDataPagesCircuitBreakerSuccessThreshold)
+    {
+        this.dataClientAddDataPagesCircuitBreakerSuccessThreshold = dataClientAddDataPagesCircuitBreakerSuccessThreshold;
+        return this;
+    }
+
+    public Duration getDataClientAddDataPagesCircuitBreakerDelay()
+    {
+        return dataClientAddDataPagesCircuitBreakerDelay;
+    }
+
+    @Config("exchange.buffer-data.add-data-pages-circuit-breaker-delay")
+    public BufferExchangeConfig setDataClientAddDataPagesCircuitBreakerDelay(Duration dataClientAddDataPagesCircuitBreakerDelay)
+    {
+        this.dataClientAddDataPagesCircuitBreakerDelay = dataClientAddDataPagesCircuitBreakerDelay;
         return this;
     }
 }
