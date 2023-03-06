@@ -91,7 +91,6 @@ public class TestDataApiFacade
 
     @Test
     public void testRetriesOnRuntimeException()
-            throws ExecutionException
     {
         TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
         discoveryManager.setBufferNodes(builder -> builder.putNode(TestingDataApi.NODE_ID, BufferNodeState.ACTIVE));
@@ -116,7 +115,6 @@ public class TestDataApiFacade
 
     @Test
     public void testRetriesOnInternalErrorException()
-            throws ExecutionException
     {
         TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
         discoveryManager.setBufferNodes(builder -> builder.putNode(TestingDataApi.NODE_ID, BufferNodeState.ACTIVE));
@@ -200,7 +198,6 @@ public class TestDataApiFacade
 
     @Test
     public void testDoNotRetryOnSuccess()
-            throws ExecutionException
     {
         TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
         discoveryManager.setBufferNodes(builder -> builder.putNode(TestingDataApi.NODE_ID, BufferNodeState.ACTIVE));
