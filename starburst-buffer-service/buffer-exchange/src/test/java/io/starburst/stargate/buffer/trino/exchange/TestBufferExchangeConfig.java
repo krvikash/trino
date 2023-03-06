@@ -56,13 +56,13 @@ class TestBufferExchangeConfig
                 .setDataClientCircuitBreakerSuccessThreshold(5)
                 .setDataClientCircuitBreakerDelay(Duration.succinctDuration(30.0, SECONDS))
                 .setDataClientAddDataPagesMaxRetries(5)
-                .setDataClientAddDataPagesRetryBackoffInitial(Duration.succinctDuration(4.0, SECONDS))
-                .setDataClientAddDataPagesRetryBackoffMax(Duration.succinctDuration(60.0, SECONDS))
+                .setDataClientAddDataPagesRetryBackoffInitial(Duration.succinctDuration(8.0, SECONDS))
+                .setDataClientAddDataPagesRetryBackoffMax(Duration.succinctDuration(120.0, SECONDS))
                 .setDataClientAddDataPagesRetryBackoffFactor(2.0)
                 .setDataClientAddDataPagesRetryBackoffJitter(0.5)
                 .setDataClientAddDataPagesCircuitBreakerFailureThreshold(10)
                 .setDataClientAddDataPagesCircuitBreakerSuccessThreshold(5)
-                .setDataClientAddDataPagesCircuitBreakerDelay(Duration.succinctDuration(30.0, SECONDS)));
+                .setDataClientAddDataPagesCircuitBreakerDelay(Duration.succinctDuration(60.0, SECONDS)));
     }
 
     @Test

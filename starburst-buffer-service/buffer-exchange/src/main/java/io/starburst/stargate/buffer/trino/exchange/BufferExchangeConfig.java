@@ -41,7 +41,7 @@ public class BufferExchangeConfig
     private int maxBufferNodesPerPartition = 32;
 
     private int dataClientMaxRetries = 5;
-    private Duration dataClientRetryBackoffInitial = succinctDuration(4.0, SECONDS);
+    private Duration dataClientRetryBackoffInitial = succinctDuration(2.0, SECONDS);
     private Duration dataClientRetryBackoffMax = succinctDuration(60.0, SECONDS);
     private double dataClientRetryBackoffFactor = 2.0;
     private double dataClientRetryBackoffJitter = 0.5;
@@ -50,13 +50,13 @@ public class BufferExchangeConfig
     private Duration dataClientCircuitBreakerDelay = succinctDuration(30.0, SECONDS);
 
     private int dataClientAddDataPagesMaxRetries = 5;
-    private Duration dataClientAddDataPagesRetryBackoffInitial = succinctDuration(4.0, SECONDS);
-    private Duration dataClientAddDataPagesRetryBackoffMax = succinctDuration(60.0, SECONDS);
+    private Duration dataClientAddDataPagesRetryBackoffInitial = succinctDuration(8.0, SECONDS);
+    private Duration dataClientAddDataPagesRetryBackoffMax = succinctDuration(120.0, SECONDS);
     private double dataClientAddDataPagesRetryBackoffFactor = 2.0;
     private double dataClientAddDataPagesRetryBackoffJitter = 0.5;
     private int dataClientAddDataPagesCircuitBreakerFailureThreshold = 10;
     private int dataClientAddDataPagesCircuitBreakerSuccessThreshold = 5;
-    private Duration dataClientAddDataPagesCircuitBreakerDelay = succinctDuration(30.0, SECONDS);
+    private Duration dataClientAddDataPagesCircuitBreakerDelay = succinctDuration(60.0, SECONDS);
 
     @NotNull
     public URI getDiscoveryServiceUri()
