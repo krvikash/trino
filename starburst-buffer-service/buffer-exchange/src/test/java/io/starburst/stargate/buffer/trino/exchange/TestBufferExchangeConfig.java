@@ -51,7 +51,10 @@ class TestBufferExchangeConfig
                 .setDataClientRetryBackoffInitial(Duration.succinctDuration(4.0, SECONDS))
                 .setDataClientRetryBackoffMax(Duration.succinctDuration(60.0, SECONDS))
                 .setDataClientRetryBackoffFactor(2.0)
-                .setDataClientRetryBackoffJitter(0.5));
+                .setDataClientRetryBackoffJitter(0.5)
+                .setDataClientCircuitBreakerFailureThreshold(10)
+                .setDataClientCircuitBreakerSuccessThreshold(5)
+                .setDataClientCircuitBreakerDelay(Duration.succinctDuration(30.0, SECONDS)));
     }
 
     @Test
@@ -78,6 +81,9 @@ class TestBufferExchangeConfig
                 .put("exchange.buffer-data.retry-backoff-max", "20s")
                 .put("exchange.buffer-data.retry-backoff-factor", "4.0")
                 .put("exchange.buffer-data.retry-backoff-jitter", "0.25")
+                .put("exchange.buffer-data.circuit-breaker-failure-threshold", "11")
+                .put("exchange.buffer-data.circuit-breaker-success-threshold", "6")
+                .put("exchange.buffer-data.circuit-breaker-delay", "31s")
                 .buildOrThrow();
 
         BufferExchangeConfig expected = new BufferExchangeConfig()
@@ -99,7 +105,10 @@ class TestBufferExchangeConfig
                 .setDataClientRetryBackoffInitial(Duration.succinctDuration(3.0, SECONDS))
                 .setDataClientRetryBackoffMax(Duration.succinctDuration(20.0, SECONDS))
                 .setDataClientRetryBackoffFactor(4.0)
-                .setDataClientRetryBackoffJitter(0.25);
+                .setDataClientRetryBackoffJitter(0.25)
+                .setDataClientCircuitBreakerFailureThreshold(11)
+                .setDataClientCircuitBreakerSuccessThreshold(6)
+                .setDataClientCircuitBreakerDelay(Duration.succinctDuration(31, SECONDS));
 
         assertFullMapping(properties, expected);
     }

@@ -16,6 +16,7 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import dev.failsafe.CircuitBreaker;
 import dev.failsafe.Failsafe;
 import dev.failsafe.FailsafeExecutor;
 import dev.failsafe.RetryPolicy;
@@ -74,7 +75,10 @@ public class DataApiFacade
             Duration backoffInitial,
             Duration backoffMax,
             double backoffFactor,
-            double backoffJitter) {}
+            double backoffJitter,
+            int circuitBreakerFailureThreshold,
+            int circuitBreakerSuccessThreshold,
+            Duration circuitBreakerDelay) {}
 
     @Inject
     public DataApiFacade(
@@ -91,7 +95,10 @@ public class DataApiFacade
                         config.getDataClientRetryBackoffInitial(),
                         config.getDataClientRetryBackoffMax(),
                         config.getDataClientRetryBackoffFactor(),
-                        config.getDataClientRetryBackoffJitter()),
+                        config.getDataClientRetryBackoffJitter(),
+                        config.getDataClientCircuitBreakerFailureThreshold(),
+                        config.getDataClientCircuitBreakerSuccessThreshold(),
+                        config.getDataClientCircuitBreakerDelay()),
                 executor);
     }
 
@@ -348,7 +355,7 @@ public class DataApiFacade
     private FailsafeExecutor<Object> getRetryExecutor(long bufferNodeId)
     {
         return retryExecutors.computeIfAbsent(bufferNodeId, ignored ->
-                Failsafe.with(createRetryPolicy(retryExecutorConfig))
+                Failsafe.with(createRetryPolicy(retryExecutorConfig), createCircuitBreakerPolicy(bufferNodeId, retryExecutorConfig))
                         .with(executor));
     }
 
@@ -367,6 +374,24 @@ public class DataApiFacade
                         return true;
                     }
                     return dataApiException.getErrorCode() == ErrorCode.INTERNAL_ERROR || dataApiException.getErrorCode() == ErrorCode.BUFFER_NODE_NOT_FOUND;
+                })
+                .build();
+    }
+
+    private static CircuitBreaker<Object> createCircuitBreakerPolicy(long bufferNodeId, RetryExecutorConfig config)
+    {
+        return CircuitBreaker.builder()
+                .withFailureThreshold(config.circuitBreakerFailureThreshold())
+                .withSuccessThreshold(config.circuitBreakerSuccessThreshold())
+                .withDelay(java.time.Duration.ofMillis(config.circuitBreakerDelay().toMillis()))
+                .onOpen(event -> log.warn("switching circuit breaker for %s %s -> OPEN", bufferNodeId, event.getPreviousState()))
+                .onClose(event -> log.info("switching circuit breaker for %s %s -> CLOSE", bufferNodeId, event.getPreviousState()))
+                .onHalfOpen(event -> log.info("switching circuit breaker for %s %s -> HALF_OPEN", bufferNodeId, event.getPreviousState()))
+                .handleIf(throwable -> {
+                    if (!(throwable instanceof DataApiException dataApiException)) {
+                        return true;
+                    }
+                    return dataApiException.getErrorCode() == ErrorCode.INTERNAL_ERROR;
                 })
                 .build();
     }

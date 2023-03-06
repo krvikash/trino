@@ -44,6 +44,9 @@ public class BufferExchangeConfig
     private Duration dataClientRetryBackoffMax = succinctDuration(60.0, SECONDS);
     private double dataClientRetryBackoffFactor = 2.0;
     private double dataClientRetryBackoffJitter = 0.5;
+    private int dataClientCircuitBreakerFailureThreshold = 10;
+    private int dataClientCircuitBreakerSuccessThreshold = 5;
+    private Duration dataClientCircuitBreakerDelay = succinctDuration(30.0, SECONDS);
 
     @NotNull
     public URI getDiscoveryServiceUri()
@@ -286,6 +289,42 @@ public class BufferExchangeConfig
     public BufferExchangeConfig setDataClientRetryBackoffJitter(double dataClientRetryBackoffJitter)
     {
         this.dataClientRetryBackoffJitter = dataClientRetryBackoffJitter;
+        return this;
+    }
+
+    public int getDataClientCircuitBreakerFailureThreshold()
+    {
+        return dataClientCircuitBreakerFailureThreshold;
+    }
+
+    @Config("exchange.buffer-data.circuit-breaker-failure-threshold")
+    public BufferExchangeConfig setDataClientCircuitBreakerFailureThreshold(int dataClientCircuitBreakerFailureThreshold)
+    {
+        this.dataClientCircuitBreakerFailureThreshold = dataClientCircuitBreakerFailureThreshold;
+        return this;
+    }
+
+    public int getDataClientCircuitBreakerSuccessThreshold()
+    {
+        return dataClientCircuitBreakerSuccessThreshold;
+    }
+
+    @Config("exchange.buffer-data.circuit-breaker-success-threshold")
+    public BufferExchangeConfig setDataClientCircuitBreakerSuccessThreshold(int dataClientCircuitBreakerSuccessThreshold)
+    {
+        this.dataClientCircuitBreakerSuccessThreshold = dataClientCircuitBreakerSuccessThreshold;
+        return this;
+    }
+
+    public Duration getDataClientCircuitBreakerDelay()
+    {
+        return dataClientCircuitBreakerDelay;
+    }
+
+    @Config("exchange.buffer-data.circuit-breaker-delay")
+    public BufferExchangeConfig setDataClientCircuitBreakerDelay(Duration dataClientCircuitBreakerDelay)
+    {
+        this.dataClientCircuitBreakerDelay = dataClientCircuitBreakerDelay;
         return this;
     }
 }
