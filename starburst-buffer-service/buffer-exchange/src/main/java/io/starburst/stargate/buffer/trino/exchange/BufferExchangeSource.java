@@ -94,6 +94,7 @@ public class BufferExchangeSource
     private PreserveOrderingMode preserveOrderingMode = PreserveOrderingMode.UNKNOWN;
 
     @GuardedBy("this")
+    // needs to be ConcurrentHashMap as it is used in non-synchronized context for performance reasons
     private final Set<ChunkReader> currentReaders = ConcurrentHashMap.newKeySet();
 
     public BufferExchangeSource(
