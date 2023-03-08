@@ -328,7 +328,7 @@ public class Exchange
         partitions.values().forEach(Partition::releaseChunks);
         partitions.clear();
 
-        spoolingStorage.removeExchange(exchangeId);
+        spoolingStorage.removeExchange(bufferNodeId, exchangeId);
     }
 
     public long getLastUpdateTime()

@@ -61,7 +61,7 @@ public class LocalSpoolingStorage
     @Override
     public SpoolingFile getSpoolingFile(long bufferNodeId, String exchangeId, long chunkId)
     {
-        File file = getFilePath(exchangeId, chunkId, bufferNodeId).toFile();
+        File file = getFilePath(bufferNodeId, exchangeId, chunkId).toFile();
         if (!file.exists()) {
             throw new DataServerException(CHUNK_NOT_FOUND, "No closed chunk found for bufferNodeId %d, exchange %s, chunk %d".formatted(bufferNodeId, exchangeId, chunkId));
         }
@@ -76,7 +76,7 @@ public class LocalSpoolingStorage
     {
         checkArgument(!chunkDataLease.chunkSlices().isEmpty(), "unexpected empty chunk when spooling");
 
-        File file = getFilePath(exchangeId, chunkId, bufferNodeId).toFile();
+        File file = getFilePath(bufferNodeId, exchangeId, chunkId).toFile();
         File parent = file.getParentFile();
         if (parent != null && !parent.exists() && !parent.mkdirs() && !parent.exists()) {
             // It is possible that directory does not exist when first
@@ -98,10 +98,10 @@ public class LocalSpoolingStorage
     }
 
     @Override
-    public ListenableFuture<Void> removeExchange(String exchangeId)
+    public ListenableFuture<Void> removeExchange(long bufferNodeId, String exchangeId)
     {
         counts.remove(exchangeId);
-        for (String prefixedDirectory : getPrefixedDirectories(exchangeId)) {
+        for (String prefixedDirectory : getPrefixedDirectories(bufferNodeId, exchangeId)) {
             Path path = Paths.get(spoolingDirectory.resolve(prefixedDirectory).getPath());
             if (Files.exists(path)) {
                 try {
@@ -122,9 +122,9 @@ public class LocalSpoolingStorage
         return counts.values().stream().mapToInt(AtomicInteger::get).sum();
     }
 
-    private Path getFilePath(String exchangeId, long chunkId, long bufferNodeId)
+    private Path getFilePath(long bufferNodeId, String exchangeId, long chunkId)
     {
-        return Paths.get(spoolingDirectory.resolve(getFileName(exchangeId, chunkId, bufferNodeId)).getPath());
+        return Paths.get(spoolingDirectory.resolve(getFileName(bufferNodeId, exchangeId, chunkId)).getPath());
     }
 
     @PreDestroy

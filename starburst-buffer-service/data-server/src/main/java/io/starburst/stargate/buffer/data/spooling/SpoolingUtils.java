@@ -26,23 +26,23 @@ public final class SpoolingUtils
 
     private SpoolingUtils() {}
 
-    public static String getFileName(String exchangeId, long chunkId, long bufferNodeId)
+    public static String getFileName(long bufferNodeId, String exchangeId, long chunkId)
     {
-        return getPrefixedDirectoryName(exchangeId, chunkId) + PATH_SEPARATOR + chunkId + "-" + bufferNodeId;
+        return getPrefixedDirectoryName(bufferNodeId, exchangeId, chunkId) + PATH_SEPARATOR + chunkId;
     }
 
-    public static String getPrefixedDirectoryName(String exchangeId, long chunkId)
+    public static String getPrefixedDirectoryName(long bufferNodeId, String exchangeId, long chunkId)
     {
         char ch1 = HEX_PREFIX_ALPHABET[Math.abs(exchangeId.hashCode() % HEX_PREFIX_ALPHABET.length)];
         char ch2 = HEX_PREFIX_ALPHABET[(int) (chunkId % HEX_PREFIX_ALPHABET.length)];
-        return ch1 + "" + ch2 + "." + exchangeId;
+        return ch1 + "" + ch2 + "." + exchangeId + "." + bufferNodeId;
     }
 
-    public static List<String> getPrefixedDirectories(String exchangeId)
+    public static List<String> getPrefixedDirectories(long bufferNodeId, String exchangeId)
     {
         ImmutableList.Builder<String> prefixedDirectories = ImmutableList.builder();
         for (long chunkId = 0; chunkId < HEX_PREFIX_ALPHABET.length; ++chunkId) {
-            prefixedDirectories.add(getPrefixedDirectoryName(exchangeId, chunkId));
+            prefixedDirectories.add(getPrefixedDirectoryName(bufferNodeId, exchangeId, chunkId));
         }
         return prefixedDirectories.build();
     }

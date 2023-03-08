@@ -700,6 +700,6 @@ public class TestChunkManager
         ChunkDataResult chunkDataResult = chunkManager.getChunkData(drainedBufferNodeId, EXCHANGE_0, 0, 0L);
         assertTrue(chunkDataResult.spoolingFile().isPresent());
         assertEquals(52, chunkDataResult.spoolingFile().get().length());
-        assertEquals("s3://" + minioStorage.getBucketName() + "/0a.exchange-0/0-1", chunkDataResult.spoolingFile().get().location());
+        assertEquals("s3://" + minioStorage.getBucketName() + "/0a.exchange-0.1/0", chunkDataResult.spoolingFile().get().location());
     }
 }

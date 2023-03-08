@@ -75,7 +75,7 @@ public abstract class AbstractTestSpoolingStorage
             assertThat(getFutureValue(spooledChunkReader.getDataPages(spoolingStorage.getSpoolingFile(BUFFER_NODE_ID, EXCHANGE_ID, CHUNK_ID_0))))
                     .containsExactlyElementsOf(dataPages);
         }
-        getFutureValue(spoolingStorage.removeExchange(EXCHANGE_ID));
+        getFutureValue(spoolingStorage.removeExchange(BUFFER_NODE_ID, EXCHANGE_ID));
 
         // verify file is actually removed
         assertThrows(RuntimeException.class, () -> spoolingStorage.getSpoolingFile(BUFFER_NODE_ID, EXCHANGE_ID, CHUNK_ID_0));
@@ -101,7 +101,7 @@ public abstract class AbstractTestSpoolingStorage
         assertThat(getFutureValue(spooledChunkReader.getDataPages(spoolingStorage.getSpoolingFile(BUFFER_NODE_ID, EXCHANGE_ID, CHUNK_ID_0))))
                 .containsExactlyElementsOf(reversedDataPages);
 
-        getFutureValue(spoolingStorage.removeExchange(EXCHANGE_ID));
+        getFutureValue(spoolingStorage.removeExchange(BUFFER_NODE_ID, EXCHANGE_ID));
     }
 
     @Test
@@ -118,7 +118,7 @@ public abstract class AbstractTestSpoolingStorage
         }
 
         assertEquals(32, spoolingStorage.getSpooledChunks());
-        getFutureValue(spoolingStorage.removeExchange(EXCHANGE_ID));
+        getFutureValue(spoolingStorage.removeExchange(BUFFER_NODE_ID, EXCHANGE_ID));
         assertEquals(0, spoolingStorage.getSpooledChunks());
 
         // verify spooling files are removed

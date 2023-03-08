@@ -140,7 +140,7 @@ public class S3SpoolingStorage
     @Override
     public SpoolingFile getSpoolingFile(long bufferNodeId, String exchangeId, long chunkId)
     {
-        String fileName = getFileName(exchangeId, chunkId, bufferNodeId);
+        String fileName = getFileName(bufferNodeId, exchangeId, chunkId);
         Map<Long, Integer> chunkIdToFileSizes = fileSizes.get(exchangeId);
         int length;
         try {
@@ -166,7 +166,7 @@ public class S3SpoolingStorage
     {
         checkArgument(!chunkDataLease.chunkSlices().isEmpty(), "unexpected empty chunk when spooling");
 
-        String fileName = getFileName(exchangeId, chunkId, bufferNodeId);
+        String fileName = getFileName(bufferNodeId, exchangeId, chunkId);
         PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                 .bucket(bucketName)
                 .key(fileName)
@@ -187,10 +187,10 @@ public class S3SpoolingStorage
     }
 
     @Override
-    public ListenableFuture<Void> removeExchange(String exchangeId)
+    public ListenableFuture<Void> removeExchange(long bufferNodeId, String exchangeId)
     {
         fileSizes.remove(exchangeId);
-        return translateFailures(deleteDirectories(getPrefixedDirectories(exchangeId)));
+        return translateFailures(deleteDirectories(getPrefixedDirectories(bufferNodeId, exchangeId)));
     }
 
     @Override
