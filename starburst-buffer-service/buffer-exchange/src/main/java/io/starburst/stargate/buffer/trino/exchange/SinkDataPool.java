@@ -82,7 +82,9 @@ public class SinkDataPool
         Deque<Slice> queue = dataQueues.computeIfAbsent(partitionId, ignored -> new ArrayDeque<>());
         queue.add(data);
         dataQueueBytes.computeIfAbsent(partitionId, ignored -> new AtomicLong()).addAndGet(data.length());
-        updateMemoryUsage(data.getRetainedSize());
+        long retainedSize = data.getRetainedSize();
+        verify(retainedSize > 0, "expected retainedSize to be greater than 0; got %s for %s", retainedSize, data);
+        updateMemoryUsage(retainedSize);
     }
 
     public void noMoreData()
