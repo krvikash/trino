@@ -78,6 +78,7 @@ public class SinkDataPool
     public synchronized void add(Integer partitionId, Slice data)
     {
         checkArgument(data.length() > 0, "cannot add empty data page");
+        checkArgument(!noMoreData, "cannot add data if noMoreData is already set");
         Deque<Slice> queue = dataQueues.computeIfAbsent(partitionId, ignored -> new ArrayDeque<>());
         queue.add(data);
         dataQueueBytes.computeIfAbsent(partitionId, ignored -> new AtomicLong()).addAndGet(data.length());
