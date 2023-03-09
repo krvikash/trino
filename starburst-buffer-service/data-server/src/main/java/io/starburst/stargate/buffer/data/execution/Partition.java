@@ -14,6 +14,7 @@ import com.google.common.util.concurrent.AbstractFuture;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
@@ -42,6 +43,8 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class Partition
 {
+    private static final Logger log = Logger.get(Partition.class);
+
     private final long bufferNodeId;
     private final String exchangeId;
     private final int partitionId;
@@ -146,8 +149,12 @@ public class Partition
             // When we finish a partition while there are still in-progress writes,
             // we need to guarantee that the chunk won't get corrupted
             inProgressAddDataPagesFuture = addDataPagesFutures.poll();
-            // addDataPagesFutures execute sequentially, so we can safely ignore the rest of futures
-            addDataPagesFutures.clear();
+            if (!addDataPagesFutures.isEmpty()) {
+                // addDataPagesFutures execute sequentially, so we can safely early complete the rest of futures
+                log.info("Early completing %d addDataPagesFutures for exchange %s, partition %d".formatted(addDataPagesFutures.size(), exchangeId, partitionId));
+                addDataPagesFutures.forEach(AddDataPagesFuture::complete);
+                addDataPagesFutures.clear();
+            }
         }
         else {
             inProgressAddDataPagesFuture = immediateVoidFuture();
@@ -336,6 +343,11 @@ public class Partition
                         }
                     },
                     executor);
+        }
+
+        public void complete()
+        {
+            set(null);
         }
 
         @Override

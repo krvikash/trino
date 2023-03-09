@@ -561,11 +561,12 @@ public class TestChunkManager
 
         ListenableFuture<Void> exchangeFinishFuture = chunkManager.finishExchange(EXCHANGE_0);
         assertFalse(exchangeFinishFuture.isDone());
+        assertFalse(addDataPagesFuture3.isDone()); // only wait for the in-progress addDataPagesFuture
+        assertTrue(addDataPagesFuture4.isDone()); // rest of the addDataPagesFutures should complete early
 
         chunkManager.spoolIfNecessary();
         await().atMost(ONE_SECOND).until(addDataPagesFuture3::isDone);
         await().atMost(ONE_SECOND).until(exchangeFinishFuture::isDone);
-        assertFalse(addDataPagesFuture4.isDone());
 
         ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 1);
         ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 0, 1L, 1);
