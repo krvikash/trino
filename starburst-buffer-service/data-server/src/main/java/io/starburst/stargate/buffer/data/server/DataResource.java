@@ -75,6 +75,8 @@ import java.util.function.Supplier;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.net.HttpHeaders.CONTENT_LENGTH;
+import static com.google.common.util.concurrent.Futures.allAsList;
+import static com.google.common.util.concurrent.Futures.nonCancellationPropagating;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.jaxrs.AsyncResponseHandler.bindAsyncResponse;
 import static io.airlift.units.Duration.succinctDuration;
@@ -399,7 +401,7 @@ public class DataResource
                                                 asyncResponse,
                                                 logAndTranslateExceptions(
                                                         Futures.transform(
-                                                                Futures.allAsList(addDataPagesFutures),
+                                                                nonCancellationPropagating(allAsList(addDataPagesFutures)),
                                                                 ignored -> Response.ok().build(),
                                                                 directExecutor()),
                                                         () -> "POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId)),
