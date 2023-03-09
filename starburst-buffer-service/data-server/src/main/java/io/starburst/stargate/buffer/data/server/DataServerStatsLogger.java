@@ -15,7 +15,6 @@ import io.airlift.stats.CounterStat;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
-import javax.annotation.concurrent.GuardedBy;
 import javax.inject.Inject;
 
 import java.util.concurrent.Executors;
@@ -61,18 +60,17 @@ public class DataServerStatsLogger
         executorService.scheduleWithFixedDelay(this::logStatsSafe, 0, LOG_INTERVAL_SECONDS, TimeUnit.SECONDS);
     }
 
-    private synchronized void logStatsSafe()
+    private void logStatsSafe()
     {
         try {
             logStats();
         }
         catch (Exception e) {
             // catch exception so we are not unscheduled
-            log.error(e, "Unexpected execption in logStats");
+            log.error(e, "Unexpected exception in logStats");
         }
     }
 
-    @GuardedBy("this")
     private void logStats()
     {
         spooledDataSize.update();
