@@ -138,13 +138,13 @@ public class S3SpoolingStorage
     }
 
     @Override
-    public SpoolingFile getSpoolingFile(long bufferNodeId, String exchangeId, long chunkId)
+    public SpoolingFile getSpoolingFile(long chunkBufferNodeId, String exchangeId, long chunkId)
     {
-        String fileName = getFileName(bufferNodeId, exchangeId, chunkId);
+        String fileName = getFileName(chunkBufferNodeId, exchangeId, chunkId);
         Map<Long, Integer> chunkIdToFileSizes = fileSizes.get(exchangeId);
         int length;
         try {
-            if (chunkIdToFileSizes != null && bufferNodeId == this.bufferNodeId) {
+            if (chunkIdToFileSizes != null && chunkBufferNodeId == this.bufferNodeId) {
                 Integer fileSize = chunkIdToFileSizes.get(chunkId);
                 length = requireNonNullElseGet(fileSize, () -> getFileSize(fileName));
             }
@@ -156,7 +156,7 @@ public class S3SpoolingStorage
         }
         catch (NoSuchKeyException e) {
             throw new DataServerException(CHUNK_NOT_FOUND,
-                    "No closed chunk found for bufferNodeId %d, exchange %s, chunk %d".formatted(bufferNodeId, exchangeId, chunkId));
+                    "No closed chunk found for bufferNodeId %d, exchange %s, chunk %d".formatted(chunkBufferNodeId, exchangeId, chunkId));
         }
         return new SpoolingFile(getLocation(bucketName, fileName), length);
     }

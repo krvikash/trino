@@ -59,11 +59,11 @@ public class LocalSpoolingStorage
     }
 
     @Override
-    public SpoolingFile getSpoolingFile(long bufferNodeId, String exchangeId, long chunkId)
+    public SpoolingFile getSpoolingFile(long chunkBufferNodeId, String exchangeId, long chunkId)
     {
-        File file = getFilePath(bufferNodeId, exchangeId, chunkId).toFile();
+        File file = getFilePath(chunkBufferNodeId, exchangeId, chunkId).toFile();
         if (!file.exists()) {
-            throw new DataServerException(CHUNK_NOT_FOUND, "No closed chunk found for bufferNodeId %d, exchange %s, chunk %d".formatted(bufferNodeId, exchangeId, chunkId));
+            throw new DataServerException(CHUNK_NOT_FOUND, "No closed chunk found for bufferNodeId %d, exchange %s, chunk %d".formatted(chunkBufferNodeId, exchangeId, chunkId));
         }
         int sizeInBytes = toIntExact(file.length());
         verify(sizeInBytes > CHUNK_FILE_HEADER_SIZE,
