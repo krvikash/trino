@@ -27,7 +27,7 @@ import static java.util.Objects.requireNonNull;
  * {@link SliceLease#getSliceFuture} method. The slice may not be available immediately. Calling party needs to wait
  * until future returned is done.
  *
- * It is obligatory for the calling party to release all the leases they obtained via {@link SliceLease#release(boolean)}.
+ * It is obligatory for the calling party to release all the leases they obtained via {@link SliceLease#release()}.
  */
 public class SliceLease
 {
@@ -57,12 +57,12 @@ public class SliceLease
         sliceFuture.cancel(true);
     }
 
-    public void release(boolean poolable)
+    public void release()
     {
         checkState(released.compareAndSet(false, true), "already released");
         sliceFuture.cancel(true);
         if (sliceFuture.isDone() && !sliceFuture.isCancelled()) {
-            memoryAllocator.release(getFutureValue(sliceFuture), poolable);
+            memoryAllocator.release(getFutureValue(sliceFuture));
         }
     }
 }

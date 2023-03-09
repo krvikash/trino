@@ -306,9 +306,9 @@ public class DataResource
         }
         catch (Exception e) {
             // Unexpected exception; catch just to handle decrementing of inProgress response counter
-            // We also immediately release sliceLease. This is ok as we know underlying slice is not yet used by any backgroud processes.
+            // We also immediately release sliceLease. This is ok as we know underlying slice is not yet used by any background processes.
             try {
-                sliceLease.release(false);
+                sliceLease.release();
             }
             finally {
                 decrementInProgressAddDataPagesRequests();
@@ -434,14 +434,12 @@ public class DataResource
                     private void finalizeAddDataPagesRequest(List<ListenableFuture<Void>> addDataPagesFutures, SliceLease sliceLease)
                     {
                         Futures.whenAllComplete(addDataPagesFutures).run(() -> {
-                            // only mark request no longer in progress when all futures completed.
-                            // the HTTP request may return to caller earlier if one of the futures
-                            // returned by chunkManager.addDataPages() failed.
-                            // then allAsList(addDataPagesFuturesList), used below completed immediatelly
-                            // and generated HTTP response to the user.
+                            // Only mark request no longer in-progress when all futures complete.
+                            // The HTTP request may return to caller earlier if one of the futures
+                            // returned by chunkManager.addDataPages() fails.
                             if (!inProgressCompletionFlag.getAndSet(true)) {
                                 try {
-                                    sliceLease.release(false);
+                                    sliceLease.release();
                                 }
                                 finally {
                                     decrementInProgressAddDataPagesRequests();
@@ -453,11 +451,9 @@ public class DataResource
                 executor);
     }
 
-    private int incrementServedAddDataPagesRequests()
+    private void incrementServedAddDataPagesRequests()
     {
-        int currentRequestsCount = servedAddDataPagesRequests.incrementAndGet();
-        stats.updateServedAddDataPagesRequests(currentRequestsCount);
-        return currentRequestsCount;
+        stats.updateServedAddDataPagesRequests(servedAddDataPagesRequests.incrementAndGet());
     }
 
     private void decrementServedAddDataPagesRequests()

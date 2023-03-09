@@ -403,7 +403,7 @@ public class TestChunkManager
         assertEquals(0, chunkManager.getClosedChunks());
         assertEquals(3, chunkManager.getSpooledChunks());
         assertEquals(32, memoryAllocator.getFreeMemory());
-        memoryAllocator.release(getFutureValue(sliceFuture), true);
+        memoryAllocator.release(getFutureValue(sliceFuture));
 
         ChunkHandle chunkHandle2 = new ChunkHandle(BUFFER_NODE_ID, 1, 2L, 5);
         assertThat(listClosedChunks(chunkManager, EXCHANGE_1, OptionalLong.empty(), 1).chunks())
