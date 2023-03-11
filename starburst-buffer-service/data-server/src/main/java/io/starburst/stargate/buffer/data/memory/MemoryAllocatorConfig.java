@@ -17,7 +17,7 @@ import javax.validation.constraints.NotNull;
 
 public class MemoryAllocatorConfig
 {
-    private DataSize heapHeadroom = DataSize.ofBytes(Math.round(Runtime.getRuntime().maxMemory() * 0.21));
+    private DataSize heapHeadroom = DataSize.ofBytes(Math.round(Runtime.getRuntime().maxMemory() * 0.18));
     private double allocationRatioLowWatermark = 0.75;
     private double allocationRatioHighWatermark = 0.9;
     private double chunkSlicePoolingFraction = 0.8;
