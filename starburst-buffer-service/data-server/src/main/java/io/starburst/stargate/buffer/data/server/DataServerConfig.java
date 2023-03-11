@@ -29,7 +29,7 @@ public class DataServerConfig
     private Duration broadcastInterval = Duration.succinctDuration(5, SECONDS);
     private int drainingMaxAttempts = 4;
     private Duration minDrainingDuration = Duration.succinctDuration(30, SECONDS);
-    private int maxInProgressAddDataPagesRequests = 500;
+    private int maxInProgressAddDataPagesRequests = 100;
     private int chunkListTargetSize = 1;
     private int chunkListMaxSize = 100;
     private Duration chunkListPollTimeout = Duration.succinctDuration(100, MILLISECONDS);

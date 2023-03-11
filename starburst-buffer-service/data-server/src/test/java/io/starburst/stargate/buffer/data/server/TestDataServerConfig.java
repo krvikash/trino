@@ -34,7 +34,7 @@ public class TestDataServerConfig
                 .setBroadcastInterval(succinctDuration(5, SECONDS))
                 .setMinDrainingDuration(succinctDuration(30, SECONDS))
                 .setDrainingMaxAttempts(4)
-                .setMaxInProgressAddDataPagesRequests(500)
+                .setMaxInProgressAddDataPagesRequests(100)
                 .setChunkListTargetSize(1)
                 .setChunkListMaxSize(100)
                 .setChunkListPollTimeout(succinctDuration(100, MILLISECONDS)));
