@@ -30,7 +30,7 @@ public class BufferExchangeConfig
     private DataSize sinkBlockedMemoryHighWaterMark = DataSize.of(256, DataSize.Unit.MEGABYTE);
     private DataSize sourceBlockedMemoryLowWaterMark = DataSize.of(32, DataSize.Unit.MEGABYTE);
     private DataSize sourceBlockedMemoryHighWaterMark = DataSize.of(64, DataSize.Unit.MEGABYTE);
-    private int sourceParallelism = 4;
+    private int sourceParallelism = 16;
     private int sourceHandleTargetChunksCount = 64;
     private DataSize sourceHandleTargetDataSize = DataSize.of(256, DataSize.Unit.MEGABYTE);
     private int sinkTargetWrittenPagesCount = 512;

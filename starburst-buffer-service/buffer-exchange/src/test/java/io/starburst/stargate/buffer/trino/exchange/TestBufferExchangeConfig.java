@@ -38,7 +38,7 @@ class TestBufferExchangeConfig
                 .setSinkBlockedMemoryHighWaterMark(DataSize.of(256, MEGABYTE))
                 .setSourceBlockedMemoryLowWaterMark(DataSize.of(32, MEGABYTE))
                 .setSourceBlockedMemoryHighWaterMark(DataSize.of(64, MEGABYTE))
-                .setSourceParallelism(4)
+                .setSourceParallelism(16)
                 .setSourceHandleTargetChunksCount(64)
                 .setSourceHandleTargetDataSize(DataSize.of(256, MEGABYTE))
                 .setSinkTargetWrittenPagesCount(512)
