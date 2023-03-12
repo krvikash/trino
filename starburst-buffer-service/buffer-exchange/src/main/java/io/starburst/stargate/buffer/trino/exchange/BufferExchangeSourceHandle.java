@@ -51,7 +51,7 @@ public class BufferExchangeSourceHandle
         this.partitionId = partitionId;
         this.bufferNodeIds = requireNonNull(bufferNodeIds, "bufferNodeIds is null");
         this.chunkIds = requireNonNull(chunkIds, "chunkIds is null");
-        checkArgument(bufferNodeIds.length == chunkIds.length, "length of bufferNodeIds(%d) and chunkIds(%d) should be equal", bufferNodeIds.length, chunkIds.length);
+        checkArgument(chunkIds.length == bufferNodeIds.length, "length of chunkIds(%d) and bufferNodeIds(%d) should be equal", chunkIds.length, bufferNodeIds.length);
         this.dataSizeInBytes = dataSizeInBytes;
         this.preserveOrderWithinPartition = preserveOrderWithinPartition;
     }
