@@ -127,14 +127,7 @@ public class BufferExchangeSource
                 return;
             }
             if (!memoryUsageExceeded.isDone()) {
-                memoryUsageExceeded.addListener(() -> {
-                    try {
-                        scheduleReadChunks();
-                    }
-                    catch (Exception e) {
-                        setFailed(e);
-                    }
-                }, executor);
+                // not enough memory
                 return;
             }
             newChunkReaders = doScheduleReadChunks();
@@ -464,6 +457,15 @@ public class BufferExchangeSource
     {
         if (currentMemoryUsage > memoryHighWaterMark.toBytes() && memoryUsageExceeded.isDone()) {
             memoryUsageExceeded = SettableFuture.create();
+            memoryUsageExceeded.addListener(() -> {
+                // resume scheduling chunks when we have memory again
+                try {
+                    scheduleReadChunks();
+                }
+                catch (Exception e) {
+                    setFailed(e);
+                }
+            }, executor);
         }
     }
 
