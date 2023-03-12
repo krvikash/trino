@@ -252,11 +252,14 @@ public class BufferExchangeSource
                 handlePreserveOrderingFlagFromSourceHandle(bufferSourceHandle);
 
                 int chunksCount = bufferSourceHandle.getChunksCount();
+                int partitionId = bufferSourceHandle.getPartitionId();
+                String externalExchangeId = bufferSourceHandle.getExternalExchangeId();
 
                 for (int chunkNum = 0; chunkNum < chunksCount; chunkNum++) {
                     long bufferNodeId = bufferSourceHandle.getBufferNodeId(chunkNum);
                     long chunkId = bufferSourceHandle.getChunkId(chunkNum);
-                    offerSourceChunk(sourceHandle, bufferSourceHandle, bufferNodeId, chunkId);
+
+                    offerSourceChunk(new SourceChunk(externalExchangeId, bufferNodeId, partitionId, chunkId));
                 }
             }
 
@@ -265,9 +268,8 @@ public class BufferExchangeSource
     }
 
     @GuardedBy("this")
-    private void offerSourceChunk(ExchangeSourceHandle sourceHandle, BufferExchangeSourceHandle bufferSourceHandle, long bufferNodeId, long chunkId)
+    private void offerSourceChunk(SourceChunk sourceChunk)
     {
-        SourceChunk sourceChunk = new SourceChunk(bufferSourceHandle.getExternalExchangeId(), bufferNodeId, sourceHandle.getPartitionId(), chunkId);
         sourceChunks.offer(sourceChunk);
         sourceChunksEstimatedSize.updateAndGet(oldValue -> oldValue + Unsafe.ARRAY_OBJECT_INDEX_SCALE + sourceChunk.getRetainedSize());
     }
