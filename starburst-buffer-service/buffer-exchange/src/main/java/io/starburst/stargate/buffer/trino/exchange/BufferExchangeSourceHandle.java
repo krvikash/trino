@@ -34,6 +34,7 @@ public class BufferExchangeSourceHandle
     private final int partitionId;
     private final long[] bufferNodeIds;
     private final long[] chunkIds;
+    private final int[] chunkDataSizes;
     private final long dataSizeInBytes;
     private final boolean preserveOrderWithinPartition;
 
@@ -44,6 +45,7 @@ public class BufferExchangeSourceHandle
             @JsonProperty("partitionId") int partitionId,
             @JsonProperty("bufferNodeIds") long[] bufferNodeIds,
             @JsonProperty("chunkIds") long[] chunkIds,
+            @JsonProperty("chunkDataSizes") int[] chunkDataSizes,
             @JsonProperty("dataSizeInBytes") long dataSizeInBytes,
             @JsonProperty("preserveOrderWithinPartition") boolean preserveOrderWithinPartition)
     {
@@ -52,6 +54,8 @@ public class BufferExchangeSourceHandle
         this.bufferNodeIds = requireNonNull(bufferNodeIds, "bufferNodeIds is null");
         this.chunkIds = requireNonNull(chunkIds, "chunkIds is null");
         checkArgument(chunkIds.length == bufferNodeIds.length, "length of chunkIds(%d) and bufferNodeIds(%d) should be equal", chunkIds.length, bufferNodeIds.length);
+        this.chunkDataSizes = requireNonNull(chunkDataSizes, "chunkDataSizes is null");
+        checkArgument(chunkDataSizes.length == chunkIds.length, "length of chunkDataSizes(%d) and chunkIds(%d) should be equal", chunkDataSizes.length, chunkIds.length);
         this.dataSizeInBytes = dataSizeInBytes;
         this.preserveOrderWithinPartition = preserveOrderWithinPartition;
     }
@@ -64,12 +68,14 @@ public class BufferExchangeSourceHandle
     {
         long[] bufferNodeIds = new long[chunkHandles.size()];
         long[] chunkIds = new long[chunkHandles.size()];
+        int[] chunkDataSizes = new int[chunkHandles.size()];
         long dataSizeInBytes = 0;
         int pos = 0;
         for (ChunkHandle chunkHandle : chunkHandles) {
             checkArgument(chunkHandle.partitionId() == partitionId, "all chunkHandles should belong to same partition %d; got %d", partitionId, chunkHandle.partitionId());
             bufferNodeIds[pos] = chunkHandle.bufferNodeId();
             chunkIds[pos] = chunkHandle.chunkId();
+            chunkDataSizes[pos] = chunkHandle.dataSizeInBytes();
             dataSizeInBytes += chunkHandle.dataSizeInBytes();
             pos++;
         }
@@ -79,6 +85,7 @@ public class BufferExchangeSourceHandle
                 partitionId,
                 bufferNodeIds,
                 chunkIds,
+                chunkDataSizes,
                 dataSizeInBytes,
                 preserveOrderWithinPartition);
     }
@@ -110,6 +117,13 @@ public class BufferExchangeSourceHandle
         return chunkIds;
     }
 
+    @JsonProperty
+    @Deprecated // needed for JSON serialization
+    public int[] getChunkDataSizes()
+    {
+        return chunkDataSizes;
+    }
+
     public int getChunksCount()
     {
         return bufferNodeIds.length;
@@ -125,6 +139,12 @@ public class BufferExchangeSourceHandle
     {
         checkPositionIndex(pos, chunkIds.length);
         return chunkIds[pos];
+    }
+
+    public int getChunkDataSize(int pos)
+    {
+        checkPositionIndex(pos, chunkDataSizes.length);
+        return chunkDataSizes[pos];
     }
 
     @Override
@@ -146,7 +166,8 @@ public class BufferExchangeSourceHandle
         return INSTANCE_SIZE
                 + estimatedSizeOf(externalExchangeId)
                 + sizeOf(bufferNodeIds)
-                + sizeOf(chunkIds);
+                + sizeOf(chunkIds)
+                + sizeOf(chunkDataSizes);
     }
 
     @Override
@@ -157,6 +178,7 @@ public class BufferExchangeSourceHandle
                 .add("partitionId", partitionId)
                 .add("bufferNodeIds", bufferNodeIds)
                 .add("chunkIds", chunkIds)
+                .add("chunkDataSizes", chunkDataSizes)
                 .add("dataSizeInBytes", dataSizeInBytes)
                 .toString();
     }

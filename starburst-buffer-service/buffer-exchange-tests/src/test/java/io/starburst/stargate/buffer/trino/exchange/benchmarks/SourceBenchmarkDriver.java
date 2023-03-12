@@ -198,15 +198,18 @@ public class SourceBenchmarkDriver
 
         long[] bufferIds = new long[chunksPerSourceHandle];
         long[] chunkIds = new long[chunksPerSourceHandle];
+        int[] chunkDataSizes = new int[chunksPerSourceHandle];
 
         Arrays.fill(bufferIds, receivedSourceHandle.getBufferNodeId(0));
         Arrays.fill(chunkIds, receivedSourceHandle.getChunkId(0));
+        Arrays.fill(chunkDataSizes, receivedSourceHandle.getChunkDataSize(0));
 
         return new BufferExchangeSourceHandle(
                 receivedSourceHandle.getExternalExchangeId(),
                 receivedSourceHandle.getPartitionId(),
                 bufferIds,
                 chunkIds,
+                chunkDataSizes,
                 receivedSourceHandle.getDataSizeInBytes() * chunksPerSourceHandle,
                 receivedSourceHandle.isPreserveOrderWithinPartition());
     }
