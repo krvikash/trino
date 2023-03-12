@@ -87,6 +87,7 @@ public class BufferExchangeSource
     private final AtomicReference<CompletableFuture<Void>> isBlockedReference = new AtomicReference<>(completedFuture(null));
     private volatile boolean closed;
     private final AtomicLong readSlicesMemoryUsage = new AtomicLong(0);
+    private final AtomicLong readersReservedMemory = new AtomicLong(0);
     private final AtomicReference<Throwable> failure = new AtomicReference<>();
     @GuardedBy("this")
     private SettableFuture<Void> memoryUsageExceeded;
@@ -159,24 +160,35 @@ public class BufferExchangeSource
             if (chunk == null) {
                 return newReaders.build();
             }
+            increaseReservedChunksMemory(chunk.chunkDataSize());
             ChunkReader reader = new ChunkReader(chunk);
             newReaders.add(reader);
             currentReaders.add(reader);
+            if (!memoryUsageExceeded.isDone()) {
+                // we crossed the memory limit
+                break;
+            }
         }
         return newReaders.build();
     }
 
     private void finishChunkReader(ChunkReader chunkReader)
     {
-        CompletableFuture<Void> futureToUnblock = null;
+        SettableFuture<Void> memoryFutureToUnblock;
+        CompletableFuture<Void> completedFutureToUnblock = null;
+
         synchronized (this) {
+            memoryFutureToUnblock = decreaseReservedChunksMemory(chunkReader.getSourceChunk().chunkDataSize());
             checkState(currentReaders.remove(chunkReader), "ChunkReader %s not found in currentReaders set", chunkReader);
             if (allDataReturned()) {
-                futureToUnblock = isBlockedReference.get();
+                completedFutureToUnblock = isBlockedReference.get();
             }
         }
-        if (futureToUnblock != null) {
-            futureToUnblock.complete(null);
+        if (memoryFutureToUnblock != null) {
+            memoryFutureToUnblock.set(null);
+        }
+        if (completedFutureToUnblock != null) {
+            completedFutureToUnblock.complete(null);
         }
     }
 
@@ -258,8 +270,9 @@ public class BufferExchangeSource
                 for (int chunkNum = 0; chunkNum < chunksCount; chunkNum++) {
                     long bufferNodeId = bufferSourceHandle.getBufferNodeId(chunkNum);
                     long chunkId = bufferSourceHandle.getChunkId(chunkNum);
+                    int chunkDataSize = bufferSourceHandle.getChunkDataSize(chunkNum);
 
-                    offerSourceChunk(new SourceChunk(externalExchangeId, bufferNodeId, partitionId, chunkId));
+                    offerSourceChunk(new SourceChunk(externalExchangeId, bufferNodeId, partitionId, chunkId, chunkDataSize));
                 }
             }
 
@@ -415,7 +428,40 @@ public class BufferExchangeSource
     @GuardedBy("this")
     private void increaseReadSlicesMemoryUsage(long delta)
     {
-        long currentMemoryUsage = readSlicesMemoryUsage.addAndGet(delta);
+        long currentMemoryUsage = readSlicesMemoryUsage.addAndGet(delta) + readersReservedMemory.get();
+        handleMemoryUsageIncrease(currentMemoryUsage);
+    }
+
+    @Nullable
+    @GuardedBy("this")
+    private SettableFuture<Void> decreaseReadSlicesMemoryUsage(long delta)
+    {
+        long newSliceMemoryUsage = readSlicesMemoryUsage.addAndGet(-delta);
+        verify(newSliceMemoryUsage >= 0, "negative memory usage");
+        long currentMemoryUsage = newSliceMemoryUsage + readersReservedMemory.get();
+        return handleMemoryUsageDecrease(currentMemoryUsage);
+    }
+
+    @GuardedBy("this")
+    private void increaseReservedChunksMemory(long delta)
+    {
+        long currentMemoryUsage = readSlicesMemoryUsage.get() + readersReservedMemory.addAndGet(delta);
+        handleMemoryUsageIncrease(currentMemoryUsage);
+    }
+
+    @Nullable
+    @GuardedBy("this")
+    private SettableFuture<Void> decreaseReservedChunksMemory(long delta)
+    {
+        long newReadersReservedMemory = readersReservedMemory.addAndGet(-delta);
+        verify(newReadersReservedMemory >= 0, "negative memory usage");
+        long currentMemoryUsage = readSlicesMemoryUsage.get() + newReadersReservedMemory;
+        return handleMemoryUsageDecrease(currentMemoryUsage);
+    }
+
+    @GuardedBy("this")
+    private void handleMemoryUsageIncrease(long currentMemoryUsage)
+    {
         if (currentMemoryUsage > memoryHighWaterMark.toBytes() && memoryUsageExceeded.isDone()) {
             memoryUsageExceeded = SettableFuture.create();
         }
@@ -423,10 +469,8 @@ public class BufferExchangeSource
 
     @Nullable
     @GuardedBy("this")
-    private SettableFuture<Void> decreaseReadSlicesMemoryUsage(long delta)
+    private SettableFuture<Void> handleMemoryUsageDecrease(long currentMemoryUsage)
     {
-        long currentMemoryUsage = readSlicesMemoryUsage.addAndGet(-delta);
-        verify(currentMemoryUsage >= 0, "negative memory usage");
         if (currentMemoryUsage < memoryLowWaterMark.toBytes() && !memoryUsageExceeded.isDone()) {
             return memoryUsageExceeded;
         }
@@ -453,13 +497,12 @@ public class BufferExchangeSource
 
             readSlices.clear();
             readSlicesHasElements = false;
-            memoryFutureToUnblock = decreaseReadSlicesMemoryUsage(readSlicesMemoryUsage.get());
+            decreaseReadSlicesMemoryUsage(readSlicesMemoryUsage.get());
             closed = true;
+            memoryFutureToUnblock = memoryUsageExceeded;
         }
-        if (memoryFutureToUnblock != null) {
-            // complete future outside the synchronized block
-            memoryFutureToUnblock.set(null);
-        }
+        // complete future outside the synchronized block
+        memoryFutureToUnblock.set(null);
     }
 
     @NotThreadSafe
@@ -598,17 +641,23 @@ public class BufferExchangeSource
         {
             return INSTANCE_SIZE + sourceChunk.getRetainedSize();
         }
+
+        public SourceChunk getSourceChunk()
+        {
+            return sourceChunk;
+        }
     }
 
     private record SourceChunk(
             String externalExchangeId,
             long bufferNodeId,
             int partitionId,
-            long chunkId)
+            long chunkId,
+            int chunkDataSize)
     {
         public long getRetainedSize()
         {
-            return OBJECT_HEADER_SIZE + Long.BYTES + Integer.BYTES + Long.BYTES;
+            return OBJECT_HEADER_SIZE + Long.BYTES + Integer.BYTES + Long.BYTES + Integer.BYTES;
         }
     }
 
