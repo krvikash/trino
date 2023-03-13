@@ -177,7 +177,7 @@ public class ChunkManager
         }
     }
 
-    public ListenableFuture<Void> addDataPages(
+    public AddDataPagesResult addDataPages(
             String exchangeId,
             int partitionId,
             int taskId,

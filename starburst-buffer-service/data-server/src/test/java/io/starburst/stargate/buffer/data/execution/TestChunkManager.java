@@ -101,12 +101,12 @@ public class TestChunkManager
         chunkManager.registerExchange(EXCHANGE_0);
         chunkManager.registerExchange(EXCHANGE_1);
 
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("000_0"))));
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 1, 0, 1L, ImmutableList.of(utf8Slice("001_0"))));
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 0, 0, 2L, ImmutableList.of(utf8Slice("010_0"))));
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 1, 0, 3L, ImmutableList.of(utf8Slice("011_0"))));
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 0, 1, 4L, ImmutableList.of(utf8Slice("010_0"), utf8Slice("010_1"))));
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_1, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("100_0"))));
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("000_0"))).addDataPagesFuture());
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 1, 0, 1L, ImmutableList.of(utf8Slice("001_0"))).addDataPagesFuture());
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 0, 0, 2L, ImmutableList.of(utf8Slice("010_0"))).addDataPagesFuture());
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 1, 0, 3L, ImmutableList.of(utf8Slice("011_0"))).addDataPagesFuture());
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 0, 1, 4L, ImmutableList.of(utf8Slice("010_0"), utf8Slice("010_1"))).addDataPagesFuture());
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_1, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("100_0"))).addDataPagesFuture());
 
         ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 10);
         ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 1, 1L, 20);
@@ -167,11 +167,11 @@ public class TestChunkManager
         chunkManager.registerExchange(EXCHANGE_0);
         chunkManager.registerExchange(EXCHANGE_1);
 
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("000_0"))));
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 0, 0, 1L, ImmutableList.of(utf8Slice("010_0"))));
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 1, 0, 2L, ImmutableList.of(utf8Slice("011_0"))));
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 0, 1, 3L, ImmutableList.of(utf8Slice("010_0"), utf8Slice("010_1"))));
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_1, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("100_0"))));
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("000_0"))).addDataPagesFuture());
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 0, 0, 1L, ImmutableList.of(utf8Slice("010_0"))).addDataPagesFuture());
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 1, 0, 2L, ImmutableList.of(utf8Slice("011_0"))).addDataPagesFuture());
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 0, 1, 3L, ImmutableList.of(utf8Slice("010_0"), utf8Slice("010_1"))).addDataPagesFuture());
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_1, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("100_0"))).addDataPagesFuture());
 
         ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 5);
         ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 1, 1L, 10);
@@ -232,7 +232,7 @@ public class TestChunkManager
 
         chunkManager.registerExchange(EXCHANGE_0);
         chunkManager.registerExchange(EXCHANGE_1);
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_1, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("dummy"))));
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_1, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("dummy"))).addDataPagesFuture());
 
         ticker.increment(1000, MILLISECONDS);
         chunkManager.cleanupStaleExchanges();
@@ -268,14 +268,14 @@ public class TestChunkManager
         MemoryAllocator memoryAllocator = defaultMemoryAllocator();
         ChunkManager chunkManager = createChunkManager(memoryAllocator, DataSize.of(30, BYTE), DataSize.of(10, BYTE));
 
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("chunk"))));
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 1L, ImmutableList.of(utf8Slice("manager"))));
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 1L, ImmutableList.of(utf8Slice("manager"))));
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 0, 0, 2L, ImmutableList.of(utf8Slice("data"), utf8Slice("page"))));
-        assertThatThrownBy(() -> getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("chunk")))))
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("chunk"))).addDataPagesFuture());
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 1L, ImmutableList.of(utf8Slice("manager"))).addDataPagesFuture());
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 1L, ImmutableList.of(utf8Slice("manager"))).addDataPagesFuture());
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 0, 0, 2L, ImmutableList.of(utf8Slice("data"), utf8Slice("page"))).addDataPagesFuture());
+        assertThatThrownBy(() -> getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("chunk"))).addDataPagesFuture()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("dataPagesId should not decrease for the same writer: taskId 0, attemptId 0, dataPagesId 0, lastDataPagesId 1");
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 1, 0, 0L, ImmutableList.of(utf8Slice("deduplication"))));
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 1, 0, 0L, ImmutableList.of(utf8Slice("deduplication"))).addDataPagesFuture());
         getFutureValue(chunkManager.finishExchange(EXCHANGE_0));
 
         ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 12);
@@ -325,13 +325,13 @@ public class TestChunkManager
         ChunkManager chunkManager = createChunkManager(memoryAllocator, chunkMaxSize, chunkMaxSize);
         Slice largePage = utf8Slice("8".repeat((int) DataSize.of(8, MEGABYTE).toBytes()));
 
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("dummy"))));
-        assertThatThrownBy(() -> getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 1, 1, 1L, ImmutableList.of(utf8Slice("dummy"), largePage))))
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("dummy"))).addDataPagesFuture());
+        assertThatThrownBy(() -> getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 1, 1, 1L, ImmutableList.of(utf8Slice("dummy"), largePage)).addDataPagesFuture()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("requiredStorageSize %d larger than chunkMaxSizeInBytes %d".formatted(DATA_PAGE_HEADER_SIZE + largePage.length(), chunkMaxSize.toBytes()));
         sleepUninterruptibly(100, MILLISECONDS); // make sure exception callback has executed and failure has been set
         // all future operations (except releaseChunks) to the exchange will fail
-        assertThatThrownBy(() -> getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 2, 2, 2, 2L, ImmutableList.of(utf8Slice("dummy")))))
+        assertThatThrownBy(() -> getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 2, 2, 2, 2L, ImmutableList.of(utf8Slice("dummy"))).addDataPagesFuture()))
                 .isInstanceOf(DataServerException.class)
                 .hasMessage("exchange %s is in inconsistent state".formatted(EXCHANGE_0));
         assertThatThrownBy(() -> chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty()))
@@ -359,17 +359,17 @@ public class TestChunkManager
         chunkManager.registerExchange(EXCHANGE_1);
 
         ListenableFuture<Void> addDataPagesFuture1 = chunkManager.addDataPages(
-                EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("test"), utf8Slice("spool"), utf8Slice("chunks")));
+                EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("test"), utf8Slice("spool"), utf8Slice("chunks"))).addDataPagesFuture();
         await().atMost(ONE_SECOND).until(addDataPagesFuture1::isDone);
         assertEquals(32, memoryAllocator.getFreeMemory());
 
         ListenableFuture<Void> addDataPagesFuture2 = chunkManager.addDataPages(
-                EXCHANGE_0, 0, 0, 0, 1L, ImmutableList.of(utf8Slice("add"), utf8Slice("data"), utf8Slice("pages")));
+                EXCHANGE_0, 0, 0, 0, 1L, ImmutableList.of(utf8Slice("add"), utf8Slice("data"), utf8Slice("pages"))).addDataPagesFuture();
         await().atMost(ONE_SECOND).until(addDataPagesFuture2::isDone);
         assertEquals(0, memoryAllocator.getFreeMemory());
 
         ListenableFuture<Void> addDataPagesFuture3 = chunkManager.addDataPages(
-                EXCHANGE_1, 1, 1, 1, 2L, ImmutableList.of(utf8Slice("dummy")));
+                EXCHANGE_1, 1, 1, 1, 2L, ImmutableList.of(utf8Slice("dummy"))).addDataPagesFuture();
         assertFalse(addDataPagesFuture3.isDone()); // no memory available yet
 
         chunkManager.spoolIfNecessary();
@@ -435,17 +435,17 @@ public class TestChunkManager
         chunkManager.registerExchange(EXCHANGE_0);
 
         ListenableFuture<Void> addDataPagesFuture1 = chunkManager.addDataPages(
-                EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("a"), utf8Slice("b"), utf8Slice("c")));
+                EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("a"), utf8Slice("b"), utf8Slice("c"))).addDataPagesFuture();
         await().atMost(ONE_SECOND).until(addDataPagesFuture1::isDone);
         assertEquals(40, memoryAllocator.getFreeMemory());
 
         ListenableFuture<Void> addDataPagesFuture2 = chunkManager.addDataPages(
-                EXCHANGE_0, 1, 1, 1, 1L, ImmutableList.of(utf8Slice("d"), utf8Slice("e"), utf8Slice("f")));
+                EXCHANGE_0, 1, 1, 1, 1L, ImmutableList.of(utf8Slice("d"), utf8Slice("e"), utf8Slice("f"))).addDataPagesFuture();
         await().atMost(ONE_SECOND).until(addDataPagesFuture2::isDone);
         assertEquals(16, memoryAllocator.getFreeMemory());
 
         ListenableFuture<Void> addDataPagesFuture3 = chunkManager.addDataPages(
-                EXCHANGE_0, 2, 2, 2, 2L, ImmutableList.of(utf8Slice("g"), utf8Slice("h"), utf8Slice("i")));
+                EXCHANGE_0, 2, 2, 2, 2L, ImmutableList.of(utf8Slice("g"), utf8Slice("h"), utf8Slice("i"))).addDataPagesFuture();
         assertFalse(addDataPagesFuture3.isDone()); // not enough memory available yet
 
         // wait for all addDataPagesFutures to finish
@@ -477,7 +477,7 @@ public class TestChunkManager
         assertEquals(6, chunkManager.getSpooledChunks());
         assertEquals(maxBytes, memoryAllocator.getFreeMemory());
 
-        assertThatThrownBy(() -> getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 3, 3, 3, 3L, ImmutableList.of(utf8Slice("dummy")))))
+        assertThatThrownBy(() -> getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 3, 3, 3, 3L, ImmutableList.of(utf8Slice("dummy"))).addDataPagesFuture()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("addDataPages called in ChunkManager after we started draining");
     }
@@ -488,12 +488,12 @@ public class TestChunkManager
         ChunkManager chunkManager = createChunkManager(defaultMemoryAllocator(), DataSize.of(16, MEGABYTE), DataSize.of(128, KILOBYTE));
 
         assertThat(chunkManager.getTrackedExchanges()).isEqualTo(0);
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("000_0"))));
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("000_0"))).addDataPagesFuture());
         assertThat(chunkManager.getTrackedExchanges()).isEqualTo(1);
 
         chunkManager.removeExchange(EXCHANGE_0);
         assertThat(chunkManager.getTrackedExchanges()).isEqualTo(0);
-        assertThatThrownBy(() -> getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("000_0")))))
+        assertThatThrownBy(() -> getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("000_0"))).addDataPagesFuture()))
                 .isInstanceOf(DataServerException.class)
                 .matches(t -> (((DataServerException) t).getErrorCode()) == ErrorCode.EXCHANGE_NOT_FOUND)
                 .hasMessage("exchange %s already removed".formatted(EXCHANGE_0));
@@ -505,17 +505,17 @@ public class TestChunkManager
     {
         ChunkManager chunkManager = createChunkManager(defaultMemoryAllocator(), DataSize.of(12, BYTE), DataSize.of(12, BYTE));
 
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("page0"))));
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 1L, ImmutableList.of(utf8Slice("page1"))));
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("page0"))).addDataPagesFuture());
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 1L, ImmutableList.of(utf8Slice("page1"))).addDataPagesFuture());
         OptionalLong pagingId = OptionalLong.empty();
         ChunkList chunkList = listClosedChunks(chunkManager, EXCHANGE_0, pagingId, 1); // only chunk 0 closed at this point
         pagingId = chunkList.nextPagingId();
         assertTrue(pagingId.isPresent());
         assertThat(chunkList.chunks()).containsExactly(new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 5));
 
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 2L, ImmutableList.of(utf8Slice("page2"))));
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 3L, ImmutableList.of(utf8Slice("page3"))));
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 4L, ImmutableList.of(utf8Slice("page4"))));
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 2L, ImmutableList.of(utf8Slice("page2"))).addDataPagesFuture());
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 3L, ImmutableList.of(utf8Slice("page3"))).addDataPagesFuture());
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 4L, ImmutableList.of(utf8Slice("page4"))).addDataPagesFuture());
         chunkList = listClosedChunks(chunkManager, EXCHANGE_0, pagingId, 3); // chunk 1, 2, 3 are newly closed
         pagingId = chunkList.nextPagingId();
         assertTrue(pagingId.isPresent());
@@ -524,9 +524,9 @@ public class TestChunkManager
                 new ChunkHandle(BUFFER_NODE_ID, 0, 2L, 5),
                 new ChunkHandle(BUFFER_NODE_ID, 0, 3L, 5));
 
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 5L, ImmutableList.of(utf8Slice("page5"))));
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 6L, ImmutableList.of(utf8Slice("page6"))));
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 7L, ImmutableList.of(utf8Slice("page7"))));
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 5L, ImmutableList.of(utf8Slice("page5"))).addDataPagesFuture());
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 6L, ImmutableList.of(utf8Slice("page6"))).addDataPagesFuture());
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 7L, ImmutableList.of(utf8Slice("page7"))).addDataPagesFuture());
         getFutureValue(chunkManager.finishExchange(EXCHANGE_0));
         chunkList = listClosedChunks(chunkManager, EXCHANGE_0, pagingId, 4); // chunk 4, 5, 6, 7 are newly closed
         pagingId = chunkList.nextPagingId();
@@ -550,10 +550,10 @@ public class TestChunkManager
                 new ChunkManagerConfig(),
                 new DataServerStats());
         ChunkManager chunkManager = createChunkManager(memoryAllocator, DataSize.of(8, BYTE), DataSize.of(8, BYTE));
-        ListenableFuture<Void> addDataPagesFuture1 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 1L, ImmutableList.of(utf8Slice("1")));
-        ListenableFuture<Void> addDataPagesFuture2 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 2L, ImmutableList.of(utf8Slice("2")));
-        ListenableFuture<Void> addDataPagesFuture3 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 3L, ImmutableList.of(utf8Slice("3")));
-        ListenableFuture<Void> addDataPagesFuture4 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 4L, ImmutableList.of(utf8Slice("4")));
+        ListenableFuture<Void> addDataPagesFuture1 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 1L, ImmutableList.of(utf8Slice("1"))).addDataPagesFuture();
+        ListenableFuture<Void> addDataPagesFuture2 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 2L, ImmutableList.of(utf8Slice("2"))).addDataPagesFuture();
+        ListenableFuture<Void> addDataPagesFuture3 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 3L, ImmutableList.of(utf8Slice("3"))).addDataPagesFuture();
+        ListenableFuture<Void> addDataPagesFuture4 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 4L, ImmutableList.of(utf8Slice("4"))).addDataPagesFuture();
         await().atMost(ONE_SECOND).until(addDataPagesFuture1::isDone);
         await().atMost(ONE_SECOND).until(addDataPagesFuture2::isDone);
         assertFalse(addDataPagesFuture3.isDone());
@@ -599,14 +599,40 @@ public class TestChunkManager
         assertDrainedChunkDataResult(chunkManager, drainedBufferNodeId);
 
         // exchange exists, but partition missing
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 1, 1, 1L, ImmutableList.of(utf8Slice("dummy1"))));
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 1, 1, 1L, ImmutableList.of(utf8Slice("dummy1"))).addDataPagesFuture());
         assertDrainedChunkDataResult(chunkManager, drainedBufferNodeId);
 
         // exchange exists, partition exists, but chunk missing
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("dummy0"))));
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("dummy0"))).addDataPagesFuture());
         assertDrainedChunkDataResult(chunkManager, drainedBufferNodeId);
 
         chunkManager.removeExchange(EXCHANGE_0);
+    }
+
+    @Test
+    public void testAddDataPagesShouldRetainMemory()
+    {
+        long maxBytes = 16L;
+        MemoryAllocator memoryAllocator = new MemoryAllocator(
+                new MemoryAllocatorConfig()
+                        .setHeapHeadroom(succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes))
+                        .setAllocationRatioHighWatermark(1.0)
+                        .setAllocationRatioLowWatermark(1.0),
+                new ChunkManagerConfig(),
+                new DataServerStats());
+        ChunkManager chunkManager = createChunkManager(memoryAllocator, DataSize.of(16, MEGABYTE), DataSize.of(128, KILOBYTE));
+
+        AddDataPagesResult addDataPagesResult = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("dummy")));
+        assertFalse(addDataPagesResult.addDataPagesFuture().isDone()); // addDataPagesResult will block because of memory not enough
+        assertTrue(addDataPagesResult.shouldRetainMemory());
+
+        AddDataPagesResult retriedAddDataPagesResult = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("dummy")));
+        assertFalse(retriedAddDataPagesResult.addDataPagesFuture().isDone());
+        assertEquals(addDataPagesResult.addDataPagesFuture(), retriedAddDataPagesResult.addDataPagesFuture()); // retry should get the same future
+        assertFalse(retriedAddDataPagesResult.shouldRetainMemory()); // retry shouldn't retain memory for input data
+
+        addDataPagesResult.addDataPagesFuture().cancel(true);
+        assertTrue(retriedAddDataPagesResult.addDataPagesFuture().isCancelled());
     }
 
     @AfterAll

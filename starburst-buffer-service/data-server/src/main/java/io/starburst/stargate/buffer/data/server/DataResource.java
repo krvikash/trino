@@ -27,6 +27,7 @@ import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.starburst.stargate.buffer.data.client.spooling.SpoolingFile;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
+import io.starburst.stargate.buffer.data.execution.AddDataPagesResult;
 import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
 import io.starburst.stargate.buffer.data.execution.ChunkDataResult;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
@@ -353,6 +354,7 @@ public class DataResource
                                         SliceInput sliceInput = slice.getInput();
                                         long readChecksum = sliceInput.readLong();
                                         XxHash64 hash = new XxHash64();
+                                        boolean shouldRetainMemory = false;
                                         while (sliceInput.isReadable()) {
                                             int partitionId = sliceInput.readInt();
                                             int bytes = sliceInput.readInt();
@@ -369,13 +371,15 @@ public class DataResource
                                                 bytes -= pageLength;
                                             }
                                             checkState(bytes == 0, "no more data in input stream but remaining bytes counter > 0 (%d)".formatted(bytes));
-                                            addDataPagesFutures.add(chunkManager.addDataPages(
+                                            AddDataPagesResult addDataPagesResult = chunkManager.addDataPages(
                                                     exchangeId,
                                                     partitionId,
                                                     taskId,
                                                     attemptId,
                                                     dataPagesId,
-                                                    pages.build()));
+                                                    pages.build());
+                                            addDataPagesFutures.add(addDataPagesResult.addDataPagesFuture());
+                                            shouldRetainMemory = shouldRetainMemory || addDataPagesResult.shouldRetainMemory();
                                         }
                                         if (dataIntegrityVerificationEnabled) {
                                             long calculatedChecksum = hash.hash();
@@ -395,7 +399,14 @@ public class DataResource
                                         writtenDataSize.update(contentLength);
                                         writtenDataSizeDistribution.add(contentLength);
 
-                                        finalizeAddDataPagesRequest(addDataPagesFutures, sliceLease);
+                                        if (shouldRetainMemory) {
+                                            // only release memory when all addDataPagesFutures complete
+                                            finalizeAddDataPagesRequest(addDataPagesFutures, sliceLease);
+                                        }
+                                        else {
+                                            // addDataPagesFutures are all old futures and we can release sliceLease early
+                                            finalizeAddDataPagesRequest(emptyList(), sliceLease);
+                                        }
 
                                         bindAsyncResponse(
                                                 asyncResponse,

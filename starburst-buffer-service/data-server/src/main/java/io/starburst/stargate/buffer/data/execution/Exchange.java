@@ -139,7 +139,7 @@ public class Exchange
         this.lastUpdateTime = currentTime;
     }
 
-    public ListenableFuture<Void> addDataPages(int partitionId, int taskId, int attemptId, long dataPagesId, List<Slice> pages)
+    public AddDataPagesResult addDataPages(int partitionId, int taskId, int attemptId, long dataPagesId, List<Slice> pages)
     {
         throwIfFailed();
 
@@ -162,12 +162,12 @@ public class Exchange
                     closedChunkConsumer()));
         }
 
-        ListenableFuture<Void> addDataPagesFuture = partition.addDataPages(taskId, attemptId, dataPagesId, pages);
-        addExceptionCallback(addDataPagesFuture, throwable -> {
+        AddDataPagesResult addDataPagesResult = partition.addDataPages(taskId, attemptId, dataPagesId, pages);
+        addExceptionCallback(addDataPagesResult.addDataPagesFuture(), throwable -> {
             failure.compareAndSet(null, throwable);
             this.releaseChunks();
         }, executor);
-        return addDataPagesFuture;
+        return addDataPagesResult;
     }
 
     public ChunkDataResult getChunkData(long bufferNodeId, int partitionId, long chunkId)

@@ -61,6 +61,8 @@ public class Partition
     @GuardedBy("this")
     private final Map<TaskAttemptId, Long> lastDataPagesIds = new HashMap<>();
     @GuardedBy("this")
+    private Map<TaskAttemptId, ListenableFuture<Void>> currentFutures = new HashMap<>();
+    @GuardedBy("this")
     private volatile Chunk openChunk;
     @GuardedBy("this")
     private ListenableFuture<Void> finishFuture;
@@ -102,7 +104,7 @@ public class Partition
         return partitionId;
     }
 
-    public synchronized ListenableFuture<Void> addDataPages(int taskId, int attemptId, long dataPagesId, List<Slice> pages)
+    public synchronized AddDataPagesResult addDataPages(int taskId, int attemptId, long dataPagesId, List<Slice> pages)
     {
         checkState(finishFuture == null, "exchange %s partition %s already finished", exchangeId, partitionId);
 
@@ -112,19 +114,27 @@ public class Partition
                 "dataPagesId should not decrease for the same writer: " +
                         "taskId %d, attemptId %d, dataPagesId %d, lastDataPagesId %d".formatted(taskId, attemptId, dataPagesId, lastDataPagesId));
         if (dataPagesId == lastDataPagesId) {
-            return immediateVoidFuture();
+            return new AddDataPagesResult(currentFutures.getOrDefault(taskAttemptId, immediateVoidFuture()), false);
         }
-        else {
-            lastDataPagesIds.put(taskAttemptId, dataPagesId);
-        }
+        lastDataPagesIds.put(taskAttemptId, dataPagesId);
 
         AddDataPagesFuture addDataPagesFuture = new AddDataPagesFuture(taskId, attemptId, pages);
+        currentFutures.put(taskAttemptId, addDataPagesFuture);
+        addDataPagesFuture.addListener(() -> {
+            synchronized (Partition.this) {
+                ListenableFuture<Void> currentFuture = currentFutures.get(taskAttemptId);
+                if (currentFuture == addDataPagesFuture) {
+                    currentFutures.remove(taskAttemptId);
+                }
+            }
+        }, executor);
+
         addDataPagesFutures.add(addDataPagesFuture);
         if (addDataPagesFutures.size() == 1) {
             addDataPagesFuture.process();
         }
 
-        return addDataPagesFuture;
+        return new AddDataPagesResult(addDataPagesFuture, true);
     }
 
     public ChunkDataResult getChunkData(long bufferNodeId, long chunkId)
