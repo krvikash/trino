@@ -143,8 +143,7 @@ public class PushPartialAggregationThroughJoin
         public Result apply(AggregationNode node, Captures captures, Context context)
         {
             ProjectNode projectNode = (ProjectNode) context.getLookup().resolve(node.getSource());
-            Optional<PlanNode> joinNodeOptional = pushProjectionThroughJoin(
-                    projectNode, context.getLookup(), context.getIdAllocator());
+            Optional<PlanNode> joinNodeOptional = pushProjectionThroughJoin(projectNode, context.getLookup(), context.getIdAllocator());
             if (joinNodeOptional.isEmpty()) {
                 return Result.empty();
             }
@@ -213,11 +212,11 @@ public class PushPartialAggregationThroughJoin
         PlanNodeStatsEstimate sourceStats = context.getStatsProvider().getStats(pushedAggregation.getSource());
         double sourceRowCount = sourceStats.getOutputRowCount();
         double joinRowCount = context.getStatsProvider().getStats(join).getOutputRowCount();
-        // Pushing aggregation though filtering join could mean more work for partial aggregation. However,
+        // Pushing aggregation through filtering join could mean more work for partial aggregation. However,
         // we allow pushing partial aggregations through filtering join because:
         // 1. dynamic filtering should filter unmatched rows at source
         // 2. partial aggregation will adaptively switch off when it's not reducing input rows
-        // 3. join operator is not particularly effective at filtering rows
+        // 3. join operator is not particularly efficient at filtering rows
         if (isNaN(sourceRowCount) || isNaN(joinRowCount) || joinRowCount > 1.1 * sourceRowCount) {
             return true;
         }
