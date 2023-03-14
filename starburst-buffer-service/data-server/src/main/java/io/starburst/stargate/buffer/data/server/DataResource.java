@@ -327,6 +327,8 @@ public class DataResource
                     public void onSuccess(Slice slice)
                     {
                         inputStream.setReadListener(new ReadListener() {
+                            private final List<ListenableFuture<Void>> addDataPagesFutures = new ArrayList<>();
+
                             private int bytesRead;
 
                             @Override
@@ -348,88 +350,78 @@ public class DataResource
                                 verify(bytesRead == contentLength,
                                         "Actual number of bytes read %s not equal to contentLength %s", bytesRead, contentLength);
 
-                                executor.submit(() -> {
-                                    List<ListenableFuture<Void>> addDataPagesFutures = new ArrayList<>();
-                                    try {
-                                        SliceInput sliceInput = slice.getInput();
-                                        long readChecksum = sliceInput.readLong();
-                                        XxHash64 hash = new XxHash64();
-                                        boolean shouldRetainMemory = false;
-                                        while (sliceInput.isReadable()) {
-                                            int partitionId = sliceInput.readInt();
-                                            int bytes = sliceInput.readInt();
-                                            writtenDataSizePerPartitionDistribution.add(bytes);
-                                            ImmutableList.Builder<Slice> pages = ImmutableList.builder();
-                                            while (bytes > 0 && sliceInput.isReadable()) {
-                                                int pageLength = sliceInput.readInt();
-                                                bytes -= Integer.BYTES;
-                                                Slice page = sliceInput.readSlice(pageLength);
-                                                if (dataIntegrityVerificationEnabled) {
-                                                    hash = hash.update(page);
-                                                }
-                                                pages.add(page);
-                                                bytes -= pageLength;
-                                            }
-                                            checkState(bytes == 0, "no more data in input stream but remaining bytes counter > 0 (%d)".formatted(bytes));
-                                            AddDataPagesResult addDataPagesResult = chunkManager.addDataPages(
-                                                    exchangeId,
-                                                    partitionId,
-                                                    taskId,
-                                                    attemptId,
-                                                    dataPagesId,
-                                                    pages.build());
-                                            addDataPagesFutures.add(addDataPagesResult.addDataPagesFuture());
-                                            shouldRetainMemory = shouldRetainMemory || addDataPagesResult.shouldRetainMemory();
-                                        }
+                                SliceInput sliceInput = slice.getInput();
+                                long readChecksum = sliceInput.readLong();
+                                XxHash64 hash = new XxHash64();
+                                boolean shouldRetainMemory = false;
+                                while (sliceInput.isReadable()) {
+                                    int partitionId = sliceInput.readInt();
+                                    int bytes = sliceInput.readInt();
+                                    writtenDataSizePerPartitionDistribution.add(bytes);
+                                    ImmutableList.Builder<Slice> pages = ImmutableList.builder();
+                                    while (bytes > 0 && sliceInput.isReadable()) {
+                                        int pageLength = sliceInput.readInt();
+                                        bytes -= Integer.BYTES;
+                                        Slice page = sliceInput.readSlice(pageLength);
                                         if (dataIntegrityVerificationEnabled) {
-                                            long calculatedChecksum = hash.hash();
-                                            if (calculatedChecksum == NO_CHECKSUM) {
-                                                calculatedChecksum++;
-                                            }
-                                            if (readChecksum != calculatedChecksum) {
-                                                throw new DataServerException(USER_ERROR, format("Data corruption, read checksum: 0x%08x, calculated checksum: 0x%08x", readChecksum, calculatedChecksum));
-                                            }
+                                            hash = hash.update(page);
                                         }
-                                        else {
-                                            if (readChecksum != NO_CHECKSUM) {
-                                                throw new DataServerException(USER_ERROR, format("Expected checksum to be NO_CHECKSUM (0x%08x) but is 0x%08x", NO_CHECKSUM, readChecksum));
-                                            }
-                                        }
-
-                                        writtenDataSize.update(contentLength);
-                                        writtenDataSizeDistribution.add(contentLength);
-
-                                        if (shouldRetainMemory) {
-                                            // only release memory when all addDataPagesFutures complete
-                                            finalizeAddDataPagesRequest(addDataPagesFutures, sliceLease);
-                                        }
-                                        else {
-                                            // addDataPagesFutures are all old futures and we can release sliceLease early
-                                            finalizeAddDataPagesRequest(emptyList(), sliceLease);
-                                        }
-
-                                        bindAsyncResponse(
-                                                asyncResponse,
-                                                logAndTranslateExceptions(
-                                                        Futures.transform(
-                                                                nonCancellationPropagating(allAsList(addDataPagesFutures)),
-                                                                ignored -> Response.ok().build(),
-                                                                directExecutor()),
-                                                        () -> "POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId)),
-                                                responseExecutor);
+                                        pages.add(page);
+                                        bytes -= pageLength;
                                     }
-                                    catch (Throwable throwable) {
-                                        finalizeAddDataPagesRequest(addDataPagesFutures, sliceLease);
-                                        logger.warn(throwable, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
-                                        asyncResponse.resume(errorResponse(throwable));
+                                    checkState(bytes == 0, "no more data in input stream but remaining bytes counter > 0 (%d)".formatted(bytes));
+                                    AddDataPagesResult addDataPagesResult = chunkManager.addDataPages(
+                                            exchangeId,
+                                            partitionId,
+                                            taskId,
+                                            attemptId,
+                                            dataPagesId,
+                                            pages.build());
+                                    addDataPagesFutures.add(addDataPagesResult.addDataPagesFuture());
+                                    shouldRetainMemory = shouldRetainMemory || addDataPagesResult.shouldRetainMemory();
+                                }
+                                if (dataIntegrityVerificationEnabled) {
+                                    long calculatedChecksum = hash.hash();
+                                    if (calculatedChecksum == NO_CHECKSUM) {
+                                        calculatedChecksum++;
                                     }
-                                });
+                                    if (readChecksum != calculatedChecksum) {
+                                        throw new DataServerException(USER_ERROR, format("Data corruption, read checksum: 0x%08x, calculated checksum: 0x%08x", readChecksum, calculatedChecksum));
+                                    }
+                                }
+                                else {
+                                    if (readChecksum != NO_CHECKSUM) {
+                                        throw new DataServerException(USER_ERROR, format("Expected checksum to be NO_CHECKSUM (0x%08x) but is 0x%08x", NO_CHECKSUM, readChecksum));
+                                    }
+                                }
+
+                                writtenDataSize.update(contentLength);
+                                writtenDataSizeDistribution.add(contentLength);
+
+                                if (shouldRetainMemory) {
+                                    // only release memory when all addDataPagesFutures complete
+                                    finalizeAddDataPagesRequest(addDataPagesFutures, sliceLease);
+                                }
+                                else {
+                                    // addDataPagesFutures are all old futures and we can release sliceLease early
+                                    finalizeAddDataPagesRequest(emptyList(), sliceLease);
+                                }
+
+                                bindAsyncResponse(
+                                        asyncResponse,
+                                        logAndTranslateExceptions(
+                                                Futures.transform(
+                                                        nonCancellationPropagating(allAsList(addDataPagesFutures)),
+                                                        ignored -> Response.ok().build(),
+                                                        directExecutor()),
+                                                () -> "POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId)),
+                                        responseExecutor);
                             }
 
                             @Override
                             public void onError(Throwable throwable)
                             {
-                                finalizeAddDataPagesRequest(emptyList(), sliceLease);
+                                finalizeAddDataPagesRequest(addDataPagesFutures, sliceLease);
                                 logger.warn(throwable, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
                                 asyncResponse.resume(errorResponse(throwable));
                             }
