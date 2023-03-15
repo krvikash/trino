@@ -54,6 +54,7 @@ import java.util.function.Predicate;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
+import static io.airlift.units.Duration.succinctDuration;
 import static java.util.Objects.requireNonNull;
 
 @ThreadSafe
@@ -61,7 +62,7 @@ public class DataApiFacade
 {
     private static final Logger log = Logger.get(DataApiFacade.class);
 
-    private static final Duration CLEANUP_DELAY = Duration.succinctDuration(5, TimeUnit.MINUTES);
+    private static final Duration CLEANUP_DELAY = succinctDuration(5, TimeUnit.MINUTES);
 
     private final BufferNodeDiscoveryManager discoveryManager;
     private final ApiFactory apiFactory;
@@ -420,7 +421,7 @@ public class DataApiFacade
                         config.backoffFactor())
                 .withMaxRetries(config.maxRetries())
                 .withJitter(config.backoffJitter())
-                .onRetry(event -> log.warn(event.getLastException(), "retrying DataApi request (%s)".formatted(event.getAttemptCount())))
+                .onRetry(event -> log.warn(event.getLastException(), "retrying DataApi request (%s, +%s)".formatted(event.getAttemptCount(), succinctDuration(event.getElapsedAttemptTime().toMillis(), TimeUnit.MILLISECONDS))))
                 .handleIf(throwable -> {
                     if (!(throwable instanceof DataApiException dataApiException)) {
                         return true;
