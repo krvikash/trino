@@ -91,6 +91,7 @@ public class DrainService
         while (true) {
             int inProgressAddDataPagesRequests = dataResource.getInProgressAddDataPagesRequests();
             if (inProgressAddDataPagesRequests == 0) {
+                LOG.info("No more remaining in flight addData requests");
                 break;
             }
             if (System.currentTimeMillis() > waitStart + MAX_WAIT_NO_IN_PROGRESS_ADD_DATA_PAGES_REQUESTS.toMillis()) {
