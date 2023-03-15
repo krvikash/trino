@@ -343,7 +343,7 @@ public class ChunkManager
         LOG.info("Waiting for Trino to acknowledge all closed chunks of all exchanges");
         for (int i = 0; i < 1000; ++i) {
             if (exchanges.values().stream().allMatch(Exchange::isAllClosedChunksReceived)) {
-                LOG.info("All closed chunks of all exchanges have been consumed by Trino, transition node state to DRAINED");
+                LOG.info("All closed chunks of all exchanges have been consumed by Trino");
                 return;
             }
             try {
