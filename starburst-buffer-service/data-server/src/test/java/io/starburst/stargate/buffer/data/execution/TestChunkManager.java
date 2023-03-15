@@ -65,6 +65,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
+import static org.testcontainers.shaded.org.awaitility.Awaitility.waitAtMost;
 import static org.testcontainers.shaded.org.awaitility.Durations.ONE_SECOND;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -483,6 +484,46 @@ public class TestChunkManager
     }
 
     @Test
+    public void testRegisterExchangeWhileDraining()
+    {
+        long maxBytes = 64L;
+        MemoryAllocator memoryAllocator = new MemoryAllocator(
+                new MemoryAllocatorConfig()
+                        .setHeapHeadroom(succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes))
+                        .setAllocationRatioHighWatermark(0.8)
+                        .setAllocationRatioLowWatermark(0.5),
+                new ChunkManagerConfig(),
+                new DataServerStats());
+        ChunkManager chunkManager = createChunkManager(memoryAllocator, DataSize.of(16, BYTE), DataSize.of(8, BYTE));
+
+        chunkManager.registerExchange(EXCHANGE_0);
+        assertFalse(chunkManager.getExchangeAndHeartbeat(EXCHANGE_0).isFinished());
+
+        Future<?> drainAllChunksFuture = executor.submit(chunkManager::drainAllChunks);
+
+        // wait until chunkManager::drainAllChunks finishes all existing exchanges
+        waitAtMost(1, SECONDS).until(() -> chunkManager.getExchangeAndHeartbeat(EXCHANGE_0).isFinished());
+        // it is waiting for markAllClosedChunksReceived on all exchanges now
+
+        // register one more exchange
+        chunkManager.registerExchange(EXCHANGE_1);
+
+        // finish should be triggered on new exchange too
+        waitAtMost(1, SECONDS).until(() -> chunkManager.getExchangeAndHeartbeat(EXCHANGE_1).isFinished());
+
+        // we should get information that there are no more chunks for both excchanges
+        listClosedChunkUntilNoMore(chunkManager, EXCHANGE_0, OptionalLong.empty());
+        listClosedChunkUntilNoMore(chunkManager, EXCHANGE_1, OptionalLong.empty());
+
+        // mark all chunks received (simulate Trino behavior)
+        chunkManager.markAllClosedChunksReceived(EXCHANGE_0);
+        chunkManager.markAllClosedChunksReceived(EXCHANGE_1);
+
+        // drainAllChunk should complete timely
+        assertThat(drainAllChunksFuture).succeedsWithin(5, SECONDS);
+    }
+
+    @Test
     public void testAddToRemovedExchange()
     {
         ChunkManager chunkManager = createChunkManager(defaultMemoryAllocator(), DataSize.of(16, MEGABYTE), DataSize.of(128, KILOBYTE));
@@ -700,6 +741,23 @@ public class TestChunkManager
                 ticker,
                 new DataServerStats(),
                 executor);
+    }
+
+    private List<ChunkHandle> listClosedChunkUntilNoMore(ChunkManager chunkManager, String exchangeId, OptionalLong pagingId)
+    {
+        List<ChunkHandle> chunkHandles = new ArrayList<>();
+        for (int i = 0; i < 10; ++i) {
+            ChunkList chunkList = getFutureValue(chunkManager.listClosedChunks(exchangeId, pagingId));
+            chunkHandles.addAll(chunkList.chunks());
+            pagingId = chunkList.nextPagingId();
+
+            if (pagingId.isEmpty()) {
+                return chunkHandles;
+            }
+
+            sleepUninterruptibly(100, MILLISECONDS);
+        }
+        return fail();
     }
 
     private ChunkList listClosedChunks(ChunkManager chunkManager, String exchangeId, OptionalLong pagingId, int expectedChunkListSize)

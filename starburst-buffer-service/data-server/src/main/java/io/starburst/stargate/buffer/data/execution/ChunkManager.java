@@ -48,6 +48,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.ToIntFunction;
+import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
@@ -346,6 +347,19 @@ public class ChunkManager
                 LOG.info("All closed chunks of all exchanges have been consumed by Trino");
                 return;
             }
+            List<Exchange> pendingExchanges = exchanges.values().stream().filter(exchage -> !exchage.isAllClosedChunksReceived()).collect(Collectors.toList());
+            for (Exchange pendingExchange : pendingExchanges) {
+                // some exchanges could be added after we already started draining.
+                // we wait for all addDataPages requests to complete before we enter drainAllChunks method
+                // and not allow any new ones; so these new exchange are guaranteed to not contain any chunks.
+                // We still need to finish those so information that they will not produce any chunk is propagated to
+                // relevant Trino clusters.
+                if (!pendingExchange.wasFinishTriggered()) {
+                    verify(pendingExchange.getOpenChunksCount() == 0, "open chunk present in exchange %s", pendingExchange.getExchangeId());
+                    verify(pendingExchange.getClosedChunksCount() == 0, "closed chunk present in exchange %s", pendingExchange.getExchangeId());
+                    getFutureValue(pendingExchange.finish());
+                }
+            }
             sleepUninterruptibly(100, MILLISECONDS);
         }
 
@@ -457,7 +471,8 @@ public class ChunkManager
         } while (memoryAllocator.aboveLowWatermark());
     }
 
-    private Exchange getExchangeAndHeartbeat(String exchangeId)
+    @VisibleForTesting
+    Exchange getExchangeAndHeartbeat(String exchangeId)
     {
         Exchange exchange = exchanges.get(exchangeId);
         if (exchange == null) {

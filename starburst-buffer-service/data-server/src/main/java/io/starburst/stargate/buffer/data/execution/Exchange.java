@@ -313,6 +313,16 @@ public class Exchange
         return finishFuture;
     }
 
+    public synchronized boolean wasFinishTriggered()
+    {
+        return finishFuture != null;
+    }
+
+    public synchronized boolean isFinished()
+    {
+        return finishFuture != null && finishFuture.isDone();
+    }
+
     public int getOpenChunksCount()
     {
         return (int) partitions.values().stream().filter(Partition::hasOpenChunk).count();
