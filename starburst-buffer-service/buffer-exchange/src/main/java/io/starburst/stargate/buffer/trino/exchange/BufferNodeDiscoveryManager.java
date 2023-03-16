@@ -10,6 +10,7 @@
 package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeState;
@@ -20,7 +21,6 @@ import java.util.Set;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
-import static com.google.common.collect.ImmutableSet.toImmutableSet;
 
 public interface BufferNodeDiscoveryManager
 {
@@ -45,10 +45,7 @@ public interface BufferNodeDiscoveryManager
                     .filter(entry -> entry.getValue().state() == BufferNodeState.ACTIVE)
                     .peek(entry -> checkArgument(entry.getValue().stats().isPresent(), "stats not set for ACTIVE node %s", entry.getValue()))
                     .collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
-            this.activeBufferNodesSet = allBufferNodes.values().stream()
-                    .filter(info -> info.state() == BufferNodeState.ACTIVE)
-                    .peek(info -> checkArgument(info.stats().isPresent(), "stats not set for ACTIVE node %s", info))
-                    .collect(toImmutableSet());
+            this.activeBufferNodesSet = ImmutableSet.copyOf(activeBufferNodes.values());
         }
 
         public long getTimestamp()
