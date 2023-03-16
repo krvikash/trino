@@ -9,11 +9,13 @@
  */
 package io.starburst.stargate.buffer.trino.exchange;
 
+import com.google.common.util.concurrent.ListenableFuture;
+
 import java.util.Map;
 
 public interface PartitionNodeMapper
 {
-    Map<Integer, Long> getMapping(int taskPartitionId);
+    ListenableFuture<Map<Integer, Long>> getMapping(int taskPartitionId);
 
     void refreshMapping();
 }

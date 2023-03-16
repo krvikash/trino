@@ -10,6 +10,7 @@
 package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.util.concurrent.ListenableFuture;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeStats;
 
@@ -20,6 +21,7 @@ import java.util.Set;
 import java.util.stream.IntStream;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static java.lang.Math.max;
 
 public class PinningPartitionNodeMapper
@@ -38,12 +40,12 @@ public class PinningPartitionNodeMapper
     }
 
     @Override
-    public synchronized Map<Integer, Long> getMapping(int taskPartitionId)
+    public synchronized ListenableFuture<Map<Integer, Long>> getMapping(int taskPartitionId)
     {
         if (currentMapping == null) {
             currentMapping = computeMapping();
         }
-        return currentMapping;
+        return immediateFuture(currentMapping);
     }
 
     private Map<Integer, Long> computeMapping()

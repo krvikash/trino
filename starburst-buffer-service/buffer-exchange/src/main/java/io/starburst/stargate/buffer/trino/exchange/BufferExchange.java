@@ -10,6 +10,7 @@
 package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.log.Logger;
@@ -44,11 +45,11 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Throwables.throwIfUnchecked;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.sortedCopyOf;
+import static com.google.common.util.concurrent.Futures.addCallback;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.addExceptionCallback;
 import static io.starburst.stargate.buffer.trino.exchange.ExternalExchangeIds.externalExchangeId;
 import static java.util.Objects.requireNonNull;
-import static java.util.concurrent.CompletableFuture.completedFuture;
 
 public class BufferExchange
         implements Exchange
@@ -137,13 +138,7 @@ public class BufferExchange
         checkState(!closed.get(), "already closed");
 
         BufferExchangeSinkHandle bufferExchangeSinkHandle = (BufferExchangeSinkHandle) sinkHandle;
-
-        Map<Integer, Long> partitionToNodeMapping = partitionNodeMapper.getMapping(bufferExchangeSinkHandle.getTaskPartitionId());
-        for (long nodeId : partitionToNodeMapping.values()) {
-            addBufferNodeToPoll(nodeId);
-        }
-
-        return completedFuture(new BufferExchangeSinkInstanceHandle(bufferExchangeSinkHandle, taskAttemptId, partitionToNodeMapping));
+        return handleMappingFuture(taskAttemptId, bufferExchangeSinkHandle, partitionNodeMapper.getMapping(bufferExchangeSinkHandle.getTaskPartitionId()));
     }
 
     @Override
@@ -153,14 +148,40 @@ public class BufferExchange
         checkState(!closed.get(), "already closed");
         BufferExchangeSinkHandle bufferExchangeSinkHandle = (BufferExchangeSinkHandle) sinkHandle;
         partitionNodeMapper.refreshMapping();
-        Map<Integer, Long> newMapping = partitionNodeMapper.getMapping(bufferExchangeSinkHandle.getTaskPartitionId());
-        for (Long nodeId : newMapping.values()) {
-            addBufferNodeToPoll(nodeId);
-        }
-        return completedFuture(new BufferExchangeSinkInstanceHandle(
-                bufferExchangeSinkHandle,
-                taskAttemptId,
-                newMapping));
+        return handleMappingFuture(taskAttemptId, bufferExchangeSinkHandle, partitionNodeMapper.getMapping(bufferExchangeSinkHandle.getTaskPartitionId()));
+    }
+
+    private CompletableFuture<ExchangeSinkInstanceHandle> handleMappingFuture(int taskAttemptId, BufferExchangeSinkHandle bufferExchangeSinkHandle, ListenableFuture<Map<Integer, Long>> newMappingFuture)
+    {
+        CompletableFuture<ExchangeSinkInstanceHandle> resultFuture = new CompletableFuture<>();
+        addCallback(newMappingFuture, new FutureCallback<>()
+        {
+            @Override
+            public void onSuccess(Map<Integer, Long> newMapping)
+            {
+                synchronized (BufferExchange.this) {
+                    try {
+                        for (Long nodeId : newMapping.values()) {
+                            addBufferNodeToPoll(nodeId);
+                        }
+                        resultFuture.complete(new BufferExchangeSinkInstanceHandle(
+                                bufferExchangeSinkHandle,
+                                taskAttemptId,
+                                newMapping));
+                    }
+                    catch (Exception e) {
+                        onFailure(e);
+                    }
+                }
+            }
+
+            @Override
+            public void onFailure(Throwable t)
+            {
+                resultFuture.completeExceptionally(t);
+            }
+        }, executorService);
+        return resultFuture;
     }
 
     @Override

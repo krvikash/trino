@@ -13,6 +13,8 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.log.Logger;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeStats;
@@ -110,7 +112,7 @@ public class SmartPinningPartitionNodeMapper
     }
 
     @Override
-    public synchronized Map<Integer, Long> getMapping(int taskPartitionId)
+    public synchronized ListenableFuture<Map<Integer, Long>> getMapping(int taskPartitionId)
     {
         BufferNodesState bufferNodesState = discoveryManager.getBufferNodes();
 
@@ -132,7 +134,7 @@ public class SmartPinningPartitionNodeMapper
             RandomSelector<BufferNodeInfo> bufferNodeInfoRandomSelector = buildNodeSelector(candidateNodes);
             mapping.put(partition, bufferNodeInfoRandomSelector.next().nodeId());
         });
-        return mapping.buildOrThrow();
+        return Futures.immediateFuture(mapping.buildOrThrow());
     }
 
     private RandomSelector<BufferNodeInfo> buildNodeSelector(List<BufferNodeInfo> bufferNodes)

@@ -27,6 +27,7 @@ import java.util.stream.LongStream;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Ordering.natural;
+import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.starburst.stargate.buffer.BufferNodeState.ACTIVE;
 import static io.starburst.stargate.buffer.BufferNodeState.DRAINING;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -164,7 +165,7 @@ public class TestSmartPinningPartitionNodeMapper
         int probesCount = 10000;
         int expectedProbesPerNode = probesCount / expectedNodesPerPartition;
         for (int i = 0; i < probesCount; ++i) {
-            Map<Integer, Long> mapping = mapper.getMapping(0);
+            Map<Integer, Long> mapping = getFutureValue(mapper.getMapping(0));
             mapping.forEach((partition, nodeId) -> partitionNodeCountMap.computeIfAbsent(partition, (k) -> new HashMap<>()).merge(nodeId, 1L, Long::sum));
             mapping.forEach((partition, nodeId) -> nodeCountMap.merge(nodeId, 1L, Long::sum));
         }
@@ -189,7 +190,7 @@ public class TestSmartPinningPartitionNodeMapper
         ImmutableSetMultimap.Builder<Integer, Long> distribution = ImmutableSetMultimap.builder();
         int probesCount = 10000;
         for (int i = 0; i < probesCount; ++i) {
-            Map<Integer, Long> mapping = mapper.getMapping(0);
+            Map<Integer, Long> mapping = getFutureValue(mapper.getMapping(0));
             mapping.forEach(distribution::put);
         }
         return distribution.build();
