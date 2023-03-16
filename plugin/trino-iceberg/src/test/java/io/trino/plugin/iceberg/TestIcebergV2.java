@@ -341,6 +341,28 @@ public class TestIcebergV2
     }
 
     @Test
+    public void testOptimizingWholeTableRemovesDeleteFiles()
+            throws Exception
+    {
+        String tableName = "test_optimize_removes_obsolete_delete_files_" + randomNameSuffix();
+        assertUpdate("CREATE TABLE " + tableName + " AS SELECT * FROM tpch.tiny.nation", 25);
+
+        assertUpdate("DELETE FROM " + tableName + " WHERE regionkey % 2 = 0", 15);
+        Table icebergTable = updateTableToV2(tableName);
+        writeEqualityDeleteToNationTable(icebergTable, Optional.of(icebergTable.spec()), Optional.of(new PartitionData(new Long[]{1L})));
+
+        assertQuery("SELECT count(*) FROM \"" + tableName + "$files\" WHERE content = " + FileContent.POSITION_DELETES.id(), "VALUES 1");
+        assertQuery("SELECT count(*) FROM \"" + tableName + "$files\" WHERE content = " + FileContent.EQUALITY_DELETES.id(), "VALUES 1");
+
+        assertQuerySucceeds("ALTER TABLE " + tableName + " EXECUTE OPTIMIZE");
+
+        assertQuery("SELECT count(*) FROM \"" + tableName + "$files\" WHERE content = " + FileContent.POSITION_DELETES.id(), "VALUES 0");
+        assertQuery("SELECT count(*) FROM \"" + tableName + "$files\" WHERE content = " + FileContent.EQUALITY_DELETES.id(), "VALUES 0");
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    @Test
     public void testUpgradeTableToV2FromTrino()
     {
         String tableName = "test_upgrade_table_to_v2_from_trino_" + randomNameSuffix();
