@@ -579,6 +579,16 @@ public class DataResource
     {
         try {
             checkTargetBufferNodeId(targetBufferNodeId);
+            // registerExchange call can happen after node already started draining.
+            // There is a temptation to just reject request here with DRAINING error code, but it would not be correct.
+            // When Trino coordinator calls registerExchange it could be that data was already written by some worker to the exchange
+            // and Trino coordinator must go through registration to start polling for data chunks.
+            //
+            // Consider following flow of events:
+            // * Trino worker call addDataPages (it implicitly register exchange in data node)
+            // * Data node start draining
+            // * Trino coordinator calls registerExchange
+            // at this point Trino coordinator must proceed with polling for chunks which would not happen if `registerExchange` returned DRAINING error code.
             chunkManager.registerExchange(exchangeId);
             return Response.ok().build();
         }
