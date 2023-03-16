@@ -421,7 +421,7 @@ public class DataApiFacade
                         config.backoffFactor())
                 .withMaxRetries(config.maxRetries())
                 .withJitter(config.backoffJitter())
-                .onRetry(event -> log.warn(event.getLastException(), "retrying DataApi request (%s, +%s)".formatted(event.getAttemptCount(), succinctDuration(event.getElapsedAttemptTime().toMillis(), TimeUnit.MILLISECONDS))))
+                .onFailedAttempt(event -> log.warn(event.getLastException(), "failed DataApi request attempt (%s, +%s)".formatted(event.getAttemptCount(), succinctDuration(event.getElapsedTime().toMillis(), TimeUnit.MILLISECONDS))))
                 .handleIf(throwable -> {
                     if (!(throwable instanceof DataApiException dataApiException)) {
                         return true;
