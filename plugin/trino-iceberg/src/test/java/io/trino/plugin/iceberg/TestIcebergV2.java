@@ -695,7 +695,8 @@ public class TestIcebergV2
     private void writeEqualityDeleteToNationTable(Table icebergTable, Optional<PartitionSpec> partitionSpec, Optional<PartitionData> partitionData, Map<String, Object> overwriteValues)
             throws Exception
     {
-        Path metadataDir = new Path(metastoreDir.toURI());
+        Path tableLocation = new Path(icebergTable.currentSnapshot().manifestListLocation()).getParent().getParent();
+        Path dataDirectory = new Path(tableLocation, "data");
         String deleteFileName = "delete_file_" + UUID.randomUUID();
         TrinoFileSystem fs = HDFS_FILE_SYSTEM_FACTORY.create(SESSION);
 
@@ -703,7 +704,7 @@ public class TestIcebergV2
         List<Integer> equalityFieldIds = overwriteValues.keySet().stream()
                 .map(name -> deleteRowSchema.findField(name).fieldId())
                 .collect(toImmutableList());
-        Parquet.DeleteWriteBuilder writerBuilder = Parquet.writeDeletes(new ForwardingFileIo(fs).newOutputFile(new Path(metadataDir, deleteFileName).toString()))
+        Parquet.DeleteWriteBuilder writerBuilder = Parquet.writeDeletes(new ForwardingFileIo(fs).newOutputFile(new Path(dataDirectory, deleteFileName).toString()))
                 .forTable(icebergTable)
                 .rowSchema(deleteRowSchema)
                 .createWriterFunc(GenericParquetWriter::buildWriter)
