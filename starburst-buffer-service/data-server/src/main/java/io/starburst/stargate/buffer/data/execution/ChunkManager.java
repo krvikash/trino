@@ -346,13 +346,7 @@ public class ChunkManager
                 LOG.info("All closed chunks of all exchanges have been consumed by Trino");
                 return;
             }
-            try {
-                Thread.sleep(100);
-            }
-            catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new RuntimeException("Interrupted while waiting for all closed chunks to be acknowledged", e);
-            }
+            sleepUninterruptibly(100, MILLISECONDS);
         }
 
         for (Map.Entry<String, Exchange> entry : exchanges.entrySet()) {
