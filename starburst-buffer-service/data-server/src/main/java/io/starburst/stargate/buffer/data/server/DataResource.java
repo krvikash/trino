@@ -235,6 +235,7 @@ public class DataResource
             checkTargetBufferNodeId(targetBufferNodeId);
         }
         catch (RuntimeException e) {
+            logger.warn(e, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
             asyncResponse.resume(errorResponse(e));
             return;
         }
@@ -247,17 +248,18 @@ public class DataResource
         int currentInProgressAddDataPagesRequests = incrementInProgressAddDataPagesRequests();
         if (bufferNodeStateManager.isDrainingStarted()) {
             decrementInProgressAddDataPagesRequests();
+            logger.info("rejecting POST /%s/addDataPages/%s/%s/%s; node already DRAINING", exchangeId, taskId, attemptId, dataPagesId);
             asyncResponse.resume(errorResponse(new DataServerException(DRAINING, "Node %d is draining and not accepting any more data".formatted(bufferNodeId))));
             return;
         }
 
         if (currentInProgressAddDataPagesRequests > maxInProgressAddDataPagesRequests) {
             decrementInProgressAddDataPagesRequests();
+            logger.warn("rejecting POST /%s/addDataPages/%s/%s/%s; Exceeded maximum in progress addDataPages requests (%s > %s)", exchangeId, taskId, attemptId, dataPagesId, currentInProgressAddDataPagesRequests, maxInProgressAddDataPagesRequests);
             asyncResponse.resume(errorResponse(
                     new DataServerException(INTERNAL_ERROR, "Exceeded maximum in progress addDataPages requests (%s)".formatted(maxInProgressAddDataPagesRequests))));
             return;
         }
-
         incrementServedAddDataPagesRequests();
         asyncResponse.setTimeout(getAsyncTimeout(clientMaxWait).toMillis(), TimeUnit.MILLISECONDS);
 
