@@ -13,6 +13,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import io.airlift.concurrent.BoundedExecutor;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
@@ -241,7 +242,13 @@ public class DataResource
         }
 
         if (dropUploadedPages) {
-            asyncResponse.resume(Response.ok().build());
+            bindAsyncResponse(
+                    asyncResponse,
+                    logAndTranslateExceptions(
+                            consumeAndDropRequestBody(request, Response.ok().build()),
+                            () -> "POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId)),
+                    responseExecutor)
+                    .withTimeout(getAsyncTimeout(clientMaxWait));
             return;
         }
 
@@ -249,7 +256,15 @@ public class DataResource
         if (bufferNodeStateManager.isDrainingStarted()) {
             decrementInProgressAddDataPagesRequests();
             logger.info("rejecting POST /%s/addDataPages/%s/%s/%s; node already DRAINING", exchangeId, taskId, attemptId, dataPagesId);
-            asyncResponse.resume(errorResponse(new DataServerException(DRAINING, "Node %d is draining and not accepting any more data".formatted(bufferNodeId))));
+            bindAsyncResponse(
+                    asyncResponse,
+                    logAndTranslateExceptions(
+                            // consume whole request so HTTP response is properly delivered to client
+                            consumeAndDropRequestBody(request, errorResponse(new DataServerException(DRAINING, "Node %d is draining and not accepting any more data".formatted(bufferNodeId)))),
+                            () -> "POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId)),
+                    responseExecutor)
+                    .withTimeout(getAsyncTimeout(clientMaxWait));
+
             return;
         }
 
@@ -457,6 +472,46 @@ public class DataResource
                     }
                 },
                 executor);
+    }
+
+    private ListenableFuture<Response> consumeAndDropRequestBody(HttpServletRequest request, Response finalResponse)
+    {
+        SettableFuture<Response> resultFuture = SettableFuture.create();
+
+        try {
+            ServletInputStream inputStream = request.getAsyncContext().getRequest().getInputStream();
+            inputStream.setReadListener(new ReadListener() {
+                @Override
+                public void onDataAvailable()
+                        throws IOException
+                {
+                    // read and forget
+                    byte[] skipBuffer = new byte[1024];
+                    while (inputStream.isReady()) {
+                        int dataRead = inputStream.read(skipBuffer);
+                        if (dataRead == -1) {
+                            return;
+                        }
+                    }
+                }
+
+                @Override
+                public void onAllDataRead()
+                {
+                    resultFuture.set(finalResponse);
+                }
+
+                @Override
+                public void onError(Throwable throwable)
+                {
+                    resultFuture.setException(throwable);
+                }
+            });
+        }
+        catch (Exception e) {
+            resultFuture.setException(e);
+        }
+        return resultFuture;
     }
 
     private void incrementServedAddDataPagesRequests()
