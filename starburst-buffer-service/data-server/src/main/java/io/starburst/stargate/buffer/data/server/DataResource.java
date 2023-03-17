@@ -256,6 +256,8 @@ public class DataResource
         if (currentInProgressAddDataPagesRequests > maxInProgressAddDataPagesRequests) {
             decrementInProgressAddDataPagesRequests();
             logger.warn("rejecting POST /%s/addDataPages/%s/%s/%s; Exceeded maximum in progress addDataPages requests (%s > %s)", exchangeId, taskId, attemptId, dataPagesId, currentInProgressAddDataPagesRequests, maxInProgressAddDataPagesRequests);
+            // note that response may actually not reach client as we are not consuming request payload. Instead, client may observe Broken Pipe on the connection.
+            // This is conscious decision. We want to kill request quickly if server is overloaded.
             asyncResponse.resume(errorResponse(
                     new DataServerException(INTERNAL_ERROR, "Exceeded maximum in progress addDataPages requests (%s)".formatted(maxInProgressAddDataPagesRequests))));
             return;
