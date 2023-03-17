@@ -133,6 +133,8 @@ public class TestDrain
         runnerExtraProperties.put("optimizer.join-reordering-strategy", "NONE");
         runnerExtraProperties.put("join-distribution-type", "PARTITIONED");
         runnerExtraProperties.put("enable-dynamic-filtering", "false");
+        // we expect no task failures due to draining
+        runnerExtraProperties.put("task-retry-attempts-per-task", "0");
 
         DistributedQueryRunner queryRunner = MemoryQueryRunner.builder()
                 .setExtraProperties(runnerExtraProperties)
