@@ -14,15 +14,12 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import io.airlift.stats.CounterStat;
-import io.airlift.stats.DistributionStat;
-import io.starburst.stargate.buffer.data.client.spooling.SpoolingFile;
-import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
-import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
+import io.starburst.stargate.buffer.data.spooling.AbstractSpoolingStorage;
+import io.starburst.stargate.buffer.data.spooling.SpooledChunkNotFoundException;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.awscore.endpoint.DefaultServiceEndpointBuilder;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
@@ -38,7 +35,6 @@ import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
-import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Publisher;
 
@@ -49,42 +45,26 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.concurrent.MoreFutures.toListenableFuture;
-import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.PATH_SEPARATOR;
 import static io.starburst.stargate.buffer.data.client.spooling.s3.S3SpoolUtils.createAwsCredentialsProvider;
 import static io.starburst.stargate.buffer.data.client.spooling.s3.S3SpoolUtils.getBucketName;
-import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getFileName;
-import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getPrefixedDirectories;
-import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.translateFailures;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
-import static java.util.Objects.requireNonNullElseGet;
 import static software.amazon.awssdk.core.client.config.SdkAdvancedClientOption.USER_AGENT_PREFIX;
 import static software.amazon.awssdk.core.client.config.SdkAdvancedClientOption.USER_AGENT_SUFFIX;
 
 public class S3SpoolingStorage
-        implements SpoolingStorage
+        extends AbstractSpoolingStorage
 {
-    private final long bufferNodeId;
     private final String bucketName;
     private final S3AsyncClient s3AsyncClient;
-    private final CounterStat spooledDataSize;
-    private final CounterStat spoolingFailures;
-    private final DistributionStat spooledChunkSizeDistribution;
-
-    // exchangeId -> chunkId -> fileSize
-    private final Map<String, Map<Long, Integer>> fileSizes = new ConcurrentHashMap<>();
 
     @Inject
     public S3SpoolingStorage(
@@ -93,8 +73,7 @@ public class S3SpoolingStorage
             SpoolingS3Config spoolingS3Config,
             DataServerStats dataServerStats)
     {
-        this.bufferNodeId = bufferNodeId.getLongValue();
-        this.bucketName = getBucketName(requireNonNull(chunkManagerConfig.getSpoolingDirectory(), "spoolingDirectory is null"));
+        super(bufferNodeId, dataServerStats);
         AwsCredentialsProvider credentialsProvider = createAwsCredentialsProvider(
                 spoolingS3Config.getS3AwsAccessKey(),
                 spoolingS3Config.getS3AwsSecretKey());
@@ -132,71 +111,17 @@ public class S3SpoolingStorage
         region.ifPresent(s3AsyncClientBuilder::region);
 
         this.s3AsyncClient = s3AsyncClientBuilder.build();
-        spooledDataSize = dataServerStats.getSpooledDataSize();
-        spoolingFailures = dataServerStats.getSpoolingFailures();
-        spooledChunkSizeDistribution = dataServerStats.getSpooledChunkSizeDistribution();
+        this.bucketName = getBucketName(requireNonNull(chunkManagerConfig.getSpoolingDirectory(), "spoolingDirectory is null"));
     }
 
     @Override
-    public SpoolingFile getSpoolingFile(long chunkBufferNodeId, String exchangeId, long chunkId)
+    protected ListenableFuture<?> putStorageObject(String fileName, ChunkDataLease chunkDataLease)
     {
-        String fileName = getFileName(chunkBufferNodeId, exchangeId, chunkId);
-        Map<Long, Integer> chunkIdToFileSizes = fileSizes.get(exchangeId);
-        int length;
-        try {
-            if (chunkIdToFileSizes != null && chunkBufferNodeId == this.bufferNodeId) {
-                Integer fileSize = chunkIdToFileSizes.get(chunkId);
-                length = requireNonNullElseGet(fileSize, () -> getFileSize(fileName));
-            }
-            else {
-                // Synchronous communication to S3 for file size is rare and will only happen when a node dies
-                // TODO: measure metrics to requesting file size from S3
-                length = getFileSize(fileName);
-            }
-        }
-        catch (NoSuchKeyException e) {
-            throw new DataServerException(CHUNK_NOT_FOUND,
-                    "No closed chunk found for bufferNodeId %d, exchange %s, chunk %d".formatted(chunkBufferNodeId, exchangeId, chunkId));
-        }
-        return new SpoolingFile(getLocation(bucketName, fileName), length);
-    }
-
-    @Override
-    public ListenableFuture<Void> writeChunk(long bufferNodeId, String exchangeId, long chunkId, ChunkDataLease chunkDataLease)
-    {
-        checkArgument(!chunkDataLease.chunkSlices().isEmpty(), "unexpected empty chunk when spooling");
-
-        String fileName = getFileName(bufferNodeId, exchangeId, chunkId);
         PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                 .bucket(bucketName)
                 .key(fileName)
                 .build();
-        fileSizes.computeIfAbsent(exchangeId, ignored -> new ConcurrentHashMap<>()).put(chunkId, chunkDataLease.serializedSizeInBytes());
-        CompletableFuture<PutObjectResponse> putObjectCompletableFuture = s3AsyncClient.putObject(putObjectRequest, ChunkDataAsyncRequestBody.fromChunkDataLease(chunkDataLease));
-        // not chaining result with whenComplete as it breaks cancellation
-        putObjectCompletableFuture.whenComplete((response, failure) -> {
-            if (failure == null) {
-                spooledDataSize.update(chunkDataLease.serializedSizeInBytes());
-                spooledChunkSizeDistribution.add(chunkDataLease.serializedSizeInBytes());
-            }
-            else {
-                spoolingFailures.update(1);
-            }
-        });
-        return translateFailures(asVoid(toListenableFuture(putObjectCompletableFuture)));
-    }
-
-    @Override
-    public ListenableFuture<Void> removeExchange(long bufferNodeId, String exchangeId)
-    {
-        fileSizes.remove(exchangeId);
-        return translateFailures(deleteDirectories(getPrefixedDirectories(bufferNodeId, exchangeId)));
-    }
-
-    @Override
-    public int getSpooledChunks()
-    {
-        return fileSizes.values().stream().mapToInt(Map::size).sum();
+        return toListenableFuture(s3AsyncClient.putObject(putObjectRequest, ChunkDataAsyncRequestBody.fromChunkDataLease(chunkDataLease)));
     }
 
     @PreDestroy
@@ -209,21 +134,28 @@ public class S3SpoolingStorage
         }
     }
 
-    private int getFileSize(String fileName)
+    protected int getFileSize(String fileName) throws SpooledChunkNotFoundException
     {
         HeadObjectRequest headObjectRequest = HeadObjectRequest.builder()
                 .bucket(bucketName)
                 .key(fileName)
                 .build();
-        return toIntExact(getFutureValue(s3AsyncClient.headObject(headObjectRequest)).contentLength());
+        try {
+            return toIntExact(getFutureValue(s3AsyncClient.headObject(headObjectRequest)).contentLength());
+        }
+        catch (NoSuchKeyException e) {
+            throw new SpooledChunkNotFoundException(e);
+        }
     }
 
-    private String getLocation(String bucketName, String fileName)
+    @Override
+    protected String getLocation(String fileName)
     {
         return "s3://" + bucketName + PATH_SEPARATOR + fileName;
     }
 
-    private ListenableFuture<Void> deleteDirectories(List<String> directoryNames)
+    @Override
+    protected ListenableFuture<Void> deleteDirectories(List<String> directoryNames)
     {
         ImmutableList.Builder<ListenableFuture<List<String>>> listObjectsFuturesBuilder = ImmutableList.builder();
         for (String directoryName : directoryNames) {

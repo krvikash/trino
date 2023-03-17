@@ -56,6 +56,10 @@ public abstract class AbstractTestSpoolingStorage
             spoolingStorage.close();
             spoolingStorage = null;
         }
+        if (spooledChunkReader != null) {
+            spooledChunkReader.close();
+            spooledChunkReader = null;
+        }
     }
 
     protected abstract SpoolingStorage createSpoolingStorage();
