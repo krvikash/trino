@@ -79,7 +79,6 @@ public class HttpDataClient
     public static final String ERROR_CODE_HEADER = "X-trino-buffer-error-code";
     public static final String SPOOLING_FILE_LOCATION_HEADER = "X-trino-buffer-spooling-file-location";
     public static final String SPOOLING_FILE_SIZE_HEADER = "X-trino-buffer-spooling-file-size";
-    public static final int SERIALIZED_CHUNK_DATA_MAGIC = 0xfea4f001;
 
     private static final JsonCodec<ChunkList> CHUNK_LIST_JSON_CODEC = jsonCodec(ChunkList.class);
     private static final JsonCodec<BufferNodeInfo> BUFFER_NODE_INFO_JSON_CODEC = jsonCodec(BufferNodeInfo.class);
@@ -380,10 +379,6 @@ public class HttpDataClient
             }
 
             try (LittleEndianDataInputStream input = new LittleEndianDataInputStream(response.getInputStream())) {
-                int magic = input.readInt();
-                if (magic != SERIALIZED_CHUNK_DATA_MAGIC) {
-                    throw new DataApiException(INTERNAL_ERROR, requestErrorMessage(request, "Invalid stream header, expected 0x%08x, but was 0x%08x".formatted(SERIALIZED_CHUNK_DATA_MAGIC, magic)));
-                }
                 return ChunkDataResponse.createPagesResponse(toDataPages(input, dataIntegrityVerificationEnabled));
             }
             catch (IOException e) {

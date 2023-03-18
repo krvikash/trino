@@ -86,7 +86,6 @@ import static io.starburst.stargate.buffer.data.client.ErrorCode.DRAINING;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.INTERNAL_ERROR;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.USER_ERROR;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.ERROR_CODE_HEADER;
-import static io.starburst.stargate.buffer.data.client.HttpDataClient.SERIALIZED_CHUNK_DATA_MAGIC;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLING_FILE_LOCATION_HEADER;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLING_FILE_SIZE_HEADER;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
@@ -515,11 +514,10 @@ public class DataResource
                 ServletResponse response = asyncContext.getResponse();
                 ServletOutputStream outputStream = response.getOutputStream();
                 response.setContentType(TRINO_CHUNK_DATA);
-                response.setContentLength(Integer.BYTES + chunkDataLease.serializedSizeInBytes());
+                response.setContentLength(chunkDataLease.serializedSizeInBytes());
 
-                Slice metaDataSlice = Slices.allocate(Integer.BYTES + CHUNK_SLICES_METADATA_SIZE);
+                Slice metaDataSlice = Slices.allocate(CHUNK_SLICES_METADATA_SIZE);
                 SliceOutput sliceOutput = metaDataSlice.getOutput();
-                sliceOutput.writeInt(SERIALIZED_CHUNK_DATA_MAGIC);
                 sliceOutput.writeLong(chunkDataLease.checksum());
                 sliceOutput.writeInt(chunkDataLease.numDataPages());
 
