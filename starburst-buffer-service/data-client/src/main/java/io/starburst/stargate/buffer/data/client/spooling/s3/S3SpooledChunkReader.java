@@ -23,6 +23,7 @@ import software.amazon.awssdk.core.retry.RetryPolicy;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3AsyncClientBuilder;
+import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 
 import javax.annotation.PreDestroy;
@@ -77,6 +78,9 @@ public class S3SpooledChunkReader
 
         S3AsyncClientBuilder s3AsyncClientBuilder = S3AsyncClient.builder()
                 .credentialsProvider(credentialsProvider)
+                .serviceConfiguration(S3Configuration.builder()
+                        .checksumValidationEnabled(false)
+                        .build())
                 .overrideConfiguration(overrideConfig);
 
         s3AsyncClientBuilder.endpointOverride(
