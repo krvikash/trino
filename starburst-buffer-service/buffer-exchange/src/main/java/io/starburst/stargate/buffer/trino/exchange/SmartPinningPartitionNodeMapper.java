@@ -15,7 +15,9 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import io.airlift.log.Logger;
+import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeStats;
 import io.starburst.stargate.buffer.trino.exchange.BufferNodeDiscoveryManager.BufferNodesState;
@@ -32,6 +34,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.IntStream;
 
@@ -39,9 +43,11 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 /*
  Partition to buffer node mapper which tries to distribute partitions evenly among the cluster keeping a set of
@@ -76,9 +82,11 @@ public class SmartPinningPartitionNodeMapper
 
     private final ExchangeId exchangeId;
     private final BufferNodeDiscoveryManager discoveryManager;
+    private final ScheduledExecutorService executor;
     private final int outputPartitionCount;
     private final int minNodesPerPartition;
     private final int maxNodesPerPartition;
+    private final Duration maxWaitActiveBufferNodes;
 
     // mapping state
     @GuardedBy("this")
@@ -97,44 +105,84 @@ public class SmartPinningPartitionNodeMapper
     public SmartPinningPartitionNodeMapper(
             ExchangeId exchangeId,
             BufferNodeDiscoveryManager discoveryManager,
+            ScheduledExecutorService executor,
             int outputPartitionCount,
             int minNodesPerPartition,
-            int maxNodesPerPartition)
+            int maxNodesPerPartition,
+            Duration maxWaitActiveBufferNodes)
     {
         this.exchangeId = requireNonNull(exchangeId, "exchangeId is null");
         this.discoveryManager = requireNonNull(discoveryManager, "discoveryManager is null");
+        this.executor = requireNonNull(executor, "executor is null");
         checkArgument(minNodesPerPartition >= 1, "minNodesPerPartition must be greater or equal to 1");
         checkArgument(maxNodesPerPartition >= 1, "maxNodesPerPartition must be greater or equal to 1");
         checkArgument(maxNodesPerPartition >= minNodesPerPartition, "maxNodesPerPartition must be greater or equal to minNodesPerPartition");
         this.outputPartitionCount = outputPartitionCount;
         this.minNodesPerPartition = minNodesPerPartition;
         this.maxNodesPerPartition = maxNodesPerPartition;
+        this.maxWaitActiveBufferNodes = requireNonNull(maxWaitActiveBufferNodes, "maxWaitActiveBufferNodes is null");
     }
 
     @Override
     public synchronized ListenableFuture<Map<Integer, Long>> getMapping(int taskPartitionId)
     {
-        BufferNodesState bufferNodesState = discoveryManager.getBufferNodes();
+        ListenableFuture<BufferNodesState> bufferNodesStateFuture = getBufferNodeStateWithActiveNodes();
 
-        Set<BufferNodeInfo> bufferNodes = discoveryManager.getBufferNodes().getActiveBufferNodesSet();
-        int bufferNodesCount = bufferNodes.size();
-        if (bufferNodesCount == 0) {
-            // todo keep trying to get mapping for some time. To be figured out how to do that not blocking call to instantiateSink or refreshSinkInstanceHandle
-            throw new RuntimeException("no ACTIVE buffer nodes available");
+        return Futures.transform(bufferNodesStateFuture, bufferNodesState -> {
+            synchronized (SmartPinningPartitionNodeMapper.this) {
+                updateBaseMapping(bufferNodesState);
+
+                ImmutableMap.Builder<Integer, Long> mapping = ImmutableMap.builder();
+                IntStream.range(0, outputPartitionCount).forEach(partition -> {
+                    List<BufferNodeInfo> candidateNodes = partitionToNode.get(partition).stream()
+                            .map(nodeId -> bufferNodesState.getActiveBufferNodes().get(nodeId))
+                            .collect(toImmutableList());
+
+                    RandomSelector<BufferNodeInfo> bufferNodeInfoRandomSelector = buildNodeSelector(candidateNodes);
+                    mapping.put(partition, bufferNodeInfoRandomSelector.next().nodeId());
+                });
+                return mapping.buildOrThrow();
+            }
+        },
+        directExecutor());
+    }
+
+    private ListenableFuture<BufferNodesState> getBufferNodeStateWithActiveNodes()
+    {
+        BufferNodesState bufferNodesState = discoveryManager.getBufferNodes();
+        if (!bufferNodesState.getActiveBufferNodesSet().isEmpty()) {
+            return Futures.immediateFuture(bufferNodesState);
         }
 
-        updateBaseMapping(bufferNodesState);
+        return waitForActiveBufferNodes();
+    }
 
-        ImmutableMap.Builder<Integer, Long> mapping = ImmutableMap.builder();
-        IntStream.range(0, outputPartitionCount).forEach(partition -> {
-            List<BufferNodeInfo> candidateNodes = partitionToNode.get(partition).stream()
-                    .map(nodeId -> bufferNodesState.getActiveBufferNodes().get(nodeId))
-                    .collect(toImmutableList());
+    private SettableFuture<BufferNodesState> waitForActiveBufferNodes()
+    {
+        SettableFuture<BufferNodesState> resultFuture = SettableFuture.create();
+        long waitStart = System.currentTimeMillis();
+        long waitSleep = maxWaitActiveBufferNodes.toMillis() / 20;
 
-            RandomSelector<BufferNodeInfo> bufferNodeInfoRandomSelector = buildNodeSelector(candidateNodes);
-            mapping.put(partition, bufferNodeInfoRandomSelector.next().nodeId());
-        });
-        return Futures.immediateFuture(mapping.buildOrThrow());
+        ScheduledFuture<?> schedulingFuture = executor.scheduleWithFixedDelay(() -> {
+            try {
+                long now = System.currentTimeMillis();
+                BufferNodesState bufferNodesState = discoveryManager.getBufferNodes();
+                if (!bufferNodesState.getActiveBufferNodesSet().isEmpty()) {
+                    resultFuture.set(bufferNodesState);
+                    return;
+                }
+                if (now - waitStart > maxWaitActiveBufferNodes.toMillis()) {
+                    resultFuture.setException(new RuntimeException("no ACTIVE buffer nodes available"));
+                }
+            }
+            catch (Exception e) {
+                resultFuture.setException(new RuntimeException("unexpected exception waiting for ACTIVE buffer nodes", e));
+            }
+        }, waitSleep, waitSleep, MILLISECONDS);
+
+        resultFuture.addListener(() -> schedulingFuture.cancel(true), directExecutor()); // cancel subsequent executions when we are done
+
+        return resultFuture;
     }
 
     private RandomSelector<BufferNodeInfo> buildNodeSelector(List<BufferNodeInfo> bufferNodes)

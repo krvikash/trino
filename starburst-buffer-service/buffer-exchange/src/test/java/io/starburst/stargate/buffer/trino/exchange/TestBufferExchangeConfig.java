@@ -25,6 +25,7 @@ import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.trino.exchange.PartitionNodeMappingMode.PINNING_MULTI;
 import static io.starburst.stargate.buffer.trino.exchange.PartitionNodeMappingMode.PINNING_SINGLE;
+import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 class TestBufferExchangeConfig
@@ -47,6 +48,7 @@ class TestBufferExchangeConfig
                 .setPartitionNodeMappingMode(PINNING_MULTI)
                 .setMinBufferNodesPerPartition(2)
                 .setMaxBufferNodesPerPartition(32)
+                .setMaxWaitActiveBufferNodes(succinctDuration(5.0, MINUTES))
                 .setDataClientMaxRetries(5)
                 .setDataClientRetryBackoffInitial(succinctDuration(2.0, SECONDS))
                 .setDataClientRetryBackoffMax(succinctDuration(60.0, SECONDS))
@@ -84,6 +86,7 @@ class TestBufferExchangeConfig
                 .put("exchange.partition-node-mapping-mode", "PINNING_SINGLE")
                 .put("exchange.min-buffer-nodes-per-partition", "3")
                 .put("exchange.max-buffer-nodes-per-partition", "33")
+                .put("exchange.max-wait-active-buffer-nodes", "85s")
                 .put("exchange.buffer-data.max-retries", "6")
                 .put("exchange.buffer-data.retry-backoff-initial", "3s")
                 .put("exchange.buffer-data.retry-backoff-max", "20s")
@@ -117,6 +120,7 @@ class TestBufferExchangeConfig
                 .setPartitionNodeMappingMode(PINNING_SINGLE)
                 .setMinBufferNodesPerPartition(3)
                 .setMaxBufferNodesPerPartition(33)
+                .setMaxWaitActiveBufferNodes(succinctDuration(85.0, SECONDS))
                 .setDataClientMaxRetries(6)
                 .setDataClientRetryBackoffInitial(succinctDuration(3.0, SECONDS))
                 .setDataClientRetryBackoffMax(succinctDuration(20.0, SECONDS))

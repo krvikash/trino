@@ -41,7 +41,7 @@ class TestingBufferNodeDiscoveryManager
             2,
             3);
 
-    private BufferNodesState bufferNodesState;
+    private BufferNodesState bufferNodesState = new BufferNodeDiscoveryManager.BufferNodesState(0, ImmutableMap.of()); // empty state by default
 
     public void setBufferNodes(BufferNodesState state)
     {

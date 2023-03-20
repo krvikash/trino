@@ -21,6 +21,7 @@ import java.net.URI;
 
 import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.trino.exchange.PartitionNodeMappingMode.PINNING_MULTI;
+import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class BufferExchangeConfig
@@ -39,6 +40,7 @@ public class BufferExchangeConfig
     private PartitionNodeMappingMode partitionNodeMappingMode = PINNING_MULTI;
     private int minBufferNodesPerPartition = 2;
     private int maxBufferNodesPerPartition = 32;
+    private Duration maxWaitActiveBufferNodes = succinctDuration(5, MINUTES);
 
     private int dataClientMaxRetries = 5;
     private Duration dataClientRetryBackoffInitial = succinctDuration(2.0, SECONDS);
@@ -239,6 +241,18 @@ public class BufferExchangeConfig
     public BufferExchangeConfig setMaxBufferNodesPerPartition(int maxBufferNodesPerPartition)
     {
         this.maxBufferNodesPerPartition = maxBufferNodesPerPartition;
+        return this;
+    }
+
+    public Duration getMaxWaitActiveBufferNodes()
+    {
+        return maxWaitActiveBufferNodes;
+    }
+
+    @Config("exchange.max-wait-active-buffer-nodes")
+    public BufferExchangeConfig setMaxWaitActiveBufferNodes(Duration maxWaitActiveBufferNodes)
+    {
+        this.maxWaitActiveBufferNodes = maxWaitActiveBufferNodes;
         return this;
     }
 
