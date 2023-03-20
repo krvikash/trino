@@ -221,7 +221,6 @@ public class SmartPinningPartitionNodeMapper
             }
         }
 
-        int x = 0;
         // add nodes to mapping for partitions below target
         for (int partition = 0; partition < outputPartitionCount; partition++) {
             int missingCount = targetNodesPerPartition - partitionToNode.get(partition).size();
