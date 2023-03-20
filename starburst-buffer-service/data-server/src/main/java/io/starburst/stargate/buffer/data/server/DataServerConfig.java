@@ -17,6 +17,7 @@ import io.airlift.units.Duration;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 
+import static io.airlift.units.Duration.succinctDuration;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -26,13 +27,13 @@ public class DataServerConfig
     private boolean testingDropUploadedPages;
     private int httpResponseThreads = 100;
     private boolean testingEnableStatsLogging;
-    private Duration broadcastInterval = Duration.succinctDuration(5, SECONDS);
+    private Duration broadcastInterval = succinctDuration(5, SECONDS);
     private int drainingMaxAttempts = 4;
-    private Duration minDrainingDuration = Duration.succinctDuration(30, SECONDS);
+    private Duration minDrainingDuration = succinctDuration(30, SECONDS);
     private int maxInProgressAddDataPagesRequests = 100;
     private int chunkListTargetSize = 1;
     private int chunkListMaxSize = 100;
-    private Duration chunkListPollTimeout = Duration.succinctDuration(100, MILLISECONDS);
+    private Duration chunkListPollTimeout = succinctDuration(100, MILLISECONDS);
 
     public boolean isDataIntegrityVerificationEnabled()
     {

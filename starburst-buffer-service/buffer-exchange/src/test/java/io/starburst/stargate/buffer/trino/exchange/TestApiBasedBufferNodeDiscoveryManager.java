@@ -13,7 +13,6 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.airlift.testing.TestingTicker;
-import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeState;
 import io.starburst.stargate.buffer.BufferNodeStats;
@@ -38,6 +37,7 @@ import java.util.concurrent.ExecutionException;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
+import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.BufferNodeState.ACTIVE;
 import static io.starburst.stargate.buffer.BufferNodeState.DRAINED;
 import static io.starburst.stargate.buffer.BufferNodeState.STARTED;
@@ -78,8 +78,8 @@ class TestApiBasedBufferNodeDiscoveryManager
         ApiBasedBufferNodeDiscoveryManager discoveryManager = new ApiBasedBufferNodeDiscoveryManager(
                 discoveryApi.getApiFactory(),
                 executor,
-                Duration.succinctDuration(0, MILLISECONDS), // always allow force refresh
-                Duration.succinctDuration(10, MILLISECONDS),
+                succinctDuration(0, MILLISECONDS), // always allow force refresh
+                succinctDuration(10, MILLISECONDS),
                 ticker);
         discoveryManager.start();
 

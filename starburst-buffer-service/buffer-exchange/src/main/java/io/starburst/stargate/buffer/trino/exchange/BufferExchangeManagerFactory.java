@@ -23,6 +23,7 @@ import org.weakref.jmx.guice.MBeanModule;
 import java.util.Map;
 import java.util.Optional;
 
+import static io.airlift.units.Duration.succinctDuration;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -31,7 +32,7 @@ public class BufferExchangeManagerFactory
 {
     private static final Logger log = Logger.get(BufferExchangeManagerFactory.class);
 
-    private static final Duration MAX_WAIT_ACTIVE_NODES = Duration.succinctDuration(10, SECONDS);
+    private static final Duration MAX_WAIT_ACTIVE_NODES = succinctDuration(10, SECONDS);
 
     private final Optional<ApiFactory> apiFactory;
 

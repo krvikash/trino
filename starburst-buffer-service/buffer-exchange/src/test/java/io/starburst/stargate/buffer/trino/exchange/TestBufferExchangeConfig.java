@@ -11,7 +11,6 @@ package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.collect.ImmutableMap;
 import io.airlift.units.DataSize;
-import io.airlift.units.Duration;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
@@ -23,6 +22,7 @@ import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDe
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
 import static io.airlift.units.DataSize.Unit.GIGABYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
+import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.trino.exchange.PartitionNodeMappingMode.PINNING_MULTI;
 import static io.starburst.stargate.buffer.trino.exchange.PartitionNodeMappingMode.PINNING_SINGLE;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -48,21 +48,21 @@ class TestBufferExchangeConfig
                 .setMinBufferNodesPerPartition(2)
                 .setMaxBufferNodesPerPartition(32)
                 .setDataClientMaxRetries(5)
-                .setDataClientRetryBackoffInitial(Duration.succinctDuration(2.0, SECONDS))
-                .setDataClientRetryBackoffMax(Duration.succinctDuration(60.0, SECONDS))
+                .setDataClientRetryBackoffInitial(succinctDuration(2.0, SECONDS))
+                .setDataClientRetryBackoffMax(succinctDuration(60.0, SECONDS))
                 .setDataClientRetryBackoffFactor(2.0)
                 .setDataClientRetryBackoffJitter(0.5)
                 .setDataClientCircuitBreakerFailureThreshold(10)
                 .setDataClientCircuitBreakerSuccessThreshold(5)
-                .setDataClientCircuitBreakerDelay(Duration.succinctDuration(30.0, SECONDS))
+                .setDataClientCircuitBreakerDelay(succinctDuration(30.0, SECONDS))
                 .setDataClientAddDataPagesMaxRetries(5)
-                .setDataClientAddDataPagesRetryBackoffInitial(Duration.succinctDuration(16.0, SECONDS))
-                .setDataClientAddDataPagesRetryBackoffMax(Duration.succinctDuration(120.0, SECONDS))
+                .setDataClientAddDataPagesRetryBackoffInitial(succinctDuration(16.0, SECONDS))
+                .setDataClientAddDataPagesRetryBackoffMax(succinctDuration(120.0, SECONDS))
                 .setDataClientAddDataPagesRetryBackoffFactor(2.0)
                 .setDataClientAddDataPagesRetryBackoffJitter(0.5)
                 .setDataClientAddDataPagesCircuitBreakerFailureThreshold(10)
                 .setDataClientAddDataPagesCircuitBreakerSuccessThreshold(5)
-                .setDataClientAddDataPagesCircuitBreakerDelay(Duration.succinctDuration(60.0, SECONDS)));
+                .setDataClientAddDataPagesCircuitBreakerDelay(succinctDuration(60.0, SECONDS)));
     }
 
     @Test
@@ -118,21 +118,21 @@ class TestBufferExchangeConfig
                 .setMinBufferNodesPerPartition(3)
                 .setMaxBufferNodesPerPartition(33)
                 .setDataClientMaxRetries(6)
-                .setDataClientRetryBackoffInitial(Duration.succinctDuration(3.0, SECONDS))
-                .setDataClientRetryBackoffMax(Duration.succinctDuration(20.0, SECONDS))
+                .setDataClientRetryBackoffInitial(succinctDuration(3.0, SECONDS))
+                .setDataClientRetryBackoffMax(succinctDuration(20.0, SECONDS))
                 .setDataClientRetryBackoffFactor(4.0)
                 .setDataClientRetryBackoffJitter(0.25)
                 .setDataClientCircuitBreakerFailureThreshold(11)
                 .setDataClientCircuitBreakerSuccessThreshold(6)
-                .setDataClientCircuitBreakerDelay(Duration.succinctDuration(31, SECONDS))
+                .setDataClientCircuitBreakerDelay(succinctDuration(31, SECONDS))
                 .setDataClientAddDataPagesMaxRetries(6)
-                .setDataClientAddDataPagesRetryBackoffInitial(Duration.succinctDuration(3.0, SECONDS))
-                .setDataClientAddDataPagesRetryBackoffMax(Duration.succinctDuration(20.0, SECONDS))
+                .setDataClientAddDataPagesRetryBackoffInitial(succinctDuration(3.0, SECONDS))
+                .setDataClientAddDataPagesRetryBackoffMax(succinctDuration(20.0, SECONDS))
                 .setDataClientAddDataPagesRetryBackoffFactor(4.0)
                 .setDataClientAddDataPagesRetryBackoffJitter(0.25)
                 .setDataClientAddDataPagesCircuitBreakerFailureThreshold(11)
                 .setDataClientAddDataPagesCircuitBreakerSuccessThreshold(6)
-                .setDataClientAddDataPagesCircuitBreakerDelay(Duration.succinctDuration(31, SECONDS));
+                .setDataClientAddDataPagesCircuitBreakerDelay(succinctDuration(31, SECONDS));
 
         assertFullMapping(properties, expected);
     }
