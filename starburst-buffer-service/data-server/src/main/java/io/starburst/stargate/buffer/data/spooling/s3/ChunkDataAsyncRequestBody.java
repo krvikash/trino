@@ -10,10 +10,8 @@
 package io.starburst.stargate.buffer.data.spooling.s3;
 
 import io.airlift.log.Logger;
-import io.airlift.slice.Slice;
-import io.airlift.slice.SliceOutput;
-import io.airlift.slice.Slices;
 import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
+import io.starburst.stargate.buffer.data.spooling.SpoolingUtils;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
@@ -23,7 +21,6 @@ import software.amazon.awssdk.core.internal.util.Mimetype;
 import java.nio.ByteBuffer;
 import java.util.Optional;
 
-import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.CHUNK_FILE_HEADER_SIZE;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -82,13 +79,7 @@ public class ChunkDataAsyncRequestBody
                             }
                             if (n > 0) {
                                 done = true;
-                                SliceOutput sliceOutput = Slices.allocate(CHUNK_FILE_HEADER_SIZE).getOutput();
-                                sliceOutput.writeLong(chunkDataLease.checksum());
-                                sliceOutput.writeInt(chunkDataLease.numDataPages());
-                                s.onNext(ByteBuffer.wrap(sliceOutput.slice().byteArray()));
-                                for (Slice chunkSlice : chunkDataLease.chunkSlices()) {
-                                    s.onNext(ByteBuffer.wrap(chunkSlice.byteArray(), chunkSlice.byteArrayOffset(), chunkSlice.length()));
-                                }
+                                SpoolingUtils.writeChunkDataLease(chunkDataLease, s::onNext);
                                 s.onComplete();
                             }
                             else {

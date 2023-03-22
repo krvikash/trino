@@ -12,12 +12,19 @@ package io.starburst.stargate.buffer.data.spooling;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import io.airlift.slice.Slice;
+import io.airlift.slice.SliceOutput;
+import io.airlift.slice.Slices;
+import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.function.Consumer;
 
 import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
+import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.CHUNK_FILE_HEADER_SIZE;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.PATH_SEPARATOR;
 
 public final class SpoolingUtils
@@ -56,5 +63,16 @@ public final class SpoolingUtils
             }
             return immediateFailedFuture(new IOException(throwable));
         }, directExecutor());
+    }
+
+    public static void writeChunkDataLease(ChunkDataLease chunkDataLease, Consumer<ByteBuffer> consumer)
+    {
+        SliceOutput sliceOutput = Slices.allocate(CHUNK_FILE_HEADER_SIZE).getOutput();
+        sliceOutput.writeLong(chunkDataLease.checksum());
+        sliceOutput.writeInt(chunkDataLease.numDataPages());
+        consumer.accept(ByteBuffer.wrap(sliceOutput.slice().byteArray()));
+        for (Slice chunkSlice : chunkDataLease.chunkSlices()) {
+            consumer.accept(ByteBuffer.wrap(chunkSlice.byteArray(), chunkSlice.byteArrayOffset(), chunkSlice.length()));
+        }
     }
 }
