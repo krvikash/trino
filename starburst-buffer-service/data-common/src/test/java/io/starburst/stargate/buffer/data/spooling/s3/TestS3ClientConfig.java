@@ -19,12 +19,12 @@ import static io.airlift.configuration.testing.ConfigAssertions.assertFullMappin
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
 
-public class TestSpoolingS3Config
+public class TestS3ClientConfig
 {
     @Test
     public void testDefaults()
     {
-        assertRecordedDefaults(recordDefaults(SpoolingS3Config.class)
+        assertRecordedDefaults(recordDefaults(S3ClientConfig.class)
                 .setS3AwsAccessKey(null)
                 .setS3AwsSecretKey(null)
                 .setRegion(null)
@@ -45,7 +45,7 @@ public class TestSpoolingS3Config
                 .put("spooling.s3.max-error-retries", "8")
                 .buildOrThrow();
 
-        SpoolingS3Config expected = new SpoolingS3Config()
+        S3ClientConfig expected = new S3ClientConfig()
                 .setS3AwsAccessKey("access")
                 .setS3AwsSecretKey("secret")
                 .setRegion("us-east-1")

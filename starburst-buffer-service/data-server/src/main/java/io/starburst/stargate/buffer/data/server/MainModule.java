@@ -22,9 +22,11 @@ import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocatorConfig;
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.local.LocalSpoolingStorage;
+import io.starburst.stargate.buffer.data.spooling.s3.S3ClientConfig;
+import io.starburst.stargate.buffer.data.spooling.s3.S3ClientProvider;
 import io.starburst.stargate.buffer.data.spooling.s3.S3SpoolingStorage;
-import io.starburst.stargate.buffer.data.spooling.s3.SpoolingS3Config;
 import io.starburst.stargate.buffer.status.StatusProvider;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
 
 import java.net.URI;
 import java.security.SecureRandom;
@@ -104,7 +106,8 @@ public class MainModule
             binder.bind(SpoolingStorage.class).to(LocalSpoolingStorage.class).in(SINGLETON);
         }
         else if (scheme.equals("s3")) {
-            configBinder(binder).bindConfig(SpoolingS3Config.class);
+            configBinder(binder).bindConfig(S3ClientConfig.class);
+            binder.bind(S3AsyncClient.class).toProvider(S3ClientProvider.class).in(SINGLETON);
             binder.bind(SpoolingStorage.class).to(S3SpoolingStorage.class).in(SINGLETON);
         }
         else {

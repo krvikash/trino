@@ -21,7 +21,7 @@ import java.util.Optional;
 
 import static java.util.Locale.ENGLISH;
 
-public class SpoolingS3Config
+public class S3ClientConfig
 {
     private String s3AwsAccessKey;
     private String s3AwsSecretKey;
@@ -36,7 +36,7 @@ public class SpoolingS3Config
     }
 
     @Config("spooling.s3.aws-access-key")
-    public SpoolingS3Config setS3AwsAccessKey(String s3AwsAccessKey)
+    public S3ClientConfig setS3AwsAccessKey(String s3AwsAccessKey)
     {
         this.s3AwsAccessKey = s3AwsAccessKey;
         return this;
@@ -49,7 +49,7 @@ public class SpoolingS3Config
 
     @Config("spooling.s3.aws-secret-key")
     @ConfigSecuritySensitive
-    public SpoolingS3Config setS3AwsSecretKey(String s3AwsSecretKey)
+    public S3ClientConfig setS3AwsSecretKey(String s3AwsSecretKey)
     {
         this.s3AwsSecretKey = s3AwsSecretKey;
         return this;
@@ -61,7 +61,7 @@ public class SpoolingS3Config
     }
 
     @Config("spooling.s3.region")
-    public SpoolingS3Config setRegion(String region)
+    public S3ClientConfig setRegion(String region)
     {
         if (region != null) {
             this.region = Optional.of(Region.of(region.toLowerCase(ENGLISH)));
@@ -76,7 +76,7 @@ public class SpoolingS3Config
     }
 
     @Config("spooling.s3.endpoint")
-    public SpoolingS3Config setS3Endpoint(String s3Endpoint)
+    public S3ClientConfig setS3Endpoint(String s3Endpoint)
     {
         this.s3Endpoint = Optional.ofNullable(s3Endpoint);
         return this;
@@ -89,7 +89,7 @@ public class SpoolingS3Config
     }
 
     @Config("spooling.s3.retry-mode")
-    public SpoolingS3Config setRetryMode(RetryMode retryMode)
+    public S3ClientConfig setRetryMode(RetryMode retryMode)
     {
         this.retryMode = retryMode;
         return this;
@@ -102,7 +102,7 @@ public class SpoolingS3Config
     }
 
     @Config("spooling.s3.max-error-retries")
-    public SpoolingS3Config setMaxErrorRetries(int maxErrorRetries)
+    public S3ClientConfig setMaxErrorRetries(int maxErrorRetries)
     {
         this.maxErrorRetries = maxErrorRetries;
         return this;

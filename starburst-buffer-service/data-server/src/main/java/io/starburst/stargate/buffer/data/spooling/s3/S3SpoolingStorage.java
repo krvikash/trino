@@ -20,14 +20,7 @@ import io.starburst.stargate.buffer.data.server.BufferNodeId;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
 import io.starburst.stargate.buffer.data.spooling.AbstractSpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.SpooledChunkNotFoundException;
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.awscore.endpoint.DefaultServiceEndpointBuilder;
-import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
-import software.amazon.awssdk.core.retry.RetryPolicy;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
-import software.amazon.awssdk.services.s3.S3AsyncClientBuilder;
-import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.model.Delete;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
@@ -42,10 +35,8 @@ import javax.annotation.PreDestroy;
 import javax.inject.Inject;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
@@ -53,12 +44,9 @@ import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.concurrent.MoreFutures.toListenableFuture;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.PATH_SEPARATOR;
-import static io.starburst.stargate.buffer.data.client.spooling.s3.S3SpoolUtils.createAwsCredentialsProvider;
 import static io.starburst.stargate.buffer.data.client.spooling.s3.S3SpoolUtils.getBucketName;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
-import static software.amazon.awssdk.core.client.config.SdkAdvancedClientOption.USER_AGENT_PREFIX;
-import static software.amazon.awssdk.core.client.config.SdkAdvancedClientOption.USER_AGENT_SUFFIX;
 
 public class S3SpoolingStorage
         extends AbstractSpoolingStorage
@@ -70,47 +58,12 @@ public class S3SpoolingStorage
     public S3SpoolingStorage(
             BufferNodeId bufferNodeId,
             ChunkManagerConfig chunkManagerConfig,
-            SpoolingS3Config spoolingS3Config,
+            S3AsyncClient s3AsyncClient,
             DataServerStats dataServerStats)
     {
         super(bufferNodeId, dataServerStats);
-        AwsCredentialsProvider credentialsProvider = createAwsCredentialsProvider(
-                spoolingS3Config.getS3AwsAccessKey(),
-                spoolingS3Config.getS3AwsSecretKey());
-        RetryPolicy retryPolicy = RetryPolicy.builder(spoolingS3Config.getRetryMode())
-                .numRetries(spoolingS3Config.getMaxErrorRetries())
-                .build();
-        ClientOverrideConfiguration overrideConfig = ClientOverrideConfiguration.builder()
-                .retryPolicy(retryPolicy)
-                .putAdvancedOption(USER_AGENT_PREFIX, "")
-                .putAdvancedOption(USER_AGENT_SUFFIX, "Trino-exchange")
-                .build();
 
-        Optional<Region> region = spoolingS3Config.getRegion();
-        Optional<String> endpoint = spoolingS3Config.getS3Endpoint();
-
-        if (endpoint.isPresent() && region.isPresent()) {
-            throw new IllegalArgumentException("Either S3 endpoint or region can be specified");
-        }
-
-        S3AsyncClientBuilder s3AsyncClientBuilder = S3AsyncClient.builder()
-                .credentialsProvider(credentialsProvider)
-                .serviceConfiguration(S3Configuration.builder()
-                        .checksumValidationEnabled(false)
-                        .build())
-                .overrideConfiguration(overrideConfig);
-
-        s3AsyncClientBuilder.endpointOverride(
-                endpoint.map(URI::create)
-                        .orElseGet(() -> {
-                            DefaultServiceEndpointBuilder endPointBuilder = new DefaultServiceEndpointBuilder("s3", "http");
-                            region.ifPresent(endPointBuilder::withRegion);
-                            return endPointBuilder.getServiceEndpoint();
-                        }));
-
-        region.ifPresent(s3AsyncClientBuilder::region);
-
-        this.s3AsyncClient = s3AsyncClientBuilder.build();
+        this.s3AsyncClient = s3AsyncClient;
         this.bucketName = getBucketName(requireNonNull(chunkManagerConfig.getSpoolingDirectory(), "spoolingDirectory is null"));
     }
 

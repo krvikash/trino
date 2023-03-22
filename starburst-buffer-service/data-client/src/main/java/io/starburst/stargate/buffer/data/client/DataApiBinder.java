@@ -23,7 +23,9 @@ import io.starburst.stargate.buffer.data.client.spooling.SpoolingStorageType;
 import io.starburst.stargate.buffer.data.client.spooling.local.LocalSpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.noop.NoopSpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.s3.S3SpooledChunkReader;
-import io.starburst.stargate.buffer.data.client.spooling.s3.SpoolingS3ReaderConfig;
+import io.starburst.stargate.buffer.data.spooling.s3.S3ClientConfig;
+import io.starburst.stargate.buffer.data.spooling.s3.S3ClientProvider;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
 
 import java.util.function.Consumer;
 
@@ -86,7 +88,8 @@ public class DataApiBinder
                 dataApiName,
                 config -> config.getSpoolingStorageType() == SpoolingStorageType.S3,
                 binder -> {
-                    configBinder(binder).bindConfig(SpoolingS3ReaderConfig.class, dataApiName);
+                    configBinder(binder).bindConfig(S3ClientConfig.class, dataApiName);
+                    binder.bind(S3AsyncClient.class).toProvider(S3ClientProvider.class).in(Scopes.SINGLETON);
                     binder.bind(SpooledChunkReader.class).to(S3SpooledChunkReader.class).in(Scopes.SINGLETON);
                 }));
     }

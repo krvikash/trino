@@ -13,14 +13,14 @@ import io.starburst.stargate.buffer.data.client.DataApiConfig;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.local.LocalSpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.s3.S3SpooledChunkReader;
-import io.starburst.stargate.buffer.data.client.spooling.s3.SpoolingS3ReaderConfig;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
 import io.starburst.stargate.buffer.data.spooling.local.LocalSpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.s3.MinioStorage;
+import io.starburst.stargate.buffer.data.spooling.s3.S3ClientConfig;
 import io.starburst.stargate.buffer.data.spooling.s3.S3SpoolingStorage;
-import io.starburst.stargate.buffer.data.spooling.s3.SpoolingS3Config;
+import io.starburst.stargate.buffer.data.spooling.s3.S3Utils;
 
 import java.util.concurrent.ExecutorService;
 
@@ -33,20 +33,20 @@ public final class SpoolTestHelper
         return new S3SpoolingStorage(
                 new BufferNodeId(0L),
                 new ChunkManagerConfig().setSpoolingDirectory("s3://" + minioStorage.getBucketName()),
-                new SpoolingS3Config()
+                S3Utils.createS3Client(new S3ClientConfig()
                         .setS3AwsAccessKey(MinioStorage.ACCESS_KEY)
                         .setS3AwsSecretKey(MinioStorage.SECRET_KEY)
-                        .setS3Endpoint("http://" + minioStorage.getMinio().getMinioApiEndpoint()),
+                        .setS3Endpoint("http://" + minioStorage.getMinio().getMinioApiEndpoint())),
                 new DataServerStats());
     }
 
     public static SpooledChunkReader createS3SpooledChunkReader(MinioStorage minioStorage, ExecutorService executor)
     {
         return new S3SpooledChunkReader(
-                new SpoolingS3ReaderConfig()
+                S3Utils.createS3Client(new S3ClientConfig()
                         .setS3AwsAccessKey(MinioStorage.ACCESS_KEY)
                         .setS3AwsSecretKey(MinioStorage.SECRET_KEY)
-                        .setS3Endpoint("http://" + minioStorage.getMinio().getMinioApiEndpoint()),
+                        .setS3Endpoint("http://" + minioStorage.getMinio().getMinioApiEndpoint())),
                 new DataApiConfig(),
                 executor);
     }
