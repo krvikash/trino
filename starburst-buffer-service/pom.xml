@@ -51,6 +51,7 @@
         <module>buffer-status</module>
         <module>client-common</module>
         <module>data-client</module>
+        <module>data-common</module>
         <module>data-server</module>
         <module>discovery-client</module>
         <module>discovery-server</module>
