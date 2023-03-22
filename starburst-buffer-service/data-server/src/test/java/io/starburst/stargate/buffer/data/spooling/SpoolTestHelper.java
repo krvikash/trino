@@ -9,13 +9,17 @@
  */
 package io.starburst.stargate.buffer.data.spooling;
 
+import com.google.cloud.storage.Storage;
 import io.starburst.stargate.buffer.data.client.DataApiConfig;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
+import io.starburst.stargate.buffer.data.client.spooling.gcs.GcsSpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.local.LocalSpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.s3.S3SpooledChunkReader;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
+import io.starburst.stargate.buffer.data.spooling.gcs.GcsClientConfig;
+import io.starburst.stargate.buffer.data.spooling.gcs.GcsSpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.local.LocalSpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.s3.MinioStorage;
 import io.starburst.stargate.buffer.data.spooling.s3.S3ClientConfig;
@@ -49,6 +53,24 @@ public final class SpoolTestHelper
                         .setS3Endpoint("http://" + minioStorage.getMinio().getMinioApiEndpoint())),
                 new DataApiConfig(),
                 executor);
+    }
+
+    public static SpoolingStorage createGcsSpoolingStorage(Storage gcsClient, String bucketName)
+    {
+        return new GcsSpoolingStorage(
+                new BufferNodeId(0L),
+                new ChunkManagerConfig().setSpoolingDirectory("gs://" + bucketName),
+                new GcsClientConfig(),
+                gcsClient,
+                new DataServerStats());
+    }
+
+    public static SpooledChunkReader createGcsSpooledChunkReader(Storage gcsClient)
+    {
+        return new GcsSpooledChunkReader(
+                new DataApiConfig(),
+                new GcsClientConfig(),
+                gcsClient);
     }
 
     public static SpoolingStorage createLocalSpoolingStorage()

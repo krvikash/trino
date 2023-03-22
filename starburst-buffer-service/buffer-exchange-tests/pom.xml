@@ -295,6 +295,8 @@
                         <ignoredResourcePattern>about.html</ignoredResourcePattern>
                         <ignoredResourcePattern>iceberg-build.properties</ignoredResourcePattern>
                         <ignoredResourcePattern>mozilla/public-suffix-list.txt</ignoredResourcePattern>
+                        <!-- Duplicate in com.google.api:gax:2.17.0 and com.google.cloud.bigdataoss:gcs-connector:hadoop2-2.2.8:jar:shaded -->
+                        <ignoredResourcePattern>dependencies.properties</ignoredResourcePattern>
                     </ignoredResourcePatterns>
                 </configuration>
             </plugin>

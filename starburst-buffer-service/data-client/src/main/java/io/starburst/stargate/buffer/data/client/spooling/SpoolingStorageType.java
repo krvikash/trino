@@ -13,5 +13,6 @@ public enum SpoolingStorageType
 {
     NONE,
     LOCAL,
-    S3
+    S3,
+    GCS
 }
