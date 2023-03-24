@@ -13,7 +13,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Key;
 import com.starburstdata.presto.server.StarburstQueryRunner;
-import com.starburstdata.presto.server.StarburstServerExtensionsModule;
 import io.airlift.units.Duration;
 import io.trino.Session;
 import io.trino.execution.QueryInfo;
@@ -84,7 +83,6 @@ public class TestQueryTroubleshooting
             throws Exception
     {
         DistributedQueryRunner queryRunner = StarburstQueryRunner.builder(SESSION)
-                .setAdditionalModule(new StarburstServerExtensionsModule())
                 .setCoordinatorProperties(Map.of("insights.authorized-users", AUTHORIZED_USER, "troubleshooting.max-access-duration", "5s", "troubleshooting.max-capture-duration", "15s"))
                 .build();
 
