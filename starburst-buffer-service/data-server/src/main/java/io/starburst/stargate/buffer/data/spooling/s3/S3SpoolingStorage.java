@@ -44,7 +44,7 @@ import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.concurrent.MoreFutures.toListenableFuture;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.PATH_SEPARATOR;
-import static io.starburst.stargate.buffer.data.client.spooling.s3.S3SpoolUtils.getBucketName;
+import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.getBucketName;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
 
