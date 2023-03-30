@@ -31,7 +31,7 @@ public class PinningPartitionNodeMapper
     private final int outputPartitionCount;
 
     @GuardedBy("this")
-    private Map<Integer, Long> currentMapping;
+    private PartitionNodeMapping currentMapping;
 
     public PinningPartitionNodeMapper(BufferNodeDiscoveryManager discoveryManager, int outputPartitionCount)
     {
@@ -40,7 +40,7 @@ public class PinningPartitionNodeMapper
     }
 
     @Override
-    public synchronized ListenableFuture<Map<Integer, Long>> getMapping(int taskPartitionId)
+    public synchronized ListenableFuture<PartitionNodeMapping> getMapping(int taskPartitionId)
     {
         if (currentMapping == null) {
             currentMapping = computeMapping();
@@ -48,7 +48,7 @@ public class PinningPartitionNodeMapper
         return immediateFuture(currentMapping);
     }
 
-    private Map<Integer, Long> computeMapping()
+    private PartitionNodeMapping computeMapping()
     {
         Set<BufferNodeInfo> bufferNodes = discoveryManager.getBufferNodes().getActiveBufferNodesSet();
 
@@ -85,7 +85,7 @@ public class PinningPartitionNodeMapper
 
         ImmutableMap.Builder<Integer, Long> mapping = ImmutableMap.builder();
         IntStream.range(0, outputPartitionCount).forEach(partition -> mapping.put(partition, selector.next().nodeId()));
-        return mapping.buildOrThrow();
+        return new PartitionNodeMapping(mapping.buildOrThrow());
     }
 
     @Override
@@ -93,10 +93,10 @@ public class PinningPartitionNodeMapper
     {
         checkState(currentMapping != null, "currentMapping should be already set");
         Map<Long, BufferNodeInfo> activeBufferNodes = discoveryManager.getBufferNodes().getActiveBufferNodes();
-        Map<Integer, Long> newMapping = computeMapping();
+        PartitionNodeMapping newMapping = computeMapping();
         ImmutableMap.Builder<Integer, Long> finalMapping = ImmutableMap.builder();
 
-        for (Map.Entry<Integer, Long> entry : currentMapping.entrySet()) {
+        for (Map.Entry<Integer, Long> entry : currentMapping.mapping().entrySet()) {
             Integer partition = entry.getKey();
             Long oldBufferNodeId = entry.getValue();
             if (activeBufferNodes.containsKey(oldBufferNodeId)) {
@@ -105,9 +105,9 @@ public class PinningPartitionNodeMapper
             }
             else {
                 // use new mapping
-                finalMapping.put(partition, newMapping.get(partition));
+                finalMapping.put(partition, newMapping.mapping().get(partition));
             }
         }
-        currentMapping = finalMapping.buildOrThrow();
+        currentMapping = new PartitionNodeMapping(finalMapping.buildOrThrow());
     }
 }

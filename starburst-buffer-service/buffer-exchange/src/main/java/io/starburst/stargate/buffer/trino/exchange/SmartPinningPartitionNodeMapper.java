@@ -124,7 +124,7 @@ public class SmartPinningPartitionNodeMapper
     }
 
     @Override
-    public synchronized ListenableFuture<Map<Integer, Long>> getMapping(int taskPartitionId)
+    public synchronized ListenableFuture<PartitionNodeMapping> getMapping(int taskPartitionId)
     {
         ListenableFuture<BufferNodesState> bufferNodesStateFuture = getBufferNodeStateWithActiveNodes();
 
@@ -141,7 +141,7 @@ public class SmartPinningPartitionNodeMapper
                     RandomSelector<BufferNodeInfo> bufferNodeInfoRandomSelector = buildNodeSelector(candidateNodes);
                     mapping.put(partition, bufferNodeInfoRandomSelector.next().nodeId());
                 });
-                return mapping.buildOrThrow();
+                return new PartitionNodeMapping(mapping.buildOrThrow());
             }
         },
         directExecutor());

@@ -11,10 +11,7 @@ package io.starburst.stargate.buffer.trino.exchange;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.exchange.ExchangeSinkInstanceHandle;
-
-import java.util.Map;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static java.util.Objects.requireNonNull;
@@ -24,18 +21,17 @@ public class BufferExchangeSinkInstanceHandle
 {
     private final BufferExchangeSinkHandle sinkHandle;
     private final int taskAttemptId;
-    private final Map<Integer, Long> partitionToBufferNode;
+    private final PartitionNodeMapping partitionNodeMapping;
 
     @JsonCreator
     public BufferExchangeSinkInstanceHandle(
             @JsonProperty("sinkHandle") BufferExchangeSinkHandle sinkHandle,
             @JsonProperty("taskAttemptId") int taskAttemptId,
-            @JsonProperty("partitionToBufferNode") Map<Integer, Long> partitionToBufferNode)
+            @JsonProperty("partitionNodeMapping") PartitionNodeMapping partitionNodeMapping)
     {
         this.sinkHandle = sinkHandle;
         this.taskAttemptId = taskAttemptId;
-        requireNonNull(partitionToBufferNode, "partitionToBufferNode is null");
-        this.partitionToBufferNode = ImmutableMap.copyOf(partitionToBufferNode);
+        this.partitionNodeMapping = requireNonNull(partitionNodeMapping, "partitionNodeMapping is null");
     }
 
     @JsonProperty
@@ -61,9 +57,9 @@ public class BufferExchangeSinkInstanceHandle
     }
 
     @JsonProperty
-    public Map<Integer, Long> getPartitionToBufferNode()
+    public PartitionNodeMapping getPartitionNodeMapping()
     {
-        return partitionToBufferNode;
+        return partitionNodeMapping;
     }
 
     public boolean isPreserveOrderWithinPartition()

@@ -16,7 +16,6 @@ import io.starburst.stargate.buffer.BufferNodeStats;
 
 import javax.annotation.concurrent.GuardedBy;
 
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.IntStream;
 
@@ -44,13 +43,13 @@ public class RandomPartitionNodeMapper
     }
 
     @Override
-    public synchronized ListenableFuture<Map<Integer, Long>> getMapping(int taskPartitionId)
+    public synchronized ListenableFuture<PartitionNodeMapping> getMapping(int taskPartitionId)
     {
         RandomSelector<BufferNodeInfo> selector = getBufferNodeSelector();
 
         ImmutableMap.Builder<Integer, Long> mapping = ImmutableMap.builder();
         IntStream.range(0, outputPartitionCount).forEach(partition -> mapping.put(partition, selector.next().nodeId()));
-        return immediateFuture(mapping.buildOrThrow());
+        return immediateFuture(new PartitionNodeMapping(mapping.buildOrThrow()));
     }
 
     @GuardedBy("this")

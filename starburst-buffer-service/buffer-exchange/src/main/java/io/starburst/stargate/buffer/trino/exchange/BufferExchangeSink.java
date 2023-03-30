@@ -10,7 +10,6 @@
 package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.base.Ticker;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
@@ -92,7 +91,7 @@ public class BufferExchangeSink
         this.externalExchangeId = sinkInstanceHandle.getExternalExchangeId();
         this.taskPartitionId = sinkInstanceHandle.getTaskPartitionId();
         this.taskAttemptId = sinkInstanceHandle.getTaskAttemptId();
-        this.partitionToBufferNode = ImmutableMap.copyOf(sinkInstanceHandle.getPartitionToBufferNode());
+        this.partitionToBufferNode = sinkInstanceHandle.getPartitionNodeMapping().mapping();
         this.preserveOrderWithinPartition = sinkInstanceHandle.isPreserveOrderWithinPartition();
         this.executor = requireNonNull(executor, "executor is null");
         this.dataPool = new SinkDataPool(
@@ -297,7 +296,7 @@ public class BufferExchangeSink
     public synchronized void updateHandle(ExchangeSinkInstanceHandle newSinkInstanceHandle)
     {
         BufferExchangeSinkInstanceHandle newBufferExchangeSinkInstanceHandle = (BufferExchangeSinkInstanceHandle) newSinkInstanceHandle;
-        partitionToBufferNode = ImmutableMap.copyOf(newBufferExchangeSinkInstanceHandle.getPartitionToBufferNode());
+        partitionToBufferNode = newBufferExchangeSinkInstanceHandle.getPartitionNodeMapping().mapping();
         handleUpdateRequired = false;
         progressOnHandleUpdate();
     }

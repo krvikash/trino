@@ -151,17 +151,17 @@ public class BufferExchange
         return handleMappingFuture(taskAttemptId, bufferExchangeSinkHandle, partitionNodeMapper.getMapping(bufferExchangeSinkHandle.getTaskPartitionId()));
     }
 
-    private CompletableFuture<ExchangeSinkInstanceHandle> handleMappingFuture(int taskAttemptId, BufferExchangeSinkHandle bufferExchangeSinkHandle, ListenableFuture<Map<Integer, Long>> newMappingFuture)
+    private CompletableFuture<ExchangeSinkInstanceHandle> handleMappingFuture(int taskAttemptId, BufferExchangeSinkHandle bufferExchangeSinkHandle, ListenableFuture<PartitionNodeMapping> newMappingFuture)
     {
         CompletableFuture<ExchangeSinkInstanceHandle> resultFuture = new CompletableFuture<>();
         addCallback(newMappingFuture, new FutureCallback<>()
         {
             @Override
-            public void onSuccess(Map<Integer, Long> newMapping)
+            public void onSuccess(PartitionNodeMapping newMapping)
             {
                 synchronized (BufferExchange.this) {
                     try {
-                        for (Long nodeId : newMapping.values()) {
+                        for (Long nodeId : newMapping.mapping().values()) {
                             addBufferNodeToPoll(nodeId);
                         }
                         resultFuture.complete(new BufferExchangeSinkInstanceHandle(

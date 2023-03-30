@@ -181,7 +181,7 @@ public class TestSmartPinningPartitionNodeMapper
         SmartPinningPartitionNodeMapper mapper;
         mapper = new SmartPinningPartitionNodeMapper(EXCHANGE_ID, discoveryManager, executor, 4, 4, 32, Duration.succinctDuration(500, TimeUnit.MILLISECONDS));
 
-        ListenableFuture<Map<Integer, Long>> mappingFuture = mapper.getMapping(0);
+        ListenableFuture<PartitionNodeMapping> mappingFuture = mapper.getMapping(0);
         assertThat(mappingFuture).isNotDone();
         assertThat(mappingFuture)
                 .failsWithin(1, TimeUnit.SECONDS)
@@ -197,7 +197,7 @@ public class TestSmartPinningPartitionNodeMapper
         SmartPinningPartitionNodeMapper mapper;
         mapper = new SmartPinningPartitionNodeMapper(EXCHANGE_ID, discoveryManager, executor, 4, 4, 32, Duration.succinctDuration(1000, TimeUnit.MILLISECONDS));
 
-        ListenableFuture<Map<Integer, Long>> mappingFuture = mapper.getMapping(0);
+        ListenableFuture<PartitionNodeMapping> mappingFuture = mapper.getMapping(0);
         assertThat(mappingFuture).isNotDone();
         Thread.sleep(200);
         assertThat(mappingFuture).isNotDone(); // still not done
@@ -205,7 +205,7 @@ public class TestSmartPinningPartitionNodeMapper
         discoveryManager.setBufferNodes(builder -> LongStream.range(0, 2).forEach(nodeId -> builder.putNode(nodeId, ACTIVE)));
         assertThat(mappingFuture)
                 .succeedsWithin(5, TimeUnit.SECONDS);
-        assertThat(getFutureValue(mappingFuture)).hasSize(4);
+        assertThat(getFutureValue(mappingFuture).mapping()).hasSize(4);
     }
 
     private void assertEvenNodesDistribution(
@@ -219,7 +219,7 @@ public class TestSmartPinningPartitionNodeMapper
         int probesCount = 10000;
         int expectedProbesPerNode = probesCount / expectedNodesPerPartition;
         for (int i = 0; i < probesCount; ++i) {
-            Map<Integer, Long> mapping = getFutureValue(mapper.getMapping(0));
+            Map<Integer, Long> mapping = getFutureValue(mapper.getMapping(0)).mapping();
             mapping.forEach((partition, nodeId) -> partitionNodeCountMap.computeIfAbsent(partition, (k) -> new HashMap<>()).merge(nodeId, 1L, Long::sum));
             mapping.forEach((partition, nodeId) -> nodeCountMap.merge(nodeId, 1L, Long::sum));
         }
@@ -244,7 +244,7 @@ public class TestSmartPinningPartitionNodeMapper
         ImmutableSetMultimap.Builder<Integer, Long> distribution = ImmutableSetMultimap.builder();
         int probesCount = 10000;
         for (int i = 0; i < probesCount; ++i) {
-            Map<Integer, Long> mapping = getFutureValue(mapper.getMapping(0));
+            Map<Integer, Long> mapping = getFutureValue(mapper.getMapping(0)).mapping();
             mapping.forEach(distribution::put);
         }
         return distribution.build();
