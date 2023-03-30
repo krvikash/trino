@@ -320,11 +320,6 @@ public class SmartPinningPartitionNodeMapper
         previousActiveNodes = ImmutableSet.copyOf(activeNodes.keySet());
     }
 
-    public Collection<Long> getPartitionBaseMapping(int partition)
-    {
-        return partitionToNode.get(partition);
-    }
-
     @GuardedBy("this")
     private void incrementNodeUsage(long nodeId)
     {
