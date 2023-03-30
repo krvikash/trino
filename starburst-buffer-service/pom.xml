@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>133</version>
+        <version>134</version>
     </parent>
 
     <groupId>io.starburst.stargate.buffer</groupId>
@@ -35,10 +35,10 @@
         <air.java.version>17.0.1</air.java.version>
         <project.build.targetJdk>17</project.build.targetJdk>
 
-        <dep.airlift.version>225</dep.airlift.version>
+        <dep.airlift.version>228</dep.airlift.version>
         <dep.slice.version>0.45</dep.slice.version>
         <dep.errorprone.version>2.18.0</dep.errorprone.version>
-        <dep.trino.version>410</dep.trino.version>
+        <dep.trino.version>411</dep.trino.version>
         <dep.joda.version>2.12.2</dep.joda.version> <!-- required by Trino 406 -->
         <dep.datadog-agent.version>0.114.0</dep.datadog-agent.version>
 
@@ -189,6 +189,12 @@
             </dependency>
 
             <dependency>
+                <groupId>com.github.ben-manes.caffeine</groupId>
+                <artifactId>caffeine</artifactId>
+                <version>3.0.5</version>
+            </dependency>
+
+            <dependency>
                 <groupId>com.google.api</groupId>
                 <artifactId>api-common</artifactId>
                 <version>2.1.5</version>
@@ -315,7 +321,7 @@
             <dependency>
                 <groupId>io.airlift</groupId>
                 <artifactId>units</artifactId>
-                <version>1.7</version>
+                <version>1.8</version>
             </dependency>
 
             <dependency>
@@ -355,10 +361,23 @@
                 <version>1.1</version>
             </dependency>
 
+            <!-- force newer version to be used for dependencies -->
+            <dependency>
+                <groupId>net.bytebuddy</groupId>
+                <artifactId>byte-buddy</artifactId>
+                <version>1.14.1</version>
+            </dependency>
+
             <dependency>
                 <groupId>org.awaitility</groupId>
                 <artifactId>awaitility</artifactId>
                 <version>4.1.1</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.checkerframework</groupId>
+                <artifactId>checker-qual</artifactId>
+                <version>3.25.0</version>
             </dependency>
 
             <dependency>
@@ -386,6 +405,12 @@
     <build>
         <pluginManagement>
             <plugins>
+                <plugin>
+                    <groupId>ca.vanzyl.provisio.maven.plugins</groupId>
+                    <artifactId>provisio-maven-plugin</artifactId>
+                    <version>1.0.18</version>
+                </plugin>
+
                 <plugin>
                     <groupId>com.github.eirslett</groupId>
                     <artifactId>frontend-maven-plugin</artifactId>

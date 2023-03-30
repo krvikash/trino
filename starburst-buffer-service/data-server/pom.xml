@@ -293,7 +293,7 @@
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
             <scope>test</scope>
-            <version>1.17.3</version>
+            <version>1.17.6</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.osgi</groupId>
