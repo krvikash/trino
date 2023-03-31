@@ -225,7 +225,7 @@ public class SmartPinningPartitionNodeMapper
         }
         previousBufferNodeStateTimestamp = bufferNodesState.getTimestamp();
 
-        if (bufferNodesState.getAllBufferNodes().equals(previousActiveNodes)) {
+        if (bufferNodesState.getActiveBufferNodes().equals(previousActiveNodes)) {
             // nothing changed
             return;
         }
