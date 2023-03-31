@@ -38,7 +38,7 @@ public class SmartPinningPartitionNodeMapperFactory
     }
 
     @Override
-    public PartitionNodeMapper getPartitionNodeMapper(ExchangeId exchangeId, int outputPartitionCount)
+    public PartitionNodeMapper getPartitionNodeMapper(ExchangeId exchangeId, int outputPartitionCount, boolean preserveOrderWithinPartition)
     {
         return new SmartPinningPartitionNodeMapper(
                 exchangeId,

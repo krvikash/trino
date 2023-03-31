@@ -13,5 +13,5 @@ import io.trino.spi.exchange.ExchangeId;
 
 public interface PartitionNodeMapperFactory
 {
-    PartitionNodeMapper getPartitionNodeMapper(ExchangeId exchangeId, int outputPartitionCount);
+    PartitionNodeMapper getPartitionNodeMapper(ExchangeId exchangeId, int outputPartitionCount, boolean preserveOrderWithinPartition);
 }

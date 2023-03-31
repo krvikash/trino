@@ -27,7 +27,7 @@ public class PinningPartitionNodeMapperFactory
     }
 
     @Override
-    public PartitionNodeMapper getPartitionNodeMapper(ExchangeId exchangeId, int outputPartitionCount)
+    public PartitionNodeMapper getPartitionNodeMapper(ExchangeId exchangeId, int outputPartitionCount, boolean preserveOrderWithinPartition)
     {
         return new PinningPartitionNodeMapper(discoveryManager, outputPartitionCount);
     }

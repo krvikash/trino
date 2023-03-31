@@ -27,7 +27,7 @@ public class RandomPartitionNodeMapperFactory
     }
 
     @Override
-    public PartitionNodeMapper getPartitionNodeMapper(ExchangeId exchangeId, int outputPartitionCount)
+    public PartitionNodeMapper getPartitionNodeMapper(ExchangeId exchangeId, int outputPartitionCount, boolean preserveOrderWithinPartition)
     {
         return new RandomPartitionNodeMapper(discoveryManager, outputPartitionCount);
     }
