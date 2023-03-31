@@ -30,14 +30,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class TestSinkDataPool
 {
     @Test
-    public void testPoolsFromEmpty()
+    public void testPollsFromEmpty()
     {
         SinkDataPool dataPool = newDataPool(4, DataSize.of(8, MEGABYTE), 2);
         assertThat(dataPool.pollBest(ImmutableSet.of(1, 2), false)).isEmpty();
     }
 
     @Test
-    public void testPoolsOnlyFromTracked()
+    public void testPollsOnlyFromTracked()
     {
         SinkDataPool dataPool = newDataPool(4, DataSize.of(8, MEGABYTE), 2);
         // add data for 3
@@ -47,7 +47,7 @@ class TestSinkDataPool
     }
 
     @Test
-    public void testPoolsUpToTargetPagesCount()
+    public void testPollsUpToTargetPagesCount()
     {
         SinkDataPool dataPool = newDataPool(4, DataSize.of(8, MEGABYTE), 4);
         dataPool.add(1, utf8Slice("page1"));
@@ -66,7 +66,7 @@ class TestSinkDataPool
     }
 
     @Test
-    public void testPoolsUpToTargetPagesSize()
+    public void testPollsUpToTargetPagesSize()
     {
         SinkDataPool dataPool = newDataPool(8, DataSize.of(16, BYTE), 4);
         dataPool.add(1, utf8Slice("page1"));
@@ -83,7 +83,7 @@ class TestSinkDataPool
     }
 
     @Test
-    public void testPoolsUpToTargetPartitionsCount()
+    public void testPollsUpToTargetPartitionsCount()
     {
         SinkDataPool dataPool = newDataPool(8, DataSize.of(8, MEGABYTE), 2);
         // add data for 3
@@ -205,7 +205,7 @@ class TestSinkDataPool
     }
 
     @Test
-    public void testPoolsBiggestPartitions()
+    public void testPollsBiggestPartitions()
     {
         SinkDataPool dataPool = newDataPool(4, DataSize.of(8, MEGABYTE), 4);
         dataPool.add(1, utf8Slice("page1"));
