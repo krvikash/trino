@@ -9,18 +9,20 @@
  */
 package io.starburst.stargate.buffer.trino.exchange;
 
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeStats;
 
 import javax.annotation.concurrent.GuardedBy;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.IntStream;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static java.lang.Math.max;
 
@@ -83,9 +85,9 @@ public class PinningPartitionNodeMapper
                     return (memoryWeight + chunksWeight) / 2;
                 });
 
-        ImmutableMap.Builder<Integer, Long> mapping = ImmutableMap.builder();
+        ImmutableListMultimap.Builder<Integer, Long> mapping = ImmutableListMultimap.builder();
         IntStream.range(0, outputPartitionCount).forEach(partition -> mapping.put(partition, selector.next().nodeId()));
-        return new PartitionNodeMapping(mapping.buildOrThrow());
+        return new PartitionNodeMapping(mapping.build());
     }
 
     @Override
@@ -94,20 +96,21 @@ public class PinningPartitionNodeMapper
         checkState(currentMapping != null, "currentMapping should be already set");
         Map<Long, BufferNodeInfo> activeBufferNodes = discoveryManager.getBufferNodes().getActiveBufferNodes();
         PartitionNodeMapping newMapping = computeMapping();
-        ImmutableMap.Builder<Integer, Long> finalMapping = ImmutableMap.builder();
+        ImmutableListMultimap.Builder<Integer, Long> finalMapping = ImmutableListMultimap.builder();
 
-        for (Map.Entry<Integer, Long> entry : currentMapping.mapping().entrySet()) {
+        for (Map.Entry<Integer, Collection<Long>> entry : currentMapping.getMapping().asMap().entrySet()) {
             Integer partition = entry.getKey();
-            Long oldBufferNodeId = entry.getValue();
+            Long oldBufferNodeId = getOnlyElement(entry.getValue());
             if (activeBufferNodes.containsKey(oldBufferNodeId)) {
                 // keep old mapping entry
                 finalMapping.put(partition, oldBufferNodeId);
             }
             else {
                 // use new mapping
-                finalMapping.put(partition, newMapping.mapping().get(partition));
+
+                finalMapping.put(partition, getOnlyElement(newMapping.getMapping().get(partition)));
             }
         }
-        currentMapping = new PartitionNodeMapping(finalMapping.buildOrThrow());
+        currentMapping = new PartitionNodeMapping(finalMapping.build());
     }
 }

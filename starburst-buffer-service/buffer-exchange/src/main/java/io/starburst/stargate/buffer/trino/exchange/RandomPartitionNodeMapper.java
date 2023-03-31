@@ -9,7 +9,7 @@
  */
 package io.starburst.stargate.buffer.trino.exchange;
 
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeStats;
@@ -47,9 +47,9 @@ public class RandomPartitionNodeMapper
     {
         RandomSelector<BufferNodeInfo> selector = getBufferNodeSelector();
 
-        ImmutableMap.Builder<Integer, Long> mapping = ImmutableMap.builder();
+        ImmutableListMultimap.Builder<Integer, Long> mapping = ImmutableListMultimap.builder();
         IntStream.range(0, outputPartitionCount).forEach(partition -> mapping.put(partition, selector.next().nodeId()));
-        return immediateFuture(new PartitionNodeMapping(mapping.buildOrThrow()));
+        return immediateFuture(new PartitionNodeMapping(mapping.build()));
     }
 
     @GuardedBy("this")

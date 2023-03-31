@@ -11,6 +11,7 @@ package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSetMultimap;
+import com.google.common.collect.ListMultimap;
 import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
 import com.google.common.math.Stats;
@@ -40,6 +41,7 @@ import static io.airlift.units.Duration.succinctNanos;
 import static io.starburst.stargate.buffer.BufferNodeState.ACTIVE;
 import static io.starburst.stargate.buffer.BufferNodeState.DRAINING;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.guava.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 @TestInstance(PER_CLASS)
@@ -205,7 +207,7 @@ public class TestSmartPinningPartitionNodeMapper
         discoveryManager.setBufferNodes(builder -> LongStream.range(0, 2).forEach(nodeId -> builder.putNode(nodeId, ACTIVE)));
         assertThat(mappingFuture)
                 .succeedsWithin(5, TimeUnit.SECONDS);
-        assertThat(getFutureValue(mappingFuture).mapping()).hasSize(4);
+        assertThat(getFutureValue(mappingFuture).getMapping()).hasSize(4);
     }
 
     private void assertEvenNodesDistribution(
@@ -219,7 +221,7 @@ public class TestSmartPinningPartitionNodeMapper
         int probesCount = 10000;
         int expectedProbesPerNode = probesCount / expectedNodesPerPartition;
         for (int i = 0; i < probesCount; ++i) {
-            Map<Integer, Long> mapping = getFutureValue(mapper.getMapping(0)).mapping();
+            ListMultimap<Integer, Long> mapping = getFutureValue(mapper.getMapping(0)).getMapping();
             mapping.forEach((partition, nodeId) -> partitionNodeCountMap.computeIfAbsent(partition, (k) -> new HashMap<>()).merge(nodeId, 1L, Long::sum));
             mapping.forEach((partition, nodeId) -> nodeCountMap.merge(nodeId, 1L, Long::sum));
         }
@@ -244,7 +246,7 @@ public class TestSmartPinningPartitionNodeMapper
         ImmutableSetMultimap.Builder<Integer, Long> distribution = ImmutableSetMultimap.builder();
         int probesCount = 10000;
         for (int i = 0; i < probesCount; ++i) {
-            Map<Integer, Long> mapping = getFutureValue(mapper.getMapping(0)).mapping();
+            ListMultimap<Integer, Long> mapping = getFutureValue(mapper.getMapping(0)).getMapping();
             mapping.forEach(distribution::put);
         }
         return distribution.build();

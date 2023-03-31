@@ -401,6 +401,12 @@
             </dependency>
 
             <dependency>
+                <groupId>org.assertj</groupId>
+                <artifactId>assertj-guava</artifactId>
+                <version>${dep.assertj-core.version}</version>
+            </dependency>
+
+            <dependency>
                 <groupId>org.awaitility</groupId>
                 <artifactId>awaitility</artifactId>
                 <version>4.1.1</version>

@@ -29,7 +29,6 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -37,6 +36,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
 import static java.util.Objects.requireNonNull;
 
@@ -58,9 +58,6 @@ public class SinkDataPool
     private final Map<Integer, Deque<Slice>> dataQueues = new HashMap<>();
     @GuardedBy("this")
     private final Map<Integer, AtomicLong> dataQueueBytes = new HashMap<>();
-    @GuardedBy("this")
-    private final Set<Integer> currentPolls = new HashSet<>();
-
     @GuardedBy("this")
     private volatile long memoryUsageBytes;
     @GuardedBy("this")
@@ -99,7 +96,7 @@ public class SinkDataPool
         checkArgument(!noMoreData, "cannot add data if noMoreData is already set");
         Deque<Slice> queue = getDataQueue(partitionId);
         queue.add(data);
-        dataQueueBytes.computeIfAbsent(partitionId, ignored -> new AtomicLong()).addAndGet(data.length());
+        getDataQueueBytes(partitionId).addAndGet(data.length());
         long retainedSize = data.getRetainedSize();
         verify(retainedSize > 0, "expected retainedSize to be greater than 0; got %s for %s", retainedSize, data);
         updateMemoryUsage(retainedSize);
@@ -200,10 +197,19 @@ public class SinkDataPool
                 break; // collected enough
             }
 
-            checkArgument(!currentPolls.contains(partition), "poll already exists for partition %s", partition);
+            if (getDataQueueBytes(partition).get() == 0) {
+                break; // no need to go further; all following queues will be empty
+                // note: the fact that we can bail out here comes from the fact that we only decrement dataQueueBytes when we commit PollResult
+            }
+
             Deque<Slice> queue = dataQueues.get(partition);
-            if (queue == null || queue.isEmpty()) {
+            if (queue == null) {
                 break; // no need to go further when we see first empty queue
+            }
+
+            if (queue.isEmpty()) {
+                // uncommitted data polled from queue; we have no guarantee following queues are empty
+                continue;
             }
 
             while (polledPagesCount < targetWrittenPagesCount && polledPagesSize < targetWrittenPagesSizeInBytes) {
@@ -217,7 +223,6 @@ public class SinkDataPool
                 resultEmpty = false;
             }
             polledPartitionsCount++;
-            currentPolls.add(partition);
         }
 
         if (resultEmpty) {
@@ -249,6 +254,7 @@ public class SinkDataPool
     public class PollResult
     {
         private final ListMultimap<Integer, Slice> dataByPartition;
+        private boolean done;
 
         public PollResult(ListMultimap<Integer, Slice> dataByPartition)
         {
@@ -263,6 +269,7 @@ public class SinkDataPool
 
         public void commit()
         {
+            markDone();
             boolean poolFinished = false;
             synchronized (SinkDataPool.this) {
                 for (Map.Entry<Integer, Collection<Slice>> entry : dataByPartition.asMap().entrySet()) {
@@ -276,10 +283,8 @@ public class SinkDataPool
                         dataSize += slice.length();
                         retainedSize += slice.getRetainedSize();
                     }
-                    dataQueueBytes.computeIfAbsent(partition, ignored -> new AtomicLong()).addAndGet(-dataSize);
+                    getDataQueueBytes(partition).addAndGet(-dataSize);
                     updateMemoryUsage(-retainedSize);
-
-                    verify(currentPolls.remove(partition), "poll was not registered; %s", partition);
                 }
 
                 if (noMoreData && memoryUsageBytes == 0) {
@@ -294,6 +299,7 @@ public class SinkDataPool
 
         public void rollback()
         {
+            markDone();
             synchronized (SinkDataPool.this) {
                 for (Map.Entry<Integer, Collection<Slice>> entry : dataByPartition.asMap().entrySet()) {
                     int partition = entry.getKey();
@@ -304,9 +310,14 @@ public class SinkDataPool
                     for (Slice slice : Lists.reverse(data)) {
                         dataQueue.addFirst(slice);
                     }
-                    verify(currentPolls.remove(partition), "poll was not registered; %s", partition);
                 }
             }
+        }
+
+        private void markDone()
+        {
+            checkState(!done, "already done");
+            done = true;
         }
     }
 }

@@ -10,10 +10,11 @@
 package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.base.Ticker;
-import com.google.common.collect.ImmutableMultimap;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimap;
-import com.google.common.collect.Multimaps;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.concurrent.MoreFutures;
 import io.airlift.log.Logger;
@@ -27,11 +28,13 @@ import javax.annotation.concurrent.GuardedBy;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -60,7 +63,7 @@ public class BufferExchangeSink
     @GuardedBy("this")
     private Map<Long, SinkWriter> writers; // buffer node -> writer
     @GuardedBy("this")
-    private Map<Integer, SinkWriter> writersByPartition; // managed partition -> writer
+    private ListMultimap<Integer, SinkWriter> writersByPartition; // managed partition -> writer
 
     @GuardedBy("this")
     private boolean handleUpdateInProgress;
@@ -116,9 +119,9 @@ public class BufferExchangeSink
         verify(writers == null || writers.isEmpty(), "writers already set");
         verify(writersByPartition == null || writersByPartition.isEmpty(), "writers by partition already set");
 
-        Multimap<Long, Integer> bufferNodeToPartition = ImmutableMultimap.copyOf(Multimaps.forMap(mapping.mapping())).inverse();
+        Multimap<Long, Integer> bufferNodeToPartition = ImmutableListMultimap.copyOf(mapping.getMapping()).inverse();
         Map<Long, SinkWriter> newWriters = new HashMap<>();
-        Map<Integer, SinkWriter> newWritersByPartition = new HashMap<>();
+        ListMultimap<Integer, SinkWriter> newWritersByPartition = ArrayListMultimap.create();
         for (Map.Entry<Long, Collection<Integer>> entry : bufferNodeToPartition.asMap().entrySet()) {
             long bufferNodeId = entry.getKey();
             Set<Integer> managedPartitions = ImmutableSet.copyOf(entry.getValue());
@@ -207,12 +210,11 @@ public class BufferExchangeSink
     @GuardedBy("this")
     private void removeWriter(long bufferNodeId)
     {
-        SinkWriter removed = writers.remove(bufferNodeId);
-        verify(removed != null, "no writer found for buffer node %d", bufferNodeId);
-        for (Integer partition : removed.getManagedPartitions()) {
-            SinkWriter removedByPartition = writersByPartition.remove(partition);
-            verify(removedByPartition != null, "no writer found for partition %d", partition);
-            verify(removedByPartition == removed, "expected writer for buffer node %d be responsible for partition %d", bufferNodeId, partition);
+        SinkWriter removedWriter = writers.remove(bufferNodeId);
+        verify(removedWriter != null, "no writer found for buffer node %d", bufferNodeId);
+        for (Integer partition : removedWriter.getManagedPartitions()) {
+            boolean removedByPartition = writersByPartition.remove(partition, removedWriter);
+            verify(removedByPartition, "no writer %s found for partition %d", removedWriter, partition);
         }
     }
 
@@ -353,13 +355,16 @@ public class BufferExchangeSink
         dataPool.add(partitionId, data);
 
         SinkWriter sinkWriter;
+        int writerSelector = Math.abs(ThreadLocalRandom.current().nextInt());
         synchronized (this) {
-            sinkWriter = writersByPartition.get(partitionId);
+            List<SinkWriter> sinkWriters = writersByPartition.get(partitionId);
+            if (sinkWriters.isEmpty()) {
+                // writer may be unavailable if we are in progress of writers update
+                return;
+            }
+            sinkWriter = sinkWriters.get(writerSelector % sinkWriters.size());
         }
-        if (sinkWriter != null) {
-            // can be null if we are in progress of writers update
-            sinkWriter.scheduleWriting(false);
-        }
+        sinkWriter.scheduleWriting(false);
     }
 
     @Override

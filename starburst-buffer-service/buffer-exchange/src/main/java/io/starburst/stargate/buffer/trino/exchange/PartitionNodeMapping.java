@@ -10,9 +10,13 @@
 package io.starburst.stargate.buffer.trino.exchange;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ListMultimap;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -20,16 +24,35 @@ import static java.util.Objects.requireNonNull;
 
 public final class PartitionNodeMapping
 {
-    private final Map<Integer, Long> mapping;
+    private final ListMultimap<Integer, Long> mapping;
 
-    @JsonCreator
-    public PartitionNodeMapping(@JsonProperty("mapping") Map<Integer, Long> mapping)
+    public PartitionNodeMapping(ListMultimap<Integer, Long> mapping)
     {
-        this.mapping = ImmutableMap.copyOf(requireNonNull(mapping, "mapping is null"));
+        this.mapping = ImmutableListMultimap.copyOf(requireNonNull(mapping, "mapping is null"));
     }
 
-    @JsonProperty
-    public Map<Integer, Long> mapping()
+    @JsonCreator
+    // specialized @JsonCreator as we cannot use ListMultimap for JSON serialization in this context
+    @Deprecated
+    public static PartitionNodeMapping createFromMappingAsMap(@JsonProperty("mapping") Map<Integer, List<Long>> mappingAsMap)
+    {
+        requireNonNull(mappingAsMap, "mappingAsMap is null");
+        ImmutableListMultimap.Builder<Integer, Long> mappingBuilder = ImmutableListMultimap.builder();
+        mappingAsMap.forEach(mappingBuilder::putAll);
+        return new PartitionNodeMapping(mappingBuilder.build());
+    }
+
+    @JsonProperty("mapping")
+    @Deprecated // just for JSON serialization
+    public Map<Integer, List<Long>> getMappingAsMap()
+    {
+        ImmutableMap.Builder<Integer, List<Long>> builder = ImmutableMap.builder();
+        mapping.asMap().forEach((key, value) -> builder.put(key, (List<Long>) value));
+        return builder.buildOrThrow();
+    }
+
+    @JsonIgnore
+    public ListMultimap<Integer, Long> getMapping()
     {
         return mapping;
     }

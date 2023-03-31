@@ -161,7 +161,7 @@ public class BufferExchange
             {
                 synchronized (BufferExchange.this) {
                     try {
-                        for (Long nodeId : newMapping.mapping().values()) {
+                        for (Long nodeId : newMapping.getMapping().values()) {
                             addBufferNodeToPoll(nodeId);
                         }
                         resultFuture.complete(new BufferExchangeSinkInstanceHandle(

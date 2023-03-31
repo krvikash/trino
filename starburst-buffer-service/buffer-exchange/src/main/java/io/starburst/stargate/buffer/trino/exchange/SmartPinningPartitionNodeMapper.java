@@ -10,7 +10,7 @@
 package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.collect.HashMultimap;
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
 import com.google.common.util.concurrent.Futures;
@@ -132,7 +132,7 @@ public class SmartPinningPartitionNodeMapper
             synchronized (SmartPinningPartitionNodeMapper.this) {
                 updateBaseMapping(bufferNodesState);
 
-                ImmutableMap.Builder<Integer, Long> mapping = ImmutableMap.builder();
+                ImmutableListMultimap.Builder<Integer, Long> mapping = ImmutableListMultimap.builder();
                 IntStream.range(0, outputPartitionCount).forEach(partition -> {
                     List<BufferNodeInfo> candidateNodes = partitionToNode.get(partition).stream()
                             .map(nodeId -> bufferNodesState.getActiveBufferNodes().get(nodeId))
@@ -141,7 +141,7 @@ public class SmartPinningPartitionNodeMapper
                     RandomSelector<BufferNodeInfo> bufferNodeInfoRandomSelector = buildNodeSelector(candidateNodes);
                     mapping.put(partition, bufferNodeInfoRandomSelector.next().nodeId());
                 });
-                return new PartitionNodeMapping(mapping.buildOrThrow());
+                return new PartitionNodeMapping(mapping.build());
             }
         },
         directExecutor());

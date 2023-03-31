@@ -233,6 +233,69 @@ class TestSinkDataPool
     }
 
     @Test
+    public void testPollSamePartitionTwice()
+    {
+        SinkDataPool dataPool = newDataPool(2, DataSize.of(8, MEGABYTE), 2);
+        dataPool.add(1, utf8Slice("page1"));
+        dataPool.add(1, utf8Slice("page2"));
+        dataPool.add(1, utf8Slice("page3"));
+        dataPool.add(2, utf8Slice("page4"));
+
+        Optional<SinkDataPool.PollResult> pollResult1 = dataPool.pollBest(ImmutableSet.of(1, 2), false);
+        assertThat(pollResult1).isPresent();
+        assertThat(pollResult1.get().getDataByPartition()).isEqualTo(ImmutableListMultimap.of(
+                1, utf8Slice("page1"),
+                1, utf8Slice("page2")));
+
+        Optional<SinkDataPool.PollResult> pollResult2 = dataPool.pollBest(ImmutableSet.of(1, 2), false);
+        assertThat(pollResult2).isPresent();
+        assertThat(pollResult2.get().getDataByPartition()).isEqualTo(ImmutableListMultimap.of(
+                1, utf8Slice("page3"),
+                2, utf8Slice("page4")));
+
+        // rollback one
+        pollResult1.get().rollback();
+
+        Optional<SinkDataPool.PollResult> pollResult3 = dataPool.pollBest(ImmutableSet.of(1, 2), false);
+        assertThat(pollResult3).isPresent();
+        assertThat(pollResult3.get().getDataByPartition()).isEqualTo(ImmutableListMultimap.of(
+                1, utf8Slice("page1"),
+                1, utf8Slice("page2")));
+
+        // all data borrowed
+        assertThat(dataPool.pollBest(ImmutableSet.of(1, 2), false)).isEmpty();
+
+        // commit one
+        pollResult2.get().commit();
+        assertThat(dataPool.pollBest(ImmutableSet.of(1, 2), false)).isEmpty();
+
+        // commit another
+        pollResult3.get().commit();
+        assertThat(dataPool.pollBest(ImmutableSet.of(1, 2), false)).isEmpty();
+    }
+
+    @Test
+    public void testPollSamePartitionTwiceDoNotStopOnEmptyNonCommittedPartition()
+    {
+        SinkDataPool dataPool = newDataPool(2, DataSize.of(8, MEGABYTE), 2);
+        dataPool.add(1, utf8Slice("page1"));
+        dataPool.add(1, utf8Slice("page2"));
+        dataPool.add(2, utf8Slice("page4"));
+
+        Optional<SinkDataPool.PollResult> pollResult1 = dataPool.pollBest(ImmutableSet.of(1, 2), false);
+        assertThat(pollResult1).isPresent();
+        assertThat(pollResult1.get().getDataByPartition()).isEqualTo(ImmutableListMultimap.of(
+                1, utf8Slice("page1"),
+                1, utf8Slice("page2")));
+
+        // partition 1 is empty now
+        Optional<SinkDataPool.PollResult> pollResult2 = dataPool.pollBest(ImmutableSet.of(1, 2), false);
+        assertThat(pollResult2).isPresent();
+        assertThat(pollResult2.get().getDataByPartition()).isEqualTo(ImmutableListMultimap.of(
+                2, utf8Slice("page4")));
+    }
+
+    @Test
     public void testPollMinCountMinSizeMaxWait()
     {
         TestingTicker ticker = new TestingTicker();
