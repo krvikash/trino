@@ -20,8 +20,9 @@ import io.airlift.units.Duration;
 import io.trino.spi.exchange.ExchangeId;
 import org.assertj.core.data.Percentage;
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -41,7 +42,6 @@ import static io.airlift.units.Duration.succinctNanos;
 import static io.starburst.stargate.buffer.BufferNodeState.ACTIVE;
 import static io.starburst.stargate.buffer.BufferNodeState.DRAINING;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.guava.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 @TestInstance(PER_CLASS)
@@ -58,84 +58,95 @@ public class TestSmartPinningPartitionNodeMapper
         executor.shutdownNow();
     }
 
-    @Test
-    void testBasicMapping()
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void testBasicMapping(boolean preserveOrderWithinPartition)
     {
         TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
         discoveryManager.setBufferNodes(builder -> LongStream.range(0, 10).forEach(nodeId -> builder.putNode(nodeId, ACTIVE)));
 
         assertEvenNodesDistribution(
-                new SmartPinningPartitionNodeMapper(EXCHANGE_ID, discoveryManager, executor, 1, 2, 4, NO_WAIT),
+                new SmartPinningPartitionNodeMapper(EXCHANGE_ID, discoveryManager, executor, 1, preserveOrderWithinPartition, 2, 4, NO_WAIT),
                 1,
                 4,
-                4);
+                4,
+                preserveOrderWithinPartition);
 
         assertEvenNodesDistribution(
-                new SmartPinningPartitionNodeMapper(EXCHANGE_ID, discoveryManager, executor, 2, 2, 4, NO_WAIT),
+                new SmartPinningPartitionNodeMapper(EXCHANGE_ID, discoveryManager, executor, 2, preserveOrderWithinPartition, 2, 4, NO_WAIT),
                 2,
                 4,
-                8);
+                8,
+                preserveOrderWithinPartition);
 
         assertEvenNodesDistribution(
-                new SmartPinningPartitionNodeMapper(EXCHANGE_ID, discoveryManager, executor, 3, 2, 4, NO_WAIT),
+                new SmartPinningPartitionNodeMapper(EXCHANGE_ID, discoveryManager, executor, 3, preserveOrderWithinPartition, 2, 4, NO_WAIT),
                 3,
                 4,
-                10);
+                10,
+                preserveOrderWithinPartition);
 
         assertEvenNodesDistribution(
-                new SmartPinningPartitionNodeMapper(EXCHANGE_ID, discoveryManager, executor, 5, 2, 4, NO_WAIT),
+                new SmartPinningPartitionNodeMapper(EXCHANGE_ID, discoveryManager, executor, 5, preserveOrderWithinPartition, 2, 4, NO_WAIT),
                 5,
                 2,
-                10);
+                10,
+                preserveOrderWithinPartition);
 
         assertEvenNodesDistribution(
-                new SmartPinningPartitionNodeMapper(EXCHANGE_ID, discoveryManager, executor, 10, 2, 4, NO_WAIT),
+                new SmartPinningPartitionNodeMapper(EXCHANGE_ID, discoveryManager, executor, 10, preserveOrderWithinPartition, 2, 4, NO_WAIT),
                 10,
                 2,
-                10);
+                10,
+                preserveOrderWithinPartition);
 
         assertEvenNodesDistribution(
-                new SmartPinningPartitionNodeMapper(EXCHANGE_ID, discoveryManager, executor, 20, 2, 4, NO_WAIT),
+                new SmartPinningPartitionNodeMapper(EXCHANGE_ID, discoveryManager, executor, 20, preserveOrderWithinPartition, 2, 4, NO_WAIT),
                 20,
                 2,
-                10);
+                10,
+                preserveOrderWithinPartition);
 
         // large cluster
         discoveryManager.setBufferNodes(builder -> LongStream.range(0, 1000).forEach(nodeId -> builder.putNode(nodeId, ACTIVE)));
 
         assertEvenNodesDistribution(
-                new SmartPinningPartitionNodeMapper(EXCHANGE_ID, discoveryManager, executor, 1, 4, 32, NO_WAIT),
+                new SmartPinningPartitionNodeMapper(EXCHANGE_ID, discoveryManager, executor, 1, preserveOrderWithinPartition, 4, 32, NO_WAIT),
                 1,
                 32,
-                32);
+                32,
+                preserveOrderWithinPartition);
 
         assertEvenNodesDistribution(
-                new SmartPinningPartitionNodeMapper(EXCHANGE_ID, discoveryManager, executor, 100, 4, 32, NO_WAIT),
+                new SmartPinningPartitionNodeMapper(EXCHANGE_ID, discoveryManager, executor, 100, preserveOrderWithinPartition, 4, 32, NO_WAIT),
                 100,
                 10,
-                1000);
+                1000,
+                preserveOrderWithinPartition);
 
         assertEvenNodesDistribution(
-                new SmartPinningPartitionNodeMapper(EXCHANGE_ID, discoveryManager, executor, 1000, 4, 32, NO_WAIT),
+                new SmartPinningPartitionNodeMapper(EXCHANGE_ID, discoveryManager, executor, 1000, preserveOrderWithinPartition, 4, 32, NO_WAIT),
                 1000,
                 4,
-                1000);
+                1000,
+                preserveOrderWithinPartition);
     }
 
-    @Test
-    void testChangeBufferNodeState()
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void testChangeBufferNodeState(boolean preserveOrderWithinPartition)
     {
         TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
         SmartPinningPartitionNodeMapper mapper;
 
         discoveryManager.setBufferNodes(builder -> LongStream.range(0, 100).forEach(nodeId -> builder.putNode(nodeId, ACTIVE)));
-        mapper = new SmartPinningPartitionNodeMapper(EXCHANGE_ID, discoveryManager, executor, 8, 4, 32, NO_WAIT);
-        assertEvenNodesDistribution(mapper, 8, 13, 100);
+        mapper = new SmartPinningPartitionNodeMapper(EXCHANGE_ID, discoveryManager, executor, 8, preserveOrderWithinPartition, 4, 32, NO_WAIT);
+        assertEvenNodesDistribution(mapper, 8, 13, 100, preserveOrderWithinPartition);
         SetMultimap<Integer, Long> distributionAllActive = getFullDistribution(mapper);
 
         discoveryManager.updateBufferNodes(builder -> LongStream.range(0, 25).forEach(nodeId -> builder.putNode(nodeId, DRAINING)));
         discoveryManager.updateBufferNodes(builder -> LongStream.range(25, 50).forEach(builder::removeNode));
-        assertEvenNodesDistribution(mapper, 8, 7, 50);
+        assertEvenNodesDistribution(mapper, 8, 7, 50, preserveOrderWithinPartition);
         SetMultimap<Integer, Long> distributionHalfDrained = getFullDistribution(mapper);
 
         // check if we reuse as much as possible of old assignment
@@ -151,7 +162,7 @@ public class TestSmartPinningPartitionNodeMapper
 
         // add some new nodes
         discoveryManager.updateBufferNodes(builder -> LongStream.range(100, 200).forEach(nodeId -> builder.putNode(nodeId, ACTIVE)));
-        assertEvenNodesDistribution(mapper, 8, 19, 150);
+        assertEvenNodesDistribution(mapper, 8, 19, 150, preserveOrderWithinPartition);
         SetMultimap<Integer, Long> distributionMoreAdded = getFullDistribution(mapper);
 
         int droppedOldMappingNodes = 0;
@@ -165,23 +176,25 @@ public class TestSmartPinningPartitionNodeMapper
         assertThat(droppedOldMappingNodes).isEqualTo(4); // 4 nodes will be moved due to rebalancing algorithm
     }
 
-    @Test
-    void testClusterSmallerThanMin()
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void testClusterSmallerThanMin(boolean preserveOrderWithinPartition)
     {
         TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
         SmartPinningPartitionNodeMapper mapper;
 
         discoveryManager.setBufferNodes(builder -> LongStream.range(0, 2).forEach(nodeId -> builder.putNode(nodeId, ACTIVE)));
-        mapper = new SmartPinningPartitionNodeMapper(EXCHANGE_ID, discoveryManager, executor, 4, 4, 32, NO_WAIT);
-        assertEvenNodesDistribution(mapper, 4, 2, 2);
+        mapper = new SmartPinningPartitionNodeMapper(EXCHANGE_ID, discoveryManager, executor, 4, preserveOrderWithinPartition, 4, 32, NO_WAIT);
+        assertEvenNodesDistribution(mapper, 4, 2, 2, preserveOrderWithinPartition);
     }
 
-    @Test
-    void testNoActiveNodes()
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void testNoActiveNodes(boolean preserveOrderWithinPartition)
     {
         TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
         SmartPinningPartitionNodeMapper mapper;
-        mapper = new SmartPinningPartitionNodeMapper(EXCHANGE_ID, discoveryManager, executor, 4, 4, 32, Duration.succinctDuration(500, TimeUnit.MILLISECONDS));
+        mapper = new SmartPinningPartitionNodeMapper(EXCHANGE_ID, discoveryManager, executor, 4, preserveOrderWithinPartition, 4, 32, Duration.succinctDuration(500, TimeUnit.MILLISECONDS));
 
         ListenableFuture<PartitionNodeMapping> mappingFuture = mapper.getMapping(0);
         assertThat(mappingFuture).isNotDone();
@@ -191,13 +204,14 @@ public class TestSmartPinningPartitionNodeMapper
                 .withMessageContaining("no ACTIVE buffer nodes available");
     }
 
-    @Test
-    void testActiveNodesAppearWithinTimeout()
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void testActiveNodesAppearWithinTimeout(boolean preserveOrderWithinPartition)
             throws InterruptedException
     {
         TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
         SmartPinningPartitionNodeMapper mapper;
-        mapper = new SmartPinningPartitionNodeMapper(EXCHANGE_ID, discoveryManager, executor, 4, 4, 32, Duration.succinctDuration(1000, TimeUnit.MILLISECONDS));
+        mapper = new SmartPinningPartitionNodeMapper(EXCHANGE_ID, discoveryManager, executor, 4, preserveOrderWithinPartition, 4, 32, Duration.succinctDuration(1000, TimeUnit.MILLISECONDS));
 
         ListenableFuture<PartitionNodeMapping> mappingFuture = mapper.getMapping(0);
         assertThat(mappingFuture).isNotDone();
@@ -207,10 +221,57 @@ public class TestSmartPinningPartitionNodeMapper
         discoveryManager.setBufferNodes(builder -> LongStream.range(0, 2).forEach(nodeId -> builder.putNode(nodeId, ACTIVE)));
         assertThat(mappingFuture)
                 .succeedsWithin(5, TimeUnit.SECONDS);
-        assertThat(getFutureValue(mappingFuture).getMapping()).hasSize(4);
+        assertThat(getFutureValue(mappingFuture).getMapping().keySet()).hasSize(4);
     }
 
     private void assertEvenNodesDistribution(
+            SmartPinningPartitionNodeMapper mapper,
+            int expectedPartitionsCount,
+            int expectedNodesPerPartition,
+            int expectedNodesUsed,
+            boolean preserveOrderWithinPartition)
+    {
+        if (preserveOrderWithinPartition) {
+            assertEvenNodesDistributionPreservingOrder(mapper, expectedPartitionsCount, expectedNodesPerPartition, expectedNodesUsed);
+        }
+        else {
+            assertEvenNodesDistributionNotPreservingOrder(mapper, expectedPartitionsCount, expectedNodesPerPartition, expectedNodesUsed);
+        }
+    }
+
+    private void assertEvenNodesDistributionNotPreservingOrder(
+            SmartPinningPartitionNodeMapper mapper,
+            int expectedPartitionsCount,
+            int expectedNodesPerPartition,
+            int expectedNodesUsed)
+    {
+        ListMultimap<Integer, Long> mapping = getFutureValue(mapper.getMapping(0)).getMapping();
+
+        // check if there are no duplicate partition -> node mappings
+        Map<Integer, Map<Long, Long>> partitionNodeCountMap = new HashMap<>(); // partition -> nodeId -> count
+        mapping.forEach((partition, nodeId) -> partitionNodeCountMap.computeIfAbsent(partition, (k) -> new HashMap<>()).merge(nodeId, 1L, Long::sum));
+        partitionNodeCountMap.forEach((partition, nodeCountMap) ->
+                assertThat(nodeCountMap).allSatisfy((node, count) ->
+                        assertThat(count).isEqualTo(1)));
+
+        // check each partition is mapped to expected number of nodes
+        assertThat(mapping.asMap()).allSatisfy((partition, nodes) -> assertThat(nodes).hasSize(expectedNodesPerPartition));
+
+        // check we use expected number of nodes
+        assertThat(ImmutableSet.copyOf(mapping.values())).hasSize(expectedNodesUsed);
+
+        // check mapping has expected number of partitions
+        assertThat(mapping.keySet()).hasSize(expectedPartitionsCount);
+
+        // check nodes are used uniformly
+        Map<Long, Long> nodeCountMap = new HashMap<>();
+        mapping.forEach((partition, nodeId) -> nodeCountMap.merge(nodeId, 1L, Long::sum));
+        long minPartitionsPerNode = nodeCountMap.values().stream().mapToLong(l -> l).min().orElseThrow();
+        long maxPartitionsPerNode = nodeCountMap.values().stream().mapToLong(l -> l).max().orElseThrow();
+        assertThat(maxPartitionsPerNode - minPartitionsPerNode).isLessThanOrEqualTo(1);
+    }
+
+    private void assertEvenNodesDistributionPreservingOrder(
             SmartPinningPartitionNodeMapper mapper,
             int expectedPartitionsCount,
             int expectedNodesPerPartition,

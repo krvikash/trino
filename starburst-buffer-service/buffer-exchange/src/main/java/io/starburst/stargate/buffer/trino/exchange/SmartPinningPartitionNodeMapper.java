@@ -9,9 +9,11 @@
  */
 package io.starburst.stargate.buffer.trino.exchange;
 
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -83,6 +85,7 @@ public class SmartPinningPartitionNodeMapper
     private final ExchangeId exchangeId;
     private final BufferNodeDiscoveryManager discoveryManager;
     private final ScheduledExecutorService executor;
+    private final boolean preserveOrderWithinPartition;
     private final int outputPartitionCount;
     private final int minNodesPerPartition;
     private final int maxNodesPerPartition;
@@ -94,7 +97,7 @@ public class SmartPinningPartitionNodeMapper
     @GuardedBy("this")
     private long previousBufferNodeStateTimestamp;
     @GuardedBy("this")
-    private final Multimap<Integer, Long> partitionToNode = HashMultimap.create();
+    private final ListMultimap<Integer, Long> partitionToNode = ArrayListMultimap.create();
     @GuardedBy("this")
     private final Multimap<Long, Integer> nodeToPartition = HashMultimap.create();
     @GuardedBy("this")
@@ -107,6 +110,7 @@ public class SmartPinningPartitionNodeMapper
             BufferNodeDiscoveryManager discoveryManager,
             ScheduledExecutorService executor,
             int outputPartitionCount,
+            boolean preserveOrderWithinPartition,
             int minNodesPerPartition,
             int maxNodesPerPartition,
             Duration maxWaitActiveBufferNodes)
@@ -118,6 +122,7 @@ public class SmartPinningPartitionNodeMapper
         checkArgument(maxNodesPerPartition >= 1, "maxNodesPerPartition must be greater or equal to 1");
         checkArgument(maxNodesPerPartition >= minNodesPerPartition, "maxNodesPerPartition must be greater or equal to minNodesPerPartition");
         this.outputPartitionCount = outputPartitionCount;
+        this.preserveOrderWithinPartition = preserveOrderWithinPartition;
         this.minNodesPerPartition = minNodesPerPartition;
         this.maxNodesPerPartition = maxNodesPerPartition;
         this.maxWaitActiveBufferNodes = requireNonNull(maxWaitActiveBufferNodes, "maxWaitActiveBufferNodes is null");
@@ -132,16 +137,21 @@ public class SmartPinningPartitionNodeMapper
             synchronized (SmartPinningPartitionNodeMapper.this) {
                 updateBaseMapping(bufferNodesState);
 
-                ImmutableListMultimap.Builder<Integer, Long> mapping = ImmutableListMultimap.builder();
-                IntStream.range(0, outputPartitionCount).forEach(partition -> {
-                    List<BufferNodeInfo> candidateNodes = partitionToNode.get(partition).stream()
-                            .map(nodeId -> bufferNodesState.getActiveBufferNodes().get(nodeId))
-                            .collect(toImmutableList());
+                if (preserveOrderWithinPartition) {
+                    // pick one buffer node per partition
+                    ImmutableListMultimap.Builder<Integer, Long> mapping = ImmutableListMultimap.builder();
+                    IntStream.range(0, outputPartitionCount).forEach(partition -> {
+                        List<BufferNodeInfo> candidateNodes = partitionToNode.get(partition).stream()
+                                .map(nodeId -> bufferNodesState.getActiveBufferNodes().get(nodeId))
+                                .collect(toImmutableList());
 
-                    RandomSelector<BufferNodeInfo> bufferNodeInfoRandomSelector = buildNodeSelector(candidateNodes);
-                    mapping.put(partition, bufferNodeInfoRandomSelector.next().nodeId());
-                });
-                return new PartitionNodeMapping(mapping.build());
+                        RandomSelector<BufferNodeInfo> bufferNodeInfoRandomSelector = buildNodeSelector(candidateNodes);
+                        mapping.put(partition, bufferNodeInfoRandomSelector.next().nodeId());
+                    });
+                    return new PartitionNodeMapping(mapping.build());
+                }
+                // return whole mapping
+                return new PartitionNodeMapping(partitionToNode);
             }
         },
         directExecutor());

@@ -45,6 +45,7 @@ public class SmartPinningPartitionNodeMapperFactory
                 discoveryManager,
                 executor,
                 outputPartitionCount,
+                preserveOrderWithinPartition,
                 minBufferNodesPerPartition,
                 maxBufferNodesPerPartition,
                 maxWaitActiveBufferNodes);
