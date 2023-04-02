@@ -10,6 +10,7 @@
 package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.collect.ImmutableListMultimap;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeStats;
@@ -31,6 +32,7 @@ public class RandomPartitionNodeMapper
     //       to distribute the work over 20 buffer nodes if the Trino cluster itself only has 4 nodes.
     private final BufferNodeDiscoveryManager discoveryManager;
     private final int outputPartitionCount;
+    private final ImmutableMap<Integer, Integer> baseNodesCount;
     @GuardedBy("this")
     private RandomSelector<BufferNodeInfo> currentNodeSelector;
     @GuardedBy("this")
@@ -40,6 +42,9 @@ public class RandomPartitionNodeMapper
     {
         this.discoveryManager = requireNonNull(discoveryManager, "discoveryManager is null");
         this.outputPartitionCount = outputPartitionCount;
+        ImmutableMap.Builder<Integer, Integer> baseNodesCount = ImmutableMap.builder();
+        IntStream.range(0, outputPartitionCount).forEach(partition -> baseNodesCount.put(partition, 1));
+        this.baseNodesCount = baseNodesCount.buildOrThrow();
     }
 
     @Override
@@ -49,7 +54,7 @@ public class RandomPartitionNodeMapper
 
         ImmutableListMultimap.Builder<Integer, Long> mapping = ImmutableListMultimap.builder();
         IntStream.range(0, outputPartitionCount).forEach(partition -> mapping.put(partition, selector.next().nodeId()));
-        return immediateFuture(new PartitionNodeMapping(mapping.build()));
+        return immediateFuture(new PartitionNodeMapping(mapping.build(), baseNodesCount));
     }
 
     @GuardedBy("this")

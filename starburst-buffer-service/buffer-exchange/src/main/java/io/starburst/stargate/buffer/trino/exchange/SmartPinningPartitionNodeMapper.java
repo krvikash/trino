@@ -12,6 +12,7 @@ package io.starburst.stargate.buffer.trino.exchange;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableListMultimap;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimap;
@@ -101,6 +102,8 @@ public class SmartPinningPartitionNodeMapper
     @GuardedBy("this")
     private final Multimap<Long, Integer> nodeToPartition = HashMultimap.create();
     @GuardedBy("this")
+    private Map<Integer, Integer> baseNodesCount;
+    @GuardedBy("this")
     private final Map<Long, NodeUsage> nodeUsageById = new HashMap<>();
     @GuardedBy("this")
     private final SortedSet<NodeUsage> nodeUsages = new TreeSet<>();
@@ -148,10 +151,11 @@ public class SmartPinningPartitionNodeMapper
                         RandomSelector<BufferNodeInfo> bufferNodeInfoRandomSelector = buildNodeSelector(candidateNodes);
                         mapping.put(partition, bufferNodeInfoRandomSelector.next().nodeId());
                     });
-                    return new PartitionNodeMapping(mapping.build());
+                    // it is fine to use baseNodesCount here with values greater than 1 even though there is just a single node mapped to each partition
+                    return new PartitionNodeMapping(mapping.build(), baseNodesCount);
                 }
                 // return whole mapping
-                return new PartitionNodeMapping(partitionToNode);
+                return new PartitionNodeMapping(partitionToNode, baseNodesCount);
             }
         },
         directExecutor());
@@ -325,6 +329,11 @@ public class SmartPinningPartitionNodeMapper
             }
             verify(swapped, "invalid internal state; expected to swap least<->most used");
         }
+
+        // update baseNodesCount mapping
+        ImmutableMap.Builder<Integer, Integer> baseNodesCountBuilder = ImmutableMap.builder();
+        IntStream.range(0, outputPartitionCount).forEach(partition -> baseNodesCountBuilder.put(partition, targetNodesPerPartition));
+        this.baseNodesCount = baseNodesCountBuilder.buildOrThrow();
 
         log.debug("compute base node mapping for %s: %s", exchangeId, partitionToNode);
         previousActiveNodes = ImmutableSet.copyOf(activeNodes.keySet());

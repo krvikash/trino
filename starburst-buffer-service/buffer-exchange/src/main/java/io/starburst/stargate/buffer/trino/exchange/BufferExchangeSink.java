@@ -119,7 +119,26 @@ public class BufferExchangeSink
         verify(writers == null || writers.isEmpty(), "writers already set");
         verify(writersByPartition == null || writersByPartition.isEmpty(), "writers by partition already set");
 
-        Multimap<Long, Integer> bufferNodeToPartition = ImmutableListMultimap.copyOf(mapping.getMapping()).inverse();
+        ListMultimap<Integer, Long> partitionToBufferNode = mapping.getMapping();
+        // assign only base buffer nodes to writers
+        ImmutableListMultimap.Builder<Integer, Long> partitionToBaseBufferNodeBuilder = ImmutableListMultimap.builder();
+        for (Map.Entry<Integer, Collection<Long>> entry : partitionToBufferNode.asMap().entrySet()) {
+            Integer partition = entry.getKey();
+            List<Long> bufferNodes = (List<Long>) entry.getValue();
+            Integer count = mapping.getBaseNodesCount().get(partition);
+            int i = 0;
+            for (Long bufferNode : bufferNodes) {
+                if (i >= count) {
+                    break;
+                }
+                partitionToBaseBufferNodeBuilder.put(partition, bufferNode);
+                i++;
+            }
+        }
+        ImmutableListMultimap<Integer, Long> partitionToBaseBufferNode = partitionToBaseBufferNodeBuilder.build();
+
+        Multimap<Long, Integer> bufferNodeToPartition = ImmutableListMultimap.copyOf(partitionToBaseBufferNode).inverse();
+
         Map<Long, SinkWriter> newWriters = new HashMap<>();
         ListMultimap<Integer, SinkWriter> newWritersByPartition = ArrayListMultimap.create();
         for (Map.Entry<Long, Collection<Integer>> entry : bufferNodeToPartition.asMap().entrySet()) {

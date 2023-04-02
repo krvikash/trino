@@ -10,6 +10,7 @@
 package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.collect.ImmutableListMultimap;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeStats;
@@ -31,6 +32,7 @@ public class PinningPartitionNodeMapper
 {
     private final BufferNodeDiscoveryManager discoveryManager;
     private final int outputPartitionCount;
+    private final ImmutableMap<Integer, Integer> baseNodesCount;
 
     @GuardedBy("this")
     private PartitionNodeMapping currentMapping;
@@ -39,6 +41,9 @@ public class PinningPartitionNodeMapper
     {
         this.discoveryManager = discoveryManager;
         this.outputPartitionCount = outputPartitionCount;
+        ImmutableMap.Builder<Integer, Integer> baseNodesCount = ImmutableMap.builder();
+        IntStream.range(0, outputPartitionCount).forEach(partition -> baseNodesCount.put(partition, 1));
+        this.baseNodesCount = baseNodesCount.buildOrThrow();
     }
 
     @Override
@@ -87,7 +92,7 @@ public class PinningPartitionNodeMapper
 
         ImmutableListMultimap.Builder<Integer, Long> mapping = ImmutableListMultimap.builder();
         IntStream.range(0, outputPartitionCount).forEach(partition -> mapping.put(partition, selector.next().nodeId()));
-        return new PartitionNodeMapping(mapping.build());
+        return new PartitionNodeMapping(mapping.build(), baseNodesCount);
     }
 
     @Override
@@ -111,6 +116,6 @@ public class PinningPartitionNodeMapper
                 finalMapping.put(partition, getOnlyElement(newMapping.getMapping().get(partition)));
             }
         }
-        currentMapping = new PartitionNodeMapping(finalMapping.build());
+        currentMapping = new PartitionNodeMapping(finalMapping.build(), baseNodesCount);
     }
 }

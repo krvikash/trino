@@ -25,21 +25,25 @@ import static java.util.Objects.requireNonNull;
 public final class PartitionNodeMapping
 {
     private final ListMultimap<Integer, Long> mapping;
+    private final Map<Integer, Integer> baseNodesCount;
 
-    public PartitionNodeMapping(ListMultimap<Integer, Long> mapping)
+    public PartitionNodeMapping(ListMultimap<Integer, Long> mapping, Map<Integer, Integer> baseNodesCount)
     {
         this.mapping = ImmutableListMultimap.copyOf(requireNonNull(mapping, "mapping is null"));
+        this.baseNodesCount = ImmutableMap.copyOf(requireNonNull(baseNodesCount, "baseNodesCount is null"));
     }
 
     @JsonCreator
     // specialized @JsonCreator as we cannot use ListMultimap for JSON serialization in this context
     @Deprecated
-    public static PartitionNodeMapping createFromMappingAsMap(@JsonProperty("mapping") Map<Integer, List<Long>> mappingAsMap)
+    public static PartitionNodeMapping createFromMappingAsMap(
+            @JsonProperty("mapping") Map<Integer, List<Long>> mappingAsMap,
+            @JsonProperty("baseNodesCount") Map<Integer, Integer> baseNodesCount)
     {
         requireNonNull(mappingAsMap, "mappingAsMap is null");
         ImmutableListMultimap.Builder<Integer, Long> mappingBuilder = ImmutableListMultimap.builder();
         mappingAsMap.forEach(mappingBuilder::putAll);
-        return new PartitionNodeMapping(mappingBuilder.build());
+        return new PartitionNodeMapping(mappingBuilder.build(), baseNodesCount);
     }
 
     @JsonProperty("mapping")
@@ -55,6 +59,12 @@ public final class PartitionNodeMapping
     public ListMultimap<Integer, Long> getMapping()
     {
         return mapping;
+    }
+
+    @JsonProperty("baseNodesCount")
+    public Map<Integer, Integer> getBaseNodesCount()
+    {
+        return baseNodesCount;
     }
 
     @Override
