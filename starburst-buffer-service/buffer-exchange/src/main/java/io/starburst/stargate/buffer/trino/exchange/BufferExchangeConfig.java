@@ -11,6 +11,7 @@ package io.starburst.stargate.buffer.trino.exchange;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
+import io.airlift.configuration.LegacyConfig;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 
@@ -42,8 +43,11 @@ public class BufferExchangeConfig
     private DataSize sinkTargetWrittenPagesSize = DataSize.of(16, MEGABYTE);
     private int sinkTargetWrittenPartitionsCount = 16;
     private PartitionNodeMappingMode partitionNodeMappingMode = PINNING_MULTI;
-    private int minBufferNodesPerPartition = 2;
-    private int maxBufferNodesPerPartition = 32;
+    private int minBaseBufferNodesPerPartition = 2;
+    private int maxBaseBufferNodesPerPartition = 32;
+    private double bonusBufferNodesPerPartitionMultiplier = 4.0;
+    private int minTotalBufferNodesPerPartition = 16;
+    private int maxTotalBufferNodesPerPartition = 64;
     private Duration maxWaitActiveBufferNodes = succinctDuration(5, MINUTES);
 
     private int dataClientMaxRetries = 5;
@@ -262,28 +266,67 @@ public class BufferExchangeConfig
     }
 
     @Min(1)
-    public int getMinBufferNodesPerPartition()
+    public int getMinBaseBufferNodesPerPartition()
     {
-        return minBufferNodesPerPartition;
+        return minBaseBufferNodesPerPartition;
     }
 
-    @Config("exchange.min-buffer-nodes-per-partition")
-    public BufferExchangeConfig setMinBufferNodesPerPartition(int minBufferNodesPerPartition)
+    @Config("exchange.min-base-buffer-nodes-per-partition")
+    @LegacyConfig("exchange.min-buffer-nodes-per-partition")
+    public BufferExchangeConfig setMinBaseBufferNodesPerPartition(int minBaseBufferNodesPerPartition)
     {
-        this.minBufferNodesPerPartition = minBufferNodesPerPartition;
+        this.minBaseBufferNodesPerPartition = minBaseBufferNodesPerPartition;
         return this;
     }
 
     @Min(1)
-    public int getMaxBufferNodesPerPartition()
+    public int getMaxBaseBufferNodesPerPartition()
     {
-        return maxBufferNodesPerPartition;
+        return maxBaseBufferNodesPerPartition;
     }
 
-    @Config("exchange.max-buffer-nodes-per-partition")
-    public BufferExchangeConfig setMaxBufferNodesPerPartition(int maxBufferNodesPerPartition)
+    @Config("exchange.max-base-buffer-nodes-per-partition")
+    @LegacyConfig("exchange.max-buffer-nodes-per-partition")
+    public BufferExchangeConfig setMaxBaseBufferNodesPerPartition(int maxBaseBufferNodesPerPartition)
     {
-        this.maxBufferNodesPerPartition = maxBufferNodesPerPartition;
+        this.maxBaseBufferNodesPerPartition = maxBaseBufferNodesPerPartition;
+        return this;
+    }
+
+    public double getBonusBufferNodesPerPartitionMultiplier()
+    {
+        return bonusBufferNodesPerPartitionMultiplier;
+    }
+
+    @Config("exchange.bonus-buffer-nodes-per-partition-multiplier")
+    @ConfigDescription("Multiplier we use to compute number of bonus nodes from number of base nodes assigned to partition")
+    public BufferExchangeConfig setBonusBufferNodesPerPartitionMultiplier(double bonusBufferNodesPerPartitionMultiplier)
+    {
+        this.bonusBufferNodesPerPartitionMultiplier = bonusBufferNodesPerPartitionMultiplier;
+        return this;
+    }
+
+    public int getMinTotalBufferNodesPerPartition()
+    {
+        return minTotalBufferNodesPerPartition;
+    }
+
+    @Config("exchange.min-total-buffer-nodes-per-partition")
+    public BufferExchangeConfig setMinTotalBufferNodesPerPartition(int minTotalBufferNodesPerPartition)
+    {
+        this.minTotalBufferNodesPerPartition = minTotalBufferNodesPerPartition;
+        return this;
+    }
+
+    public int getMaxTotalBufferNodesPerPartition()
+    {
+        return maxTotalBufferNodesPerPartition;
+    }
+
+    @Config("exchange.max-total-buffer-nodes-per-partition")
+    public BufferExchangeConfig setMaxTotalBufferNodesPerPartition(int maxTotalBufferNodesPerPartition)
+    {
+        this.maxTotalBufferNodesPerPartition = maxTotalBufferNodesPerPartition;
         return this;
     }
 

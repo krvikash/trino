@@ -23,17 +23,23 @@ public class SmartPinningPartitionNodeMapperFactory
 {
     private final BufferNodeDiscoveryManager discoveryManager;
     private final ScheduledExecutorService executor;
-    private final int minBufferNodesPerPartition;
-    private final int maxBufferNodesPerPartition;
+    private final int minBaseBufferNodesPerPartition;
+    private final int maxBaseBufferNodesPerPartition;
     private final Duration maxWaitActiveBufferNodes;
+    private final double bonusBufferNodesMultiplier;
+    private final int minTotalBufferNodesPerPartition;
+    private final int maxTotalBufferNodesPerPartition;
 
     @Inject
     public SmartPinningPartitionNodeMapperFactory(BufferNodeDiscoveryManager discoveryManager, ScheduledExecutorService executor, BufferExchangeConfig config)
     {
         this.discoveryManager = requireNonNull(discoveryManager, "discoveryManager is null");
         this.executor = requireNonNull(executor, "executor is null");
-        this.minBufferNodesPerPartition = config.getMinBufferNodesPerPartition();
-        this.maxBufferNodesPerPartition = config.getMaxBufferNodesPerPartition();
+        this.minBaseBufferNodesPerPartition = config.getMinBaseBufferNodesPerPartition();
+        this.bonusBufferNodesMultiplier = config.getBonusBufferNodesPerPartitionMultiplier();
+        this.maxBaseBufferNodesPerPartition = config.getMaxBaseBufferNodesPerPartition();
+        this.minTotalBufferNodesPerPartition = config.getMinTotalBufferNodesPerPartition();
+        this.maxTotalBufferNodesPerPartition = config.getMaxTotalBufferNodesPerPartition();
         this.maxWaitActiveBufferNodes = config.getMaxWaitActiveBufferNodes();
     }
 
@@ -46,8 +52,11 @@ public class SmartPinningPartitionNodeMapperFactory
                 executor,
                 outputPartitionCount,
                 preserveOrderWithinPartition,
-                minBufferNodesPerPartition,
-                maxBufferNodesPerPartition,
+                minBaseBufferNodesPerPartition,
+                maxBaseBufferNodesPerPartition,
+                bonusBufferNodesMultiplier,
+                minTotalBufferNodesPerPartition,
+                maxTotalBufferNodesPerPartition,
                 maxWaitActiveBufferNodes);
     }
 }

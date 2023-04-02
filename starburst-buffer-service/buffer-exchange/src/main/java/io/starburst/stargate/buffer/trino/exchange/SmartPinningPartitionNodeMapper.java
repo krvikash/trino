@@ -61,22 +61,31 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
  to precomputed mapping are incremental. Most of the mapping remains intact.
 
  Algorithm is parametrized with following variables
- - maxNodesPerPartition - maximum number of nodes assigned to a single partition
- - minNodesPerPartition - minimum number of nodes assigned to a single partition
+  - minBaseNodesPerPartition - minimum number of base nodes assigned to a single partition
+  - maxBaseNodesPerPartition - maximum number of base nodes assigned to a single partition
+  - bonusNodesMultiplier - multiplier we use to derive number of total nodes (base + extra) based on number of base nodes
+  - minTotalNodesPerPartition - minimum number of total nodes (base + extra) assigned to a single partition
+  - maxTotalNodesPerPartition - maximum number of total nodes (base + extra) assigned to a single partition
 
  At runtime, we determine:
   - outputPartitionsCount - number of output partitions for given exchange
   - bufferNodesCount - total number of active buffer nodes
 
- Number of buffer nodes per partition is determined using following routine
-  nodesPerPartition = ceil(bufferNodesCount / outputPartitionsCount)
-  nodesPerPartition = min(nodesPerPartition, maxNodesPerPartition)
-  nodesPerPartition = max(nodesPerPartition, minNodesPerPartition)
+ Base of buffer nodes per partition is determined using following routine:
+  baseNodesPerPartition = ceil(bufferNodesCount / outputPartitionsCount)
+  baseNodesPerPartition = min(baseNodesPerPartition, maxBaseNodesPerPartition)
+  baseNodesPerPartition = max(baseNodesPerPartition, minBaseNodesPerPartition)
+
+Total (base + extra) number of buffer nodes per partition is determined using follwing routine:
+ totalNodesPerPartition = baseNodesPerPartition + baseNodesPerPartition * bonusNodesMultiplier // (we add baseNodesPerPartition * bonusNodesMultiplier on to of what we already had)
+ totalNodesPerPartition = max(minTotalNodesPerPartition, totalNodesPerPartition)
+ totalNodesPerPartition = min(maxTotalNodesPerPartition, totalNodesPerPartition)
 
  Set of nodes responsible per partition is determined using uniform random.
 
- Then individual buffer nodes to be used by given tasks are selected from base mapping
- using weighted random based on utilization of individual buffer nodes.
+ Unless task is required to preserve row order within partition it gets all mapping for its use.
+ The task will start with only using base nodes; and scale up to extra nodes if needed.
+ For tasks which preserve row order a single, random node is selected for each partition.
 */
 public class SmartPinningPartitionNodeMapper
         implements PartitionNodeMapper
@@ -88,8 +97,12 @@ public class SmartPinningPartitionNodeMapper
     private final ScheduledExecutorService executor;
     private final boolean preserveOrderWithinPartition;
     private final int outputPartitionCount;
-    private final int minNodesPerPartition;
-    private final int maxNodesPerPartition;
+    private final int minBaseNodesPerPartition;
+    private final int maxBaseNodesPerPartition;
+    private final double bonusNodesMultiplier;
+    private final int minTotalNodesPerPartition;
+    private final int maxTotalNodesPerPartition;
+
     private final Duration maxWaitActiveBufferNodes;
 
     // mapping state
@@ -114,20 +127,30 @@ public class SmartPinningPartitionNodeMapper
             ScheduledExecutorService executor,
             int outputPartitionCount,
             boolean preserveOrderWithinPartition,
-            int minNodesPerPartition,
-            int maxNodesPerPartition,
+            int minBaseNodesPerPartition,
+            int maxBaseNodesPerPartition,
+            double bonusNodesMultiplier,
+            int minTotalNodesPerPartition,
+            int maxTotalNodesPerPartition,
             Duration maxWaitActiveBufferNodes)
     {
         this.exchangeId = requireNonNull(exchangeId, "exchangeId is null");
         this.discoveryManager = requireNonNull(discoveryManager, "discoveryManager is null");
         this.executor = requireNonNull(executor, "executor is null");
-        checkArgument(minNodesPerPartition >= 1, "minNodesPerPartition must be greater or equal to 1");
-        checkArgument(maxNodesPerPartition >= 1, "maxNodesPerPartition must be greater or equal to 1");
-        checkArgument(maxNodesPerPartition >= minNodesPerPartition, "maxNodesPerPartition must be greater or equal to minNodesPerPartition");
+        checkArgument(minBaseNodesPerPartition >= 1, "minBaseNodesPerPartition must be greater or equal to 1");
+        checkArgument(maxBaseNodesPerPartition >= 1, "maxBaseNodesPerPartition must be greater or equal to 1");
+        checkArgument(maxBaseNodesPerPartition >= minBaseNodesPerPartition, "maxBaseNodesPerPartition must be greater or equal to minBaseNodesPerPartition");
+        checkArgument(bonusNodesMultiplier >= 0, "bonusNodesMultiplier must bet greater than or equal to 0");
+        checkArgument(minTotalNodesPerPartition >= minBaseNodesPerPartition, "minTotalNodesPerPartition must be greater than or equalt to minBaseNodesPerPartition");
+        checkArgument(maxTotalNodesPerPartition >= maxBaseNodesPerPartition, "maxTotalNodesPerPartition must be greater than or equal to maxBaseNodesPerPartition");
+        checkArgument(maxTotalNodesPerPartition >= minTotalNodesPerPartition, "maxTotalNodesPerPartition must be greater or equal to minTotalNodesPerPartition");
         this.outputPartitionCount = outputPartitionCount;
         this.preserveOrderWithinPartition = preserveOrderWithinPartition;
-        this.minNodesPerPartition = minNodesPerPartition;
-        this.maxNodesPerPartition = maxNodesPerPartition;
+        this.minBaseNodesPerPartition = minBaseNodesPerPartition;
+        this.maxBaseNodesPerPartition = maxBaseNodesPerPartition;
+        this.bonusNodesMultiplier = bonusNodesMultiplier;
+        this.minTotalNodesPerPartition = minTotalNodesPerPartition;
+        this.maxTotalNodesPerPartition = maxTotalNodesPerPartition;
         this.maxWaitActiveBufferNodes = requireNonNull(maxWaitActiveBufferNodes, "maxWaitActiveBufferNodes is null");
     }
 
@@ -268,10 +291,12 @@ public class SmartPinningPartitionNodeMapper
             nodeUsageById.put(nodeId, nodeUsage);
         }
 
-        int targetNodesPerPartition = targetNodesPerPartitionCount(activeNodes.size());
+        int targetBaseNodesPerPartition = targetBaseNodesPerPartitionCount(activeNodes.size());
+        int targetTotalNodesPerPartition = targetTotalNodesPerPartitionCount(targetBaseNodesPerPartition, activeNodes.size());
+
         // remove nodes from mapping for partitions above target
         for (int partition = 0; partition < outputPartitionCount; partition++) {
-            int extraCount = partitionToNode.get(partition).size() - targetNodesPerPartition;
+            int extraCount = partitionToNode.get(partition).size() - targetTotalNodesPerPartition;
             if (extraCount <= 0) {
                 continue;
             }
@@ -287,7 +312,7 @@ public class SmartPinningPartitionNodeMapper
 
         // add nodes to mapping for partitions below target
         for (int partition = 0; partition < outputPartitionCount; partition++) {
-            int missingCount = targetNodesPerPartition - partitionToNode.get(partition).size();
+            int missingCount = targetTotalNodesPerPartition - partitionToNode.get(partition).size();
             if (missingCount <= 0) {
                 continue;
             }
@@ -304,6 +329,11 @@ public class SmartPinningPartitionNodeMapper
                 }
             }
         }
+
+        // TODO: now we are rebalancing all nodes alltogether; this does not guarantee balance if you just look at
+        //       base mapping subset. It should not be a big deal in practice though given fact that we either have just
+        //       one partition (where it does not matter at all) or 1000 partitions where potential inequalities between partitions
+        //       should be covered by the fact that many partitions use same buffer nodes anyway
 
         // rebalance over nodes if needed
         while (true) {
@@ -332,7 +362,7 @@ public class SmartPinningPartitionNodeMapper
 
         // update baseNodesCount mapping
         ImmutableMap.Builder<Integer, Integer> baseNodesCountBuilder = ImmutableMap.builder();
-        IntStream.range(0, outputPartitionCount).forEach(partition -> baseNodesCountBuilder.put(partition, targetNodesPerPartition));
+        IntStream.range(0, outputPartitionCount).forEach(partition -> baseNodesCountBuilder.put(partition, targetBaseNodesPerPartition));
         this.baseNodesCount = baseNodesCountBuilder.buildOrThrow();
 
         log.debug("compute base node mapping for %s: %s", exchangeId, partitionToNode);
@@ -373,15 +403,27 @@ public class SmartPinningPartitionNodeMapper
         nodeUsageById.put(nodeId, newNodeUsage);
     }
 
-    private int targetNodesPerPartitionCount(int activeBufferNodesCount)
+    private int targetBaseNodesPerPartitionCount(int activeBufferNodesCount)
     {
-        int nodesPerPartition = (int) Math.ceil(1.0 * activeBufferNodesCount / outputPartitionCount);
-        nodesPerPartition = max(minNodesPerPartition, nodesPerPartition);
-        nodesPerPartition = min(maxNodesPerPartition, nodesPerPartition);
+        int baseNodesPerPartition = (int) Math.ceil(1.0 * activeBufferNodesCount / outputPartitionCount);
+        baseNodesPerPartition = max(minBaseNodesPerPartition, baseNodesPerPartition);
+        baseNodesPerPartition = min(maxBaseNodesPerPartition, baseNodesPerPartition);
 
         // ensure we are not exceeding all active nodes in the cluster
-        nodesPerPartition = min(nodesPerPartition, activeBufferNodesCount);
-        return nodesPerPartition;
+        baseNodesPerPartition = min(baseNodesPerPartition, activeBufferNodesCount);
+        return baseNodesPerPartition;
+    }
+
+    private int targetTotalNodesPerPartitionCount(int baseNodesPerPartition, int activeBufferNodesCount)
+    {
+        int totalNodesPerPartition = (int) (baseNodesPerPartition + baseNodesPerPartition * bonusNodesMultiplier);
+
+        totalNodesPerPartition = max(minTotalNodesPerPartition, totalNodesPerPartition);
+        totalNodesPerPartition = min(maxTotalNodesPerPartition, totalNodesPerPartition);
+
+        // ensure we are not exceeding all active nodes in the cluster
+        totalNodesPerPartition = min(totalNodesPerPartition, activeBufferNodesCount);
+        return totalNodesPerPartition;
     }
 
     @Override
