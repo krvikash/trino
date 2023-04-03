@@ -10,11 +10,10 @@
 package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.base.Ticker;
-import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ListMultimap;
-import com.google.common.collect.Multimap;
+import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.concurrent.MoreFutures;
 import io.airlift.log.Logger;
@@ -25,18 +24,23 @@ import io.trino.spi.exchange.ExchangeSink;
 import io.trino.spi.exchange.ExchangeSinkInstanceHandle;
 
 import javax.annotation.concurrent.GuardedBy;
+import javax.annotation.concurrent.ThreadSafe;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Throwables.throwIfUnchecked;
@@ -62,8 +66,10 @@ public class BufferExchangeSink
 
     @GuardedBy("this")
     private Map<Long, SinkWriter> writers; // buffer node -> writer
-    @GuardedBy("this")
-    private ListMultimap<Integer, SinkWriter> writersByPartition; // managed partition -> writer
+
+    // active mapping; can be extended at runtime if we see some buffer nodes are over or under utilized
+    // due to access structure access this field cannot be synchronized
+    private final AtomicReference<ActiveMapping> activeMapping = new AtomicReference<>();
 
     @GuardedBy("this")
     private boolean handleUpdateInProgress;
@@ -117,8 +123,20 @@ public class BufferExchangeSink
     private void createNewWriters(PartitionNodeMapping mapping)
     {
         verify(writers == null || writers.isEmpty(), "writers already set");
-        verify(writersByPartition == null || writersByPartition.isEmpty(), "writers by partition already set");
 
+        ListMultimap<Integer, Long> partitionToBufferNode = mapping.getMapping();
+        ActiveMapping newActiveMapping = new ActiveMapping(getBaseMapping(mapping));
+        Map<Long, SinkWriter> newWriters = new HashMap<>();
+        for (Long bufferNodeId : newActiveMapping.activeBufferNodes()) {
+            SinkWriter writer = createWriter(bufferNodeId);
+            newWriters.put(bufferNodeId, writer);
+        }
+        this.activeMapping.set(newActiveMapping);
+        this.writers = newWriters;
+    }
+
+    private static ImmutableListMultimap<Integer, Long> getBaseMapping(PartitionNodeMapping mapping)
+    {
         ListMultimap<Integer, Long> partitionToBufferNode = mapping.getMapping();
         // assign only base buffer nodes to writers
         ImmutableListMultimap.Builder<Integer, Long> partitionToBaseBufferNodeBuilder = ImmutableListMultimap.builder();
@@ -135,26 +153,10 @@ public class BufferExchangeSink
                 i++;
             }
         }
-        ImmutableListMultimap<Integer, Long> partitionToBaseBufferNode = partitionToBaseBufferNodeBuilder.build();
-
-        Multimap<Long, Integer> bufferNodeToPartition = ImmutableListMultimap.copyOf(partitionToBaseBufferNode).inverse();
-
-        Map<Long, SinkWriter> newWriters = new HashMap<>();
-        ListMultimap<Integer, SinkWriter> newWritersByPartition = ArrayListMultimap.create();
-        for (Map.Entry<Long, Collection<Integer>> entry : bufferNodeToPartition.asMap().entrySet()) {
-            long bufferNodeId = entry.getKey();
-            Set<Integer> managedPartitions = ImmutableSet.copyOf(entry.getValue());
-            SinkWriter writer = createWriter(bufferNodeId, managedPartitions);
-            newWriters.put(bufferNodeId, writer);
-            for (int partition : managedPartitions) {
-                newWritersByPartition.put(partition, writer);
-            }
-        }
-        this.writers = newWriters;
-        this.writersByPartition = newWritersByPartition;
+        return partitionToBaseBufferNodeBuilder.build();
     }
 
-    private SinkWriter createWriter(long bufferNodeId, Set<Integer> managedPartitions)
+    private SinkWriter createWriter(long bufferNodeId)
     {
         return new SinkWriter(
                 dataApi,
@@ -165,7 +167,7 @@ public class BufferExchangeSink
                 taskAttemptId,
                 preserveOrderWithinPartition,
                 bufferNodeId,
-                managedPartitions,
+                () -> activeMapping.get().getPartitionsForBufferNode(bufferNodeId),
                 dataPagesIdGenerator,
                 new SinkWriter.FinishCallback()
                 {
@@ -215,7 +217,7 @@ public class BufferExchangeSink
 
                     private void verifyNotCalled(String operation)
                     {
-                        verify(called.compareAndSet(null, operation), "Finish callback already called(%s) for %s/%s", called.get(), bufferNodeId, managedPartitions);
+                        verify(called.compareAndSet(null, operation), "Finish callback already called(%s) for %s", called.get(), bufferNodeId);
                     }
                 });
     }
@@ -231,10 +233,6 @@ public class BufferExchangeSink
     {
         SinkWriter removedWriter = writers.remove(bufferNodeId);
         verify(removedWriter != null, "no writer found for buffer node %d", bufferNodeId);
-        for (Integer partition : removedWriter.getManagedPartitions()) {
-            boolean removedByPartition = writersByPartition.remove(partition, removedWriter);
-            verify(removedByPartition, "no writer %s found for partition %d", removedWriter, partition);
-        }
     }
 
     private synchronized void writerTargetDraining(long bufferNodeId)
@@ -356,7 +354,7 @@ public class BufferExchangeSink
 
         for (SinkWriter writer : writers.values()) {
             // todo: nice to have to move out of synchronized section
-            writer.scheduleWriting(false);
+            writer.scheduleWriting(Optional.empty(), false);
         }
     }
 
@@ -372,18 +370,16 @@ public class BufferExchangeSink
         }
 
         dataPool.add(partitionId, data);
-
+        Long bufferNodeId = activeMapping.get().getRandomBufferNodeForPartition(partitionId);
         SinkWriter sinkWriter;
-        int writerSelector = Math.abs(ThreadLocalRandom.current().nextInt());
         synchronized (this) {
-            List<SinkWriter> sinkWriters = writersByPartition.get(partitionId);
-            if (sinkWriters.isEmpty()) {
-                // writer may be unavailable if we are in progress of writers update
-                return;
-            }
-            sinkWriter = sinkWriters.get(writerSelector % sinkWriters.size());
+            sinkWriter = writers.get(bufferNodeId);
         }
-        sinkWriter.scheduleWriting(false);
+        if (sinkWriter == null) {
+            // can happen if we are in process of refreshing mapping
+            return;
+        }
+        sinkWriter.scheduleWriting(Optional.of(partitionId), false);
     }
 
     @Override
@@ -422,7 +418,7 @@ public class BufferExchangeSink
 
         for (SinkWriter writer : activeWriters) {
             // schedule writing for all writers to flush data remaining in dataPool
-            writer.scheduleWriting(true);
+            writer.scheduleWriting(Optional.empty(), true);
         }
 
         return finishFuture;
@@ -436,5 +432,59 @@ public class BufferExchangeSink
         }
         // todo - do I need to wait here
         return CompletableFuture.completedFuture(null);
+    }
+
+    @ThreadSafe
+    private static class ActiveMapping
+    {
+        private final ConcurrentMap<Integer, Set<Long>> partitionToBufferNodes;
+        private final ConcurrentMap<Long, Set<Integer>> bufferNodeToPartitions;
+
+        public ActiveMapping(ListMultimap<Integer, Long> initialPartitionToNodeMapping)
+        {
+            bufferNodeToPartitions = new ConcurrentHashMap<>();
+            partitionToBufferNodes = new ConcurrentHashMap<>();
+            for (Map.Entry<Integer, Long> entry : initialPartitionToNodeMapping.entries()) {
+                Integer partition = entry.getKey();
+                Long bufferNode = entry.getValue();
+                bufferNodeToPartitions.computeIfAbsent(bufferNode, ignored -> Sets.newConcurrentHashSet()).add(partition);
+                partitionToBufferNodes.computeIfAbsent(partition, ignored -> Sets.newConcurrentHashSet()).add(bufferNode);
+            }
+        }
+
+        public Set<Long> activeBufferNodes()
+        {
+            return bufferNodeToPartitions.keySet();
+        }
+
+        public Long getRandomBufferNodeForPartition(Integer partition)
+        {
+            // TODO make more optimal - will require changing data structure
+            Set<Long> bufferNodes = partitionToBufferNodes.get(partition);
+            int selector = ThreadLocalRandom.current().nextInt(bufferNodes.size());
+
+            Iterator<Long> iterator = bufferNodes.iterator();
+            while (true) {
+                Long bufferNodeId = iterator.next(); // assume at least one element
+                if (selector == 0 || !iterator.hasNext()) {
+                    return bufferNodeId;
+                }
+                selector--;
+            }
+        }
+
+        public Set<Integer> getPartitionsForBufferNode(long bufferNodeId)
+        {
+            return bufferNodeToPartitions.get(bufferNodeId);
+        }
+
+        @Override
+        public String toString()
+        {
+            return toStringHelper(this)
+                    .add("partitionToBufferNodes", partitionToBufferNodes)
+                    .add("bufferNodeToPartitions", bufferNodeToPartitions)
+                    .toString();
+        }
     }
 }

@@ -9,7 +9,6 @@
  */
 package io.starburst.stargate.buffer.trino.exchange;
 
-import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -19,9 +18,11 @@ import io.starburst.stargate.buffer.data.client.ErrorCode;
 
 import javax.annotation.concurrent.GuardedBy;
 
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Supplier;
 
 import static com.google.common.base.Verify.verify;
 import static java.util.Objects.requireNonNull;
@@ -38,7 +39,7 @@ public class SinkWriter
     private final int taskAttemptId;
     private final boolean preserveOrderWithinPartition;
     private final long bufferNodeId;
-    private final Set<Integer> managedPartitions;
+    private final Supplier<Set<Integer>> managedPartitionsSupplier;
     private final DataPagesIdGenerator dataPagesIdGenerator;
     private final FinishCallback finishCallback;
     @GuardedBy("this")
@@ -53,6 +54,8 @@ public class SinkWriter
     private ListenableFuture<Void> currentRequestFuture;
     @GuardedBy("this")
     private boolean sinkFinishing;
+    @GuardedBy("this")
+    private final Set<Integer> nextScheduleRequiredPartitions = new HashSet<>();
 
     public SinkWriter(
             DataApiFacade dataApi,
@@ -63,7 +66,7 @@ public class SinkWriter
             int taskAttemptId,
             boolean preserveOrderWithinPartition,
             long bufferNodeId,
-            Set<Integer> managedPartitions,
+            Supplier<Set<Integer>> managedPartitionsSupplier,
             DataPagesIdGenerator dataPagesIdGenerator,
             FinishCallback finishCallback)
     {
@@ -75,19 +78,18 @@ public class SinkWriter
         this.taskAttemptId = taskAttemptId;
         this.preserveOrderWithinPartition = preserveOrderWithinPartition;
         this.bufferNodeId = bufferNodeId;
-        requireNonNull(managedPartitions, "managedPartitions is null");
-        this.managedPartitions = ImmutableSet.copyOf(managedPartitions);
+        this.managedPartitionsSupplier = requireNonNull(managedPartitionsSupplier, "managedPartitionsSupplier is null");
         this.dataPagesIdGenerator = requireNonNull(dataPagesIdGenerator, "dataPagesIdGenerator is null");
         this.finishCallback = requireNonNull(finishCallback, "callback is null");
     }
 
-    public Set<Integer> getManagedPartitions()
+    public synchronized void scheduleWriting(Optional<Integer> requiredPartition, boolean sinkFinishing)
     {
-        return managedPartitions;
-    }
+        // ensure we are polling for requiredPartition on next poll;
+        // the writer was responsible for that partition when scheduleWriting is called, but
+        // it may no longer be true when managedPartitionsSupplier is called below.
+        requiredPartition.ifPresent(nextScheduleRequiredPartitions::add);
 
-    public synchronized void scheduleWriting(boolean sinkFinishing)
-    {
         // store finishing flag in case we return quickly and final poll should be done
         // after current request completes
         this.sinkFinishing |= sinkFinishing;
@@ -99,10 +101,22 @@ public class SinkWriter
 
         if (closed) {
             // closed already
+            nextScheduleRequiredPartitions.clear();
             return;
         }
 
-        Optional<SinkDataPool.PollResult> pollResult = dataPool.pollBest(managedPartitions, sinkFinishing);
+        Set<Integer> partitionSetFromSupplier = managedPartitionsSupplier.get();
+        Set<Integer> partitionSet;
+        if (nextScheduleRequiredPartitions.isEmpty() || partitionSetFromSupplier.containsAll(nextScheduleRequiredPartitions)) {
+            partitionSet = partitionSetFromSupplier;
+        }
+        else {
+            partitionSet = new HashSet<>(partitionSetFromSupplier);
+            partitionSet.addAll(nextScheduleRequiredPartitions);
+        }
+        nextScheduleRequiredPartitions.clear();
+
+        Optional<SinkDataPool.PollResult> pollResult = dataPool.pollBest(partitionSet, sinkFinishing);
         if (pollResult.isEmpty()) {
             return;
         }
@@ -143,7 +157,7 @@ public class SinkWriter
                             }
                         }
                         else if (!closed) {
-                            scheduleWriting(sinkFinishing);
+                            scheduleWriting(Optional.empty(), sinkFinishing);
                         }
                     }
                     if (callFinishCallback) {
