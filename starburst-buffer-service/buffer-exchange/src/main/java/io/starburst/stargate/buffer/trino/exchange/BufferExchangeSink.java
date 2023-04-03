@@ -28,11 +28,13 @@ import javax.annotation.concurrent.GuardedBy;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Throwables.throwIfUnchecked;
 import static com.google.common.base.Verify.verify;
@@ -50,7 +52,10 @@ public class BufferExchangeSink
     private final boolean preserveOrderWithinPartition;
 
     @GuardedBy("this")
-    private Map<Integer, Long> partitionToBufferNode; // partition -> buffer node (may not match what writers are currently created)
+    // temporary holder for new mapping set during mapping update
+    // TODO should be possible to get rid of it we change the update flow in such way that we
+    // do not replace writers
+    Optional<PartitionNodeMapping> mappingForUpdate = Optional.empty();
 
     @GuardedBy("this")
     private Map<Long, SinkWriter> writers; // buffer node -> writer
@@ -89,7 +94,6 @@ public class BufferExchangeSink
         this.externalExchangeId = sinkInstanceHandle.getExternalExchangeId();
         this.taskPartitionId = sinkInstanceHandle.getTaskPartitionId();
         this.taskAttemptId = sinkInstanceHandle.getTaskAttemptId();
-        this.partitionToBufferNode = sinkInstanceHandle.getPartitionNodeMapping().mapping();
         this.preserveOrderWithinPartition = sinkInstanceHandle.isPreserveOrderWithinPartition();
         this.executor = requireNonNull(executor, "executor is null");
         this.dataPool = new SinkDataPool(
@@ -103,16 +107,16 @@ public class BufferExchangeSink
                 targetWrittenPartitionsCount,
                 Ticker.systemTicker());
 
-        createNewWriters();
+        createNewWriters(sinkInstanceHandle.getPartitionNodeMapping());
     }
 
     @GuardedBy("this")
-    private void createNewWriters()
+    private void createNewWriters(PartitionNodeMapping mapping)
     {
         verify(writers == null || writers.isEmpty(), "writers already set");
         verify(writersByPartition == null || writersByPartition.isEmpty(), "writers by partition already set");
 
-        Multimap<Long, Integer> bufferNodeToPartition = ImmutableMultimap.copyOf(Multimaps.forMap(partitionToBufferNode)).inverse();
+        Multimap<Long, Integer> bufferNodeToPartition = ImmutableMultimap.copyOf(Multimaps.forMap(mapping.mapping())).inverse();
         Map<Long, SinkWriter> newWriters = new HashMap<>();
         Map<Integer, SinkWriter> newWritersByPartition = new HashMap<>();
         for (Map.Entry<Long, Collection<Integer>> entry : bufferNodeToPartition.asMap().entrySet()) {
@@ -296,7 +300,8 @@ public class BufferExchangeSink
     public synchronized void updateHandle(ExchangeSinkInstanceHandle newSinkInstanceHandle)
     {
         BufferExchangeSinkInstanceHandle newBufferExchangeSinkInstanceHandle = (BufferExchangeSinkInstanceHandle) newSinkInstanceHandle;
-        partitionToBufferNode = newBufferExchangeSinkInstanceHandle.getPartitionNodeMapping().mapping();
+        checkArgument(mappingForUpdate.isEmpty(), "mappingForUpdate already set to %s", mappingForUpdate);
+        this.mappingForUpdate = Optional.of(newBufferExchangeSinkInstanceHandle.getPartitionNodeMapping());
         handleUpdateRequired = false;
         progressOnHandleUpdate();
     }
@@ -324,8 +329,9 @@ public class BufferExchangeSink
             return;
         }
 
-        createNewWriters();
+        createNewWriters(mappingForUpdate.orElseThrow());
         handleUpdateInProgress = false;
+        mappingForUpdate = Optional.empty();
 
         for (SinkWriter writer : writers.values()) {
             // todo: nice to have to move out of synchronized section
