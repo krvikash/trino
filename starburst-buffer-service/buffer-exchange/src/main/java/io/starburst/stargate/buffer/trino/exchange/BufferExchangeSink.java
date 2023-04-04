@@ -31,7 +31,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -64,11 +63,10 @@ public class BufferExchangeSink
     private volatile boolean handleUpdateRequired;
 
     private final AtomicReference<Throwable> failure = new AtomicReference<>();
-    private final AtomicBoolean finishing = new AtomicBoolean();
     private final ExecutorService executor;
     private final AtomicReference<CompletableFuture<Void>> blockedFutureReference = new AtomicReference<>(CompletableFuture.completedFuture(null));
     @GuardedBy("this")
-    private CompletableFuture<Void> finishFuture;
+    private volatile CompletableFuture<Void> finishFuture; // volatile for perfoming best-effort sanity checks
 
     private final SinkDataPool dataPool;
     private final DataPagesIdGenerator dataPagesIdGenerator = new DataPagesIdGenerator();
@@ -278,6 +276,8 @@ public class BufferExchangeSink
         blockedFutureReference.get().complete(null);
         CompletableFuture<Void> currentFinishFuture;
         synchronized (this) {
+            // we need this synchronized section to be sure that for failed sing finishFuture returned by `finish()` is completed exceptionally
+            // either by this method or finish() itself
             currentFinishFuture = finishFuture;
         }
         if (currentFinishFuture != null) {
@@ -337,7 +337,7 @@ public class BufferExchangeSink
     public void add(int partitionId, Slice data)
     {
         throwIfFailed();
-        checkState(!finishing.get(), "data cannot be added to finished sink");
+        checkState(finishFuture == null, "data cannot be added to finished sink");
 
         if (data.length() == 0) {
             // ignore empty pages
