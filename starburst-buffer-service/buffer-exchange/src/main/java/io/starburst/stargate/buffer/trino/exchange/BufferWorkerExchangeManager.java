@@ -16,6 +16,7 @@ import io.trino.spi.exchange.ExchangeSource;
 import javax.inject.Inject;
 
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static java.util.Objects.requireNonNull;
 
@@ -25,18 +26,21 @@ public class BufferWorkerExchangeManager
     private final BufferNodeDiscoveryManager discoveryManager;
     private final BufferExchangeConfig config;
     private final ExecutorService executor;
+    private final ScheduledExecutorService scheduledExecutor;
 
     @Inject
     public BufferWorkerExchangeManager(
             DataApiFacade dataApi,
             BufferNodeDiscoveryManager discoveryManager,
             BufferExchangeConfig config,
-            ExecutorService executor)
+            ExecutorService executor,
+            ScheduledExecutorService scheduledExecutor)
     {
         this.dataApi = requireNonNull(dataApi, "dataApi is null");
         this.discoveryManager = requireNonNull(discoveryManager, "discoveryManager is null");
         this.config = requireNonNull(config, "config is null");
-        this.executor = requireNonNull(executor, "executor is null");
+        this.executor = requireNonNull(executor, "scheduledExecutor is null");
+        this.scheduledExecutor = requireNonNull(scheduledExecutor, "scheduledExecutor is null");
     }
 
     public ExchangeSink createSink(ExchangeSinkInstanceHandle handle)
@@ -53,7 +57,10 @@ public class BufferWorkerExchangeManager
                 config.getSinkTargetWrittenPagesCount(),
                 config.getSinkTargetWrittenPagesSize(),
                 config.getSinkTargetWrittenPartitionsCount(),
-                executor);
+                config.getSinkMinTimeBetweenWriterScaleUps(),
+                config.getSinkMaxWritersScaleUpGrowthFactor(),
+                executor,
+                scheduledExecutor);
     }
 
     public ExchangeSource createSource()

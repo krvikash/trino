@@ -33,16 +33,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static java.util.Objects.requireNonNull;
 
 @ThreadSafe
 public class SinkDataPool
 {
+    private static final long NEVER_BLOCKED = Long.MIN_VALUE;
+
     private final DataSize memoryLowWaterMark;
     private final DataSize memoryHighWaterMark;
     private final long maxWaitInMillis;
@@ -58,6 +62,9 @@ public class SinkDataPool
     private final Map<Integer, Deque<Slice>> dataQueues = new HashMap<>();
     @GuardedBy("this")
     private final Map<Integer, AtomicLong> dataQueueBytes = new HashMap<>();
+
+    private final Map<Integer, AtomicLong> addedDataDistribution = new ConcurrentHashMap<>();
+
     @GuardedBy("this")
     private volatile long memoryUsageBytes;
     @GuardedBy("this")
@@ -66,6 +73,8 @@ public class SinkDataPool
     private boolean noMoreData;
     @GuardedBy("this")
     private long lastWriteTimestamp;
+
+    private final AtomicLong lastBlockedTime = new AtomicLong(NEVER_BLOCKED);
 
     public SinkDataPool(
             DataSize memoryLowWaterMark,
@@ -92,11 +101,13 @@ public class SinkDataPool
 
     public synchronized void add(Integer partitionId, Slice data)
     {
-        checkArgument(data.length() > 0, "cannot add empty data page");
+        int dataLength = data.length();
+        checkArgument(dataLength > 0, "cannot add empty data page");
         checkArgument(!noMoreData, "cannot add data if noMoreData is already set");
         Deque<Slice> queue = getDataQueue(partitionId);
         queue.add(data);
-        getDataQueueBytes(partitionId).addAndGet(data.length());
+        getDataQueueBytes(partitionId).addAndGet(dataLength);
+        addedDataDistribution.computeIfAbsent(partitionId, ignored -> new AtomicLong()).addAndGet(dataLength);
         long retainedSize = data.getRetainedSize();
         verify(retainedSize > 0, "expected retainedSize to be greater than 0; got %s for %s", retainedSize, data);
         updateMemoryUsage(retainedSize);
@@ -149,6 +160,7 @@ public class SinkDataPool
         }
         if ((memoryBlockedFuture == null || memoryBlockedFuture.isDone()) && memoryUsageBytes > memoryHighWaterMark.toBytes()) {
             memoryBlockedFuture = SettableFuture.create();
+            lastBlockedTime.set(ticker.read());
         }
     }
 
@@ -249,6 +261,30 @@ public class SinkDataPool
     private long tickerReadMillis()
     {
         return ticker.read() / 1_000_000;
+    }
+
+    public synchronized Map<Integer, Long> getMemoryUsageByPartition()
+    {
+        return dataQueueBytes.entrySet().stream()
+                .collect(toImmutableMap(Map.Entry::getKey, entry -> entry.getValue().get()));
+    }
+
+    public Map<Integer, Long> getAddedDataDistribution()
+    {
+        // TODO - this is already computed by engine - we can get it through SPI. recomputing locally for now.
+        return addedDataDistribution.entrySet().stream()
+                .collect(toImmutableMap(
+                        Map.Entry::getKey,
+                        entry -> entry.getValue().get()));
+    }
+
+    public Optional<Duration> timeSinceDataPoolLastFull()
+    {
+        long lastBlocked = lastBlockedTime.get();
+        if (lastBlocked == NEVER_BLOCKED) {
+            return Optional.empty();
+        }
+        return Optional.of(Duration.succinctNanos(ticker.read() - lastBlocked));
     }
 
     public class PollResult

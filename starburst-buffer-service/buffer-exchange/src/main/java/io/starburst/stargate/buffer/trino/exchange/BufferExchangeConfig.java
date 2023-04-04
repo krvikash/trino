@@ -42,6 +42,8 @@ public class BufferExchangeConfig
     private int sinkTargetWrittenPagesCount = 512;
     private DataSize sinkTargetWrittenPagesSize = DataSize.of(16, MEGABYTE);
     private int sinkTargetWrittenPartitionsCount = 16;
+    private Duration sinkMinTimeBetweenWriterScaleUps = succinctDuration(5.0, SECONDS);
+    private double sinkMaxWritersScaleUpGrowthFactor = 2.0;
     private PartitionNodeMappingMode partitionNodeMappingMode = PINNING_MULTI;
     private int minBaseBufferNodesPerPartition = 2;
     private int maxBaseBufferNodesPerPartition = 32;
@@ -249,6 +251,33 @@ public class BufferExchangeConfig
     public BufferExchangeConfig setSinkTargetWrittenPartitionsCount(int sinkTargetWrittenPartitionsCount)
     {
         this.sinkTargetWrittenPartitionsCount = sinkTargetWrittenPartitionsCount;
+        return this;
+    }
+
+    public Duration getSinkMinTimeBetweenWriterScaleUps()
+    {
+        return sinkMinTimeBetweenWriterScaleUps;
+    }
+
+    @Config("exchange.sink-min-time-between-writer-scale-ups")
+    @ConfigDescription("How much time must pass since we last scaled up writers for a task, before next scale up")
+    public BufferExchangeConfig setSinkMinTimeBetweenWriterScaleUps(Duration sinkMinTimeBetweenWriterScaleUps)
+    {
+        this.sinkMinTimeBetweenWriterScaleUps = sinkMinTimeBetweenWriterScaleUps;
+        return this;
+    }
+
+    @Min(1)
+    public double getSinkMaxWritersScaleUpGrowthFactor()
+    {
+        return sinkMaxWritersScaleUpGrowthFactor;
+    }
+
+    @Config("exchange.sink-max-writers-scale-up-growth-factor")
+    @ConfigDescription("By how much can we multiply number of workers for a partition in each scale up round")
+    public BufferExchangeConfig setSinkMaxWritersScaleUpGrowthFactor(double sinkMaxWritersScaleUpGrowthFactor)
+    {
+        this.sinkMaxWritersScaleUpGrowthFactor = sinkMaxWritersScaleUpGrowthFactor;
         return this;
     }
 

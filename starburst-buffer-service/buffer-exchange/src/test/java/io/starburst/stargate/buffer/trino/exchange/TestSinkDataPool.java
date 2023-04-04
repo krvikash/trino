@@ -18,6 +18,7 @@ import io.airlift.units.DataSize;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.airlift.units.DataSize.Unit.BYTE;
@@ -166,6 +167,7 @@ class TestSinkDataPool
     @Test
     public void testIsBlocked()
     {
+        TestingTicker ticker = new TestingTicker();
         SinkDataPool dataPool = new SinkDataPool(
                 DataSize.of(100, BYTE),
                 DataSize.of(200, BYTE),
@@ -175,33 +177,46 @@ class TestSinkDataPool
                 32,
                 DataSize.of(8, MEGABYTE),
                 8,
-                Ticker.systemTicker());
-
+                ticker);
         // 0
         assertThat(dataPool.isBlocked()).isDone();
+        assertThat(dataPool.timeSinceDataPoolLastFull()).isEmpty();
 
         // below low
         dataPool.add(1, utf8Slice("123456789012345"));
         assertThat(dataPool.isBlocked()).isDone();
+        assertThat(dataPool.timeSinceDataPoolLastFull()).isEmpty();
 
         // above low but below high
         dataPool.add(2, utf8Slice("123456789012345"));
         assertThat(dataPool.isBlocked()).isDone();
+        assertThat(dataPool.timeSinceDataPoolLastFull()).isEmpty();
 
         // above high
         dataPool.add(3, utf8Slice("123456789012345"));
         ListenableFuture<Void> returnedIsBlocked = dataPool.isBlocked();
         assertThat(returnedIsBlocked).isNotDone();
+        assertThat(dataPool.timeSinceDataPoolLastFull()).isNotEmpty();
+        assertThat(dataPool.timeSinceDataPoolLastFull().orElseThrow().toMillis()).isEqualTo(0L);
+        ticker.increment(3, TimeUnit.SECONDS);
+        assertThat(dataPool.timeSinceDataPoolLastFull().orElseThrow().toMillis()).isEqualTo(3000L);
 
         // below high but still above low
         dataPool.pollBest(ImmutableSet.of(1), false).orElseThrow().commit();
         assertThat(dataPool.isBlocked()).isSameAs(returnedIsBlocked);
         assertThat(returnedIsBlocked).isNotDone();
+        assertThat(dataPool.timeSinceDataPoolLastFull().orElseThrow().toMillis()).isEqualTo(3000L);
 
         // below low
         dataPool.pollBest(ImmutableSet.of(2), false).orElseThrow().commit();
         assertThat(dataPool.isBlocked()).isDone();
         assertThat(returnedIsBlocked).isDone();
+        assertThat(dataPool.timeSinceDataPoolLastFull().orElseThrow().toMillis()).isEqualTo(3000L);
+
+        // above high once again
+        dataPool.add(3, utf8Slice("999999999999999999999999999999999999999999999999999999999999999999"));
+        assertThat(dataPool.isBlocked()).isNotDone();
+        assertThat(dataPool.timeSinceDataPoolLastFull().orElseThrow().toMillis()).isEqualTo(0);
     }
 
     @Test
