@@ -178,8 +178,10 @@ public class TestDrain
         });
 
         ListenableFuture<?> queryJob = executor.submit(() -> {
+            boolean firstQuery = true;
             try {
-                while (testInProgress.get()) {
+                while (firstQuery || testInProgress.get()) {
+                    firstQuery = false;
                     MaterializedResult result = queryRunner.execute("""
                             WITH big        AS (SELECT custkey k FROM tpch.sf50.orders),
                                  single_row AS (SELECT custkey AS k FROM tpch.tiny.customer WHERE acctbal = 2237.64)
