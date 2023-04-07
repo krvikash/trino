@@ -296,7 +296,7 @@ public class SmartPinningPartitionNodeMapper
                 for (NodeUsage nodeUsage : nodeUsages) {
                     long nodeId = nodeUsage.getNodeId();
                     if (!partitionToNode.containsEntry(partition, nodeId)) {
-                        partitionToNode.put(partition, nodeId);
+                        partitionToNodePutRandomPosition(partition, nodeId);
                         nodeToPartition.put(nodeId, partition);
                         incrementNodeUsage(nodeId);
                         break;
@@ -319,7 +319,7 @@ public class SmartPinningPartitionNodeMapper
                 if (!partitionToNode.containsEntry(partition, leastUsed.getNodeId())) {
                     partitionToNode.remove(partition, mostUsed.getNodeId());
                     nodeToPartition.remove(mostUsed.getNodeId(), partition);
-                    partitionToNode.put(partition, leastUsed.getNodeId());
+                    partitionToNodePutRandomPosition(partition, leastUsed.getNodeId());
                     nodeToPartition.put(leastUsed.getNodeId(), partition);
                     decrementNodeUsage(mostUsed.getNodeId());
                     incrementNodeUsage(leastUsed.getNodeId());
@@ -337,6 +337,17 @@ public class SmartPinningPartitionNodeMapper
 
         log.debug("compute base node mapping for %s: %s", exchangeId, partitionToNode);
         previousActiveNodes = ImmutableSet.copyOf(activeNodes.keySet());
+    }
+
+    @GuardedBy("this")
+    private void partitionToNodePutRandomPosition(int partition, long nodeId)
+    {
+        List<Long> nodes = partitionToNode.get(partition);
+        int targetNodeIndex = ThreadLocalRandom.current().nextInt(nodes.size() + 1);
+        // insertion is O(N) here but the lists should not be long (we are not assigning more than 64 nodes for partition right now).
+        // alternative would be to add always at the end and reshuffle but we do not want to do that as we want the mapping
+        // to stay as close to previous one when we are adding new nodes/rebalancing
+        nodes.add(targetNodeIndex, nodeId);
     }
 
     @GuardedBy("this")

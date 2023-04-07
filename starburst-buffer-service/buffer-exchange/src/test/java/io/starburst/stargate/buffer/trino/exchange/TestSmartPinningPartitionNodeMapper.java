@@ -9,17 +9,21 @@
  */
 package io.starburst.stargate.buffer.trino.exchange;
 
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSetMultimap;
 import com.google.common.collect.ListMultimap;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
 import com.google.common.math.Stats;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.units.Duration;
 import io.trino.spi.exchange.ExchangeId;
 import org.assertj.core.data.Percentage;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -130,6 +134,50 @@ public class TestSmartPinningPartitionNodeMapper
                 4,
                 1000,
                 preserveOrderWithinPartition);
+    }
+
+    @Test
+    void testPerPartitionMappingOrderRandomized()
+            throws ExecutionException
+    {
+        Multimap<Integer, Long> byPositionChoices10 = ArrayListMultimap.create();
+        Multimap<Integer, Long> byPositionChoices20 = ArrayListMultimap.create();
+        TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
+        for (int i = 0; i < 1000; ++i) {
+            // 10 nodes available initially
+            discoveryManager.setBufferNodes(builder -> LongStream.range(0, 10).forEach(nodeId -> builder.putNode(nodeId, ACTIVE)));
+            // single partition all nodes will be used
+            SmartPinningPartitionNodeMapper mapper = new SmartPinningPartitionNodeMapper(EXCHANGE_ID, discoveryManager, executor, 1, false, 10, 20, NO_WAIT);
+            PartitionNodeMapping mapping10 = Futures.getDone(mapper.getMapping(0));
+            assertThat(mapping10.getMapping().get(0)).hasSize(10);
+
+            int position = 0;
+            for (Long nodeId : mapping10.getMapping().get(0)) {
+                byPositionChoices10.put(position, nodeId);
+                position++;
+            }
+
+            // remove 5 nodes and add 15 more
+            discoveryManager.setBufferNodes(builder -> LongStream.range(5, 25).forEach(nodeId -> builder.putNode(nodeId, ACTIVE)));
+            PartitionNodeMapping mapping20 = Futures.getDone(mapper.getMapping(0));
+            assertThat(mapping20.getMapping().get(0)).hasSize(20);
+
+            position = 0;
+            for (Long nodeId : mapping20.getMapping().get(0)) {
+                byPositionChoices20.put(position, nodeId);
+                position++;
+            }
+        }
+
+        // check if nodes are distributed evenly for each position for initial and updated mappings
+        for (Integer pos : byPositionChoices10.keySet()) {
+            Stats stats = Stats.of(byPositionChoices10.get(pos).stream().mapToLong(nodeId -> nodeId));
+            assertThat(stats.mean()).isCloseTo((0.0 + 9.0) / 2, Percentage.withPercentage(10));
+        }
+        for (Integer pos : byPositionChoices10.keySet()) {
+            Stats stats = Stats.of(byPositionChoices20.get(pos).stream().mapToLong(nodeId -> nodeId));
+            assertThat(stats.mean()).isCloseTo((5.0 + 24.0) / 2, Percentage.withPercentage(10));
+        }
     }
 
     @ParameterizedTest
