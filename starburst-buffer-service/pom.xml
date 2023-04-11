@@ -38,11 +38,14 @@
         <dep.airlift.version>228</dep.airlift.version>
         <dep.slice.version>0.45</dep.slice.version>
         <dep.errorprone.version>2.18.0</dep.errorprone.version>
-        <dep.trino.version>411</dep.trino.version>
+        <dep.trino.version>412</dep.trino.version>
         <dep.joda.version>2.12.2</dep.joda.version> <!-- required by Trino 406 -->
         <dep.datadog-agent.version>0.114.0</dep.datadog-agent.version>
 
         <dep.awsjavasdk.version>2.17.151</dep.awsjavasdk.version>
+
+        <!-- force common version; pulled by some test dependencies -->
+        <dep.kotlin.version>1.8.0</dep.kotlin.version>
     </properties>
 
     <modules>
@@ -369,6 +372,12 @@
             </dependency>
 
             <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-compress</artifactId>
+                <version>1.22</version>
+            </dependency>
+
+            <dependency>
                 <groupId>org.awaitility</groupId>
                 <artifactId>awaitility</artifactId>
                 <version>4.1.1</version>
@@ -378,6 +387,24 @@
                 <groupId>org.checkerframework</groupId>
                 <artifactId>checker-qual</artifactId>
                 <version>3.25.0</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib</artifactId>
+                <version>${dep.kotlin.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib-common</artifactId>
+                <version>${dep.kotlin.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib-jdk8</artifactId>
+                <version>${dep.kotlin.version}</version>
             </dependency>
 
             <dependency>
