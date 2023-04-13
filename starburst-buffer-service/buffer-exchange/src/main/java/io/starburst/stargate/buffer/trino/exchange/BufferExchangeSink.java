@@ -379,9 +379,14 @@ public class BufferExchangeSink
             checkState(finishFuture == null, "finish called more than once");
             finishFuture = new CompletableFuture<>();
             dataPool.noMoreData();
-            MoreFutures.addSuccessCallback(dataPool.whenFinished(), () -> {
-                finishFuture.complete(null);
-            }, executor);
+            if (failure.get() != null) {
+                finishFuture.completeExceptionally(failure.get());
+            }
+            else {
+                MoreFutures.addSuccessCallback(dataPool.whenFinished(), () -> {
+                    finishFuture.complete(null);
+                }, executor);
+            }
             activeWriters = ImmutableSet.copyOf(writers.values());
         }
 
