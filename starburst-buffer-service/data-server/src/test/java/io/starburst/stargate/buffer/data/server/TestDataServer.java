@@ -344,8 +344,9 @@ public class TestDataServer
     public void testInvalidTargetDataNodeId()
     {
         HttpDataClient invalidDataClient = new HttpDataClient(dataServer.getBaseUri(), BUFFER_NODE_ID + 1, httpClient, succinctDuration(60, SECONDS), new NoopSpooledChunkReader(), true);
+        Slice largePage = utf8Slice("1".repeat((int) DataSize.of(10, MEGABYTE).toBytes()));
 
-        assertThatThrownBy(() -> getFutureValue(invalidDataClient.addDataPages(EXCHANGE_0, 0, 0, 0, ImmutableListMultimap.of())))
+        assertThatThrownBy(() -> getFutureValue(invalidDataClient.addDataPages(EXCHANGE_0, 0, 0, 0, ImmutableListMultimap.of(0, largePage))))
                 .isInstanceOf(DataApiException.class)
                 .matches(e -> ((DataApiException) e).getErrorCode() == USER_ERROR)
                 .hasMessageContaining("target buffer node mismatch (1 vs 0)");

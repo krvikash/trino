@@ -13,7 +13,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.SettableFuture;
 import io.airlift.concurrent.BoundedExecutor;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
@@ -25,7 +24,6 @@ import io.airlift.stats.CounterStat;
 import io.airlift.stats.DistributionStat;
 import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.data.client.ChunkList;
-import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.starburst.stargate.buffer.data.client.spooling.SpoolingFile;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.execution.AddDataPagesResult;
@@ -44,6 +42,7 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.ServletResponse;
 import javax.servlet.WriteListener;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
@@ -66,6 +65,7 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -85,6 +85,7 @@ import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.data.client.DataClientHeaders.MAX_WAIT;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.DRAINING;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.INTERNAL_ERROR;
+import static io.starburst.stargate.buffer.data.client.ErrorCode.OVERLOADED;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.USER_ERROR;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.ERROR_CODE_HEADER;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLING_FILE_LOCATION_HEADER;
@@ -231,24 +232,20 @@ public class DataResource
             @HeaderParam(CONTENT_LENGTH) Integer contentLength,
             @HeaderParam(MAX_WAIT) Duration clientMaxWait,
             @Suspended AsyncResponse asyncResponse)
+            throws IOException
     {
+        AsyncContext asyncContext = request.getAsyncContext();
         try {
             checkTargetBufferNodeId(targetBufferNodeId);
         }
         catch (RuntimeException e) {
             logger.warn(e, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
-            asyncResponse.resume(errorResponse(e));
+            completeServletResponse(asyncContext, Optional.of(e));
             return;
         }
 
         if (dropUploadedPages) {
-            bindAsyncResponse(
-                    asyncResponse,
-                    logAndTranslateExceptions(
-                            consumeAndDropRequestBody(request, Response.ok().build()),
-                            () -> "POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId)),
-                    responseExecutor)
-                    .withTimeout(getAsyncTimeout(clientMaxWait));
+            completeServletResponse(asyncContext, Optional.empty());
             return;
         }
 
@@ -256,31 +253,19 @@ public class DataResource
         if (bufferNodeStateManager.isDrainingStarted()) {
             decrementInProgressAddDataPagesRequests();
             logger.info("rejecting POST /%s/addDataPages/%s/%s/%s; node already DRAINING", exchangeId, taskId, attemptId, dataPagesId);
-            bindAsyncResponse(
-                    asyncResponse,
-                    logAndTranslateExceptions(
-                            // consume whole request so HTTP response is properly delivered to client
-                            consumeAndDropRequestBody(request, errorResponse(new DataServerException(DRAINING, "Node %d is draining and not accepting any more data".formatted(bufferNodeId)))),
-                            () -> "POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId)),
-                    responseExecutor)
-                    .withTimeout(getAsyncTimeout(clientMaxWait));
-
+            completeServletResponse(asyncContext, Optional.of(new DataServerException(DRAINING, "Node %d is draining and not accepting any more data".formatted(bufferNodeId))));
             return;
         }
 
         if (currentInProgressAddDataPagesRequests > maxInProgressAddDataPagesRequests) {
             decrementInProgressAddDataPagesRequests();
-            logger.warn("rejecting POST /%s/addDataPages/%s/%s/%s; Exceeded maximum in progress addDataPages requests (%s > %s)", exchangeId, taskId, attemptId, dataPagesId, currentInProgressAddDataPagesRequests, maxInProgressAddDataPagesRequests);
-            // note that response may actually not reach client as we are not consuming request payload. Instead, client may observe Broken Pipe on the connection.
-            // This is conscious decision. We want to kill request quickly if server is overloaded.
-            asyncResponse.resume(errorResponse(
-                    new DataServerException(INTERNAL_ERROR, "Exceeded maximum in progress addDataPages requests (%s)".formatted(maxInProgressAddDataPagesRequests))));
+            logger.warn("rejecting POST /%s/addDataPages/%s/%s/%s; exceeded maximum in progress addDataPages requests (%s > %s)", exchangeId, taskId, attemptId, dataPagesId, currentInProgressAddDataPagesRequests, maxInProgressAddDataPagesRequests);
+            completeServletResponse(asyncContext, Optional.of(new DataServerException(OVERLOADED, "Exceeded maximum in progress addDataPages requests (%s)".formatted(maxInProgressAddDataPagesRequests))));
             return;
         }
         incrementServedAddDataPagesRequests();
         asyncResponse.setTimeout(getAsyncTimeout(clientMaxWait).toMillis(), TimeUnit.MILLISECONDS);
 
-        AsyncContext asyncContext = request.getAsyncContext();
         ServletInputStream inputStream;
         try {
             inputStream = asyncContext.getRequest().getInputStream();
@@ -288,7 +273,7 @@ public class DataResource
         catch (IOException e) {
             try {
                 logger.warn(e, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
-                asyncResponse.resume(errorResponse(e));
+                completeServletResponse(asyncContext, Optional.of(e));
                 return;
             }
             finally {
@@ -298,7 +283,6 @@ public class DataResource
         }
 
         SliceLease sliceLease = new SliceLease(memoryAllocator, contentLength);
-
         try {
             // callbacks must be registered before bindAsyncResponse is called; otherwise callback may be not called
             // if request is completed quickly
@@ -472,46 +456,6 @@ public class DataResource
                     }
                 },
                 executor);
-    }
-
-    private ListenableFuture<Response> consumeAndDropRequestBody(HttpServletRequest request, Response finalResponse)
-    {
-        SettableFuture<Response> resultFuture = SettableFuture.create();
-
-        try {
-            ServletInputStream inputStream = request.getAsyncContext().getRequest().getInputStream();
-            inputStream.setReadListener(new ReadListener() {
-                @Override
-                public void onDataAvailable()
-                        throws IOException
-                {
-                    // read and forget
-                    byte[] skipBuffer = new byte[1024];
-                    while (inputStream.isReady()) {
-                        int dataRead = inputStream.read(skipBuffer);
-                        if (dataRead == -1) {
-                            return;
-                        }
-                    }
-                }
-
-                @Override
-                public void onAllDataRead()
-                {
-                    resultFuture.set(finalResponse);
-                }
-
-                @Override
-                public void onError(Throwable throwable)
-                {
-                    resultFuture.setException(throwable);
-                }
-            });
-        }
-        catch (Exception e) {
-            resultFuture.setException(e);
-        }
-        return resultFuture;
     }
 
     private void incrementServedAddDataPagesRequests()
@@ -740,7 +684,7 @@ public class DataResource
                     .build();
         }
         return Response.status(Status.INTERNAL_SERVER_ERROR)
-                .header(ERROR_CODE_HEADER, ErrorCode.INTERNAL_ERROR)
+                .header(ERROR_CODE_HEADER, INTERNAL_ERROR)
                 .entity(throwable.getMessage())
                 .build();
     }
@@ -751,5 +695,30 @@ public class DataResource
             logger.warn(e, "error on %s", loggingContext.get());
             return errorResponse(e);
         }, directExecutor());
+    }
+
+    // this function is needed to immediately return http response without consuming request payload
+    // for more information, see https://github.com/starburstdata/trino-buffer-service/issues/269
+    private void completeServletResponse(AsyncContext asyncContext, Optional<Throwable> throwable)
+            throws IOException
+    {
+        HttpServletResponse servletResponse = (HttpServletResponse) asyncContext.getResponse();
+        servletResponse.setContentType("text/plain");
+
+        if (throwable.isPresent()) {
+            servletResponse.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            servletResponse.getWriter().write(throwable.get().getMessage());
+            if (throwable.get() instanceof DataServerException dataServerException) {
+                servletResponse.setHeader(ERROR_CODE_HEADER, dataServerException.getErrorCode().toString());
+            }
+            else {
+                servletResponse.setHeader(ERROR_CODE_HEADER, INTERNAL_ERROR.toString());
+            }
+        }
+        else {
+            servletResponse.setStatus(HttpServletResponse.SC_OK);
+        }
+
+        asyncContext.complete();
     }
 }
