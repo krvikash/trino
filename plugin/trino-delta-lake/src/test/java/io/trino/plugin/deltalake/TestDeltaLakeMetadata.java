@@ -81,12 +81,12 @@ import static com.google.common.io.MoreFiles.deleteRecursively;
 import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
 import static io.airlift.testing.Closeables.closeAll;
 import static io.trino.plugin.deltalake.DeltaLakeColumnType.REGULAR;
+import static io.trino.plugin.deltalake.DeltaTestingConnectorSession.SESSION;
 import static io.trino.plugin.hive.HiveTableProperties.PARTITIONED_BY_PROPERTY;
 import static io.trino.plugin.hive.HiveTestUtils.HDFS_ENVIRONMENT;
 import static io.trino.spi.security.PrincipalType.USER;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
-import static io.trino.testing.TestingConnectorSession.SESSION;
 import static java.nio.file.Files.createTempDirectory;
 import static java.util.Locale.ENGLISH;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
@@ -102,15 +102,15 @@ public class TestDeltaLakeMetadata
     private static final ColumnMetadata MISSING_COLUMN = new ColumnMetadata("missing_column", BIGINT);
 
     private static final DeltaLakeColumnHandle BOOLEAN_COLUMN_HANDLE =
-            new DeltaLakeColumnHandle("boolean_column_name", BooleanType.BOOLEAN, OptionalInt.empty(), "boolean_column_name", BooleanType.BOOLEAN, REGULAR);
+            new DeltaLakeColumnHandle("boolean_column_name", BooleanType.BOOLEAN, OptionalInt.empty(), "boolean_column_name", BooleanType.BOOLEAN, REGULAR, Optional.empty());
     private static final DeltaLakeColumnHandle DOUBLE_COLUMN_HANDLE =
-            new DeltaLakeColumnHandle("double_column_name", DoubleType.DOUBLE, OptionalInt.empty(), "double_column_name", DoubleType.DOUBLE, REGULAR);
+            new DeltaLakeColumnHandle("double_column_name", DoubleType.DOUBLE, OptionalInt.empty(), "double_column_name", DoubleType.DOUBLE, REGULAR, Optional.empty());
     private static final DeltaLakeColumnHandle BOGUS_COLUMN_HANDLE =
-            new DeltaLakeColumnHandle("bogus_column_name", BogusType.BOGUS, OptionalInt.empty(), "bogus_column_name", BogusType.BOGUS, REGULAR);
+            new DeltaLakeColumnHandle("bogus_column_name", BogusType.BOGUS, OptionalInt.empty(), "bogus_column_name", BogusType.BOGUS, REGULAR, Optional.empty());
     private static final DeltaLakeColumnHandle VARCHAR_COLUMN_HANDLE =
-            new DeltaLakeColumnHandle("varchar_column_name", VarcharType.VARCHAR, OptionalInt.empty(), "varchar_column_name", VarcharType.VARCHAR, REGULAR);
+            new DeltaLakeColumnHandle("varchar_column_name", VarcharType.VARCHAR, OptionalInt.empty(), "varchar_column_name", VarcharType.VARCHAR, REGULAR, Optional.empty());
     private static final DeltaLakeColumnHandle DATE_COLUMN_HANDLE =
-            new DeltaLakeColumnHandle("date_column_name", DateType.DATE, OptionalInt.empty(), "date_column_name", DateType.DATE, REGULAR);
+            new DeltaLakeColumnHandle("date_column_name", DateType.DATE, OptionalInt.empty(), "date_column_name", DateType.DATE, REGULAR, Optional.empty());
 
     private static final Map<String, ColumnHandle> SYNTHETIC_COLUMN_ASSIGNMENTS = ImmutableMap.of(
             "test_synthetic_column_name_1", BOGUS_COLUMN_HANDLE,
@@ -349,11 +349,10 @@ public class TestDeltaLakeMetadata
                         ImmutableSet.of()
                 },
                 {
-                        // table handle has dereference column projections (which should be filtered out)
                         ImmutableSet.of(DOUBLE_COLUMN_HANDLE, BOOLEAN_COLUMN_HANDLE, DATE_COLUMN_HANDLE, BOGUS_COLUMN_HANDLE, VARCHAR_COLUMN_HANDLE),
                         ImmutableMap.of(),
                         DEREFERENCE_COLUMN_PROJECTIONS,
-                        SIMPLE_COLUMN_PROJECTIONS,
+                        DEREFERENCE_COLUMN_PROJECTIONS,
                         ImmutableSet.of()
                 }
         };
@@ -464,7 +463,7 @@ public class TestDeltaLakeMetadata
         ImmutableMap.Builder<DeltaLakeColumnHandle, Domain> tupleBuilder = ImmutableMap.builder();
 
         constrainedColumns.forEach(column -> {
-            tupleBuilder.put(column, Domain.notNull(column.getType()));
+            tupleBuilder.put(column, Domain.notNull(column.getBaseType()));
         });
 
         return TupleDomain.withColumnDomains(tupleBuilder.buildOrThrow());
@@ -476,7 +475,7 @@ public class TestDeltaLakeMetadata
                 .map(assignment -> new Assignment(
                         assignment.getKey(),
                         assignment.getValue(),
-                        ((DeltaLakeColumnHandle) assignment.getValue()).getType()))
+                        ((DeltaLakeColumnHandle) assignment.getValue()).getBaseType()))
                 .collect(toImmutableList());
     }
 

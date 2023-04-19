@@ -22,6 +22,7 @@ import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalInt;
 
 import static io.trino.plugin.deltalake.DataFileInfo.DataFileType.CHANGE_DATA_FEED;
@@ -80,7 +81,8 @@ public class DeltaLakeCdfPageSink
                 OptionalInt.empty(),
                 CHANGE_TYPE_COLUMN_NAME,
                 VARCHAR,
-                REGULAR));
+                REGULAR,
+                Optional.empty()));
         dataColumnsInputIndices.add(inputColumns.size());
         dataColumnNames.add(CHANGE_TYPE_COLUMN_NAME);
         dataColumnTypes.add(VARCHAR);
