@@ -227,12 +227,6 @@
             <artifactId>utils</artifactId>
         </dependency>
 
-        <dependency>
-            <groupId>com.datadoghq</groupId>
-            <artifactId>dd-java-agent</artifactId>
-            <scope>runtime</scope>
-        </dependency>
-
         <!-- use of WebIdentityTokenFileCredentialsProvider requires the 'sts' module to be on the classpath -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
