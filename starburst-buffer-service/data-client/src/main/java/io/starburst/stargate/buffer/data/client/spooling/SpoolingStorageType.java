@@ -14,5 +14,6 @@ public enum SpoolingStorageType
     NONE,
     LOCAL,
     S3,
-    GCS
+    GCS,
+    AZURE,
 }

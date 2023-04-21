@@ -163,6 +163,14 @@
             </dependency>
 
             <dependency>
+                <groupId>com.azure</groupId>
+                <artifactId>azure-sdk-bom</artifactId>
+                <type>pom</type>
+                <version>1.1.1</version>
+                <scope>import</scope>
+            </dependency>
+
+            <dependency>
                 <groupId>com.datadoghq</groupId>
                 <artifactId>dd-java-agent</artifactId>
                 <version>${dep.datadog-agent.version}</version>
@@ -325,6 +333,12 @@
                 <groupId>io.airlift</groupId>
                 <artifactId>units</artifactId>
                 <version>1.8</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.projectreactor</groupId>
+                <artifactId>reactor-core</artifactId>
+                <version>3.4.13</version>
             </dependency>
 
             <dependency>

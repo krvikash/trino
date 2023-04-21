@@ -9,15 +9,19 @@
  */
 package io.starburst.stargate.buffer.data.spooling;
 
+import com.azure.storage.blob.BlobServiceAsyncClient;
 import com.google.cloud.storage.Storage;
 import io.starburst.stargate.buffer.data.client.DataApiConfig;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
+import io.starburst.stargate.buffer.data.client.spooling.azure.AzureBlobSpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.gcs.GcsSpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.local.LocalSpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.s3.S3SpooledChunkReader;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
+import io.starburst.stargate.buffer.data.spooling.azure.AzureBlobSpoolingConfig;
+import io.starburst.stargate.buffer.data.spooling.azure.AzureBlobSpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.gcs.GcsClientConfig;
 import io.starburst.stargate.buffer.data.spooling.gcs.GcsSpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.local.LocalSpoolingStorage;
@@ -71,6 +75,23 @@ public final class SpoolTestHelper
                 new DataApiConfig(),
                 new GcsClientConfig(),
                 gcsClient);
+    }
+
+    public static SpoolingStorage createAzureBlobSpoolingStorage(BlobServiceAsyncClient client, String containerName)
+    {
+        return new AzureBlobSpoolingStorage(
+                new BufferNodeId(0L),
+                new ChunkManagerConfig().setSpoolingDirectory("ms://" + containerName),
+                new DataServerStats(),
+                client,
+                new AzureBlobSpoolingConfig());
+    }
+
+    public static SpooledChunkReader createAzureBlobSpooledChunkReader(BlobServiceAsyncClient client)
+    {
+        return new AzureBlobSpooledChunkReader(
+                new DataApiConfig(),
+                client);
     }
 
     public static SpoolingStorage createLocalSpoolingStorage()
