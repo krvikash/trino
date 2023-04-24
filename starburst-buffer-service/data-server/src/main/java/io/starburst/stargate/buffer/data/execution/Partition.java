@@ -38,6 +38,7 @@ import java.util.function.Consumer;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
+import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
 import static java.util.Objects.requireNonNull;
 
 @ThreadSafe
@@ -51,6 +52,7 @@ public class Partition
     private final MemoryAllocator memoryAllocator;
     private final SpoolingStorage spoolingStorage;
     private final int chunkTargetSizeInBytes;
+    private final int chunkMaxSizeInBytes;
     private final int chunkSliceSizeInBytes;
     private final boolean calculateDataPagesChecksum;
     private final ChunkIdGenerator chunkIdGenerator;
@@ -61,7 +63,7 @@ public class Partition
     @GuardedBy("this")
     private final Map<TaskAttemptId, Long> lastDataPagesIds = new HashMap<>();
     @GuardedBy("this")
-    private Map<TaskAttemptId, ListenableFuture<Void>> currentFutures = new HashMap<>();
+    private final Map<TaskAttemptId, ListenableFuture<Void>> currentFutures = new HashMap<>();
     @GuardedBy("this")
     private volatile Chunk openChunk;
     @GuardedBy("this")
@@ -78,6 +80,7 @@ public class Partition
             MemoryAllocator memoryAllocator,
             SpoolingStorage spoolingStorage,
             int chunkTargetSizeInBytes,
+            int chunkMaxSizeInBytes,
             int chunkSliceSizeInBytes,
             boolean calculateDataPagesChecksum,
             ChunkIdGenerator chunkIdGenerator,
@@ -90,13 +93,14 @@ public class Partition
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.spoolingStorage = requireNonNull(spoolingStorage, "spoolingStorage is null");
         this.chunkTargetSizeInBytes = chunkTargetSizeInBytes;
+        this.chunkMaxSizeInBytes = chunkMaxSizeInBytes;
         this.chunkSliceSizeInBytes = chunkSliceSizeInBytes;
         this.calculateDataPagesChecksum = calculateDataPagesChecksum;
         this.chunkIdGenerator = requireNonNull(chunkIdGenerator, "chunkIdGenerator is null");
         this.executor = requireNonNull(executor, "executor is null");
         this.closedChunkConsumer = requireNonNull(closedChunkConsumer, "closedChunkConsumer is null");
 
-        this.openChunk = createNewOpenChunk();
+        this.openChunk = createNewOpenChunk(chunkTargetSizeInBytes);
     }
 
     public int getPartitionId()
@@ -181,6 +185,7 @@ public class Partition
                     return null;
                 },
                 executor);
+
         return finishFuture;
     }
 
@@ -222,7 +227,7 @@ public class Partition
 
         Chunk chunk = openChunk;
         closeChunk(chunk);
-        openChunk = createNewOpenChunk();
+        openChunk = createNewOpenChunk(chunkTargetSizeInBytes);
 
         return Optional.of(chunk);
     }
@@ -230,7 +235,7 @@ public class Partition
     @GuardedBy("this")
     private void closeChunk(Chunk chunk)
     {
-        // ignored empty chunks
+        // ignore empty chunks
         if (chunk.isEmpty()) {
             chunk.release();
         }
@@ -242,7 +247,7 @@ public class Partition
     }
 
     @GuardedBy("this")
-    private Chunk createNewOpenChunk()
+    private Chunk createNewOpenChunk(int chunkSizeInBytes)
     {
         checkState(!released, "new chunk creation after release of all chunks");
         long chunkId = chunkIdGenerator.getNextChunkId();
@@ -253,7 +258,7 @@ public class Partition
                 chunkId,
                 memoryAllocator,
                 executor,
-                chunkTargetSizeInBytes,
+                chunkSizeInBytes,
                 chunkSliceSizeInBytes,
                 calculateDataPagesChecksum);
     }
@@ -304,10 +309,21 @@ public class Partition
             checkState(currentChunkWriteFuture.isDone(), "trying to process next page before previous page is done");
 
             Slice page = pages.next();
-            if (!openChunk.hasEnoughSpace(page)) {
+            int requiredStorageSize = DATA_PAGE_HEADER_SIZE + page.length();
+            if (!openChunk.hasEnoughSpace(requiredStorageSize)) {
                 // the open chunk doesn't have enough space available, close the chunk and create a new one
                 closeChunk(openChunk);
-                openChunk = createNewOpenChunk();
+
+                if (requiredStorageSize <= chunkTargetSizeInBytes) {
+                    openChunk = createNewOpenChunk(chunkTargetSizeInBytes);
+                }
+                else if (requiredStorageSize <= chunkMaxSizeInBytes) {
+                    openChunk = createNewOpenChunk(chunkMaxSizeInBytes);
+                }
+                else {
+                    setException(new IllegalArgumentException("requiredStorageSize %d larger than chunkMaxSizeInBytes %d".formatted(requiredStorageSize, chunkMaxSizeInBytes)));
+                    return;
+                }
             }
 
             currentChunkWriteFuture = openChunk.write(taskId, attemptId, page);

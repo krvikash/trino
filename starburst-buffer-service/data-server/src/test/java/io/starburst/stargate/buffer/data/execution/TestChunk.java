@@ -24,6 +24,7 @@ import java.util.concurrent.Executors;
 
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.slice.Slices.utf8Slice;
+import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
 import static io.starburst.stargate.buffer.data.execution.ChunkTestHelper.verifyChunkData;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -56,10 +57,10 @@ public class TestChunk
         DataPage extraDataPage = new DataPage(1, 0, utf8Slice("666666"));
 
         for (DataPage dataPage : dataPages) {
-            assertTrue(chunk.hasEnoughSpace(dataPage.data()));
+            assertTrue(chunk.hasEnoughSpace(DATA_PAGE_HEADER_SIZE + dataPage.data().length()));
             getFutureValue(chunk.write(dataPage.taskId(), dataPage.attemptId(), dataPage.data()));
         }
-        assertFalse(chunk.hasEnoughSpace(extraDataPage.data()));
+        assertFalse(chunk.hasEnoughSpace(DATA_PAGE_HEADER_SIZE + extraDataPage.data().length()));
         chunk.close();
 
         assertEquals(12, chunk.dataSizeInBytes());

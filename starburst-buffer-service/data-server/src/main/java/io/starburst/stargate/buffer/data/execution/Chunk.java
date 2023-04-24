@@ -58,7 +58,7 @@ public class Chunk
             long chunkId,
             MemoryAllocator memoryAllocator,
             ExecutorService executor,
-            int chunkTargetSizeInBytes,
+            int chunkSizeInBytes,
             int chunkSliceSizeInBytes,
             boolean calculateDataPagesChecksum)
     {
@@ -69,7 +69,7 @@ public class Chunk
         this.chunkData = new ChunkData(
                 memoryAllocator,
                 executor,
-                chunkTargetSizeInBytes,
+                chunkSizeInBytes,
                 chunkSliceSizeInBytes,
                 calculateDataPagesChecksum);
     }
@@ -90,10 +90,10 @@ public class Chunk
         return chunkData.write(taskId, attemptId, data);
     }
 
-    public boolean hasEnoughSpace(Slice data)
+    public boolean hasEnoughSpace(int requiredStorageSize)
     {
         checkState(!closed, "hasEnoughSpace() called on a closed chunk");
-        return chunkData.hasEnoughSpace(data);
+        return chunkData.hasEnoughSpace(requiredStorageSize);
     }
 
     public boolean isEmpty()
@@ -163,7 +163,7 @@ public class Chunk
     {
         private final MemoryAllocator memoryAllocator;
         private final ExecutorService executor;
-        private final int chunkTargetSizeInBytes;
+        private final int chunkSizeInBytes;
         private final int chunkSliceSizeInBytes;
         private final boolean calculateDataPagesChecksum;
         @GuardedBy("this")
@@ -187,25 +187,25 @@ public class Chunk
         public ChunkData(
                 MemoryAllocator memoryAllocator,
                 ExecutorService executor,
-                int chunkTargetSizeInBytes,
+                int chunkSizeInBytes,
                 int chunkSliceSizeInBytes,
                 boolean calculateDataPagesChecksum)
         {
-            checkArgument(chunkTargetSizeInBytes >= chunkSliceSizeInBytes && chunkTargetSizeInBytes % chunkSliceSizeInBytes == 0,
-                    "chunkTargetSizeInBytes %s is not a multiple of chunkSliceSizeInBytes %s", chunkTargetSizeInBytes, chunkSliceSizeInBytes);
+            checkArgument(chunkSizeInBytes >= chunkSliceSizeInBytes && chunkSizeInBytes % chunkSliceSizeInBytes == 0,
+                    "chunkSizeInBytes %s is not a multiple of chunkSliceSizeInBytes %s", chunkSizeInBytes, chunkSliceSizeInBytes);
             this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
             this.executor = requireNonNull(executor, "executor is null");
-            this.chunkTargetSizeInBytes = chunkTargetSizeInBytes;
+            this.chunkSizeInBytes = chunkSizeInBytes;
             this.chunkSliceSizeInBytes = chunkSliceSizeInBytes;
             this.calculateDataPagesChecksum = calculateDataPagesChecksum;
-            int initialCapacity = chunkTargetSizeInBytes / chunkSliceSizeInBytes;
+            int initialCapacity = this.chunkSizeInBytes / chunkSliceSizeInBytes;
             this.completedSlices = new ArrayList<>(initialCapacity);
             this.chunkSliceLeases = new ArrayList<>(initialCapacity);
         }
 
         public ListenableFuture<Void> write(int taskId, int attemptId, Slice data)
         {
-            int writableBytes = chunkTargetSizeInBytes - numBytesWritten;
+            int writableBytes = chunkSizeInBytes - numBytesWritten;
             int dataSize = data.length();
             int requiredStorageSize = DATA_PAGE_HEADER_SIZE + dataSize;
             checkArgument(requiredStorageSize <= writableBytes, "requiredStorageSize %s larger than writableBytes %s", requiredStorageSize, writableBytes);
@@ -227,11 +227,9 @@ public class Chunk
             return chunkWriteFuture;
         }
 
-        public boolean hasEnoughSpace(Slice data)
+        public boolean hasEnoughSpace(int requiredStorageSize)
         {
-            int requiredStorageSize = DATA_PAGE_HEADER_SIZE + data.length();
-            int writableBytes = chunkTargetSizeInBytes - numBytesWritten;
-            checkArgument(requiredStorageSize <= chunkTargetSizeInBytes, "requiredStorageSize %s larger than chunkTargetSizeInBytes %s", requiredStorageSize, chunkTargetSizeInBytes);
+            int writableBytes = chunkSizeInBytes - numBytesWritten;
             return requiredStorageSize <= writableBytes;
         }
 

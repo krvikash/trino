@@ -94,7 +94,7 @@ public class TestDataServer
                 .setConfigProperty("memory.allocation-high-watermark", "0.99")
                 .setConfigProperty("draining.min-duration", "2s")
                 .build();
-        httpClient = new JettyHttpClient(new HttpClientConfig());
+        httpClient = new JettyHttpClient(new HttpClientConfig().setMaxContentLength(DataSize.of(64, MEGABYTE)));
         dataClient = new HttpDataClient(dataServer.getBaseUri(), BUFFER_NODE_ID, httpClient, succinctDuration(60, SECONDS), new LocalSpooledChunkReader(new DataApiConfig()), true);
 
         // Wait for Node to become ready
@@ -135,7 +135,7 @@ public class TestDataServer
     public void testHappyPath()
     {
         Slice largePage1 = utf8Slice("1".repeat((int) DataSize.of(10, MEGABYTE).toBytes()));
-        Slice largePage2 = utf8Slice("2".repeat((int) DataSize.of(10, MEGABYTE).toBytes()));
+        Slice largePage2 = utf8Slice("2".repeat((int) DataSize.of(20, MEGABYTE).toBytes()));
 
         addDataPage(EXCHANGE_0, 0, 0, 0, 0L, utf8Slice("trino"));
         addDataPage(EXCHANGE_0, 0, 1, 0, 1L, utf8Slice("buffer"));
@@ -160,8 +160,8 @@ public class TestDataServer
         ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 11);
         ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 1, 1L, 7);
         ChunkHandle chunkHandle2 = new ChunkHandle(BUFFER_NODE_ID, 0, 2L, 10);
-        ChunkHandle chunkHandle3 = new ChunkHandle(BUFFER_NODE_ID, 1, 3L, (int) DataSize.of(10, MEGABYTE).toBytes());
-        ChunkHandle chunkHandle4 = new ChunkHandle(BUFFER_NODE_ID, 1, 4L, (int) DataSize.of(10, MEGABYTE).toBytes());
+        ChunkHandle chunkHandle3 = new ChunkHandle(BUFFER_NODE_ID, 1, 3L, largePage1.length());
+        ChunkHandle chunkHandle4 = new ChunkHandle(BUFFER_NODE_ID, 1, 4L, largePage2.length());
 
         finishExchange(EXCHANGE_0);
         assertNodeStats(2, 2, 0, 3);

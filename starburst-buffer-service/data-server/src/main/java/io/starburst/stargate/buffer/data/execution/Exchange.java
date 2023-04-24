@@ -69,6 +69,7 @@ public class Exchange
     private final MemoryAllocator memoryAllocator;
     private final SpoolingStorage spoolingStorage;
     private final int chunkTargetSizeInBytes;
+    private final int chunkMaxSizeInBytes;
     private final int chunkSliceSizeInBytes;
     private final int chunkListTargetSize;
     private final int chunkListMaxSize;
@@ -81,11 +82,11 @@ public class Exchange
     private final Map<Integer, Partition> partitions = new ConcurrentHashMap<>();
     private final ScheduledExecutorService longPollTimeoutExecutor;
 
-    // temporary queue for newly closed chunks to allow desynchronization of code which closes chunks
+    // temporary queue for newly closed chunks to allow de-synchronization of code which closes chunks
     // and code which handles polling for newly closed chunks to return those to the user
     private final Deque<ChunkHandle> recentlyClosedChunks = new ConcurrentLinkedDeque<>();
-    // we track the number of recently closed chunks and decrment it only after those are moved to pendingChunkList.
-    // this is needed, so we are sure we retrun all the clased chunks to the user in nextChunkList() before signaling
+    // we track the number of recently closed chunks and decrement it only after those are moved to pendingChunkList.
+    // this is needed, so we are sure we return all the closed chunks to the user in nextChunkList() before signaling
     // that there will no more.
     private final AtomicInteger recentlyClosedChunksCount = new AtomicInteger();
     @GuardedBy("this")
@@ -110,6 +111,7 @@ public class Exchange
             MemoryAllocator memoryAllocator,
             SpoolingStorage spoolingStorage,
             int chunkTargetSizeInBytes,
+            int chunkMaxSizeInBytes,
             int chunkSliceSizeInBytes,
             boolean calculateDataPagesChecksum,
             int chunkListTargetSize,
@@ -124,7 +126,9 @@ public class Exchange
         this.exchangeId = requireNonNull(exchangeId, "exchangeId is null");
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.spoolingStorage = requireNonNull(spoolingStorage, "spoolingStorage is null");
+        checkArgument(chunkTargetSizeInBytes <= chunkMaxSizeInBytes, "chunkTargetSizeInBytes %s larger than chunkMaxSizeInBytes %s", chunkTargetSizeInBytes, chunkMaxSizeInBytes);
         this.chunkTargetSizeInBytes = chunkTargetSizeInBytes;
+        this.chunkMaxSizeInBytes = chunkMaxSizeInBytes;
         this.chunkSliceSizeInBytes = chunkSliceSizeInBytes;
         this.calculateDataPagesChecksum = calculateDataPagesChecksum;
         checkArgument(chunkListTargetSize >= 0, "chunkListTargetSize is less than 0");
@@ -155,6 +159,7 @@ public class Exchange
                     memoryAllocator,
                     spoolingStorage,
                     chunkTargetSizeInBytes,
+                    chunkMaxSizeInBytes,
                     chunkSliceSizeInBytes,
                     calculateDataPagesChecksum,
                     chunkIdGenerator,

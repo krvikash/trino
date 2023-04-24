@@ -35,6 +35,7 @@ public class ChunkManagerConfig
     static final Duration DEFAULT_EXCHANGE_STALENESS_THRESHOLD = succinctDuration(5, MINUTES);
 
     private DataSize chunkTargetSize = DataSize.of(16, MEGABYTE);
+    private DataSize chunkMaxSize = DataSize.of(64, MEGABYTE);
     private DataSize chunkSliceSize = DataSize.of(128, KILOBYTE);
     private Duration exchangeStalenessThreshold = DEFAULT_EXCHANGE_STALENESS_THRESHOLD;
     private URI spoolingDirectory;
@@ -54,6 +55,22 @@ public class ChunkManagerConfig
     public ChunkManagerConfig setChunkTargetSize(DataSize chunkTargetSize)
     {
         this.chunkTargetSize = chunkTargetSize;
+        return this;
+    }
+
+    @NotNull
+    @MinDataSize("16MB")
+    @MaxDataSize("128MB")
+    public DataSize getChunkMaxSize()
+    {
+        return chunkMaxSize;
+    }
+
+    @Config("chunk.max-size")
+    @ConfigDescription("Max size of data that a chunk may accommodate. Should be a multiple of chunk.slice-base-size")
+    public ChunkManagerConfig setChunkMaxSize(DataSize chunkMaxSize)
+    {
+        this.chunkMaxSize = chunkMaxSize;
         return this;
     }
 

@@ -71,7 +71,7 @@ public class DataApiBinder
     {
         httpClientBinder.bindHttpClient(dataApiName, ForBufferDataClient.class)
                 .withConfigDefaults(config -> config
-                        .setMaxContentLength(DataSize.of(32, MEGABYTE))
+                        .setMaxContentLength(DataSize.of(64, MEGABYTE)) // should equal to chunk.max-size
                         .setIdleTimeout(succinctDuration(30, SECONDS)));
         configBinder(binder).bindConfig(DataApiConfig.class, dataApiName);
 

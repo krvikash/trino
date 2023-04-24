@@ -97,7 +97,11 @@ public class TestChunkManager
     public void testSingleChunkPerPartition()
     {
         MemoryAllocator memoryAllocator = defaultMemoryAllocator();
-        ChunkManager chunkManager = createChunkManager(memoryAllocator, DataSize.of(16, MEGABYTE), DataSize.of(128, KILOBYTE));
+        ChunkManager chunkManager = createChunkManager(
+                memoryAllocator,
+                DataSize.of(16, MEGABYTE),
+                DataSize.of(64, MEGABYTE),
+                DataSize.of(128, KILOBYTE));
 
         chunkManager.registerExchange(EXCHANGE_0);
         chunkManager.registerExchange(EXCHANGE_1);
@@ -163,7 +167,11 @@ public class TestChunkManager
     public void testMultipleChunksPerPartition()
     {
         MemoryAllocator memoryAllocator = defaultMemoryAllocator();
-        ChunkManager chunkManager = createChunkManager(memoryAllocator, DataSize.of(32, BYTE), DataSize.of(16, BYTE));
+        ChunkManager chunkManager = createChunkManager(
+                memoryAllocator,
+                DataSize.of(32, BYTE),
+                DataSize.of(128, BYTE),
+                DataSize.of(16, BYTE));
 
         chunkManager.registerExchange(EXCHANGE_0);
         chunkManager.registerExchange(EXCHANGE_1);
@@ -229,7 +237,11 @@ public class TestChunkManager
     public void testPingExchange()
     {
         MemoryAllocator memoryAllocator = defaultMemoryAllocator();
-        ChunkManager chunkManager = createChunkManager(memoryAllocator, DataSize.of(16, MEGABYTE), DataSize.of(1, MEGABYTE));
+        ChunkManager chunkManager = createChunkManager(
+                memoryAllocator,
+                DataSize.of(16, MEGABYTE),
+                DataSize.of(64, MEGABYTE),
+                DataSize.of(1, MEGABYTE));
 
         chunkManager.registerExchange(EXCHANGE_0);
         chunkManager.registerExchange(EXCHANGE_1);
@@ -267,7 +279,11 @@ public class TestChunkManager
     public void testDataPagesIdDeduplication()
     {
         MemoryAllocator memoryAllocator = defaultMemoryAllocator();
-        ChunkManager chunkManager = createChunkManager(memoryAllocator, DataSize.of(30, BYTE), DataSize.of(10, BYTE));
+        ChunkManager chunkManager = createChunkManager(
+                memoryAllocator,
+                DataSize.of(30, BYTE),
+                DataSize.of(120, BYTE),
+                DataSize.of(10, BYTE));
 
         getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("chunk"))).addDataPagesFuture());
         getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 1L, ImmutableList.of(utf8Slice("manager"))).addDataPagesFuture());
@@ -303,7 +319,11 @@ public class TestChunkManager
     public void testRemoveExchange()
     {
         MemoryAllocator memoryAllocator = defaultMemoryAllocator();
-        ChunkManager chunkManager = createChunkManager(memoryAllocator, DataSize.of(16, MEGABYTE), DataSize.of(4, MEGABYTE));
+        ChunkManager chunkManager = createChunkManager(
+                memoryAllocator,
+                DataSize.of(16, MEGABYTE),
+                DataSize.of(64, MEGABYTE),
+                DataSize.of(4, MEGABYTE));
 
         chunkManager.registerExchange(EXCHANGE_0);
         chunkManager.removeExchange(EXCHANGE_0);
@@ -323,13 +343,18 @@ public class TestChunkManager
     {
         MemoryAllocator memoryAllocator = defaultMemoryAllocator();
         DataSize chunkTargetSize = DataSize.of(12, BYTE);
-        ChunkManager chunkManager = createChunkManager(memoryAllocator, chunkTargetSize, chunkTargetSize);
+        DataSize chunkMaxSize = DataSize.of(48, BYTE);
+        ChunkManager chunkManager = createChunkManager(
+                memoryAllocator,
+                chunkTargetSize,
+                chunkMaxSize,
+                chunkTargetSize);
         Slice largePage = utf8Slice("8".repeat((int) DataSize.of(8, MEGABYTE).toBytes()));
 
         getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("dummy"))).addDataPagesFuture());
         assertThatThrownBy(() -> getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 1, 1, 1L, ImmutableList.of(utf8Slice("dummy"), largePage)).addDataPagesFuture()))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("requiredStorageSize %d larger than chunkTargetSizeInBytes %d".formatted(DATA_PAGE_HEADER_SIZE + largePage.length(), chunkTargetSize.toBytes()));
+                .hasMessage("requiredStorageSize %d larger than chunkMaxSizeInBytes %d".formatted(DATA_PAGE_HEADER_SIZE + largePage.length(), chunkMaxSize.toBytes()));
         sleepUninterruptibly(100, MILLISECONDS); // make sure exception callback has executed and failure has been set
         // all future operations (except releaseChunks) to the exchange will fail
         assertThatThrownBy(() -> getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 2, 2, 2, 2L, ImmutableList.of(utf8Slice("dummy"))).addDataPagesFuture()))
@@ -354,7 +379,11 @@ public class TestChunkManager
                         .setAllocationRatioLowWatermark(0.5),
                 new ChunkManagerConfig(),
                 new DataServerStats());
-        ChunkManager chunkManager = createChunkManager(memoryAllocator, DataSize.of(64, BYTE), DataSize.of(32, BYTE));
+        ChunkManager chunkManager = createChunkManager(
+                memoryAllocator,
+                DataSize.of(64, BYTE),
+                DataSize.of(256, BYTE),
+                DataSize.of(32, BYTE));
 
         chunkManager.registerExchange(EXCHANGE_0);
         chunkManager.registerExchange(EXCHANGE_1);
@@ -431,7 +460,11 @@ public class TestChunkManager
                         .setAllocationRatioLowWatermark(0.5),
                 new ChunkManagerConfig(),
                 new DataServerStats());
-        ChunkManager chunkManager = createChunkManager(memoryAllocator, DataSize.of(16, BYTE), DataSize.of(8, BYTE));
+        ChunkManager chunkManager = createChunkManager(
+                memoryAllocator,
+                DataSize.of(16, BYTE),
+                DataSize.of(64, BYTE),
+                DataSize.of(8, BYTE));
 
         chunkManager.registerExchange(EXCHANGE_0);
 
@@ -494,7 +527,11 @@ public class TestChunkManager
                         .setAllocationRatioLowWatermark(0.5),
                 new ChunkManagerConfig(),
                 new DataServerStats());
-        ChunkManager chunkManager = createChunkManager(memoryAllocator, DataSize.of(16, BYTE), DataSize.of(8, BYTE));
+        ChunkManager chunkManager = createChunkManager(
+                memoryAllocator,
+                DataSize.of(16, BYTE),
+                DataSize.of(64, BYTE),
+                DataSize.of(8, BYTE));
 
         chunkManager.registerExchange(EXCHANGE_0);
         assertFalse(chunkManager.getExchangeAndHeartbeat(EXCHANGE_0).isFinished());
@@ -511,7 +548,7 @@ public class TestChunkManager
         // finish should be triggered on new exchange too
         waitAtMost(1, SECONDS).until(() -> chunkManager.getExchangeAndHeartbeat(EXCHANGE_1).isFinished());
 
-        // we should get information that there are no more chunks for both excchanges
+        // we should get information that there are no more chunks for both exchanges
         listClosedChunkUntilNoMore(chunkManager, EXCHANGE_0, OptionalLong.empty());
         listClosedChunkUntilNoMore(chunkManager, EXCHANGE_1, OptionalLong.empty());
 
@@ -526,7 +563,11 @@ public class TestChunkManager
     @Test
     public void testAddToRemovedExchange()
     {
-        ChunkManager chunkManager = createChunkManager(defaultMemoryAllocator(), DataSize.of(16, MEGABYTE), DataSize.of(128, KILOBYTE));
+        ChunkManager chunkManager = createChunkManager(
+                defaultMemoryAllocator(),
+                DataSize.of(16, MEGABYTE),
+                DataSize.of(64, MEGABYTE),
+                DataSize.of(128, KILOBYTE));
 
         assertThat(chunkManager.getTrackedExchanges()).isEqualTo(0);
         getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("000_0"))).addDataPagesFuture());
@@ -544,7 +585,11 @@ public class TestChunkManager
     @Test
     public void testListClosedChunks()
     {
-        ChunkManager chunkManager = createChunkManager(defaultMemoryAllocator(), DataSize.of(12, BYTE), DataSize.of(12, BYTE));
+        ChunkManager chunkManager = createChunkManager(
+                defaultMemoryAllocator(),
+                DataSize.of(12, BYTE),
+                DataSize.of(48, BYTE),
+                DataSize.of(12, BYTE));
 
         getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("page0"))).addDataPagesFuture());
         getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 1L, ImmutableList.of(utf8Slice("page1"))).addDataPagesFuture());
@@ -590,7 +635,11 @@ public class TestChunkManager
                         .setAllocationRatioLowWatermark(1.0),
                 new ChunkManagerConfig(),
                 new DataServerStats());
-        ChunkManager chunkManager = createChunkManager(memoryAllocator, DataSize.of(8, BYTE), DataSize.of(8, BYTE));
+        ChunkManager chunkManager = createChunkManager(
+                memoryAllocator,
+                DataSize.of(8, BYTE),
+                DataSize.of(32, BYTE),
+                DataSize.of(8, BYTE));
         ListenableFuture<Void> addDataPagesFuture1 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 1L, ImmutableList.of(utf8Slice("1"))).addDataPagesFuture();
         ListenableFuture<Void> addDataPagesFuture2 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 2L, ImmutableList.of(utf8Slice("2"))).addDataPagesFuture();
         ListenableFuture<Void> addDataPagesFuture3 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 3L, ImmutableList.of(utf8Slice("3"))).addDataPagesFuture();
@@ -634,7 +683,11 @@ public class TestChunkManager
                 new DataPage(1, 0, utf8Slice("Storage")));
         getFutureValue(spoolingStorage.writeChunk(drainedBufferNodeId, EXCHANGE_0, 0L, toChunkDataLease(dataPages)));
 
-        ChunkManager chunkManager = createChunkManager(defaultMemoryAllocator(), DataSize.of(16, MEGABYTE), DataSize.of(128, KILOBYTE));
+        ChunkManager chunkManager = createChunkManager(
+                defaultMemoryAllocator(),
+                DataSize.of(16, MEGABYTE),
+                DataSize.of(64, MEGABYTE),
+                DataSize.of(128, KILOBYTE));
 
         // exchange missing
         assertDrainedChunkDataResult(chunkManager, drainedBufferNodeId);
@@ -661,7 +714,11 @@ public class TestChunkManager
                         .setAllocationRatioLowWatermark(1.0),
                 new ChunkManagerConfig(),
                 new DataServerStats());
-        ChunkManager chunkManager = createChunkManager(memoryAllocator, DataSize.of(16, MEGABYTE), DataSize.of(128, KILOBYTE));
+        ChunkManager chunkManager = createChunkManager(
+                memoryAllocator,
+                DataSize.of(16, MEGABYTE),
+                DataSize.of(64, MEGABYTE),
+                DataSize.of(128, KILOBYTE));
 
         AddDataPagesResult addDataPagesResult = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("dummy")));
         assertFalse(addDataPagesResult.addDataPagesFuture().isDone()); // addDataPagesResult will block because of memory not enough
@@ -674,6 +731,53 @@ public class TestChunkManager
 
         addDataPagesResult.addDataPagesFuture().cancel(true);
         assertTrue(retriedAddDataPagesResult.addDataPagesFuture().isCancelled());
+    }
+
+    @Test
+    public void testWritePagesOfDifferentSizes()
+    {
+        Slice tinyPage = utf8Slice("0");
+        Slice largePage = utf8Slice("2".repeat(40));
+        Slice hugePage = utf8Slice("3".repeat(100));
+
+        MemoryAllocator memoryAllocator = defaultMemoryAllocator();
+        ChunkManager chunkManager = createChunkManager(
+                memoryAllocator,
+                DataSize.of(16, BYTE),
+                DataSize.of(64, BYTE),
+                DataSize.of(8, BYTE));
+
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(tinyPage)).addDataPagesFuture());
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 1L, ImmutableList.of(tinyPage)).addDataPagesFuture());
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 2L, ImmutableList.of(largePage)).addDataPagesFuture());
+
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 1, 1, 0L, ImmutableList.of(largePage)).addDataPagesFuture());
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 1, 1, 1L, ImmutableList.of(tinyPage)).addDataPagesFuture());
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 1, 1, 2L, ImmutableList.of(tinyPage)).addDataPagesFuture());
+
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 2, 2, 2, 0L, ImmutableList.of(tinyPage)).addDataPagesFuture());
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 2, 2, 2, 1L, ImmutableList.of(largePage)).addDataPagesFuture());
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 2, 2, 2, 2L, ImmutableList.of(tinyPage)).addDataPagesFuture());
+
+        getFutureValue(chunkManager.finishExchange(EXCHANGE_0));
+
+        ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 2);
+        ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 0, 1L, 40);
+        ChunkHandle chunkHandle2 = new ChunkHandle(BUFFER_NODE_ID, 1, 3L, 42);
+        ChunkHandle chunkHandle3 = new ChunkHandle(BUFFER_NODE_ID, 2, 4L, 1);
+        ChunkHandle chunkHandle4 = new ChunkHandle(BUFFER_NODE_ID, 2, 5L, 41);
+        ChunkList chunkList = listClosedChunks(chunkManager, EXCHANGE_0, OptionalLong.empty(), 5);
+        assertThat(chunkList.chunks()).containsExactlyInAnyOrder(chunkHandle0, chunkHandle1, chunkHandle2, chunkHandle3, chunkHandle4);
+
+        assertEquals(192, memoryAllocator.getTotalMemory() - memoryAllocator.getFreeMemory());
+
+        assertThatThrownBy(() -> getFutureValue(chunkManager.addDataPages(EXCHANGE_1, 3, 3, 3, 0L, ImmutableList.of(hugePage)).addDataPagesFuture()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("requiredStorageSize 107 larger than chunkMaxSizeInBytes 64");
+
+        chunkManager.removeExchange(EXCHANGE_0);
+        chunkManager.removeExchange(EXCHANGE_1);
+        assertEquals(memoryAllocator.getTotalMemory(), memoryAllocator.getFreeMemory());
     }
 
     @AfterAll
@@ -720,10 +824,12 @@ public class TestChunkManager
     private ChunkManager createChunkManager(
             MemoryAllocator memoryAllocator,
             DataSize chunkTargetSize,
+            DataSize chunkMaxSize,
             DataSize chunkSliceSize)
     {
         ChunkManagerConfig chunkManagerConfig = new ChunkManagerConfig()
                 .setChunkTargetSize(chunkTargetSize)
+                .setChunkMaxSize(chunkMaxSize)
                 .setChunkSliceSize(chunkSliceSize)
                 .setSpoolingDirectory("s3://" + minioStorage.getBucketName())
                 .setChunkSpoolInterval(succinctDuration(100, SECONDS)); // only manual triggering in tests
