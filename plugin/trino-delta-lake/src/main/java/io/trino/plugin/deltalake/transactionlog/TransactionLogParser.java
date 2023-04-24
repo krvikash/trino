@@ -26,6 +26,7 @@ import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.TrinoInputFile;
 import io.trino.plugin.base.util.JsonUtils;
 import io.trino.plugin.deltalake.DeltaLakeColumnHandle;
+import io.trino.plugin.deltalake.DeltaLakeColumnProjectionInfo;
 import io.trino.plugin.deltalake.transactionlog.checkpoint.LastCheckpoint;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.DecimalType;
@@ -164,8 +165,7 @@ public final class TransactionLogParser
 
     public static Object deserializeColumnValue(DeltaLakeColumnHandle column, String valueString, Function<String, Long> timestampReader)
     {
-        verify(column.isBaseColumn(), "Unexpected dereference: %s", column);
-        Type type = column.getBaseType();
+        Type type = column.getProjectionInfo().map(DeltaLakeColumnProjectionInfo::getType).orElse(column.getBaseType());
         try {
             if (type.equals(BOOLEAN)) {
                 if (valueString.equalsIgnoreCase("true")) {
