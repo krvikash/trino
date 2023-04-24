@@ -78,7 +78,7 @@ public class ChunkManager
     private static final Logger LOG = Logger.get(ChunkManager.class);
 
     private final long bufferNodeId;
-    private final int chunkMaxSizeInBytes;
+    private final int chunkTargetSizeInBytes;
     private final int chunkSliceSizeInBytes;
     private final boolean calculateDataPagesChecksum;
     private final int drainingMaxAttempts;
@@ -118,7 +118,7 @@ public class ChunkManager
             ExecutorService executor)
     {
         this.bufferNodeId = bufferNodeId.getLongValue();
-        this.chunkMaxSizeInBytes = toIntExact(chunkManagerConfig.getChunkMaxSize().toBytes());
+        this.chunkTargetSizeInBytes = toIntExact(chunkManagerConfig.getChunkTargetSize().toBytes());
         this.chunkSliceSizeInBytes = toIntExact(chunkManagerConfig.getChunkSliceSize().toBytes());
         this.calculateDataPagesChecksum = dataServerConfig.isDataIntegrityVerificationEnabled();
         this.drainingMaxAttempts = dataServerConfig.getDrainingMaxAttempts();
@@ -227,7 +227,7 @@ public class ChunkManager
                     exchangeId,
                     memoryAllocator,
                     spoolingStorage,
-                    chunkMaxSizeInBytes,
+                    chunkTargetSizeInBytes,
                     chunkSliceSizeInBytes,
                     calculateDataPagesChecksum,
                     chunkListTargetSize,

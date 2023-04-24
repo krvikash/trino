@@ -32,7 +32,7 @@ public class TestChunkManagerConfig
     public void assertDefaults()
     {
         assertRecordedDefaults(recordDefaults(ChunkManagerConfig.class)
-                .setChunkMaxSize(DataSize.of(16, MEGABYTE))
+                .setChunkTargetSize(DataSize.of(16, MEGABYTE))
                 .setChunkSliceSize(DataSize.of(128, KILOBYTE))
                 .setExchangeStalenessThreshold(DEFAULT_EXCHANGE_STALENESS_THRESHOLD)
                 .setSpoolingDirectory(null)
@@ -44,7 +44,7 @@ public class TestChunkManagerConfig
     public void testExplicitPropertyMappings()
     {
         Map<String, String> properties = ImmutableMap.<String, String>builder()
-                .put("chunk.max-size", "32MB")
+                .put("chunk.target-size", "32MB")
                 .put("chunk.slice-size", "1MB")
                 .put("exchange.staleness-threshold", "1m")
                 .put("spooling.directory", "s3://spooling-bucket")
@@ -53,7 +53,7 @@ public class TestChunkManagerConfig
                 .buildOrThrow();
 
         ChunkManagerConfig expected = new ChunkManagerConfig()
-                .setChunkMaxSize(DataSize.of(32, MEGABYTE))
+                .setChunkTargetSize(DataSize.of(32, MEGABYTE))
                 .setChunkSliceSize(DataSize.of(1, MEGABYTE))
                 .setExchangeStalenessThreshold(succinctDuration(1, MINUTES))
                 .setSpoolingDirectory("s3://spooling-bucket/")

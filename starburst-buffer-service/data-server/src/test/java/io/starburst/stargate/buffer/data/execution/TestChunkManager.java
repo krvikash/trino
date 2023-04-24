@@ -322,14 +322,14 @@ public class TestChunkManager
     public void testAddDataPagesFailure()
     {
         MemoryAllocator memoryAllocator = defaultMemoryAllocator();
-        DataSize chunkMaxSize = DataSize.of(12, BYTE);
-        ChunkManager chunkManager = createChunkManager(memoryAllocator, chunkMaxSize, chunkMaxSize);
+        DataSize chunkTargetSize = DataSize.of(12, BYTE);
+        ChunkManager chunkManager = createChunkManager(memoryAllocator, chunkTargetSize, chunkTargetSize);
         Slice largePage = utf8Slice("8".repeat((int) DataSize.of(8, MEGABYTE).toBytes()));
 
         getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("dummy"))).addDataPagesFuture());
         assertThatThrownBy(() -> getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 1, 1, 1L, ImmutableList.of(utf8Slice("dummy"), largePage)).addDataPagesFuture()))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("requiredStorageSize %d larger than chunkMaxSizeInBytes %d".formatted(DATA_PAGE_HEADER_SIZE + largePage.length(), chunkMaxSize.toBytes()));
+                .hasMessage("requiredStorageSize %d larger than chunkTargetSizeInBytes %d".formatted(DATA_PAGE_HEADER_SIZE + largePage.length(), chunkTargetSize.toBytes()));
         sleepUninterruptibly(100, MILLISECONDS); // make sure exception callback has executed and failure has been set
         // all future operations (except releaseChunks) to the exchange will fail
         assertThatThrownBy(() -> getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 2, 2, 2, 2L, ImmutableList.of(utf8Slice("dummy"))).addDataPagesFuture()))
@@ -719,11 +719,11 @@ public class TestChunkManager
 
     private ChunkManager createChunkManager(
             MemoryAllocator memoryAllocator,
-            DataSize chunkMaxSize,
+            DataSize chunkTargetSize,
             DataSize chunkSliceSize)
     {
         ChunkManagerConfig chunkManagerConfig = new ChunkManagerConfig()
-                .setChunkMaxSize(chunkMaxSize)
+                .setChunkTargetSize(chunkTargetSize)
                 .setChunkSliceSize(chunkSliceSize)
                 .setSpoolingDirectory("s3://" + minioStorage.getBucketName())
                 .setChunkSpoolInterval(succinctDuration(100, SECONDS)); // only manual triggering in tests

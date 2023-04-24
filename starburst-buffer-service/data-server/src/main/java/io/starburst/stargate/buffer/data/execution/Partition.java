@@ -50,7 +50,7 @@ public class Partition
     private final int partitionId;
     private final MemoryAllocator memoryAllocator;
     private final SpoolingStorage spoolingStorage;
-    private final int chunkMaxSizeInBytes;
+    private final int chunkTargetSizeInBytes;
     private final int chunkSliceSizeInBytes;
     private final boolean calculateDataPagesChecksum;
     private final ChunkIdGenerator chunkIdGenerator;
@@ -77,7 +77,7 @@ public class Partition
             int partitionId,
             MemoryAllocator memoryAllocator,
             SpoolingStorage spoolingStorage,
-            int chunkMaxSizeInBytes,
+            int chunkTargetSizeInBytes,
             int chunkSliceSizeInBytes,
             boolean calculateDataPagesChecksum,
             ChunkIdGenerator chunkIdGenerator,
@@ -89,7 +89,7 @@ public class Partition
         this.partitionId = partitionId;
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.spoolingStorage = requireNonNull(spoolingStorage, "spoolingStorage is null");
-        this.chunkMaxSizeInBytes = chunkMaxSizeInBytes;
+        this.chunkTargetSizeInBytes = chunkTargetSizeInBytes;
         this.chunkSliceSizeInBytes = chunkSliceSizeInBytes;
         this.calculateDataPagesChecksum = calculateDataPagesChecksum;
         this.chunkIdGenerator = requireNonNull(chunkIdGenerator, "chunkIdGenerator is null");
@@ -253,7 +253,7 @@ public class Partition
                 chunkId,
                 memoryAllocator,
                 executor,
-                chunkMaxSizeInBytes,
+                chunkTargetSizeInBytes,
                 chunkSliceSizeInBytes,
                 calculateDataPagesChecksum);
     }

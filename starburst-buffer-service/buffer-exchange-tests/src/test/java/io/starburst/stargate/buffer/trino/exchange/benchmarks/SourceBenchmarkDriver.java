@@ -77,14 +77,14 @@ public class SourceBenchmarkDriver
     public SourceBenchmarkResult benchmark()
     {
         try (Closer closer = Closer.create()) {
-            // use bing chunk size to be sure DataServer will allocate just one chunk for all the pages we pass it
-            DataSize chunkMaxSize = DataSize.ofBytes(max(DataSize.of(16, MEGABYTE).toBytes(), 2 * setup.chunkSize().toBytes()));
+            // use big chunk size to be sure DataServer will allocate just one chunk for all the pages we pass it
+            DataSize chunkTargetSize = DataSize.ofBytes(max(DataSize.of(16, MEGABYTE).toBytes(), 2 * setup.chunkSize().toBytes()));
             TestingBufferService bufferService = TestingBufferService.builder()
                     .setDataServersCount(1)
                     .withDiscoveryServerBuilder(builder ->
                             builder.setConfigProperty("buffer.discovery.start-grace-period", "3s"))
                     .withDataServerBuilder(builder ->
-                            builder.setConfigProperty("chunk.max-size", chunkMaxSize.toString()))
+                            builder.setConfigProperty("chunk.target-size", chunkTargetSize.toString()))
                     .build();
             closer.register(bufferService);
 

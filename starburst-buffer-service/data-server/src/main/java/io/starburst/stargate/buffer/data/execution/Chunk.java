@@ -58,7 +58,7 @@ public class Chunk
             long chunkId,
             MemoryAllocator memoryAllocator,
             ExecutorService executor,
-            int chunkMaxSizeInBytes,
+            int chunkTargetSizeInBytes,
             int chunkSliceSizeInBytes,
             boolean calculateDataPagesChecksum)
     {
@@ -69,7 +69,7 @@ public class Chunk
         this.chunkData = new ChunkData(
                 memoryAllocator,
                 executor,
-                chunkMaxSizeInBytes,
+                chunkTargetSizeInBytes,
                 chunkSliceSizeInBytes,
                 calculateDataPagesChecksum);
     }
@@ -163,7 +163,7 @@ public class Chunk
     {
         private final MemoryAllocator memoryAllocator;
         private final ExecutorService executor;
-        private final int chunkMaxSizeInBytes;
+        private final int chunkTargetSizeInBytes;
         private final int chunkSliceSizeInBytes;
         private final boolean calculateDataPagesChecksum;
         @GuardedBy("this")
@@ -187,25 +187,25 @@ public class Chunk
         public ChunkData(
                 MemoryAllocator memoryAllocator,
                 ExecutorService executor,
-                int chunkMaxSizeInBytes,
+                int chunkTargetSizeInBytes,
                 int chunkSliceSizeInBytes,
                 boolean calculateDataPagesChecksum)
         {
-            checkArgument(chunkMaxSizeInBytes >= chunkSliceSizeInBytes && chunkMaxSizeInBytes % chunkSliceSizeInBytes == 0,
-                    "chunkMaxSizeInBytes %s is not a multiple of chunkSliceSizeInBytes %s", chunkMaxSizeInBytes, chunkSliceSizeInBytes);
+            checkArgument(chunkTargetSizeInBytes >= chunkSliceSizeInBytes && chunkTargetSizeInBytes % chunkSliceSizeInBytes == 0,
+                    "chunkTargetSizeInBytes %s is not a multiple of chunkSliceSizeInBytes %s", chunkTargetSizeInBytes, chunkSliceSizeInBytes);
             this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
             this.executor = requireNonNull(executor, "executor is null");
-            this.chunkMaxSizeInBytes = chunkMaxSizeInBytes;
+            this.chunkTargetSizeInBytes = chunkTargetSizeInBytes;
             this.chunkSliceSizeInBytes = chunkSliceSizeInBytes;
             this.calculateDataPagesChecksum = calculateDataPagesChecksum;
-            int initialCapacity = chunkMaxSizeInBytes / chunkSliceSizeInBytes;
+            int initialCapacity = chunkTargetSizeInBytes / chunkSliceSizeInBytes;
             this.completedSlices = new ArrayList<>(initialCapacity);
             this.chunkSliceLeases = new ArrayList<>(initialCapacity);
         }
 
         public ListenableFuture<Void> write(int taskId, int attemptId, Slice data)
         {
-            int writableBytes = chunkMaxSizeInBytes - numBytesWritten;
+            int writableBytes = chunkTargetSizeInBytes - numBytesWritten;
             int dataSize = data.length();
             int requiredStorageSize = DATA_PAGE_HEADER_SIZE + dataSize;
             checkArgument(requiredStorageSize <= writableBytes, "requiredStorageSize %s larger than writableBytes %s", requiredStorageSize, writableBytes);
@@ -230,8 +230,8 @@ public class Chunk
         public boolean hasEnoughSpace(Slice data)
         {
             int requiredStorageSize = DATA_PAGE_HEADER_SIZE + data.length();
-            int writableBytes = chunkMaxSizeInBytes - numBytesWritten;
-            checkArgument(requiredStorageSize <= chunkMaxSizeInBytes, "requiredStorageSize %s larger than chunkMaxSizeInBytes %s", requiredStorageSize, chunkMaxSizeInBytes);
+            int writableBytes = chunkTargetSizeInBytes - numBytesWritten;
+            checkArgument(requiredStorageSize <= chunkTargetSizeInBytes, "requiredStorageSize %s larger than chunkTargetSizeInBytes %s", requiredStorageSize, chunkTargetSizeInBytes);
             return requiredStorageSize <= writableBytes;
         }
 

@@ -127,7 +127,7 @@ public class TestMemoryAllocator
     {
         MemoryAllocator memoryAllocator = new MemoryAllocator(new MemoryAllocatorConfig(), new ChunkManagerConfig(), new DataServerStats());
         DataPage dataPage = new DataPage(0, 0, utf8Slice("dummy"));
-        int chunkMaxSizeInBytes = toIntExact(DataSize.of(16, MEGABYTE).toBytes());
+        int chunkTargetSizeInBytes = toIntExact(DataSize.of(16, MEGABYTE).toBytes());
         int chunkSliceSizeInBytes = toIntExact(DataSize.of(128, KILOBYTE).toBytes());
 
         Chunk chunk0 = new Chunk(
@@ -137,7 +137,7 @@ public class TestMemoryAllocator
                 0,
                 memoryAllocator,
                 executor,
-                chunkMaxSizeInBytes,
+                chunkTargetSizeInBytes,
                 chunkSliceSizeInBytes,
                 true);
         getFutureValue(chunk0.write(dataPage.taskId(), dataPage.attemptId(), dataPage.data()));
@@ -159,7 +159,7 @@ public class TestMemoryAllocator
                 1,
                 memoryAllocator,
                 executor,
-                chunkMaxSizeInBytes,
+                chunkTargetSizeInBytes,
                 chunkSliceSizeInBytes,
                 true);
         getFutureValue(chunk1.write(dataPage.taskId(), dataPage.attemptId(), dataPage.data()));

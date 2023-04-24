@@ -68,7 +68,7 @@ public class Exchange
     private final String exchangeId;
     private final MemoryAllocator memoryAllocator;
     private final SpoolingStorage spoolingStorage;
-    private final int chunkMaxSizeInBytes;
+    private final int chunkTargetSizeInBytes;
     private final int chunkSliceSizeInBytes;
     private final int chunkListTargetSize;
     private final int chunkListMaxSize;
@@ -109,7 +109,7 @@ public class Exchange
             String exchangeId,
             MemoryAllocator memoryAllocator,
             SpoolingStorage spoolingStorage,
-            int chunkMaxSizeInBytes,
+            int chunkTargetSizeInBytes,
             int chunkSliceSizeInBytes,
             boolean calculateDataPagesChecksum,
             int chunkListTargetSize,
@@ -124,7 +124,7 @@ public class Exchange
         this.exchangeId = requireNonNull(exchangeId, "exchangeId is null");
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.spoolingStorage = requireNonNull(spoolingStorage, "spoolingStorage is null");
-        this.chunkMaxSizeInBytes = chunkMaxSizeInBytes;
+        this.chunkTargetSizeInBytes = chunkTargetSizeInBytes;
         this.chunkSliceSizeInBytes = chunkSliceSizeInBytes;
         this.calculateDataPagesChecksum = calculateDataPagesChecksum;
         checkArgument(chunkListTargetSize >= 0, "chunkListTargetSize is less than 0");
@@ -154,7 +154,7 @@ public class Exchange
                     partitionId,
                     memoryAllocator,
                     spoolingStorage,
-                    chunkMaxSizeInBytes,
+                    chunkTargetSizeInBytes,
                     chunkSliceSizeInBytes,
                     calculateDataPagesChecksum,
                     chunkIdGenerator,
