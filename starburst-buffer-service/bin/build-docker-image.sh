@@ -75,6 +75,8 @@ if [[ "${archTypes}" == "" ]]; then
 else
     if [[ ${pushImages} -eq 1 ]]; then
         buildArguments="${buildArguments} --push"
+    else
+        buildArguments="${buildArguments} -o type=docker"
     fi
     docker buildx build "../${projectName}" \
         -f "../${projectName}/Dockerfile" \
