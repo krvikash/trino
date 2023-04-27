@@ -612,7 +612,9 @@ public class MongoMetadata
         }
 
         ConnectorTableHandle tableHandle = ((QueryFunctionHandle) handle).getTableHandle();
-        List<ColumnHandle> columnHandles = ImmutableList.copyOf(getColumnHandles(session, tableHandle).values());
+        List<ColumnHandle> columnHandles = getColumnHandles(session, tableHandle).values().stream()
+                .filter(column -> !((MongoColumnHandle) column).isHidden())
+                .collect(toImmutableList());
         return Optional.of(new TableFunctionApplicationResult<>(tableHandle, columnHandles));
     }
 
