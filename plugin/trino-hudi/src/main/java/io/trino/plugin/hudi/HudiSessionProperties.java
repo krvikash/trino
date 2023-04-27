@@ -46,6 +46,7 @@ public class HudiSessionProperties
     private static final String PARQUET_SMALL_FILE_THRESHOLD = "parquet_small_file_threshold";
     private static final String PARQUET_NATIVE_ZSTD_DECOMPRESSOR_ENABLED = "parquet_native_zstd_decompressor_enabled";
     private static final String PARQUET_NATIVE_SNAPPY_DECOMPRESSOR_ENABLED = "parquet_native_snappy_decompressor_enabled";
+    private static final String PARQUET_VECTORIZED_DECODING_ENABLED = "parquet_vectorized_decoding_enabled";
     private static final String SIZE_BASED_SPLIT_WEIGHTS_ENABLED = "size_based_split_weights_enabled";
     private static final String STANDARD_SPLIT_WEIGHT_SIZE = "standard_split_weight_size";
     private static final String MINIMUM_ASSIGNED_SPLIT_WEIGHT = "minimum_assigned_split_weight";
@@ -91,6 +92,11 @@ public class HudiSessionProperties
                         PARQUET_NATIVE_SNAPPY_DECOMPRESSOR_ENABLED,
                         "Enable using native snappy library for faster decompression of parquet files",
                         parquetReaderConfig.isNativeSnappyDecompressorEnabled(),
+                        false),
+                booleanProperty(
+                        PARQUET_VECTORIZED_DECODING_ENABLED,
+                        "Enable using Java Vector API for faster decoding of parquet files",
+                        parquetReaderConfig.isVectorizedDecodingEnabled(),
                         false),
                 booleanProperty(
                         SIZE_BASED_SPLIT_WEIGHTS_ENABLED,
@@ -164,6 +170,11 @@ public class HudiSessionProperties
     public static boolean isParquetNativeSnappyDecompressorEnabled(ConnectorSession session)
     {
         return session.getProperty(PARQUET_NATIVE_SNAPPY_DECOMPRESSOR_ENABLED, Boolean.class);
+    }
+
+    public static boolean isParquetVectorizedDecodingEnabled(ConnectorSession session)
+    {
+        return session.getProperty(PARQUET_VECTORIZED_DECODING_ENABLED, Boolean.class);
     }
 
     public static boolean isSizeBasedSplitWeightsEnabled(ConnectorSession session)

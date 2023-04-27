@@ -92,6 +92,7 @@ import static io.trino.plugin.hive.HiveSessionProperties.isParquetIgnoreStatisti
 import static io.trino.plugin.hive.HiveSessionProperties.isParquetNativeSnappyDecompressorEnabled;
 import static io.trino.plugin.hive.HiveSessionProperties.isParquetNativeZstdDecompressorEnabled;
 import static io.trino.plugin.hive.HiveSessionProperties.isParquetUseColumnIndex;
+import static io.trino.plugin.hive.HiveSessionProperties.isParquetVectorizedDecodingEnabled;
 import static io.trino.plugin.hive.HiveSessionProperties.isUseParquetColumnNames;
 import static io.trino.plugin.hive.HiveSessionProperties.useParquetBloomFilter;
 import static io.trino.plugin.hive.parquet.ParquetPageSource.handleException;
@@ -194,7 +195,8 @@ public class ParquetPageSourceFactory
                         .withUseColumnIndex(isParquetUseColumnIndex(session))
                         .withBloomFilter(useParquetBloomFilter(session))
                         .withNativeZstdDecompressorEnabled(isParquetNativeZstdDecompressorEnabled(session))
-                        .withNativeSnappyDecompressorEnabled(isParquetNativeSnappyDecompressorEnabled(session)),
+                        .withNativeSnappyDecompressorEnabled(isParquetNativeSnappyDecompressorEnabled(session))
+                        .withVectorizedDecodingEnabled(isParquetVectorizedDecodingEnabled(session)),
                 Optional.empty(),
                 domainCompactionThreshold,
                 OptionalLong.of(estimatedFileSize)));

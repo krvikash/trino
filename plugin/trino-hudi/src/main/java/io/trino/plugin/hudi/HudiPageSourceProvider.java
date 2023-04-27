@@ -89,6 +89,7 @@ import static io.trino.plugin.hudi.HudiErrorCode.HUDI_UNSUPPORTED_FILE_FORMAT;
 import static io.trino.plugin.hudi.HudiSessionProperties.getParquetSmallFileThreshold;
 import static io.trino.plugin.hudi.HudiSessionProperties.isParquetNativeSnappyDecompressorEnabled;
 import static io.trino.plugin.hudi.HudiSessionProperties.isParquetNativeZstdDecompressorEnabled;
+import static io.trino.plugin.hudi.HudiSessionProperties.isParquetVectorizedDecodingEnabled;
 import static io.trino.plugin.hudi.HudiSessionProperties.shouldUseParquetColumnNames;
 import static io.trino.plugin.hudi.HudiUtil.getHudiFileFormat;
 import static io.trino.spi.predicate.Utils.nativeValueToBlock;
@@ -169,8 +170,9 @@ public class HudiPageSourceProvider
                 inputFile,
                 dataSourceStats,
                 options.withNativeZstdDecompressorEnabled(isParquetNativeZstdDecompressorEnabled(session))
-                    .withNativeSnappyDecompressorEnabled(isParquetNativeSnappyDecompressorEnabled(session))
-                    .withSmallFileThreshold(getParquetSmallFileThreshold(session)),
+                        .withNativeSnappyDecompressorEnabled(isParquetNativeSnappyDecompressorEnabled(session))
+                        .withSmallFileThreshold(getParquetSmallFileThreshold(session))
+                        .withVectorizedDecodingEnabled(isParquetVectorizedDecodingEnabled(session)),
                 timeZone);
 
         return new HudiPageSource(

@@ -93,6 +93,7 @@ import static io.trino.plugin.deltalake.DeltaLakeSessionProperties.isParquetIgno
 import static io.trino.plugin.deltalake.DeltaLakeSessionProperties.isParquetNativeSnappyDecompressorEnabled;
 import static io.trino.plugin.deltalake.DeltaLakeSessionProperties.isParquetNativeZstdDecompressorEnabled;
 import static io.trino.plugin.deltalake.DeltaLakeSessionProperties.isParquetUseColumnIndex;
+import static io.trino.plugin.deltalake.DeltaLakeSessionProperties.isParquetVectorizedDecodingEnabled;
 import static io.trino.plugin.deltalake.DeltaLakeSplitManager.partitionMatchesPredicate;
 import static io.trino.plugin.deltalake.delete.DeletionVectors.readDeletionVectors;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.extractSchema;
@@ -220,7 +221,8 @@ public class DeltaLakePageSourceProvider
                 .withUseColumnIndex(isParquetUseColumnIndex(session))
                 .withIgnoreStatistics(isParquetIgnoreStatistics(session))
                 .withNativeZstdDecompressorEnabled(isParquetNativeZstdDecompressorEnabled(session))
-                .withNativeSnappyDecompressorEnabled(isParquetNativeSnappyDecompressorEnabled(session));
+                .withNativeSnappyDecompressorEnabled(isParquetNativeSnappyDecompressorEnabled(session))
+                .withVectorizedDecodingEnabled(isParquetVectorizedDecodingEnabled(session));
 
         Map<Integer, String> parquetFieldIdToName = columnMappingMode == ColumnMappingMode.ID ? loadParquetIdAndNameMapping(inputFile, options) : ImmutableMap.of();
 
