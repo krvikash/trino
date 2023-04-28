@@ -22,8 +22,8 @@ import javax.inject.Provider;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
-import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
+import static io.trino.server.InternalCommunicationHttpClientModule.internalHttpClientModule;
 import static java.util.Objects.requireNonNull;
 
 public class FlightRecorderModule
@@ -34,7 +34,7 @@ public class FlightRecorderModule
     {
         configBinder(binder).bindConfig(FlightRecorderConfig.class);
 
-        httpClientBinder(binder).bindHttpClient("flight-recorder", ForTroubleshooting.class);
+        install(internalHttpClientModule("flight-recorder", ForTroubleshooting.class).build());
         binder.bind(LocalRecordingFactory.class);
 
         if (buildConfigObject(ServerConfig.class).isCoordinator()) {
