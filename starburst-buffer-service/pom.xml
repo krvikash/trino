@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>134</version>
+        <version>136</version>
     </parent>
 
     <groupId>io.starburst.stargate.buffer</groupId>
@@ -35,11 +35,11 @@
         <air.java.version>17.0.1</air.java.version>
         <project.build.targetJdk>17</project.build.targetJdk>
 
-        <dep.airlift.version>228</dep.airlift.version>
+        <dep.airlift.version>229</dep.airlift.version>
         <dep.slice.version>0.45</dep.slice.version>
         <dep.errorprone.version>2.18.0</dep.errorprone.version>
-        <dep.trino.version>413</dep.trino.version>
-        <dep.joda.version>2.12.2</dep.joda.version> <!-- required by Trino 406 -->
+        <dep.trino.version>414</dep.trino.version>
+        <dep.joda.version>2.12.5</dep.joda.version> <!-- required by Trino 414 -->
         <dep.datadog-agent.version>0.114.0</dep.datadog-agent.version>
 
         <dep.awsjavasdk.version>2.17.151</dep.awsjavasdk.version>
@@ -361,7 +361,7 @@
             <dependency>
                 <groupId>io.trino.tpch</groupId>
                 <artifactId>tpch</artifactId>
-                <version>1.1</version>
+                <version>1.2</version>
             </dependency>
 
             <!-- force newer version to be used for dependencies -->
@@ -386,7 +386,7 @@
             <dependency>
                 <groupId>org.checkerframework</groupId>
                 <artifactId>checker-qual</artifactId>
-                <version>3.25.0</version>
+                <version>3.31.0</version>
             </dependency>
 
             <dependency>
