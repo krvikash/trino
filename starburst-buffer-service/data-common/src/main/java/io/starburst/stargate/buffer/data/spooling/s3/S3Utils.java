@@ -85,6 +85,8 @@ public class S3Utils
 
         region.ifPresent(s3AsyncClientBuilder::region);
 
+        s3AsyncClientBuilder.forcePathStyle(true);
+
         return s3AsyncClientBuilder.build();
     }
 

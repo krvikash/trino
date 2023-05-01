@@ -144,7 +144,8 @@ public class TestBufferExchangeSpecialCases
 
             Map<String, String> extraProperties = new HashMap<>();
             extraProperties.putAll(FaultTolerantExecutionConnectorTestHelper.getExtraProperties());
-            extraProperties.put("fault-tolerant-execution-partition-count", "50"); // use more partition to be sure we get some on the drained node
+            extraProperties.put("fault-tolerant-execution-min-partition-count", "50"); // use more partition to be sure we get some on the drained node
+            extraProperties.put("fault-tolerant-execution-max-partition-count", "50");
             extraProperties.put("optimizer.join-reordering-strategy", "NONE");
             extraProperties.put("join-distribution-type", "PARTITIONED");
             extraProperties.put("enable-dynamic-filtering", "false");

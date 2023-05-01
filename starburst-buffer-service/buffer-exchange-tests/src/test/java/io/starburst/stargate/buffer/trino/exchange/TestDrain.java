@@ -129,7 +129,8 @@ public class TestDrain
 
         Map<String, String> runnerExtraProperties = new HashMap<>();
         runnerExtraProperties.putAll(FaultTolerantExecutionConnectorTestHelper.getExtraProperties());
-        runnerExtraProperties.put("fault-tolerant-execution-partition-count", "50"); // use more partition to be sure we get some on the drained node
+        runnerExtraProperties.put("fault-tolerant-execution-min-partition-count", "50"); // use more partition to be sure we get some on the drained node
+        runnerExtraProperties.put("fault-tolerant-execution-max-partition-count", "50");
         runnerExtraProperties.put("optimizer.join-reordering-strategy", "NONE");
         runnerExtraProperties.put("join-distribution-type", "PARTITIONED");
         runnerExtraProperties.put("enable-dynamic-filtering", "false");

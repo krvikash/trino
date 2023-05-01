@@ -55,7 +55,7 @@ public class SplitTestingBufferServiceSetup
             properties.put("retry-policy", "TASK");
             properties.put("retry-initial-delay", "50ms");
             properties.put("retry-max-delay", "100ms");
-            properties.put("fault-tolerant-execution-partition-count", "5");
+            properties.put("fault-tolerant-execution-max-partition-count", "5");
             properties.put("fault-tolerant-execution-target-task-input-size", "10MB");
             properties.put("fault-tolerant-execution-target-task-split-count", "4");
                     // to trigger spilling

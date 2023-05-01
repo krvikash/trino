@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>136</version>
+        <version>138</version>
     </parent>
 
     <groupId>io.starburst.stargate.buffer</groupId>
@@ -35,17 +35,18 @@
         <air.java.version>17.0.1</air.java.version>
         <project.build.targetJdk>17</project.build.targetJdk>
 
-        <dep.airlift.version>229</dep.airlift.version>
+        <dep.airlift.version>230</dep.airlift.version>
         <dep.slice.version>0.45</dep.slice.version>
         <dep.errorprone.version>2.18.0</dep.errorprone.version>
-        <dep.trino.version>414</dep.trino.version>
+        <dep.trino.version>415</dep.trino.version>
         <dep.joda.version>2.12.5</dep.joda.version> <!-- required by Trino 414 -->
         <dep.datadog-agent.version>0.114.0</dep.datadog-agent.version>
 
-        <dep.awsjavasdk.version>2.17.151</dep.awsjavasdk.version>
+        <dep.awsjavasdk.version>2.20.48</dep.awsjavasdk.version>
 
         <!-- force common version; pulled by some test dependencies -->
         <dep.kotlin.version>1.8.0</dep.kotlin.version>
+        <dep.netty.version>4.1.91.Final</dep.netty.version>
     </properties>
 
     <modules>
@@ -166,7 +167,7 @@
                 <groupId>com.azure</groupId>
                 <artifactId>azure-sdk-bom</artifactId>
                 <type>pom</type>
-                <version>1.1.1</version>
+                <version>1.2.11</version>
                 <scope>import</scope>
             </dependency>
 
@@ -336,9 +337,17 @@
             </dependency>
 
             <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <type>pom</type>
+                <version>${dep.netty.version}</version>
+                <scope>import</scope>
+              </dependency>
+
+            <dependency>
                 <groupId>io.projectreactor</groupId>
                 <artifactId>reactor-core</artifactId>
-                <version>3.4.13</version>
+                <version>3.4.27</version>
             </dependency>
 
             <dependency>
@@ -427,10 +436,11 @@
                 <version>0.16</version>
             </dependency>
 
+            <!-- force newer version to be used for dependencies -->
             <dependency>
                 <groupId>org.reactivestreams</groupId>
                 <artifactId>reactive-streams</artifactId>
-                <version>1.0.3</version>
+                <version>1.0.4</version>
             </dependency>
 
             <!-- force newer version to be used for dependencies -->
@@ -443,7 +453,7 @@
             <dependency>
                 <groupId>org.weakref</groupId>
                 <artifactId>jmxutils</artifactId>
-                <version>1.22</version>
+                <version>1.23</version>
             </dependency>
 
             <dependency>

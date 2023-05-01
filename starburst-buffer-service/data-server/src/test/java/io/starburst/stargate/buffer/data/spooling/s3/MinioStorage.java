@@ -52,6 +52,7 @@ public class MinioStorage
         S3Client s3Client = S3Client.builder()
                 .endpointOverride(URI.create("http://localhost:" + minio.getMinioApiEndpoint().getPort()))
                 .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)))
+                .forcePathStyle(true)
                 .region(US_EAST_1)
                 .build();
         CreateBucketRequest createBucketRequest = CreateBucketRequest.builder()
