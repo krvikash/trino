@@ -66,6 +66,7 @@ import static io.airlift.json.JsonCodec.jsonCodec;
 import static io.airlift.slice.SizeOf.SIZE_OF_INT;
 import static io.starburst.stargate.buffer.data.client.DataClientHeaders.MAX_WAIT;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.INTERNAL_ERROR;
+import static io.starburst.stargate.buffer.data.client.ErrorCode.OVERLOADED;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
 import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_CHUNK_DATA_TYPE;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.toDataPages;
@@ -77,6 +78,7 @@ public class HttpDataClient
         implements DataApi
 {
     public static final String ERROR_CODE_HEADER = "X-trino-buffer-error-code";
+    public static final String NEXT_REQUEST_DELAY_IN_MILLIS_HEADER = "X-trino-next-request-delay-in-millis";
     public static final String SPOOLING_FILE_LOCATION_HEADER = "X-trino-buffer-spooling-file-location";
     public static final String SPOOLING_FILE_SIZE_HEADER = "X-trino-buffer-spooling-file-size";
 
@@ -439,7 +441,13 @@ public class HttpDataClient
             if (response.getStatusCode() != HttpStatus.OK.code()) {
                 String errorCode = response.getHeader(ERROR_CODE_HEADER);
                 String errorMessage = requestErrorMessage(request, response.getBody());
-                return immediateFailedFuture(new DataApiException(errorCode == null ? INTERNAL_ERROR : ErrorCode.valueOf(errorCode), errorMessage));
+                if (errorCode != null && ErrorCode.valueOf(errorCode) == OVERLOADED) {
+                    long nextRequestDelayInMillis = Long.parseLong(requireNonNull(response.getHeader(NEXT_REQUEST_DELAY_IN_MILLIS_HEADER)));
+                    return immediateFailedFuture(new ThrottlingException(OVERLOADED, errorMessage, nextRequestDelayInMillis));
+                }
+                else {
+                    return immediateFailedFuture(new DataApiException(errorCode == null ? INTERNAL_ERROR : ErrorCode.valueOf(errorCode), errorMessage));
+                }
             }
             return immediateVoidFuture();
         }, directExecutor());

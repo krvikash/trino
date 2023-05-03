@@ -10,6 +10,7 @@
 package io.starburst.stargate.buffer.data.server;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -65,6 +66,7 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.Executor;
@@ -88,6 +90,7 @@ import static io.starburst.stargate.buffer.data.client.ErrorCode.INTERNAL_ERROR;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.OVERLOADED;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.USER_ERROR;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.ERROR_CODE_HEADER;
+import static io.starburst.stargate.buffer.data.client.HttpDataClient.NEXT_REQUEST_DELAY_IN_MILLIS_HEADER;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLING_FILE_LOCATION_HEADER;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLING_FILE_SIZE_HEADER;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
@@ -96,6 +99,7 @@ import static io.starburst.stargate.buffer.data.execution.ChunkDataLease.CHUNK_S
 import static java.lang.String.format;
 import static java.util.Collections.emptyList;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 @Path("/api/v1/buffer/data")
 public class DataResource
@@ -119,6 +123,7 @@ public class DataResource
     private final CounterStat readDataSize;
     private final DistributionStat readDataSizeDistribution;
     private final BufferNodeInfoService bufferNodeInfoService;
+    private final AddDataPagesThrottlingCalculator addDataPagesThrottlingCalculator;
     private final int maxInProgressAddDataPagesRequests;
 
     // tracks addDataPages requests for which HTTP response was not yet returned
@@ -136,7 +141,8 @@ public class DataResource
             @ForAsyncHttp BoundedExecutor responseExecutor,
             DataServerStats stats,
             ExecutorService executor,
-            BufferNodeInfoService bufferNodeInfoService)
+            BufferNodeInfoService bufferNodeInfoService,
+            AddDataPagesThrottlingCalculator addDataPagesThrottlingCalculator)
     {
         this.bufferNodeId = requireNonNull(bufferNodeId, "bufferNodeId is null").getLongValue();
         this.chunkManager = requireNonNull(chunkManager, "chunkManager is null");
@@ -147,6 +153,7 @@ public class DataResource
         this.responseExecutor = requireNonNull(responseExecutor, "responseExecutor is null");
         this.executor = requireNonNull(executor, "executor is null");
         this.bufferNodeInfoService = requireNonNull(bufferNodeInfoService, "bufferNodeInfoService is null");
+        this.addDataPagesThrottlingCalculator = requireNonNull(addDataPagesThrottlingCalculator, "addDataPagesThrottlingCalculator is null");
         this.maxInProgressAddDataPagesRequests = config.getMaxInProgressAddDataPagesRequests();
 
         this.stats = requireNonNull(stats, "stats is null");
@@ -259,12 +266,18 @@ public class DataResource
 
         if (currentInProgressAddDataPagesRequests > maxInProgressAddDataPagesRequests) {
             decrementInProgressAddDataPagesRequests();
-            logger.warn("rejecting POST /%s/addDataPages/%s/%s/%s; exceeded maximum in progress addDataPages requests (%s > %s)", exchangeId, taskId, attemptId, dataPagesId, currentInProgressAddDataPagesRequests, maxInProgressAddDataPagesRequests);
-            completeServletResponse(asyncContext, Optional.of(new DataServerException(OVERLOADED, "Exceeded maximum in progress addDataPages requests (%s)".formatted(maxInProgressAddDataPagesRequests))));
+            addDataPagesThrottlingCalculator.recordThrottlingEvent();
+            long nextRequestDelayInMillis = addDataPagesThrottlingCalculator.getNextRequestDelayInMillis();
+            logger.warn("rejecting POST /%s/addDataPages/%s/%s/%s; exceeded maximum in progress addDataPages requests (%s > %s), next request delay %s",
+                    exchangeId, taskId, attemptId, dataPagesId, currentInProgressAddDataPagesRequests, maxInProgressAddDataPagesRequests, succinctDuration(nextRequestDelayInMillis, MILLISECONDS));
+            completeServletResponse(
+                    asyncContext,
+                    Optional.of(new DataServerException(OVERLOADED, "Exceeded maximum in progress addDataPages requests (%s)".formatted(maxInProgressAddDataPagesRequests))),
+                    ImmutableMap.of(NEXT_REQUEST_DELAY_IN_MILLIS_HEADER, Long.toString(nextRequestDelayInMillis)));
             return;
         }
         incrementServedAddDataPagesRequests();
-        asyncResponse.setTimeout(getAsyncTimeout(clientMaxWait).toMillis(), TimeUnit.MILLISECONDS);
+        asyncResponse.setTimeout(getAsyncTimeout(clientMaxWait).toMillis(), MILLISECONDS);
 
         ServletInputStream inputStream;
         try {
@@ -487,7 +500,7 @@ public class DataResource
         if (clientMaxWait == null || clientMaxWait.toMillis() == 0 || clientMaxWait.compareTo(CLIENT_MAX_WAIT_LIMIT) > 0) {
             return CLIENT_MAX_WAIT_LIMIT;
         }
-        return succinctDuration(clientMaxWait.toMillis() * 0.95, TimeUnit.MILLISECONDS);
+        return succinctDuration(clientMaxWait.toMillis() * 0.95, MILLISECONDS);
     }
 
     @GET
@@ -697,13 +710,20 @@ public class DataResource
         }, directExecutor());
     }
 
+    private void completeServletResponse(AsyncContext asyncContext, Optional<Throwable> throwable)
+            throws IOException
+    {
+        completeServletResponse(asyncContext, throwable, ImmutableMap.of());
+    }
+
     // this function is needed to immediately return http response without consuming request payload
     // for more information, see https://github.com/starburstdata/trino-buffer-service/issues/269
-    private void completeServletResponse(AsyncContext asyncContext, Optional<Throwable> throwable)
+    private void completeServletResponse(AsyncContext asyncContext, Optional<Throwable> throwable, Map<String, String> additionalHeaders)
             throws IOException
     {
         HttpServletResponse servletResponse = (HttpServletResponse) asyncContext.getResponse();
         servletResponse.setContentType("text/plain");
+        additionalHeaders.forEach(servletResponse::setHeader);
 
         if (throwable.isPresent()) {
             servletResponse.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);

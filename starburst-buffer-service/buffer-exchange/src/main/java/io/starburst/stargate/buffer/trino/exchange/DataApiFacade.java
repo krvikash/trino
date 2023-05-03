@@ -31,6 +31,7 @@ import io.starburst.stargate.buffer.data.client.DataApi;
 import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
+import io.starburst.stargate.buffer.data.client.ThrottlingException;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -431,6 +432,15 @@ public class DataApiFacade
                         default -> false;
                     };
                 })
+                .withDelayFnOn(context -> {
+                    long nextRequestBaseDelayInMillis = ((ThrottlingException) context.getLastException()).getNextRequestBaseDelayInMillis();
+                    double jitter = config.backoffJitter();
+                    double backoffFactor = config.backoffFactor();
+                    long delayInMillis = (long) (nextRequestBaseDelayInMillis * ((1 - jitter) + jitter * Math.random() * 2) * Math.pow(backoffFactor, context.getAttemptCount() - 1));
+                    delayInMillis = Math.max(delayInMillis, config.backoffInitial().toMillis());
+                    delayInMillis = Math.min(delayInMillis, config.backoffMax().toMillis());
+                    return java.time.Duration.ofMillis(delayInMillis);
+                }, ThrottlingException.class)
                 .build();
     }
 

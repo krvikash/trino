@@ -34,6 +34,7 @@ public class DataServerConfig
     private int chunkListTargetSize = 1;
     private int chunkListMaxSize = 100;
     private Duration chunkListPollTimeout = succinctDuration(100, MILLISECONDS);
+    private Duration throttlingCounterDecayDuration = succinctDuration(30, SECONDS);
 
     public boolean isDataIntegrityVerificationEnabled()
     {
@@ -172,6 +173,18 @@ public class DataServerConfig
     public DataServerConfig setChunkListPollTimeout(Duration chunkListPollTimeout)
     {
         this.chunkListPollTimeout = chunkListPollTimeout;
+        return this;
+    }
+
+    public Duration getThrottlingCounterDecayDuration()
+    {
+        return throttlingCounterDecayDuration;
+    }
+
+    @Config("throttling-counter-decay-duration")
+    public DataServerConfig setThrottlingCounterDecayDuration(Duration throttlingCounterDecayDuration)
+    {
+        this.throttlingCounterDecayDuration = throttlingCounterDecayDuration;
         return this;
     }
 }
