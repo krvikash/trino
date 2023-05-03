@@ -9,6 +9,7 @@
  */
 package io.starburst.stargate.buffer.trino.exchange;
 
+import com.google.common.base.Ticker;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ListMultimap;
@@ -18,6 +19,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import io.airlift.slice.Slice;
 import io.airlift.units.DataSize;
+import io.airlift.units.Duration;
 
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
@@ -43,15 +45,19 @@ public class SinkDataPool
 {
     private final DataSize memoryLowWaterMark;
     private final DataSize memoryHighWaterMark;
+    private final long maxWaitInMillis;
+    private final int minWrittenPagesCount;
+    private final long minWrittenPagesSizeInBytes;
     private final int targetWrittenPagesCount;
-    private final long targetWrittenPagesSize;
+    private final long targetWrittenPagesSizeInBytes;
     private final int targetWrittenPartitionsCount;
+    private final Ticker ticker;
+    private final SettableFuture<Void> finishedFuture;
 
     @GuardedBy("this")
     private final Map<Integer, Deque<Slice>> dataQueues = new HashMap<>();
     @GuardedBy("this")
     private final Map<Integer, AtomicLong> dataQueueBytes = new HashMap<>();
-
     @GuardedBy("this")
     private final Set<Integer> currentPolls = new HashSet<>();
 
@@ -59,19 +65,31 @@ public class SinkDataPool
     private volatile long memoryUsageBytes;
     @GuardedBy("this")
     private SettableFuture<Void> memoryBlockedFuture;
-
-    private final SettableFuture<Void> finishedFuture;
-
     @GuardedBy("this")
     private boolean noMoreData;
+    @GuardedBy("this")
+    private long lastWriteTimestamp;
 
-    public SinkDataPool(DataSize memoryLowWaterMark, DataSize memoryHighWaterMark, int targetWrittenPagesCount, DataSize targetWrittenPagesSize, int targetWrittenPartitionsCount)
+    public SinkDataPool(
+            DataSize memoryLowWaterMark,
+            DataSize memoryHighWaterMark,
+            Duration maxWait,
+            int minWrittenPagesCount,
+            DataSize minWrittenPagesSize,
+            int targetWrittenPagesCount,
+            DataSize targetWrittenPagesSize,
+            int targetWrittenPartitionsCount,
+            Ticker ticker)
     {
         this.memoryLowWaterMark = requireNonNull(memoryLowWaterMark, "memoryLowWaterMark is null");
         this.memoryHighWaterMark = requireNonNull(memoryHighWaterMark, "memoryHighWaterMark is null");
+        this.maxWaitInMillis = requireNonNull(maxWait, "maxWait is null").toMillis();
+        this.minWrittenPagesCount = minWrittenPagesCount;
+        this.minWrittenPagesSizeInBytes = requireNonNull(minWrittenPagesSize, "minWrittenPagesSize is null").toBytes();
         this.targetWrittenPagesCount = targetWrittenPagesCount;
-        this.targetWrittenPagesSize = targetWrittenPagesSize.toBytes();
+        this.targetWrittenPagesSizeInBytes = targetWrittenPagesSize.toBytes();
         this.targetWrittenPartitionsCount = targetWrittenPartitionsCount;
+        this.ticker = requireNonNull(ticker, "ticker is null");
         this.finishedFuture = SettableFuture.create();
     }
 
@@ -79,7 +97,7 @@ public class SinkDataPool
     {
         checkArgument(data.length() > 0, "cannot add empty data page");
         checkArgument(!noMoreData, "cannot add data if noMoreData is already set");
-        Deque<Slice> queue = dataQueues.computeIfAbsent(partitionId, ignored -> new ArrayDeque<>());
+        Deque<Slice> queue = getDataQueue(partitionId);
         queue.add(data);
         dataQueueBytes.computeIfAbsent(partitionId, ignored -> new AtomicLong()).addAndGet(data.length());
         long retainedSize = data.getRetainedSize();
@@ -107,6 +125,24 @@ public class SinkDataPool
     }
 
     @GuardedBy("this")
+    private AtomicLong getDataQueueBytes(Integer partitionId)
+    {
+        return dataQueueBytes.computeIfAbsent(partitionId, ignored -> new AtomicLong());
+    }
+
+    @GuardedBy("this")
+    private Deque<Slice> getDataQueue(Integer partitionId)
+    {
+        return dataQueues.computeIfAbsent(partitionId, ignored -> new ArrayDeque<>());
+    }
+
+    @GuardedBy("this")
+    private int getDataQueuePageCount(Integer partitionId)
+    {
+        return getDataQueue(partitionId).size();
+    }
+
+    @GuardedBy("this")
     private void updateMemoryUsage(long delta)
     {
         memoryUsageBytes += delta;
@@ -119,8 +155,30 @@ public class SinkDataPool
         }
     }
 
-    public synchronized Optional<PollResult> pollBest(Set<Integer> partitionSet)
+    public synchronized Optional<PollResult> pollBest(Set<Integer> partitionSet, boolean finishing)
     {
+        boolean canWrite = false;
+        if (finishing || tickerReadMillis() - lastWriteTimestamp >= maxWaitInMillis || (memoryBlockedFuture != null && !memoryBlockedFuture.isDone())) {
+            canWrite = true;
+        }
+        else {
+            long queuedBytes = 0;
+            int numPages = 0;
+            for (Integer partition : partitionSet) {
+                queuedBytes += getDataQueueBytes(partition).get();
+                numPages += getDataQueuePageCount(partition);
+
+                if (numPages >= minWrittenPagesCount || queuedBytes >= minWrittenPagesSizeInBytes) {
+                    canWrite = true;
+                    break;
+                }
+            }
+        }
+
+        if (!canWrite) {
+            return Optional.empty();
+        }
+
         Comparator<Integer> byQueueBytes = Comparator.comparing(partition -> {
             AtomicLong queueBytes = dataQueueBytes.get(partition);
             if (queueBytes == null) {
@@ -138,7 +196,7 @@ public class SinkDataPool
         int polledPagesSize = 0;
         int polledPartitionsCount = 0;
         for (int partition : partitionsOrdered) {
-            if (polledPagesCount >= targetWrittenPagesCount || polledPagesSize >= targetWrittenPagesSize || polledPartitionsCount >= targetWrittenPartitionsCount) {
+            if (polledPagesCount >= targetWrittenPagesCount || polledPagesSize >= targetWrittenPagesSizeInBytes || polledPartitionsCount >= targetWrittenPartitionsCount) {
                 break; // collected enough
             }
 
@@ -148,7 +206,7 @@ public class SinkDataPool
                 break; // no need to go further when we see first empty queue
             }
 
-            while (polledPagesCount < targetWrittenPagesCount && polledPagesSize < targetWrittenPagesSize) {
+            while (polledPagesCount < targetWrittenPagesCount && polledPagesSize < targetWrittenPagesSizeInBytes) {
                 Slice page = queue.pollFirst();
                 if (page == null) {
                     break;
@@ -165,6 +223,8 @@ public class SinkDataPool
         if (resultEmpty) {
             return Optional.empty();
         }
+        lastWriteTimestamp = tickerReadMillis();
+
         return Optional.of(new PollResult(dataByPartition.build()));
     }
 
@@ -179,6 +239,11 @@ public class SinkDataPool
     public long getMemoryUsage()
     {
         return memoryUsageBytes;
+    }
+
+    private long tickerReadMillis()
+    {
+        return ticker.read() / 1_000_000;
     }
 
     public class PollResult

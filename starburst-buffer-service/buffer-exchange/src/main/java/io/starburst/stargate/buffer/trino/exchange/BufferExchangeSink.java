@@ -9,6 +9,7 @@
  */
 package io.starburst.stargate.buffer.trino.exchange;
 
+import com.google.common.base.Ticker;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.ImmutableSet;
@@ -19,6 +20,7 @@ import io.airlift.concurrent.MoreFutures;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.units.DataSize;
+import io.airlift.units.Duration;
 import io.trino.spi.exchange.ExchangeSink;
 import io.trino.spi.exchange.ExchangeSinkInstanceHandle;
 
@@ -77,6 +79,9 @@ public class BufferExchangeSink
             BufferExchangeSinkInstanceHandle sinkInstanceHandle,
             DataSize memoryLowWaterMark,
             DataSize memoryHighWaterMark,
+            Duration maxWait,
+            int minWrittenPagesCount,
+            DataSize minWrittenPagesSize,
             int targetWrittenPagesCount,
             DataSize targetWrittenPagesSize,
             int targetWrittenPartitionsCount,
@@ -90,7 +95,16 @@ public class BufferExchangeSink
         this.partitionToBufferNode = ImmutableMap.copyOf(sinkInstanceHandle.getPartitionToBufferNode());
         this.preserveOrderWithinPartition = sinkInstanceHandle.isPreserveOrderWithinPartition();
         this.executor = requireNonNull(executor, "executor is null");
-        this.dataPool = new SinkDataPool(memoryLowWaterMark, memoryHighWaterMark, targetWrittenPagesCount, targetWrittenPagesSize, targetWrittenPartitionsCount);
+        this.dataPool = new SinkDataPool(
+                memoryLowWaterMark,
+                memoryHighWaterMark,
+                maxWait,
+                minWrittenPagesCount,
+                minWrittenPagesSize,
+                targetWrittenPagesCount,
+                targetWrittenPagesSize,
+                targetWrittenPartitionsCount,
+                Ticker.systemTicker());
 
         createNewWriters();
     }
@@ -316,7 +330,7 @@ public class BufferExchangeSink
 
         for (SinkWriter writer : writers.values()) {
             // todo: nice to have to move out of synchronized section
-            writer.scheduleWriting();
+            writer.scheduleWriting(false);
         }
     }
 
@@ -339,7 +353,7 @@ public class BufferExchangeSink
         }
         if (sinkWriter != null) {
             // can be null if we are in progress of writers update
-            sinkWriter.scheduleWriting();
+            sinkWriter.scheduleWriting(false);
         }
     }
 
@@ -374,7 +388,7 @@ public class BufferExchangeSink
 
         for (SinkWriter writer : activeWriters) {
             // schedule writing for all writers to flush data remaining in dataPool
-            writer.scheduleWriting();
+            writer.scheduleWriting(true);
         }
 
         return finishFuture;

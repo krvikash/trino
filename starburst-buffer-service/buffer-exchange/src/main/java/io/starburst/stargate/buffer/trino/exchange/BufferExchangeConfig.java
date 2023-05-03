@@ -19,6 +19,7 @@ import javax.validation.constraints.NotNull;
 
 import java.net.URI;
 
+import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.trino.exchange.PartitionNodeMappingMode.PINNING_MULTI;
 import static java.util.concurrent.TimeUnit.MINUTES;
@@ -27,15 +28,18 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 public class BufferExchangeConfig
 {
     private URI discoveryServiceUri;
-    private DataSize sinkBlockedMemoryLowWaterMark = DataSize.of(128, DataSize.Unit.MEGABYTE);
-    private DataSize sinkBlockedMemoryHighWaterMark = DataSize.of(256, DataSize.Unit.MEGABYTE);
-    private DataSize sourceBlockedMemoryLowWaterMark = DataSize.of(32, DataSize.Unit.MEGABYTE);
-    private DataSize sourceBlockedMemoryHighWaterMark = DataSize.of(64, DataSize.Unit.MEGABYTE);
+    private DataSize sinkBlockedMemoryLowWaterMark = DataSize.of(128, MEGABYTE);
+    private DataSize sinkBlockedMemoryHighWaterMark = DataSize.of(256, MEGABYTE);
+    private DataSize sourceBlockedMemoryLowWaterMark = DataSize.of(32, MEGABYTE);
+    private DataSize sourceBlockedMemoryHighWaterMark = DataSize.of(64, MEGABYTE);
     private int sourceParallelism = 16;
     private int sourceHandleTargetChunksCount = 64;
-    private DataSize sourceHandleTargetDataSize = DataSize.of(256, DataSize.Unit.MEGABYTE);
+    private DataSize sourceHandleTargetDataSize = DataSize.of(256, MEGABYTE);
+    private Duration sinkWriterMaxWait = succinctDuration(1, SECONDS);
+    private int sinkMinWrittenPagesCount = 32;
+    private DataSize sinkMinWrittenPagesSize = DataSize.of(1, MEGABYTE);
     private int sinkTargetWrittenPagesCount = 512;
-    private DataSize sinkTargetWrittenPagesSize = DataSize.of(16, DataSize.Unit.MEGABYTE);
+    private DataSize sinkTargetWrittenPagesSize = DataSize.of(16, MEGABYTE);
     private int sinkTargetWrittenPartitionsCount = 16;
     private PartitionNodeMappingMode partitionNodeMappingMode = PINNING_MULTI;
     private int minBufferNodesPerPartition = 2;
@@ -163,6 +167,45 @@ public class BufferExchangeConfig
     public BufferExchangeConfig setSourceHandleTargetDataSize(DataSize sourceHandleTargetDataSize)
     {
         this.sourceHandleTargetDataSize = sourceHandleTargetDataSize;
+        return this;
+    }
+
+    public Duration getSinkWriterMaxWait()
+    {
+        return sinkWriterMaxWait;
+    }
+
+    @Config("exchange.sink-writer-max-wait")
+    @ConfigDescription("Max wait interval before we send data pages to buffer nodes from the sink data pool")
+    public BufferExchangeConfig setSinkWriterMaxWait(Duration sinkWriterMaxWait)
+    {
+        this.sinkWriterMaxWait = sinkWriterMaxWait;
+        return this;
+    }
+
+    public int getSinkMinWrittenPagesCount()
+    {
+        return sinkMinWrittenPagesCount;
+    }
+
+    @Config("exchange.sink-min-written-pages-count")
+    @ConfigDescription("Min pages count when we send data pages to buffer nodes within the max wait")
+    public BufferExchangeConfig setSinkMinWrittenPagesCount(int sinkMinWrittenPagesCount)
+    {
+        this.sinkMinWrittenPagesCount = sinkMinWrittenPagesCount;
+        return this;
+    }
+
+    public DataSize getSinkMinWrittenPagesSize()
+    {
+        return sinkMinWrittenPagesSize;
+    }
+
+    @Config("exchange.sink-min-written-pages-size")
+    @ConfigDescription("Min data size when we send data pages to buffer nodes within the max wait")
+    public BufferExchangeConfig setSinkMinWrittenPagesSize(DataSize sinkMinWrittenPagesSize)
+    {
+        this.sinkMinWrittenPagesSize = sinkMinWrittenPagesSize;
         return this;
     }
 

@@ -51,6 +51,8 @@ public class SinkWriter
     private boolean aborted;
     @GuardedBy("this")
     private ListenableFuture<Void> currentRequestFuture;
+    @GuardedBy("this")
+    private boolean sinkFinishing;
 
     public SinkWriter(
             DataApiFacade dataApi,
@@ -84,8 +86,12 @@ public class SinkWriter
         return managedPartitions;
     }
 
-    public synchronized void scheduleWriting()
+    public synchronized void scheduleWriting(boolean sinkFinishing)
     {
+        // store finishing flag in case we return quickly and final poll should be done
+        // after current request completes
+        this.sinkFinishing |= sinkFinishing;
+
         if (currentRequestFuture != null) {
             // request already in progress
             return;
@@ -96,7 +102,7 @@ public class SinkWriter
             return;
         }
 
-        Optional<SinkDataPool.PollResult> pollResult = dataPool.pollBest(managedPartitions);
+        Optional<SinkDataPool.PollResult> pollResult = dataPool.pollBest(managedPartitions, sinkFinishing);
         if (pollResult.isEmpty()) {
             return;
         }
@@ -137,7 +143,7 @@ public class SinkWriter
                             }
                         }
                         else if (!closed) {
-                            scheduleWriting();
+                            scheduleWriting(sinkFinishing);
                         }
                     }
                     if (callFinishCallback) {

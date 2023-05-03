@@ -25,6 +25,7 @@ import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.trino.exchange.PartitionNodeMappingMode.PINNING_MULTI;
 import static io.starburst.stargate.buffer.trino.exchange.PartitionNodeMappingMode.PINNING_SINGLE;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -42,6 +43,9 @@ class TestBufferExchangeConfig
                 .setSourceParallelism(16)
                 .setSourceHandleTargetChunksCount(64)
                 .setSourceHandleTargetDataSize(DataSize.of(256, MEGABYTE))
+                .setSinkWriterMaxWait(succinctDuration(1, SECONDS))
+                .setSinkMinWrittenPagesCount(32)
+                .setSinkMinWrittenPagesSize(DataSize.of(1, MEGABYTE))
                 .setSinkTargetWrittenPagesCount(512)
                 .setSinkTargetWrittenPagesSize(DataSize.of(16, MEGABYTE))
                 .setSinkTargetWrittenPartitionsCount(16)
@@ -80,6 +84,9 @@ class TestBufferExchangeConfig
                 .put("exchange.source-parallelism", "5")
                 .put("exchange.source-handle-target-chunks-count", "128")
                 .put("exchange.source-handle-target-data-size", "1GB")
+                .put("exchange.sink-writer-max-wait", "100ms")
+                .put("exchange.sink-min-written-pages-count", "160")
+                .put("exchange.sink-min-written-pages-size", "5MB")
                 .put("exchange.sink-target-written-pages-count", "5")
                 .put("exchange.sink-target-written-pages-size", "7MB")
                 .put("exchange.sink-target-written-partitions-count", "9")
@@ -114,6 +121,9 @@ class TestBufferExchangeConfig
                 .setSourceParallelism(5)
                 .setSourceHandleTargetChunksCount(128)
                 .setSourceHandleTargetDataSize(DataSize.of(1, GIGABYTE))
+                .setSinkWriterMaxWait(succinctDuration(100, MILLISECONDS))
+                .setSinkMinWrittenPagesCount(160)
+                .setSinkMinWrittenPagesSize(DataSize.of(5, MEGABYTE))
                 .setSinkTargetWrittenPagesCount(5)
                 .setSinkTargetWrittenPagesSize(DataSize.of(7, MEGABYTE))
                 .setSinkTargetWrittenPartitionsCount(9)
