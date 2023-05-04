@@ -2243,39 +2243,6 @@ public class DeltaLakeMetadata
     }
 
     @Override
-    public Optional<ProjectionApplicationResult<ConnectorTableHandle>> applyProjection(
-            ConnectorSession session,
-            ConnectorTableHandle tableHandle,
-            List<ConnectorExpression> projections,
-            Map<String, ColumnHandle> assignments)
-    {
-        DeltaLakeTableHandle deltaLakeTableHandle = (DeltaLakeTableHandle) tableHandle;
-        Set<ColumnHandle> projectedColumns = ImmutableSet.copyOf(assignments.values());
-
-        if (deltaLakeTableHandle.getProjectedColumns().isPresent() &&
-                deltaLakeTableHandle.getProjectedColumns().get().equals(projectedColumns)) {
-            return Optional.empty();
-        }
-
-        List<ConnectorExpression> simpleProjections = projections.stream()
-                .filter(projection -> projection instanceof Variable)
-                .collect(toImmutableList());
-
-        List<Assignment> newColumnAssignments = assignments.entrySet().stream()
-                .map(assignment -> new Assignment(
-                        assignment.getKey(),
-                        assignment.getValue(),
-                        ((DeltaLakeColumnHandle) assignment.getValue()).getType()))
-                .collect(toImmutableList());
-
-        return Optional.of(new ProjectionApplicationResult<>(
-                deltaLakeTableHandle.withProjectedColumns(projectedColumns),
-                simpleProjections,
-                newColumnAssignments,
-                false));
-    }
-
-    @Override
     public Optional<TableScanRedirectApplicationResult> applyTableScanRedirect(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
         return deltaLakeRedirectionsProvider.getTableScanRedirection(session, (DeltaLakeTableHandle) tableHandle);
