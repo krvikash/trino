@@ -87,7 +87,6 @@ public class DeltaLakeColumnProjectionInfo
                 + estimatedSizeOf(dereferenceNames, SizeOf::estimatedSizeOf);
     }
 
-    @JsonIgnore
     public HiveColumnProjectionInfo toHiveColumnProjectionInfo()
     {
         return new HiveColumnProjectionInfo(dereferenceIndices, dereferenceNames, toHiveType(type), type);

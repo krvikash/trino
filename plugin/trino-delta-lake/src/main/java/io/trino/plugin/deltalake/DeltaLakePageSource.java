@@ -91,7 +91,7 @@ public class DeltaLakePageSource
         Block partitionsBlock = null;
 
         for (DeltaLakeColumnHandle column : columns) {
-            if (partitionKeys.containsKey(column.getBasePhysicalColumnName())) {
+            if (column.isBaseColumn() && partitionKeys.containsKey(column.getBasePhysicalColumnName())) {
                 Type type = column.getBaseType();
                 Object prefilledValue = deserializePartitionValue(column, partitionKeys.get(column.getBasePhysicalColumnName()));
                 prefilledBlocks[outputIndex] = Utils.nativeValueToBlock(type, prefilledValue);

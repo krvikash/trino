@@ -199,7 +199,7 @@ public class DeltaLakeSplitManager
                         Map<String, Optional<String>> partitionValues = addAction.getCanonicalPartitionValues();
                         Map<ColumnHandle, NullableValue> deserializedValues = constraint.getPredicateColumns().orElseThrow().stream()
                                 .map(DeltaLakeColumnHandle.class::cast)
-                                .filter(column -> partitionValues.containsKey(column.getBaseColumnName()))
+                                .filter(column -> column.isBaseColumn() && partitionValues.containsKey(column.getBaseColumnName()))
                                 .collect(toImmutableMap(identity(), column -> new NullableValue(
                                         column.getBaseType(),
                                         deserializePartitionValue(column, partitionValues.get(column.getBaseColumnName())))));

@@ -190,7 +190,7 @@ configure processing of Parquet files.
     * - ``parquet_writer_batch_size``
       - Maximum number of rows processed by the Parquet writer in a batch.
       - ``10000``
-    * - ``delta.projection_pushdown_enabled``
+    * - ``projection_pushdown_enabled``
       - Read only projected fields from row columns while performing ``SELECT`` queries
       - ``true``
 

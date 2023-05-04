@@ -155,12 +155,13 @@ public abstract class AbstractDeltaLakePageSink
             DeltaLakeColumnHandle column = inputColumns.get(inputIndex);
             switch (column.getColumnType()) {
                 case PARTITION_KEY:
-                    int partitionPosition = canonicalToOriginalPartitionPositions.get(column.getBaseColumnName());
+                    int partitionPosition = canonicalToOriginalPartitionPositions.get(column.getColumnName());
                     partitionColumnInputIndex[partitionPosition] = inputIndex;
-                    originalPartitionColumnNames[partitionPosition] = canonicalToOriginalPartitionColumns.get(column.getBaseColumnName());
+                    originalPartitionColumnNames[partitionPosition] = canonicalToOriginalPartitionColumns.get(column.getColumnName());
                     partitionColumnTypes[partitionPosition] = column.getBaseType();
                     break;
                 case REGULAR:
+                    verify(column.isBaseColumn(), "Unexpected dereference: %s", column);
                     dataColumnHandles.add(column);
                     dataColumnsInputIndex.add(inputIndex);
                     dataColumnNames.add(column.getBasePhysicalColumnName());

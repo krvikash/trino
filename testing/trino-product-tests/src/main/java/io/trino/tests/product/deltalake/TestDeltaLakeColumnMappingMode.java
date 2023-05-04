@@ -13,7 +13,11 @@
  */
 package io.trino.tests.product.deltalake;
 
+import com.amazonaws.services.s3.AmazonS3;
 import com.google.common.collect.ImmutableList;
+import com.google.inject.Inject;
+import com.google.inject.name.Named;
+import io.trino.tempto.BeforeTestWithContext;
 import io.trino.tempto.assertions.QueryAssert.Row;
 import io.trino.testng.services.Flaky;
 import org.testng.annotations.DataProvider;
@@ -47,6 +51,19 @@ import static org.testng.Assert.assertEquals;
 public class TestDeltaLakeColumnMappingMode
         extends BaseTestDeltaLakeS3Storage
 {
+    @Inject
+    @Named("s3.server_type")
+    private String s3ServerType;
+
+    private AmazonS3 s3;
+
+    @BeforeTestWithContext
+    public void setup()
+    {
+        super.setUp();
+        s3 = new S3ClientFactory().createS3Client(s3ServerType);
+    }
+
     @Test(groups = {DELTA_LAKE_DATABRICKS, DELTA_LAKE_OSS, DELTA_LAKE_EXCLUDE_73, DELTA_LAKE_EXCLUDE_91, PROFILE_SPECIFIC_TESTS})
     @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
     public void testColumnMappingModeNone()
@@ -55,7 +72,7 @@ public class TestDeltaLakeColumnMappingMode
 
         onDelta().executeQuery("" +
                 "CREATE TABLE default." + tableName +
-                " (a_number INT, nested STRUCT<field1: STRING, field2: STRING>)" +
+                " (a_number INT)" +
                 " USING delta " +
                 " LOCATION 's3://" + bucketName + "/databricks-compatibility-test-" + tableName + "'" +
                 " TBLPROPERTIES (" +
@@ -63,12 +80,12 @@ public class TestDeltaLakeColumnMappingMode
                 " 'delta.minWriterVersion'='5')");
 
         try {
-            onDelta().executeQuery("INSERT INTO default." + tableName + " VALUES (1, struct('nested 1', 'nested 2'))");
+            onDelta().executeQuery("INSERT INTO default." + tableName + " VALUES (1)");
 
-            List<Row> expectedRows = ImmutableList.of(row(1, "nested 1"));
-            assertThat(onDelta().executeQuery("SELECT a_number, nested.field1 FROM default." + tableName))
+            List<Row> expectedRows = ImmutableList.of(row(1));
+            assertThat(onDelta().executeQuery("SELECT a_number FROM default." + tableName))
                     .containsOnly(expectedRows);
-            assertThat(onTrino().executeQuery("SELECT a_number, nested.field1 FROM delta.default." + tableName))
+            assertThat(onTrino().executeQuery("SELECT a_number FROM delta.default." + tableName))
                     .containsOnly(expectedRows);
         }
         finally {
@@ -431,6 +448,84 @@ public class TestDeltaLakeColumnMappingMode
                             row("a_number", null, 2.0, 0.33333333333, null, "1", "2"),
                             row("b_number", 0.0, 0.0, 1.0, null, null, null),
                             row(null, null, null, null, 3.0, null, null)));
+        }
+        finally {
+            dropDeltaTableWithRetry("default." + tableName);
+        }
+    }
+
+    @Test(groups = {DELTA_LAKE_DATABRICKS, DELTA_LAKE_OSS, DELTA_LAKE_EXCLUDE_73, DELTA_LAKE_EXCLUDE_91, DELTA_LAKE_EXCLUDE_104, PROFILE_SPECIFIC_TESTS}, dataProvider = "columnMappingDataProvider")
+    @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
+    public void testProjectionPushdown(String mode)
+    {
+        String tableName = "test_projection_pushdown_column_reorder_" + randomNameSuffix();
+
+        onDelta().executeQuery("" +
+                "CREATE TABLE default." + tableName +
+                " (id BIGINT, nested STRUCT<child1: INT, child2: STRING>)" +
+                " USING DELTA" +
+                " LOCATION 's3://" + bucketName + "/databricks-compatibility-test-" + tableName + "'" +
+                " TBLPROPERTIES (" +
+                " 'delta.columnMapping.mode' = '" + mode + "'" +
+                ")");
+        try {
+            onDelta().executeQuery("INSERT INTO " + tableName + " VALUES (1, struct(100, 'a'))");
+
+            assertThat(onDelta().executeQuery("SELECT nested.child1, id FROM default." + tableName))
+                    .containsOnly(row(100, 1));
+            assertThat(onTrino().executeQuery("SELECT nested.child1, id FROM delta.default." + tableName))
+                    .containsOnly(row(100, 1));
+        }
+        finally {
+            dropDeltaTableWithRetry("default." + tableName);
+        }
+    }
+
+    @Test(groups = {DELTA_LAKE_DATABRICKS, DELTA_LAKE_OSS, DELTA_LAKE_EXCLUDE_73, DELTA_LAKE_EXCLUDE_91, DELTA_LAKE_EXCLUDE_104, PROFILE_SPECIFIC_TESTS}, dataProvider = "supportedColumnMappingForDmlDataProvider")
+    @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
+    public void testProjectionPushdownColumnReorderInSchemaAndDataFile(String mode)
+    {
+        String tableName = "test_projection_pushdown_column_reorder_" + randomNameSuffix();
+
+        onDelta().executeQuery("" +
+                "CREATE TABLE default." + tableName +
+                " (id BIGINT, nested1 STRUCT<a: BIGINT, b: STRING, c: INT>, nested2 STRUCT<d: DOUBLE, e: BOOLEAN, f: SMALLINT>)" +
+                " USING DELTA" +
+                " LOCATION 's3://" + bucketName + "/databricks-compatibility-test-" + tableName + "'" +
+                " TBLPROPERTIES (" +
+                " 'delta.columnMapping.mode' = '" + mode + "'" +
+                ")");
+        try {
+            //onDelta().executeQuery("INSERT INTO " + tableName + " VALUES (100, struct(10, 'a', 100), struct(10.10, true, 1))");
+            onTrino().executeQuery("INSERT INTO " + tableName + " VALUES (100, ROW(10, 'a', 100), ROW(10.10, true, 1))");
+            String tableDataFile = ((String) onTrino().executeQuery("SELECT \"$path\" FROM " + tableName).getOnlyValue())
+                    .replaceFirst("s3://" + bucketName, "");
+
+            String temporaryTableName = "test_projection_pushdown_column_reorder_tmp_" + randomNameSuffix();
+            try {
+                onDelta().executeQuery("" +
+                        "CREATE TABLE default." + temporaryTableName +
+                        " (nested2 STRUCT<d: DOUBLE, e BOOLEAN, f SMALLINT>, id BIGINT, nested1 STRUCT<a: BIGINT, b: STRING, c: INT>)" +
+                        " USING DELTA" +
+                        " LOCATION 's3://" + bucketName + "/databricks-compatibility-test-" + temporaryTableName + "'" +
+                        " TBLPROPERTIES (" +
+                        " 'delta.columnMapping.mode' = '" + mode + "'" +
+                        ")");
+                onDelta().executeQuery("INSERT INTO " + temporaryTableName + " VALUES (struct(10.10, true, 1), 100, struct(10, 'a', 100))");
+
+                String temporaryDataFile = ((String) onTrino().executeQuery("SELECT \"$path\" FROM " + temporaryTableName).getOnlyValue())
+                        .replaceFirst("s3://" + bucketName, "");
+
+                // Replace table1 data file with table2 data file, so that the table's schema and data's schema has different column order
+                s3.copyObject(bucketName, temporaryDataFile, bucketName, tableDataFile);
+            }
+            finally {
+                dropDeltaTableWithRetry("default." + temporaryTableName);
+            }
+//            assertThat(onDelta().executeQuery("SELECT nested2.e, nested1.a, nested2.f, nested1.b, id FROM default." + tableName))
+//                    .containsOnly(row(true, 10, 1, "a", 100));
+            assertThat(onTrino().executeQuery("SELECT nested2.e, nested1.a, nested2.f, nested1.b, id FROM delta.default." + tableName))
+                    .containsOnly(row(true, 10, 1, "a", 100));
         }
         finally {
             dropDeltaTableWithRetry("default." + tableName);

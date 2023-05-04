@@ -92,7 +92,7 @@ public class DeltaLakeOutputTableHandle
     {
         return getInputColumns().stream()
                 .filter(column -> column.getColumnType() == PARTITION_KEY)
-                .map(DeltaLakeColumnHandle::getBaseColumnName)
+                .map(DeltaLakeColumnHandle::getColumnName)
                 .collect(toImmutableList());
     }
 

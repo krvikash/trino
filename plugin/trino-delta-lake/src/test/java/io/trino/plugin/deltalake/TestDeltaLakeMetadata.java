@@ -75,6 +75,7 @@ import java.util.OptionalInt;
 import java.util.Set;
 import java.util.UUID;
 
+import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.io.MoreFiles.deleteRecursively;
 import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
@@ -539,6 +540,7 @@ public class TestDeltaLakeMetadata
         ImmutableMap.Builder<DeltaLakeColumnHandle, Domain> tupleBuilder = ImmutableMap.builder();
 
         constrainedColumns.forEach(column -> {
+            verify(column.isBaseColumn(), "Unexpected dereference: %s", column);
             tupleBuilder.put(column, Domain.notNull(column.getBaseType()));
         });
 

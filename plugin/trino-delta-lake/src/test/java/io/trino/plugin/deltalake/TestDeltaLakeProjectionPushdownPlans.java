@@ -106,9 +106,9 @@ public class TestDeltaLakeProjectionPushdownPlans
     }
 
     @Test
-    public void testDereferencePushdownDisabled()
+    public void testPushdownDisabled()
     {
-        String testTable = "test_dereference_pushdown_disabled_" + randomNameSuffix();
+        String testTable = "test_pushdown_disabled_" + randomNameSuffix();
 
         Session session = Session.builder(getQueryRunner().getDefaultSession())
                 .setCatalogSessionProperty(CATALOG, "projection_pushdown_enabled", "false")

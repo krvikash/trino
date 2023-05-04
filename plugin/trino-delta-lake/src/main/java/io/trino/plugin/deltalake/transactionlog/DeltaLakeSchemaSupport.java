@@ -165,9 +165,9 @@ public final class DeltaLakeSchemaSupport
 
         schema.put("fields", columns.stream()
                 .map(column -> {
-                    String columnName = column.getBaseColumnName();
+                    String columnName = column.getColumnName();
                     return serializeStructField(
-                            column.getBaseColumnName(),
+                            columnName,
                             column.getBaseType(),
                             columnComments.get(columnName),
                             columnNullability.get(columnName),

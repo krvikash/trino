@@ -189,7 +189,7 @@ public final class DeltaLakeSessionProperties
                         false),
                 booleanProperty(
                         PROJECTION_PUSHDOWN_ENABLED,
-                        "Read only required fields from a struct",
+                        "Read only required fields from a row column",
                         deltaLakeConfig.isProjectionPushdownEnabled(),
                         false));
     }

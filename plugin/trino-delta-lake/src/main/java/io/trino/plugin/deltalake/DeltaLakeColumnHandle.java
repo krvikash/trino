@@ -24,10 +24,13 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.slice.SizeOf.estimatedSizeOf;
 import static io.airlift.slice.SizeOf.instanceSize;
 import static io.airlift.slice.SizeOf.sizeOf;
 import static io.trino.plugin.deltalake.DeltaHiveTypeTranslator.toHiveType;
+import static io.trino.plugin.deltalake.DeltaLakeColumnType.REGULAR;
 import static io.trino.plugin.deltalake.DeltaLakeColumnType.SYNTHESIZED;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.RowType.field;
@@ -87,7 +90,8 @@ public class DeltaLakeColumnHandle
         this.basePhysicalColumnName = requireNonNull(basePhysicalColumnName, "basePhysicalColumnName is null");
         this.basePhysicalType = requireNonNull(basePhysicalType, "basePhysicalType is null");
         this.columnType = requireNonNull(columnType, "columnType is null");
-        this.projectionInfo = requireNonNull(projectionInfo, "projectionInfo is null");
+        checkArgument(projectionInfo.isEmpty() || columnType == REGULAR, "Projection info present for column type: %s", columnType);
+        this.projectionInfo = projectionInfo;
     }
 
     @JsonProperty
@@ -152,6 +156,13 @@ public class DeltaLakeColumnHandle
     }
 
     @JsonIgnore
+    public String getColumnName()
+    {
+        checkState(isBaseColumn(), "Unexpected dereference: %s", this);
+        return baseColumnName;
+    }
+
+    @JsonIgnore
     public String getQualifiedName()
     {
         return projectionInfo.map(projectionInfo -> basePhysicalColumnName + "#" + projectionInfo.getPartialName())
@@ -166,6 +177,12 @@ public class DeltaLakeColumnHandle
                 + sizeOf(baseFieldId)
                 + estimatedSizeOf(basePhysicalColumnName)
                 + projectionInfo.map(DeltaLakeColumnProjectionInfo::getRetainedSizeInBytes).orElse(0L);
+    }
+
+    @JsonIgnore
+    public boolean isBaseColumn()
+    {
+        return projectionInfo.isEmpty();
     }
 
     @Override

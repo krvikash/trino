@@ -112,6 +112,9 @@ public class DeltaLakeJsonFileStatistics
     @Override
     public Optional<Object> getMaxColumnValue(DeltaLakeColumnHandle columnHandle)
     {
+        if (!columnHandle.isBaseColumn()) {
+            return Optional.empty();
+        }
         Optional<Object> value = getStat(columnHandle.getBasePhysicalColumnName(), maxValues);
         return value.flatMap(o -> deserializeStatisticsValue(columnHandle, String.valueOf(o)));
     }
@@ -119,12 +122,18 @@ public class DeltaLakeJsonFileStatistics
     @Override
     public Optional<Object> getMinColumnValue(DeltaLakeColumnHandle columnHandle)
     {
+        if (!columnHandle.isBaseColumn()) {
+            return Optional.empty();
+        }
         Optional<Object> value = getStat(columnHandle.getBasePhysicalColumnName(), minValues);
         return value.flatMap(o -> deserializeStatisticsValue(columnHandle, String.valueOf(o)));
     }
 
     private Optional<Object> deserializeStatisticsValue(DeltaLakeColumnHandle columnHandle, String statValue)
     {
+        if (!columnHandle.isBaseColumn()) {
+            return Optional.empty();
+        }
         Object columnValue = deserializeColumnValue(columnHandle, statValue, DeltaLakeJsonFileStatistics::readStatisticsTimestamp);
 
         Type columnType = columnHandle.getBaseType();

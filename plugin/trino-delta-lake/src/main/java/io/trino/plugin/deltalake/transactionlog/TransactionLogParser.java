@@ -53,6 +53,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.function.Function;
 
+import static com.google.common.base.Verify.verify;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.plugin.deltalake.transactionlog.TransactionLogUtil.getTransactionLogDir;
 import static io.trino.plugin.deltalake.transactionlog.TransactionLogUtil.getTransactionLogJsonEntryPath;
@@ -163,6 +164,7 @@ public final class TransactionLogParser
 
     public static Object deserializeColumnValue(DeltaLakeColumnHandle column, String valueString, Function<String, Long> timestampReader)
     {
+        verify(column.isBaseColumn(), "Unexpected dereference: %s", column);
         Type type = column.getBaseType();
         try {
             if (type.equals(BOOLEAN)) {

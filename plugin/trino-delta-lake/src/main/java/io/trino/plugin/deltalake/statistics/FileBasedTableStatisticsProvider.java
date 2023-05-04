@@ -147,7 +147,7 @@ public class FileBasedTableStatisticsProvider
                     }
                 }
                 else {
-                    Optional<Long> maybeNullCount = stats.getNullCount(column.getBasePhysicalColumnName());
+                    Optional<Long> maybeNullCount = column.isBaseColumn() ? stats.getNullCount(column.getBasePhysicalColumnName()) : Optional.empty();
                     if (maybeNullCount.isPresent()) {
                         nullCounts.put(column, nullCounts.get(column) + maybeNullCount.get());
                     }

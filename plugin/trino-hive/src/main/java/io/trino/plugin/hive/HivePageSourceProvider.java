@@ -720,11 +720,11 @@ public class HivePageSourceProvider
 
         ImmutableList.Builder<ColumnHandle> projectedColumns = ImmutableList.builder();
         ImmutableList.Builder<Integer> outputColumnMapping = ImmutableList.builder();
-        Map<String, Integer> mappedHiveBaseColumnKeys = new HashMap<>();
+        Map<Object, Integer> mappedHiveBaseColumnKeys = new HashMap<>();
         int projectedColumnCount = 0;
 
         for (HiveColumnHandle column : columns) {
-            String baseColumnKey = useColumnNames ? column.getBaseColumnName() : String.valueOf(column.getBaseHiveColumnIndex());
+            Object baseColumnKey = useColumnNames ? column.getBaseColumnName() : column.getBaseHiveColumnIndex();
             Integer mapped = mappedHiveBaseColumnKeys.get(baseColumnKey);
 
             if (mapped == null) {
