@@ -11,7 +11,6 @@ package io.starburst.stargate.buffer.data.server;
 
 import com.google.common.base.Ticker;
 import io.airlift.log.Logger;
-import io.airlift.stats.CounterStat;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -20,7 +19,6 @@ import javax.inject.Inject;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.function.LongSupplier;
 
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.units.DataSize.succinctBytes;
@@ -102,54 +100,5 @@ public class DataServerStatsLogger
     public void stop()
     {
         executorService.shutdownNow();
-    }
-
-    private static class CounterWithRate
-    {
-        private final LongSupplier counterSupplier;
-        private final Ticker ticker;
-
-        private long lastUpdateTimeNanos;
-        private long lastCounter;
-        private double rate;
-
-        public CounterWithRate(CounterStat counterStat, Ticker ticker)
-        {
-            this(counterStat::getTotalCount, ticker);
-        }
-
-        public CounterWithRate(LongSupplier counterSupplier, Ticker ticker)
-        {
-            this.counterSupplier = counterSupplier;
-            this.ticker = ticker;
-        }
-
-        public void update()
-        {
-            update(ticker.read(), counterSupplier.getAsLong());
-        }
-
-        private void update(long currentTimeNanos, long counter)
-        {
-            if (lastUpdateTimeNanos != 0) {
-                double timeDelta = (currentTimeNanos - lastUpdateTimeNanos) / 1_000_000_000d;
-                if (timeDelta != 0) {
-                    long counterDelta = counter - lastCounter;
-                    rate = (double) counterDelta / timeDelta;
-                }
-            }
-            lastUpdateTimeNanos = currentTimeNanos;
-            lastCounter = counter;
-        }
-
-        public long getCounter()
-        {
-            return lastCounter;
-        }
-
-        public double getRate()
-        {
-            return rate;
-        }
     }
 }
