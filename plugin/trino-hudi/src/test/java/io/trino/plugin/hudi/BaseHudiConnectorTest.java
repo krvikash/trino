@@ -39,6 +39,7 @@ public abstract class BaseHudiConnectorTest
                 return false;
 
             case SUPPORTS_TOPN_PUSHDOWN:
+            case SUPPORTS_PROJECTION_PUSHDOWN:
                 return false;
 
             case SUPPORTS_CREATE_SCHEMA:

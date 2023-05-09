@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.UncheckedTimeoutException;
 import io.airlift.log.Logger;
+import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 import io.trino.Session;
 import io.trino.connector.MockConnectorFactory;
@@ -75,12 +76,14 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Verify.verify;
 import static com.google.common.base.Verify.verifyNotNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Iterables.getOnlyElement;
@@ -104,6 +107,7 @@ import static io.trino.sql.planner.planprinter.PlanPrinter.textLogicalPlan;
 import static io.trino.testing.DataProviders.toDataProvider;
 import static io.trino.testing.MaterializedResult.resultBuilder;
 import static io.trino.testing.QueryAssertions.assertContains;
+import static io.trino.testing.QueryAssertions.assertEqualsIgnoreOrder;
 import static io.trino.testing.QueryAssertions.getTrinoExceptionCause;
 import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_ADD_COLUMN;
 import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_ADD_COLUMN_NOT_NULL_CONSTRAINT;
@@ -131,6 +135,7 @@ import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_MERGE;
 import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_MULTI_STATEMENT_WRITES;
 import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_NEGATIVE_DATE;
 import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_NOT_NULL_CONSTRAINT;
+import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_PROJECTION_PUSHDOWN;
 import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_RENAME_COLUMN;
 import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_RENAME_MATERIALIZED_VIEW;
 import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_RENAME_MATERIALIZED_VIEW_ACROSS_SCHEMAS;
@@ -5909,6 +5914,201 @@ public abstract class BaseConnectorTest
         assertUpdate("DROP MATERIALIZED VIEW " + viewName);
     }
 
+    @Test
+    public void testProjectionPushdown()
+    {
+        skipTestUnless(hasBehavior(SUPPORTS_PROJECTION_PUSHDOWN));
+
+        String tableName = "test_projection_pushdown_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE " + tableName + " (id BIGINT, root ROW(f1 BIGINT, f2 BIGINT))");
+        assertUpdate("INSERT INTO " + tableName + " VALUES (1, ROW(1, 2)), (1, NULl), (1, ROW(NULL, 4))", 3);
+
+        assertQuery("SELECT root.f1, id FROM " + tableName, "VALUES (1, 1), (NULL, 1), (NULL, 1)");
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    @Test
+    public void testProjectionWithCaseSensitiveField()
+    {
+        skipTestUnless(hasBehavior(SUPPORTS_PROJECTION_PUSHDOWN));
+
+        String tableName = "test_projection_with_case_sensitive_field_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE " + tableName + " (id INT, a ROW(\"UPPER_CASE\" INT, \"lower_case\" INT, \"MiXeD_cAsE\" INT))");
+        assertUpdate("INSERT INTO " + tableName + " VALUES (1, ROW(2, 3, 4)), (5, ROW(6, 7, 8))", 2);
+
+        String expected = "VALUES (2, 3, 4), (6, 7, 8)";
+        assertQuery("SELECT a.UPPER_CASE, a.lower_case, a.MiXeD_cAsE FROM " + tableName, expected);
+        assertQuery("SELECT a.upper_case, a.lower_case, a.mixed_case FROM " + tableName, expected);
+        assertQuery("SELECT a.UPPER_CASE, a.LOWER_CASE, a.MIXED_CASE FROM " + tableName, expected);
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    @Test
+    public void testProjectionPushdownMultipleRows()
+    {
+        skipTestUnless(hasBehavior(SUPPORTS_PROJECTION_PUSHDOWN));
+
+        String tableName = "test_projection_pushdown_multiple_rows_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE " + tableName +
+                " (id BIGINT, nested1 ROW(child1 BIGINT, child2 VARCHAR, child3 INT), nested2 ROW(child1 DOUBLE, child2 BOOLEAN, child3 DATE))");
+        assertUpdate("INSERT INTO " + tableName + " VALUES" +
+                        " (1, ROW(10, 'a', 100), ROW(10.10, true, DATE '2023-04-19'))," +
+                        " (2, ROW(20, 'b', 200), ROW(20.20, false, DATE '1990-04-20'))," +
+                        " (4, ROW(40, NULL, 400), NULL)," +
+                        " (5, NULL, ROW(NULL, true, NULL))",
+                4);
+
+        // Select one field from one row field
+        assertQuery("SELECT id, nested1.child1 FROM " + tableName, "VALUES (1, 10), (2, 20), (4, 40), (5, NULL)");
+        assertQuery("SELECT nested2.child3, id FROM " + tableName, "VALUES (DATE '2023-04-19', 1), (DATE '1990-04-20', 2), (NULL, 4), (NULL, 5)");
+
+        // Select one field each from multiple row fields
+        assertQuery("SELECT nested2.child1, id, nested1.child2 FROM " + tableName, "VALUES (10.10, 1, 'a'), (20.20, 2, 'b'), (NULL, 4, NULL), (NULL, 5, NULL)");
+
+        // Select multiple fields from one row field
+        assertQuery("SELECT nested1.child3, id, nested1.child2 FROM " + tableName, "VALUES (100, 1, 'a'), (200, 2, 'b'), (400, 4, NULL), (NULL, 5, NULL)");
+        assertQuery(
+                "SELECT nested2.child2, nested2.child3, id FROM " + tableName,
+                "VALUES (true, DATE '2023-04-19' , 1), (false, DATE '1990-04-20', 2), (NULL, NULL, 4), (true, NULL, 5)");
+
+        // Select multiple fields from multiple row fields
+        assertQuery(
+                "SELECT id, nested2.child1, nested1.child3, nested2.child2, nested1.child1 FROM " + tableName,
+                "VALUES (1, 10.10, 100, true, 10), (2, 20.20, 200, false, 20), (4, NULL, 400, NULL, 40), (5, NULL, NULL, true, NULL)");
+
+        // Select only nested fields
+        assertQuery("SELECT nested2.child2, nested1.child3 FROM " + tableName, "VALUES (true, 100), (false, 200), (NULL, 400), (true, NULL)");
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    @Test
+    public void testReadHighlyNestedData()
+    {
+        skipTestUnless(hasBehavior(SUPPORTS_PROJECTION_PUSHDOWN));
+
+        String tableName = "test_highly_nested_data_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE " + tableName + " (id INT, row1_t ROW(f1 INT, f2 INT, row2_t ROW (f1 INT, f2 INT, row3_t ROW(f1 INT, f2 INT))))");
+        assertUpdate("INSERT INTO " + tableName + " VALUES (1, ROW(2, 3, ROW(4, 5, ROW(6, 7)))), (11, ROW(12, 13, ROW(14, 15, ROW(16, 17))))", 2);
+        assertUpdate("INSERT INTO " + tableName + " VALUES (21, ROW(22, 23, ROW(24, 25, ROW(26, 27))))", 1);
+
+        // Test select projected columns, with and without their parent column
+        assertQuery("SELECT id, row1_t.row2_t.row3_t.f2 FROM " + tableName, "VALUES (1, 7), (11, 17), (21, 27)");
+        assertQuery("SELECT id, row1_t.row2_t.row3_t.f2, CAST(row1_t AS JSON) FROM " + tableName,
+                "VALUES (1, 7, '{\"f1\":2,\"f2\":3,\"row2_t\":{\"f1\":4,\"f2\":5,\"row3_t\":{\"f1\":6,\"f2\":7}}}'), " +
+                        "(11, 17, '{\"f1\":12,\"f2\":13,\"row2_t\":{\"f1\":14,\"f2\":15,\"row3_t\":{\"f1\":16,\"f2\":17}}}'), " +
+                        "(21, 27, '{\"f1\":22,\"f2\":23,\"row2_t\":{\"f1\":24,\"f2\":25,\"row3_t\":{\"f1\":26,\"f2\":27}}}')");
+
+        // Test predicates on immediate child column and deeper nested column
+        assertQuery("SELECT id, CAST(row1_t.row2_t.row3_t AS JSON) FROM " + tableName + " WHERE row1_t.row2_t.row3_t.f2 = 27", "VALUES (21, '{\"f1\":26,\"f2\":27}')");
+        assertQuery("SELECT id, CAST(row1_t.row2_t.row3_t AS JSON) FROM " + tableName + " WHERE row1_t.row2_t.row3_t.f2 > 20", "VALUES (21, '{\"f1\":26,\"f2\":27}')");
+        assertQuery("SELECT id, CAST(row1_t AS JSON) FROM " + tableName + " WHERE row1_t.row2_t.row3_t.f2 = 27",
+                "VALUES (21, '{\"f1\":22,\"f2\":23,\"row2_t\":{\"f1\":24,\"f2\":25,\"row3_t\":{\"f1\":26,\"f2\":27}}}')");
+        assertQuery("SELECT id, CAST(row1_t AS JSON) FROM " + tableName + " WHERE row1_t.row2_t.row3_t.f2 > 20",
+                "VALUES (21, '{\"f1\":22,\"f2\":23,\"row2_t\":{\"f1\":24,\"f2\":25,\"row3_t\":{\"f1\":26,\"f2\":27}}}')");
+
+        // Test predicates on parent columns
+        assertQuery("SELECT id, row1_t.row2_t.row3_t.f1 FROM " + tableName + " WHERE row1_t.row2_t.row3_t = ROW(16, 17)", "VALUES (11, 16)");
+        assertQuery("SELECT id, row1_t.row2_t.row3_t.f1 FROM " + tableName + " WHERE row1_t = ROW(22, 23, ROW(24, 25, ROW(26, 27)))", "VALUES (21, 26)");
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    @Test
+    public void testProjectionPushdownReadsLessData()
+    {
+        skipTestUnless(hasBehavior(SUPPORTS_PROJECTION_PUSHDOWN));
+
+        String tableName = "test_projection_pushdown_reads_less_data_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE " + tableName + " (id INT, root ROW(leaf1 BIGINT, leaf2 BIGINT))");
+        assertUpdate("INSERT INTO " + tableName + " SELECT val, ROW(val + 1, val + 2) FROM UNNEST(SEQUENCE(1, 10)) AS t(val)", 10);
+
+        MaterializedResult expectedResult = computeActual("SELECT val + 2 FROM UNNEST(SEQUENCE(1, 10)) AS t(val)");
+        String selectQuery = "SELECT root.leaf2 FROM " + tableName;
+        Session sessionWithoutPushdown = Session.builder(getSession())
+                .setCatalogSessionProperty(getSession().getCatalog().orElseThrow(), "projection_pushdown_enabled", "false")
+                .build();
+
+        assertQueryStats(
+                getSession(),
+                selectQuery,
+                statsWithPushdown -> {
+                    DataSize physicalInputDataSizeWithPushdown = statsWithPushdown.getPhysicalInputDataSize();
+                    DataSize processedDataSizeWithPushdown = statsWithPushdown.getProcessedInputDataSize();
+                    assertQueryStats(
+                            sessionWithoutPushdown,
+                            selectQuery,
+                            statsWithoutPushdown -> {
+                                if (!getTableFormat(tableName).equalsIgnoreCase("PARQUET")) {
+                                    assertThat(statsWithoutPushdown.getPhysicalInputDataSize()).isEqualTo(physicalInputDataSizeWithPushdown);
+                                }
+                                else {
+                                    assertThat(statsWithoutPushdown.getPhysicalInputDataSize()).isGreaterThan(physicalInputDataSizeWithPushdown);
+                                }
+                                assertThat(statsWithoutPushdown.getProcessedInputDataSize()).isGreaterThan(processedDataSizeWithPushdown);
+                            },
+                            results -> assertEquals(results.getOnlyColumnAsSet(), expectedResult.getOnlyColumnAsSet()));
+                },
+                results -> assertEquals(results.getOnlyColumnAsSet(), expectedResult.getOnlyColumnAsSet()));
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    @Test
+    public void testProjectionPushdownPhysicalInputSize()
+    {
+        skipTestUnless(hasBehavior(SUPPORTS_PROJECTION_PUSHDOWN));
+
+        String tableName = "test_projection_pushdown_physical_input_size_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE " + tableName + " (id INT, root ROW(leaf1 BIGINT, leaf2 BIGINT))");
+        assertUpdate("INSERT INTO " + tableName + " SELECT val, ROW(val + 1, val + 2) FROM UNNEST(SEQUENCE(1, 10)) AS t(val)", 10);
+
+        // Verify that the physical input size is smaller when reading the root.leaf1 field compared to reading the root field
+        assertQueryStats(
+                getSession(),
+                "SELECT root FROM " + tableName,
+                statsWithSelectRootField -> {
+                    assertQueryStats(
+                            getSession(),
+                            "SELECT root.leaf1 FROM " + tableName,
+                            statsWithSelectLeafField -> {
+                                if (!getTableFormat(tableName).equalsIgnoreCase("PARQUET")) {
+                                    // TODO https://github.com/trinodb/trino/issues/17156
+                                    assertThat(statsWithSelectLeafField.getPhysicalInputDataSize()).isEqualTo(statsWithSelectRootField.getPhysicalInputDataSize());
+                                }
+                                else {
+                                    assertThat(statsWithSelectLeafField.getPhysicalInputDataSize()).isLessThan(statsWithSelectRootField.getPhysicalInputDataSize());
+                                }
+                            },
+                            results -> assertEquals(results.getOnlyColumnAsSet(), computeActual("SELECT val + 1 FROM UNNEST(SEQUENCE(1, 10)) AS t(val)").getOnlyColumnAsSet()));
+                },
+                results -> assertEquals(results.getOnlyColumnAsSet(), computeActual("SELECT ROW(val + 1, val + 2) FROM UNNEST(SEQUENCE(1, 10)) AS t(val)").getOnlyColumnAsSet()));
+
+        // Verify that the physical input size is the same when reading the root field compared to reading both the root and root.leaf1 fields
+        assertQueryStats(
+                getSession(),
+                "SELECT root FROM " + tableName,
+                statsWithSelectRootField -> {
+                    assertQueryStats(
+                            getSession(),
+                            "SELECT root, root.leaf1 FROM " + tableName,
+                            statsWithSelectRootAndLeafField -> {
+                                assertThat(statsWithSelectRootAndLeafField.getPhysicalInputDataSize()).isEqualTo(statsWithSelectRootField.getPhysicalInputDataSize());
+                            },
+                            results -> assertEqualsIgnoreOrder(results.getMaterializedRows(), computeActual("SELECT ROW(val + 1, val + 2), val + 1 FROM UNNEST(SEQUENCE(1, 10)) AS t(val)").getMaterializedRows()));
+                },
+                results -> assertEquals(results.getOnlyColumnAsSet(), computeActual("SELECT ROW(val + 1, val + 2) FROM UNNEST(SEQUENCE(1, 10)) AS t(val)").getOnlyColumnAsSet()));
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
     protected Consumer<Plan> assertPartialLimitWithPreSortedInputsCount(Session session, int expectedCount)
     {
         return plan -> {
@@ -5946,6 +6146,18 @@ public abstract class BaseConnectorTest
     protected String createSchemaSql(String schemaName)
     {
         return "CREATE SCHEMA " + schemaName;
+    }
+
+    protected String getTableFormat(String tableName)
+    {
+        Pattern formatPattern = Pattern.compile(".*format = '(.*?)'.*", Pattern.DOTALL);
+        Matcher m = formatPattern.matcher((String) computeActual("SHOW CREATE TABLE " + tableName).getOnlyValue());
+        if (m.find()) {
+            String format = m.group(1);
+            verify(!m.find(), "Unexpected second match");
+            return format;
+        }
+        throw new IllegalStateException("format not found in SHOW CREATE TABLE result");
     }
 
     protected static final class DataMappingTestSetup

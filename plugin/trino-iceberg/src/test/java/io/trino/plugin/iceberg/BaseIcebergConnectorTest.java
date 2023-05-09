@@ -131,6 +131,7 @@ import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.node;
 import static io.trino.testing.MaterializedResult.resultBuilder;
 import static io.trino.testing.QueryAssertions.assertEqualsIgnoreOrder;
+import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_PROJECTION_PUSHDOWN;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static io.trino.testing.assertions.Assert.assertEventually;
@@ -4913,6 +4914,7 @@ public abstract class BaseIcebergConnectorTest
         assertUpdate("DROP TABLE IF EXISTS projection_with_case_sensitive_field");
     }
 
+    @Override
     @Test
     public void testProjectionPushdownReadsLessData()
     {
@@ -4947,6 +4949,51 @@ public abstract class BaseIcebergConnectorTest
                 results -> assertEquals(results.getOnlyColumnAsSet(), expected));
 
         assertUpdate("DROP TABLE IF EXISTS projection_pushdown_reads_less_data");
+    }
+
+    @Override
+    @Test
+    public void testProjectionPushdownPhysicalInputSize()
+    {
+        skipTestUnless(hasBehavior(SUPPORTS_PROJECTION_PUSHDOWN));
+
+        String tableName = "test_projection_pushdown_physical_input_size_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE " + tableName + " (id INT, root ROW(leaf1 BIGINT, leaf2 BIGINT))");
+        assertUpdate("INSERT INTO " + tableName + " SELECT val, ROW(val + 1, val + 2) FROM UNNEST(SEQUENCE(1, 10)) AS t(val)", 10);
+
+        // Verify that the physical input size is smaller when reading the root.leaf1 field compared to reading the root field
+        assertQueryStats(
+                getSession(),
+                "SELECT root FROM " + tableName,
+                statsWithSelectRootField -> {
+                    assertQueryStats(
+                            getSession(),
+                            "SELECT root.leaf1 FROM " + tableName,
+                            statsWithSelectLeafField -> {
+                                //TODO (https://github.com/trinodb/trino/issues/17156) add dereference pushdown on the physical layer
+                                assertThat(statsWithSelectLeafField.getPhysicalInputDataSize()).isEqualTo(statsWithSelectRootField.getPhysicalInputDataSize());
+                            },
+                            results -> assertEquals(results.getOnlyColumnAsSet(), computeActual("SELECT val + 1 FROM UNNEST(SEQUENCE(1, 10)) AS t(val)").getOnlyColumnAsSet()));
+                },
+                results -> assertEquals(results.getOnlyColumnAsSet(), computeActual("SELECT ROW(val + 1, val + 2) FROM UNNEST(SEQUENCE(1, 10)) AS t(val)").getOnlyColumnAsSet()));
+
+        // Verify that the physical input size is the same when reading the root field compared to reading both the root and root.leaf1 fields
+        assertQueryStats(
+                getSession(),
+                "SELECT root FROM " + tableName,
+                statsWithSelectRootField -> {
+                    assertQueryStats(
+                            getSession(),
+                            "SELECT root, root.leaf1 FROM " + tableName,
+                            statsWithSelectRootAndLeafField -> {
+                                assertThat(statsWithSelectRootAndLeafField.getPhysicalInputDataSize()).isEqualTo(statsWithSelectRootField.getPhysicalInputDataSize());
+                            },
+                            results -> assertEqualsIgnoreOrder(results.getMaterializedRows(), computeActual("SELECT ROW(val + 1, val + 2), val + 1 FROM UNNEST(SEQUENCE(1, 10)) AS t(val)").getMaterializedRows()));
+                },
+                results -> assertEquals(results.getOnlyColumnAsSet(), computeActual("SELECT ROW(val + 1, val + 2) FROM UNNEST(SEQUENCE(1, 10)) AS t(val)").getOnlyColumnAsSet()));
+
+        assertUpdate("DROP TABLE " + tableName);
     }
 
     @Test

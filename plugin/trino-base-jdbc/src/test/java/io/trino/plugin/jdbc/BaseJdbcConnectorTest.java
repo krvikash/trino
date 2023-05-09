@@ -148,6 +148,9 @@ public abstract class BaseJdbcConnectorTest
                 // TODO default SUPPORTS_DYNAMIC_FILTER_PUSHDOWN to SUPPORTS_PREDICATE_PUSHDOWN
                 return super.hasBehavior(SUPPORTS_PREDICATE_PUSHDOWN);
 
+            case SUPPORTS_PROJECTION_PUSHDOWN:
+                return false;
+
             default:
                 return super.hasBehavior(connectorBehavior);
         }

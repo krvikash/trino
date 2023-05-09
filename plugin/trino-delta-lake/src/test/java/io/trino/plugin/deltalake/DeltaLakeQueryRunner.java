@@ -271,6 +271,7 @@ public final class DeltaLakeQueryRunner
             DistributedQueryRunner queryRunner = builder()
                     .setCatalogName(DELTA_CATALOG)
                     .setExtraProperties(ImmutableMap.of("http-server.http.port", "8080"))
+                    .setDeltaProperties(ImmutableMap.of("hive.metastore", "glue"))
                     .build();
 
             Logger log = Logger.get(DeltaLakeExternalQueryRunnerMain.class);
