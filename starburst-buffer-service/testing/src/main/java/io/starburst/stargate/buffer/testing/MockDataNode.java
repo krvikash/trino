@@ -23,6 +23,7 @@ import io.starburst.stargate.buffer.data.client.DataApi;
 import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
+import io.starburst.stargate.buffer.data.client.RateLimitInfo;
 
 import javax.annotation.concurrent.GuardedBy;
 
@@ -141,7 +142,7 @@ class MockDataNode
     }
 
     @Override
-    public synchronized ListenableFuture<Void> addDataPages(String exchangeId, int taskId, int attemptId, long dataPageId, ListMultimap<Integer, Slice> dataPagesByPartition)
+    public synchronized ListenableFuture<Optional<RateLimitInfo>> addDataPages(String exchangeId, int taskId, int attemptId, long dataPageId, ListMultimap<Integer, Slice> dataPagesByPartition)
     {
         throwIfNodeGone();
         return getOrCreateExchangeData(exchangeId).addDataPages(taskId, attemptId, dataPageId, dataPagesByPartition);
@@ -311,7 +312,7 @@ class MockDataNode
         }
 
         @GuardedBy("MockDataNode.this")
-        public ListenableFuture<Void> addDataPages(int taskId, int attemptId, long dataPageId, ListMultimap<Integer, Slice> dataPagesByPartition)
+        public ListenableFuture<Optional<RateLimitInfo>> addDataPages(int taskId, int attemptId, long dataPageId, ListMultimap<Integer, Slice> dataPagesByPartition)
         {
             if (finished) {
                 stats.increment(REJECTED_EXCHANGE_FINISHED_ADD_DATA_PAGES_REQUEST_COUNT);
@@ -338,7 +339,7 @@ class MockDataNode
                 }
             }
             stats.increment(SUCCESSFUL_ADD_DATA_PAGES_REQUEST_COUNT);
-            return immediateVoidFuture();
+            return immediateFuture(Optional.empty());
         }
 
         @GuardedBy("MockDataNode.this")

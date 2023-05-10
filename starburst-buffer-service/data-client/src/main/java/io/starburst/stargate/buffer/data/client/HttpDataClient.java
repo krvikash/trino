@@ -53,6 +53,7 @@ import static com.google.common.util.concurrent.Futures.catchingAsync;
 import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
 import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
+import static com.google.common.util.concurrent.Futures.transform;
 import static com.google.common.util.concurrent.Futures.transformAsync;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.http.client.FullJsonResponseHandler.createFullJsonResponseHandler;
@@ -66,7 +67,6 @@ import static io.airlift.json.JsonCodec.jsonCodec;
 import static io.airlift.slice.SizeOf.SIZE_OF_INT;
 import static io.starburst.stargate.buffer.data.client.DataClientHeaders.MAX_WAIT;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.INTERNAL_ERROR;
-import static io.starburst.stargate.buffer.data.client.ErrorCode.OVERLOADED;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
 import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_CHUNK_DATA_TYPE;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.toDataPages;
@@ -218,7 +218,7 @@ public class HttpDataClient
     }
 
     @Override
-    public ListenableFuture<Void> addDataPages(String exchangeId, int taskId, int attemptId, long dataPagesId, ListMultimap<Integer, Slice> dataPages)
+    public ListenableFuture<Optional<RateLimitInfo>> addDataPages(String exchangeId, int taskId, int attemptId, long dataPagesId, ListMultimap<Integer, Slice> dataPages)
     {
         requireNonNull(exchangeId, "exchangeId is null");
         requireNonNull(dataPages, "dataPage is null");
@@ -277,7 +277,27 @@ public class HttpDataClient
                 .build();
 
         HttpResponseFuture<StringResponse> responseFuture = httpClient.executeAsync(request, createStringResponseHandler());
-        return translateFailures(request, responseFuture);
+        return transform(
+                catchAndDecorateExceptions(request, responseFuture),
+                response -> {
+                    String rateLimit = response.getHeader(RATE_LIMIT_HEADER);
+                    String averageProcessTimeInMillis = response.getHeader(AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER);
+                    Optional<RateLimitInfo> rateLimitInfo;
+                    if (rateLimit != null && averageProcessTimeInMillis != null) {
+                        rateLimitInfo = Optional.of(new RateLimitInfo(Double.parseDouble(rateLimit), Long.parseLong(averageProcessTimeInMillis)));
+                    }
+                    else {
+                        rateLimitInfo = Optional.empty();
+                    }
+
+                    if (response.getStatusCode() != HttpStatus.OK.code()) {
+                        String errorCode = response.getHeader(ERROR_CODE_HEADER);
+                        String errorMessage = requestErrorMessage(request, response.getBody());
+                        throw new DataApiException(errorCode == null ? INTERNAL_ERROR : ErrorCode.valueOf(errorCode), errorMessage, rateLimitInfo);
+                    }
+                    return rateLimitInfo;
+                },
+                directExecutor());
     }
 
     @Override
@@ -443,13 +463,7 @@ public class HttpDataClient
             if (response.getStatusCode() != HttpStatus.OK.code()) {
                 String errorCode = response.getHeader(ERROR_CODE_HEADER);
                 String errorMessage = requestErrorMessage(request, response.getBody());
-                if (errorCode != null && ErrorCode.valueOf(errorCode) == OVERLOADED) {
-                    long nextRequestDelayInMillis = Long.parseLong(requireNonNull(response.getHeader(NEXT_REQUEST_DELAY_IN_MILLIS_HEADER)));
-                    return immediateFailedFuture(new ThrottlingException(OVERLOADED, errorMessage, nextRequestDelayInMillis));
-                }
-                else {
-                    return immediateFailedFuture(new DataApiException(errorCode == null ? INTERNAL_ERROR : ErrorCode.valueOf(errorCode), errorMessage));
-                }
+                return immediateFailedFuture(new DataApiException(errorCode == null ? INTERNAL_ERROR : ErrorCode.valueOf(errorCode), errorMessage));
             }
             return immediateVoidFuture();
         }, directExecutor());

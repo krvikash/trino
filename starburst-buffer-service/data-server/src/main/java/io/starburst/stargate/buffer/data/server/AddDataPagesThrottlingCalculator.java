@@ -102,11 +102,6 @@ public class AddDataPagesThrottlingCalculator
         decayCounter.add(1);
     }
 
-    public long getNextRequestDelayInMillis()
-    {
-        return (long) decayCounter.getCount() * 1000;
-    }
-
     public synchronized void recordProcessTimeInMillis(long processTimeInMillis)
     {
         checkState(recentProcessTimeQueue.size() == PROCESS_TIME_MOVING_AVERAGE_CALCULATION_WINDOW);

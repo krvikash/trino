@@ -15,6 +15,7 @@ import io.airlift.slice.Slice;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalLong;
 
 public interface DataApi
@@ -84,10 +85,11 @@ public interface DataApi
      * @param attemptId originating task attempt id
      * @param dataPagesId client provided it for data pages batch for deduplication purposes
      * @param dataPagesByPartition data to be recorded in an open chunk for given exchange; pages are grouped by partitionId
+     * @return server-side rate limit (if applicable)
      *
      * In case of failure returned future will wrap {@link DataApiException}
      */
-    ListenableFuture<Void> addDataPages(String exchangeId, int taskId, int attemptId, long dataPagesId, ListMultimap<Integer, Slice> dataPagesByPartition);
+    ListenableFuture<Optional<RateLimitInfo>> addDataPages(String exchangeId, int taskId, int attemptId, long dataPagesId, ListMultimap<Integer, Slice> dataPagesByPartition);
 
     /**
      * Mark exchange as finished. It means that no more data will be recorded for given exchange.

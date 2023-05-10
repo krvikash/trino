@@ -31,6 +31,7 @@ import io.starburst.stargate.buffer.data.client.DataApi;
 import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
+import io.starburst.stargate.buffer.data.client.RateLimitInfo;
 import io.starburst.stargate.buffer.data.client.ThrottlingException;
 
 import javax.annotation.PostConstruct;
@@ -41,6 +42,7 @@ import javax.inject.Inject;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -55,6 +57,7 @@ import java.util.function.Predicate;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
+import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.units.Duration.succinctDuration;
 import static java.util.Objects.requireNonNull;
 
@@ -271,7 +274,7 @@ public class DataApiFacade
         Callable<ListenableFuture<Void>> call = () -> {
             boolean retry = retryFlag.getAndSet(true);
 
-            ListenableFuture<Void> future = internalAddDataPages(bufferNodeId, exchangeId, taskId, attemptId, dataPagesId, dataPagesByPartition);
+            ListenableFuture<Void> future = asVoid(internalAddDataPages(bufferNodeId, exchangeId, taskId, attemptId, dataPagesId, dataPagesByPartition));
             if (!retry) {
                 // first try
                 return future;
@@ -305,7 +308,7 @@ public class DataApiFacade
         return runWithRetry(bufferNodeId, this::getAddDataPagesRetryExecutor, call);
     }
 
-    private ListenableFuture<Void> internalAddDataPages(long bufferNodeId, String exchangeId, int taskId, int attemptId, long dataPagesId, ListMultimap<Integer, Slice> dataPagesByPartition)
+    private ListenableFuture<Optional<RateLimitInfo>> internalAddDataPages(long bufferNodeId, String exchangeId, int taskId, int attemptId, long dataPagesId, ListMultimap<Integer, Slice> dataPagesByPartition)
     {
         try {
             // short-circuiting DRAINING error code too. No point in sending request then.
@@ -432,15 +435,6 @@ public class DataApiFacade
                         default -> false;
                     };
                 })
-                .withDelayFnOn(context -> {
-                    long nextRequestBaseDelayInMillis = ((ThrottlingException) context.getLastException()).getNextRequestBaseDelayInMillis();
-                    double jitter = config.backoffJitter();
-                    double backoffFactor = config.backoffFactor();
-                    long delayInMillis = (long) (nextRequestBaseDelayInMillis * ((1 - jitter) + jitter * Math.random() * 2) * Math.pow(backoffFactor, context.getAttemptCount() - 1));
-                    delayInMillis = Math.max(delayInMillis, config.backoffInitial().toMillis());
-                    delayInMillis = Math.min(delayInMillis, config.backoffMax().toMillis());
-                    return java.time.Duration.ofMillis(delayInMillis);
-                }, ThrottlingException.class)
                 .build();
     }
 

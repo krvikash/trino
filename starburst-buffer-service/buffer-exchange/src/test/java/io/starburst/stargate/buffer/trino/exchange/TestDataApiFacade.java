@@ -25,6 +25,7 @@ import io.starburst.stargate.buffer.data.client.DataApi;
 import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
+import io.starburst.stargate.buffer.data.client.RateLimitInfo;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 import io.starburst.stargate.buffer.trino.exchange.DataApiFacade.RetryExecutorConfig;
 import org.junit.jupiter.api.AfterAll;
@@ -198,7 +199,7 @@ public class TestDataApiFacade
 
         // OK after INTERNAL_ERROR
         dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, Futures.immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
-        dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, Futures.immediateVoidFuture());
+        dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, Futures.immediateFuture(Optional.empty()));
         assertThat(dataApiFacade.addDataPages(TestingDataApi.NODE_ID, "exchange-1", 0, 0, 0, ImmutableListMultimap.of()))
                 .succeedsWithin(5, SECONDS);
         assertThat(dataApiDelegate.getAddDataPagesCallCount("exchange-1", 0, 0, 0)).isEqualTo(2);
@@ -407,9 +408,9 @@ public class TestDataApiFacade
         dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, Futures.immediateFailedFuture(new RuntimeException("unexpected exception")));
         dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, Futures.immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
         ChunkList result = new ChunkList(ImmutableList.of(), OptionalLong.of(7));
-        dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, Futures.immediateVoidFuture());
+        dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, Futures.immediateFuture(Optional.empty()));
         dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, Futures.immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
-        dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, Futures.immediateVoidFuture());
+        dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, Futures.immediateFuture(Optional.empty()));
 
         assertThat(dataApiFacade.addDataPages(TestingDataApi.NODE_ID, "exchange-1", 0, 0, 0, ImmutableListMultimap.of()))
                 .failsWithin(1, SECONDS)
@@ -473,7 +474,7 @@ public class TestDataApiFacade
 
         private final ListMultimap<ListClosedChunksKey, ListenableFuture<ChunkList>> listClosedChunksResponses = ArrayListMultimap.create();
         private final Map<ListClosedChunksKey, AtomicLong> listClosedChunksCounters = new HashMap<>();
-        private final ListMultimap<AddDataPagesKey, ListenableFuture<Void>> addDataPagesResponses = ArrayListMultimap.create();
+        private final ListMultimap<AddDataPagesKey, ListenableFuture<Optional<RateLimitInfo>>> addDataPagesResponses = ArrayListMultimap.create();
         private final Map<AddDataPagesKey, AtomicLong> addDataPagesCounters = new HashMap<>();
 
         @Override
@@ -529,10 +530,10 @@ public class TestDataApiFacade
         }
 
         @Override
-        public synchronized ListenableFuture<Void> addDataPages(String exchangeId, int taskId, int attemptId, long dataPagesId, ListMultimap<Integer, Slice> dataPagesByPartition)
+        public synchronized ListenableFuture<Optional<RateLimitInfo>> addDataPages(String exchangeId, int taskId, int attemptId, long dataPagesId, ListMultimap<Integer, Slice> dataPagesByPartition)
         {
             AddDataPagesKey key = new AddDataPagesKey(exchangeId, taskId, attemptId, dataPagesId);
-            List<ListenableFuture<Void>> responses = addDataPagesResponses.get(key);
+            List<ListenableFuture<Optional<RateLimitInfo>>> responses = addDataPagesResponses.get(key);
             if (responses.isEmpty()) {
                 throw new IllegalStateException("no response recorded for " + key);
             }
@@ -540,7 +541,7 @@ public class TestDataApiFacade
             return responses.remove(0);
         }
 
-        public synchronized void recordAddDataPages(String exchangeId, int taskId, int attemptId, long dataPagesId, ListenableFuture<Void> result)
+        public synchronized void recordAddDataPages(String exchangeId, int taskId, int attemptId, long dataPagesId, ListenableFuture<Optional<RateLimitInfo>> result)
         {
             addDataPagesResponses.put(new AddDataPagesKey(exchangeId, taskId, attemptId, dataPagesId), result);
         }
