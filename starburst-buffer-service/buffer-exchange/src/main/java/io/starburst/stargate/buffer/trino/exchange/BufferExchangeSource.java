@@ -53,7 +53,6 @@ import static com.google.common.base.Throwables.throwIfUnchecked;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.slice.SizeOf.estimatedSizeOf;
-import static io.starburst.stargate.buffer.trino.exchange.MoreSizeOf.OBJECT_HEADER_SIZE;
 import static java.lang.Math.toIntExact;
 import static java.util.Collections.emptySet;
 import static java.util.Objects.requireNonNull;
@@ -115,7 +114,7 @@ public class BufferExchangeSource
         this.memoryLowWaterMark = requireNonNull(memoryLowWaterMark, "memoryLowWaterMark is null");
         this.memoryHighWaterMark = requireNonNull(memoryHighWaterMark, "memoryHighWaterMark is null");
         this.parallelism = parallelism;
-        this.sourceChunksEstimatedSize = new AtomicLong(MoreSizeOf.estimatedSizeOf(sourceChunks, SourceChunk::getRetainedSize));
+        this.sourceChunksEstimatedSize = new AtomicLong(estimatedSizeOf(sourceChunks, SourceChunk::getRetainedSize));
     }
 
     private void scheduleReadChunks()
@@ -657,6 +656,8 @@ public class BufferExchangeSource
             long chunkId,
             int chunkDataSize)
     {
+        private static final int OBJECT_HEADER_SIZE = 16; /* object header with possible padding */
+
         public long getRetainedSize()
         {
             return OBJECT_HEADER_SIZE + Long.BYTES + Integer.BYTES + Long.BYTES + Integer.BYTES;
