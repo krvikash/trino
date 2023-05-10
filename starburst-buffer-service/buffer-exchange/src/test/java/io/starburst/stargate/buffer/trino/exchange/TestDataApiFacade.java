@@ -13,7 +13,6 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ListMultimap;
-import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import dev.failsafe.CircuitBreakerOpenException;
 import io.airlift.slice.Slice;
@@ -47,6 +46,8 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
+import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
+import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -80,10 +81,10 @@ public class TestDataApiFacade
                 new RetryExecutorConfig(0, Duration.valueOf("500ms"), Duration.valueOf("1000ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")), // misconfigured on purpose
                 executor);
 
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFailedFuture(new RuntimeException("random exception")));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFailedFuture(new RuntimeException("random exception")));
+        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFailedFuture(new RuntimeException("random exception")));
+        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFailedFuture(new RuntimeException("random exception")));
         ChunkList result = new ChunkList(ImmutableList.of(), OptionalLong.of(7));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFuture(result));
+        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFuture(result));
 
         ListenableFuture<ChunkList> future = dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty());
 
@@ -112,10 +113,10 @@ public class TestDataApiFacade
                 new RetryExecutorConfig(0, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")), // misconfigured on purpose
                 executor);
 
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFailedFuture(new RuntimeException("random exception")));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFailedFuture(new RuntimeException("random exception")));
+        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFailedFuture(new RuntimeException("random exception")));
+        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFailedFuture(new RuntimeException("random exception")));
         ChunkList result = new ChunkList(ImmutableList.of(), OptionalLong.of(7));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFuture(result));
+        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFuture(result));
 
         assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty()))
                 .succeedsWithin(5, SECONDS)
@@ -141,10 +142,10 @@ public class TestDataApiFacade
                 new RetryExecutorConfig(0, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")), // misconfigured on purpose
                 executor);
 
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
+        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
+        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
         ChunkList result = new ChunkList(ImmutableList.of(), OptionalLong.of(7));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFuture(result));
+        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFuture(result));
 
         assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty()))
                 .succeedsWithin(5, SECONDS)
@@ -172,7 +173,7 @@ public class TestDataApiFacade
                 new RetryExecutorConfig(2, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")),
                 executor);
 
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFailedFuture(new DataApiException(errorCode, "blah")));
+        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFailedFuture(new DataApiException(errorCode, "blah")));
 
         assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty()))
                 .failsWithin(1, SECONDS)
@@ -198,14 +199,14 @@ public class TestDataApiFacade
                 executor);
 
         // OK after INTERNAL_ERROR
-        dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, Futures.immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
-        dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, Futures.immediateFuture(Optional.empty()));
+        dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
+        dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, immediateFuture(Optional.empty()));
         assertThat(dataApiFacade.addDataPages(TestingDataApi.NODE_ID, "exchange-1", 0, 0, 0, ImmutableListMultimap.of()))
                 .succeedsWithin(5, SECONDS);
         assertThat(dataApiDelegate.getAddDataPagesCallCount("exchange-1", 0, 0, 0)).isEqualTo(2);
 
         // Immediate DRAINING
-        dataApiDelegate.recordAddDataPages("exchange-2", 0, 0, 0, Futures.immediateFailedFuture(new DataApiException(ErrorCode.DRAINING, "blah")));
+        dataApiDelegate.recordAddDataPages("exchange-2", 0, 0, 0, immediateFailedFuture(new DataApiException(ErrorCode.DRAINING, "blah")));
         assertThat(dataApiFacade.addDataPages(TestingDataApi.NODE_ID, "exchange-2", 0, 0, 0, ImmutableListMultimap.of()))
                 .failsWithin(1, SECONDS)
                 .withThrowableOfType(ExecutionException.class)
@@ -213,8 +214,8 @@ public class TestDataApiFacade
         assertThat(dataApiDelegate.getAddDataPagesCallCount("exchange-2", 0, 0, 0)).isEqualTo(1);
 
         // DRAINING after INTERNAL_ERROR
-        dataApiDelegate.recordAddDataPages("exchange-3", 0, 0, 0, Futures.immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
-        dataApiDelegate.recordAddDataPages("exchange-3", 0, 0, 0, Futures.immediateFailedFuture(new DataApiException(ErrorCode.DRAINING, "blah")));
+        dataApiDelegate.recordAddDataPages("exchange-3", 0, 0, 0, immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
+        dataApiDelegate.recordAddDataPages("exchange-3", 0, 0, 0, immediateFailedFuture(new DataApiException(ErrorCode.DRAINING, "blah")));
         assertThat(dataApiFacade.addDataPages(TestingDataApi.NODE_ID, "exchange-3", 0, 0, 0, ImmutableListMultimap.of()))
                 .failsWithin(1, SECONDS)
                 .withThrowableOfType(ExecutionException.class)
@@ -239,7 +240,7 @@ public class TestDataApiFacade
                 executor);
 
         ChunkList result = new ChunkList(ImmutableList.of(), OptionalLong.of(7));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFuture(result));
+        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFuture(result));
         assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty()))
                 .succeedsWithin(100, MILLISECONDS) // returns immediately
                 .isEqualTo(result);
@@ -262,7 +263,7 @@ public class TestDataApiFacade
                 executor);
 
         ChunkList result = new ChunkList(ImmutableList.of(), OptionalLong.of(7));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFuture(result));
+        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFuture(result));
         assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty()));
         // we expect no communication with client
         assertThat(dataApiDelegate.getListClosedChunksCallCount("exchange-1", OptionalLong.empty())).isEqualTo(0);
@@ -293,13 +294,13 @@ public class TestDataApiFacade
                 new RetryExecutorConfig(0, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 2, 1, Duration.valueOf("500ms")), // misconfigured on purpose
                 executor);
 
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFailedFuture(new RuntimeException("unexpected exception")));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
+        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
+        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFailedFuture(new RuntimeException("unexpected exception")));
+        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
         ChunkList result = new ChunkList(ImmutableList.of(), OptionalLong.of(7));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFuture(result));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFuture(result));
+        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFuture(result));
+        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
+        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFuture(result));
 
         assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty()))
                 .failsWithin(1, SECONDS)
@@ -366,12 +367,12 @@ public class TestDataApiFacade
                 new RetryExecutorConfig(0, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 2, 1, Duration.valueOf("500ms")),
                 executor);
 
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFailedFuture(new DataApiException(errorCode, "chunk")));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFailedFuture(new DataApiException(errorCode, "chunk")));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFailedFuture(new DataApiException(errorCode, "chunk")));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFailedFuture(new DataApiException(errorCode, "chunk")));
+        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFailedFuture(new DataApiException(errorCode, "chunk")));
+        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFailedFuture(new DataApiException(errorCode, "chunk")));
+        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFailedFuture(new DataApiException(errorCode, "chunk")));
+        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFailedFuture(new DataApiException(errorCode, "chunk")));
         ChunkList result = new ChunkList(ImmutableList.of(), OptionalLong.of(7));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), Futures.immediateFuture(result));
+        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFuture(result));
 
         for (int i = 0; i < 4; ++i) {
             assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty()))
@@ -404,13 +405,13 @@ public class TestDataApiFacade
                 new RetryExecutorConfig(2, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 2, 1, Duration.valueOf("500ms")),
                 executor);
 
-        dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, Futures.immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
-        dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, Futures.immediateFailedFuture(new RuntimeException("unexpected exception")));
-        dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, Futures.immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
+        dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
+        dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, immediateFailedFuture(new RuntimeException("unexpected exception")));
+        dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
         ChunkList result = new ChunkList(ImmutableList.of(), OptionalLong.of(7));
-        dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, Futures.immediateFuture(Optional.empty()));
-        dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, Futures.immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
-        dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, Futures.immediateFuture(Optional.empty()));
+        dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, immediateFuture(Optional.empty()));
+        dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
+        dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, immediateFuture(Optional.empty()));
 
         assertThat(dataApiFacade.addDataPages(TestingDataApi.NODE_ID, "exchange-1", 0, 0, 0, ImmutableListMultimap.of()))
                 .failsWithin(1, SECONDS)
