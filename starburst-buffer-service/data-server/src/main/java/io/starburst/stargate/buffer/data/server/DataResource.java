@@ -155,11 +155,11 @@ public class DataResource
         this.maxInProgressAddDataPagesRequests = config.getMaxInProgressAddDataPagesRequests();
 
         this.stats = requireNonNull(stats, "stats is null");
-        writtenDataSize = stats.getWrittenDataSize();
-        writtenDataSizeDistribution = stats.getWrittenDataSizeDistribution();
-        writtenDataSizePerPartitionDistribution = stats.getWrittenDataSizePerPartitionDistribution();
-        readDataSize = stats.getReadDataSize();
-        readDataSizeDistribution = stats.getReadDataSizeDistribution();
+        this.writtenDataSize = stats.getWrittenDataSize();
+        this.writtenDataSizeDistribution = stats.getWrittenDataSizeDistribution();
+        this.writtenDataSizePerPartitionDistribution = stats.getWrittenDataSizePerPartitionDistribution();
+        this.readDataSize = stats.getReadDataSize();
+        this.readDataSizeDistribution = stats.getReadDataSizeDistribution();
     }
 
     @GET
