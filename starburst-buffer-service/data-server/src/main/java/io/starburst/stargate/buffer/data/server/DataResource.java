@@ -126,8 +126,6 @@ public class DataResource
     private final AddDataPagesThrottlingCalculator addDataPagesThrottlingCalculator;
     private final int maxInProgressAddDataPagesRequests;
 
-    // tracks addDataPages requests for which HTTP response was not yet returned
-    private final AtomicInteger servedAddDataPagesRequests = new AtomicInteger();
     // tracks addDataPages requests for which HTTP response may have already been returned (e.g. due to timeout) but we still need to finish processing incoming data
     private final AtomicInteger inProgressAddDataPagesRequests = new AtomicInteger();
 
@@ -276,7 +274,6 @@ public class DataResource
                     ImmutableMap.of(NEXT_REQUEST_DELAY_IN_MILLIS_HEADER, Long.toString(nextRequestDelayInMillis)));
             return;
         }
-        incrementServedAddDataPagesRequests();
         asyncResponse.setTimeout(getAsyncTimeout(clientMaxWait).toMillis(), MILLISECONDS);
 
         ServletInputStream inputStream;
@@ -291,7 +288,6 @@ public class DataResource
             }
             finally {
                 decrementInProgressAddDataPagesRequests();
-                decrementServedAddDataPagesRequests();
             }
         }
 
@@ -309,7 +305,6 @@ public class DataResource
                 }
                 // try to cancel opportunistically to prevent from `Futures.addCallback` running if possible
                 sliceLease.cancel();
-                decrementServedAddDataPagesRequests();
             });
 
             asyncResponse.register((ConnectionCallback) response -> {
@@ -319,7 +314,6 @@ public class DataResource
                 }
                 // try to cancel opportunistically to prevent from `Futures.addCallback` running if possible
                 sliceLease.cancel();
-                decrementServedAddDataPagesRequests();
             });
         }
         catch (Exception e) {
@@ -469,17 +463,6 @@ public class DataResource
                     }
                 },
                 executor);
-    }
-
-    private void incrementServedAddDataPagesRequests()
-    {
-        stats.updateServedAddDataPagesRequests(servedAddDataPagesRequests.incrementAndGet());
-    }
-
-    private void decrementServedAddDataPagesRequests()
-    {
-        int currentRequestsCount = servedAddDataPagesRequests.decrementAndGet();
-        stats.updateServedAddDataPagesRequests(currentRequestsCount);
     }
 
     private int incrementInProgressAddDataPagesRequests()
