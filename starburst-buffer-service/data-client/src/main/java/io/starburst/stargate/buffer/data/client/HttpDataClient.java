@@ -79,6 +79,8 @@ public class HttpDataClient
 {
     public static final String ERROR_CODE_HEADER = "X-trino-buffer-error-code";
     public static final String NEXT_REQUEST_DELAY_IN_MILLIS_HEADER = "X-trino-next-request-delay-in-millis";
+    public static final String RATE_LIMIT_HEADER = "X-trino-rate-limit";
+    public static final String AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER = "X-trino-average-process-time-in-millis";
     public static final String SPOOLING_FILE_LOCATION_HEADER = "X-trino-buffer-spooling-file-location";
     public static final String SPOOLING_FILE_SIZE_HEADER = "X-trino-buffer-spooling-file-size";
 

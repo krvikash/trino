@@ -68,6 +68,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.OptionalLong;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -89,8 +90,10 @@ import static io.starburst.stargate.buffer.data.client.ErrorCode.DRAINING;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.INTERNAL_ERROR;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.OVERLOADED;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.USER_ERROR;
+import static io.starburst.stargate.buffer.data.client.HttpDataClient.AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.ERROR_CODE_HEADER;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.NEXT_REQUEST_DELAY_IN_MILLIS_HEADER;
+import static io.starburst.stargate.buffer.data.client.HttpDataClient.RATE_LIMIT_HEADER;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLING_FILE_LOCATION_HEADER;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLING_FILE_SIZE_HEADER;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
@@ -239,6 +242,7 @@ public class DataResource
             @Suspended AsyncResponse asyncResponse)
             throws IOException
     {
+        long start = System.currentTimeMillis();
         AsyncContext asyncContext = request.getAsyncContext();
         try {
             checkTargetBufferNodeId(targetBufferNodeId);
@@ -421,7 +425,18 @@ public class DataResource
                                         logAndTranslateExceptions(
                                                 Futures.transform(
                                                         nonCancellationPropagating(allAsList(addDataPagesFutures)),
-                                                        ignored -> Response.ok().build(),
+                                                        ignored -> {
+                                                            OptionalDouble rateLimit = addDataPagesThrottlingCalculator.getRateLimit(request.getRemoteHost(), inProgressAddDataPagesRequests.get());
+                                                            if (rateLimit.isPresent()) {
+                                                                return Response.ok()
+                                                                        .header(RATE_LIMIT_HEADER, Double.toString(rateLimit.getAsDouble()))
+                                                                        .header(AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER, Long.toString(addDataPagesThrottlingCalculator.getAverageProcessTimeInMillis()))
+                                                                        .build();
+                                                            }
+                                                            else {
+                                                                return Response.ok().build();
+                                                            }
+                                                        },
                                                         directExecutor()),
                                                 () -> "POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId)),
                                         responseExecutor);
@@ -456,6 +471,8 @@ public class DataResource
                                     sliceLease.release();
                                 }
                                 finally {
+                                    addDataPagesThrottlingCalculator.recordProcessTimeInMillis(System.currentTimeMillis() - start);
+                                    addDataPagesThrottlingCalculator.updateCounterStat(request.getRemoteHost(), 1);
                                     decrementInProgressAddDataPagesRequests();
                                 }
                             }
