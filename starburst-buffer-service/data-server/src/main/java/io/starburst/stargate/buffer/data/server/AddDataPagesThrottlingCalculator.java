@@ -45,9 +45,10 @@ public class AddDataPagesThrottlingCalculator
     private static final Duration REMOTE_HOST_CLEANUP_INTERVAL = succinctDuration(30, SECONDS);
 
     private final DecayCounter decayCounter;
+    private final int maxInProgressAddDataPagesRequests;
     private final int addDataPagesRequestsRateLimitThreshold;
-    private final Ticker ticker = Ticker.systemTicker();
 
+    private final Ticker ticker = Ticker.systemTicker();
     private final Map<String, CounterWithRate> counters = new ConcurrentHashMap<>();
     private final ScheduledExecutorService cleanupExecutor = newSingleThreadScheduledExecutor();
     @GuardedBy("this")
@@ -59,7 +60,8 @@ public class AddDataPagesThrottlingCalculator
     public AddDataPagesThrottlingCalculator(DataServerConfig config)
     {
         this.decayCounter = new DecayCounter(1 / config.getThrottlingCounterDecayDuration().getValue(SECONDS));
-        this.addDataPagesRequestsRateLimitThreshold = config.getMaxInProgressAddDataPagesRequests() / 2;
+        this.maxInProgressAddDataPagesRequests = config.getMaxInProgressAddDataPagesRequests();
+        this.addDataPagesRequestsRateLimitThreshold = maxInProgressAddDataPagesRequests / 2;
         this.recentProcessTimeQueue = new ArrayDeque<>(PROCESS_TIME_MOVING_AVERAGE_CALCULATION_WINDOW);
         // fill queue with 0s to begin
         for (int i = 0; i < PROCESS_TIME_MOVING_AVERAGE_CALCULATION_WINDOW; ++i) {
@@ -135,6 +137,11 @@ public class AddDataPagesThrottlingCalculator
             // this is possible as the buffer node may be stressed by some other workers
             return OptionalDouble.empty();
         }
+
+        if (inProgressAddDataPagesRequests > addDataPagesRequestsRateLimitThreshold) {
+            rate = rate - rate * (inProgressAddDataPagesRequests - addDataPagesRequestsRateLimitThreshold) / maxInProgressAddDataPagesRequests;
+        }
+
         return OptionalDouble.of(rate);
     }
 

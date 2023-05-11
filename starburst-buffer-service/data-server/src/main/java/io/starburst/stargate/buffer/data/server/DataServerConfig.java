@@ -34,7 +34,7 @@ public class DataServerConfig
     private int chunkListTargetSize = 1;
     private int chunkListMaxSize = 100;
     private Duration chunkListPollTimeout = succinctDuration(100, MILLISECONDS);
-    private Duration throttlingCounterDecayDuration = succinctDuration(30, SECONDS);
+    private Duration throttlingCounterDecayDuration = succinctDuration(20, SECONDS);
 
     public boolean isDataIntegrityVerificationEnabled()
     {

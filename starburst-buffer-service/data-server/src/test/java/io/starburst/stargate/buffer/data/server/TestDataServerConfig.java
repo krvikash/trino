@@ -38,7 +38,7 @@ public class TestDataServerConfig
                 .setChunkListTargetSize(1)
                 .setChunkListMaxSize(100)
                 .setChunkListPollTimeout(succinctDuration(100, MILLISECONDS))
-                .setThrottlingCounterDecayDuration(succinctDuration(30, SECONDS)));
+                .setThrottlingCounterDecayDuration(succinctDuration(20, SECONDS)));
     }
 
     @Test
@@ -56,7 +56,7 @@ public class TestDataServerConfig
                 .put("chunk-list.target-size", "42")
                 .put("chunk-list.max-size", "1000")
                 .put("chunk-list.poll-timeout", "12345ms")
-                .put("throttling-counter-decay-duration", "20s")
+                .put("throttling-counter-decay-duration", "25s")
                 .buildOrThrow();
 
         DataServerConfig expected = new DataServerConfig()
@@ -71,7 +71,7 @@ public class TestDataServerConfig
                 .setChunkListTargetSize(42)
                 .setChunkListMaxSize(1000)
                 .setChunkListPollTimeout(succinctDuration(12345, MILLISECONDS))
-                .setThrottlingCounterDecayDuration(succinctDuration(20, SECONDS));
+                .setThrottlingCounterDecayDuration(succinctDuration(25, SECONDS));
 
         assertFullMapping(properties, expected);
     }

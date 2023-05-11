@@ -10,11 +10,13 @@
 package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Ticker;
 import com.google.common.collect.ListMultimap;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.SettableFuture;
 import dev.failsafe.CircuitBreaker;
 import dev.failsafe.Failsafe;
@@ -32,7 +34,6 @@ import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.starburst.stargate.buffer.data.client.RateLimitInfo;
-import io.starburst.stargate.buffer.data.client.ThrottlingException;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -57,7 +58,7 @@ import java.util.function.Predicate;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
-import static io.airlift.concurrent.MoreFutures.asVoid;
+import static com.google.common.util.concurrent.MoreExecutors.listeningDecorator;
 import static io.airlift.units.Duration.succinctDuration;
 import static java.util.Objects.requireNonNull;
 
@@ -76,6 +77,8 @@ public class DataApiFacade
     private final RetryExecutorConfig defaultRetryExecutorConfig;
     private final RetryExecutorConfig addDataPagesRetryExecutorConfig;
     private final ScheduledExecutorService executor;
+    private final ListeningScheduledExecutorService listeningScheduledExecutor;
+    private final RateMonitor rateMonitor;
     private final Closer destroyCloser = Closer.create();
 
     record RetryExecutorConfig(
@@ -132,6 +135,8 @@ public class DataApiFacade
         this.defaultRetryExecutorConfig = requireNonNull(defaultRetryExecutorConfig, "defaultRetryExecutorConfig is null");
         this.addDataPagesRetryExecutorConfig = requireNonNull(addDataPagesRetryExecutorConfig, "addDataPagesRetryExecutorConfig is null");
         this.executor = requireNonNull(executor, "executor is null");
+        this.listeningScheduledExecutor = listeningDecorator(executor);
+        this.rateMonitor = new RateMonitor(Ticker.systemTicker());
     }
 
     @PostConstruct
@@ -186,6 +191,8 @@ public class DataApiFacade
                 .collect(toImmutableSet());
         log.info("cleaning up stale add data pages retry executors for buffer nodes %s", staleAddDataPagesRetryExecutors);
         staleAddDataPagesRetryExecutors.forEach(addDataPagesRetryExecutors::remove);
+
+        rateMonitor.cleanUp(isBufferNodeStale);
     }
 
     public ListenableFuture<ChunkList> listClosedChunks(long bufferNodeId, String exchangeId, OptionalLong pagingId)
@@ -273,31 +280,42 @@ public class DataApiFacade
         AtomicBoolean retryFlag = new AtomicBoolean();
         Callable<ListenableFuture<Void>> call = () -> {
             boolean retry = retryFlag.getAndSet(true);
+            long requestDelayInMillis = rateMonitor.registerExecutionSchedule(bufferNodeId);
 
-            ListenableFuture<Void> future = asVoid(internalAddDataPages(bufferNodeId, exchangeId, taskId, attemptId, dataPagesId, dataPagesByPartition));
-            if (!retry) {
-                // first try
-                return future;
+            ListenableFuture<Optional<RateLimitInfo>> requestFuture;
+            if (requestDelayInMillis == 0) {
+                requestFuture = internalAddDataPages(bufferNodeId, exchangeId, taskId, attemptId, dataPagesId, dataPagesByPartition);
+            }
+            else {
+                requestFuture = SettableFuture.create();
+                listeningScheduledExecutor.schedule(
+                        () -> ((SettableFuture<Optional<RateLimitInfo>>) requestFuture).setFuture(internalAddDataPages(bufferNodeId, exchangeId, taskId, attemptId, dataPagesId, dataPagesByPartition)),
+                        requestDelayInMillis,
+                        TimeUnit.MILLISECONDS);
             }
 
-            // If we are retrying we need to ensure that we do not propagate DRAINING error to user. We do not know if previous request
-            // was recorded by server or not. If we handle DRAINING, and send data to another buffer service node we may end up with
-            // duplicated data.
             SettableFuture<Void> resultFuture = SettableFuture.create();
-            Futures.addCallback(future, new FutureCallback<>()
+            Futures.addCallback(requestFuture, new FutureCallback<>()
             {
                 @Override
-                public void onSuccess(Void result)
+                public void onSuccess(Optional<RateLimitInfo> rateLimitInfo)
                 {
-                    resultFuture.set(result);
+                    rateMonitor.updateRateLimitInfo(bufferNodeId, rateLimitInfo);
+                    resultFuture.set(null);
                 }
 
                 @Override
                 public void onFailure(Throwable failure)
                 {
-                    if ((failure instanceof DataApiException dataApiException) && (dataApiException.getErrorCode() == ErrorCode.DRAINING || dataApiException.getErrorCode() == ErrorCode.DRAINED)) {
-                        resultFuture.setException(new DataApiException(ErrorCode.DRAINING_ON_RETRY, "Received %s error code on retry".formatted(dataApiException.getErrorCode()), failure));
-                        return;
+                    if ((failure instanceof DataApiException dataApiException)) {
+                        rateMonitor.updateRateLimitInfo(bufferNodeId, dataApiException.getRateLimitInfo());
+                        if (retry && (dataApiException.getErrorCode() == ErrorCode.DRAINING || dataApiException.getErrorCode() == ErrorCode.DRAINED)) {
+                            // If we are retrying we need to ensure that we do not propagate DRAINING error to user. We do not know if previous request
+                            // was recorded by server or not. If we handle DRAINING, and send data to another buffer service node we may end up with
+                            // duplicated data.
+                            resultFuture.setException(new DataApiException(ErrorCode.DRAINING_ON_RETRY, "Received %s error code on retry".formatted(dataApiException.getErrorCode()), failure));
+                            return;
+                        }
                     }
                     resultFuture.setException(failure);
                 }

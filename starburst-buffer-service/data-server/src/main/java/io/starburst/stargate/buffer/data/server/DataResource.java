@@ -40,6 +40,7 @@ import javax.servlet.AsyncContext;
 import javax.servlet.ReadListener;
 import javax.servlet.ServletInputStream;
 import javax.servlet.ServletOutputStream;
+import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.WriteListener;
 import javax.servlet.http.HttpServletRequest;
@@ -92,7 +93,6 @@ import static io.starburst.stargate.buffer.data.client.ErrorCode.OVERLOADED;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.USER_ERROR;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.ERROR_CODE_HEADER;
-import static io.starburst.stargate.buffer.data.client.HttpDataClient.NEXT_REQUEST_DELAY_IN_MILLIS_HEADER;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.RATE_LIMIT_HEADER;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLING_FILE_LOCATION_HEADER;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLING_FILE_SIZE_HEADER;
@@ -269,13 +269,11 @@ public class DataResource
         if (currentInProgressAddDataPagesRequests > maxInProgressAddDataPagesRequests) {
             decrementInProgressAddDataPagesRequests();
             addDataPagesThrottlingCalculator.recordThrottlingEvent();
-            long nextRequestDelayInMillis = addDataPagesThrottlingCalculator.getNextRequestDelayInMillis();
-            logger.warn("rejecting POST /%s/addDataPages/%s/%s/%s; exceeded maximum in progress addDataPages requests (%s > %s), next request delay %s",
-                    exchangeId, taskId, attemptId, dataPagesId, currentInProgressAddDataPagesRequests, maxInProgressAddDataPagesRequests, succinctDuration(nextRequestDelayInMillis, MILLISECONDS));
+            logger.warn("rejecting POST /%s/addDataPages/%s/%s/%s; exceeded maximum in progress addDataPages requests (%s > %s)",
+                    exchangeId, taskId, attemptId, dataPagesId, currentInProgressAddDataPagesRequests, maxInProgressAddDataPagesRequests);
             completeServletResponse(
                     asyncContext,
-                    Optional.of(new DataServerException(OVERLOADED, "Exceeded maximum in progress addDataPages requests (%s)".formatted(maxInProgressAddDataPagesRequests))),
-                    ImmutableMap.of(NEXT_REQUEST_DELAY_IN_MILLIS_HEADER, Long.toString(nextRequestDelayInMillis)));
+                    Optional.of(new DataServerException(OVERLOADED, "Exceeded maximum in progress addDataPages requests (%s)".formatted(maxInProgressAddDataPagesRequests))));
             return;
         }
         asyncResponse.setTimeout(getAsyncTimeout(clientMaxWait).toMillis(), MILLISECONDS);
@@ -447,7 +445,7 @@ public class DataResource
                             {
                                 finalizeAddDataPagesRequest(addDataPagesFutures, sliceLease);
                                 logger.warn(throwable, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
-                                asyncResponse.resume(errorResponse(throwable));
+                                asyncResponse.resume(errorResponse(throwable, getRateLimitHeaders(request)));
                             }
                         });
                     }
@@ -457,7 +455,7 @@ public class DataResource
                     {
                         finalizeAddDataPagesRequest(emptyList(), sliceLease);
                         logger.warn(t, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
-                        asyncResponse.resume(errorResponse(t));
+                        asyncResponse.resume(errorResponse(t, getRateLimitHeaders(request)));
                     }
 
                     private void finalizeAddDataPagesRequest(List<ListenableFuture<Void>> addDataPagesFutures, SliceLease sliceLease)
@@ -688,42 +686,27 @@ public class DataResource
         }
     }
 
-    private static Response errorResponse(Throwable throwable)
+    private Map<String, String> getRateLimitHeaders(ServletRequest request)
     {
-        if (throwable instanceof DataServerException dataServerException) {
-            return Response.status(Status.INTERNAL_SERVER_ERROR)
-                    .header(ERROR_CODE_HEADER, dataServerException.getErrorCode())
-                    .entity(throwable.getMessage())
-                    .build();
+        OptionalDouble rateLimit = addDataPagesThrottlingCalculator.getRateLimit(request.getRemoteHost(), inProgressAddDataPagesRequests.get());
+        if (rateLimit.isPresent()) {
+            return ImmutableMap.of(
+                    RATE_LIMIT_HEADER, Double.toString(rateLimit.getAsDouble()),
+                    AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER, Long.toString(addDataPagesThrottlingCalculator.getAverageProcessTimeInMillis()));
         }
-        return Response.status(Status.INTERNAL_SERVER_ERROR)
-                .header(ERROR_CODE_HEADER, INTERNAL_ERROR)
-                .entity(throwable.getMessage())
-                .build();
-    }
-
-    private static ListenableFuture<Response> logAndTranslateExceptions(ListenableFuture<Response> listenableFuture, Supplier<String> loggingContext)
-    {
-        return Futures.catching(listenableFuture, Exception.class, e -> {
-            logger.warn(e, "error on %s", loggingContext.get());
-            return errorResponse(e);
-        }, directExecutor());
-    }
-
-    private void completeServletResponse(AsyncContext asyncContext, Optional<Throwable> throwable)
-            throws IOException
-    {
-        completeServletResponse(asyncContext, throwable, ImmutableMap.of());
+        else {
+            return ImmutableMap.of();
+        }
     }
 
     // this function is needed to immediately return http response without consuming request payload
     // for more information, see https://github.com/starburstdata/trino-buffer-service/issues/269
-    private void completeServletResponse(AsyncContext asyncContext, Optional<Throwable> throwable, Map<String, String> additionalHeaders)
+    private void completeServletResponse(AsyncContext asyncContext, Optional<Throwable> throwable)
             throws IOException
     {
         HttpServletResponse servletResponse = (HttpServletResponse) asyncContext.getResponse();
         servletResponse.setContentType("text/plain");
-        additionalHeaders.forEach(servletResponse::setHeader);
+        getRateLimitHeaders(asyncContext.getRequest()).forEach(servletResponse::setHeader);
 
         if (throwable.isPresent()) {
             servletResponse.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
@@ -740,5 +723,36 @@ public class DataResource
         }
 
         asyncContext.complete();
+    }
+
+    private static Response errorResponse(Throwable throwable)
+    {
+        return errorResponse(throwable, ImmutableMap.of());
+    }
+
+    private static Response errorResponse(Throwable throwable, Map<String, String> headers)
+    {
+        Response.ResponseBuilder responseBuilder;
+        if (throwable instanceof DataServerException dataServerException) {
+            responseBuilder = Response.status(Status.INTERNAL_SERVER_ERROR)
+                    .header(ERROR_CODE_HEADER, dataServerException.getErrorCode())
+                    .entity(throwable.getMessage());
+        }
+        else {
+            responseBuilder = Response.status(Status.INTERNAL_SERVER_ERROR)
+                    .header(ERROR_CODE_HEADER, INTERNAL_ERROR)
+                    .entity(throwable.getMessage());
+        }
+
+        headers.forEach(responseBuilder::header);
+        return responseBuilder.build();
+    }
+
+    private static ListenableFuture<Response> logAndTranslateExceptions(ListenableFuture<Response> listenableFuture, Supplier<String> loggingContext)
+    {
+        return Futures.catching(listenableFuture, Exception.class, e -> {
+            logger.warn(e, "error on %s", loggingContext.get());
+            return errorResponse(e);
+        }, directExecutor());
     }
 }
