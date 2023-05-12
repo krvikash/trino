@@ -158,7 +158,7 @@ public class ApiBasedBufferNodeDiscoveryManager
                 readyFuture.set(null);
             }
         }
-        catch (Exception e) {
+        catch (Throwable e) {
             log.error(e, "Error getting buffer nodes info");
             logNextSuccessfulRefresh.set(true);
         }
