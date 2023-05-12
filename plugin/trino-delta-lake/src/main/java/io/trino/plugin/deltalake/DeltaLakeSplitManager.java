@@ -47,11 +47,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
-import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.plugin.deltalake.DeltaLakeColumnHandle.pathColumnHandle;
 import static io.trino.plugin.deltalake.DeltaLakeMetadata.createStatisticsPredicate;
@@ -151,15 +151,18 @@ public class DeltaLakeSplitManager
         Optional<Instant> filesModifiedAfter = tableHandle.getAnalyzeHandle().flatMap(AnalyzeHandle::getFilesModifiedAfter);
         Optional<Long> maxScannedFileSizeInBytes = maxScannedFileSize.map(DataSize::toBytes);
 
-        Set<String> predicatedColumnNames = Stream.concat(
+        Map<String, DeltaLakeColumnHandle> predicatedColumnHandles = Stream.concat(
                 nonPartitionConstraint.getDomains().orElseThrow().keySet().stream(),
                 columnsCoveredByDynamicFilter.stream()
                         .map(DeltaLakeColumnHandle.class::cast))
-                .map(column -> column.getBaseColumnName().toLowerCase(ENGLISH)) // TODO is DeltaLakeColumnHandle.name normalized?
-                .collect(toImmutableSet());
+                .distinct()
+                // DeltaLakeColumnMetadata.name is lowercase
+                .collect(toImmutableMap(column -> column.getBaseColumnName().toLowerCase(ENGLISH), Function.identity())); // TODO is DeltaLakeColumnHandle.name normalized?
+        Set<String> predicatedColumnNames = predicatedColumnHandles.keySet();
         List<DeltaLakeColumnMetadata> schema = extractSchema(tableHandle.getMetadataEntry(), typeManager);
-        List<DeltaLakeColumnMetadata> predicatedColumns = schema.stream()
-                .filter(column -> predicatedColumnNames.contains(column.getName())) // DeltaLakeColumnMetadata.name is lowercase
+        List<DeltaLakeColumnHandle> predicatedColumns = schema.stream()
+                .filter(column -> predicatedColumnNames.contains(column.getName()))
+                .map(column -> predicatedColumnHandles.get(column.getName()))
                 .collect(toImmutableList());
 
         return validDataFiles.stream()
@@ -189,8 +192,7 @@ public class DeltaLakeSplitManager
 
                     TupleDomain<DeltaLakeColumnHandle> statisticsPredicate = createStatisticsPredicate(
                             addAction,
-                            predicatedColumns,
-                            tableHandle.getMetadataEntry().getCanonicalPartitionColumns());
+                            predicatedColumns);
                     if (!nonPartitionConstraint.overlaps(statisticsPredicate)) {
                         return Stream.empty();
                     }
