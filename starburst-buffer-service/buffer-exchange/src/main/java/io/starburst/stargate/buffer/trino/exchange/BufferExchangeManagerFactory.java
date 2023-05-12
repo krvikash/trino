@@ -12,8 +12,6 @@ package io.starburst.stargate.buffer.trino.exchange;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Injector;
 import io.airlift.bootstrap.Bootstrap;
-import io.airlift.log.Logger;
-import io.airlift.units.Duration;
 import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.plugin.base.jmx.PrefixObjectNameGeneratorModule;
 import io.trino.spi.exchange.ExchangeManager;
@@ -23,17 +21,11 @@ import org.weakref.jmx.guice.MBeanModule;
 import java.util.Map;
 import java.util.Optional;
 
-import static io.airlift.units.Duration.succinctDuration;
 import static java.util.Objects.requireNonNull;
-import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class BufferExchangeManagerFactory
         implements ExchangeManagerFactory
 {
-    private static final Logger log = Logger.get(BufferExchangeManagerFactory.class);
-
-    private static final Duration MAX_WAIT_ACTIVE_NODES = succinctDuration(10, SECONDS);
-
     private final Optional<ApiFactory> apiFactory;
 
     public static BufferExchangeManagerFactory forRealBufferService()
@@ -74,42 +66,6 @@ public class BufferExchangeManagerFactory
                 .setRequiredConfigurationProperties(config)
                 .initialize();
 
-        waitActiveNodes(injector);
-
         return injector.getInstance(BufferExchangeManager.class);
-    }
-
-    private static void waitActiveNodes(Injector injector)
-    {
-        // wait for some time until we see active data nodes; this limits the chance
-        // that initial queries would fail if Trino was started just after buffer service cluster and
-        // buffer service cluster is not yet ready to serve requests.
-        //
-        // Also helps with flaky unit tests :)
-        BufferNodeDiscoveryManager discoveryManager = injector.getInstance(BufferNodeDiscoveryManager.class);
-        long waitStart = System.currentTimeMillis();
-        log.info("WAITING for up to " + MAX_WAIT_ACTIVE_NODES + " for ACTIVE buffer service data nodes");
-        while (discoveryManager.getBufferNodes().getActiveBufferNodes().isEmpty()) {
-            if (System.currentTimeMillis() - waitStart > MAX_WAIT_ACTIVE_NODES.toMillis()) {
-                break;
-            }
-            try {
-                Thread.sleep(1000);
-            }
-            catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new RuntimeException(e);
-            }
-            try {
-                discoveryManager.forceRefresh().get(1, SECONDS);
-            }
-            catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new RuntimeException(e);
-            }
-            catch (Exception e) {
-                log.warn(e, "Error refreshing discovery manager");
-            }
-        }
     }
 }
