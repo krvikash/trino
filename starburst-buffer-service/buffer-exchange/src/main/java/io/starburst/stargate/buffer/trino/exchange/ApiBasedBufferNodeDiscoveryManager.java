@@ -100,6 +100,7 @@ public class ApiBasedBufferNodeDiscoveryManager
     public void start()
     {
         // todo monitor error rate
+        log.info("Initializing periodic refreshing of buffer nodes");
         executorService.scheduleWithFixedDelay(
                 this::doRefresh,
                 0,
