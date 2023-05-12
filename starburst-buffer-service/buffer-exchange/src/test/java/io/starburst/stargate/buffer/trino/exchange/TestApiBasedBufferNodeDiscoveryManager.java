@@ -46,7 +46,6 @@ import static io.starburst.stargate.buffer.trino.exchange.ApiBasedBufferNodeDisc
 import static java.util.concurrent.Executors.newScheduledThreadPool;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 @TestInstance(PER_CLASS)
@@ -83,7 +82,9 @@ class TestApiBasedBufferNodeDiscoveryManager
                 ticker);
         discoveryManager.start();
 
-        assertThatThrownBy(discoveryManager::getBufferNodes).hasMessage("Could not get initial cluster state");
+        BufferNodesState bufferNodes = discoveryManager.getBufferNodes();
+        assertBufferNodes(bufferNodes)
+                .hasNoNodes();
 
         discoveryApi.setComplete(true);
         discoveryApi.updateBufferNode(bufferNode(1, STARTING));
@@ -91,7 +92,7 @@ class TestApiBasedBufferNodeDiscoveryManager
         discoveryApi.updateBufferNode(bufferNode(3, STARTING));
 
         discoveryManager.forceRefresh().get();
-        BufferNodesState bufferNodes = discoveryManager.getBufferNodes();
+        bufferNodes = discoveryManager.getBufferNodes();
         assertBufferNodes(bufferNodes)
                 .hasAllNodes(1, 2, 3)
                 .hasActiveNodes()
