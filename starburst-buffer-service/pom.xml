@@ -38,7 +38,7 @@
         <dep.airlift.version>230</dep.airlift.version>
         <dep.slice.version>0.45</dep.slice.version>
         <dep.errorprone.version>2.18.0</dep.errorprone.version>
-        <dep.trino.version>417</dep.trino.version>
+        <dep.trino.version>415</dep.trino.version>
         <dep.joda.version>2.12.5</dep.joda.version> <!-- required by Trino 414 -->
         <dep.datadog-agent.version>0.114.0</dep.datadog-agent.version>
 
@@ -319,7 +319,7 @@
             <dependency>
                 <groupId>dev.failsafe</groupId>
                 <artifactId>failsafe</artifactId>
-                <version>3.3.1</version>
+                <version>3.3.0</version>
             </dependency>
 
             <dependency>
@@ -433,7 +433,7 @@
             <dependency>
                 <groupId>org.openjdk.jol</groupId>
                 <artifactId>jol-core</artifactId>
-                <version>0.17</version>
+                <version>0.16</version>
             </dependency>
 
             <!-- force newer version to be used for dependencies -->
