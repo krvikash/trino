@@ -180,4 +180,16 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            <filtering>true</filtering>
+                <includes>
+                    <include>io/starburst/stargate/buffer/trino/exchange/dependencies-versions.properties</include>
+                </includes>
+            </resource>
+        </resources>
+    </build>
 </project>
