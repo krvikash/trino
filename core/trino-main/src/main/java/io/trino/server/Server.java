@@ -74,6 +74,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 
 import static com.google.common.base.StandardSystemProperty.JAVA_VERSION;
 import static io.airlift.configuration.ConditionalModule.conditionalModule;
@@ -175,6 +176,9 @@ public class Server
 
             injector.getInstance(Key.get(new TypeLiteral<Optional<OAuth2Client>>() {}))
                     .ifPresent(OAuth2Client::load);
+
+            Set<ServerLoadableComponent> loadableComponents = injector.getInstance(Key.get(new TypeLiteral<>() {}));
+            loadableComponents.forEach(ServerLoadableComponent::load);
 
             injector.getInstance(Announcer.class).start();
 

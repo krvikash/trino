@@ -89,6 +89,7 @@ import io.trino.server.NodeStateManager.CurrentNodeState;
 import io.trino.server.PluginInstaller;
 import io.trino.server.PrefixObjectNameGeneratorModule;
 import io.trino.server.QuerySessionSupplier;
+import io.trino.server.ServerLoadableComponent;
 import io.trino.server.ServerMainModule;
 import io.trino.server.SessionContext;
 import io.trino.server.SessionPropertyDefaults;
@@ -156,6 +157,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.ServiceLoader;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -514,6 +516,9 @@ public class TestingTrinoServer
 
         EventListenerManager eventListenerManager = injector.getInstance(EventListenerManager.class);
         eventListeners.forEach(eventListenerManager::addEventListener);
+
+        Set<ServerLoadableComponent> loadableComponents = injector.getInstance(Key.get(new TypeLiteral<>() {}));
+        loadableComponents.forEach(ServerLoadableComponent::load);
 
         getFutureValue(injector.getInstance(Announcer.class).forceAnnounce());
         // Must be run before startup is considered complete and node will therefore accept tasks.
