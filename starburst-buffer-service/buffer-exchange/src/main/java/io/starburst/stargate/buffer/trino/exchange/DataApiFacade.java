@@ -66,6 +66,7 @@ import static java.util.Objects.requireNonNull;
 public class DataApiFacade
 {
     private static final Logger log = Logger.get(DataApiFacade.class);
+    private static final RateLimitingLogger rateLimitingLogger = new RateLimitingLogger(log);
 
     private static final Duration CLEANUP_DELAY = succinctDuration(5, TimeUnit.MINUTES);
 
@@ -443,7 +444,7 @@ public class DataApiFacade
                         config.backoffFactor())
                 .withMaxRetries(config.maxRetries())
                 .withJitter(config.backoffJitter())
-                .onFailedAttempt(event -> log.warn(event.getLastException(), "failed DataApi request attempt (%s, +%s)".formatted(event.getAttemptCount(), succinctDuration(event.getElapsedTime().toMillis(), TimeUnit.MILLISECONDS))))
+                .onFailedAttempt(event -> rateLimitingLogger.warn(event.getLastException(), "failed DataApi request attempt (%s, +%s)".formatted(event.getAttemptCount(), succinctDuration(event.getElapsedTime().toMillis(), TimeUnit.MILLISECONDS))))
                 .handleIf(throwable -> {
                     if (!(throwable instanceof DataApiException dataApiException)) {
                         return true;
