@@ -339,15 +339,8 @@ public class BufferExchangeSink
     {
         this.failure.compareAndSet(null, failure);
         blockedFutureReference.get().complete(null);
-        CompletableFuture<Void> currentFinishFuture;
-        synchronized (this) {
-            // we need this synchronized section to be sure that for failed sing finishFuture returned by `finish()` is completed exceptionally
-            // either by this method or finish() itself
-            currentFinishFuture = finishFuture;
-        }
-        if (currentFinishFuture != null) {
-            // complete outside synchronized section
-            currentFinishFuture.completeExceptionally(failure);
+        if (finishFuture != null) {
+            finishFuture.completeExceptionally(failure);
         }
     }
 
