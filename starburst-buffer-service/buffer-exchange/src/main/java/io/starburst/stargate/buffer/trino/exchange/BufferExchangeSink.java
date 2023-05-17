@@ -447,7 +447,7 @@ public class BufferExchangeSink
     }
 
     @Override
-    public synchronized CompletableFuture<Void> finish()
+    public CompletableFuture<Void> finish()
     {
         callMappingScalerFuture.cancel(true);
         Set<SinkWriter> activeWriters;
