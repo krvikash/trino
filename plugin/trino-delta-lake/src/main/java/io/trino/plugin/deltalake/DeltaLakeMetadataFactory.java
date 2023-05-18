@@ -16,6 +16,7 @@ package io.trino.plugin.deltalake;
 import com.google.inject.Inject;
 import io.airlift.concurrent.BoundedExecutor;
 import io.airlift.json.JsonCodec;
+import io.trino.metastore.HiveMetastore;
 import io.trino.metastore.HiveMetastoreFactory;
 import io.trino.metastore.cache.CachingHiveMetastore;
 import io.trino.plugin.deltalake.metastore.DeltaLakeTableMetadataScheduler;
@@ -138,16 +139,18 @@ public class DeltaLakeMetadataFactory
 
     public DeltaLakeMetadata create(ConnectorIdentity identity)
     {
-        CachingHiveMetastore cachingHiveMetastore = createPerTransactionCache(
-                hiveMetastoreFactory.createMetastore(Optional.of(identity)),
-                perTransactionMetastoreCacheMaximumSize);
-        HiveMetastoreBackedDeltaLakeMetastore deltaLakeMetastore = new HiveMetastoreBackedDeltaLakeMetastore(cachingHiveMetastore);
+        return create(createTransactionMetastore(identity));
+    }
+
+    public DeltaLakeMetadata create(HiveMetastore hiveMetastore)
+    {
+        HiveMetastoreBackedDeltaLakeMetastore deltaLakeMetastore = new HiveMetastoreBackedDeltaLakeMetastore(hiveMetastore);
         FileBasedTableStatisticsProvider tableStatisticsProvider = new FileBasedTableStatisticsProvider(
                 typeManager,
                 transactionLogAccess,
                 statisticsAccess);
         TrinoViewHiveMetastore trinoViewHiveMetastore = new TrinoViewHiveMetastore(
-                cachingHiveMetastore,
+                hiveMetastore,
                 usingSystemSecurity,
                 trinoVersion,
                 "Trino Delta Lake connector");
@@ -179,5 +182,12 @@ public class DeltaLakeMetadataFactory
                 logRetentionDurationEnabled,
                 tableCredentialsProvider,
                 evaluator);
+    }
+
+    public CachingHiveMetastore createTransactionMetastore(ConnectorIdentity identity)
+    {
+        return createPerTransactionCache(
+                hiveMetastoreFactory.createMetastore(Optional.of(identity)),
+                perTransactionMetastoreCacheMaximumSize);
     }
 }
