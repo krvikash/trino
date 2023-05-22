@@ -46,7 +46,7 @@ public class AddDataPagesThrottlingCalculator
 
     private final DecayCounter decayCounter;
     private final int maxInProgressAddDataPagesRequests;
-    private final int addDataPagesRequestsRateLimitThreshold;
+    private final int inProgressAddDataPagesRequestsRateLimitThreshold;
 
     private final Ticker ticker = Ticker.systemTicker();
     private final Map<String, CounterWithRate> counters = new ConcurrentHashMap<>();
@@ -61,7 +61,7 @@ public class AddDataPagesThrottlingCalculator
     {
         this.decayCounter = new DecayCounter(1 / config.getThrottlingCounterDecayDuration().getValue(SECONDS));
         this.maxInProgressAddDataPagesRequests = config.getMaxInProgressAddDataPagesRequests();
-        this.addDataPagesRequestsRateLimitThreshold = maxInProgressAddDataPagesRequests / 2;
+        this.inProgressAddDataPagesRequestsRateLimitThreshold = maxInProgressAddDataPagesRequests / 2;
         this.recentProcessTimeQueue = new ArrayDeque<>(PROCESS_TIME_MOVING_AVERAGE_CALCULATION_WINDOW);
         // fill queue with 0s to begin
         for (int i = 0; i < PROCESS_TIME_MOVING_AVERAGE_CALCULATION_WINDOW; ++i) {
@@ -129,7 +129,7 @@ public class AddDataPagesThrottlingCalculator
             rate = counterWithRate.getRate();
         }
 
-        if (inProgressAddDataPagesRequests < addDataPagesRequestsRateLimitThreshold && decayCounter.getCount() < DECAY_COUNT_RATE_LIMIT_THRESHOLD) {
+        if (inProgressAddDataPagesRequests < inProgressAddDataPagesRequestsRateLimitThreshold && decayCounter.getCount() < DECAY_COUNT_RATE_LIMIT_THRESHOLD) {
             // if we are not overloaded, then no need to rate limit
             return OptionalDouble.empty();
         }
@@ -138,8 +138,8 @@ public class AddDataPagesThrottlingCalculator
             return OptionalDouble.empty();
         }
 
-        if (inProgressAddDataPagesRequests > addDataPagesRequestsRateLimitThreshold) {
-            rate = rate - rate * (inProgressAddDataPagesRequests - addDataPagesRequestsRateLimitThreshold) / maxInProgressAddDataPagesRequests;
+        if (inProgressAddDataPagesRequests > inProgressAddDataPagesRequestsRateLimitThreshold) {
+            rate = rate - rate * (inProgressAddDataPagesRequests - inProgressAddDataPagesRequestsRateLimitThreshold) / maxInProgressAddDataPagesRequests;
         }
 
         return OptionalDouble.of(rate);
