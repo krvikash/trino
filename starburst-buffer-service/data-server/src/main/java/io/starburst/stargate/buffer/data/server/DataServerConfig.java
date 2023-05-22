@@ -31,6 +31,7 @@ public class DataServerConfig
     private int drainingMaxAttempts = 4;
     private Duration minDrainingDuration = succinctDuration(30, SECONDS);
     private int maxInProgressAddDataPagesRequests = 100;
+    private int inProgressAddDataPagesRequestsRateLimitThreshold = 50;
     private int chunkListTargetSize = 1;
     private int chunkListMaxSize = 100;
     private Duration chunkListPollTimeout = succinctDuration(100, MILLISECONDS);
@@ -137,6 +138,17 @@ public class DataServerConfig
         return this;
     }
 
+    public int getInProgressAddDataPagesRequestsRateLimitThreshold()
+    {
+        return inProgressAddDataPagesRequestsRateLimitThreshold;
+    }
+
+    @Config("in-progress-add-data-pages-requests-rate-limit-threshold")
+    public DataServerConfig setInProgressAddDataPagesRequestsRateLimitThreshold(int inProgressAddDataPagesRequestsRateLimitThreshold)
+    {
+        this.inProgressAddDataPagesRequestsRateLimitThreshold = inProgressAddDataPagesRequestsRateLimitThreshold;
+        return this;
+    }
 
     public int getChunkListTargetSize()
     {
