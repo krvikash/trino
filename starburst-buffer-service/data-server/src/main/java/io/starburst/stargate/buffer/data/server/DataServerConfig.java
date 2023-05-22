@@ -31,9 +31,9 @@ public class DataServerConfig
     private Duration broadcastInterval = succinctDuration(5, SECONDS);
     private int drainingMaxAttempts = 4;
     private Duration minDrainingDuration = succinctDuration(30, SECONDS);
-    private int maxInProgressAddDataPagesRequests = 100;
-    private int inProgressAddDataPagesRequestsRateLimitThreshold = 50;
-    private Duration inProgressAddDataPagesRequestsThrottlingCounterDecayDuration = succinctDuration(20, SECONDS);
+    private int maxInProgressAddDataPagesRequests = 150;
+    private int inProgressAddDataPagesRequestsRateLimitThreshold = 110;
+    private Duration inProgressAddDataPagesRequestsThrottlingCounterDecayDuration = succinctDuration(5, SECONDS);
     private int chunkListTargetSize = 1;
     private int chunkListMaxSize = 100;
     private Duration chunkListPollTimeout = succinctDuration(100, MILLISECONDS);
