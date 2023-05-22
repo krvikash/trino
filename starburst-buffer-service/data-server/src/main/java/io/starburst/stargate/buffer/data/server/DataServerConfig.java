@@ -125,6 +125,11 @@ public class DataServerConfig
         return this;
     }
 
+    public int getMaxInProgressAddDataPagesRequests()
+    {
+        return maxInProgressAddDataPagesRequests;
+    }
+
     @Config("max-in-progress-add-data-pages-requests")
     public DataServerConfig setMaxInProgressAddDataPagesRequests(int maxInProgressAddDataPagesRequests)
     {
@@ -132,10 +137,6 @@ public class DataServerConfig
         return this;
     }
 
-    public int getMaxInProgressAddDataPagesRequests()
-    {
-        return maxInProgressAddDataPagesRequests;
-    }
 
     public int getChunkListTargetSize()
     {
