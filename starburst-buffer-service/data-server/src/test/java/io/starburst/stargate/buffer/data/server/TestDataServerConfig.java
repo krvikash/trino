@@ -36,10 +36,10 @@ public class TestDataServerConfig
                 .setDrainingMaxAttempts(4)
                 .setMaxInProgressAddDataPagesRequests(100)
                 .setInProgressAddDataPagesRequestsRateLimitThreshold(50)
+                .setInProgressAddDataPagesRequestsThrottlingCounterDecayDuration(succinctDuration(20, SECONDS))
                 .setChunkListTargetSize(1)
                 .setChunkListMaxSize(100)
-                .setChunkListPollTimeout(succinctDuration(100, MILLISECONDS))
-                .setThrottlingCounterDecayDuration(succinctDuration(20, SECONDS)));
+                .setChunkListPollTimeout(succinctDuration(100, MILLISECONDS)));
     }
 
     @Test
@@ -55,10 +55,10 @@ public class TestDataServerConfig
                 .put("draining.max-attempts", "5")
                 .put("max-in-progress-add-data-pages-requests", "600")
                 .put("in-progress-add-data-pages-requests-rate-limit-threshold", "400")
+                .put("in-progress-add-data-pages-requests-throttling-counter-decay-duration", "25s")
                 .put("chunk-list.target-size", "42")
                 .put("chunk-list.max-size", "1000")
                 .put("chunk-list.poll-timeout", "12345ms")
-                .put("throttling-counter-decay-duration", "25s")
                 .buildOrThrow();
 
         DataServerConfig expected = new DataServerConfig()
@@ -71,10 +71,10 @@ public class TestDataServerConfig
                 .setDrainingMaxAttempts(5)
                 .setMaxInProgressAddDataPagesRequests(600)
                 .setInProgressAddDataPagesRequestsRateLimitThreshold(400)
+                .setInProgressAddDataPagesRequestsThrottlingCounterDecayDuration(succinctDuration(25, SECONDS))
                 .setChunkListTargetSize(42)
                 .setChunkListMaxSize(1000)
-                .setChunkListPollTimeout(succinctDuration(12345, MILLISECONDS))
-                .setThrottlingCounterDecayDuration(succinctDuration(25, SECONDS));
+                .setChunkListPollTimeout(succinctDuration(12345, MILLISECONDS));
 
         assertFullMapping(properties, expected);
     }

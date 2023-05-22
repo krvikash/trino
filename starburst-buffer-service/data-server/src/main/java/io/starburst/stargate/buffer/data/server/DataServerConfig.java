@@ -12,6 +12,7 @@ package io.starburst.stargate.buffer.data.server;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.ConfigHidden;
+import io.airlift.configuration.LegacyConfig;
 import io.airlift.units.Duration;
 
 import javax.validation.constraints.Min;
@@ -32,10 +33,10 @@ public class DataServerConfig
     private Duration minDrainingDuration = succinctDuration(30, SECONDS);
     private int maxInProgressAddDataPagesRequests = 100;
     private int inProgressAddDataPagesRequestsRateLimitThreshold = 50;
+    private Duration inProgressAddDataPagesRequestsThrottlingCounterDecayDuration = succinctDuration(20, SECONDS);
     private int chunkListTargetSize = 1;
     private int chunkListMaxSize = 100;
     private Duration chunkListPollTimeout = succinctDuration(100, MILLISECONDS);
-    private Duration throttlingCounterDecayDuration = succinctDuration(20, SECONDS);
 
     public boolean isDataIntegrityVerificationEnabled()
     {
@@ -150,6 +151,19 @@ public class DataServerConfig
         return this;
     }
 
+    public Duration getInProgressAddDataPagesRequestsThrottlingCounterDecayDuration()
+    {
+        return inProgressAddDataPagesRequestsThrottlingCounterDecayDuration;
+    }
+
+    @Config("in-progress-add-data-pages-requests-throttling-counter-decay-duration")
+    @LegacyConfig("throttling-counter-decay-duration")
+    public DataServerConfig setInProgressAddDataPagesRequestsThrottlingCounterDecayDuration(Duration inProgressAddDataPagesRequestsThrottlingCounterDecayDuration)
+    {
+        this.inProgressAddDataPagesRequestsThrottlingCounterDecayDuration = inProgressAddDataPagesRequestsThrottlingCounterDecayDuration;
+        return this;
+    }
+
     public int getChunkListTargetSize()
     {
         return chunkListTargetSize;
@@ -186,18 +200,6 @@ public class DataServerConfig
     public DataServerConfig setChunkListPollTimeout(Duration chunkListPollTimeout)
     {
         this.chunkListPollTimeout = chunkListPollTimeout;
-        return this;
-    }
-
-    public Duration getThrottlingCounterDecayDuration()
-    {
-        return throttlingCounterDecayDuration;
-    }
-
-    @Config("throttling-counter-decay-duration")
-    public DataServerConfig setThrottlingCounterDecayDuration(Duration throttlingCounterDecayDuration)
-    {
-        this.throttlingCounterDecayDuration = throttlingCounterDecayDuration;
         return this;
     }
 }

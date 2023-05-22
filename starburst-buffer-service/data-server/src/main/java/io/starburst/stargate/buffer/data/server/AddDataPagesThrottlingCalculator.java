@@ -59,7 +59,7 @@ public class AddDataPagesThrottlingCalculator
     @Inject
     public AddDataPagesThrottlingCalculator(DataServerConfig config)
     {
-        this.decayCounter = new DecayCounter(1 / config.getThrottlingCounterDecayDuration().getValue(SECONDS));
+        this.decayCounter = new DecayCounter(1 / config.getInProgressAddDataPagesRequestsThrottlingCounterDecayDuration().getValue(SECONDS));
         this.maxInProgressAddDataPagesRequests = config.getMaxInProgressAddDataPagesRequests();
         this.inProgressAddDataPagesRequestsRateLimitThreshold = config.getInProgressAddDataPagesRequestsRateLimitThreshold();
         this.recentProcessTimeQueue = new ArrayDeque<>(PROCESS_TIME_MOVING_AVERAGE_CALCULATION_WINDOW);
