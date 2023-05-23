@@ -41,6 +41,7 @@
         <dep.trino.version>417</dep.trino.version>
         <dep.joda.version>2.12.5</dep.joda.version> <!-- required by Trino 414 -->
         <dep.datadog-agent.version>0.114.0</dep.datadog-agent.version>
+        <dep.jackson.version>2.15.1</dep.jackson.version>
 
         <dep.awsjavasdk.version>2.20.48</dep.awsjavasdk.version>
 
