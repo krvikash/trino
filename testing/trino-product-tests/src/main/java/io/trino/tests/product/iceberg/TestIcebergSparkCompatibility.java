@@ -2481,7 +2481,7 @@ public class TestIcebergSparkCompatibility
 
         onSpark().executeQuery(format("CREATE TABLE %s (a INT, b STRING, c BOOLEAN) USING ICEBERG TBLPROPERTIES ('write.format.default' = '%s')", sparkTableName, storageFormat));
         onSpark().executeQuery(format("INSERT INTO %s values(1, 'INDIA', true)", sparkTableName));
-        onTrino().executeQuery(format("INSERT INTO %s values(2, 'USA', false)", trinoTableName));
+        onSpark().executeQuery(format("INSERT INTO %s values(2, 'USA', false)", trinoTableName));
 
         List<Row> expected = List.of(row(1, "INDIA", true), row(2, "USA", false));
         String tableLocation = getTableLocation(trinoTableName);
