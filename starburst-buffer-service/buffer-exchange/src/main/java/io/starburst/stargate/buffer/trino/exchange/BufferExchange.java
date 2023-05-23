@@ -50,6 +50,7 @@ import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.addExceptionCallback;
 import static io.starburst.stargate.buffer.trino.exchange.ExternalExchangeIds.externalExchangeId;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 public class BufferExchange
         implements Exchange
@@ -388,7 +389,8 @@ public class BufferExchange
 
     public void triggerExchangeRemove()
     {
-        executorService.submit(() -> {
+        // Aborting of sinks is asynchronous. Adding some delay to wait for abortion signals to be sent to sinks.
+        executorService.schedule(() -> {
             Set<Long> bufferNodeIds;
             synchronized (this) {
                 bufferNodeIds = new HashSet<>(chunkPolledBufferNodes.keySet());
@@ -408,7 +410,7 @@ public class BufferExchange
                         directExecutor());
                 addExceptionCallback(future, (t) -> log.warn("Could not remove exchange %s on node %d".formatted(externalExchangeId, nodeId), t));
             }
-        });
+        }, 1000, MILLISECONDS);
     }
 
     public synchronized void stopPolling()
