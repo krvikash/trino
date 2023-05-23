@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -48,9 +49,13 @@ import java.util.function.Supplier;
 
 import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
 import static com.google.common.util.concurrent.Futures.immediateFuture;
+import static com.google.common.util.concurrent.MoreExecutors.listeningDecorator;
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
+import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 @TestInstance(PER_CLASS)
@@ -218,6 +223,36 @@ public class TestDataApiFacade
                 .succeedsWithin(100, MILLISECONDS) // returns immediately
                 .isEqualTo(result);
         assertThat(dataApiDelegate.getListClosedChunksCallCount(EXCHANGE_0, OptionalLong.empty())).isEqualTo(1);
+    }
+
+    @Test
+    public void testAddDataPagesRequestCancellation()
+    {
+        TestingDataApi dataApiDelegate = new TestingDataApi();
+        DataApiFacade dataApiFacade = createDataApiFacade(
+                dataApiDelegate,
+                BufferNodeState.ACTIVE,
+                new RetryExecutorConfig(2, Duration.valueOf("1000ms"), Duration.valueOf("2000ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")),
+                new RetryExecutorConfig(2, Duration.valueOf("1000ms"), Duration.valueOf("2000ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")));
+
+        // test cancelling an in-progress request doesn't trigger retry
+        dataApiDelegate.recordAddDataPages(EXCHANGE_0, 0, 0, 0L, listeningDecorator(executor).submit(() -> {
+            sleepUninterruptibly(java.time.Duration.ofMillis(500));
+            return Optional.empty();
+        }));
+        ListenableFuture<Void> addDataPagesFuture0 = dataApiFacade.addDataPages(TestingDataApi.NODE_ID, EXCHANGE_0, 0, 0, 0L, ImmutableListMultimap.of());
+        addDataPagesFuture0.cancel(true);
+        assertThatThrownBy(() -> getFutureValue(addDataPagesFuture0)).isInstanceOf(CancellationException.class);
+        assertThat(dataApiDelegate.getAddDataPagesCallCount(EXCHANGE_0, 0, 0, 0L)).isEqualTo(1);
+
+        // test cancelling after request failure will cancel the next retry
+        dataApiDelegate.recordAddDataPages(EXCHANGE_0, 1, 1, 1L, immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
+        ListenableFuture<Void> addDataPagesFuture1 = dataApiFacade.addDataPages(TestingDataApi.NODE_ID, EXCHANGE_0, 1, 1, 1L, ImmutableListMultimap.of());
+        sleepUninterruptibly(java.time.Duration.ofMillis(500));
+        addDataPagesFuture1.cancel(true);
+        sleepUninterruptibly(java.time.Duration.ofMillis(1000));
+        assertThat(dataApiDelegate.getAddDataPagesCallCount(EXCHANGE_0, 1, 1, 1L)).isEqualTo(1);
+        assertThatThrownBy(() -> getFutureValue(addDataPagesFuture1)).isInstanceOf(CancellationException.class);
     }
 
     @Test

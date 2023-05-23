@@ -218,6 +218,9 @@ public class SinkWriter
                 // already closed
                 return;
             }
+            if (currentRequestFuture != null) {
+                currentRequestFuture.cancel(true);
+            }
             closed = true;
             aborted = true;
         }
