@@ -56,6 +56,8 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 @TestInstance(PER_CLASS)
 public class TestDataApiFacade
 {
+    private static final String EXCHANGE_0 = "exchange-0";
+
     private final ScheduledExecutorService executor = new ScheduledThreadPoolExecutor(4);
 
     @AfterAll
@@ -68,89 +70,74 @@ public class TestDataApiFacade
     public void testRetriesWithDelay()
             throws InterruptedException
     {
-        TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
-        discoveryManager.setBufferNodes(builder -> builder.putNode(TestingDataApi.NODE_ID, BufferNodeState.ACTIVE));
-        TestingApiFactory apiFactory = new TestingApiFactory();
         TestingDataApi dataApiDelegate = new TestingDataApi();
-        apiFactory.setDataApi(TestingDataApi.NODE_ID, dataApiDelegate);
-
-        DataApiFacade dataApiFacade = new DataApiFacade(
-                discoveryManager,
-                apiFactory,
+        DataApiFacade dataApiFacade = createDataApiFacade(
+                dataApiDelegate,
+                BufferNodeState.ACTIVE,
                 new RetryExecutorConfig(2, Duration.valueOf("500ms"), Duration.valueOf("1000ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")),
-                new RetryExecutorConfig(0, Duration.valueOf("500ms"), Duration.valueOf("1000ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")), // misconfigured on purpose
-                executor);
+                // misconfigured on purpose
+                new RetryExecutorConfig(0, Duration.valueOf("500ms"), Duration.valueOf("1000ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")));
 
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFailedFuture(new RuntimeException("random exception")));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFailedFuture(new RuntimeException("random exception")));
+        dataApiDelegate.recordListClosedChunks(EXCHANGE_0, OptionalLong.empty(), immediateFailedFuture(new RuntimeException("random exception")));
+        dataApiDelegate.recordListClosedChunks(EXCHANGE_0, OptionalLong.empty(), immediateFailedFuture(new RuntimeException("random exception")));
         ChunkList result = new ChunkList(ImmutableList.of(), OptionalLong.of(7));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFuture(result));
+        dataApiDelegate.recordListClosedChunks(EXCHANGE_0, OptionalLong.empty(), immediateFuture(result));
 
-        ListenableFuture<ChunkList> future = dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty());
+        ListenableFuture<ChunkList> future = dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, EXCHANGE_0, OptionalLong.empty());
 
         Thread.sleep(100);
-        assertThat(dataApiDelegate.getListClosedChunksCallCount("exchange-1", OptionalLong.empty())).isEqualTo(1);
+        assertThat(dataApiDelegate.getListClosedChunksCallCount(EXCHANGE_0, OptionalLong.empty())).isEqualTo(1);
         Thread.sleep(550);
-        assertThat(dataApiDelegate.getListClosedChunksCallCount("exchange-1", OptionalLong.empty())).isEqualTo(2);
+        assertThat(dataApiDelegate.getListClosedChunksCallCount(EXCHANGE_0, OptionalLong.empty())).isEqualTo(2);
         Thread.sleep(1000);
-        assertThat(dataApiDelegate.getListClosedChunksCallCount("exchange-1", OptionalLong.empty())).isEqualTo(3);
+        assertThat(dataApiDelegate.getListClosedChunksCallCount(EXCHANGE_0, OptionalLong.empty())).isEqualTo(3);
         assertThat(future).isDone();
     }
 
     @Test
     public void testRetriesOnRuntimeException()
     {
-        TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
-        discoveryManager.setBufferNodes(builder -> builder.putNode(TestingDataApi.NODE_ID, BufferNodeState.ACTIVE));
-        TestingApiFactory apiFactory = new TestingApiFactory();
         TestingDataApi dataApiDelegate = new TestingDataApi();
-        apiFactory.setDataApi(TestingDataApi.NODE_ID, dataApiDelegate);
-
-        DataApiFacade dataApiFacade = new DataApiFacade(
-                discoveryManager,
-                apiFactory,
+        DataApiFacade dataApiFacade = createDataApiFacade(
+                dataApiDelegate,
+                BufferNodeState.ACTIVE,
                 new RetryExecutorConfig(2, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")),
-                new RetryExecutorConfig(0, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")), // misconfigured on purpose
-                executor);
+                // misconfigured on purpose
+                new RetryExecutorConfig(0, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")));
 
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFailedFuture(new RuntimeException("random exception")));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFailedFuture(new RuntimeException("random exception")));
+        dataApiDelegate.recordListClosedChunks(EXCHANGE_0, OptionalLong.empty(), immediateFailedFuture(new RuntimeException("random exception")));
+        dataApiDelegate.recordListClosedChunks(EXCHANGE_0, OptionalLong.empty(), immediateFailedFuture(new RuntimeException("random exception")));
         ChunkList result = new ChunkList(ImmutableList.of(), OptionalLong.of(7));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFuture(result));
+        dataApiDelegate.recordListClosedChunks(EXCHANGE_0, OptionalLong.empty(), immediateFuture(result));
 
-        assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty()))
+        assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, EXCHANGE_0, OptionalLong.empty()))
                 .succeedsWithin(5, SECONDS)
                 .isEqualTo(result);
 
-        assertThat(dataApiDelegate.getListClosedChunksCallCount("exchange-1", OptionalLong.empty()))
+        assertThat(dataApiDelegate.getListClosedChunksCallCount(EXCHANGE_0, OptionalLong.empty()))
                 .isEqualTo(3);
     }
 
     @Test
     public void testRetriesOnInternalErrorException()
     {
-        TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
-        discoveryManager.setBufferNodes(builder -> builder.putNode(TestingDataApi.NODE_ID, BufferNodeState.ACTIVE));
-        TestingApiFactory apiFactory = new TestingApiFactory();
         TestingDataApi dataApiDelegate = new TestingDataApi();
-        apiFactory.setDataApi(TestingDataApi.NODE_ID, dataApiDelegate);
-
-        DataApiFacade dataApiFacade = new DataApiFacade(
-                discoveryManager,
-                apiFactory,
+        DataApiFacade dataApiFacade = createDataApiFacade(
+                dataApiDelegate,
+                BufferNodeState.ACTIVE,
                 new RetryExecutorConfig(2, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")),
-                new RetryExecutorConfig(0, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")), // misconfigured on purpose
-                executor);
+                // misconfigured on purpose
+                new RetryExecutorConfig(0, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")));
 
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
+        dataApiDelegate.recordListClosedChunks(EXCHANGE_0, OptionalLong.empty(), immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
+        dataApiDelegate.recordListClosedChunks(EXCHANGE_0, OptionalLong.empty(), immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
         ChunkList result = new ChunkList(ImmutableList.of(), OptionalLong.of(7));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFuture(result));
+        dataApiDelegate.recordListClosedChunks(EXCHANGE_0, OptionalLong.empty(), immediateFuture(result));
 
-        assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty()))
+        assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, EXCHANGE_0, OptionalLong.empty()))
                 .succeedsWithin(5, SECONDS)
                 .isEqualTo(result);
-        assertThat(dataApiDelegate.getListClosedChunksCallCount("exchange-1", OptionalLong.empty())).isEqualTo(3);
+        assertThat(dataApiDelegate.getListClosedChunksCallCount(EXCHANGE_0, OptionalLong.empty())).isEqualTo(3);
     }
 
     @ParameterizedTest
@@ -160,50 +147,41 @@ public class TestDataApiFacade
         if (errorCode == ErrorCode.INTERNAL_ERROR || errorCode == ErrorCode.BUFFER_NODE_NOT_FOUND || errorCode == ErrorCode.OVERLOADED) {
             return; // skip
         }
-        TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
-        discoveryManager.setBufferNodes(builder -> builder.putNode(TestingDataApi.NODE_ID, BufferNodeState.ACTIVE));
-        TestingApiFactory apiFactory = new TestingApiFactory();
+
         TestingDataApi dataApiDelegate = new TestingDataApi();
-        apiFactory.setDataApi(TestingDataApi.NODE_ID, dataApiDelegate);
-
-        DataApiFacade dataApiFacade = new DataApiFacade(
-                discoveryManager,
-                apiFactory,
+        DataApiFacade dataApiFacade = createDataApiFacade(
+                dataApiDelegate,
+                BufferNodeState.ACTIVE,
                 new RetryExecutorConfig(2, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")),
-                new RetryExecutorConfig(2, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")),
-                executor);
+                new RetryExecutorConfig(2, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")));
 
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFailedFuture(new DataApiException(errorCode, "blah")));
+        dataApiDelegate.recordListClosedChunks(EXCHANGE_0, OptionalLong.empty(), immediateFailedFuture(new DataApiException(errorCode, "blah")));
 
-        assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty()))
+        assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, EXCHANGE_0, OptionalLong.empty()))
                 .failsWithin(1, SECONDS)
                 .withThrowableOfType(ExecutionException.class)
                 .matches(e -> ((DataApiException) e.getCause()).getErrorCode().equals(errorCode));
 
-        assertThat(dataApiDelegate.getListClosedChunksCallCount("exchange-1", OptionalLong.empty())).isEqualTo(1);
+        assertThat(dataApiDelegate.getListClosedChunksCallCount(EXCHANGE_0, OptionalLong.empty())).isEqualTo(1);
     }
 
     @Test
     public void testAddDataPagesRetries()
     {
-        TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
-        discoveryManager.setBufferNodes(builder -> builder.putNode(TestingDataApi.NODE_ID, BufferNodeState.ACTIVE));
-        TestingApiFactory apiFactory = new TestingApiFactory();
         TestingDataApi dataApiDelegate = new TestingDataApi();
-        apiFactory.setDataApi(TestingDataApi.NODE_ID, dataApiDelegate);
-        DataApiFacade dataApiFacade = new DataApiFacade(
-                discoveryManager,
-                apiFactory,
-                new RetryExecutorConfig(0, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")), // misconfigured on purpose
-                new RetryExecutorConfig(2, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")),
-                executor);
+        DataApiFacade dataApiFacade = createDataApiFacade(
+                dataApiDelegate,
+                BufferNodeState.ACTIVE,
+                // misconfigured on purpose
+                new RetryExecutorConfig(0, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")),
+                new RetryExecutorConfig(2, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")));
 
         // OK after INTERNAL_ERROR
-        dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
-        dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, immediateFuture(Optional.empty()));
-        assertThat(dataApiFacade.addDataPages(TestingDataApi.NODE_ID, "exchange-1", 0, 0, 0, ImmutableListMultimap.of()))
+        dataApiDelegate.recordAddDataPages(EXCHANGE_0, 0, 0, 0, immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
+        dataApiDelegate.recordAddDataPages(EXCHANGE_0, 0, 0, 0, immediateFuture(Optional.empty()));
+        assertThat(dataApiFacade.addDataPages(TestingDataApi.NODE_ID, EXCHANGE_0, 0, 0, 0, ImmutableListMultimap.of()))
                 .succeedsWithin(5, SECONDS);
-        assertThat(dataApiDelegate.getAddDataPagesCallCount("exchange-1", 0, 0, 0)).isEqualTo(2);
+        assertThat(dataApiDelegate.getAddDataPagesCallCount(EXCHANGE_0, 0, 0, 0)).isEqualTo(2);
 
         // Immediate DRAINING
         dataApiDelegate.recordAddDataPages("exchange-2", 0, 0, 0, immediateFailedFuture(new DataApiException(ErrorCode.DRAINING, "blah")));
@@ -227,123 +205,108 @@ public class TestDataApiFacade
     @Test
     public void testDoNotRetryOnSuccess()
     {
-        TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
-        discoveryManager.setBufferNodes(builder -> builder.putNode(TestingDataApi.NODE_ID, BufferNodeState.ACTIVE));
-        TestingApiFactory apiFactory = new TestingApiFactory();
         TestingDataApi dataApiDelegate = new TestingDataApi();
-        apiFactory.setDataApi(TestingDataApi.NODE_ID, dataApiDelegate);
-        DataApiFacade dataApiFacade = new DataApiFacade(
-                discoveryManager,
-                apiFactory,
+        DataApiFacade dataApiFacade = createDataApiFacade(
+                dataApiDelegate,
+                BufferNodeState.ACTIVE,
                 new RetryExecutorConfig(2, Duration.valueOf("1000ms"), Duration.valueOf("2000ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")),
-                new RetryExecutorConfig(2, Duration.valueOf("1000ms"), Duration.valueOf("2000ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")),
-                executor);
+                new RetryExecutorConfig(2, Duration.valueOf("1000ms"), Duration.valueOf("2000ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")));
 
         ChunkList result = new ChunkList(ImmutableList.of(), OptionalLong.of(7));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFuture(result));
-        assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty()))
+        dataApiDelegate.recordListClosedChunks(EXCHANGE_0, OptionalLong.empty(), immediateFuture(result));
+        assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, EXCHANGE_0, OptionalLong.empty()))
                 .succeedsWithin(100, MILLISECONDS) // returns immediately
                 .isEqualTo(result);
-        assertThat(dataApiDelegate.getListClosedChunksCallCount("exchange-1", OptionalLong.empty())).isEqualTo(1);
+        assertThat(dataApiDelegate.getListClosedChunksCallCount(EXCHANGE_0, OptionalLong.empty())).isEqualTo(1);
     }
 
     @Test
     public void testShortCircuitResponseIfNodeDrained()
     {
-        TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
-        discoveryManager.setBufferNodes(builder -> builder.putNode(TestingDataApi.NODE_ID, BufferNodeState.DRAINED));
-        TestingApiFactory apiFactory = new TestingApiFactory();
         TestingDataApi dataApiDelegate = new TestingDataApi();
-        apiFactory.setDataApi(TestingDataApi.NODE_ID, dataApiDelegate);
-        DataApiFacade dataApiFacade = new DataApiFacade(
-                discoveryManager,
-                apiFactory,
+        DataApiFacade dataApiFacade = createDataApiFacade(
+                dataApiDelegate,
+                BufferNodeState.DRAINED,
                 new RetryExecutorConfig(2, Duration.valueOf("1000ms"), Duration.valueOf("2000ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")),
-                new RetryExecutorConfig(2, Duration.valueOf("1000ms"), Duration.valueOf("2000ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")),
-                executor);
+                new RetryExecutorConfig(2, Duration.valueOf("1000ms"), Duration.valueOf("2000ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")));
 
         ChunkList result = new ChunkList(ImmutableList.of(), OptionalLong.of(7));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFuture(result));
-        assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty()));
+        dataApiDelegate.recordListClosedChunks(EXCHANGE_0, OptionalLong.empty(), immediateFuture(result));
+        assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, EXCHANGE_0, OptionalLong.empty()));
         // we expect no communication with client
-        assertThat(dataApiDelegate.getListClosedChunksCallCount("exchange-1", OptionalLong.empty())).isEqualTo(0);
+        assertThat(dataApiDelegate.getListClosedChunksCallCount(EXCHANGE_0, OptionalLong.empty())).isEqualTo(0);
 
         // check other calls too
-        assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.pingExchange(TestingDataApi.NODE_ID, "exchange-1"));
-        assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.finishExchange(TestingDataApi.NODE_ID, "exchange-1"));
-        assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.removeExchange(TestingDataApi.NODE_ID, "exchange-1"));
-        assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.getChunkData(TestingDataApi.NODE_ID, "exchange-1", 1, 1L, 1L));
-        assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.registerExchange(TestingDataApi.NODE_ID, "exchange-1"));
-        assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.addDataPages(TestingDataApi.NODE_ID, "exchange-1", 1, 1, 1L, ImmutableListMultimap.of()));
+        assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.pingExchange(TestingDataApi.NODE_ID, EXCHANGE_0));
+        assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.finishExchange(TestingDataApi.NODE_ID, EXCHANGE_0));
+        assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.removeExchange(TestingDataApi.NODE_ID, EXCHANGE_0));
+        assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.getChunkData(TestingDataApi.NODE_ID, EXCHANGE_0, 1, 1L, 1L));
+        assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.registerExchange(TestingDataApi.NODE_ID, EXCHANGE_0));
+        assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.addDataPages(TestingDataApi.NODE_ID, EXCHANGE_0, 1, 1, 1L, ImmutableListMultimap.of()));
     }
 
     @Test
     public void testCircuitBreaker()
             throws InterruptedException
     {
-        TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
-        discoveryManager.setBufferNodes(builder -> builder.putNode(TestingDataApi.NODE_ID, BufferNodeState.ACTIVE));
-        TestingApiFactory apiFactory = new TestingApiFactory();
         TestingDataApi dataApiDelegate = new TestingDataApi();
-        apiFactory.setDataApi(TestingDataApi.NODE_ID, dataApiDelegate);
-
-        DataApiFacade dataApiFacade = new DataApiFacade(
-                discoveryManager,
-                apiFactory,
+        DataApiFacade dataApiFacade = createDataApiFacade(
+                dataApiDelegate,
+                BufferNodeState.ACTIVE,
                 new RetryExecutorConfig(2, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 2, 1, Duration.valueOf("500ms")),
-                new RetryExecutorConfig(0, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 2, 1, Duration.valueOf("500ms")), // misconfigured on purpose
-                executor);
+                // misconfigured on purpose
+                new RetryExecutorConfig(0, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 2, 1, Duration.valueOf("500ms")));
 
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFailedFuture(new RuntimeException("unexpected exception")));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
+        dataApiDelegate.recordListClosedChunks(EXCHANGE_0, OptionalLong.empty(), immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
+        dataApiDelegate.recordListClosedChunks(EXCHANGE_0, OptionalLong.empty(), immediateFailedFuture(new RuntimeException("unexpected exception")));
+        dataApiDelegate.recordListClosedChunks(EXCHANGE_0, OptionalLong.empty(), immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
         ChunkList result = new ChunkList(ImmutableList.of(), OptionalLong.of(7));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFuture(result));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFuture(result));
+        dataApiDelegate.recordListClosedChunks(EXCHANGE_0, OptionalLong.empty(), immediateFuture(result));
+        dataApiDelegate.recordListClosedChunks(EXCHANGE_0, OptionalLong.empty(), immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
+        dataApiDelegate.recordListClosedChunks(EXCHANGE_0, OptionalLong.empty(), immediateFuture(result));
 
-        assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty()))
+        assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, EXCHANGE_0, OptionalLong.empty()))
                 .failsWithin(1, SECONDS)
                 .withThrowableOfType(ExecutionException.class)
                 .withCauseInstanceOf(CircuitBreakerOpenException.class);
-        assertThat(dataApiDelegate.getListClosedChunksCallCount("exchange-1", OptionalLong.empty())).isEqualTo(2);
+        assertThat(dataApiDelegate.getListClosedChunksCallCount(EXCHANGE_0, OptionalLong.empty())).isEqualTo(2);
 
         // on immediate call we should still get CircuitBreakerOpenException
-        assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty()))
+        assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, EXCHANGE_0, OptionalLong.empty()))
                 .failsWithin(1, SECONDS)
                 .withThrowableOfType(ExecutionException.class)
                 .withCauseInstanceOf(CircuitBreakerOpenException.class);
         // and number of calls should not change
-        assertThat(dataApiDelegate.getListClosedChunksCallCount("exchange-1", OptionalLong.empty())).isEqualTo(2);
+        assertThat(dataApiDelegate.getListClosedChunksCallCount(EXCHANGE_0, OptionalLong.empty())).isEqualTo(2);
 
         Thread.sleep(600); // we are in HALF_OPEN state now
-        assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty()))
+        assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, EXCHANGE_0, OptionalLong.empty()))
                 .failsWithin(1, SECONDS)
                 .withThrowableOfType(ExecutionException.class)
                 .withCauseInstanceOf(CircuitBreakerOpenException.class);
         // one more "try" request should be sent and OPEN state should be prolonged
-        assertThat(dataApiDelegate.getListClosedChunksCallCount("exchange-1", OptionalLong.empty())).isEqualTo(3);
+        assertThat(dataApiDelegate.getListClosedChunksCallCount(EXCHANGE_0, OptionalLong.empty())).isEqualTo(3);
 
         // on immediate call we should still get CircuitBreakerOpenException
-        assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty()))
+        assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, EXCHANGE_0, OptionalLong.empty()))
                 .failsWithin(1, SECONDS)
                 .withThrowableOfType(ExecutionException.class)
                 .withCauseInstanceOf(CircuitBreakerOpenException.class);
         // and number of calls should not change
-        assertThat(dataApiDelegate.getListClosedChunksCallCount("exchange-1", OptionalLong.empty())).isEqualTo(3);
+        assertThat(dataApiDelegate.getListClosedChunksCallCount(EXCHANGE_0, OptionalLong.empty())).isEqualTo(3);
 
         Thread.sleep(600); // we are in HALF_OPEN state now again
         // and next request should be successful
-        assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty()))
+        assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, EXCHANGE_0, OptionalLong.empty()))
                 .succeedsWithin(1, SECONDS)
                 .isEqualTo(result);
-        assertThat(dataApiDelegate.getListClosedChunksCallCount("exchange-1", OptionalLong.empty())).isEqualTo(4);
+        assertThat(dataApiDelegate.getListClosedChunksCallCount(EXCHANGE_0, OptionalLong.empty())).isEqualTo(4);
 
         // on next call we should get one retry but request should succeed
-        assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty()))
+        assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, EXCHANGE_0, OptionalLong.empty()))
                 .succeedsWithin(1, SECONDS)
                 .isEqualTo(result);
-        assertThat(dataApiDelegate.getListClosedChunksCallCount("exchange-1", OptionalLong.empty())).isEqualTo(6);
+        assertThat(dataApiDelegate.getListClosedChunksCallCount(EXCHANGE_0, OptionalLong.empty())).isEqualTo(6);
     }
 
     @ParameterizedTest
@@ -354,105 +317,112 @@ public class TestDataApiFacade
             return; // skip
         }
 
-        TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
-        discoveryManager.setBufferNodes(builder -> builder.putNode(TestingDataApi.NODE_ID, BufferNodeState.ACTIVE));
-        TestingApiFactory apiFactory = new TestingApiFactory();
         TestingDataApi dataApiDelegate = new TestingDataApi();
-        apiFactory.setDataApi(TestingDataApi.NODE_ID, dataApiDelegate);
-
-        DataApiFacade dataApiFacade = new DataApiFacade(
-                discoveryManager,
-                apiFactory,
+        DataApiFacade dataApiFacade = createDataApiFacade(
+                dataApiDelegate,
+                BufferNodeState.ACTIVE,
                 new RetryExecutorConfig(0, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 2, 1, Duration.valueOf("500ms")),
-                new RetryExecutorConfig(0, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 2, 1, Duration.valueOf("500ms")),
-                executor);
+                new RetryExecutorConfig(0, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 2, 1, Duration.valueOf("500ms")));
 
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFailedFuture(new DataApiException(errorCode, "chunk")));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFailedFuture(new DataApiException(errorCode, "chunk")));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFailedFuture(new DataApiException(errorCode, "chunk")));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFailedFuture(new DataApiException(errorCode, "chunk")));
+        dataApiDelegate.recordListClosedChunks(EXCHANGE_0, OptionalLong.empty(), immediateFailedFuture(new DataApiException(errorCode, "chunk")));
+        dataApiDelegate.recordListClosedChunks(EXCHANGE_0, OptionalLong.empty(), immediateFailedFuture(new DataApiException(errorCode, "chunk")));
+        dataApiDelegate.recordListClosedChunks(EXCHANGE_0, OptionalLong.empty(), immediateFailedFuture(new DataApiException(errorCode, "chunk")));
+        dataApiDelegate.recordListClosedChunks(EXCHANGE_0, OptionalLong.empty(), immediateFailedFuture(new DataApiException(errorCode, "chunk")));
         ChunkList result = new ChunkList(ImmutableList.of(), OptionalLong.of(7));
-        dataApiDelegate.recordListClosedChunks("exchange-1", OptionalLong.empty(), immediateFuture(result));
+        dataApiDelegate.recordListClosedChunks(EXCHANGE_0, OptionalLong.empty(), immediateFuture(result));
 
         for (int i = 0; i < 4; ++i) {
-            assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty()))
+            assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, EXCHANGE_0, OptionalLong.empty()))
                     .failsWithin(1, SECONDS)
                     .withThrowableOfType(ExecutionException.class)
                     .matches(e -> ((DataApiException) e.getCause()).getErrorCode().equals(errorCode));
         }
-        assertThat(dataApiDelegate.getListClosedChunksCallCount("exchange-1", OptionalLong.empty())).isEqualTo(4);
+        assertThat(dataApiDelegate.getListClosedChunksCallCount(EXCHANGE_0, OptionalLong.empty())).isEqualTo(4);
 
-        assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, "exchange-1", OptionalLong.empty()))
+        assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, EXCHANGE_0, OptionalLong.empty()))
                 .succeedsWithin(1, SECONDS)
                 .isEqualTo(result);
-        assertThat(dataApiDelegate.getListClosedChunksCallCount("exchange-1", OptionalLong.empty())).isEqualTo(5);
+        assertThat(dataApiDelegate.getListClosedChunksCallCount(EXCHANGE_0, OptionalLong.empty())).isEqualTo(5);
     }
 
     @Test
     public void testCircuitBreakerForAddDataPages()
             throws InterruptedException
     {
-        TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
-        discoveryManager.setBufferNodes(builder -> builder.putNode(TestingDataApi.NODE_ID, BufferNodeState.ACTIVE));
-        TestingApiFactory apiFactory = new TestingApiFactory();
         TestingDataApi dataApiDelegate = new TestingDataApi();
-        apiFactory.setDataApi(TestingDataApi.NODE_ID, dataApiDelegate);
+        DataApiFacade dataApiFacade = createDataApiFacade(
+                dataApiDelegate,
+                BufferNodeState.ACTIVE,
+                // misconfigured on purpose
+                new RetryExecutorConfig(0, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 2, 1, Duration.valueOf("500ms")),
+                new RetryExecutorConfig(2, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 2, 1, Duration.valueOf("500ms")));
 
-        DataApiFacade dataApiFacade = new DataApiFacade(
-                discoveryManager,
-                apiFactory,
-                new RetryExecutorConfig(0, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 2, 1, Duration.valueOf("500ms")), // misconfigured on purpose
-                new RetryExecutorConfig(2, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 2, 1, Duration.valueOf("500ms")),
-                executor);
+        dataApiDelegate.recordAddDataPages(EXCHANGE_0, 0, 0, 0, immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
+        dataApiDelegate.recordAddDataPages(EXCHANGE_0, 0, 0, 0, immediateFailedFuture(new RuntimeException("unexpected exception")));
+        dataApiDelegate.recordAddDataPages(EXCHANGE_0, 0, 0, 0, immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
+        dataApiDelegate.recordAddDataPages(EXCHANGE_0, 0, 0, 0, immediateFuture(Optional.empty()));
+        dataApiDelegate.recordAddDataPages(EXCHANGE_0, 0, 0, 0, immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
+        dataApiDelegate.recordAddDataPages(EXCHANGE_0, 0, 0, 0, immediateFuture(Optional.empty()));
 
-        dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
-        dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, immediateFailedFuture(new RuntimeException("unexpected exception")));
-        dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
-        ChunkList result = new ChunkList(ImmutableList.of(), OptionalLong.of(7));
-        dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, immediateFuture(Optional.empty()));
-        dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
-        dataApiDelegate.recordAddDataPages("exchange-1", 0, 0, 0, immediateFuture(Optional.empty()));
-
-        assertThat(dataApiFacade.addDataPages(TestingDataApi.NODE_ID, "exchange-1", 0, 0, 0, ImmutableListMultimap.of()))
+        assertThat(dataApiFacade.addDataPages(TestingDataApi.NODE_ID, EXCHANGE_0, 0, 0, 0, ImmutableListMultimap.of()))
                 .failsWithin(1, SECONDS)
                 .withThrowableOfType(ExecutionException.class)
                 .withCauseInstanceOf(CircuitBreakerOpenException.class);
-        assertThat(dataApiDelegate.getAddDataPagesCallCount("exchange-1", 0, 0, 0)).isEqualTo(2);
+        assertThat(dataApiDelegate.getAddDataPagesCallCount(EXCHANGE_0, 0, 0, 0)).isEqualTo(2);
 
         // on immediate call we should still get CircuitBreakerOpenException
-        assertThat(dataApiFacade.addDataPages(TestingDataApi.NODE_ID, "exchange-1", 0, 0, 0, ImmutableListMultimap.of()))
+        assertThat(dataApiFacade.addDataPages(TestingDataApi.NODE_ID, EXCHANGE_0, 0, 0, 0, ImmutableListMultimap.of()))
                 .failsWithin(1, SECONDS)
                 .withThrowableOfType(ExecutionException.class)
                 .withCauseInstanceOf(CircuitBreakerOpenException.class);
         // and number of calls should not change
-        assertThat(dataApiDelegate.getAddDataPagesCallCount("exchange-1", 0, 0, 0)).isEqualTo(2);
+        assertThat(dataApiDelegate.getAddDataPagesCallCount(EXCHANGE_0, 0, 0, 0)).isEqualTo(2);
 
         Thread.sleep(600); // we are in HALF_OPEN state now
-        assertThat(dataApiFacade.addDataPages(TestingDataApi.NODE_ID, "exchange-1", 0, 0, 0, ImmutableListMultimap.of()))
+        assertThat(dataApiFacade.addDataPages(TestingDataApi.NODE_ID, EXCHANGE_0, 0, 0, 0, ImmutableListMultimap.of()))
                 .failsWithin(1, SECONDS)
                 .withThrowableOfType(ExecutionException.class)
                 .withCauseInstanceOf(CircuitBreakerOpenException.class);
         // one more "try" request should be sent and OPEN state should be prolonged
-        assertThat(dataApiDelegate.getAddDataPagesCallCount("exchange-1", 0, 0, 0)).isEqualTo(3);
+        assertThat(dataApiDelegate.getAddDataPagesCallCount(EXCHANGE_0, 0, 0, 0)).isEqualTo(3);
 
         // on immediate call we should still get CircuitBreakerOpenException
-        assertThat(dataApiFacade.addDataPages(TestingDataApi.NODE_ID, "exchange-1", 0, 0, 0, ImmutableListMultimap.of()))
+        assertThat(dataApiFacade.addDataPages(TestingDataApi.NODE_ID, EXCHANGE_0, 0, 0, 0, ImmutableListMultimap.of()))
                 .failsWithin(1, SECONDS)
                 .withThrowableOfType(ExecutionException.class)
                 .withCauseInstanceOf(CircuitBreakerOpenException.class);
         // and number of calls should not change
-        assertThat(dataApiDelegate.getAddDataPagesCallCount("exchange-1", 0, 0, 0)).isEqualTo(3);
+        assertThat(dataApiDelegate.getAddDataPagesCallCount(EXCHANGE_0, 0, 0, 0)).isEqualTo(3);
 
         Thread.sleep(600); // we are in HALF_OPEN state now again
         // and next request should be successful
-        assertThat(dataApiFacade.addDataPages(TestingDataApi.NODE_ID, "exchange-1", 0, 0, 0, ImmutableListMultimap.of()))
+        assertThat(dataApiFacade.addDataPages(TestingDataApi.NODE_ID, EXCHANGE_0, 0, 0, 0, ImmutableListMultimap.of()))
                 .succeedsWithin(1, SECONDS);
-        assertThat(dataApiDelegate.getAddDataPagesCallCount("exchange-1", 0, 0, 0)).isEqualTo(4);
+        assertThat(dataApiDelegate.getAddDataPagesCallCount(EXCHANGE_0, 0, 0, 0)).isEqualTo(4);
 
         // on next call we should get one retry but request should succeed
-        assertThat(dataApiFacade.addDataPages(TestingDataApi.NODE_ID, "exchange-1", 0, 0, 0, ImmutableListMultimap.of()))
+        assertThat(dataApiFacade.addDataPages(TestingDataApi.NODE_ID, EXCHANGE_0, 0, 0, 0, ImmutableListMultimap.of()))
                 .succeedsWithin(1, SECONDS);
-        assertThat(dataApiDelegate.getAddDataPagesCallCount("exchange-1", 0, 0, 0)).isEqualTo(6);
+        assertThat(dataApiDelegate.getAddDataPagesCallCount(EXCHANGE_0, 0, 0, 0)).isEqualTo(6);
+    }
+
+    private DataApiFacade createDataApiFacade(
+            TestingDataApi dataApiDelegate,
+            BufferNodeState bufferNodeState,
+            RetryExecutorConfig defaultRetryExecutorConfig,
+            RetryExecutorConfig addDataPagesRetryExecutorConfig)
+    {
+        TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
+        discoveryManager.setBufferNodes(builder -> builder.putNode(TestingDataApi.NODE_ID, bufferNodeState));
+        TestingApiFactory apiFactory = new TestingApiFactory();
+        apiFactory.setDataApi(TestingDataApi.NODE_ID, dataApiDelegate);
+
+        return new DataApiFacade(
+                discoveryManager,
+                apiFactory,
+                defaultRetryExecutorConfig,
+                addDataPagesRetryExecutorConfig,
+                executor);
     }
 
     private static void assertShortCircuitResponseIfNodeDrained(Supplier<ListenableFuture<?>> call)
