@@ -164,12 +164,14 @@ public class BufferExchangeSink
         SinkMappingScaler.Result result = mappingScaler.process(dataPool, mapping);
 
         Set<SinkWriter> newOrUpdatedWriters = new HashSet<>();
+
+        boolean finishing;
         synchronized (this) {
             if (handleUpdateInProgress) {
                 return;
             }
 
-            if (finishFuture != null) {
+            if (dataPool.whenFinished().isDone()) {
                 return;
             }
 
@@ -193,9 +195,10 @@ public class BufferExchangeSink
                 Long bufferNodeId = entry.getValue();
                 activeMapping.get().add(partition, bufferNodeId);
             }
+            finishing = finishFuture != null;
         }
         // trigger work for new writers
-        newOrUpdatedWriters.forEach(writer -> writer.scheduleWriting(Optional.empty(), false));
+        newOrUpdatedWriters.forEach(writer -> writer.scheduleWriting(Optional.empty(), finishing));
     }
 
     private SinkWriter createWriter(long bufferNodeId)
