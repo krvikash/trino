@@ -14,7 +14,7 @@
     <properties>
         <air.main.basedir>${project.parent.basedir}</air.main.basedir>
         <!-- Buffer service does not spool right now, hence is memory intensive -->
-        <air.test.jvmsize>2g</air.test.jvmsize>
+        <air.test.jvmsize>4g</air.test.jvmsize>
         <!-- Required by Trino tests -->
         <air.test.timezone>America/Bahia_Banderas</air.test.timezone>
     </properties>
