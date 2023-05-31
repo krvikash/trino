@@ -325,6 +325,7 @@ public class Chunk
 
             public void process()
             {
+                checkState(!isDone() || isCancelled(), "process() called on done, not cancelled ChunkWriteFuture()");
                 synchronized (ChunkData.this) {
                     if (currentSliceOutput == null) {
                         checkState(isCancelled(), "ChunkWriteFuture should be in cancelled state");
