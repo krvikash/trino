@@ -112,6 +112,7 @@ public class MemoryAllocator
             }
         }
         else {
+            verify(nonPoolableAllocatedBytes >= bytes, "%s non-poolable bytes allocated, but trying to release %s bytes", nonPoolableAllocatedBytes, bytes);
             nonPoolableAllocatedBytes -= bytes;
             dataServerStats.updateNonPoolableAllocatedMemoryInBytes(nonPoolableAllocatedBytes);
         }
