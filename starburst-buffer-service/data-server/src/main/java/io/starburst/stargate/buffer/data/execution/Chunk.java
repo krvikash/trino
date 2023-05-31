@@ -363,6 +363,8 @@ public class Chunk
                                             if (offset == totalLength) {
                                                 ChunkData.this.sliceOutput = sliceOutput;
                                                 completeFuture = true;
+                                                // drop reference
+                                                currentSliceOutput = null;
                                             }
                                             else {
                                                 process();
@@ -381,6 +383,10 @@ public class Chunk
                                 @Override
                                 public void onFailure(Throwable throwable)
                                 {
+                                    synchronized (ChunkData.this) {
+                                        // drop reference
+                                        currentSliceOutput = null;
+                                    }
                                     setException(throwable);
                                 }
                             },
