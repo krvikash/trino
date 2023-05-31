@@ -251,7 +251,7 @@ public class Chunk
                     referenceCount--;
                     checkState(referenceCount >= 0, "negative referenceCount %s for chunkData", referenceCount);
                     if (releaseRequested && referenceCount == 0) {
-                        chunkSliceLeases.forEach(SliceLease::release);
+                        releaseChunkLeases();
                     }
                 }
             };
@@ -291,9 +291,16 @@ public class Chunk
         public synchronized void release()
         {
             if (referenceCount == 0) {
-                chunkSliceLeases.forEach(SliceLease::release);
+                releaseChunkLeases();
             }
             releaseRequested = true;
+        }
+
+        @GuardedBy("this")
+        private void releaseChunkLeases()
+        {
+            chunkSliceLeases.forEach(SliceLease::release);
+            chunkSliceLeases.clear();
         }
 
         private class ChunkWriteFuture
