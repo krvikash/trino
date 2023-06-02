@@ -356,7 +356,7 @@ public class TestDataServer
     @Test
     public void testSpooling()
     {
-        int pageSizeInBytes = (int) DataSize.of(10, MEGABYTE).toBytes() - DATA_PAGE_HEADER_SIZE;
+        int pageSizeInBytes = (int) DataSize.of(11, MEGABYTE).toBytes() - DATA_PAGE_HEADER_SIZE;
         for (int index = 0; index < 10; ++index) {
             addDataPage(EXCHANGE_0, index, index, index, index, utf8Slice(String.valueOf(index).repeat(pageSizeInBytes)));
         }
