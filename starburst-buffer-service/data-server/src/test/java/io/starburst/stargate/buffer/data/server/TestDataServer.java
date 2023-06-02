@@ -39,6 +39,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.OptionalLong;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -87,7 +88,7 @@ public class TestDataServer
     {
         dataServer = TestingDataServer.builder()
                 .withDiscoveryApiModule(new TestingDiscoveryApiModule())
-                .setConfigProperty("spooling.directory", System.getProperty("java.io.tmpdir") + "/spooling-storage")
+                .setConfigProperty("spooling.directory", System.getProperty("java.io.tmpdir") + "/spooling-storage-" + UUID.randomUUID())
                 .setConfigProperty("discovery-broadcast-interval", "10ms")
                 .setConfigProperty("memory.heap-headroom", succinctBytes(Runtime.getRuntime().maxMemory() - DATA_SERVER_AVAILABLE_MEMORY.toBytes()).toString())
                 .setConfigProperty("memory.allocation-low-watermark", "0.99")
