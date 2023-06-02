@@ -76,6 +76,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -330,14 +331,17 @@ public class DataResource
             throw e;
         }
 
+        AtomicReference<ReleasableReadListener> releasableReadListenerWrapper = new AtomicReference<>();
         AtomicBoolean inProgressCompletionFlag = new AtomicBoolean();
+        int x = 0;
         Futures.addCallback(
                 sliceLease.getSliceFuture(),
                 new FutureCallback<>() {
                     @Override
                     public void onSuccess(Slice slice)
                     {
-                        inputStream.setReadListener(new ReadListener() {
+                        ReadListener readListener = new ReadListener()
+                        {
                             private final List<ListenableFuture<Void>> addDataPagesFutures = new ArrayList<>();
 
                             private int bytesRead;
@@ -447,7 +451,11 @@ public class DataResource
                                 logger.warn(throwable, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
                                 asyncResponse.resume(errorResponse(throwable, getRateLimitHeaders(request)));
                             }
-                        });
+                        };
+
+                        // wrap readListener in releasableReadListenerWrapper to allow breaking reference chain
+                        releasableReadListenerWrapper.set(new ReleasableReadListener(readListener));
+                        inputStream.setReadListener(releasableReadListenerWrapper.get());
                     }
 
                     @Override
@@ -473,6 +481,15 @@ public class DataResource
                                     addDataPagesThrottlingCalculator.updateCounterStat(request.getRemoteHost(), 1);
                                     decrementInProgressAddDataPagesRequests();
                                     addDataPagesFutures.clear(); // clear to dereference and release memory retained by SliceLease
+
+                                    // break reference chain from Jetty's HttpInput (implementation of ServletInputStream) to registered ReadListener.
+                                    // For some reason Jetty keeps reference to ReadListener attached to ServletInputStream even after releases is already
+                                    // complete. We need to break references chain as ReadListener we use has reference to Slice used for holding request data
+                                    // while at this point this memory is no longer accounted for in MemoryAllocator. This was resulting in OOMs
+                                    ReleasableReadListener listener = releasableReadListenerWrapper.get();
+                                    if (listener != null) {
+                                        listener.releaseDelegate();
+                                    }
                                 }
                             }
                         }, directExecutor());
@@ -755,5 +772,58 @@ public class DataResource
             logger.warn(e, "error on %s", loggingContext.get());
             return errorResponse(e);
         }, directExecutor());
+    }
+
+    private static class ReleasableReadListener
+            implements ReadListener
+    {
+        private enum State {
+            DELEGATE_SET,
+            DELEGATE_RELEASED
+        }
+
+        private final AtomicReference<ReadListener> delegate;
+        private final AtomicReference<State> state;
+
+        public ReleasableReadListener(ReadListener delegate)
+        {
+            requireNonNull(delegate, "delegate is null");
+            this.delegate = new AtomicReference<>(delegate);
+            this.state = new AtomicReference<>(State.DELEGATE_SET);
+        }
+
+        private ReadListener getDelegate()
+        {
+            ReadListener readListener = delegate.get();
+            checkState(state.get() == State.DELEGATE_SET, "Delegate already released");
+            verify(readListener != null);
+            return readListener;
+        }
+
+        public void releaseDelegate()
+        {
+            checkState(state.compareAndSet(State.DELEGATE_SET, State.DELEGATE_RELEASED), "Cannot set delegate; current state is %s", state.get());
+            delegate.set(null);
+        }
+
+        @Override
+        public void onDataAvailable()
+                throws IOException
+        {
+            getDelegate().onDataAvailable();
+        }
+
+        @Override
+        public void onAllDataRead()
+                throws IOException
+        {
+            getDelegate().onAllDataRead();
+        }
+
+        @Override
+        public void onError(Throwable t)
+        {
+            getDelegate().onError(t);
+        }
     }
 }
