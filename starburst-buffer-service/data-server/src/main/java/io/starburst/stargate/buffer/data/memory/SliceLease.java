@@ -34,7 +34,8 @@ public class SliceLease
     private static final int MAX_SLICE_LENGTH = toIntExact(DataSize.of(128, MEGABYTE).toBytes());
 
     private final MemoryAllocator memoryAllocator;
-    private final ListenableFuture<Slice> sliceFuture;
+    private volatile ListenableFuture<Slice> sliceFuture;
+
     private final AtomicBoolean released = new AtomicBoolean();
 
     public SliceLease(
@@ -49,12 +50,16 @@ public class SliceLease
 
     public ListenableFuture<Slice> getSliceFuture()
     {
+        checkState(!released.get(), "already released");
         return sliceFuture;
     }
 
     public void cancel()
     {
-        sliceFuture.cancel(true);
+        ListenableFuture<Slice> sliceFutureToBeCancelled = sliceFuture;
+        if (sliceFutureToBeCancelled != null) {
+            sliceFutureToBeCancelled.cancel(true);
+        }
     }
 
     public void release()
@@ -64,5 +69,6 @@ public class SliceLease
         if (sliceFuture.isDone() && !sliceFuture.isCancelled()) {
             memoryAllocator.release(getFutureValue(sliceFuture));
         }
+        sliceFuture = null;
     }
 }
