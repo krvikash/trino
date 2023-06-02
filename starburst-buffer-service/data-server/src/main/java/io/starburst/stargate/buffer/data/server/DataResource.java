@@ -472,6 +472,7 @@ public class DataResource
                                     addDataPagesThrottlingCalculator.recordProcessTimeInMillis(System.currentTimeMillis() - start);
                                     addDataPagesThrottlingCalculator.updateCounterStat(request.getRemoteHost(), 1);
                                     decrementInProgressAddDataPagesRequests();
+                                    addDataPagesFutures.clear(); // clear to dereference and release memory retained by SliceLease
                                 }
                             }
                         }, directExecutor());
