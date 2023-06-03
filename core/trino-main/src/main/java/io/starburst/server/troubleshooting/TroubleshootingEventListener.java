@@ -9,6 +9,7 @@
  */
 package io.starburst.server.troubleshooting;
 
+import com.google.inject.Inject;
 import com.starburstdata.presto.server.security.webui.access.WebUiAccessControl;
 import io.trino.eventlistener.EventListenerManager;
 import io.trino.spi.QueryId;
@@ -16,8 +17,6 @@ import io.trino.spi.eventlistener.EventListener;
 import io.trino.spi.eventlistener.QueryCompletedEvent;
 import io.trino.spi.eventlistener.QueryContext;
 import io.trino.spi.eventlistener.QueryCreatedEvent;
-
-import javax.inject.Inject;
 
 import static com.starburstdata.presto.server.StarburstClientCapabilities.QUERY_TROUBLESHOOTING;
 import static io.trino.spi.security.Identity.forUser;

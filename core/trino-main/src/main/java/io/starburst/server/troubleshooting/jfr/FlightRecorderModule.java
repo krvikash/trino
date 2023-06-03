@@ -11,14 +11,13 @@ package io.starburst.server.troubleshooting.jfr;
 
 import com.google.inject.Binder;
 import com.google.inject.Inject;
+import com.google.inject.Provider;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import io.starburst.server.troubleshooting.ForTroubleshooting;
 import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.trino.server.ServerConfig;
-
-import javax.inject.Provider;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;

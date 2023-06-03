@@ -11,6 +11,7 @@ package io.starburst.server.troubleshooting.jfr;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.inject.Inject;
 import io.starburst.server.troubleshooting.TroubleshootingContext;
 import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
 import io.trino.execution.QueryInfo;
@@ -19,8 +20,6 @@ import io.trino.execution.StageInfo;
 import io.trino.execution.TaskInfo;
 import io.trino.execution.TaskStatus;
 import io.trino.spi.QueryId;
-
-import javax.inject.Inject;
 
 import java.io.InputStream;
 import java.util.Collection;

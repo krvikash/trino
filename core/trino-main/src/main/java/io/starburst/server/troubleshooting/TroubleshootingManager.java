@@ -13,6 +13,7 @@ import com.google.common.cache.Cache;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.inject.Inject;
 import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
@@ -20,8 +21,6 @@ import io.trino.collect.cache.EvictableCacheBuilder;
 import io.trino.dispatcher.DispatchManager;
 import io.trino.execution.QueryInfo;
 import io.trino.spi.QueryId;
-
-import javax.inject.Inject;
 
 import java.io.InputStream;
 import java.util.Map;

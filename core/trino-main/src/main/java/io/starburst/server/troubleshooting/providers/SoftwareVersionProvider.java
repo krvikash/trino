@@ -10,10 +10,9 @@
 package io.starburst.server.troubleshooting.providers;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.inject.Inject;
 import io.starburst.server.troubleshooting.TroubleshootingContext;
 import io.trino.client.NodeVersion;
-
-import javax.inject.Inject;
 
 import java.io.InputStream;
 import java.util.Map;

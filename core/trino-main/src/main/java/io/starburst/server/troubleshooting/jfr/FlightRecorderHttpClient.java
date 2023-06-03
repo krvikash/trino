@@ -11,6 +11,7 @@ package io.starburst.server.troubleshooting.jfr;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.FutureCallback;
+import com.google.inject.Inject;
 import io.starburst.server.troubleshooting.ForTroubleshooting;
 import dev.failsafe.Failsafe;
 import dev.failsafe.FailsafeExecutor;
@@ -25,8 +26,6 @@ import io.airlift.http.client.ResponseHandler;
 import io.airlift.http.client.ResponseHandlerUtils;
 import io.trino.server.InternalCommunicationConfig;
 import io.trino.spi.QueryId;
-
-import javax.inject.Inject;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;

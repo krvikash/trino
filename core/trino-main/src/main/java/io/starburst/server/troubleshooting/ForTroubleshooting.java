@@ -9,12 +9,12 @@
  */
 package io.starburst.server.troubleshooting;
 
-import javax.inject.Qualifier;
+import com.google.inject.BindingAnnotation;
 
 import java.lang.annotation.Retention;
 
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
-@Qualifier
+@BindingAnnotation
 @Retention(RUNTIME)
 public @interface ForTroubleshooting {}
