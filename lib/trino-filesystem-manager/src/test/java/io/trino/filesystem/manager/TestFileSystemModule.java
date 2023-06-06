@@ -14,6 +14,7 @@
 package io.trino.filesystem.manager;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import io.opentelemetry.api.OpenTelemetry;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
@@ -41,6 +42,7 @@ class TestFileSystemModule
                         ImmutableMap.of("s3", factory, "gs", factory),
                         Optional.empty(),
                         Optional.empty(),
+                        ImmutableSet.of(),
                         OpenTelemetry.noop().getTracer("test"))
                 .create(ConnectorIdentity.ofUser("test"));
 

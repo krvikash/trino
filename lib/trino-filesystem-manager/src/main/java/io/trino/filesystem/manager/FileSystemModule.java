@@ -21,7 +21,9 @@ import com.google.inject.Singleton;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.configuration.ConfigPropertyMetadata;
 import io.opentelemetry.api.trace.Tracer;
+import io.trino.filesystem.DecoratingTrinoFileSystemFactory;
 import io.trino.filesystem.Location;
+import io.trino.filesystem.TrinoFileSystemDecorator;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.filesystem.azure.AzureFileSystemFactory;
 import io.trino.filesystem.azure.AzureFileSystemModule;
@@ -51,6 +53,7 @@ import java.util.Set;
 import java.util.function.Function;
 
 import static com.google.inject.multibindings.MapBinder.newMapBinder;
+import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
@@ -137,6 +140,8 @@ public class FileSystemModule
         if (config.isCacheEnabled() && isCoordinator) {
             newOptionalBinder(binder, SplitAffinityProvider.class).setBinding().to(CacheSplitAffinityProvider.class).in(Scopes.SINGLETON);
         }
+
+        newSetBinder(binder, TrinoFileSystemDecorator.class);
     }
 
     @Provides
@@ -167,6 +172,7 @@ public class FileSystemModule
             Map<String, TrinoFileSystemFactory> factories,
             Optional<BlobCache> blobCache,
             Optional<CacheKeyProvider> keyProvider,
+            Set<TrinoFileSystemDecorator> decorators,
             Tracer tracer)
     {
         Optional<TrinoFileSystemFactory> hdfsFactory = hdfsFileSystemLoader.map(HdfsFileSystemLoader::create);
@@ -177,6 +183,9 @@ public class FileSystemModule
                 .orElseThrow(() -> new TrinoException(NOT_SUPPORTED, "Unsupported file system scheme %s for location: %s. Supported schemes: %s".formatted(location.scheme().orElse("(none)"), location, factories.keySet())));
 
         TrinoFileSystemFactory delegate = new SwitchingFileSystemFactory(loader);
+        if (!decorators.isEmpty()) {
+            delegate = new DecoratingTrinoFileSystemFactory(delegate, decorators);
+        }
         delegate = new TracingFileSystemFactory(tracer, delegate);
 
         if (config.isTrackingEnabled()) {
