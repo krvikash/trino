@@ -87,7 +87,8 @@ public class S3SpoolingStorage
         }
     }
 
-    protected int getFileSize(String fileName) throws SpooledChunkNotFoundException
+    protected int getFileSize(String fileName)
+            throws SpooledChunkNotFoundException
     {
         HeadObjectRequest headObjectRequest = HeadObjectRequest.builder()
                 .bucket(bucketName)

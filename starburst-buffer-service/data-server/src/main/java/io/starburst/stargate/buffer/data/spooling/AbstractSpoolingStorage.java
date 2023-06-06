@@ -54,7 +54,8 @@ public abstract class AbstractSpoolingStorage
         this.spooledChunkSizeDistribution = dataServerStats.getSpooledChunkSizeDistribution();
     }
 
-    protected abstract int getFileSize(String fileName) throws SpooledChunkNotFoundException;
+    protected abstract int getFileSize(String fileName)
+            throws SpooledChunkNotFoundException;
 
     protected abstract String getLocation(String fileName);
 

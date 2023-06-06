@@ -68,7 +68,8 @@ public class AzureBlobSpoolingStorage
     }
 
     @Override
-    protected int getFileSize(String fileName) throws SpooledChunkNotFoundException
+    protected int getFileSize(String fileName)
+            throws SpooledChunkNotFoundException
     {
         try {
             return (int) containerClient.getBlobAsyncClient(fileName).getProperties().block().getBlobSize();
@@ -116,5 +117,5 @@ public class AzureBlobSpoolingStorage
     }
 
     @Override
-    public void close() throws Exception {}
+    public void close() {}
 }

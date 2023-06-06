@@ -61,5 +61,5 @@ public class AzureBlobSpooledChunkReader
     }
 
     @Override
-    public void close() throws Exception {}
+    public void close() {}
 }
