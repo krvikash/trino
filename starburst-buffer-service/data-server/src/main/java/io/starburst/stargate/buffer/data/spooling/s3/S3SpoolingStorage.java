@@ -87,6 +87,7 @@ public class S3SpoolingStorage
         }
     }
 
+    @Override
     protected int getFileSize(String fileName)
             throws SpooledChunkNotFoundException
     {
