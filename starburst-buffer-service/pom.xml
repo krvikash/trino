@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>138</version>
+        <version>139</version>
     </parent>
 
     <groupId>io.starburst.stargate.buffer</groupId>
@@ -35,15 +35,15 @@
         <air.java.version>17.0.1</air.java.version>
         <project.build.targetJdk>17</project.build.targetJdk>
 
-        <dep.airlift.version>230</dep.airlift.version>
+        <dep.airlift.version>231</dep.airlift.version>
         <dep.slice.version>0.45</dep.slice.version>
-        <dep.errorprone.version>2.18.0</dep.errorprone.version>
-        <dep.trino.version>417</dep.trino.version>
+        <dep.errorprone.version>2.19.1</dep.errorprone.version>
+        <dep.trino.version>419</dep.trino.version>
         <dep.joda.version>2.12.5</dep.joda.version> <!-- required by Trino 414 -->
         <dep.datadog-agent.version>0.114.0</dep.datadog-agent.version>
         <dep.jackson.version>2.15.1</dep.jackson.version>
 
-        <dep.awsjavasdk.version>2.20.48</dep.awsjavasdk.version>
+        <dep.awsjavasdk.version>2.20.65</dep.awsjavasdk.version>
 
         <!-- force common version; pulled by some test dependencies -->
         <dep.kotlin.version>1.8.0</dep.kotlin.version>
