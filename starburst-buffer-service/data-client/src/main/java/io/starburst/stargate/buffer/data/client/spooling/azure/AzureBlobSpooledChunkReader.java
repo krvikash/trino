@@ -24,9 +24,9 @@ import java.util.List;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.airlift.concurrent.MoreFutures.toListenableFuture;
-import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.getBucketName;
-import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.keyFromUri;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.toDataPages;
+import static io.starburst.stargate.buffer.data.spooling.azure.AzureSpoolUtils.getContainerName;
+import static io.starburst.stargate.buffer.data.spooling.azure.AzureSpoolUtils.keyFromUri;
 import static java.util.Objects.requireNonNull;
 
 public class AzureBlobSpooledChunkReader
@@ -50,9 +50,9 @@ public class AzureBlobSpooledChunkReader
         URI spoolingFileUri = URI.create(spoolingFile.location());
 
         String scheme = spoolingFileUri.getScheme();
-        checkArgument(spoolingFileUri.getScheme().equals("ms"), "Unexpected storage scheme '%s' for AzureSpooledChunkReader, expecting 'ms'", scheme);
+        checkArgument(spoolingFileUri.getScheme().equals("abfs"), "Unexpected storage scheme '%s' for AzureSpooledChunkReader, expecting 'abfs'", scheme);
 
-        return toListenableFuture(azureClient.getBlobContainerAsyncClient(getBucketName(spoolingFileUri))
+        return toListenableFuture(azureClient.getBlobContainerAsyncClient(getContainerName(spoolingFileUri))
                 .getBlobAsyncClient(keyFromUri(spoolingFileUri))
                 .download()
                 .reduce(ByteBuffer.allocate(spoolingFile.length()), ByteBuffer::put)

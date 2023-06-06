@@ -31,18 +31,21 @@ import reactor.core.publisher.Flux;
 
 import javax.inject.Inject;
 
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static io.airlift.concurrent.MoreFutures.toListenableFuture;
-import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.PATH_SEPARATOR;
-import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.getBucketName;
+import static io.starburst.stargate.buffer.data.spooling.azure.AzureSpoolUtils.PATH_SEPARATOR;
+import static io.starburst.stargate.buffer.data.spooling.azure.AzureSpoolUtils.getContainerName;
+import static io.starburst.stargate.buffer.data.spooling.azure.AzureSpoolUtils.getHostName;
 import static java.util.Objects.requireNonNull;
 
 public class AzureBlobSpoolingStorage
         extends AbstractSpoolingStorage
 {
+    private final String hostName;
     private final String containerName;
     private final BlobContainerAsyncClient containerClient;
     private final BlobBatchAsyncClient batchClient;
@@ -59,7 +62,9 @@ public class AzureBlobSpoolingStorage
     {
         super(bufferNodeId, dataServerStats);
 
-        this.containerName = getBucketName(requireNonNull(chunkManagerConfig.getSpoolingDirectory(), "spoolingDirectory is null"));
+        URI spoolingDirectory = requireNonNull(chunkManagerConfig.getSpoolingDirectory(), "spoolingDirectory is null");
+        this.hostName = getHostName(spoolingDirectory);
+        this.containerName = getContainerName(spoolingDirectory);
         this.containerClient = requireNonNull(blobServiceAsyncClient, "blobServiceAsyncClient is null").getBlobContainerAsyncClient(containerName);
         this.batchClient = new BlobBatchClientBuilder(containerClient).buildAsyncClient();
         requireNonNull(azureBlobSpoolingConfig, "azureBlobSpoolingConfig is null");
@@ -82,9 +87,7 @@ public class AzureBlobSpoolingStorage
     @Override
     protected String getLocation(String fileName)
     {
-        // this isn't actually a valid Azure URI (which has the account name as the first part),
-        // but only the reader uses this to sanity check the scheme and get the container and file name.
-        return "ms://" + containerName + PATH_SEPARATOR + fileName;
+        return "abfs://" + containerName + "@" + hostName + PATH_SEPARATOR + fileName;
     }
 
     @Override

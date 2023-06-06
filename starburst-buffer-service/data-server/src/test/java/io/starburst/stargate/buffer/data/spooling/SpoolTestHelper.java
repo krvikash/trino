@@ -81,7 +81,7 @@ public final class SpoolTestHelper
     {
         return new AzureBlobSpoolingStorage(
                 new BufferNodeId(0L),
-                new ChunkManagerConfig().setSpoolingDirectory("ms://" + containerName),
+                new ChunkManagerConfig().setSpoolingDirectory("abfs://" + containerName + "@test.dfs.core.windows.net"),
                 new DataServerStats(),
                 client,
                 new AzureBlobSpoolingConfig());
