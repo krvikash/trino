@@ -269,6 +269,7 @@ public class DataResource
 
         if (currentInProgressAddDataPagesRequests > maxInProgressAddDataPagesRequests) {
             decrementInProgressAddDataPagesRequests();
+            stats.getOverloadedAddDataPagesCount().update(1);
             addDataPagesThrottlingCalculator.recordThrottlingEvent();
             logger.warn("rejecting POST /%s/addDataPages/%s/%s/%s; exceeded maximum in progress addDataPages requests (%s > %s)",
                     exchangeId, taskId, attemptId, dataPagesId, currentInProgressAddDataPagesRequests, maxInProgressAddDataPagesRequests);

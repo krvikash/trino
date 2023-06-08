@@ -34,6 +34,7 @@ public class DataServerStats
     private final CounterStat readDataSize = new CounterStat();
     private final DistributionStat readDataSizeDistribution = new DistributionStat();
     private final AtomicLong inProgressAddDataPagesRequests = new AtomicLong();
+    private final CounterStat overloadedAddDataPagesCount = new CounterStat();
 
     public void updateTotalMemoryInBytes(long totalMemoryInBytes)
     {
@@ -177,5 +178,11 @@ public class DataServerStats
     public void updateInProgressAddDataPagesRequests(long inProgressAddDataPagesRequests)
     {
         this.inProgressAddDataPagesRequests.set(inProgressAddDataPagesRequests);
+    }
+
+    @Managed
+    public CounterStat getOverloadedAddDataPagesCount()
+    {
+        return overloadedAddDataPagesCount;
     }
 }
