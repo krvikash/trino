@@ -26,7 +26,7 @@ public class TestMemoryAllocatorConfig
     public void assertDefaults()
     {
         assertRecordedDefaults(recordDefaults(MemoryAllocatorConfig.class)
-                .setHeapHeadroom(DataSize.ofBytes(Math.round(Runtime.getRuntime().maxMemory() * 0.18)))
+                .setHeapHeadroom(DataSize.ofBytes(Math.round(Runtime.getRuntime().maxMemory() * 0.16)))
                 .setAllocationRatioLowWatermark(0.75)
                 .setAllocationRatioHighWatermark(0.9)
                 .setChunkSlicePoolingFraction(0.8));
