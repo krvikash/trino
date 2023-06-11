@@ -107,6 +107,9 @@ public class AddDataPagesThrottlingCalculator
     public synchronized void recordProcessTimeInMillis(long processTimeInMillis)
     {
         checkState(recentProcessTimeQueue.size() == PROCESS_TIME_MOVING_AVERAGE_CALCULATION_WINDOW);
+        if (processTimeInMillis < 0) {
+            return;
+        }
 
         long head = recentProcessTimeQueue.poll();
         recentProcessTimeQueue.add(processTimeInMillis);
