@@ -17,6 +17,6 @@ public record RateLimitInfo(
 {
     public RateLimitInfo {
         checkArgument(rateLimit > 0, "rateLimit %s is not positive", rateLimit);
-        checkArgument(averageProcessTimeInMillis > 0, "averageProcessTimeInMillis %s is not positive", averageProcessTimeInMillis);
+        checkArgument(averageProcessTimeInMillis >= 0, "averageProcessTimeInMillis %s is not positive", averageProcessTimeInMillis);
     }
 }
