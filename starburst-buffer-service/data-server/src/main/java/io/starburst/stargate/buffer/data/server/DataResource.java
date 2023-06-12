@@ -333,7 +333,6 @@ public class DataResource
 
         AtomicReference<ReleasableReadListener> releasableReadListenerWrapper = new AtomicReference<>();
         AtomicBoolean inProgressCompletionFlag = new AtomicBoolean();
-        int x = 0;
         Futures.addCallback(
                 sliceLease.getSliceFuture(),
                 new FutureCallback<>() {
@@ -480,7 +479,6 @@ public class DataResource
                                     addDataPagesThrottlingCalculator.recordProcessTimeInMillis(System.currentTimeMillis() - start);
                                     addDataPagesThrottlingCalculator.updateCounterStat(request.getRemoteHost(), 1);
                                     decrementInProgressAddDataPagesRequests();
-                                    addDataPagesFutures.clear(); // clear to dereference and release memory retained by SliceLease
 
                                     // break reference chain from Jetty's HttpInput (implementation of ServletInputStream) to registered ReadListener.
                                     // For some reason Jetty keeps reference to ReadListener attached to ServletInputStream even after releases is already
