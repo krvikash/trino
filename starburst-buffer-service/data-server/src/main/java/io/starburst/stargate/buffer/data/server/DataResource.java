@@ -782,20 +782,19 @@ public class DataResource
             DELEGATE_RELEASED
         }
 
-        private final AtomicReference<ReadListener> delegate;
+        private volatile ReadListener delegate;
         private final AtomicReference<State> state;
 
         public ReleasableReadListener(ReadListener delegate)
         {
-            requireNonNull(delegate, "delegate is null");
-            this.delegate = new AtomicReference<>(delegate);
+            this.delegate = requireNonNull(delegate, "delegate is null");
             this.state = new AtomicReference<>(State.DELEGATE_SET);
         }
 
         private ReadListener getDelegate()
         {
-            ReadListener readListener = delegate.get();
             checkState(state.get() == State.DELEGATE_SET, "Delegate already released");
+            ReadListener readListener = delegate;
             verify(readListener != null);
             return readListener;
         }
@@ -803,7 +802,7 @@ public class DataResource
         public void releaseDelegate()
         {
             checkState(state.compareAndSet(State.DELEGATE_SET, State.DELEGATE_RELEASED), "Cannot set delegate; current state is %s", state.get());
-            delegate.set(null);
+            delegate = null;
         }
 
         @Override
