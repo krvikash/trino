@@ -197,7 +197,7 @@ class SinkMappingScaler
         }
         else {
             scaleUpLimit = true;
-            log.info("got to scaling limit for %s.%s", externalExchangeId, taskPartitionId);
+            log.debug("got to scaling limit for %s.%s", externalExchangeId, taskPartitionId);
         }
     }
 
