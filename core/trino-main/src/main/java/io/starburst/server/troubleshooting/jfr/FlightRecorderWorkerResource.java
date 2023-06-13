@@ -12,12 +12,11 @@ package io.starburst.server.troubleshooting.jfr;
 import com.google.inject.Inject;
 import io.trino.server.security.ResourceSecurity;
 import io.trino.spi.QueryId;
-
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.core.Response;
 
 import java.io.InputStream;
 import java.util.Map;
@@ -27,9 +26,9 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.starburst.server.troubleshooting.jfr.FlightRecorderWorkerResource.BASE_PATH_API_V1;
 import static io.starburst.server.troubleshooting.jfr.LocalRecordingFactory.RECORDING_FILENAME;
 import static io.trino.server.security.ResourceSecurity.AccessType.INTERNAL_ONLY;
+import static jakarta.ws.rs.core.Response.accepted;
+import static jakarta.ws.rs.core.Response.serverError;
 import static java.util.Objects.requireNonNull;
-import static javax.ws.rs.core.Response.accepted;
-import static javax.ws.rs.core.Response.serverError;
 
 @ResourceSecurity(INTERNAL_ONLY)
 @Path(BASE_PATH_API_V1)

@@ -21,17 +21,16 @@ import io.trino.server.security.ResourceSecurity;
 import io.trino.spi.QueryId;
 import io.trino.spi.security.Identity;
 import io.trino.spi.security.SelectedRole;
-
-import javax.annotation.Nullable;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.container.AsyncResponse;
-import javax.ws.rs.container.ContainerRequestContext;
-import javax.ws.rs.container.Suspended;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.Response;
+import jakarta.annotation.Nullable;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.container.AsyncResponse;
+import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.ws.rs.container.Suspended;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.Response;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -50,12 +49,12 @@ import static com.google.common.util.concurrent.Futures.transform;
 import static io.starburst.server.troubleshooting.TroubleshootingCoordinatorResource.BASE_PATH_API_V1;
 import static io.airlift.jaxrs.AsyncResponseHandler.bindAsyncResponse;
 import static io.trino.server.security.ResourceSecurity.AccessType.WEB_UI;
+import static jakarta.ws.rs.core.Response.Status.BAD_REQUEST;
+import static jakarta.ws.rs.core.Response.Status.FORBIDDEN;
 import static java.lang.String.format;
 import static java.net.URLDecoder.decode;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
-import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
-import static javax.ws.rs.core.Response.Status.FORBIDDEN;
 
 @ResourceSecurity(WEB_UI)
 @Path(BASE_PATH_API_V1)
