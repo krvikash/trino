@@ -11,7 +11,6 @@ package io.starburst.stargate.buffer.data.server;
 
 import com.google.common.base.Ticker;
 import io.airlift.log.Logger;
-import io.airlift.stats.CounterStat;
 import io.airlift.stats.DecayCounter;
 import io.airlift.units.Duration;
 
@@ -117,13 +116,13 @@ public class AddDataPagesThrottlingCalculator
 
     public void updateCounterStat(String remoteHost, long count)
     {
-        getCounter(remoteHost).updateCounterStat(count);
+        getCounterWithRate(remoteHost).add(count);
     }
 
     public OptionalDouble getRateLimit(String remoteHost, int inProgressAddDataPagesRequests)
     {
         // always call getRate first so timestamp and rate are up-to-date
-        double rate = getCounter(remoteHost).getRate();
+        double rate = getCounterWithRate(remoteHost).getRate();
         if (rate == 0) {
             // this is possible as the buffer node may be stressed by some other workers
             return OptionalDouble.empty();
@@ -150,8 +149,8 @@ public class AddDataPagesThrottlingCalculator
         return movingProcessTimeSumInMillis / PROCESS_TIME_MOVING_AVERAGE_CALCULATION_WINDOW;
     }
 
-    private CounterWithRate getCounter(String remoteHost)
+    private CounterWithRate getCounterWithRate(String remoteHost)
     {
-        return counters.computeIfAbsent(remoteHost, ignored -> new CounterWithRate(new CounterStat(), ticker));
+        return counters.computeIfAbsent(remoteHost, ignored -> new CounterWithRate(ticker));
     }
 }

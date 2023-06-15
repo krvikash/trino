@@ -11,9 +11,11 @@ package io.starburst.stargate.buffer.data.server;
 
 import com.google.common.base.Ticker;
 import io.airlift.log.Logger;
+import io.airlift.stats.CounterStat;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
+import javax.annotation.concurrent.GuardedBy;
 import javax.inject.Inject;
 
 import java.util.concurrent.Executors;
@@ -34,10 +36,10 @@ public class DataServerStatsLogger
     private final ScheduledExecutorService executorService;
     private final DataServerStats dataServerStats;
 
-    private final CounterWithRate spooledDataSize;
-    private final CounterWithRate spoolingFailures;
-    private final CounterWithRate writtenDataSize;
-    private final CounterWithRate readDataSize;
+    private final CounterStatWithRate spooledDataSize;
+    private final CounterStatWithRate spoolingFailures;
+    private final CounterStatWithRate writtenDataSize;
+    private final CounterStatWithRate readDataSize;
 
     @Inject
     public DataServerStatsLogger(DataServerStats dataServerStats)
@@ -46,10 +48,10 @@ public class DataServerStatsLogger
         executorService = Executors.newSingleThreadScheduledExecutor(daemonThreadsNamed("data-server-stats-logger"));
 
         Ticker ticker = Ticker.systemTicker();
-        this.spooledDataSize = new CounterWithRate(dataServerStats.getSpooledDataSize(), ticker);
-        this.spoolingFailures = new CounterWithRate(dataServerStats.getSpoolingFailures(), ticker);
-        this.writtenDataSize = new CounterWithRate(dataServerStats.getWrittenDataSize(), ticker);
-        this.readDataSize = new CounterWithRate(dataServerStats.getReadDataSize(), ticker);
+        this.spooledDataSize = new CounterStatWithRate(dataServerStats.getSpooledDataSize(), ticker);
+        this.spoolingFailures = new CounterStatWithRate(dataServerStats.getSpoolingFailures(), ticker);
+        this.writtenDataSize = new CounterStatWithRate(dataServerStats.getWrittenDataSize(), ticker);
+        this.readDataSize = new CounterStatWithRate(dataServerStats.getReadDataSize(), ticker);
     }
 
     @PostConstruct
@@ -95,5 +97,47 @@ public class DataServerStatsLogger
     public void stop()
     {
         executorService.shutdownNow();
+    }
+
+    private static class CounterStatWithRate
+    {
+        private final CounterStat counterStat;
+        private final Ticker ticker;
+
+        @GuardedBy("this")
+        private long lastUpdateTimeNanos;
+        @GuardedBy("this")
+        private long lastCounter;
+        @GuardedBy("this")
+        private double rate;
+
+        public CounterStatWithRate(CounterStat counterStat, Ticker ticker)
+        {
+            this.counterStat = requireNonNull(counterStat, "counterStat is null");
+            this.ticker = requireNonNull(ticker, "ticker is null");
+        }
+
+        public synchronized long getCounter()
+        {
+            return lastCounter;
+        }
+
+        public synchronized double getRate()
+        {
+            update(ticker.read(), counterStat.getTotalCount());
+            return rate;
+        }
+
+        @GuardedBy("this")
+        private void update(long currentTimeNanos, long counter)
+        {
+            if (lastUpdateTimeNanos != 0) {
+                double timeDelta = (currentTimeNanos - lastUpdateTimeNanos) / 1_000_000_000d;
+                long counterDelta = counter - lastCounter;
+                rate = (double) counterDelta / timeDelta;
+            }
+            lastUpdateTimeNanos = currentTimeNanos;
+            lastCounter = counter;
+        }
     }
 }

@@ -10,10 +10,11 @@
 package io.starburst.stargate.buffer.data.server;
 
 import com.google.common.base.Ticker;
-import io.airlift.stats.CounterStat;
 
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
+
+import java.util.concurrent.atomic.AtomicLong;
 
 import static java.util.Objects.requireNonNull;
 
@@ -22,9 +23,9 @@ public class CounterWithRate
 {
     private static final double MINIMUM_UPDATE_INTERVAL_IN_SECS = 1.0;
 
-    private final CounterStat counterStat;
     private final Ticker ticker;
 
+    private final AtomicLong counter = new AtomicLong();
     @GuardedBy("this")
     private long lastUpdateTimeNanos;
     @GuardedBy("this")
@@ -32,25 +33,19 @@ public class CounterWithRate
     @GuardedBy("this")
     private double rate;
 
-    public CounterWithRate(CounterStat counterStat, Ticker ticker)
+    public CounterWithRate(Ticker ticker)
     {
-        this.counterStat = requireNonNull(counterStat, "counterStat is null");
         this.ticker = requireNonNull(ticker, "ticker is null");
     }
 
-    public void updateCounterStat(long count)
+    public void add(long count)
     {
-        counterStat.update(count);
-    }
-
-    public synchronized long getCounter()
-    {
-        return lastCounter;
+        counter.getAndAdd(count);
     }
 
     public synchronized double getRate()
     {
-        update(ticker.read(), counterStat.getTotalCount());
+        update(ticker.read(), counter.get());
         return rate;
     }
 
