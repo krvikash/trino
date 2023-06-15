@@ -34,7 +34,7 @@ public class RateMonitor
 {
     private static final Logger log = Logger.get(RateMonitor.class);
 
-    private static final long MAX_INTERVAL_IN_MILLIS = 30_000;
+    private static final long MAX_INTERVAL_IN_MILLIS = 5_000;
 
     private final Ticker ticker;
 
@@ -61,7 +61,7 @@ public class RateMonitor
         long averageProcessTimeInMillis = rateLimitInfo.get().averageProcessTimeInMillis();
         long intervalInMillis = min(max(expectedTotalTimeInMillis - averageProcessTimeInMillis, 0), MAX_INTERVAL_IN_MILLIS); // just in case delay goes absurd
         if (intervalInMillis == MAX_INTERVAL_IN_MILLIS) {
-            log.warn("Rate limit interval %d larger than MAX_INTERVAL_IN_MILLIS %d", expectedTotalTimeInMillis - averageProcessTimeInMillis, MAX_INTERVAL_IN_MILLIS);
+            log.error("Rate limit interval %d larger than MAX_INTERVAL_IN_MILLIS %d", expectedTotalTimeInMillis - averageProcessTimeInMillis, MAX_INTERVAL_IN_MILLIS);
         }
         Deque<Long> executionSchedule = executionSchedules.computeIfAbsent(bufferNodeId, ignored -> new ArrayDeque<>());
         long now = tickerReadMillis();

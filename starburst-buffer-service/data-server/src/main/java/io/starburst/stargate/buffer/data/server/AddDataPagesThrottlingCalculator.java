@@ -40,8 +40,9 @@ public class AddDataPagesThrottlingCalculator
     private static final Logger log = Logger.get(AddDataPagesThrottlingCalculator.class);
 
     private static final double DECAY_COUNT_RATE_LIMIT_THRESHOLD = 0.5;
+    private static final double RATE_LIMIT_LOWER_BOUND = 1.0;
     private static final int PROCESS_TIME_MOVING_AVERAGE_CALCULATION_WINDOW = 50;
-    private static final Duration REMOTE_HOST_STALENESS_THRESHOLD = succinctDuration(5, MINUTES);
+    private static final Duration REMOTE_HOST_STALENESS_THRESHOLD = succinctDuration(2, MINUTES);
     private static final Duration REMOTE_HOST_CLEANUP_INTERVAL = succinctDuration(30, SECONDS);
 
     private final DecayCounter decayCounter;
@@ -137,7 +138,11 @@ public class AddDataPagesThrottlingCalculator
             rate = rate - rate * (inProgressAddDataPagesRequests - inProgressAddDataPagesRequestsRateLimitThreshold) / maxInProgressAddDataPagesRequests;
         }
 
-        return OptionalDouble.of(rate);
+        // if we are far away from the hard throttling limit, we can relax the rate limiting for non-chatty clients,
+        // otherwise lean towards stricter rate limit control
+        double minRateBasedOnHeuristics = (maxInProgressAddDataPagesRequests - inProgressAddDataPagesRequests) / (counters.size() + 0.0001);
+
+        return OptionalDouble.of(Math.max(rate, Math.max(RATE_LIMIT_LOWER_BOUND, minRateBasedOnHeuristics)));
     }
 
     public synchronized long getAverageProcessTimeInMillis()
