@@ -71,11 +71,6 @@ public class DataServerStatsLogger
 
     private void logStats()
     {
-        spooledDataSize.update();
-        spoolingFailures.update();
-        writtenDataSize.update();
-        readDataSize.update();
-
         log.info("STATS START\n" +
                 "total_memory: %s\n".formatted(succinctBytes(dataServerStats.getTotalMemoryInBytes())) +
                 "free_memory: %s\n".formatted(succinctBytes(dataServerStats.getFreeMemoryInBytes())) +

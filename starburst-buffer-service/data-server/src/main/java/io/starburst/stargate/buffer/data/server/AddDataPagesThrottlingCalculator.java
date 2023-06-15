@@ -116,25 +116,20 @@ public class AddDataPagesThrottlingCalculator
 
     public void updateCounterStat(String remoteHost, long count)
     {
-        counters.computeIfAbsent(remoteHost, ignored -> new CounterWithRate(new CounterStat(), ticker)).updateCounterStat(count);
+        getCounter(remoteHost).updateCounterStat(count);
     }
 
     public OptionalDouble getRateLimit(String remoteHost, int inProgressAddDataPagesRequests)
     {
-        double rate;
-        CounterWithRate counterWithRate = counters.computeIfAbsent(remoteHost, ignored -> new CounterWithRate(new CounterStat(), ticker));
-        //noinspection SynchronizationOnLocalVariableOrMethodParameter
-        synchronized (counterWithRate) {
-            counterWithRate.update();
-            rate = counterWithRate.getRate();
+        // always call getRate first so timestamp and rate are up-to-date
+        double rate = getCounter(remoteHost).getRate();
+        if (rate == 0) {
+            // this is possible as the buffer node may be stressed by some other workers
+            return OptionalDouble.empty();
         }
 
         if (inProgressAddDataPagesRequests < inProgressAddDataPagesRequestsRateLimitThreshold && decayCounter.getCount() < DECAY_COUNT_RATE_LIMIT_THRESHOLD) {
             // if we are not overloaded, then no need to rate limit
-            return OptionalDouble.empty();
-        }
-        if (rate == 0) {
-            // this is possible as the buffer node may be stressed by some other workers
             return OptionalDouble.empty();
         }
 
@@ -148,5 +143,10 @@ public class AddDataPagesThrottlingCalculator
     public synchronized long getAverageProcessTimeInMillis()
     {
         return movingProcessTimeSumInMillis / PROCESS_TIME_MOVING_AVERAGE_CALCULATION_WINDOW;
+    }
+
+    private CounterWithRate getCounter(String remoteHost)
+    {
+        return counters.computeIfAbsent(remoteHost, ignored -> new CounterWithRate(new CounterStat(), ticker));
     }
 }
