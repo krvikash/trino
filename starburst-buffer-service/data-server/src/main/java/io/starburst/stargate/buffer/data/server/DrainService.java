@@ -9,13 +9,12 @@
  */
 package io.starburst.stargate.buffer.data.server;
 
+import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.BufferNodeState;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
-
-import javax.annotation.PreDestroy;
-import javax.inject.Inject;
+import jakarta.annotation.PreDestroy;
 
 import java.util.Optional;
 import java.util.concurrent.Executors;

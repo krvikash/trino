@@ -10,9 +10,8 @@
 
 package io.starburst.stargate.buffer.discovery.server;
 
+import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.starburst.stargate.buffer.BufferNodeInfo;
-
-import javax.annotation.concurrent.GuardedBy;
 
 import static java.util.Objects.requireNonNull;
 

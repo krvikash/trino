@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>139</version>
+        <version>142</version>
     </parent>
 
     <groupId>io.starburst.stargate.buffer</groupId>
@@ -35,15 +35,15 @@
         <air.java.version>17.0.1</air.java.version>
         <project.build.targetJdk>17</project.build.targetJdk>
 
-        <dep.airlift.version>231</dep.airlift.version>
+        <dep.airlift.version>233</dep.airlift.version>
         <dep.slice.version>0.45</dep.slice.version>
-        <dep.errorprone.version>2.19.1</dep.errorprone.version>
-        <dep.trino.version>419</dep.trino.version>
+        <dep.errorprone.version>2.20.0</dep.errorprone.version>
+        <dep.trino.version>420</dep.trino.version>
         <dep.joda.version>2.12.5</dep.joda.version> <!-- required by Trino 414 -->
         <dep.datadog-agent.version>0.114.0</dep.datadog-agent.version>
-        <dep.jackson.version>2.15.1</dep.jackson.version>
+        <dep.jackson.version>2.15.2</dep.jackson.version>
 
-        <dep.awsjavasdk.version>2.20.65</dep.awsjavasdk.version>
+        <dep.awsjavasdk.version>2.20.89</dep.awsjavasdk.version>
 
         <!-- force common version; pulled by some test dependencies -->
         <dep.kotlin.version>1.8.0</dep.kotlin.version>
@@ -168,7 +168,7 @@
                 <groupId>com.azure</groupId>
                 <artifactId>azure-sdk-bom</artifactId>
                 <type>pom</type>
-                <version>1.2.11</version>
+                <version>1.2.13</version>
                 <scope>import</scope>
             </dependency>
 
@@ -264,6 +264,10 @@
                         <groupId>org.apache.httpcomponents</groupId>
                         <artifactId>httpcore</artifactId>
                     </exclusion>
+                    <exclusion>
+                        <groupId>com.google.j2objc</groupId>
+                        <artifactId>j2objc-annotations</artifactId>
+                    </exclusion>
                 </exclusions>
             </dependency>
 
@@ -279,6 +283,10 @@
                     <exclusion>
                         <groupId>commons-logging</groupId>
                         <artifactId>commons-logging</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.google.j2objc</groupId>
+                        <artifactId>j2objc-annotations</artifactId>
                     </exclusion>
                 </exclusions>
             </dependency>
@@ -307,6 +315,10 @@
                     <exclusion>
                         <groupId>org.checkerframework</groupId>
                         <artifactId>checker-qual</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.google.j2objc</groupId>
+                        <artifactId>j2objc-annotations</artifactId>
                     </exclusion>
                 </exclusions>
             </dependency>
@@ -416,7 +428,7 @@
             <dependency>
                 <groupId>org.checkerframework</groupId>
                 <artifactId>checker-qual</artifactId>
-                <version>3.31.0</version>
+                <version>3.33.0</version>
             </dependency>
 
             <dependency>
@@ -589,6 +601,9 @@
                         <exclusionPatterns>
                             <exclusionPattern>com/google/common/collect/Iterables.*</exclusionPattern>
                         </exclusionPatterns>
+                        <exclusions>
+                            <exclusion>com/google/inject/Provider</exclusion>
+                        </exclusions>
                     </configuration>
                 </plugin>
 

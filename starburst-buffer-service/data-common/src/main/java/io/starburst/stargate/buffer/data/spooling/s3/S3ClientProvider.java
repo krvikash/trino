@@ -9,10 +9,9 @@
  */
 package io.starburst.stargate.buffer.data.spooling.s3;
 
+import com.google.inject.Inject;
+import com.google.inject.Provider;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
-
-import javax.inject.Inject;
-import javax.inject.Provider;
 
 public class S3ClientProvider
         implements Provider<S3AsyncClient>

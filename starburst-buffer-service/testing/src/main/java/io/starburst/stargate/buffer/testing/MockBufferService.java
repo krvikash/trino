@@ -10,12 +10,11 @@
 package io.starburst.stargate.buffer.testing;
 
 import com.google.common.collect.ImmutableSet;
+import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.data.client.DataApi;
 import io.starburst.stargate.buffer.discovery.client.BufferNodeInfoResponse;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
-
-import javax.annotation.concurrent.GuardedBy;
 
 import java.util.HashMap;
 import java.util.Map;

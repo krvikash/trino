@@ -12,10 +12,9 @@ package io.starburst.stargate.buffer.trino.exchange;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeStats;
-
-import javax.annotation.concurrent.GuardedBy;
 
 import java.util.Collection;
 import java.util.Map;

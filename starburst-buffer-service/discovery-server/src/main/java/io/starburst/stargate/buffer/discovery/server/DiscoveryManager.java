@@ -13,15 +13,14 @@ package io.starburst.stargate.buffer.discovery.server;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Ticker;
 import com.google.common.collect.ImmutableSet;
+import com.google.inject.BindingAnnotation;
+import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.discovery.client.InvalidBufferNodeUpdateException;
-
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
-import javax.inject.Inject;
-import javax.inject.Qualifier;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
@@ -168,6 +167,6 @@ public class DiscoveryManager
 
     @Retention(RUNTIME)
     @Target({FIELD, PARAMETER, METHOD})
-    @Qualifier
+    @BindingAnnotation
     @interface ForDiscoveryManager {}
 }

@@ -15,7 +15,7 @@ import io.starburst.stargate.buffer.data.spooling.SpoolingUtils;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
-import software.amazon.awssdk.core.internal.async.ByteArrayAsyncRequestBody;
+import software.amazon.awssdk.core.internal.async.ByteBuffersAsyncRequestBody;
 import software.amazon.awssdk.core.internal.util.Mimetype;
 
 import java.nio.ByteBuffer;
@@ -24,7 +24,7 @@ import java.util.Optional;
 import static java.util.Objects.requireNonNull;
 
 /**
- * This class mimics the implementation of {@link ByteArrayAsyncRequestBody} except for we directly
+ * This class mimics the implementation of {@link ByteBuffersAsyncRequestBody} except for we directly
  * write chunkDataLease to avoid unnecessary memory copy
  *
  * An implementation of {@link AsyncRequestBody} for providing data from memory.

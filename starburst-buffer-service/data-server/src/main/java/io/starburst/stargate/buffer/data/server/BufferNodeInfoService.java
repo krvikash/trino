@@ -9,13 +9,12 @@
  */
 package io.starburst.stargate.buffer.data.server;
 
+import com.google.inject.Inject;
 import io.airlift.http.server.HttpServerInfo;
 import io.airlift.node.NodeInfo;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeStats;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
-
-import javax.inject.Inject;
 
 import java.net.URI;
 import java.time.Instant;

@@ -9,6 +9,7 @@
  */
 package io.starburst.stargate.buffer.data.spooling.s3;
 
+import jakarta.annotation.Nullable;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -20,8 +21,6 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3AsyncClientBuilder;
 import software.amazon.awssdk.services.s3.S3Configuration;
-
-import javax.annotation.Nullable;
 
 import java.net.URI;
 import java.util.Optional;

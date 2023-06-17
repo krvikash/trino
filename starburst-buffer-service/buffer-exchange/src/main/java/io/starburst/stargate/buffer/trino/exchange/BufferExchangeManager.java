@@ -10,6 +10,7 @@
 package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.io.Closer;
+import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.trino.spi.exchange.Exchange;
 import io.trino.spi.exchange.ExchangeContext;
@@ -17,8 +18,6 @@ import io.trino.spi.exchange.ExchangeManager;
 import io.trino.spi.exchange.ExchangeSink;
 import io.trino.spi.exchange.ExchangeSinkInstanceHandle;
 import io.trino.spi.exchange.ExchangeSource;
-
-import javax.inject.Inject;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutorService;

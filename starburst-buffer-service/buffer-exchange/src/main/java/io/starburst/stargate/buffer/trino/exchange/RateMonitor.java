@@ -11,10 +11,9 @@ package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Ticker;
+import com.google.errorprone.annotations.ThreadSafe;
 import io.airlift.log.Logger;
 import io.starburst.stargate.buffer.data.client.RateLimitInfo;
-
-import javax.annotation.concurrent.ThreadSafe;
 
 import java.util.ArrayDeque;
 import java.util.Deque;

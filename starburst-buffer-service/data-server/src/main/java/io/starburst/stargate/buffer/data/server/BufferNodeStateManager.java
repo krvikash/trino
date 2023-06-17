@@ -9,12 +9,11 @@
  */
 package io.starburst.stargate.buffer.data.server;
 
+import com.google.errorprone.annotations.concurrent.GuardedBy;
+import com.google.inject.Inject;
 import io.airlift.bootstrap.LifeCycleManager;
 import io.airlift.log.Logger;
 import io.starburst.stargate.buffer.BufferNodeState;
-
-import javax.annotation.concurrent.GuardedBy;
-import javax.inject.Inject;
 
 import java.util.concurrent.ExecutorService;
 

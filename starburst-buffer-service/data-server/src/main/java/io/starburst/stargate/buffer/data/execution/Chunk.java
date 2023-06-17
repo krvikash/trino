@@ -14,6 +14,7 @@ import com.google.common.util.concurrent.AbstractFuture;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.airlift.slice.Slice;
 import io.airlift.slice.SliceOutput;
 import io.airlift.slice.Slices;
@@ -21,9 +22,6 @@ import io.airlift.slice.XxHash64;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.SliceLease;
-
-import javax.annotation.concurrent.GuardedBy;
-import javax.annotation.concurrent.NotThreadSafe;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,7 +36,7 @@ import static java.util.Objects.requireNonNull;
 
 // Note on thread-safety: only release(), getChunkData(), getAllocatedMemory() and chunkDataInMemory()
 // may be concurrently called after Chunk is closed
-@NotThreadSafe
+// This class is not thread safe
 public class Chunk
 {
     private final long bufferNodeId;

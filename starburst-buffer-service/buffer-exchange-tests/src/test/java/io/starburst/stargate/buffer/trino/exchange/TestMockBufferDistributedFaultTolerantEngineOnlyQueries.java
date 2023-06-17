@@ -24,7 +24,6 @@ import org.testng.annotations.Test;
 
 import static io.airlift.testing.Closeables.closeAllSuppress;
 
-@Test
 public class TestMockBufferDistributedFaultTolerantEngineOnlyQueries
         extends AbstractDistributedEngineOnlyQueries
 {

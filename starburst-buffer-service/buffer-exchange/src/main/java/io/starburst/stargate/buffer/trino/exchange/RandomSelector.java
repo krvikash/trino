@@ -9,7 +9,7 @@
  */
 package io.starburst.stargate.buffer.trino.exchange;
 
-import javax.inject.Provider;
+import com.google.inject.Provider;
 
 import java.util.Collection;
 import java.util.concurrent.ThreadLocalRandom;

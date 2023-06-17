@@ -31,9 +31,8 @@ import io.starburst.stargate.buffer.data.server.MainModule;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 import io.starburst.stargate.buffer.status.StatusModule;
 import io.starburst.stargate.buffer.status.StatusProvider;
+import jakarta.ws.rs.core.UriBuilder;
 import org.weakref.jmx.guice.MBeanModule;
-
-import javax.ws.rs.core.UriBuilder;
 
 import java.io.Closeable;
 import java.io.IOException;

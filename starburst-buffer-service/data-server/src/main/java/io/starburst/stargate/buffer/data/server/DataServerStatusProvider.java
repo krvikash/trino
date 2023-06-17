@@ -9,9 +9,8 @@
  */
 package io.starburst.stargate.buffer.data.server;
 
+import com.google.inject.Inject;
 import io.starburst.stargate.buffer.status.StatusProvider;
-
-import javax.inject.Inject;
 
 import java.util.Optional;
 

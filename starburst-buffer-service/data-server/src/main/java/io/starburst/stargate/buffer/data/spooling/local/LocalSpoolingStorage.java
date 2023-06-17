@@ -11,6 +11,7 @@ package io.starburst.stargate.buffer.data.spooling.local;
 
 import com.google.common.io.MoreFiles;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.inject.Inject;
 import io.airlift.slice.OutputStreamSliceOutput;
 import io.airlift.slice.SliceOutput;
 import io.starburst.stargate.buffer.data.client.spooling.SpoolingFile;
@@ -18,9 +19,7 @@ import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
-
-import javax.annotation.PreDestroy;
-import javax.inject.Inject;
+import jakarta.annotation.PreDestroy;
 
 import java.io.File;
 import java.io.FileOutputStream;

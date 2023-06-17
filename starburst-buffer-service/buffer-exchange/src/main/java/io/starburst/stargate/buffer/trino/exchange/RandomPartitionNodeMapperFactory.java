@@ -9,9 +9,8 @@
  */
 package io.starburst.stargate.buffer.trino.exchange;
 
+import com.google.inject.Inject;
 import io.trino.spi.exchange.ExchangeId;
-
-import javax.inject.Inject;
 
 import static java.util.Objects.requireNonNull;
 

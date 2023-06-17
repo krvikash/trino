@@ -9,12 +9,11 @@
  */
 package io.starburst.stargate.buffer.data.client;
 
+import com.google.inject.Inject;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.HttpClientConfig;
 import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
-
-import javax.inject.Inject;
 
 import java.net.URI;
 

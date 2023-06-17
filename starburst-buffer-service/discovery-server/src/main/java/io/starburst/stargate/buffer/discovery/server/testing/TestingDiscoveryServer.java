@@ -27,9 +27,8 @@ import io.airlift.tracetoken.TraceTokenModule;
 import io.starburst.stargate.buffer.discovery.server.DiscoveryManagerModule;
 import io.starburst.stargate.buffer.discovery.server.ServerModule;
 import io.starburst.stargate.buffer.discovery.server.failures.FailuresTrackingManagerModule;
+import jakarta.ws.rs.core.UriBuilder;
 import org.weakref.jmx.guice.MBeanModule;
-
-import javax.ws.rs.core.UriBuilder;
 
 import java.io.Closeable;
 import java.io.IOException;

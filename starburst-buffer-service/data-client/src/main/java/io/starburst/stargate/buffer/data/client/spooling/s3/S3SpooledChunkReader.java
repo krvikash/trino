@@ -12,15 +12,14 @@ package io.starburst.stargate.buffer.data.client.spooling.s3;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.inject.Inject;
 import io.starburst.stargate.buffer.data.client.DataApiConfig;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.SpoolingFile;
+import jakarta.annotation.PreDestroy;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-
-import javax.annotation.PreDestroy;
-import javax.inject.Inject;
 
 import java.net.URI;
 import java.util.List;

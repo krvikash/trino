@@ -10,8 +10,7 @@
 package io.starburst.stargate.buffer.status;
 
 import com.google.common.collect.ImmutableSet;
-
-import javax.inject.Inject;
+import com.google.inject.Inject;
 
 import java.util.Set;
 import java.util.function.Function;

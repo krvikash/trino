@@ -10,11 +10,10 @@
 package io.starburst.stargate.buffer.discovery.server.failures;
 
 import com.google.common.base.Ticker;
+import com.google.inject.BindingAnnotation;
+import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.airlift.stats.DecayCounter;
-
-import javax.inject.Inject;
-import javax.inject.Qualifier;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
@@ -52,6 +51,6 @@ public class FailuresTrackingManager
 
     @Retention(RUNTIME)
     @Target({FIELD, PARAMETER, METHOD})
-    @Qualifier
+    @BindingAnnotation
     @interface ForFailuresTrackingManager {}
 }

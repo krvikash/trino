@@ -11,12 +11,11 @@ package io.starburst.stargate.buffer.data.client.spooling.azure;
 
 import com.azure.storage.blob.BlobServiceAsyncClient;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.inject.Inject;
 import io.starburst.stargate.buffer.data.client.DataApiConfig;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.SpoolingFile;
-
-import javax.inject.Inject;
 
 import java.net.URI;
 import java.nio.ByteBuffer;

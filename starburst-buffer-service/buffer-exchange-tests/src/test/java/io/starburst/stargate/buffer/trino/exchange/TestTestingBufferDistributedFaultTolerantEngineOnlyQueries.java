@@ -28,7 +28,6 @@ import java.net.URI;
 
 import static io.airlift.testing.Closeables.closeAllSuppress;
 
-@Test
 public class TestTestingBufferDistributedFaultTolerantEngineOnlyQueries
         extends AbstractDistributedEngineOnlyQueries
 {

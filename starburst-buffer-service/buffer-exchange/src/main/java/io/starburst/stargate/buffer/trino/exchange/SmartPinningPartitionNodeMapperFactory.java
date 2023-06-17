@@ -9,10 +9,9 @@
  */
 package io.starburst.stargate.buffer.trino.exchange;
 
+import com.google.inject.Inject;
 import io.airlift.units.Duration;
 import io.trino.spi.exchange.ExchangeId;
-
-import javax.inject.Inject;
 
 import java.util.concurrent.ScheduledExecutorService;
 
