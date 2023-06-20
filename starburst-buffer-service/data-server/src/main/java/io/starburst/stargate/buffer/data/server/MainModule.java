@@ -125,7 +125,7 @@ public class MainModule
             binder.bind(Storage.class).toProvider(StorageProvider.class).in(SINGLETON);
             binder.bind(SpoolingStorage.class).to(GcsSpoolingStorage.class).in(SINGLETON);
         }
-        else if (scheme.equals("ms")) {
+        else if (scheme.equals("abfs")) {
             configBinder(binder).bindConfig(AzureBlobClientConfig.class);
             configBinder(binder).bindConfig(AzureBlobSpoolingConfig.class);
             binder.bind(BlobServiceAsyncClient.class).toProvider(BlobServiceAsyncClientProvider.class).in(SINGLETON);
