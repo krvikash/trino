@@ -227,6 +227,7 @@ public class TestDataApiFacade
 
     @Test
     public void testAddDataPagesRequestCancellation()
+            throws InterruptedException
     {
         TestingDataApi dataApiDelegate = new TestingDataApi();
         DataApiFacade dataApiFacade = createDataApiFacade(
@@ -241,6 +242,7 @@ public class TestDataApiFacade
             return Optional.empty();
         }));
         ListenableFuture<Void> addDataPagesFuture0 = dataApiFacade.addDataPages(TestingDataApi.NODE_ID, EXCHANGE_0, 0, 0, 0L, ImmutableListMultimap.of());
+        Thread.sleep(100); // wait for addDataPages job above to start execution
         addDataPagesFuture0.cancel(true);
         assertThatThrownBy(() -> getFutureValue(addDataPagesFuture0)).isInstanceOf(CancellationException.class);
         assertThat(dataApiDelegate.getAddDataPagesCallCount(EXCHANGE_0, 0, 0, 0L)).isEqualTo(1);
