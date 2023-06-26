@@ -715,7 +715,7 @@ public class DataResource
         }
     }
 
-    // this function is needed to immediately return http response without consuming request payload
+    // this function is needed to immediately return http response letting Jetty consume request payload behind the scenes.
     // for more information, see https://github.com/starburstdata/trino-buffer-service/issues/269
     private void completeServletResponse(AsyncContext asyncContext, Optional<Throwable> throwable)
             throws IOException
