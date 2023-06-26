@@ -35,7 +35,7 @@ public interface BufferNodeDiscoveryManager
         private final Map<Long, BufferNodeInfo> activeBufferNodes;
         private final Set<BufferNodeInfo> activeBufferNodesSet;
 
-        BufferNodesState(
+        public BufferNodesState(
                 long timestamp,
                 Map<Long, BufferNodeInfo> allBufferNodes)
         {
