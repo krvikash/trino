@@ -710,9 +710,7 @@ public class DataResource
                     RATE_LIMIT_HEADER, Double.toString(rateLimit.getAsDouble()),
                     AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER, Long.toString(addDataPagesThrottlingCalculator.getAverageProcessTimeInMillis()));
         }
-        else {
-            return ImmutableMap.of();
-        }
+        return ImmutableMap.of();
     }
 
     // this function is needed to immediately return http response letting Jetty consume request payload behind the scenes.
