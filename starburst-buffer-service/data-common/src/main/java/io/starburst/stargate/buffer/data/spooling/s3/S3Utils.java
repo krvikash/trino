@@ -63,10 +63,6 @@ public class S3Utils
         Optional<Region> region = s3ClientConfig.getRegion();
         Optional<String> endpoint = s3ClientConfig.getS3Endpoint();
 
-        if (endpoint.isPresent() && region.isPresent()) {
-            throw new IllegalArgumentException("Either S3 endpoint or region can be specified");
-        }
-
         S3AsyncClientBuilder s3AsyncClientBuilder = S3AsyncClient.builder()
                 .credentialsProvider(credentialsProvider)
                 .serviceConfiguration(S3Configuration.builder()

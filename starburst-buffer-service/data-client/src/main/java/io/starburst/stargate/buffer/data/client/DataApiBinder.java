@@ -36,6 +36,7 @@ import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolingStorageType.AZURE;
+import static io.starburst.stargate.buffer.data.client.spooling.SpoolingStorageType.GCS;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolingStorageType.LOCAL;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolingStorageType.NONE;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolingStorageType.S3;
@@ -93,7 +94,7 @@ public class DataApiBinder
         moduleInstall.accept(ConditionalModule.conditionalModule(
                 DataApiConfig.class,
                 dataApiName,
-                config -> config.getSpoolingStorageType() == S3,
+                config -> config.getSpoolingStorageType() == S3 || config.getSpoolingStorageType() == GCS,
                 binder -> {
                     configBinder(binder).bindConfig(S3ClientConfig.class, dataApiName);
                     binder.bind(S3AsyncClient.class).toProvider(S3ClientProvider.class).in(Scopes.SINGLETON);

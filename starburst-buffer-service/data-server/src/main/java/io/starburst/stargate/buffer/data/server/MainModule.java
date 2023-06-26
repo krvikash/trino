@@ -26,6 +26,7 @@ import io.starburst.stargate.buffer.data.spooling.azure.AzureBlobClientConfig;
 import io.starburst.stargate.buffer.data.spooling.azure.AzureBlobSpoolingConfig;
 import io.starburst.stargate.buffer.data.spooling.azure.AzureBlobSpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.azure.BlobServiceAsyncClientProvider;
+import io.starburst.stargate.buffer.data.spooling.gcs.GcsClientConfig;
 import io.starburst.stargate.buffer.data.spooling.local.LocalSpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.s3.S3ClientConfig;
 import io.starburst.stargate.buffer.data.spooling.s3.S3ClientProvider;
@@ -45,6 +46,8 @@ import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
+import static io.starburst.stargate.buffer.data.spooling.s3.S3SpoolingStorage.CompatibilityMode.AWS;
+import static io.starburst.stargate.buffer.data.spooling.s3.S3SpoolingStorage.CompatibilityMode.GCP;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newCachedThreadPool;
 import static org.weakref.jmx.guice.ExportBinder.newExporter;
@@ -111,9 +114,11 @@ public class MainModule
         if (scheme == null || scheme.equals("file")) {
             binder.bind(SpoolingStorage.class).to(LocalSpoolingStorage.class).in(SINGLETON);
         }
-        else if (scheme.equals("s3")) {
+        else if (scheme.equals("s3") || scheme.equals("gs")) {
             configBinder(binder).bindConfig(S3ClientConfig.class);
+            configBinder(binder).bindConfig(GcsClientConfig.class);
             binder.bind(S3AsyncClient.class).toProvider(S3ClientProvider.class).in(SINGLETON);
+            binder.bind(S3SpoolingStorage.CompatibilityMode.class).toInstance(scheme.equals("s3") ? AWS : GCP);
             binder.bind(SpoolingStorage.class).to(S3SpoolingStorage.class).in(SINGLETON);
         }
         else if (scheme.equals("abfs")) {

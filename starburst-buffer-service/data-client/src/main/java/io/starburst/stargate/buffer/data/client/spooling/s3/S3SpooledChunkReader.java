@@ -57,7 +57,7 @@ public class S3SpooledChunkReader
         int length = spoolingFile.length();
 
         String scheme = uri.getScheme();
-        checkArgument(uri.getScheme().equals("s3"), "Unexpected storage scheme %s for S3SpooledChunkReader, expecting s3", scheme);
+        checkArgument(scheme.equals("s3") || scheme.equals("gs"), "Unexpected storage scheme %s for S3SpooledChunkReader, expecting s3/gs", scheme);
 
         GetObjectRequest getObjectRequest = GetObjectRequest.builder()
                 .bucket(getBucketName(uri))

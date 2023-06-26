@@ -20,12 +20,15 @@ import io.starburst.stargate.buffer.data.server.BufferNodeId;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
 import io.starburst.stargate.buffer.data.spooling.azure.AzureBlobSpoolingConfig;
 import io.starburst.stargate.buffer.data.spooling.azure.AzureBlobSpoolingStorage;
+import io.starburst.stargate.buffer.data.spooling.gcs.GcsClientConfig;
 import io.starburst.stargate.buffer.data.spooling.local.LocalSpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.s3.MinioStorage;
 import io.starburst.stargate.buffer.data.spooling.s3.S3ClientConfig;
 import io.starburst.stargate.buffer.data.spooling.s3.S3SpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.s3.S3Utils;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.concurrent.ExecutorService;
 
 public final class SpoolTestHelper
@@ -34,14 +37,21 @@ public final class SpoolTestHelper
 
     public static SpoolingStorage createS3SpoolingStorage(MinioStorage minioStorage)
     {
-        return new S3SpoolingStorage(
-                new BufferNodeId(0L),
-                new ChunkManagerConfig().setSpoolingDirectory("s3://" + minioStorage.getBucketName()),
-                S3Utils.createS3Client(new S3ClientConfig()
-                        .setS3AwsAccessKey(MinioStorage.ACCESS_KEY)
-                        .setS3AwsSecretKey(MinioStorage.SECRET_KEY)
-                        .setS3Endpoint("http://" + minioStorage.getMinio().getMinioApiEndpoint())),
-                new DataServerStats());
+        try {
+            return new S3SpoolingStorage(
+                    new BufferNodeId(0L),
+                    new ChunkManagerConfig().setSpoolingDirectory("s3://" + minioStorage.getBucketName()),
+                    S3Utils.createS3Client(new S3ClientConfig()
+                            .setS3AwsAccessKey(MinioStorage.ACCESS_KEY)
+                            .setS3AwsSecretKey(MinioStorage.SECRET_KEY)
+                            .setS3Endpoint("http://" + minioStorage.getMinio().getMinioApiEndpoint())),
+                    new DataServerStats(),
+                    S3SpoolingStorage.CompatibilityMode.AWS,
+                    new GcsClientConfig());
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     public static SpooledChunkReader createS3SpooledChunkReader(MinioStorage minioStorage, ExecutorService executor)
