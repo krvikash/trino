@@ -10,7 +10,6 @@
 package io.starburst.stargate.buffer.data.server;
 
 import com.azure.storage.blob.BlobServiceAsyncClient;
-import com.google.cloud.storage.Storage;
 import com.google.common.base.Ticker;
 import com.google.inject.Binder;
 import com.google.inject.Provides;
@@ -27,9 +26,6 @@ import io.starburst.stargate.buffer.data.spooling.azure.AzureBlobClientConfig;
 import io.starburst.stargate.buffer.data.spooling.azure.AzureBlobSpoolingConfig;
 import io.starburst.stargate.buffer.data.spooling.azure.AzureBlobSpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.azure.BlobServiceAsyncClientProvider;
-import io.starburst.stargate.buffer.data.spooling.gcs.GcsClientConfig;
-import io.starburst.stargate.buffer.data.spooling.gcs.GcsSpoolingStorage;
-import io.starburst.stargate.buffer.data.spooling.gcs.StorageProvider;
 import io.starburst.stargate.buffer.data.spooling.local.LocalSpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.s3.S3ClientConfig;
 import io.starburst.stargate.buffer.data.spooling.s3.S3ClientProvider;
@@ -119,11 +115,6 @@ public class MainModule
             configBinder(binder).bindConfig(S3ClientConfig.class);
             binder.bind(S3AsyncClient.class).toProvider(S3ClientProvider.class).in(SINGLETON);
             binder.bind(SpoolingStorage.class).to(S3SpoolingStorage.class).in(SINGLETON);
-        }
-        else if (scheme.equals("gs")) {
-            configBinder(binder).bindConfig(GcsClientConfig.class);
-            binder.bind(Storage.class).toProvider(StorageProvider.class).in(SINGLETON);
-            binder.bind(SpoolingStorage.class).to(GcsSpoolingStorage.class).in(SINGLETON);
         }
         else if (scheme.equals("abfs")) {
             configBinder(binder).bindConfig(AzureBlobClientConfig.class);

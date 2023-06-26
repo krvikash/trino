@@ -10,7 +10,6 @@
 package io.starburst.stargate.buffer.data.client;
 
 import com.azure.storage.blob.BlobServiceAsyncClient;
-import com.google.cloud.storage.Storage;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.google.inject.Binder;
 import com.google.inject.Module;
@@ -22,14 +21,11 @@ import io.airlift.http.client.HttpClientConfig;
 import io.airlift.units.DataSize;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.azure.AzureBlobSpooledChunkReader;
-import io.starburst.stargate.buffer.data.client.spooling.gcs.GcsSpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.local.LocalSpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.noop.NoopSpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.s3.S3SpooledChunkReader;
 import io.starburst.stargate.buffer.data.spooling.azure.AzureBlobClientConfig;
 import io.starburst.stargate.buffer.data.spooling.azure.BlobServiceAsyncClientProvider;
-import io.starburst.stargate.buffer.data.spooling.gcs.GcsClientConfig;
-import io.starburst.stargate.buffer.data.spooling.gcs.StorageProvider;
 import io.starburst.stargate.buffer.data.spooling.s3.S3ClientConfig;
 import io.starburst.stargate.buffer.data.spooling.s3.S3ClientProvider;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
@@ -40,7 +36,6 @@ import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolingStorageType.AZURE;
-import static io.starburst.stargate.buffer.data.client.spooling.SpoolingStorageType.GCS;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolingStorageType.LOCAL;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolingStorageType.NONE;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolingStorageType.S3;
@@ -103,16 +98,6 @@ public class DataApiBinder
                     configBinder(binder).bindConfig(S3ClientConfig.class, dataApiName);
                     binder.bind(S3AsyncClient.class).toProvider(S3ClientProvider.class).in(Scopes.SINGLETON);
                     binder.bind(SpooledChunkReader.class).to(S3SpooledChunkReader.class).in(Scopes.SINGLETON);
-                }));
-
-        moduleInstall.accept(ConditionalModule.conditionalModule(
-                DataApiConfig.class,
-                dataApiName,
-                config -> config.getSpoolingStorageType() == GCS,
-                binder -> {
-                    configBinder(binder).bindConfig(GcsClientConfig.class, dataApiName);
-                    binder.bind(Storage.class).toProvider(StorageProvider.class).in(Scopes.SINGLETON);
-                    binder.bind(SpooledChunkReader.class).to(GcsSpooledChunkReader.class).in(Scopes.SINGLETON);
                 }));
 
         moduleInstall.accept(ConditionalModule.conditionalModule(
