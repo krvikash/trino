@@ -90,6 +90,8 @@ public class DataServerStatsLogger
                 "read_data_size_distribution: %s\n".formatted(dataServerStats.getReadDataSizeDistribution().snapshot()) +
                 "in_progress_add_data_pages_requests: %s\n".formatted(dataServerStats.getInProgressAddDataPagesRequests()) +
                 "overloaded_add_data_pages_count: %s\n".formatted(dataServerStats.getOverloadedAddDataPagesCount().getTotalCount()) +
+                "spooled_sharing_exchange_count: %s\n".formatted(dataServerStats.getSpooledSharingExchangeCount()) +
+                "spooled_sharing_exchange_size: %s\n".formatted(dataServerStats.getSpooledSharingExchangeSize()) +
                 "STATS END\n");
     }
 

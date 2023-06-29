@@ -36,6 +36,11 @@ public class DataServerStats
     private final AtomicLong inProgressAddDataPagesRequests = new AtomicLong();
     private final CounterStat overloadedAddDataPagesCount = new CounterStat();
 
+    // how many chunks sharing exchange were spooled within single iteration
+    private final DistributionStat spooledSharingExchangeCount = new DistributionStat();
+    // what is the total size of chunks sharing exchange spooled withing single iteration
+    private final DistributionStat spooledSharingExchangeSize = new DistributionStat();
+
     public void updateTotalMemoryInBytes(long totalMemoryInBytes)
     {
         this.totalMemoryInBytes.set(totalMemoryInBytes);
@@ -184,5 +189,19 @@ public class DataServerStats
     public CounterStat getOverloadedAddDataPagesCount()
     {
         return overloadedAddDataPagesCount;
+    }
+
+    @Managed
+    @Nested
+    public DistributionStat getSpooledSharingExchangeCount()
+    {
+        return spooledSharingExchangeCount;
+    }
+
+    @Managed
+    @Nested
+    public DistributionStat getSpooledSharingExchangeSize()
+    {
+        return spooledSharingExchangeSize;
     }
 }
