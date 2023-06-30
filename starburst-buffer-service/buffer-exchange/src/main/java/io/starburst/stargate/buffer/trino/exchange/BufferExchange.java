@@ -241,13 +241,6 @@ public class BufferExchange
             }
 
             if (preserveOrderWithinPartition) {
-                long bufferNodeId = chunkHandles.peekFirst().bufferNodeId();
-                chunkHandles.forEach(handle -> checkState(
-                        handle.bufferNodeId() == bufferNodeId,
-                        "Expected all chunk handles for given partition to have matching buffer node id when preserving order; mismatch %s vs %s",
-                        handle,
-                        bufferNodeId));
-
                 newReadySourceHandles.add(BufferExchangeSourceHandle.fromChunkHandles(
                         externalExchangeId,
                         partitionId,
