@@ -17,7 +17,7 @@ import com.google.inject.Inject;
 import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
-import io.trino.collect.cache.EvictableCacheBuilder;
+import io.trino.cache.EvictableCacheBuilder;
 import io.trino.dispatcher.DispatchManager;
 import io.trino.execution.QueryInfo;
 import io.trino.spi.QueryId;
