@@ -443,6 +443,60 @@ public class TestDataApiFacade
         assertThat(dataApiDelegate.getAddDataPagesCallCount(EXCHANGE_0, 0, 0, 0)).isEqualTo(6);
     }
 
+    @Test
+    public void testAddDataPagesStats()
+            throws InterruptedException
+    {
+        TestingDataApi dataApiDelegate = new TestingDataApi();
+        DataApiFacade dataApiFacade = createDataApiFacade(
+                dataApiDelegate,
+                BufferNodeState.ACTIVE,
+                // misconfigured on purpose
+                new RetryExecutorConfig(0, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 2, 1, Duration.valueOf("500ms")),
+                new RetryExecutorConfig(2, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 2, 1, Duration.valueOf("500ms")));
+
+        DataApiFacadeStats.AddDataPagesOperationStats stats = dataApiFacade.getStats().getAddDataPagesOperationStats();
+        assertThat(stats.getSuccessfulRequestTime().getAllTime().getCount()).isEqualTo(0.0);
+        assertThat(stats.getFailedRequestTime().getAllTime().getCount()).isEqualTo(0.0);
+        assertThat(stats.getOverloadedRequestErrorCount().getTotalCount()).isEqualTo(0);
+        assertThat(stats.getCircuitBreakerOpenRequestErrorCount().getTotalCount()).isEqualTo(0);
+        assertThat(stats.getAnyRequestErrorCount().getTotalCount()).isEqualTo(0);
+        assertThat(stats.getRequestRetryCount().getTotalCount()).isEqualTo(0);
+        assertThat(stats.getSuccessOperationCount().getTotalCount()).isEqualTo(0);
+        assertThat(stats.getFailedOperationCount().getTotalCount()).isEqualTo(0);
+
+        dataApiDelegate.recordAddDataPages(EXCHANGE_0, 0, 0, 0, immediateFailedFuture(new DataApiException(ErrorCode.OVERLOADED, "overloaded")));
+        dataApiDelegate.recordAddDataPages(EXCHANGE_0, 0, 0, 0, immediateFailedFuture(new RuntimeException("unexpected exception")));
+        dataApiDelegate.recordAddDataPages(EXCHANGE_0, 0, 0, 0, immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
+        dataApiDelegate.recordAddDataPages(EXCHANGE_0, 0, 0, 0, immediateFuture(Optional.empty()));
+        dataApiDelegate.recordAddDataPages(EXCHANGE_0, 0, 0, 0, immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
+        dataApiDelegate.recordAddDataPages(EXCHANGE_0, 0, 0, 0, immediateFuture(Optional.empty()));
+
+        assertThat(dataApiFacade.addDataPages(TestingDataApi.NODE_ID, EXCHANGE_0, 0, 0, 0, ImmutableListMultimap.of()))
+                .failsWithin(1, SECONDS);
+        assertThat(dataApiFacade.addDataPages(TestingDataApi.NODE_ID, EXCHANGE_0, 0, 0, 0, ImmutableListMultimap.of()))
+                .failsWithin(1, SECONDS);
+        Thread.sleep(600);
+        assertThat(dataApiFacade.addDataPages(TestingDataApi.NODE_ID, EXCHANGE_0, 0, 0, 0, ImmutableListMultimap.of()))
+                .failsWithin(1, SECONDS);
+        assertThat(dataApiFacade.addDataPages(TestingDataApi.NODE_ID, EXCHANGE_0, 0, 0, 0, ImmutableListMultimap.of()))
+                .failsWithin(1, SECONDS);
+        Thread.sleep(600);
+        assertThat(dataApiFacade.addDataPages(TestingDataApi.NODE_ID, EXCHANGE_0, 0, 0, 0, ImmutableListMultimap.of()))
+                .succeedsWithin(1, SECONDS);
+        assertThat(dataApiFacade.addDataPages(TestingDataApi.NODE_ID, EXCHANGE_0, 0, 0, 0, ImmutableListMultimap.of()))
+                .succeedsWithin(1, SECONDS);
+
+        assertThat(stats.getSuccessfulRequestTime().getAllTime().getCount()).isEqualTo(2.0);
+        assertThat(stats.getFailedRequestTime().getAllTime().getCount()).isEqualTo(4.0);
+        assertThat(stats.getOverloadedRequestErrorCount().getTotalCount()).isEqualTo(1);
+        assertThat(stats.getCircuitBreakerOpenRequestErrorCount().getTotalCount()).isEqualTo(13);
+        assertThat(stats.getAnyRequestErrorCount().getTotalCount()).isEqualTo(17);
+        assertThat(stats.getRequestRetryCount().getTotalCount()).isEqualTo(13);
+        assertThat(stats.getSuccessOperationCount().getTotalCount()).isEqualTo(2);
+        assertThat(stats.getFailedOperationCount().getTotalCount()).isEqualTo(4);
+    }
+
     private DataApiFacade createDataApiFacade(
             TestingDataApi dataApiDelegate,
             BufferNodeState bufferNodeState,
@@ -457,6 +511,7 @@ public class TestDataApiFacade
         return new DataApiFacade(
                 discoveryManager,
                 apiFactory,
+                new DataApiFacadeStats(),
                 defaultRetryExecutorConfig,
                 addDataPagesRetryExecutorConfig,
                 executor);

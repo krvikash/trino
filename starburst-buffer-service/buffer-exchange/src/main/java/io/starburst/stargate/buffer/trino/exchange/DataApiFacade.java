@@ -21,6 +21,7 @@ import com.google.common.util.concurrent.SettableFuture;
 import com.google.errorprone.annotations.ThreadSafe;
 import com.google.inject.Inject;
 import dev.failsafe.CircuitBreaker;
+import dev.failsafe.CircuitBreakerOpenException;
 import dev.failsafe.Failsafe;
 import dev.failsafe.FailsafeExecutor;
 import dev.failsafe.RetryPolicy;
@@ -72,6 +73,7 @@ public class DataApiFacade
 
     private final BufferNodeDiscoveryManager discoveryManager;
     private final ApiFactory apiFactory;
+    private final DataApiFacadeStats stats;
     private final Map<Long, DataApi> dataApiClients = new ConcurrentHashMap<>();
     private final Map<Long, FailsafeExecutor<Object>> defaultRetryExecutors = new ConcurrentHashMap<>();
     private final Map<Long, FailsafeExecutor<Object>> addDataPagesRetryExecutors = new ConcurrentHashMap<>();
@@ -81,6 +83,8 @@ public class DataApiFacade
     private final ListeningScheduledExecutorService listeningScheduledExecutor;
     private final RateMonitor rateMonitor;
     private final Closer destroyCloser = Closer.create();
+
+    private final DataApiFacadeStats.AddDataPagesOperationStats addDataPagesStats = new DataApiFacadeStats.AddDataPagesOperationStats();
 
     record RetryExecutorConfig(
             int maxRetries,
@@ -96,12 +100,14 @@ public class DataApiFacade
     public DataApiFacade(
             BufferNodeDiscoveryManager discoveryManager,
             ApiFactory apiFactory,
+            DataApiFacadeStats stats,
             BufferExchangeConfig config,
             ScheduledExecutorService executor)
     {
         this(
                 discoveryManager,
                 apiFactory,
+                stats,
                 new RetryExecutorConfig(
                         config.getDataClientMaxRetries(),
                         config.getDataClientRetryBackoffInitial(),
@@ -127,12 +133,14 @@ public class DataApiFacade
     DataApiFacade(
             BufferNodeDiscoveryManager discoveryManager,
             ApiFactory apiFactory,
+            DataApiFacadeStats stats,
             RetryExecutorConfig defaultRetryExecutorConfig,
             RetryExecutorConfig addDataPagesRetryExecutorConfig,
             ScheduledExecutorService executor)
     {
         this.discoveryManager = requireNonNull(discoveryManager, "discoveryManager is null");
         this.apiFactory = requireNonNull(apiFactory, "apiFactory is null");
+        this.stats = requireNonNull(stats, "stats is null");
         this.defaultRetryExecutorConfig = requireNonNull(defaultRetryExecutorConfig, "defaultRetryExecutorConfig is null");
         this.addDataPagesRetryExecutorConfig = requireNonNull(addDataPagesRetryExecutorConfig, "addDataPagesRetryExecutorConfig is null");
         this.executor = requireNonNull(executor, "executor is null");
@@ -194,6 +202,12 @@ public class DataApiFacade
         staleAddDataPagesRetryExecutors.forEach(addDataPagesRetryExecutors::remove);
 
         rateMonitor.cleanUp(isBufferNodeStale);
+    }
+
+    @VisibleForTesting
+    DataApiFacadeStats getStats()
+    {
+        return stats;
     }
 
     public ListenableFuture<ChunkList> listClosedChunks(long bufferNodeId, String exchangeId, OptionalLong pagingId)
@@ -417,7 +431,7 @@ public class DataApiFacade
 
     private RetryPolicy<Object> createDefaultRetryPolicy()
     {
-        return createRetryPolicy(defaultRetryExecutorConfig);
+        return createRetryPolicy(defaultRetryExecutorConfig, Optional.empty());
     }
 
     private CircuitBreaker<Object> createDefaultCircuitBreakerPolicy(long bufferNodeId)
@@ -427,7 +441,7 @@ public class DataApiFacade
 
     private RetryPolicy<Object> createAddDataPagesRetryPolicy()
     {
-        return createRetryPolicy(addDataPagesRetryExecutorConfig);
+        return createRetryPolicy(addDataPagesRetryExecutorConfig, Optional.of(new AddDataPagesStatsUpdater(stats.getAddDataPagesOperationStats())));
     }
 
     private CircuitBreaker<Object> createAddDataPagesCircuitBreakerPolicy(long bufferNodeId)
@@ -435,7 +449,7 @@ public class DataApiFacade
         return createCircuitBreakerPolicy(bufferNodeId, addDataPagesRetryExecutorConfig);
     }
 
-    private static RetryPolicy<Object> createRetryPolicy(RetryExecutorConfig config)
+    private static RetryPolicy<Object> createRetryPolicy(RetryExecutorConfig config, Optional<OperationLifecycleListener> lifecycleListener)
     {
         return RetryPolicy.builder()
                 .withBackoff(
@@ -444,7 +458,16 @@ public class DataApiFacade
                         config.backoffFactor())
                 .withMaxRetries(config.maxRetries())
                 .withJitter(config.backoffJitter())
-                .onFailedAttempt(event -> rateLimitingLogger.warn(event.getLastException(), "failed DataApi request attempt (%s, +%s)".formatted(event.getAttemptCount(), succinctDuration(event.getElapsedTime().toMillis(), TimeUnit.MILLISECONDS))))
+                .onFailedAttempt(event -> {
+                    rateLimitingLogger.warn(event.getLastException(), "failed DataApi request attempt (%s, +%s)".formatted(event.getAttemptCount(), succinctDuration(event.getElapsedTime().toMillis(), TimeUnit.MILLISECONDS)));
+                    lifecycleListener.ifPresent(listener -> listener.onRetry(event.getLastException(), event.getElapsedAttemptTime().toNanos()));
+                })
+                .onFailure(event -> {
+                    lifecycleListener.ifPresent(listener -> listener.onFailure(event.getException(), event.getElapsedAttemptTime().toNanos()));
+                })
+                .onSuccess(event -> {
+                    lifecycleListener.ifPresent(listener -> listener.onSuccess(event.getElapsedAttemptTime().toNanos()));
+                })
                 .handleIf(throwable -> {
                     if (!(throwable instanceof DataApiException dataApiException)) {
                         return true;
@@ -513,5 +536,62 @@ public class DataApiFacade
     private DataApi createDataApi(BufferNodeInfo bufferNodeInfo)
     {
         return apiFactory.createDataApi(bufferNodeInfo);
+    }
+
+    private interface OperationLifecycleListener
+    {
+        void onRetry(Throwable retryReason, long requestTimeNanos);
+
+        void onFailure(Throwable failureReason, long requestTimeNanos);
+
+        void onSuccess(long requestTimeNanos);
+    }
+
+    private static class AddDataPagesStatsUpdater
+            implements OperationLifecycleListener
+    {
+        private final DataApiFacadeStats.AddDataPagesOperationStats stats;
+
+        public AddDataPagesStatsUpdater(DataApiFacadeStats.AddDataPagesOperationStats stats)
+        {
+            this.stats = requireNonNull(stats, "stats is null");
+        }
+
+        @Override
+        public void onRetry(Throwable retryReason, long requestTimeNanos)
+        {
+            updateRequestErrorStats(retryReason, requestTimeNanos);
+            stats.getRequestRetryCount().update(1);
+        }
+
+        @Override
+        public void onFailure(Throwable failureReason, long requestTimeNanos)
+        {
+            updateRequestErrorStats(failureReason, requestTimeNanos);
+            stats.getFailedOperationCount().update(1);
+        }
+
+        private void updateRequestErrorStats(Throwable retryReason, long requestTimeNanos)
+        {
+            stats.getAnyRequestErrorCount().update(1);
+            if (retryReason instanceof DataApiException dataApiException && dataApiException.getErrorCode() == ErrorCode.OVERLOADED) {
+                stats.getOverloadedRequestErrorCount().update(1);
+            }
+            else if (retryReason instanceof CircuitBreakerOpenException) {
+                stats.getCircuitBreakerOpenRequestErrorCount().update(1);
+            }
+
+            if (!(retryReason instanceof CircuitBreakerOpenException)) {
+                // skip time statistics if did not make a request
+                stats.getFailedRequestTime().addNanos(requestTimeNanos);
+            }
+        }
+
+        @Override
+            public void onSuccess(long requestTimeNanos)
+        {
+            stats.getSuccessOperationCount().update(1);
+            stats.getSuccessfulRequestTime().addNanos(requestTimeNanos);
+        }
     }
 }

@@ -31,6 +31,7 @@ import static io.starburst.stargate.buffer.data.client.DataApiBinder.dataApiBind
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newCachedThreadPool;
 import static java.util.concurrent.Executors.newScheduledThreadPool;
+import static org.weakref.jmx.guice.ExportBinder.newExporter;
 
 public class BufferExchangeModule
         extends AbstractConfigurationAwareModule
@@ -55,6 +56,8 @@ public class BufferExchangeModule
         binder.bind(ScheduledExecutorService.class).to(ListeningScheduledExecutorService.class);
         binder.bind(ExecutorService.class).toInstance(newCachedThreadPool(daemonThreadsNamed("buffer-exchange-%s"))); // todo - make thread count bounded?
         binder.bind(DataApiFacade.class).in(Scopes.SINGLETON);
+        binder.bind(DataApiFacadeStats.class).in(Scopes.SINGLETON);
+        newExporter(binder).export(DataApiFacadeStats.class).withGeneratedName();
 
         bindPartitionNodeMapper(PartitionNodeMappingMode.PINNING_SINGLE, PinningPartitionNodeMapperFactory.class);
         bindPartitionNodeMapper(PartitionNodeMappingMode.PINNING_MULTI, SmartPinningPartitionNodeMapperFactory.class);
