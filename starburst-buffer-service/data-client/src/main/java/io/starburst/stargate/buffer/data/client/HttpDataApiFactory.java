@@ -16,6 +16,7 @@ import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
 
 import java.net.URI;
+import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
@@ -44,6 +45,6 @@ public class HttpDataApiFactory
     @Override
     public DataApi createDataApi(URI baseUri, long targetBufferNodeId)
     {
-        return new HttpDataClient(baseUri, targetBufferNodeId, httpClient, httpIdleTimeout, spooledChunkReader, dataIntegrityVerificationEnabled);
+        return new HttpDataClient(baseUri, targetBufferNodeId, httpClient, httpIdleTimeout, spooledChunkReader, dataIntegrityVerificationEnabled, Optional.empty());
     }
 }

@@ -38,6 +38,7 @@ import org.junit.jupiter.api.TestInstance;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -96,7 +97,7 @@ public class TestDataServer
                 .setConfigProperty("draining.min-duration", "2s")
                 .build();
         httpClient = new JettyHttpClient(new HttpClientConfig().setMaxContentLength(DataSize.of(64, MEGABYTE)));
-        dataClient = new HttpDataClient(dataServer.getBaseUri(), BUFFER_NODE_ID, httpClient, succinctDuration(60, SECONDS), new LocalSpooledChunkReader(new DataApiConfig()), true);
+        dataClient = new HttpDataClient(dataServer.getBaseUri(), BUFFER_NODE_ID, httpClient, succinctDuration(60, SECONDS), new LocalSpooledChunkReader(new DataApiConfig()), true, Optional.empty());
 
         // Wait for Node to become ready
         await().atMost(TEN_SECONDS).until(
@@ -344,7 +345,7 @@ public class TestDataServer
     @Test
     public void testInvalidTargetDataNodeId()
     {
-        HttpDataClient invalidDataClient = new HttpDataClient(dataServer.getBaseUri(), BUFFER_NODE_ID + 1, httpClient, succinctDuration(60, SECONDS), new NoopSpooledChunkReader(), true);
+        HttpDataClient invalidDataClient = new HttpDataClient(dataServer.getBaseUri(), BUFFER_NODE_ID + 1, httpClient, succinctDuration(60, SECONDS), new NoopSpooledChunkReader(), true, Optional.empty());
         Slice largePage = utf8Slice("1".repeat((int) DataSize.of(10, MEGABYTE).toBytes()));
 
         assertThatThrownBy(() -> getFutureValue(invalidDataClient.addDataPages(EXCHANGE_0, 0, 0, 0, ImmutableListMultimap.of(0, largePage))))

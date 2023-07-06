@@ -116,15 +116,15 @@ public class AddDataPagesThrottlingCalculator
         movingProcessTimeSumInMillis += processTimeInMillis;
     }
 
-    public void updateCounterStat(String remoteHost, long count)
+    public void updateCounterStat(String clientId, long count)
     {
-        getCounterWithRate(remoteHost).add(count);
+        getCounterWithRate(clientId).add(count);
     }
 
-    public OptionalDouble getRateLimit(String remoteHost, int inProgressAddDataPagesRequests)
+    public OptionalDouble getRateLimit(String clientId, int inProgressAddDataPagesRequests)
     {
         // always call getRate first so timestamp and rate are up-to-date
-        double rate = getCounterWithRate(remoteHost).getRate();
+        double rate = getCounterWithRate(clientId).getRate();
         if (rate == 0) {
             // this is possible as the buffer node may be stressed by some other workers
             return OptionalDouble.empty();

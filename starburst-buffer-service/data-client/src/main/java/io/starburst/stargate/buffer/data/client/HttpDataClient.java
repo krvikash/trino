@@ -82,6 +82,7 @@ public class HttpDataClient
     public static final String AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER = "X-trino-average-process-time-in-millis";
     public static final String SPOOLING_FILE_LOCATION_HEADER = "X-trino-buffer-spooling-file-location";
     public static final String SPOOLING_FILE_SIZE_HEADER = "X-trino-buffer-spooling-file-size";
+    public static final String CLIENT_ID_HEADER = "X-trino-buffer-client-id";
 
     private static final JsonCodec<ChunkList> CHUNK_LIST_JSON_CODEC = jsonCodec(ChunkList.class);
     private static final JsonCodec<BufferNodeInfo> BUFFER_NODE_INFO_JSON_CODEC = jsonCodec(BufferNodeInfo.class);
@@ -92,6 +93,7 @@ public class HttpDataClient
     private final Duration httpIdleTimeout;
     private final SpooledChunkReader spooledChunkReader;
     private final boolean dataIntegrityVerificationEnabled;
+    private final Optional<String> clientId;
 
     public HttpDataClient(
             URI baseUri,
@@ -99,7 +101,8 @@ public class HttpDataClient
             HttpClient httpClient,
             Duration httpIdleTimeout,
             SpooledChunkReader spooledChunkReader,
-            boolean dataIntegrityVerificationEnabled)
+            boolean dataIntegrityVerificationEnabled,
+            Optional<String> clientId)
     {
         this.httpIdleTimeout = httpIdleTimeout;
         requireNonNull(baseUri, "baseUri is null");
@@ -112,6 +115,7 @@ public class HttpDataClient
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
         this.spooledChunkReader = requireNonNull(spooledChunkReader, "spooledChunkReader is null");
         this.dataIntegrityVerificationEnabled = dataIntegrityVerificationEnabled;
+        this.clientId = requireNonNull(clientId, "clientId is null");
     }
 
     @Override
@@ -265,15 +269,16 @@ public class HttpDataClient
             }
         }
 
-        Request request = preparePost()
+        Request.Builder requestBuilder = preparePost()
                 .setUri(uriBuilderFrom(baseUri)
                         .appendPath("%s/addDataPages/%d/%d/%d".formatted(exchangeId, taskId, attemptId, dataPagesId))
                         .addParameter("targetBufferNodeId", String.valueOf(targetBufferNodeId))
                         .build())
                 .setBodyGenerator(new ByteBufferBodyGenerator(byteBuffers))
                 .setHeader(CONTENT_LENGTH, String.valueOf(contentLength))
-                .setHeader(MAX_WAIT, httpIdleTimeout.toString())
-                .build();
+                .setHeader(MAX_WAIT, httpIdleTimeout.toString());
+        clientId.ifPresent(clientId -> requestBuilder.setHeader(CLIENT_ID_HEADER, clientId));
+        Request request = requestBuilder.build();
 
         HttpResponseFuture<StringResponse> responseFuture = httpClient.executeAsync(request, createStringResponseHandler());
         return transform(

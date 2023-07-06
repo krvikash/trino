@@ -39,7 +39,6 @@ import jakarta.servlet.AsyncContext;
 import jakarta.servlet.ReadListener;
 import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.ServletOutputStream;
-import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.WriteListener;
 import jakarta.servlet.http.HttpServletRequest;
@@ -92,6 +91,7 @@ import static io.starburst.stargate.buffer.data.client.ErrorCode.INTERNAL_ERROR;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.OVERLOADED;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.USER_ERROR;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER;
+import static io.starburst.stargate.buffer.data.client.HttpDataClient.CLIENT_ID_HEADER;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.ERROR_CODE_HEADER;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.RATE_LIMIT_HEADER;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLING_FILE_LOCATION_HEADER;
@@ -427,7 +427,7 @@ public class DataResource
                                                 Futures.transform(
                                                         nonCancellationPropagating(allAsList(addDataPagesFutures)),
                                                         ignored -> {
-                                                            OptionalDouble rateLimit = addDataPagesThrottlingCalculator.getRateLimit(request.getRemoteHost(), inProgressAddDataPagesRequests.get());
+                                                            OptionalDouble rateLimit = addDataPagesThrottlingCalculator.getRateLimit(getClientId(request), inProgressAddDataPagesRequests.get());
                                                             if (rateLimit.isPresent()) {
                                                                 return Response.ok()
                                                                         .header(RATE_LIMIT_HEADER, Double.toString(rateLimit.getAsDouble()))
@@ -477,7 +477,7 @@ public class DataResource
                                 }
                                 finally {
                                     addDataPagesThrottlingCalculator.recordProcessTimeInMillis(System.currentTimeMillis() - start);
-                                    addDataPagesThrottlingCalculator.updateCounterStat(request.getRemoteHost(), 1);
+                                    addDataPagesThrottlingCalculator.updateCounterStat(getClientId(request), 1);
                                     decrementInProgressAddDataPagesRequests();
 
                                     // break reference chain from Jetty's HttpInput (implementation of ServletInputStream) to registered ReadListener.
@@ -494,6 +494,15 @@ public class DataResource
                     }
                 },
                 executor);
+    }
+
+    private static String getClientId(HttpServletRequest request)
+    {
+        String clientId = request.getHeader(CLIENT_ID_HEADER);
+        if (clientId == null) {
+            clientId = request.getRemoteHost();
+        }
+        return clientId;
     }
 
     private int incrementInProgressAddDataPagesRequests()
@@ -702,9 +711,9 @@ public class DataResource
         }
     }
 
-    private Map<String, String> getRateLimitHeaders(ServletRequest request)
+    private Map<String, String> getRateLimitHeaders(HttpServletRequest request)
     {
-        OptionalDouble rateLimit = addDataPagesThrottlingCalculator.getRateLimit(request.getRemoteHost(), inProgressAddDataPagesRequests.get());
+        OptionalDouble rateLimit = addDataPagesThrottlingCalculator.getRateLimit(getClientId(request), inProgressAddDataPagesRequests.get());
         if (rateLimit.isPresent()) {
             return ImmutableMap.of(
                     RATE_LIMIT_HEADER, Double.toString(rateLimit.getAsDouble()),
@@ -720,7 +729,7 @@ public class DataResource
     {
         HttpServletResponse servletResponse = (HttpServletResponse) asyncContext.getResponse();
         servletResponse.setContentType("text/plain");
-        getRateLimitHeaders(asyncContext.getRequest()).forEach(servletResponse::setHeader);
+        getRateLimitHeaders((HttpServletRequest) asyncContext.getRequest()).forEach(servletResponse::setHeader);
 
         if (throwable.isPresent()) {
             servletResponse.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
