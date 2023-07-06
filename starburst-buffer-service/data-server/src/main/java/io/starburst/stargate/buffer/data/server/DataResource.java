@@ -242,19 +242,19 @@ public class DataResource
             @Suspended AsyncResponse asyncResponse)
             throws IOException
     {
-        long start = System.currentTimeMillis();
+        long processingStart = System.currentTimeMillis();
         AsyncContext asyncContext = request.getAsyncContext();
         try {
             checkTargetBufferNodeId(targetBufferNodeId);
         }
         catch (RuntimeException e) {
             logger.warn(e, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
-            completeServletResponse(asyncContext, Optional.of(e));
+            completeServletResponse(asyncContext, processingStart, Optional.of(e));
             return;
         }
 
         if (dropUploadedPages) {
-            completeServletResponse(asyncContext, Optional.empty());
+            completeServletResponse(asyncContext, processingStart, Optional.empty());
             return;
         }
 
@@ -262,7 +262,7 @@ public class DataResource
         if (bufferNodeStateManager.isDrainingStarted()) {
             decrementInProgressAddDataPagesRequests();
             logger.info("rejecting POST /%s/addDataPages/%s/%s/%s; node already DRAINING", exchangeId, taskId, attemptId, dataPagesId);
-            completeServletResponse(asyncContext, Optional.of(new DataServerException(DRAINING, "Node %d is draining and not accepting any more data".formatted(bufferNodeId))));
+            completeServletResponse(asyncContext, processingStart, Optional.of(new DataServerException(DRAINING, "Node %d is draining and not accepting any more data".formatted(bufferNodeId))));
             return;
         }
 
@@ -274,6 +274,7 @@ public class DataResource
                     exchangeId, taskId, attemptId, dataPagesId, currentInProgressAddDataPagesRequests, maxInProgressAddDataPagesRequests);
             completeServletResponse(
                     asyncContext,
+                    processingStart,
                     Optional.of(new DataServerException(OVERLOADED, "Exceeded maximum in progress addDataPages requests (%s)".formatted(maxInProgressAddDataPagesRequests))));
             return;
         }
@@ -286,7 +287,7 @@ public class DataResource
         catch (IOException e) {
             try {
                 logger.warn(e, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
-                completeServletResponse(asyncContext, Optional.of(e));
+                completeServletResponse(asyncContext, processingStart, Optional.of(e));
                 return;
             }
             finally {
@@ -476,8 +477,7 @@ public class DataResource
                                     sliceLease.release();
                                 }
                                 finally {
-                                    addDataPagesThrottlingCalculator.recordProcessTimeInMillis(System.currentTimeMillis() - start);
-                                    addDataPagesThrottlingCalculator.updateCounterStat(getClientId(request), 1);
+                                    recordAddDataPagesRequest(processingStart, request);
                                     decrementInProgressAddDataPagesRequests();
 
                                     // break reference chain from Jetty's HttpInput (implementation of ServletInputStream) to registered ReadListener.
@@ -494,6 +494,12 @@ public class DataResource
                     }
                 },
                 executor);
+    }
+
+    private void recordAddDataPagesRequest(long start, HttpServletRequest request)
+    {
+        addDataPagesThrottlingCalculator.recordProcessTimeInMillis(System.currentTimeMillis() - start);
+        addDataPagesThrottlingCalculator.updateCounterStat(getClientId(request), 1);
     }
 
     private static String getClientId(HttpServletRequest request)
@@ -724,7 +730,7 @@ public class DataResource
 
     // this function is needed to immediately return http response letting Jetty consume request payload behind the scenes.
     // for more information, see https://github.com/starburstdata/trino-buffer-service/issues/269
-    private void completeServletResponse(AsyncContext asyncContext, Optional<Throwable> throwable)
+    private void completeServletResponse(AsyncContext asyncContext, long processingStart, Optional<Throwable> throwable)
             throws IOException
     {
         HttpServletResponse servletResponse = (HttpServletResponse) asyncContext.getResponse();
@@ -744,6 +750,8 @@ public class DataResource
         else {
             servletResponse.setStatus(HttpServletResponse.SC_OK);
         }
+
+        recordAddDataPagesRequest(processingStart, (HttpServletRequest) asyncContext.getRequest());
 
         asyncContext.complete();
     }
