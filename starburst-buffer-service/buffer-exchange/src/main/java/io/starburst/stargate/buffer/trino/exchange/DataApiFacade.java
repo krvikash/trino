@@ -65,7 +65,8 @@ import static java.util.Objects.requireNonNull;
 public class DataApiFacade
 {
     private static final Logger log = Logger.get(DataApiFacade.class);
-    private static final RateLimitingLogger rateLimitingLogger = new RateLimitingLogger(log);
+    private static final boolean ENABLE_LOG_RATE_LIMITING = true;
+    private static final RateLimitingLogger rateLimitingLogger = new RateLimitingLogger(log, ENABLE_LOG_RATE_LIMITING);
 
     private static final Duration CLEANUP_DELAY = succinctDuration(5, TimeUnit.MINUTES);
 

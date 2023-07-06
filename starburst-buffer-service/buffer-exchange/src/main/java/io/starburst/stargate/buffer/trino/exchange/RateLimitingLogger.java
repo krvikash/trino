@@ -29,6 +29,7 @@ public class RateLimitingLogger
     private static final Duration RATE_LIMITING_PERIOD = succinctDuration(30, TimeUnit.SECONDS);
 
     private final Logger logger;
+    private final boolean enableRateLimiting;
 
     @GuardedBy("this")
     private long rateCalculationStart;
@@ -41,14 +42,20 @@ public class RateLimitingLogger
     @GuardedBy("this")
     private int suppressedLogs;
 
-    public RateLimitingLogger(Logger logger)
+    public RateLimitingLogger(Logger logger, boolean enableRateLimiting)
     {
         this.logger = requireNonNull(logger, "logger is null");
+        this.enableRateLimiting = enableRateLimiting;
         this.rateCalculationStart = System.currentTimeMillis();
     }
 
     public synchronized void warn(Throwable throwable, String message)
     {
+        if (!enableRateLimiting) {
+            logger.warn(throwable, message);
+            return;
+        }
+
         long current = System.currentTimeMillis();
         if (suppress) {
             long suppressedTimeInMillis = current - suppressStart;
