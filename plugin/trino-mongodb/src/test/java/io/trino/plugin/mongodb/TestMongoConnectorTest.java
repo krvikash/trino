@@ -45,6 +45,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
@@ -326,8 +327,12 @@ public class TestMongoConnectorTest
     @Test(dataProvider = "predicatePushdownProvider")
     public void testPredicatePushdown(String value)
     {
-        try (TestTable table = new TestTable(getQueryRunner()::execute, "test_predicate_pushdown", "AS SELECT %s col".formatted(value))) {
+        try (TestTable table = new TestTable(getQueryRunner()::execute, "test_predicate_pushdown", "AS SELECT %1$s col, %1$s another_col".formatted(value))) {
             assertThat(query("SELECT * FROM " + table.getName() + " WHERE col = " + value + ""))
+                    .isFullyPushedDown();
+
+            // complex condition, one that cannot be represented with a TupleDomain
+            assertThat(query("SELECT * FROM " + table.getName() + " WHERE col = " + value + " OR another_col = " + value))
                     .isFullyPushedDown();
         }
     }
@@ -1269,13 +1274,68 @@ public class TestMongoConnectorTest
 
         assertThat(query("SELECT json_extract_scalar(col, '$.name.first') FROM test." + tableName + " WHERE json_extract_scalar(col, '$.name.last') = 'Geller'"))
                 .matches("SELECT varchar 'Monika'")
-                .isNotFullyPushedDown(FilterNode.class);
+                .isNotFullyPushedDown(ProjectNode.class);
 
         assertThat(query("SELECT 1 FROM test." + tableName + " WHERE json_extract_scalar(col, '$.name.last') = 'Geller'"))
                 .matches("SELECT 1")
-                .isNotFullyPushedDown(FilterNode.class);
+                .isNotFullyPushedDown(ProjectNode.class);
+
+        assertThat(query("SELECT id FROM test." + tableName + " WHERE json_extract_scalar(col, '$.name.last') = 'Geller'"))
+                .matches("SELECT 1")
+                .isFullyPushedDown();
 
         assertUpdate("DROP TABLE test." + tableName);
+    }
+
+    @Test(dataProvider = "comparisonOperatorProvider")
+    public void testPredicatePushdownOnJsonDateTimestampField(String operator)
+    {
+        String tableName = "test_" + randomNameSuffix();
+        String json1 = "JSON '{ \"_date1\": \"1970-01-01\", \"_timestamp1\": \"1970-01-01T00:00:00.000Z\", \"_date2\": { \"$date\": \"1970-01-01\" }, \"_timestamp2\": { \"$date\": \"1970-01-01T00:00:00.000Z\" } }'";
+        String json2 = "JSON '{ \"_date1\": \"1990-01-01\", \"_timestamp1\": \"1990-01-01T00:59:51.631Z\", \"_date2\": { \"$date\": \"1990-01-01\" }, \"_timestamp2\": { \"$date\": \"1990-01-01T00:59:51.631Z\" } }'";
+        String json3 = "JSON '{ \"_date1\": \"2003-01-01\", \"_timestamp1\": \"2003-01-01T05:27:35.495Z\", \"_date2\": { \"$date\": \"2003-01-01\" }, \"_timestamp2\": { \"$date\": \"2003-01-01T05:27:35.495Z\" } }'";
+
+        assertUpdate("CREATE TABLE " + tableName + " (id INT, col JSON)");
+        assertUpdate("INSERT INTO " + tableName + " VALUES(1, %s)".formatted(json1), 1);
+        assertUpdate("INSERT INTO " + tableName + " VALUES(2, %s)".formatted(json2), 1);
+        assertUpdate("INSERT INTO " + tableName + " VALUES(3, %s)".formatted(json3), 1);
+
+        // col.$._date1 is String Date
+        assertThat(query("SELECT id FROM " + tableName + " WHERE from_iso8601_date(json_extract_scalar(col, '$._date1')) " + operator + " timestamp '2003-01-01'"))
+                .isFullyPushedDown();
+
+        assertThat(query("SELECT id FROM " + tableName + " WHERE from_iso8601_timestamp(json_extract_scalar(col, '$._timestamp1')) " + operator + " timestamp '1970-01-01 00:00:00.000Z'"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT id FROM " + tableName + " WHERE from_iso8601_timestamp(json_extract_scalar(col, '$._timestamp1')) " + operator + " timestamp '1990-01-01 00:00:00Z'"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT id FROM " + tableName + " WHERE from_iso8601_timestamp(json_extract_scalar(col, '$._timestamp1')) " + operator + " timestamp '1990-01-01 00:59:51.631 UTC'"))
+                .isFullyPushedDown();
+
+        // col._date2["$date"] is ISODate
+        assertThat(query("SELECT id FROM " + tableName + " WHERE from_iso8601_timestamp(json_extract_scalar(col, '$._date2[\"$date\"]')) " + operator + " timestamp '2003-01-01 00:00:00.000Z'"))
+                .isFullyPushedDown();
+
+        assertThat(query("SELECT id FROM " + tableName + " WHERE from_iso8601_timestamp(json_extract_scalar(col, '$._timestamp2[\"$date\"]')) " + operator + " timestamp '1970-01-01 00:00:00.000Z'"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT id FROM " + tableName + " WHERE from_iso8601_timestamp(json_extract_scalar(col, '$._timestamp2[\"$date\"]')) " + operator + " timestamp '1990-01-01 00:00:00Z'"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT id FROM " + tableName + " WHERE from_iso8601_timestamp(json_extract_scalar(col, '$._timestamp2[\"$date\"]')) " + operator + " timestamp '1990-01-01 00:59:51.631 UTC'"))
+                .isFullyPushedDown();
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    @DataProvider
+    public Object[][] comparisonOperatorProvider()
+    {
+        return new Object[][] {
+                {"="},
+                {"<>"},
+                {">"},
+                {"<"},
+                {">="},
+                {"<="},
+        };
     }
 
     @Test
@@ -1538,6 +1598,183 @@ public class TestMongoConnectorTest
                 {new ObjectId("6216f0c6c432d45190f25e7c"), "ObjectId('6216f0c6c432d45190f25e7c')"},
                 {new Date(0), "timestamp '1970-01-01 00:00:00.000'"},
         };
+    }
+
+    @Test
+    public void testJsonExtractScalarPushdown()
+    {
+        try (TestTable table = new TestTable(
+                getQueryRunner()::execute,
+                "test.test_json_extract_scalar_pushdown",
+                "(id VARCHAR, json_data JSON)",
+                ImmutableList.of(jsonExtractPushdownTestJsonData()))) {
+            Session complexExpressionEnabled = Session.builder(getSession())
+                    .setCatalogSessionProperty(getSession().getCatalog().orElseThrow(), "complex_expression_pushdown_enabled", "false")
+                    .build();
+            // verify with disabling complex_expression_pushdown_enabled
+            assertThat(query(complexExpressionEnabled, "SELECT id FROM " + table.getName() + " WHERE json_extract_scalar(json_data, '$.all_types.boolean') = 'true'"))
+                    .isNotFullyPushedDown(FilterNode.class);
+
+            // json_extract_scalar returns NULL for JSON null or non-existent paths
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE json_extract_scalar(json_data, '$.all_types.nonexistent') IS NULL"))
+                    .isFullyPushedDown();
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE json_extract_scalar(json_data, '$.all_types.null') IS NULL"))
+                    .isFullyPushedDown();
+
+            // scalar types
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE json_extract_scalar(json_data, '$.all_types.boolean') = 'true'"))
+                    .isFullyPushedDown();
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE json_extract_scalar(json_data, '$.all_types.number_1') = '123'"))
+                    .isFullyPushedDown();
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE json_extract_scalar(json_data, '$.all_types.number_2') = '3.14'"))
+                    .isFullyPushedDown();
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE json_extract_scalar(json_data, '$.all_types.number_3') = '1234567890123456789'"))
+                    .isFullyPushedDown();
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE json_extract_scalar(json_data, '$.all_types.string_1') = 'a string'"))
+                    .isFullyPushedDown();
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE json_extract_scalar(json_data, '$.all_types.string_2') = 'Bag full of 💰'"))
+                    .isFullyPushedDown();
+
+            // json_extract_scalar returns NULL for non-scalar types
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE json_extract_scalar(json_data, '$.all_types.object') IS NULL"))
+                    .isFullyPushedDown();
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE json_extract_scalar(json_data, '$.all_types.array_1') IS NULL"))
+                    .isFullyPushedDown();
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE json_extract_scalar(json_data, '$.all_types.array_2') IS NULL"))
+                    .isFullyPushedDown();
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE json_extract_scalar(json_data, '$.all_types.array_3') IS NULL"))
+                    .isFullyPushedDown();
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE json_extract_scalar(json_data, '$.all_types.array_4') IS NULL"))
+                    .isFullyPushedDown();
+
+            // array/object subscript
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE json_extract_scalar(json_data, '$.all_types.object.key') = 'value'"))
+                    .isFullyPushedDown();
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE json_extract_scalar(json_data, '$.all_types.array_1.0') IS NULL"))
+                    .isFullyPushedDown();
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE json_extract_scalar(json_data, '$.all_types.array_2.0') = '1'"))
+                    .isFullyPushedDown();
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE json_extract_scalar(json_data, '$.all_types.array_2.0') IS NOT NULL"))
+                    .isFullyPushedDown();
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE json_extract_scalar(json_data, '$.all_types.array_3.0') = 'one'"))
+                    .isFullyPushedDown();
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE json_extract_scalar(json_data, '$.all_types.array_4.0') = '1'"))
+                    .isFullyPushedDown();
+
+            // nested array/object
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE json_extract_scalar(json_data, '$.store.book.0.contributors.0.1') = 'Levine'"))
+                    .isFullyPushedDown();
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE json_extract_scalar(json_data, '$.store.book.0.contributors.0.1') IN ('Levine', 'Adam')"))
+                    .isFullyPushedDown();
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE json_extract_scalar(json_data, '$.store.bicycle.price') = '19.95'"))
+                    .isFullyPushedDown();
+        }
+    }
+
+    private static String jsonExtractPushdownTestJsonData()
+    {
+        return """
+                'row-1',
+                JSON '{
+                       "store": {
+                         "book": [
+                           {
+                             "author": "Nigel Rees",
+                             "contributors": [
+                               ["Adam", "Levine"],
+                               ["Bob", "Strong"]
+                             ]
+                           },
+                           {
+                             "author": "Evelyn Waugh"
+                           }
+                         ],
+                         "bicycle": {
+                           "color": "red",
+                           "price": 19.95
+                         }
+                       },
+                       "all_types": {
+                         "null": null,
+                         "boolean": true,
+                         "number_1": 123,
+                         "number_2": 3.14,
+                         "number_3": 1234567890123456789,
+                         "string_1": "a string",
+                         "string_2": "Bag full of 💰",
+                         "object": {
+                            "key_1": "value_1",
+                            "key_2": "value_2"
+                         },
+                         "array_1": [],
+                         "array_2": [1, 2],
+                         "array_3": ["one", "two"],
+                         "array_4": [1, "two"]
+                       }
+                }'
+                """;
+    }
+
+    @Test
+    public void testJsonExtractScalarPushdownWithIndexAsObject()
+    {
+        try (TestTable table = new TestTable(
+                getQueryRunner()::execute,
+                "test_json_extract_scalar_pushdown_with_index_as_object_",
+                "(id VARCHAR, json_data JSON)",
+                jsonExtractPushdownTestJsonDataWithIndexAsObject())) {
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE json_extract_scalar(json_data, '$.store.book.0.contributors.0.1') = 'Levine'"))
+                    .matches("VALUES varchar 'row-1', varchar 'row-2'")
+                    .isFullyPushedDown();
+        }
+    }
+
+    private static List<String> jsonExtractPushdownTestJsonDataWithIndexAsObject()
+    {
+        // "0" as Object
+        String jsonWithIndexAsObject = """
+                'row-1',
+                JSON '{
+                        "store": {
+                          "book": {
+                            "0": {
+                              "contributors": [
+                                [
+                                  "Adam",
+                                  "Levine"
+                                ],
+                                [
+                                  "Bob",
+                                  "Strong"
+                                ]
+                              ]
+                            }
+                          }
+                        }
+                      }'
+                """;
+        String jsonWithIndexAsArrayElement = """
+                'row-2',
+                JSON '{
+                        "store": {
+                          "book": [
+                            {
+                              "contributors": [
+                                [
+                                  "Adam",
+                                  "Levine"
+                                ],
+                                [
+                                  "Bob",
+                                  "Strong"
+                                ]
+                              ]
+                            }
+                          ]
+                        }
+                      }'
+                """;
+        return ImmutableList.of(jsonWithIndexAsObject, jsonWithIndexAsArrayElement);
     }
 
     @Override

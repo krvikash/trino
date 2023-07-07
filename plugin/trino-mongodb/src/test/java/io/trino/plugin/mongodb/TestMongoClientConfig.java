@@ -43,7 +43,8 @@ public class TestMongoClientConfig
                 .setWriteConcern(WriteConcernType.ACKNOWLEDGED)
                 .setRequiredReplicaSetName(null)
                 .setImplicitRowFieldPrefix("_pos")
-                .setProjectionPushdownEnabled(true));
+                .setProjectionPushdownEnabled(true)
+                .setComplexExpressionPushdownEnabled(true));
     }
 
     @Test
@@ -67,6 +68,7 @@ public class TestMongoClientConfig
                 .put("mongodb.required-replica-set", "replica_set")
                 .put("mongodb.implicit-row-field-prefix", "_prefix")
                 .put("mongodb.projection-pushdown-enabled", "false")
+                .put("mongodb.complex-expression-pushdown.enabled", "false")
                 .buildOrThrow();
 
         MongoClientConfig expected = new MongoClientConfig()
@@ -85,7 +87,8 @@ public class TestMongoClientConfig
                 .setWriteConcern(WriteConcernType.UNACKNOWLEDGED)
                 .setRequiredReplicaSetName("replica_set")
                 .setImplicitRowFieldPrefix("_prefix")
-                .setProjectionPushdownEnabled(false);
+                .setProjectionPushdownEnabled(false)
+                .setComplexExpressionPushdownEnabled(false);
 
         assertFullMapping(properties, expected);
     }
