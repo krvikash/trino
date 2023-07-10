@@ -67,6 +67,12 @@ public class BufferExchangeManager
     }
 
     @Override
+    public boolean supportsConcurrentReadAndWrite()
+    {
+        return true;
+    }
+
+    @Override
     public void shutdown()
     {
         Closer closer = Closer.create();

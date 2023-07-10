@@ -46,6 +46,11 @@
 
         <dependency>
             <groupId>com.azure</groupId>
+            <artifactId>azure-core</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.azure</groupId>
             <artifactId>azure-storage-blob</artifactId>
         </dependency>
 
@@ -223,6 +228,11 @@
 
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
+            <artifactId>aws-core</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
             <artifactId>regions</artifactId>
         </dependency>
 
@@ -331,6 +341,7 @@
                 <configuration>
                     <ignoredNonTestScopedDependencies>
                         <ignoredNonTestScopedDependency>software.amazon.awssdk:auth:*</ignoredNonTestScopedDependency>
+                        <ignoredNonTestScopedDependency>software.amazon.awssdk:aws-core:*</ignoredNonTestScopedDependency>
                         <ignoredNonTestScopedDependency>software.amazon.awssdk:regions:*</ignoredNonTestScopedDependency>
                     </ignoredNonTestScopedDependencies>
                 </configuration>
