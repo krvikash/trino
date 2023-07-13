@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="ISO-8859-1"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
@@ -18,30 +18,11 @@
     </properties>
 
     <dependencies>
-        <dependency>
-            <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>buffer-status</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>client-common</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>data-client</artifactId>
-        </dependency>
 
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>data-common</artifactId>
             <version>${project.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>discovery-client</artifactId>
         </dependency>
 
         <dependency>
@@ -190,6 +171,25 @@
             <groupId>io.projectreactor</groupId>
             <artifactId>reactor-core</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.starburst.stargate.buffer</groupId>
+            <artifactId>buffer-status</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.starburst.stargate.buffer</groupId>
+            <artifactId>client-common</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.starburst.stargate.buffer</groupId>
+            <artifactId>data-client</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.starburst.stargate.buffer</groupId>
+            <artifactId>discovery-client</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>jakarta.annotation</groupId>
@@ -284,7 +284,7 @@
             <version>${dep.trino.version}</version>
             <scope>test</scope>
         </dependency>
-        
+
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
@@ -322,8 +322,8 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
-            <scope>test</scope>
             <version>1.18.0</version>
+            <scope>test</scope>
             <exclusions>
                 <exclusion>
                     <groupId>org.osgi</groupId>

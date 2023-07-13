@@ -11,16 +11,41 @@
     <groupId>io.starburst.stargate.buffer</groupId>
     <artifactId>stargate-buffer-root</artifactId>
     <version>${revision}</version>
+    <packaging>pom</packaging>
 
     <description>Stargate Buffer Service</description>
-    <packaging>pom</packaging>
     <url>https://github.com/starburstdata/stargate-buffer-service</url>
+
+    <modules>
+        <module>buffer-exchange</module>
+        <module>buffer-exchange-tests</module>
+        <module>buffer-status</module>
+        <module>client-common</module>
+        <module>data-client</module>
+        <module>data-common</module>
+        <module>data-server</module>
+        <module>discovery-client</module>
+        <module>discovery-server</module>
+        <module>fallbacking-buffer-exchange</module>
+        <module>testing</module>
+    </modules>
 
     <scm>
         <connection>scm:git:git://github.com/starburstdata/stargate-buffer-service.git</connection>
-        <url>https://github.com/starburstdata/stargate-buffer-service</url>
         <tag>HEAD</tag>
+        <url>https://github.com/starburstdata/stargate-buffer-service</url>
     </scm>
+
+    <distributionManagement>
+        <repository>
+            <id>starburstdata-sep.releases</id>
+            <url>https://starburstdata-sep-cicd-843985043183.d.codeartifact.us-east-2.amazonaws.com/maven/releases/</url>
+        </repository>
+        <snapshotRepository>
+            <id>starburstdata-sep.snapshots</id>
+            <url>https://starburstdata-sep-cicd-843985043183.d.codeartifact.us-east-2.amazonaws.com/maven/snapshots/</url>
+        </snapshotRepository>
+    </distributionManagement>
 
     <properties>
         <revision>1-SNAPSHOT</revision>
@@ -39,7 +64,8 @@
         <dep.slice.version>0.45</dep.slice.version>
         <dep.errorprone.version>2.20.0</dep.errorprone.version>
         <dep.trino.version>421</dep.trino.version>
-        <dep.joda.version>2.12.5</dep.joda.version> <!-- required by Trino 414 -->
+        <dep.joda.version>2.12.5</dep.joda.version>
+        <!-- required by Trino 414 -->
         <dep.datadog-agent.version>0.114.0</dep.datadog-agent.version>
         <dep.jackson.version>2.15.2</dep.jackson.version>
 
@@ -50,60 +76,40 @@
         <dep.netty.version>4.1.91.Final</dep.netty.version>
     </properties>
 
-    <modules>
-        <module>buffer-exchange</module>
-        <module>buffer-exchange-tests</module>
-        <module>buffer-status</module>
-        <module>client-common</module>
-        <module>data-client</module>
-        <module>data-common</module>
-        <module>data-server</module>
-        <module>discovery-client</module>
-        <module>discovery-server</module>
-        <module>fallbacking-buffer-exchange</module>
-        <module>testing</module>
-    </modules>
-
-    <repositories>
-        <repository>
-            <id>starburstdata-sep.snapshots</id>
-            <url>https://starburstdata-sep-cicd-843985043183.d.codeartifact.us-east-2.amazonaws.com/maven/snapshots/</url>
-            <releases>
-                <enabled>false</enabled>
-                <checksumPolicy>fail</checksumPolicy>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-                <checksumPolicy>warn</checksumPolicy>
-            </snapshots>
-        </repository>
-        <repository>
-            <id>starburstdata-sep.releases</id>
-            <url>https://starburstdata-sep-cicd-843985043183.d.codeartifact.us-east-2.amazonaws.com/maven/releases/</url>
-            <releases>
-                <enabled>true</enabled>
-                <checksumPolicy>fail</checksumPolicy>
-            </releases>
-            <snapshots>
-                <enabled>false</enabled>
-                <checksumPolicy>warn</checksumPolicy>
-            </snapshots>
-        </repository>
-    </repositories>
-
-    <distributionManagement>
-        <repository>
-            <id>starburstdata-sep.releases</id>
-            <url>https://starburstdata-sep-cicd-843985043183.d.codeartifact.us-east-2.amazonaws.com/maven/releases/</url>
-        </repository>
-        <snapshotRepository>
-            <id>starburstdata-sep.snapshots</id>
-            <url>https://starburstdata-sep-cicd-843985043183.d.codeartifact.us-east-2.amazonaws.com/maven/snapshots/</url>
-        </snapshotRepository>
-    </distributionManagement>
-
     <dependencyManagement>
         <dependencies>
+
+            <dependency>
+                <groupId>com.azure</groupId>
+                <artifactId>azure-sdk-bom</artifactId>
+                <version>1.2.13</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>io.airlift</groupId>
+                <artifactId>bom</artifactId>
+                <version>${dep.airlift.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>${dep.netty.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>${dep.awsjavasdk.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>${project.groupId}</groupId>
                 <artifactId>buffer-exchange</artifactId>
@@ -162,14 +168,6 @@
                 <groupId>${project.groupId}</groupId>
                 <artifactId>testing</artifactId>
                 <version>${project.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>com.azure</groupId>
-                <artifactId>azure-sdk-bom</artifactId>
-                <type>pom</type>
-                <version>1.2.13</version>
-                <scope>import</scope>
             </dependency>
 
             <dependency>
@@ -257,16 +255,16 @@
                 <version>1.6.0</version>
                 <exclusions>
                     <exclusion>
+                        <groupId>com.google.j2objc</groupId>
+                        <artifactId>j2objc-annotations</artifactId>
+                    </exclusion>
+                    <exclusion>
                         <groupId>commons-logging</groupId>
                         <artifactId>commons-logging</artifactId>
                     </exclusion>
                     <exclusion>
                         <groupId>org.apache.httpcomponents</groupId>
                         <artifactId>httpcore</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>com.google.j2objc</groupId>
-                        <artifactId>j2objc-annotations</artifactId>
                     </exclusion>
                 </exclusions>
             </dependency>
@@ -277,16 +275,16 @@
                 <version>2.5.6</version>
                 <exclusions>
                     <exclusion>
+                        <groupId>com.google.j2objc</groupId>
+                        <artifactId>j2objc-annotations</artifactId>
+                    </exclusion>
+                    <exclusion>
                         <groupId>com.google.protobuf</groupId>
                         <artifactId>protobuf-java</artifactId>
                     </exclusion>
                     <exclusion>
                         <groupId>commons-logging</groupId>
                         <artifactId>commons-logging</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>com.google.j2objc</groupId>
-                        <artifactId>j2objc-annotations</artifactId>
                     </exclusion>
                 </exclusions>
             </dependency>
@@ -305,6 +303,10 @@
                         <artifactId>listenablefuture</artifactId>
                     </exclusion>
                     <exclusion>
+                        <groupId>com.google.j2objc</groupId>
+                        <artifactId>j2objc-annotations</artifactId>
+                    </exclusion>
+                    <exclusion>
                         <groupId>com.google.oauth-client</groupId>
                         <artifactId>google-oauth-client</artifactId>
                     </exclusion>
@@ -315,10 +317,6 @@
                     <exclusion>
                         <groupId>org.checkerframework</groupId>
                         <artifactId>checker-qual</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>com.google.j2objc</groupId>
-                        <artifactId>j2objc-annotations</artifactId>
                     </exclusion>
                 </exclusions>
             </dependency>
@@ -337,25 +335,9 @@
 
             <dependency>
                 <groupId>io.airlift</groupId>
-                <artifactId>bom</artifactId>
-                <version>${dep.airlift.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-
-            <dependency>
-                <groupId>io.airlift</groupId>
                 <artifactId>units</artifactId>
                 <version>1.9</version>
             </dependency>
-
-            <dependency>
-                <groupId>io.netty</groupId>
-                <artifactId>netty-bom</artifactId>
-                <type>pom</type>
-                <version>${dep.netty.version}</version>
-                <scope>import</scope>
-              </dependency>
 
             <dependency>
                 <groupId>io.projectreactor</groupId>
@@ -474,16 +456,35 @@
                 <artifactId>jmxutils</artifactId>
                 <version>1.23</version>
             </dependency>
-
-            <dependency>
-                <groupId>software.amazon.awssdk</groupId>
-                <artifactId>bom</artifactId>
-                <type>pom</type>
-                <version>${dep.awsjavasdk.version}</version>
-                <scope>import</scope>
-            </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <repositories>
+        <repository>
+            <releases>
+                <enabled>false</enabled>
+                <checksumPolicy>fail</checksumPolicy>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+                <checksumPolicy>warn</checksumPolicy>
+            </snapshots>
+            <id>starburstdata-sep.snapshots</id>
+            <url>https://starburstdata-sep-cicd-843985043183.d.codeartifact.us-east-2.amazonaws.com/maven/snapshots/</url>
+        </repository>
+        <repository>
+            <releases>
+                <enabled>true</enabled>
+                <checksumPolicy>fail</checksumPolicy>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+                <checksumPolicy>warn</checksumPolicy>
+            </snapshots>
+            <id>starburstdata-sep.releases</id>
+            <url>https://starburstdata-sep-cicd-843985043183.d.codeartifact.us-east-2.amazonaws.com/maven/releases/</url>
+        </repository>
+    </repositories>
 
     <build>
         <pluginManagement>
@@ -561,10 +562,10 @@
                     </configuration>
                     <executions>
                         <execution>
-                            <phase>process-resources</phase>
                             <goals>
                                 <goal>flatten</goal>
                             </goals>
+                            <phase>process-resources</phase>
                         </execution>
                     </executions>
                 </plugin>

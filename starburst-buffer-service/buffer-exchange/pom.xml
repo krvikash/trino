@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="ISO-8859-1"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
@@ -9,28 +9,14 @@
     </parent>
 
     <artifactId>buffer-exchange</artifactId>
-    <description>Buffer Service base Trino Exchange</description>
     <packaging>trino-plugin</packaging>
+    <description>Buffer Service base Trino Exchange</description>
 
     <properties>
         <air.main.basedir>${project.parent.basedir}</air.main.basedir>
     </properties>
 
     <dependencies>
-        <dependency>
-            <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>client-common</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>data-client</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>discovery-client</artifactId>
-        </dependency>
 
         <dependency>
             <groupId>com.google.errorprone</groupId>
@@ -81,6 +67,20 @@
         <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>units</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.starburst.stargate.buffer</groupId>
+            <artifactId>client-common</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.starburst.stargate.buffer</groupId>
+            <artifactId>data-client</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.starburst.stargate.buffer</groupId>
+            <artifactId>discovery-client</artifactId>
         </dependency>
 
         <dependency>
@@ -179,8 +179,8 @@
     <build>
         <resources>
             <resource>
+                <filtering>true</filtering>
                 <directory>src/main/resources</directory>
-            <filtering>true</filtering>
                 <includes>
                     <include>io/starburst/stargate/buffer/trino/exchange/dependencies-versions.properties</include>
                 </includes>
