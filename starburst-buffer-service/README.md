@@ -24,3 +24,13 @@ For local development it may be used as follows
 ./bin/build-docker-image.sh -p data-server
 ./bin/build-docker-image.sh -p discovery-server
 ```
+
+## Keep pom.xml clean and sorted
+
+There are several plugins in place to keep pom.xml clean.
+Your build may fail if:
+ - dependencies or XML elements are not ordered correctly
+ - overall pom.xml structure is not correct
+
+Many such errors may be fixed automatically by running the following:
+`./mvnw sortpom:sort`
