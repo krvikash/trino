@@ -70,7 +70,7 @@ public @interface StarburstJdbcUrl
 
             TrinoDriverUri driverUri;
             try {
-                driverUri = TrinoDriverUri.create(jdbcUrl, getUserProperties());
+                driverUri = TrinoDriverUri.createDriverUri(jdbcUrl, getUserProperties());
             }
             catch (SQLException e) {
                 String defaultMessage = "Invalid Starburst JDBC URL, sample format: jdbc:trino://localhost:8080";

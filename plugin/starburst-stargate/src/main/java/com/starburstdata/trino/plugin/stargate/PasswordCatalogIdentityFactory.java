@@ -32,7 +32,7 @@ public class PasswordCatalogIdentityFactory
         // Use TrinoDriverUri to retrieve the catalog name
         TrinoDriverUri uri;
         try {
-            uri = TrinoDriverUri.create(config.getConnectionUrl(), new Properties());
+            uri = TrinoDriverUri.createDriverUri(config.getConnectionUrl(), new Properties());
         }
         catch (SQLException e) {
             throw new RuntimeException(e);
