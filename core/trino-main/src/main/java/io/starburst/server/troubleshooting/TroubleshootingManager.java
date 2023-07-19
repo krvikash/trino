@@ -49,7 +49,6 @@ public class TroubleshootingManager
     private final Set<TroubleshootingProvider> dataProviders;
     private final ScheduledExecutorService executorService;
     private final Duration destroyAfterFinishDelay;
-    private final Duration finishAfterStartDelay;
 
     @Inject
     public TroubleshootingManager(TroubleshootingConfig config, DispatchManager dispatchManager, Set<TroubleshootingProvider> dataProviders, @ForTroubleshooting ScheduledExecutorService executorService)
@@ -62,7 +61,6 @@ public class TroubleshootingManager
         this.dataProviders = ImmutableSet.copyOf(requireNonNull(dataProviders, "dataProviders is null"));
         this.executorService = requireNonNull(executorService, "executorService is null");
         this.destroyAfterFinishDelay = requireNonNull(config, "config is null").getMaxAccessDuration();
-        this.finishAfterStartDelay = config.getMaxCaptureDuration();
     }
 
     public void start(QueryId queryId)
@@ -70,7 +68,6 @@ public class TroubleshootingManager
         try {
             TroubleshootingContext context = contexts.get(queryId, () -> createNewContext(executorService, queryId));
             log.info("Started new %s", context);
-            executorService.schedule(() -> finish(queryId), finishAfterStartDelay.toMillis(), MILLISECONDS);
         }
         catch (ExecutionException e) {
             throw new RuntimeException("Could not start new troubleshooting context", e);

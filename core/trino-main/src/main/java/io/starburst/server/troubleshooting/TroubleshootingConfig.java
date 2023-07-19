@@ -11,6 +11,7 @@ package io.starburst.server.troubleshooting;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
+import io.airlift.configuration.DefunctConfig;
 import io.airlift.units.Duration;
 import io.airlift.units.MaxDuration;
 import io.airlift.units.MinDuration;
@@ -18,11 +19,11 @@ import io.airlift.units.MinDuration;
 import static io.airlift.units.Duration.succinctDuration;
 import static java.util.concurrent.TimeUnit.MINUTES;
 
+@DefunctConfig("troubleshooting.max-capture-duration")
 public class TroubleshootingConfig
 {
     private int maxActiveQueries = 128;
     private Duration maxAccessDuration = succinctDuration(5, MINUTES);
-    private Duration maxCaptureDuration = succinctDuration(15, MINUTES);
 
     private boolean anonymizedPlan = true;
 
@@ -51,21 +52,6 @@ public class TroubleshootingConfig
     public TroubleshootingConfig setMaxAccessDuration(Duration maxAccessDuration)
     {
         this.maxAccessDuration = maxAccessDuration;
-        return this;
-    }
-
-    @MinDuration("5s")
-    @MaxDuration("1h")
-    public Duration getMaxCaptureDuration()
-    {
-        return maxCaptureDuration;
-    }
-
-    @Config("troubleshooting.max-capture-duration")
-    @ConfigDescription("Time span for which troubleshooting information will be captured after query starts")
-    public TroubleshootingConfig setMaxCaptureDuration(Duration maxCaptureDuration)
-    {
-        this.maxCaptureDuration = maxCaptureDuration;
         return this;
     }
 

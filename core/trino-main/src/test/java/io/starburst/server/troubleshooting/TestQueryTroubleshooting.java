@@ -83,7 +83,7 @@ public class TestQueryTroubleshooting
             throws Exception
     {
         DistributedQueryRunner queryRunner = StarburstQueryRunner.builder(SESSION)
-                .setCoordinatorProperties(Map.of("insights.authorized-users", AUTHORIZED_USER, "troubleshooting.max-access-duration", "5s", "troubleshooting.max-capture-duration", "15s"))
+                .setCoordinatorProperties(Map.of("insights.authorized-users", AUTHORIZED_USER, "troubleshooting.max-access-duration", "5s"))
                 .build();
 
         queryRunner.installPlugin(new TpchPlugin());
