@@ -28,7 +28,7 @@ import static java.nio.file.Files.createTempDirectory;
 
 public class FlightRecorderConfig
 {
-    private DataSize maxRecordingSize = DataSize.of(16, MEGABYTE);
+    private DataSize maxRecordingSize = DataSize.of(128, MEGABYTE);
     private Supplier<Path> temporaryDirectory = generateTemporaryPath();
 
     @Config("troubleshooting.jfr.temporary-directory")
