@@ -41,7 +41,7 @@ import static java.lang.invoke.MethodHandles.lookup;
  * The value is encoded as microseconds from the 1970-01-01 00:00:00 epoch and is to be interpreted as
  * local date time without regards to any time zone.
  */
-class ShortTimestampType
+public class ShortTimestampType
         extends TimestampType
 {
     private static final TypeOperatorDeclaration TYPE_OPERATOR_DECLARATION = extractOperatorDeclaration(ShortTimestampType.class, lookup(), long.class);
