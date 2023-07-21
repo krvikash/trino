@@ -400,7 +400,7 @@ public class BufferExchange
                             throw dataApiException;
                         },
                         directExecutor());
-                addExceptionCallback(future, (t) -> log.warn("Could not remove exchange %s on node %d".formatted(externalExchangeId, nodeId), t));
+                addExceptionCallback(future, (t) -> log.warn(t, "Could not remove exchange %s on node %d", externalExchangeId, nodeId));
             }
         }, 1000, MILLISECONDS);
     }
