@@ -53,7 +53,6 @@ public class ApiBasedBufferNodeDiscoveryManager
     private static final BufferNodesState EMPTY_BUFFER_NODES_STATE = new BufferNodesState(0, ImmutableMap.of());
     private static final Duration REFRESH_INTERVAL = new Duration(5, SECONDS);
     private static final Duration MIN_FORCE_REFRESH_DELAY = new Duration(200, MILLISECONDS);
-    private static final Duration READY_TIMEOUT_MILLIS = succinctDuration(30, SECONDS);
     @VisibleForTesting
     static final Duration DRAINED_NODES_KEEP_TIMEOUT = succinctDuration(12, HOURS);
     private static final Object MARKER = new Object();
@@ -75,7 +74,7 @@ public class ApiBasedBufferNodeDiscoveryManager
             ApiFactory apiFactory,
             ListeningScheduledExecutorService executorService)
     {
-        this(apiFactory, executorService, MIN_FORCE_REFRESH_DELAY, READY_TIMEOUT_MILLIS, systemTicker());
+        this(apiFactory, executorService, MIN_FORCE_REFRESH_DELAY, systemTicker());
     }
 
     @VisibleForTesting
@@ -83,7 +82,6 @@ public class ApiBasedBufferNodeDiscoveryManager
             ApiFactory apiFactory,
             ListeningScheduledExecutorService executorService,
             Duration minForceRefreshDelay,
-            Duration readyTimout,
             Ticker ticker)
     {
         this.discoveryApi = apiFactory.createDiscoveryApi();

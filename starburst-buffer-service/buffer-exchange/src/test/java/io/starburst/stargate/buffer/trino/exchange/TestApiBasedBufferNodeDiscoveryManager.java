@@ -78,7 +78,6 @@ class TestApiBasedBufferNodeDiscoveryManager
                 discoveryApi.getApiFactory(),
                 executor,
                 succinctDuration(0, MILLISECONDS), // always allow force refresh
-                succinctDuration(10, MILLISECONDS),
                 ticker);
         discoveryManager.start();
 
