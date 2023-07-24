@@ -352,6 +352,7 @@ import static io.trino.spi.predicate.TupleDomain.columnWiseUnion;
 import static io.trino.spi.predicate.TupleDomain.withColumnDomains;
 import static io.trino.spi.statistics.TableStatisticType.ROW_COUNT;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.TimestampType.createTimestampType;
 import static io.trino.spi.type.TypeUtils.isFloatingPointNaN;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
@@ -3689,6 +3690,9 @@ public class HiveMetadata
     @Override
     public Optional<Type> getSupportedType(ConnectorSession session, Map<String, Object> tableProperties, Type type)
     {
+        if (type instanceof TimestampType) {
+            return Optional.of(createTimestampType(getTimestampPrecision(session).getPrecision()));
+        }
         if (type instanceof VarcharType varcharType && !varcharType.isUnbounded()) {
             int length = varcharType.getBoundedLength();
             if (length == 0) {

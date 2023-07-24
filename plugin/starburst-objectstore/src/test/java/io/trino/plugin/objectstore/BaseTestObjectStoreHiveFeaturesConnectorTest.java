@@ -26,6 +26,7 @@ import io.trino.plugin.hive.HiveStorageFormat;
 import io.trino.plugin.hive.metastore.file.FileHiveMetastore;
 import io.trino.plugin.hive.metastore.file.FileHiveMetastoreConfig;
 import io.trino.plugin.iceberg.IcebergPlugin;
+import io.trino.plugin.memory.MemoryPlugin;
 import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.spi.NodeVersion;
 import io.trino.spi.connector.ConnectorTableMetadata;
@@ -152,6 +153,10 @@ public abstract class BaseTestObjectStoreHiveFeaturesConnectorTest
                     "hive_timestamp_nanos",
                     connectorName,
                     objectStoreHiveNanosProperties);
+
+            // Memory plugin to check automatic type coercion for various timestamp precision
+            queryRunner.installPlugin(new MemoryPlugin());
+            queryRunner.createCatalog("memory", "memory", ImmutableMap.of());
 
             return queryRunner;
         }
