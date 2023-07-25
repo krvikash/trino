@@ -18,6 +18,7 @@ import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.BufferNodeInfo;
+import io.starburst.stargate.buffer.BufferNodeState;
 import io.starburst.stargate.buffer.discovery.client.InvalidBufferNodeUpdateException;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -33,9 +34,11 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.airlift.units.Duration.succinctDuration;
+import static io.starburst.stargate.buffer.BufferNodeState.DRAINED;
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.PARAMETER;
@@ -52,6 +55,8 @@ public class DiscoveryManager
 
     @VisibleForTesting
     static final Duration STALE_BUFFER_NODE_INFO_CLEANUP_THRESHOLD = succinctDuration(24, HOURS);
+    @VisibleForTesting
+    static final Duration DRAINED_NODES_STALENESS_THRESHOLD = succinctDuration(4, HOURS);
 
     private final Ticker ticker;
     private final ScheduledExecutorService executor;
@@ -70,6 +75,9 @@ public class DiscoveryManager
         this.ticker = requireNonNull(ticker, "ticker is null");
         requireNonNull(config, "config is null");
         this.bufferNodeDiscoveryStalenessThreshold = config.getBufferNodeDiscoveryStalenessThreshold();
+        checkArgument(bufferNodeDiscoveryStalenessThreshold.toMillis() <= DRAINED_NODES_STALENESS_THRESHOLD.toMillis(),
+                "bufferNodeDiscoveryStalenessThreshold %s larger than DRAINED_NODES_STALENESS_THRESHOLD %s",
+                bufferNodeDiscoveryStalenessThreshold, DRAINED_NODES_STALENESS_THRESHOLD);
         this.startGracePeriod = config.getStartGracePeriod();
         this.executor = newSingleThreadScheduledExecutor();
     }
@@ -146,16 +154,22 @@ public class DiscoveryManager
         long now = tickerReadMillis();
         long markStaleThreshold = now - bufferNodeDiscoveryStalenessThreshold.toMillis();
         long cleanupThreshold = now - STALE_BUFFER_NODE_INFO_CLEANUP_THRESHOLD.toMillis();
+        long drainedNodesMarkStaleThreshold = now - DRAINED_NODES_STALENESS_THRESHOLD.toMillis();
         while (iterator.hasNext()) {
             Map.Entry<Long, BufferNodeInfoHolder> entry = iterator.next();
             BufferNodeInfoHolder infoHolder = entry.getValue();
             long lastUpdateTime = infoHolder.getLastUpdateTime();
             if (!infoHolder.isStale() && lastUpdateTime < markStaleThreshold) {
-                LOG.info("marking entry for node %s as stale; no update for %s; last state %s",
-                        entry.getKey(),
-                        succinctDuration(now - lastUpdateTime, MILLISECONDS),
-                        infoHolder.getLastNodeInfo().state());
-                infoHolder.markStale();
+                BufferNodeState bufferNodeState = infoHolder.getLastNodeInfo().state();
+                // Buffer nodes in drained state needs to be kept longer for the lifetime of a query,
+                // to make sure that new workers will not read from a drained node
+                if (!bufferNodeState.equals(DRAINED) || lastUpdateTime < drainedNodesMarkStaleThreshold) {
+                    LOG.info("marking entry for node %s as stale; no update for %s; last state %s",
+                            entry.getKey(),
+                            succinctDuration(now - lastUpdateTime, MILLISECONDS),
+                            infoHolder.getLastNodeInfo().state());
+                    infoHolder.markStale();
+                }
             }
             if (lastUpdateTime < cleanupThreshold) {
                 LOG.info("deleting stale entry for node %s ; no update for %s", entry.getKey(), succinctDuration(now - lastUpdateTime, MILLISECONDS));

@@ -54,7 +54,7 @@ public class ApiBasedBufferNodeDiscoveryManager
     private static final Duration REFRESH_INTERVAL = new Duration(5, SECONDS);
     private static final Duration MIN_FORCE_REFRESH_DELAY = new Duration(200, MILLISECONDS);
     @VisibleForTesting
-    static final Duration DRAINED_NODES_KEEP_TIMEOUT = succinctDuration(12, HOURS);
+    static final Duration DRAINED_NODES_KEEP_TIMEOUT = succinctDuration(4, HOURS);
     private static final Object MARKER = new Object();
 
     private final DiscoveryApi discoveryApi;

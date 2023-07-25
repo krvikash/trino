@@ -11,6 +11,7 @@ package io.starburst.stargate.buffer.discovery.server;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.airlift.configuration.Config;
+import io.airlift.configuration.ConfigDescription;
 import io.airlift.units.Duration;
 
 import static io.airlift.units.Duration.succinctDuration;
@@ -24,7 +25,6 @@ public class DiscoveryManagerConfig
     static final Duration DEFAULT_START_GRACE_PERIOD = succinctDuration(20, SECONDS);
 
     private Duration bufferNodeDiscoveryStalenessThreshold = DEFAULT_BUFFER_NODE_DISCOVERY_STALENESS_THRESHOLD;
-
     private Duration startGracePeriod = DEFAULT_START_GRACE_PERIOD;
 
     public Duration getBufferNodeDiscoveryStalenessThreshold()
@@ -33,6 +33,7 @@ public class DiscoveryManagerConfig
     }
 
     @Config("buffer.discovery.buffer-node-info-staleness-threshold")
+    @ConfigDescription("The threshold doesn't apply to drained nodes; drained nodes will be kept up to the lifetime of a query")
     public DiscoveryManagerConfig setBufferNodeDiscoveryStalenessThreshold(Duration bufferNodeDiscoveryStalenessThreshold)
     {
         this.bufferNodeDiscoveryStalenessThreshold = bufferNodeDiscoveryStalenessThreshold;

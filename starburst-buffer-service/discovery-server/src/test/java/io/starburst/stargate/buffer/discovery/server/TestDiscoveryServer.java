@@ -9,6 +9,7 @@
  */
 package io.starburst.stargate.buffer.discovery.server;
 
+import com.google.common.collect.ImmutableSet;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.HttpClientConfig;
 import io.airlift.http.client.jetty.JettyHttpClient;
@@ -32,7 +33,9 @@ import java.util.concurrent.TimeUnit;
 
 import static io.airlift.testing.Closeables.closeAll;
 import static io.starburst.stargate.buffer.BufferNodeState.ACTIVE;
+import static io.starburst.stargate.buffer.BufferNodeState.DRAINED;
 import static io.starburst.stargate.buffer.BufferNodeState.STARTING;
+import static io.starburst.stargate.buffer.discovery.server.DiscoveryManager.DRAINED_NODES_STALENESS_THRESHOLD;
 import static io.starburst.stargate.buffer.discovery.server.DiscoveryManager.STALE_BUFFER_NODE_INFO_CLEANUP_THRESHOLD;
 import static io.starburst.stargate.buffer.discovery.server.DiscoveryManagerConfig.DEFAULT_BUFFER_NODE_DISCOVERY_STALENESS_THRESHOLD;
 import static io.starburst.stargate.buffer.discovery.server.DiscoveryManagerConfig.DEFAULT_START_GRACE_PERIOD;
@@ -92,50 +95,64 @@ public class TestDiscoveryServer
                         false,
                         Set.of(node1Info1)));
 
-        // add another node
+        // add two more nodes
         BufferNodeStats node2Stats1 = new BufferNodeStats(20, 21, 22, 23, 24, 25, 26, 27, 28);
         BufferNodeInfo node2Info1 = new BufferNodeInfo(2, URI.create("http://address2"), Optional.of(node2Stats1), STARTING, Instant.now());
+        BufferNodeStats node3Stats1 = new BufferNodeStats(30, 31, 32, 33, 34, 35, 36, 37, 38);
+        BufferNodeInfo node3Info1 = new BufferNodeInfo(3, URI.create("http://address3"), Optional.of(node3Stats1), ACTIVE, Instant.now());
         discoveryClient.updateBufferNode(node2Info1);
+        discoveryClient.updateBufferNode(node3Info1);
         assertThat(discoveryClient.getBufferNodes()).isEqualTo(
                 new BufferNodeInfoResponse(
                         false,
-                        Set.of(node1Info1, node2Info1)));
+                        Set.of(node1Info1, node2Info1, node3Info1)));
 
         // move past the START_GRACE_PERIOD
         ticker.increment(11, TimeUnit.MILLISECONDS);
         assertThat(discoveryClient.getBufferNodes()).isEqualTo(
                 new BufferNodeInfoResponse(
                         true,
-                        Set.of(node1Info1, node2Info1)));
+                        Set.of(node1Info1, node2Info1, node3Info1)));
 
-        // move time and update node 1
+        // move time and update node 1 and node 3
         ticker.increment(1000, TimeUnit.MILLISECONDS);
         BufferNodeStats node1Stats2 = new BufferNodeStats(110, 111, 112, 113, 114, 115, 116, 117, 118);
         BufferNodeInfo node1Info2 = new BufferNodeInfo(1, URI.create("http://address1"), Optional.of(node1Stats2), ACTIVE, Instant.now());
+        BufferNodeStats node3Stats2 = new BufferNodeStats(330, 331, 332, 333, 334, 335, 336, 337, 338);
+        BufferNodeInfo node3Info2 = new BufferNodeInfo(3, URI.create("http://address3"), Optional.of(node3Stats2), DRAINED, Instant.now());
         discoveryClient.updateBufferNode(node1Info2);
+        discoveryClient.updateBufferNode(node3Info2);
         assertThat(discoveryClient.getBufferNodes()).isEqualTo(
                 new BufferNodeInfoResponse(
                         true,
-                        Set.of(node1Info2, node2Info1)));
+                        Set.of(node1Info2, node2Info1, node3Info2)));
 
-        // update both nodes and move time but still below MAX_NODE_INFO_STALENESS
+        // update three nodes and move time but still below MAX_NODE_INFO_STALENESS
         discoveryClient.updateBufferNode(node1Info2);
         discoveryClient.updateBufferNode(node2Info1);
+        discoveryClient.updateBufferNode(node3Info2);
         ticker.increment(DEFAULT_BUFFER_NODE_DISCOVERY_STALENESS_THRESHOLD.toMillis() - 100, TimeUnit.MILLISECONDS);
         discoveryManager.cleanup(); // should not delete anything
         assertThat(discoveryClient.getBufferNodes()).isEqualTo(
                 new BufferNodeInfoResponse(
                         true,
-                        Set.of(node1Info2, node2Info1)));
+                        Set.of(node1Info2, node2Info1, node3Info2)));
 
         // update just node1 and move time a bit
         discoveryClient.updateBufferNode(node1Info2);
         ticker.increment(200, TimeUnit.MILLISECONDS);
-        discoveryManager.cleanup(); // should delete node2
+        discoveryManager.cleanup(); // should delete node2, but not node3 because it's drained
         assertThat(discoveryClient.getBufferNodes()).isEqualTo(
                 new BufferNodeInfoResponse(
                         true,
-                        Set.of(node1Info2)));
+                        Set.of(node1Info2, node3Info2)));
+
+        ticker.increment(DRAINED_NODES_STALENESS_THRESHOLD.toMillis(), TimeUnit.MILLISECONDS);
+        discoveryManager.cleanup(); // all nodes should be gone
+        assertThat(discoveryClient.getBufferNodes()).isEqualTo(
+                new BufferNodeInfoResponse(
+                        true,
+                        ImmutableSet.of()));
     }
 
     @Test
