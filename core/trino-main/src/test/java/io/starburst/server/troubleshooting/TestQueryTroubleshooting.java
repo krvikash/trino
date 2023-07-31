@@ -13,6 +13,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Key;
 import com.starburstdata.presto.server.StarburstQueryRunner;
+import io.airlift.log.Logger;
 import io.airlift.units.Duration;
 import io.trino.Session;
 import io.trino.execution.QueryInfo;
@@ -55,6 +56,8 @@ import static org.assertj.core.api.AssertionsForClassTypes.fail;
 public class TestQueryTroubleshooting
         extends AbstractTestQueryFramework
 {
+    private static final Logger log = Logger.get(TestQueryTroubleshooting.class);
+
     private static final String AUTHORIZED_USER = "bob";
     private static final String NOT_AUTHORIZED_USER = "john";
 
@@ -187,6 +190,7 @@ public class TestQueryTroubleshooting
             return Optional.of(troubleshootingManager.getInputStreams(queryId).get(10, TimeUnit.SECONDS));
         }
         catch (ExecutionException | TimeoutException e) {
+            log.error(e, "Awaiting troubleshooting data failed");
             return Optional.empty();
         }
         catch (InterruptedException e) {
