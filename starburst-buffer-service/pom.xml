@@ -60,16 +60,16 @@
         <air.java.version>17.0.1</air.java.version>
         <project.build.targetJdk>17</project.build.targetJdk>
 
-        <dep.airlift.version>234</dep.airlift.version>
+        <dep.airlift.version>235</dep.airlift.version>
         <dep.slice.version>0.45</dep.slice.version>
-        <dep.errorprone.version>2.20.0</dep.errorprone.version>
-        <dep.trino.version>422</dep.trino.version>
+        <dep.errorprone.version>2.21.1</dep.errorprone.version>
+        <dep.trino.version>423</dep.trino.version>
         <dep.joda.version>2.12.5</dep.joda.version>
         <!-- required by Trino 414 -->
         <dep.datadog-agent.version>0.114.0</dep.datadog-agent.version>
         <dep.jackson.version>2.15.2</dep.jackson.version>
 
-        <dep.awsjavasdk.version>2.20.89</dep.awsjavasdk.version>
+        <dep.awsjavasdk.version>2.20.93</dep.awsjavasdk.version>
 
         <!-- force common version; pulled by some test dependencies -->
         <dep.kotlin.version>1.8.0</dep.kotlin.version>
@@ -82,7 +82,7 @@
             <dependency>
                 <groupId>com.azure</groupId>
                 <artifactId>azure-sdk-bom</artifactId>
-                <version>1.2.13</version>
+                <version>1.2.14</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -330,7 +330,7 @@
             <dependency>
                 <groupId>dev.failsafe</groupId>
                 <artifactId>failsafe</artifactId>
-                <version>3.3.1</version>
+                <version>3.3.2</version>
             </dependency>
 
             <dependency>
@@ -342,7 +342,7 @@
             <dependency>
                 <groupId>io.projectreactor</groupId>
                 <artifactId>reactor-core</artifactId>
-                <version>3.4.27</version>
+                <version>3.4.29</version>
             </dependency>
 
             <dependency>
@@ -563,6 +563,25 @@
                                 </conflictingDependencies>
                                 <packages>
                                     <package>io.sundr</package>
+                                </packages>
+                            </exception>
+                            <exception>
+                                <conflictingDependencies>
+                                    <dependency>
+                                        <groupId>org.apache.parquet</groupId>
+                                        <artifactId>parquet-avro</artifactId>
+                                    </dependency>
+                                    <dependency>
+                                        <groupId>org.apache.parquet</groupId>
+                                        <artifactId>parquet-column</artifactId>
+                                    </dependency>
+                                    <dependency>
+                                        <groupId>org.apache.parquet</groupId>
+                                        <artifactId>parquet-hadoop</artifactId>
+                                    </dependency>
+                                </conflictingDependencies>
+                                <packages>
+                                    <pacakge>shaded.parquet.it.unimi.dsi.fastutil</pacakge>
                                 </packages>
                             </exception>
                         </exceptions>
