@@ -17,6 +17,7 @@ import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.trino.plugin.base.connector.SystemTableProvider;
+import io.trino.plugin.hive.DefaultHiveViewReaderFactory;
 import io.trino.plugin.hive.HiveCacheSplitId;
 import io.trino.plugin.hive.HiveConfig;
 import io.trino.plugin.hive.HiveExecutorModule;
@@ -31,6 +32,7 @@ import io.trino.plugin.hive.HiveSessionProperties;
 import io.trino.plugin.hive.HiveSplitManager;
 import io.trino.plugin.hive.HiveTableProperties;
 import io.trino.plugin.hive.HiveTransactionManager;
+import io.trino.plugin.hive.HiveViewReaderFactory;
 import io.trino.plugin.hive.HiveWriterStats;
 import io.trino.plugin.hive.LocationService;
 import io.trino.plugin.hive.PartitionUpdate;
@@ -122,5 +124,8 @@ class LakehouseHiveModule
         binder.install(new HiveExecutorModule());
 
         jsonCodecBinder(binder).bindJsonCodec(HiveCacheSplitId.class);
+
+        newOptionalBinder(binder, HiveViewReaderFactory.class)
+                .setDefault().to(DefaultHiveViewReaderFactory.class).in(Scopes.SINGLETON);
     }
 }

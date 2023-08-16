@@ -101,7 +101,6 @@ import io.trino.spi.connector.Constraint;
 import io.trino.spi.connector.ConstraintApplicationResult;
 import io.trino.spi.connector.DiscretePredicates;
 import io.trino.spi.connector.LocalProperty;
-import io.trino.spi.connector.MetadataProvider;
 import io.trino.spi.connector.ProjectionApplicationResult;
 import io.trino.spi.connector.RelationType;
 import io.trino.spi.connector.RetryMode;
@@ -284,7 +283,6 @@ import static io.trino.plugin.hive.TableType.EXTERNAL_TABLE;
 import static io.trino.plugin.hive.TableType.MANAGED_TABLE;
 import static io.trino.plugin.hive.TableType.VIRTUAL_VIEW;
 import static io.trino.plugin.hive.ViewReaderUtil.PRESTO_VIEW_FLAG;
-import static io.trino.plugin.hive.ViewReaderUtil.createViewReader;
 import static io.trino.plugin.hive.ViewReaderUtil.encodeViewData;
 import static io.trino.plugin.hive.ViewReaderUtil.isHiveView;
 import static io.trino.plugin.hive.ViewReaderUtil.isSomeKindOfAView;
@@ -418,15 +416,14 @@ public class HiveMetadata
     private final boolean autoCommit;
     private final Set<HiveFileWriterFactory> fileWriterFactories;
     private final TrinoFileSystemFactory fileSystemFactory;
+    private final HiveViewReaderFactory hiveViewReaderFactory;
     private final HivePartitionManager partitionManager;
     private final TypeManager typeManager;
-    private final MetadataProvider metadataProvider;
     private final LocationService locationService;
     private final JsonCodec<PartitionUpdate> partitionUpdateCodec;
     private final boolean writesToNonManagedTablesEnabled;
     private final boolean createsOfNonManagedTablesEnabled;
     private final boolean translateHiveViews;
-    private final boolean hiveViewsRunAsInvoker;
     private final boolean hideDeltaLakeTables;
     private final String trinoVersion;
     private final HiveStatisticsProvider hiveStatisticsProvider;
@@ -437,10 +434,8 @@ public class HiveMetadata
     private final boolean partitionProjectionEnabled;
     private final boolean allowTableRename;
     private final long maxPartitionDropsPerQuery;
-    private final HiveTimestampPrecision hiveViewsTimestampPrecision;
     private final Executor metadataFetchingExecutor;
     private final boolean reuseCommonSubqueriesEnabled;
-    private final SchemaMappingPrefixes schemaMappingPrefixes;
 
     public HiveMetadata(
             LocationAccessControl locationAccessControl,
@@ -449,14 +444,13 @@ public class HiveMetadata
             boolean autoCommit,
             Set<HiveFileWriterFactory> fileWriterFactories,
             TrinoFileSystemFactory fileSystemFactory,
+            HiveViewReaderFactory hiveViewReaderFactory,
             HivePartitionManager partitionManager,
             boolean writesToNonManagedTablesEnabled,
             boolean createsOfNonManagedTablesEnabled,
             boolean translateHiveViews,
-            boolean hiveViewsRunAsInvoker,
             boolean hideDeltaLakeTables,
             TypeManager typeManager,
-            MetadataProvider metadataProvider,
             LocationService locationService,
             JsonCodec<PartitionUpdate> partitionUpdateCodec,
             String trinoVersion,
@@ -468,10 +462,8 @@ public class HiveMetadata
             boolean partitionProjectionEnabled,
             boolean allowTableRename,
             long maxPartitionDropsPerQuery,
-            HiveTimestampPrecision hiveViewsTimestampPrecision,
             Executor metadataFetchingExecutor,
-            boolean reuseCommonSubqueriesEnabled,
-            SchemaMappingPrefixes schemaMappingPrefixes)
+            boolean reuseCommonSubqueriesEnabled)
     {
         this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
         this.catalogName = requireNonNull(catalogName, "catalogName is null");
@@ -479,15 +471,14 @@ public class HiveMetadata
         this.autoCommit = autoCommit;
         this.fileWriterFactories = ImmutableSet.copyOf(requireNonNull(fileWriterFactories, "fileWriterFactories is null"));
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
+        this.hiveViewReaderFactory = requireNonNull(hiveViewReaderFactory, "hiveViewReaderFactory is null");
         this.partitionManager = requireNonNull(partitionManager, "partitionManager is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
-        this.metadataProvider = requireNonNull(metadataProvider, "metadataProvider is null");
         this.locationService = requireNonNull(locationService, "locationService is null");
         this.partitionUpdateCodec = requireNonNull(partitionUpdateCodec, "partitionUpdateCodec is null");
         this.writesToNonManagedTablesEnabled = writesToNonManagedTablesEnabled;
         this.createsOfNonManagedTablesEnabled = createsOfNonManagedTablesEnabled;
         this.translateHiveViews = translateHiveViews;
-        this.hiveViewsRunAsInvoker = hiveViewsRunAsInvoker;
         this.hideDeltaLakeTables = hideDeltaLakeTables;
         this.trinoVersion = requireNonNull(trinoVersion, "trinoVersion is null");
         this.hiveStatisticsProvider = requireNonNull(hiveStatisticsProvider, "hiveStatisticsProvider is null");
@@ -498,10 +489,8 @@ public class HiveMetadata
         this.partitionProjectionEnabled = partitionProjectionEnabled;
         this.allowTableRename = allowTableRename;
         this.maxPartitionDropsPerQuery = maxPartitionDropsPerQuery;
-        this.hiveViewsTimestampPrecision = requireNonNull(hiveViewsTimestampPrecision, "hiveViewsTimestampPrecision is null");
         this.metadataFetchingExecutor = requireNonNull(metadataFetchingExecutor, "metadataFetchingExecutor is null");
         this.reuseCommonSubqueriesEnabled = reuseCommonSubqueriesEnabled;
-        this.schemaMappingPrefixes = requireNonNull(schemaMappingPrefixes, "schemaMappingPrefixes is null");
     }
 
     @Override
@@ -3010,9 +2999,9 @@ public class HiveMetadata
                         return Optional.empty();
                     }
 
-                    ConnectorViewDefinition definition = createViewReader(metastore, session, viewName, view, typeManager, this::redirectTable, metadataProvider, hiveViewsRunAsInvoker, hiveViewsTimestampPrecision, schemaMappingPrefixes)
+                    ConnectorViewDefinition definition = hiveViewReaderFactory.createViewReader(session, metastore, viewName, view, this::redirectTable)
                             .decodeViewData(view.getViewOriginalText(), view, catalogName);
-                    // use owner field from table metadata if it exists
+                    // use owner field table metadata if it exists
                     if (view.getOwner().isPresent() && !definition.isRunAsInvoker()) {
                         definition = new ConnectorViewDefinition(
                                 definition.getOriginalSql(),
