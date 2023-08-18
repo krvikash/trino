@@ -22,9 +22,6 @@ import java.io.UncheckedIOException;
 import java.util.Iterator;
 import java.util.List;
 
-import static io.airlift.slice.UnsafeSlice.getByteUnchecked;
-import static io.airlift.slice.UnsafeSlice.getIntUnchecked;
-import static io.airlift.slice.UnsafeSlice.getShortUnchecked;
 import static java.util.Objects.requireNonNull;
 
 public final class PagesSerdeUtil
@@ -86,9 +83,9 @@ public final class PagesSerdeUtil
                     throw new EOFException();
                 }
 
-                int taskId = getShortUnchecked(headerSlice, 0);
-                int attemptId = getByteUnchecked(headerSlice, ATTEMPT_ID_OFFSET);
-                int pageSize = getIntUnchecked(headerSlice, PAGE_SIZE_OFFSET);
+                int taskId = headerSlice.getShortUnchecked(0);
+                int attemptId = headerSlice.getByteUnchecked(ATTEMPT_ID_OFFSET);
+                int pageSize = headerSlice.getIntUnchecked(PAGE_SIZE_OFFSET);
                 Slice data = Slices.allocate(pageSize);
                 data.getOutput().writeBytes(inputStream, pageSize);
                 return new DataPage(taskId, attemptId, data);

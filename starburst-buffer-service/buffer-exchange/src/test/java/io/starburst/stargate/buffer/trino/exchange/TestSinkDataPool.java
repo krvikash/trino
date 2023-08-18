@@ -214,7 +214,7 @@ class TestSinkDataPool
         assertThat(dataPool.timeSinceDataPoolLastFull().orElseThrow().toMillis()).isEqualTo(3000L);
 
         // above high once again
-        dataPool.add(3, utf8Slice("999999999999999999999999999999999999999999999999999999999999999999"));
+        dataPool.add(3, utf8Slice("999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999"));
         assertThat(dataPool.isBlocked()).isNotDone();
         assertThat(dataPool.timeSinceDataPoolLastFull().orElseThrow().toMillis()).isEqualTo(0);
     }
