@@ -17,5 +17,5 @@ import java.util.List;
 public interface SpooledChunkReader
         extends AutoCloseable
 {
-    ListenableFuture<List<DataPage>> getDataPages(SpoolingFile spoolingFile);
+    ListenableFuture<List<DataPage>> getDataPages(SpooledChunk spooledChunk);
 }

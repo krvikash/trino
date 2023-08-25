@@ -9,7 +9,7 @@
  */
 package io.starburst.stargate.buffer.data.execution;
 
-import io.starburst.stargate.buffer.data.client.spooling.SpoolingFile;
+import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 
 import java.util.Optional;
 
@@ -18,12 +18,12 @@ import static java.util.Objects.requireNonNull;
 
 public record ChunkDataResult(
         Optional<ChunkDataLease> chunkDataLease,
-        Optional<SpoolingFile> spoolingFile)
+        Optional<SpooledChunk> spooledChunk)
 {
     public ChunkDataResult {
         requireNonNull(chunkDataLease, "chunkDataLease is null");
-        requireNonNull(spoolingFile, "spoolingFile is null");
-        checkArgument(chunkDataLease.isPresent() ^ spoolingFile.isPresent(), "Either chunkDataLease or spoolingFile should be present");
+        requireNonNull(spooledChunk, "spooledChunk is null");
+        checkArgument(chunkDataLease.isPresent() ^ spooledChunk.isPresent(), "Either chunkDataLease or spooledChunk should be present");
     }
 
     public static ChunkDataResult of(ChunkDataLease chunkDataLease)
@@ -31,8 +31,8 @@ public record ChunkDataResult(
         return new ChunkDataResult(Optional.of(chunkDataLease), Optional.empty());
     }
 
-    public static ChunkDataResult of(SpoolingFile spoolingFile)
+    public static ChunkDataResult of(SpooledChunk spooledChunk)
     {
-        return new ChunkDataResult(Optional.empty(), Optional.of(spoolingFile));
+        return new ChunkDataResult(Optional.empty(), Optional.of(spooledChunk));
     }
 }

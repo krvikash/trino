@@ -25,8 +25,8 @@ import io.starburst.stargate.buffer.BufferNodeStats;
 import io.starburst.stargate.buffer.data.client.DataApi;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.client.HttpDataClient;
+import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
-import io.starburst.stargate.buffer.data.client.spooling.SpoolingFile;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 import io.starburst.stargate.buffer.trino.exchange.ApiFactory;
 import io.starburst.stargate.buffer.trino.exchange.BufferExchangeConfig;
@@ -247,7 +247,7 @@ public class RateLimitingTestHarness
                             SpooledChunkReader dummySpooledChunkReader = new SpooledChunkReader()
                             {
                                 @Override
-                                public ListenableFuture<List<DataPage>> getDataPages(SpoolingFile spoolingFile)
+                                public ListenableFuture<List<DataPage>> getDataPages(SpooledChunk spooledChunk)
                                 {
                                     throw new RuntimeException("not implemented");
                                 }

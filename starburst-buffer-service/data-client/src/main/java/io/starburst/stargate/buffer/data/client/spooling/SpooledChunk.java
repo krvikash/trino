@@ -11,11 +11,12 @@ package io.starburst.stargate.buffer.data.client.spooling;
 
 import static java.util.Objects.requireNonNull;
 
-public record SpoolingFile(
+public record SpooledChunk(
         String location,
         int length)
 {
-    public SpoolingFile {
+    public SpooledChunk
+    {
         requireNonNull(location, "location is null");
     }
 }

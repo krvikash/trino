@@ -30,8 +30,8 @@ import io.airlift.slice.Slice;
 import io.airlift.slice.XxHash64;
 import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.BufferNodeInfo;
+import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
-import io.starburst.stargate.buffer.data.client.spooling.SpoolingFile;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -80,8 +80,8 @@ public class HttpDataClient
     public static final String ERROR_CODE_HEADER = "X-trino-buffer-error-code";
     public static final String RATE_LIMIT_HEADER = "X-trino-rate-limit";
     public static final String AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER = "X-trino-average-process-time-in-millis";
-    public static final String SPOOLING_FILE_LOCATION_HEADER = "X-trino-buffer-spooling-file-location";
-    public static final String SPOOLING_FILE_SIZE_HEADER = "X-trino-buffer-spooling-file-size";
+    public static final String SPOOLED_CHUNK_LOCATION_HEADER = "X-trino-buffer-spooled-chunk-location";
+    public static final String SPOOLED_CHUNK_LENGTH_HEADER = "X-trino-buffer-spooled-chunk-length";
     public static final String CLIENT_ID_HEADER = "X-trino-buffer-client-id";
 
     private static final JsonCodec<ChunkList> CHUNK_LIST_JSON_CODEC = jsonCodec(ChunkList.class);
@@ -340,8 +340,8 @@ public class HttpDataClient
             if (chunkDataResponse.getPages().isPresent()) {
                 return immediateFuture(chunkDataResponse.getPages().get());
             }
-            verify(chunkDataResponse.getSpoolingFile().isPresent(), "Either pages or spoolingFile should be present");
-            return spooledChunkReader.getDataPages(chunkDataResponse.getSpoolingFile().get());
+            verify(chunkDataResponse.getSpooledChunk().isPresent(), "Either pages or spooledChunk should be present");
+            return spooledChunkReader.getDataPages(chunkDataResponse.getSpooledChunk().get());
         }, directExecutor());
     }
 
@@ -366,16 +366,16 @@ public class HttpDataClient
         public ChunkDataResponse handle(Request request, Response response)
                 throws RuntimeException
         {
-            if (response.getStatusCode() == HttpStatus.NOT_FOUND.code() && response.getHeader(SPOOLING_FILE_LOCATION_HEADER) != null) {
-                String location = response.getHeader(SPOOLING_FILE_LOCATION_HEADER);
-                String length = response.getHeader(SPOOLING_FILE_SIZE_HEADER);
+            if (response.getStatusCode() == HttpStatus.NOT_FOUND.code() && response.getHeader(SPOOLED_CHUNK_LOCATION_HEADER) != null) {
+                String location = response.getHeader(SPOOLED_CHUNK_LOCATION_HEADER);
+                String length = response.getHeader(SPOOLED_CHUNK_LENGTH_HEADER);
 
                 if (length == null) {
                     throw new DataApiException(INTERNAL_ERROR, requestErrorMessage(request,
                             "Expected %s and %s to be both present in response")
-                            .formatted(SPOOLING_FILE_LOCATION_HEADER, SPOOLING_FILE_SIZE_HEADER));
+                            .formatted(SPOOLED_CHUNK_LOCATION_HEADER, SPOOLED_CHUNK_LENGTH_HEADER));
                 }
-                return ChunkDataResponse.createSpoolingFileResponse(location, Integer.parseInt(length));
+                return ChunkDataResponse.createSpooledChunkResponse(location, Integer.parseInt(length));
             }
             if (response.getStatusCode() != HttpStatus.OK.code()) {
                 StringBuilder body = new StringBuilder();
@@ -422,19 +422,19 @@ public class HttpDataClient
             return new ChunkDataResponse(Optional.of(pages), Optional.empty());
         }
 
-        public static ChunkDataResponse createSpoolingFileResponse(String location, int length)
+        public static ChunkDataResponse createSpooledChunkResponse(String location, int length)
         {
-            return new ChunkDataResponse(Optional.empty(), Optional.of(new SpoolingFile(location, length)));
+            return new ChunkDataResponse(Optional.empty(), Optional.of(new SpooledChunk(location, length)));
         }
 
         private final Optional<List<DataPage>> pages;
-        private final Optional<SpoolingFile> spoolingFile;
+        private final Optional<SpooledChunk> spooledChunk;
 
-        private ChunkDataResponse(Optional<Iterable<DataPage>> pages, Optional<SpoolingFile> spoolingFile)
+        private ChunkDataResponse(Optional<Iterable<DataPage>> pages, Optional<SpooledChunk> spooledChunk)
         {
             this.pages = requireNonNull(pages, "pages is null").map(ImmutableList::copyOf);
-            this.spoolingFile = requireNonNull(spoolingFile, "spoolingFile is null");
-            checkArgument(pages.isPresent() ^ spoolingFile.isPresent(), "Either pages or spoolingFile should be present");
+            this.spooledChunk = requireNonNull(spooledChunk, "spooledChunk is null");
+            checkArgument(pages.isPresent() ^ spooledChunk.isPresent(), "Either pages or spooledChunk should be present");
         }
 
         public Optional<List<DataPage>> getPages()
@@ -442,9 +442,9 @@ public class HttpDataClient
             return pages;
         }
 
-        public Optional<SpoolingFile> getSpoolingFile()
+        public Optional<SpooledChunk> getSpooledChunk()
         {
-            return spoolingFile;
+            return spooledChunk;
         }
 
         @Override
@@ -452,9 +452,9 @@ public class HttpDataClient
         {
             ToStringHelper helper = toStringHelper(this);
             pages.ifPresent(pages -> helper.add("pagesSize", pages.size()));
-            spoolingFile.ifPresent(spoolingFile -> helper
-                    .add("spoolingFileLocation", spoolingFile.location())
-                    .add("spoolingFileLength", spoolingFile.length()));
+            spooledChunk.ifPresent(spooledChunk -> helper
+                    .add("spooledChunkLocation", spooledChunk.location())
+                    .add("spooledChunkLength", spooledChunk.length()));
             return helper.toString();
         }
     }

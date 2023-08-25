@@ -14,7 +14,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
 import io.airlift.slice.OutputStreamSliceOutput;
 import io.airlift.slice.SliceOutput;
-import io.starburst.stargate.buffer.data.client.spooling.SpoolingFile;
+import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
@@ -58,7 +58,7 @@ public class LocalSpoolingStorage
     }
 
     @Override
-    public SpoolingFile getSpoolingFile(long chunkBufferNodeId, String exchangeId, long chunkId)
+    public SpooledChunk getSpooledChunk(long chunkBufferNodeId, String exchangeId, long chunkId)
     {
         File file = getFilePath(chunkBufferNodeId, exchangeId, chunkId).toFile();
         if (!file.exists()) {
@@ -67,7 +67,7 @@ public class LocalSpoolingStorage
         int sizeInBytes = toIntExact(file.length());
         verify(sizeInBytes > CHUNK_FILE_HEADER_SIZE,
                 "length %s should be larger than CHUNK_FILE_HEADER_SIZE", sizeInBytes, CHUNK_FILE_HEADER_SIZE);
-        return new SpoolingFile(file.getPath(), sizeInBytes);
+        return new SpooledChunk(file.getPath(), sizeInBytes);
     }
 
     @Override

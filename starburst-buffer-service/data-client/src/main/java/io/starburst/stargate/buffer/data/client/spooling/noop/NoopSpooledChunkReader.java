@@ -11,8 +11,8 @@ package io.starburst.stargate.buffer.data.client.spooling.noop;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import io.starburst.stargate.buffer.data.client.DataPage;
+import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
-import io.starburst.stargate.buffer.data.client.spooling.SpoolingFile;
 
 import java.util.List;
 
@@ -20,7 +20,7 @@ public class NoopSpooledChunkReader
         implements SpooledChunkReader
 {
     @Override
-    public ListenableFuture<List<DataPage>> getDataPages(SpoolingFile spoolingFile)
+    public ListenableFuture<List<DataPage>> getDataPages(SpooledChunk spooledChunk)
     {
         throw new RuntimeException("not implemented");
     }

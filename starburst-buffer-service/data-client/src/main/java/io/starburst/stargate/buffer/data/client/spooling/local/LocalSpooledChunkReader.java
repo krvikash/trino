@@ -13,8 +13,8 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
 import io.starburst.stargate.buffer.data.client.DataApiConfig;
 import io.starburst.stargate.buffer.data.client.DataPage;
+import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
-import io.starburst.stargate.buffer.data.client.spooling.SpoolingFile;
 import jakarta.annotation.PreDestroy;
 
 import java.io.FileInputStream;
@@ -42,16 +42,16 @@ public class LocalSpooledChunkReader
     }
 
     @Override
-    public ListenableFuture<List<DataPage>> getDataPages(SpoolingFile spoolingFile)
+    public ListenableFuture<List<DataPage>> getDataPages(SpooledChunk spooledChunk)
     {
-        URI uri = URI.create(spoolingFile.location());
-        int length = spoolingFile.length();
+        URI uri = URI.create(spooledChunk.location());
+        int length = spooledChunk.length();
 
         String scheme = uri.getScheme();
         checkArgument(scheme == null || scheme.equals("file"), "Unexpected storage scheme %s for LocalSpooledChunkReader, expecting null/file");
 
         byte[] bytes = new byte[length];
-        try (InputStream inputStream = new FileInputStream(Paths.get(spoolingFile.location()).toFile())) {
+        try (InputStream inputStream = new FileInputStream(Paths.get(spooledChunk.location()).toFile())) {
             int bytesRead = inputStream.read(bytes);
             verify(bytesRead == length, "bytesRead %s not equal to length %s", bytesRead, length);
         }

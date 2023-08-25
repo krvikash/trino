@@ -810,8 +810,8 @@ public class TestChunkManager
             verifyChunkData(chunkDataResult.chunkDataLease().get(), values);
         }
         else {
-            assertTrue(chunkDataResult.spoolingFile().isPresent());
-            List<DataPage> dataPages = getFutureValue(spooledChunkReader.getDataPages(chunkDataResult.spoolingFile().get()));
+            assertTrue(chunkDataResult.spooledChunk().isPresent());
+            List<DataPage> dataPages = getFutureValue(spooledChunkReader.getDataPages(chunkDataResult.spooledChunk().get()));
             assertThat(dataPages).containsExactlyInAnyOrder(values);
         }
     }
@@ -889,8 +889,8 @@ public class TestChunkManager
     private void assertDrainedChunkDataResult(ChunkManager chunkManager, long drainedBufferNodeId)
     {
         ChunkDataResult chunkDataResult = chunkManager.getChunkData(drainedBufferNodeId, EXCHANGE_0, 0, 0L);
-        assertTrue(chunkDataResult.spoolingFile().isPresent());
-        assertEquals(52, chunkDataResult.spoolingFile().get().length());
-        assertEquals("s3://" + minioStorage.getBucketName() + "/0a.exchange-0.1/0", chunkDataResult.spoolingFile().get().location());
+        assertTrue(chunkDataResult.spooledChunk().isPresent());
+        assertEquals(52, chunkDataResult.spooledChunk().get().length());
+        assertEquals("s3://" + minioStorage.getBucketName() + "/0a.exchange-0.1/0", chunkDataResult.spooledChunk().get().location());
     }
 }

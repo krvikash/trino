@@ -26,7 +26,7 @@ import io.airlift.stats.CounterStat;
 import io.airlift.stats.DistributionStat;
 import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.data.client.ChunkList;
-import io.starburst.stargate.buffer.data.client.spooling.SpoolingFile;
+import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.execution.AddDataPagesResult;
 import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
@@ -94,8 +94,8 @@ import static io.starburst.stargate.buffer.data.client.HttpDataClient.AVERAGE_PR
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.CLIENT_ID_HEADER;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.ERROR_CODE_HEADER;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.RATE_LIMIT_HEADER;
-import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLING_FILE_LOCATION_HEADER;
-import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLING_FILE_SIZE_HEADER;
+import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLED_CHUNK_LENGTH_HEADER;
+import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLED_CHUNK_LOCATION_HEADER;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
 import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_CHUNK_DATA;
 import static io.starburst.stargate.buffer.data.execution.ChunkDataLease.CHUNK_SLICES_METADATA_SIZE;
@@ -597,11 +597,11 @@ public class DataResource
                 });
             }
             else {
-                verify(chunkDataResult.spoolingFile().isPresent(), "Either chunkDataLease or spoolingFile should be present");
-                SpoolingFile spoolingFile = chunkDataResult.spoolingFile().get();
+                verify(chunkDataResult.spooledChunk().isPresent(), "Either chunkDataLease or spooledChunk should be present");
+                SpooledChunk spooledChunk = chunkDataResult.spooledChunk().get();
                 asyncResponse.resume(Response.status(Status.NOT_FOUND)
-                        .header(SPOOLING_FILE_LOCATION_HEADER, spoolingFile.location())
-                        .header(SPOOLING_FILE_SIZE_HEADER, String.valueOf(spoolingFile.length()))
+                        .header(SPOOLED_CHUNK_LOCATION_HEADER, spooledChunk.location())
+                        .header(SPOOLED_CHUNK_LENGTH_HEADER, String.valueOf(spooledChunk.length()))
                         .build());
             }
         }

@@ -200,7 +200,7 @@ public class ChunkManager
     {
         if (bufferNodeId != this.bufferNodeId) {
             // this is a request to get drained chunk data on a different node, return spooling file info directly
-            return ChunkDataResult.of(spoolingStorage.getSpoolingFile(bufferNodeId, exchangeId, chunkId));
+            return ChunkDataResult.of(spoolingStorage.getSpooledChunk(bufferNodeId, exchangeId, chunkId));
         }
 
         Exchange exchange = getExchangeAndHeartbeat(exchangeId);

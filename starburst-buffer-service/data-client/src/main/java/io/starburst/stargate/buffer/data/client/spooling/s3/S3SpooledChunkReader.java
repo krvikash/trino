@@ -15,8 +15,8 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
 import io.starburst.stargate.buffer.data.client.DataApiConfig;
 import io.starburst.stargate.buffer.data.client.DataPage;
+import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
-import io.starburst.stargate.buffer.data.client.spooling.SpoolingFile;
 import jakarta.annotation.PreDestroy;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
@@ -51,10 +51,10 @@ public class S3SpooledChunkReader
     }
 
     @Override
-    public ListenableFuture<List<DataPage>> getDataPages(SpoolingFile spoolingFile)
+    public ListenableFuture<List<DataPage>> getDataPages(SpooledChunk spooledChunk)
     {
-        URI uri = URI.create(spoolingFile.location());
-        int length = spoolingFile.length();
+        URI uri = URI.create(spooledChunk.location());
+        int length = spooledChunk.length();
 
         String scheme = uri.getScheme();
         checkArgument(scheme.equals("s3") || scheme.equals("gs"), "Unexpected storage scheme %s for S3SpooledChunkReader, expecting s3/gs", scheme);

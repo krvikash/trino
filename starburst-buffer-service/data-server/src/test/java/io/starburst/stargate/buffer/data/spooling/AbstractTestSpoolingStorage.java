@@ -76,13 +76,13 @@ public abstract class AbstractTestSpoolingStorage
         getFutureValue(spoolingStorage.writeChunk(BUFFER_NODE_ID, EXCHANGE_ID, CHUNK_ID_0, toChunkDataLease(dataPages)));
         // verify we can read a single chunk multiple times
         for (int i = 0; i < 2; ++i) {
-            assertThat(getFutureValue(spooledChunkReader.getDataPages(spoolingStorage.getSpoolingFile(BUFFER_NODE_ID, EXCHANGE_ID, CHUNK_ID_0))))
+            assertThat(getFutureValue(spooledChunkReader.getDataPages(spoolingStorage.getSpooledChunk(BUFFER_NODE_ID, EXCHANGE_ID, CHUNK_ID_0))))
                     .containsExactlyElementsOf(dataPages);
         }
         getFutureValue(spoolingStorage.removeExchange(BUFFER_NODE_ID, EXCHANGE_ID));
 
         // verify file is actually removed
-        assertThrows(RuntimeException.class, () -> spoolingStorage.getSpoolingFile(BUFFER_NODE_ID, EXCHANGE_ID, CHUNK_ID_0));
+        assertThrows(RuntimeException.class, () -> spoolingStorage.getSpooledChunk(BUFFER_NODE_ID, EXCHANGE_ID, CHUNK_ID_0));
     }
 
     @Test
@@ -94,7 +94,7 @@ public abstract class AbstractTestSpoolingStorage
                 new DataPage(0, 0, utf8Slice(randomLongString1)),
                 new DataPage(1, 1, utf8Slice(randomLongString2)));
         getFutureValue(spoolingStorage.writeChunk(BUFFER_NODE_ID, EXCHANGE_ID, CHUNK_ID_0, toChunkDataLease(dataPages)));
-        assertThat(getFutureValue(spooledChunkReader.getDataPages(spoolingStorage.getSpoolingFile(BUFFER_NODE_ID, EXCHANGE_ID, CHUNK_ID_0))))
+        assertThat(getFutureValue(spooledChunkReader.getDataPages(spoolingStorage.getSpooledChunk(BUFFER_NODE_ID, EXCHANGE_ID, CHUNK_ID_0))))
                 .containsExactlyElementsOf(dataPages);
 
         // overwriting with order reversed
@@ -102,7 +102,7 @@ public abstract class AbstractTestSpoolingStorage
                 new DataPage(0, 0, utf8Slice(randomLongString2)),
                 new DataPage(1, 1, utf8Slice(randomLongString1)));
         getFutureValue(spoolingStorage.writeChunk(BUFFER_NODE_ID, EXCHANGE_ID, CHUNK_ID_0, toChunkDataLease(reversedDataPages)));
-        assertThat(getFutureValue(spooledChunkReader.getDataPages(spoolingStorage.getSpoolingFile(BUFFER_NODE_ID, EXCHANGE_ID, CHUNK_ID_0))))
+        assertThat(getFutureValue(spooledChunkReader.getDataPages(spoolingStorage.getSpooledChunk(BUFFER_NODE_ID, EXCHANGE_ID, CHUNK_ID_0))))
                 .containsExactlyElementsOf(reversedDataPages);
 
         getFutureValue(spoolingStorage.removeExchange(BUFFER_NODE_ID, EXCHANGE_ID));
@@ -117,7 +117,7 @@ public abstract class AbstractTestSpoolingStorage
                     toChunkDataLease(ImmutableList.of(new DataPage(0, 0, utf8Slice(String.valueOf(chunkId)))))));
         }
         for (long chunkId = 0; chunkId < numChunks; ++chunkId) {
-            assertThat(getFutureValue(spooledChunkReader.getDataPages(spoolingStorage.getSpoolingFile(BUFFER_NODE_ID, EXCHANGE_ID, chunkId))))
+            assertThat(getFutureValue(spooledChunkReader.getDataPages(spoolingStorage.getSpooledChunk(BUFFER_NODE_ID, EXCHANGE_ID, chunkId))))
                     .containsExactlyElementsOf(ImmutableList.of(new DataPage(0, 0, utf8Slice(String.valueOf(chunkId)))));
         }
 
@@ -128,7 +128,7 @@ public abstract class AbstractTestSpoolingStorage
         // verify spooling files are removed
         for (long chunkId = 0; chunkId < numChunks; ++chunkId) {
             long finalChunkId = chunkId;
-            assertThatThrownBy(() -> spoolingStorage.getSpoolingFile(BUFFER_NODE_ID, EXCHANGE_ID, finalChunkId))
+            assertThatThrownBy(() -> spoolingStorage.getSpooledChunk(BUFFER_NODE_ID, EXCHANGE_ID, finalChunkId))
                     .isInstanceOf(DataServerException.class)
                     .hasMessage("No closed chunk found for bufferNodeId %d, exchange %s, chunk %d".formatted(BUFFER_NODE_ID, EXCHANGE_ID, chunkId));
         }

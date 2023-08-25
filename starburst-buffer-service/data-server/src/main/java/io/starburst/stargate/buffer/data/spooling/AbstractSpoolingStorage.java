@@ -15,7 +15,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.airlift.stats.CounterStat;
 import io.airlift.stats.DistributionStat;
-import io.starburst.stargate.buffer.data.client.spooling.SpoolingFile;
+import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
@@ -64,7 +64,7 @@ public abstract class AbstractSpoolingStorage
     protected abstract ListenableFuture<?> putStorageObject(String fileName, ChunkDataLease chunkDataLease);
 
     @Override
-    public SpoolingFile getSpoolingFile(long chunkBufferNodeId, String exchangeId, long chunkId)
+    public SpooledChunk getSpooledChunk(long chunkBufferNodeId, String exchangeId, long chunkId)
     {
         String fileName = getFileName(chunkBufferNodeId, exchangeId, chunkId);
         Map<Long, Integer> chunkIdToFileSizes = fileSizes.get(exchangeId);
@@ -84,7 +84,7 @@ public abstract class AbstractSpoolingStorage
             throw new DataServerException(CHUNK_NOT_FOUND,
                     "No closed chunk found for bufferNodeId %d, exchange %s, chunk %d".formatted(chunkBufferNodeId, exchangeId, chunkId));
         }
-        return new SpoolingFile(getLocation(fileName), length);
+        return new SpooledChunk(getLocation(fileName), length);
     }
 
     @Override

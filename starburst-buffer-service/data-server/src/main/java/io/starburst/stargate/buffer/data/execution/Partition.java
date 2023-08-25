@@ -146,7 +146,7 @@ public class Partition
         ChunkDataLease chunkDataLease = (chunk == null ? null : chunk.getChunkDataLease());
         if (chunkDataLease == null) {
             // chunk already spooled
-            return ChunkDataResult.of(spoolingStorage.getSpoolingFile(bufferNodeId, exchangeId, chunkId));
+            return ChunkDataResult.of(spoolingStorage.getSpooledChunk(bufferNodeId, exchangeId, chunkId));
         }
         return ChunkDataResult.of(chunkDataLease);
     }
