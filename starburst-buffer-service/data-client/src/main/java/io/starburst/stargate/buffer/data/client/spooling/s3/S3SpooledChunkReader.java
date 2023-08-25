@@ -54,6 +54,7 @@ public class S3SpooledChunkReader
     public ListenableFuture<List<DataPage>> getDataPages(SpooledChunk spooledChunk)
     {
         URI uri = URI.create(spooledChunk.location());
+        long offset = spooledChunk.offset();
         int length = spooledChunk.length();
 
         String scheme = uri.getScheme();
@@ -62,6 +63,7 @@ public class S3SpooledChunkReader
         GetObjectRequest getObjectRequest = GetObjectRequest.builder()
                 .bucket(getBucketName(uri))
                 .key(keyFromUri(uri))
+                .range("bytes=" + offset + "-" + (offset + length - 1))
                 .build();
         return Futures.transform(
                 toListenableFuture(s3AsyncClient.getObject(getObjectRequest, ByteArrayAsyncResponseTransformer.toByteArray(length))),

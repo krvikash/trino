@@ -67,7 +67,7 @@ public class LocalSpoolingStorage
         int sizeInBytes = toIntExact(file.length());
         verify(sizeInBytes > CHUNK_FILE_HEADER_SIZE,
                 "length %s should be larger than CHUNK_FILE_HEADER_SIZE", sizeInBytes, CHUNK_FILE_HEADER_SIZE);
-        return new SpooledChunk(file.getPath(), sizeInBytes);
+        return new SpooledChunk(file.getPath(), 0, sizeInBytes);
     }
 
     @Override

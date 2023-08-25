@@ -13,6 +13,7 @@ import static java.util.Objects.requireNonNull;
 
 public record SpooledChunk(
         String location,
+        long offset,
         int length)
 {
     public SpooledChunk

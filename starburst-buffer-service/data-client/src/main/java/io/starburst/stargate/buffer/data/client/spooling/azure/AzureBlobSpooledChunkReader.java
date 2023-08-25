@@ -9,7 +9,9 @@
  */
 package io.starburst.stargate.buffer.data.client.spooling.azure;
 
+import com.azure.core.http.rest.ResponseBase;
 import com.azure.storage.blob.BlobServiceAsyncClient;
+import com.azure.storage.blob.models.BlobRange;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
 import io.starburst.stargate.buffer.data.client.DataApiConfig;
@@ -47,14 +49,17 @@ public class AzureBlobSpooledChunkReader
     public ListenableFuture<List<DataPage>> getDataPages(SpooledChunk spooledChunk)
     {
         URI spooledChunkUri = URI.create(spooledChunk.location());
+        long offset = spooledChunk.offset();
+        int length = spooledChunk.length();
 
         String scheme = spooledChunkUri.getScheme();
         checkArgument(spooledChunkUri.getScheme().equals("abfs"), "Unexpected storage scheme '%s' for AzureSpooledChunkReader, expecting 'abfs'", scheme);
 
         return toListenableFuture(azureClient.getBlobContainerAsyncClient(getContainerName(spooledChunkUri))
                 .getBlobAsyncClient(keyFromUri(spooledChunkUri))
-                .download()
-                .reduce(ByteBuffer.allocate(spooledChunk.length()), ByteBuffer::put)
+                .downloadStreamWithResponse(new BlobRange(offset, (long) length), null, null, false)
+                .flatMapMany(ResponseBase::getValue)
+                .reduce(ByteBuffer.allocate(length), ByteBuffer::put)
                 .map(byteBuffer -> toDataPages(byteBuffer.array(), dataIntegrityVerificationEnabled))
                 .toFuture());
     }

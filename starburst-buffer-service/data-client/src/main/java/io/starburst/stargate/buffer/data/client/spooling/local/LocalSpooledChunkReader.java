@@ -19,7 +19,6 @@ import jakarta.annotation.PreDestroy;
 
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
 import java.nio.file.Paths;
 import java.util.List;
@@ -45,13 +44,15 @@ public class LocalSpooledChunkReader
     public ListenableFuture<List<DataPage>> getDataPages(SpooledChunk spooledChunk)
     {
         URI uri = URI.create(spooledChunk.location());
+        long offset = spooledChunk.offset();
         int length = spooledChunk.length();
 
         String scheme = uri.getScheme();
         checkArgument(scheme == null || scheme.equals("file"), "Unexpected storage scheme %s for LocalSpooledChunkReader, expecting null/file");
 
         byte[] bytes = new byte[length];
-        try (InputStream inputStream = new FileInputStream(Paths.get(spooledChunk.location()).toFile())) {
+        try (FileInputStream inputStream = new FileInputStream(Paths.get(spooledChunk.location()).toFile())) {
+            inputStream.getChannel().position(offset);
             int bytesRead = inputStream.read(bytes);
             verify(bytesRead == length, "bytesRead %s not equal to length %s", bytesRead, length);
         }
