@@ -59,7 +59,6 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class RateLimitingTestHarness
-        implements Cloneable
 {
     private static final long NANOSECONDS_IN_SECOND = 1_000_000_000;
     private static final long NANOSECONDS_IN_MILLISECOND = 1_000_000;
