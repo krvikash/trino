@@ -54,9 +54,10 @@ public class AggregationNode
     private final Optional<Symbol> groupIdSymbol;
     private final List<Symbol> outputs;
     /**
-     * Indicates whether aggregation is potentially reducing rows that are propagated though exchange operator.
+     * Indicates whether it is beneficial (e.g. reduces remote exchange input) to retain this aggregation
+     * as an auxiliary step when making a decision to push down partial aggregation more aggressively.
      */
-    private final Optional<Boolean> exchangeInputAggregation;
+    private final Optional<Boolean> isInputReducingAggregation;
 
     public static AggregationNode singleAggregation(
             PlanNodeId id,
@@ -90,7 +91,7 @@ public class AggregationNode
             @JsonProperty("step") Step step,
             @JsonProperty("hashSymbol") Optional<Symbol> hashSymbol,
             @JsonProperty("groupIdSymbol") Optional<Symbol> groupIdSymbol,
-            @JsonProperty("exchangeInputAggregation") Optional<Boolean> exchangeInputAggregation)
+            @JsonProperty("isInputReducingAggregation") Optional<Boolean> isInputReducingAggregation)
     {
         super(id);
 
@@ -122,7 +123,7 @@ public class AggregationNode
         outputs.addAll(aggregations.keySet());
 
         this.outputs = outputs.build();
-        this.exchangeInputAggregation = requireNonNull(exchangeInputAggregation, "exchangeInputAggregation is null");
+        this.isInputReducingAggregation = requireNonNull(isInputReducingAggregation, "exchangeInputAggregation is null");
     }
 
     public List<Symbol> getGroupingKeys()
@@ -226,10 +227,10 @@ public class AggregationNode
         return groupIdSymbol;
     }
 
-    @JsonProperty("exchangeInputAggregation")
-    public boolean isExchangeInputAggregation()
+    @JsonProperty("isInputReducingAggregation")
+    public boolean isInputReducingAggregation()
     {
-        return exchangeInputAggregation.orElse(false);
+        return isInputReducingAggregation.orElse(false);
     }
 
     public boolean hasOrderings()
@@ -538,7 +539,7 @@ public class AggregationNode
         private Step step;
         private Optional<Symbol> hashSymbol;
         private Optional<Symbol> groupIdSymbol;
-        private Optional<Boolean> exchangeInputAggregation;
+        private Optional<Boolean> isInputReducingAggregation;
 
         public Builder(AggregationNode node)
         {
@@ -551,7 +552,7 @@ public class AggregationNode
             this.step = node.getStep();
             this.hashSymbol = node.getHashSymbol();
             this.groupIdSymbol = node.getGroupIdSymbol();
-            this.exchangeInputAggregation = node.exchangeInputAggregation;
+            this.isInputReducingAggregation = node.isInputReducingAggregation;
         }
 
         public Builder setId(PlanNodeId id)
@@ -602,9 +603,9 @@ public class AggregationNode
             return this;
         }
 
-        public Builder setExchangeInputAggregation(boolean exchangeInputAggregation)
+        public Builder setIsInputReducingAggregation(boolean isInputReducingAggregation)
         {
-            this.exchangeInputAggregation = Optional.of(exchangeInputAggregation);
+            this.isInputReducingAggregation = Optional.of(isInputReducingAggregation);
             return this;
         }
 
@@ -619,7 +620,7 @@ public class AggregationNode
                     step,
                     hashSymbol,
                     groupIdSymbol,
-                    exchangeInputAggregation);
+                    isInputReducingAggregation);
         }
     }
 }

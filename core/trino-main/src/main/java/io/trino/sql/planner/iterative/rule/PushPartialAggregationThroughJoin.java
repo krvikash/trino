@@ -289,7 +289,7 @@ public class PushPartialAggregationThroughJoin
                 .setGroupingSets(singleGroupingSet(groupingKeys))
                 .setPreGroupedSymbols(ImmutableList.of())
                 // aggregation below join might not be as effective in reducing rows before exchange
-                .setExchangeInputAggregation(false)
+                .setIsInputReducingAggregation(false)
                 .build();
     }
 
@@ -321,7 +321,7 @@ public class PushPartialAggregationThroughJoin
         // Keep intermediate aggregation below remote exchange to reduce network traffic.
         // Intermediate aggregation can be skipped if pushed aggregation has subset of grouping
         // symbols as join is not expanding.
-        if (aggregation.isExchangeInputAggregation() && !ImmutableSet.copyOf(aggregation.getGroupingKeys()).containsAll(pushedAggregation.getGroupingKeys())) {
+        if (aggregation.isInputReducingAggregation() && !ImmutableSet.copyOf(aggregation.getGroupingKeys()).containsAll(pushedAggregation.getGroupingKeys())) {
             result = toIntermediateAggregation(aggregation, result, context);
         }
         return result;
