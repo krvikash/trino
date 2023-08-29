@@ -7,3 +7,4 @@ var
 pom.xml.versionsBackup
 test-output/
 .DS_Store
+.java-version
