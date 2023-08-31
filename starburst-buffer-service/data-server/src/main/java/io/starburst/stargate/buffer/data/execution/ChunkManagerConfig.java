@@ -51,7 +51,7 @@ public class ChunkManagerConfig
     }
 
     @Config("chunk.target-size")
-    @ConfigDescription("Target size of data that a chunk may accommodate. Should be a multiple of chunk.slice-base-size")
+    @ConfigDescription("Target size of data that a chunk may accommodate. Should be a multiple of chunk.slice-size")
     public ChunkManagerConfig setChunkTargetSize(DataSize chunkTargetSize)
     {
         this.chunkTargetSize = chunkTargetSize;
@@ -67,7 +67,7 @@ public class ChunkManagerConfig
     }
 
     @Config("chunk.max-size")
-    @ConfigDescription("Max size of data that a chunk may accommodate. Should be a multiple of chunk.slice-base-size")
+    @ConfigDescription("Max size of data that a chunk may accommodate. Should be a multiple of chunk.slice-size")
     public ChunkManagerConfig setChunkMaxSize(DataSize chunkMaxSize)
     {
         this.chunkMaxSize = chunkMaxSize;
