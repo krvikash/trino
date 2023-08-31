@@ -43,7 +43,7 @@ public class ChunkManagerConfig
     private int chunkSpoolConcurrency = 32;
 
     @NotNull
-    @MinDataSize("16MB")
+    @MinDataSize("4kB")
     @MaxDataSize("128MB")
     public DataSize getChunkTargetSize()
     {
