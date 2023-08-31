@@ -164,7 +164,7 @@ public class BufferExchange
                         for (Long nodeId : newMapping.getMapping().values()) {
                             addBufferNodeToPoll(nodeId);
                         }
-                        resultFuture.complete(new BufferExchangeSinkInstanceHandle(
+                        resultFuture.complete(BufferExchangeSinkInstanceHandle.create(
                                 bufferExchangeSinkHandle,
                                 taskAttemptId,
                                 newMapping));

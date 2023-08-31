@@ -28,7 +28,7 @@ public class BufferExchangeSinkInstanceHandle
     private final int taskAttemptId;
     private final PartitionNodeMapping partitionNodeMapping;
 
-    public BufferExchangeSinkInstanceHandle create(
+    public static BufferExchangeSinkInstanceHandle create(
             BufferExchangeSinkHandle sinkHandle,
             int taskAttemptId,
             PartitionNodeMapping partitionNodeMapping)
