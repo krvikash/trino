@@ -763,11 +763,14 @@ public class TestChunkManager
 
         ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 2);
         ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 0, 1L, 40);
-        ChunkHandle chunkHandle2 = new ChunkHandle(BUFFER_NODE_ID, 1, 3L, 42);
-        ChunkHandle chunkHandle3 = new ChunkHandle(BUFFER_NODE_ID, 2, 4L, 1);
-        ChunkHandle chunkHandle4 = new ChunkHandle(BUFFER_NODE_ID, 2, 5L, 41);
-        ChunkList chunkList = listClosedChunks(chunkManager, EXCHANGE_0, OptionalLong.empty(), 5);
-        assertThat(chunkList.chunks()).containsExactlyInAnyOrder(chunkHandle0, chunkHandle1, chunkHandle2, chunkHandle3, chunkHandle4);
+        ChunkHandle chunkHandle2 = new ChunkHandle(BUFFER_NODE_ID, 1, 3L, 40);
+        ChunkHandle chunkHandle3 = new ChunkHandle(BUFFER_NODE_ID, 1, 4L, 2);
+        ChunkHandle chunkHandle4 = new ChunkHandle(BUFFER_NODE_ID, 2, 5L, 1);
+        ChunkHandle chunkHandle5 = new ChunkHandle(BUFFER_NODE_ID, 2, 6L, 40);
+        ChunkHandle chunkHandle6 = new ChunkHandle(BUFFER_NODE_ID, 2, 7L, 1);
+
+        ChunkList chunkList = listClosedChunks(chunkManager, EXCHANGE_0, OptionalLong.empty(), 7);
+        assertThat(chunkList.chunks()).containsExactlyInAnyOrder(chunkHandle0, chunkHandle1, chunkHandle2, chunkHandle3, chunkHandle4, chunkHandle5, chunkHandle6);
 
         assertEquals(192, memoryAllocator.getTotalMemory() - memoryAllocator.getFreeMemory());
 

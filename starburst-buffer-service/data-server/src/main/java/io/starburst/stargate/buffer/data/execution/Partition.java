@@ -317,7 +317,8 @@ public class Partition
                     openChunk = createNewOpenChunk(chunkTargetSizeInBytes);
                 }
                 else if (requiredStorageSize <= chunkMaxSizeInBytes) {
-                    openChunk = createNewOpenChunk(chunkMaxSizeInBytes);
+                    // use nearest multiple of chunkSliceSizeInBytes
+                    openChunk = createNewOpenChunk(chunkSliceSizeInBytes * (((requiredStorageSize - 1) / chunkSliceSizeInBytes) + 1));
                 }
                 else {
                     setException(new IllegalArgumentException("requiredStorageSize %d larger than chunkMaxSizeInBytes %d".formatted(requiredStorageSize, chunkMaxSizeInBytes)));
