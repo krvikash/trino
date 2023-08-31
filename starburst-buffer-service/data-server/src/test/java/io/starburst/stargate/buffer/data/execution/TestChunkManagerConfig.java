@@ -11,6 +11,7 @@ package io.starburst.stargate.buffer.data.execution;
 
 import com.google.common.collect.ImmutableMap;
 import io.airlift.units.DataSize;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -64,5 +65,43 @@ public class TestChunkManagerConfig
                 .setChunkSpoolConcurrency(10);
 
         assertFullMapping(properties, expected);
+    }
+
+    @Test
+    public void testValidate()
+    {
+        ChunkManagerConfig config = new ChunkManagerConfig();
+        config.setChunkSliceSize(DataSize.ofBytes(10_000));
+        config.setChunkTargetSize(DataSize.ofBytes(10_000_000));
+        config.setChunkMaxSize(DataSize.ofBytes(20_000_000));
+        config.validate(); // ok
+
+        config.setChunkTargetSize(DataSize.ofBytes(10_000_001));
+        assertValidationFailed(config, "chunk.target-size must be a multiple of chunk.slice-size");
+
+        config.setChunkTargetSize(DataSize.ofBytes(9_999_999));
+        assertValidationFailed(config, "chunk.target-size must be a multiple of chunk.slice-size");
+
+        config.setChunkTargetSize(DataSize.ofBytes(10_000_000));
+        config.validate(); // ok
+
+        config.setChunkMaxSize(DataSize.ofBytes(20_000_001));
+        assertValidationFailed(config, "chunk.max-size must be a multiple of chunk.slice-size");
+
+        config.setChunkMaxSize(DataSize.ofBytes(19_999_999));
+        assertValidationFailed(config, "chunk.max-size must be a multiple of chunk.slice-size");
+
+        config.setChunkMaxSize(DataSize.ofBytes(20_000_000));
+        config.validate(); // ok
+
+        config.setChunkTargetSize(DataSize.ofBytes(21_000_000));
+        assertValidationFailed(config, "chunk.max-size must not be smaller than chunk.target-size");
+    }
+
+    private static void assertValidationFailed(ChunkManagerConfig config, String expectedMessage)
+    {
+        Assertions.assertThatThrownBy(config::validate)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage(expectedMessage);
     }
 }

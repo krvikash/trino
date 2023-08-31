@@ -16,12 +16,14 @@ import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 import io.airlift.units.MaxDataSize;
 import io.airlift.units.MinDataSize;
+import jakarta.annotation.PostConstruct;
 
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 
 import java.net.URI;
 
+import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.units.DataSize.Unit.KILOBYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.airlift.units.Duration.succinctDuration;
@@ -145,5 +147,13 @@ public class ChunkManagerConfig
     {
         this.chunkSpoolConcurrency = chunkSpoolConcurrency;
         return this;
+    }
+
+    @PostConstruct
+    public void validate()
+    {
+        checkState(chunkTargetSize.toBytes() % chunkSliceSize.toBytes() == 0, "chunk.target-size must be a multiple of chunk.slice-size");
+        checkState(chunkMaxSize.toBytes() % chunkSliceSize.toBytes() == 0, "chunk.max-size must be a multiple of chunk.slice-size");
+        checkState(chunkMaxSize.compareTo(chunkTargetSize) >= 0, "chunk.max-size must not be smaller than chunk.target-size");
     }
 }
