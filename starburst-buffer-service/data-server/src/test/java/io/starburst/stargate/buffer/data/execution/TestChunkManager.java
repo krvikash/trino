@@ -878,7 +878,7 @@ public class TestChunkManager
                 return new ChunkList(chunkHandles, pagingId);
             }
             if (chunkHandles.size() > expectedChunkListSize) {
-                return fail();
+                return fail(String.format("Expected chunkHandles.size()=%s to be less than or equal to %s; chunkHandles=%s", chunkHandles.size(), expectedChunkListSize, chunkHandles));
             }
 
             sleepUninterruptibly(100, MILLISECONDS);
