@@ -41,7 +41,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -53,6 +52,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.slice.SizeOf.estimatedSizeOf;
 import static java.lang.Math.toIntExact;
 import static java.util.Collections.emptySet;
+import static java.util.Comparator.comparing;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 
@@ -182,22 +182,32 @@ public class BufferExchangeSource
         }
     }
 
-    private long selectRandomRunningBufferNode()
+    private long selectFallbackRunningBufferNode(long primarySourceBufferNodeId)
     {
-        return selectRandomRunningBufferNodeExcluding(emptySet());
+        return selectFallbackRunningBufferNodeExcluding(primarySourceBufferNodeId, emptySet());
     }
 
-    private long selectRandomRunningBufferNodeExcluding(Set<Long> excludedNodes)
+    private long selectFallbackRunningBufferNodeExcluding(long primarySourceBufferNodeId, Set<Long> excludedNodes)
     {
         List<BufferNodeInfo> runningNodes = discoveryManager.getBufferNodes().getActiveBufferNodes().values().stream()
                 .filter(node -> !excludedNodes.contains(node.nodeId()))
+                .sorted(comparing(BufferNodeInfo::nodeId))
                 .collect(toImmutableList());
 
         if (runningNodes.isEmpty()) {
             throw new RuntimeException("no RUNNING nodes available");
         }
 
-        return runningNodes.get(ThreadLocalRandom.current().nextInt(runningNodes.size())).nodeId();
+        // Deterministically pick "next" node after primarySourceBufferNodeId
+        // Handling requests from DRAINED node requires extra resources on the buffer node hence
+        // pinning specific DRAINED node to specific live node reduces overall resource utilization
+        // over whole buffer service cluster.
+        for (BufferNodeInfo runningNode : runningNodes) {
+            if (runningNode.nodeId() > primarySourceBufferNodeId) {
+                return runningNode.nodeId();
+            }
+        }
+        return runningNodes.get(0).nodeId();
     }
 
     private void setFailed(Throwable throwable)
@@ -527,7 +537,7 @@ public class BufferExchangeSource
                 Map<Long, BufferNodeInfo> bufferNodes = discoveryManager.getBufferNodes().getAllBufferNodes();
                 BufferNodeInfo sourceBufferNodeInfo = bufferNodes.get(sourceBufferNodeId);
                 if (sourceBufferNodeInfo != null && sourceBufferNodeInfo.state() == BufferNodeState.DRAINED) {
-                    sourceBufferNodeId = selectRandomRunningBufferNode();
+                    sourceBufferNodeId = selectFallbackRunningBufferNode(sourceBufferNodeId);
                 }
                 scheduleReadUsingNode(sourceBufferNodeId);
             }
@@ -591,7 +601,7 @@ public class BufferExchangeSource
                             case DRAINED -> {
                                 // we need to reach out to different buffer node
                                 excludedNodes.add(sourceBufferNodeId);
-                                long newBufferNodeId = selectRandomRunningBufferNodeExcluding(excludedNodes);
+                                long newBufferNodeId = selectFallbackRunningBufferNodeExcluding(sourceBufferNodeId, excludedNodes);
                                 scheduleReadUsingNode(newBufferNodeId);
                             }
                             case CHUNK_NOT_FOUND -> {
