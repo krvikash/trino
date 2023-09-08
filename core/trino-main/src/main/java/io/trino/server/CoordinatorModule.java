@@ -59,6 +59,7 @@ import io.trino.execution.MaxSplitsPerTableSpec;
 import io.trino.execution.NodeTaskMap;
 import io.trino.execution.PrivilegeUtilities;
 import io.trino.execution.PrivilegeUtilitiesApi;
+import io.trino.execution.QueryDecorator;
 import io.trino.execution.QueryExecution;
 import io.trino.execution.QueryExecutionMBean;
 import io.trino.execution.QueryExecutorInternal;
@@ -243,6 +244,7 @@ public class CoordinatorModule
         newExporter(binder).export(QueryManager.class).as(generator -> generator.generatedNameOf(QueryManager.class)
                 // For backward compatibility
                 .replaceFirst("QueryManager", "SqlQueryManager"));
+        newSetBinder(binder, QueryDecorator.class);
         binder.bind(QueryPreparer.class).in(Scopes.SINGLETON);
         newOptionalBinder(binder, SessionSupplier.class).setDefault().to(QuerySessionSupplier.class).in(Scopes.SINGLETON);
         binder.bind(ResourceGroupInfoProvider.class).to(ResourceGroupManager.class).in(Scopes.SINGLETON);
