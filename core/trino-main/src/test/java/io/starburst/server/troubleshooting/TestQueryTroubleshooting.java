@@ -176,7 +176,7 @@ public class TestQueryTroubleshooting
         }
     }
 
-    private TroubleshootingData getTroubleshootingDataForQuery(Session session, @Language("sql") String query)
+    private TroubleshootingData getTroubleshootingDataForQuery(Session session, @Language("SQL") String query)
     {
         try (TestingTrinoClient client = new TestingTrinoClient(getDistributedQueryRunner().getCoordinator(), session)) {
             ResultWithQueryId<MaterializedResult> result = client.execute(query);
