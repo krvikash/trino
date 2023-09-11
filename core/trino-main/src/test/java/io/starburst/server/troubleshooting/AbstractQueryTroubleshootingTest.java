@@ -62,10 +62,10 @@ public abstract class AbstractQueryTroubleshootingTest
     protected static final Session SESSION = testSessionBuilder()
             .build();
 
-    protected static final Session TROUBLESHOOTED_SESSION = testSessionBuilder()
+    protected final Session troubleshootedSession = testSessionBuilder()
             .setClientCapabilities(Set.of(QUERY_TROUBLESHOOTING.name()))
             .setSystemProperty(QUERY_MAX_MEMORY_PER_NODE, "256kB")
-            .setIdentity(Identity.ofUser(AUTHORIZED_USER))
+            .setIdentity(getIdentityOfAuthorizedUser())
             .setCatalog("tpch")
             .build();
 
@@ -91,6 +91,11 @@ public abstract class AbstractQueryTroubleshootingTest
     protected abstract QueryRunner createQueryRunner()
             throws Exception;
 
+    protected Identity getIdentityOfAuthorizedUser()
+    {
+        return Identity.ofUser(AUTHORIZED_USER);
+    }
+
     @Test
     public void testTroubleshootingDataNotAvailableWithoutCapability()
     {
@@ -111,7 +116,7 @@ public abstract class AbstractQueryTroubleshootingTest
     public void testTroubleshootingDataAvailableForAuthorizedUser()
     {
         String troubleshootedQuery = "SHOW CATALOGS";
-        TroubleshootingData data = getTroubleshootingDataForQuery(TROUBLESHOOTED_SESSION, troubleshootedQuery);
+        TroubleshootingData data = getTroubleshootingDataForQuery(troubleshootedSession, troubleshootedQuery);
         assertThat(data.getStreams()).isPresent();
         Map<String, InputStream> inputsMap = data.getRequiredStreams();
 
@@ -133,7 +138,7 @@ public abstract class AbstractQueryTroubleshootingTest
         String troubleshootedQuery = "SELECT * FROM table_does_not_exist";
         QueryId queryId = null;
 
-        try (TestingTrinoClient client = new TestingTrinoClient(getDistributedQueryRunner().getCoordinator(), TROUBLESHOOTED_SESSION)) {
+        try (TestingTrinoClient client = new TestingTrinoClient(getDistributedQueryRunner().getCoordinator(), troubleshootedSession)) {
             client.execute(troubleshootedQuery);
             fail("Query should fail");
         }
@@ -160,7 +165,7 @@ public abstract class AbstractQueryTroubleshootingTest
     public void testTroubleshootingIsRemovedAfterDuration()
     {
         String exampleQuery = "SELECT count(comment) FROM tpch.tiny.lineitem";
-        try (TestingTrinoClient client = new TestingTrinoClient(getDistributedQueryRunner().getCoordinator(), TROUBLESHOOTED_SESSION)) {
+        try (TestingTrinoClient client = new TestingTrinoClient(getDistributedQueryRunner().getCoordinator(), troubleshootedSession)) {
             ResultWithQueryId<MaterializedResult> result = client.execute(exampleQuery);
             assertThat(awaitForTroubleshootingData(result.getQueryId())).isPresent();
 
