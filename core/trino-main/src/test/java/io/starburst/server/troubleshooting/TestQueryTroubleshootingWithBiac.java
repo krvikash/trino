@@ -9,6 +9,7 @@
  */
 package io.starburst.server.troubleshooting;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Key;
 import com.starburstdata.presto.biac.BiacSession;
@@ -24,6 +25,7 @@ import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 
+import java.util.List;
 import java.util.Map;
 
 import static com.starburstdata.presto.biac.model.Action.SET;
@@ -62,5 +64,15 @@ public class TestQueryTroubleshootingWithBiac
         return Identity.forUser(AUTHORIZED_USER)
                 .withEnabledRoles(ImmutableSet.of(SYSTEM_ROLE.get().getName()))
                 .build();
+    }
+
+    @Override
+    protected List<Identity> getIdentitiesOfUnauthorizedUsers()
+    {
+        return ImmutableList.of(
+                // unauthorized, obviously:
+                Identity.ofUser(NOT_AUTHORIZED_USER),
+                // authorized, but with sysadmin role not enabled:
+                Identity.ofUser(AUTHORIZED_USER));
     }
 }

@@ -19,7 +19,7 @@ import io.trino.spi.eventlistener.QueryContext;
 import io.trino.spi.eventlistener.QueryCreatedEvent;
 
 import static com.starburstdata.presto.server.StarburstClientCapabilities.QUERY_TROUBLESHOOTING;
-import static io.trino.spi.security.Identity.ofUser;
+import static io.trino.spi.security.Identity.forUser;
 import static java.util.Objects.requireNonNull;
 
 public class TroubleshootingEventListener
@@ -64,7 +64,9 @@ public class TroubleshootingEventListener
         if (!context.getClientCapabilities().contains(QUERY_TROUBLESHOOTING.name())) {
             return false;
         }
-        return accessControl.isPrivilegedUser(ofUser(context.getUser()));
+        return accessControl.isPrivilegedUser(forUser(context.getUser())
+                .withEnabledRoles(context.getEnabledRoles())
+                .build());
     }
 
     @Override

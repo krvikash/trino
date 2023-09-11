@@ -31,6 +31,7 @@ import io.trino.testing.ResultWithQueryId;
 import io.trino.testing.TestingTrinoClient;
 import org.intellij.lang.annotations.Language;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.InputStream;
@@ -45,6 +46,7 @@ import java.util.concurrent.TimeoutException;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.starburstdata.presto.server.StarburstClientCapabilities.QUERY_TROUBLESHOOTING;
 import static io.trino.SystemSessionProperties.QUERY_MAX_MEMORY_PER_NODE;
+import static io.trino.testing.DataProviders.toDataProvider;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static io.trino.testing.assertions.Assert.assertEventually;
 import static java.util.Objects.requireNonNull;
@@ -57,22 +59,21 @@ public abstract class AbstractQueryTroubleshootingTest
     private static final Logger log = Logger.get(AbstractQueryTroubleshootingTest.class);
 
     protected static final String AUTHORIZED_USER = "bob";
-    private static final String NOT_AUTHORIZED_USER = "john";
+    protected static final String NOT_AUTHORIZED_USER = "john";
 
     protected static final Session SESSION = testSessionBuilder()
             .build();
 
-    protected final Session troubleshootedSession = testSessionBuilder()
+    private final Session troubleshootedSession = testSessionBuilder()
             .setClientCapabilities(Set.of(QUERY_TROUBLESHOOTING.name()))
             .setSystemProperty(QUERY_MAX_MEMORY_PER_NODE, "10MB")
             .setIdentity(getIdentityOfAuthorizedUser())
             .setCatalog("tpch")
             .build();
 
-    protected static final Session TROUBLESHOOTED_SESSION_UNAUTHORIZED = testSessionBuilder()
+    private static final Session TROUBLESHOOTED_SESSION_UNAUTHORIZED_TEMPLATE = testSessionBuilder()
             .setClientCapabilities(Set.of(QUERY_TROUBLESHOOTING.name()))
             .setSystemProperty(QUERY_MAX_MEMORY_PER_NODE, "256kB")
-            .setIdentity(Identity.ofUser(NOT_AUTHORIZED_USER))
             .build();
 
     private TroubleshootingManager troubleshootingManager;
@@ -96,6 +97,11 @@ public abstract class AbstractQueryTroubleshootingTest
         return Identity.ofUser(AUTHORIZED_USER);
     }
 
+    protected List<Identity> getIdentitiesOfUnauthorizedUsers()
+    {
+        return ImmutableList.of(Identity.ofUser(NOT_AUTHORIZED_USER));
+    }
+
     @Test
     public void testTroubleshootingDataNotAvailableWithoutCapability()
     {
@@ -104,12 +110,22 @@ public abstract class AbstractQueryTroubleshootingTest
         assertThat(data.getStreams()).isEmpty();
     }
 
-    @Test
-    public void testTroubleshootingDataNotAvailableForUnauthorizedUser()
+    @Test(dataProvider = "unauthorizedSessionsProvider")
+    public void testTroubleshootingDataNotAvailableForUnauthorizedUser(Session sessionUnauthorized)
     {
         String troubleshootedQuery = "SHOW CATALOGS";
-        TroubleshootingData data = getTroubleshootingDataForQuery(TROUBLESHOOTED_SESSION_UNAUTHORIZED, troubleshootedQuery);
+        TroubleshootingData data = getTroubleshootingDataForQuery(sessionUnauthorized, troubleshootedQuery);
         assertThat(data.getStreams()).isEmpty();
+    }
+
+    @DataProvider
+    public Object[][] unauthorizedSessionsProvider()
+    {
+        return getIdentitiesOfUnauthorizedUsers().stream()
+                .map(unauthorizedIdentity -> Session.builder(TROUBLESHOOTED_SESSION_UNAUTHORIZED_TEMPLATE)
+                        .setIdentity(unauthorizedIdentity)
+                        .build())
+                .collect(toDataProvider());
     }
 
     @Test
