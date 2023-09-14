@@ -64,7 +64,7 @@ public abstract class AbstractQueryTroubleshootingTest
 
     protected final Session troubleshootedSession = testSessionBuilder()
             .setClientCapabilities(Set.of(QUERY_TROUBLESHOOTING.name()))
-            .setSystemProperty(QUERY_MAX_MEMORY_PER_NODE, "256kB")
+            .setSystemProperty(QUERY_MAX_MEMORY_PER_NODE, "512kB")
             .setIdentity(getIdentityOfAuthorizedUser())
             .setCatalog("tpch")
             .build();
@@ -120,7 +120,7 @@ public abstract class AbstractQueryTroubleshootingTest
         assertThat(data.getStreams()).isPresent();
         Map<String, InputStream> inputsMap = data.getRequiredStreams();
 
-        assertThat(inputsMap.get("session.txt")).hasContent("query_max_memory_per_node = 256kB\n");
+        assertThat(inputsMap.get("session.txt")).hasContent("query_max_memory_per_node = 512kB\n");
         assertThat(inputsMap.get("version.txt")).hasContent("testversion");
         assertThat(inputsMap.get("query.sql")).hasContent(troubleshootedQuery);
         assertThat(inputsMap.get("query_plan.txt")).isNotEmpty();
@@ -149,7 +149,7 @@ public abstract class AbstractQueryTroubleshootingTest
         Optional<Map<String, InputStream>> inputs = awaitForTroubleshootingData(queryId);
         assertThat(inputs).isPresent();
         Map<String, InputStream> inputsMap = inputs.orElseThrow();
-        assertThat(inputsMap.get("session.txt")).hasContent("query_max_memory_per_node = 256kB\n");
+        assertThat(inputsMap.get("session.txt")).hasContent("query_max_memory_per_node = 512kB\n");
         assertThat(inputsMap.get("version.txt")).hasContent("testversion");
         assertThat(inputsMap.get("query.sql")).hasContent(troubleshootedQuery);
         assertThat(inputsMap.get("query_plan.txt")).isNull();
