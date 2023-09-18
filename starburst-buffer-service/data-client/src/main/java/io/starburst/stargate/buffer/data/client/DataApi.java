@@ -45,11 +45,18 @@ public interface DataApi
     ListenableFuture<Void> markAllClosedChunksReceived(String exchangeId);
 
     /**
-     * Register existence of an exchange.
+     * Select chunk delivery mode for given an exchange.
      *
      * In case of failure returned future will wrap {@link DataApiException}
      */
-    ListenableFuture<Void> registerExchange(String exchangeId);
+    ListenableFuture<Void> setChunkDeliveryMode(String exchangeId, ChunkDeliveryMode chunkDeliveryMode);
+
+    /**
+     * Register existence of an exchange specifying chunk delivery mode.
+     *
+     * In case of failure returned future will wrap {@link DataApiException}
+     */
+    ListenableFuture<Void> registerExchange(String exchangeId, ChunkDeliveryMode chunkDeliveryMode);
 
     /**
      * Notification that exchange is still valid and there exists Trino coordinator which is interested in it.

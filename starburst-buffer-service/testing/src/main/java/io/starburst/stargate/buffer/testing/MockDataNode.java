@@ -18,6 +18,7 @@ import io.airlift.slice.Slice;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeState;
 import io.starburst.stargate.buffer.BufferNodeStats;
+import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataApi;
@@ -116,7 +117,15 @@ class MockDataNode
     }
 
     @Override
-    public synchronized ListenableFuture<Void> registerExchange(String exchangeId)
+    public ListenableFuture<Void> setChunkDeliveryMode(String exchangeId, ChunkDeliveryMode chunkDeliveryMode)
+    {
+        throwIfNodeGone();
+        // do nothing
+        return immediateVoidFuture();
+    }
+
+    @Override
+    public synchronized ListenableFuture<Void> registerExchange(String exchangeId, ChunkDeliveryMode chunkDeliveryMode)
     {
         throwIfNodeGone();
         getOrCreateExchangeData(exchangeId);

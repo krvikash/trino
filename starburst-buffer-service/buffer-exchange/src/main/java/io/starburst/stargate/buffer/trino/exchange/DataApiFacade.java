@@ -31,6 +31,7 @@ import io.airlift.slice.Slice;
 import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeState;
+import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataApi;
 import io.starburst.stargate.buffer.data.client.DataApiException;
@@ -242,15 +243,31 @@ public class DataApiFacade
         }
     }
 
-    public ListenableFuture<Void> registerExchange(long bufferNodeId, String exchangeId)
+    public ListenableFuture<Void> setChunkDeliveryMode(long bufferNodeId, String exchangeId, ChunkDeliveryMode chunkDeliveryMode)
     {
-        return runWithRetry(bufferNodeId, () -> internalRegisterExchange(bufferNodeId, exchangeId));
+        return runWithRetry(bufferNodeId, () -> internalSetChunkDeliveryMode(bufferNodeId, exchangeId, chunkDeliveryMode));
     }
 
-    private ListenableFuture<Void> internalRegisterExchange(long bufferNodeId, String exchangeId)
+    private ListenableFuture<Void> internalSetChunkDeliveryMode(long bufferNodeId, String exchangeId, ChunkDeliveryMode chunkDeliveryMode)
     {
         try {
-            return getDataApi(bufferNodeId).registerExchange(exchangeId);
+            return getDataApi(bufferNodeId).setChunkDeliveryMode(exchangeId, chunkDeliveryMode);
+        }
+        catch (Throwable e) {
+            // wrap exception in the future
+            return Futures.immediateFailedFuture(e);
+        }
+    }
+
+    public ListenableFuture<Void> registerExchange(long bufferNodeId, String exchangeId, ChunkDeliveryMode chunkDeliveryMode)
+    {
+        return runWithRetry(bufferNodeId, () -> internalRegisterExchange(bufferNodeId, exchangeId, chunkDeliveryMode));
+    }
+
+    private ListenableFuture<Void> internalRegisterExchange(long bufferNodeId, String exchangeId, ChunkDeliveryMode chunkDeliveryMode)
+    {
+        try {
+            return getDataApi(bufferNodeId).registerExchange(exchangeId, chunkDeliveryMode);
         }
         catch (Throwable e) {
             // wrap exception in the future

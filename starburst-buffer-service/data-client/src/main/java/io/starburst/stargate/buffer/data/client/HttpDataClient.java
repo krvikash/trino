@@ -176,7 +176,24 @@ public class HttpDataClient
     }
 
     @Override
-    public ListenableFuture<Void> registerExchange(String exchangeId)
+    public ListenableFuture<Void> setChunkDeliveryMode(String exchangeId, ChunkDeliveryMode chunkDeliveryMode)
+    {
+        requireNonNull(exchangeId, "exchangeId is null");
+
+        Request request = prepareGet()
+                .setUri(uriBuilderFrom(baseUri)
+                        .appendPath("%s/setChunkDeliveryMode".formatted(exchangeId))
+                        .addParameter("chunkDeliveryMode", String.valueOf(chunkDeliveryMode))
+                        .addParameter("targetBufferNodeId", String.valueOf(targetBufferNodeId))
+                        .build())
+                .build();
+
+        HttpResponseFuture<StringResponse> responseFuture = httpClient.executeAsync(request, createStringResponseHandler());
+        return translateFailures(request, responseFuture);
+    }
+
+    @Override
+    public ListenableFuture<Void> registerExchange(String exchangeId, ChunkDeliveryMode chunkDeliveryMode)
     {
         requireNonNull(exchangeId, "exchangeId is null");
 
@@ -184,6 +201,7 @@ public class HttpDataClient
                 .setUri(uriBuilderFrom(baseUri)
                         .appendPath("%s/register".formatted(exchangeId))
                         .addParameter("targetBufferNodeId", String.valueOf(targetBufferNodeId))
+                        .addParameter("chunkDeliveryMode", String.valueOf(chunkDeliveryMode))
                         .build())
                 .build();
 

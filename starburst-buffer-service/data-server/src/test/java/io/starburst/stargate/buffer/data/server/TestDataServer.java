@@ -20,6 +20,7 @@ import io.airlift.units.DataSize;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeState;
 import io.starburst.stargate.buffer.BufferNodeStats;
+import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataApiConfig;
@@ -55,6 +56,7 @@ import static io.airlift.testing.Closeables.closeAll;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.airlift.units.DataSize.succinctBytes;
 import static io.airlift.units.Duration.succinctDuration;
+import static io.starburst.stargate.buffer.data.client.ChunkDeliveryMode.STANDARD;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.USER_ERROR;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
 import static java.util.Objects.requireNonNull;
@@ -144,8 +146,8 @@ public class TestDataServer
 
         assertNodeStats(1, 1, 0, 0);
 
-        registerExchange(EXCHANGE_0);
-        registerExchange(EXCHANGE_1);
+        registerExchange(EXCHANGE_0, STANDARD);
+        registerExchange(EXCHANGE_1, STANDARD);
 
         assertNodeStats(2, 1, 0, 0);
 
@@ -205,7 +207,7 @@ public class TestDataServer
         Slice largePage1 = utf8Slice("1".repeat((int) DataSize.of(10, MEGABYTE).toBytes()));
         Slice largePage2 = utf8Slice("2".repeat((int) DataSize.of(10, MEGABYTE).toBytes()));
 
-        registerExchange(EXCHANGE_0);
+        registerExchange(EXCHANGE_0, STANDARD);
 
         ImmutableListMultimap.Builder<Integer, Slice> dataPages = ImmutableListMultimap.<Integer, Slice>builder();
         dataPages.put(0, utf8Slice("a"));
@@ -424,9 +426,9 @@ public class TestDataServer
         return getFutureValue(dataClient.getChunkData(bufferNodeId, exchangeId, partitionId, chunkId));
     }
 
-    private void registerExchange(String exchangeId)
+    private void registerExchange(String exchangeId, ChunkDeliveryMode chunkDeliveryMode)
     {
-        getFutureValue(dataClient.registerExchange(exchangeId));
+        getFutureValue(dataClient.registerExchange(exchangeId, chunkDeliveryMode));
     }
 
     private void removeExchange(String exchangeId)

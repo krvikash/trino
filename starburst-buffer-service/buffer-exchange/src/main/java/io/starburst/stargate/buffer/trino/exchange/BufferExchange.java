@@ -16,6 +16,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
+import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
@@ -48,6 +49,8 @@ import static com.google.common.util.concurrent.Futures.addCallback;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.addExceptionCallback;
 import static io.starburst.stargate.buffer.trino.exchange.ExternalExchangeIds.externalExchangeId;
+import static io.trino.spi.exchange.Exchange.SourceHandlesDeliveryMode.EAGER;
+import static io.trino.spi.exchange.Exchange.SourceHandlesDeliveryMode.STANDARD;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -88,6 +91,9 @@ public class BufferExchange
     private final Map<Long, ChunkHandlesPoller> chunkPolledBufferNodes = new HashMap<>();
     @GuardedBy("this")
     private final Set<Long> chunkPollingCompletedBufferNodes = new HashSet<>();
+
+    @GuardedBy("this")
+    private SourceHandlesDeliveryMode sourceHandlesDeliveryMode = STANDARD;
 
     public BufferExchange(
             QueryId queryId,
@@ -256,7 +262,7 @@ public class BufferExchange
             for (ChunkHandle chunkHandle : chunkHandles) {
                 currentSourceHandleChunks.add(chunkHandle);
                 currentSourceHandleDataSize += chunkHandle.dataSizeInBytes();
-                if (currentSourceHandleChunks.size() >= sourceHandleTargetChunksCount || currentSourceHandleDataSize >= sourceHandleTargetDataSize.toBytes()) {
+                if (currentSourceHandleChunks.size() >= sourceHandleTargetChunksCount || currentSourceHandleDataSize >= sourceHandleTargetDataSize.toBytes() || sourceHandlesDeliveryMode == EAGER) {
                     newReadySourceHandles.add(BufferExchangeSourceHandle.fromChunkHandles(
                             externalExchangeId,
                             partitionId,
@@ -301,6 +307,18 @@ public class BufferExchange
         }
         sourceHandleSources.add(sourceHandleSource);
         return sourceHandleSource;
+    }
+
+    @Override
+    public synchronized void setSourceHandlesDeliveryMode(SourceHandlesDeliveryMode sourceHandlesDeliveryMode)
+    {
+        if (this.sourceHandlesDeliveryMode != sourceHandlesDeliveryMode) {
+            this.sourceHandlesDeliveryMode = sourceHandlesDeliveryMode;
+            // output chunk delivery mode for existing chunk pollers
+            ChunkDeliveryMode chunkDeliveryMode = getChunkDeliveryMode(sourceHandlesDeliveryMode);
+            chunkPolledBufferNodes.values().forEach(poller -> poller.setChunkDeliveryMode(chunkDeliveryMode));
+            outputReadySourceHandles();
+        }
     }
 
     @Override
@@ -354,7 +372,7 @@ public class BufferExchange
             return;
         }
 
-        ChunkHandlesPoller poller = new ChunkHandlesPoller(executorService, externalExchangeId, dataApi, bufferNodeId, new ChunkHandlesPoller.ChunksCallback()
+        ChunkHandlesPoller poller = new ChunkHandlesPoller(executorService, externalExchangeId, dataApi, bufferNodeId, getChunkDeliveryMode(sourceHandlesDeliveryMode), new ChunkHandlesPoller.ChunksCallback()
         {
             @Override
             public void onChunksDiscovered(List<ChunkHandle> chunks, boolean noMoreChunks)
@@ -410,5 +428,13 @@ public class BufferExchange
         for (ChunkHandlesPoller poller : chunkPolledBufferNodes.values()) {
             poller.stop();
         }
+    }
+
+    private static ChunkDeliveryMode getChunkDeliveryMode(SourceHandlesDeliveryMode sourceHandlesDeliveryMode)
+    {
+        return switch (sourceHandlesDeliveryMode) {
+            case STANDARD -> ChunkDeliveryMode.STANDARD;
+            case EAGER -> ChunkDeliveryMode.EAGER;
+        };
     }
 }

@@ -18,6 +18,7 @@ import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.units.Duration;
+import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataApiException;
@@ -100,6 +101,7 @@ public class Exchange
     private long lastPagingId = -1;
     @GuardedBy("this")
     private ListenableFuture<Void> finishFuture;
+    private volatile ChunkDeliveryMode chunkDeliveryMode;
     private volatile long lastUpdateTime;
     private volatile boolean allClosedChunksReceived;
     private final AtomicReference<Throwable> failure = new AtomicReference<>();
@@ -117,6 +119,7 @@ public class Exchange
             int chunkListMaxSize,
             Duration chunkListPollTimeout,
             ChunkIdGenerator chunkIdGenerator,
+            ChunkDeliveryMode chunkDeliveryMode,
             ExecutorService executor,
             ScheduledExecutorService longPollTimeoutExecutor,
             long currentTime)
@@ -139,6 +142,7 @@ public class Exchange
         this.executor = requireNonNull(executor, "executor is null");
         this.longPollTimeoutExecutor = requireNonNull(longPollTimeoutExecutor, "longPollTimeoutExecutor is null");
         this.pendingChunkList = new ArrayList<>(chunkListTargetSize);
+        this.chunkDeliveryMode = requireNonNull(chunkDeliveryMode, "chunkDeliveryMode is null");
         this.lastUpdateTime = currentTime;
     }
 
@@ -162,6 +166,7 @@ public class Exchange
                     chunkSliceSizeInBytes,
                     calculateDataPagesChecksum,
                     chunkIdGenerator,
+                    chunkDeliveryMode,
                     executor,
                     closedChunkConsumer()));
         }
@@ -305,6 +310,22 @@ public class Exchange
     public boolean isAllClosedChunksReceived()
     {
         return allClosedChunksReceived;
+    }
+
+    public void setChunkDeliveryMode(ChunkDeliveryMode chunkDeliveryMode)
+    {
+        synchronized (this) {
+            this.chunkDeliveryMode = requireNonNull(chunkDeliveryMode, "chunkDeliveryMode is null");
+            partitions.values().forEach(partition -> partition.setChunkDeliveryMode(chunkDeliveryMode));
+        }
+    }
+
+    public void eagerDeliveryModeCloseChunksIfNeeded()
+    {
+        if (chunkDeliveryMode != ChunkDeliveryMode.EAGER) {
+            return;
+        }
+        partitions.values().forEach(Partition::eagerDeliveryModeCloseChunkIfNeeded);
     }
 
     public synchronized ListenableFuture<Void> finish()

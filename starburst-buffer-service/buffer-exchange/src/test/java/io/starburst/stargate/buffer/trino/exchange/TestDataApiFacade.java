@@ -19,6 +19,7 @@ import io.airlift.slice.Slice;
 import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeState;
+import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataApi;
 import io.starburst.stargate.buffer.data.client.DataApiException;
@@ -52,6 +53,7 @@ import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.MoreExecutors.listeningDecorator;
 import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
+import static io.starburst.stargate.buffer.data.client.ChunkDeliveryMode.STANDARD;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -278,7 +280,7 @@ public class TestDataApiFacade
         assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.finishExchange(TestingDataApi.NODE_ID, EXCHANGE_0));
         assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.removeExchange(TestingDataApi.NODE_ID, EXCHANGE_0));
         assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.getChunkData(TestingDataApi.NODE_ID, EXCHANGE_0, 1, 1L, 1L));
-        assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.registerExchange(TestingDataApi.NODE_ID, EXCHANGE_0));
+        assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.registerExchange(TestingDataApi.NODE_ID, EXCHANGE_0, STANDARD));
         assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.addDataPages(TestingDataApi.NODE_ID, EXCHANGE_0, 1, 1, 1L, ImmutableListMultimap.of()));
     }
 
@@ -575,7 +577,13 @@ public class TestDataApiFacade
         }
 
         @Override
-        public synchronized ListenableFuture<Void> registerExchange(String exchangeId)
+        public ListenableFuture<Void> setChunkDeliveryMode(String exchangeId, ChunkDeliveryMode chunkDeliveryMode)
+        {
+            throw new RuntimeException("not implemented");
+        }
+
+        @Override
+        public ListenableFuture<Void> registerExchange(String exchangeId, ChunkDeliveryMode chunkDeliveryMode)
         {
             throw new RuntimeException("not implemented");
         }

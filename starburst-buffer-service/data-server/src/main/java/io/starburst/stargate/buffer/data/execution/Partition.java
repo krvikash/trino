@@ -18,6 +18,8 @@ import com.google.errorprone.annotations.ThreadSafe;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
+import io.airlift.units.Duration;
+import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
@@ -32,6 +34,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -44,6 +47,7 @@ import static java.util.Objects.requireNonNull;
 public class Partition
 {
     private static final Logger log = Logger.get(Partition.class);
+    public static final Duration MIN_EAGER_CLOSE_CHUNK_INTERVAL = Duration.succinctDuration(500, TimeUnit.MILLISECONDS);
 
     private final long bufferNodeId;
     private final String exchangeId;
@@ -71,6 +75,10 @@ public class Partition
     private final Deque<AddDataPagesFuture> addDataPagesFutures = new ArrayDeque<>();
     @GuardedBy("this")
     private boolean released;
+    @GuardedBy("this")
+    private ChunkDeliveryMode chunkDeliveryMode;
+    @GuardedBy("this")
+    private long lastChunkCloseTime;
 
     public Partition(
             long bufferNodeId,
@@ -83,6 +91,7 @@ public class Partition
             int chunkSliceSizeInBytes,
             boolean calculateDataPagesChecksum,
             ChunkIdGenerator chunkIdGenerator,
+            ChunkDeliveryMode chunkDeliveryMode,
             ExecutorService executor,
             Consumer<ChunkHandle> closedChunkConsumer)
     {
@@ -100,11 +109,41 @@ public class Partition
         this.closedChunkConsumer = requireNonNull(closedChunkConsumer, "closedChunkConsumer is null");
 
         this.openChunk = createNewOpenChunk(chunkTargetSizeInBytes);
+        this.chunkDeliveryMode = requireNonNull(chunkDeliveryMode, "chunkDeliveryMode is null");
     }
 
     public int getPartitionId()
     {
         return partitionId;
+    }
+
+    public synchronized void setChunkDeliveryMode(ChunkDeliveryMode chunkDeliveryMode)
+    {
+        this.chunkDeliveryMode = chunkDeliveryMode;
+        eagerDeliveryModeCloseChunkIfNeeded();
+    }
+
+    public synchronized void eagerDeliveryModeCloseChunkIfNeeded()
+    {
+        if (chunkDeliveryMode != ChunkDeliveryMode.EAGER) {
+            return;
+        }
+        if (!addDataPagesFutures.isEmpty()) {
+            return;
+        }
+        if (openChunk == null) {
+            // partition already closed
+            return;
+        }
+        if (System.currentTimeMillis() - lastChunkCloseTime < MIN_EAGER_CLOSE_CHUNK_INTERVAL.toMillis()) {
+            return;
+        }
+        Chunk chunk = openChunk;
+        if (chunk.isEmpty()) {
+            return;
+        }
+        closeChunk(chunk);
+        openChunk = createNewOpenChunk(chunkTargetSizeInBytes);
     }
 
     public synchronized AddDataPagesResult addDataPages(int taskId, int attemptId, long dataPagesId, List<Slice> pages)
@@ -239,6 +278,7 @@ public class Partition
             chunk.release();
         }
         else {
+            lastChunkCloseTime = System.currentTimeMillis();
             chunk.close();
             closedChunks.put(chunk.getChunkId(), chunk);
             closedChunkConsumer.accept(chunk.getHandle());
@@ -309,6 +349,7 @@ public class Partition
 
             Slice page = pages.next();
             int requiredStorageSize = DATA_PAGE_HEADER_SIZE + page.length();
+
             if (!openChunk.hasEnoughSpace(requiredStorageSize)) {
                 // the open chunk doesn't have enough space available, close the chunk and create a new one
                 closeChunk(openChunk);
@@ -343,7 +384,10 @@ public class Partition
                                     }
                                     else if (!pages.hasNext()) {
                                         addDataPagesFutures.removeFirst();
-                                        if (!addDataPagesFutures.isEmpty()) {
+                                        if (addDataPagesFutures.isEmpty()) {
+                                            eagerDeliveryModeCloseChunkIfNeeded();
+                                        }
+                                        else {
                                             addDataPagesFutures.peek().process();
                                         }
                                         completeFuture = true;

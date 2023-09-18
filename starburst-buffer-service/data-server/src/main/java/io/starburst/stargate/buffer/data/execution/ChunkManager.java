@@ -25,6 +25,7 @@ import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.units.Duration;
+import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
@@ -62,6 +63,7 @@ import static io.airlift.concurrent.AsyncSemaphore.processAll;
 import static io.airlift.concurrent.MoreFutures.addExceptionCallback;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.units.Duration.succinctDuration;
+import static io.starburst.stargate.buffer.data.client.ChunkDeliveryMode.STANDARD;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.EXCHANGE_NOT_FOUND;
 import static java.lang.Math.toIntExact;
 import static java.lang.annotation.ElementType.FIELD;
@@ -105,6 +107,7 @@ public class ChunkManager
     private final ScheduledExecutorService statsReportingExecutor = newSingleThreadScheduledExecutor();
     private final ScheduledExecutorService chunkSpoolExecutor = newSingleThreadScheduledExecutor();
     private final ScheduledExecutorService exchangeTimeoutExecutor = newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService eagerDeliveryModeExecutor = newSingleThreadScheduledExecutor();
     private final Cache<String, Object> recentlyRemovedExchanges = CacheBuilder.newBuilder().expireAfterWrite(5, MINUTES).build();
 
     private volatile boolean startedDraining;
@@ -162,6 +165,16 @@ public class ChunkManager
                 LOG.error(e, "Error spooling chunks");
             }
         }, spoolInterval, spoolInterval, MILLISECONDS);
+
+        long eagerDeliveryModeCloseChunksInterval = Partition.MIN_EAGER_CLOSE_CHUNK_INTERVAL.toMillis() / 2;
+        eagerDeliveryModeExecutor.scheduleWithFixedDelay(() -> {
+            try {
+                eagerDeliveryModeCloseChunksIfNeeded();
+            }
+            catch (Throwable e) {
+                LOG.error(e, "Error calling eagerDeliveryModeCloseChunksIfNeeded");
+            }
+        }, eagerDeliveryModeCloseChunksInterval, eagerDeliveryModeCloseChunksInterval, MILLISECONDS);
     }
 
     @PreDestroy
@@ -171,6 +184,7 @@ public class ChunkManager
         closer.register(cleanupExecutor::shutdownNow);
         closer.register(statsReportingExecutor::shutdownNow);
         closer.register(exchangeTimeoutExecutor::shutdownNow);
+        closer.register(eagerDeliveryModeExecutor::shutdownNow);
         if (!startedDraining) {
             closer.register(chunkSpoolExecutor::shutdownNow);
         }
@@ -192,7 +206,7 @@ public class ChunkManager
     {
         checkState(!startedDraining, "addDataPages called in ChunkManager after we started draining");
 
-        registerExchange(exchangeId);
+        internalRegisterExchange(exchangeId, STANDARD); // addDataPages may be sent before exchange is explicitly registered from coordinator
         return getExchangeAndHeartbeat(exchangeId).addDataPages(partitionId, taskId, attemptId, dataPagesId, pages);
     }
 
@@ -219,9 +233,23 @@ public class ChunkManager
         exchange.markAllClosedChunksReceived();
     }
 
-    public void registerExchange(String exchangeId)
+    public void setChunkDeliveryMode(String exchangeId, ChunkDeliveryMode chunkDeliveryMode)
     {
-        exchanges.computeIfAbsent(exchangeId, ignored -> {
+        Exchange exchange = getExchangeAndHeartbeat(exchangeId);
+        exchange.setChunkDeliveryMode(chunkDeliveryMode);
+    }
+
+    public void registerExchange(String exchangeId, ChunkDeliveryMode chunkDeliveryMode)
+    {
+        Exchange exchange = internalRegisterExchange(exchangeId, chunkDeliveryMode);
+        // Exchange could have been already registered explicitly with STANDARD chunkDeliveryMode
+        // ensure proper value
+        exchange.setChunkDeliveryMode(chunkDeliveryMode);
+    }
+
+    private Exchange internalRegisterExchange(String exchangeId, ChunkDeliveryMode chunkDeliveryMode)
+    {
+        return exchanges.computeIfAbsent(exchangeId, ignored -> {
             if (recentlyRemovedExchanges.getIfPresent(exchangeId) != null) {
                 throw new DataServerException(EXCHANGE_NOT_FOUND, "exchange %s already removed".formatted(exchangeId));
             }
@@ -239,6 +267,7 @@ public class ChunkManager
                     chunkListMaxSize,
                     chunkListPollTimeout,
                     chunkIdGenerator,
+                    chunkDeliveryMode,
                     executor,
                     exchangeTimeoutExecutor,
                     tickerReadMillis());
@@ -534,6 +563,11 @@ public class ChunkManager
                 }
             }).sum());
         }
+    }
+
+    private void eagerDeliveryModeCloseChunksIfNeeded()
+    {
+        exchanges.values().forEach(Exchange::eagerDeliveryModeCloseChunksIfNeeded);
     }
 
     private void reportStats()

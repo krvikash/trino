@@ -14,6 +14,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.errorprone.annotations.ThreadSafe;
 import io.airlift.log.Logger;
+import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataApiException;
@@ -44,24 +45,27 @@ class ChunkHandlesPoller
     private volatile OptionalLong pagingId = OptionalLong.empty();
     private volatile boolean closed;
     private volatile boolean pinging;
+    private volatile ChunkDeliveryMode chunkDeliveryMode;
 
     public ChunkHandlesPoller(
             ScheduledExecutorService executorService,
             String externalExchangeId,
             DataApiFacade dataApi,
             long bufferNodeId,
+            ChunkDeliveryMode chunkDeliveryMode,
             ChunksCallback callback)
     {
         this.executorService = requireNonNull(executorService, "executorService is null");
         this.externalExchangeId = requireNonNull(externalExchangeId, "externalExchangeId is null");
         this.dataApi = requireNonNull(dataApi, "dataApi is null");
         this.dataNodeId = bufferNodeId;
+        this.chunkDeliveryMode = requireNonNull(chunkDeliveryMode, "chunkDeliveryMode is null");
         this.callback = requireNonNull(callback, "callback is null");
     }
 
     public void start()
     {
-        addCallback(dataApi.registerExchange(dataNodeId, externalExchangeId), new FutureCallback<>()
+        addCallback(dataApi.registerExchange(dataNodeId, externalExchangeId, chunkDeliveryMode), new FutureCallback<>()
         {
             @Override
             public void onSuccess(Void result)
@@ -214,6 +218,26 @@ class ChunkHandlesPoller
                                     return;
                                 }
                                 log.warn("Failed to mark all closed chunks received for externalExchangeId %s dataNodeId %d", externalExchangeId, dataNodeId);
+                            });
+                },
+                executorService);
+    }
+
+    public void setChunkDeliveryMode(ChunkDeliveryMode chunkDeliveryMode)
+    {
+        this.chunkDeliveryMode = chunkDeliveryMode;
+        addSuccessCallback(
+                // wait until exchange is registered before sending acknowledgement on all closed chunks
+                registerFuture,
+                () -> {
+                    ListenableFuture<Void> future = dataApi.setChunkDeliveryMode(dataNodeId, externalExchangeId, chunkDeliveryMode);
+                    addExceptionCallback(future,
+                            failure -> {
+                                if (failure instanceof DataApiException dataApiException && dataApiException.getErrorCode() == ErrorCode.DRAINED) {
+                                    // ignore - node gone in the meantime
+                                    return;
+                                }
+                                log.warn("Failed to set chunk delivery mode for externalExchangeId %s dataNodeId %d", externalExchangeId, dataNodeId);
                             });
                 },
                 executorService);

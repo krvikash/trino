@@ -25,6 +25,7 @@ import io.airlift.slice.XxHash64;
 import io.airlift.stats.CounterStat;
 import io.airlift.stats.DistributionStat;
 import io.airlift.units.Duration;
+import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
@@ -85,6 +86,7 @@ import static com.google.common.util.concurrent.Futures.nonCancellationPropagati
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.jaxrs.AsyncResponseHandler.bindAsyncResponse;
 import static io.airlift.units.Duration.succinctDuration;
+import static io.starburst.stargate.buffer.data.client.ChunkDeliveryMode.STANDARD;
 import static io.starburst.stargate.buffer.data.client.DataClientHeaders.MAX_WAIT;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.DRAINING;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.INTERNAL_ERROR;
@@ -225,6 +227,24 @@ public class DataResource
         }
         catch (RuntimeException e) {
             logger.warn(e, "error on GET /%s/markAllClosedChunksReceived", exchangeId);
+            return errorResponse(e);
+        }
+    }
+
+    @GET
+    @Path("{exchangeId}/setChunkDeliveryMode")
+    public Response setChunkDeliveryMode(
+            @PathParam("exchangeId") String exchangeId,
+            @QueryParam("chunkDeliveryMode") ChunkDeliveryMode chunkDeliveryMode,
+            @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId)
+    {
+        try {
+            checkTargetBufferNodeId(targetBufferNodeId);
+            chunkManager.setChunkDeliveryMode(exchangeId, chunkDeliveryMode);
+            return Response.ok().build();
+        }
+        catch (RuntimeException e) {
+            logger.warn(e, "error on GET /%s/setChunkDeliveryMode?chunkDeliveryMode=%s", exchangeId, chunkDeliveryMode);
             return errorResponse(e);
         }
     }
@@ -622,6 +642,7 @@ public class DataResource
     @Path("{exchangeId}/register")
     public Response registerExchange(
             @PathParam("exchangeId") String exchangeId,
+            @QueryParam("chunkDeliveryMode") @Nullable ChunkDeliveryMode chunkDeliveryMode,
             @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId)
     {
         try {
@@ -636,28 +657,12 @@ public class DataResource
             // * Data node start draining
             // * Trino coordinator calls registerExchange
             // at this point Trino coordinator must proceed with polling for chunks which would not happen if `registerExchange` returned DRAINING error code.
-            chunkManager.registerExchange(exchangeId);
+            chunkDeliveryMode = Optional.ofNullable(chunkDeliveryMode).orElse(STANDARD);
+            chunkManager.registerExchange(exchangeId, chunkDeliveryMode);
             return Response.ok().build();
         }
         catch (RuntimeException e) {
             logger.warn(e, "error on GET /%s/register", exchangeId);
-            return errorResponse(e);
-        }
-    }
-
-    @GET
-    @Path("{exchangeId}/ping")
-    public Response pingExchange(
-            @PathParam("exchangeId") String exchangeId,
-            @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId)
-    {
-        try {
-            checkTargetBufferNodeId(targetBufferNodeId);
-            chunkManager.pingExchange(exchangeId);
-            return Response.ok().build();
-        }
-        catch (RuntimeException e) {
-            logger.warn(e, "error on GET /%s/ping", exchangeId);
             return errorResponse(e);
         }
     }
@@ -686,6 +691,23 @@ public class DataResource
         catch (RuntimeException e) {
             logger.warn(e, "error on GET /%s/finish", exchangeId);
             asyncResponse.resume(errorResponse(e));
+        }
+    }
+
+    @GET
+    @Path("{exchangeId}/ping")
+    public Response pingExchange(
+            @PathParam("exchangeId") String exchangeId,
+            @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId)
+    {
+        try {
+            checkTargetBufferNodeId(targetBufferNodeId);
+            chunkManager.pingExchange(exchangeId);
+            return Response.ok().build();
+        }
+        catch (RuntimeException e) {
+            logger.warn(e, "error on GET /%s/ping", exchangeId);
+            return errorResponse(e);
         }
     }
 
