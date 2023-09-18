@@ -63,13 +63,13 @@
         <dep.airlift.version>235</dep.airlift.version>
         <dep.slice.version>2.2</dep.slice.version>
         <dep.errorprone.version>2.21.1</dep.errorprone.version>
-        <dep.trino.version>425</dep.trino.version>
+        <dep.trino.version>426</dep.trino.version>
         <dep.joda.version>2.12.5</dep.joda.version>
         <!-- required by Trino 414 -->
         <dep.datadog-agent.version>0.114.0</dep.datadog-agent.version>
         <dep.jackson.version>2.15.2</dep.jackson.version>
 
-        <dep.awsjavasdk.version>2.20.127</dep.awsjavasdk.version>
+        <dep.awsjavasdk.version>2.20.134</dep.awsjavasdk.version>
 
         <!-- Required by Trino SPI -->
         <dep.opentelemetry.version>1.29.0</dep.opentelemetry.version>
@@ -86,7 +86,7 @@
             <dependency>
                 <groupId>com.azure</groupId>
                 <artifactId>azure-sdk-bom</artifactId>
-                <version>1.2.15</version>
+                <version>1.2.16</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
