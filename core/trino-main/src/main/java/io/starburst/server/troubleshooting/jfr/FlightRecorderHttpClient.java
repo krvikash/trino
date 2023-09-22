@@ -201,7 +201,6 @@ class FlightRecorderHttpClient
         return new HttpResponses<>(responses.buildOrThrow(), exceptions.buildKeepingLast());
     }
 
-    @SuppressWarnings("UnusedVariable") // error-prone is too dumb to see access to both responses and exceptions fields
     private record HttpResponses<T, E extends Throwable>(Map<String, T> responses, Map<String, E> exceptions)
     {
     }
