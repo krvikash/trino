@@ -77,10 +77,12 @@ public class TroubleshootingManager
     public void finish(QueryId queryId)
     {
         getContext(queryId).ifPresent(context -> {
+            if (context.is(FINISHED)) {
+                return;
+            }
+            dispatchManager.getFullQueryInfo(queryId)
+                    .ifPresent(value -> context.set(QueryInfo.class, value));
             if (transitionContextTo(context, FINISHED)) {
-                dispatchManager.getFullQueryInfo(queryId)
-                        .ifPresent(value -> context.set(QueryInfo.class, value));
-
                 log.info("%s has finished", context);
                 executorService.schedule(() -> {
                     remove(queryId);
