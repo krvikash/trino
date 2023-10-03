@@ -80,6 +80,7 @@ public class TroubleshootingManager
             if (context.is(FINISHED)) {
                 return;
             }
+            waitForQueryInfoIsGathered();
             dispatchManager.getFullQueryInfo(queryId)
                     .ifPresent(value -> context.set(QueryInfo.class, value));
             if (transitionContextTo(context, FINISHED)) {
@@ -143,5 +144,18 @@ public class TroubleshootingManager
     private Optional<TroubleshootingContext> getContext(QueryId queryId)
     {
         return Optional.ofNullable(contexts.getIfPresent(queryId));
+    }
+
+    private static void waitForQueryInfoIsGathered()
+    {
+        // QueryLoggerEventListener#queryCompleted has such comment:
+        // failed dispatch queries are reported to the listener before being added to query tracker
+        // magically it works here too.
+        try {
+            Thread.sleep(100);
+        }
+        catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
