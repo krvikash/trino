@@ -43,6 +43,7 @@ public class ChunkManagerConfig
     private URI spoolingDirectory;
     private Duration chunkSpoolInterval = succinctDuration(50, MILLISECONDS);
     private int chunkSpoolConcurrency = 32;
+    private boolean chunkSpoolMergeEnabled;
 
     @NotNull
     @MinDataSize("4kB")
@@ -146,6 +147,18 @@ public class ChunkManagerConfig
     public ChunkManagerConfig setChunkSpoolConcurrency(int chunkSpoolConcurrency)
     {
         this.chunkSpoolConcurrency = chunkSpoolConcurrency;
+        return this;
+    }
+
+    public boolean isChunkSpoolMergeEnabled()
+    {
+        return chunkSpoolMergeEnabled;
+    }
+
+    @Config("chunk.spool-merge-enabled")
+    public ChunkManagerConfig setChunkSpoolMergeEnabled(boolean chunkSpoolMergeEnabled)
+    {
+        this.chunkSpoolMergeEnabled = chunkSpoolMergeEnabled;
         return this;
     }
 

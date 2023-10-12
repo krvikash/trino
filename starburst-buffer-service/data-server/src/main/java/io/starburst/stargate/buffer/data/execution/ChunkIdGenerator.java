@@ -13,10 +13,10 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class ChunkIdGenerator
 {
-    private final AtomicLong atomicLong = new AtomicLong();
+    private final AtomicLong idSequence = new AtomicLong();
 
     public long getNextChunkId()
     {
-        return atomicLong.getAndIncrement();
+        return idSequence.getAndIncrement();
     }
 }

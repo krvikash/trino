@@ -17,17 +17,21 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageBatch;
 import com.google.cloud.storage.StorageOptions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.inject.Inject;
+import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
+import io.starburst.stargate.buffer.data.execution.Chunk;
 import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
 import io.starburst.stargate.buffer.data.spooling.AbstractSpoolingStorage;
+import io.starburst.stargate.buffer.data.spooling.MergedFileNameGenerator;
 import io.starburst.stargate.buffer.data.spooling.SpooledChunkNotFoundException;
 import io.starburst.stargate.buffer.data.spooling.gcs.GcsClientConfig;
 import jakarta.annotation.PreDestroy;
@@ -47,6 +51,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -87,12 +92,13 @@ public class S3SpoolingStorage
             BufferNodeId bufferNodeId,
             ChunkManagerConfig chunkManagerConfig,
             S3AsyncClient s3AsyncClient,
+            MergedFileNameGenerator mergedFileNameGenerator,
             DataServerStats dataServerStats,
             CompatibilityMode compatibilityMode,
             GcsClientConfig gcsClientConfig)
             throws IOException
     {
-        super(bufferNodeId, dataServerStats);
+        super(bufferNodeId, chunkManagerConfig.isChunkSpoolMergeEnabled(), mergedFileNameGenerator, dataServerStats);
 
         this.s3AsyncClient = s3AsyncClient;
         this.bucketName = getBucketName(requireNonNull(chunkManagerConfig.getSpoolingDirectory(), "spoolingDirectory is null"));
@@ -132,6 +138,25 @@ public class S3SpoolingStorage
                 .key(fileName)
                 .build();
         return toListenableFuture(s3AsyncClient.putObject(putObjectRequest, ChunkDataAsyncRequestBody.fromChunkDataLease(chunkDataLease)));
+    }
+
+    @Override
+    protected ListenableFuture<Map<Long, SpooledChunk>> putStorageObject(String fileName, Map<Chunk, ChunkDataLease> chunkDataLeaseMap, long contentLength)
+    {
+        PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                .bucket(bucketName)
+                .key(fileName)
+                .build();
+        ImmutableMap.Builder<Long, SpooledChunk> spooledChunkMap = ImmutableMap.builder();
+        return Futures.transform(
+                toListenableFuture(s3AsyncClient.putObject(putObjectRequest,
+                        MergedChunkDataAsyncRequestBody.fromChunks(
+                        getLocation(fileName),
+                        chunkDataLeaseMap,
+                        contentLength,
+                        spooledChunkMap))),
+                ignored -> spooledChunkMap.build(),
+                directExecutor());
     }
 
     @PreDestroy

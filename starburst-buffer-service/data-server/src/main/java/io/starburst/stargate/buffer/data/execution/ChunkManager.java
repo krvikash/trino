@@ -15,6 +15,7 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Multimaps;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.Futures;
@@ -28,6 +29,7 @@ import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
+import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
@@ -94,9 +96,11 @@ public class ChunkManager
     private final Duration exchangeStalenessThreshold;
     private final Duration chunkSpoolInterval;
     private final int chunkSpoolConcurrency;
+    private final boolean chunkSpoolMergeEnabled;
     private final MemoryAllocator memoryAllocator;
     private final SpoolingStorage spoolingStorage;
     private final Ticker ticker;
+    private final SpooledChunkMapByExchange spooledChunkMapByExchange;
     private final DataServerStats dataServerStats;
     private final ExecutorService executor;
 
@@ -120,6 +124,7 @@ public class ChunkManager
             MemoryAllocator memoryAllocator,
             SpoolingStorage spoolingStorage,
             @ForChunkManager Ticker ticker,
+            SpooledChunkMapByExchange spooledChunkMapByExchange,
             DataServerStats dataServerStats,
             ExecutorService executor)
     {
@@ -136,9 +141,11 @@ public class ChunkManager
         this.exchangeStalenessThreshold = chunkManagerConfig.getExchangeStalenessThreshold();
         this.chunkSpoolInterval = chunkManagerConfig.getChunkSpoolInterval();
         this.chunkSpoolConcurrency = chunkManagerConfig.getChunkSpoolConcurrency();
+        this.chunkSpoolMergeEnabled = chunkManagerConfig.isChunkSpoolMergeEnabled();
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.spoolingStorage = requireNonNull(spoolingStorage, "spoolingStorage is null");
         this.ticker = requireNonNull(ticker, "ticker is null");
+        this.spooledChunkMapByExchange = requireNonNull(spooledChunkMapByExchange, "spooledChunkMapByExchange is null");
         this.dataServerStats = requireNonNull(dataServerStats, "dataServerStats is null");
         this.executor = requireNonNull(executor, "executor is null");
     }
@@ -212,7 +219,17 @@ public class ChunkManager
 
     public ChunkDataResult getChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId)
     {
+        if (chunkSpoolMergeEnabled) {
+            Optional<SpooledChunk> spooledChunk = spooledChunkMapByExchange.getSpooledChunk(exchangeId, chunkId);
+            if (spooledChunk.isPresent()) {
+                return ChunkDataResult.of(spooledChunk.get());
+            }
+        }
+
         if (bufferNodeId != this.bufferNodeId) {
+            if (chunkSpoolMergeEnabled) {
+                throw new RuntimeException("Not implemented"); // TODO: add logic to persist and rebuild metadata
+            }
             // this is a request to get drained chunk data on a different node, return spooling file info directly
             return ChunkDataResult.of(spoolingStorage.getSpooledChunk(bufferNodeId, exchangeId, chunkId));
         }
@@ -287,6 +304,7 @@ public class ChunkManager
 
     public void removeExchange(String exchangeId)
     {
+        spooledChunkMapByExchange.removeExchange(exchangeId);
         recentlyRemovedExchanges.put(exchangeId, "marker");
         Exchange exchange = exchanges.remove(exchangeId);
         if (exchange != null) {
@@ -314,6 +332,9 @@ public class ChunkManager
 
     public int getSpooledChunks()
     {
+        if (chunkSpoolMergeEnabled) {
+            return spooledChunkMapByExchange.getSpooledChunks();
+        }
         return spoolingStorage.getSpooledChunks();
     }
 
@@ -419,6 +440,7 @@ public class ChunkManager
             if (lastUpdateTime < cleanupThreshold) {
                 LOG.info("forgetting exchange %s; no update for %s", entry.getKey(), succinctDuration(now - lastUpdateTime, MILLISECONDS));
                 iterator.remove();
+                spooledChunkMapByExchange.removeExchange(exchange.getExchangeId());
                 exchange.releaseChunks();
             }
         }
@@ -519,6 +541,79 @@ public class ChunkManager
     private void spoolChunksSync(List<Chunk> chunks)
     {
         updateSpoolingStats(chunks);
+        if (chunkSpoolMergeEnabled) {
+            spoolChunksMerge(chunks);
+        }
+        else {
+            // TODO: drop this code path after spooling merged chunks is stable (https://github.com/starburstdata/trino-buffer-service/issues/414)
+            spoolChunksNoMerge(chunks);
+        }
+    }
+
+    private void updateSpoolingStats(List<Chunk> chunks)
+    {
+        ImmutableListMultimap<String, Chunk> chunksByExchange = Multimaps.index(chunks, Chunk::getExchangeId);
+        for (Map.Entry<String, Collection<Chunk>> entry : chunksByExchange.asMap().entrySet()) {
+            dataServerStats.getSpooledSharingExchangeCount().add(entry.getValue().size());
+            dataServerStats.getSpooledSharingExchangeSize().add(entry.getValue().stream().mapToLong(chunk -> {
+                ChunkDataLease chunkDataLease = chunk.getChunkDataLease();
+                if (chunkDataLease == null) {
+                    return 0;
+                }
+                try {
+                    return chunkDataLease.serializedSizeInBytes();
+                }
+                finally {
+                    chunkDataLease.release();
+                }
+            }).sum());
+        }
+    }
+
+    private void spoolChunksMerge(List<Chunk> chunks)
+    {
+        getFutureValue(processAll(
+                Multimaps.index(chunks, Chunk::getExchangeId).asMap().entrySet().asList(),
+                entry -> {
+                    String exchangeId = entry.getKey();
+                    Collection<Chunk> chunkCollection = entry.getValue();
+                    ImmutableMap.Builder<Chunk, ChunkDataLease> chunkDataLeasesMapBuilder = ImmutableMap.builder();
+                    long contentLength = 0;
+                    for (Chunk chunk : chunkCollection) {
+                        ChunkDataLease chunkDataLease = chunk.getChunkDataLease();
+                        if (chunkDataLease == null) {
+                            continue;
+                        }
+                        contentLength += chunkDataLease.serializedSizeInBytes();
+                        chunkDataLeasesMapBuilder.put(chunk, chunkDataLease);
+                    }
+                    Map<Chunk, ChunkDataLease> chunkDataLeaseMap = chunkDataLeasesMapBuilder.build();
+
+                    ListenableFuture<Map<Long, SpooledChunk>> spoolingFuture = spoolingStorage.writeMergedChunks(
+                            bufferNodeId,
+                            exchangeId,
+                            chunkDataLeaseMap,
+                            contentLength);
+                    // in case of failure we still need to decrease reference count to avoid memory leak
+                    addExceptionCallback(spoolingFuture, failure -> chunkDataLeaseMap.values().forEach(ChunkDataLease::release));
+                    return Futures.transform(
+                            spoolingFuture,
+                            spooledChunkMap -> {
+                                spooledChunkMapByExchange.update(exchangeId, spooledChunkMap);
+                                chunkDataLeaseMap.forEach((chunk, chunkDataLease) -> {
+                                    chunkDataLease.release();
+                                    chunk.release();
+                                });
+                                return null;
+                            },
+                            executor);
+                },
+                chunkSpoolConcurrency,
+                executor));
+    }
+
+    private void spoolChunksNoMerge(List<Chunk> chunks)
+    {
         getFutureValue(processAll(
                 chunks,
                 chunk -> {
@@ -543,26 +638,6 @@ public class ChunkManager
                 },
                 chunkSpoolConcurrency,
                 executor));
-    }
-
-    private void updateSpoolingStats(List<Chunk> chunks)
-    {
-        ImmutableListMultimap<String, Chunk> chunksByExchange = Multimaps.index(chunks, Chunk::getExchangeId);
-        for (Map.Entry<String, Collection<Chunk>> entry : chunksByExchange.asMap().entrySet()) {
-            dataServerStats.getSpooledSharingExchangeCount().add(entry.getValue().size());
-            dataServerStats.getSpooledSharingExchangeSize().add(entry.getValue().stream().mapToLong(chunk -> {
-                ChunkDataLease chunkDataLease = chunk.getChunkDataLease();
-                if (chunkDataLease == null) {
-                    return 0;
-                }
-                try {
-                    return chunkDataLease.serializedSizeInBytes();
-                }
-                finally {
-                    chunkDataLease.release();
-                }
-            }).sum());
-        }
     }
 
     private void eagerDeliveryModeCloseChunksIfNeeded()

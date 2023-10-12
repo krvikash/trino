@@ -72,6 +72,16 @@ public class Chunk
                 calculateDataPagesChecksum);
     }
 
+    // [test-only] placeholder for chunks
+    @VisibleForTesting
+    public Chunk(long chunkId)
+    {
+        this.bufferNodeId = 0L;
+        this.exchangeId = "exchangeId";
+        this.partitionId = 0;
+        this.chunkId = chunkId;
+    }
+
     public String getExchangeId()
     {
         return exchangeId;

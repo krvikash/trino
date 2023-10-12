@@ -19,13 +19,18 @@ import com.azure.storage.blob.models.BlockBlobItem;
 import com.azure.storage.blob.models.DeleteSnapshotsOptionType;
 import com.azure.storage.blob.models.ListBlobsOptions;
 import com.azure.storage.blob.models.ParallelTransferOptions;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
+import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
+import io.starburst.stargate.buffer.data.execution.Chunk;
 import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
 import io.starburst.stargate.buffer.data.spooling.AbstractSpoolingStorage;
+import io.starburst.stargate.buffer.data.spooling.MergedFileNameGenerator;
 import io.starburst.stargate.buffer.data.spooling.SpooledChunkNotFoundException;
 import io.starburst.stargate.buffer.data.spooling.SpoolingUtils;
 import reactor.core.publisher.Flux;
@@ -33,8 +38,10 @@ import reactor.core.publisher.Flux;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.toListenableFuture;
 import static io.starburst.stargate.buffer.data.spooling.azure.AzureSpoolUtils.PATH_SEPARATOR;
 import static io.starburst.stargate.buffer.data.spooling.azure.AzureSpoolUtils.getContainerName;
@@ -55,11 +62,12 @@ public class AzureBlobSpoolingStorage
     public AzureBlobSpoolingStorage(
             BufferNodeId bufferNodeId,
             ChunkManagerConfig chunkManagerConfig,
+            MergedFileNameGenerator mergedFileNameGenerator,
             DataServerStats dataServerStats,
             BlobServiceAsyncClient blobServiceAsyncClient,
             AzureBlobSpoolingConfig azureBlobSpoolingConfig)
     {
-        super(bufferNodeId, dataServerStats);
+        super(bufferNodeId, chunkManagerConfig.isChunkSpoolMergeEnabled(), mergedFileNameGenerator, dataServerStats);
 
         URI spoolingDirectory = requireNonNull(chunkManagerConfig.getSpoolingDirectory(), "spoolingDirectory is null");
         this.hostName = getHostName(spoolingDirectory);
@@ -116,6 +124,34 @@ public class AzureBlobSpoolingStorage
                 .setMaxConcurrency(uploadMaxConcurrency), true)
                 .toFuture();
         return toListenableFuture(future);
+    }
+
+    @Override
+    protected ListenableFuture<Map<Long, SpooledChunk>> putStorageObject(String fileName, Map<Chunk, ChunkDataLease> chunkDataLeaseMap, long contentLength)
+    {
+        ImmutableMap.Builder<Long, SpooledChunk> spooledChunkMap = ImmutableMap.builder();
+        BlobAsyncClient blobAsyncClient = containerClient.getBlobAsyncClient(fileName);
+        String location = getLocation(fileName);
+        Flux<ByteBuffer> parts = Flux.create(fluxSink -> {
+            long offset = 0;
+            for (Map.Entry<Chunk, ChunkDataLease> entry : chunkDataLeaseMap.entrySet()) {
+                Chunk chunk = entry.getKey();
+                ChunkDataLease chunkDataLease = entry.getValue();
+                SpoolingUtils.writeChunkDataLease(chunkDataLease, fluxSink::next);
+                int length = chunkDataLease.serializedSizeInBytes();
+                spooledChunkMap.put(chunk.getChunkId(), new SpooledChunk(location, offset, length));
+                offset += length;
+            }
+            fluxSink.complete();
+        });
+        CompletableFuture<BlockBlobItem> future = blobAsyncClient.upload(parts, new ParallelTransferOptions()
+                        .setBlockSizeLong(uploadBlockSize)
+                        .setMaxConcurrency(uploadMaxConcurrency), true)
+                .toFuture();
+        return Futures.transform(
+                toListenableFuture(future),
+                ignored -> spooledChunkMap.build(),
+                directExecutor());
     }
 
     @Override

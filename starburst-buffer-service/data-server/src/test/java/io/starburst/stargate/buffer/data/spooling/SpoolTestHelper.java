@@ -45,6 +45,7 @@ public final class SpoolTestHelper
                             .setS3AwsAccessKey(MinioStorage.ACCESS_KEY)
                             .setS3AwsSecretKey(MinioStorage.SECRET_KEY)
                             .setS3Endpoint("http://" + minioStorage.getMinio().getMinioApiEndpoint())),
+                    new MergedFileNameGenerator(),
                     new DataServerStats(),
                     S3SpoolingStorage.CompatibilityMode.AWS,
                     new GcsClientConfig());
@@ -70,6 +71,7 @@ public final class SpoolTestHelper
         return new AzureBlobSpoolingStorage(
                 new BufferNodeId(0L),
                 new ChunkManagerConfig().setSpoolingDirectory("abfs://" + containerName + "@test.dfs.core.windows.net"),
+                new MergedFileNameGenerator(),
                 new DataServerStats(),
                 client,
                 new AzureBlobSpoolingConfig());
@@ -84,7 +86,9 @@ public final class SpoolTestHelper
 
     public static SpoolingStorage createLocalSpoolingStorage()
     {
-        return new LocalSpoolingStorage(new ChunkManagerConfig().setSpoolingDirectory(System.getProperty("java.io.tmpdir") + "/spooling-storage"));
+        return new LocalSpoolingStorage(
+                new ChunkManagerConfig().setSpoolingDirectory(System.getProperty("java.io.tmpdir") + "/spooling-storage"),
+                new MergedFileNameGenerator());
     }
 
     public static SpooledChunkReader createLocalSpooledChunkReader()

@@ -849,6 +849,7 @@ public class TestChunkManager
                 memoryAllocator,
                 spoolingStorage,
                 ticker,
+                new SpooledChunkMapByExchange(),
                 new DataServerStats(),
                 executor);
     }

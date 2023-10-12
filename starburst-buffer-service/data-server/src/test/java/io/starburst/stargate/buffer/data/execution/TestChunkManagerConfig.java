@@ -39,7 +39,8 @@ public class TestChunkManagerConfig
                 .setExchangeStalenessThreshold(DEFAULT_EXCHANGE_STALENESS_THRESHOLD)
                 .setSpoolingDirectory(null)
                 .setChunkSpoolInterval(succinctDuration(50, MILLISECONDS))
-                .setChunkSpoolConcurrency(32));
+                .setChunkSpoolConcurrency(32)
+                .setChunkSpoolMergeEnabled(false));
     }
 
     @Test
@@ -53,6 +54,7 @@ public class TestChunkManagerConfig
                 .put("spooling.directory", "s3://spooling-bucket")
                 .put("chunk.spool-interval", "5s")
                 .put("chunk.spool-concurrency", "10")
+                .put("chunk.spool-merge-enabled", "true")
                 .buildOrThrow();
 
         ChunkManagerConfig expected = new ChunkManagerConfig()
@@ -62,7 +64,8 @@ public class TestChunkManagerConfig
                 .setExchangeStalenessThreshold(succinctDuration(1, MINUTES))
                 .setSpoolingDirectory("s3://spooling-bucket/")
                 .setChunkSpoolInterval(succinctDuration(5, SECONDS))
-                .setChunkSpoolConcurrency(10);
+                .setChunkSpoolConcurrency(10)
+                .setChunkSpoolMergeEnabled(true);
 
         assertFullMapping(properties, expected);
     }

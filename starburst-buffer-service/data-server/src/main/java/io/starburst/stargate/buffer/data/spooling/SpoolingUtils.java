@@ -38,12 +38,12 @@ public final class SpoolingUtils
         return getPrefixedDirectoryName(bufferNodeId, exchangeId, chunkId) + PATH_SEPARATOR + chunkId;
     }
 
-    public static String getPrefixedDirectoryName(long bufferNodeId, String exchangeId, long chunkId)
+    public static String getPrefixedDirectoryName(long bufferNodeId, String exchangeId, long salt)
     {
         // This is to ensure good load balancing between S3 shards.
         // AWS set up partitioning for us based on the first two characters.
         char ch1 = HEX_PREFIX_ALPHABET[Math.abs(exchangeId.hashCode() % HEX_PREFIX_ALPHABET.length)];
-        char ch2 = HEX_PREFIX_ALPHABET[(int) (chunkId % HEX_PREFIX_ALPHABET.length)];
+        char ch2 = HEX_PREFIX_ALPHABET[(int) (salt % HEX_PREFIX_ALPHABET.length)];
         return ch1 + "" + ch2 + "." + exchangeId + "." + bufferNodeId;
     }
 
