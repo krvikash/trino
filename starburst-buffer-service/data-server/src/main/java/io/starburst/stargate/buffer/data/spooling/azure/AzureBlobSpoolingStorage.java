@@ -19,10 +19,13 @@ import com.azure.storage.blob.models.BlockBlobItem;
 import com.azure.storage.blob.models.DeleteSnapshotsOptionType;
 import com.azure.storage.blob.models.ListBlobsOptions;
 import com.azure.storage.blob.models.ParallelTransferOptions;
+import com.azure.storage.blob.specialized.BlockBlobAsyncClient;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
+import io.airlift.slice.Slice;
+import io.airlift.slice.Slices;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.execution.Chunk;
 import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
@@ -42,7 +45,9 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
+import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.concurrent.MoreFutures.toListenableFuture;
+import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getMetadataFileName;
 import static io.starburst.stargate.buffer.data.spooling.azure.AzureSpoolUtils.PATH_SEPARATOR;
 import static io.starburst.stargate.buffer.data.spooling.azure.AzureSpoolUtils.getContainerName;
 import static io.starburst.stargate.buffer.data.spooling.azure.AzureSpoolUtils.getHostName;
@@ -151,6 +156,25 @@ public class AzureBlobSpoolingStorage
         return Futures.transform(
                 toListenableFuture(future),
                 ignored -> spooledChunkMap.build(),
+                directExecutor());
+    }
+
+    @Override
+    public ListenableFuture<Void> writeMetadataFile(long bufferNodeId, Slice metadataSlice)
+    {
+        String metadataFileName = getMetadataFileName(bufferNodeId);
+        BlockBlobAsyncClient blockBlobAsyncClient = containerClient.getBlobAsyncClient(metadataFileName).getBlockBlobAsyncClient();
+        return asVoid(toListenableFuture(blockBlobAsyncClient.upload(Flux.just(metadataSlice.toByteBuffer()), metadataSlice.length()).toFuture()));
+    }
+
+    @Override
+    public ListenableFuture<Slice> readMetadataFile(long bufferNodeId)
+    {
+        String metadataFileName = getMetadataFileName(bufferNodeId);
+        BlockBlobAsyncClient blockBlobAsyncClient = containerClient.getBlobAsyncClient(metadataFileName).getBlockBlobAsyncClient();
+        return Futures.transform(
+                toListenableFuture(blockBlobAsyncClient.downloadContent().toFuture()),
+                response -> Slices.wrappedBuffer(response.toBytes()),
                 directExecutor());
     }
 

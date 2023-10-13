@@ -66,7 +66,9 @@ import static io.airlift.concurrent.MoreFutures.addExceptionCallback;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.data.client.ChunkDeliveryMode.STANDARD;
+import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.EXCHANGE_NOT_FOUND;
+import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.decodeMetadataSlice;
 import static java.lang.Math.toIntExact;
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
@@ -74,6 +76,7 @@ import static java.lang.annotation.ElementType.PARAMETER;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
+import static java.util.concurrent.TimeUnit.HOURS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -113,6 +116,7 @@ public class ChunkManager
     private final ScheduledExecutorService exchangeTimeoutExecutor = newSingleThreadScheduledExecutor();
     private final ScheduledExecutorService eagerDeliveryModeExecutor = newSingleThreadScheduledExecutor();
     private final Cache<String, Object> recentlyRemovedExchanges = CacheBuilder.newBuilder().expireAfterWrite(5, MINUTES).build();
+    private final Cache<Long, Map<Long, SpooledChunk>> drainedSpooledChunkMap = CacheBuilder.newBuilder().expireAfterWrite(4, HOURS).build();
 
     private volatile boolean startedDraining;
 
@@ -228,7 +232,29 @@ public class ChunkManager
 
         if (bufferNodeId != this.bufferNodeId) {
             if (chunkSpoolMergeEnabled) {
-                throw new RuntimeException("Not implemented"); // TODO: add logic to persist and rebuild metadata
+                Map<Long, SpooledChunk> spooledChunkMap = drainedSpooledChunkMap.getIfPresent(bufferNodeId);
+                if (spooledChunkMap != null) {
+                    SpooledChunk spooledChunk = spooledChunkMap.get(chunkId);
+                    if (spooledChunk != null) {
+                        return ChunkDataResult.of(spooledChunk);
+                    }
+                    else {
+                        throw new DataServerException(CHUNK_NOT_FOUND, "No closed chunk found for bufferNodeId %d, exchange %s, chunk %d".formatted(bufferNodeId, exchangeId, chunkId));
+                    }
+                }
+                else {
+                    // try to build from persisted metadata
+                    Map<Long, SpooledChunk> tmpSpooledChunkMap = decodeMetadataSlice(getFutureValue(spoolingStorage.readMetadataFile(bufferNodeId)));
+                    drainedSpooledChunkMap.put(bufferNodeId, tmpSpooledChunkMap);
+
+                    SpooledChunk spooledChunk = tmpSpooledChunkMap.get(chunkId);
+                    if (spooledChunk != null) {
+                        return ChunkDataResult.of(spooledChunk);
+                    }
+                    else {
+                        throw new DataServerException(CHUNK_NOT_FOUND, "No closed chunk found for bufferNodeId %d, exchange %s, chunk %d".formatted(bufferNodeId, exchangeId, chunkId));
+                    }
+                }
             }
             // this is a request to get drained chunk data on a different node, return spooling file info directly
             return ChunkDataResult.of(spoolingStorage.getSpooledChunk(bufferNodeId, exchangeId, chunkId));
@@ -383,6 +409,12 @@ public class ChunkManager
         verify(getClosedChunks() == 0, "closed chunks exist after spooling all chunks");
 
         LOG.info("Finished draining all chunks");
+
+        // persist spooledChunkMapByExchange to S3
+        if (chunkSpoolMergeEnabled) {
+            getFutureValue(spoolingStorage.writeMetadataFile(bufferNodeId, spooledChunkMapByExchange.encodeMetadataSlice()));
+            LOG.info("Finished writing metadata of spooled chunks");
+        }
 
         long remainingDrainingWaitMillis = minDrainingDuration.toMillis() - (System.currentTimeMillis() - drainingStart);
 

@@ -17,12 +17,14 @@ import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.execution.Chunk;
 import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
+import io.starburst.stargate.buffer.data.execution.SpooledChunkMapByExchange;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -30,6 +32,7 @@ import java.util.Random;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.starburst.stargate.buffer.data.execution.ChunkTestHelper.toChunkDataLease;
+import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.decodeMetadataSlice;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -222,6 +225,21 @@ public abstract class AbstractTestSpoolingStorage
                     .isInstanceOf(DataServerException.class)
                     .hasMessage("No closed chunk found for bufferNodeId %d, exchange %s, chunk %d".formatted(BUFFER_NODE_ID, EXCHANGE_ID, chunkId));
         }
+    }
+
+    @Test
+    public void testWriteReadMetadataFile()
+    {
+        SpooledChunkMapByExchange spooledChunkMapByExchange = new SpooledChunkMapByExchange();
+        Map<Long, SpooledChunk> expectedSpooledChunkMap = new HashMap<>();
+        expectedSpooledChunkMap.put(0L, new SpooledChunk("location", 0L, 10));
+        expectedSpooledChunkMap.put(1L, new SpooledChunk("location", 10L, 20));
+        expectedSpooledChunkMap.put(2L, new SpooledChunk("location", 30L, 30));
+        expectedSpooledChunkMap.put(3L, new SpooledChunk("anotherlocation", 0L, 88));
+        spooledChunkMapByExchange.update(EXCHANGE_ID, expectedSpooledChunkMap);
+        getFutureValue(spoolingStorage.writeMetadataFile(BUFFER_NODE_ID, spooledChunkMapByExchange.encodeMetadataSlice()));
+
+        assertEquals(expectedSpooledChunkMap, decodeMetadataSlice(getFutureValue(spoolingStorage.readMetadataFile(BUFFER_NODE_ID))));
     }
 
     private static String getRandomLargeString()

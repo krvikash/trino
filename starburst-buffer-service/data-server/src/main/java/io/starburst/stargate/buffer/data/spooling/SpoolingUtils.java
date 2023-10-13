@@ -13,13 +13,17 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.slice.Slice;
+import io.airlift.slice.SliceInput;
 import io.airlift.slice.SliceOutput;
 import io.airlift.slice.Slices;
+import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
@@ -30,6 +34,7 @@ import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.PATH_
 public final class SpoolingUtils
 {
     private static final char[] HEX_PREFIX_ALPHABET = "abcdef0123456789".toCharArray();
+    private static final String SPOOLING_METADATA_FILE_SUFFIX = ".spooling.metadata";
 
     private SpoolingUtils() {}
 
@@ -76,5 +81,27 @@ public final class SpoolingUtils
         for (Slice chunkSlice : chunkDataLease.chunkSlices()) {
             consumer.accept(ByteBuffer.wrap(chunkSlice.byteArray(), chunkSlice.byteArrayOffset(), chunkSlice.length()));
         }
+    }
+
+    public static String getMetadataFileName(long bufferNodeId)
+    {
+        return bufferNodeId + SPOOLING_METADATA_FILE_SUFFIX;
+    }
+
+    public static Map<Long, SpooledChunk> decodeMetadataSlice(Slice metadataSlice)
+    {
+        SliceInput sliceInput = metadataSlice.getInput();
+        Map<Long, SpooledChunk> spooledChunkMap = new ConcurrentHashMap<>();
+        while (sliceInput.isReadable()) {
+            long chunkId = sliceInput.readLong();
+            int locationLength = sliceInput.readInt();
+            String location = sliceInput.readSlice(locationLength).toStringAscii();
+            long offset = sliceInput.readLong();
+            int length = sliceInput.readInt();
+
+            spooledChunkMap.put(chunkId, new SpooledChunk(location, offset, length));
+        }
+
+        return spooledChunkMap;
     }
 }

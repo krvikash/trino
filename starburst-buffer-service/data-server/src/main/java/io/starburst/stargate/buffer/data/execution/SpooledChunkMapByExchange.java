@@ -10,8 +10,12 @@
 package io.starburst.stargate.buffer.data.execution;
 
 import com.google.errorprone.annotations.ThreadSafe;
+import io.airlift.slice.Slice;
+import io.airlift.slice.SliceOutput;
+import io.airlift.slice.Slices;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -44,5 +48,36 @@ public class SpooledChunkMapByExchange
     public int getSpooledChunks()
     {
         return spooledChunkMapByExchange.values().stream().mapToInt(Map::size).sum();
+    }
+
+    public Slice encodeMetadataSlice()
+    {
+        int metadataFileSize = 0;
+        for (Map.Entry<String, Map<Long, SpooledChunk>> entry : spooledChunkMapByExchange.entrySet()) {
+            Map<Long, SpooledChunk> spooledChunkMap = entry.getValue();
+            for (Map.Entry<Long, SpooledChunk> secondaryEntry : spooledChunkMap.entrySet()) {
+                metadataFileSize += Long.BYTES;
+                SpooledChunk spooledChunk = secondaryEntry.getValue();
+                metadataFileSize += Integer.BYTES;
+                metadataFileSize += spooledChunk.location().length();
+                metadataFileSize += Long.BYTES;
+                metadataFileSize += Integer.BYTES;
+            }
+        }
+        Slice slice = Slices.allocate(metadataFileSize);
+        SliceOutput sliceOutput = slice.getOutput();
+        for (Map.Entry<String, Map<Long, SpooledChunk>> entry : spooledChunkMapByExchange.entrySet()) {
+            Map<Long, SpooledChunk> spooledChunkMap = entry.getValue();
+            for (Map.Entry<Long, SpooledChunk> secondaryEntry : spooledChunkMap.entrySet()) {
+                Long chunkId = secondaryEntry.getKey();
+                sliceOutput.writeLong(chunkId);
+                SpooledChunk spooledChunk = secondaryEntry.getValue();
+                sliceOutput.writeInt(spooledChunk.location().length());
+                sliceOutput.writeBytes(spooledChunk.location().getBytes(StandardCharsets.UTF_8));
+                sliceOutput.writeLong(spooledChunk.offset());
+                sliceOutput.writeInt(spooledChunk.length());
+            }
+        }
+        return slice;
     }
 }

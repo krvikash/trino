@@ -20,4 +20,9 @@ public record SpooledChunk(
     {
         requireNonNull(location, "location is null");
     }
+
+    public int serializedSizeInBytes()
+    {
+        return Integer.BYTES + location.length() + Long.BYTES + Integer.BYTES;
+    }
 }

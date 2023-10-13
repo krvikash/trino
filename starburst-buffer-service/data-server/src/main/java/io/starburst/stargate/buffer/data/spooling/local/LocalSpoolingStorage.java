@@ -14,7 +14,9 @@ import com.google.common.io.MoreFiles;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
 import io.airlift.slice.OutputStreamSliceOutput;
+import io.airlift.slice.Slice;
 import io.airlift.slice.SliceOutput;
+import io.airlift.slice.Slices;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.execution.Chunk;
@@ -25,6 +27,7 @@ import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
 import jakarta.annotation.PreDestroy;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URI;
@@ -44,6 +47,7 @@ import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.CHUNK_FILE_HEADER_SIZE;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getFileName;
+import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getMetadataFileName;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getPrefixedDirectories;
 import static java.lang.StrictMath.toIntExact;
 import static java.util.Objects.requireNonNull;
@@ -165,6 +169,39 @@ public class LocalSpoolingStorage
         }
 
         return immediateVoidFuture();
+    }
+
+    @Override
+    public ListenableFuture<Void> writeMetadataFile(long bufferNodeId, Slice metadataSlice)
+    {
+        File file = getPath(getMetadataFileName(bufferNodeId)).toFile();
+        File parent = file.getParentFile();
+        if (parent != null && !parent.exists() && !parent.mkdirs() && !parent.exists()) {
+            // It is possible that directory does not exist when first
+            // `parent.exists()` is called but then is created by some other thread and
+            // `parent.mkdirs()` returns false. To treat such race condition as success
+            // we add yet another call to `parent.exists()` at the end of the chain.
+            throw new IllegalStateException("Couldn't create dir: " + parent);
+        }
+        try (SliceOutput sliceOutput = new OutputStreamSliceOutput(new FileOutputStream(file))) {
+            sliceOutput.writeBytes(metadataSlice);
+        }
+        catch (IOException e) {
+            return immediateFailedFuture(e);
+        }
+        return immediateVoidFuture();
+    }
+
+    @Override
+    public ListenableFuture<Slice> readMetadataFile(long bufferNodeId)
+    {
+        File metadataFile = getPath(getMetadataFileName(bufferNodeId)).toFile();
+        try (FileInputStream inputStream = new FileInputStream(metadataFile)) {
+            return immediateFuture(Slices.wrappedBuffer(inputStream.readAllBytes()));
+        }
+        catch (IOException e) {
+            return immediateFailedFuture(e);
+        }
     }
 
     @Override

@@ -24,6 +24,8 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.inject.Inject;
+import io.airlift.slice.Slice;
+import io.airlift.slice.Slices;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.execution.Chunk;
 import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
@@ -35,9 +37,12 @@ import io.starburst.stargate.buffer.data.spooling.MergedFileNameGenerator;
 import io.starburst.stargate.buffer.data.spooling.SpooledChunkNotFoundException;
 import io.starburst.stargate.buffer.data.spooling.gcs.GcsClientConfig;
 import jakarta.annotation.PreDestroy;
+import software.amazon.awssdk.core.async.AsyncRequestBody;
+import software.amazon.awssdk.core.async.AsyncResponseTransformer;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.Delete;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
@@ -65,6 +70,7 @@ import static io.airlift.concurrent.MoreFutures.toListenableFuture;
 import static io.airlift.concurrent.Threads.threadsNamed;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.PATH_SEPARATOR;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.getBucketName;
+import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getMetadataFileName;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.translateFailures;
 import static io.starburst.stargate.buffer.data.spooling.s3.S3SpoolingStorage.CompatibilityMode.GCP;
 import static java.lang.Math.toIntExact;
@@ -221,6 +227,29 @@ public class S3SpoolingStorage
                     return toListenableFuture(s3AsyncClient.deleteObjects(request));
                 }).collect(toImmutableList())),
                 directExecutor()));
+    }
+
+    @Override
+    public ListenableFuture<Void> writeMetadataFile(long bufferNodeId, Slice metadataSlice)
+    {
+        PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                .bucket(bucketName)
+                .key(getMetadataFileName(bufferNodeId))
+                .build();
+        return asVoid(toListenableFuture(s3AsyncClient.putObject(putObjectRequest, AsyncRequestBody.fromBytesUnsafe(metadataSlice.byteArray()))));
+    }
+
+    @Override
+    public ListenableFuture<Slice> readMetadataFile(long bufferNodeId)
+    {
+        GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                .bucket(bucketName)
+                .key(getMetadataFileName(bufferNodeId))
+                .build();
+        return Futures.transform(
+                toListenableFuture(s3AsyncClient.getObject(getObjectRequest, AsyncResponseTransformer.toBytes())),
+                response -> Slices.wrappedBuffer(response.asByteArrayUnsafe()),
+                directExecutor());
     }
 
     private ListObjectsV2Publisher listObjectsRecursively(String directoryName)
