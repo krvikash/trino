@@ -1,0 +1,83 @@
+image:
+  repository: "888469412714.dkr.ecr.us-east-1.amazonaws.com/test-losipiuk/trino"
+  tag: "lo-19.09.23-7"
+
+server:
+  # set it to number of Trino nodes in cluster
+  workers: 1
+  exchangeManager:
+    name: "buffer"
+coordinator:
+  jvm:
+    maxHeapSize: "20G"
+  additionalJVMConfig:
+    - "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
+    - "-XX:GCLockerRetryAllocationCount=10"
+    - "-XX:FlightRecorderOptions=stackdepth=128"
+  resources:
+    requests:
+      memory: "25Gi"
+      cpu: 7
+    limits:
+      memory: "25Gi"
+      cpu: 7
+worker:
+  jvm:
+    maxHeapSize: "100G"
+  additionalJVMConfig:
+    - "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
+    - "-XX:GCLockerRetryAllocationCount=10"
+  resources:
+    requests:
+      memory: "120Gi"
+      cpu: 31
+    limits:
+      memory: "120Gi"
+      cpu: 31
+additionalConfigProperties:
+  - "retry-policy=TASK"
+  - "fault-tolerant-execution-partition-count=1000"
+  - "driver.max-page-partitioning-buffer-size=128MB"
+  - "task.concurrency=4"
+  - "task.max-drivers-per-task=8"
+  - "log.path=var/log/server.log"
+
+additionalLogProperties:
+  - "io.trino.execution.scheduler=DEBUG"
+  - "io.starburst.stargate.buffer.trino.exchange.SinkMappingScaler=DEBUG"
+  - "io.starburst.stargate.buffer.trino.exchange=DEBUG"
+additionalExchangeManagerProperties:
+  - "exchange.buffer-discovery.uri=http://discovery-server-service.default.svc:8080"
+  - "exchange.buffer-data.spooling-storage-type=S3"
+  - "exchange.buffer-data.spooling.s3.region=us-east-1"
+  - "exchange.buffer-data.spooling.s3.aws-access-key=<put_access_key_here>"
+  - "exchange.buffer-data.spooling.s3.aws-secret-key=<put_secret_key_here>"
+
+  - "exchange.source-handle-target-chunks-count=1"
+eventListenerProperties:
+  - "event-listener.name=mysql"
+  - "mysql-event-listener.db.url=jdbc:mysql://tardigrade-testing.cluster-ctt66bhqbeug.us-east-1.rds.amazonaws.com:3306/verifier?user=myuser&password=mypass&useSSL=false"
+additionalCatalogs:
+  hive: |-
+    connector.name=hive
+    hive.metastore=glue
+    hive.metastore.glue.region=us-east-1
+    hive.metastore.glue.aws-access-key=<put_access_key_here>
+    hive.metastore.glue.aws-secret-key=<put_secret_key_here>
+    hive.s3.aws-access-key=<put_access_key_here>
+    hive.s3.aws-secret-key=<put_secret_key_here
+    hive.security=allow-all
+    hive.metastore.glue.default-warehouse-dir=s3n://tardigrade-verifier/
+    hive.per-transaction-metastore-cache-maximum-size=50000
+    hive.metastore-cache-maximum-size=50000
+    hive.metastore-cache-ttl=10000m
+    hive.file-status-cache-expire-time=10h
+    hive.file-status-cache-tables=*
+  tpch: |-
+    connector.name=tpch
+    tpch.column-naming=STANDARD
+    tpch.double-type-mapping=DECIMAL
+  tpcds: |-
+    connector.name=tpcds
+nodeSelector:
+  "eks.amazonaws.com/nodegroup": "trino-ng"

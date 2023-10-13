@@ -1,0 +1,87 @@
+bufferService:
+  environment: test
+  logLevel: INFO
+  image:
+    repository: "888469412714.dkr.ecr.us-east-1.amazonaws.com/test-losipiuk/"
+    tag: "lo-19.09.23-7"
+
+    pullPolicy: IfNotPresent
+  labels: {}
+  annotations: {}
+  discoveryServer:
+    imageName: "trino-buffer-service/discovery-server"
+    etcFiles:
+      "config.properties": |
+        node.environment={{ .Values.bufferService.environment }}
+      "log.properties": |
+        io.starburst.stargate.buffer.discovery={{ .Values.bufferService.logLevel }}
+      "jvm.config": |
+        -Djdk.attach.allowAttachSelf
+        -XX:InitialRAMPercentage=80
+        -XX:MaxRAMPercentage=80
+        -XX:+ExitOnOutOfMemoryError
+    resources:
+      cpu: 1
+      memory: 5Gi
+    labels: {}
+    annotations: {}
+    nodeSelector:
+      #"eks.amazonaws.com/nodegroup": "bs-ng"
+      "eks.amazonaws.com/nodegroup": "bs-ng-m6"
+      #"eks.amazonaws.com/nodegroup": "trino-ng"
+    affinity: {}
+    tolerations: []
+  dataServer:
+    imageName: "trino-buffer-service/data-server"
+    etcFiles:
+      "config.properties": |
+        node.environment={{ .Values.bufferService.environment }}
+        node.internal-address=${ENV:POD_IP}
+        
+        spooling.directory=s3://galaxy-tardigrade-demo-aws-us-east1
+        spooling.s3.region=us-east-1
+        spooling.s3.aws-access-key=<put_access_key_here>
+        spooling.s3.aws-secret-key=<put_secret_key_here>
+
+        discovery-service.uri=http://discovery-server-service.{{- .Release.Namespace -}}.svc:8080
+        chunk.spool-concurrency=32
+        memory.heap-headroom=4GB
+        log.path=var/log/server.log
+        testing.enable-stats-logging=true
+
+        max-in-progress-add-data-pages-requests=150
+        in-progress-add-data-pages-requests-rate-limit-threshold=110
+        # chatty-add-data-pages-client-median-threshold=0.2
+        # unify-add-data-pages-request-rate-limit=false
+        # client-rate-counter-decay-duration=10s
+
+        in-progress-add-data-pages-requests-throttling-counter-decay-duration=5s
+        
+        #chunk.target-size=16kB
+        #chunk.slice-size=16kB
+
+
+      "log.properties": |
+        io.starburst.stargate.buffer.data={{ .Values.bufferService.logLevel }}
+      "jvm.config": |
+        -Djdk.attach.allowAttachSelf
+        -XX:InitialRAMPercentage=80
+        -XX:MaxRAMPercentage=80
+        -XX:+ExitOnOutOfMemoryError
+        -XX:+UnlockDiagnosticVMOptions
+        -XX:GCLockerRetryAllocationCount=10
+        -XX:-G1UsePreventiveGC
+    autoscaling:
+      type: "static"
+      static:
+        # set it to number of buffer service nodes in cluster
+        replicas: 1
+    resources:
+      cpu: 7
+      memory: 29Gi
+    labels: {}
+    annotations: {}
+    nodeSelector:
+      "eks.amazonaws.com/nodegroup": "bs-ng"
+    affinity: {}
+    tolerations: []
