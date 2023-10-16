@@ -44,6 +44,7 @@ public class ChunkManagerConfig
     private Duration chunkSpoolInterval = succinctDuration(50, MILLISECONDS);
     private int chunkSpoolConcurrency = 32;
     private boolean chunkSpoolMergeEnabled;
+    private int chunkSpoolMergeThreshold = 10;
 
     @NotNull
     @MinDataSize("4kB")
@@ -159,6 +160,18 @@ public class ChunkManagerConfig
     public ChunkManagerConfig setChunkSpoolMergeEnabled(boolean chunkSpoolMergeEnabled)
     {
         this.chunkSpoolMergeEnabled = chunkSpoolMergeEnabled;
+        return this;
+    }
+
+    public int getChunkSpoolMergeThreshold()
+    {
+        return chunkSpoolMergeThreshold;
+    }
+
+    @Config("chunk.spool-merge-threshold")
+    public ChunkManagerConfig setChunkSpoolMergeThreshold(int chunkSpoolMergeThreshold)
+    {
+        this.chunkSpoolMergeThreshold = chunkSpoolMergeThreshold;
         return this;
     }
 

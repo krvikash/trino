@@ -15,6 +15,7 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Multimaps;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.Futures;
@@ -99,6 +100,7 @@ public class ChunkManager
     private final Duration chunkSpoolInterval;
     private final int chunkSpoolConcurrency;
     private final boolean chunkSpoolMergeEnabled;
+    private final int chunkSpoolMergeThreshold;
     private final MemoryAllocator memoryAllocator;
     private final SpoolingStorage spoolingStorage;
     private final Ticker ticker;
@@ -145,6 +147,7 @@ public class ChunkManager
         this.chunkSpoolInterval = chunkManagerConfig.getChunkSpoolInterval();
         this.chunkSpoolConcurrency = chunkManagerConfig.getChunkSpoolConcurrency();
         this.chunkSpoolMergeEnabled = chunkManagerConfig.isChunkSpoolMergeEnabled();
+        this.chunkSpoolMergeThreshold = chunkManagerConfig.getChunkSpoolMergeThreshold();
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.spoolingStorage = requireNonNull(spoolingStorage, "spoolingStorage is null");
         this.ticker = requireNonNull(ticker, "ticker is null");
@@ -589,14 +592,23 @@ public class ChunkManager
 
     private void spoolChunksMerge(List<Chunk> chunks)
     {
+        ImmutableList.Builder<ChunksWithExchangeId> chunksWithExchangeIdBuilder = ImmutableList.builder();
+        for (Map.Entry<String, Collection<Chunk>> entry : Multimaps.index(chunks, Chunk::getExchangeId).asMap().entrySet()) {
+            String exchangeId = entry.getKey();
+            // order by chunk id to reduce disk seeks on cloud object storage when reading
+            List<Chunk> chunkList = entry.getValue().stream().sorted(Comparator.comparingLong(Chunk::getChunkId)).collect(toImmutableList());
+            for (List<Chunk> partitionedChunkList : Lists.partition(chunkList, chunkSpoolMergeThreshold)) {
+                chunksWithExchangeIdBuilder.add(new ChunksWithExchangeId(exchangeId, partitionedChunkList));
+            }
+        }
         getFutureValue(processAll(
-                Multimaps.index(chunks, Chunk::getExchangeId).asMap().entrySet().asList(),
-                entry -> {
-                    String exchangeId = entry.getKey();
-                    Collection<Chunk> chunkCollection = entry.getValue();
+                chunksWithExchangeIdBuilder.build(),
+                chunksWithExchangeId -> {
+                    String exchangeId = chunksWithExchangeId.exchangeId();
+                    List<Chunk> chunkList = chunksWithExchangeId.chunks();
                     ImmutableMap.Builder<Chunk, ChunkDataLease> chunkDataLeasesMapBuilder = ImmutableMap.builder();
                     long contentLength = 0;
-                    for (Chunk chunk : chunkCollection) {
+                    for (Chunk chunk : chunkList) {
                         ChunkDataLease chunkDataLease = chunk.getChunkDataLease();
                         if (chunkDataLease == null) {
                             continue;
@@ -674,6 +686,11 @@ public class ChunkManager
     {
         return ticker.read() / 1_000_000;
     }
+
+    record ChunksWithExchangeId(
+            String exchangeId,
+            List<Chunk> chunks)
+    {}
 
     @Retention(RUNTIME)
     @Target({FIELD, PARAMETER, METHOD})
