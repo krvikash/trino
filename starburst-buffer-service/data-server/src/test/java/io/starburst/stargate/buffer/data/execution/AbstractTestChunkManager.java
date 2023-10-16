@@ -52,7 +52,6 @@ import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.data.client.ChunkDeliveryMode.STANDARD;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
 import static io.starburst.stargate.buffer.data.execution.ChunkManagerConfig.DEFAULT_EXCHANGE_STALENESS_THRESHOLD;
-import static io.starburst.stargate.buffer.data.execution.ChunkTestHelper.toChunkDataLease;
 import static io.starburst.stargate.buffer.data.execution.ChunkTestHelper.verifyChunkData;
 import static io.starburst.stargate.buffer.data.spooling.SpoolTestHelper.createS3SpooledChunkReader;
 import static io.starburst.stargate.buffer.data.spooling.SpoolTestHelper.createS3SpoolingStorage;
@@ -70,19 +69,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class TestChunkManager
+public abstract class AbstractTestChunkManager
 {
-    private static final Logger log = Logger.get(TestChunkManager.class);
+    private static final Logger log = Logger.get(AbstractTestChunkManager.class);
 
-    private static final String EXCHANGE_0 = "exchange-0";
-    private static final String EXCHANGE_1 = "exchange-1";
-    private static final long BUFFER_NODE_ID = 0;
+    protected static final String EXCHANGE_0 = "exchange-0";
+    protected static final String EXCHANGE_1 = "exchange-1";
+    protected static final long BUFFER_NODE_ID = 0;
 
-    private final ExecutorService executor = Executors.newCachedThreadPool();
-    private final TestingTicker ticker = new TestingTicker();
-    private MinioStorage minioStorage;
-    private SpoolingStorage spoolingStorage;
-    private SpooledChunkReader spooledChunkReader;
+    protected final ExecutorService executor = Executors.newCachedThreadPool();
+    protected final TestingTicker ticker = new TestingTicker();
+    protected MinioStorage minioStorage;
+    protected SpoolingStorage spoolingStorage;
+    protected SpooledChunkReader spooledChunkReader;
 
     @BeforeAll
     public void init()
@@ -675,36 +674,6 @@ public class TestChunkManager
     }
 
     @Test
-    public void testGetDrainedChunkDataOnAnotherNode()
-    {
-        long drainedBufferNodeId = BUFFER_NODE_ID + 1;
-        List<DataPage> dataPages = ImmutableList.of(
-                new DataPage(0, 0, utf8Slice("test")),
-                new DataPage(0, 1, utf8Slice("Spooling")),
-                new DataPage(1, 0, utf8Slice("Storage")));
-        getFutureValue(spoolingStorage.writeChunk(drainedBufferNodeId, EXCHANGE_0, 0L, toChunkDataLease(dataPages)));
-
-        ChunkManager chunkManager = createChunkManager(
-                defaultMemoryAllocator(),
-                DataSize.of(16, MEGABYTE),
-                DataSize.of(64, MEGABYTE),
-                DataSize.of(128, KILOBYTE));
-
-        // exchange missing
-        assertDrainedChunkDataResult(chunkManager, drainedBufferNodeId);
-
-        // exchange exists, but partition missing
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 1, 1, 1L, ImmutableList.of(utf8Slice("dummy1"))).addDataPagesFuture());
-        assertDrainedChunkDataResult(chunkManager, drainedBufferNodeId);
-
-        // exchange exists, partition exists, but chunk missing
-        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("dummy0"))).addDataPagesFuture());
-        assertDrainedChunkDataResult(chunkManager, drainedBufferNodeId);
-
-        chunkManager.removeExchange(EXCHANGE_0);
-    }
-
-    @Test
     public void testAddDataPagesShouldRetainMemory()
     {
         long maxBytes = 16L;
@@ -820,12 +789,14 @@ public class TestChunkManager
         }
     }
 
-    private MemoryAllocator defaultMemoryAllocator()
+    protected abstract boolean isChunkSpoolMergeEnabled();
+
+    protected MemoryAllocator defaultMemoryAllocator()
     {
         return new MemoryAllocator(new MemoryAllocatorConfig(), new ChunkManagerConfig(), new DataServerStats());
     }
 
-    private ChunkManager createChunkManager(
+    protected ChunkManager createChunkManager(
             MemoryAllocator memoryAllocator,
             DataSize chunkTargetSize,
             DataSize chunkMaxSize,
@@ -836,6 +807,7 @@ public class TestChunkManager
                 .setChunkMaxSize(chunkMaxSize)
                 .setChunkSliceSize(chunkSliceSize)
                 .setSpoolingDirectory("s3://" + minioStorage.getBucketName())
+                .setChunkSpoolMergeEnabled(isChunkSpoolMergeEnabled())
                 .setChunkSpoolInterval(succinctDuration(100, SECONDS)); // only manual triggering in tests
         DataServerConfig dataServerConfig = new DataServerConfig()
                 .setDataIntegrityVerificationEnabled(true)
@@ -891,11 +863,17 @@ public class TestChunkManager
         return fail();
     }
 
-    private void assertDrainedChunkDataResult(ChunkManager chunkManager, long drainedBufferNodeId)
+    protected void assertDrainedChunkDataResult(ChunkManager chunkManager, long drainedBufferNodeId)
     {
         ChunkDataResult chunkDataResult = chunkManager.getChunkData(drainedBufferNodeId, EXCHANGE_0, 0, 0L);
         assertTrue(chunkDataResult.spooledChunk().isPresent());
         assertEquals(52, chunkDataResult.spooledChunk().get().length());
-        assertEquals("s3://" + minioStorage.getBucketName() + "/0a.exchange-0.1/0", chunkDataResult.spooledChunk().get().location());
+        if (isChunkSpoolMergeEnabled()) {
+            assertTrue(chunkDataResult.spooledChunk().get().location().startsWith("s3://" + minioStorage.getBucketName()));
+            assertTrue(chunkDataResult.spooledChunk().get().location().contains("exchange-0." + drainedBufferNodeId));
+        }
+        else {
+            assertEquals("s3://" + minioStorage.getBucketName() + "/0a.exchange-0.1/0", chunkDataResult.spooledChunk().get().location());
+        }
     }
 }
