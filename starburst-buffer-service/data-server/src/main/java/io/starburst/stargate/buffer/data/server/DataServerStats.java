@@ -40,6 +40,8 @@ public class DataServerStats
     private final DistributionStat spooledSharingExchangeCount = new DistributionStat();
     // what is the total size of chunks sharing exchange spooled withing single iteration
     private final DistributionStat spooledSharingExchangeSize = new DistributionStat();
+    // tracks size of files written to spooling storage
+    private final DistributionStat spooledFileSizeDistribution = new DistributionStat();
 
     public void updateTotalMemoryInBytes(long totalMemoryInBytes)
     {
@@ -203,5 +205,12 @@ public class DataServerStats
     public DistributionStat getSpooledSharingExchangeSize()
     {
         return spooledSharingExchangeSize;
+    }
+
+    @Managed
+    @Nested
+    public DistributionStat getSpooledFileSizeDistribution()
+    {
+        return spooledFileSizeDistribution;
     }
 }

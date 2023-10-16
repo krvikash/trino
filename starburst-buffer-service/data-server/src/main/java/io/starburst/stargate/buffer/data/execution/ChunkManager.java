@@ -14,7 +14,6 @@ import com.google.common.base.Ticker;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Multimaps;
 import com.google.common.io.Closer;
@@ -579,33 +578,12 @@ public class ChunkManager
 
     private void spoolChunksSync(List<Chunk> chunks)
     {
-        updateSpoolingStats(chunks);
         if (chunkSpoolMergeEnabled) {
             spoolChunksMerge(chunks);
         }
         else {
             // TODO: drop this code path after spooling merged chunks is stable (https://github.com/starburstdata/trino-buffer-service/issues/414)
             spoolChunksNoMerge(chunks);
-        }
-    }
-
-    private void updateSpoolingStats(List<Chunk> chunks)
-    {
-        ImmutableListMultimap<String, Chunk> chunksByExchange = Multimaps.index(chunks, Chunk::getExchangeId);
-        for (Map.Entry<String, Collection<Chunk>> entry : chunksByExchange.asMap().entrySet()) {
-            dataServerStats.getSpooledSharingExchangeCount().add(entry.getValue().size());
-            dataServerStats.getSpooledSharingExchangeSize().add(entry.getValue().stream().mapToLong(chunk -> {
-                ChunkDataLease chunkDataLease = chunk.getChunkDataLease();
-                if (chunkDataLease == null) {
-                    return 0;
-                }
-                try {
-                    return chunkDataLease.serializedSizeInBytes();
-                }
-                finally {
-                    chunkDataLease.release();
-                }
-            }).sum());
         }
     }
 

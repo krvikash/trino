@@ -44,6 +44,8 @@ public abstract class AbstractSpoolingStorage
     private final CounterStat spooledDataSize;
     private final CounterStat spoolingFailures;
     private final DistributionStat spooledChunkSizeDistribution;
+    private final DistributionStat spooledSharingExchangeCount;
+    private final DistributionStat spooledFileSizeDistribution;
 
     // exchangeId -> chunkId -> fileSize
     private final Map<String, Map<Long, Integer>> fileSizes = new ConcurrentHashMap<>();
@@ -60,6 +62,8 @@ public abstract class AbstractSpoolingStorage
         this.spooledDataSize = dataServerStats.getSpooledDataSize();
         this.spoolingFailures = dataServerStats.getSpoolingFailures();
         this.spooledChunkSizeDistribution = dataServerStats.getSpooledChunkSizeDistribution();
+        this.spooledSharingExchangeCount = dataServerStats.getSpooledSharingExchangeCount();
+        this.spooledFileSizeDistribution = dataServerStats.getSpooledFileSizeDistribution();
     }
 
     protected abstract int getFileSize(String fileName)
@@ -120,8 +124,11 @@ public abstract class AbstractSpoolingStorage
                     @Override
                     public void onSuccess(Object result)
                     {
-                        spooledDataSize.update(chunkDataLease.serializedSizeInBytes());
-                        spooledChunkSizeDistribution.add(chunkDataLease.serializedSizeInBytes());
+                        int size = chunkDataLease.serializedSizeInBytes();
+                        spooledDataSize.update(size);
+                        spooledChunkSizeDistribution.add(size);
+                        spooledSharingExchangeCount.add(1);
+                        spooledFileSizeDistribution.add(size);
                     }
 
                     @Override
@@ -147,7 +154,9 @@ public abstract class AbstractSpoolingStorage
                     public void onSuccess(Object result)
                     {
                         spooledDataSize.update(contentLength);
-                        spooledChunkSizeDistribution.add(contentLength);
+                        chunkDataLeaseMap.values().forEach(chunkDataLease -> spooledChunkSizeDistribution.add(chunkDataLease.serializedSizeInBytes()));
+                        spooledSharingExchangeCount.add(chunkDataLeaseMap.size());
+                        spooledFileSizeDistribution.add(contentLength);
                     }
 
                     @Override
