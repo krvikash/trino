@@ -32,6 +32,7 @@ import io.trino.testing.FaultTolerantExecutionConnectorTestHelper;
 import io.trino.testing.MaterializedResult;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -81,21 +82,29 @@ public class TestDrain
         httpClient = null;
     }
 
-    @Test
-    public void testDrainQuick()
-            throws Exception
+    @DataProvider(name = "TestParams")
+    public Object[][] testParams()
     {
-        testDrain(3);
+        return new Object[][] {
+                {true},
+                {false}};
     }
 
-    @Test(enabled = false) // too slow for automation
-    public void testDrainStress()
+    @Test(dataProvider = "TestParams")
+    public void testDrainQuick(boolean chunkSpoolMergeEnabled)
             throws Exception
     {
-        testDrain(20);
+        testDrain(3, chunkSpoolMergeEnabled);
     }
 
-    private void testDrain(int drainIterations)
+    @Test(dataProvider = "TestParams", enabled = false)  // too slow for automation
+    public void testDrainStress(boolean chunkSpoolMergeEnabled)
+            throws Exception
+    {
+        testDrain(20, chunkSpoolMergeEnabled);
+    }
+
+    private void testDrain(int drainIterations, boolean chunkSpoolMergeEnabled)
             throws Exception
     {
         long maxMemory = Runtime.getRuntime().maxMemory();
@@ -110,6 +119,7 @@ public class TestDrain
                                 .setConfigProperty("testing.enable-stats-logging", "false")
                                 .setConfigProperty("memory.heap-headroom", DataSize.succinctBytes(memoryHeadroom).toString())
                                 .setConfigProperty("draining.min-duration", "10s")
+                                .setConfigProperty("chunk.spool-merge-enabled", String.valueOf(chunkSpoolMergeEnabled))
                                 .setConfigProperty("exchange.staleness-threshold", "2h")) //tmp
                 .setDataServersCount(3)
                 .build();
