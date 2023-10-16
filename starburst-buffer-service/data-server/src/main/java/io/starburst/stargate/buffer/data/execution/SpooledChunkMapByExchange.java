@@ -9,6 +9,7 @@
  */
 package io.starburst.stargate.buffer.data.execution;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.errorprone.annotations.ThreadSafe;
 import io.airlift.slice.Slice;
 import io.airlift.slice.SliceOutput;
@@ -79,5 +80,11 @@ public class SpooledChunkMapByExchange
             }
         }
         return slice;
+    }
+
+    @VisibleForTesting
+    void clear()
+    {
+        spooledChunkMapByExchange.clear();
     }
 }

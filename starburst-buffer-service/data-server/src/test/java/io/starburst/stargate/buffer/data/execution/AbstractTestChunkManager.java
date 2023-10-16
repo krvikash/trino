@@ -98,6 +98,7 @@ public abstract class AbstractTestChunkManager
     {
         MemoryAllocator memoryAllocator = defaultMemoryAllocator();
         ChunkManager chunkManager = createChunkManager(
+                BUFFER_NODE_ID,
                 memoryAllocator,
                 DataSize.of(16, MEGABYTE),
                 DataSize.of(64, MEGABYTE),
@@ -168,6 +169,7 @@ public abstract class AbstractTestChunkManager
     {
         MemoryAllocator memoryAllocator = defaultMemoryAllocator();
         ChunkManager chunkManager = createChunkManager(
+                BUFFER_NODE_ID,
                 memoryAllocator,
                 DataSize.of(32, BYTE),
                 DataSize.of(128, BYTE),
@@ -238,6 +240,7 @@ public abstract class AbstractTestChunkManager
     {
         MemoryAllocator memoryAllocator = defaultMemoryAllocator();
         ChunkManager chunkManager = createChunkManager(
+                BUFFER_NODE_ID,
                 memoryAllocator,
                 DataSize.of(16, MEGABYTE),
                 DataSize.of(64, MEGABYTE),
@@ -280,6 +283,7 @@ public abstract class AbstractTestChunkManager
     {
         MemoryAllocator memoryAllocator = defaultMemoryAllocator();
         ChunkManager chunkManager = createChunkManager(
+                BUFFER_NODE_ID,
                 memoryAllocator,
                 DataSize.of(30, BYTE),
                 DataSize.of(120, BYTE),
@@ -320,6 +324,7 @@ public abstract class AbstractTestChunkManager
     {
         MemoryAllocator memoryAllocator = defaultMemoryAllocator();
         ChunkManager chunkManager = createChunkManager(
+                BUFFER_NODE_ID,
                 memoryAllocator,
                 DataSize.of(16, MEGABYTE),
                 DataSize.of(64, MEGABYTE),
@@ -345,6 +350,7 @@ public abstract class AbstractTestChunkManager
         DataSize chunkTargetSize = DataSize.of(12, BYTE);
         DataSize chunkMaxSize = DataSize.of(48, BYTE);
         ChunkManager chunkManager = createChunkManager(
+                BUFFER_NODE_ID,
                 memoryAllocator,
                 chunkTargetSize,
                 chunkMaxSize,
@@ -380,6 +386,7 @@ public abstract class AbstractTestChunkManager
                 new ChunkManagerConfig(),
                 new DataServerStats());
         ChunkManager chunkManager = createChunkManager(
+                BUFFER_NODE_ID,
                 memoryAllocator,
                 DataSize.of(64, BYTE),
                 DataSize.of(256, BYTE),
@@ -461,6 +468,7 @@ public abstract class AbstractTestChunkManager
                 new ChunkManagerConfig(),
                 new DataServerStats());
         ChunkManager chunkManager = createChunkManager(
+                BUFFER_NODE_ID,
                 memoryAllocator,
                 DataSize.of(16, BYTE),
                 DataSize.of(64, BYTE),
@@ -528,6 +536,7 @@ public abstract class AbstractTestChunkManager
                 new ChunkManagerConfig(),
                 new DataServerStats());
         ChunkManager chunkManager = createChunkManager(
+                BUFFER_NODE_ID,
                 memoryAllocator,
                 DataSize.of(16, BYTE),
                 DataSize.of(64, BYTE),
@@ -564,6 +573,7 @@ public abstract class AbstractTestChunkManager
     public void testAddToRemovedExchange()
     {
         ChunkManager chunkManager = createChunkManager(
+                BUFFER_NODE_ID,
                 defaultMemoryAllocator(),
                 DataSize.of(16, MEGABYTE),
                 DataSize.of(64, MEGABYTE),
@@ -586,6 +596,7 @@ public abstract class AbstractTestChunkManager
     public void testListClosedChunks()
     {
         ChunkManager chunkManager = createChunkManager(
+                BUFFER_NODE_ID,
                 defaultMemoryAllocator(),
                 DataSize.of(12, BYTE),
                 DataSize.of(48, BYTE),
@@ -636,6 +647,7 @@ public abstract class AbstractTestChunkManager
                 new ChunkManagerConfig(),
                 new DataServerStats());
         ChunkManager chunkManager = createChunkManager(
+                BUFFER_NODE_ID,
                 memoryAllocator,
                 DataSize.of(8, BYTE),
                 DataSize.of(32, BYTE),
@@ -685,6 +697,7 @@ public abstract class AbstractTestChunkManager
                 new ChunkManagerConfig(),
                 new DataServerStats());
         ChunkManager chunkManager = createChunkManager(
+                BUFFER_NODE_ID,
                 memoryAllocator,
                 DataSize.of(16, MEGABYTE),
                 DataSize.of(64, MEGABYTE),
@@ -712,6 +725,7 @@ public abstract class AbstractTestChunkManager
 
         MemoryAllocator memoryAllocator = defaultMemoryAllocator();
         ChunkManager chunkManager = createChunkManager(
+                BUFFER_NODE_ID,
                 memoryAllocator,
                 DataSize.of(16, BYTE),
                 DataSize.of(64, BYTE),
@@ -751,6 +765,62 @@ public abstract class AbstractTestChunkManager
         chunkManager.removeExchange(EXCHANGE_0);
         chunkManager.removeExchange(EXCHANGE_1);
         assertEquals(memoryAllocator.getTotalMemory(), memoryAllocator.getFreeMemory());
+    }
+
+    @Test
+    public void testGetDrainedChunkDataOnAfterDrainingAllChunks()
+    {
+        long drainedBufferNodeId = BUFFER_NODE_ID + 1;
+        ChunkManager drainedChunkManager = createChunkManager(
+                drainedBufferNodeId,
+                defaultMemoryAllocator(),
+                DataSize.of(16, MEGABYTE),
+                DataSize.of(64, MEGABYTE),
+                DataSize.of(128, KILOBYTE));
+        getFutureValue(drainedChunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("test"))).addDataPagesFuture());
+        getFutureValue(drainedChunkManager.addDataPages(EXCHANGE_0, 0, 0, 1, 0L, ImmutableList.of(utf8Slice("Spooling"))).addDataPagesFuture());
+        getFutureValue(drainedChunkManager.addDataPages(EXCHANGE_0, 0, 1, 0, 0L, ImmutableList.of(utf8Slice("Storage"))).addDataPagesFuture());
+
+        Future<Integer> numClosedChunksFuture = executor.submit(() -> {
+            OptionalLong pagingId = OptionalLong.empty();
+            int numChunks = 0;
+            for (int i = 0; i < 10; ++i) {
+                ChunkList chunkList = getFutureValue(drainedChunkManager.listClosedChunks(EXCHANGE_0, pagingId));
+                pagingId = chunkList.nextPagingId();
+                numChunks += chunkList.chunks().size();
+                if (pagingId.isEmpty()) {
+                    drainedChunkManager.markAllClosedChunksReceived(EXCHANGE_0);
+                    return numChunks;
+                }
+
+                sleepUninterruptibly(100, MILLISECONDS);
+            }
+            return fail();
+        });
+
+        drainedChunkManager.drainAllChunks();
+        drainedChunkManager.clearSpooledChunkMapByExchange();
+
+        assertTrue(numClosedChunksFuture.isDone());
+
+        ChunkManager newChunkManager = createChunkManager(
+                BUFFER_NODE_ID,
+                defaultMemoryAllocator(),
+                DataSize.of(16, MEGABYTE),
+                DataSize.of(64, MEGABYTE),
+                DataSize.of(128, KILOBYTE));
+        // exchange missing
+        assertDrainedChunkDataResult(newChunkManager, drainedBufferNodeId);
+
+        // exchange exists, but partition missing
+        getFutureValue(newChunkManager.addDataPages(EXCHANGE_0, 1, 1, 1, 1L, ImmutableList.of(utf8Slice("dummy1"))).addDataPagesFuture());
+        assertDrainedChunkDataResult(newChunkManager, drainedBufferNodeId);
+
+        // exchange exists, partition exists, but chunk missing
+        getFutureValue(newChunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("dummy0"))).addDataPagesFuture());
+        assertDrainedChunkDataResult(newChunkManager, drainedBufferNodeId);
+
+        newChunkManager.removeExchange(EXCHANGE_0);
     }
 
     @AfterAll
@@ -797,6 +867,7 @@ public abstract class AbstractTestChunkManager
     }
 
     protected ChunkManager createChunkManager(
+            long bufferNodeId,
             MemoryAllocator memoryAllocator,
             DataSize chunkTargetSize,
             DataSize chunkMaxSize,
@@ -815,7 +886,7 @@ public abstract class AbstractTestChunkManager
                 // Reduce timeout here for calls when we expect zero results - we want those to return ASAP to reduce test duration
                 .setChunkListPollTimeout(Duration.succinctDuration(5, MILLISECONDS));
         return new ChunkManager(
-                new BufferNodeId(BUFFER_NODE_ID),
+                new BufferNodeId(bufferNodeId),
                 chunkManagerConfig,
                 dataServerConfig,
                 memoryAllocator,

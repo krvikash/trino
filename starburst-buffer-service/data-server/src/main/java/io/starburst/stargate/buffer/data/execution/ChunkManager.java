@@ -570,6 +570,13 @@ public class ChunkManager
         return exchange;
     }
 
+    // only used for simulating the case where we drain chunks and start a new data server
+    @VisibleForTesting
+    void clearSpooledChunkMapByExchange()
+    {
+        spooledChunkMapByExchange.clear();
+    }
+
     private void spoolChunksSync(List<Chunk> chunks)
     {
         updateSpoolingStats(chunks);
