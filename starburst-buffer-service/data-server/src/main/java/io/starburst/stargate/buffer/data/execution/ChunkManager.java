@@ -68,7 +68,7 @@ import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.data.client.ChunkDeliveryMode.STANDARD;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.EXCHANGE_NOT_FOUND;
-import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.decodeMetadataSlice;
+import static io.starburst.stargate.buffer.data.execution.SpooledChunksByExchange.decodeMetadataSlice;
 import static java.lang.Math.toIntExact;
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;

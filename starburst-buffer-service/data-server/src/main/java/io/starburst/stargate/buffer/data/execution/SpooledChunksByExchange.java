@@ -12,6 +12,7 @@ package io.starburst.stargate.buffer.data.execution;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.errorprone.annotations.ThreadSafe;
 import io.airlift.slice.Slice;
+import io.airlift.slice.SliceInput;
 import io.airlift.slice.SliceOutput;
 import io.airlift.slice.Slices;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
@@ -80,6 +81,23 @@ public class SpooledChunksByExchange
             }
         }
         return slice;
+    }
+
+    public static Map<Long, SpooledChunk> decodeMetadataSlice(Slice metadataSlice)
+    {
+        SliceInput sliceInput = metadataSlice.getInput();
+        Map<Long, SpooledChunk> spooledChunkMap = new ConcurrentHashMap<>();
+        while (sliceInput.isReadable()) {
+            long chunkId = sliceInput.readLong();
+            int locationLength = sliceInput.readInt();
+            String location = sliceInput.readSlice(locationLength).toStringAscii();
+            long offset = sliceInput.readLong();
+            int length = sliceInput.readInt();
+
+            spooledChunkMap.put(chunkId, new SpooledChunk(location, offset, length));
+        }
+
+        return spooledChunkMap;
     }
 
     @VisibleForTesting

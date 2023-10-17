@@ -32,7 +32,7 @@ import java.util.Random;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.starburst.stargate.buffer.data.execution.ChunkTestHelper.toChunkDataLease;
-import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.decodeMetadataSlice;
+import static io.starburst.stargate.buffer.data.execution.SpooledChunksByExchange.decodeMetadataSlice;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
