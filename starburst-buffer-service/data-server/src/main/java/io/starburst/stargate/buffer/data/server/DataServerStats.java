@@ -25,6 +25,7 @@ public class DataServerStats
     private final AtomicLong openChunks = new AtomicLong();
     private final AtomicLong closedChunks = new AtomicLong();
     private final AtomicLong spooledChunks = new AtomicLong();
+    private final AtomicLong spooledChunksByExchangeSize = new AtomicLong();
     private final CounterStat spooledDataSize = new CounterStat();
     private final CounterStat spoolingFailures = new CounterStat();
     private final DistributionStat spooledChunkSizeDistribution = new DistributionStat();
@@ -118,6 +119,17 @@ public class DataServerStats
     public long getSpooledChunksCount()
     {
         return spooledChunks.get();
+    }
+
+    public void updateSpooledChunksByExchangeSize(long spooledChunksByExchangeSize)
+    {
+        this.spooledChunksByExchangeSize.set(spooledChunksByExchangeSize);
+    }
+
+    @Managed
+    public long getSpooledChunksByExchangeSize()
+    {
+        return spooledChunksByExchangeSize.get();
     }
 
     @Managed

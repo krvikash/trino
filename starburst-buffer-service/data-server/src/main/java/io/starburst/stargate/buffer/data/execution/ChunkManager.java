@@ -680,6 +680,7 @@ public class ChunkManager
         dataServerStats.updateOpenChunks(getOpenChunks());
         dataServerStats.updateClosedChunks(getClosedChunks());
         dataServerStats.updateSpooledChunks(getSpooledChunksCount());
+        dataServerStats.updateSpooledChunksByExchangeSize(spooledChunksByExchange.size());
     }
 
     private long tickerReadMillis()

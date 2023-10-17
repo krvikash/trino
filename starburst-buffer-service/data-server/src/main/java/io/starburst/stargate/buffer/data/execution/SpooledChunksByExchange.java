@@ -100,6 +100,11 @@ public class SpooledChunksByExchange
         return spooledChunkMap;
     }
 
+    public int size()
+    {
+        return mapping.size();
+    }
+
     @VisibleForTesting
     void clear()
     {
