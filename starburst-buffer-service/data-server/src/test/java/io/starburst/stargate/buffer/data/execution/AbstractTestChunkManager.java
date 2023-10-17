@@ -411,7 +411,7 @@ public abstract class AbstractTestChunkManager
 
         chunkManager.spoolIfNecessary();
         assertEquals(0, chunkManager.getClosedChunks());
-        assertEquals(2, chunkManager.getSpooledChunks()); // the open chunk should have spooled too
+        assertEquals(2, chunkManager.getSpooledChunksCount()); // the open chunk should have spooled too
 
         await().atMost(ONE_SECOND).until(addDataPagesFuture3::isDone);
         assertEquals(64, memoryAllocator.getFreeMemory());
@@ -438,7 +438,7 @@ public abstract class AbstractTestChunkManager
 
         chunkManager.spoolIfNecessary(); // only one closed chunk can be spooled at this point
         assertEquals(0, chunkManager.getClosedChunks());
-        assertEquals(3, chunkManager.getSpooledChunks());
+        assertEquals(3, chunkManager.getSpooledChunksCount());
         assertEquals(32, memoryAllocator.getFreeMemory());
         memoryAllocator.release(getFutureValue(sliceFuture));
 
@@ -452,7 +452,7 @@ public abstract class AbstractTestChunkManager
         chunkManager.removeExchange(EXCHANGE_1);
 
         assertEquals(0, chunkManager.getClosedChunks());
-        assertEquals(0, chunkManager.getSpooledChunks());
+        assertEquals(0, chunkManager.getSpooledChunksCount());
         assertEquals(96, memoryAllocator.getFreeMemory());
     }
 
@@ -516,7 +516,7 @@ public abstract class AbstractTestChunkManager
         assertTrue(numClosedChunksFuture.isDone());
         assertEquals(6, getFutureValue(numClosedChunksFuture));
         assertEquals(0, chunkManager.getClosedChunks());
-        assertEquals(6, chunkManager.getSpooledChunks());
+        assertEquals(6, chunkManager.getSpooledChunksCount());
         assertEquals(maxBytes, memoryAllocator.getFreeMemory());
 
         assertThatThrownBy(() -> getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 3, 3, 3, 3L, ImmutableList.of(utf8Slice("dummy"))).addDataPagesFuture()))

@@ -176,10 +176,10 @@ public abstract class AbstractSpoolingStorage
     }
 
     @Override
-    public int getSpooledChunks()
+    public int getSpooledChunksCount()
     {
         if (chunkSpoolMergeEnabled) {
-            throw new IllegalStateException("getSpooledChunks() called when chunk spool merge is enabled");
+            throw new IllegalStateException("getSpooledChunksCount() called when chunk spool merge is enabled");
         }
         return fileSizes.values().stream().mapToInt(Map::size).sum();
     }

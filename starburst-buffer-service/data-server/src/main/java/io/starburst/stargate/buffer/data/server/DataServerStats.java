@@ -115,7 +115,7 @@ public class DataServerStats
     }
 
     @Managed
-    public long getSpooledChunks()
+    public long getSpooledChunksCount()
     {
         return spooledChunks.get();
     }

@@ -358,12 +358,12 @@ public class ChunkManager
         return exchanges.values().stream().mapToInt(Exchange::getClosedChunksCount).sum();
     }
 
-    public int getSpooledChunks()
+    public int getSpooledChunksCount()
     {
         if (chunkSpoolMergeEnabled) {
-            return spooledChunkMapByExchange.getSpooledChunks();
+            return spooledChunkMapByExchange.getSpooledChunksCount();
         }
-        return spoolingStorage.getSpooledChunks();
+        return spoolingStorage.getSpooledChunksCount();
     }
 
     public synchronized void drainAllChunks()
@@ -679,7 +679,7 @@ public class ChunkManager
         dataServerStats.updateTrackedExchanges(getTrackedExchanges());
         dataServerStats.updateOpenChunks(getOpenChunks());
         dataServerStats.updateClosedChunks(getClosedChunks());
-        dataServerStats.updateSpooledChunks(getSpooledChunks());
+        dataServerStats.updateSpooledChunks(getSpooledChunksCount());
     }
 
     private long tickerReadMillis()

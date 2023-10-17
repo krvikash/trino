@@ -205,7 +205,7 @@ public class LocalSpoolingStorage
     }
 
     @Override
-    public int getSpooledChunks()
+    public int getSpooledChunksCount()
     {
         return counts.values().stream().mapToInt(AtomicInteger::get).sum();
     }

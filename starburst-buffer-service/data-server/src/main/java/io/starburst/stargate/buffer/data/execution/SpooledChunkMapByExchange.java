@@ -46,7 +46,7 @@ public class SpooledChunkMapByExchange
         spooledChunkMapByExchange.remove(exchangeId);
     }
 
-    public int getSpooledChunks()
+    public int getSpooledChunksCount()
     {
         return spooledChunkMapByExchange.values().stream().mapToInt(Map::size).sum();
     }

@@ -185,9 +185,9 @@ public abstract class AbstractTestSpoolingStorage
                     .containsExactlyElementsOf(ImmutableList.of(new DataPage(0, 0, utf8Slice(String.valueOf(chunkId)))));
         }
 
-        assertEquals(32, spoolingStorage.getSpooledChunks());
+        assertEquals(32, spoolingStorage.getSpooledChunksCount());
         getFutureValue(spoolingStorage.removeExchange(BUFFER_NODE_ID, EXCHANGE_ID));
-        assertEquals(0, spoolingStorage.getSpooledChunks());
+        assertEquals(0, spoolingStorage.getSpooledChunksCount());
 
         // verify spooling files are removed
         for (long chunkId = 0; chunkId < numChunks; ++chunkId) {

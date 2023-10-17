@@ -79,7 +79,7 @@ public class DataServerStatsLogger
                 "exchanges: %s\n".formatted(dataServerStats.getTrackedExchanges()) +
                 "open_chunks: %s\n".formatted(dataServerStats.getOpenChunks()) +
                 "closed_chunks: %s\n".formatted(dataServerStats.getClosedChunks()) +
-                "spooled_chunks: %s\n".formatted(dataServerStats.getSpooledChunks()) +
+                "spooled_chunks: %s\n".formatted(dataServerStats.getSpooledChunksCount()) +
                 "spooled_data_size: %s, %s/s\n".formatted(succinctBytes(spooledDataSize.getCounter()), succinctBytes((long) spooledDataSize.getRate())) +
                 "spooling_failures: %s, %s/s\n".formatted(spoolingFailures.getCounter(), spoolingFailures.getRate()) +
                 "spooled_chunk_size_distribution: %s\n".formatted(dataServerStats.getSpooledChunkSizeDistribution().snapshot()) +

@@ -72,7 +72,7 @@ public class BufferNodeInfoService
                 (int) dataServerStats.getTrackedExchanges(),
                 (int) dataServerStats.getOpenChunks(),
                 (int) dataServerStats.getClosedChunks(),
-                (int) dataServerStats.getSpooledChunks(),
+                (int) dataServerStats.getSpooledChunksCount(),
                 dataServerStats.getSpooledDataSize().getTotalCount(),
                 dataServerStats.getReadDataSize().getTotalCount(),
                 dataServerStats.getWrittenDataSize().getTotalCount());

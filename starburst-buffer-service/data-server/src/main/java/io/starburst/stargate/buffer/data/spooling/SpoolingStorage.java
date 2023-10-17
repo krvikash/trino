@@ -36,5 +36,5 @@ public interface SpoolingStorage
 
     ListenableFuture<Void> removeExchange(long bufferNodeId, String exchangeId);
 
-    int getSpooledChunks();
+    int getSpooledChunksCount();
 }
