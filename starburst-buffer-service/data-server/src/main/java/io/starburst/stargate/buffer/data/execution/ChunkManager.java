@@ -104,7 +104,7 @@ public class ChunkManager
     private final MemoryAllocator memoryAllocator;
     private final SpoolingStorage spoolingStorage;
     private final Ticker ticker;
-    private final SpooledChunkMapByExchange spooledChunkMapByExchange;
+    private final SpooledChunksByExchange spooledChunksByExchange;
     private final DataServerStats dataServerStats;
     private final ExecutorService executor;
 
@@ -129,7 +129,7 @@ public class ChunkManager
             MemoryAllocator memoryAllocator,
             SpoolingStorage spoolingStorage,
             @ForChunkManager Ticker ticker,
-            SpooledChunkMapByExchange spooledChunkMapByExchange,
+            SpooledChunksByExchange spooledChunksByExchange,
             DataServerStats dataServerStats,
             ExecutorService executor)
     {
@@ -151,7 +151,7 @@ public class ChunkManager
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.spoolingStorage = requireNonNull(spoolingStorage, "spoolingStorage is null");
         this.ticker = requireNonNull(ticker, "ticker is null");
-        this.spooledChunkMapByExchange = requireNonNull(spooledChunkMapByExchange, "spooledChunkMapByExchange is null");
+        this.spooledChunksByExchange = requireNonNull(spooledChunksByExchange, "spooledChunkMapByExchange is null");
         this.dataServerStats = requireNonNull(dataServerStats, "dataServerStats is null");
         this.executor = requireNonNull(executor, "executor is null");
     }
@@ -226,7 +226,7 @@ public class ChunkManager
     public ChunkDataResult getChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId)
     {
         if (chunkSpoolMergeEnabled) {
-            Optional<SpooledChunk> spooledChunk = spooledChunkMapByExchange.getSpooledChunk(exchangeId, chunkId);
+            Optional<SpooledChunk> spooledChunk = spooledChunksByExchange.getSpooledChunk(exchangeId, chunkId);
             if (spooledChunk.isPresent()) {
                 return ChunkDataResult.of(spooledChunk.get());
             }
@@ -332,7 +332,7 @@ public class ChunkManager
 
     public void removeExchange(String exchangeId)
     {
-        spooledChunkMapByExchange.removeExchange(exchangeId);
+        spooledChunksByExchange.removeExchange(exchangeId);
         recentlyRemovedExchanges.put(exchangeId, "marker");
         Exchange exchange = exchanges.remove(exchangeId);
         if (exchange != null) {
@@ -361,7 +361,7 @@ public class ChunkManager
     public int getSpooledChunksCount()
     {
         if (chunkSpoolMergeEnabled) {
-            return spooledChunkMapByExchange.getSpooledChunksCount();
+            return spooledChunksByExchange.getSpooledChunksCount();
         }
         return spoolingStorage.getSpooledChunksCount();
     }
@@ -413,8 +413,8 @@ public class ChunkManager
         LOG.info("Finished draining all chunks");
 
         // persist spooledChunkMapByExchange to S3
-        if (chunkSpoolMergeEnabled) {
-            getFutureValue(spoolingStorage.writeMetadataFile(bufferNodeId, spooledChunkMapByExchange.encodeMetadataSlice()));
+        if (chunkSpoolMergeEnabled && spooledChunksByExchange.size() > 0) {
+            getFutureValue(spoolingStorage.writeMetadataFile(bufferNodeId, spooledChunksByExchange.encodeMetadataSlice()));
             LOG.info("Finished writing metadata of spooled chunks");
         }
 
@@ -474,7 +474,7 @@ public class ChunkManager
             if (lastUpdateTime < cleanupThreshold) {
                 LOG.info("forgetting exchange %s; no update for %s", entry.getKey(), succinctDuration(now - lastUpdateTime, MILLISECONDS));
                 iterator.remove();
-                spooledChunkMapByExchange.removeExchange(exchange.getExchangeId());
+                spooledChunksByExchange.removeExchange(exchange.getExchangeId());
                 exchange.releaseChunks();
             }
         }
@@ -574,9 +574,9 @@ public class ChunkManager
 
     // only used for simulating the case where we drain chunks and start a new data server
     @VisibleForTesting
-    void clearSpooledChunkMapByExchange()
+    void clearSpooledChunkByExchange()
     {
-        spooledChunkMapByExchange.clear();
+        spooledChunksByExchange.clear();
     }
 
     private void spoolChunksSync(List<Chunk> chunks)
@@ -628,7 +628,7 @@ public class ChunkManager
                     return Futures.transform(
                             spoolingFuture,
                             spooledChunkMap -> {
-                                spooledChunkMapByExchange.update(exchangeId, spooledChunkMap);
+                                spooledChunksByExchange.update(exchangeId, spooledChunkMap);
                                 chunkDataLeaseMap.forEach((chunk, chunkDataLease) -> {
                                     chunkDataLease.release();
                                     chunk.release();

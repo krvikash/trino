@@ -22,14 +22,14 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 @ThreadSafe
-public class SpooledChunkMapByExchange
+public class SpooledChunksByExchange
 {
     // exchangeId -> chunkId -> spooledChunk
-    private final Map<String, Map<Long, SpooledChunk>> spooledChunkMapByExchange = new ConcurrentHashMap<>();
+    private final Map<String, Map<Long, SpooledChunk>> mapping = new ConcurrentHashMap<>();
 
     public Optional<SpooledChunk> getSpooledChunk(String exchangeId, long chunkId)
     {
-        Map<Long, SpooledChunk> spooledChunkMap = spooledChunkMapByExchange.get(exchangeId);
+        Map<Long, SpooledChunk> spooledChunkMap = mapping.get(exchangeId);
         if (spooledChunkMap != null) {
             return Optional.ofNullable(spooledChunkMap.get(chunkId));
         }
@@ -38,23 +38,23 @@ public class SpooledChunkMapByExchange
 
     public void update(String exchangeId, Map<Long, SpooledChunk> spooledChunkMap)
     {
-        spooledChunkMapByExchange.computeIfAbsent(exchangeId, ignored -> new ConcurrentHashMap<>()).putAll(spooledChunkMap);
+        mapping.computeIfAbsent(exchangeId, ignored -> new ConcurrentHashMap<>()).putAll(spooledChunkMap);
     }
 
     public void removeExchange(String exchangeId)
     {
-        spooledChunkMapByExchange.remove(exchangeId);
+        mapping.remove(exchangeId);
     }
 
     public int getSpooledChunksCount()
     {
-        return spooledChunkMapByExchange.values().stream().mapToInt(Map::size).sum();
+        return mapping.values().stream().mapToInt(Map::size).sum();
     }
 
     public Slice encodeMetadataSlice()
     {
         int metadataFileSize = 0;
-        for (Map.Entry<String, Map<Long, SpooledChunk>> entry : spooledChunkMapByExchange.entrySet()) {
+        for (Map.Entry<String, Map<Long, SpooledChunk>> entry : mapping.entrySet()) {
             Map<Long, SpooledChunk> spooledChunkMap = entry.getValue();
             for (Map.Entry<Long, SpooledChunk> secondaryEntry : spooledChunkMap.entrySet()) {
                 metadataFileSize += Long.BYTES;
@@ -67,7 +67,7 @@ public class SpooledChunkMapByExchange
         }
         Slice slice = Slices.allocate(metadataFileSize);
         SliceOutput sliceOutput = slice.getOutput();
-        for (Map.Entry<String, Map<Long, SpooledChunk>> entry : spooledChunkMapByExchange.entrySet()) {
+        for (Map.Entry<String, Map<Long, SpooledChunk>> entry : mapping.entrySet()) {
             Map<Long, SpooledChunk> spooledChunkMap = entry.getValue();
             for (Map.Entry<Long, SpooledChunk> secondaryEntry : spooledChunkMap.entrySet()) {
                 Long chunkId = secondaryEntry.getKey();
@@ -85,6 +85,6 @@ public class SpooledChunkMapByExchange
     @VisibleForTesting
     void clear()
     {
-        spooledChunkMapByExchange.clear();
+        mapping.clear();
     }
 }

@@ -19,7 +19,7 @@ import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
 import io.starburst.stargate.buffer.data.execution.ChunkManager.ForChunkManager;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
-import io.starburst.stargate.buffer.data.execution.SpooledChunkMapByExchange;
+import io.starburst.stargate.buffer.data.execution.SpooledChunksByExchange;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocatorConfig;
 import io.starburst.stargate.buffer.data.spooling.MergedFileNameGenerator;
@@ -94,7 +94,7 @@ public class MainModule
         binder.bind(Ticker.class).annotatedWith(ForChunkManager.class).toInstance(ticker);
         binder.bind(ChunkManager.class).in(SINGLETON);
         binder.bind(MergedFileNameGenerator.class).in(SINGLETON);
-        binder.bind(SpooledChunkMapByExchange.class).in(SINGLETON);
+        binder.bind(SpooledChunksByExchange.class).in(SINGLETON);
         binder.bind(DataServerStats.class).in(SINGLETON);
         newExporter(binder).export(DataServerStats.class).withGeneratedName();
         binder.bind(AddDataPagesThrottlingCalculator.class).in(SINGLETON);

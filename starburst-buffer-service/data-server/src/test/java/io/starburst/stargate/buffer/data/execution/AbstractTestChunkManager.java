@@ -799,7 +799,7 @@ public abstract class AbstractTestChunkManager
         });
 
         drainedChunkManager.drainAllChunks();
-        drainedChunkManager.clearSpooledChunkMapByExchange();
+        drainedChunkManager.clearSpooledChunkByExchange();
 
         assertTrue(numClosedChunksFuture.isDone());
 
@@ -892,7 +892,7 @@ public abstract class AbstractTestChunkManager
                 memoryAllocator,
                 spoolingStorage,
                 ticker,
-                new SpooledChunkMapByExchange(),
+                new SpooledChunksByExchange(),
                 new DataServerStats(),
                 executor);
     }

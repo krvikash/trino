@@ -17,7 +17,7 @@ import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.execution.Chunk;
 import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
-import io.starburst.stargate.buffer.data.execution.SpooledChunkMapByExchange;
+import io.starburst.stargate.buffer.data.execution.SpooledChunksByExchange;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -230,14 +230,14 @@ public abstract class AbstractTestSpoolingStorage
     @Test
     public void testWriteReadMetadataFile()
     {
-        SpooledChunkMapByExchange spooledChunkMapByExchange = new SpooledChunkMapByExchange();
+        SpooledChunksByExchange spooledChunksByExchange = new SpooledChunksByExchange();
         Map<Long, SpooledChunk> expectedSpooledChunkMap = new HashMap<>();
         expectedSpooledChunkMap.put(0L, new SpooledChunk("location", 0L, 10));
         expectedSpooledChunkMap.put(1L, new SpooledChunk("location", 10L, 20));
         expectedSpooledChunkMap.put(2L, new SpooledChunk("location", 30L, 30));
         expectedSpooledChunkMap.put(3L, new SpooledChunk("anotherlocation", 0L, 88));
-        spooledChunkMapByExchange.update(EXCHANGE_ID, expectedSpooledChunkMap);
-        getFutureValue(spoolingStorage.writeMetadataFile(BUFFER_NODE_ID, spooledChunkMapByExchange.encodeMetadataSlice()));
+        spooledChunksByExchange.update(EXCHANGE_ID, expectedSpooledChunkMap);
+        getFutureValue(spoolingStorage.writeMetadataFile(BUFFER_NODE_ID, spooledChunksByExchange.encodeMetadataSlice()));
 
         assertEquals(expectedSpooledChunkMap, decodeMetadataSlice(getFutureValue(spoolingStorage.readMetadataFile(BUFFER_NODE_ID))));
     }
