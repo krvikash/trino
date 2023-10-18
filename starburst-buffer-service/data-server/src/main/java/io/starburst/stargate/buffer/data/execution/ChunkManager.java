@@ -68,7 +68,9 @@ import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.data.client.ChunkDeliveryMode.STANDARD;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.EXCHANGE_NOT_FOUND;
+import static io.starburst.stargate.buffer.data.client.ErrorCode.INTERNAL_ERROR;
 import static io.starburst.stargate.buffer.data.execution.SpooledChunksByExchange.decodeMetadataSlice;
+import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getMetadataFileName;
 import static java.lang.Math.toIntExact;
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
@@ -226,38 +228,45 @@ public class ChunkManager
     public ChunkDataResult getChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId)
     {
         if (chunkSpoolMergeEnabled) {
-            Optional<SpooledChunk> spooledChunk = spooledChunksByExchange.getSpooledChunk(exchangeId, chunkId);
-            if (spooledChunk.isPresent()) {
-                return ChunkDataResult.of(spooledChunk.get());
+            return getChunkDataMerge(bufferNodeId, exchangeId, partitionId, chunkId);
+        }
+        return getChunkDataNoMerge(bufferNodeId, exchangeId, partitionId, chunkId);
+    }
+
+    public ChunkDataResult getChunkDataMerge(long bufferNodeId, String exchangeId, int partitionId, long chunkId)
+    {
+        if (bufferNodeId != this.bufferNodeId) {
+            // this is a request to get drained chunk data on a different node, return spooling file info directly
+            Map<Long, SpooledChunk> spooledChunkMap = drainedSpooledChunkMap.getIfPresent(bufferNodeId);
+
+            if (spooledChunkMap == null) {
+                try {
+                    spooledChunkMap = decodeMetadataSlice(getFutureValue(spoolingStorage.readMetadataFile(bufferNodeId)));
+                }
+                catch (Throwable t) {
+                    throw new DataServerException(INTERNAL_ERROR, "Error decoding metadata from file " + getMetadataFileName(bufferNodeId));
+                }
+                drainedSpooledChunkMap.put(bufferNodeId, spooledChunkMap);
             }
+            SpooledChunk spooledChunk = spooledChunkMap.get(chunkId);
+            if (spooledChunk != null) {
+                return ChunkDataResult.of(spooledChunk);
+            }
+            throw new DataServerException(CHUNK_NOT_FOUND, "No closed chunk found for bufferNodeId %d, exchange %s, chunk %d".formatted(bufferNodeId, exchangeId, chunkId));
         }
 
-        if (bufferNodeId != this.bufferNodeId) {
-            if (chunkSpoolMergeEnabled) {
-                Map<Long, SpooledChunk> spooledChunkMap = drainedSpooledChunkMap.getIfPresent(bufferNodeId);
-                if (spooledChunkMap != null) {
-                    SpooledChunk spooledChunk = spooledChunkMap.get(chunkId);
-                    if (spooledChunk != null) {
-                        return ChunkDataResult.of(spooledChunk);
-                    }
-                    else {
-                        throw new DataServerException(CHUNK_NOT_FOUND, "No closed chunk found for bufferNodeId %d, exchange %s, chunk %d".formatted(bufferNodeId, exchangeId, chunkId));
-                    }
-                }
-                else {
-                    // try to build from persisted metadata
-                    Map<Long, SpooledChunk> tmpSpooledChunkMap = decodeMetadataSlice(getFutureValue(spoolingStorage.readMetadataFile(bufferNodeId)));
-                    drainedSpooledChunkMap.put(bufferNodeId, tmpSpooledChunkMap);
+        Optional<SpooledChunk> spooledChunk = spooledChunksByExchange.getSpooledChunk(exchangeId, chunkId);
+        if (spooledChunk.isPresent()) {
+            return ChunkDataResult.of(spooledChunk.get());
+        }
 
-                    SpooledChunk spooledChunk = tmpSpooledChunkMap.get(chunkId);
-                    if (spooledChunk != null) {
-                        return ChunkDataResult.of(spooledChunk);
-                    }
-                    else {
-                        throw new DataServerException(CHUNK_NOT_FOUND, "No closed chunk found for bufferNodeId %d, exchange %s, chunk %d".formatted(bufferNodeId, exchangeId, chunkId));
-                    }
-                }
-            }
+        Exchange exchange = getExchangeAndHeartbeat(exchangeId);
+        return exchange.getChunkData(bufferNodeId, partitionId, chunkId);
+    }
+
+    public ChunkDataResult getChunkDataNoMerge(long bufferNodeId, String exchangeId, int partitionId, long chunkId)
+    {
+        if (bufferNodeId != this.bufferNodeId) {
             // this is a request to get drained chunk data on a different node, return spooling file info directly
             return ChunkDataResult.of(spoolingStorage.getSpooledChunk(bufferNodeId, exchangeId, chunkId));
         }
