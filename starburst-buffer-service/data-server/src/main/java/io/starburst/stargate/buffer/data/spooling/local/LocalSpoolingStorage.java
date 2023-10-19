@@ -75,8 +75,7 @@ public class LocalSpoolingStorage
     public SpooledChunk getSpooledChunk(long chunkBufferNodeId, String exchangeId, long chunkId)
     {
         if (chunkSpoolMergeEnabled) {
-            throw new DataServerException(CHUNK_NOT_FOUND,
-                    "No closed chunk found for bufferNodeId %d, exchange %s, chunk %d".formatted(chunkBufferNodeId, exchangeId, chunkId));
+            throw new IllegalStateException("getSpooledChunk() called when chunk spool merge is enabled");
         }
 
         File file = getFilePath(chunkBufferNodeId, exchangeId, chunkId).toFile();

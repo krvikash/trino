@@ -68,6 +68,7 @@ public class Exchange
     private final String exchangeId;
     private final MemoryAllocator memoryAllocator;
     private final SpoolingStorage spoolingStorage;
+    private final SpooledChunksByExchange spooledChunksByExchange;
     private final int chunkTargetSizeInBytes;
     private final int chunkMaxSizeInBytes;
     private final int chunkSliceSizeInBytes;
@@ -111,6 +112,7 @@ public class Exchange
             String exchangeId,
             MemoryAllocator memoryAllocator,
             SpoolingStorage spoolingStorage,
+            SpooledChunksByExchange spooledChunksByExchange,
             int chunkTargetSizeInBytes,
             int chunkMaxSizeInBytes,
             int chunkSliceSizeInBytes,
@@ -128,6 +130,7 @@ public class Exchange
         this.exchangeId = requireNonNull(exchangeId, "exchangeId is null");
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.spoolingStorage = requireNonNull(spoolingStorage, "spoolingStorage is null");
+        this.spooledChunksByExchange = requireNonNull(spooledChunksByExchange, "spooledChunksByExchange is null");
         checkArgument(chunkTargetSizeInBytes <= chunkMaxSizeInBytes, "chunkTargetSizeInBytes %s larger than chunkMaxSizeInBytes %s", chunkTargetSizeInBytes, chunkMaxSizeInBytes);
         this.chunkTargetSizeInBytes = chunkTargetSizeInBytes;
         this.chunkMaxSizeInBytes = chunkMaxSizeInBytes;
@@ -161,6 +164,7 @@ public class Exchange
                     partitionId,
                     memoryAllocator,
                     spoolingStorage,
+                    spooledChunksByExchange,
                     chunkTargetSizeInBytes,
                     chunkMaxSizeInBytes,
                     chunkSliceSizeInBytes,
@@ -179,7 +183,7 @@ public class Exchange
         return addDataPagesResult;
     }
 
-    public ChunkDataResult getChunkData(long bufferNodeId, int partitionId, long chunkId)
+    public ChunkDataResult getChunkData(long bufferNodeId, int partitionId, long chunkId, boolean chunkSpoolMergeEnabled)
     {
         throwIfFailed();
 
@@ -187,7 +191,7 @@ public class Exchange
         if (partition == null) {
             throw new DataServerException(CHUNK_NOT_FOUND, "partition %d not found for exchange %s".formatted(partitionId, exchangeId));
         }
-        return partition.getChunkData(bufferNodeId, chunkId);
+        return partition.getChunkData(bufferNodeId, chunkId, chunkSpoolMergeEnabled);
     }
 
     private Consumer<ChunkHandle> closedChunkConsumer()

@@ -255,13 +255,8 @@ public class ChunkManager
             throw new DataServerException(CHUNK_NOT_FOUND, "No closed chunk found for bufferNodeId %d, exchange %s, chunk %d".formatted(bufferNodeId, exchangeId, chunkId));
         }
 
-        Optional<SpooledChunk> spooledChunk = spooledChunksByExchange.getSpooledChunk(exchangeId, chunkId);
-        if (spooledChunk.isPresent()) {
-            return ChunkDataResult.of(spooledChunk.get());
-        }
-
         Exchange exchange = getExchangeAndHeartbeat(exchangeId);
-        return exchange.getChunkData(bufferNodeId, partitionId, chunkId);
+        return exchange.getChunkData(bufferNodeId, partitionId, chunkId, chunkSpoolMergeEnabled);
     }
 
     public ChunkDataResult getChunkDataNoMerge(long bufferNodeId, String exchangeId, int partitionId, long chunkId)
@@ -272,7 +267,7 @@ public class ChunkManager
         }
 
         Exchange exchange = getExchangeAndHeartbeat(exchangeId);
-        return exchange.getChunkData(bufferNodeId, partitionId, chunkId);
+        return exchange.getChunkData(bufferNodeId, partitionId, chunkId, chunkSpoolMergeEnabled);
     }
 
     public ListenableFuture<ChunkList> listClosedChunks(String exchangeId, OptionalLong pagingId)
@@ -313,6 +308,7 @@ public class ChunkManager
                     exchangeId,
                     memoryAllocator,
                     spoolingStorage,
+                    spooledChunksByExchange,
                     chunkTargetSizeInBytes,
                     chunkMaxSizeInBytes,
                     chunkSliceSizeInBytes,
