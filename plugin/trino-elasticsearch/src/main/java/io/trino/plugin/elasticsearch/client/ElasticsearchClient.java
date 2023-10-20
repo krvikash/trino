@@ -30,7 +30,6 @@ import io.airlift.json.JsonMapperProvider;
 import io.airlift.log.Logger;
 import io.airlift.stats.TimeStat;
 import io.airlift.units.Duration;
-import io.trino.plugin.elasticsearch.AwsSecurityConfig;
 import io.trino.plugin.elasticsearch.ElasticsearchConfig;
 import io.trino.plugin.elasticsearch.client.mappings.MergingMappingException;
 import io.trino.spi.TrinoException;
@@ -52,13 +51,6 @@ import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 import org.weakref.jmx.Managed;
 import org.weakref.jmx.Nested;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
-import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.sts.StsClient;
-import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 
 import javax.net.ssl.SSLContext;
 
@@ -133,10 +125,9 @@ public class ElasticsearchClient
     @Inject
     public ElasticsearchClient(
             ElasticsearchConfig config,
-            Optional<AwsSecurityConfig> awsSecurityConfig,
             Set<ElasticRestClientConfigurator> clientConfigurators)
     {
-        client = createClient(config, awsSecurityConfig, clientConfigurators, backpressureStats);
+        client = createClient(config, clientConfigurators, backpressureStats);
 
         this.ignorePublishAddress = config.isIgnorePublishAddress();
         this.scrollSize = config.getScrollSize();
@@ -192,7 +183,6 @@ public class ElasticsearchClient
 
     private static BackpressureRestClient createClient(
             ElasticsearchConfig config,
-            Optional<AwsSecurityConfig> awsSecurityConfig,
             Set<ElasticRestClientConfigurator> clientConfigurators,
             TimeStat backpressureStats)
     {
@@ -227,44 +217,12 @@ public class ElasticsearchClient
                 }
             }
 
-            awsSecurityConfig.ifPresent(securityConfig -> clientBuilder.addInterceptorLast(new AwsRequestSigner(
-                    securityConfig.getRegion(),
-                    getAwsCredentialsProvider(securityConfig))));
-
             clientConfigurators.forEach(configurator -> configurator.configure(clientBuilder));
 
             return clientBuilder;
         });
 
         return new BackpressureRestClient(builder.build(), config, backpressureStats);
-    }
-
-    private static AwsCredentialsProvider getAwsCredentialsProvider(AwsSecurityConfig config)
-    {
-        AwsCredentialsProvider credentialsProvider = DefaultCredentialsProvider.create();
-
-        if (config.getAccessKey().isPresent() && config.getSecretKey().isPresent()) {
-            credentialsProvider = StaticCredentialsProvider.create(AwsBasicCredentials.create(
-                    config.getAccessKey().get(),
-                    config.getSecretKey().get()));
-        }
-
-        if (config.getIamRole().isPresent()) {
-            StsAssumeRoleCredentialsProvider.Builder credentialsProviderBuilder = StsAssumeRoleCredentialsProvider.builder()
-                    .stsClient(StsClient.builder()
-                            .region(Region.of(config.getRegion()))
-                            .credentialsProvider(credentialsProvider)
-                            .build())
-                    .refreshRequest(request -> {
-                        request
-                                .roleArn(config.getIamRole().get())
-                                .roleSessionName("trino-session");
-                        config.getExternalId().ifPresent(request::externalId);
-                    });
-            credentialsProvider = credentialsProviderBuilder.build();
-        }
-
-        return credentialsProvider;
     }
 
     private static Optional<SSLContext> buildSslContext(

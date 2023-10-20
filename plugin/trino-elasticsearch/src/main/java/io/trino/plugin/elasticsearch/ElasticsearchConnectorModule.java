@@ -17,6 +17,7 @@ import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.trino.plugin.elasticsearch.client.AwsSecurityRestClientConfigurator;
 import io.trino.plugin.elasticsearch.client.BasicSecurityRestClientConfigurator;
 import io.trino.plugin.elasticsearch.client.ElasticRestClientConfigurator;
 import io.trino.plugin.elasticsearch.client.ElasticsearchClient;
@@ -58,7 +59,10 @@ public class ElasticsearchConnectorModule
 
         if (config.getSecurity().isPresent()) {
             switch (config.getSecurity().orElseThrow()) {
-                case AWS -> configBinder(binder).bindConfig(AwsSecurityConfig.class);
+                case AWS -> {
+                    configBinder(binder).bindConfig(AwsSecurityConfig.class);
+                    configurators.addBinding().to(AwsSecurityRestClientConfigurator.class).in(Scopes.SINGLETON);
+                }
                 case PASSWORD -> {
                     configBinder(binder).bindConfig(PasswordConfig.class);
                     configurators.addBinding().to(BasicSecurityRestClientConfigurator.class).in(Scopes.SINGLETON);
