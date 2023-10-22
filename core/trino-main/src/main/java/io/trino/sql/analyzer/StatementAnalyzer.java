@@ -329,7 +329,6 @@ import static io.trino.SystemSessionProperties.getCharVarcharCoercion;
 import static io.trino.SystemSessionProperties.getMaxGroupingSets;
 import static io.trino.SystemSessionProperties.getRetryPolicy;
 import static io.trino.metadata.FunctionResolver.toPath;
-import static io.trino.metadata.GlobalFunctionCatalog.isBuiltinFunctionName;
 import static io.trino.metadata.MetadataUtil.createQualifiedObjectName;
 import static io.trino.metadata.MetadataUtil.getRequiredCatalogHandle;
 import static io.trino.metadata.TableVersion.toTableVersion;
@@ -2015,7 +2014,7 @@ class StatementAnalyzer
                 CatalogHandle catalogHandle = getRequiredCatalogHandle(metadata, session, node, name.catalogName());
                 Optional<ConnectorTableFunction> resolved = tableFunctionRegistry.resolve(catalogHandle, name.schemaFunctionName());
                 if (resolved.isPresent()) {
-                    if (isBuiltinFunctionName(name) || accessControl.canExecuteFunction(SecurityContext.of(session), new QualifiedObjectName(name.catalogName(), name.schemaName(), name.functionName()))) {
+                    if (accessControl.canExecuteFunction(SecurityContext.of(session), new QualifiedObjectName(name.catalogName(), name.schemaName(), name.functionName()))) {
                         return Optional.of(new TableFunctionMetadata(catalogHandle, resolved.get()));
                     }
                     unauthorized = true;

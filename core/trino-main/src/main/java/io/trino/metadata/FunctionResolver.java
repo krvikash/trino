@@ -54,7 +54,6 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.trino.SystemSessionProperties.getCharVarcharCoercion;
 import static io.trino.metadata.FunctionBinder.functionNotFound;
-import static io.trino.metadata.GlobalFunctionCatalog.isBuiltinFunctionName;
 import static io.trino.metadata.LanguageFunctionManager.isInlineFunction;
 import static io.trino.metadata.LanguageFunctionManager.isTrinoSqlLanguageFunction;
 import static io.trino.metadata.SignatureBinder.applyBoundVariables;
@@ -378,7 +377,7 @@ public class FunctionResolver
 
     private static boolean canExecuteFunction(Session session, AccessControl accessControl, CatalogSchemaFunctionName functionName)
     {
-        if (isInlineFunction(functionName) || isBuiltinFunctionName(functionName)) {
+        if (isInlineFunction(functionName)) {
             return true;
         }
         return accessControl.canExecuteFunction(
