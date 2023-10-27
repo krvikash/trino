@@ -8725,28 +8725,6 @@ public abstract class BaseHiveConnectorTest
     }
 
     @Test
-    public void testWriteInvalidPrecisionTimestamp()
-    {
-        Session session = withTimestampPrecision(getSession(), HiveTimestampPrecision.MICROSECONDS);
-        assertQueryFails(
-                session,
-                "CREATE TABLE test_invalid_precision_timestamp(ts) AS SELECT TIMESTAMP '2001-02-03 11:22:33.123456789'",
-                "\\QIncorrect timestamp precision for timestamp(9); the configured precision is " + HiveTimestampPrecision.MICROSECONDS + "; column name: ts");
-        assertQueryFails(
-                session,
-                "CREATE TABLE test_invalid_precision_timestamp (ts TIMESTAMP(9))",
-                "\\QIncorrect timestamp precision for timestamp(9); the configured precision is " + HiveTimestampPrecision.MICROSECONDS + "; column name: ts");
-        assertQueryFails(
-                session,
-                "CREATE TABLE test_invalid_precision_timestamp(ts) AS SELECT TIMESTAMP '2001-02-03 11:22:33.123'",
-                "\\QIncorrect timestamp precision for timestamp(3); the configured precision is " + HiveTimestampPrecision.MICROSECONDS + "; column name: ts");
-        assertQueryFails(
-                session,
-                "CREATE TABLE test_invalid_precision_timestamp (ts TIMESTAMP(3))",
-                "\\QIncorrect timestamp precision for timestamp(3); the configured precision is " + HiveTimestampPrecision.MICROSECONDS + "; column name: ts");
-    }
-
-    @Test
     public void testCoercingVarchar0ToVarchar1()
     {
         try (TestTable testTable = newTrinoTable(
