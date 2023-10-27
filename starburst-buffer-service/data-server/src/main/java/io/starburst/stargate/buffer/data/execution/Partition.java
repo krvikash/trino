@@ -167,7 +167,8 @@ public class Partition
         lastDataPagesIds.put(taskAttemptId, dataPagesId);
 
         AddDataPagesFuture addDataPagesFuture = new AddDataPagesFuture(taskId, attemptId, pages);
-        currentFutures.put(taskAttemptId, addDataPagesFuture);
+        ListenableFuture<Void> previousAddDataPagesFuture = currentFutures.put(taskAttemptId, addDataPagesFuture);
+        checkState(previousAddDataPagesFuture == null || previousAddDataPagesFuture.isDone(), "previous addDataPages for %s.%s not completed yet", exchangeId, taskAttemptId);
         addDataPagesFuture.addListener(() -> {
             synchronized (Partition.this) {
                 ListenableFuture<Void> currentFuture = currentFutures.get(taskAttemptId);

@@ -655,22 +655,18 @@ public abstract class AbstractTestChunkManager
                 DataSize.of(32, BYTE),
                 DataSize.of(8, BYTE));
         ListenableFuture<Void> addDataPagesFuture1 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 1L, ImmutableList.of(utf8Slice("1"))).addDataPagesFuture();
-        ListenableFuture<Void> addDataPagesFuture2 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 2L, ImmutableList.of(utf8Slice("2"))).addDataPagesFuture();
-        ListenableFuture<Void> addDataPagesFuture3 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 3L, ImmutableList.of(utf8Slice("3"))).addDataPagesFuture();
-        ListenableFuture<Void> addDataPagesFuture4 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 4L, ImmutableList.of(utf8Slice("4"))).addDataPagesFuture();
         await().atMost(ONE_SECOND).until(addDataPagesFuture1::isDone);
+        ListenableFuture<Void> addDataPagesFuture2 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 2L, ImmutableList.of(utf8Slice("2"))).addDataPagesFuture();
         await().atMost(ONE_SECOND).until(addDataPagesFuture2::isDone);
+        ListenableFuture<Void> addDataPagesFuture3 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 3L, ImmutableList.of(utf8Slice("3"))).addDataPagesFuture();
         assertFalse(addDataPagesFuture3.isDone());
-        assertFalse(addDataPagesFuture4.isDone());
 
         ListenableFuture<Void> exchangeFinishFuture = chunkManager.finishExchange(EXCHANGE_0);
-        assertFalse(exchangeFinishFuture.isDone());
-        assertFalse(addDataPagesFuture3.isDone()); // only wait for the in-progress addDataPagesFuture
-        assertTrue(addDataPagesFuture4.isDone()); // rest of the addDataPagesFutures should complete early
+        assertFalse(exchangeFinishFuture.isDone()); // wait for in-progress addDataPages to complete
+        assertFalse(addDataPagesFuture3.isDone());
 
         chunkManager.spoolIfNecessary();
         await().atMost(ONE_SECOND).until(addDataPagesFuture3::isDone);
-        await().atMost(ONE_SECOND).until(exchangeFinishFuture::isDone);
 
         ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 1);
         ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 0, 1L, 1);
