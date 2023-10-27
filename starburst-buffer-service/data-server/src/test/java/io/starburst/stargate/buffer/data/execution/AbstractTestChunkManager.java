@@ -30,6 +30,7 @@ import io.starburst.stargate.buffer.data.server.DataServerConfig;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.s3.MinioStorage;
+import org.awaitility.core.ConditionFactory;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -399,12 +400,12 @@ public abstract class AbstractTestChunkManager
 
         ListenableFuture<Void> addDataPagesFuture1 = chunkManager.addDataPages(
                 EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("test"), utf8Slice("spool"), utf8Slice("chunks"))).addDataPagesFuture();
-        await().atMost(ONE_SECOND).until(addDataPagesFuture1::isDone);
+        awaitOneSecond().until(addDataPagesFuture1::isDone);
         assertEquals(32, memoryAllocator.getFreeMemory());
 
         ListenableFuture<Void> addDataPagesFuture2 = chunkManager.addDataPages(
                 EXCHANGE_0, 0, 0, 0, 1L, ImmutableList.of(utf8Slice("add"), utf8Slice("data"), utf8Slice("pages"))).addDataPagesFuture();
-        await().atMost(ONE_SECOND).until(addDataPagesFuture2::isDone);
+        awaitOneSecond().until(addDataPagesFuture2::isDone);
         assertEquals(0, memoryAllocator.getFreeMemory());
 
         ListenableFuture<Void> addDataPagesFuture3 = chunkManager.addDataPages(
@@ -415,7 +416,7 @@ public abstract class AbstractTestChunkManager
         assertEquals(0, chunkManager.getClosedChunks());
         assertEquals(2, chunkManager.getSpooledChunksCount()); // the open chunk should have spooled too
 
-        await().atMost(ONE_SECOND).until(addDataPagesFuture3::isDone);
+        awaitOneSecond().until(addDataPagesFuture3::isDone);
         assertEquals(64, memoryAllocator.getFreeMemory());
 
         ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 22);
@@ -436,7 +437,7 @@ public abstract class AbstractTestChunkManager
         getFutureValue(chunkManager.finishExchange(EXCHANGE_1));
 
         ListenableFuture<Slice> sliceFuture = memoryAllocator.allocate(64);
-        await().atMost(ONE_SECOND).until(sliceFuture::isDone);
+        awaitOneSecond().until(sliceFuture::isDone);
 
         chunkManager.spoolIfNecessary(); // only one closed chunk can be spooled at this point
         assertEquals(0, chunkManager.getClosedChunks());
@@ -480,12 +481,12 @@ public abstract class AbstractTestChunkManager
 
         ListenableFuture<Void> addDataPagesFuture1 = chunkManager.addDataPages(
                 EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("a"), utf8Slice("b"), utf8Slice("c"))).addDataPagesFuture();
-        await().atMost(ONE_SECOND).until(addDataPagesFuture1::isDone);
+        awaitOneSecond().until(addDataPagesFuture1::isDone);
         assertEquals(40, memoryAllocator.getFreeMemory());
 
         ListenableFuture<Void> addDataPagesFuture2 = chunkManager.addDataPages(
                 EXCHANGE_0, 1, 1, 1, 1L, ImmutableList.of(utf8Slice("d"), utf8Slice("e"), utf8Slice("f"))).addDataPagesFuture();
-        await().atMost(ONE_SECOND).until(addDataPagesFuture2::isDone);
+        awaitOneSecond().until(addDataPagesFuture2::isDone);
         assertEquals(16, memoryAllocator.getFreeMemory());
 
         ListenableFuture<Void> addDataPagesFuture3 = chunkManager.addDataPages(
@@ -494,7 +495,7 @@ public abstract class AbstractTestChunkManager
 
         // wait for all addDataPagesFutures to finish
         chunkManager.spoolIfNecessary();
-        await().atMost(ONE_SECOND).until(addDataPagesFuture3::isDone);
+        awaitOneSecond().until(addDataPagesFuture3::isDone);
 
         Future<Integer> numClosedChunksFuture = executor.submit(() -> {
             OptionalLong pagingId = OptionalLong.empty();
@@ -655,9 +656,9 @@ public abstract class AbstractTestChunkManager
                 DataSize.of(32, BYTE),
                 DataSize.of(8, BYTE));
         ListenableFuture<Void> addDataPagesFuture1 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 1L, ImmutableList.of(utf8Slice("1"))).addDataPagesFuture();
-        await().atMost(ONE_SECOND).until(addDataPagesFuture1::isDone);
+        awaitOneSecond().until(addDataPagesFuture1::isDone);
         ListenableFuture<Void> addDataPagesFuture2 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 2L, ImmutableList.of(utf8Slice("2"))).addDataPagesFuture();
-        await().atMost(ONE_SECOND).until(addDataPagesFuture2::isDone);
+        awaitOneSecond().until(addDataPagesFuture2::isDone);
         ListenableFuture<Void> addDataPagesFuture3 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 3L, ImmutableList.of(utf8Slice("3"))).addDataPagesFuture();
         assertFalse(addDataPagesFuture3.isDone());
 
@@ -666,7 +667,7 @@ public abstract class AbstractTestChunkManager
         assertFalse(addDataPagesFuture3.isDone());
 
         chunkManager.spoolIfNecessary();
-        await().atMost(ONE_SECOND).until(addDataPagesFuture3::isDone);
+        awaitOneSecond().until(addDataPagesFuture3::isDone);
 
         ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 1);
         ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 0, 1L, 1);
@@ -945,5 +946,10 @@ public abstract class AbstractTestChunkManager
         else {
             assertEquals("s3://" + minioStorage.getBucketName() + "/0a.exchange-0.1/0", chunkDataResult.spooledChunk().get().location());
         }
+    }
+
+    private static ConditionFactory awaitOneSecond()
+    {
+        return await().pollInterval(1, MILLISECONDS).atMost(ONE_SECOND);
     }
 }
