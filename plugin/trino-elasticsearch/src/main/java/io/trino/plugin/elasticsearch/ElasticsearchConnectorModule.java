@@ -16,6 +16,7 @@ package io.trino.plugin.elasticsearch;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.trino.plugin.elasticsearch.client.ElasticRestClientConfigurator;
 import io.trino.plugin.elasticsearch.client.ElasticsearchClient;
 import io.trino.plugin.elasticsearch.ptf.RawQuery;
 import io.trino.plugin.elasticsearch.substitution.ElasticsearchSubstitutionMetadata;
@@ -48,6 +49,8 @@ public class ElasticsearchConnectorModule
         newOptionalBinder(binder, PasswordConfig.class);
 
         newSetBinder(binder, ConnectorTableFunction.class).addBinding().toProvider(RawQuery.class).in(Scopes.SINGLETON);
+
+        newSetBinder(binder, ElasticRestClientConfigurator.class);
 
         ElasticsearchConfig config = buildConfigObject(ElasticsearchConfig.class);
 

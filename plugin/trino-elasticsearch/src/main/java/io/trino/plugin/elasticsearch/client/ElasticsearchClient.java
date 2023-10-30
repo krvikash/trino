@@ -139,9 +139,10 @@ public class ElasticsearchClient
     public ElasticsearchClient(
             ElasticsearchConfig config,
             Optional<AwsSecurityConfig> awsSecurityConfig,
-            Optional<PasswordConfig> passwordConfig)
+            Optional<PasswordConfig> passwordConfig,
+            Set<ElasticRestClientConfigurator> clientConfigurators)
     {
-        client = createClient(config, awsSecurityConfig, passwordConfig, backpressureStats);
+        client = createClient(config, awsSecurityConfig, passwordConfig, clientConfigurators, backpressureStats);
 
         this.ignorePublishAddress = config.isIgnorePublishAddress();
         this.scrollSize = config.getScrollSize();
@@ -199,6 +200,7 @@ public class ElasticsearchClient
             ElasticsearchConfig config,
             Optional<AwsSecurityConfig> awsSecurityConfig,
             Optional<PasswordConfig> passwordConfig,
+            Set<ElasticRestClientConfigurator> clientConfigurators,
             TimeStat backpressureStats)
     {
         RestClientBuilder builder = RestClient.builder(
@@ -241,6 +243,8 @@ public class ElasticsearchClient
             awsSecurityConfig.ifPresent(securityConfig -> clientBuilder.addInterceptorLast(new AwsRequestSigner(
                     securityConfig.getRegion(),
                     getAwsCredentialsProvider(securityConfig))));
+
+            clientConfigurators.forEach(configurator -> configurator.configure(clientBuilder));
 
             return clientBuilder;
         });
