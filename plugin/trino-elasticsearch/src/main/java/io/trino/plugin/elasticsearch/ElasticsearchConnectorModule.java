@@ -28,6 +28,8 @@ import io.trino.spi.function.table.ConnectorTableFunction;
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.trino.plugin.elasticsearch.ElasticsearchConfig.SecurityOptions.AWS;
+import static io.trino.plugin.elasticsearch.ElasticsearchConfig.SecurityOptions.PASSWORD;
 import static org.weakref.jmx.guice.ExportBinder.newExporter;
 
 public class ElasticsearchConnectorModule

@@ -49,10 +49,10 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 })
 public class ElasticsearchConfig
 {
-    public enum Security
+    public static class SecurityOptions
     {
-        AWS,
-        PASSWORD,
+        static final String AWS = "AWS";
+        static final String PASSWORD = "PASSWORD";
     }
 
     private List<String> hosts;
@@ -77,7 +77,7 @@ public class ElasticsearchConfig
     private boolean ignorePublishAddress;
     private boolean verifyHostnames = true;
 
-    private Security security;
+    private String security;
 
     @NotNull
     public List<String> getHosts()
@@ -344,13 +344,13 @@ public class ElasticsearchConfig
     }
 
     @NotNull
-    public Optional<Security> getSecurity()
+    public Optional<String> getSecurity()
     {
         return Optional.ofNullable(security);
     }
 
     @Config("elasticsearch.security")
-    public ElasticsearchConfig setSecurity(Security security)
+    public ElasticsearchConfig setSecurity(String security)
     {
         this.security = security;
         return this;
