@@ -68,10 +68,18 @@ public class TestJmxTroubleshootingProvider
     {
         ObjectMapper mapper = new ObjectMapper();
         Map<String, Map<String, Object>> parsed = mapper.readValue(is, new TypeReference<>() {});
-        assertThat(parsed.get("java.util.logging:type=Logging").get("ObjectName")).isEqualTo("java.util.logging:type=Logging");
-        assertThat(parsed.get("java.lang:name=G1 Old Generation,type=GarbageCollector").get("LastGcInfo")).isNull();
-        assertThat(parsed.get("java.lang:type=Runtime").get("Uptime")).isInstanceOf(Integer.class);
-        assertThat(parsed.get("java.lang:type=Runtime").get("BootClassPathSupported")).isInstanceOf(Boolean.class);
-        assertThat(parsed.get("java.lang:type=OperatingSystem").get("SystemLoadAverage")).isInstanceOf(Double.class);
+        assertThat(parsed)
+                .hasEntrySatisfying("java.util.logging:type=Logging", value -> assertThat(value)
+                        .containsEntry("ObjectName", "java.util.logging:type=Logging"))
+                .hasEntrySatisfying("java.lang:name=G1 Old Generation,type=GarbageCollector", value -> assertThat(value)
+                        .containsEntry("LastGcInfo", null))
+                .hasEntrySatisfying("java.lang:type=Runtime", value -> assertThat(value)
+                        .hasEntrySatisfying("Uptime", uptime -> assertThat(uptime)
+                                .isInstanceOf(Integer.class))
+                        .hasEntrySatisfying("BootClassPathSupported", bootClassPathSupported -> assertThat(bootClassPathSupported)
+                                .isInstanceOf(Boolean.class)))
+                .hasEntrySatisfying("java.lang:type=OperatingSystem", value -> assertThat(value)
+                        .hasEntrySatisfying("SystemLoadAverage", systemLoadAverage -> assertThat(systemLoadAverage)
+                                .isInstanceOf(Double.class)));
     }
 }

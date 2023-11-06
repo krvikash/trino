@@ -139,20 +139,23 @@ public abstract class AbstractQueryTroubleshootingTest
         assertThat(data.getStreams()).isPresent();
         Map<String, InputStream> inputsMap = data.getRequiredStreams();
 
-        assertThat(inputsMap.get("session.txt")).hasContent("query_max_memory_per_node = 10MB\n");
-        assertThat(inputsMap.get("version.txt")).hasContent("testversion");
-        assertThat(inputsMap.get("query.sql")).hasContent(troubleshootedQuery);
-        assertThat(inputsMap.get("query_plan.txt")).isNotEmpty();
-        assertThat(inputsMap.get("recordings/coordinator.jfr")).isNotEmpty();
+        assertThat(inputsMap)
+                .hasEntrySatisfying("session.txt", value -> assertThat(value).hasContent("query_max_memory_per_node = 10MB\n"))
+                .hasEntrySatisfying("version.txt", value -> assertThat(value).hasContent("testversion"))
+                .hasEntrySatisfying("query.sql", value -> assertThat(value).hasContent(troubleshootedQuery))
+                .hasEntrySatisfying("query_plan.txt", value -> assertThat(value).isNotEmpty())
+                .hasEntrySatisfying("recordings/coordinator.jfr", value -> assertThat(value).isNotEmpty());
 
         ObjectMapper mapper = new ObjectMapper();
         mapper.readValue(inputsMap.get("jmx-before.json"), new TypeReference<>() {});
         mapper.readValue(inputsMap.get("jmx-after.json"), new TypeReference<>() {});
 
         for (String workerId : getNodesProcessingQuery(data.getQueryId())) {
-            assertThat(inputsMap.get("recordings/worker-%s.jfr".formatted(workerId)))
-                    .describedAs("worker %s recording", workerId)
-                    .isNotEmpty();
+            assertThat(inputsMap).hasEntrySatisfying(
+                    "recordings/worker-%s.jfr".formatted(workerId),
+                    value -> assertThat(value)
+                            .describedAs("worker %s recording", workerId)
+                            .isNotEmpty());
         }
     }
 
@@ -173,16 +176,17 @@ public abstract class AbstractQueryTroubleshootingTest
         Optional<Map<String, InputStream>> inputs = awaitForTroubleshootingData(queryId);
         assertThat(inputs).isPresent();
         Map<String, InputStream> inputsMap = inputs.orElseThrow();
-        assertThat(inputsMap.get("session.txt")).hasContent("query_max_memory_per_node = 10MB\n");
-        assertThat(inputsMap.get("version.txt")).hasContent("testversion");
-        assertThat(inputsMap.get("query.sql")).hasContent(troubleshootedQuery);
-        assertThat(inputsMap.get("query_plan.txt")).isNull();
-        assertThat(inputsMap.get("failure_info.txt")).hasContent("""
-                Error code: SCHEMA_NOT_FOUND:45
-                Error message: line 1:15: Schema 'schema' does not exist
-                Error location: ErrorLocation{lineNumber=1, columnNumber=15}
-                Remote host: null""");
-        assertThat(inputsMap.get("failure_stack_trace.txt")).isNotEmpty();
+        assertThat(inputsMap)
+                .hasEntrySatisfying("session.txt", value -> assertThat(value).hasContent("query_max_memory_per_node = 10MB\n"))
+                .hasEntrySatisfying("version.txt", value -> assertThat(value).hasContent("testversion"))
+                .hasEntrySatisfying("query.sql", value -> assertThat(value).hasContent(troubleshootedQuery))
+                .doesNotContainKey("query_plan.txt")
+                .hasEntrySatisfying("failure_info.txt", value -> assertThat(value).hasContent("""
+                        Error code: SCHEMA_NOT_FOUND:45
+                        Error message: line 1:15: Schema 'schema' does not exist
+                        Error location: ErrorLocation{lineNumber=1, columnNumber=15}
+                        Remote host: null"""))
+                .hasEntrySatisfying("failure_stack_trace.txt", value -> assertThat(value).isNotEmpty());
     }
 
     @Test
