@@ -9,6 +9,8 @@
  */
 package io.starburst.server.troubleshooting;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Key;
@@ -130,6 +132,7 @@ public abstract class AbstractQueryTroubleshootingTest
 
     @Test
     public void testTroubleshootingDataAvailableForAuthorizedUser()
+            throws Exception
     {
         String troubleshootedQuery = "SHOW CATALOGS";
         TroubleshootingData data = getTroubleshootingDataForQuery(troubleshootedSession, troubleshootedQuery);
@@ -141,6 +144,11 @@ public abstract class AbstractQueryTroubleshootingTest
         assertThat(inputsMap.get("query.sql")).hasContent(troubleshootedQuery);
         assertThat(inputsMap.get("query_plan.txt")).isNotEmpty();
         assertThat(inputsMap.get("recordings/coordinator.jfr")).isNotEmpty();
+
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.readValue(inputsMap.get("jmx-before.json"), new TypeReference<>() {});
+        mapper.readValue(inputsMap.get("jmx-after.json"), new TypeReference<>() {});
+
         for (String workerId : getNodesProcessingQuery(data.getQueryId())) {
             assertThat(inputsMap.get("recordings/worker-%s.jfr".formatted(workerId)))
                     .describedAs("worker %s recording", workerId)
