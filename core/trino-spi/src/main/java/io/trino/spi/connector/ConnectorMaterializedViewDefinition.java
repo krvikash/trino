@@ -43,6 +43,7 @@ public class ConnectorMaterializedViewDefinition
     private final Optional<String> comment;
     private final Optional<String> owner;
     private final List<CatalogSchemaName> path;
+    private final boolean shouldUseInvoker;
 
     public ConnectorMaterializedViewDefinition(
             String originalSql,
@@ -56,6 +57,22 @@ public class ConnectorMaterializedViewDefinition
             Optional<String> owner,
             List<CatalogSchemaName> path)
     {
+        this(originalSql, storageTable, catalog, schema, columns, gracePeriod, whenStaleBehavior, comment, owner, path, false);
+    }
+
+    public ConnectorMaterializedViewDefinition(
+            String originalSql,
+            Optional<CatalogSchemaTableName> storageTable,
+            Optional<String> catalog,
+            Optional<String> schema,
+            List<Column> columns,
+            Optional<Duration> gracePeriod,
+            Optional<WhenStaleBehavior> whenStaleBehavior,
+            Optional<String> comment,
+            Optional<String> owner,
+            List<CatalogSchemaName> path,
+            boolean shouldUseInvoker)
+    {
         this.originalSql = requireNonNull(originalSql, "originalSql is null");
         this.storageTable = requireNonNull(storageTable, "storageTable is null");
         this.catalog = requireNonNull(catalog, "catalog is null");
@@ -67,6 +84,7 @@ public class ConnectorMaterializedViewDefinition
         this.comment = requireNonNull(comment, "comment is null");
         this.owner = requireNonNull(owner, "owner is null");
         this.path = List.copyOf(path);
+        this.shouldUseInvoker = shouldUseInvoker;
 
         if (catalog.isEmpty() && schema.isPresent()) {
             throw new IllegalArgumentException("catalog must be present if schema is present");
@@ -126,6 +144,11 @@ public class ConnectorMaterializedViewDefinition
         return path;
     }
 
+    public boolean isShouldUseInvoker()
+    {
+        return shouldUseInvoker;
+    }
+
     @Override
     public String toString()
     {
@@ -139,6 +162,7 @@ public class ConnectorMaterializedViewDefinition
         whenStaleBehavior.ifPresent(value -> joiner.add("whenStaleBehavior=" + value.name()));
         comment.ifPresent(value -> joiner.add("comment=" + value));
         joiner.add("owner=" + owner);
+        joiner.add("shouldUseInvoker=" + shouldUseInvoker);
         joiner.add(path.stream().map(CatalogSchemaName::toString).collect(joining(", ", "path=(", ")")));
         return getClass().getSimpleName() + joiner;
     }
@@ -162,13 +186,14 @@ public class ConnectorMaterializedViewDefinition
                 Objects.equals(whenStaleBehavior, that.whenStaleBehavior) &&
                 Objects.equals(comment, that.comment) &&
                 Objects.equals(owner, that.owner) &&
-                Objects.equals(path, that.path);
+                Objects.equals(path, that.path) &&
+                shouldUseInvoker == that.shouldUseInvoker;
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hash(originalSql, storageTable, catalog, schema, columns, gracePeriod, whenStaleBehavior, comment, owner, path);
+        return Objects.hash(originalSql, storageTable, catalog, schema, columns, gracePeriod, whenStaleBehavior, comment, owner, shouldUseInvoker, path);
     }
 
     public static final class Column

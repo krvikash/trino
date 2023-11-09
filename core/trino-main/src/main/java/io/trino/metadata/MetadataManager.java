@@ -1920,6 +1920,10 @@ public final class MetadataManager
             return Optional.empty();
         }
 
+        if (connectorView.get().isShouldUseInvoker()) {
+            return Optional.of(createMaterializedViewDefinition(connectorView.get(), session.getIdentity()));
+        }
+
         if (isCatalogManagedSecurity(session, viewName.catalogName())) {
             String runAsUser = connectorView.get().getOwner().orElseThrow(() -> new TrinoException(INVALID_VIEW, "Owner not set for a run-as invoker view: " + viewName));
             return Optional.of(createMaterializedViewDefinition(connectorView.get(), Identity.ofUser(runAsUser)));
