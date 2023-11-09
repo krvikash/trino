@@ -13,6 +13,7 @@
  */
 package io.trino.connector;
 
+import com.google.common.collect.ImmutableMap;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
 import io.trino.spi.BlocksHashFactory;
@@ -33,6 +34,8 @@ import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.security.LocationAccessControl;
 import io.trino.spi.type.TypeManager;
 
+import java.util.Map;
+
 import static java.util.Objects.requireNonNull;
 
 public class ConnectorContextInstance
@@ -51,6 +54,7 @@ public class ConnectorContextInstance
     private final AiModelAccessControl aiModelAccessControl;
     private final ModelConnectionSpecsLoader modelConnectionSpecsLoader;
     private final CatalogVersion catalogVersion;
+    private final Map<String, String> serverProperties;
     private final String nodeEnvironment;
     private final FunctionBundleFactory functionBundleFactory;
     private final ManagedStatisticsClient managedStatisticsClient;
@@ -72,6 +76,7 @@ public class ConnectorContextInstance
             PageIndexerFactory pageIndexerFactory,
             PageStreamFactory pageStreamFactory,
             CatalogVersion catalogVersion,
+            Map<String, String> serverProperties,
             String nodeEnvironment,
             FunctionBundleFactory functionBundleFactory,
             ManagedStatisticsClient managedStatisticsClient,
@@ -92,6 +97,7 @@ public class ConnectorContextInstance
         this.pageIndexerFactory = requireNonNull(pageIndexerFactory, "pageIndexerFactory is null");
         this.pageStreamFactory = requireNonNull(pageStreamFactory, "pageStreamFactory is null");
         this.catalogVersion = requireNonNull(catalogVersion, "catalogVersion is null");
+        this.serverProperties = ImmutableMap.copyOf(requireNonNull(serverProperties, "serverProperties is null"));
         this.nodeEnvironment = requireNonNull(nodeEnvironment, "nodeEnvironment is null");
         this.functionBundleFactory = requireNonNull(functionBundleFactory, "functionBundleFactory is null");
         this.managedStatisticsClient = requireNonNull(managedStatisticsClient, "managedStatisticsClient is null");
@@ -152,6 +158,12 @@ public class ConnectorContextInstance
     public PageStreamFactory getPageStreamFactory()
     {
         return pageStreamFactory;
+    }
+
+    @Override
+    public Map<String, String> getServerProperties()
+    {
+        return serverProperties;
     }
 
     @Override

@@ -13,6 +13,7 @@
  */
 package io.trino.testing;
 
+import com.google.common.collect.ImmutableMap;
 import io.airlift.tracing.Tracing;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
@@ -47,6 +48,8 @@ import io.trino.spi.security.LocationAccessControl;
 import io.trino.spi.type.TypeManager;
 import io.trino.spi.type.TypeOperators;
 import io.trino.util.EmbedVersion;
+
+import java.util.Map;
 
 import static io.trino.spi.connector.MetadataProvider.NOOP_METADATA_PROVIDER;
 import static io.trino.spi.connector.ai.ModelConnectionSpecsLoader.EMPTY_LOADER;
@@ -160,6 +163,12 @@ public final class TestingConnectorContext
     public CatalogVersion getCatalogVersion()
     {
         return new CatalogVersion("default");
+    }
+
+    @Override
+    public Map<String, String> getServerProperties()
+    {
+        return ImmutableMap.of();
     }
 
     @Override

@@ -34,6 +34,8 @@ import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.security.LocationAccessControl;
 import io.trino.spi.type.TypeManager;
 
+import java.util.Map;
+
 import static java.util.Objects.requireNonNull;
 
 public class WarpConnectorContext
@@ -118,6 +120,12 @@ public class WarpConnectorContext
     public WarpPluginSharedInstances getWarpPluginSharedInstances()
     {
         return sharedInstances;
+    }
+
+    @Override
+    public Map<String, String> getServerProperties()
+    {
+        return connectorContext.getServerProperties();
     }
 
     @Override

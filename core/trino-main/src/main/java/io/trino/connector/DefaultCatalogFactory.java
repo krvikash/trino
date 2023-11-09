@@ -15,6 +15,7 @@ package io.trino.connector;
 
 import com.google.errorprone.annotations.ThreadSafe;
 import com.google.inject.Inject;
+import io.airlift.configuration.ConfigurationFactory;
 import io.airlift.configuration.secrets.SecretsResolver;
 import io.airlift.node.NodeInfo;
 import io.opentelemetry.api.OpenTelemetry;
@@ -89,6 +90,7 @@ public class DefaultCatalogFactory
     private final ModelConnectionSpecsLoader modelConnectionSpecsLoader;
     private final ManagedStatisticsClient managedStatisticsClient;
 
+    private final Map<String, String> serverProperties;
     private final ConcurrentMap<ConnectorName, ConnectorFactory> connectorFactories = new ConcurrentHashMap<>();
     private final LocalMemoryManager localMemoryManager;
     private final SecretsResolver secretsResolver;
@@ -116,6 +118,7 @@ public class DefaultCatalogFactory
             ModelConnectionSpecsLoader modelConnectionSpecsLoader,
             ManagedStatisticsClient managedStatisticsClient,
             OptimizerConfig optimizerConfig,
+            ConfigurationFactory configurationFactory,
             LocalMemoryManager localMemoryManager,
             SecretsResolver secretsResolver,
             NodeInfo nodeInfo,
@@ -140,6 +143,7 @@ public class DefaultCatalogFactory
         this.aiModelAccessControl = requireNonNull(aiModelAccessControl, "aiModelAccessControl is null");
         this.modelConnectionSpecsLoader = requireNonNull(modelConnectionSpecsLoader, "modelConnectionSpecsLoader is null");
         this.managedStatisticsClient = requireNonNull(managedStatisticsClient, "managedStatisticsClient is null");
+        this.serverProperties = requireNonNull(configurationFactory, "configurationFactory is null").getProperties();
         this.localMemoryManager = requireNonNull(localMemoryManager, "localMemoryManager is null");
         this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
         this.nodeInfo = requireNonNull(nodeInfo, "nodeInfo is null");
@@ -244,6 +248,7 @@ public class DefaultCatalogFactory
                 pageIndexerFactory,
                 pageStreamFactory,
                 catalogVersion,
+                serverProperties,
                 nodeInfo.getEnvironment(),
                 new InternalFunctionBundleFactory(),
                 managedStatisticsClient,

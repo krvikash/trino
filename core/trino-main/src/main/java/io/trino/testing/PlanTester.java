@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Closer;
+import io.airlift.configuration.ConfigurationFactory;
 import io.airlift.configuration.secrets.SecretsResolver;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.jetty.JettyHttpClient;
@@ -541,6 +542,7 @@ public class PlanTester
                 EMPTY_LOADER,
                 new ThrowingManagedStatisticsClient(),
                 optimizerConfig,
+                new ConfigurationFactory(ImmutableMap.of()),
                 new LocalMemoryManager(new NodeMemoryConfig(), Optional.empty()),
                 secretsResolver,
                 nodeInfo,

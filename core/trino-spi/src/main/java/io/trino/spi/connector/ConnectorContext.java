@@ -30,6 +30,7 @@ import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.security.LocationAccessControl;
 import io.trino.spi.type.TypeManager;
 
+import java.util.Map;
 import java.util.Optional;
 
 public interface ConnectorContext
@@ -93,6 +94,11 @@ public interface ConnectorContext
     }
 
     default PageStreamFactory getPageStreamFactory()
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    default Map<String, String> getServerProperties()
     {
         throw new UnsupportedOperationException();
     }
