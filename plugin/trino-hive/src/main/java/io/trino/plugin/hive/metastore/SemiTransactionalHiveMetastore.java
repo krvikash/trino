@@ -246,6 +246,12 @@ public class SemiTransactionalHiveMetastore
         this.tableInvalidationCallback = requireNonNull(tableInvalidationCallback, "tableInvalidationCallback is null");
     }
 
+    // required for SEP as it reimplements getTable and geTableStatistics
+    public synchronized Map<SchemaTableName, Action<TableAndMore>> getTableActions()
+    {
+        return tableActions;
+    }
+
     public List<String> getAllDatabases()
     {
         synchronized (this) {
@@ -2383,8 +2389,9 @@ public class SemiTransactionalHiveMetastore
         }
     }
 
+    // required for SEP as it reimplements getTable and geTableStatistics
     @GuardedBy("this")
-    private synchronized void checkReadable()
+    protected synchronized void checkReadable()
     {
         checkHoldsLock();
 
@@ -2723,7 +2730,8 @@ public class SemiTransactionalHiveMetastore
         FINISHED,
     }
 
-    private enum ActionType
+    // required for SEP as it reimplements getTable and geTableStatistics
+    protected enum ActionType
     {
         DROP,
         DROP_PRESERVE_DATA,
@@ -2740,9 +2748,9 @@ public class SemiTransactionalHiveMetastore
         // RECREATED_IN_THIS_TRANSACTION is a possible case, but it is not supported with the current implementation
     }
 
-    private record Action<T>(ActionType type, T data, ConnectorIdentity identity, String queryId)
+    protected record Action<T>(ActionType type, T data, ConnectorIdentity identity, String queryId)
     {
-        private Action
+        public Action
         {
             requireNonNull(type, "type is null");
             if (type == ActionType.DROP || type == ActionType.DROP_PRESERVE_DATA) {
@@ -2763,7 +2771,8 @@ public class SemiTransactionalHiveMetastore
         }
     }
 
-    private static class TableAndMore
+    // required for SEP as it reimplements getTable and geTableStatistics
+    protected static class TableAndMore
     {
         private final Table table;
         private final Optional<PrincipalPrivileges> principalPrivileges;
@@ -2900,7 +2909,7 @@ public class SemiTransactionalHiveMetastore
      * @param statisticsUpdate statistics of the data written by the transaction
      * @param statisticsUpdateMode how statisticsUpdate is applied to the metastore statistics on commit
      */
-    private record PartitionAndMore(
+    protected record PartitionAndMore(
             Partition partition,
             Location currentLocation,
             Optional<List<String>> fileNames,
@@ -2910,7 +2919,7 @@ public class SemiTransactionalHiveMetastore
             StatisticsUpdateMode statisticsUpdateMode,
             boolean cleanExtraOutputFilesOnCommit)
     {
-        private PartitionAndMore
+        public PartitionAndMore
         {
             requireNonNull(partition, "partition is null");
             requireNonNull(currentLocation, "currentLocation is null");
