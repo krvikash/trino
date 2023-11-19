@@ -600,6 +600,12 @@ public class MockPlanAlternativeMetadata
     }
 
     @Override
+    public boolean isView(ConnectorSession session, SchemaTableName viewName)
+    {
+        return delegate.isView(session, viewName);
+    }
+
+    @Override
     public Map<String, Object> getViewProperties(ConnectorSession session, SchemaTableName viewName)
     {
         return delegate.getViewProperties(session, viewName);

@@ -624,6 +624,12 @@ public class DispatcherMetadata
     }
 
     @Override
+    public boolean isView(ConnectorSession session, SchemaTableName viewName)
+    {
+        return proxiedConnectorMetadata.isView(session, viewName);
+    }
+
+    @Override
     public Map<String, Object> getViewProperties(ConnectorSession session, SchemaTableName viewName)
     {
         return proxiedConnectorMetadata.getViewProperties(session, viewName);

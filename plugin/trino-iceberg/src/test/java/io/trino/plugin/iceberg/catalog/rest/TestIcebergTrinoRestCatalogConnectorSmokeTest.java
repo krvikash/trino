@@ -64,12 +64,9 @@ public class TestIcebergTrinoRestCatalogConnectorSmokeTest
     protected boolean hasBehavior(TestingConnectorBehavior connectorBehavior)
     {
         return switch (connectorBehavior) {
-            case SUPPORTS_COMMENT_ON_VIEW,
-                 SUPPORTS_COMMENT_ON_VIEW_COLUMN,
-                 SUPPORTS_CREATE_MATERIALIZED_VIEW,
-                 SUPPORTS_CREATE_VIEW,
-                 SUPPORTS_RENAME_MATERIALIZED_VIEW,
-                 SUPPORTS_RENAME_SCHEMA -> false;
+            case SUPPORTS_CREATE_MATERIALIZED_VIEW,
+                SUPPORTS_RENAME_MATERIALIZED_VIEW,
+                SUPPORTS_RENAME_SCHEMA -> false;
             default -> super.hasBehavior(connectorBehavior);
         };
     }
@@ -109,14 +106,6 @@ public class TestIcebergTrinoRestCatalogConnectorSmokeTest
     public void teardown()
     {
         backend = null; // closed by closeAfterClass
-    }
-
-    @Test
-    @Override
-    public void testView()
-    {
-        assertThatThrownBy(super::testView)
-                .hasMessageContaining("createView is not supported for Iceberg REST catalog");
     }
 
     @Test
