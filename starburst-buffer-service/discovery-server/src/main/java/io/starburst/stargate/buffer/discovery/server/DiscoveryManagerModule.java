@@ -17,6 +17,7 @@ import io.starburst.stargate.buffer.discovery.server.DiscoveryManager.ForDiscove
 import static com.google.inject.Scopes.SINGLETON;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static java.util.Objects.requireNonNull;
+import static org.weakref.jmx.guice.ExportBinder.newExporter;
 
 public class DiscoveryManagerModule
         implements Module
@@ -41,6 +42,8 @@ public class DiscoveryManagerModule
     @Override
     public void configure(Binder binder)
     {
+        binder.bind(DiscoveryStats.class).in(SINGLETON);
+        newExporter(binder).export(DiscoveryStats.class).withGeneratedName();
         binder.bind(DiscoveryManager.class).in(SINGLETON);
         binder.bind(Ticker.class).annotatedWith(ForDiscoveryManager.class).toInstance(ticker);
         configBinder(binder).bindConfig(DiscoveryManagerConfig.class);

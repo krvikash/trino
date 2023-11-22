@@ -59,6 +59,7 @@ public class DiscoveryManager
     static final Duration DRAINED_NODES_STALENESS_THRESHOLD = succinctDuration(4, HOURS);
 
     private final Ticker ticker;
+    private final DiscoveryStats discoveryStats;
     private final ScheduledExecutorService executor;
     private final Duration bufferNodeDiscoveryStalenessThreshold;
     private final Duration startGracePeriod;
@@ -70,7 +71,7 @@ public class DiscoveryManager
     private final AtomicReference<Set<BufferNodeInfo>> nodeInfosCache = new AtomicReference<>(ImmutableSet.of());
 
     @Inject
-    public DiscoveryManager(@ForDiscoveryManager Ticker ticker, DiscoveryManagerConfig config)
+    public DiscoveryManager(@ForDiscoveryManager Ticker ticker, DiscoveryManagerConfig config, DiscoveryStats discoveryStats)
     {
         this.ticker = requireNonNull(ticker, "ticker is null");
         requireNonNull(config, "config is null");
@@ -79,6 +80,7 @@ public class DiscoveryManager
                 "bufferNodeDiscoveryStalenessThreshold %s larger than DRAINED_NODES_STALENESS_THRESHOLD %s",
                 bufferNodeDiscoveryStalenessThreshold, DRAINED_NODES_STALENESS_THRESHOLD);
         this.startGracePeriod = config.getStartGracePeriod();
+        this.discoveryStats = requireNonNull(discoveryStats, "discoveryStats is null");
         this.executor = newSingleThreadScheduledExecutor();
     }
 
@@ -176,7 +178,16 @@ public class DiscoveryManager
                 iterator.remove();
             }
         }
+
         rebuildNodeInfosCache();
+        updateMetrics();
+    }
+
+    private void updateMetrics()
+    {
+        NodeStateStats nodeStats = new NodeStateStats();
+        getNodeInfos().forEach(nodeInfo -> nodeStats.increment(nodeInfo.state()));
+        discoveryStats.setNodeStateStats(nodeStats);
     }
 
     @Retention(RUNTIME)
