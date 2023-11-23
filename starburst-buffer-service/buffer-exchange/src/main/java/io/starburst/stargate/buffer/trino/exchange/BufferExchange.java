@@ -41,6 +41,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Throwables.throwIfUnchecked;
 import static com.google.common.base.Verify.verify;
@@ -77,6 +78,8 @@ public class BufferExchange
 
     @GuardedBy("this")
     private final Map<Integer, Deque<ChunkHandle>> discoveredChunkHandles = new HashMap<>();
+    @GuardedBy("this")
+    private long discoveredChunkHandlesCounter;
 
     @GuardedBy("this")
     private final Set<BufferExchangeSourceHandleSource> sourceHandleSources = new HashSet<>();
@@ -360,6 +363,7 @@ public class BufferExchange
         for (ChunkHandle chunkHandle : newChunkHandles) {
             Deque<ChunkHandle> queue = discoveredChunkHandles.computeIfAbsent(chunkHandle.partitionId(), ArrayDeque::new);
             queue.add(chunkHandle);
+            discoveredChunkHandlesCounter++;
         }
     }
 
@@ -428,6 +432,32 @@ public class BufferExchange
         for (ChunkHandlesPoller poller : chunkPolledBufferNodes.values()) {
             poller.stop();
         }
+    }
+
+    @Override
+    // for debugging
+    public synchronized String toString()
+    {
+        return toStringHelper(this)
+                .add("exchangeId", exchangeId)
+                .add("externalExchangeId", externalExchangeId)
+                .add("outputPartitionCount", outputPartitionCount)
+                .add("preserveOrderWithinPartition", preserveOrderWithinPartition)
+                .add("sourceHandleTargetChunksCount", sourceHandleTargetChunksCount)
+                .add("sourceHandleTargetDataSize", sourceHandleTargetDataSize)
+                .add("noMoreSinks", noMoreSinks)
+                .add("allRequiredSinksFinished", allRequiredSinksFinished)
+                .add("closed", closed)
+                .add("discoveredChunkHandles", discoveredChunkHandles)
+                .add("discoveredChunkHandlesCounter", discoveredChunkHandlesCounter)
+                .add("sourceHandleSources", sourceHandleSources)
+                .add("readySourceHandlesCount", readySourceHandles.size())
+                .add("allSourceHandlesCreated", allSourceHandlesCreated)
+                .add("failure", failure)
+                .add("chunkPolledBufferNodes", chunkPolledBufferNodes)
+                .add("chunkPollingCompletedBufferNodes", chunkPollingCompletedBufferNodes)
+                .add("sourceHandlesDeliveryMode", sourceHandlesDeliveryMode)
+                .toString();
     }
 
     private static ChunkDeliveryMode getChunkDeliveryMode(SourceHandlesDeliveryMode sourceHandlesDeliveryMode)

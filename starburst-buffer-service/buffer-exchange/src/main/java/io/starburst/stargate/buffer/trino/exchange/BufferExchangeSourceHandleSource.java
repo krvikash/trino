@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
 import static io.airlift.slice.SizeOf.estimatedSizeOf;
@@ -37,6 +38,8 @@ public class BufferExchangeSourceHandleSource
     private List<ExchangeSourceHandle> nextBatchHandles = new ArrayList<>();
     @GuardedBy("this")
     private boolean lastBatchReceived;
+    @GuardedBy("this")
+    private long handlesCounter;
     @GuardedBy("this")
     private CompletableFuture<ExchangeSourceHandleBatch> nextBatchFuture;
     @GuardedBy("this")
@@ -82,6 +85,7 @@ public class BufferExchangeSourceHandleSource
         }
 
         nextBatchHandles.addAll(sourceHandles);
+        handlesCounter += sourceHandles.size();
     }
 
     public synchronized void markFailed(Throwable failure)
@@ -143,5 +147,19 @@ public class BufferExchangeSourceHandleSource
     public synchronized long getRetainedSizeInBytes()
     {
         return INSTANCE_SIZE + estimatedSizeOf(nextBatchHandles, ExchangeSourceHandle::getRetainedSizeInBytes);
+    }
+
+    @Override
+    // for debugging
+    public synchronized String toString()
+    {
+        return toStringHelper(this)
+                .add("nextBatchHandles", nextBatchHandles)
+                .add("lastBatchReceived", lastBatchReceived)
+                .add("handlesCounter", handlesCounter)
+                .add("nextBatchFuture", nextBatchFuture)
+                .add("failure", failure)
+                .add("closed", closed)
+                .toString();
     }
 }

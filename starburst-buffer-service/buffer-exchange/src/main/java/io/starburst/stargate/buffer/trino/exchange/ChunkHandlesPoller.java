@@ -25,6 +25,7 @@ import java.util.OptionalLong;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.util.concurrent.Futures.addCallback;
 import static io.airlift.concurrent.MoreFutures.addExceptionCallback;
 import static io.airlift.concurrent.MoreFutures.addSuccessCallback;
@@ -248,5 +249,19 @@ class ChunkHandlesPoller
         void onChunksDiscovered(List<ChunkHandle> chunks, boolean noMoreChunks);
 
         void onFailure(Throwable failure);
+    }
+
+    @Override
+    // for debugging
+    public String toString()
+    {
+        return toStringHelper(this)
+                .add("externalExchangeId", externalExchangeId)
+                .add("dataNodeId", dataNodeId)
+                .add("pagingId", pagingId)
+                .add("closed", closed)
+                .add("pinging", pinging)
+                .add("chunkDeliveryMode", chunkDeliveryMode)
+                .toString();
     }
 }
