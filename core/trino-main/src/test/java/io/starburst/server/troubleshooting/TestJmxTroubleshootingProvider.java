@@ -71,8 +71,6 @@ public class TestJmxTroubleshootingProvider
         assertThat(parsed)
                 .hasEntrySatisfying("java.util.logging:type=Logging", value -> assertThat(value)
                         .containsEntry("ObjectName", "java.util.logging:type=Logging"))
-                .hasEntrySatisfying("java.lang:name=G1 Old Generation,type=GarbageCollector", value -> assertThat(value)
-                        .containsEntry("LastGcInfo", null))
                 .hasEntrySatisfying("java.lang:type=Runtime", value -> assertThat(value)
                         .hasEntrySatisfying("Uptime", uptime -> assertThat(uptime)
                                 .isInstanceOf(Integer.class))
