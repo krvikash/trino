@@ -78,6 +78,7 @@ public class BufferExchangeSourceHandleSource
             return;
         }
 
+        handlesCounter += sourceHandles.size();
         if (nextBatchFuture != null) {
             verify(nextBatchHandles.isEmpty(), "ready handles should be empty if nextBatchFuture is set");
             completeNextBatchFuture(new ExchangeSourceHandleBatch(sourceHandles, lastBatch));
@@ -85,7 +86,6 @@ public class BufferExchangeSourceHandleSource
         }
 
         nextBatchHandles.addAll(sourceHandles);
-        handlesCounter += sourceHandles.size();
     }
 
     public synchronized void markFailed(Throwable failure)
