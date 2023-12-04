@@ -153,7 +153,7 @@ public final class ElasticsearchQueryRunner
         }
     }
 
-    private static void loadTpchTopic(RestClient client, TestingTrinoClient trinoClient, TpchTable<?> table)
+    public static void loadTpchTopic(RestClient client, TestingTrinoClient trinoClient, TpchTable<?> table)
     {
         long start = System.nanoTime();
         LOG.info("Running import for %s", table.getTableName());

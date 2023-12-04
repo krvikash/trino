@@ -83,8 +83,8 @@ public abstract class BaseElasticsearchConnectorTest
                "elasticsearch.tls.verify-hostnames" = 'false'
             )""";
 
-    private ElasticsearchServer server;
-    private RestClient client;
+    protected ElasticsearchServer server;
+    protected RestClient client;
     protected final String jmxBaseName = randomNameSuffix();
 
     BaseElasticsearchConnectorTest(ElasticsearchServer server)
