@@ -25,7 +25,6 @@ import javax.management.ReflectionException;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.StringWriter;
 import java.io.UncheckedIOException;
 import java.lang.management.ManagementFactory;
 import java.util.Arrays;
@@ -53,19 +52,14 @@ public class JmxTroubleshootingProvider
     public Map<String, InputStream> getInputStreams(TroubleshootingContext context)
     {
         JmxTroubleshootingContext ctx = context.getOrThrow(JmxTroubleshootingContext.class);
-        StringWriter before = new StringWriter();
-        StringWriter after = new StringWriter();
         try {
-            objectMapper.writeValue(before, ctx.getBefore());
-            objectMapper.writeValue(after, ctx.getAfter());
+            return ImmutableMap.of(
+                    "jmx-before.json", toInputStream(objectMapper.writeValueAsString(ctx.getBefore())),
+                    "jmx-after.json", toInputStream(objectMapper.writeValueAsString(ctx.getAfter())));
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-        before.flush();
-        after.flush();
-        return ImmutableMap.of("jmx-before.json", toInputStream(before.toString()),
-                               "jmx-after.json", toInputStream(after.toString()));
     }
 
     @Override
