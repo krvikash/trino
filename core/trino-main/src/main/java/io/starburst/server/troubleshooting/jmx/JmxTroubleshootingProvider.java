@@ -54,8 +54,8 @@ public class JmxTroubleshootingProvider
         JmxTroubleshootingContext ctx = context.getOrThrow(JmxTroubleshootingContext.class);
         try {
             return ImmutableMap.of(
-                    "jmx-before.json", toInputStream(objectMapper.writeValueAsString(ctx.getBefore())),
-                    "jmx-after.json", toInputStream(objectMapper.writeValueAsString(ctx.getAfter())));
+                    "jmx/metrics-before.json", toInputStream(objectMapper.writeValueAsString(ctx.getBefore())),
+                    "jmx/metrics-after.json", toInputStream(objectMapper.writeValueAsString(ctx.getAfter())));
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);

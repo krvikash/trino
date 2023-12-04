@@ -147,8 +147,8 @@ public abstract class AbstractQueryTroubleshootingTest
                 .hasEntrySatisfying("recordings/coordinator.jfr", value -> assertThat(value).isNotEmpty());
 
         ObjectMapper mapper = new ObjectMapper();
-        mapper.readValue(inputsMap.get("jmx-before.json"), new TypeReference<>() {});
-        mapper.readValue(inputsMap.get("jmx-after.json"), new TypeReference<>() {});
+        mapper.readValue(inputsMap.get("jmx/metrics-before.json"), new TypeReference<>() {});
+        mapper.readValue(inputsMap.get("jmx/metrics-after.json"), new TypeReference<>() {});
 
         for (String workerId : getNodesProcessingQuery(data.getQueryId())) {
             assertThat(inputsMap).hasEntrySatisfying(

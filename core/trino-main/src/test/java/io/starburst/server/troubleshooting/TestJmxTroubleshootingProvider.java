@@ -58,9 +58,8 @@ public class TestJmxTroubleshootingProvider
         jmxTroubleshootingProvider.onContextStarted(ctx);
         jmxTroubleshootingProvider.onContextFinished(ctx);
         Map<String, InputStream> map = jmxTroubleshootingProvider.getInputStreams(ctx);
-
-        assertInputStream(map.get("jmx-before.json"));
-        assertInputStream(map.get("jmx-after.json"));
+        assertInputStream(map.get("jmx/metrics-before.json"));
+        assertInputStream(map.get("jmx/metrics-after.json"));
     }
 
     private void assertInputStream(InputStream is)
