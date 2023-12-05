@@ -128,7 +128,7 @@ import io.trino.split.AlternativeChooser;
 import io.trino.split.PageSinkManager;
 import io.trino.split.PageSinkProvider;
 import io.trino.split.PageSourceManager;
-import io.trino.split.PageSourceProvider;
+import io.trino.split.PageSourceProviderFactory;
 import io.trino.split.SplitManager;
 import io.trino.sql.PlannerContext;
 import io.trino.sql.SqlEnvironmentConfig;
@@ -382,7 +382,7 @@ public class ServerMainModule
 
         // data stream provider
         binder.bind(PageSourceManager.class).in(Scopes.SINGLETON);
-        binder.bind(PageSourceProvider.class).to(PageSourceManager.class).in(Scopes.SINGLETON);
+        binder.bind(PageSourceProviderFactory.class).to(PageSourceManager.class).in(Scopes.SINGLETON);
         binder.bind(AlternativeChooser.class).in(Scopes.SINGLETON);
         binder.bind(DynamicRowFilteringPageSourceProvider.class).in(Scopes.SINGLETON);
         binder.bind(DynamicPageFilterCache.class).in(Scopes.SINGLETON);

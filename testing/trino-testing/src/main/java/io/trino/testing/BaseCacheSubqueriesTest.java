@@ -777,7 +777,7 @@ public abstract class BaseCacheSubqueriesTest
     {
         ConnectorPageSourceProvider pageSourceProvider = null;
         try {
-            pageSourceProvider = workerConnector.getPageSourceProvider();
+            pageSourceProvider = workerConnector.getPageSourceProviderFactory().createPageSourceProvider();
         }
         catch (UnsupportedOperationException ignored) {
         }

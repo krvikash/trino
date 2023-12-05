@@ -44,6 +44,7 @@ import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Ranges;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.split.PageSourceProvider;
+import io.trino.split.PageSourceProviderFactory;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -91,7 +92,7 @@ public class CacheDriverFactory
 
     public CacheDriverFactory(
             Session session,
-            PageSourceProvider pageSourceProvider,
+            PageSourceProviderFactory pageSourceProvider,
             CacheManagerRegistry cacheManagerRegistry,
             JsonCodec<TupleDomain> tupleDomainCodec,
             DynamicRowFilteringPageSourceProvider dynamicRowFilteringPageSourceProvider,
@@ -105,7 +106,6 @@ public class CacheDriverFactory
     {
         requireNonNull(planSignature, "planSignature is null");
         this.session = requireNonNull(session, "session is null");
-        this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
         this.splitCache = requireNonNull(cacheManagerRegistry, "cacheManagerRegistry is null").getCacheManager().getSplitCache(planSignature.signature());
         this.tupleDomainCodec = requireNonNull(tupleDomainCodec, "tupleDomainCodec is null");
         this.dynamicRowFilteringPageSourceProvider = requireNonNull(dynamicRowFilteringPageSourceProvider, "dynamicRowFilteringPageSourceProvider is null");
@@ -119,6 +119,7 @@ public class CacheDriverFactory
         this.originalDynamicFilterSupplier = requireNonNull(originalDynamicFilterSupplier, "originalDynamicFilterSupplier is null");
         this.alternatives = requireNonNull(alternatives, "alternatives is null");
         this.cacheStats = requireNonNull(cacheStats, "cacheStats is null");
+        this.pageSourceProvider = pageSourceProvider.createPageSourceProvider(originalTableHandle.catalogHandle());
     }
 
     public Driver createDriver(DriverContext driverContext, ScheduledSplit split, Optional<CacheSplitId> cacheSplitIdOptional)

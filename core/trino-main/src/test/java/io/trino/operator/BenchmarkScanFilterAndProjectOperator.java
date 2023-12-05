@@ -186,7 +186,7 @@ public class BenchmarkScanFilterAndProjectOperator
                     0,
                     new PlanNodeId("test"),
                     new PlanNodeId("test_source"),
-                    (session, split, table, columns, dynamicFilter) -> new FixedPageSource(inputPages),
+                    (catalog) -> (session, split, table, columns, dynamicFilter) -> new FixedPageSource(inputPages),
                     new DynamicRowFilteringPageSourceProvider(new DynamicPageFilterCache(new TypeOperators())),
                     () -> cursorProcessor,
                     () -> pageProcessor,

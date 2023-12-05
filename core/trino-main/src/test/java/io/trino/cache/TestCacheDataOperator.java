@@ -42,6 +42,7 @@ import io.trino.spi.cache.CacheManager;
 import io.trino.spi.cache.CacheSplitId;
 import io.trino.spi.cache.PlanSignature;
 import io.trino.spi.cache.SignatureKey;
+import io.trino.spi.connector.CatalogHandle;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.DynamicFilter;
@@ -51,6 +52,7 @@ import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.TestingTypeManager;
 import io.trino.spi.type.TypeManager;
 import io.trino.split.PageSourceProvider;
+import io.trino.split.PageSourceProviderFactory;
 import io.trino.sql.planner.PlanNodeIdAllocator;
 import io.trino.sql.planner.plan.PlanNodeId;
 import org.junit.jupiter.api.BeforeEach;
@@ -186,7 +188,7 @@ public class TestCacheDataOperator
 
         CacheDriverFactory cacheDriverFactory = new CacheDriverFactory(
                 TEST_SESSION,
-                new TestPageSourceProvider(),
+                new TestPageSourceProviderFactory(),
                 registry,
                 tupleDomainCodec,
                 new DynamicRowFilteringPageSourceProvider(new DynamicPageFilterCache(PLANNER_CONTEXT.getTypeOperators())),
@@ -262,6 +264,16 @@ public class TestCacheDataOperator
     private Function<Integer, OperatorFactory> preparePassThroughOperator(Supplier<Page> pageSupplier)
     {
         return (operatorId) -> new PassThroughOperator.PassThroughOperatorFactory(operatorId, planNodeIdAllocator.getNextId(), pageSupplier);
+    }
+
+    private static class TestPageSourceProviderFactory
+            implements PageSourceProviderFactory
+    {
+        @Override
+        public PageSourceProvider createPageSourceProvider(CatalogHandle catalogHandle)
+        {
+            return new TestPageSourceProvider();
+        }
     }
 
     private static class TestPageSourceProvider

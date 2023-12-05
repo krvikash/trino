@@ -32,7 +32,7 @@ import io.trino.spi.connector.ConnectorCapabilities;
 import io.trino.spi.connector.ConnectorIndexProvider;
 import io.trino.spi.connector.ConnectorNodePartitioningProvider;
 import io.trino.spi.connector.ConnectorPageSinkProvider;
-import io.trino.spi.connector.ConnectorPageSourceProvider;
+import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorRecordSetProvider;
 import io.trino.spi.connector.ConnectorSecurityContext;
 import io.trino.spi.connector.ConnectorSplitManager;
@@ -82,7 +82,7 @@ public class ConnectorServices
     private final CatalogTableFunctions tableFunctions;
     private final Optional<ConnectorSplitManager> splitManager;
     private final Optional<ConnectorCacheMetadata> cacheMetadata;
-    private final Optional<ConnectorPageSourceProvider> pageSourceProvider;
+    private final Optional<ConnectorPageSourceProviderFactory> pageSourceProviderFactory;
     private final Optional<ConnectorAlternativeChooser> alternativeChooser;
     private final Optional<ConnectorPageSinkProvider> pageSinkProvider;
     private final Optional<ConnectorIndexProvider> indexProvider;
@@ -142,10 +142,10 @@ public class ConnectorServices
         }
         this.cacheMetadata = Optional.ofNullable(cacheMetadata);
 
-        ConnectorPageSourceProvider connectorPageSourceProvider = null;
+        ConnectorPageSourceProviderFactory connectorPageSourceProviderFactory = null;
         try {
-            connectorPageSourceProvider = connector.getPageSourceProvider();
-            requireNonNull(connectorPageSourceProvider, format("Connector '%s' returned a null page source provider", catalogHandle));
+            connectorPageSourceProviderFactory = connector.getPageSourceProviderFactory();
+            requireNonNull(connectorPageSourceProviderFactory, format("Connector '%s' returned a null page source provider factory", catalogHandle));
         }
         catch (UnsupportedOperationException _) {
         }
@@ -153,8 +153,9 @@ public class ConnectorServices
         try {
             ConnectorRecordSetProvider connectorRecordSetProvider = connector.getRecordSetProvider();
             requireNonNull(connectorRecordSetProvider, format("Connector '%s' returned a null record set provider", catalogHandle));
-            verify(connectorPageSourceProvider == null, "Connector '%s' returned both page source and record set providers", catalogHandle);
-            connectorPageSourceProvider = new RecordPageSourceProvider(connectorRecordSetProvider);
+            verify(connectorPageSourceProviderFactory == null, "Connector '%s' returned both page source and record set providers", catalogHandle);
+            var pageSourceProvider = new RecordPageSourceProvider(connectorRecordSetProvider);
+            connectorPageSourceProviderFactory = () -> pageSourceProvider;
         }
         catch (UnsupportedOperationException _) {
         }
@@ -163,13 +164,14 @@ public class ConnectorServices
         try {
             connectorAlternativeChooser = connector.getAlternativeChooser();
             requireNonNull(connectorAlternativeChooser, format("Connector '%s' returned a null alternative chooser", catalogHandle));
-            verify(connectorPageSourceProvider == null, "Connector '%s' returned both page source or record set provider and alternative chooser", catalogHandle);
-            connectorPageSourceProvider = new AlternativeChooserPageSourceProvider(connectorAlternativeChooser);
+            verify(connectorPageSourceProviderFactory == null, "Connector '%s' returned both page source or record set provider and alternative chooser", catalogHandle);
+            var pageSourceProvider = new AlternativeChooserPageSourceProvider(connectorAlternativeChooser);
+            connectorPageSourceProviderFactory = () -> pageSourceProvider;
         }
         catch (UnsupportedOperationException ignored) {
         }
         this.alternativeChooser = Optional.ofNullable(connectorAlternativeChooser);
-        this.pageSourceProvider = Optional.ofNullable(connectorPageSourceProvider);
+        this.pageSourceProviderFactory = Optional.ofNullable(connectorPageSourceProviderFactory);
 
         ConnectorPageSinkProvider connectorPageSinkProvider = null;
         try {
@@ -295,9 +297,9 @@ public class ConnectorServices
         return cacheMetadata;
     }
 
-    public Optional<ConnectorPageSourceProvider> getPageSourceProvider()
+    public Optional<ConnectorPageSourceProviderFactory> getPageSourceProviderFactory()
     {
-        return pageSourceProvider;
+        return pageSourceProviderFactory;
     }
 
     public Optional<ConnectorAlternativeChooser> getAlternativeChooser()

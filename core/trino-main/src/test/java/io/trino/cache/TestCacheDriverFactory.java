@@ -44,6 +44,7 @@ import io.trino.spi.cache.CacheManagerFactory;
 import io.trino.spi.cache.CacheSplitId;
 import io.trino.spi.cache.PlanSignature;
 import io.trino.spi.cache.SignatureKey;
+import io.trino.spi.connector.CatalogHandle;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSink;
 import io.trino.spi.connector.ConnectorPageSource;
@@ -56,6 +57,7 @@ import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.TestingTypeManager;
 import io.trino.spi.type.TypeManager;
 import io.trino.split.PageSourceProvider;
+import io.trino.split.PageSourceProviderFactory;
 import io.trino.sql.planner.PlanNodeIdAllocator;
 import io.trino.sql.planner.plan.PlanNodeId;
 import io.trino.testing.TestingTaskContext;
@@ -149,12 +151,12 @@ public class TestCacheDriverFactory
         AtomicInteger operatorIdAllocator = new AtomicInteger();
 
         // expect driver for original plan because cacheSplit is empty
-        CacheDriverFactory cacheDriverFactory = createCacheDriverFactory(new TestPageSourceProvider(), signature, operatorIdAllocator);
+        CacheDriverFactory cacheDriverFactory = createCacheDriverFactory(new TestPageSourceProviderFactory(), signature, operatorIdAllocator);
         Driver driver = cacheDriverFactory.createDriver(createDriverContext(), SPLIT, Optional.empty());
         assertThat(driver.getDriverContext().getCacheDriverContext()).isEmpty();
 
         // expect driver for original plan because split got scheduled on non-preferred node
-        cacheDriverFactory = createCacheDriverFactory(new TestPageSourceProvider(), signature, operatorIdAllocator);
+        cacheDriverFactory = createCacheDriverFactory(new TestPageSourceProviderFactory(), signature, operatorIdAllocator);
         driver = cacheDriverFactory.createDriver(
                 createDriverContext(),
                 new ScheduledSplit(0, planNodeIdAllocator.getNextId(), new Split(TEST_CATALOG_HANDLE, createRemoteSplit()).withFailoverHappened(true)),
@@ -162,12 +164,12 @@ public class TestCacheDriverFactory
         assertThat(driver.getDriverContext().getCacheDriverContext()).isEmpty();
 
         // expect driver for original plan because dynamic filter filters data completely
-        cacheDriverFactory = createCacheDriverFactory(new TestPageSourceProvider(input -> TupleDomain.none(), identity()), signature, operatorIdAllocator);
+        cacheDriverFactory = createCacheDriverFactory(new TestPageSourceProviderFactory(input -> TupleDomain.none(), identity()), signature, operatorIdAllocator);
         driver = cacheDriverFactory.createDriver(createDriverContext(), SPLIT, Optional.of(SPLIT_ID));
         assertThat(driver.getDriverContext().getCacheDriverContext()).isEmpty();
 
         // expect driver for original plan because enforced predicate is pruned to empty tuple domain
-        cacheDriverFactory = createCacheDriverFactory(new TestPageSourceProvider(identity(), input -> TupleDomain.none()), signature, operatorIdAllocator);
+        cacheDriverFactory = createCacheDriverFactory(new TestPageSourceProviderFactory(identity(), input -> TupleDomain.none()), signature, operatorIdAllocator);
         driver = cacheDriverFactory.createDriver(createDriverContext(), SPLIT, Optional.of(SPLIT_ID));
         assertThat(driver.getDriverContext().getCacheDriverContext()).isEmpty();
 
@@ -176,7 +178,7 @@ public class TestCacheDriverFactory
                 .boxed()
                 .collect(toImmutableList()));
         cacheDriverFactory = createCacheDriverFactory(
-                new TestPageSourceProvider(input -> TupleDomain.withColumnDomains(ImmutableMap.of(new TestingColumnHandle("column"), bigDomain)), identity()),
+                new TestPageSourceProviderFactory(input -> TupleDomain.withColumnDomains(ImmutableMap.of(new TestingColumnHandle("column"), bigDomain)), identity()),
                 signature,
                 operatorIdAllocator);
         driver = cacheDriverFactory.createDriver(createDriverContext(), SPLIT, Optional.of(SPLIT_ID));
@@ -199,7 +201,7 @@ public class TestCacheDriverFactory
         // use original dynamic filter
         CacheDriverFactory cacheDriverFactory = new CacheDriverFactory(
                 TEST_SESSION,
-                new TestPageSourceProvider(),
+                new TestPageSourceProviderFactory(),
                 registry,
                 tupleDomainCodec,
                 new DynamicRowFilteringPageSourceProvider(new DynamicPageFilterCache(PLANNER_CONTEXT.getTypeOperators())),
@@ -228,7 +230,7 @@ public class TestCacheDriverFactory
         // use common dynamic filter
         cacheDriverFactory = new CacheDriverFactory(
                 TEST_SESSION,
-                new TestPageSourceProvider(),
+                new TestPageSourceProviderFactory(),
                 registry,
                 tupleDomainCodec,
                 new DynamicRowFilteringPageSourceProvider(new DynamicPageFilterCache(PLANNER_CONTEXT.getTypeOperators())),
@@ -279,7 +281,7 @@ public class TestCacheDriverFactory
         Map<ColumnHandle, CacheColumnId> columnHandles = ImmutableMap.of(columnHandle1, cacheColumnId1, columnHandle3, cacheColumnId3, columnHandle2, cacheColumnId2);
         CacheDriverFactory cacheDriverFactory = new CacheDriverFactory(
                 TEST_SESSION,
-                new TestPageSourceProvider(
+                new TestPageSourceProviderFactory(
                         (input) -> TupleDomain.withColumnDomains(ImmutableMap.of(
                                 columnHandle1, Domain.multipleValues(BIGINT, LongStream.range(0L, 5001L).boxed().toList()),
                                 columnHandle2, Domain.singleValue(BIGINT, 150L))),
@@ -363,7 +365,7 @@ public class TestCacheDriverFactory
         Map<ColumnHandle, CacheColumnId> columnHandles = ImmutableMap.of(columnHandle, columnId);
         CacheDriverFactory cacheDriverFactory = new CacheDriverFactory(
                 TEST_SESSION,
-                new TestPageSourceProvider(),
+                new TestPageSourceProviderFactory(),
                 registry,
                 tupleDomainCodec,
                 new DynamicRowFilteringPageSourceProvider(new DynamicPageFilterCache(PLANNER_CONTEXT.getTypeOperators())),
@@ -413,7 +415,7 @@ public class TestCacheDriverFactory
                         nonProjectedScanColumnHandle, Domain.singleValue(BIGINT, 220L))),
                 true)));
 
-        PageSourceProvider pageSourceProvider = new TestPageSourceProvider(
+        PageSourceProviderFactory pageSourceProvider = new TestPageSourceProviderFactory(
                 // unenforcedPredicateSupplier
                 input -> TupleDomain.withColumnDomains(ImmutableMap.of(
                         projectedScanColumnHandle, Domain.singleValue(BIGINT, 300L),
@@ -453,6 +455,32 @@ public class TestCacheDriverFactory
         assertThat(driver.getDriverContext().getCacheDriverContext()).isPresent();
     }
 
+    private static class TestPageSourceProviderFactory
+            implements PageSourceProviderFactory
+    {
+        private final Function<TupleDomain<ColumnHandle>, TupleDomain<ColumnHandle>> unenforcedPredicateSupplier;
+        private final Function<TupleDomain<ColumnHandle>, TupleDomain<ColumnHandle>> prunePredicateSupplier;
+
+        public TestPageSourceProviderFactory()
+        {
+            // mimic connector returning compact effective predicate on extra column
+            this(identity(), identity());
+        }
+
+        public <T> TestPageSourceProviderFactory(Function<TupleDomain<ColumnHandle>, TupleDomain<ColumnHandle>> unenforcedPredicateSupplier,
+                Function<TupleDomain<ColumnHandle>, TupleDomain<ColumnHandle>> prunePredicateSupplier)
+        {
+            this.unenforcedPredicateSupplier = unenforcedPredicateSupplier;
+            this.prunePredicateSupplier = prunePredicateSupplier;
+        }
+
+        @Override
+        public PageSourceProvider createPageSourceProvider(CatalogHandle catalogHandle)
+        {
+            return new TestPageSourceProvider(unenforcedPredicateSupplier, prunePredicateSupplier);
+        }
+    }
+
     private static class TestPageSourceProvider
             implements PageSourceProvider
     {
@@ -465,12 +493,6 @@ public class TestCacheDriverFactory
         {
             this.unenforcedPredicateSupplier = unenforcedPredicateSupplier;
             this.prunePredicateSupplier = prunePredicateSupplier;
-        }
-
-        public TestPageSourceProvider()
-        {
-            // mimic connector returning compact effective predicate on extra column
-            this(identity(), identity());
         }
 
         @Override
@@ -505,7 +527,7 @@ public class TestCacheDriverFactory
         }
     }
 
-    private CacheDriverFactory createCacheDriverFactory(TestPageSourceProvider pageSourceProvider, PlanSignatureWithPredicate signature, AtomicInteger operatorIdAllocator)
+    private CacheDriverFactory createCacheDriverFactory(TestPageSourceProviderFactory pageSourceProvider, PlanSignatureWithPredicate signature, AtomicInteger operatorIdAllocator)
     {
         DriverFactory driverFactory = createDriverFactory(operatorIdAllocator);
         return new CacheDriverFactory(
