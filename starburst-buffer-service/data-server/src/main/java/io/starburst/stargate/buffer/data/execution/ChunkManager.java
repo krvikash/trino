@@ -119,7 +119,7 @@ public class ChunkManager
     private final ScheduledExecutorService exchangeTimeoutExecutor = newSingleThreadScheduledExecutor();
     private final ScheduledExecutorService eagerDeliveryModeExecutor = newSingleThreadScheduledExecutor();
     private final Cache<String, Object> recentlyRemovedExchanges = CacheBuilder.newBuilder().expireAfterWrite(5, MINUTES).build();
-    private final Cache<Long, Map<Long, SpooledChunk>> drainedSpooledChunkMap = CacheBuilder.newBuilder().expireAfterWrite(4, HOURS).build();
+    private final Cache<Long, Map<Long, SpooledChunk>> drainedSpooledChunkMap = CacheBuilder.newBuilder().expireAfterWrite(1, HOURS).build();
 
     private volatile boolean startedDraining;
 
