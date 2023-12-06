@@ -157,10 +157,10 @@ public class S3SpoolingStorage
         return Futures.transform(
                 toListenableFuture(s3AsyncClient.putObject(putObjectRequest,
                         MergedChunkDataAsyncRequestBody.fromChunks(
-                        getLocation(fileName),
-                        chunkDataLeaseMap,
-                        contentLength,
-                        spooledChunkMap))),
+                                getLocation(fileName),
+                                chunkDataLeaseMap,
+                                contentLength,
+                                spooledChunkMap))),
                 ignored -> spooledChunkMap.build(),
                 directExecutor());
     }
