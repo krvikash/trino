@@ -241,7 +241,9 @@ public class ChunkManager
 
             if (spooledChunkMap == null) {
                 try {
-                    spooledChunkMap = decodeMetadataSlice(getFutureValue(spoolingStorage.readMetadataFile(bufferNodeId)));
+                    Slice slice = getFutureValue(spoolingStorage.readMetadataFile(bufferNodeId));
+                    LOG.info("reading spooled chunk map for buffer node " + bufferNodeId + "; serialized size=" + slice.length());
+                    spooledChunkMap = decodeMetadataSlice(slice);
                 }
                 catch (Throwable t) {
                     throw new DataServerException(INTERNAL_ERROR, "Error decoding metadata from file " + getMetadataFileName(bufferNodeId));
