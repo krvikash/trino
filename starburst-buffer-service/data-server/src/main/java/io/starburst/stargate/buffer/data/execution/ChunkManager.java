@@ -246,7 +246,7 @@ public class ChunkManager
                     spooledChunkMap = decodeMetadataSlice(slice);
                 }
                 catch (Throwable t) {
-                    throw new DataServerException(INTERNAL_ERROR, "Error decoding metadata from file " + getMetadataFileName(bufferNodeId));
+                    throw new DataServerException(INTERNAL_ERROR, "Error decoding metadata from file " + getMetadataFileName(bufferNodeId), t);
                 }
                 drainedSpooledChunkMap.put(bufferNodeId, spooledChunkMap);
             }
