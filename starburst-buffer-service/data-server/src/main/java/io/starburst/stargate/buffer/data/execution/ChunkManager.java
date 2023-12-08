@@ -625,6 +625,11 @@ public class ChunkManager
                     }
                     Map<Chunk, ChunkDataLease> chunkDataLeaseMap = chunkDataLeasesMapBuilder.build();
 
+                    if (chunkDataLeaseMap.isEmpty()) {
+                        // all chunks released in the meantime
+                        return Futures.immediateVoidFuture();
+                    }
+
                     ListenableFuture<Map<Long, SpooledChunk>> spoolingFuture = spoolingStorage.writeMergedChunks(
                             bufferNodeId,
                             exchangeId,
