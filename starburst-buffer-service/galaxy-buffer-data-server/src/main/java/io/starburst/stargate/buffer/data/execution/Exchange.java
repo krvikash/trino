@@ -9,6 +9,7 @@
  */
 package io.starburst.stargate.buffer.data.execution;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FluentFuture;
 import com.google.common.util.concurrent.FutureCallback;
@@ -20,6 +21,11 @@ import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.units.Duration;
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Context;
 import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.ChunkList;
@@ -55,6 +61,7 @@ import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.addExceptionCallback;
 import static io.airlift.concurrent.MoreFutures.asVoid;
+import static io.opentelemetry.api.common.AttributeKey.stringKey;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.EXCHANGE_CORRUPTED;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.EXCHANGE_FINISHED;
@@ -70,6 +77,7 @@ public class Exchange
     private final long bufferNodeId;
     private final String exchangeId;
     private final ExchangeStateMachine exchangeStateMachine;
+    private final AtomicReference<Optional<Span>> bufferServerExchangeSpan = new AtomicReference<>(Optional.empty());
     private final MemoryAllocator memoryAllocator;
     private final SpoolingStorage spoolingStorage;
     private final SpooledChunksByExchange spooledChunksByExchange;
@@ -86,6 +94,9 @@ public class Exchange
     // partitionId -> partition
     private final Map<Integer, Partition> partitions = new ConcurrentHashMap<>();
     private final ScheduledExecutorService longPollTimeoutExecutor;
+    private final Tracer tracer;
+    // FAILURE_MESSAGE is also specified in trino-main.TrinoAttirbutes, but we want to avoid this dependency
+    private static final AttributeKey<String> FAILURE_MESSAGE = stringKey("failure");
 
     // temporary queue for newly closed chunks to allow de-synchronization of code which closes chunks
     // and code which handles polling for newly closed chunks to return those to the user
@@ -131,6 +142,7 @@ public class Exchange
             ChunkDeliveryMode chunkDeliveryMode,
             ExecutorService executor,
             ScheduledExecutorService longPollTimeoutExecutor,
+            Tracer tracer,
             long currentTime)
     {
         this.bufferNodeId = bufferNodeId;
@@ -153,6 +165,7 @@ public class Exchange
         this.longPollTimeoutExecutor = requireNonNull(longPollTimeoutExecutor, "longPollTimeoutExecutor is null");
         this.pendingChunkList = new ArrayList<>(chunkListTargetSize);
         this.chunkDeliveryMode = requireNonNull(chunkDeliveryMode, "chunkDeliveryMode is null");
+        this.tracer = requireNonNull(tracer, "tracer is null");
         this.lastUpdateTime = currentTime;
 
         // The directExecutor can be used because StateChangeListeners will only perform complex tasks.
@@ -193,6 +206,7 @@ public class Exchange
             if (failure.compareAndSet(null, throwable)) {
                 exchangeStateMachine.transitionToFailed();
                 this.releaseChunks();
+                bufferServerExchangeSpan.get().ifPresent(span -> span.addEvent("buffer_failure", Attributes.of(FAILURE_MESSAGE, throwable.getMessage())));
             }
         }, executor);
         return addDataPagesResult;
@@ -377,6 +391,7 @@ public class Exchange
         return finishFuture != null;
     }
 
+    @VisibleForTesting
     public synchronized boolean isFinished()
     {
         return finishFuture != null && finishFuture.isDone();
@@ -481,9 +496,33 @@ public class Exchange
         }
     }
 
+    void startExchangeSpan(Optional<Span> parentSpan, String exchangeId)
+    {
+        parentSpan.ifPresentOrElse(
+                span -> {
+                    synchronized (this) {
+                        if (bufferServerExchangeSpan.get().isEmpty()) {
+                            Span exchangeSpan = tracer.spanBuilder("server-exchange")
+                                    .setAttribute("BufferServerNode", bufferNodeId)
+                                    .setAttribute("ExchangeId", exchangeId)
+                                    .setAttribute("exchange_state", exchangeStateMachine.getState().toString())
+                                    .setParent(Context.current().with(span))
+                                    .startSpan();
+                            bufferServerExchangeSpan.set(Optional.of(exchangeSpan));
+                            // This will generate span events for all state changes except a terminal state
+                            // There is an immediate callback with the current event state
+                            exchangeStateMachine.attachSpan(exchangeSpan);
+                        }
+                    }
+                },
+                () -> bufferServerExchangeSpan.compareAndSet(Optional.empty(), Optional.of(Span.getInvalid())));
+    }
+
     private void removeExchange()
     {
-        exchangeStateMachine.transitionToRemoved();
+        if (exchangeStateMachine.transitionToRemoved()) {
+            bufferServerExchangeSpan.getAndSet(Optional.of(Span.getInvalid())).ifPresent(Span::end);
+        }
     }
 
     public void markSpooled()

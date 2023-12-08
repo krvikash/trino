@@ -21,10 +21,15 @@ import io.airlift.slice.BasicSliceInput;
 import io.airlift.slice.Slice;
 import io.airlift.slice.SliceOutput;
 import io.airlift.slice.Slices;
+import io.airlift.tracing.Tracing;
 import io.airlift.units.DataSize;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.trace.Span;
 import io.starburst.stargate.buffer.testing.TestingBufferService;
 import io.starburst.stargate.buffer.trino.exchange.BufferExchangeManagerFactory;
 import io.starburst.stargate.buffer.trino.exchange.BufferExchangeSourceHandle;
+import io.trino.exchange.ExchangeContextInstance;
+import io.trino.exchange.ExchangeManagerContextInstance;
 import io.trino.spi.QueryId;
 import io.trino.spi.exchange.Exchange;
 import io.trino.spi.exchange.ExchangeContext;
@@ -94,11 +99,13 @@ public class SourceBenchmarkDriver
                     .put("exchange.source-blocked-memory-high", setup.sourceBlockedHigh().toString())
                     .put("exchange.source-parallelism", String.valueOf(setup.parallelism()))
                     .buildOrThrow();
-            ExchangeManager exchangeManager = BufferExchangeManagerFactory.forRealBufferService().create(config);
+            ExchangeManager exchangeManager = BufferExchangeManagerFactory.forRealBufferService().create(
+                    config,
+                    new ExchangeManagerContextInstance(OpenTelemetry.noop(), Tracing.noopTracer()));
             closer.register(exchangeManager::shutdown);
 
             ExchangeId exchangeId = new ExchangeId("dummy");
-            ExchangeContext exchangeContext = new ExchangeContext(new QueryId("dummy"), exchangeId);
+            ExchangeContext exchangeContext = new ExchangeContextInstance(new QueryId("dummy"), exchangeId, Span.getInvalid());
             Exchange exchange = exchangeManager.createExchange(exchangeContext, 1, false);
             closer.register(exchange);
             ExchangeSinkHandle sinkHandle = exchange.addSink(0);

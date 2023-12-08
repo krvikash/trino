@@ -12,9 +12,13 @@ package io.starburst.stargate.buffer.trino.exchange;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Injector;
 import io.airlift.bootstrap.Bootstrap;
+import io.airlift.json.JsonModule;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.trace.Tracer;
 import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.plugin.base.jmx.PrefixObjectNameGeneratorModule;
 import io.trino.spi.exchange.ExchangeManager;
+import io.trino.spi.exchange.ExchangeManagerContext;
 import io.trino.spi.exchange.ExchangeManagerFactory;
 import org.weakref.jmx.guice.MBeanModule;
 
@@ -51,7 +55,7 @@ public class BufferExchangeManagerFactory
     }
 
     @Override
-    public ExchangeManager create(Map<String, String> config)
+    public ExchangeManager create(Map<String, String> config, ExchangeManagerContext exchangeManagerContext)
     {
         requireNonNull(config, "config is null");
 
@@ -59,7 +63,12 @@ public class BufferExchangeManagerFactory
                 new MBeanModule(),
                 new MBeanServerModule(),
                 new PrefixObjectNameGeneratorModule("io.starburst.stargate.buffer.trino.exchange", "io.starburst.buffer.exchange"),
-                new BufferExchangeModule(apiFactory));
+                new JsonModule(),
+                new BufferExchangeModule(apiFactory),
+                binder -> {
+                    binder.bind(OpenTelemetry.class).toInstance(exchangeManagerContext.getOpenTelemetry());
+                    binder.bind(Tracer.class).toInstance(exchangeManagerContext.getTracer());
+                });
 
         Injector injector = app
                 .doNotInitializeLogging()

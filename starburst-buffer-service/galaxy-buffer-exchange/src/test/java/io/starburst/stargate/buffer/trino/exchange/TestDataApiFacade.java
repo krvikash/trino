@@ -17,6 +17,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import dev.failsafe.CircuitBreakerOpenException;
 import io.airlift.slice.Slice;
 import io.airlift.units.Duration;
+import io.opentelemetry.api.trace.Span;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeState;
 import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
@@ -280,7 +281,7 @@ public class TestDataApiFacade
         assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.finishExchange(TestingDataApi.NODE_ID, EXCHANGE_0));
         assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.removeExchange(TestingDataApi.NODE_ID, EXCHANGE_0));
         assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.getChunkData(TestingDataApi.NODE_ID, EXCHANGE_0, 1, 1L, 1L));
-        assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.registerExchange(TestingDataApi.NODE_ID, EXCHANGE_0, STANDARD));
+        assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.registerExchange(TestingDataApi.NODE_ID, EXCHANGE_0, STANDARD, Span.getInvalid()));
         assertShortCircuitResponseIfNodeDrained(() -> dataApiFacade.addDataPages(TestingDataApi.NODE_ID, EXCHANGE_0, 1, 1, 1L, ImmutableListMultimap.of()));
     }
 
@@ -583,7 +584,7 @@ public class TestDataApiFacade
         }
 
         @Override
-        public ListenableFuture<Void> registerExchange(String exchangeId, ChunkDeliveryMode chunkDeliveryMode)
+        public ListenableFuture<Void> registerExchange(String exchangeId, ChunkDeliveryMode chunkDeliveryMode, Span exchangeSpan)
         {
             throw new RuntimeException("not implemented");
         }

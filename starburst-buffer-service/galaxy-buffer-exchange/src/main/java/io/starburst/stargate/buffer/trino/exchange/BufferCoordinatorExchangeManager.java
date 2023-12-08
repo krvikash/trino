@@ -11,6 +11,7 @@ package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.inject.Inject;
 import io.airlift.units.DataSize;
+import io.opentelemetry.api.trace.Tracer;
 import io.trino.spi.exchange.Exchange;
 import io.trino.spi.exchange.ExchangeContext;
 
@@ -25,13 +26,15 @@ public class BufferCoordinatorExchangeManager
     private final ScheduledExecutorService scheduledExecutor;
     private final int sourceHandleTargetChunksCount;
     private final DataSize sourceHandleTargetDataSize;
+    private final Tracer tracer;
 
     @Inject
     public BufferCoordinatorExchangeManager(
             DataApiFacade dataApi,
             PartitionNodeMapperFactory partitionNodeMapperFactory,
             ScheduledExecutorService scheduledExecutor,
-            BufferExchangeConfig config)
+            BufferExchangeConfig config,
+            Tracer tracer)
     {
         this.dataApi = requireNonNull(dataApi, "dataApi is null");
         this.partitionNodeMapperFactory = requireNonNull(partitionNodeMapperFactory, "partitionNodeMapperFactory is null");
@@ -39,16 +42,19 @@ public class BufferCoordinatorExchangeManager
         requireNonNull(config, "config is null");
         this.sourceHandleTargetChunksCount = config.getSourceHandleTargetChunksCount();
         this.sourceHandleTargetDataSize = requireNonNull(config.getSourceHandleTargetDataSize(), "sourceHandleTargetDataSize is null");
+        this.tracer = requireNonNull(tracer, "tracer is null");
     }
 
-    public Exchange createExchange(ExchangeContext context, int outputPartitionCount, boolean preserveOrderWithinPartition)
+    public Exchange createExchange(ExchangeContext exchangeContext, int outputPartitionCount, boolean preserveOrderWithinPartition)
     {
         return new BufferExchange(
-                context.getQueryId(),
-                context.getExchangeId(),
+                exchangeContext.getQueryId(),
+                exchangeContext.getExchangeId(),
                 outputPartitionCount,
                 preserveOrderWithinPartition,
                 dataApi,
+                tracer,
+                exchangeContext.getParentSpan(),
                 partitionNodeMapperFactory,
                 scheduledExecutor,
                 sourceHandleTargetChunksCount,

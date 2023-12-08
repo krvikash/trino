@@ -16,6 +16,9 @@ import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import io.airlift.concurrent.BoundedExecutor;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.airlift.json.JsonBinder;
+import io.airlift.tracing.SpanSerialization;
+import io.opentelemetry.api.trace.Span;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
 import io.starburst.stargate.buffer.data.execution.ChunkManager.ForChunkManager;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
@@ -48,6 +51,7 @@ import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
+import static io.airlift.json.JsonCodecBinder.jsonCodecBinder;
 import static io.starburst.stargate.buffer.data.spooling.s3.S3SpoolingStorage.CompatibilityMode.AWS;
 import static io.starburst.stargate.buffer.data.spooling.s3.S3SpoolingStorage.CompatibilityMode.GCP;
 import static java.util.Objects.requireNonNull;
@@ -82,6 +86,9 @@ public class MainModule
     protected void setup(Binder binder)
     {
         httpClientBinder(binder).bindHttpClient("buffer-discovery.http", ForBufferDiscoveryClient.class);
+
+        JsonBinder.jsonBinder(binder).addDeserializerBinding(Span.class).to(SpanSerialization.SpanDeserializer.class);
+        jsonCodecBinder(binder).bindJsonCodec(Span.class);
 
         configBinder(binder).bindConfig(ChunkManagerConfig.class);
         configBinder(binder).bindConfig(MemoryAllocatorConfig.class);

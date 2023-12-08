@@ -28,6 +28,8 @@ import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.units.Duration;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
 import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
@@ -116,6 +118,7 @@ public class ChunkManager
     private final Ticker ticker;
     private final SpooledChunksByExchange spooledChunksByExchange;
     private final DataServerStats dataServerStats;
+    private final Tracer tracer;
     private final ExecutorService executor;
 
     // exchangeId -> exchange
@@ -143,6 +146,7 @@ public class ChunkManager
             @ForChunkManager Ticker ticker,
             SpooledChunksByExchange spooledChunksByExchange,
             DataServerStats dataServerStats,
+            Tracer tracer,
             ExecutorService executor)
     {
         this.bufferNodeId = bufferNodeId.getLongValue();
@@ -166,6 +170,7 @@ public class ChunkManager
         this.ticker = requireNonNull(ticker, "ticker is null");
         this.spooledChunksByExchange = requireNonNull(spooledChunksByExchange, "spooledChunkMapByExchange is null");
         this.dataServerStats = requireNonNull(dataServerStats, "dataServerStats is null");
+        this.tracer = requireNonNull(tracer, "tracer is null");
         this.executor = requireNonNull(executor, "executor is null");
         this.drainedSpooledChunkMap = buildNonEvictableCache(
                 CacheBuilder.newBuilder().softValues(),
@@ -306,12 +311,13 @@ public class ChunkManager
         exchange.setChunkDeliveryMode(chunkDeliveryMode);
     }
 
-    public void registerExchange(String exchangeId, ChunkDeliveryMode chunkDeliveryMode)
+    public void registerExchange(String exchangeId, ChunkDeliveryMode chunkDeliveryMode, Optional<Span> parentSpan)
     {
         Exchange exchange = internalRegisterExchange(exchangeId, CREATED, chunkDeliveryMode);
         // Exchange could have been already registered explicitly with STANDARD chunkDeliveryMode
         // ensure proper value
         exchange.setChunkDeliveryMode(chunkDeliveryMode);
+        exchange.startExchangeSpan(parentSpan, exchangeId);
     }
 
     private Exchange internalRegisterExchange(String exchangeId, ExchangeState initialState, ChunkDeliveryMode chunkDeliveryMode)
@@ -339,6 +345,7 @@ public class ChunkManager
                     chunkDeliveryMode,
                     executor,
                     exchangeTimeoutExecutor,
+                    tracer,
                     tickerReadMillis());
         });
     }
@@ -521,7 +528,9 @@ public class ChunkManager
         String exchangeId = exchange.getExchangeId();
         exchangesBeingReleased.add(exchangeId);
         ListenableFuture<Void> future = exchange.releaseChunks();
-        future.addListener(() -> exchangesBeingReleased.remove(exchangeId), directExecutor());
+        future.addListener(() -> {
+            exchangesBeingReleased.remove(exchangeId);
+        }, directExecutor());
     }
 
     @VisibleForTesting

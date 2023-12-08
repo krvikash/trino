@@ -18,9 +18,14 @@ import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.SliceOutput;
 import io.airlift.slice.Slices;
+import io.airlift.tracing.Tracing;
 import io.airlift.units.DataSize;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.trace.Span;
 import io.starburst.stargate.buffer.testing.TestingBufferService;
 import io.starburst.stargate.buffer.trino.exchange.BufferExchangeManagerFactory;
+import io.trino.exchange.ExchangeContextInstance;
+import io.trino.exchange.ExchangeManagerContextInstance;
 import io.trino.spi.QueryId;
 import io.trino.spi.exchange.Exchange;
 import io.trino.spi.exchange.ExchangeContext;
@@ -80,9 +85,11 @@ public class SinkBenchmarkDriver
                     .put("exchange.sink-blocked-memory-high", setup.sinkBlockedHigh().toString())
                     .buildOrThrow();
 
-            ExchangeManager exchangeManager = BufferExchangeManagerFactory.forRealBufferService().create(config);
+            ExchangeManager exchangeManager = BufferExchangeManagerFactory.forRealBufferService().create(
+                    config,
+                    new ExchangeManagerContextInstance(OpenTelemetry.noop(), Tracing.noopTracer()));
 
-            ExchangeContext exchangeContext = new ExchangeContext(new QueryId("dummy"), new ExchangeId("dummy"));
+            ExchangeContext exchangeContext = new ExchangeContextInstance(new QueryId("dummy"), new ExchangeId("dummy"), Span.getInvalid());
             Exchange exchange = exchangeManager.createExchange(exchangeContext, setup.outputPartitionsCount(), false);
             ExchangeSinkHandle sinkHandle = exchange.addSink(0);
             ExchangeSinkInstanceHandle sinkeInstanceHandle = exchange.instantiateSink(sinkHandle, 0).get();

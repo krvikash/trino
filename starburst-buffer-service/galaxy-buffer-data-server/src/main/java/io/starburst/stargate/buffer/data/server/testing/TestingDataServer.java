@@ -24,6 +24,7 @@ import io.airlift.json.JsonModule;
 import io.airlift.log.LogJmxModule;
 import io.airlift.node.testing.TestingNodeModule;
 import io.airlift.tracetoken.TraceTokenModule;
+import io.airlift.tracing.TracingModule;
 import io.starburst.stargate.buffer.data.server.BufferNodeStateManager;
 import io.starburst.stargate.buffer.data.server.DataServerStatusProvider;
 import io.starburst.stargate.buffer.data.server.DiscoveryApiModule;
@@ -71,6 +72,7 @@ public class TestingDataServer
                 new TestingJmxModule(),
                 new LogJmxModule(),
                 new TraceTokenModule(),
+                new TracingModule("buffer-data-server", "testing"),
                 new EventModule(),
                 new StatusModule(),
                 new MainModule(nodeId, discoveryApiModule.isPresent(), Ticker.systemTicker())));

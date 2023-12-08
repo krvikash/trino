@@ -30,6 +30,7 @@ import io.airlift.concurrent.MoreFutures;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.units.Duration;
+import io.opentelemetry.api.trace.Span;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeState;
 import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
@@ -260,15 +261,15 @@ public class DataApiFacade
         }
     }
 
-    public ListenableFuture<Void> registerExchange(long bufferNodeId, String exchangeId, ChunkDeliveryMode chunkDeliveryMode)
+    public ListenableFuture<Void> registerExchange(long bufferNodeId, String exchangeId, ChunkDeliveryMode chunkDeliveryMode, Span exchangeSpan)
     {
-        return runWithRetry(bufferNodeId, () -> internalRegisterExchange(bufferNodeId, exchangeId, chunkDeliveryMode));
+        return runWithRetry(bufferNodeId, () -> internalRegisterExchange(bufferNodeId, exchangeId, chunkDeliveryMode, exchangeSpan));
     }
 
-    private ListenableFuture<Void> internalRegisterExchange(long bufferNodeId, String exchangeId, ChunkDeliveryMode chunkDeliveryMode)
+    private ListenableFuture<Void> internalRegisterExchange(long bufferNodeId, String exchangeId, ChunkDeliveryMode chunkDeliveryMode, Span exchangeSpan)
     {
         try {
-            return getDataApi(bufferNodeId).registerExchange(exchangeId, chunkDeliveryMode);
+            return getDataApi(bufferNodeId).registerExchange(exchangeId, chunkDeliveryMode, exchangeSpan);
         }
         catch (Throwable e) {
             // wrap exception in the future

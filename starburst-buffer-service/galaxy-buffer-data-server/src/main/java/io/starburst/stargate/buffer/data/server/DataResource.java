@@ -16,6 +16,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
 import io.airlift.concurrent.BoundedExecutor;
+import io.airlift.json.JsonCodec;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.SliceInput;
@@ -25,6 +26,7 @@ import io.airlift.slice.XxHash64;
 import io.airlift.stats.CounterStat;
 import io.airlift.stats.DistributionStat;
 import io.airlift.units.Duration;
+import io.opentelemetry.api.trace.Span;
 import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
@@ -132,6 +134,7 @@ public class DataResource
     private final DistributionStat readDataSizeDistribution;
     private final BufferNodeInfoService bufferNodeInfoService;
     private final AddDataPagesThrottlingCalculator addDataPagesThrottlingCalculator;
+    private final JsonCodec<Span> spanJsonCodec;
     private final int maxInProgressAddDataPagesRequests;
 
     // tracks addDataPages requests for which HTTP response may have already been returned (e.g. due to timeout) but we still need to finish processing incoming data
@@ -148,7 +151,8 @@ public class DataResource
             DataServerStats stats,
             ExecutorService executor,
             BufferNodeInfoService bufferNodeInfoService,
-            AddDataPagesThrottlingCalculator addDataPagesThrottlingCalculator)
+            AddDataPagesThrottlingCalculator addDataPagesThrottlingCalculator,
+            JsonCodec<Span> spanJsonCodec)
     {
         this.bufferNodeId = requireNonNull(bufferNodeId, "bufferNodeId is null").getLongValue();
         this.chunkManager = requireNonNull(chunkManager, "chunkManager is null");
@@ -160,6 +164,7 @@ public class DataResource
         this.executor = requireNonNull(executor, "executor is null");
         this.bufferNodeInfoService = requireNonNull(bufferNodeInfoService, "bufferNodeInfoService is null");
         this.addDataPagesThrottlingCalculator = requireNonNull(addDataPagesThrottlingCalculator, "addDataPagesThrottlingCalculator is null");
+        this.spanJsonCodec = requireNonNull(spanJsonCodec, "spanJsonCodec is null");
         this.maxInProgressAddDataPagesRequests = config.getMaxInProgressAddDataPagesRequests();
 
         this.stats = requireNonNull(stats, "stats is null");
@@ -661,7 +666,8 @@ public class DataResource
     public Response registerExchange(
             @PathParam("exchangeId") String exchangeId,
             @QueryParam("chunkDeliveryMode") @Nullable ChunkDeliveryMode chunkDeliveryMode,
-            @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId)
+            @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId,
+            @QueryParam("exchangeSpan") @Nullable String serializedExchangeSpan)
     {
         try {
             checkTargetBufferNodeId(targetBufferNodeId);
@@ -676,7 +682,8 @@ public class DataResource
             // * Trino coordinator calls registerExchange
             // at this point Trino coordinator must proceed with polling for chunks which would not happen if `registerExchange` returned DRAINING error code.
             chunkDeliveryMode = Optional.ofNullable(chunkDeliveryMode).orElse(STANDARD);
-            chunkManager.registerExchange(exchangeId, chunkDeliveryMode);
+            Optional<Span> exchangeSpan = Optional.ofNullable(serializedExchangeSpan).map(span -> spanJsonCodec.fromJson(span));
+            chunkManager.registerExchange(exchangeId, chunkDeliveryMode, exchangeSpan);
             return Response.ok().build();
         }
         catch (RuntimeException e) {

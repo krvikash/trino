@@ -16,6 +16,8 @@ import io.airlift.slice.Slice;
 import io.airlift.testing.TestingTicker;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
+import io.opentelemetry.api.trace.SpanBuilder;
+import io.opentelemetry.api.trace.Tracer;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataPage;
@@ -38,6 +40,7 @@ import org.junit.jupiter.api.TestInstance;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -106,8 +109,8 @@ public abstract class AbstractTestChunkManager
                 DataSize.of(64, MEGABYTE),
                 DataSize.of(128, KILOBYTE));
 
-        chunkManager.registerExchange(EXCHANGE_0, STANDARD);
-        chunkManager.registerExchange(EXCHANGE_1, STANDARD);
+        chunkManager.registerExchange(EXCHANGE_0, STANDARD, Optional.empty());
+        chunkManager.registerExchange(EXCHANGE_1, STANDARD, Optional.empty());
 
         getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("000_0"))).addDataPagesFuture());
         getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 1, 0, 1L, ImmutableList.of(utf8Slice("001_0"))).addDataPagesFuture());
@@ -177,8 +180,8 @@ public abstract class AbstractTestChunkManager
                 DataSize.of(128, BYTE),
                 DataSize.of(16, BYTE));
 
-        chunkManager.registerExchange(EXCHANGE_0, STANDARD);
-        chunkManager.registerExchange(EXCHANGE_1, STANDARD);
+        chunkManager.registerExchange(EXCHANGE_0, STANDARD, Optional.empty());
+        chunkManager.registerExchange(EXCHANGE_1, STANDARD, Optional.empty());
 
         getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("000_0"))).addDataPagesFuture());
         getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 1, 0, 0, 1L, ImmutableList.of(utf8Slice("010_0"))).addDataPagesFuture());
@@ -248,8 +251,8 @@ public abstract class AbstractTestChunkManager
                 DataSize.of(64, MEGABYTE),
                 DataSize.of(1, MEGABYTE));
 
-        chunkManager.registerExchange(EXCHANGE_0, STANDARD);
-        chunkManager.registerExchange(EXCHANGE_1, STANDARD);
+        chunkManager.registerExchange(EXCHANGE_0, STANDARD, Optional.empty());
+        chunkManager.registerExchange(EXCHANGE_1, STANDARD, Optional.empty());
         getFutureValue(chunkManager.addDataPages(EXCHANGE_1, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("dummy"))).addDataPagesFuture());
 
         ticker.increment(1000, MILLISECONDS);
@@ -332,7 +335,7 @@ public abstract class AbstractTestChunkManager
                 DataSize.of(64, MEGABYTE),
                 DataSize.of(4, MEGABYTE));
 
-        chunkManager.registerExchange(EXCHANGE_0, STANDARD);
+        chunkManager.registerExchange(EXCHANGE_0, STANDARD, Optional.empty());
         chunkManager.removeExchange(EXCHANGE_0);
 
         assertThatThrownBy(() -> chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty()))
@@ -394,8 +397,8 @@ public abstract class AbstractTestChunkManager
                 DataSize.of(256, BYTE),
                 DataSize.of(32, BYTE));
 
-        chunkManager.registerExchange(EXCHANGE_0, STANDARD);
-        chunkManager.registerExchange(EXCHANGE_1, STANDARD);
+        chunkManager.registerExchange(EXCHANGE_0, STANDARD, Optional.empty());
+        chunkManager.registerExchange(EXCHANGE_1, STANDARD, Optional.empty());
 
         ListenableFuture<Void> addDataPagesFuture1 = chunkManager.addDataPages(
                 EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("test"), utf8Slice("spool"), utf8Slice("chunks"))).addDataPagesFuture();
@@ -476,7 +479,7 @@ public abstract class AbstractTestChunkManager
                 DataSize.of(64, BYTE),
                 DataSize.of(8, BYTE));
 
-        chunkManager.registerExchange(EXCHANGE_0, STANDARD);
+        chunkManager.registerExchange(EXCHANGE_0, STANDARD, Optional.empty());
 
         ListenableFuture<Void> addDataPagesFuture1 = chunkManager.addDataPages(
                 EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("a"), utf8Slice("b"), utf8Slice("c"))).addDataPagesFuture();
@@ -544,7 +547,7 @@ public abstract class AbstractTestChunkManager
                 DataSize.of(64, BYTE),
                 DataSize.of(8, BYTE));
 
-        chunkManager.registerExchange(EXCHANGE_0, STANDARD);
+        chunkManager.registerExchange(EXCHANGE_0, STANDARD, Optional.empty());
         assertFalse(chunkManager.getExchangeAndHeartbeat(EXCHANGE_0).isFinished());
 
         Future<?> drainAllChunksFuture = executor.submit(chunkManager::drainAllChunks);
@@ -554,7 +557,7 @@ public abstract class AbstractTestChunkManager
         // it is waiting for markAllClosedChunksReceived on all exchanges now
 
         // register one more exchange
-        chunkManager.registerExchange(EXCHANGE_1, STANDARD);
+        chunkManager.registerExchange(EXCHANGE_1, STANDARD, Optional.empty());
 
         // finish should be triggered on new exchange too
         waitAtMost(1, SECONDS).until(() -> chunkManager.getExchangeAndHeartbeat(EXCHANGE_1).isFinished());
@@ -893,6 +896,13 @@ public abstract class AbstractTestChunkManager
                 ticker,
                 new SpooledChunksByExchange(),
                 new DataServerStats(),
+                new Tracer() {
+                    @Override
+                    public SpanBuilder spanBuilder(String spanName)
+                    {
+                        return null;
+                    }
+                },
                 executor);
     }
 

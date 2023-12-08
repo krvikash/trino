@@ -14,6 +14,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.errorprone.annotations.ThreadSafe;
 import io.airlift.log.Logger;
+import io.opentelemetry.api.trace.Span;
 import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.ChunkList;
@@ -47,6 +48,7 @@ class ChunkHandlesPoller
     private volatile boolean closed;
     private volatile boolean pinging;
     private volatile ChunkDeliveryMode chunkDeliveryMode;
+    private final Span exchangeSpan;
 
     public ChunkHandlesPoller(
             ScheduledExecutorService executorService,
@@ -54,6 +56,7 @@ class ChunkHandlesPoller
             DataApiFacade dataApi,
             long bufferNodeId,
             ChunkDeliveryMode chunkDeliveryMode,
+            Span exchangeSpan,
             ChunksCallback callback)
     {
         this.executorService = requireNonNull(executorService, "executorService is null");
@@ -61,12 +64,13 @@ class ChunkHandlesPoller
         this.dataApi = requireNonNull(dataApi, "dataApi is null");
         this.dataNodeId = bufferNodeId;
         this.chunkDeliveryMode = requireNonNull(chunkDeliveryMode, "chunkDeliveryMode is null");
+        this.exchangeSpan = requireNonNull(exchangeSpan, "exchangeSpan is null");
         this.callback = requireNonNull(callback, "callback is null");
     }
 
     public void start()
     {
-        addCallback(dataApi.registerExchange(dataNodeId, externalExchangeId, chunkDeliveryMode), new FutureCallback<>()
+        addCallback(dataApi.registerExchange(dataNodeId, externalExchangeId, chunkDeliveryMode, exchangeSpan), new FutureCallback<>()
         {
             @Override
             public void onSuccess(Void result)

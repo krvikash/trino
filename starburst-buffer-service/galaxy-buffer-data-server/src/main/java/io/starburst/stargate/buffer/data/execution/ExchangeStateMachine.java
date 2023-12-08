@@ -10,12 +10,16 @@
 package io.starburst.stargate.buffer.data.execution;
 
 import com.google.errorprone.annotations.ThreadSafe;
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.trace.Span;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static io.opentelemetry.api.common.AttributeKey.stringKey;
 import static io.starburst.stargate.buffer.data.execution.ExchangeState.CREATED;
 import static io.starburst.stargate.buffer.data.execution.ExchangeState.FAILED;
 import static io.starburst.stargate.buffer.data.execution.ExchangeState.REMOVED;
@@ -33,6 +37,8 @@ public class ExchangeStateMachine
 
     private final AtomicBoolean firstSourceDataReceived = new AtomicBoolean();
     private final AtomicBoolean firstSinkDataRequested = new AtomicBoolean();
+    // keep value of EVENT_STATE consistent with attribute defined in TrinoAttributes in trino-main
+    private static final AttributeKey<String> EVENT_STATE = stringKey("state");
 
     public ExchangeStateMachine(String exchangeId, ExchangeState initialState, Executor executor)
     {
@@ -47,6 +53,14 @@ public class ExchangeStateMachine
     public ExchangeState getState()
     {
         return exchangeState.get();
+    }
+
+    public void attachSpan(Span exchangeSpan)
+    {
+        exchangeState.addStateChangeListener(newState -> {
+            exchangeSpan.addEvent("exchange_state", Attributes.of(
+                    EVENT_STATE, newState.toString()));
+        });
     }
 
     public void sourceStreaming()

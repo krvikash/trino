@@ -16,6 +16,9 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Context;
 import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.DataApiException;
@@ -65,6 +68,7 @@ public class BufferExchange
     private final int outputPartitionCount;
     private final boolean preserveOrderWithinPartition;
     private final DataApiFacade dataApi;
+    private final Span exchangeSpan;
     private final ScheduledExecutorService executorService;
     private final int sourceHandleTargetChunksCount;
     private final DataSize sourceHandleTargetDataSize;
@@ -104,6 +108,8 @@ public class BufferExchange
             int outputPartitionCount,
             boolean preserveOrderWithinPartition,
             DataApiFacade dataApi,
+            Tracer tracer,
+            Span parentSpan,
             PartitionNodeMapperFactory partitionNodeMapperFactory,
             ScheduledExecutorService executorService,
             int sourceHandleTargetChunksCount,
@@ -119,6 +125,13 @@ public class BufferExchange
         this.sourceHandleTargetDataSize = requireNonNull(sourceHandleTargetDataSize, "sourceHandleTargetDataSize is null");
         requireNonNull(partitionNodeMapperFactory, "partitionNodeMapperFactory is null");
         this.partitionNodeMapper = partitionNodeMapperFactory.getPartitionNodeMapper(exchangeId, outputPartitionCount, preserveOrderWithinPartition);
+        requireNonNull(parentSpan, "parentSpan is null");
+        exchangeSpan = tracer.spanBuilder("exchange")
+                .setParent(Context.current().with(parentSpan))
+                .setAttribute("ExchangeId", exchangeId.getId())
+                .setAttribute("PartitionCount", outputPartitionCount)
+                .setAttribute("PreserveOrderWithinPartition", Boolean.toString(preserveOrderWithinPartition))
+                .startSpan();
     }
 
     @Override
@@ -330,6 +343,7 @@ public class BufferExchange
         if (closed.compareAndSet(false, true)) {
             stopPolling();
             triggerExchangeRemove();
+            exchangeSpan.end();
         }
     }
 
@@ -376,26 +390,33 @@ public class BufferExchange
             return;
         }
 
-        ChunkHandlesPoller poller = new ChunkHandlesPoller(executorService, externalExchangeId, dataApi, bufferNodeId, getChunkDeliveryMode(sourceHandlesDeliveryMode), new ChunkHandlesPoller.ChunksCallback()
-        {
-            @Override
-            public void onChunksDiscovered(List<ChunkHandle> chunks, boolean noMoreChunks)
-            {
-                synchronized (BufferExchange.this) {
-                    registerNewChunkHandles(chunks);
-                    if (noMoreChunks) {
-                        chunkPollingCompletedBufferNodes.add(bufferNodeId);
+        ChunkHandlesPoller poller = new ChunkHandlesPoller(
+                executorService,
+                externalExchangeId,
+                dataApi,
+                bufferNodeId,
+                getChunkDeliveryMode(sourceHandlesDeliveryMode),
+                exchangeSpan,
+                new ChunkHandlesPoller.ChunksCallback()
+                {
+                    @Override
+                    public void onChunksDiscovered(List<ChunkHandle> chunks, boolean noMoreChunks)
+                    {
+                        synchronized (BufferExchange.this) {
+                            registerNewChunkHandles(chunks);
+                            if (noMoreChunks) {
+                                chunkPollingCompletedBufferNodes.add(bufferNodeId);
+                            }
+                            outputReadySourceHandles();
+                        }
                     }
-                    outputReadySourceHandles();
-                }
-            }
 
-            @Override
-            public void onFailure(Throwable failure)
-            {
-                markFailed(failure);
-            }
-        });
+                    @Override
+                    public void onFailure(Throwable failure)
+                    {
+                        markFailed(failure);
+                    }
+                });
 
         chunkPolledBufferNodes.put(bufferNodeId, poller);
         poller.start();

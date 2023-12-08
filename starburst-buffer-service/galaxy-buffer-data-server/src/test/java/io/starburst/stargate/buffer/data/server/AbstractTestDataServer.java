@@ -15,8 +15,14 @@ import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.HttpClientConfig;
 import io.airlift.http.client.Request;
 import io.airlift.http.client.jetty.JettyHttpClient;
+import io.airlift.json.JsonCodec;
+import io.airlift.json.JsonCodecFactory;
+import io.airlift.json.ObjectMapperProvider;
 import io.airlift.slice.Slice;
+import io.airlift.tracing.SpanSerialization;
 import io.airlift.units.DataSize;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.trace.Span;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeState;
 import io.starburst.stargate.buffer.BufferNodeStats;
@@ -39,6 +45,7 @@ import org.junit.jupiter.api.TestInstance;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.UUID;
@@ -83,12 +90,16 @@ public abstract class AbstractTestDataServer
     private TestingDataServer dataServer;
     private HttpClient httpClient;
     private HttpDataClient dataClient;
+    private JsonCodec<Span> spanJsonCodec;
 
     private final ExecutorService executor = Executors.newCachedThreadPool();
 
     @BeforeEach
     public void setup()
     {
+        JsonCodecFactory jsonCodecFactory = new JsonCodecFactory(new ObjectMapperProvider()
+                .withJsonSerializers(Map.of(Span.class, new SpanSerialization.SpanSerializer(OpenTelemetry.noop()))));
+        spanJsonCodec = jsonCodecFactory.jsonCodec(Span.class);
         dataServer = TestingDataServer.builder()
                 .withDiscoveryApiModule(new TestingDiscoveryApiModule())
                 .setConfigProperty("spooling.directory", System.getProperty("java.io.tmpdir") + "/spooling-storage-" + UUID.randomUUID())
@@ -100,7 +111,15 @@ public abstract class AbstractTestDataServer
                 .setConfigProperty("draining.min-duration", "2s")
                 .build();
         httpClient = new JettyHttpClient(new HttpClientConfig().setMaxContentLength(DataSize.of(64, MEGABYTE)));
-        dataClient = new HttpDataClient(dataServer.getBaseUri(), BUFFER_NODE_ID, httpClient, succinctDuration(60, SECONDS), new LocalSpooledChunkReader(new DataApiConfig()), true, Optional.empty());
+        dataClient = new HttpDataClient(
+                dataServer.getBaseUri(),
+                BUFFER_NODE_ID,
+                httpClient,
+                succinctDuration(60, SECONDS),
+                new LocalSpooledChunkReader(new DataApiConfig()),
+                true,
+                Optional.empty(),
+                spanJsonCodec);
 
         // Wait for Node to become ready
         await().atMost(TEN_SECONDS).until(
@@ -350,7 +369,14 @@ public abstract class AbstractTestDataServer
     @Test
     public void testInvalidTargetDataNodeId()
     {
-        HttpDataClient invalidDataClient = new HttpDataClient(dataServer.getBaseUri(), BUFFER_NODE_ID + 1, httpClient, succinctDuration(60, SECONDS), new NoopSpooledChunkReader(), true, Optional.empty());
+        HttpDataClient invalidDataClient = new HttpDataClient(
+                dataServer.getBaseUri(),
+                BUFFER_NODE_ID + 1,
+                httpClient, succinctDuration(60, SECONDS),
+                new NoopSpooledChunkReader(),
+                true,
+                Optional.empty(),
+                spanJsonCodec);
         Slice largePage = utf8Slice("1".repeat((int) DataSize.of(10, MEGABYTE).toBytes()));
 
         assertThatThrownBy(() -> getFutureValue(invalidDataClient.addDataPages(EXCHANGE_0, 0, 0, 0, ImmutableListMultimap.of(0, largePage))))
@@ -431,7 +457,7 @@ public abstract class AbstractTestDataServer
 
     private void registerExchange(String exchangeId, ChunkDeliveryMode chunkDeliveryMode)
     {
-        getFutureValue(dataClient.registerExchange(exchangeId, chunkDeliveryMode));
+        getFutureValue(dataClient.registerExchange(exchangeId, chunkDeliveryMode, Span.getInvalid()));
     }
 
     private void removeExchange(String exchangeId)

@@ -22,9 +22,12 @@ import io.airlift.log.Logger;
 import io.airlift.node.NodeModule;
 import io.airlift.openmetrics.JmxOpenMetricsModule;
 import io.airlift.tracetoken.TraceTokenModule;
+import io.airlift.tracing.TracingModule;
 import io.starburst.stargate.buffer.status.StatusModule;
 import org.weakref.jmx.guice.MBeanModule;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
+import static com.google.common.base.Preconditions.checkState;
 import static io.starburst.stargate.buffer.BufferNodeState.STARTED;
 
 public final class DataServer
@@ -35,6 +38,10 @@ public final class DataServer
 
     public static void main(String[] args)
     {
+        String injectedVersion = System.getenv("BUFFER_DATA_SERVER_DOCKER_VERSION");
+        checkState(injectedVersion == null || !injectedVersion.isEmpty(), "BUFFER_DATA_SERVER_DOCKER_VERSION is set but empty");
+        String version = firstNonNull(injectedVersion, DataServer.class.getPackage().getImplementationVersion());
+
         Bootstrap app = new Bootstrap(
                 new NodeModule(),
                 new HttpServerModule(),
@@ -45,6 +52,7 @@ public final class DataServer
                 new JmxOpenMetricsModule(),
                 new LogJmxModule(),
                 new TraceTokenModule(),
+                new TracingModule("buffer-data-server", version),
                 new EventModule(),
                 new StatusModule(),
                 new DiscoveryApiModule(),

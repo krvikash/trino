@@ -264,7 +264,8 @@ public class RateLimitingTestHarness
                                     io.airlift.units.Duration.succinctDuration(30, TimeUnit.SECONDS),
                                     dummySpooledChunkReader,
                                     false,
-                                    Optional.of(nodeId));
+                                    Optional.of(nodeId),
+                                    null);
                         }
                     },
                     dataApiFacadeStats,

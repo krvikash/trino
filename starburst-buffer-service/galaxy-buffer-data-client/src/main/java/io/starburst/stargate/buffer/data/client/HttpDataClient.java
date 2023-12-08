@@ -29,6 +29,7 @@ import io.airlift.json.JsonCodec;
 import io.airlift.slice.Slice;
 import io.airlift.slice.XxHash64;
 import io.airlift.units.Duration;
+import io.opentelemetry.api.trace.Span;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
@@ -97,6 +98,7 @@ public class HttpDataClient
     private final SpooledChunkReader spooledChunkReader;
     private final boolean dataIntegrityVerificationEnabled;
     private final Optional<String> clientId;
+    private final JsonCodec<Span> spanJsonCodec;
 
     public HttpDataClient(
             URI baseUri,
@@ -105,7 +107,8 @@ public class HttpDataClient
             Duration httpIdleTimeout,
             SpooledChunkReader spooledChunkReader,
             boolean dataIntegrityVerificationEnabled,
-            Optional<String> clientId)
+            Optional<String> clientId,
+            JsonCodec<Span> spanJsonCodec)
     {
         this.httpIdleTimeout = httpIdleTimeout;
         requireNonNull(baseUri, "baseUri is null");
@@ -119,6 +122,7 @@ public class HttpDataClient
         this.spooledChunkReader = requireNonNull(spooledChunkReader, "spooledChunkReader is null");
         this.dataIntegrityVerificationEnabled = dataIntegrityVerificationEnabled;
         this.clientId = requireNonNull(clientId, "clientId is null");
+        this.spanJsonCodec = requireNonNull(spanJsonCodec, "spanJsonCodec is null");
     }
 
     @Override
@@ -193,7 +197,7 @@ public class HttpDataClient
     }
 
     @Override
-    public ListenableFuture<Void> registerExchange(String exchangeId, ChunkDeliveryMode chunkDeliveryMode)
+    public ListenableFuture<Void> registerExchange(String exchangeId, ChunkDeliveryMode chunkDeliveryMode, Span exchangeSpan)
     {
         requireNonNull(exchangeId, "exchangeId is null");
 
@@ -202,6 +206,7 @@ public class HttpDataClient
                         .appendPath("%s/register".formatted(exchangeId))
                         .addParameter("targetBufferNodeId", String.valueOf(targetBufferNodeId))
                         .addParameter("chunkDeliveryMode", String.valueOf(chunkDeliveryMode))
+                        .addParameter("exchangeSpan", spanJsonCodec.toJson(exchangeSpan))
                         .build())
                 .build();
 

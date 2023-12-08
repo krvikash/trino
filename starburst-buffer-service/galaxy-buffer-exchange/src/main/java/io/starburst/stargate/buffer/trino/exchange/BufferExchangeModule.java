@@ -16,6 +16,9 @@ import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.http.client.HttpClient;
+import io.airlift.json.JsonBinder;
+import io.airlift.tracing.SpanSerialization;
+import io.opentelemetry.api.trace.Span;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 import io.starburst.stargate.buffer.discovery.client.HttpDiscoveryClient;
 
@@ -27,6 +30,7 @@ import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
+import static io.airlift.json.JsonCodecBinder.jsonCodecBinder;
 import static io.starburst.stargate.buffer.data.client.DataApiBinder.dataApiBinder;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newCachedThreadPool;
@@ -48,6 +52,9 @@ public class BufferExchangeModule
     {
         configBinder(binder).bindConfig(BufferExchangeConfig.class);
 
+        JsonBinder.jsonBinder(binder).addSerializerBinding(Span.class).to(SpanSerialization.SpanSerializer.class);
+        jsonCodecBinder(binder).bindJsonCodec(Span.class);
+
         binder.bind(BufferNodeDiscoveryManager.class).to(ApiBasedBufferNodeDiscoveryManager.class).in(Scopes.SINGLETON);
         binder.bind(BufferExchangeManager.class).in(Scopes.SINGLETON);
         binder.bind(BufferCoordinatorExchangeManager.class).in(Scopes.SINGLETON);
@@ -58,7 +65,6 @@ public class BufferExchangeModule
         binder.bind(DataApiFacade.class).in(Scopes.SINGLETON);
         binder.bind(DataApiFacadeStats.class).in(Scopes.SINGLETON);
         newExporter(binder).export(DataApiFacadeStats.class).withGeneratedName();
-
         bindPartitionNodeMapper(PartitionNodeMappingMode.PINNING_SINGLE, PinningPartitionNodeMapperFactory.class);
         bindPartitionNodeMapper(PartitionNodeMappingMode.PINNING_MULTI, SmartPinningPartitionNodeMapperFactory.class);
         bindPartitionNodeMapper(PartitionNodeMappingMode.RANDOM, RandomPartitionNodeMapperFactory.class);

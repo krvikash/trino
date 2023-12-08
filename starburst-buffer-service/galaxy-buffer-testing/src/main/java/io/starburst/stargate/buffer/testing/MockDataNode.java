@@ -15,6 +15,7 @@ import com.google.common.collect.ListMultimap;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.airlift.slice.Slice;
+import io.opentelemetry.api.trace.Span;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeState;
 import io.starburst.stargate.buffer.BufferNodeStats;
@@ -125,7 +126,7 @@ class MockDataNode
     }
 
     @Override
-    public synchronized ListenableFuture<Void> registerExchange(String exchangeId, ChunkDeliveryMode chunkDeliveryMode)
+    public synchronized ListenableFuture<Void> registerExchange(String exchangeId, ChunkDeliveryMode chunkDeliveryMode, Span exchangeSpan)
     {
         throwIfNodeGone();
         getOrCreateExchangeData(exchangeId);

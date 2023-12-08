@@ -12,6 +12,7 @@ package io.starburst.stargate.buffer.data.client;
 import com.google.common.collect.ListMultimap;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.slice.Slice;
+import io.opentelemetry.api.trace.Span;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 
 import java.util.List;
@@ -56,7 +57,7 @@ public interface DataApi
      *
      * In case of failure returned future will wrap {@link DataApiException}
      */
-    ListenableFuture<Void> registerExchange(String exchangeId, ChunkDeliveryMode chunkDeliveryMode);
+    ListenableFuture<Void> registerExchange(String exchangeId, ChunkDeliveryMode chunkDeliveryMode, Span exchangeSpan);
 
     /**
      * Notification that exchange is still valid and there exists Trino coordinator which is interested in it.
