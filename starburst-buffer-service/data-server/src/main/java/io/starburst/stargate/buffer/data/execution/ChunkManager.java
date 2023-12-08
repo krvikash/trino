@@ -158,6 +158,7 @@ public class ChunkManager
         this.dataServerStats = requireNonNull(dataServerStats, "dataServerStats is null");
         this.executor = requireNonNull(executor, "executor is null");
         this.drainedSpooledChunkMap = CacheBuilder.newBuilder()
+                .softValues()
                 .build(new CacheLoader<>()
                 {
                     @Override
