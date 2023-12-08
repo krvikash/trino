@@ -13,6 +13,8 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Ticker;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -78,7 +80,6 @@ import static java.lang.annotation.ElementType.PARAMETER;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
-import static java.util.concurrent.TimeUnit.HOURS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -119,7 +120,7 @@ public class ChunkManager
     private final ScheduledExecutorService exchangeTimeoutExecutor = newSingleThreadScheduledExecutor();
     private final ScheduledExecutorService eagerDeliveryModeExecutor = newSingleThreadScheduledExecutor();
     private final Cache<String, Object> recentlyRemovedExchanges = CacheBuilder.newBuilder().expireAfterWrite(5, MINUTES).build();
-    private final Cache<Long, Map<Long, SpooledChunk>> drainedSpooledChunkMap = CacheBuilder.newBuilder().expireAfterWrite(1, HOURS).build();
+    private final LoadingCache<Long, Map<Long, SpooledChunk>> drainedSpooledChunkMap;
 
     private volatile boolean startedDraining;
 
@@ -156,6 +157,22 @@ public class ChunkManager
         this.spooledChunksByExchange = requireNonNull(spooledChunksByExchange, "spooledChunkMapByExchange is null");
         this.dataServerStats = requireNonNull(dataServerStats, "dataServerStats is null");
         this.executor = requireNonNull(executor, "executor is null");
+        this.drainedSpooledChunkMap = CacheBuilder.newBuilder()
+                .build(new CacheLoader<>()
+                {
+                    @Override
+                    public Map<Long, SpooledChunk> load(Long key)
+                    {
+                        try {
+                            Slice slice = getFutureValue(spoolingStorage.readMetadataFile(key));
+                            LOG.info("reading spooled chunk map for buffer node " + key + "; serialized size=" + slice.length());
+                            return decodeMetadataSlice(slice);
+                        }
+                        catch (Throwable t) {
+                            throw new DataServerException(INTERNAL_ERROR, "Error decoding metadata from file " + getMetadataFileName(key), t);
+                        }
+                    }
+                });
     }
 
     @PostConstruct
@@ -237,19 +254,7 @@ public class ChunkManager
     {
         if (bufferNodeId != this.bufferNodeId) {
             // this is a request to get drained chunk data on a different node, return spooling file info directly
-            Map<Long, SpooledChunk> spooledChunkMap = drainedSpooledChunkMap.getIfPresent(bufferNodeId);
-
-            if (spooledChunkMap == null) {
-                try {
-                    Slice slice = getFutureValue(spoolingStorage.readMetadataFile(bufferNodeId));
-                    LOG.info("reading spooled chunk map for buffer node " + bufferNodeId + "; serialized size=" + slice.length());
-                    spooledChunkMap = decodeMetadataSlice(slice);
-                }
-                catch (Throwable t) {
-                    throw new DataServerException(INTERNAL_ERROR, "Error decoding metadata from file " + getMetadataFileName(bufferNodeId), t);
-                }
-                drainedSpooledChunkMap.put(bufferNodeId, spooledChunkMap);
-            }
+            Map<Long, SpooledChunk> spooledChunkMap = drainedSpooledChunkMap.getUnchecked(bufferNodeId);
             SpooledChunk spooledChunk = spooledChunkMap.get(chunkId);
             if (spooledChunk != null) {
                 return ChunkDataResult.of(spooledChunk);
