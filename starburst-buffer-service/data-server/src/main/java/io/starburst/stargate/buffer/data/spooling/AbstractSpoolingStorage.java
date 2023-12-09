@@ -82,7 +82,8 @@ public abstract class AbstractSpoolingStorage
         }
         catch (SpooledChunkNotFoundException e) {
             throw new DataServerException(CHUNK_NOT_FOUND,
-                    "No closed chunk found for bufferNodeId %d, exchange %s, chunk %d".formatted(chunkBufferNodeId, exchangeId, chunkId));
+                    "No closed chunk found for bufferNodeId %d, exchange %s, chunk %d".formatted(chunkBufferNodeId, exchangeId, chunkId),
+                    e);
         }
         return new SpooledChunk(getLocation(fileName), 0, length);
     }
