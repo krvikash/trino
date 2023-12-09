@@ -612,7 +612,7 @@ public class DataResource
                     @Override
                     public void onError(Throwable throwable)
                     {
-                        logger.warn(throwable, "error on GET /%s/pages/%s/%s/%s", exchangeId, partitionId, chunkId, bufferNodeId);
+                        logger.warn(throwable, "error on GET /%s/%s/pages/%s/%s", bufferNodeId, exchangeId, partitionId, chunkId);
                         chunkDataLease.release();
                         asyncContext.complete();
                     }
@@ -630,7 +630,7 @@ public class DataResource
             }
         }
         catch (RuntimeException | IOException e) {
-            logger.warn(e, "error on GET /%s/pages/%s/%s/%s", exchangeId, partitionId, chunkId, bufferNodeId);
+            logger.warn(e, "error on GET /%s/%s/pages/%s/%s", bufferNodeId, exchangeId, partitionId, chunkId);
             if (chunkDataResult != null && chunkDataResult.chunkDataLease().isPresent()) {
                 chunkDataResult.chunkDataLease().get().release();
             }
