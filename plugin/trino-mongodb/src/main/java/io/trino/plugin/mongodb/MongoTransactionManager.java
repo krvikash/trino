@@ -13,10 +13,13 @@
  */
 package io.trino.plugin.mongodb;
 
+import com.google.errorprone.annotations.concurrent.GuardedBy;
 import com.google.inject.Inject;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.transaction.IsolationLevel;
 
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -27,7 +30,7 @@ import static java.util.Objects.requireNonNull;
 
 public class MongoTransactionManager
 {
-    private final ConcurrentMap<ConnectorTransactionHandle, MongoMetadata> transactions = new ConcurrentHashMap<>();
+    private final ConcurrentMap<ConnectorTransactionHandle, MemoizedMetadata> transactions = new ConcurrentHashMap<>();
     private final MongoMetadataFactory metadataFactory;
 
     @Inject
@@ -40,15 +43,15 @@ public class MongoTransactionManager
     {
         checkConnectorSupports(READ_COMMITTED, isolationLevel);
         MongoTransactionHandle transaction = new MongoTransactionHandle();
-        transactions.put(transaction, metadataFactory.create());
+        transactions.put(transaction, new MemoizedMetadata());
         return transaction;
     }
 
-    public MongoMetadata getMetadata(ConnectorTransactionHandle transaction)
+    public MongoMetadata getMetadata(ConnectorTransactionHandle transaction, ConnectorIdentity connectorIdentity)
     {
-        MongoMetadata metadata = transactions.get(transaction);
-        checkArgument(metadata != null, "no such transaction: %s", transaction);
-        return metadata;
+        MemoizedMetadata memoizedMetadata = transactions.get(transaction);
+        checkArgument(memoizedMetadata != null, "no such transaction: %s", transaction);
+        return memoizedMetadata.get(connectorIdentity);
     }
 
     public void commit(ConnectorTransactionHandle transaction)
@@ -58,8 +61,28 @@ public class MongoTransactionManager
 
     public void rollback(ConnectorTransactionHandle transaction)
     {
-        MongoMetadata metadata = transactions.remove(transaction);
-        checkArgument(metadata != null, "no such transaction: %s", transaction);
-        metadata.rollback();
+        MemoizedMetadata memoizedMetadata = transactions.remove(transaction);
+        checkArgument(memoizedMetadata != null, "no such transaction: %s", transaction);
+        memoizedMetadata.optionalGet().ifPresent(MongoMetadata::rollback);
+    }
+
+    // From HiveTransactionManager
+    private class MemoizedMetadata
+    {
+        @GuardedBy("this")
+        private MongoMetadata metadata;
+
+        public synchronized Optional<MongoMetadata> optionalGet()
+        {
+            return Optional.ofNullable(metadata);
+        }
+
+        public synchronized MongoMetadata get(ConnectorIdentity identity)
+        {
+            if (metadata == null) {
+                metadata = metadataFactory.create(identity);
+            }
+            return metadata;
+        }
     }
 }

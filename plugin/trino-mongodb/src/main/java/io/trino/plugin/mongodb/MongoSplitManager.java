@@ -52,7 +52,7 @@ public class MongoSplitManager
             Constraint constraint)
     {
         long dynamicFilteringWaitTimeoutMillis = getDynamicFilteringWaitTimeout(session).toMillis();
-        MongoSplit split = new MongoSplit(serverDetailsProvider.getServerAddress());
+        MongoSplit split = new MongoSplit(serverDetailsProvider.getServerAddress(session.getIdentity()));
         return new MongoSplitSource(dynamicFilteringWaitTimeoutMillis, new FixedSplitSource(split));
     }
 

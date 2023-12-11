@@ -110,7 +110,7 @@ public class Query
                 Map<String, Argument> arguments,
                 ConnectorAccessControl accessControl)
         {
-            MongoMetadata metadata = transactionManager.getMetadata(transaction);
+            MongoMetadata metadata = transactionManager.getMetadata(transaction, session.getIdentity());
             String database = ((Slice) ((ScalarArgument) arguments.get("DATABASE")).getValue()).toStringUtf8();
             String collection = ((Slice) ((ScalarArgument) arguments.get("COLLECTION")).getValue()).toStringUtf8();
             String filter = ((Slice) ((ScalarArgument) arguments.get("FILTER")).getValue()).toStringUtf8();

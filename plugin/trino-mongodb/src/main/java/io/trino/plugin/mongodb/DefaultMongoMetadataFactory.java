@@ -14,6 +14,7 @@
 package io.trino.plugin.mongodb;
 
 import com.google.inject.Inject;
+import io.trino.spi.security.ConnectorIdentity;
 
 import static java.util.Objects.requireNonNull;
 
@@ -29,8 +30,8 @@ public class DefaultMongoMetadataFactory
     }
 
     @Override
-    public MongoMetadata create()
+    public MongoMetadata create(ConnectorIdentity connectorIdentity)
     {
-        return new MongoMetadata(mongoSessionProvider.getMongoSession());
+        return new MongoMetadata(mongoSessionProvider.getMongoSession(connectorIdentity));
     }
 }

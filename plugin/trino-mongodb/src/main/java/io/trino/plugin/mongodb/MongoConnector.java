@@ -87,7 +87,7 @@ public class MongoConnector
     @Override
     public ConnectorMetadata getMetadata(ConnectorSession session, ConnectorTransactionHandle transaction)
     {
-        return transactionManager.getMetadata(transaction);
+        return transactionManager.getMetadata(transaction, session.getIdentity());
     }
 
     @Override

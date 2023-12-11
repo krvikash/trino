@@ -15,6 +15,7 @@ package io.trino.plugin.mongodb;
 
 import com.google.inject.Inject;
 import io.trino.spi.HostAddress;
+import io.trino.spi.security.ConnectorIdentity;
 
 import java.util.List;
 
@@ -32,8 +33,8 @@ public class SessionBasedMongoServerDetailsProvider
     }
 
     @Override
-    public List<HostAddress> getServerAddress()
+    public List<HostAddress> getServerAddress(ConnectorIdentity connectorIdentity)
     {
-        return mongoSessionProvider.getMongoSession().getAddresses();
+        return mongoSessionProvider.getMongoSession(connectorIdentity).getAddresses();
     }
 }

@@ -14,10 +14,11 @@
 package io.trino.plugin.mongodb;
 
 import io.trino.spi.HostAddress;
+import io.trino.spi.security.ConnectorIdentity;
 
 import java.util.List;
 
 public interface MongoServerDetailsProvider
 {
-    List<HostAddress> getServerAddress();
+    List<HostAddress> getServerAddress(ConnectorIdentity connectorIdentity);
 }

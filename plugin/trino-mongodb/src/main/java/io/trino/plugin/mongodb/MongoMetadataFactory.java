@@ -13,7 +13,9 @@
  */
 package io.trino.plugin.mongodb;
 
+import io.trino.spi.security.ConnectorIdentity;
+
 public interface MongoMetadataFactory
 {
-    MongoMetadata create();
+    MongoMetadata create(ConnectorIdentity connectorIdentity);
 }

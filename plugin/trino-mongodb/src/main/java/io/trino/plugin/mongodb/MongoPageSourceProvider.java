@@ -60,6 +60,7 @@ public class MongoPageSourceProvider
             DynamicFilter dynamicFilter)
     {
         MongoTableHandle tableHandle = (MongoTableHandle) table;
+        MongoSession mongoSession = mongoSessionProvider.getMongoSession(session.getIdentity());
 
         ImmutableList.Builder<MongoColumnHandle> handles = ImmutableList.builder();
         for (ColumnHandle handle : requireNonNull(columns, "columns is null")) {
@@ -86,6 +87,6 @@ public class MongoPageSourceProvider
             return new EmptyPageSource();
         }
 
-        return new MongoPageSource(mongoSessionProvider.getMongoSession(), newTableHandle, handles.build(), implicitPrefix);
+        return new MongoPageSource(mongoSession, newTableHandle, handles.build(), implicitPrefix);
     }
 }

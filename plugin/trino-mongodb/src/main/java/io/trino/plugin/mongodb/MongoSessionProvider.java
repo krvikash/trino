@@ -13,7 +13,9 @@
  */
 package io.trino.plugin.mongodb;
 
+import io.trino.spi.security.ConnectorIdentity;
+
 public interface MongoSessionProvider
 {
-    MongoSession getMongoSession();
+    MongoSession getMongoSession(ConnectorIdentity connectorIdentity);
 }

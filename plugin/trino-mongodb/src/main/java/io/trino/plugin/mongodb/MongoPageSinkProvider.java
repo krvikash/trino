@@ -46,8 +46,9 @@ public class MongoPageSinkProvider
             Optional<ConnectorTableCredentials> tableCredentials,
             ConnectorPageSinkId pageSinkId)
     {
+        MongoSession mongoSession = mongoSessionProvider.getMongoSession(session.getIdentity());
         MongoOutputTableHandle handle = (MongoOutputTableHandle) outputTableHandle;
-        return new MongoPageSink(mongoSessionProvider.getMongoSession(), handle.getTemporaryRemoteTableName().orElseGet(handle::remoteTableName), handle.columns(), implicitPrefix, handle.pageSinkIdColumnName(), pageSinkId);
+        return new MongoPageSink(mongoSession, handle.getTemporaryRemoteTableName().orElseGet(handle::remoteTableName), handle.columns(), implicitPrefix, handle.pageSinkIdColumnName(), pageSinkId);
     }
 
     @Override
@@ -58,7 +59,8 @@ public class MongoPageSinkProvider
             Optional<ConnectorTableCredentials> tableCredentials,
             ConnectorPageSinkId pageSinkId)
     {
+        MongoSession mongoSession = mongoSessionProvider.getMongoSession(session.getIdentity());
         MongoInsertTableHandle handle = (MongoInsertTableHandle) insertTableHandle;
-        return new MongoPageSink(mongoSessionProvider.getMongoSession(), handle.getTemporaryRemoteTableName().orElseGet(handle::remoteTableName), handle.columns(), implicitPrefix, handle.pageSinkIdColumnName(), pageSinkId);
+        return new MongoPageSink(mongoSession, handle.getTemporaryRemoteTableName().orElseGet(handle::remoteTableName), handle.columns(), implicitPrefix, handle.pageSinkIdColumnName(), pageSinkId);
     }
 }

@@ -21,6 +21,7 @@ import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.instrumentation.mongo.v3_1.MongoTelemetry;
+import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.TypeManager;
 import jakarta.annotation.PreDestroy;
 
@@ -59,7 +60,7 @@ public class DefaultMongoSessionProvider
     }
 
     @Override
-    public MongoSession getMongoSession()
+    public MongoSession getMongoSession(ConnectorIdentity connectorIdentity)
     {
         return mongoSession;
     }
