@@ -35,6 +35,7 @@ import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
+import io.starburst.stargate.buffer.data.server.BufferNodeStateManager;
 import io.starburst.stargate.buffer.data.server.DataServerConfig;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
@@ -90,6 +91,7 @@ public class ChunkManager
     private static final Logger LOG = Logger.get(ChunkManager.class);
 
     private final long bufferNodeId;
+    private final BufferNodeStateManager bufferNodeStateManager;
     private final int chunkTargetSizeInBytes;
     private final int chunkMaxSizeInBytes;
     private final int chunkSliceSizeInBytes;
@@ -127,6 +129,7 @@ public class ChunkManager
     @Inject
     public ChunkManager(
             BufferNodeId bufferNodeId,
+            BufferNodeStateManager bufferNodeStateManager,
             ChunkManagerConfig chunkManagerConfig,
             DataServerConfig dataServerConfig,
             MemoryAllocator memoryAllocator,
@@ -137,6 +140,7 @@ public class ChunkManager
             ExecutorService executor)
     {
         this.bufferNodeId = bufferNodeId.getLongValue();
+        this.bufferNodeStateManager = requireNonNull(bufferNodeStateManager, "bufferNodeStateManager is null");
         this.chunkTargetSizeInBytes = toIntExact(chunkManagerConfig.getChunkTargetSize().toBytes());
         this.chunkMaxSizeInBytes = toIntExact(chunkManagerConfig.getChunkMaxSize().toBytes());
         this.chunkSliceSizeInBytes = toIntExact(chunkManagerConfig.getChunkSliceSize().toBytes());
@@ -477,6 +481,13 @@ public class ChunkManager
     @VisibleForTesting
     void cleanupStaleExchanges()
     {
+        if (bufferNodeStateManager.isDrainingStarted()) {
+            // Do not clean up if node is already shutting down.
+            // At this stage Trino clusters may no longer ping valid exchanges and
+            // if draining process takes exceeds cleanup thresholds we may drop spooled
+            // data needed by running queries.
+            return;
+        }
         Iterator<Map.Entry<String, Exchange>> iterator = exchanges.entrySet().iterator();
         long now = tickerReadMillis();
         long cleanupThreshold = now - exchangeStalenessThreshold.toMillis();

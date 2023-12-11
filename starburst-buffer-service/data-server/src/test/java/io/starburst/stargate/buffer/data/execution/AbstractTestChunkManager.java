@@ -25,6 +25,7 @@ import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocatorConfig;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
+import io.starburst.stargate.buffer.data.server.BufferNodeStateManager;
 import io.starburst.stargate.buffer.data.server.DataServerConfig;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
@@ -36,6 +37,7 @@ import org.junit.jupiter.api.TestInstance;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -887,6 +889,7 @@ public abstract class AbstractTestChunkManager
                 .setChunkListPollTimeout(Duration.succinctDuration(5, MILLISECONDS));
         return new ChunkManager(
                 new BufferNodeId(bufferNodeId),
+                new BufferNodeStateManager(Optional.empty()),
                 chunkManagerConfig,
                 dataServerConfig,
                 memoryAllocator,
