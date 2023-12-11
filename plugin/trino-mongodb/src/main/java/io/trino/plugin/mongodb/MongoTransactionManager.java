@@ -56,14 +56,19 @@ public class MongoTransactionManager
 
     public void commit(ConnectorTransactionHandle transaction)
     {
-        checkArgument(transactions.remove(transaction) != null, "no such transaction: %s", transaction);
+        MemoizedMetadata metadata = transactions.remove(transaction);
+        checkArgument(metadata != null, "no such transaction: %s", transaction);
+        metadata.optionalGet().ifPresent(MongoMetadata::close);
     }
 
     public void rollback(ConnectorTransactionHandle transaction)
     {
         MemoizedMetadata memoizedMetadata = transactions.remove(transaction);
         checkArgument(memoizedMetadata != null, "no such transaction: %s", transaction);
-        memoizedMetadata.optionalGet().ifPresent(MongoMetadata::rollback);
+        memoizedMetadata.optionalGet().ifPresent(mongoMetadata -> {
+            mongoMetadata.rollback();
+            mongoMetadata.close();
+        });
     }
 
     // From HiveTransactionManager

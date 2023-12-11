@@ -370,6 +370,11 @@ public class MongoMetadata
         mongoSession.setColumnType(session, table, column.baseName(), type);
     }
 
+    public void close()
+    {
+        // SEP will implement this method
+    }
+
     private static boolean canChangeColumnType(Type sourceType, Type newType)
     {
         if (sourceType.equals(newType)) {
