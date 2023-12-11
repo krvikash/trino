@@ -10,6 +10,7 @@
 package io.starburst.stargate.buffer.data.server;
 
 import com.google.inject.Inject;
+import io.airlift.log.Logger;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
@@ -23,14 +24,18 @@ import static java.util.Objects.requireNonNull;
 @Path("/api/v1/buffer/data")
 public class LifecycleResource
 {
+    private static final Logger LOG = Logger.get(LifecycleResource.class);
+    private final BufferNodeId bufferNodeId;
     private final DrainService drainService;
     private final BufferNodeStateManager bufferNodeStateManager;
 
     @Inject
     public LifecycleResource(
+            BufferNodeId bufferNodeId,
             DrainService drainService,
             BufferNodeStateManager bufferNodeStateManager)
     {
+        this.bufferNodeId = requireNonNull(bufferNodeId, "bufferNodeId is null");
         this.drainService = requireNonNull(drainService, "drainService is null");
         this.bufferNodeStateManager = requireNonNull(bufferNodeStateManager, "bufferNodeStateManager is null");
     }
@@ -39,6 +44,7 @@ public class LifecycleResource
     @Path("drain")
     public Response drain()
     {
+        LOG.info("/drain called for data node %s; state=%s", bufferNodeId.getLongValue(), bufferNodeStateManager.getState());
         try {
             drainService.drain();
         }
@@ -69,6 +75,7 @@ public class LifecycleResource
     @Path("preShutdown")
     public Response preShutdown()
     {
+        LOG.info("/preShutdown called for data node %s; state=%s", bufferNodeId.getLongValue(), bufferNodeStateManager.getState());
         try {
             bufferNodeStateManager.preShutdownCleanup();
         }
