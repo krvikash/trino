@@ -13,35 +13,23 @@
  */
 package io.trino.plugin.mongodb;
 
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
-import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import com.google.inject.Singleton;
 import com.google.inject.multibindings.Multibinder;
 import com.google.inject.multibindings.ProvidesIntoSet;
 import com.mongodb.ConnectionString;
-import com.mongodb.MongoClientSettings;
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoClients;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
-import io.opentelemetry.api.OpenTelemetry;
-import io.opentelemetry.instrumentation.mongo.v3_1.MongoTelemetry;
 import io.trino.plugin.base.session.SessionPropertiesProvider;
 import io.trino.plugin.mongodb.procedure.UpdateSchemaProcedure;
 import io.trino.plugin.mongodb.ptf.Query;
 import io.trino.plugin.mongodb.substitution.MongoSubstitutionMetadata;
 import io.trino.spi.connector.TableProcedureMetadata;
 import io.trino.spi.function.table.ConnectorTableFunction;
-import io.trino.spi.type.TypeManager;
-
-import java.util.Set;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
-import static io.airlift.bootstrap.ClosingBinder.closingBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -59,6 +47,8 @@ public class MongoClientModule
         binder.bind(MongoPageSinkProvider.class).in(Scopes.SINGLETON);
         newSetBinder(binder, SessionPropertiesProvider.class).addBinding().to(MongoSessionProperties.class).in(Scopes.SINGLETON);
         newOptionalBinder(binder, MongoMetadataFactory.class).setDefault().to(DefaultMongoMetadataFactory.class).in(Scopes.SINGLETON);
+
+        newOptionalBinder(binder, MongoSessionProvider.class).setDefault().to(DefaultMongoSessionProvider.class).in(Scopes.SINGLETON);
 
         configBinder(binder).bindConfig(MongoClientConfig.class);
         newSetBinder(binder, MongoClientSettingConfigurator.class);
@@ -79,25 +69,7 @@ public class MongoClientModule
             binder.bind(MongoServerDetailsProvider.class).to(SessionBasedMongoServerDetailsProvider.class).in(Scopes.SINGLETON);
         }
 
-        closingBinder(binder).registerCloseable(MongoSession.class);
         newSetBinder(binder, ConnectorTableFunction.class).addBinding().toProvider(Query.class).in(Scopes.SINGLETON);
-    }
-
-    @Singleton
-    @Provides
-    public static MongoSession createMongoSession(TypeManager typeManager, MongoClientConfig config, Set<MongoClientSettingConfigurator> configurators, OpenTelemetry openTelemetry)
-    {
-        Supplier<MongoClient> client = Suppliers.memoize(() -> {
-            MongoClientSettings.Builder options = MongoClientSettings.builder();
-            configurators.forEach(configurator -> configurator.configure(options));
-            options.addCommandListener(MongoTelemetry.builder(openTelemetry).build().createCommandListener());
-            return MongoClients.create(options.build());
-        });
-
-        return new MongoSession(
-                typeManager,
-                client,
-                config);
     }
 
     @ProvidesIntoSet

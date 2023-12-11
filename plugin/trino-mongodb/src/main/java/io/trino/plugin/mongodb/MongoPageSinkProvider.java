@@ -25,19 +25,17 @@ import io.trino.spi.connector.ConnectorTransactionHandle;
 
 import java.util.Optional;
 
-import static java.util.Objects.requireNonNull;
-
 public class MongoPageSinkProvider
         implements ConnectorPageSinkProvider
 {
-    private final MongoSession mongoSession;
     private final String implicitPrefix;
+    private final MongoSessionProvider mongoSessionProvider;
 
     @Inject
-    public MongoPageSinkProvider(MongoClientConfig config, MongoSession mongoSession)
+    public MongoPageSinkProvider(MongoClientConfig config, MongoSessionProvider mongoSessionProvider)
     {
-        this.mongoSession = requireNonNull(mongoSession, "mongoSession is null");
         this.implicitPrefix = config.getImplicitRowFieldPrefix();
+        this.mongoSessionProvider = mongoSessionProvider;
     }
 
     @Override
@@ -49,7 +47,7 @@ public class MongoPageSinkProvider
             ConnectorPageSinkId pageSinkId)
     {
         MongoOutputTableHandle handle = (MongoOutputTableHandle) outputTableHandle;
-        return new MongoPageSink(mongoSession, handle.getTemporaryRemoteTableName().orElseGet(handle::remoteTableName), handle.columns(), implicitPrefix, handle.pageSinkIdColumnName(), pageSinkId);
+        return new MongoPageSink(mongoSessionProvider.getMongoSession(), handle.getTemporaryRemoteTableName().orElseGet(handle::remoteTableName), handle.columns(), implicitPrefix, handle.pageSinkIdColumnName(), pageSinkId);
     }
 
     @Override
@@ -61,6 +59,6 @@ public class MongoPageSinkProvider
             ConnectorPageSinkId pageSinkId)
     {
         MongoInsertTableHandle handle = (MongoInsertTableHandle) insertTableHandle;
-        return new MongoPageSink(mongoSession, handle.getTemporaryRemoteTableName().orElseGet(handle::remoteTableName), handle.columns(), implicitPrefix, handle.pageSinkIdColumnName(), pageSinkId);
+        return new MongoPageSink(mongoSessionProvider.getMongoSession(), handle.getTemporaryRemoteTableName().orElseGet(handle::remoteTableName), handle.columns(), implicitPrefix, handle.pageSinkIdColumnName(), pageSinkId);
     }
 }

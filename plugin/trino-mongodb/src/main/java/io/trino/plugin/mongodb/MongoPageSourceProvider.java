@@ -38,13 +38,13 @@ public class MongoPageSourceProvider
 {
     private static final int MONGO_DOMAIN_COMPACTION_THRESHOLD = 1000;
 
-    private final MongoSession mongoSession;
+    private final MongoSessionProvider mongoSessionProvider;
     private final String implicitPrefix;
 
     @Inject
-    public MongoPageSourceProvider(MongoSession mongoSession, MongoClientConfig config)
+    public MongoPageSourceProvider(MongoSessionProvider mongoSessionProvider, MongoClientConfig config)
     {
-        this.mongoSession = requireNonNull(mongoSession, "mongoSession is null");
+        this.mongoSessionProvider = requireNonNull(mongoSessionProvider, "mongoSessionProvider is null");
         this.implicitPrefix = config.getImplicitRowFieldPrefix();
     }
 
@@ -86,6 +86,6 @@ public class MongoPageSourceProvider
             return new EmptyPageSource();
         }
 
-        return new MongoPageSource(mongoSession, newTableHandle, handles.build(), implicitPrefix);
+        return new MongoPageSource(mongoSessionProvider.getMongoSession(), newTableHandle, handles.build(), implicitPrefix);
     }
 }

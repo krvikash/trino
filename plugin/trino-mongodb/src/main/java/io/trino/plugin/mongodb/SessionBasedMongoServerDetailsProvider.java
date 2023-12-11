@@ -23,17 +23,17 @@ import static java.util.Objects.requireNonNull;
 public class SessionBasedMongoServerDetailsProvider
         implements MongoServerDetailsProvider
 {
-    private final MongoSession mongoSession;
+    private final MongoSessionProvider mongoSessionProvider;
 
     @Inject
-    public SessionBasedMongoServerDetailsProvider(MongoSession mongoSession)
+    public SessionBasedMongoServerDetailsProvider(MongoSessionProvider mongoSessionProvider)
     {
-        this.mongoSession = requireNonNull(mongoSession, "mongoSession is null");
+        this.mongoSessionProvider = requireNonNull(mongoSessionProvider, "mongoSessionProvider is null");
     }
 
     @Override
     public List<HostAddress> getServerAddress()
     {
-        return mongoSession.getAddresses();
+        return mongoSessionProvider.getMongoSession().getAddresses();
     }
 }
