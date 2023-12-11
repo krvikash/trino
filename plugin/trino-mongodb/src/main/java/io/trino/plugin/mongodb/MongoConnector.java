@@ -44,8 +44,8 @@ public class MongoConnector
     private final LifeCycleManager lifeCycleManager;
     private final MongoTransactionManager transactionManager;
     private final MongoSplitManager splitManager;
-    private final MongoPageSourceProvider pageSourceProvider;
-    private final MongoPageSinkProvider pageSinkProvider;
+    private final ConnectorPageSourceProvider pageSourceProvider;
+    private final ConnectorPageSinkProvider pageSinkProvider;
     private final Set<TableProcedureMetadata> tableProcedures;
     private final Set<ConnectorTableFunction> connectorTableFunctions;
     private final List<PropertyMetadata<?>> sessionProperties;
@@ -56,8 +56,8 @@ public class MongoConnector
             LifeCycleManager lifeCycleManager,
             MongoTransactionManager transactionManager,
             MongoSplitManager splitManager,
-            MongoPageSourceProvider pageSourceProvider,
-            MongoPageSinkProvider pageSinkProvider,
+            ConnectorPageSourceProvider pageSourceProvider,
+            ConnectorPageSinkProvider pageSinkProvider,
             Set<TableProcedureMetadata> tableProcedures,
             Set<ConnectorTableFunction> connectorTableFunctions,
             Set<SessionPropertiesProvider> sessionPropertiesProviders,

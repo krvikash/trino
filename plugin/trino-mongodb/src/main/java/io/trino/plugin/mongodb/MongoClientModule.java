@@ -25,6 +25,8 @@ import io.trino.plugin.base.session.SessionPropertiesProvider;
 import io.trino.plugin.mongodb.procedure.UpdateSchemaProcedure;
 import io.trino.plugin.mongodb.ptf.Query;
 import io.trino.plugin.mongodb.substitution.MongoSubstitutionMetadata;
+import io.trino.spi.connector.ConnectorPageSinkProvider;
+import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.TableProcedureMetadata;
 import io.trino.spi.function.table.ConnectorTableFunction;
 
@@ -43,8 +45,8 @@ public class MongoClientModule
         binder.bind(MongoSubstitutionMetadata.class).in(Scopes.SINGLETON);
         binder.bind(MongoTransactionManager.class).in(Scopes.SINGLETON);
         binder.bind(MongoSplitManager.class).in(Scopes.SINGLETON);
-        binder.bind(MongoPageSourceProvider.class).in(Scopes.SINGLETON);
-        binder.bind(MongoPageSinkProvider.class).in(Scopes.SINGLETON);
+        newOptionalBinder(binder, ConnectorPageSourceProvider.class).setDefault().to(MongoPageSourceProvider.class).in(Scopes.SINGLETON);
+        newOptionalBinder(binder, ConnectorPageSinkProvider.class).setDefault().to(MongoPageSinkProvider.class).in(Scopes.SINGLETON);
         newSetBinder(binder, SessionPropertiesProvider.class).addBinding().to(MongoSessionProperties.class).in(Scopes.SINGLETON);
         newOptionalBinder(binder, MongoMetadataFactory.class).setDefault().to(DefaultMongoMetadataFactory.class).in(Scopes.SINGLETON);
 
