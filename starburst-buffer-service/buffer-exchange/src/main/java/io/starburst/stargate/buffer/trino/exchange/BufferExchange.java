@@ -415,7 +415,9 @@ public class BufferExchange
                         dataApi.removeExchange(nodeId, externalExchangeId),
                         DataApiException.class,
                         dataApiException -> {
-                            if (dataApiException.getErrorCode() == ErrorCode.EXCHANGE_NOT_FOUND || dataApiException.getErrorCode() == ErrorCode.BUFFER_NODE_NOT_FOUND) {
+                            if (dataApiException.getErrorCode() == ErrorCode.EXCHANGE_NOT_FOUND
+                                    || dataApiException.getErrorCode() == ErrorCode.BUFFER_NODE_NOT_FOUND
+                                    || dataApiException.getErrorCode() == ErrorCode.DRAINED) {
                                 // ignore
                                 return null;
                             }
