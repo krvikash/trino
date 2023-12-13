@@ -52,6 +52,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
@@ -63,6 +64,7 @@ import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
+import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static io.airlift.concurrent.AsyncSemaphore.processAll;
 import static io.airlift.concurrent.MoreFutures.addExceptionCallback;
@@ -123,6 +125,7 @@ public class ChunkManager
     private final ScheduledExecutorService eagerDeliveryModeExecutor = newSingleThreadScheduledExecutor();
     private final Cache<String, Object> recentlyRemovedExchanges = CacheBuilder.newBuilder().expireAfterWrite(5, MINUTES).build();
     private final LoadingCache<Long, Map<Long, SpooledChunk>> drainedSpooledChunkMap;
+    private final Set<String> exchangesBeingReleased = ConcurrentHashMap.newKeySet();
 
     private volatile boolean startedDraining;
 
@@ -353,7 +356,7 @@ public class ChunkManager
         recentlyRemovedExchanges.put(exchangeId, "marker");
         Exchange exchange = exchanges.remove(exchangeId);
         if (exchange != null) {
-            exchange.releaseChunks();
+            releaseChunks(exchange);
         }
         else {
             throw new DataServerException(ErrorCode.EXCHANGE_NOT_FOUND, "exchange %s not found".formatted(exchangeId));
@@ -499,9 +502,17 @@ public class ChunkManager
                 LOG.info("forgetting exchange %s; no update for %s", entry.getKey(), succinctDuration(now - lastUpdateTime, MILLISECONDS));
                 iterator.remove();
                 spooledChunksByExchange.removeExchange(exchange.getExchangeId());
-                exchange.releaseChunks();
+                releaseChunks(exchange);
             }
         }
+    }
+
+    private void releaseChunks(Exchange exchange)
+    {
+        String exchangeId = exchange.getExchangeId();
+        exchangesBeingReleased.add(exchangeId);
+        ListenableFuture<Void> future = exchange.releaseChunks();
+        future.addListener(() -> exchangesBeingReleased.remove(exchangeId), directExecutor());
     }
 
     @VisibleForTesting

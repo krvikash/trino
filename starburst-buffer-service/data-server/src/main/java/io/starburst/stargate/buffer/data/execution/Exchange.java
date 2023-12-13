@@ -362,7 +362,7 @@ public class Exchange
         return partitions.values().stream().mapToInt(Partition::getClosedChunksCount).sum();
     }
 
-    public void releaseChunks()
+    public ListenableFuture<Void> releaseChunks()
     {
         partitions.values().forEach(Partition::releaseChunks);
         partitions.clear();
@@ -371,6 +371,7 @@ public class Exchange
         addExceptionCallback(removeFuture, throwable -> {
             log.warn(throwable, "error while removing stored files for exchange %s", exchangeId);
         });
+        return removeFuture;
     }
 
     public long getLastUpdateTime()
