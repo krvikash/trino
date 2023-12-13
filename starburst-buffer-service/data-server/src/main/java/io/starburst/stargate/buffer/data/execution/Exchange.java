@@ -367,7 +367,10 @@ public class Exchange
         partitions.values().forEach(Partition::releaseChunks);
         partitions.clear();
 
-        spoolingStorage.removeExchange(bufferNodeId, exchangeId);
+        ListenableFuture<Void> removeFuture = spoolingStorage.removeExchange(bufferNodeId, exchangeId);
+        addExceptionCallback(removeFuture, throwable -> {
+            log.warn(throwable, "error while removing stored files for exchange %s", exchangeId);
+        });
     }
 
     public long getLastUpdateTime()
