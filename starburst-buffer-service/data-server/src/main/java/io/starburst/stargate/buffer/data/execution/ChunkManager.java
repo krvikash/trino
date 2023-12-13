@@ -479,6 +479,11 @@ public class ChunkManager
                 LOG.warn("Failed to receive acknowledgement of receiving all closed chunks from exchange " + exchangeId);
             }
         }
+
+        int remainingExchangesBeingReleased = exchangesBeingReleased.size();
+        if (remainingExchangesBeingReleased > 0) {
+            LOG.warn("%s exchanges did not finish releasing spooled chunks", remainingExchangesBeingReleased);
+        }
     }
 
     @VisibleForTesting
