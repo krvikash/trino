@@ -197,6 +197,13 @@
 
         <dependency>
             <groupId>io.trino</groupId>
+            <artifactId>trino-hdfs</artifactId>
+            <version>${dep.trino.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
             <artifactId>trino-iceberg</artifactId>
             <version>${dep.trino.version}</version>
             <scope>test</scope>
