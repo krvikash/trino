@@ -78,9 +78,6 @@
         <!-- force common version; pulled by some test dependencies -->
         <dep.kotlin.version>1.9.10</dep.kotlin.version>
 
-        <!-- Required by Trino 427 -->
-        <dep.junit.version>5.10.0</dep.junit.version>
-
         <dep.google.http.client.version>1.43.3</dep.google.http.client.version>
     </properties>
 

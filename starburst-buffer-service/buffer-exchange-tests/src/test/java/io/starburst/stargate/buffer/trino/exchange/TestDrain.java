@@ -30,10 +30,12 @@ import io.trino.spi.type.BigintType;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.FaultTolerantExecutionConnectorTestHelper;
 import io.trino.testing.MaterializedResult;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.parallel.Execution;
 
 import java.io.IOException;
 import java.net.URI;
@@ -54,7 +56,11 @@ import static io.trino.testing.assertions.Assert.assertEventually;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
+@TestInstance(PER_CLASS)
+@Execution(SAME_THREAD)
 public class TestDrain
 {
     private static final Logger log = Logger.get(TestDrain.class);
@@ -63,14 +69,14 @@ public class TestDrain
 
     private HttpClient httpClient;
 
-    @BeforeClass
+    @BeforeAll
     public void setup()
     {
         executor = MoreExecutors.listeningDecorator(Executors.newCachedThreadPool());
         httpClient = new JettyHttpClient(new HttpClientConfig());
     }
 
-    @AfterClass(alwaysRun = true)
+    @AfterAll
     public void tearDown()
             throws IOException
     {
@@ -82,26 +88,34 @@ public class TestDrain
         httpClient = null;
     }
 
-    @DataProvider(name = "TestParams")
-    public Object[][] testParams()
-    {
-        return new Object[][] {
-                {true},
-                {false}};
-    }
-
-    @Test(dataProvider = "TestParams")
-    public void testDrainQuick(boolean chunkSpoolMergeEnabled)
+    @Test
+    public void testDrainQuickMerge()
             throws Exception
     {
-        testDrain(3, chunkSpoolMergeEnabled);
+        testDrain(3, true);
     }
 
-    @Test(dataProvider = "TestParams", enabled = false)  // too slow for automation
-    public void testDrainStress(boolean chunkSpoolMergeEnabled)
+    @Test
+    public void testDrainQuickNoMerge()
             throws Exception
     {
-        testDrain(20, chunkSpoolMergeEnabled);
+        testDrain(3, false);
+    }
+
+    @Test
+    @Disabled// too slow for automation
+    public void testDrainStressMerge()
+            throws Exception
+    {
+        testDrain(20, true);
+    }
+
+    @Test
+    @Disabled// too slow for automation
+    public void testDrainStressNoMerge()
+            throws Exception
+    {
+        testDrain(20, false);
     }
 
     private void testDrain(int drainIterations, boolean chunkSpoolMergeEnabled)

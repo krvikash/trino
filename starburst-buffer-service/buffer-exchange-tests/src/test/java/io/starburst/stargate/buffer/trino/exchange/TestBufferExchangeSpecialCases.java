@@ -20,8 +20,9 @@ import io.trino.testing.FaultTolerantExecutionConnectorTestHelper;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.assertions.Assert;
 import org.assertj.core.api.AssertProvider;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -38,7 +39,9 @@ import static io.starburst.stargate.buffer.testing.MockDataNodeStats.Key.FAILED_
 import static io.starburst.stargate.buffer.testing.MockDataNodeStats.Key.SUCCESSFUL_ADD_DATA_PAGES_REQUEST_COUNT;
 import static io.starburst.stargate.buffer.testing.MockDataNodeStats.Key.SUCCESSFUL_GET_CHUNK_DATA_FROM_DRAINED_STORAGE_REQUEST_COUNT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
+@TestInstance(PER_CLASS)
 public class TestBufferExchangeSpecialCases
 {
     private final ExecutorService executor = Executors.newCachedThreadPool();
@@ -181,7 +184,7 @@ public class TestBufferExchangeSpecialCases
         }
     }
 
-    @AfterClass(alwaysRun = true)
+    @AfterAll
     public void destroy()
     {
         executor.shutdownNow();

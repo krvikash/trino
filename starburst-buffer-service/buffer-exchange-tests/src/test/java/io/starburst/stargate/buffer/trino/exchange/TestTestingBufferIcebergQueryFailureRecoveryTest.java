@@ -18,7 +18,7 @@ import io.trino.plugin.iceberg.BaseIcebergFailureRecoveryTest;
 import io.trino.plugin.iceberg.IcebergQueryRunner;
 import io.trino.testing.QueryRunner;
 import io.trino.tpch.TpchTable;
-import org.testng.annotations.AfterClass;
+import org.junit.jupiter.api.AfterAll;
 
 import java.net.URI;
 import java.util.List;
@@ -72,13 +72,12 @@ public class TestTestingBufferIcebergQueryFailureRecoveryTest
                 .build();
     }
 
-    @AfterClass(alwaysRun = true)
+    @AfterAll
     public void destroy()
             throws Exception
     {
         if (bufferService != null) {
             bufferService.close();
-            bufferService = null;
         }
     }
 }

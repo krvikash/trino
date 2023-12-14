@@ -20,7 +20,8 @@ import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.FaultTolerantExecutionConnectorTestHelper;
 import io.trino.testing.QueryRunner;
 import io.trino.tpch.TpchTable;
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 import static io.airlift.testing.Closeables.closeAllSuppress;
 
@@ -65,14 +66,16 @@ public class TestMockBufferDistributedFaultTolerantEngineOnlyQueries
     }
 
     @Override
-    @Test(enabled = false)
+    @Test
+    @Disabled
     public void testExplainAnalyzeVerbose()
     {
         // Spooling exchange does not prove output buffer utilization histogram
     }
 
     @Override
-    @Test(enabled = false)
+    @Test
+    @Disabled
     public void testSelectiveLimit()
     {
         // FTE mode does not terminate query when limit is reached

@@ -12,7 +12,8 @@ package io.starburst.stargate.buffer.trino.exchange.ratelimiting;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.log.Logger;
 import io.starburst.stargate.buffer.trino.exchange.DataApiFacadeStats;
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Map;
@@ -27,7 +28,8 @@ public class RateLimitingTest
 {
     private static final Logger log = Logger.get(RateLimitingTest.class);
 
-    @Test(enabled = false)
+    @Test
+    @Disabled
     public void exampleRateLimitingTest()
             throws IOException
     {
