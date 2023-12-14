@@ -121,7 +121,7 @@ public class SelectorSpec
         if (!(other instanceof SelectorSpec that)) {
             return false;
         }
-        return (group.equals(that.group) &&
+        return group.equals(that.group) &&
                 userRegex.map(Pattern::pattern).equals(that.userRegex.map(Pattern::pattern)) &&
                 userRegex.map(Pattern::flags).equals(that.userRegex.map(Pattern::flags)) &&
                 userGroupRegex.map(Pattern::pattern).equals(that.userGroupRegex.map(Pattern::pattern)) &&
@@ -130,7 +130,7 @@ public class SelectorSpec
                 originalUserRegex.map(Pattern::flags).equals(that.originalUserRegex.map(Pattern::flags)) &&
                 authenticatedUserRegex.map(Pattern::pattern).equals(that.authenticatedUserRegex.map(Pattern::pattern)) &&
                 authenticatedUserRegex.map(Pattern::flags).equals(that.authenticatedUserRegex.map(Pattern::flags)) &&
-                sourceRegex.map(Pattern::pattern).equals(that.sourceRegex.map(Pattern::pattern))) &&
+                sourceRegex.map(Pattern::pattern).equals(that.sourceRegex.map(Pattern::pattern)) &&
                 sourceRegex.map(Pattern::flags).equals(that.sourceRegex.map(Pattern::flags)) &&
                 queryTextRegex.map(Pattern::pattern).equals(that.queryTextRegex.map(Pattern::pattern)) &&
                 queryTextRegex.map(Pattern::flags).equals(that.queryTextRegex.map(Pattern::flags)) &&
