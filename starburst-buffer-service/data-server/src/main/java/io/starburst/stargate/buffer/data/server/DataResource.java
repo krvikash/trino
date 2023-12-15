@@ -619,11 +619,17 @@ public class DataResource
                     @Override
                     public void onError(Throwable throwable)
                     {
-                        logger.warn(throwable, "error on GET /%s/%s/pages/%s/%s; alreadyDone=%s", bufferNodeId, exchangeId, partitionId, chunkId, done);
-                        if (!done) {
-                            done = true;
-                            chunkDataLease.release();
-                            asyncContext.complete();
+                        try {
+                            logger.warn(throwable, "error on GET /%s/%s/pages/%s/%s; alreadyDone=%s", bufferNodeId, exchangeId, partitionId, chunkId, done);
+                            if (!done) {
+                                done = true;
+                                chunkDataLease.release();
+                                asyncContext.complete();
+                            }
+                        }
+                        catch (Throwable e) {
+                            logger.error(e, "error in error handler for GET /%s/%s/pages/%s/%s", bufferNodeId, exchangeId, partitionId, chunkId);
+                            throw e;
                         }
                     }
                 });
