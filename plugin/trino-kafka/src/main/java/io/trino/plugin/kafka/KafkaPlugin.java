@@ -15,12 +15,13 @@ package io.trino.plugin.kafka;
 
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Module;
+import io.trino.plugin.kafka.security.KafkaSecurityModule;
 import io.trino.spi.Plugin;
 import io.trino.spi.connector.ConnectorFactory;
 
 import java.util.function.Supplier;
 
-import static com.google.inject.util.Modules.EMPTY_MODULE;
+import static io.airlift.configuration.ConfigurationAwareModule.combine;
 import static java.util.Objects.requireNonNull;
 
 public class KafkaPlugin
@@ -30,7 +31,7 @@ public class KafkaPlugin
 
     public KafkaPlugin()
     {
-        this(() -> EMPTY_MODULE);
+        this(() -> combine(new KafkaClientsModule(), new KafkaSecurityModule()));
     }
 
     public KafkaPlugin(Supplier<Module> extensions)
