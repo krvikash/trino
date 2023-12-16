@@ -26,6 +26,8 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
 
 import static io.airlift.testing.Closeables.closeAllSuppress;
 
@@ -65,8 +67,16 @@ public class TestTestingBufferDistributedFaultTolerantEngineOnlyQueries
                 .put("exchange.max-buffer-nodes-per-partition", "2")
                 .buildOrThrow();
 
+        Map<String, String> extraProperties = new HashMap<>(FaultTolerantExecutionConnectorTestHelper.getExtraProperties());
+        // By default, FaultTolerantExecutionConnectorTestHelper.getExtraProperties sets
+        // executor-pool-size to 10. Such small value may cause queries to fail if tests are run in parallel.
+        // The reason for that is currently same thread pool is used for long running jobs driving EventDrivenFaultTolerantQueryScheduler
+        // as well as for future callback used during query processing. If all threads are used by EventDrivenFaultTolerantQueryScheduler jobs
+        // then callbacks would not be executed and queries may get blocked.
+        // TODO: update code in Trino so it is not needed
+        extraProperties.put("query.executor-pool-size", "100");
         DistributedQueryRunner queryRunner = MemoryQueryRunner.builder()
-                .setExtraProperties(FaultTolerantExecutionConnectorTestHelper.getExtraProperties())
+                .setExtraProperties(extraProperties)
                 .setAdditionalSetup(runner -> {
                     runner.installPlugin(new BufferExchangePlugin());
                     runner.loadExchangeManager("buffer", exchangeManagerProperties);
