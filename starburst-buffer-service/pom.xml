@@ -62,7 +62,7 @@
         <dep.airlift.version>239</dep.airlift.version>
         <dep.slice.version>2.2</dep.slice.version>
         <dep.errorprone.version>2.23.0</dep.errorprone.version>
-        <dep.trino.version>434</dep.trino.version>
+        <dep.trino.version>435</dep.trino.version>
         <dep.joda.version>2.12.5</dep.joda.version>
         <!-- required by Trino 414 -->
         <dep.datadog-agent.version>0.114.0</dep.datadog-agent.version>

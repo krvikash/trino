@@ -25,15 +25,11 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-import java.io.InputStream;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Properties;
 
-import static com.google.common.io.Resources.getResource;
 import static io.airlift.testing.Closeables.closeAllSuppress;
-import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestTestingBufferDistributedFaultTolerantEngineOnlyQueries
         extends AbstractDistributedEngineOnlyQueries
@@ -124,48 +120,6 @@ public class TestTestingBufferDistributedFaultTolerantEngineOnlyQueries
     {
         if (bufferService != null) {
             bufferService.close();
-        }
-    }
-
-    @Override
-    @Test
-    public void testNonDeterministicAggregationPredicatePushdown()
-    {
-        // disabled in 434 as trinodb/trino does not have a fix and this test with buffer service will hang
-        // remove override after update to 435
-        try {
-            Properties dependenciesVersions = new Properties();
-            try (InputStream inputStream = getResource(getClass(), "/io/starburst/stargate/buffer/trino/exchange/dependencies-versions.properties").openStream()) {
-                dependenciesVersions.load(inputStream);
-            }
-
-            String trinoDependencyVersion = dependenciesVersions.getProperty("dep.trino.version");
-
-            assertThat(trinoDependencyVersion).as("trino version").isEqualTo("434");
-        }
-        catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Override
-    @Test
-    public void testRowNumberLimit()
-    {
-        // disabled in 434 as trinodb/trino does not have a fix and this test with buffer service will hang
-        // remove override after update to 435
-        try {
-            Properties dependenciesVersions = new Properties();
-            try (InputStream inputStream = getResource(getClass(), "/io/starburst/stargate/buffer/trino/exchange/dependencies-versions.properties").openStream()) {
-                dependenciesVersions.load(inputStream);
-            }
-
-            String trinoDependencyVersion = dependenciesVersions.getProperty("dep.trino.version");
-
-            assertThat(trinoDependencyVersion).as("trino version").isEqualTo("434");
-        }
-        catch (Exception e) {
-            throw new RuntimeException(e);
         }
     }
 }
