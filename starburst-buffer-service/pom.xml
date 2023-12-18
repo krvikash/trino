@@ -26,7 +26,6 @@
         <module>data-server</module>
         <module>discovery-client</module>
         <module>discovery-server</module>
-        <module>fallbacking-buffer-exchange</module>
         <module>testing</module>
     </modules>
 
@@ -166,12 +165,6 @@
             <dependency>
                 <groupId>${project.groupId}</groupId>
                 <artifactId>discovery-server</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>fallbacking-buffer-exchange</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

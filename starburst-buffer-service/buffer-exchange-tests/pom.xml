@@ -154,19 +154,6 @@
 
         <dependency>
             <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>fallbacking-buffer-exchange</artifactId>
-            <scope>test</scope>
-            <exclusions>
-                <exclusion>
-                    <!-- conflicts with gcs-connector pulled by trino-iceberg -->
-                    <groupId>com.google.api</groupId>
-                    <artifactId>gax</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-
-        <dependency>
-            <groupId>io.starburst.stargate.buffer</groupId>
             <artifactId>testing</artifactId>
             <scope>test</scope>
         </dependency>
