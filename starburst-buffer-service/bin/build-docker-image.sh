@@ -52,6 +52,21 @@ if [[ "${projectName}" == "" ]]; then
     exit 1;
 fi
 
+case ${projectName} in
+  "data-server")
+    moduleName="galaxy-buffer-data-server"
+    ;;
+  "discovery-server")
+    moduleName="galaxy-buffer-discovery-server"
+    ;;
+  *)
+    echo "Unsupported projectName"
+    printUsage
+    exit 1;
+    ;;
+esac
+
+
 imageTags=()
 
 for imageRepository in ${imageRepositories[@]}; do
@@ -69,17 +84,17 @@ done
 
 if [[ "${archTypes}" == "" ]]; then
     buildArguments="${buildArguments} --tag trino-buffer-service/${projectName}:${projectVersion}"
-    docker build "../${projectName}" \
+    docker build "../${moduleName}" \
         --build-arg "PROJECT_VERSION=${projectVersion}" \
-        -f "../${projectName}/Dockerfile" ${buildArguments}
+        -f "../${moduleName}/Dockerfile" ${buildArguments}
 else
     if [[ ${pushImages} -eq 1 ]]; then
         buildArguments="${buildArguments} --push"
     else
         buildArguments="${buildArguments} -o type=docker"
     fi
-    docker buildx build "../${projectName}" \
-        -f "../${projectName}/Dockerfile" \
+    docker buildx build "../${moduleName}" \
+        -f "../${moduleName}/Dockerfile" \
         --build-arg "PROJECT_VERSION=${projectVersion}" \
         --platform "${archTypes}" ${buildArguments}
 fi

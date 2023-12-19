@@ -10,23 +10,23 @@
     </parent>
 
     <groupId>io.starburst.stargate.buffer</groupId>
-    <artifactId>stargate-buffer-root</artifactId>
+    <artifactId>galaxy-buffer-root</artifactId>
     <packaging>pom</packaging>
 
     <description>Stargate Buffer Service</description>
     <url>https://github.com/starburstdata/stargate-buffer-service</url>
 
     <modules>
-        <module>buffer-exchange</module>
-        <module>buffer-exchange-tests</module>
-        <module>buffer-status</module>
-        <module>client-common</module>
-        <module>data-client</module>
-        <module>data-common</module>
-        <module>data-server</module>
-        <module>discovery-client</module>
-        <module>discovery-server</module>
-        <module>testing</module>
+        <module>galaxy-buffer-client-common</module>
+        <module>galaxy-buffer-data-client</module>
+        <module>galaxy-buffer-data-common</module>
+        <module>galaxy-buffer-data-server</module>
+        <module>galaxy-buffer-discovery-client</module>
+        <module>galaxy-buffer-discovery-server</module>
+        <module>galaxy-buffer-exchange</module>
+        <module>galaxy-buffer-exchange-tests</module>
+        <module>galaxy-buffer-status</module>
+        <module>galaxy-buffer-testing</module>
     </modules>
 
     <scm>
@@ -48,63 +48,63 @@
 
     <properties>
         <air.main.basedir>${project.parent.basedir}</air.main.basedir>
-        <air.license.header-file>${air.main.basedir}/buffer-service/src/license/starburst-header.txt</air.license.header-file>
+        <air.license.header-file>${air.main.basedir}/galaxy-buffer-service/src/license/starburst-header.txt</air.license.header-file>
         <dep.datadog-agent.version>0.114.0</dep.datadog-agent.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+
             <dependency>
                 <groupId>${project.groupId}</groupId>
-                <artifactId>buffer-exchange</artifactId>
+                <artifactId>galaxy-buffer-client-common</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
                 <groupId>${project.groupId}</groupId>
-                <artifactId>buffer-exchange-tests</artifactId>
+                <artifactId>galaxy-buffer-data-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
                 <groupId>${project.groupId}</groupId>
-                <artifactId>buffer-status</artifactId>
+                <artifactId>galaxy-buffer-data-server</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
                 <groupId>${project.groupId}</groupId>
-                <artifactId>client-common</artifactId>
+                <artifactId>galaxy-buffer-discovery-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
                 <groupId>${project.groupId}</groupId>
-                <artifactId>data-client</artifactId>
+                <artifactId>galaxy-buffer-discovery-server</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>galaxy-buffer-exchange</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
                 <groupId>${project.groupId}</groupId>
-                <artifactId>data-server</artifactId>
+                <artifactId>galaxy-buffer-exchange-tests</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
                 <groupId>${project.groupId}</groupId>
-                <artifactId>discovery-client</artifactId>
+                <artifactId>galaxy-buffer-status</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
                 <groupId>${project.groupId}</groupId>
-                <artifactId>discovery-server</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>testing</artifactId>
+                <artifactId>galaxy-buffer-testing</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
