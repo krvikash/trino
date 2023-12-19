@@ -78,6 +78,7 @@ import static io.starburst.stargate.buffer.data.execution.ExchangeState.CREATED;
 import static io.starburst.stargate.buffer.data.execution.ExchangeState.SOURCE_STREAMING;
 import static io.starburst.stargate.buffer.data.execution.SpooledChunksByExchange.decodeMetadataSlice;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getMetadataFileName;
+import static io.trino.cache.SafeCaches.buildNonEvictableCache;
 import static java.lang.Math.toIntExact;
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
@@ -125,7 +126,7 @@ public class ChunkManager
     private final ScheduledExecutorService chunkSpoolExecutor = newSingleThreadScheduledExecutor();
     private final ScheduledExecutorService exchangeTimeoutExecutor = newSingleThreadScheduledExecutor();
     private final ScheduledExecutorService eagerDeliveryModeExecutor = newSingleThreadScheduledExecutor();
-    private final Cache<String, Object> recentlyRemovedExchanges = CacheBuilder.newBuilder().expireAfterWrite(5, MINUTES).build();
+    private final Cache<String, Object> recentlyRemovedExchanges = buildNonEvictableCache(CacheBuilder.newBuilder().expireAfterWrite(5, MINUTES));
     private final LoadingCache<Long, Map<Long, SpooledChunk>> drainedSpooledChunkMap;
     private final Set<String> exchangesBeingReleased = ConcurrentHashMap.newKeySet();
 
@@ -166,9 +167,9 @@ public class ChunkManager
         this.spooledChunksByExchange = requireNonNull(spooledChunksByExchange, "spooledChunkMapByExchange is null");
         this.dataServerStats = requireNonNull(dataServerStats, "dataServerStats is null");
         this.executor = requireNonNull(executor, "executor is null");
-        this.drainedSpooledChunkMap = CacheBuilder.newBuilder()
-                .softValues()
-                .build(new CacheLoader<>()
+        this.drainedSpooledChunkMap = buildNonEvictableCache(
+                CacheBuilder.newBuilder().softValues(),
+                new CacheLoader<>()
                 {
                     @Override
                     public Map<Long, SpooledChunk> load(Long key)

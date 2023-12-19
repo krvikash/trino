@@ -40,6 +40,7 @@ import static com.google.common.util.concurrent.Futures.nonCancellationPropagati
 import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.BufferNodeState.DRAINED;
+import static io.trino.cache.SafeCaches.buildNonEvictableCache;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.HOURS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -87,10 +88,9 @@ public class ApiBasedBufferNodeDiscoveryManager
         this.discoveryApi = apiFactory.createDiscoveryApi();
         this.executorService = requireNonNull(executorService, "executorService is null");
         this.minForceRefreshDelay = requireNonNull(minForceRefreshDelay, "minForceRefreshDelay is null");
-        this.drainedNodes = CacheBuilder.newBuilder()
+        this.drainedNodes = buildNonEvictableCache(CacheBuilder.newBuilder()
                 .ticker(ticker)
-                .expireAfterWrite(DRAINED_NODES_KEEP_TIMEOUT.toMillis(), MILLISECONDS)
-                .build();
+                .expireAfterWrite(DRAINED_NODES_KEEP_TIMEOUT.toMillis(), MILLISECONDS));
     }
 
     @PostConstruct
