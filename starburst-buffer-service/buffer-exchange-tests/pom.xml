@@ -6,13 +6,14 @@
         <groupId>io.starburst.stargate.buffer</groupId>
         <artifactId>stargate-buffer-root</artifactId>
         <version>${revision}</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>buffer-exchange-tests</artifactId>
     <description>Buffer Service Data Client</description>
 
     <properties>
-        <air.main.basedir>${project.parent.basedir}</air.main.basedir>
+        <air.main.basedir>${project.parent.basedir}/..</air.main.basedir>
         <!-- Buffer service does not spool right now, hence is memory intensive -->
         <air.test.jvmsize>4g</air.test.jvmsize>
         <!-- Required by Trino tests -->
@@ -161,7 +162,6 @@
         <dependency>
             <groupId>io.trino</groupId>
             <artifactId>trino-exchange-filesystem</artifactId>
-            <version>${dep.trino.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
             <exclusions>
@@ -176,7 +176,6 @@
         <dependency>
             <groupId>io.trino</groupId>
             <artifactId>trino-faulttolerant-tests</artifactId>
-            <version>${dep.trino.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
             <exclusions>
@@ -191,14 +190,12 @@
         <dependency>
             <groupId>io.trino</groupId>
             <artifactId>trino-hdfs</artifactId>
-            <version>${dep.trino.version}</version>
             <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>io.trino</groupId>
             <artifactId>trino-iceberg</artifactId>
-            <version>${dep.trino.version}</version>
             <scope>test</scope>
             <exclusions>
                 <exclusion>
@@ -222,7 +219,6 @@
         <dependency>
             <groupId>io.trino</groupId>
             <artifactId>trino-iceberg</artifactId>
-            <version>${dep.trino.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
             <exclusions>
@@ -242,7 +238,6 @@
         <dependency>
             <groupId>io.trino</groupId>
             <artifactId>trino-main</artifactId>
-            <version>${dep.trino.version}</version>
             <scope>test</scope>
             <exclusions>
                 <exclusion>
@@ -256,7 +251,6 @@
         <dependency>
             <groupId>io.trino</groupId>
             <artifactId>trino-main</artifactId>
-            <version>${dep.trino.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
@@ -264,14 +258,12 @@
         <dependency>
             <groupId>io.trino</groupId>
             <artifactId>trino-memory</artifactId>
-            <version>${dep.trino.version}</version>
             <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>io.trino</groupId>
             <artifactId>trino-memory</artifactId>
-            <version>${dep.trino.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
@@ -279,14 +271,12 @@
         <dependency>
             <groupId>io.trino</groupId>
             <artifactId>trino-spi</artifactId>
-            <version>${dep.trino.version}</version>
             <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>io.trino</groupId>
             <artifactId>trino-testing</artifactId>
-            <version>${dep.trino.version}</version>
             <scope>test</scope>
             <exclusions>
                 <exclusion>
@@ -299,21 +289,18 @@
         <dependency>
             <groupId>io.trino</groupId>
             <artifactId>trino-testing-containers</artifactId>
-            <version>${dep.trino.version}</version>
             <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>io.trino</groupId>
             <artifactId>trino-testing-services</artifactId>
-            <version>${dep.trino.version}</version>
             <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>io.trino</groupId>
             <artifactId>trino-tpch</artifactId>
-            <version>${dep.trino.version}</version>
             <scope>test</scope>
         </dependency>
 

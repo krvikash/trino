@@ -6,6 +6,7 @@
         <groupId>io.starburst.stargate.buffer</groupId>
         <artifactId>stargate-buffer-root</artifactId>
         <version>${revision}</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>buffer-exchange</artifactId>
@@ -13,7 +14,7 @@
     <description>Buffer Service base Trino Exchange</description>
 
     <properties>
-        <air.main.basedir>${project.parent.basedir}</air.main.basedir>
+        <air.main.basedir>${project.parent.basedir}/..</air.main.basedir>
     </properties>
 
     <dependencies>

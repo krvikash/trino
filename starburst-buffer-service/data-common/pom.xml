@@ -6,13 +6,14 @@
         <groupId>io.starburst.stargate.buffer</groupId>
         <artifactId>stargate-buffer-root</artifactId>
         <version>${revision}</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>data-common</artifactId>
     <description>Buffer Service Data Common</description>
 
     <properties>
-        <air.main.basedir>${project.parent.basedir}</air.main.basedir>
+        <air.main.basedir>${project.parent.basedir}/..</air.main.basedir>
     </properties>
 
     <dependencies>

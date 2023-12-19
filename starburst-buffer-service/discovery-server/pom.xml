@@ -6,13 +6,14 @@
         <groupId>io.starburst.stargate.buffer</groupId>
         <artifactId>stargate-buffer-root</artifactId>
         <version>${revision}</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>discovery-server</artifactId>
     <description>Buffer Service Discovery Server</description>
 
     <properties>
-        <air.main.basedir>${project.parent.basedir}</air.main.basedir>
+        <air.main.basedir>${project.parent.basedir}/..</air.main.basedir>
         <air.readme.file>README.md</air.readme.file>
         <main-class>io.starburst.stargate.buffer.discovery.server.DiscoveryServer</main-class>
     </properties>

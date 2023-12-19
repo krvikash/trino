@@ -6,13 +6,14 @@
         <groupId>io.starburst.stargate.buffer</groupId>
         <artifactId>stargate-buffer-root</artifactId>
         <version>${revision}</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>testing</artifactId>
     <description>Buffer Service Testing Utils</description>
 
     <properties>
-        <air.main.basedir>${project.parent.basedir}</air.main.basedir>
+        <air.main.basedir>${project.parent.basedir}/..</air.main.basedir>
     </properties>
 
     <dependencies>
@@ -70,7 +71,6 @@
         <dependency>
             <groupId>io.trino</groupId>
             <artifactId>trino-main</artifactId>
-            <version>${dep.trino.version}</version>
             <exclusions>
                 <exclusion>
                     <!-- pulls conflictin net.java.dev.jna:jna:5.10.0 -->
@@ -87,7 +87,6 @@
         <dependency>
             <groupId>io.trino</groupId>
             <artifactId>trino-memory</artifactId>
-            <version>${dep.trino.version}</version>
             <type>test-jar</type>
         </dependency>
 
@@ -99,7 +98,6 @@
         <dependency>
             <groupId>io.trino</groupId>
             <artifactId>trino-testing</artifactId>
-            <version>${dep.trino.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.github.spotbugs</groupId>
@@ -116,7 +114,6 @@
         <dependency>
             <groupId>io.trino</groupId>
             <artifactId>trino-memory</artifactId>
-            <version>${dep.trino.version}</version>
             <scope>runtime</scope>
         </dependency>
 

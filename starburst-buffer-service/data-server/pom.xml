@@ -6,13 +6,14 @@
         <groupId>io.starburst.stargate.buffer</groupId>
         <artifactId>stargate-buffer-root</artifactId>
         <version>${revision}</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>data-server</artifactId>
     <description>Stargate Buffer Service Data Server</description>
 
     <properties>
-        <air.main.basedir>${project.parent.basedir}</air.main.basedir>
+        <air.main.basedir>${project.parent.basedir}/..</air.main.basedir>
         <air.readme.file>README.md</air.readme.file>
         <main-class>io.starburst.stargate.buffer.data.server.DataServer</main-class>
     </properties>
@@ -359,7 +360,6 @@
         <dependency>
             <groupId>io.trino</groupId>
             <artifactId>trino-testing-containers</artifactId>
-            <version>${dep.trino.version}</version>
             <scope>test</scope>
         </dependency>
 
