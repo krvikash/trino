@@ -206,7 +206,7 @@ public abstract class AbstractTestSpoolingStorage
         for (long chunkId = 0; chunkId < numChunks; ++chunkId) {
             chunkDataLeaseMapBuilder.put(new Chunk(chunkId), toChunkDataLease(ImmutableList.of(new DataPage(0, 0, utf8Slice(String.valueOf(chunkId))))));
         }
-        Map<Chunk, ChunkDataLease> chunkDataLeaseMap = chunkDataLeaseMapBuilder.build();
+        Map<Chunk, ChunkDataLease> chunkDataLeaseMap = chunkDataLeaseMapBuilder.buildOrThrow();
         long contentLength = chunkDataLeaseMap.values().stream().mapToInt(ChunkDataLease::serializedSizeInBytes).sum();
         Map<Long, SpooledChunk> spooledChunkMap = getFutureValue(spoolingStorage.writeMergedChunks(BUFFER_NODE_ID, EXCHANGE_ID, chunkDataLeaseMap, contentLength));
         for (long chunkId = 0; chunkId < numChunks; ++chunkId) {

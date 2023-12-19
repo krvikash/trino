@@ -661,7 +661,7 @@ public class ChunkManager
                         contentLength += chunkDataLease.serializedSizeInBytes();
                         chunkDataLeasesMapBuilder.put(chunk, chunkDataLease);
                     }
-                    Map<Chunk, ChunkDataLease> chunkDataLeaseMap = chunkDataLeasesMapBuilder.build();
+                    Map<Chunk, ChunkDataLease> chunkDataLeaseMap = chunkDataLeasesMapBuilder.buildOrThrow();
 
                     if (chunkDataLeaseMap.isEmpty()) {
                         // all chunks released in the meantime

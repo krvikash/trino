@@ -155,7 +155,7 @@ public class AzureBlobSpoolingStorage
                 .toFuture();
         return Futures.transform(
                 toListenableFuture(future),
-                ignored -> spooledChunkMap.build(),
+                ignored -> spooledChunkMap.buildOrThrow(),
                 directExecutor());
     }
 

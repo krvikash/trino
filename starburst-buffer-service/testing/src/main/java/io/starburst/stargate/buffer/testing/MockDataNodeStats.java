@@ -61,7 +61,7 @@ public class MockDataNodeStats
             for (Map.Entry<Key, AtomicLong> entry : stats.entrySet()) {
                 finalStats.put(entry.getKey(), entry.getValue().get());
             }
-            return new MockDataNodeStats(finalStats.build());
+            return new MockDataNodeStats(finalStats.buildOrThrow());
         }
     }
 }

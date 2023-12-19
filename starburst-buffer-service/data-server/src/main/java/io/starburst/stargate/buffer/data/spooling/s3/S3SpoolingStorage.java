@@ -161,7 +161,7 @@ public class S3SpoolingStorage
                                 chunkDataLeaseMap,
                                 contentLength,
                                 spooledChunkMap))),
-                ignored -> spooledChunkMap.build(),
+                ignored -> spooledChunkMap.buildOrThrow(),
                 directExecutor());
     }
 

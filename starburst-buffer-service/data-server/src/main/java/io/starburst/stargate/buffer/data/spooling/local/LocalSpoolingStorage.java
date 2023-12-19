@@ -148,7 +148,7 @@ public class LocalSpoolingStorage
             return immediateFailedFuture(e);
         }
         counts.computeIfAbsent(exchangeId, ignored -> new AtomicInteger()).incrementAndGet();
-        return immediateFuture(spooledChunkMap.build());
+        return immediateFuture(spooledChunkMap.buildOrThrow());
     }
 
     @Override
