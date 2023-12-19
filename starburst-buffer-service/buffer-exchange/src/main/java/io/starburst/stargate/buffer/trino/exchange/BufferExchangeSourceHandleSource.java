@@ -14,7 +14,6 @@ import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.airlift.log.Logger;
 import io.trino.spi.exchange.ExchangeSourceHandle;
 import io.trino.spi.exchange.ExchangeSourceHandleSource;
-import org.openjdk.jol.info.ClassLayout;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,7 +23,7 @@ import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
 import static io.airlift.slice.SizeOf.estimatedSizeOf;
-import static java.lang.Math.toIntExact;
+import static io.airlift.slice.SizeOf.instanceSize;
 
 @ThreadSafe
 public class BufferExchangeSourceHandleSource
@@ -32,7 +31,7 @@ public class BufferExchangeSourceHandleSource
 {
     private static final Logger log = Logger.get(ExchangeSourceHandleSource.class);
 
-    private static final int INSTANCE_SIZE = toIntExact(ClassLayout.parseClass(BufferExchangeSourceHandleSource.class).instanceSize());
+    private static final int INSTANCE_SIZE = instanceSize(BufferExchangeSourceHandleSource.class);
 
     @GuardedBy("this")
     private List<ExchangeSourceHandle> nextBatchHandles = new ArrayList<>();

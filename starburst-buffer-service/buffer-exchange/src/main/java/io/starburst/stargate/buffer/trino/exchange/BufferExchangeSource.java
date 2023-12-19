@@ -28,7 +28,6 @@ import io.trino.spi.exchange.ExchangeSource;
 import io.trino.spi.exchange.ExchangeSourceHandle;
 import io.trino.spi.exchange.ExchangeSourceOutputSelector;
 import jakarta.annotation.Nullable;
-import org.openjdk.jol.info.ClassLayout;
 import sun.misc.Unsafe;
 
 import java.util.ArrayDeque;
@@ -50,7 +49,7 @@ import static com.google.common.base.Throwables.throwIfUnchecked;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.slice.SizeOf.estimatedSizeOf;
-import static java.lang.Math.toIntExact;
+import static io.airlift.slice.SizeOf.instanceSize;
 import static java.util.Collections.emptySet;
 import static java.util.Comparator.comparing;
 import static java.util.Objects.requireNonNull;
@@ -59,7 +58,7 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 public class BufferExchangeSource
         implements ExchangeSource
 {
-    private static final int INSTANCE_SIZE = toIntExact(ClassLayout.parseClass(BufferExchangeSource.class).instanceSize());
+    private static final int INSTANCE_SIZE = instanceSize(BufferExchangeSource.class);
     private static final Logger log = Logger.get(BufferExchangeSource.class);
 
     private final DataApiFacade dataApi;
@@ -517,7 +516,7 @@ public class BufferExchangeSource
     // This class is not thread safe
     private class ChunkReader
     {
-        private static final int INSTANCE_SIZE = toIntExact(ClassLayout.parseClass(ChunkReader.class).instanceSize());
+        private static final int INSTANCE_SIZE = instanceSize(ChunkReader.class);
 
         private final SourceChunk sourceChunk;
         private final AtomicBoolean closed = new AtomicBoolean();
@@ -680,7 +679,7 @@ public class BufferExchangeSource
 
     private static class SpeculativeSourceOutputChoices
     {
-        private static final int INSTANCE_SIZE = toIntExact(ClassLayout.parseClass(SpeculativeSourceOutputChoices.class).instanceSize());
+        private static final int INSTANCE_SIZE = instanceSize(SpeculativeSourceOutputChoices.class);
         private final Map<String, Map<Integer, Integer>> speculativeSourceOutputChoices = new HashMap<>();
         private final AtomicLong estimatedSize;
 
