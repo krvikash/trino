@@ -43,6 +43,12 @@
         <dependency>
             <groupId>com.google.api</groupId>
             <artifactId>gax</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>javax.annotation</groupId>
+                    <artifactId>javax.annotation-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
@@ -119,6 +125,10 @@
                 <exclusion>
                     <groupId>io.opencensus</groupId>
                     <artifactId>opencensus-proto</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>javax.annotation</groupId>
+                    <artifactId>javax.annotation-api</artifactId>
                 </exclusion>
                 <exclusion>
                     <groupId>org.checkerframework</groupId>
