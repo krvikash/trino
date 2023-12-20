@@ -100,6 +100,7 @@ public class TestHiveGlueMetastoreAccessOperations
                 .addHiveProperty("hive.metastore", "glue")
                 .addHiveProperty("hive.metastore.glue.default-warehouse-dir", "s3://%s/".formatted(bucketName))
                 .addHiveProperty("hive.security", "allow-all")
+                .addHiveProperty("hive.metastore-cache-ttl", "0s")
                 .addHiveProperty("fs.s3.enabled", "true")
                 .addHiveProperties(floci.s3AndGlueProperties())
                 .setCreateTpchSchemas(false)

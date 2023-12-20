@@ -40,9 +40,11 @@ public class IcebergHiveMetastoreModule
 
         install(new CachingHiveMetastoreModule());
 
-        // ensure caching metastore wrapper isn't created by default
-        configBinder(binder).bindConfigDefaults(CachingHiveMetastoreConfig.class, config ->
-                config.setStatsCacheTtl(new Duration(0, TimeUnit.SECONDS)));
+        configBinder(binder).bindConfigDefaults(CachingHiveMetastoreConfig.class, config -> {
+            // ensure caching metastore wrapper isn't created by default
+            config.setStatsCacheTtl(new Duration(0, TimeUnit.SECONDS));
+            config.setMetastoreCacheTtl(Duration.ZERO);
+        });
 
         Multibinder<Procedure> procedures = newSetBinder(binder, Procedure.class);
         procedures.addBinding().toProvider(MigrateProcedure.class).in(Scopes.SINGLETON);

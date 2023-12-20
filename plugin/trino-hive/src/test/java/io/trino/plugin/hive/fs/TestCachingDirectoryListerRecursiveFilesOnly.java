@@ -45,6 +45,7 @@ public class TestCachingDirectoryListerRecursiveFilesOnly
                 .put("hive.file-status-cache-expire-time", "5m")
                 .put("hive.file-status-cache.max-retained-size", "1MB")
                 .put("hive.file-status-cache-tables", "tpch.*")
+                .put("hive.metastore-cache-ttl", "0s")
                 .buildOrThrow());
     }
 

@@ -301,6 +301,7 @@ public class TestHiveTransactionalTable
             String hivePartitionString = isPartitioned ? " PARTITION (part_col=2) " : "";
             onHive().executeQuery("INSERT INTO TABLE " + tableName + hivePartitionString + " VALUES (21, 1)");
             onHive().executeQuery("INSERT INTO TABLE " + tableName + hivePartitionString + " VALUES (22, 2)");
+            flushHiveMetadataCache();
 
             // verify that the existing rows are stored in original files
             verifyOriginalFiles(tableName, "WHERE col = 21");
@@ -313,6 +314,7 @@ public class TestHiveTransactionalTable
 
             // read with original files and insert delta
             onHive().executeQuery("INSERT INTO TABLE " + tableName + hivePartitionString + " VALUES (20, 3)");
+            flushHiveMetadataCache();
             assertThat(onTrino().executeQuery("SELECT col, fcol FROM " + tableName)).containsOnly(row(20, 3), row(21, 1), row(22, 2));
 
             // read with original files and delete delta
@@ -349,6 +351,7 @@ public class TestHiveTransactionalTable
             verifyOriginalFiles(tableName, "WHERE col = 21");
 
             onHive().executeQuery("ALTER TABLE " + tableName + " SET " + hiveTableProperties(ACID, bucketingType));
+            flushHiveMetadataCache();
 
             // read with original files
             assertThat(onTrino().executeQuery("SELECT col, fcol FROM " + tableName)).containsOnly(row(21, 1), row(22, 2));
@@ -407,6 +410,8 @@ public class TestHiveTransactionalTable
 
             onHive().executeQuery("ALTER TABLE " + tableName + " SET " + hiveTableProperties(ACID, bucketingType));
 
+            flushHiveMetadataCache();
+
             // read with original files
             assertThat(onTrino().executeQuery("SELECT col, fcol FROM " + tableName + " WHERE col < 12")).containsOnly(row(10, 100), row(11, 110));
 
@@ -453,6 +458,7 @@ public class TestHiveTransactionalTable
 
             onHive().executeQuery("INSERT INTO TABLE " + tableName + hivePartitionString + " VALUES (1)");
             onHive().executeQuery("INSERT INTO TABLE " + tableName + hivePartitionString + " VALUES (2)");
+            flushHiveMetadataCache();
 
             // verify that the existing rows are stored in original files
             verifyOriginalFiles(tableName, "WHERE col = 1");
@@ -464,6 +470,7 @@ public class TestHiveTransactionalTable
 
             // read with original files and delta
             onHive().executeQuery("INSERT INTO TABLE " + tableName + hivePartitionString + " VALUES (3)");
+            flushHiveMetadataCache();
             assertThat(onTrino().executeQuery("SELECT col FROM " + tableName + (isPartitioned ? " WHERE part_col = 2 " : "" + " ORDER BY col"))).containsOnly(row(1), row(2), row(3));
         }
         finally {
@@ -826,6 +833,7 @@ public class TestHiveTransactionalTable
                     " ('Ernie', 'cards'), ('Ernie', 'cereal')," +
                     " ('Debby', 'corn'), ('Debby', 'chips')," +
                     " ('Joe', 'corn'), ('Joe', 'lemons'), ('Joe', 'candy')");
+            flushHiveMetadataCache();
 
             verifySelectForTrinoAndHive("SELECT customer FROM %s WHERE purchase = 'corn'".formatted(tableName), row("Debby"), row("Joe"));
 

@@ -133,6 +133,7 @@ public class TestDeltaLakeConnectorTest
                 .addDeltaProperty("hive.metastore", "file")
                 .addDeltaProperty("hive.metastore.catalog.dir", "local:///file-metastore")
                 .addDeltaProperty("hive.metastore.disable-location-checks", "true")
+                .addDeltaProperty("hive.metastore-cache-ttl", "0s")
                 .addDeltaProperty("fs.hadoop.enabled", "true") // required by the file metastore
                 .addS3Properties(floci, bucketName)
                 .addDeltaProperty("delta.metastore.store-table-metadata", "true")

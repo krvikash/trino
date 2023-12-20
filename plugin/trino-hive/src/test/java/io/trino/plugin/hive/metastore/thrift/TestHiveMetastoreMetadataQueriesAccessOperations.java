@@ -81,6 +81,7 @@ public class TestHiveMetastoreMetadataQueriesAccessOperations
                 .addHiveProperty("hive.metastore", "thrift")
                 .addHiveProperty("hive.metastore.uri", hiveHadoop.getHiveMetastoreEndpoint().toString())
                 .addHiveProperty("hive.hive-views.enabled", "true")
+                .addHiveProperty("hive.metastore-cache-ttl", "0s")
                 .setCreateTpchSchemas(false)
                 .build();
 

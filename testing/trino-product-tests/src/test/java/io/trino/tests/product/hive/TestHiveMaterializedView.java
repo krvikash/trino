@@ -72,6 +72,7 @@ class TestHiveMaterializedView
                 (partitioned ? "PARTITIONED ON (x) " : "") +
                 "STORED AS ORC " +
                 "AS SELECT x, count(*) c FROM test_materialized_view_table GROUP BY x";
+        flushHiveMetadataCache(env);
 
         // Apache Hive 3.1 parser does not support PARTITIONED materialized views.
         if (partitioned) {
@@ -118,6 +119,16 @@ class TestHiveMaterializedView
             catch (RuntimeException _) {
                 // Ignore cleanup errors
             }
+        }
+    }
+
+    private void flushHiveMetadataCache(HiveStorageFormatsEnvironment env)
+    {
+        try {
+            env.executeTrinoUpdate("CALL hive.system.flush_metadata_cache()");
+        }
+        catch (RuntimeException e) {
+            assertThat(e).hasMessageContaining("Cannot flush, metastore cache is not enabled");
         }
     }
 }

@@ -37,6 +37,7 @@ import static io.trino.testing.containers.environment.Row.row;
 import static java.lang.String.format;
 import static java.util.Locale.ENGLISH;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @ProductTest
@@ -498,6 +499,7 @@ class TestHiveMerge
 
                 env.executeTrinoUpdate(format("INSERT INTO %s (customer, purchases, address) VALUES ('Aaron', 6, 'Arches'), ('Ed', 7, 'Etherville'), ('Carol', 9, 'Centreville'), ('Dave', 11, 'Darbyshire')", sourceTable));
 
+                flushHiveMetadataCache(env);
                 String sql = format("MERGE INTO %s t USING %s s ON (t.customer = s.customer)", targetTable, sourceTable) +
                         "    WHEN MATCHED AND s.address = 'Centreville' THEN DELETE" +
                         "    WHEN MATCHED THEN UPDATE SET purchases = s.purchases + t.purchases, address = s.address" +
@@ -796,6 +798,16 @@ class TestHiveMerge
         }
         finally {
             env.executeTrinoUpdate("DROP TABLE IF EXISTS " + fullTableName);
+        }
+    }
+
+    private void flushHiveMetadataCache(HiveTransactionalEnvironment env)
+    {
+        try {
+            env.executeTrinoUpdate("CALL hive.system.flush_metadata_cache()");
+        }
+        catch (RuntimeException e) {
+            assertThat(e).hasMessageContaining("Cannot flush, metastore cache is not enabled");
         }
     }
 }

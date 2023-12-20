@@ -572,6 +572,8 @@ class TestHiveRedirectionToIceberg
                         row("iceberg", schemaName, tableName, "comment", 4, null, "YES", "varchar"));
 
         env.executeTrinoUpdate("DROP TABLE " + icebergTableName);
+        // TODO: hive metastore metadata cache should work with redirection without manual flush
+        env.executeTrinoUpdate("CALL hive.system.flush_metadata_cache()");
         env.executeTrinoUpdate("DROP SCHEMA hive." + schemaName);
     }
 
@@ -618,6 +620,8 @@ class TestHiveRedirectionToIceberg
                         row("iceberg", schemaName, tableName, "comment"));
 
         env.executeTrinoUpdate("DROP TABLE " + icebergTableName);
+        // TODO: hive metastore metadata cache should work with redirection without manual flush
+        env.executeTrinoUpdate("CALL hive.system.flush_metadata_cache()");
         env.executeTrinoUpdate("DROP SCHEMA hive." + schemaName);
     }
 

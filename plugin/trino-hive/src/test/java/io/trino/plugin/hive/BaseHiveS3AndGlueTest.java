@@ -63,6 +63,7 @@ public abstract class BaseHiveS3AndGlueTest
                 .addHiveProperty("hive.security", "allow-all")
                 .addHiveProperty("hive.non-managed-table-writes-enabled", "true")
                 .addHiveProperty("fs.s3.enabled", "true")
+                .addHiveProperty("hive.metastore-cache-ttl", "0s")
                 .addHiveProperties(s3AndGlueProperties())
                 .setCreateTpchSchemas(false)
                 .build();

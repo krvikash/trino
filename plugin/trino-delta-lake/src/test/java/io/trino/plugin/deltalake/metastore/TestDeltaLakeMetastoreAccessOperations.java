@@ -67,6 +67,7 @@ public class TestDeltaLakeMetastoreAccessOperations
             throws Exception
     {
         QueryRunner queryRunner = DeltaLakeQueryRunner.builder()
+                .addDeltaProperty("hive.metastore-cache-ttl", "0ms")
                 .addDeltaProperty("delta.register-table-procedure.enabled", "true")
                 .addDeltaProperty("delta.metastore.store-table-metadata", "true")
                 .addDeltaProperty("delta.metastore.store-table-metadata-threads", "0") // Use the same thread to make the test deterministic

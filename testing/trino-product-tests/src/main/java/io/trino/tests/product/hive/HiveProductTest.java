@@ -15,7 +15,11 @@ package io.trino.tests.product.hive;
 
 import com.google.inject.Inject;
 import io.trino.tempto.ProductTest;
+import io.trino.tempto.query.QueryExecutionException;
 import io.trino.tests.product.TestGroups;
+
+import static io.trino.tests.product.utils.QueryExecutors.onTrino;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class HiveProductTest
         extends ProductTest
@@ -51,5 +55,15 @@ public class HiveProductTest
         return getHiveVersionMajor() == 3 &&
                 getHiveVersionMinor() == 1 &&
                 (getHiveVersionPatch() == 0 || getHiveVersionPatch() == 1);
+    }
+
+    protected static void flushHiveMetadataCache()
+    {
+        try {
+            onTrino().executeQuery("CALL hive.system.flush_metadata_cache()");
+        }
+        catch (QueryExecutionException e) {
+            assertThat(e).hasMessageContaining("Cannot flush, metastore cache is not enabled");
+        }
     }
 }

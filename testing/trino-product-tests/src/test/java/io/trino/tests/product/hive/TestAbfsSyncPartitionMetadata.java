@@ -290,6 +290,7 @@ class TestAbfsSyncPartitionMetadata
         makeDirectory(env, tableLocation);
         env.executeHiveUpdate("CREATE TABLE " + schemaName(env) + "." + tableName +
                 " (payload bigint) PARTITIONED BY (col_x string, col_y string) STORED AS ORC LOCATION '" + tableLocation + "'");
+        env.executeTrinoUpdate("CALL hive.system.flush_metadata_cache()");
     }
 
     private static String schemaName(AzureEnvironment env)

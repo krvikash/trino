@@ -52,6 +52,7 @@ public class TestingIcebergFileMetastoreCatalogModule
         configBinder(binder).bindConfigDefaults(CachingHiveMetastoreConfig.class, config -> {
             // ensure caching metastore wrapper isn't created by default
             config.setStatsCacheTtl(new Duration(0, TimeUnit.SECONDS));
+            config.setMetastoreCacheTtl(Duration.ZERO);
         });
     }
 }

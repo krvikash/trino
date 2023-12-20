@@ -435,8 +435,7 @@ public abstract class BaseTestObjectStoreIcebergGlueCatalogAccessOperations
                     // select from $properties
                     assertGlueMetastoreApiInvocations("SELECT * FROM \"test_select_snapshots$properties\"",
                             ImmutableMultiset.builder()
-                                    // TODO: Check why the count differs
-                                    .addCopies(GET_TABLE, isGalaxyMetastore ? 1 : 2)
+                                    .addCopies(GET_TABLE, 1)
                                     .build());
 
                     // select from $refs

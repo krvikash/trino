@@ -36,6 +36,7 @@ public class TestDeltaLakePerTransactionMetastoreCache
     {
         Map<String, String> deltaLakeProperties = new HashMap<>();
         deltaLakeProperties.put("delta.register-table-procedure.enabled", "true");
+        deltaLakeProperties.put("hive.metastore-cache-ttl", "0s");
         if (!enablePerTransactionHiveMetastoreCaching) {
             // almost disable the cache; 0 is not allowed as config property value
             deltaLakeProperties.put("delta.per-transaction-metastore-cache-maximum-size", "1");

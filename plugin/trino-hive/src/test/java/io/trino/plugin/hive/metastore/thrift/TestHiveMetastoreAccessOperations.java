@@ -50,6 +50,7 @@ public class TestHiveMetastoreAccessOperations
             throws Exception
     {
         return HiveQueryRunner.builder()
+                .addHiveProperty("hive.metastore-cache-ttl", "0s")
                 .addHiveProperty("hive.dynamic-filtering.wait-timeout", "1h")
                 .addHiveProperty("hive.non-managed-table-writes-enabled", "true")
                 .build();

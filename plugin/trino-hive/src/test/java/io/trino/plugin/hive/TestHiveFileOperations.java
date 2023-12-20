@@ -53,6 +53,7 @@ public class TestHiveFileOperations
         closeAfterClass(() -> deleteRecursively(metastoreDirectory, ALLOW_INSECURE));
 
         Map<String, String> hiveProperties = ImmutableMap.<String, String>builder()
+                .put("hive.metastore-cache-ttl", "0s")
                 .put("hive.file-status-cache-tables", "*")
                 .put("hive.metastore", "file")
                 .put("hive.metastore.catalog.dir", metastoreDirectory.toUri().toString())

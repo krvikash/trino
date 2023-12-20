@@ -730,6 +730,7 @@ public abstract class BaseObjectStoreDeltaConnectorTest
 
         String tableLocation = getTableLocation(tableName);
         dropTableFromMetastore("tpch", tableName);
+        assertUpdate("CALL system.flush_metadata_cache(SCHEMA_NAME => CURRENT_SCHEMA, TABLE_NAME => '" + tableName + "')");
 
         assertQueryFails(
                 "CALL system.register_table(schema_name=>CURRENT_SCHEMA, table_name=>'%s', table_location=>'%s', type=>'delta', metadata_file_name=>'dummy metadata_file_name argument')".formatted(tableName, tableLocation),

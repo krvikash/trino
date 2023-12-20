@@ -615,6 +615,7 @@ class TestHiveAndDeltaLakeRedirect
         }
         finally {
             env.executeSparkUpdate(format("DROP TABLE IF EXISTS %s.%s", schemaName, tableName));
+            env.executeTrinoUpdate("CALL hive.system.flush_metadata_cache()");
             env.executeTrinoUpdate("DROP SCHEMA IF EXISTS hive." + schemaName);
         }
     }
@@ -703,6 +704,7 @@ class TestHiveAndDeltaLakeRedirect
         }
         finally {
             env.executeSparkUpdate(format("DROP TABLE IF EXISTS %s.%s", schemaName, tableName));
+            env.executeTrinoUpdate("CALL hive.system.flush_metadata_cache()");
             env.executeTrinoUpdate("DROP SCHEMA IF EXISTS hive." + schemaName);
         }
     }

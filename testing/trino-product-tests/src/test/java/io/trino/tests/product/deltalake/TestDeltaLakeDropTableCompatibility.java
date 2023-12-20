@@ -70,7 +70,10 @@ class TestDeltaLakeDropTableCompatibility
 
         switch (creator) {
             case TRINO -> env.executeTrinoUpdate(format("CREATE SCHEMA delta.%s WITH (location = '%s')", schemaName, schemaLocation));
-            case DELTA -> env.executeSparkUpdate(format("CREATE SCHEMA %s LOCATION \"%s\"", schemaName, schemaLocation));
+            case DELTA -> {
+                env.executeSparkUpdate(format("CREATE SCHEMA %s LOCATION \"%s\"", schemaName, schemaLocation));
+                env.executeTrinoUpdate("CALL delta.system.flush_metadata_cache()");
+            }
             default -> throw new UnsupportedOperationException("Unsupported engine: " + creator);
         }
         try {
@@ -81,11 +84,14 @@ class TestDeltaLakeDropTableCompatibility
                         schemaName,
                         tableName,
                         tableLocation.map(location -> "WITH (location = '" + location + "')").orElse("")));
-                case DELTA -> env.executeSparkUpdate(format(
-                        "CREATE TABLE %s.%s USING DELTA %s AS VALUES (1, 2), (2, 3), (3, 4)",
-                        schemaName,
-                        tableName,
-                        tableLocation.map(location -> "LOCATION \"" + location + "\"").orElse("")));
+                case DELTA -> {
+                    env.executeSparkUpdate(format(
+                            "CREATE TABLE %s.%s USING DELTA %s AS VALUES (1, 2), (2, 3), (3, 4)",
+                            schemaName,
+                            tableName,
+                            tableLocation.map(location -> "LOCATION \"" + location + "\"").orElse("")));
+                    env.executeTrinoUpdate("CALL delta.system.flush_metadata_cache()");
+                }
                 default -> throw new UnsupportedOperationException("Unsupported engine: " + creator);
             }
 
@@ -111,6 +117,7 @@ class TestDeltaLakeDropTableCompatibility
         finally {
             env.executeSparkUpdate("DROP TABLE IF EXISTS " + schemaName + "." + tableName);
             env.executeSparkUpdate("DROP SCHEMA IF EXISTS " + schemaName);
+            env.executeTrinoUpdate("CALL delta.system.flush_metadata_cache()");
         }
     }
 }

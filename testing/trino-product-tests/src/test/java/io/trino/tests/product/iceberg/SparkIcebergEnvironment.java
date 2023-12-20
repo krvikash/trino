@@ -127,6 +127,7 @@ public class SparkIcebergEnvironment
                 .withCatalog("hive", Map.of(
                         "connector.name", "hive",
                         "hive.metastore.uri", "thrift://" + HadoopContainer.HOST_NAME + ":" + HadoopContainer.HIVE_METASTORE_PORT,
+                        "hive.metastore-cache-ttl", "0s",
                         "fs.hadoop.enabled", "true",
                         // testMigrateUnsupportedTransactionalTable creates a transactional (ACID) table that requires ORC
                         "hive.storage-format", "ORC",
