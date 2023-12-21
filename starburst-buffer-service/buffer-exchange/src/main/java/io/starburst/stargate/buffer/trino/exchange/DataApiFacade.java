@@ -16,6 +16,7 @@ import com.google.common.io.Closer;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListenableScheduledFuture;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.errorprone.annotations.ThreadSafe;
@@ -320,7 +321,7 @@ public class DataApiFacade
             }
             else {
                 requestFuture = SettableFuture.create();
-                listeningScheduledExecutor.schedule(
+                ListenableScheduledFuture<Boolean> ignore = listeningScheduledExecutor.schedule(
                         () -> ((SettableFuture<Optional<RateLimitInfo>>) requestFuture).setFuture(internalAddDataPages(bufferNodeId, exchangeId, taskId, attemptId, dataPagesId, dataPagesByPartition)),
                         requestDelayInMillis,
                         TimeUnit.MILLISECONDS);

@@ -490,7 +490,7 @@ public class DataResource
 
                     private void finalizeAddDataPagesRequest(List<ListenableFuture<Void>> addDataPagesFutures, SliceLease sliceLease)
                     {
-                        Futures.whenAllComplete(addDataPagesFutures).run(() -> {
+                        ListenableFuture<?> ignore = Futures.whenAllComplete(addDataPagesFutures).run(() -> {
                             // Only mark request no longer in-progress when all futures complete.
                             // The HTTP request may return to caller earlier if one of the futures
                             // returned by chunkManager.addDataPages() fails.

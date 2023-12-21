@@ -16,6 +16,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListenableScheduledFuture;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import com.google.inject.Inject;
@@ -98,7 +99,7 @@ public class ApiBasedBufferNodeDiscoveryManager
     {
         // todo monitor error rate
         log.info("Initializing periodic refreshing of buffer nodes");
-        executorService.scheduleWithFixedDelay(
+        ListenableScheduledFuture<?> ignore = executorService.scheduleWithFixedDelay(
                 this::doRefresh,
                 0,
                 REFRESH_INTERVAL.toMillis(),
