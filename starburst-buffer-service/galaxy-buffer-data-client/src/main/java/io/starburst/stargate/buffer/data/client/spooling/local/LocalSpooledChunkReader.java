@@ -48,7 +48,7 @@ public class LocalSpooledChunkReader
         int length = spooledChunk.length();
 
         String scheme = uri.getScheme();
-        checkArgument(scheme == null || scheme.equals("file"), "Unexpected storage scheme %s for LocalSpooledChunkReader, expecting null/file");
+        checkArgument(scheme == null || scheme.equals("file"), "Unexpected storage scheme %s for LocalSpooledChunkReader, expecting null/file", scheme);
 
         byte[] bytes = new byte[length];
         try (FileInputStream inputStream = new FileInputStream(Paths.get(spooledChunk.location()).toFile())) {
