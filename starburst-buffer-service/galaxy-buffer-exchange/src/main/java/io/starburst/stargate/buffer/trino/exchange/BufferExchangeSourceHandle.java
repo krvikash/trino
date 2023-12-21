@@ -52,9 +52,9 @@ public class BufferExchangeSourceHandle
         this.partitionId = partitionId;
         this.bufferNodeIds = requireNonNull(bufferNodeIds, "bufferNodeIds is null");
         this.chunkIds = requireNonNull(chunkIds, "chunkIds is null");
-        checkArgument(chunkIds.length == bufferNodeIds.length, "length of chunkIds(%d) and bufferNodeIds(%d) should be equal", chunkIds.length, bufferNodeIds.length);
+        checkArgument(chunkIds.length == bufferNodeIds.length, "length of chunkIds(%s) and bufferNodeIds(%s) should be equal", chunkIds.length, bufferNodeIds.length);
         this.chunkDataSizes = requireNonNull(chunkDataSizes, "chunkDataSizes is null");
-        checkArgument(chunkDataSizes.length == chunkIds.length, "length of chunkDataSizes(%d) and chunkIds(%d) should be equal", chunkDataSizes.length, chunkIds.length);
+        checkArgument(chunkDataSizes.length == chunkIds.length, "length of chunkDataSizes(%s) and chunkIds(%s) should be equal", chunkDataSizes.length, chunkIds.length);
         this.dataSizeInBytes = dataSizeInBytes;
         this.preserveOrderWithinPartition = preserveOrderWithinPartition;
     }
@@ -71,7 +71,7 @@ public class BufferExchangeSourceHandle
         long dataSizeInBytes = 0;
         int pos = 0;
         for (ChunkHandle chunkHandle : chunkHandles) {
-            checkArgument(chunkHandle.partitionId() == partitionId, "all chunkHandles should belong to same partition %d; got %d", partitionId, chunkHandle.partitionId());
+            checkArgument(chunkHandle.partitionId() == partitionId, "all chunkHandles should belong to same partition %s; got %s", partitionId, chunkHandle.partitionId());
             bufferNodeIds[pos] = chunkHandle.bufferNodeId();
             chunkIds[pos] = chunkHandle.chunkId();
             chunkDataSizes[pos] = chunkHandle.dataSizeInBytes();
