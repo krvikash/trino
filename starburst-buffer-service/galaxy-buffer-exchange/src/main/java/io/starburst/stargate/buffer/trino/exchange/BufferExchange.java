@@ -370,7 +370,7 @@ public class BufferExchange
     @GuardedBy("this")
     private void addBufferNodeToPoll(long bufferNodeId)
     {
-        verify(!allRequiredSinksFinished, "cannot add node %d to poll after all sinks finished", bufferNodeId);
+        verify(!allRequiredSinksFinished, "cannot add node %s to poll after all sinks finished", bufferNodeId);
         if (chunkPolledBufferNodes.containsKey(bufferNodeId)) {
             // already polling
             return;

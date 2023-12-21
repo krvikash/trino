@@ -50,7 +50,7 @@ public class MockBufferService
     public DataApi getDataApi(long nodeId)
     {
         MockDataNode mockDataNode = dataNodes.get(nodeId);
-        checkArgument(mockDataNode != null, "Node with id %d not found", nodeId);
+        checkArgument(mockDataNode != null, "Node with id %s not found", nodeId);
         return mockDataNode;
     }
 
@@ -109,7 +109,7 @@ public class MockBufferService
     private MockDataNode getNode(long nodeId)
     {
         MockDataNode dataNode = dataNodes.get(nodeId);
-        checkState(dataNode != null, "data node %d not found", nodeId);
+        checkState(dataNode != null, "data node %s not found", nodeId);
         return dataNode;
     }
 }

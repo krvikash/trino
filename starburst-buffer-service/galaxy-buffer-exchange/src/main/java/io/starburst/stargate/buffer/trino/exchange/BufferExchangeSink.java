@@ -276,7 +276,7 @@ public class BufferExchangeSink
     private void removeWriter(long bufferNodeId)
     {
         SinkWriter removedWriter = writers.remove(bufferNodeId);
-        verify(removedWriter != null, "no writer found for buffer node %d", bufferNodeId);
+        verify(removedWriter != null, "no writer found for buffer node %s", bufferNodeId);
     }
 
     private synchronized void writerTargetDraining(long bufferNodeId)
