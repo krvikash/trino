@@ -209,10 +209,10 @@ public class S3SpoolingStorage
         for (String directoryName : directoryNames) {
             ImmutableList.Builder<String> keys = ImmutableList.builder();
             ListenableFuture<List<String>> listObjectsFuture = Futures.transform(
-                    toListenableFuture((listObjectsRecursively(directoryName)
+                    toListenableFuture(listObjectsRecursively(directoryName)
                             .subscribe(listObjectsV2Response -> listObjectsV2Response.contents().stream()
                                     .map(S3Object::key)
-                                    .forEach(keys::add)))),
+                                    .forEach(keys::add))),
                     ignored -> keys.build(),
                     directExecutor());
             listObjectsFuturesBuilder.add(listObjectsFuture);
