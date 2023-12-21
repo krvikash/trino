@@ -11,6 +11,8 @@ package io.starburst.stargate.buffer.data.execution;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FluentFuture;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.errorprone.annotations.ThreadSafe;
@@ -50,6 +52,7 @@ import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.util.concurrent.Futures.allAsList;
 import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
 import static com.google.common.util.concurrent.Futures.immediateFuture;
+import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.addExceptionCallback;
 import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
@@ -66,6 +69,7 @@ public class Exchange
 
     private final long bufferNodeId;
     private final String exchangeId;
+    private final ExchangeStateMachine exchangeStateMachine;
     private final MemoryAllocator memoryAllocator;
     private final SpoolingStorage spoolingStorage;
     private final SpooledChunksByExchange spooledChunksByExchange;
@@ -102,6 +106,7 @@ public class Exchange
     private long lastPagingId = -1;
     @GuardedBy("this")
     private ListenableFuture<Void> finishFuture;
+
     private volatile ChunkDeliveryMode chunkDeliveryMode;
     private volatile long lastUpdateTime;
     private volatile boolean allClosedChunksReceived;
@@ -110,6 +115,7 @@ public class Exchange
     public Exchange(
             long bufferNodeId,
             String exchangeId,
+            ExchangeState initialState,
             MemoryAllocator memoryAllocator,
             SpoolingStorage spoolingStorage,
             SpooledChunksByExchange spooledChunksByExchange,
@@ -147,6 +153,10 @@ public class Exchange
         this.pendingChunkList = new ArrayList<>(chunkListTargetSize);
         this.chunkDeliveryMode = requireNonNull(chunkDeliveryMode, "chunkDeliveryMode is null");
         this.lastUpdateTime = currentTime;
+
+        // The directExecutor can be used because StateChangeListeners will only perform complex tasks.
+        // As they may generate span events, there will be the potential for lock contention but it should be minimal.
+        this.exchangeStateMachine = new ExchangeStateMachine(exchangeId, initialState, directExecutor());
     }
 
     public AddDataPagesResult addDataPages(int partitionId, int taskId, int attemptId, long dataPagesId, List<Slice> pages)
@@ -175,10 +185,14 @@ public class Exchange
                     closedChunkConsumer()));
         }
 
+        exchangeStateMachine.sourceStreaming();
+
         AddDataPagesResult addDataPagesResult = partition.addDataPages(taskId, attemptId, dataPagesId, pages);
         addExceptionCallback(addDataPagesResult.addDataPagesFuture(), throwable -> {
-            failure.compareAndSet(null, throwable);
-            this.releaseChunks();
+            if (failure.compareAndSet(null, throwable)) {
+                exchangeStateMachine.transitionToFailed();
+                this.releaseChunks();
+            }
         }, executor);
         return addDataPagesResult;
     }
@@ -187,6 +201,7 @@ public class Exchange
     {
         throwIfFailed();
 
+        exchangeStateMachine.sinkStreaming();
         Partition partition = partitions.get(partitionId);
         if (partition == null) {
             throw new DataServerException(CHUNK_NOT_FOUND, "partition %d not found for exchange %s".formatted(partitionId, exchangeId));
@@ -338,6 +353,20 @@ public class Exchange
 
         if (finishFuture == null) {
             finishFuture = asVoid(allAsList(partitions.values().stream().map(Partition::finish).collect(toImmutableList())));
+            Futures.addCallback(finishFuture, new FutureCallback<>()
+            {
+                @Override
+                public void onSuccess(Void result)
+                {
+                    exchangeStateMachine.transitionToSourceFinished();
+                }
+
+                @Override
+                public void onFailure(Throwable t)
+                {
+                    exchangeStateMachine.transitionToFailed();
+                }
+            }, directExecutor());
         }
         return finishFuture;
     }
@@ -371,6 +400,8 @@ public class Exchange
         addExceptionCallback(removeFuture, throwable -> {
             log.warn(throwable, "error while removing stored files for exchange %s", exchangeId);
         });
+        removeFuture.addListener(() -> removeExchange(), directExecutor());
+
         return removeFuture;
     }
 
@@ -442,5 +473,10 @@ public class Exchange
         if (throwable != null) {
             throw new DataServerException(EXCHANGE_CORRUPTED, "exchange %s is in inconsistent state".formatted(exchangeId), throwable);
         }
+    }
+
+    private void removeExchange()
+    {
+        exchangeStateMachine.transitionToRemoved();
     }
 }

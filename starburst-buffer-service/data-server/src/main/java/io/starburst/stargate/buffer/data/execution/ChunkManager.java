@@ -74,6 +74,8 @@ import static io.starburst.stargate.buffer.data.client.ChunkDeliveryMode.STANDAR
 import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.EXCHANGE_NOT_FOUND;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.INTERNAL_ERROR;
+import static io.starburst.stargate.buffer.data.execution.ExchangeState.CREATED;
+import static io.starburst.stargate.buffer.data.execution.ExchangeState.SOURCE_STREAMING;
 import static io.starburst.stargate.buffer.data.execution.SpooledChunksByExchange.decodeMetadataSlice;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getMetadataFileName;
 import static java.lang.Math.toIntExact;
@@ -246,7 +248,7 @@ public class ChunkManager
     {
         checkState(!startedDraining, "addDataPages called in ChunkManager after we started draining");
 
-        internalRegisterExchange(exchangeId, STANDARD); // addDataPages may be sent before exchange is explicitly registered from coordinator
+        internalRegisterExchange(exchangeId, SOURCE_STREAMING, STANDARD); // addDataPages may be sent before exchange is explicitly registered from coordinator
         return getExchangeAndHeartbeat(exchangeId).addDataPages(partitionId, taskId, attemptId, dataPagesId, pages);
     }
 
@@ -305,13 +307,13 @@ public class ChunkManager
 
     public void registerExchange(String exchangeId, ChunkDeliveryMode chunkDeliveryMode)
     {
-        Exchange exchange = internalRegisterExchange(exchangeId, chunkDeliveryMode);
+        Exchange exchange = internalRegisterExchange(exchangeId, CREATED, chunkDeliveryMode);
         // Exchange could have been already registered explicitly with STANDARD chunkDeliveryMode
         // ensure proper value
         exchange.setChunkDeliveryMode(chunkDeliveryMode);
     }
 
-    private Exchange internalRegisterExchange(String exchangeId, ChunkDeliveryMode chunkDeliveryMode)
+    private Exchange internalRegisterExchange(String exchangeId, ExchangeState initialState, ChunkDeliveryMode chunkDeliveryMode)
     {
         return exchanges.computeIfAbsent(exchangeId, ignored -> {
             if (recentlyRemovedExchanges.getIfPresent(exchangeId) != null) {
@@ -321,6 +323,7 @@ public class ChunkManager
             return new Exchange(
                     bufferNodeId,
                     exchangeId,
+                    initialState,
                     memoryAllocator,
                     spoolingStorage,
                     spooledChunksByExchange,
