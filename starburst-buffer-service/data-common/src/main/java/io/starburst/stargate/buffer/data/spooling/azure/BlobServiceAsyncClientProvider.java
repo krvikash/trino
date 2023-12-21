@@ -44,6 +44,7 @@ public class BlobServiceAsyncClientProvider
         return duration == null ? null : Duration.ofMillis(duration.toMillis());
     }
 
+    @Override
     public BlobServiceAsyncClient get()
     {
         return new BlobServiceClientBuilder()

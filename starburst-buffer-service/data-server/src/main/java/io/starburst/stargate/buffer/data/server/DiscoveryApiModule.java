@@ -21,6 +21,7 @@ import static io.airlift.configuration.ConfigBinder.configBinder;
 public class DiscoveryApiModule
         extends AbstractModule
 {
+    @Override
     protected void configure()
     {
         configBinder(binder()).bindConfig(DiscoveryApiConfig.class);
