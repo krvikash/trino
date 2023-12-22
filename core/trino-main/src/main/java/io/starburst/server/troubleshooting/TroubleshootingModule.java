@@ -15,6 +15,7 @@ import com.google.inject.multibindings.Multibinder;
 import io.starburst.server.troubleshooting.jfr.FlightRecorderModule;
 import io.starburst.server.troubleshooting.jmx.JmxTroubleshootingProvider;
 import io.starburst.server.troubleshooting.providers.FailureInfoProvider;
+import io.starburst.server.troubleshooting.providers.QueryJsonProvider;
 import io.starburst.server.troubleshooting.providers.QueryPlanProvider;
 import io.starburst.server.troubleshooting.providers.RawQueryProvider;
 import io.starburst.server.troubleshooting.providers.SessionInfoProvider;
@@ -60,5 +61,6 @@ public class TroubleshootingModule
         setBinder.addBinding().to(SessionInfoProvider.class);
         setBinder.addBinding().to(RawQueryProvider.class);
         setBinder.addBinding().to(JmxTroubleshootingProvider.class);
+        setBinder.addBinding().to(QueryJsonProvider.class);
     }
 }

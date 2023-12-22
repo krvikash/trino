@@ -36,6 +36,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
@@ -149,6 +150,7 @@ public abstract class AbstractQueryTroubleshootingTest
         ObjectMapper mapper = new ObjectMapper();
         mapper.readValue(inputsMap.get("jmx/metrics-before.json"), new TypeReference<>() {});
         mapper.readValue(inputsMap.get("jmx/metrics-after.json"), new TypeReference<>() {});
+        mapper.readValue(inputsMap.get("query.json"), new TypeReference<>() {});
 
         for (String workerId : getNodesProcessingQuery(data.getQueryId())) {
             assertThat(inputsMap).hasEntrySatisfying(
@@ -161,6 +163,7 @@ public abstract class AbstractQueryTroubleshootingTest
 
     @Test
     public void testTroubleshootingDataAvailableForFailedQuery()
+            throws IOException
     {
         String troubleshootedQuery = "SELECT * FROM table_does_not_exist";
         QueryId queryId = null;
@@ -187,6 +190,8 @@ public abstract class AbstractQueryTroubleshootingTest
                         Error location: ErrorLocation{lineNumber=1, columnNumber=15}
                         Remote host: null"""))
                 .hasEntrySatisfying("failure_stack_trace.txt", value -> assertThat(value).isNotEmpty());
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.readValue(inputsMap.get("query.json"), new TypeReference<>() {});
     }
 
     @Test
