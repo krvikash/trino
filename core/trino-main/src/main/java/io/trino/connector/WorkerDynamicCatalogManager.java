@@ -331,6 +331,12 @@ public class WorkerDynamicCatalogManager
         public void createCatalog(CatalogName catalogName, ConnectorName connectorName, Map<String, String> properties, boolean notExists) {}
 
         @Override
+        public void renameCatalog(CatalogName catalogName, CatalogName newCatalogName) {}
+
+        @Override
+        public void alterCatalog(CatalogName catalogName, Map<String, Optional<String>> properties) {}
+
+        @Override
         public void dropCatalog(CatalogName catalogName, boolean exists) {}
     }
 }

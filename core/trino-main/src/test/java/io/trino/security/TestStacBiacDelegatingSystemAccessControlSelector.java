@@ -243,6 +243,18 @@ class TestStacBiacDelegatingSystemAccessControlSelector
             }
 
             @Override
+            public void renameCatalog(CatalogName catalogName, CatalogName newCatalogName)
+            {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public void alterCatalog(CatalogName catalogName, Map<String, Optional<String>> properties)
+            {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
             public void dropCatalog(CatalogName catalogName, boolean exists)
             {
                 throw new UnsupportedOperationException();

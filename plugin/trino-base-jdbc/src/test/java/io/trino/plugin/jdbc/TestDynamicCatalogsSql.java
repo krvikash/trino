@@ -84,4 +84,64 @@ public class TestDynamicCatalogsSql
 
         assertUpdate("DROP CATALOG " + catalog);
     }
+
+    @Test
+    public void testRenameCatalog()
+    {
+        String createCatalogSql =
+                """
+                CREATE CATALOG %s USING base_jdbc
+                WITH (
+                   "connection-url" = '%s'
+                )""";
+
+        String oldCatalog = "catalog_" + randomNameSuffix();
+        String connectionUrl = createH2ConnectionUrl();
+        assertUpdate(createCatalogSql.formatted(oldCatalog, connectionUrl));
+        assertThat((String) computeActual("SHOW CREATE CATALOG " + oldCatalog).getOnlyValue())
+                .isEqualTo(createCatalogSql.formatted(oldCatalog, connectionUrl));
+
+        String catalog = "catalog_" + randomNameSuffix();
+        assertUpdate(
+                """
+                ALTER CATALOG %s RENAME TO %s
+                """
+                        .formatted(oldCatalog, catalog));
+        assertThatThrownBy(() -> computeActual("DROP CATALOG " + oldCatalog))
+                .hasMessage("Catalog '%s' not found".formatted(oldCatalog));
+        assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                .isEqualTo(createCatalogSql.formatted(catalog, connectionUrl));
+
+        assertUpdate("DROP CATALOG " + catalog);
+    }
+
+    @Test
+    public void testCatalogSetProperties()
+    {
+        String createCatalogSql =
+                """
+                CREATE CATALOG %s USING base_jdbc
+                WITH (
+                   "bootstrap.quiet" = 'true',
+                   "connection-url" = '%s'
+                )""";
+
+        String catalog = "catalog_" + randomNameSuffix();
+        String connectionUrl = createH2ConnectionUrl();
+        assertUpdate(createCatalogSql.formatted(catalog, connectionUrl));
+        assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                .isEqualTo(createCatalogSql.formatted(catalog, connectionUrl));
+
+        String newJdbcUrl = createH2ConnectionUrl();
+        assertUpdate(
+                """
+                ALTER CATALOG %s SET PROPERTIES
+                   "connection-url" = '%s'
+                """
+                        .formatted(catalog, newJdbcUrl));
+        assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                .isEqualTo(createCatalogSql.formatted(catalog, newJdbcUrl));
+
+        assertUpdate("DROP CATALOG " + catalog);
+    }
 }

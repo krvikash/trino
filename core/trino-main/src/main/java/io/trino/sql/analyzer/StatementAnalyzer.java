@@ -232,6 +232,7 @@ import io.trino.sql.tree.QuerySpecification;
 import io.trino.sql.tree.RefreshMaterializedView;
 import io.trino.sql.tree.RefreshView;
 import io.trino.sql.tree.Relation;
+import io.trino.sql.tree.RenameCatalog;
 import io.trino.sql.tree.RenameColumn;
 import io.trino.sql.tree.RenameMaterializedView;
 import io.trino.sql.tree.RenameSchema;
@@ -247,6 +248,7 @@ import io.trino.sql.tree.SecurityCharacteristic;
 import io.trino.sql.tree.Select;
 import io.trino.sql.tree.SelectItem;
 import io.trino.sql.tree.SetAuthorizationStatement;
+import io.trino.sql.tree.SetCatalogProperties;
 import io.trino.sql.tree.SetColumnType;
 import io.trino.sql.tree.SetDefaultValue;
 import io.trino.sql.tree.SetOperation;
@@ -1173,6 +1175,19 @@ class StatementAnalyzer
         @Override
         protected Scope visitDropCatalog(DropCatalog node, Optional<Scope> scope)
         {
+            return createAndAssignScope(node, scope);
+        }
+
+        @Override
+        protected Scope visitRenameCatalog(RenameCatalog node, Optional<Scope> scope)
+        {
+            return createAndAssignScope(node, scope);
+        }
+
+        @Override
+        protected Scope visitSetCatalogProperties(SetCatalogProperties node, Optional<Scope> scope)
+        {
+            validateProperties(node.getProperties(), scope);
             return createAndAssignScope(node, scope);
         }
 
