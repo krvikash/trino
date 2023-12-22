@@ -134,6 +134,7 @@ import io.trino.sql.tree.ShowBranches;
 import io.trino.sql.tree.ShowCatalogs;
 import io.trino.sql.tree.ShowColumns;
 import io.trino.sql.tree.ShowCreate;
+import io.trino.sql.tree.ShowCreateCatalog;
 import io.trino.sql.tree.ShowFunctions;
 import io.trino.sql.tree.ShowGrants;
 import io.trino.sql.tree.ShowRoleGrants;
@@ -188,6 +189,7 @@ public final class StatementUtils
             .add(basicStatement(ShowCatalogs.class, DESCRIBE))
             .add(basicStatement(ShowColumns.class, DESCRIBE))
             .add(basicStatement(ShowCreate.class, DESCRIBE))
+            .add(basicStatement(ShowCreateCatalog.class, DESCRIBE))
             .add(basicStatement(ShowFunctions.class, DESCRIBE))
             .add(basicStatement(ShowGrants.class, DESCRIBE))
             .add(basicStatement(ShowRoleGrants.class, DESCRIBE))

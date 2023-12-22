@@ -283,6 +283,7 @@ import io.trino.sql.tree.ShowBranches;
 import io.trino.sql.tree.ShowCatalogs;
 import io.trino.sql.tree.ShowColumns;
 import io.trino.sql.tree.ShowCreate;
+import io.trino.sql.tree.ShowCreateCatalog;
 import io.trino.sql.tree.ShowFunctions;
 import io.trino.sql.tree.ShowGrants;
 import io.trino.sql.tree.ShowRoleGrants;
@@ -1658,6 +1659,12 @@ class AstBuilder
     {
         Query query = (Query) visit(context.rootQuery());
         return new ShowStats(getLocation(context), new TableSubquery(query));
+    }
+
+    @Override
+    public Node visitShowCreateCatalog(SqlBaseParser.ShowCreateCatalogContext context)
+    {
+        return new ShowCreateCatalog(getLocation(context), (Identifier) visit(context.identifier()));
     }
 
     @Override

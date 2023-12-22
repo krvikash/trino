@@ -23,7 +23,12 @@ import com.starburstdata.dataframe.type.StringType;
 import io.airlift.configuration.secrets.SecretsResolver;
 import io.opentelemetry.api.OpenTelemetry;
 import io.trino.Session;
+import io.trino.cache.CacheManagerConfig;
+import io.trino.cache.CacheManagerRegistry;
 import io.trino.connector.CatalogServiceProvider;
+import io.trino.connector.CoordinatorDynamicCatalogManager;
+import io.trino.connector.InMemoryCatalogStore;
+import io.trino.connector.LazyCatalogFactory;
 import io.trino.connector.TestingTableFunctions;
 import io.trino.metadata.AnalyzePropertyManager;
 import io.trino.metadata.CatalogTableFunctions;
@@ -68,6 +73,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
+import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
+import static io.airlift.tracing.Tracing.noopTracer;
+import static io.opentelemetry.api.OpenTelemetry.noop;
 import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.operator.scalar.ApplyFunction.APPLY_FUNCTION;
 import static io.trino.plugin.tpch.TpchMetadata.TINY_SCHEMA_NAME;
@@ -119,6 +127,7 @@ public class TestDataframeMetadataProvider
                 plannerContext.getMetadata(),
                 SQL_PARSER,
                 accessControl,
+                new CoordinatorDynamicCatalogManager(new InMemoryCatalogStore(), new LazyCatalogFactory(), ImmutableSet.of(), new CacheManagerRegistry(noop(), noopTracer(), new SecretsResolver(ImmutableMap.of()), new CacheManagerConfig()), directExecutor()),
                 new SessionPropertyManager(),
                 new SchemaPropertyManager(CatalogServiceProvider.fail()),
                 new ColumnPropertyManager(CatalogServiceProvider.fail()),

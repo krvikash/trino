@@ -24,8 +24,13 @@ import io.trino.FeaturesConfig;
 import io.trino.Session;
 import io.trino.SystemSessionProperties;
 import io.trino.cache.CacheConfig;
+import io.trino.cache.CacheManagerConfig;
+import io.trino.cache.CacheManagerRegistry;
 import io.trino.connector.CatalogHandle;
 import io.trino.connector.CatalogServiceProvider;
+import io.trino.connector.CoordinatorDynamicCatalogManager;
+import io.trino.connector.InMemoryCatalogStore;
+import io.trino.connector.LazyCatalogFactory;
 import io.trino.connector.MockConnectorFactory;
 import io.trino.connector.StaticConnectorFactory;
 import io.trino.connector.TestingTableFunctions.DescriptorArgumentFunction;
@@ -122,6 +127,9 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
+import static io.airlift.tracing.Tracing.noopTracer;
+import static io.opentelemetry.api.OpenTelemetry.noop;
 import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.execution.querystats.PlanOptimizersStatsCollector.createPlanOptimizersStatsCollector;
 import static io.trino.operator.scalar.ApplyFunction.APPLY_FUNCTION;
@@ -8979,6 +8987,7 @@ public class TestAnalyzer
                 plannerContext.getMetadata(),
                 SQL_PARSER,
                 accessControl,
+                new CoordinatorDynamicCatalogManager(new InMemoryCatalogStore(), new LazyCatalogFactory(), ImmutableSet.of(), new CacheManagerRegistry(noop(), noopTracer(), new SecretsResolver(ImmutableMap.of()), new CacheManagerConfig()), directExecutor()),
                 new SessionPropertyManager(),
                 new SchemaPropertyManager(CatalogServiceProvider.fail()),
                 new ColumnPropertyManager(CatalogServiceProvider.fail()),
