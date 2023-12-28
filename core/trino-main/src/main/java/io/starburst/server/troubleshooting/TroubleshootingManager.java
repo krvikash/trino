@@ -134,7 +134,12 @@ public class TroubleshootingManager
             verify(state == FINISHED, "%s is not in the %s state but %s", context.get(), FINISHED, state);
             ImmutableMap.Builder<String, InputStream> builder = ImmutableMap.builder();
             for (TroubleshootingProvider dataProvider : dataProviders) {
-                builder.putAll(dataProvider.getInputStreams(context.get()));
+                try {
+                    builder.putAll(dataProvider.getInputStreams(context.get()));
+                }
+                catch (Throwable t) {
+                    log.warn(t, dataProvider.getClass().getName() + ".getInputStreams() failed for query with id: " + queryId.getId());
+                }
             }
             return builder.buildOrThrow();
         }, executorService);

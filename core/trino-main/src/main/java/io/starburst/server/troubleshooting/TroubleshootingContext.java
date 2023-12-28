@@ -11,6 +11,7 @@ package io.starburst.server.troubleshooting;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
+import io.airlift.log.Logger;
 import io.trino.execution.StateMachine;
 import io.trino.spi.QueryId;
 
@@ -31,6 +32,8 @@ import static java.util.stream.Collectors.joining;
 
 public class TroubleshootingContext
 {
+    private static final Logger log = Logger.get(TroubleshootingContext.class);
+
     private final String contextId;
     private final QueryId queryId;
     private final StateMachine<State> state;
@@ -80,7 +83,14 @@ public class TroubleshootingContext
         if (is(STARTED)) {
             return false;
         }
-        dataProviders.forEach(provider -> provider.onContextStarted(this));
+        dataProviders.forEach(provider -> {
+            try {
+                provider.onContextStarted(this);
+            }
+            catch (Throwable t) {
+                log.warn(t, provider.getClass().getName() + ".onContextStarted() failed for query with id: " + queryId.getId());
+            }
+        });
         return state.compareAndSet(INITIALIZED, STARTED);
     }
 
@@ -89,7 +99,14 @@ public class TroubleshootingContext
         if (is(FINISHED)) {
             return false;
         }
-        dataProviders.forEach(provider -> provider.onContextFinished(this));
+        dataProviders.forEach(provider -> {
+            try {
+                provider.onContextFinished(this);
+            }
+            catch (Throwable t) {
+                log.warn(t, provider.getClass().getName() + ".onContextFinished() failed for query with id: " + queryId.getId());
+            }
+        });
         return state.compareAndSet(STARTED, FINISHED);
     }
 
