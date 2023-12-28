@@ -18,7 +18,6 @@ import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
 import io.trino.cache.EvictableCacheBuilder;
-import io.trino.dispatcher.DispatchManager;
 import io.trino.execution.QueryInfo;
 import io.trino.spi.QueryId;
 
@@ -44,16 +43,16 @@ public class TroubleshootingManager
 {
     private static final Logger log = Logger.get(TroubleshootingManager.class);
 
-    private final DispatchManager dispatchManager;
+    private final FullQueryInfoProvider fullQueryInfoProvider;
     private final Cache<QueryId, TroubleshootingContext> contexts;
     private final Set<TroubleshootingProvider> dataProviders;
     private final ScheduledExecutorService executorService;
     private final Duration destroyAfterFinishDelay;
 
     @Inject
-    public TroubleshootingManager(TroubleshootingConfig config, DispatchManager dispatchManager, Set<TroubleshootingProvider> dataProviders, @ForTroubleshooting ScheduledExecutorService executorService)
+    public TroubleshootingManager(TroubleshootingConfig config, FullQueryInfoProvider fullQueryInfoProvider, Set<TroubleshootingProvider> dataProviders, @ForTroubleshooting ScheduledExecutorService executorService)
     {
-        this.dispatchManager = requireNonNull(dispatchManager, "dispatchManager is null");
+        this.fullQueryInfoProvider = requireNonNull(fullQueryInfoProvider, "dispatchManager is null");
         this.contexts = EvictableCacheBuilder.newBuilder()
                 .maximumSize(config.getMaxActiveQueries())
                 .shareNothingWhenDisabled()
@@ -81,7 +80,7 @@ public class TroubleshootingManager
                 return;
             }
             waitForQueryInfoIsGathered();
-            dispatchManager.getFullQueryInfo(queryId)
+            fullQueryInfoProvider.getFullQueryInfo(queryId)
                     .ifPresent(value -> context.set(QueryInfo.class, value));
             if (transitionContextTo(context, FINISHED)) {
                 log.info("%s has finished", context);
