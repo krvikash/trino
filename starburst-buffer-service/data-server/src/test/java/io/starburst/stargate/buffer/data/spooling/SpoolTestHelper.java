@@ -44,6 +44,7 @@ public final class SpoolTestHelper
                     S3Utils.createS3Client(new S3ClientConfig()
                             .setS3AwsAccessKey(MinioStorage.ACCESS_KEY)
                             .setS3AwsSecretKey(MinioStorage.SECRET_KEY)
+                            .setRegion("us-east-1")
                             .setS3Endpoint("http://" + minioStorage.getMinio().getMinioApiEndpoint())),
                     new MergedFileNameGenerator(),
                     new DataServerStats(),
@@ -61,6 +62,7 @@ public final class SpoolTestHelper
                 S3Utils.createS3Client(new S3ClientConfig()
                         .setS3AwsAccessKey(MinioStorage.ACCESS_KEY)
                         .setS3AwsSecretKey(MinioStorage.SECRET_KEY)
+                        .setRegion("us-east-1")
                         .setS3Endpoint("http://" + minioStorage.getMinio().getMinioApiEndpoint())),
                 new DataApiConfig(),
                 executor);
