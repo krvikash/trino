@@ -23,6 +23,7 @@ import io.starburst.server.troubleshooting.providers.SoftwareVersionProvider;
 import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.trino.server.ServerConfig;
+import jakarta.annotation.PreDestroy;
 import jdk.jfr.FlightRecorder;
 
 import java.util.concurrent.ScheduledExecutorService;
@@ -62,5 +63,11 @@ public class TroubleshootingModule
         setBinder.addBinding().to(RawQueryProvider.class);
         setBinder.addBinding().to(JmxTroubleshootingProvider.class);
         setBinder.addBinding().to(QueryJsonProvider.class);
+    }
+
+    @PreDestroy
+    public void cleanup(@ForTroubleshooting ScheduledExecutorService executorService)
+    {
+        executorService.shutdownNow();
     }
 }
