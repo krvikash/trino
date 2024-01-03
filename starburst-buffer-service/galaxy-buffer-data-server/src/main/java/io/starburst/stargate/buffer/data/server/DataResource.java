@@ -84,6 +84,7 @@ import static com.google.common.net.HttpHeaders.CONTENT_LENGTH;
 import static com.google.common.util.concurrent.Futures.allAsList;
 import static com.google.common.util.concurrent.Futures.nonCancellationPropagating;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
+import static io.airlift.concurrent.MoreFutures.addExceptionCallback;
 import static io.airlift.jaxrs.AsyncResponseHandler.bindAsyncResponse;
 import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.data.client.ChunkDeliveryMode.STANDARD;
@@ -490,7 +491,7 @@ public class DataResource
 
                     private void finalizeAddDataPagesRequest(List<ListenableFuture<Void>> addDataPagesFutures, SliceLease sliceLease)
                     {
-                        ListenableFuture<?> ignore = Futures.whenAllComplete(addDataPagesFutures).run(() -> {
+                        ListenableFuture<?> future = Futures.whenAllComplete(addDataPagesFutures).run(() -> {
                             // Only mark request no longer in-progress when all futures complete.
                             // The HTTP request may return to caller earlier if one of the futures
                             // returned by chunkManager.addDataPages() fails.
@@ -513,6 +514,7 @@ public class DataResource
                                 }
                             }
                         }, directExecutor());
+                        addExceptionCallback(future, throwable -> logger.error(throwable, "Unexpected error during finalizeAddDataPagesRequest"), directExecutor());
                     }
                 },
                 executor);
