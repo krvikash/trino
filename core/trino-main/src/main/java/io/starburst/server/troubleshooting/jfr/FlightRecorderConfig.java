@@ -9,7 +9,6 @@
  */
 package io.starburst.server.troubleshooting.jfr;
 
-import com.google.common.base.Suppliers;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.validation.FileExists;
@@ -17,32 +16,27 @@ import io.airlift.units.DataSize;
 import io.airlift.units.MaxDataSize;
 import io.airlift.units.MinDataSize;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.file.Path;
-import java.util.function.Supplier;
+import java.util.Optional;
 
-import static com.google.common.base.Suppliers.memoize;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
-import static java.nio.file.Files.createTempDirectory;
 
 public class FlightRecorderConfig
 {
     private DataSize maxRecordingSize = DataSize.of(128, MEGABYTE);
-    private Supplier<Path> temporaryDirectory = generateTemporaryPath();
+    private Optional<Path> temporaryDirectory = Optional.empty();
 
     @Config("troubleshooting.jfr.temporary-directory")
     @ConfigDescription("Path that will be used for saving Java Flight Recorder files")
     public FlightRecorderConfig setTemporaryDirectory(Path temporaryDirectory)
     {
-        this.temporaryDirectory = Suppliers.ofInstance(temporaryDirectory);
+        this.temporaryDirectory = Optional.ofNullable(temporaryDirectory);
         return this;
     }
 
-    @FileExists
-    public Path getTemporaryDirectory()
+    public Optional<@FileExists Path> getTemporaryDirectory()
     {
-        return temporaryDirectory.get();
+        return temporaryDirectory;
     }
 
     @Config("troubleshooting.jfr.max-recording-size")
@@ -58,17 +52,5 @@ public class FlightRecorderConfig
     public DataSize getMaxRecordingSize()
     {
         return maxRecordingSize;
-    }
-
-    private static Supplier<Path> generateTemporaryPath()
-    {
-        return memoize(() -> {
-            try {
-                return createTempDirectory("query-troubleshooting");
-            }
-            catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
-        });
     }
 }

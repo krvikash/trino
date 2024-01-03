@@ -15,6 +15,7 @@ import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
 import io.trino.metadata.InternalNodeManager;
 import io.trino.spi.QueryId;
+import jakarta.annotation.PreDestroy;
 import jdk.jfr.Configuration;
 import jdk.jfr.FlightRecorder;
 import jdk.jfr.Recording;
@@ -31,12 +32,15 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.MoreObjects.toStringHelper;
+import static com.google.common.base.Suppliers.memoize;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.io.MoreFiles.deleteRecursively;
 import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
+import static java.nio.file.Files.createTempDirectory;
 import static java.nio.file.Files.delete;
 import static java.nio.file.Files.deleteIfExists;
 import static java.nio.file.Files.exists;
@@ -58,8 +62,10 @@ public final class LocalRecordingFactory
     public static final String RECORDING_FILENAME = "recordings/coordinator.jfr";
 
     private final String nodeId;
-    private final Path destination;
+    private final Optional<Path> destination;
     private final DataSize maxRecordingSize;
+
+    private final Supplier<Path> fallbackTemporaryPath = memoize(LocalRecordingFactory::generateTemporaryPath);
 
     @Inject
     public LocalRecordingFactory(InternalNodeManager internalNodeManager, FlightRecorderConfig config)
@@ -80,9 +86,16 @@ public final class LocalRecordingFactory
         return existingRecording;
     }
 
+    @PreDestroy
+    @Override
+    public void cleanup()
+    {
+        ensurePathDeleted(getDestinationPath());
+    }
+
     private Path getRecordingPath(QueryId queryId)
     {
-        return destination.resolve(queryId.getId()).resolve(nodeId + ".jfr");
+        return getDestinationPath().resolve(queryId.getId()).resolve(nodeId + ".jfr");
     }
 
     private Optional<FlightRecording> getExistingRecording(QueryId queryId)
@@ -100,11 +113,16 @@ public final class LocalRecordingFactory
 
     private Optional<FlightRecording> findReadOnlyRecording(QueryId queryId, String nodeId)
     {
-        Path recordingFile = destination.resolve(queryId.getId()).resolve(nodeId + ".jfr");
+        Path recordingFile = getDestinationPath().resolve(queryId.getId()).resolve(nodeId + ".jfr");
         if (exists(recordingFile)) {
             return Optional.of(new ReadOnlyLocalRecording(recordingFile));
         }
         return Optional.empty();
+    }
+
+    private Path getDestinationPath()
+    {
+        return destination.orElseGet(fallbackTemporaryPath);
     }
 
     private static String getRecordingName(QueryId queryId, String nodeId)
@@ -166,7 +184,7 @@ public final class LocalRecordingFactory
                 deleteRecursively(dir, ALLOW_INSECURE);
             }
             catch (IOException e) {
-                throw new UncheckedIOException(e);
+                log.warn(e, "Could not remove temporary path: %s", dir);
             }
         }
     }
@@ -178,6 +196,18 @@ public final class LocalRecordingFactory
         }
         catch (IOException e) {
             return DataSize.ofBytes(0);
+        }
+    }
+
+    static Path generateTemporaryPath()
+    {
+        try {
+            Path tempDirectory = createTempDirectory("query-troubleshooting");
+            log.info("Created temporary directory for JFR files: %s", tempDirectory);
+            return tempDirectory;
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
     }
 

@@ -29,4 +29,6 @@ public sealed interface FlightRecordingFactory
                 .orElseThrow()
                 .start();
     }
+
+    default void cleanup() {}
 }

@@ -11,6 +11,7 @@ package io.starburst.server.troubleshooting.jfr;
 
 import com.google.common.collect.ImmutableMap;
 import io.trino.spi.QueryId;
+import jakarta.annotation.PreDestroy;
 
 import java.io.InputStream;
 import java.util.Map;
@@ -39,6 +40,13 @@ public final class LocalRemoteCombiningFactory
     {
         return localRecordingFactory.findOrCreate(queryId, createIfNeeded)
                 .map(localRecording -> new CombinedRecording(queryId, localRecording, remoteRecordingFactory.findByQueryId(queryId)));
+    }
+
+    @Override
+    @PreDestroy
+    public void cleanup()
+    {
+        localRecordingFactory.cleanup();
     }
 
     static final class CombinedRecording
