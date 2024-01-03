@@ -18,6 +18,7 @@
         <air.test.jvmsize>4g</air.test.jvmsize>
         <!-- Required by Trino tests -->
         <air.test.timezone>America/Bahia_Banderas</air.test.timezone>
+        <air.test.jvm.additional-arguments>${extraJavaVectorArgs}</air.test.jvm.additional-arguments>
     </properties>
 
     <dependencies>
