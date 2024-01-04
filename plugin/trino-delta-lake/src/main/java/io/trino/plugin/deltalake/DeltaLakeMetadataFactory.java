@@ -26,7 +26,6 @@ import io.trino.plugin.deltalake.transactionlog.TransactionLogAccess;
 import io.trino.plugin.deltalake.transactionlog.checkpoint.CheckpointWriterManager;
 import io.trino.plugin.deltalake.transactionlog.reader.TransactionLogReaderFactory;
 import io.trino.plugin.deltalake.transactionlog.writer.TransactionLogWriterFactory;
-import io.trino.plugin.hive.LocationAccessControl;
 import io.trino.plugin.hive.TrinoViewHiveMetastore;
 import io.trino.plugin.hive.metastore.MetastoreTypeConfig;
 import io.trino.plugin.hive.security.UsingSystemSecurity;
@@ -34,6 +33,7 @@ import io.trino.spi.Node;
 import io.trino.spi.NodeVersion;
 import io.trino.spi.connector.ConnectorExpressionEvaluator;
 import io.trino.spi.security.ConnectorIdentity;
+import io.trino.spi.security.LocationAccessControl;
 import io.trino.spi.type.TypeManager;
 import org.joda.time.DateTimeZone;
 

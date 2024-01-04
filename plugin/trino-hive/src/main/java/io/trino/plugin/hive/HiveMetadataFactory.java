@@ -32,6 +32,7 @@ import io.trino.spi.NodeVersion;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.MetadataProvider;
 import io.trino.spi.security.ConnectorIdentity;
+import io.trino.spi.security.LocationAccessControl;
 import io.trino.spi.type.TypeManager;
 
 import java.util.Optional;

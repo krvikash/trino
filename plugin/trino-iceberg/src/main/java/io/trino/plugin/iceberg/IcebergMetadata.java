@@ -50,7 +50,6 @@ import io.trino.plugin.base.projection.ApplyProjectionUtil.ProjectedColumnRepres
 import io.trino.plugin.base.util.MaybeLazy;
 import io.trino.plugin.hive.HiveCompressionCodec;
 import io.trino.plugin.hive.HiveStorageFormat;
-import io.trino.plugin.hive.LocationAccessControl;
 import io.trino.plugin.iceberg.IcebergConfig.DropTableMode;
 import io.trino.plugin.iceberg.IncrementalColumnWatermarkReader.StorageTableWatermark;
 import io.trino.plugin.iceberg.aggregation.DataSketchStateSerializer;
@@ -163,6 +162,7 @@ import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.security.AiModelAccessControl;
+import io.trino.spi.security.LocationAccessControl;
 import io.trino.spi.security.TrinoPrincipal;
 import io.trino.spi.statistics.ColumnStatisticMetadata;
 import io.trino.spi.statistics.ComputedStatistics;

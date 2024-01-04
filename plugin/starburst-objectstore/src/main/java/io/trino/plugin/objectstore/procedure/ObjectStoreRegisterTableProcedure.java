@@ -20,7 +20,6 @@ import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.plugin.deltalake.transactionlog.TransactionLogUtil;
-import io.trino.plugin.hive.LocationAccessControl;
 import io.trino.plugin.iceberg.IcebergUtil;
 import io.trino.plugin.objectstore.ForDelta;
 import io.trino.plugin.objectstore.ForIceberg;
@@ -33,6 +32,7 @@ import io.trino.spi.connector.ConnectorAccessControl;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.procedure.Procedure;
 import io.trino.spi.procedure.Procedure.Argument;
+import io.trino.spi.security.LocationAccessControl;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandle;

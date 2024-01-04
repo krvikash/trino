@@ -15,6 +15,7 @@ package io.trino.plugin.hive;
 
 import com.google.inject.Binder;
 import com.google.inject.Module;
+import io.trino.spi.security.LocationAccessControl;
 
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 

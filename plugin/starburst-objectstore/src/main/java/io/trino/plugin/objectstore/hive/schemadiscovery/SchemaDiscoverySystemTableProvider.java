@@ -29,13 +29,13 @@ import io.trino.parquet.ParquetReaderOptions;
 import io.trino.plugin.base.classloader.ClassLoaderSafeSystemTable;
 import io.trino.plugin.base.connector.SystemTableProvider;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
-import io.trino.plugin.hive.LocationAccessControl;
 import io.trino.plugin.hive.orc.HdfsOrcDataSource;
 import io.trino.plugin.hive.parquet.TrinoParquetDataSource;
 import io.trino.spi.connector.ConnectorMetadata;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.SystemTable;
+import io.trino.spi.security.LocationAccessControl;
 
 import java.net.URI;
 import java.util.Optional;

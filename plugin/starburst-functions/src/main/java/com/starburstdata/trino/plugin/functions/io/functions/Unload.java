@@ -14,9 +14,9 @@ import com.google.inject.Provider;
 import io.starburst.functions.io.StorageConfig;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorTableFunction;
-import io.trino.plugin.hive.LocationAccessControl;
 import io.trino.plugin.hive.functions.Unload.UnloadFunction;
 import io.trino.spi.function.table.ConnectorTableFunction;
+import io.trino.spi.security.LocationAccessControl;
 
 import static java.util.Objects.requireNonNull;
 

@@ -16,7 +16,7 @@ package io.trino.plugin.objectstore;
 import com.google.inject.Binder;
 import com.google.inject.Module;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
-import io.trino.plugin.hive.LocationAccessControl;
+import io.trino.spi.security.LocationAccessControl;
 
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 

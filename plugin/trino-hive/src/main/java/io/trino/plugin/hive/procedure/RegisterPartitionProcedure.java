@@ -25,7 +25,6 @@ import io.trino.metastore.PartitionStatistics;
 import io.trino.metastore.Table;
 import io.trino.plugin.base.util.UncheckedCloseable;
 import io.trino.plugin.hive.HiveConfig;
-import io.trino.plugin.hive.LocationAccessControl;
 import io.trino.plugin.hive.TransactionalMetadata;
 import io.trino.plugin.hive.TransactionalMetadataFactory;
 import io.trino.plugin.hive.metastore.SemiTransactionalHiveMetastore;
@@ -36,6 +35,7 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.TableNotFoundException;
 import io.trino.spi.procedure.Procedure;
+import io.trino.spi.security.LocationAccessControl;
 import io.trino.spi.type.ArrayType;
 
 import java.io.IOException;

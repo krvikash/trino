@@ -45,7 +45,6 @@ import io.trino.plugin.deltalake.transactionlog.reader.FileSystemTransactionLogR
 import io.trino.plugin.deltalake.transactionlog.writer.FileSystemTransactionLogWriterFactory;
 import io.trino.plugin.deltalake.transactionlog.writer.NoIsolationSynchronizer;
 import io.trino.plugin.deltalake.transactionlog.writer.TransactionLogSynchronizerManager;
-import io.trino.plugin.hive.LocationAccessControl;
 import io.trino.plugin.hive.metastore.MetastoreTypeConfig;
 import io.trino.plugin.hive.metastore.UnimplementedHiveMetastore;
 import io.trino.plugin.hive.parquet.ParquetReaderConfig;
@@ -54,6 +53,7 @@ import io.trino.spi.SplitWeight;
 import io.trino.spi.block.Block;
 import io.trino.spi.connector.ConnectorExpressionEvaluator;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.security.LocationAccessControl;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 import io.trino.testing.TestingConnectorContext;

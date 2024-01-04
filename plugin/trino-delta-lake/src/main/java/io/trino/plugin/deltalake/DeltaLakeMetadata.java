@@ -96,7 +96,6 @@ import io.trino.plugin.deltalake.transactionlog.writer.TransactionConflictExcept
 import io.trino.plugin.deltalake.transactionlog.writer.TransactionFailedException;
 import io.trino.plugin.deltalake.transactionlog.writer.TransactionLogWriter;
 import io.trino.plugin.deltalake.transactionlog.writer.TransactionLogWriterFactory;
-import io.trino.plugin.hive.LocationAccessControl;
 import io.trino.plugin.hive.TrinoViewHiveMetastore;
 import io.trino.spi.ErrorCode;
 import io.trino.spi.Node;
@@ -153,6 +152,7 @@ import io.trino.spi.expression.Variable;
 import io.trino.spi.function.table.ConnectorTableFunctionHandle;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.security.LocationAccessControl;
 import io.trino.spi.security.TrinoPrincipal;
 import io.trino.spi.statistics.ColumnStatisticMetadata;
 import io.trino.spi.statistics.ColumnStatisticType;

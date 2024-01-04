@@ -41,6 +41,7 @@ import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorExpressionEvaluator;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.security.LocationAccessControl;
 import io.trino.spi.type.Type;
 import io.trino.util.EmbedVersion;
 import org.apache.hadoop.conf.Configuration;

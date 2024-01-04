@@ -37,7 +37,6 @@ import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorTableFunction;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.hive.HiveColumnHandle;
 import io.trino.plugin.hive.HiveStorageFormat;
-import io.trino.plugin.hive.LocationAccessControl;
 import io.trino.plugin.hive.orc.HdfsOrcDataSource;
 import io.trino.plugin.hive.parquet.TrinoParquetDataSource;
 import io.trino.spi.TrinoException;
@@ -56,6 +55,7 @@ import io.trino.spi.function.table.DescriptorArgumentSpecification;
 import io.trino.spi.function.table.ScalarArgument;
 import io.trino.spi.function.table.ScalarArgumentSpecification;
 import io.trino.spi.function.table.TableFunctionAnalysis;
+import io.trino.spi.security.LocationAccessControl;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 
