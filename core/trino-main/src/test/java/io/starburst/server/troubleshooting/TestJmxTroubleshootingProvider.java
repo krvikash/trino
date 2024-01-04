@@ -12,12 +12,10 @@ package io.starburst.server.troubleshooting;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.AbstractModule;
-import com.google.inject.Guice;
-import com.google.inject.Inject;
-import com.google.inject.Injector;
 import io.starburst.server.troubleshooting.jmx.JmxTroubleshootingProvider;
+import io.airlift.bootstrap.Bootstrap;
+import io.airlift.json.JsonModule;
 import io.trino.spi.QueryId;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -30,24 +28,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestJmxTroubleshootingProvider
 {
-    private final Injector injector = Guice.createInjector(new AbstractModule()
-    {
-        @Override
-        protected void configure()
-        {
-            bind(JmxTroubleshootingProvider.class);
-        }
-    });
-
-    @Inject
-    private JmxTroubleshootingProvider jmxTroubleshootingProvider;
-
-    @BeforeClass
-    public void setup()
-    {
-        injector.injectMembers(this);
-    }
-
     @Test
     public void shouldReturnJmxAttributesWithProperTypes()
             throws IOException
@@ -55,9 +35,11 @@ public class TestJmxTroubleshootingProvider
         ExecutorService executorService = new ForkJoinPool();
         TroubleshootingContext ctx = new TroubleshootingContext(new QueryId("1"), executorService);
 
-        jmxTroubleshootingProvider.onContextStarted(ctx);
-        jmxTroubleshootingProvider.onContextFinished(ctx);
-        Map<String, InputStream> map = jmxTroubleshootingProvider.getInputStreams(ctx);
+        JmxTroubleshootingProvider provider = getProvider();
+
+        provider.onContextStarted(ctx);
+        provider.onContextFinished(ctx);
+        Map<String, InputStream> map = provider.getInputStreams(ctx);
         assertInputStream(map.get("jmx/metrics-before.json"));
         assertInputStream(map.get("jmx/metrics-after.json"));
     }
@@ -78,5 +60,20 @@ public class TestJmxTroubleshootingProvider
                 .hasEntrySatisfying("java.lang:type=OperatingSystem", value -> assertThat(value)
                         .hasEntrySatisfying("SystemLoadAverage", systemLoadAverage -> assertThat(systemLoadAverage)
                                 .isInstanceOf(Double.class)));
+    }
+
+    private static JmxTroubleshootingProvider getProvider()
+    {
+        return new Bootstrap(new AbstractModule()
+        {
+            @Override
+            protected void configure()
+            {
+                install(new JsonModule());
+                bind(JmxTroubleshootingProvider.class);
+            }
+        })
+        .initialize()
+        .getInstance(JmxTroubleshootingProvider.class);
     }
 }
