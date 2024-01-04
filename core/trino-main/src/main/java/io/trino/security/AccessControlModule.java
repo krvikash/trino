@@ -24,6 +24,7 @@ import io.trino.plugin.base.security.DefaultSystemAccessControl;
 import io.trino.plugin.base.util.LoggingInvocationHandler;
 import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.security.GroupProvider;
+import io.trino.spi.security.LocationAccessControl;
 import io.trino.tracing.ForTracing;
 import io.trino.tracing.TracingAccessControl;
 
@@ -40,6 +41,7 @@ public class AccessControlModule
     {
         configBinder(binder).bindConfig(AccessControlConfig.class);
         newOptionalBinder(binder, Key.get(String.class, DefaultSystemAccessControlName.class)).setDefault().toInstance(DefaultSystemAccessControl.NAME);
+        newOptionalBinder(binder, Key.get(String.class, DefaultLocationAccessControlName.class)).setDefault().toInstance(LocationAccessControl.DEFAULT_NAME);
         newOptionalBinder(binder, SystemAccessControlSelector.class)
                 .setDefault()
                 .to(AllSystemAccessControlsSelector.class)

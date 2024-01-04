@@ -58,6 +58,7 @@ import io.trino.spi.NodeVersion;
 import io.trino.spi.catalog.CatalogProperties;
 import io.trino.spi.resourcegroups.QueryType;
 import io.trino.spi.resourcegroups.ResourceGroupId;
+import io.trino.spi.security.LocationAccessControl;
 import io.trino.sql.tree.CreateTable;
 import io.trino.sql.tree.Expression;
 import io.trino.sql.tree.NodeLocation;
@@ -107,8 +108,10 @@ public class TestLocalDispatchQuery
                 noop(),
                 new SecretsResolver(ImmutableMap.of()),
                 DefaultSystemAccessControl.NAME,
+                LocationAccessControl.DEFAULT_NAME,
                 new AllSystemAccessControlsSelector());
         accessControl.setSystemAccessControls(List.of(AllowAllSystemAccessControl.INSTANCE));
+        accessControl.setLocationAccessControls(List.of(LocationAccessControl.ALLOW_ALL));
         QueryStateMachine queryStateMachine = QueryStateMachine.begin(
                 Optional.empty(),
                 "sql",

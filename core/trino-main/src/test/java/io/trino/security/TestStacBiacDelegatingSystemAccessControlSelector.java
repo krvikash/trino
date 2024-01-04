@@ -45,6 +45,7 @@ import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorName;
 import io.trino.spi.security.AccessDeniedException;
 import io.trino.spi.security.Identity;
+import io.trino.spi.security.LocationAccessControl;
 import io.trino.spi.security.SystemAccessControl;
 import io.trino.spi.security.SystemSecurityContext;
 import io.trino.testing.TestingConnectorContext;
@@ -257,6 +258,7 @@ class TestStacBiacDelegatingSystemAccessControlSelector
                 OpenTelemetry.noop(),
                 new SecretsResolver(ImmutableMap.of()),
                 DefaultSystemAccessControl.NAME,
+                LocationAccessControl.DEFAULT_NAME,
                 selector);
         accessControlManager.setSystemAccessControls(ImmutableList.copyOf(accessControls));
         return accessControlManager;

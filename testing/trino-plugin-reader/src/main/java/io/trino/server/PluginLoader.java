@@ -35,6 +35,7 @@ public class PluginLoader
     public static final String FUNCTION = "function:";
     public static final String LANGUAGE_FUNCTION_ENGINE = "languageFunctionEngine:";
     public static final String SYSTEM_ACCESS_CONTROL = "systemAccessControl:";
+    public static final String LOCATION_ACCESS_CONTROL = "locationAccessControl:";
     public static final String GROUP_PROVIDER = "groupProvider:";
     public static final String PASSWORD_AUTHENTICATOR = "passwordAuthenticator:";
     public static final String HEADER_AUTHENTICATOR = "headerAuthenticator:";
@@ -57,6 +58,7 @@ public class PluginLoader
                 .forEach(function -> System.out.println(FUNCTION + function.getSignature())));
         plugin.getLanguageFunctionEngines().forEach(engine -> System.out.println(LANGUAGE_FUNCTION_ENGINE + engine.getLanguage()));
         plugin.getSystemAccessControlFactories().forEach(factory -> System.out.println(SYSTEM_ACCESS_CONTROL + factory.getName()));
+        plugin.getLocationAccessControlFactories().forEach(factory -> System.out.println(LOCATION_ACCESS_CONTROL + factory.getName()));
         plugin.getGroupProviderFactories().forEach(factory -> System.out.println(GROUP_PROVIDER + factory.getName()));
         plugin.getPasswordAuthenticatorFactories().forEach(factory -> System.out.println(PASSWORD_AUTHENTICATOR + factory.getName()));
         plugin.getHeaderAuthenticatorFactories().forEach(factory -> System.out.println(HEADER_AUTHENTICATOR + factory.getName()));

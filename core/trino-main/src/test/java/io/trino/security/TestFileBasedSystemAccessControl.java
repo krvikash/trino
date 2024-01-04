@@ -31,6 +31,7 @@ import io.trino.spi.connector.CatalogSchemaName;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.security.AccessDeniedException;
 import io.trino.spi.security.Identity;
+import io.trino.spi.security.LocationAccessControl;
 import io.trino.spi.security.TrinoPrincipal;
 import io.trino.transaction.TransactionManager;
 import org.junit.jupiter.api.Test;
@@ -151,6 +152,7 @@ public class TestFileBasedSystemAccessControl
                 OpenTelemetry.noop(),
                 new SecretsResolver(ImmutableMap.of()),
                 DefaultSystemAccessControl.NAME,
+                LocationAccessControl.DEFAULT_NAME,
                 new AllSystemAccessControlsSelector());
         accessControlManager.loadSystemAccessControl(
                 FileBasedSystemAccessControl.NAME,
@@ -825,6 +827,7 @@ public class TestFileBasedSystemAccessControl
                 OpenTelemetry.noop(),
                 new SecretsResolver(ImmutableMap.of()),
                 DefaultSystemAccessControl.NAME,
+                LocationAccessControl.DEFAULT_NAME,
                 new AllSystemAccessControlsSelector());
         Path configFile = tempDir.resolve("catalog.json");
         Files.copy(getResourcePath("catalog.json"), configFile, REPLACE_EXISTING);
@@ -893,6 +896,7 @@ public class TestFileBasedSystemAccessControl
                 OpenTelemetry.noop(),
                 new SecretsResolver(ImmutableMap.of()),
                 DefaultSystemAccessControl.NAME,
+                LocationAccessControl.DEFAULT_NAME,
                 new AllSystemAccessControlsSelector());
 
         accessControlManager.loadSystemAccessControl(FileBasedSystemAccessControl.NAME, ImmutableMap.of("security.config-file", getResourcePath(resourceName).toString()));

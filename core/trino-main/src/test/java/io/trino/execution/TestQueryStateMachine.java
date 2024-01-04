@@ -48,6 +48,7 @@ import io.trino.spi.WarningCode;
 import io.trino.spi.connector.CatalogVersion;
 import io.trino.spi.resourcegroups.QueryType;
 import io.trino.spi.resourcegroups.ResourceGroupId;
+import io.trino.spi.security.LocationAccessControl;
 import io.trino.spi.security.SelectedRole;
 import io.trino.spi.type.Type;
 import io.trino.sql.analyzer.Output;
@@ -856,8 +857,10 @@ public class TestQueryStateMachine
                     OpenTelemetry.noop(),
                     new SecretsResolver(ImmutableMap.of()),
                     DefaultSystemAccessControl.NAME,
+                    LocationAccessControl.DEFAULT_NAME,
                     new AllSystemAccessControlsSelector());
             accessControl.setSystemAccessControls(List.of(AllowAllSystemAccessControl.INSTANCE));
+            accessControl.setLocationAccessControls(List.of(LocationAccessControl.ALLOW_ALL));
             QueryStateMachine stateMachine = QueryStateMachine.beginWithTicker(
                     Optional.empty(),
                     QUERY,

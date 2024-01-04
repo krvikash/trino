@@ -29,6 +29,7 @@ import io.trino.security.AccessControlManager;
 import io.trino.security.AllSystemAccessControlsSelector;
 import io.trino.spi.NodeVersion;
 import io.trino.spi.resourcegroups.ResourceGroupId;
+import io.trino.spi.security.LocationAccessControl;
 import io.trino.spi.transaction.IsolationLevel;
 import io.trino.sql.tree.Isolation;
 import io.trino.sql.tree.NodeLocation;
@@ -263,7 +264,7 @@ public class TestStartTransactionTask
                 new ResourceGroupId("test"),
                 true,
                 transactionManager,
-                new AccessControlManager(NodeVersion.UNKNOWN, transactionManager, emptyEventListenerManager(), new AccessControlConfig(), OpenTelemetry.noop(), new SecretsResolver(ImmutableMap.of()), DefaultSystemAccessControl.NAME, new AllSystemAccessControlsSelector()),
+                new AccessControlManager(NodeVersion.UNKNOWN, transactionManager, emptyEventListenerManager(), new AccessControlConfig(), OpenTelemetry.noop(), new SecretsResolver(ImmutableMap.of()), DefaultSystemAccessControl.NAME, LocationAccessControl.DEFAULT_NAME, new AllSystemAccessControlsSelector()),
                 executor,
                 metadata,
                 WarningCollector.NOOP,

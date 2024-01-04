@@ -13,9 +13,31 @@
  */
 package io.trino.spi.security;
 
+import java.util.Map;
+
 public interface LocationAccessControl
 {
+    String DEFAULT_NAME = "default";
     LocationAccessControl ALLOW_ALL = new LocationAccessControl() {};
 
     default void checkCanUseLocation(ConnectorIdentity identity, String location) {}
+
+    class DefaultFactory
+            implements LocationAccessControlFactory
+    {
+        @Override
+        public String getName()
+        {
+            return DEFAULT_NAME;
+        }
+
+        @Override
+        public LocationAccessControl create(Map<String, String> config, LocationAccessControlFactoryContext context)
+        {
+            if (!config.isEmpty()) {
+                throw new IllegalArgumentException("This location access controller does not support any configuration properties");
+            }
+            return ALLOW_ALL;
+        }
+    }
 }

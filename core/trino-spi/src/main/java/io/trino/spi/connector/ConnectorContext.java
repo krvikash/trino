@@ -27,6 +27,7 @@ import io.trino.spi.cache.ConnectorCacheFactory;
 import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
 import io.trino.spi.function.FunctionBundleFactory;
 import io.trino.spi.security.AiModelAccessControl;
+import io.trino.spi.security.LocationAccessControl;
 import io.trino.spi.type.TypeManager;
 
 import java.util.Optional;
@@ -92,6 +93,11 @@ public interface ConnectorContext
     }
 
     default PageStreamFactory getPageStreamFactory()
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    default LocationAccessControl getLocationAccessControl()
     {
         throw new UnsupportedOperationException();
     }

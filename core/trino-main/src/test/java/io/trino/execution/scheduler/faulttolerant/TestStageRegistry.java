@@ -41,6 +41,7 @@ import io.trino.security.AllSystemAccessControlsSelector;
 import io.trino.spi.NodeVersion;
 import io.trino.spi.QueryId;
 import io.trino.spi.resourcegroups.ResourceGroupId;
+import io.trino.spi.security.LocationAccessControl;
 import io.trino.sql.planner.PlanFragment;
 import io.trino.sql.planner.SubPlan;
 import io.trino.transaction.TransactionManager;
@@ -203,6 +204,7 @@ public class TestStageRegistry
                 OpenTelemetry.noop(),
                 new SecretsResolver(ImmutableMap.of()),
                 DefaultSystemAccessControl.NAME,
+                LocationAccessControl.DEFAULT_NAME,
                 new AllSystemAccessControlsSelector());
         accessControl.setSystemAccessControls(List.of(AllowAllSystemAccessControl.INSTANCE));
         return QueryStateMachine.begin(

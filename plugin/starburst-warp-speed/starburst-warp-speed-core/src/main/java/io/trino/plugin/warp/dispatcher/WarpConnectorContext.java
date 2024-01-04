@@ -31,6 +31,7 @@ import io.trino.spi.connector.MetadataProvider;
 import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
 import io.trino.spi.function.FunctionBundleFactory;
 import io.trino.spi.security.AiModelAccessControl;
+import io.trino.spi.security.LocationAccessControl;
 import io.trino.spi.type.TypeManager;
 
 import static java.util.Objects.requireNonNull;
@@ -117,6 +118,12 @@ public class WarpConnectorContext
     public WarpPluginSharedInstances getWarpPluginSharedInstances()
     {
         return sharedInstances;
+    }
+
+    @Override
+    public LocationAccessControl getLocationAccessControl()
+    {
+        return connectorContext.getLocationAccessControl();
     }
 
     @Override

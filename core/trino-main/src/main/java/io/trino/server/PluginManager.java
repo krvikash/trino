@@ -52,6 +52,7 @@ import io.trino.spi.resourcegroups.ResourceGroupConfigurationManagerFactory;
 import io.trino.spi.security.CertificateAuthenticatorFactory;
 import io.trino.spi.security.GroupProviderFactory;
 import io.trino.spi.security.HeaderAuthenticatorFactory;
+import io.trino.spi.security.LocationAccessControlFactory;
 import io.trino.spi.security.PasswordAuthenticatorFactory;
 import io.trino.spi.security.SystemAccessControlFactory;
 import io.trino.spi.session.SessionPropertyConfigurationManagerFactory;
@@ -281,6 +282,11 @@ public class PluginManager
         for (SystemAccessControlFactory accessControlFactory : plugin.getSystemAccessControlFactories()) {
             log.info("Registering system access control %s", accessControlFactory.getName());
             accessControlManager.addSystemAccessControlFactory(accessControlFactory);
+        }
+
+        for (LocationAccessControlFactory locationAccessControlFactory : plugin.getLocationAccessControlFactories()) {
+            log.info("Registering location access control %s", locationAccessControlFactory.getName());
+            accessControlManager.addLocationAccessControlFactory(locationAccessControlFactory);
         }
 
         passwordAuthenticatorManager.ifPresent(authenticationManager -> {

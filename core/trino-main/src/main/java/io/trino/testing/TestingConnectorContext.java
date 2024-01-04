@@ -43,6 +43,7 @@ import io.trino.spi.connector.MetadataProvider;
 import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
 import io.trino.spi.function.FunctionBundleFactory;
 import io.trino.spi.security.AiModelAccessControl;
+import io.trino.spi.security.LocationAccessControl;
 import io.trino.spi.type.TypeManager;
 import io.trino.spi.type.TypeOperators;
 import io.trino.util.EmbedVersion;
@@ -236,5 +237,11 @@ public final class TestingConnectorContext
     public ConnectorCacheFactory getCacheFactory()
     {
         return new TestingConnectorCacheFactory();
+    }
+
+    @Override
+    public LocationAccessControl getLocationAccessControl()
+    {
+        return LocationAccessControl.ALLOW_ALL;
     }
 }

@@ -50,7 +50,11 @@ import io.trino.spi.connector.EntityPrivilege;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.function.FunctionKind;
 import io.trino.spi.function.SchemaFunctionName;
+import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.security.Identity;
+import io.trino.spi.security.LocationAccessControl;
+import io.trino.spi.security.LocationAccessControlFactory;
+import io.trino.spi.security.LocationAccessControlFactory.LocationAccessControlFactoryContext;
 import io.trino.spi.security.Privilege;
 import io.trino.spi.security.SystemAccessControl;
 import io.trino.spi.security.SystemAccessControlFactory;
@@ -99,12 +103,14 @@ import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 public class AccessControlManager
-        implements AccessControl
+        implements AccessControl, LocationAccessControl
 {
     private static final Logger log = Logger.get(AccessControlManager.class);
 
-    private static final File CONFIG_FILE = new File("etc/access-control.properties");
-    private static final String NAME_PROPERTY = "access-control.name";
+    private static final File ACCESS_CONTROL_CONFIG_FILE = new File("etc/access-control.properties");
+    private static final File LOCATION_CONTROL_CONFIG_FILE = new File("etc/location-access-control.properties");
+    private static final String ACCESS_CONTROL_NAME_PROPERTY = "access-control.name";
+    private static final String LOCATION_CONTROL_NAME_PROPERTY = "location-access-control.name";
 
     private final NodeVersion nodeVersion;
     private final TransactionManager transactionManager;
@@ -112,11 +118,14 @@ public class AccessControlManager
     private final List<File> configFiles;
     private final OpenTelemetry openTelemetry;
     private final String defaultAccessControlName;
+    private final String defaultLocationAccessControlName;
     private final SystemAccessControlSelector accessControlSelector;
     private final Map<String, SystemAccessControlFactory> systemAccessControlFactories = new ConcurrentHashMap<>();
+    private final Map<String, LocationAccessControlFactory> locationAccessControlFactories = new ConcurrentHashMap<>();
     private final AtomicReference<CatalogServiceProvider<Optional<ConnectorAccessControl>>> connectorAccessControlProvider = new AtomicReference<>();
 
     private final AtomicReference<List<SystemAccessControl>> systemAccessControls = new AtomicReference<>();
+    private final AtomicReference<List<LocationAccessControl>> locationAccessControls = new AtomicReference<>();
 
     private final CounterStat authorizationSuccess = new CounterStat();
     private final CounterStat authorizationFail = new CounterStat();
@@ -131,6 +140,7 @@ public class AccessControlManager
             OpenTelemetry openTelemetry,
             SecretsResolver secretsResolver,
             @DefaultSystemAccessControlName String defaultAccessControlName,
+            @DefaultLocationAccessControlName String defaultLocationAccessControlName,
             SystemAccessControlSelector accessControlSelector)
     {
         this.nodeVersion = requireNonNull(nodeVersion, "nodeVersion is null");
@@ -140,11 +150,13 @@ public class AccessControlManager
         this.openTelemetry = requireNonNull(openTelemetry, "openTelemetry is null");
         this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
         this.defaultAccessControlName = requireNonNull(defaultAccessControlName, "defaultAccessControl is null");
+        this.defaultLocationAccessControlName = requireNonNull(defaultLocationAccessControlName, "defaultLocationAccessControlName is null");
         this.accessControlSelector = requireNonNull(accessControlSelector, "accessControlSelector is null");
         addSystemAccessControlFactory(new DefaultSystemAccessControl.Factory());
         addSystemAccessControlFactory(new AllowAllSystemAccessControl.Factory());
         addSystemAccessControlFactory(new ReadOnlySystemAccessControl.Factory());
         addSystemAccessControlFactory(new FileBasedSystemAccessControl.Factory());
+        addLocationAccessControlFactory(new LocationAccessControl.DefaultFactory());
     }
 
     public final void addSystemAccessControlFactory(SystemAccessControlFactory accessControlFactory)
@@ -153,6 +165,15 @@ public class AccessControlManager
 
         if (systemAccessControlFactories.putIfAbsent(accessControlFactory.getName(), accessControlFactory) != null) {
             throw new IllegalArgumentException(format("Access control '%s' is already registered", accessControlFactory.getName()));
+        }
+    }
+
+    public final void addLocationAccessControlFactory(LocationAccessControlFactory locationAccessControlFactory)
+    {
+        requireNonNull(locationAccessControlFactory, "locationAccessControlFactory is null");
+
+        if (locationAccessControlFactories.putIfAbsent(locationAccessControlFactory.getName(), locationAccessControlFactory) != null) {
+            throw new IllegalArgumentException(format("Location access control '%s' is already registered", locationAccessControlFactory.getName()));
         }
     }
 
@@ -170,12 +191,12 @@ public class AccessControlManager
     {
         List<File> configFiles = this.configFiles;
         if (configFiles.isEmpty()) {
-            if (!CONFIG_FILE.exists()) {
+            if (!ACCESS_CONTROL_CONFIG_FILE.exists()) {
                 loadSystemAccessControl(defaultAccessControlName, ImmutableMap.of());
                 log.info("Using system access control: %s", defaultAccessControlName);
                 return;
             }
-            configFiles = ImmutableList.of(CONFIG_FILE);
+            configFiles = ImmutableList.of(ACCESS_CONTROL_CONFIG_FILE);
         }
 
         List<SystemAccessControl> systemAccessControls = configFiles.stream()
@@ -217,15 +238,15 @@ public class AccessControlManager
             throw new UncheckedIOException("Failed to read configuration file: " + configFile, e);
         }
 
-        String name = properties.remove(NAME_PROPERTY);
-        checkState(!isNullOrEmpty(name), "Access control configuration does not contain '%s' property: %s", NAME_PROPERTY, configFile);
+        String name = properties.remove(ACCESS_CONTROL_NAME_PROPERTY);
+        checkState(!isNullOrEmpty(name), "Access control configuration does not contain '%s' property: %s", ACCESS_CONTROL_NAME_PROPERTY, configFile);
 
         SystemAccessControlFactory factory = systemAccessControlFactories.get(name);
         checkState(factory != null, "Access control '%s' is not registered: %s", name, configFile);
 
         SystemAccessControl systemAccessControl;
         try (ThreadContextClassLoader _ = new ThreadContextClassLoader(factory.getClass().getClassLoader())) {
-            systemAccessControl = factory.create(ImmutableMap.copyOf(secretsResolver.getResolvedConfiguration(properties)), createContext(name));
+            systemAccessControl = factory.create(ImmutableMap.copyOf(secretsResolver.getResolvedConfiguration(properties)), createSystemAccessControlContext(name));
         }
 
         log.info("-- Loaded system access control %s --", name);
@@ -243,16 +264,15 @@ public class AccessControlManager
 
         SystemAccessControl systemAccessControl;
         try (ThreadContextClassLoader _ = new ThreadContextClassLoader(factory.getClass().getClassLoader())) {
-            systemAccessControl = factory.create(ImmutableMap.copyOf(secretsResolver.getResolvedConfiguration(properties)), createContext(name));
+            systemAccessControl = factory.create(ImmutableMap.copyOf(secretsResolver.getResolvedConfiguration(properties)), createSystemAccessControlContext(name));
         }
 
         systemAccessControl.getEventListeners()
                 .forEach(eventListenerManager::addEventListener);
-
         setSystemAccessControls(ImmutableList.of(systemAccessControl));
     }
 
-    private SystemAccessControlContext createContext(String systemAccessControlName)
+    private SystemAccessControlContext createSystemAccessControlContext(String systemAccessControlName)
     {
         return new SystemAccessControlContext()
         {
@@ -306,6 +326,102 @@ public class AccessControlManager
             return governedAware.delegate();
         }
         return accessControl;
+    }
+
+    public void loadLocationAccessControl()
+    {
+        List<File> configFiles = this.configFiles;
+        if (configFiles.isEmpty()) {
+            if (!LOCATION_CONTROL_CONFIG_FILE.exists()) {
+                loadLocationAccessControl(defaultLocationAccessControlName, ImmutableMap.of());
+                log.info("Using location access control: %s", defaultLocationAccessControlName);
+                return;
+            }
+            configFiles = ImmutableList.of(LOCATION_CONTROL_CONFIG_FILE);
+        }
+
+        List<LocationAccessControl> locationAccessControls = configFiles.stream()
+                .map(this::createLocationAccessControl)
+                .collect(toImmutableList());
+
+        setLocationAccessControls(locationAccessControls);
+    }
+
+    private LocationAccessControl createLocationAccessControl(File configFile)
+    {
+        log.info("-- Loading location access control %s --", configFile);
+        configFile = configFile.getAbsoluteFile();
+
+        Map<String, String> properties;
+        try {
+            properties = new HashMap<>(loadPropertiesFrom(configFile.getPath()));
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException("Failed to read configuration file: " + configFile, e);
+        }
+
+        String name = properties.remove(LOCATION_CONTROL_NAME_PROPERTY);
+        checkState(!isNullOrEmpty(name), "Location access control configuration does not contain '%s' property: %s", LOCATION_CONTROL_NAME_PROPERTY, configFile);
+
+        LocationAccessControlFactory factory = locationAccessControlFactories.get(name);
+        checkState(factory != null, "Location access control '%s' is not registered: %s", name, configFile);
+
+        LocationAccessControl locationAccessControl;
+        try (ThreadContextClassLoader ignored = new ThreadContextClassLoader(factory.getClass().getClassLoader())) {
+            locationAccessControl = factory.create(ImmutableMap.copyOf(secretsResolver.getResolvedConfiguration(properties)), createLocationAccessControlContext(name));
+        }
+
+        log.info("-- Loaded location access control %s --", name);
+        return locationAccessControl;
+    }
+
+    public void loadLocationAccessControl(String name, Map<String, String> properties)
+    {
+        requireNonNull(name, "name is null");
+        requireNonNull(properties, "properties is null");
+
+        LocationAccessControlFactory factory = locationAccessControlFactories.get(name);
+        checkState(factory != null, "Location access control '%s' is not registered", name);
+
+        LocationAccessControl locationAccessControl;
+        try (ThreadContextClassLoader ignored = new ThreadContextClassLoader(factory.getClass().getClassLoader())) {
+            locationAccessControl = factory.create(ImmutableMap.copyOf(secretsResolver.getResolvedConfiguration(properties)), createLocationAccessControlContext(name));
+        }
+
+        List<LocationAccessControl> locationAccessControls = ImmutableList.of(locationAccessControl);
+        setLocationAccessControls(locationAccessControls);
+    }
+
+    private LocationAccessControlFactoryContext createLocationAccessControlContext(String locationAccessControlName)
+    {
+        return new LocationAccessControlFactoryContext()
+        {
+            private final Tracer tracer = openTelemetry.getTracer("trino.location-access-control." + locationAccessControlName);
+            private final String version = nodeVersion.version();
+
+            @Override
+            public String getVersion()
+            {
+                return version;
+            }
+
+            @Override
+            public OpenTelemetry getOpenTelemetry()
+            {
+                return openTelemetry;
+            }
+
+            @Override
+            public Tracer getTracer()
+            {
+                return tracer;
+            }
+        };
+    }
+
+    public void setLocationAccessControls(List<LocationAccessControl> locationAccessControls)
+    {
+        checkState(this.locationAccessControls.compareAndSet(null, locationAccessControls), "Location access control already initialized");
     }
 
     @Override
@@ -1454,6 +1570,14 @@ public class AccessControlManager
     }
 
     @Override
+    public void checkCanUseLocation(ConnectorIdentity identity, String location)
+    {
+        for (LocationAccessControl locationAccessControl : getLocationAccessControl()) {
+            locationAccessControl.checkCanUseLocation(identity, location);
+        }
+    }
+
+    @Override
     public void checkCanShowFunctions(SecurityContext securityContext, CatalogSchemaName schema)
     {
         requireNonNull(securityContext, "securityContext is null");
@@ -1782,6 +1906,15 @@ public class AccessControlManager
         return ImmutableList.of(new InitializingSystemAccessControl());
     }
 
+    private List<LocationAccessControl> getLocationAccessControl()
+    {
+        List<LocationAccessControl> locationControls = locationAccessControls.get();
+        if (locationControls != null) {
+            return locationControls;
+        }
+        return ImmutableList.of(new InitializingLocationAccessControl());
+    }
+
     private boolean isGalaxyAccessControl()
     {
         List<SystemAccessControl> accessControls = getSystemAccessControls();
@@ -1833,6 +1966,16 @@ public class AccessControlManager
     {
         @Override
         protected SystemAccessControl delegate()
+        {
+            throw new TrinoException(SERVER_STARTING_UP, "Trino server is still initializing");
+        }
+    }
+
+    private static class InitializingLocationAccessControl
+            implements LocationAccessControl
+    {
+        @Override
+        public void checkCanUseLocation(ConnectorIdentity identity, String location)
         {
             throw new TrinoException(SERVER_STARTING_UP, "Trino server is still initializing");
         }

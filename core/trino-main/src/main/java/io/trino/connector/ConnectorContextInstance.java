@@ -30,6 +30,7 @@ import io.trino.spi.connector.MetadataProvider;
 import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
 import io.trino.spi.function.FunctionBundleFactory;
 import io.trino.spi.security.AiModelAccessControl;
+import io.trino.spi.security.LocationAccessControl;
 import io.trino.spi.type.TypeManager;
 
 import static java.util.Objects.requireNonNull;
@@ -46,6 +47,7 @@ public class ConnectorContextInstance
     private final PageSorter pageSorter;
     private final PageIndexerFactory pageIndexerFactory;
     private final PageStreamFactory pageStreamFactory;
+    private final LocationAccessControl locationAccessControl;
     private final AiModelAccessControl aiModelAccessControl;
     private final ModelConnectionSpecsLoader modelConnectionSpecsLoader;
     private final CatalogVersion catalogVersion;
@@ -63,6 +65,7 @@ public class ConnectorContextInstance
             VersionEmbedder versionEmbedder,
             TypeManager typeManager,
             MetadataProvider metadataProvider,
+            LocationAccessControl locationAccessControl,
             AiModelAccessControl aiModelAccessControl,
             ModelConnectionSpecsLoader modelConnectionSpecsLoader,
             PageSorter pageSorter,
@@ -82,6 +85,7 @@ public class ConnectorContextInstance
         this.versionEmbedder = requireNonNull(versionEmbedder, "versionEmbedder is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.metadataProvider = requireNonNull(metadataProvider, "metadataProvider is null");
+        this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
         this.aiModelAccessControl = requireNonNull(aiModelAccessControl, "aiModelAccessControl is null");
         this.modelConnectionSpecsLoader = requireNonNull(modelConnectionSpecsLoader, "modelConnectionSpecsLoader is null");
         this.pageSorter = requireNonNull(pageSorter, "pageSorter is null");
@@ -202,5 +206,11 @@ public class ConnectorContextInstance
     public ConnectorCacheFactory getCacheFactory()
     {
         return cacheFactory;
+    }
+
+    @Override
+    public LocationAccessControl getLocationAccessControl()
+    {
+        return locationAccessControl;
     }
 }

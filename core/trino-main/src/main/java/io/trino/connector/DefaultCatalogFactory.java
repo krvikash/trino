@@ -31,6 +31,7 @@ import io.trino.node.InternalNode;
 import io.trino.node.InternalNodeManager;
 import io.trino.operator.FlatHashStrategyCompiler;
 import io.trino.security.AccessControl;
+import io.trino.security.AccessControlManager;
 import io.trino.spi.BlocksHashFactory;
 import io.trino.spi.PageIndexerFactory;
 import io.trino.spi.PageSorter;
@@ -83,6 +84,7 @@ public class DefaultCatalogFactory
 
     private final boolean schedulerIncludeCoordinator;
     private final int maxPrefetchedInformationSchemaPrefixes;
+    private final AccessControlManager accessControlManager;
     private final AiModelAccessControl aiModelAccessControl;
     private final ModelConnectionSpecsLoader modelConnectionSpecsLoader;
     private final ManagedStatisticsClient managedStatisticsClient;
@@ -109,6 +111,7 @@ public class DefaultCatalogFactory
             TypeManager typeManager,
             FlatHashStrategyCompiler flatHashStrategyCompiler,
             NodeSchedulerConfig nodeSchedulerConfig,
+            AccessControlManager accessControlManager,
             AiModelAccessControl aiModelAccessControl,
             ModelConnectionSpecsLoader modelConnectionSpecsLoader,
             ManagedStatisticsClient managedStatisticsClient,
@@ -133,6 +136,7 @@ public class DefaultCatalogFactory
         this.blocksHashFactory = requireNonNull(flatHashStrategyCompiler, "flatHashStrategyCompiler is null").createBlocksHashFactory();
         this.schedulerIncludeCoordinator = nodeSchedulerConfig.isIncludeCoordinator();
         this.maxPrefetchedInformationSchemaPrefixes = optimizerConfig.getMaxPrefetchedInformationSchemaPrefixes();
+        this.accessControlManager = requireNonNull(accessControlManager, "accessControlManager is null");
         this.aiModelAccessControl = requireNonNull(aiModelAccessControl, "aiModelAccessControl is null");
         this.modelConnectionSpecsLoader = requireNonNull(modelConnectionSpecsLoader, "modelConnectionSpecsLoader is null");
         this.managedStatisticsClient = requireNonNull(managedStatisticsClient, "managedStatisticsClient is null");
@@ -233,6 +237,7 @@ public class DefaultCatalogFactory
                 versionEmbedder,
                 typeManager,
                 new InternalMetadataProvider(metadata, typeManager),
+                accessControlManager,
                 aiModelAccessControl,
                 modelConnectionSpecsLoader,
                 pageSorter,

@@ -29,6 +29,7 @@ import io.trino.security.AccessControlManager;
 import io.trino.security.AllSystemAccessControlsSelector;
 import io.trino.spi.NodeVersion;
 import io.trino.spi.resourcegroups.ResourceGroupId;
+import io.trino.spi.security.LocationAccessControl;
 import io.trino.sql.tree.Deallocate;
 import io.trino.sql.tree.Identifier;
 import io.trino.sql.tree.NodeLocation;
@@ -103,8 +104,10 @@ public class TestDeallocateTask
                 OpenTelemetry.noop(),
                 new SecretsResolver(ImmutableMap.of()),
                 DefaultSystemAccessControl.NAME,
+                LocationAccessControl.DEFAULT_NAME,
                 new AllSystemAccessControlsSelector());
         accessControl.setSystemAccessControls(List.of(AllowAllSystemAccessControl.INSTANCE));
+        accessControl.setLocationAccessControls(List.of(LocationAccessControl.ALLOW_ALL));
         QueryStateMachine stateMachine = QueryStateMachine.begin(
                 Optional.empty(),
                 sqlString,

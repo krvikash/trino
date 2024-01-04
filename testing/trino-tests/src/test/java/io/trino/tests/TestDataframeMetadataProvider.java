@@ -56,6 +56,7 @@ import io.trino.server.dataframe.DataframeMetadataProvider;
 import io.trino.server.starburst.accesscontrol.PassthroughStarburstAnalyzerHelper;
 import io.trino.server.starburst.security.DisabledEntityPropertyManager;
 import io.trino.spi.NodeVersion;
+import io.trino.spi.security.LocationAccessControl;
 import io.trino.sql.PlannerContext;
 import io.trino.sql.SqlEnvironmentConfig;
 import io.trino.sql.analyzer.AnalyzerFactory;
@@ -116,6 +117,7 @@ public class TestDataframeMetadataProvider
                 OpenTelemetry.noop(),
                 new SecretsResolver(ImmutableMap.of()),
                 DefaultSystemAccessControl.NAME,
+                LocationAccessControl.DEFAULT_NAME,
                 new AllSystemAccessControlsSelector());
         accessControlManager.setSystemAccessControls(List.of(AllowAllSystemAccessControl.INSTANCE));
         this.accessControl = accessControlManager;

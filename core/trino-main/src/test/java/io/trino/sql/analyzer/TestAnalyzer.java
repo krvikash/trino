@@ -93,6 +93,7 @@ import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.eventlistener.ColumnDetail;
 import io.trino.spi.eventlistener.ColumnLineageInfo;
 import io.trino.spi.security.Identity;
+import io.trino.spi.security.LocationAccessControl;
 import io.trino.spi.session.PropertyMetadata;
 import io.trino.spi.transaction.IsolationLevel;
 import io.trino.spi.type.ArrayType;
@@ -6468,6 +6469,7 @@ public class TestAnalyzer
 
         TestingAccessControlManager accessControlManager = new TestingAccessControlManager(transactionManager, emptyEventListenerManager(), new SecretsResolver(ImmutableMap.of()));
         accessControlManager.setSystemAccessControls(List.of(AllowAllSystemAccessControl.INSTANCE));
+        accessControlManager.setLocationAccessControls(List.of(LocationAccessControl.ALLOW_ALL));
 
         analyze(CLIENT_SESSION, "SELECT * FROM fresh_materialized_view" + suffix, accessControlManager);
 
@@ -8559,8 +8561,10 @@ public class TestAnalyzer
                 OpenTelemetry.noop(),
                 new SecretsResolver(ImmutableMap.of()),
                 DefaultSystemAccessControl.NAME,
+                LocationAccessControl.DEFAULT_NAME,
                 new AllSystemAccessControlsSelector());
         accessControlManager.setSystemAccessControls(List.of(AllowAllSystemAccessControl.INSTANCE));
+        accessControlManager.setLocationAccessControls(List.of(LocationAccessControl.ALLOW_ALL));
         this.accessControl = accessControlManager;
 
         planTester.addFunctions(InternalFunctionBundle.builder().functions(APPLY_FUNCTION).build());

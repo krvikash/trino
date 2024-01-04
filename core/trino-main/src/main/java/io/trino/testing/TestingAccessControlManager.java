@@ -32,6 +32,7 @@ import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.spi.connector.ColumnSchema;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.security.Identity;
+import io.trino.spi.security.LocationAccessControl;
 import io.trino.spi.security.ViewExpression;
 import io.trino.transaction.TransactionManager;
 
@@ -157,7 +158,7 @@ public class TestingAccessControlManager
             OpenTelemetry openTelemetry,
             SystemAccessControlSelector accessControlSelector)
     {
-        super(NodeVersion.UNKNOWN, transactionManager, eventListenerManager, accessControlConfig, openTelemetry, secretsResolver, DefaultSystemAccessControl.NAME, accessControlSelector);
+        super(NodeVersion.UNKNOWN, transactionManager, eventListenerManager, accessControlConfig, openTelemetry, secretsResolver, DefaultSystemAccessControl.NAME, LocationAccessControl.DEFAULT_NAME, accessControlSelector);
     }
 
     public TestingAccessControlManager(TransactionManager transactionManager, EventListenerManager eventListenerManager, SecretsResolver secretsResolver)
