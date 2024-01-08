@@ -111,6 +111,7 @@ public class Exchange
     private volatile long lastUpdateTime;
     private volatile boolean allClosedChunksReceived;
     private final AtomicReference<Throwable> failure = new AtomicReference<>();
+    private volatile boolean spooled;
 
     public Exchange(
             long bufferNodeId,
@@ -396,13 +397,18 @@ public class Exchange
         partitions.values().forEach(Partition::releaseChunks);
         partitions.clear();
 
-        ListenableFuture<Void> removeFuture = spoolingStorage.removeExchange(bufferNodeId, exchangeId);
-        addExceptionCallback(removeFuture, throwable -> {
-            log.warn(throwable, "error while removing stored files for exchange %s", exchangeId);
-        });
-        removeFuture.addListener(() -> removeExchange(), directExecutor());
+        if (spooled) {
+            ListenableFuture<Void> removeFuture = spoolingStorage.removeExchange(bufferNodeId, exchangeId);
+            addExceptionCallback(removeFuture, throwable -> {
+                log.warn(throwable, "error while removing stored files for exchange %s", exchangeId);
+            });
+            removeFuture.addListener(this::removeExchange, directExecutor());
+            return removeFuture;
+        }
 
-        return removeFuture;
+        // did not spool
+        removeExchange();
+        return immediateFuture(null);
     }
 
     public long getLastUpdateTime()
@@ -478,5 +484,10 @@ public class Exchange
     private void removeExchange()
     {
         exchangeStateMachine.transitionToRemoved();
+    }
+
+    public void markSpooled()
+    {
+        spooled = true;
     }
 }

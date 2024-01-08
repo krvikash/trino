@@ -672,12 +672,12 @@ public class ChunkManager
                         // exchange gone; not spooling
                         return immediateVoidFuture();
                     }
-
                     ListenableFuture<Map<Long, SpooledChunk>> spoolingFuture = spoolingStorage.writeMergedChunks(
                             bufferNodeId,
                             exchangeId,
                             chunkDataLeaseMap,
                             contentLength);
+                    exchange.markSpooled();
                     // in case of failure we still need to decrease reference count to avoid memory leak
                     addExceptionCallback(spoolingFuture, failure -> chunkDataLeaseMap.values().forEach(ChunkDataLease::release));
                     return Futures.transform(
@@ -715,6 +715,7 @@ public class ChunkManager
                     }
 
                     ListenableFuture<Void> spoolingFuture = spoolingStorage.writeChunk(bufferNodeId, exchangeId, chunk.getChunkId(), chunkDataLease);
+                    exchange.markSpooled();
                     // in case of failure we still need to decrease reference count to avoid memory leak
                     addExceptionCallback(spoolingFuture, failure -> chunkDataLease.release());
 
