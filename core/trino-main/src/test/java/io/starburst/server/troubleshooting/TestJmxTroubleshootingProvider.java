@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 
+import static java.util.Collections.emptySet;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestJmxTroubleshootingProvider
@@ -33,7 +34,7 @@ public class TestJmxTroubleshootingProvider
             throws IOException
     {
         ExecutorService executorService = new ForkJoinPool();
-        TroubleshootingContext ctx = new TroubleshootingContext(new QueryId("1"), executorService);
+        TroubleshootingContext ctx = new TroubleshootingContext(new QueryId("1"), executorService, emptySet());
 
         JmxTroubleshootingProvider provider = getProvider();
 

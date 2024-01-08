@@ -39,12 +39,14 @@ public class TroubleshootingContext
     private final StateMachine<State> state;
 
     private final Map<String, Object> values = new ConcurrentHashMap<>();
+    private final Set<TroubleshootingProvider> dataProviders;
 
-    public TroubleshootingContext(QueryId queryId, ExecutorService executorService)
+    public TroubleshootingContext(QueryId queryId, ExecutorService executorService, Set<TroubleshootingProvider> dataProviders)
     {
         this.contextId = randomUUID().toString().replace("-", "");
         this.queryId = requireNonNull(queryId, "queryId is null");
         this.state = new StateMachine<>("troubleshooting-" + queryId.getId(), executorService, INITIALIZED, Set.of(REMOVED));
+        this.dataProviders = requireNonNull(dataProviders, "dataProviders is null");
     }
 
     public QueryId getQueryId()
@@ -78,7 +80,7 @@ public class TroubleshootingContext
         return get(clazz).orElseThrow();
     }
 
-    public boolean start(Set<TroubleshootingProvider> dataProviders)
+    public boolean start()
     {
         if (is(STARTED)) {
             return false;
@@ -94,7 +96,7 @@ public class TroubleshootingContext
         return state.compareAndSet(INITIALIZED, STARTED);
     }
 
-    public boolean finish(Set<TroubleshootingProvider> dataProviders)
+    public boolean finish()
     {
         if (is(FINISHED)) {
             return false;
@@ -110,7 +112,7 @@ public class TroubleshootingContext
         return state.compareAndSet(STARTED, FINISHED);
     }
 
-    public boolean remove(Set<TroubleshootingProvider> dataProviders)
+    public boolean remove()
     {
         if (is(REMOVED)) {
             return false;
@@ -146,6 +148,9 @@ public class TroubleshootingContext
                 .add("currentState", state.get())
                 .add("values", values.entrySet().stream()
                         .map(entry -> "%s@%s".formatted(entry.getKey(), entry.getValue().hashCode()))
+                        .collect(joining(", ")))
+                .add("dataProviders", dataProviders.stream()
+                        .map(Object::toString)
                         .collect(joining(", ")))
                 .toString();
     }

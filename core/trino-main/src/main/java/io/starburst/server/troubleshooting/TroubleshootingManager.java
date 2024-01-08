@@ -11,7 +11,6 @@ package io.starburst.server.troubleshooting;
 
 import com.google.common.cache.Cache;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
 import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
@@ -57,7 +56,7 @@ public class TroubleshootingManager
                 .maximumSize(config.getMaxActiveQueries())
                 .shareNothingWhenDisabled()
                 .build();
-        this.dataProviders = ImmutableSet.copyOf(requireNonNull(dataProviders, "dataProviders is null"));
+        this.dataProviders = requireNonNull(dataProviders, "dataProviders is null");
         this.executorService = requireNonNull(executorService, "executorService is null");
         this.destroyAfterFinishDelay = requireNonNull(config, "config is null").getMaxAccessDuration();
     }
@@ -102,7 +101,7 @@ public class TroubleshootingManager
 
     private TroubleshootingContext createNewContext(ExecutorService executorService, QueryId queryId)
     {
-        TroubleshootingContext context = new TroubleshootingContext(queryId, executorService);
+        TroubleshootingContext context = new TroubleshootingContext(queryId, executorService, dataProviders);
         verify(transitionContextTo(context, STARTED), "%s was already started", context);
         return context;
     }
@@ -116,9 +115,9 @@ public class TroubleshootingManager
 
         // Events are fired before the actual transition so the state change is not observed first
         return switch (nextState) {
-            case STARTED -> context.start(dataProviders);
-            case FINISHED -> context.finish(dataProviders);
-            case REMOVED -> context.remove(dataProviders);
+            case STARTED -> context.start();
+            case FINISHED -> context.finish();
+            case REMOVED -> context.remove();
             default -> throw new IllegalArgumentException("Cannot transition to %s state".formatted(nextState));
         };
     }
