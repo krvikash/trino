@@ -638,6 +638,7 @@ public class ChunkManager
         ImmutableList.Builder<ChunksWithExchangeId> chunksWithExchangeIdBuilder = ImmutableList.builder();
         for (Map.Entry<String, Collection<Chunk>> entry : Multimaps.index(chunks, Chunk::getExchangeId).asMap().entrySet()) {
             String exchangeId = entry.getKey();
+
             // order by chunk id to reduce disk seeks on cloud object storage when reading
             List<Chunk> chunkList = entry.getValue().stream().sorted(Comparator.comparingLong(Chunk::getChunkId)).collect(toImmutableList());
             for (List<Chunk> partitionedChunkList : Lists.partition(chunkList, chunkSpoolMergeThreshold)) {
@@ -663,6 +664,12 @@ public class ChunkManager
 
                     if (chunkDataLeaseMap.isEmpty()) {
                         // all chunks released in the meantime
+                        return immediateVoidFuture();
+                    }
+
+                    Exchange exchange = exchanges.get(exchangeId);
+                    if (exchange == null) {
+                        // exchange gone; not spooling
                         return immediateVoidFuture();
                     }
 
@@ -700,7 +707,14 @@ public class ChunkManager
                         return immediateVoidFuture();
                     }
 
-                    ListenableFuture<Void> spoolingFuture = spoolingStorage.writeChunk(bufferNodeId, chunk.getExchangeId(), chunk.getChunkId(), chunkDataLease);
+                    String exchangeId = chunk.getExchangeId();
+                    Exchange exchange = exchanges.get(exchangeId);
+                    if (exchange == null) {
+                        // exchange gone; not spooling
+                        return immediateVoidFuture();
+                    }
+
+                    ListenableFuture<Void> spoolingFuture = spoolingStorage.writeChunk(bufferNodeId, exchangeId, chunk.getChunkId(), chunkDataLease);
                     // in case of failure we still need to decrease reference count to avoid memory leak
                     addExceptionCallback(spoolingFuture, failure -> chunkDataLease.release());
 
