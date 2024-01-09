@@ -64,6 +64,7 @@ import io.trino.spi.function.table.ConnectorTableFunctionHandle;
 import io.trino.spi.metrics.Metrics;
 import io.trino.spi.procedure.Procedure;
 import io.trino.spi.security.GrantInfo;
+import io.trino.spi.security.LocationAccessControl;
 import io.trino.spi.security.RoleGrant;
 import io.trino.spi.security.ViewExpression;
 import io.trino.spi.session.PropertyMetadata;
@@ -152,6 +153,7 @@ public class MockConnectorFactory
 
     // access control
     private final ListRoleGrants roleGrants;
+    private final Optional<LocationAccessControl> locationAccessControl;
     private final Optional<ConnectorAccessControl> accessControl;
     private final OptionalInt maxWriterTasks;
     private final Function<ConnectorTableHandle, Optional<CacheTableId>> getCacheTableId;
@@ -213,6 +215,7 @@ public class MockConnectorFactory
             Supplier<List<PropertyMetadata<?>>> columnProperties,
             Optional<ConnectorNodePartitioningProvider> partitioningProvider,
             ListRoleGrants roleGrants,
+            Optional<LocationAccessControl> locationAccessControl,
             Optional<ConnectorAccessControl> accessControl,
             boolean allowMissingColumnsOnInsert,
             Function<ConnectorTableFunctionHandle, ConnectorSplitSource> tableFunctionSplitsSources,
@@ -267,6 +270,7 @@ public class MockConnectorFactory
         this.columnProperties = requireNonNull(columnProperties, "columnProperties is null");
         this.partitioningProvider = requireNonNull(partitioningProvider, "partitioningProvider is null");
         this.roleGrants = requireNonNull(roleGrants, "roleGrants is null");
+        this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
         this.accessControl = requireNonNull(accessControl, "accessControl is null");
         this.data = requireNonNull(data, "data is null");
         this.metrics = requireNonNull(metrics, "metrics is null");
@@ -334,6 +338,7 @@ public class MockConnectorFactory
                 branches,
                 roleGrants,
                 partitioningProvider,
+                locationAccessControl,
                 accessControl,
                 data,
                 metrics,
@@ -526,6 +531,7 @@ public class MockConnectorFactory
         // access control
         private boolean provideAccessControl;
         private ListRoleGrants roleGrants = defaultRoleAuthorizations();
+        private Optional<LocationAccessControl> locationAccessControl = Optional.empty();
         private Grants<String> schemaGrants = new AllowAllGrants<>();
         private Grants<SchemaTableName> tableGrants = new AllowAllGrants<>();
         private Function<SchemaTableName, ViewExpression> rowFilter = _ -> null;
@@ -853,6 +859,12 @@ public class MockConnectorFactory
             return this;
         }
 
+        public Builder withLocationAccessControl(Optional<LocationAccessControl> locationAccessControl)
+        {
+            this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
+            return this;
+        }
+
         public Builder withListRoleGrants(ListRoleGrants roleGrants)
         {
             provideAccessControl = true;
@@ -992,6 +1004,7 @@ public class MockConnectorFactory
                     columnProperties,
                     partitioningProvider,
                     roleGrants,
+                    locationAccessControl,
                     accessControl,
                     allowMissingColumnsOnInsert,
                     tableFunctionSplitsSources,
