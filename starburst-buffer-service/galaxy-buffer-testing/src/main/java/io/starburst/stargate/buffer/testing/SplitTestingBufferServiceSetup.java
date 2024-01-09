@@ -64,7 +64,7 @@ public class SplitTestingBufferServiceSetup
                     // limit number of threads to detect potential thread leaks
             properties.put("query.executor-pool-size", "10");
                     // enable exchange compression to follow production deployment recommendations
-            properties.put("exchange.compression-enabled", "true");
+            properties.put("exchange.compression-codec", "LZ4");
             properties.put("http-server.http.port", "8080");
 
             ImmutableMap<String, String> exchangeManagerProperties = ImmutableMap.<String, String>builder()
