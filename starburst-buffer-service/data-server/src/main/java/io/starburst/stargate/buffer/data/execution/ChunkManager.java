@@ -663,7 +663,7 @@ public class ChunkManager
 
                     if (chunkDataLeaseMap.isEmpty()) {
                         // all chunks released in the meantime
-                        return Futures.immediateVoidFuture();
+                        return immediateVoidFuture();
                     }
 
                     ListenableFuture<Map<Long, SpooledChunk>> spoolingFuture = spoolingStorage.writeMergedChunks(
