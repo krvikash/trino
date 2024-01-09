@@ -32,6 +32,7 @@ import io.trino.spi.connector.ConnectorExpressionEvaluator;
 import io.trino.spi.connector.ManagedStatisticsClient;
 import io.trino.spi.connector.MetadataProvider;
 import io.trino.spi.security.AiModelAccessControl;
+import io.trino.spi.security.LocationAccessControl;
 import io.trino.spi.type.TypeManager;
 
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
@@ -66,6 +67,7 @@ public class ConnectorContextModule
         binder.bind(PageSorter.class).toInstance(context.getPageSorter());
         binder.bind(PageIndexerFactory.class).toInstance(context.getPageIndexerFactory());
         binder.bind(PageStreamFactory.class).toInstance(context.getPageStreamFactory());
+        binder.bind(LocationAccessControl.class).toInstance(context.getLocationAccessControl());
         binder.bind(AiModelAccessControl.class).toInstance(context.getAiModelAccessControl());
         binder.bind(ManagedStatisticsClient.class).toInstance(context.getManagedStatisticsClient());
         // Note: ModelConnectionSpecsLoader is bound conditionally depending on the catalog configuration in AiClientModule

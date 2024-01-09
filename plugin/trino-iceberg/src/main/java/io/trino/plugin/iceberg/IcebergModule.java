@@ -38,7 +38,6 @@ import io.trino.plugin.base.classloader.ClassLoaderSafeNodePartitioningProvider;
 import io.trino.plugin.base.classloader.ForClassLoaderSafe;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.base.session.SessionPropertiesProvider;
-import io.trino.plugin.hive.LocationAccessControlModule;
 import io.trino.plugin.hive.SortingFileWriterConfig;
 import io.trino.plugin.hive.orc.OrcReaderConfig;
 import io.trino.plugin.hive.orc.OrcWriterConfig;
@@ -114,8 +113,6 @@ public class IcebergModule
     protected void setup(Binder binder)
     {
         binder.bind(IcebergTransactionManager.class).in(Scopes.SINGLETON);
-
-        binder.install(new LocationAccessControlModule());
 
         configBinder(binder).bindConfig(IcebergConfig.class);
         configBinder(binder).bindConfig(IcebergIncrementalMvRefreshConfig.class);

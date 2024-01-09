@@ -55,7 +55,6 @@ import io.trino.plugin.deltalake.transactionlog.writer.TransactionLogSynchronize
 import io.trino.plugin.deltalake.transactionlog.writer.TransactionLogSynchronizerManager;
 import io.trino.plugin.deltalake.transactionlog.writer.TransactionLogWriterFactory;
 import io.trino.plugin.hive.HideDeltaLakeTables;
-import io.trino.plugin.hive.LocationAccessControlModule;
 import io.trino.plugin.hive.PropertiesSystemTableProvider;
 import io.trino.plugin.hive.parquet.GpuParquetConfig;
 import io.trino.plugin.hive.parquet.ParquetReaderConfig;
@@ -87,8 +86,6 @@ public class DeltaLakeModule
     public void setup(Binder binder)
     {
         Provider<CatalogName> catalogName = binder.getProvider(CatalogName.class);
-
-        binder.install(new LocationAccessControlModule());
 
         configBinder(binder).bindConfig(DeltaLakeConfig.class);
         configBinder(binder).bindConfig(ParquetReaderConfig.class);

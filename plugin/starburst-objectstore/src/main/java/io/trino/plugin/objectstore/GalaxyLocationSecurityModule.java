@@ -16,7 +16,6 @@ package io.trino.plugin.objectstore;
 import com.google.inject.Binder;
 import com.google.inject.Module;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
-import io.trino.spi.security.LocationAccessControl;
 
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 
@@ -40,8 +39,6 @@ public class GalaxyLocationSecurityModule
         @Override
         public void configure(Binder binder)
         {
-            newOptionalBinder(binder, LocationAccessControl.class)
-                    .setBinding().toInstance(LocationAccessControl.ALLOW_ALL);
             newOptionalBinder(binder, TrinoSecurityControl.class)
                     .setBinding().toInstance(TrinoSecurityControl.ALLOW_ALL);
         }
