@@ -55,6 +55,7 @@ import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
 import io.trino.spi.eventlistener.EventListener;
 import io.trino.spi.eventlistener.QueryCompletedEvent;
 import io.trino.spi.function.FunctionBundle;
+import io.trino.spi.security.LocationAccessControl;
 import io.trino.spi.security.SystemAccessControl;
 import io.trino.split.PageSourceManager;
 import io.trino.split.SplitManager;
@@ -155,6 +156,8 @@ public final class DistributedQueryRunner
             Optional<FactoryConfiguration> systemAccessControlConfiguration,
             Optional<List<SystemAccessControl>> systemAccessControls,
             Optional<SystemAccessControlSelector> systemAccessControlSelector,
+            Optional<FactoryConfiguration> locationAccessControlConfiguration,
+            Optional<List<LocationAccessControl>> locationAccessControls,
             List<EventListener> eventListeners,
             List<AutoCloseable> extraCloseables,
             TestingTrinoClientFactory testingTrinoClientFactory,
@@ -191,6 +194,8 @@ public final class DistributedQueryRunner
                         systemAccessControlConfiguration,
                         systemAccessControls,
                         systemAccessControlSelector,
+                        locationAccessControlConfiguration,
+                        locationAccessControls,
                         eventListeners,
                         modelConnectionSpecsLoader,
                         catalogMangerKind,
@@ -217,6 +222,8 @@ public final class DistributedQueryRunner
                     Optional.empty(),
                     Optional.of(ImmutableList.of()),
                     Optional.empty(),
+                    Optional.empty(),
+                    Optional.of(ImmutableList.of()),
                     ImmutableList.of(),
                     modelConnectionSpecsLoader,
                     catalogMangerKind,
@@ -272,6 +279,8 @@ public final class DistributedQueryRunner
             Optional<FactoryConfiguration> systemAccessControlConfiguration,
             Optional<List<SystemAccessControl>> systemAccessControls,
             Optional<SystemAccessControlSelector> systemAccessControlSelector,
+            Optional<FactoryConfiguration> locationAccessControlConfiguration,
+            Optional<List<LocationAccessControl>> locationAccessControls,
             List<EventListener> eventListeners,
             Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader,
             CatalogMangerKind catalogMangerKind,
@@ -294,6 +303,8 @@ public final class DistributedQueryRunner
                 systemAccessControlConfiguration,
                 systemAccessControls,
                 systemAccessControlSelector,
+                locationAccessControlConfiguration,
+                locationAccessControls,
                 eventListeners,
                 newServer -> {
                     functionBundles.forEach(newServer::addFunctions);
@@ -335,6 +346,8 @@ public final class DistributedQueryRunner
             Optional<FactoryConfiguration> systemAccessControlConfiguration,
             Optional<List<SystemAccessControl>> systemAccessControls,
             Optional<SystemAccessControlSelector> systemAccessControlSelector,
+            Optional<FactoryConfiguration> locationAccessControlConfiguration,
+            Optional<List<LocationAccessControl>> locationAccessControls,
             List<EventListener> eventListeners,
             Consumer<TestingTrinoServer> additionalConfiguration,
             Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader,
@@ -380,6 +393,8 @@ public final class DistributedQueryRunner
                 .setSystemAccessControlConfiguration(systemAccessControlConfiguration)
                 .setSystemAccessControls(systemAccessControls)
                 .setSystemAccessControlSelector(systemAccessControlSelector)
+                .setLocationAccessControlConfiguration(locationAccessControlConfiguration)
+                .setLocationAccessControls(locationAccessControls)
                 .setEventListeners(eventListeners)
                 .setAdditionalConfiguration(additionalConfiguration)
                 .setModelConnectionSpecsLoader(modelConnectionSpecsLoader)
@@ -839,6 +854,8 @@ public final class DistributedQueryRunner
         private Optional<FactoryConfiguration> systemAccessControlConfiguration = Optional.empty();
         private Optional<List<SystemAccessControl>> systemAccessControls = Optional.empty();
         private Optional<SystemAccessControlSelector> systemAccessControlSelector = Optional.empty();
+        private Optional<FactoryConfiguration> locationAccessControlConfiguration = Optional.empty();
+        private Optional<List<LocationAccessControl>> locationAccessControls = Optional.empty();
         private List<EventListener> eventListeners = ImmutableList.of();
         private ImmutableList.Builder<AutoCloseable> extraCloseables = ImmutableList.builder();
         private TestingTrinoClientFactory testingTrinoClientFactory = TestingTrinoClient::new;
@@ -1021,6 +1038,20 @@ public final class DistributedQueryRunner
             return self();
         }
 
+        @CanIgnoreReturnValue
+        public SELF setLocationAccessControl(LocationAccessControl locationAccessControl)
+        {
+            return setLocationAccessControls(ImmutableList.of(requireNonNull(locationAccessControl, "locationAccessControl is null")));
+        }
+
+        @SuppressWarnings("unused")
+        @CanIgnoreReturnValue
+        public SELF setLocationAccessControls(List<LocationAccessControl> locationAccessControls)
+        {
+            this.locationAccessControls = Optional.of(ImmutableList.copyOf(requireNonNull(locationAccessControls, "locationAccessControls is null")));
+            return self();
+        }
+
         @SuppressWarnings("unused")
         @CanIgnoreReturnValue
         public SELF setEventListener(EventListener eventListener)
@@ -1173,6 +1204,12 @@ public final class DistributedQueryRunner
                 systemAccessControls = Optional.of(ImmutableList.of());
             }
 
+            Optional<FactoryConfiguration> locationAccessControlConfiguration = this.locationAccessControlConfiguration;
+            Optional<List<LocationAccessControl>> locationAccessControls = this.locationAccessControls;
+            if (locationAccessControlConfiguration.isEmpty() && locationAccessControls.isEmpty()) {
+                locationAccessControls = Optional.of(ImmutableList.of());
+            }
+
             DistributedQueryRunner queryRunner = new DistributedQueryRunner(
                     defaultSession,
                     workerCount,
@@ -1185,6 +1222,8 @@ public final class DistributedQueryRunner
                     systemAccessControlConfiguration,
                     systemAccessControls,
                     systemAccessControlSelector,
+                    locationAccessControlConfiguration,
+                    locationAccessControls,
                     eventListeners,
                     extraCloseables.build(),
                     testingTrinoClientFactory,

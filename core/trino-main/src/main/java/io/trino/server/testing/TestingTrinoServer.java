@@ -288,6 +288,8 @@ public class TestingTrinoServer
             Optional<FactoryConfiguration> spoolingConfiguration,
             Optional<List<SystemAccessControl>> systemAccessControls,
             Optional<SystemAccessControlSelector> systemAccessControlSelector,
+            Optional<FactoryConfiguration> locationAccessControlConfiguration,
+            Optional<List<LocationAccessControl>> locationAccessControls,
             List<EventListener> eventListeners,
             Consumer<TestingTrinoServer> additionalConfiguration,
             CatalogMangerKind catalogMangerKind,
@@ -496,7 +498,13 @@ public class TestingTrinoServer
                     accessControl.loadSystemAccessControl(configuration.factoryName(), configuration.configuration());
                 },
                 () -> accessControl.setSystemAccessControls(systemAccessControls.orElseThrow()));
-        accessControl.setLocationAccessControls(ImmutableList.of(LocationAccessControl.ALLOW_ALL));
+
+        locationAccessControlConfiguration.ifPresentOrElse(
+                configuration -> {
+                    checkArgument(locationAccessControls.isEmpty(), "locationAccessControlConfiguration and locationAccessControls cannot be both present");
+                    accessControl.loadLocationAccessControl(configuration.factoryName(), configuration.configuration());
+                },
+                () -> accessControl.setLocationAccessControls(locationAccessControls.orElseThrow()));
 
         spoolingConfiguration.ifPresent(config ->
                 spoolingManagerRegistry.loadSpoolingManager(config.factoryName(), config.configuration()));
@@ -917,6 +925,8 @@ public class TestingTrinoServer
         private Optional<FactoryConfiguration> spoolingConfiguration = Optional.empty();
         private Optional<List<SystemAccessControl>> systemAccessControls = Optional.of(ImmutableList.of());
         private Optional<SystemAccessControlSelector> systemAccessControlSelector = Optional.empty();
+        private Optional<FactoryConfiguration> locationAccessControlConfiguration = Optional.empty();
+        private Optional<List<LocationAccessControl>> locationAccessControls = Optional.of(ImmutableList.of());
         private List<EventListener> eventListeners = ImmutableList.of();
         private Consumer<TestingTrinoServer> additionalConfiguration = _ -> {};
         private CatalogMangerKind catalogMangerKind = CatalogMangerKind.DYNAMIC;
@@ -1018,6 +1028,23 @@ public class TestingTrinoServer
             return this;
         }
 
+        public Builder setLocationAccessControlConfiguration(Optional<FactoryConfiguration> locationAccessControlConfiguration)
+        {
+            this.locationAccessControlConfiguration = requireNonNull(locationAccessControlConfiguration, "locationAccessControlConfiguration is null");
+            return this;
+        }
+
+        public Builder setLocationAccessControl(LocationAccessControl locationAccessControl)
+        {
+            return setLocationAccessControls(Optional.of(ImmutableList.of(requireNonNull(locationAccessControl, "locationAccessControl is null"))));
+        }
+
+        public Builder setLocationAccessControls(Optional<List<LocationAccessControl>> locationAccessControls)
+        {
+            this.locationAccessControls = locationAccessControls.map(ImmutableList::copyOf);
+            return this;
+        }
+
         public Builder setEventListeners(List<EventListener> eventListeners)
         {
             this.eventListeners = ImmutableList.copyOf(requireNonNull(eventListeners, "eventListeners is null"));
@@ -1055,6 +1082,8 @@ public class TestingTrinoServer
                     spoolingConfiguration,
                     systemAccessControls,
                     systemAccessControlSelector,
+                    locationAccessControlConfiguration,
+                    locationAccessControls,
                     eventListeners,
                     additionalConfiguration,
                     catalogMangerKind,
