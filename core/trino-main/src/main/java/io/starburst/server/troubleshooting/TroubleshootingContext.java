@@ -90,7 +90,7 @@ public class TroubleshootingContext
                 provider.onContextStarted(this);
             }
             catch (Throwable t) {
-                log.warn(t, provider.getClass().getName() + ".onContextStarted() failed for query with id: " + queryId.getId());
+                log.warn(t, "%s.onContextStarted() failed for query with id: %s", provider.getClass().getName(), queryId.getId());
             }
         });
         return state.compareAndSet(INITIALIZED, STARTED);
@@ -106,7 +106,7 @@ public class TroubleshootingContext
                 provider.onContextFinished(this);
             }
             catch (Throwable t) {
-                log.warn(t, provider.getClass().getName() + ".onContextFinished() failed for query with id: " + queryId.getId());
+                log.warn(t, "%s.onContextFinished() failed for query with id: %s", provider.getClass().getName(), queryId.getId());
             }
         });
         return state.compareAndSet(STARTED, FINISHED);
