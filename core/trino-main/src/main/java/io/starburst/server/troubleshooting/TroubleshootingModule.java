@@ -55,6 +55,7 @@ public class TroubleshootingModule
         binder.bind(ScheduledExecutorService.class).annotatedWith(ForTroubleshooting.class)
                 .toInstance(newScheduledThreadPool(4, daemonThreadsNamed("query-troubleshooting-%s")));
         binder.bind(FullQueryInfoProvider.class).to(FullQueryInfoProviderDispatchManager.class).in(Scopes.SINGLETON);
+        binder.bind(TroubleshootingArchiver.class).in(Scopes.SINGLETON);
 
         Multibinder<TroubleshootingProvider> setBinder = newSetBinder(binder, TroubleshootingProvider.class);
         setBinder.addBinding().to(QueryPlanProvider.class);

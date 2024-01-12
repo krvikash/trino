@@ -10,7 +10,6 @@
 package io.starburst.server.troubleshooting;
 
 import com.google.common.cache.Cache;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
 import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
@@ -21,7 +20,6 @@ import io.trino.execution.QueryInfo;
 import io.trino.spi.QueryId;
 
 import java.io.InputStream;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
@@ -47,9 +45,14 @@ public class TroubleshootingManager
     private final Set<TroubleshootingProvider> dataProviders;
     private final ScheduledExecutorService executorService;
     private final Duration destroyAfterFinishDelay;
+    private final TroubleshootingArchiver troubleshootingArchiver;
 
     @Inject
-    public TroubleshootingManager(TroubleshootingConfig config, FullQueryInfoProvider fullQueryInfoProvider, Set<TroubleshootingProvider> dataProviders, @ForTroubleshooting ScheduledExecutorService executorService)
+    public TroubleshootingManager(TroubleshootingConfig config,
+            FullQueryInfoProvider fullQueryInfoProvider,
+            Set<TroubleshootingProvider> dataProviders,
+            @ForTroubleshooting ScheduledExecutorService executorService,
+            TroubleshootingArchiver troubleshootingArchiver)
     {
         this.fullQueryInfoProvider = requireNonNull(fullQueryInfoProvider, "dispatchManager is null");
         this.contexts = EvictableCacheBuilder.newBuilder()
@@ -59,6 +62,7 @@ public class TroubleshootingManager
         this.dataProviders = requireNonNull(dataProviders, "dataProviders is null");
         this.executorService = requireNonNull(executorService, "executorService is null");
         this.destroyAfterFinishDelay = requireNonNull(config, "config is null").getMaxAccessDuration();
+        this.troubleshootingArchiver = requireNonNull(troubleshootingArchiver, "troubleshootingArchiver is null");
     }
 
     public void start(QueryId queryId)
@@ -122,26 +126,22 @@ public class TroubleshootingManager
         };
     }
 
-    public ListenableFuture<Map<String, InputStream>> getInputStreams(QueryId queryId)
+    public ListenableFuture<InputStream> getArchive(QueryId queryId)
     {
-        Optional<TroubleshootingContext> context = getContext(queryId);
-        if (context.isEmpty()) {
-            return immediateFailedFuture(new NoSuchElementException("Troubleshooting context for " + queryId + " does not exist"));
-        }
-
-        return transform(context.get().getStartedStateChange(), state -> {
-            verify(state == FINISHED, "%s is not in the %s state but %s", context.get(), FINISHED, state);
-            ImmutableMap.Builder<String, InputStream> builder = ImmutableMap.builder();
-            for (TroubleshootingProvider dataProvider : dataProviders) {
-                try {
-                    builder.putAll(dataProvider.getInputStreams(context.get()));
-                }
-                catch (Throwable t) {
-                    log.warn(t, dataProvider.getClass().getName() + ".getInputStreams() failed for query with id: " + queryId.getId());
-                }
-            }
-            return builder.buildOrThrow();
-        }, executorService);
+        //entry of this method means that the web UI queried for troubleshooting info
+        //but the query might have even not started
+        //it might take hours to complete before we even start gathering troubleshooting info
+        //therefore we return a ListenableFuture that has the following properties
+        // - it will NOT contain a computed value until the query has finished processing
+        // - it WILL contain a computed value once we start gathering troubleshooting info,
+        //   the result will be an asynchronous stream that will be populated by a separate thread
+        //   once we have troubleshooting files
+        return getContext(queryId)
+                .map(context -> transform(context.getStartedStateChange(), state -> {
+                    verify(state == FINISHED, "%s is not in the %s state but %s", context, FINISHED, state);
+                    return troubleshootingArchiver.execute(context);
+                }, executorService))
+                .orElse(immediateFailedFuture(new NoSuchElementException("Troubleshooting context for " + queryId + " does not exist")));
     }
 
     private Optional<TroubleshootingContext> getContext(QueryId queryId)

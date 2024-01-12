@@ -14,6 +14,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Key;
+import io.starburst.server.troubleshooting.TroubleshootingTestHelper.Unzipped;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
 import io.trino.Session;
@@ -39,7 +40,6 @@ import org.testng.annotations.Test;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -48,10 +48,12 @@ import java.util.concurrent.TimeoutException;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.starburstdata.presto.server.StarburstClientCapabilities.QUERY_TROUBLESHOOTING;
+import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.zipInputStreamToMap;
 import static io.trino.SystemSessionProperties.QUERY_MAX_MEMORY_PER_NODE;
 import static io.trino.testing.DataProviders.toDataProvider;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static io.trino.testing.assertions.Assert.assertEventually;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
@@ -110,7 +112,7 @@ public abstract class AbstractQueryTroubleshootingTest
     {
         String troubleshootedQuery = "SHOW CATALOGS";
         TroubleshootingData data = getTroubleshootingDataForQuery(SESSION, troubleshootedQuery);
-        assertThat(data.getStreams()).isEmpty();
+        assertThat(data.getStream()).isEmpty();
     }
 
     @Test(dataProvider = "unauthorizedSessionsProvider")
@@ -118,7 +120,7 @@ public abstract class AbstractQueryTroubleshootingTest
     {
         String troubleshootedQuery = "SHOW CATALOGS";
         TroubleshootingData data = getTroubleshootingDataForQuery(sessionUnauthorized, troubleshootedQuery);
-        assertThat(data.getStreams()).isEmpty();
+        assertThat(data.getStream()).isEmpty();
     }
 
     @DataProvider
@@ -137,24 +139,24 @@ public abstract class AbstractQueryTroubleshootingTest
     {
         String troubleshootedQuery = "SHOW CATALOGS";
         TroubleshootingData data = getTroubleshootingDataForQuery(troubleshootedSession, troubleshootedQuery);
-        assertThat(data.getStreams()).isPresent();
-        Map<String, InputStream> inputsMap = data.getRequiredStreams();
+        assertThat(data.getStream()).isPresent();
+        Unzipped inputsMap = zipInputStreamToMap(data.getRequiredStreams().get());
 
-        assertThat(inputsMap)
-                .hasEntrySatisfying("session.txt", value -> assertThat(value).hasContent("query_max_memory_per_node = 10MB\n"))
-                .hasEntrySatisfying("version.txt", value -> assertThat(value).hasContent("testversion"))
-                .hasEntrySatisfying("query.sql", value -> assertThat(value).hasContent(troubleshootedQuery))
-                .hasEntrySatisfying("query_plan.txt", value -> assertThat(value).isNotEmpty())
-                .hasEntrySatisfying("recordings/coordinator.jfr", value -> assertThat(value).isNotEmpty());
+        assertThat(inputsMap.zipEntryContents)
+                .hasEntrySatisfying(getPath(data, "session.txt"), value -> assertThat(byteToString(value)).contains("query_max_memory_per_node = 10MB\n"))
+                .hasEntrySatisfying(getPath(data, "version.txt"), value -> assertThat(byteToString(value)).contains("testversion"))
+                .hasEntrySatisfying(getPath(data, "query.sql"), value -> assertThat(byteToString(value)).contains(troubleshootedQuery))
+                .hasEntrySatisfying(getPath(data, "query_plan.txt"), value -> assertThat(value).isNotEmpty())
+                .hasEntrySatisfying(getPath(data, "recordings/coordinator.jfr"), value -> assertThat(value).isNotEmpty());
 
         ObjectMapper mapper = new ObjectMapper();
-        mapper.readValue(inputsMap.get("jmx/metrics-before.json"), new TypeReference<>() {});
-        mapper.readValue(inputsMap.get("jmx/metrics-after.json"), new TypeReference<>() {});
-        mapper.readValue(inputsMap.get("query.json"), new TypeReference<>() {});
+        mapper.readValue(inputsMap.zipEntryContents.get(getPath(data, "jmx/metrics-before.json")), new TypeReference<>() {});
+        mapper.readValue(inputsMap.zipEntryContents.get(getPath(data, "jmx/metrics-after.json")), new TypeReference<>() {});
+        mapper.readValue(inputsMap.zipEntryContents.get(getPath(data, "query.json")), new TypeReference<>() {});
 
         for (String workerId : getNodesProcessingQuery(data.getQueryId())) {
-            assertThat(inputsMap).hasEntrySatisfying(
-                    "recordings/worker-%s.jfr".formatted(workerId),
+            assertThat(inputsMap.zipEntryContents).hasEntrySatisfying(
+                    getPath(data, "recordings/worker-%s.jfr").formatted(workerId),
                     value -> assertThat(value)
                             .describedAs("worker %s recording", workerId)
                             .isNotEmpty());
@@ -176,22 +178,22 @@ public abstract class AbstractQueryTroubleshootingTest
             queryId = e.getQueryId();
         }
 
-        Optional<Map<String, InputStream>> inputs = awaitForTroubleshootingData(queryId);
+        Optional<InputStream> inputs = awaitForTroubleshootingData(queryId);
         assertThat(inputs).isPresent();
-        Map<String, InputStream> inputsMap = inputs.orElseThrow();
-        assertThat(inputsMap)
-                .hasEntrySatisfying("session.txt", value -> assertThat(value).hasContent("query_max_memory_per_node = 10MB\n"))
-                .hasEntrySatisfying("version.txt", value -> assertThat(value).hasContent("testversion"))
-                .hasEntrySatisfying("query.sql", value -> assertThat(value).hasContent(troubleshootedQuery))
-                .doesNotContainKey("query_plan.txt")
-                .hasEntrySatisfying("failure_info.txt", value -> assertThat(value).hasContent("""
+        Unzipped inputsMap = zipInputStreamToMap(inputs.get());
+        assertThat(inputsMap.zipEntryContents)
+                .hasEntrySatisfying(getPath(queryId, "session.txt"), value -> assertThat(byteToString(value)).contains("query_max_memory_per_node = 10MB\n"))
+                .hasEntrySatisfying(getPath(queryId, "version.txt"), value -> assertThat(byteToString(value)).contains("testversion"))
+                .hasEntrySatisfying(getPath(queryId, "query.sql"), value -> assertThat(byteToString(value)).contains(troubleshootedQuery))
+                .doesNotContainKey(getPath(queryId, "query_plan.txt"))
+                .hasEntrySatisfying(getPath(queryId, "failure_info.txt"), value -> assertThat(byteToString(value)).contains("""
                         Error code: SCHEMA_NOT_FOUND:45
                         Error message: line 1:15: Schema 'schema' does not exist
                         Error location: ErrorLocation{lineNumber=1, columnNumber=15}
                         Remote host: null"""))
-                .hasEntrySatisfying("failure_stack_trace.txt", value -> assertThat(value).isNotEmpty());
+                .hasEntrySatisfying(getPath(queryId, "failure_stack_trace.txt"), value -> assertThat(value).isNotEmpty());
         ObjectMapper mapper = new ObjectMapper();
-        mapper.readValue(inputsMap.get("query.json"), new TypeReference<>() {});
+        mapper.readValue(inputsMap.zipEntryContents.get(getPath(queryId, "query.json")), new TypeReference<>() {});
     }
 
     @Test
@@ -214,10 +216,10 @@ public abstract class AbstractQueryTroubleshootingTest
         }
     }
 
-    private Optional<Map<String, InputStream>> awaitForTroubleshootingData(QueryId queryId)
+    private Optional<InputStream> awaitForTroubleshootingData(QueryId queryId)
     {
         try {
-            return Optional.of(troubleshootingManager.getInputStreams(queryId).get(10, TimeUnit.SECONDS));
+            return Optional.of(troubleshootingManager.getArchive(queryId).get(10, TimeUnit.SECONDS));
         }
         catch (ExecutionException | TimeoutException e) {
             log.error(e, "Awaiting troubleshooting data failed");
@@ -269,12 +271,12 @@ public abstract class AbstractQueryTroubleshootingTest
     private static class TroubleshootingData
     {
         private final QueryId queryId;
-        private final Optional<Map<String, InputStream>> streams;
+        private final Optional<InputStream> stream;
 
-        private TroubleshootingData(QueryId queryId, Optional<Map<String, InputStream>> streams)
+        private TroubleshootingData(QueryId queryId, Optional<InputStream> stream)
         {
             this.queryId = requireNonNull(queryId, "queryId is null");
-            this.streams = requireNonNull(streams, "streams is null");
+            this.stream = requireNonNull(stream, "stream is null");
         }
 
         public QueryId getQueryId()
@@ -282,14 +284,29 @@ public abstract class AbstractQueryTroubleshootingTest
             return queryId;
         }
 
-        public Optional<Map<String, InputStream>> getStreams()
+        public Optional<InputStream> getStream()
         {
-            return streams;
+            return stream;
         }
 
-        public Map<String, InputStream> getRequiredStreams()
+        public Optional<InputStream> getRequiredStreams()
         {
-            return streams.orElseThrow();
+            return stream;
         }
+    }
+
+    private static String getPath(TroubleshootingData data, String suffix)
+    {
+        return getPath(data.getQueryId(), suffix);
+    }
+
+    private static String getPath(QueryId queryId, String suffix)
+    {
+        return String.format("%s/%s", queryId.getId(), suffix);
+    }
+
+    private static String byteToString(byte [] input)
+    {
+        return new String(input, UTF_8);
     }
 }

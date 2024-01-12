@@ -32,17 +32,12 @@ import jakarta.ws.rs.container.Suspended;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
 import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.Futures.transform;
@@ -86,7 +81,7 @@ public class TroubleshootingCoordinatorResource
             return;
         }
 
-        bindAsyncResponse(asyncResponse, transform(troubleshootingManager.getInputStreams(queryId), streams -> createArchiveFromStreams(streams, queryId), executorService), executorService)
+        bindAsyncResponse(asyncResponse, transform(troubleshootingManager.getArchive(queryId), stream -> renderResponse(stream, queryId), executorService), executorService)
                 .withTimeout(MAX_POOL_TIME_MS, retryPollingResponse(request));
     }
 
@@ -141,26 +136,12 @@ public class TroubleshootingCoordinatorResource
         }
     }
 
-    private Response createArchiveFromStreams(Map<String, InputStream> inputStream, QueryId queryId)
+    private static Response renderResponse(InputStream inputStream, QueryId queryId)
     {
-        try (ByteArrayOutputStream output = new ByteArrayOutputStream(); ZipOutputStream archive = new ZipOutputStream(output)) {
-            for (Map.Entry<String, InputStream> entry : inputStream.entrySet()) {
-                archive.putNextEntry(new ZipEntry(queryId + "/" + entry.getKey()));
-                archive.write(entry.getValue().readAllBytes());
-                archive.closeEntry();
-            }
-
-            archive.flush();
-            archive.finish();
-
-            return Response.ok(new ByteArrayInputStream(output.toByteArray()))
-                    .header("Content-Type", "application/zip")
-                    .header("Content-disposition", "attachment; filename=\"starburst-query-troubleshooting-%s.zip\"".formatted(queryId))
-                    .build();
-        }
-        catch (IOException e) {
-            throw new WebApplicationException("Could not create troubleshooting archive: " + e.getMessage());
-        }
+        return Response.ok(inputStream)
+                .header("Content-Type", "application/zip")
+                .header("Content-disposition", "attachment; filename=\"starburst-query-troubleshooting-%s.zip\"".formatted(queryId))
+                .build();
     }
 
     private static Response retryPollingResponse(ContainerRequestContext request)
