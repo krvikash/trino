@@ -11,12 +11,11 @@ package io.starburst.server.troubleshooting;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.AbstractModule;
-import com.google.inject.Guice;
 import com.google.inject.Inject;
-import com.google.inject.Injector;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
+import io.airlift.bootstrap.Bootstrap;
 import io.trino.execution.QueryInfo;
 import io.trino.spi.QueryId;
 import org.assertj.core.api.SoftAssertions;
@@ -39,9 +38,6 @@ import static java.util.concurrent.Executors.newScheduledThreadPool;
 @ExtendWith(SoftAssertionsExtension.class)
 public class TestTroubleshootingManager
 {
-    @Inject
-    private TroubleshootingManager manager;
-
     @Test
     public void shouldIgnoreThrowingProvidersOnInputStreams(SoftAssertions softly)
             throws Exception
@@ -49,7 +45,7 @@ public class TestTroubleshootingManager
         AtomicBoolean onContextStartedCalled = new AtomicBoolean();
         AtomicBoolean onContextFinishedCalled = new AtomicBoolean();
 
-        Injector injector = Guice.createInjector(new AbstractModule()
+        TroubleshootingManager manager = new Bootstrap(new AbstractModule()
         {
             @Override
             protected void configure()
@@ -63,8 +59,9 @@ public class TestTroubleshootingManager
                 setBinder.addBinding().to(ThrowingProvider.class).in(Scopes.SINGLETON);
                 setBinder.addBinding().toInstance(new HappyPathProvider(onContextStartedCalled, onContextFinishedCalled));
             }
-        });
-        injector.injectMembers(this);
+        })
+                .initialize()
+                .getInstance(TroubleshootingManager.class);
 
         QueryId queryId = new QueryId("123");
         manager.start(queryId);
