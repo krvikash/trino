@@ -7,6 +7,7 @@ cd ${BASH_SOURCE%/*}
 projectName=""
 imageRepositories=()
 projectVersion="1-SNAPSHOT"
+jdkVersion=19
 archTypes=""
 pushImages=0
 
@@ -22,7 +23,7 @@ function printUsage(){
     echo "        -P    Push images to remote repository (only used when -a is provided)"
 }
 
-while getopts "hp:r:v:a:P" opt; do
+while getopts "hp:r:v:j:a:P" opt; do
     case ${opt} in
     h )
         printUsage;
@@ -36,6 +37,9 @@ while getopts "hp:r:v:a:P" opt; do
         ;;
     v )
         projectVersion="${OPTARG}"
+        ;;
+    j )
+        jdkVersion="${OPTARG}"
         ;;
     a )
         archTypes="${OPTARG}"
@@ -86,6 +90,7 @@ if [[ "${archTypes}" == "" ]]; then
     buildArguments="${buildArguments} --tag trino-buffer-service/${projectName}:${projectVersion}"
     docker build "../${moduleName}" \
         --build-arg "PROJECT_VERSION=${projectVersion}" \
+        --build-arg "JDK_VERSION=${jdkVersion}" \
         -f "../${moduleName}/Dockerfile" ${buildArguments}
 else
     if [[ ${pushImages} -eq 1 ]]; then
@@ -96,5 +101,6 @@ else
     docker buildx build "../${moduleName}" \
         -f "../${moduleName}/Dockerfile" \
         --build-arg "PROJECT_VERSION=${projectVersion}" \
+        --build-arg "JDK_VERSION=${jdkVersion}" \
         --platform "${archTypes}" ${buildArguments}
 fi

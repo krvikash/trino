@@ -1,4 +1,5 @@
-FROM eclipse-temurin:19-jdk
+ARG JDK_VERSION=19
+FROM eclipse-temurin:${JDK_VERSION}-jdk
 
 ARG MODULE_NAME=galaxy-buffer-discovery-server
 ARG PROJECT_NAME=discovery-server
