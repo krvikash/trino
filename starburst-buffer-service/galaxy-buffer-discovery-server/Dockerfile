@@ -1,4 +1,4 @@
-FROM eclipse-temurin:17-jdk
+FROM eclipse-temurin:19-jdk
 
 ARG MODULE_NAME=galaxy-buffer-discovery-server
 ARG PROJECT_NAME=discovery-server
