@@ -10,6 +10,7 @@
 package io.starburst.server.troubleshooting;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -143,16 +144,17 @@ public abstract class AbstractQueryTroubleshootingTest
         Unzipped inputsMap = zipInputStreamToMap(data.getRequiredStreams().get());
 
         assertThat(inputsMap.zipEntryContents)
-                .hasEntrySatisfying(getPath(data, "session.txt"), value -> assertThat(byteToString(value)).contains("query_max_memory_per_node = 10MB\n"))
                 .hasEntrySatisfying(getPath(data, "version.txt"), value -> assertThat(byteToString(value)).contains("testversion"))
-                .hasEntrySatisfying(getPath(data, "query.sql"), value -> assertThat(byteToString(value)).contains(troubleshootedQuery))
-                .hasEntrySatisfying(getPath(data, "query_plan.txt"), value -> assertThat(value).isNotEmpty())
                 .hasEntrySatisfying(getPath(data, "recordings/coordinator.jfr"), value -> assertThat(value).isNotEmpty());
 
         ObjectMapper mapper = new ObjectMapper();
         mapper.readValue(inputsMap.zipEntryContents.get(getPath(data, "jmx/metrics-before.json")), new TypeReference<>() {});
         mapper.readValue(inputsMap.zipEntryContents.get(getPath(data, "jmx/metrics-after.json")), new TypeReference<>() {});
-        mapper.readValue(inputsMap.zipEntryContents.get(getPath(data, "query.json")), new TypeReference<>() {});
+
+        JsonNode queryInfo = mapper.readTree(inputsMap.zipEntryContents.get(getPath(data, "query.json")));
+        assertThat(queryInfo.get("query").asText()).isEqualTo(troubleshootedQuery);
+        assertThat(queryInfo.get("session").get("systemProperties").get("query_max_memory_per_node").asText()).isEqualTo("10MB");
+        assertThat(queryInfo.get("outputStage").get("plan")).isNotEmpty();
 
         for (String workerId : getNodesProcessingQuery(data.getQueryId())) {
             assertThat(inputsMap.zipEntryContents).hasEntrySatisfying(
@@ -182,18 +184,19 @@ public abstract class AbstractQueryTroubleshootingTest
         assertThat(inputs).isPresent();
         Unzipped inputsMap = zipInputStreamToMap(inputs.get());
         assertThat(inputsMap.zipEntryContents)
-                .hasEntrySatisfying(getPath(queryId, "session.txt"), value -> assertThat(byteToString(value)).contains("query_max_memory_per_node = 10MB\n"))
                 .hasEntrySatisfying(getPath(queryId, "version.txt"), value -> assertThat(byteToString(value)).contains("testversion"))
-                .hasEntrySatisfying(getPath(queryId, "query.sql"), value -> assertThat(byteToString(value)).contains(troubleshootedQuery))
-                .doesNotContainKey(getPath(queryId, "query_plan.txt"))
-                .hasEntrySatisfying(getPath(queryId, "failure_info.txt"), value -> assertThat(byteToString(value)).contains("""
-                        Error code: SCHEMA_NOT_FOUND:45
-                        Error message: line 1:15: Schema 'schema' does not exist
-                        Error location: ErrorLocation{lineNumber=1, columnNumber=15}
-                        Remote host: null"""))
-                .hasEntrySatisfying(getPath(queryId, "failure_stack_trace.txt"), value -> assertThat(value).isNotEmpty());
+                .doesNotContainKey(getPath(queryId, "query_plan.txt"));
+
         ObjectMapper mapper = new ObjectMapper();
-        mapper.readValue(inputsMap.zipEntryContents.get(getPath(queryId, "query.json")), new TypeReference<>() {});
+        JsonNode queryInfo = mapper.readTree(inputsMap.zipEntryContents.get(getPath(queryId, "query.json")));
+        assertThat(queryInfo.get("query").asText()).isEqualTo(troubleshootedQuery);
+        assertThat(queryInfo.get("session").get("systemProperties").get("query_max_memory_per_node").asText()).isEqualTo("10MB");
+        assertThat(queryInfo.get("failureInfo").get("errorCode").get("code").asText()).isEqualTo("45");
+        assertThat(queryInfo.get("failureInfo").get("errorCode").get("name").asText()).isEqualTo("SCHEMA_NOT_FOUND");
+        assertThat(queryInfo.get("failureInfo").get("errorLocation").get("lineNumber").asText()).isEqualTo("1");
+        assertThat(queryInfo.get("failureInfo").get("errorLocation").get("columnNumber").asText()).isEqualTo("15");
+        assertThat(queryInfo.get("failureInfo").get("message").asText()).isEqualTo("line 1:15: Schema 'schema' does not exist");
+        assertThat(queryInfo.get("failureInfo").get("stack").size()).isEqualTo(34);
     }
 
     @Test
@@ -305,7 +308,7 @@ public abstract class AbstractQueryTroubleshootingTest
         return String.format("%s/%s", queryId.getId(), suffix);
     }
 
-    private static String byteToString(byte [] input)
+    private static String byteToString(byte[] input)
     {
         return new String(input, UTF_8);
     }
