@@ -15,6 +15,7 @@ import com.google.inject.AbstractModule;
 import io.starburst.server.troubleshooting.jmx.JmxTroubleshootingProvider;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.json.JsonModule;
+import io.trino.execution.StateMachine;
 import io.trino.spi.QueryId;
 import org.testng.annotations.Test;
 
@@ -24,7 +25,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 
-import static java.util.Collections.emptySet;
+import static io.starburst.server.troubleshooting.TroubleshootingContext.State.STARTED;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestJmxTroubleshootingProvider
@@ -34,7 +35,7 @@ public class TestJmxTroubleshootingProvider
             throws IOException
     {
         ExecutorService executorService = new ForkJoinPool();
-        TroubleshootingContext ctx = new TroubleshootingContext(new QueryId("1"), executorService, emptySet());
+        TroubleshootingContext ctx = new TroubleshootingContext(new QueryId("1"), new StateMachine<>("stateMachine", executorService, STARTED));
 
         JmxTroubleshootingProvider provider = getProvider();
 

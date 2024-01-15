@@ -17,20 +17,20 @@ import io.airlift.log.Logger;
 import io.airlift.units.Duration;
 import io.trino.cache.EvictableCacheBuilder;
 import io.trino.execution.QueryInfo;
+import io.trino.execution.StateMachine;
 import io.trino.spi.QueryId;
 
 import java.io.InputStream;
 import java.util.NoSuchElementException;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static com.google.common.base.Verify.verify;
 import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
 import static com.google.common.util.concurrent.Futures.transform;
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.FINISHED;
+import static io.starburst.server.troubleshooting.TroubleshootingContext.State.INITIALIZED;
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.REMOVED;
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.STARTED;
 import static java.util.Objects.requireNonNull;
@@ -68,7 +68,12 @@ public class TroubleshootingManager
     public void start(QueryId queryId)
     {
         try {
-            TroubleshootingContext context = contexts.get(queryId, () -> createNewContext(executorService, queryId));
+            TroubleshootingContext context = contexts.get(queryId, () -> {
+                TroubleshootingContext ctx = new TroubleshootingContext(queryId,
+                        new StateMachine<>("troubleshooting-" + queryId.getId(), executorService, INITIALIZED, Set.of(REMOVED)));
+                verify(transitionContextTo(ctx, STARTED), "%s was already started", ctx);
+                return ctx;
+            });
             log.info("Started new %s", context);
         }
         catch (ExecutionException e) {
@@ -78,50 +83,44 @@ public class TroubleshootingManager
 
     public void finish(QueryId queryId)
     {
-        getContext(queryId).ifPresent(context -> {
-            if (context.is(FINISHED)) {
-                return;
-            }
-            waitForQueryInfoIsGathered();
-            fullQueryInfoProvider.getFullQueryInfo(queryId)
-                    .ifPresent(value -> context.set(QueryInfo.class, value));
-            if (transitionContextTo(context, FINISHED)) {
-                log.info("%s has finished", context);
-                executorService.schedule(() -> {
-                    remove(queryId);
-                    log.info("Removed %s after timeout %s", context, destroyAfterFinishDelay);
-                }, destroyAfterFinishDelay.toMillis(), MILLISECONDS);
-            }
-        });
+        TroubleshootingContext context = contexts.getIfPresent(queryId);
+        if (null == context || isInExpectedState(context, FINISHED)) {
+            return;
+        }
+        waitForQueryInfoIsGathered();
+        fullQueryInfoProvider.getFullQueryInfo(queryId)
+                .ifPresent(value -> context.set(QueryInfo.class, value));
+        if (transitionContextTo(context, FINISHED)) {
+            log.info("%s has finished", context);
+            executorService.schedule(() -> {
+                remove(queryId);
+                log.info("Removed %s after timeout %s", context, destroyAfterFinishDelay);
+            }, destroyAfterFinishDelay.toMillis(), MILLISECONDS);
+        }
     }
 
     public void remove(QueryId queryId)
     {
-        getContext(queryId).ifPresent(context -> {
-            verify(transitionContextTo(context, REMOVED), "%s was already removed", context);
-            contexts.invalidate(queryId);
-        });
-    }
-
-    private TroubleshootingContext createNewContext(ExecutorService executorService, QueryId queryId)
-    {
-        TroubleshootingContext context = new TroubleshootingContext(queryId, executorService, dataProviders);
-        verify(transitionContextTo(context, STARTED), "%s was already started", context);
-        return context;
+        TroubleshootingContext context = contexts.getIfPresent(queryId);
+        if (null == context) {
+            return;
+        }
+        verify(transitionContextTo(context, REMOVED), "%s was already removed", context);
+        contexts.invalidate(queryId);
     }
 
     private boolean transitionContextTo(TroubleshootingContext context, TroubleshootingContext.State nextState)
     {
-        TroubleshootingContext.State currentState = context.getState();
+        TroubleshootingContext.State currentState = context.getState().get();
         if (currentState == nextState) {
             return false;
         }
 
         // Events are fired before the actual transition so the state change is not observed first
         return switch (nextState) {
-            case STARTED -> context.start();
-            case FINISHED -> context.finish();
-            case REMOVED -> context.remove();
+            case STARTED -> startContext(context);
+            case FINISHED -> finishContext(context);
+            case REMOVED -> removeContext(context);
             default -> throw new IllegalArgumentException("Cannot transition to %s state".formatted(nextState));
         };
     }
@@ -136,17 +135,61 @@ public class TroubleshootingManager
         // - it WILL contain a computed value once we start gathering troubleshooting info,
         //   the result will be an asynchronous stream that will be populated by a separate thread
         //   once we have troubleshooting files
-        return getContext(queryId)
-                .map(context -> transform(context.getStartedStateChange(), state -> {
-                    verify(state == FINISHED, "%s is not in the %s state but %s", context, FINISHED, state);
-                    return troubleshootingArchiver.execute(context);
-                }, executorService))
-                .orElse(immediateFailedFuture(new NoSuchElementException("Troubleshooting context for " + queryId + " does not exist")));
+        TroubleshootingContext context = contexts.getIfPresent(queryId);
+        if (null == context) {
+            return immediateFailedFuture(new NoSuchElementException("Troubleshooting context for " + queryId + " does not exist"));
+        }
+
+        return transform(context.getState().getStateChange(STARTED), state -> {
+            verify(state == FINISHED, "%s is not in the %s state but %s", context, FINISHED, state);
+            return troubleshootingArchiver.execute(context);
+        }, executorService);
     }
 
-    private Optional<TroubleshootingContext> getContext(QueryId queryId)
+    private boolean startContext(TroubleshootingContext context)
     {
-        return Optional.ofNullable(contexts.getIfPresent(queryId));
+        if (isInExpectedState(context, STARTED)) {
+            return false;
+        }
+        dataProviders.forEach(provider -> {
+            try {
+                provider.onContextStarted(context);
+            }
+            catch (Throwable t) {
+                log.warn(t, "%s.onContextStarted() failed for query with id: %s", provider.getClass().getName(), context.getQueryId().getId());
+            }
+        });
+        return context.getState().compareAndSet(INITIALIZED, STARTED);
+    }
+
+    public boolean finishContext(TroubleshootingContext context)
+    {
+        if (isInExpectedState(context, FINISHED)) {
+            return false;
+        }
+        dataProviders.forEach(provider -> {
+            try {
+                provider.onContextFinished(context);
+            }
+            catch (Throwable t) {
+                log.warn(t, "%s.onContextFinished() failed for query with id: %s", provider.getClass().getName(), context.getQueryId().getId());
+            }
+        });
+        return context.getState().compareAndSet(STARTED, FINISHED);
+    }
+
+    public boolean removeContext(TroubleshootingContext context)
+    {
+        if (isInExpectedState(context, REMOVED)) {
+            return false;
+        }
+        dataProviders.forEach(provider -> provider.onContextRemoved(context));
+        return context.getState().setIf(TroubleshootingContext.State.REMOVED, oldState -> oldState == STARTED || oldState == FINISHED);
+    }
+
+    private boolean isInExpectedState(TroubleshootingContext context, TroubleshootingContext.State expectedState)
+    {
+        return context.getState().get() == expectedState;
     }
 
     private static void waitForQueryInfoIsGathered()
