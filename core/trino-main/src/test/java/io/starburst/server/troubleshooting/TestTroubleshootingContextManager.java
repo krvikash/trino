@@ -45,7 +45,7 @@ import static java.util.concurrent.Executors.newScheduledThreadPool;
 
 @ExtendWith(SoftAssertionsExtension.class)
 @Timeout(value = 30)
-public class TestTroubleshootingManager
+public class TestTroubleshootingContextManager
 {
     @Test
     public void shouldExecuteNonThrowingProvidersAndReportErrorsForThrowingOnes(SoftAssertions softly, @TempDir Path tmpDir)
@@ -54,13 +54,13 @@ public class TestTroubleshootingManager
         AtomicBoolean onContextStartedCalled = new AtomicBoolean();
         AtomicBoolean onContextFinishedCalled = new AtomicBoolean();
 
-        TroubleshootingManager manager = new Bootstrap(new AbstractModule()
+        TroubleshootingContextManager manager = new Bootstrap(new AbstractModule()
         {
             @Override
             protected void configure()
             {
                 bind(FullQueryInfoProvider.class).to(FullQueryInfoProviderTesting.class).in(Scopes.SINGLETON);
-                bind(TroubleshootingManager.class).in(Scopes.SINGLETON);
+                bind(TroubleshootingContextManager.class).in(Scopes.SINGLETON);
                 bind(TroubleshootingArchiver.class).in(Scopes.SINGLETON);
                 bind(TroubleshootingConfig.class).in(Scopes.SINGLETON);
                 bind(ScheduledExecutorService.class).annotatedWith(ForTroubleshooting.class)
@@ -72,7 +72,7 @@ public class TestTroubleshootingManager
             }
         })
                 .initialize()
-                .getInstance(TroubleshootingManager.class);
+                .getInstance(TroubleshootingContextManager.class);
 
         QueryId queryId = new QueryId("123");
         manager.start(queryId);
@@ -154,7 +154,7 @@ public class TestTroubleshootingManager
                         @Override
                         public int read()
                         {
-                            throw new IllegalStateException(TestTroubleshootingManager.HappyPathProvider.class.getName());
+                            throw new IllegalStateException(TestTroubleshootingContextManager.HappyPathProvider.class.getName());
                         }
                     },
                     "largeFile.txt", getLargeFileInputStream());

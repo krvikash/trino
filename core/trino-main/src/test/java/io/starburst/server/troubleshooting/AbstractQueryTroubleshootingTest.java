@@ -81,14 +81,14 @@ public abstract class AbstractQueryTroubleshootingTest
             .setSystemProperty(QUERY_MAX_MEMORY_PER_NODE, "256kB")
             .build();
 
-    private TroubleshootingManager troubleshootingManager;
+    private TroubleshootingContextManager troubleshootingContextManager;
     private QueryManager queryManager;
     private String coordinatorId;
 
     @BeforeClass
     public void localInit()
     {
-        troubleshootingManager = getDistributedQueryRunner().getCoordinator().getInstance(Key.get(TroubleshootingManager.class));
+        troubleshootingContextManager = getDistributedQueryRunner().getCoordinator().getInstance(Key.get(TroubleshootingContextManager.class));
         queryManager = getDistributedQueryRunner().getCoordinator().getQueryManager();
         coordinatorId = getDistributedQueryRunner().getCoordinator().getInstance(Key.get(InternalNodeManager.class)).getCurrentNode().getNodeIdentifier();
     }
@@ -219,7 +219,7 @@ public abstract class AbstractQueryTroubleshootingTest
     private Optional<InputStream> awaitForTroubleshootingData(QueryId queryId)
     {
         try {
-            return Optional.of(troubleshootingManager.getArchive(queryId).get(10, TimeUnit.SECONDS));
+            return Optional.of(troubleshootingContextManager.getArchive(queryId).get(10, TimeUnit.SECONDS));
         }
         catch (ExecutionException | TimeoutException e) {
             log.error(e, "Awaiting troubleshooting data failed");

@@ -51,7 +51,7 @@ public class TroubleshootingModule
         configBinder(binder).bindConfig(TroubleshootingConfig.class);
         binder.bind(TroubleshootingEventListener.class).in(Scopes.SINGLETON);
         jaxrsBinder(binder).bind(TroubleshootingCoordinatorResource.class);
-        binder.bind(TroubleshootingManager.class).in(Scopes.SINGLETON);
+        binder.bind(TroubleshootingContextManager.class).in(Scopes.SINGLETON);
         binder.bind(ScheduledExecutorService.class).annotatedWith(ForTroubleshooting.class)
                 .toInstance(newScheduledThreadPool(4, daemonThreadsNamed("query-troubleshooting-%s")));
         binder.bind(FullQueryInfoProvider.class).to(FullQueryInfoProviderDispatchManager.class).in(Scopes.SINGLETON);

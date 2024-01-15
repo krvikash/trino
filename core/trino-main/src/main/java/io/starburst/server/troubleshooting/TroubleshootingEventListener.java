@@ -26,15 +26,15 @@ public class TroubleshootingEventListener
         implements EventListener
 {
     private final WebUiAccessControl accessControl;
-    private final TroubleshootingManager troubleshootingManager;
+    private final TroubleshootingContextManager troubleshootingContextManager;
     private final boolean anonymizePlan;
 
     @Inject
-    public TroubleshootingEventListener(WebUiAccessControl accessControl, TroubleshootingConfig config, TroubleshootingManager troubleshootingManager, EventListenerManager listenerManager)
+    public TroubleshootingEventListener(WebUiAccessControl accessControl, TroubleshootingConfig config, TroubleshootingContextManager troubleshootingContextManager, EventListenerManager listenerManager)
     {
         this.accessControl = requireNonNull(accessControl, "accessControl is null");
         this.anonymizePlan = requireNonNull(config, "config is null").isAnonymizedPlan();
-        this.troubleshootingManager = requireNonNull(troubleshootingManager, "troubleshootingManager is null");
+        this.troubleshootingContextManager = requireNonNull(troubleshootingContextManager, "troubleshootingContextManager is null");
         requireNonNull(listenerManager, "listenerManager is null").addEventListener(this);
     }
 
@@ -47,7 +47,7 @@ public class TroubleshootingEventListener
 
         // queryCreated is fired before query has even started planning. We need to eagerly start collecting data,
         // to stop and discard immediately when we learn which nodes are actually processing this query.
-        troubleshootingManager.start(QueryId.valueOf(queryCreatedEvent.getMetadata().getQueryId()));
+        troubleshootingContextManager.start(QueryId.valueOf(queryCreatedEvent.getMetadata().getQueryId()));
     }
 
     @Override
@@ -56,7 +56,7 @@ public class TroubleshootingEventListener
         if (!isTroubleshootingEnabled(event.getContext())) {
             return;
         }
-        troubleshootingManager.finish(QueryId.valueOf(event.getMetadata().getQueryId()));
+        troubleshootingContextManager.finish(QueryId.valueOf(event.getMetadata().getQueryId()));
     }
 
     public boolean isTroubleshootingEnabled(QueryContext context)

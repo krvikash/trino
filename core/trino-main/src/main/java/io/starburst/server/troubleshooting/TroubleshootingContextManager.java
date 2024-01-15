@@ -36,9 +36,9 @@ import static io.starburst.server.troubleshooting.TroubleshootingContext.State.S
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
-public class TroubleshootingManager
+public class TroubleshootingContextManager
 {
-    private static final Logger log = Logger.get(TroubleshootingManager.class);
+    private static final Logger log = Logger.get(TroubleshootingContextManager.class);
 
     private final FullQueryInfoProvider fullQueryInfoProvider;
     private final Cache<QueryId, TroubleshootingContext> contexts;
@@ -48,7 +48,7 @@ public class TroubleshootingManager
     private final TroubleshootingArchiver troubleshootingArchiver;
 
     @Inject
-    public TroubleshootingManager(TroubleshootingConfig config,
+    public TroubleshootingContextManager(TroubleshootingConfig config,
             FullQueryInfoProvider fullQueryInfoProvider,
             Set<TroubleshootingProvider> dataProviders,
             @ForTroubleshooting ScheduledExecutorService executorService,

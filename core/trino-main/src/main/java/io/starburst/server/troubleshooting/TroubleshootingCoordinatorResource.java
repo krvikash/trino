@@ -58,14 +58,14 @@ public class TroubleshootingCoordinatorResource
     private static final Duration MAX_POOL_TIME_MS = Duration.valueOf("5s");
     public static final String BASE_PATH_API_V1 = "/ui/troubleshooting";
     private final WebUiAccessControl accessControl;
-    private final TroubleshootingManager troubleshootingManager;
+    private final TroubleshootingContextManager troubleshootingContextManager;
     private final ScheduledExecutorService executorService;
 
     @Inject
-    public TroubleshootingCoordinatorResource(WebUiAccessControl accessControl, TroubleshootingManager troubleshootingManager, @ForTroubleshooting ScheduledExecutorService executorService)
+    public TroubleshootingCoordinatorResource(WebUiAccessControl accessControl, TroubleshootingContextManager troubleshootingContextManager, @ForTroubleshooting ScheduledExecutorService executorService)
     {
         this.accessControl = requireNonNull(accessControl, "accessControl is null");
-        this.troubleshootingManager = requireNonNull(troubleshootingManager, "troubleshootingManager is null");
+        this.troubleshootingContextManager = requireNonNull(troubleshootingContextManager, "troubleshootingContextManager is null");
         this.executorService = requireNonNull(executorService, "executorService is null");
     }
 
@@ -81,7 +81,7 @@ public class TroubleshootingCoordinatorResource
             return;
         }
 
-        bindAsyncResponse(asyncResponse, transform(troubleshootingManager.getArchive(queryId), stream -> renderResponse(stream, queryId), executorService), executorService)
+        bindAsyncResponse(asyncResponse, transform(troubleshootingContextManager.getArchive(queryId), stream -> renderResponse(stream, queryId), executorService), executorService)
                 .withTimeout(MAX_POOL_TIME_MS, retryPollingResponse(request));
     }
 
