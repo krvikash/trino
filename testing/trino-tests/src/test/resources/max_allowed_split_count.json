@@ -1,0 +1,16 @@
+{
+    "limits": [
+        {
+            "table": "blackhole.default.\"table_exceeding_split_limit.abc\"",
+            "limit": 100
+        },
+        {
+            "table": "blackhole.default.table_within_split_limit",
+            "limit": 400
+        },
+        {
+            "table": "blackhole.default.t2",
+            "limit": 100
+        }
+    ]
+}

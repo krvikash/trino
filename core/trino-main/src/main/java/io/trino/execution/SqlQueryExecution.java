@@ -95,6 +95,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
@@ -165,6 +166,7 @@ public class SqlQueryExecution
     private final TaskDescriptorStorage taskDescriptorStorage;
     private final PlanOptimizersStatsCollector planOptimizersStatsCollector;
     private final FormatOptions formatOptions;
+    private final ScheduledSplitsPerTableTracker scheduledSplitsPerTableTracker;
 
     private SqlQueryExecution(
             PreparedQuery preparedQuery,
@@ -195,6 +197,7 @@ public class SqlQueryExecution
             NodeTaskMap nodeTaskMap,
             ExecutionPolicy executionPolicy,
             SplitSchedulerStats schedulerStats,
+            ScheduledSplitsPerTableTracker scheduledSplitsPerTableTracker,
             StatsCalculator statsCalculator,
             CostCalculator costCalculator,
             DynamicFilterService dynamicFilterService,
@@ -231,6 +234,7 @@ public class SqlQueryExecution
             this.nodeTaskMap = requireNonNull(nodeTaskMap, "nodeTaskMap is null");
             this.executionPolicy = requireNonNull(executionPolicy, "executionPolicy is null");
             this.schedulerStats = requireNonNull(schedulerStats, "schedulerStats is null");
+            this.scheduledSplitsPerTableTracker = requireNonNull(scheduledSplitsPerTableTracker, "scheduledSplitsPerTableCollector is null");
             this.statsCalculator = requireNonNull(statsCalculator, "statsCalculator is null");
             this.costCalculator = requireNonNull(costCalculator, "costCalculator is null");
             this.dynamicFilterService = requireNonNull(dynamicFilterService, "dynamicFilterService is null");
@@ -393,6 +397,12 @@ public class SqlQueryExecution
     public Optional<Instant> getEndTime()
     {
         return stateMachine.getEndTime();
+    }
+
+    @Override
+    public Map<ScheduledSplitsPerTableTracker.SourceTableId, AtomicLong> getTotalScheduledSplitCount()
+    {
+        return scheduledSplitsPerTableTracker.getTotalScheduledSplitCount();
     }
 
     @Override
@@ -611,6 +621,7 @@ public class SqlQueryExecution
                     executionPolicy,
                     tracer,
                     schedulerStats,
+                    scheduledSplitsPerTableTracker,
                     dynamicFilterService,
                     tableExecuteContextManager,
                     plannerContext.getMetadata(),
@@ -968,7 +979,8 @@ public class SqlQueryExecution
                 QueryStateMachine stateMachine,
                 Slug slug,
                 WarningCollector warningCollector,
-                PlanOptimizersStatsCollector planOptimizersStatsCollector)
+                PlanOptimizersStatsCollector planOptimizersStatsCollector,
+                ScheduledSplitsPerTableTracker scheduledSplitsPerTableTracker)
         {
             String executionPolicyName = SystemSessionProperties.getExecutionPolicy(stateMachine.getSession());
             ExecutionPolicy executionPolicy = executionPolicies.get(executionPolicyName);
@@ -1003,6 +1015,7 @@ public class SqlQueryExecution
                     nodeTaskMap,
                     executionPolicy,
                     schedulerStats,
+                    scheduledSplitsPerTableTracker,
                     statsCalculator,
                     costCalculator,
                     dynamicFilterService,

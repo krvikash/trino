@@ -25,7 +25,6 @@ import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
 import io.trino.ExceededCpuLimitException;
 import io.trino.ExceededOutputDataSizeLimitException;
-import io.trino.ExceededScanLimitException;
 import io.trino.ExceededWriteLimitException;
 import io.trino.Session;
 import io.trino.execution.QueryExecution.QueryOutputInfo;
@@ -57,6 +56,7 @@ import static com.google.common.collect.Comparators.min;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
 import static io.airlift.concurrent.Threads.threadsNamed;
+import static io.trino.ExceededScanLimitException.maxQueryScanPhysicalBytesExceeded;
 import static io.trino.SystemSessionProperties.getQueryMaxCpuTime;
 import static io.trino.SystemSessionProperties.getQueryMaxOutputDataSize;
 import static io.trino.SystemSessionProperties.getQueryMaxScanPhysicalBytes;
@@ -90,7 +90,7 @@ public class QueryManager
     private final ThreadPoolExecutorMBean queryManagementExecutorMBean;
 
     @Inject
-    public QueryManager(ClusterMemoryManager memoryManager, Tracer tracer, QueryManagerConfig queryManagerConfig)
+    public QueryManager(ClusterMemoryManager memoryManager, Tracer tracer, QueryManagerConfig queryManagerConfig, MaxSplitsPerTableSpec.MaxSplitsPerTableSpecProvider maxSplitsPerTableSpecProvider)
     {
         this.memoryManager = requireNonNull(memoryManager, "memoryManager is null");
         this.tracer = requireNonNull(tracer, "tracer is null");
@@ -105,7 +105,7 @@ public class QueryManager
         this.queryManagementExecutor = newScheduledThreadPool(queryManagerConfig.getQueryManagerExecutorPoolSize(), threadsNamed("query-management-%s"));
         this.queryManagementExecutorMBean = new ThreadPoolExecutorMBean((ThreadPoolExecutor) queryManagementExecutor);
 
-        this.queryTracker = new QueryTracker<>(queryManagerConfig, queryManagementExecutor);
+        this.queryTracker = new QueryTracker<>(queryManagerConfig, queryManagementExecutor, maxSplitsPerTableSpecProvider);
     }
 
     @PostConstruct
@@ -437,7 +437,7 @@ public class QueryManager
             limitOpt.ifPresent(limit -> {
                 DataSize scan = query.getBasicQueryInfo().getQueryStats().getPhysicalInputDataSize();
                 if (scan.compareTo(limit) > 0) {
-                    query.fail(new ExceededScanLimitException(limit));
+                    query.fail(maxQueryScanPhysicalBytesExceeded(limit));
                 }
             });
         }

@@ -24,6 +24,7 @@ import io.trino.execution.ExecutionFailureInfo;
 import io.trino.execution.QueryInfo;
 import io.trino.execution.QueryState;
 import io.trino.execution.QueryStats;
+import io.trino.execution.ScheduledSplitsPerTableTracker;
 import io.trino.execution.StateMachine.StateChangeListener;
 import io.trino.operator.RetryPolicy;
 import io.trino.server.BasicQueryInfo;
@@ -35,9 +36,11 @@ import io.trino.spi.resourcegroups.ResourceGroupId;
 
 import java.net.URI;
 import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
 import static io.airlift.units.Duration.succinctDuration;
@@ -191,6 +194,12 @@ public class FailedDispatchQuery
     public Optional<Instant> getEndTime()
     {
         return Optional.ofNullable(basicQueryInfo.getQueryStats().getEndTime());
+    }
+
+    @Override
+    public Map<ScheduledSplitsPerTableTracker.SourceTableId, AtomicLong> getTotalScheduledSplitCount()
+    {
+        return ImmutableMap.of();
     }
 
     @Override

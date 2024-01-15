@@ -13,6 +13,7 @@
  */
 package io.trino.server;
 
+import com.google.common.base.Ticker;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
@@ -53,6 +54,8 @@ import io.trino.execution.DynamicFiltersCollector.VersionedDynamicFilterDomains;
 import io.trino.execution.ExecutionFailureInfo;
 import io.trino.execution.ExplainAnalyzeContext;
 import io.trino.execution.ForQueryExecution;
+import io.trino.execution.MaxSplitsPerTableConfig;
+import io.trino.execution.MaxSplitsPerTableSpec;
 import io.trino.execution.NodeTaskMap;
 import io.trino.execution.PrivilegeUtilities;
 import io.trino.execution.PrivilegeUtilitiesApi;
@@ -466,6 +469,10 @@ public class CoordinatorModule
         newExporter(binder).export(StageExecutionStats.class).withGeneratedName();
         binder.bind(FaultTolerantQueryRestartStats.class).in(Scopes.SINGLETON);
         newExporter(binder).export(FaultTolerantQueryRestartStats.class).withGeneratedName();
+
+        configBinder(binder).bindConfig(MaxSplitsPerTableConfig.class);
+        binder.bind(Ticker.class).toInstance(Ticker.systemTicker());
+        binder.bind(MaxSplitsPerTableSpec.MaxSplitsPerTableSpecProvider.class);
 
         MapBinder<String, ExecutionPolicy> executionPolicyBinder = newMapBinder(binder, String.class, ExecutionPolicy.class);
         executionPolicyBinder.addBinding("all-at-once").to(AllAtOnceExecutionPolicy.class);

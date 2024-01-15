@@ -19,7 +19,9 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.log.Logger;
 import io.trino.execution.RemoteTask;
+import io.trino.execution.ScheduledSplitsPerTableTracker;
 import io.trino.execution.TableExecuteContextManager;
+import io.trino.metadata.QualifiedObjectName;
 import io.trino.metadata.Split;
 import io.trino.node.InternalNode;
 import io.trino.server.DynamicFilterService;
@@ -67,7 +69,9 @@ public class FixedSourcePartitionedScheduler
             int splitBatchSize,
             NodeSelector nodeSelector,
             DynamicFilterService dynamicFilterService,
-            TableExecuteContextManager tableExecuteContextManager)
+            TableExecuteContextManager tableExecuteContextManager,
+            Map<PlanNodeId, Optional<QualifiedObjectName>> sourceTables,
+            ScheduledSplitsPerTableTracker scheduledSplitsPerTableTracker)
     {
         requireNonNull(stageExecution, "stageExecution is null");
         requireNonNull(partitionedSources, "splitSources is null");
@@ -103,7 +107,9 @@ public class FixedSourcePartitionedScheduler
                         tableExecuteContextManager,
                         () -> true,
                         partitionIdAllocator,
-                        scheduledTasks);
+                        scheduledTasks,
+                        sourceTables.get(planNodeId),
+                        scheduledSplitsPerTableTracker);
             }
             else if (replicatedSplitSources.containsKey(planNodeId)) {
                 SplitSource splitSource = replicatedSplitSources.get(planNodeId);

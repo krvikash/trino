@@ -27,6 +27,7 @@ import io.trino.execution.MockRemoteTaskFactory.MockRemoteTask;
 import io.trino.execution.NodeTaskMap;
 import io.trino.execution.PartitionedSplitsInfo;
 import io.trino.execution.RemoteTask;
+import io.trino.execution.ScheduledSplitsPerTableTracker;
 import io.trino.execution.SqlStage;
 import io.trino.execution.StageId;
 import io.trino.execution.TableExecuteContextManager;
@@ -382,7 +383,9 @@ public class TestSourcePartitionedScheduler
                     2,
                     new DynamicFilterService(metadata, functionManager, typeOperators, new DynamicFilterConfig()),
                     new TableExecuteContextManager(),
-                    () -> false);
+                    () -> false,
+                    Optional.empty(),
+                    new ScheduledSplitsPerTableTracker());
             scheduler.schedule();
         }).hasErrorCode(NO_NODES_AVAILABLE);
     }
@@ -520,7 +523,9 @@ public class TestSourcePartitionedScheduler
                 4 * 300,
                 new DynamicFilterService(metadata, functionManager, typeOperators, new DynamicFilterConfig()),
                 new TableExecuteContextManager(),
-                () -> false);
+                () -> false,
+                Optional.empty(),
+                new ScheduledSplitsPerTableTracker());
 
         // the queues of 3 running nodes should be full
         ScheduleResult scheduleResult = scheduler.schedule();
@@ -563,7 +568,9 @@ public class TestSourcePartitionedScheduler
                 3 * 300,
                 new DynamicFilterService(metadata, functionManager, typeOperators, new DynamicFilterConfig()),
                 new TableExecuteContextManager(),
-                () -> true);
+                () -> true,
+                Optional.empty(),
+                new ScheduledSplitsPerTableTracker());
 
         // the queues of 3 running nodes should be full
         ScheduleResult scheduleResult = scheduler.schedule();
@@ -605,7 +612,9 @@ public class TestSourcePartitionedScheduler
                 2,
                 dynamicFilterService,
                 new TableExecuteContextManager(),
-                () -> true);
+                () -> true,
+                Optional.empty(),
+                new ScheduledSplitsPerTableTracker());
 
         SymbolAllocator symbolAllocator = emptySymbolAllocator();
         Symbol symbol = symbolAllocator.newSymbol("DF_SYMBOL1", BIGINT);
@@ -629,6 +638,49 @@ public class TestSourcePartitionedScheduler
 
         // no new probe splits should be scheduled
         assertThat(scheduleResult.getSplitsScheduled()).isEqualTo(0);
+    }
+
+    @Test
+    public void testAccountingSplitCount()
+    {
+        PlanFragment plan = createFragment();
+        NodeTaskMap nodeTaskMap = new NodeTaskMap(finalizerService);
+        StageExecution stage = createStageExecution(plan, nodeTaskMap);
+        ScheduledSplitsPerTableTracker collector = new ScheduledSplitsPerTableTracker();
+        QualifiedObjectName table = QualifiedObjectName.valueOf("mock.test.t1");
+        collector.prefill(ImmutableList.of(new ScheduledSplitsPerTableTracker.SourceTableId(TABLE_SCAN_NODE_ID, table)));
+        System.out.println(collector.getTotalScheduledSplitCount().get(new ScheduledSplitsPerTableTracker.SourceTableId(TABLE_SCAN_NODE_ID, table)));
+
+        StageScheduler scheduler = getSourcePartitionedScheduler(
+                createFixedSplitSource(40, TestingSplit::createRemoteSplit),
+                stage,
+                nodeManager,
+                nodeTaskMap,
+                10,
+                STAGE,
+                Optional.of(table),
+                collector);
+
+        assertThat(collector.getTotalScheduledSplitCount(TABLE_SCAN_NODE_ID, table)).isZero();
+
+        ScheduleResult result = scheduler.schedule();
+        assertThat(result.getSplitsScheduled()).isEqualTo(10);
+        assertThat(collector.getTotalScheduledSplitCount(TABLE_SCAN_NODE_ID, table)).isEqualTo(10);
+
+        result = scheduler.schedule();
+        assertThat(result.getSplitsScheduled()).isEqualTo(10);
+        assertThat(collector.getTotalScheduledSplitCount(TABLE_SCAN_NODE_ID, table)).isEqualTo(20);
+
+        result = scheduler.schedule();
+        assertThat(result.getSplitsScheduled()).isEqualTo(10);
+        assertThat(collector.getTotalScheduledSplitCount(TABLE_SCAN_NODE_ID, table)).isEqualTo(30);
+
+        result = scheduler.schedule();
+        assertThat(result.getSplitsScheduled()).isEqualTo(10);
+        assertThat(collector.getTotalScheduledSplitCount(TABLE_SCAN_NODE_ID, table)).isEqualTo(40);
+
+        assertEffectivelyFinished(result, scheduler);
+        stage.abort();
     }
 
     private static void assertPartitionedSplitCount(StageExecution stage, int expectedPartitionedSplitCount)
@@ -659,6 +711,19 @@ public class TestSourcePartitionedScheduler
             int splitBatchSize,
             SplitsBalancingPolicy splitsBalancingPolicy)
     {
+        return getSourcePartitionedScheduler(splitSource, stage, nodeManager, nodeTaskMap, splitBatchSize, splitsBalancingPolicy, Optional.empty(), new ScheduledSplitsPerTableTracker());
+    }
+
+    private StageScheduler getSourcePartitionedScheduler(
+            ConnectorSplitSource splitSource,
+            StageExecution stage,
+            InternalNodeManager nodeManager,
+            NodeTaskMap nodeTaskMap,
+            int splitBatchSize,
+            SplitsBalancingPolicy splitsBalancingPolicy,
+            Optional<QualifiedObjectName> sourceTable,
+            ScheduledSplitsPerTableTracker scheduledSplitsPerTableTracker)
+    {
         NodeSchedulerConfig nodeSchedulerConfig = new NodeSchedulerConfig()
                 .setIncludeCoordinator(false)
                 .setMaxSplitsPerNode(20)
@@ -675,7 +740,9 @@ public class TestSourcePartitionedScheduler
                 splitBatchSize,
                 new DynamicFilterService(metadata, functionManager, typeOperators, new DynamicFilterConfig()),
                 new TableExecuteContextManager(),
-                () -> false);
+                () -> false,
+                sourceTable,
+                scheduledSplitsPerTableTracker);
     }
 
     private static PlanFragment createFragment()

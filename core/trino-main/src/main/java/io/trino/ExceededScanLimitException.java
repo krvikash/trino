@@ -21,8 +21,18 @@ import static io.trino.spi.StandardErrorCode.EXCEEDED_SCAN_LIMIT;
 public class ExceededScanLimitException
         extends TrinoException
 {
-    public ExceededScanLimitException(DataSize limit)
+    private ExceededScanLimitException(String message)
     {
-        super(EXCEEDED_SCAN_LIMIT, "Exceeded scan limit of " + limit.toString());
+        super(EXCEEDED_SCAN_LIMIT, message);
+    }
+
+    public static ExceededScanLimitException maxQueryScanPhysicalBytesExceeded(DataSize limit)
+    {
+        return new ExceededScanLimitException("Exceeded scan limit of " + limit.toString());
+    }
+
+    public static ExceededScanLimitException maxQuerySplitsPerTable(String tableName, long accountedScheduledSplits, long limit)
+    {
+        return new ExceededScanLimitException("Split count %d exceeds upper limit for table %s. The limit is equal to %d".formatted(accountedScheduledSplits, tableName, limit));
     }
 }

@@ -26,6 +26,7 @@ import io.trino.execution.MockRemoteTaskFactory;
 import io.trino.execution.NodeTaskMap;
 import io.trino.execution.PartitionedSplitsInfo;
 import io.trino.execution.RemoteTask;
+import io.trino.execution.ScheduledSplitsPerTableTracker;
 import io.trino.execution.SqlStage;
 import io.trino.execution.StageId;
 import io.trino.execution.TableExecuteContextManager;
@@ -132,6 +133,7 @@ public class TestMultiSourcePartitionedScheduler
 {
     private static final PlanNodeId TABLE_SCAN_1_NODE_ID = new PlanNodeId("1");
     private static final PlanNodeId TABLE_SCAN_2_NODE_ID = new PlanNodeId("2");
+    private static final PlanNodeId TABLE_SCAN_3_NODE_ID = new PlanNodeId("3");
     private static final QueryId QUERY_ID = new QueryId("query");
     private static final DynamicFilterId DYNAMIC_FILTER_ID = new DynamicFilterId("filter1");
 
@@ -391,13 +393,16 @@ public class TestMultiSourcePartitionedScheduler
                 ImmutableSet.of(DYNAMIC_FILTER_ID),
                 ImmutableSet.of(DYNAMIC_FILTER_ID));
 
+        Map<PlanNodeId, ConnectorSplitSource> splitSources = ImmutableMap.of(TABLE_SCAN_1_NODE_ID, createFixedSplitSource(200), TABLE_SCAN_2_NODE_ID, createFixedSplitSource(200));
         StageScheduler scheduler = prepareScheduler(
                 ImmutableMap.of(TABLE_SCAN_1_NODE_ID, new QueuedSplitSource(), TABLE_SCAN_2_NODE_ID, new QueuedSplitSource()),
                 createSplitPlacementPolicies(session, stage, nodeTaskMap, nodeManager),
                 stage,
                 dynamicFilterService,
                 () -> true,
-                15);
+                15,
+                splitSources.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, _ -> Optional.empty())),
+                new ScheduledSplitsPerTableTracker());
 
         SymbolAllocator symbolAllocator = emptySymbolAllocator();
         Symbol symbol = symbolAllocator.newSymbol("DF_SYMBOL1", BIGINT);
@@ -435,13 +440,16 @@ public class TestMultiSourcePartitionedScheduler
         StageExecution stage = createStageExecution(plan, nodeTaskMap);
 
         // setting over utilized child output buffer
+        Map<PlanNodeId, ConnectorSplitSource> splitSources = ImmutableMap.of(TABLE_SCAN_1_NODE_ID, createFixedSplitSource(200), TABLE_SCAN_2_NODE_ID, createFixedSplitSource(200));
         StageScheduler scheduler = prepareScheduler(
-                ImmutableMap.of(TABLE_SCAN_1_NODE_ID, createFixedSplitSource(200), TABLE_SCAN_2_NODE_ID, createFixedSplitSource(200)),
+                splitSources,
                 createSplitPlacementPolicies(session, stage, nodeTaskMap, nodeManager),
                 stage,
                 new DynamicFilterService(metadata, functionManager, typeOperators, new DynamicFilterConfig()),
                 () -> true,
-                200);
+                200,
+                splitSources.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, _ -> Optional.empty())),
+                new ScheduledSplitsPerTableTracker());
         // the queues of 3 running nodes should be full
         ScheduleResult scheduleResult = scheduler.schedule();
         assertThat(scheduleResult.getBlockedReason()).isEqualTo(Optional.of(SPLIT_QUEUES_FULL));
@@ -458,6 +466,54 @@ public class TestMultiSourcePartitionedScheduler
         assertThat(scheduleResult.getBlockedReason()).isEqualTo(Optional.of(SPLIT_QUEUES_FULL));
         assertThat(scheduleResult.getNewTasks()).isEmpty();
         assertThat(scheduleResult.getSplitsScheduled()).isEqualTo(0);
+    }
+
+    @Test
+    public void testAccountingSplitCount()
+    {
+        NodeTaskMap nodeTaskMap = new NodeTaskMap(finalizerService);
+        TestingInternalNodeManager nodeManager = TestingInternalNodeManager.createDefault(
+                new InternalNode("other1", URI.create("http://127.0.0.1:11"), NodeVersion.UNKNOWN, false));
+        PlanFragment plan = createFragment();
+        StageExecution stage = createStageExecution(plan, nodeTaskMap);
+        ScheduledSplitsPerTableTracker collector = new ScheduledSplitsPerTableTracker();
+
+        QualifiedObjectName table1 = QualifiedObjectName.valueOf("test.test.t1");
+        QualifiedObjectName table2 = QualifiedObjectName.valueOf("test.test.t2");
+        collector.prefill(ImmutableList.of(new ScheduledSplitsPerTableTracker.SourceTableId(TABLE_SCAN_1_NODE_ID, table1), new ScheduledSplitsPerTableTracker.SourceTableId(TABLE_SCAN_2_NODE_ID, table2)));
+
+        StageScheduler scheduler = prepareScheduler(
+                ImmutableMap.of(TABLE_SCAN_1_NODE_ID, createFixedSplitSource(9), TABLE_SCAN_2_NODE_ID, createFixedSplitSource(14)),
+                createSplitPlacementPolicies(session, stage, nodeTaskMap, nodeManager),
+                stage,
+                new DynamicFilterService(metadata, functionManager, typeOperators, new DynamicFilterConfig()),
+                () -> false,
+                5,
+                ImmutableMap.of(
+                        TABLE_SCAN_1_NODE_ID, Optional.of(table1),
+                        TABLE_SCAN_2_NODE_ID, Optional.of(table2),
+                        TABLE_SCAN_3_NODE_ID, Optional.empty()),
+                collector);
+
+        scheduler.schedule();
+        assertThat(collector.getTotalScheduledSplitCount(TABLE_SCAN_1_NODE_ID, table1)).isEqualTo(5);
+        assertThat(collector.getTotalScheduledSplitCount(TABLE_SCAN_2_NODE_ID, table2)).isEqualTo(0);
+
+        scheduler.schedule();
+        assertThat(collector.getTotalScheduledSplitCount(TABLE_SCAN_1_NODE_ID, table1)).isEqualTo(9);
+        assertThat(collector.getTotalScheduledSplitCount(TABLE_SCAN_2_NODE_ID, table2)).isEqualTo(5);
+
+        scheduler.schedule();
+        assertThat(collector.getTotalScheduledSplitCount(TABLE_SCAN_1_NODE_ID, table1)).isEqualTo(9);
+        assertThat(collector.getTotalScheduledSplitCount(TABLE_SCAN_2_NODE_ID, table2)).isEqualTo(10);
+
+        scheduler.schedule();
+        assertThat(collector.getTotalScheduledSplitCount(TABLE_SCAN_1_NODE_ID, table1)).isEqualTo(9);
+        assertThat(collector.getTotalScheduledSplitCount(TABLE_SCAN_2_NODE_ID, table2)).isEqualTo(14);
+
+        scheduler.schedule();
+        assertThat(collector.getTotalScheduledSplitCount(TABLE_SCAN_1_NODE_ID, table1)).isEqualTo(9);
+        assertThat(collector.getTotalScheduledSplitCount(TABLE_SCAN_2_NODE_ID, table2)).isEqualTo(14);
     }
 
     private static void assertPartitionedSplitCount(StageExecution stage, int expectedPartitionedSplitCount)
@@ -492,7 +548,9 @@ public class TestMultiSourcePartitionedScheduler
                 stage,
                 new DynamicFilterService(metadata, functionManager, typeOperators, new DynamicFilterConfig()),
                 () -> false,
-                splitBatchSize);
+                splitBatchSize,
+                splitSources.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, _ -> Optional.empty())),
+                new ScheduledSplitsPerTableTracker());
     }
 
     private StageScheduler prepareScheduler(
@@ -501,7 +559,9 @@ public class TestMultiSourcePartitionedScheduler
             StageExecution stage,
             DynamicFilterService dynamicFilterService,
             BooleanSupplier anySourceTaskBlocked,
-            int splitBatchSize)
+            int splitBatchSize,
+            Map<PlanNodeId, Optional<QualifiedObjectName>> sourceTables,
+            ScheduledSplitsPerTableTracker scheduledSplitsPerTableTracker)
     {
         Map<PlanNodeId, SplitSource> sources = splitSources.entrySet()
                 .stream()
@@ -510,6 +570,8 @@ public class TestMultiSourcePartitionedScheduler
                 stage,
                 sources,
                 ImmutableMap.of(), // todo test with non-empty
+                sourceTables,
+                scheduledSplitsPerTableTracker,
                 splitPlacementPolicy,
                 splitBatchSize,
                 dynamicFilterService,

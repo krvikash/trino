@@ -1,0 +1,12 @@
+{
+    "limits": [
+        {
+            "table_": "blackhole.default.t1",
+            "limit": 100
+        },
+        {
+            "table": "blackhole.default.t2",
+            "limit": 400
+        }
+    ]
+}

@@ -30,6 +30,7 @@ import io.trino.execution.QueryManager;
 import io.trino.execution.QueryManagerConfig;
 import io.trino.execution.QueryPreparer.PreparedQuery;
 import io.trino.execution.QueryStateMachine;
+import io.trino.execution.ScheduledSplitsPerTableTracker;
 import io.trino.execution.querystats.PlanOptimizersStatsCollector;
 import io.trino.execution.warnings.WarningCollector;
 import io.trino.execution.warnings.WarningCollectorFactory;
@@ -123,6 +124,7 @@ public class LocalDispatchQueryFactory
     {
         WarningCollector warningCollector = warningCollectorFactory.create();
         PlanOptimizersStatsCollector planOptimizersStatsCollector = new PlanOptimizersStatsCollector(queryReportedRuleStatsLimit);
+        ScheduledSplitsPerTableTracker scheduledSplitsPerTableTracker = new ScheduledSplitsPerTableTracker();
         QueryStateMachine stateMachine = QueryStateMachine.begin(
                 existingTransactionId,
                 query,
@@ -160,7 +162,7 @@ public class LocalDispatchQueryFactory
             }
 
             try {
-                return queryExecutionFactory.createQueryExecution(preparedQuery, stateMachine, slug, warningCollector, planOptimizersStatsCollector);
+                return queryExecutionFactory.createQueryExecution(preparedQuery, stateMachine, slug, warningCollector, planOptimizersStatsCollector, scheduledSplitsPerTableTracker);
             }
             catch (Throwable e) {
                 if (e instanceof Error) {

@@ -88,7 +88,7 @@ public interface QueryExecution
 
     interface QueryExecutionFactory<T extends QueryExecution>
     {
-        T createQueryExecution(PreparedQuery preparedQuery, QueryStateMachine stateMachine, Slug slug, WarningCollector warningCollector, PlanOptimizersStatsCollector planOptimizersStatsCollector);
+        T createQueryExecution(PreparedQuery preparedQuery, QueryStateMachine stateMachine, Slug slug, WarningCollector warningCollector, PlanOptimizersStatsCollector planOptimizersStatsCollector, ScheduledSplitsPerTableTracker scheduledSplitsPerTableTracker);
     }
 
     /**

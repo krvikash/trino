@@ -17,14 +17,17 @@ import com.google.errorprone.annotations.ThreadSafe;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
+import io.trino.ExceededScanLimitException;
 import io.trino.Session;
 import io.trino.execution.QueryTracker.TrackedQuery;
+import io.trino.metadata.QualifiedObjectName;
 import io.trino.spi.QueryId;
 import io.trino.spi.TrinoException;
 import org.weakref.jmx.Managed;
 
 import java.time.Instant;
 import java.util.Collection;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Queue;
@@ -35,6 +38,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static com.google.common.base.Preconditions.checkState;
 import static io.trino.SystemSessionProperties.getQueryMaxExecutionTime;
@@ -63,16 +67,18 @@ public class QueryTracker<T extends TrackedQuery>
 
     private final ScheduledExecutorService queryManagementExecutor;
 
+    private final MaxSplitsPerTableSpec.MaxSplitsPerTableSpecProvider maxSplitsPerTableSpecProvider;
+
     @GuardedBy("this")
     private ScheduledFuture<?> backgroundTask;
 
-    public QueryTracker(QueryManagerConfig queryManagerConfig, ScheduledExecutorService queryManagementExecutor)
+    public QueryTracker(QueryManagerConfig queryManagerConfig, ScheduledExecutorService queryManagementExecutor, MaxSplitsPerTableSpec.MaxSplitsPerTableSpecProvider maxSplitsPerTableSpecProvider)
     {
         this.minQueryExpireAge = queryManagerConfig.getMinQueryExpireAge();
         this.maxQueryHistory = queryManagerConfig.getMaxQueryHistory();
         this.clientTimeout = queryManagerConfig.getClientTimeout();
-
         this.queryManagementExecutor = requireNonNull(queryManagementExecutor, "queryManagementExecutor is null");
+        this.maxSplitsPerTableSpecProvider = requireNonNull(maxSplitsPerTableSpecProvider, "maxSplitsPerTableSpecProvider is null");
     }
 
     public synchronized void start()
@@ -91,6 +97,14 @@ public class QueryTracker<T extends TrackedQuery>
             }
             catch (Throwable e) {
                 log.error(e, "Error enforcing query timeout limits");
+            }
+
+            try {
+                enforceMaxSplitCountPerTable();
+            }
+            // ignore to avoid getting unscheduled
+            catch (Throwable e) {
+                log.error(e, "Error enforcing max split count per table limits");
             }
 
             try {
@@ -199,6 +213,30 @@ public class QueryTracker<T extends TrackedQuery>
                     .ifPresent(_ -> query.fail(new TrinoException(EXCEEDED_TIME_LIMIT, "Query exceeded the maximum planning time limit of " + queryMaxPlanningTime)));
             if (createTime.plusMillis(queryMaxRunTime.toMillis()).isBefore(now)) {
                 query.fail(new TrinoException(EXCEEDED_TIME_LIMIT, "Query exceeded maximum time limit of " + queryMaxRunTime));
+            }
+        }
+    }
+
+    /**
+     * Enforce maximal split count per table
+     */
+    private synchronized void enforceMaxSplitCountPerTable()
+    {
+        Map<QualifiedObjectName, Long> maxAllowedSplitCountPerTable = maxSplitsPerTableSpecProvider.getMaxAllowedSplitCountPerTable();
+        if (maxAllowedSplitCountPerTable.isEmpty()) {
+            return;
+        }
+        for (T query : queries.values()) {
+            if (query.isDone()) {
+                continue;
+            }
+            Map<ScheduledSplitsPerTableTracker.SourceTableId, AtomicLong> totalScheduledSplitCount = query.getTotalScheduledSplitCount();
+
+            for (Map.Entry<ScheduledSplitsPerTableTracker.SourceTableId, AtomicLong> entry : totalScheduledSplitCount.entrySet()) {
+                long limit = maxAllowedSplitCountPerTable.getOrDefault(entry.getKey().tableName(), Long.MAX_VALUE);
+                if (entry.getValue().get() > limit) {
+                    query.fail(ExceededScanLimitException.maxQuerySplitsPerTable(entry.getKey().tableName().toString(), entry.getValue().get(), limit));
+                }
             }
         }
     }
@@ -329,6 +367,8 @@ public class QueryTracker<T extends TrackedQuery>
         Instant getLastHeartbeat();
 
         Optional<Instant> getEndTime();
+
+        Map<ScheduledSplitsPerTableTracker.SourceTableId, AtomicLong> getTotalScheduledSplitCount();
 
         void fail(Throwable cause);
 

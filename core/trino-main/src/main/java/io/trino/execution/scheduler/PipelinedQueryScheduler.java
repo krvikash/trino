@@ -43,6 +43,7 @@ import io.trino.execution.QueryState;
 import io.trino.execution.QueryStateMachine;
 import io.trino.execution.RemoteTask;
 import io.trino.execution.RemoteTaskFactory;
+import io.trino.execution.ScheduledSplitsPerTableTracker;
 import io.trino.execution.SqlStage;
 import io.trino.execution.SqlTaskManager;
 import io.trino.execution.StageId;
@@ -57,6 +58,8 @@ import io.trino.execution.scheduler.policy.ExecutionPolicy;
 import io.trino.execution.scheduler.policy.ExecutionSchedule;
 import io.trino.execution.scheduler.policy.StagesScheduleResult;
 import io.trino.metadata.Metadata;
+import io.trino.metadata.QualifiedObjectName;
+import io.trino.metadata.TableHandle;
 import io.trino.node.InternalNode;
 import io.trino.node.InternalNodeManager;
 import io.trino.operator.RetryPolicy;
@@ -64,6 +67,7 @@ import io.trino.server.DynamicFilterService;
 import io.trino.spi.ErrorCode;
 import io.trino.spi.QueryId;
 import io.trino.spi.TrinoException;
+import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.spi.exchange.Exchange;
 import io.trino.spi.exchange.ExchangeContext;
 import io.trino.spi.exchange.ExchangeId;
@@ -109,6 +113,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -188,6 +193,7 @@ public class PipelinedQueryScheduler
     private final InternalNodeManager nodeManager;
     private final ExecutionPolicy executionPolicy;
     private final SplitSchedulerStats schedulerStats;
+    private final ScheduledSplitsPerTableTracker scheduledSplitsPerTableTracker;
     private final DynamicFilterService dynamicFilterService;
     private final TableExecuteContextManager tableExecuteContextManager;
     private final SplitSourceFactory splitSourceFactory;
@@ -205,6 +211,7 @@ public class PipelinedQueryScheduler
     private final Duration retryMaxDelay;
     private final double retryDelayScaleFactor;
     private final Span schedulerSpan;
+    private final Metadata metadata;
 
     @GuardedBy("this")
     private boolean started;
@@ -230,6 +237,7 @@ public class PipelinedQueryScheduler
             ExecutionPolicy executionPolicy,
             Tracer tracer,
             SplitSchedulerStats schedulerStats,
+            ScheduledSplitsPerTableTracker scheduledSplitsPerTableTracker,
             DynamicFilterService dynamicFilterService,
             TableExecuteContextManager tableExecuteContextManager,
             Metadata metadata,
@@ -247,6 +255,8 @@ public class PipelinedQueryScheduler
         this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
         this.executionPolicy = requireNonNull(executionPolicy, "executionPolicy is null");
         this.schedulerStats = requireNonNull(schedulerStats, "schedulerStats is null");
+        this.scheduledSplitsPerTableTracker = requireNonNull(scheduledSplitsPerTableTracker, "scheduledSplitsPerTableCollector is null");
+        this.metadata = requireNonNull(metadata, "metadata is null");
         this.dynamicFilterService = requireNonNull(dynamicFilterService, "dynamicFilterService is null");
         this.tableExecuteContextManager = requireNonNull(tableExecuteContextManager, "tableExecuteContextManager is null");
         this.splitSourceFactory = requireNonNull(splitSourceFactory, "splitSourceFactory is null");
@@ -350,6 +360,8 @@ public class PipelinedQueryScheduler
                 yield DistributedStagesScheduler.create(
                         queryStateMachine,
                         schedulerStats,
+                        scheduledSplitsPerTableTracker,
+                        metadata,
                         nodeScheduler,
                         nodePartitioningManager,
                         stageManager,
@@ -886,6 +898,8 @@ public class PipelinedQueryScheduler
         public static DistributedStagesScheduler create(
                 QueryStateMachine queryStateMachine,
                 SplitSchedulerStats schedulerStats,
+                ScheduledSplitsPerTableTracker scheduledSplitsPerTableTracker,
+                Metadata metadata,
                 NodeScheduler nodeScheduler,
                 NodePartitioningManager nodePartitioningManager,
                 StageManager stageManager,
@@ -1005,7 +1019,9 @@ public class PipelinedQueryScheduler
                         dynamicFilterService,
                         executor,
                         tableExecuteContextManager,
-                        forceSingleNodeQuery);
+                        forceSingleNodeQuery,
+                        metadata,
+                        scheduledSplitsPerTableTracker);
                 stageSchedulers.put(stageExecution.getStageId(), scheduler);
             }
 
@@ -1154,7 +1170,9 @@ public class PipelinedQueryScheduler
                 DynamicFilterService dynamicFilterService,
                 ScheduledExecutorService executor,
                 TableExecuteContextManager tableExecuteContextManager,
-                boolean forceSingleNodeQuery)
+                boolean forceSingleNodeQuery,
+                Metadata metadata,
+                ScheduledSplitsPerTableTracker scheduledSplitsPerTableTracker)
         {
             Session session = queryStateMachine.getSession();
             Span stageSpan = stageExecution.getStageSpan();
@@ -1162,7 +1180,19 @@ public class PipelinedQueryScheduler
             PartitioningHandle partitioningHandle = fragment.getPartitioning();
             int partitionCount = getFragmentMaxPartitionCount(session, fragment);
             Map<PlanNodeId, SplitSource> splitSources = splitSourceFactory.createSplitSources(session, stageSpan, fragment, outputExchanges);
-
+            Map<PlanNodeId, Optional<QualifiedObjectName>> planNodesToTableNames = planNodeIdToTableName(splitSources.keySet(), fragment.getRoot())
+                    .entrySet()
+                    .stream()
+                    .collect(Collectors.toMap(Entry::getKey, entry -> entry.getValue().map(tableHandle -> {
+                        CatalogSchemaTableName fullName = metadata.getTableName(session, tableHandle);
+                        return new QualifiedObjectName(fullName.getCatalogName(), fullName.getSchemaTableName().getSchemaName(), fullName.getSchemaTableName().getTableName());
+                    })));
+            scheduledSplitsPerTableTracker.prefill(planNodesToTableNames
+                    .entrySet()
+                    .stream()
+                    .filter(entry -> entry.getValue().isPresent())
+                    .map(entry -> new ScheduledSplitsPerTableTracker.SourceTableId(entry.getKey(), entry.getValue().get()))
+                    .toList());
             if (!splitSources.isEmpty()) {
                 queryStateMachine.addStateChangeListener(new StateChangeListener<>()
                 {
@@ -1224,7 +1254,9 @@ public class PipelinedQueryScheduler
                             splitBatchSize,
                             dynamicFilterService,
                             tableExecuteContextManager,
-                            () -> childStageExecutions.stream().anyMatch(StageExecution::isAnyTaskBlocked));
+                            () -> childStageExecutions.stream().anyMatch(StageExecution::isAnyTaskBlocked),
+                            planNodesToTableNames.get(planNodeId),
+                            scheduledSplitsPerTableTracker);
                 }
                 Set<CatalogHandle> allCatalogHandles = splitSources.values()
                         .stream()
@@ -1238,6 +1270,8 @@ public class PipelinedQueryScheduler
                         stageExecution,
                         partitionedSplitSources,
                         replicatedSplitSources,
+                        planNodesToTableNames,
+                        scheduledSplitsPerTableTracker,
                         new DynamicSplitPlacementPolicy(nodeSelector, stageExecution::getAllTasks),
                         splitBatchSize,
                         dynamicFilterService,
@@ -1330,7 +1364,9 @@ public class PipelinedQueryScheduler
                     splitBatchSize,
                     nodeScheduler.createNodeSelector(session),
                     dynamicFilterService,
-                    tableExecuteContextManager);
+                    tableExecuteContextManager,
+                    planNodesToTableNames,
+                    scheduledSplitsPerTableTracker);
         }
 
         private static int getFragmentMaxPartitionCount(Session session, PlanFragment fragment)
@@ -1369,6 +1405,20 @@ public class PipelinedQueryScheduler
             }
 
             return future;
+        }
+
+        private static Map<PlanNodeId, Optional<TableHandle>> planNodeIdToTableName(Set<PlanNodeId> planNodeIds, PlanNode root)
+        {
+            return planNodeIds
+                    .stream()
+                    .collect(Collectors.toMap(
+                            planNodeId -> planNodeId,
+                            planNodeId -> searchFrom(root)
+                                    .where(node -> node.getId().equals(planNodeId))
+                                    .whereIsInstanceOfAny(TableScanNode.class)
+                                    .findFirst()
+                                    .map(TableScanNode.class::cast)
+                                    .map(TableScanNode::getTable)));
         }
 
         private DistributedStagesScheduler(

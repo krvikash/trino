@@ -13,6 +13,7 @@
  */
 package io.trino.dispatcher;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import io.airlift.log.Logger;
@@ -26,6 +27,7 @@ import io.trino.execution.QueryExecution;
 import io.trino.execution.QueryInfo;
 import io.trino.execution.QueryState;
 import io.trino.execution.QueryStateMachine;
+import io.trino.execution.ScheduledSplitsPerTableTracker;
 import io.trino.execution.StateMachine.StateChangeListener;
 import io.trino.server.BasicQueryInfo;
 import io.trino.spi.ErrorCode;
@@ -33,9 +35,11 @@ import io.trino.spi.QueryId;
 import io.trino.spi.TrinoException;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 import static com.google.common.util.concurrent.Futures.nonCancellationPropagating;
@@ -235,6 +239,12 @@ public class LocalDispatchQuery
     public Optional<Instant> getEndTime()
     {
         return stateMachine.getEndTime();
+    }
+
+    @Override
+    public Map<ScheduledSplitsPerTableTracker.SourceTableId, AtomicLong> getTotalScheduledSplitCount()
+    {
+        return ImmutableMap.of();
     }
 
     @Override
