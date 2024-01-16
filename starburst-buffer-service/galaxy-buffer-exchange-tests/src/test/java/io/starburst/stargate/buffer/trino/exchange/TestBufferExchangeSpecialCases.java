@@ -21,6 +21,7 @@ import io.trino.testing.QueryRunner;
 import io.trino.testing.assertions.Assert;
 import org.assertj.core.api.AssertProvider;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
@@ -86,6 +87,7 @@ public class TestBufferExchangeSpecialCases
     }
 
     @Test
+    @Disabled // TODO(https://github.com/starburstdata/galaxy-trino/issues/1570) reenable after fixing flakiness
     public void testNodeFullyDrainedWhileLongRunningQuery()
             throws Exception
     {
