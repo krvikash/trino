@@ -27,10 +27,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static com.google.common.base.Verify.verify;
-import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
+import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.Futures.transform;
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.FINISHED;
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.INITIALIZED;
+import static io.starburst.server.troubleshooting.TroubleshootingContext.State.INVALID;
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.REMOVED;
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.STARTED;
 import static java.util.Objects.requireNonNull;
@@ -48,7 +49,8 @@ public class TroubleshootingContextManager
     private final TroubleshootingArchiver troubleshootingArchiver;
 
     @Inject
-    public TroubleshootingContextManager(TroubleshootingConfig config,
+    public TroubleshootingContextManager(
+            TroubleshootingConfig config,
             FullQueryInfoProvider fullQueryInfoProvider,
             Set<TroubleshootingProvider> dataProviders,
             @ForTroubleshooting ScheduledExecutorService executorService,
@@ -67,35 +69,48 @@ public class TroubleshootingContextManager
 
     public void start(QueryId queryId)
     {
+        TroubleshootingContext context;
         try {
-            TroubleshootingContext context = contexts.get(queryId, () -> {
-                TroubleshootingContext ctx = new TroubleshootingContext(queryId,
-                        new StateMachine<>("troubleshooting-" + queryId.getId(), executorService, INITIALIZED, Set.of(REMOVED)));
-                verify(transitionContextTo(ctx, STARTED), "%s was already started", ctx);
-                return ctx;
-            });
-            log.info("Started new %s", context);
+            context = contexts.get(queryId, () -> new TroubleshootingContext(queryId,
+                    new StateMachine<>("troubleshooting-" + queryId.getId(), executorService, INITIALIZED, Set.of(REMOVED))));
         }
         catch (ExecutionException e) {
-            throw new RuntimeException("Could not start new troubleshooting context", e);
+            throw new RuntimeException("Could not create new troubleshooting context for queryid: " + queryId.getId(), e);
+        }
+
+        try {
+            verify(transitionContextTo(context, STARTED), "%s was already started", context);
+            log.info("Started new %s", context);
+        }
+        catch (Exception e) {
+            context.addGeneralError(e);
+            context.getState().set(INVALID);
+            log.error(e, "Could not start new troubleshooting context for queryId: %s", queryId.getId());
         }
     }
 
     public void finish(QueryId queryId)
     {
         TroubleshootingContext context = contexts.getIfPresent(queryId);
-        if (null == context || isInExpectedState(context, FINISHED)) {
+        if (null == context || isInExpectedState(context, FINISHED) || isInExpectedState(context, INVALID)) {
             return;
         }
-        waitForQueryInfoIsGathered();
-        fullQueryInfoProvider.getFullQueryInfo(queryId)
-                .ifPresent(value -> context.set(QueryInfo.class, value));
-        if (transitionContextTo(context, FINISHED)) {
-            log.info("%s has finished", context);
-            executorService.schedule(() -> {
-                remove(queryId);
-                log.info("Removed %s after timeout %s", context, destroyAfterFinishDelay);
-            }, destroyAfterFinishDelay.toMillis(), MILLISECONDS);
+        try {
+            waitForQueryInfoIsGathered();
+            fullQueryInfoProvider.getFullQueryInfo(queryId)
+                    .ifPresent(value -> context.set(QueryInfo.class, value));
+            if (transitionContextTo(context, FINISHED)) {
+                log.info("%s has finished", context);
+                executorService.schedule(() -> {
+                    remove(queryId);
+                    log.info("Removed %s after timeout %s", context, destroyAfterFinishDelay);
+                }, destroyAfterFinishDelay.toMillis(), MILLISECONDS);
+            }
+        }
+        catch (Exception e) {
+            context.addGeneralError(e);
+            context.getState().set(INVALID);
+            log.error(e, "Could not finish troubleshooting context for queryId: %s", queryId.getId());
         }
     }
 
@@ -127,17 +142,19 @@ public class TroubleshootingContextManager
 
     public ListenableFuture<InputStream> getArchive(QueryId queryId)
     {
-        //entry of this method means that the web UI queried for troubleshooting info
-        //but the query might have even not started
-        //it might take hours to complete before we even start gathering troubleshooting info
-        //therefore we return a ListenableFuture that has the following properties
-        // - it will NOT contain a computed value until the query has finished processing
-        // - it WILL contain a computed value once we start gathering troubleshooting info,
-        //   the result will be an asynchronous stream that will be populated by a separate thread
-        //   once we have troubleshooting files
-        TroubleshootingContext context = contexts.getIfPresent(queryId);
+        // entry of this method means that the web UI queried for troubleshooting info
+        // but the query might have even not started
+        // it might take hours to complete before we even start gathering troubleshooting info
+        // therefore we return a ListenableFuture that has the following properties
+        //  - it will NOT contain a computed value until the query has finished processing
+        //  - it WILL contain a computed value once we start gathering troubleshooting info,
+        //    the result will be an asynchronous stream that will be populated by a separate thread
+        //    once we have troubleshooting files
+        final TroubleshootingContext context = contexts.getIfPresent(queryId);
         if (null == context) {
-            return immediateFailedFuture(new NoSuchElementException("Troubleshooting context for " + queryId + " does not exist"));
+            TroubleshootingContext immediateContext = new TroubleshootingContext(queryId, new StateMachine<>("troubleshooting-" + queryId.getId(), executorService, INVALID, Set.of(INVALID)));
+            immediateContext.addGeneralError(new NoSuchElementException("TroubleshootingContext is null"));
+            return immediateFuture(troubleshootingArchiver.execute(immediateContext));
         }
 
         return transform(context.getState().getStateChange(STARTED), state -> {

@@ -55,6 +55,7 @@ import java.util.concurrent.TimeoutException;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.starburstdata.presto.server.StarburstClientCapabilities.QUERY_TROUBLESHOOTING;
+import static io.starburst.server.troubleshooting.TroubleshootingArchiver.TOP_LEVEL_ERRORS_FILENAME;
 import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.zipInputStreamToMap;
 import static io.trino.SystemSessionProperties.QUERY_MAX_MEMORY_PER_NODE;
 import static io.trino.testing.DataProviders.toDataProvider;
@@ -92,6 +93,8 @@ public abstract class AbstractQueryTroubleshootingTest
     private TroubleshootingContextManager troubleshootingContextManager;
     private QueryManager queryManager;
     private String coordinatorId;
+    @TempDir
+    private Path tmpDir;
 
     @BeforeAll
     public void localInit()
@@ -120,7 +123,7 @@ public abstract class AbstractQueryTroubleshootingTest
     {
         String troubleshootedQuery = "SHOW CATALOGS";
         TroubleshootingData data = getTroubleshootingDataForQuery(SESSION, troubleshootedQuery);
-        assertThat(data.getStream()).isEmpty();
+        assertZipContainsOnlyErrorFileWithStackTrace(data);
     }
 
     @ParameterizedTest
@@ -129,7 +132,7 @@ public abstract class AbstractQueryTroubleshootingTest
     {
         String troubleshootedQuery = "SHOW CATALOGS";
         TroubleshootingData data = getTroubleshootingDataForQuery(sessionUnauthorized, troubleshootedQuery);
-        assertThat(data.getStream()).isEmpty();
+        assertZipContainsOnlyErrorFileWithStackTrace(data);
     }
 
     public Object[][] unauthorizedSessionsProvider()
@@ -142,7 +145,7 @@ public abstract class AbstractQueryTroubleshootingTest
     }
 
     @Test
-    public void testTroubleshootingDataAvailableForAuthorizedUser(SoftAssertions softly, @TempDir Path tmpDir)
+    public void testTroubleshootingDataAvailableForAuthorizedUser(SoftAssertions softly)
             throws Exception
     {
         String troubleshootedQuery = "SHOW CATALOGS";
@@ -150,21 +153,21 @@ public abstract class AbstractQueryTroubleshootingTest
         assertThat(data.getStream()).isPresent();
         Unzipped inputsMap = zipInputStreamToMap(data.getRequiredStreams().get(), tmpDir);
 
-        softly.assertThat(inputsMap.zipEntryContents)
+        softly.assertThat(inputsMap.contents())
                 .hasEntrySatisfying(getPath(data, "version.txt"), value -> softly.assertThat(byteToString(value)).contains("testversion"))
                 .hasEntrySatisfying(getPath(data, "recordings/coordinator.jfr"), value -> softly.assertThat(value).isNotEmpty());
 
         ObjectMapper mapper = new ObjectMapper();
-        mapper.readValue(inputsMap.zipEntryContents.get(getPath(data, "jmx/metrics-before.json")), new TypeReference<>() {});
-        mapper.readValue(inputsMap.zipEntryContents.get(getPath(data, "jmx/metrics-after.json")), new TypeReference<>() {});
+        mapper.readValue(inputsMap.contents().get(getPath(data, "jmx/metrics-before.json")), new TypeReference<>() {});
+        mapper.readValue(inputsMap.contents().get(getPath(data, "jmx/metrics-after.json")), new TypeReference<>() {});
 
-        JsonNode queryInfo = mapper.readTree(inputsMap.zipEntryContents.get(getPath(data, "query.json")));
+        JsonNode queryInfo = mapper.readTree(inputsMap.contents().get(getPath(data, "query.json")));
         softly.assertThat(queryInfo.get("query").asText()).isEqualTo(troubleshootedQuery);
         softly.assertThat(queryInfo.get("session").get("systemProperties").get("query_max_memory_per_node").asText()).isEqualTo("10MB");
         softly.assertThat(queryInfo.get("outputStage").get("plan")).isNotEmpty();
 
         for (String workerId : getNodesProcessingQuery(data.getQueryId())) {
-            softly.assertThat(inputsMap.zipEntryContents).hasEntrySatisfying(
+            softly.assertThat(inputsMap.contents()).hasEntrySatisfying(
                     getPath(data, "recordings/worker-%s.jfr").formatted(workerId),
                     value -> softly.assertThat(value)
                             .describedAs("worker %s recording", workerId)
@@ -173,7 +176,7 @@ public abstract class AbstractQueryTroubleshootingTest
     }
 
     @Test
-    public void testTroubleshootingDataAvailableForFailedQuery(SoftAssertions softly, @TempDir Path tmpDir)
+    public void testTroubleshootingDataAvailableForFailedQuery(SoftAssertions softly)
             throws IOException
     {
         String troubleshootedQuery = "SELECT * FROM table_does_not_exist";
@@ -187,15 +190,13 @@ public abstract class AbstractQueryTroubleshootingTest
             queryId = e.getQueryId();
         }
 
-        Optional<InputStream> inputs = awaitForTroubleshootingData(queryId);
-        assertThat(inputs).isPresent();
-        Unzipped inputsMap = zipInputStreamToMap(inputs.get(), tmpDir);
-        softly.assertThat(inputsMap.zipEntryContents)
+        Unzipped inputsMap = zipInputStreamToMap(awaitForTroubleshootingData(queryId).getStream().get(), tmpDir);
+        softly.assertThat(inputsMap.contents())
                 .hasEntrySatisfying(getPath(queryId, "version.txt"), value -> assertThat(byteToString(value)).contains("testversion"))
                 .doesNotContainKey(getPath(queryId, "query_plan.txt"));
 
         ObjectMapper mapper = new ObjectMapper();
-        JsonNode queryInfo = mapper.readTree(inputsMap.zipEntryContents.get(getPath(queryId, "query.json")));
+        JsonNode queryInfo = mapper.readTree(inputsMap.contents().get(getPath(queryId, "query.json")));
         softly.assertThat(queryInfo.get("query").asText()).isEqualTo(troubleshootedQuery);
         softly.assertThat(queryInfo.get("session").get("systemProperties").get("query_max_memory_per_node").asText()).isEqualTo("10MB");
         softly.assertThat(queryInfo.get("failureInfo").get("errorCode").get("code").asText()).isEqualTo("45");
@@ -212,28 +213,29 @@ public abstract class AbstractQueryTroubleshootingTest
         String exampleQuery = "SELECT count(comment) FROM tpch.tiny.lineitem";
         try (TestingTrinoClient client = new TestingTrinoClient(getDistributedQueryRunner().getCoordinator(), troubleshootedSession)) {
             ResultWithQueryId<MaterializedResult> result = client.execute(exampleQuery);
-            assertThat(awaitForTroubleshootingData(result.getQueryId())).isPresent();
+            assertThat(awaitForTroubleshootingData(result.getQueryId()).getStream()).isPresent();
 
-            assertEventually(Duration.valueOf("30s"), () -> assertThat(awaitForTroubleshootingData(result.getQueryId())).isEmpty());
+            assertEventually(Duration.valueOf("30s"), () -> {
+                assertZipContainsOnlyErrorFileWithStackTrace(awaitForTroubleshootingData(result.getQueryId()));
+            });
         }
     }
 
     private TroubleshootingData getTroubleshootingDataForQuery(Session session, @Language("SQL") String query)
     {
         try (TestingTrinoClient client = new TestingTrinoClient(getDistributedQueryRunner().getCoordinator(), session)) {
-            ResultWithQueryId<MaterializedResult> result = client.execute(query);
-            return new TroubleshootingData(result.getQueryId(), awaitForTroubleshootingData(result.getQueryId()));
+            return awaitForTroubleshootingData(client.execute(query).getQueryId());
         }
     }
 
-    private Optional<InputStream> awaitForTroubleshootingData(QueryId queryId)
+    private TroubleshootingData awaitForTroubleshootingData(QueryId queryId)
     {
         try {
-            return Optional.of(troubleshootingContextManager.getArchive(queryId).get(10, TimeUnit.SECONDS));
+            return new TroubleshootingData(queryId, Optional.of(troubleshootingContextManager.getArchive(queryId).get(10, TimeUnit.SECONDS)));
         }
         catch (ExecutionException | TimeoutException e) {
             log.error(e, "Awaiting troubleshooting data failed");
-            return Optional.empty();
+            return new TroubleshootingData(queryId, Optional.empty());
         }
         catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -303,6 +305,14 @@ public abstract class AbstractQueryTroubleshootingTest
         {
             return stream;
         }
+    }
+
+    private void assertZipContainsOnlyErrorFileWithStackTrace(TroubleshootingData data)
+    {
+        Unzipped unzipped = zipInputStreamToMap(data.getStream().get(), tmpDir);
+        assertThat(unzipped.contents()).hasSize(1);
+        assertThat(byteToString(unzipped.contents().get(String.format("%s/%s", data.queryId, TOP_LEVEL_ERRORS_FILENAME))))
+                .contains("java.util.NoSuchElementException: TroubleshootingContext is null");
     }
 
     private static String getPath(TroubleshootingData data, String suffix)

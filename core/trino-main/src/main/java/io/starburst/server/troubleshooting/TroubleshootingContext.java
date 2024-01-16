@@ -12,6 +12,9 @@ package io.starburst.server.troubleshooting;
 import io.trino.execution.StateMachine;
 import io.trino.spi.QueryId;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -27,6 +30,8 @@ public class TroubleshootingContext
     private final QueryId queryId;
     private final StateMachine<State> state;
     private final Map<String, Object> values = new ConcurrentHashMap<>();
+    private final List<Exception> topLevelErrors = new ArrayList<>();
+    private final Map<String, Exception> errors = new HashMap<>();
 
     public TroubleshootingContext(QueryId queryId, StateMachine<State> state)
     {
@@ -51,11 +56,6 @@ public class TroubleshootingContext
                 .map(clazz::cast);
     }
 
-    public <T> boolean has(Class<T> clazz)
-    {
-        return values.containsKey(clazz.getSimpleName());
-    }
-
     public <T> T getOrThrow(Class<T> clazz)
     {
         return get(clazz).orElseThrow();
@@ -66,12 +66,33 @@ public class TroubleshootingContext
         return state;
     }
 
+    public void addGeneralError(Exception e)
+    {
+        topLevelErrors.add(e);
+    }
+
+    public void addError(String filename, Exception e)
+    {
+        errors.put(filename, e);
+    }
+
+    public List<Exception> getTopLevelErrors()
+    {
+        return topLevelErrors;
+    }
+
+    public Map<String, Exception> getErrors()
+    {
+        return errors;
+    }
+
     public enum State
     {
         INITIALIZED,
         STARTED,
         FINISHED,
-        REMOVED;
+        REMOVED,
+        INVALID;
     }
 
     @Override

@@ -79,11 +79,13 @@ public class TestTroubleshootingContextManager
         manager.finish(queryId);
 
         Unzipped unzipped = zipInputStreamToMap(manager.getArchive(queryId).get(), tmpDir);
-        softly.assertThat(unzipped.zipEntryContents)
-                .hasSize(3)
+        softly.assertThat(unzipped.contents())
+                .hasSize(5)
                 .hasEntrySatisfying("123/happy", b -> softly.assertThat(new String(b, UTF_8)).isEqualTo("path"))
                 .hasEntrySatisfying("123/throwWhileReading.txt", b -> softly.assertThat(b.length).isZero())
-                .hasEntrySatisfying("123/largeFile.txt", b -> softly.assertThat(b.length).isEqualTo(1024 * 1024 * 100));
+                .hasEntrySatisfying("123/largeFile.txt", b -> softly.assertThat(b.length).isEqualTo(1024 * 1024 * 100))
+                .hasEntrySatisfying("123/top-level.errors", b -> softly.assertThat(new String(b, UTF_8)).contains(ThrowingProvider.class.getName()))
+                .hasEntrySatisfying("123/throwWhileReading.txt.errors", b -> softly.assertThat(new String(b, UTF_8)).contains(HappyPathProvider.class.getName()));
 
         softly.assertThat(onContextStartedCalled.get()).isTrue();
         softly.assertThat(onContextFinishedCalled.get()).isTrue();
