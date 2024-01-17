@@ -60,6 +60,9 @@ statement
          (COMMENT string)?
          (AUTHORIZATION principal)?
          (WITH properties)?                                            #createCatalog
+    | CREATE CATALOG (IF NOT EXISTS)? target=identifier
+         LIKE source=identifier
+         (WITH properties)?                                            #createCatalogLike
     | DROP CATALOG (IF EXISTS)? catalog=identifier
          (CASCADE | RESTRICT)?                                         #dropCatalog
     | ALTER CATALOG from=identifier
