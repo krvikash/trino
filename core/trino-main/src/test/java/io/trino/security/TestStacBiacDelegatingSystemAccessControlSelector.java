@@ -243,6 +243,12 @@ class TestStacBiacDelegatingSystemAccessControlSelector
             }
 
             @Override
+            public void createCatalogLike(CatalogName oldCatalog, CatalogName catalog, boolean notExists, Map<String, Optional<String>> properties)
+            {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
             public void renameCatalog(CatalogName catalogName, CatalogName newCatalogName)
             {
                 throw new UnsupportedOperationException();

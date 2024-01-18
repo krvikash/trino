@@ -331,6 +331,9 @@ public class WorkerDynamicCatalogManager
         public void createCatalog(CatalogName catalogName, ConnectorName connectorName, Map<String, String> properties, boolean notExists) {}
 
         @Override
+        public void createCatalogLike(CatalogName oldCatalog, CatalogName catalog, boolean notExists, Map<String, Optional<String>> properties) {}
+
+        @Override
         public void renameCatalog(CatalogName catalogName, CatalogName newCatalogName) {}
 
         @Override
