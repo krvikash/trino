@@ -115,7 +115,8 @@ public class AccessControlManager
     private final NodeVersion nodeVersion;
     private final TransactionManager transactionManager;
     private final EventListenerManager eventListenerManager;
-    private final List<File> configFiles;
+    private final List<File> accessControlConfigFiles;
+    private final List<File> locationAccessControlConfigFiles;
     private final OpenTelemetry openTelemetry;
     private final String defaultAccessControlName;
     private final String defaultLocationAccessControlName;
@@ -146,7 +147,8 @@ public class AccessControlManager
         this.nodeVersion = requireNonNull(nodeVersion, "nodeVersion is null");
         this.transactionManager = requireNonNull(transactionManager, "transactionManager is null");
         this.eventListenerManager = requireNonNull(eventListenerManager, "eventListenerManager is null");
-        this.configFiles = ImmutableList.copyOf(config.getAccessControlFiles());
+        this.accessControlConfigFiles = ImmutableList.copyOf(config.getAccessControlFiles());
+        this.locationAccessControlConfigFiles = ImmutableList.copyOf(config.getLocationAccessControlFiles());
         this.openTelemetry = requireNonNull(openTelemetry, "openTelemetry is null");
         this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
         this.defaultAccessControlName = requireNonNull(defaultAccessControlName, "defaultAccessControl is null");
@@ -189,7 +191,7 @@ public class AccessControlManager
 
     public void loadSystemAccessControl()
     {
-        List<File> configFiles = this.configFiles;
+        List<File> configFiles = this.accessControlConfigFiles;
         if (configFiles.isEmpty()) {
             if (!ACCESS_CONTROL_CONFIG_FILE.exists()) {
                 loadSystemAccessControl(defaultAccessControlName, ImmutableMap.of());
@@ -330,7 +332,7 @@ public class AccessControlManager
 
     public void loadLocationAccessControl()
     {
-        List<File> configFiles = this.configFiles;
+        List<File> configFiles = this.locationAccessControlConfigFiles;
         if (configFiles.isEmpty()) {
             if (!LOCATION_CONTROL_CONFIG_FILE.exists()) {
                 loadLocationAccessControl(defaultLocationAccessControlName, ImmutableMap.of());

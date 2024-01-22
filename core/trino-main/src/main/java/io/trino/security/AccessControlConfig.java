@@ -26,6 +26,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 public class AccessControlConfig
 {
     private List<File> accessControlFiles = ImmutableList.of();
+    private List<File> locationAccessControlFiles = ImmutableList.of();
 
     @NotNull
     public List<@FileExists File> getAccessControlFiles()
@@ -37,6 +38,20 @@ public class AccessControlConfig
     public AccessControlConfig setAccessControlFiles(List<String> accessControlFiles)
     {
         this.accessControlFiles = accessControlFiles.stream()
+                .map(File::new)
+                .collect(toImmutableList());
+        return this;
+    }
+
+    public List<@FileExists File> getLocationAccessControlFiles()
+    {
+        return locationAccessControlFiles;
+    }
+
+    @Config("location-access-control.config-files")
+    public AccessControlConfig setLocationAccessControlFiles(List<String> locationAccessControlFiles)
+    {
+        this.locationAccessControlFiles = locationAccessControlFiles.stream()
                 .map(File::new)
                 .collect(toImmutableList());
         return this;
