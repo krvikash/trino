@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
+import java.io.UncheckedIOException;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -47,9 +48,16 @@ public class TroubleshootingArchiver
 
     public InputStream execute(TroubleshootingContext context)
     {
-        PipedInputStream is = new PipedInputStream();
-        executor.execute(() -> archiveAsynchronously(context, is));
-        return is;
+        PipedOutputStream outputStream;
+        PipedInputStream inputStream = new PipedInputStream();
+        try {
+            outputStream = new PipedOutputStream(inputStream);
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        executor.execute(() -> archiveAsynchronously(context, outputStream));
+        return inputStream;
     }
 
     @PreDestroy
@@ -67,9 +75,9 @@ public class TroubleshootingArchiver
         }
     }
 
-    private void archiveAsynchronously(TroubleshootingContext context, PipedInputStream stream)
+    private void archiveAsynchronously(TroubleshootingContext context, PipedOutputStream outputStream)
     {
-        try (PipedOutputStream os = new PipedOutputStream(stream); ZipOutputStream archive = new ZipOutputStream(os)) {
+        try (ZipOutputStream archive = new ZipOutputStream(outputStream)) {
             for (TroubleshootingProvider dataProvider : dataProviders) {
                 writeProviderDataToArchive(dataProvider, context, archive);
                 archive.closeEntry();
