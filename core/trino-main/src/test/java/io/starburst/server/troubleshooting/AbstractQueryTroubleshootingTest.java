@@ -34,12 +34,15 @@ import io.trino.testing.QueryRunner;
 import io.trino.testing.ResultWithQueryId;
 import io.trino.testing.TestingTrinoClient;
 import org.intellij.lang.annotations.Language;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -86,7 +89,7 @@ public abstract class AbstractQueryTroubleshootingTest
     private QueryManager queryManager;
     private String coordinatorId;
 
-    @BeforeClass
+    @BeforeAll
     public void localInit()
     {
         troubleshootingContextManager = getDistributedQueryRunner().getCoordinator().getInstance(Key.get(TroubleshootingContextManager.class));
@@ -116,7 +119,8 @@ public abstract class AbstractQueryTroubleshootingTest
         assertThat(data.getStream()).isEmpty();
     }
 
-    @Test(dataProvider = "unauthorizedSessionsProvider")
+    @ParameterizedTest
+    @MethodSource("unauthorizedSessionsProvider")
     public void testTroubleshootingDataNotAvailableForUnauthorizedUser(Session sessionUnauthorized)
     {
         String troubleshootedQuery = "SHOW CATALOGS";
@@ -124,7 +128,6 @@ public abstract class AbstractQueryTroubleshootingTest
         assertThat(data.getStream()).isEmpty();
     }
 
-    @DataProvider
     public Object[][] unauthorizedSessionsProvider()
     {
         return getIdentitiesOfUnauthorizedUsers().stream()
@@ -135,13 +138,13 @@ public abstract class AbstractQueryTroubleshootingTest
     }
 
     @Test
-    public void testTroubleshootingDataAvailableForAuthorizedUser()
+    public void testTroubleshootingDataAvailableForAuthorizedUser(@TempDir Path tmpDir)
             throws Exception
     {
         String troubleshootedQuery = "SHOW CATALOGS";
         TroubleshootingData data = getTroubleshootingDataForQuery(troubleshootedSession, troubleshootedQuery);
         assertThat(data.getStream()).isPresent();
-        Unzipped inputsMap = zipInputStreamToMap(data.getRequiredStreams().get());
+        Unzipped inputsMap = zipInputStreamToMap(data.getRequiredStreams().get(), tmpDir);
 
         assertThat(inputsMap.zipEntryContents)
                 .hasEntrySatisfying(getPath(data, "version.txt"), value -> assertThat(byteToString(value)).contains("testversion"))
@@ -166,7 +169,7 @@ public abstract class AbstractQueryTroubleshootingTest
     }
 
     @Test
-    public void testTroubleshootingDataAvailableForFailedQuery()
+    public void testTroubleshootingDataAvailableForFailedQuery(@TempDir Path tmpDir)
             throws IOException
     {
         String troubleshootedQuery = "SELECT * FROM table_does_not_exist";
@@ -182,7 +185,7 @@ public abstract class AbstractQueryTroubleshootingTest
 
         Optional<InputStream> inputs = awaitForTroubleshootingData(queryId);
         assertThat(inputs).isPresent();
-        Unzipped inputsMap = zipInputStreamToMap(inputs.get());
+        Unzipped inputsMap = zipInputStreamToMap(inputs.get(), tmpDir);
         assertThat(inputsMap.zipEntryContents)
                 .hasEntrySatisfying(getPath(queryId, "version.txt"), value -> assertThat(byteToString(value)).contains("testversion"))
                 .doesNotContainKey(getPath(queryId, "query_plan.txt"));

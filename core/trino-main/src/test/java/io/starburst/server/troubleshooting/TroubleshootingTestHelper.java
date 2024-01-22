@@ -33,11 +33,6 @@ class TroubleshootingTestHelper
     {
     }
 
-    public static Unzipped zipInputStreamToMap(InputStream stream)
-    {
-        return zipInputStreamToMap(stream, Path.of(System.getProperty("java.io.tmpdir")));
-    }
-
     public static Unzipped zipInputStreamToMap(InputStream stream, Path tmpDir)
     {
         try {
