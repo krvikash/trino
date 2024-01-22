@@ -33,9 +33,12 @@ import io.trino.testing.QueryFailedException;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.ResultWithQueryId;
 import io.trino.testing.TestingTrinoClient;
+import org.assertj.core.api.SoftAssertions;
+import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -62,6 +65,7 @@ import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
+@ExtendWith(SoftAssertionsExtension.class)
 public abstract class AbstractQueryTroubleshootingTest
         extends AbstractTestQueryFramework
 {
@@ -138,7 +142,7 @@ public abstract class AbstractQueryTroubleshootingTest
     }
 
     @Test
-    public void testTroubleshootingDataAvailableForAuthorizedUser(@TempDir Path tmpDir)
+    public void testTroubleshootingDataAvailableForAuthorizedUser(SoftAssertions softly, @TempDir Path tmpDir)
             throws Exception
     {
         String troubleshootedQuery = "SHOW CATALOGS";
@@ -146,30 +150,30 @@ public abstract class AbstractQueryTroubleshootingTest
         assertThat(data.getStream()).isPresent();
         Unzipped inputsMap = zipInputStreamToMap(data.getRequiredStreams().get(), tmpDir);
 
-        assertThat(inputsMap.zipEntryContents)
-                .hasEntrySatisfying(getPath(data, "version.txt"), value -> assertThat(byteToString(value)).contains("testversion"))
-                .hasEntrySatisfying(getPath(data, "recordings/coordinator.jfr"), value -> assertThat(value).isNotEmpty());
+        softly.assertThat(inputsMap.zipEntryContents)
+                .hasEntrySatisfying(getPath(data, "version.txt"), value -> softly.assertThat(byteToString(value)).contains("testversion"))
+                .hasEntrySatisfying(getPath(data, "recordings/coordinator.jfr"), value -> softly.assertThat(value).isNotEmpty());
 
         ObjectMapper mapper = new ObjectMapper();
         mapper.readValue(inputsMap.zipEntryContents.get(getPath(data, "jmx/metrics-before.json")), new TypeReference<>() {});
         mapper.readValue(inputsMap.zipEntryContents.get(getPath(data, "jmx/metrics-after.json")), new TypeReference<>() {});
 
         JsonNode queryInfo = mapper.readTree(inputsMap.zipEntryContents.get(getPath(data, "query.json")));
-        assertThat(queryInfo.get("query").asText()).isEqualTo(troubleshootedQuery);
-        assertThat(queryInfo.get("session").get("systemProperties").get("query_max_memory_per_node").asText()).isEqualTo("10MB");
-        assertThat(queryInfo.get("outputStage").get("plan")).isNotEmpty();
+        softly.assertThat(queryInfo.get("query").asText()).isEqualTo(troubleshootedQuery);
+        softly.assertThat(queryInfo.get("session").get("systemProperties").get("query_max_memory_per_node").asText()).isEqualTo("10MB");
+        softly.assertThat(queryInfo.get("outputStage").get("plan")).isNotEmpty();
 
         for (String workerId : getNodesProcessingQuery(data.getQueryId())) {
-            assertThat(inputsMap.zipEntryContents).hasEntrySatisfying(
+            softly.assertThat(inputsMap.zipEntryContents).hasEntrySatisfying(
                     getPath(data, "recordings/worker-%s.jfr").formatted(workerId),
-                    value -> assertThat(value)
+                    value -> softly.assertThat(value)
                             .describedAs("worker %s recording", workerId)
                             .isNotEmpty());
         }
     }
 
     @Test
-    public void testTroubleshootingDataAvailableForFailedQuery(@TempDir Path tmpDir)
+    public void testTroubleshootingDataAvailableForFailedQuery(SoftAssertions softly, @TempDir Path tmpDir)
             throws IOException
     {
         String troubleshootedQuery = "SELECT * FROM table_does_not_exist";
@@ -186,20 +190,20 @@ public abstract class AbstractQueryTroubleshootingTest
         Optional<InputStream> inputs = awaitForTroubleshootingData(queryId);
         assertThat(inputs).isPresent();
         Unzipped inputsMap = zipInputStreamToMap(inputs.get(), tmpDir);
-        assertThat(inputsMap.zipEntryContents)
+        softly.assertThat(inputsMap.zipEntryContents)
                 .hasEntrySatisfying(getPath(queryId, "version.txt"), value -> assertThat(byteToString(value)).contains("testversion"))
                 .doesNotContainKey(getPath(queryId, "query_plan.txt"));
 
         ObjectMapper mapper = new ObjectMapper();
         JsonNode queryInfo = mapper.readTree(inputsMap.zipEntryContents.get(getPath(queryId, "query.json")));
-        assertThat(queryInfo.get("query").asText()).isEqualTo(troubleshootedQuery);
-        assertThat(queryInfo.get("session").get("systemProperties").get("query_max_memory_per_node").asText()).isEqualTo("10MB");
-        assertThat(queryInfo.get("failureInfo").get("errorCode").get("code").asText()).isEqualTo("45");
-        assertThat(queryInfo.get("failureInfo").get("errorCode").get("name").asText()).isEqualTo("SCHEMA_NOT_FOUND");
-        assertThat(queryInfo.get("failureInfo").get("errorLocation").get("lineNumber").asText()).isEqualTo("1");
-        assertThat(queryInfo.get("failureInfo").get("errorLocation").get("columnNumber").asText()).isEqualTo("15");
-        assertThat(queryInfo.get("failureInfo").get("message").asText()).isEqualTo("line 1:15: Schema 'schema' does not exist");
-        assertThat(queryInfo.get("failureInfo").get("stack").size()).isEqualTo(34);
+        softly.assertThat(queryInfo.get("query").asText()).isEqualTo(troubleshootedQuery);
+        softly.assertThat(queryInfo.get("session").get("systemProperties").get("query_max_memory_per_node").asText()).isEqualTo("10MB");
+        softly.assertThat(queryInfo.get("failureInfo").get("errorCode").get("code").asText()).isEqualTo("45");
+        softly.assertThat(queryInfo.get("failureInfo").get("errorCode").get("name").asText()).isEqualTo("SCHEMA_NOT_FOUND");
+        softly.assertThat(queryInfo.get("failureInfo").get("errorLocation").get("lineNumber").asText()).isEqualTo("1");
+        softly.assertThat(queryInfo.get("failureInfo").get("errorLocation").get("columnNumber").asText()).isEqualTo("15");
+        softly.assertThat(queryInfo.get("failureInfo").get("message").asText()).isEqualTo("line 1:15: Schema 'schema' does not exist");
+        softly.assertThat(queryInfo.get("failureInfo").get("stack").size()).isEqualTo(34);
     }
 
     @Test
