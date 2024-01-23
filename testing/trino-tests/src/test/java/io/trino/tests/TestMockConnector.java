@@ -34,6 +34,7 @@ import io.trino.spi.connector.MaterializedViewFreshness;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.TableProcedureMetadata;
 import io.trino.spi.metrics.Metrics;
+import io.trino.spi.security.LocationAccessControl;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
@@ -120,6 +121,7 @@ public class TestMockConnector
                                     }
                                     throw new UnsupportedOperationException();
                                 })
+                                .withLocationAccessControl(Optional.of(LocationAccessControl.ALLOW_ALL))
                                 .withMetrics(_ -> new Metrics(ImmutableMap.of("test_metric", new LongCount(1))))
                                 .withProcedures(ImmutableSet.of(new TestProcedure().get()))
                                 .withTableProcedures(ImmutableSet.of(new TableProcedureMetadata("TESTING_TABLE_PROCEDURE", coordinatorOnly(), ImmutableList.of())))

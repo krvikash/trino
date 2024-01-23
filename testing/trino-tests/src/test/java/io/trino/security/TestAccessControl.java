@@ -53,6 +53,7 @@ import io.trino.spi.function.SchemaFunctionName;
 import io.trino.spi.function.Signature;
 import io.trino.spi.security.AccessDeniedException;
 import io.trino.spi.security.Identity;
+import io.trino.spi.security.LocationAccessControl;
 import io.trino.spi.security.RoleGrant;
 import io.trino.spi.security.SelectedRole;
 import io.trino.spi.security.SystemAccessControl;
@@ -186,6 +187,7 @@ public class TestAccessControl
                     }
                     return ImmutableList.of();
                 })
+                .withLocationAccessControl(Optional.of(LocationAccessControl.ALLOW_ALL))
                 .withGetViews((_, _) -> {
                     ConnectorViewDefinition definitionRunAsDefiner = new ConnectorViewDefinition(
                             "SELECT 1 AS test",
