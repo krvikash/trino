@@ -368,7 +368,8 @@ public class TestAccessControl
         assertAccessDenied("SELECT my_function(1)", "Cannot execute function my_function", privilege("mock.function.my_function", EXECUTE_FUNCTION));
         assertAccessAllowed("SELECT my_function(1)", privilege("max", EXECUTE_FUNCTION));
         assertAccessAllowed("SELECT abs(-10)", privilege("abs", EXECUTE_FUNCTION));
-        assertAccessAllowed("SELECT abs(-10)", privilege("system.builtin.abs", EXECUTE_FUNCTION));
+        TestingPrivilege denyNonAbsFunctionCalls = new TestingPrivilege(Optional.empty(), name -> !name.equals("system.builtin.abs"), EXECUTE_FUNCTION);
+        assertAccessAllowed("SELECT  abs(-10)", denyNonAbsFunctionCalls);
         assertAccessAllowed("SHOW STATS FOR lineitem");
         assertAccessAllowed("SHOW STATS FOR lineitem", privilege("orders", SELECT_COLUMN));
         assertAccessAllowed("SHOW STATS FOR (SELECT * FROM lineitem)");
