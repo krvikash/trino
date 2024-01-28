@@ -1632,9 +1632,14 @@ public class TestMultipleDistinctAggregationsToSubqueries
         }
 
         @Override
-        public void finishMerge(Session session, MergeHandle tableHandle, Collection<Slice> fragments, Collection<ComputedStatistics> computedStatistics)
+        public void finishMerge(
+                Session session,
+                MergeHandle tableHandle,
+                List<TableHandle> sourceTableHandles,
+                Collection<Slice> fragments,
+                Collection<ComputedStatistics> computedStatistics)
         {
-            metadata.finishMerge(session, tableHandle, fragments, computedStatistics);
+            metadata.finishMerge(session, tableHandle, sourceTableHandles, fragments, computedStatistics);
         }
 
         @Override

@@ -1225,12 +1225,18 @@ public class DispatcherMetadata
     }
 
     @Override
-    public void finishMerge(ConnectorSession session, ConnectorMergeTableHandle tableHandle, Collection<Slice> fragments, Collection<ComputedStatistics> computedStatistics)
+    public void finishMerge(
+            ConnectorSession session,
+            ConnectorMergeTableHandle mergeTableHandle,
+            List<ConnectorTableHandle> sourceTableHandles,
+            Collection<Slice> fragments,
+            Collection<ComputedStatistics> computedStatistics)
     {
-        DispatcherMergeTableHandle dispatcherMergeTableHandle = (DispatcherMergeTableHandle) tableHandle;
+        DispatcherMergeTableHandle dispatcherMergeTableHandle = (DispatcherMergeTableHandle) mergeTableHandle;
         proxiedConnectorMetadata.finishMerge(
                 session,
                 dispatcherMergeTableHandle.getProxyConnectorMergeTableHandle(),
+                sourceTableHandles,
                 fragments,
                 computedStatistics);
     }

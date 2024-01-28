@@ -44,6 +44,7 @@ import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorInsertTableHandle;
+import io.trino.spi.connector.ConnectorMergeTableHandle;
 import io.trino.spi.connector.ConnectorMetadata;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTableHandle;
@@ -134,7 +135,8 @@ public class DispatcherMetadataTest
                         ConnectorMetadata.class.getMethod("applyJoin", ConnectorSession.class, JoinType.class, ConnectorTableHandle.class, ConnectorTableHandle.class, List.class, Map.class, Map.class, JoinStatistics.class),
                         ConnectorMetadata.class.getMethod("streamTableColumns", ConnectorSession.class, SchemaTablePrefix.class),
                         ConnectorMetadata.class.getMethod("listTableColumns", ConnectorSession.class, SchemaTablePrefix.class),
-                        ConnectorMetadata.class.getMethod("finishInsert", ConnectorSession.class, ConnectorInsertTableHandle.class, Collection.class, Collection.class)));
+                        ConnectorMetadata.class.getMethod("finishInsert", ConnectorSession.class, ConnectorInsertTableHandle.class, Collection.class, Collection.class),
+                        ConnectorMetadata.class.getMethod("finishMerge", ConnectorSession.class, ConnectorMergeTableHandle.class, Collection.class, Collection.class)));
     }
 
     @Test
