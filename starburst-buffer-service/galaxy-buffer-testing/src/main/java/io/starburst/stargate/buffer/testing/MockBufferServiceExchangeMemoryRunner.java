@@ -11,7 +11,6 @@ package io.starburst.stargate.buffer.testing;
 
 import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.memory.MemoryQueryRunner;
-import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.FaultTolerantExecutionConnectorTestHelper;
 import io.trino.tpch.TpchTable;
 
@@ -32,7 +31,7 @@ public final class MockBufferServiceExchangeMemoryRunner
         properties.put("task.max-partial-aggregation-memory", "0kB");
         properties.put("adaptive-partial-aggregation.enabled", "false");
 
-        DistributedQueryRunner queryRunner = MemoryQueryRunner.builder()
+        MemoryQueryRunner.builder()
                 .setExtraProperties(properties)
                 .setAdditionalSetup(runner -> {
                     runner.installPlugin(new MockBufferExchangePlugin(mockBufferService));

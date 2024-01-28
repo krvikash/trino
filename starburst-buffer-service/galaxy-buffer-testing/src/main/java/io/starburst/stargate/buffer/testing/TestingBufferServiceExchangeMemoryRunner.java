@@ -12,7 +12,6 @@ package io.starburst.stargate.buffer.testing;
 import com.google.common.collect.ImmutableMap;
 import io.starburst.stargate.buffer.trino.exchange.BufferExchangePlugin;
 import io.trino.plugin.memory.MemoryQueryRunner;
-import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.FaultTolerantExecutionConnectorTestHelper;
 import io.trino.tpch.TpchTable;
 
@@ -42,7 +41,7 @@ public final class TestingBufferServiceExchangeMemoryRunner
         Map<String, String> properties = new HashMap<>();
         properties.putAll(FaultTolerantExecutionConnectorTestHelper.getExtraProperties());
         properties.put("http-server.http.port", "8080");
-        DistributedQueryRunner queryRunner = MemoryQueryRunner.builder()
+        MemoryQueryRunner.builder()
                 .setExtraProperties(properties)
                 .setAdditionalSetup(runner -> {
                     runner.installPlugin(new BufferExchangePlugin());

@@ -11,7 +11,6 @@ package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.errorprone.annotations.ThreadSafe;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
-import io.airlift.log.Logger;
 import io.trino.spi.exchange.ExchangeSourceHandle;
 import io.trino.spi.exchange.ExchangeSourceHandleSource;
 
@@ -29,8 +28,6 @@ import static io.airlift.slice.SizeOf.instanceSize;
 public class BufferExchangeSourceHandleSource
         implements ExchangeSourceHandleSource
 {
-    private static final Logger log = Logger.get(ExchangeSourceHandleSource.class);
-
     private static final int INSTANCE_SIZE = instanceSize(BufferExchangeSourceHandleSource.class);
 
     @GuardedBy("this")

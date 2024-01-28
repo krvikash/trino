@@ -15,7 +15,6 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
-import io.airlift.log.Logger;
 import io.airlift.slice.SizeOf;
 import io.airlift.slice.Slice;
 import io.airlift.units.DataSize;
@@ -59,7 +58,6 @@ public class BufferExchangeSource
         implements ExchangeSource
 {
     private static final int INSTANCE_SIZE = instanceSize(BufferExchangeSource.class);
-    private static final Logger log = Logger.get(BufferExchangeSource.class);
 
     private final DataApiFacade dataApi;
     private final BufferNodeDiscoveryManager discoveryManager;

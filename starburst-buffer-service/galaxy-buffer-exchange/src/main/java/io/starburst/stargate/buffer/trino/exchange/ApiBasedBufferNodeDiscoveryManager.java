@@ -99,7 +99,7 @@ public class ApiBasedBufferNodeDiscoveryManager
     {
         // todo monitor error rate
         log.info("Initializing periodic refreshing of buffer nodes");
-        ListenableScheduledFuture<?> ignore = executorService.scheduleWithFixedDelay(
+        ListenableScheduledFuture<?> ignored = executorService.scheduleWithFixedDelay(
                 this::doRefresh,
                 0,
                 REFRESH_INTERVAL.toMillis(),

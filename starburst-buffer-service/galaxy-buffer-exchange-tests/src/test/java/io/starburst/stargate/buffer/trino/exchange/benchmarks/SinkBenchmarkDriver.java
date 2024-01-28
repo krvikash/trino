@@ -98,7 +98,7 @@ public class SinkBenchmarkDriver
             AtomicLong dataCounter = new AtomicLong();
             List<SinkWriter> writers = new ArrayList<>();
             for (int writerId = 0; writerId < setup.concurrency(); ++writerId) {
-                writers.add(new SinkWriter(sink, writerId, setup.pageSize(), setup.dataSizePerWriter(), setup.outputPartitionsCount(), dataCounter));
+                writers.add(new SinkWriter(sink, setup.pageSize(), setup.dataSizePerWriter(), setup.outputPartitionsCount(), dataCounter));
             }
 
             Stopwatch stopwatch = Stopwatch.createStarted();
@@ -169,20 +169,16 @@ public class SinkBenchmarkDriver
             implements Runnable
     {
         private final ExchangeSink sink;
-        private final int writerId;
         private long dataSizeToWrite;
-        private final Stopwatch stopwatch;
         private final int outputPartitionsCount;
         private final AtomicLong dataCounter;
 
         private final Slice page;
 
-        public SinkWriter(ExchangeSink sink, int writerId, DataSize pageSize, DataSize dataSizePerWriter, int outputPartitionsCount, AtomicLong dataCounter)
+        public SinkWriter(ExchangeSink sink, DataSize pageSize, DataSize dataSizePerWriter, int outputPartitionsCount, AtomicLong dataCounter)
         {
             this.sink = requireNonNull(sink, "sink is null");
-            this.writerId = writerId;
             this.dataSizeToWrite = requireNonNull(dataSizePerWriter, "dataSizePerWriter is null").toBytes();
-            this.stopwatch = Stopwatch.createUnstarted();
             this.outputPartitionsCount = outputPartitionsCount;
             this.dataCounter = requireNonNull(dataCounter, "dataCounter is null");
             requireNonNull(pageSize, "pageSize is null");

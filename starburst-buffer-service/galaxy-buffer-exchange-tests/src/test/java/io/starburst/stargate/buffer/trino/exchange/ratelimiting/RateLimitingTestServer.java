@@ -63,7 +63,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
 import static com.google.common.base.Verify.verify;
 import static com.google.common.net.HttpHeaders.CONTENT_LENGTH;
@@ -155,7 +154,6 @@ public class RateLimitingTestServer
 
         private final AtomicInteger inProgressAddDataPagesRequests = new AtomicInteger();
         private final byte[] drainBuffer = new byte[1024 * 1024];
-        private AtomicLong requestCounter = new AtomicLong();
 
         @Inject
         public TestingDataResource(

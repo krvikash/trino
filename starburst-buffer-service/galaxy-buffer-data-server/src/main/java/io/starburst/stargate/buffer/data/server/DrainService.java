@@ -45,8 +45,7 @@ public class DrainService
             BufferNodeStateManager bufferNodeStateManager,
             DataResource dataResource,
             ChunkManager chunkManager,
-            Optional<DiscoveryBroadcast> discoveryBroadcast,
-            DataServerConfig config)
+            Optional<DiscoveryBroadcast> discoveryBroadcast)
     {
         this.bufferNodeStateManager = requireNonNull(bufferNodeStateManager, "bufferNodeStateManager is null");
         this.dataResource = requireNonNull(dataResource, "dataResource is null");

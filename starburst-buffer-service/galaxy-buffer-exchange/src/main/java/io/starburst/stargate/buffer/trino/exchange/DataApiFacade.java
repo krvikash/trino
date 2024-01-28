@@ -87,8 +87,6 @@ public class DataApiFacade
     private final RateMonitor rateMonitor;
     private final Closer destroyCloser = Closer.create();
 
-    private final DataApiFacadeStats.AddDataPagesOperationStats addDataPagesStats = new DataApiFacadeStats.AddDataPagesOperationStats();
-
     record RetryExecutorConfig(
             int maxRetries,
             Duration backoffInitial,
@@ -322,7 +320,7 @@ public class DataApiFacade
             }
             else {
                 requestFuture = SettableFuture.create();
-                ListenableScheduledFuture<Boolean> ignore = listeningScheduledExecutor.schedule(
+                ListenableScheduledFuture<Boolean> ignored = listeningScheduledExecutor.schedule(
                         () -> ((SettableFuture<Optional<RateLimitInfo>>) requestFuture).setFuture(internalAddDataPages(bufferNodeId, exchangeId, taskId, attemptId, dataPagesId, dataPagesByPartition)),
                         requestDelayInMillis,
                         TimeUnit.MILLISECONDS);

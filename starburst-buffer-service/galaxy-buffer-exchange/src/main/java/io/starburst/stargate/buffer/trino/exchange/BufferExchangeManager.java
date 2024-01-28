@@ -11,7 +11,6 @@ package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.io.Closer;
 import com.google.inject.Inject;
-import io.airlift.log.Logger;
 import io.trino.spi.exchange.Exchange;
 import io.trino.spi.exchange.ExchangeContext;
 import io.trino.spi.exchange.ExchangeManager;
@@ -28,8 +27,6 @@ import static java.util.Objects.requireNonNull;
 public class BufferExchangeManager
         implements ExchangeManager
 {
-    private static final Logger log = Logger.get(BufferExchangeManager.class);
-
     private final BufferCoordinatorExchangeManager coordinatorExchangeManager;
     private final BufferWorkerExchangeManager workerExchangeManager;
     private final ExecutorService executorService;

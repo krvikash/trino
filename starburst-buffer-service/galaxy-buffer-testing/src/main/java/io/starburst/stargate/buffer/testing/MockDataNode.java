@@ -154,7 +154,7 @@ class MockDataNode
     public synchronized ListenableFuture<Optional<RateLimitInfo>> addDataPages(String exchangeId, int taskId, int attemptId, long dataPageId, ListMultimap<Integer, Slice> dataPagesByPartition)
     {
         throwIfNodeGone();
-        return getOrCreateExchangeData(exchangeId).addDataPages(taskId, attemptId, dataPageId, dataPagesByPartition);
+        return getOrCreateExchangeData(exchangeId).addDataPages(taskId, attemptId, dataPagesByPartition);
     }
 
     @Override
@@ -321,7 +321,7 @@ class MockDataNode
         }
 
         @GuardedBy("MockDataNode.this")
-        public ListenableFuture<Optional<RateLimitInfo>> addDataPages(int taskId, int attemptId, long dataPageId, ListMultimap<Integer, Slice> dataPagesByPartition)
+        public ListenableFuture<Optional<RateLimitInfo>> addDataPages(int taskId, int attemptId, ListMultimap<Integer, Slice> dataPagesByPartition)
         {
             if (finished) {
                 stats.increment(REJECTED_EXCHANGE_FINISHED_ADD_DATA_PAGES_REQUEST_COUNT);

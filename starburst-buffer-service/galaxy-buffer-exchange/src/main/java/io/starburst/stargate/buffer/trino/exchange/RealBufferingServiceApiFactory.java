@@ -15,8 +15,6 @@ import io.starburst.stargate.buffer.data.client.DataApi;
 import io.starburst.stargate.buffer.data.client.DataApiFactory;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 
-import java.util.concurrent.ScheduledExecutorService;
-
 import static java.util.Objects.requireNonNull;
 
 public class RealBufferingServiceApiFactory
@@ -28,9 +26,7 @@ public class RealBufferingServiceApiFactory
     @Inject
     public RealBufferingServiceApiFactory(
             DiscoveryApi discoveryApi,
-            DataApiFactory dataApiFactory,
-            BufferExchangeConfig config,
-            ScheduledExecutorService executorService)
+            DataApiFactory dataApiFactory)
     {
         this.discoveryApi = requireNonNull(discoveryApi, "discoveryApi is null");
         this.dataApiFactory = requireNonNull(dataApiFactory, "dataApiFactory is null");

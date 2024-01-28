@@ -12,7 +12,6 @@ package io.starburst.stargate.buffer.testing;
 import com.google.common.collect.ImmutableMap;
 import io.starburst.stargate.buffer.trino.exchange.BufferExchangePlugin;
 import io.trino.plugin.memory.MemoryQueryRunner;
-import io.trino.testing.DistributedQueryRunner;
 import io.trino.tpch.TpchTable;
 
 import java.net.URI;
@@ -41,6 +40,7 @@ public class SplitTestingBufferServiceSetup
                     .build();
 
             URI discoveryServerUri = bufferService.getDiscoveryServer().getBaseUri();
+            System.out.println("discoveryServerUri = " + discoveryServerUri);
         }
     }
 
@@ -74,7 +74,7 @@ public class SplitTestingBufferServiceSetup
                     .put("exchange.source-blocked-memory-low", "32MB")
                     .buildOrThrow();
 
-            DistributedQueryRunner queryRunner = MemoryQueryRunner.builder()
+            MemoryQueryRunner.builder()
                     .setExtraProperties(properties)
                     .setNodeCount(1)
                     .setAdditionalSetup(runner -> {
