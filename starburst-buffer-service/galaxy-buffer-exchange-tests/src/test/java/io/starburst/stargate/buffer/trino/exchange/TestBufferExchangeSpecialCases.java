@@ -57,8 +57,8 @@ public class TestBufferExchangeSpecialCases
             // long-running query which and writes reasonably sized output (not too small, not too big) to an exchange.
             Future<AssertProvider<QueryAssertions.QueryAssert>> queryFuture = executor.submit(() -> testSetup.query("""
                     WITH big        AS (SELECT custkey k FROM tpch.sf10.orders),
-                         single_row AS (SELECT custkey AS k FROM tpch.tiny.customer WHERE acctbal = 2237.64)
-                    SELECT count(*) FROM single_row,big WHERE single_row.k = big.k"""));
+                         small AS (SELECT custkey AS k FROM tpch.tiny.customer WHERE acctbal < 10)
+                    SELECT count(*) FROM small,big WHERE small.k = big.k"""));
 
             int nodeToBeDrained = 1;
             Assert.assertEventually(Duration.valueOf("1m"), () -> {
@@ -71,7 +71,7 @@ public class TestBufferExchangeSpecialCases
             mockBufferService.markNodeDraining(nodeToBeDrained);
 
             queryFuture.get();
-            assertThat(queryFuture.get()).matches("VALUES (BIGINT '25')");
+            assertThat(queryFuture.get()).matches("VALUES (BIGINT '1480')");
             MockDataNodeStats drainedNodeStats = mockBufferService.getNodeStats(nodeToBeDrained);
             MockDataNodeStats newNodeStats = mockBufferService.getNodeStats(addedNode);
 
@@ -144,6 +144,11 @@ public class TestBufferExchangeSpecialCases
             ImmutableMap<String, String> exchangeManagerProperties = ImmutableMap.<String, String>builder()
                     .put("exchange.buffer-discovery.uri", "http://dummy") // required
                     .put("exchange.source-handle-target-chunks-count", "4") // smaller handles make more sense for test env when we do not have too much data
+                    // setup sink to write to be super aggressive writing to buffer nodes
+                    // to lower chance data is not written within timeout.
+                    .put("exchange.sink-min-written-pages-size", "0B")
+                    .put("exchange.sink-min-written-pages-count", "0")
+                    .put("exchange.sink-writer-max-wait", "0s")
                     .buildOrThrow();
 
             Map<String, String> extraProperties = new HashMap<>();
