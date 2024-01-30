@@ -19,7 +19,6 @@ import io.trino.sql.query.QueryAssertions;
 import io.trino.testing.FaultTolerantExecutionConnectorTestHelper;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.assertions.Assert;
-import org.assertj.core.api.AssertProvider;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -38,6 +37,7 @@ import static io.starburst.stargate.buffer.testing.MockDataNodeStats.Key.FAILED_
 import static io.starburst.stargate.buffer.testing.MockDataNodeStats.Key.FAILED_GET_CHUNK_DATA_NOT_FOUND_IN_DRAINED_STORAGE_REQUEST_COUNT;
 import static io.starburst.stargate.buffer.testing.MockDataNodeStats.Key.SUCCESSFUL_ADD_DATA_PAGES_REQUEST_COUNT;
 import static io.starburst.stargate.buffer.testing.MockDataNodeStats.Key.SUCCESSFUL_GET_CHUNK_DATA_FROM_DRAINED_STORAGE_REQUEST_COUNT;
+import static io.trino.sql.query.QueryAssertions.QueryAssert;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
@@ -54,7 +54,7 @@ public class TestBufferExchangeSpecialCases
             MockBufferService mockBufferService = testSetup.getMockBufferService();
 
             // long-running query which and writes reasonably sized output (not too small, not too big) to an exchange.
-            Future<AssertProvider<QueryAssertions.QueryAssert>> queryFuture = executor.submit(() -> testSetup.query("""
+            Future<QueryAssert> queryFuture = executor.submit(() -> testSetup.query("""
                     WITH big        AS (SELECT custkey k FROM tpch.sf10.orders),
                          small AS (SELECT custkey AS k FROM tpch.tiny.customer WHERE acctbal < 10)
                     SELECT count(*) FROM small,big WHERE small.k = big.k"""));
@@ -69,8 +69,7 @@ public class TestBufferExchangeSpecialCases
             // mark nodes as draining; it will still respond to getChunkData with 200
             mockBufferService.markNodeDraining(nodeToBeDrained);
 
-            queryFuture.get();
-            assertThat(queryFuture.get()).matches("VALUES (BIGINT '1480')");
+            queryFuture.get().matches("VALUES (BIGINT '1480')");
             MockDataNodeStats drainedNodeStats = mockBufferService.getNodeStats(nodeToBeDrained);
             MockDataNodeStats newNodeStats = mockBufferService.getNodeStats(addedNode);
 
@@ -93,7 +92,7 @@ public class TestBufferExchangeSpecialCases
             MockBufferService mockBufferService = testSetup.getMockBufferService();
 
             // long-running query which and writes reasonably sized output (not too small, not too big) to an exchange.
-            Future<AssertProvider<QueryAssertions.QueryAssert>> queryFuture = executor.submit(() -> testSetup.query("""
+            Future<QueryAssert> queryFuture = executor.submit(() -> testSetup.query("""
                     WITH big        AS (SELECT custkey k FROM tpch.sf10.orders),
                          small AS (SELECT custkey AS k FROM tpch.tiny.customer WHERE acctbal < 10)
                     SELECT count(*) FROM small,big WHERE small.k = big.k"""));
@@ -108,8 +107,7 @@ public class TestBufferExchangeSpecialCases
             // mark nodes as drained; it will flush data to persistent storage and return 404 for getChunkData requests
             mockBufferService.markNodeDrained(nodeToBeDrained);
 
-            queryFuture.get();
-            assertThat(queryFuture.get()).matches("VALUES (BIGINT '1480')");
+            queryFuture.get().matches("VALUES (BIGINT '1480')");
             MockDataNodeStats drainedNodeStats = mockBufferService.getNodeStats(nodeToBeDrained);
             MockDataNodeStats newNodeStats = mockBufferService.getNodeStats(addedNode);
 
@@ -169,9 +167,11 @@ public class TestBufferExchangeSpecialCases
             assertions = new QueryAssertions(queryRunner);
         }
 
-        public AssertProvider<QueryAssertions.QueryAssert> query(String query)
+        public QueryAssert query(String query)
         {
-            return assertions.query(query);
+            return assertThat(assertions.query(query))
+                    // The test requires that query is started before this method returns
+                    .succeeds();
         }
 
         public MockBufferService getMockBufferService()
