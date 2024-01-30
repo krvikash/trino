@@ -38,7 +38,6 @@ import org.junit.jupiter.api.TestInstance;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -886,7 +885,7 @@ public abstract class AbstractTestChunkManager
                 .setChunkListPollTimeout(Duration.succinctDuration(5, MILLISECONDS));
         return new ChunkManager(
                 new BufferNodeId(bufferNodeId),
-                new BufferNodeStateManager(Optional.empty()),
+                new BufferNodeStateManager(),
                 chunkManagerConfig,
                 dataServerConfig,
                 memoryAllocator,

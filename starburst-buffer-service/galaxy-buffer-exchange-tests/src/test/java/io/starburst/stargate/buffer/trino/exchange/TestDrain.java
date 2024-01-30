@@ -50,11 +50,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static io.airlift.http.client.StatusResponseHandler.createStatusResponseHandler;
 import static io.airlift.http.client.StringResponseHandler.createStringResponseHandler;
 import static io.airlift.testing.Closeables.closeAll;
-import static io.airlift.units.Duration.succinctDuration;
 import static io.trino.testing.TestingConnectorSession.SESSION;
-import static io.trino.testing.assertions.Assert.assertEventually;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
@@ -261,7 +258,7 @@ public class TestDrain
                     return currentState.equals("DRAINED");
                 });
 
-        // trigger shutdown
+        // prepare for shutdown
         log.info("Shutting down data server %s", dataServer.getNodeId());
         Request preShutdownRequest = Request.Builder.prepareGet()
                 .setUri(HttpUriBuilder.uriBuilderFrom(baseUri)
@@ -273,14 +270,6 @@ public class TestDrain
                 createStatusResponseHandler());
 
         assertThat(preShutdownResponse.getStatusCode()).as("status code for /drain on data server %s", dataServer.getNodeId()).isEqualTo(200);
-
-        // ensure that data server stopped responding
-        log.info("Waiting till data server %s is gone", dataServer.getNodeId());
-        assertEventually(
-                succinctDuration(5, TimeUnit.SECONDS),
-                () -> assertThatThrownBy(() -> httpClient.execute(stateRequest, createStringResponseHandler()))
-                        .as("connectivity test for data server %s", dataServer.getNodeId())
-                        .hasMessageContaining("Server refused connection"));
     }
 
     private void awaitActive(TestingDataServer dataServer)

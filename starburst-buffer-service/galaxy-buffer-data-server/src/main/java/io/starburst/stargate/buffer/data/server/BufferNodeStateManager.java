@@ -9,42 +9,18 @@
  */
 package io.starburst.stargate.buffer.data.server;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
-import com.google.inject.Inject;
-import io.airlift.bootstrap.LifeCycleManager;
 import io.airlift.log.Logger;
 import io.starburst.stargate.buffer.BufferNodeState;
 
-import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-
 import static com.google.common.base.Preconditions.checkState;
-import static io.airlift.concurrent.Threads.daemonThreadsNamed;
-import static java.util.Objects.requireNonNull;
-import static java.util.concurrent.Executors.newSingleThreadExecutor;
 
 public class BufferNodeStateManager
 {
     private static final Logger LOG = Logger.get(BufferNodeStateManager.class);
 
-    private final ExecutorService lifeCycleStopper = newSingleThreadExecutor(daemonThreadsNamed("lifecycle-stopper-%s"));
-    private final Optional<LifeCycleManager> lifeCycleManager;
-
     @GuardedBy("this")
     private BufferNodeState state = BufferNodeState.STARTING;
-
-    @Inject
-    public BufferNodeStateManager(LifeCycleManager lifeCycleManager)
-    {
-        this(Optional.of(requireNonNull(lifeCycleManager, "lifeCycleManager is null")));
-    }
-
-    @VisibleForTesting
-    public BufferNodeStateManager(Optional<LifeCycleManager> lifeCycleManager)
-    {
-        this.lifeCycleManager = requireNonNull(lifeCycleManager, "lifeCycleManager is null");
-    }
 
     public synchronized void transitionState(BufferNodeState targetState)
     {
@@ -64,11 +40,11 @@ public class BufferNodeStateManager
 
     public void preShutdownCleanup()
     {
+        // just check if data server is already DRAINED and can be safely shut down
         synchronized (this) {
             BufferNodeState currentState = getState();
             checkState(currentState == BufferNodeState.DRAINED, "can't cleanup when in %s state".formatted(currentState));
         }
-        lifeCycleStopper.submit(() -> lifeCycleManager.orElseThrow().stop());
     }
 
     public boolean isDrainingStarted()
