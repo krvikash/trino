@@ -7,7 +7,6 @@ cd ${BASH_SOURCE%/*}
 projectName=""
 imageRepositories=()
 projectVersion="1-SNAPSHOT"
-tag=""
 jdkVersion=19
 archTypes=""
 pushImages=0
@@ -19,8 +18,7 @@ function printUsage(){
     echo "        -h    Help"
     echo "        -p    Project to build (data-server|discovery-server)"
     echo "        -r    Docker repository"
-    echo "        -v    Project version"
-    echo "        -t    Tag (defaults to project version)"
+    echo "        -v    Project version; also serves as a tag"
     echo "        -a    Platform types for multi-arch build"
     echo "        -P    Push images to remote repository (only used when -a is provided)"
 }
@@ -42,9 +40,6 @@ while getopts "hp:r:v:t:j:a:P" opt; do
         ;;
     j )
         jdkVersion="${OPTARG}"
-        ;;
-    t )
-        tag="${OPTARG}"
         ;;
     a )
         archTypes="${OPTARG}"
@@ -75,17 +70,13 @@ case ${projectName} in
     ;;
 esac
 
-if [[ "${tag}" == "" ]]; then
-    tag="${projectVersion}"
-fi
-
 imageTags=()
 
 for imageRepository in ${imageRepositories[@]}; do
     if [[ "${imageRepository}" != "" && "${imageRepository}" != */ ]]; then
         imageRepository="${imageRepository}/"
     fi
-    imageTags+=("${imageRepository}trino-buffer-service/${projectName}:${tag}")
+    imageTags+=("${imageRepository}trino-buffer-service/${projectName}:${projectVersion}")
 done
 
 buildArguments=""
@@ -95,7 +86,7 @@ for imageTag in ${imageTags[@]}; do
 done
 
 if [[ "${archTypes}" == "" ]]; then
-    buildArguments="${buildArguments} --tag trino-buffer-service/${projectName}:${tag}"
+    buildArguments="${buildArguments} --tag trino-buffer-service/${projectName}:${projectVersion}"
     docker build "../${moduleName}" \
         --build-arg "PROJECT_VERSION=${projectVersion}" \
         --build-arg "JDK_VERSION=${jdkVersion}" \
