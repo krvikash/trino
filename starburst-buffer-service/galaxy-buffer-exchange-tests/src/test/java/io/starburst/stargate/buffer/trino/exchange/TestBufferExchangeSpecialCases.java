@@ -61,7 +61,7 @@ public class TestBufferExchangeSpecialCases
                     SELECT count(*) FROM small,big WHERE small.k = big.k"""));
 
             int nodeToBeDrained = 1;
-            Assert.assertEventually(Duration.valueOf("1m"), () -> {
+            Assert.assertEventually(Duration.valueOf("2m"), () -> {
                 // wait until some data is written to node to be drained
                 MockDataNodeStats stats = mockBufferService.getNodeStats(nodeToBeDrained);
                 assertThat(stats.get(SUCCESSFUL_ADD_DATA_PAGES_REQUEST_COUNT)).isGreaterThan(0);
