@@ -63,6 +63,7 @@ public class TestingDataServer
     {
         this.nodeId = nodeId;
         Map<String, String> finalConfigProperties = new HashMap<>(configProperties);
+        finalConfigProperties.put("trino.plane-id", "aws-us-east1-1");
         List<Module> modules = new ArrayList<>(Arrays.asList(
                 new TestingNodeModule("test"),
                 new TestingHttpServerModule(),

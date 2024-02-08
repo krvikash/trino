@@ -9,6 +9,7 @@
  */
 package io.starburst.stargate.buffer.data.execution;
 
+import io.opentelemetry.api.common.Attributes;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -22,6 +23,7 @@ import static io.starburst.stargate.buffer.data.execution.ExchangeState.REMOVED;
 import static io.starburst.stargate.buffer.data.execution.ExchangeState.SINK_STREAMING;
 import static io.starburst.stargate.buffer.data.execution.ExchangeState.SOURCE_FINISHED;
 import static io.starburst.stargate.buffer.data.execution.ExchangeState.SOURCE_STREAMING;
+import static io.starburst.stargate.buffer.data.execution.ExchangeStateMachine.EVENT_STATE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -31,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class TestExchangeStateMachine
 {
     private final ExecutorService executor = Executors.newCachedThreadPool();
+    private static final Attributes REMOVED_EXCHANGE_ATTRIBUTES = Attributes.builder().put(EVENT_STATE, "REMOVED").build();
 
     @Test
     public void testHappyPath()
@@ -47,7 +50,7 @@ public class TestExchangeStateMachine
         state.sinkStreaming();
         assertEquals(SINK_STREAMING, state.getState());
 
-        state.transitionToRemoved();
+        state.transitionToRemoved(REMOVED_EXCHANGE_ATTRIBUTES);
         assertEquals(REMOVED, state.getState());
     }
 
@@ -76,11 +79,11 @@ public class TestExchangeStateMachine
     {
         ExchangeStateMachine state = new ExchangeStateMachine("1", CREATED, executor);
 
-        state.transitionToRemoved();
+        state.transitionToRemoved(REMOVED_EXCHANGE_ATTRIBUTES);
         assertEquals(REMOVED, state.getState());
 
         // Should not affect state
-        assertFalse(state.transitionToFailed());
+        assertFalse(state.transitionToFailed(REMOVED_EXCHANGE_ATTRIBUTES));
         assertEquals(REMOVED, state.getState());
 
         state.sourceStreaming();
@@ -93,10 +96,10 @@ public class TestExchangeStateMachine
     public void testFailedIsPermanent()
     {
         ExchangeStateMachine state = new ExchangeStateMachine("1", CREATED, executor);
-        state.transitionToFailed();
+        state.transitionToFailed(REMOVED_EXCHANGE_ATTRIBUTES);
         assertEquals(FAILED, state.getState());
 
-        assertTrue(state.transitionToRemoved());
+        assertTrue(state.transitionToRemoved(REMOVED_EXCHANGE_ATTRIBUTES));
         assertEquals(FAILED, state.getState());
 
         state.sourceStreaming();

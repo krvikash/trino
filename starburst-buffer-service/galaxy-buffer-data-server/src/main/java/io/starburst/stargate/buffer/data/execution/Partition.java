@@ -83,6 +83,8 @@ public class Partition
     private ChunkDeliveryMode chunkDeliveryMode;
     @GuardedBy("this")
     private long lastChunkCloseTime;
+    @GuardedBy("this")
+    private long closedChunkBytes;
 
     public Partition(
             long bufferNodeId,
@@ -300,7 +302,9 @@ public class Partition
             lastChunkCloseTime = System.currentTimeMillis();
             chunk.close();
             closedChunks.put(chunk.getChunkId(), chunk);
-            closedChunkConsumer.accept(chunk.getHandle());
+            ChunkHandle chunkHandle = chunk.getHandle();
+            closedChunkBytes += chunkHandle.dataSizeInBytes();
+            closedChunkConsumer.accept(chunkHandle);
         }
     }
 
@@ -324,6 +328,16 @@ public class Partition
     public Collection<Chunk> getClosedChunks()
     {
         return ImmutableList.copyOf(closedChunks.values());
+    }
+
+    public synchronized void updateResourceUsage(Exchange.ExchangeResourceUsage exchangeResourceUsage)
+    {
+        // synchronized is not strictly necessary but avoids double counting an open chuck if racing to be closed.
+        Chunk chunkRef = openChunk;
+        if (chunkRef != null) {
+            exchangeResourceUsage.updatePartialChunkResource(chunkRef.openChunkDataSizeInBytes());
+        }
+        exchangeResourceUsage.updateTotalChunkResources(closedChunks.size(), closedChunkBytes);
     }
 
     private record TaskAttemptId(

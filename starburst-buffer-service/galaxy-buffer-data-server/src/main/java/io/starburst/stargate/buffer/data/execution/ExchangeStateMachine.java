@@ -16,6 +16,7 @@ import io.opentelemetry.api.trace.Span;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -37,8 +38,9 @@ public class ExchangeStateMachine
 
     private final AtomicBoolean firstSourceDataReceived = new AtomicBoolean();
     private final AtomicBoolean firstSinkDataRequested = new AtomicBoolean();
+    private final AtomicReference<Attributes> terminalResourceAttributes = new AtomicReference<>();
     // keep value of EVENT_STATE consistent with attribute defined in TrinoAttributes in trino-main
-    private static final AttributeKey<String> EVENT_STATE = stringKey("state");
+    static final AttributeKey<String> EVENT_STATE = stringKey("state");
 
     public ExchangeStateMachine(String exchangeId, ExchangeState initialState, Executor executor)
     {
@@ -58,8 +60,18 @@ public class ExchangeStateMachine
     public void attachSpan(Span exchangeSpan)
     {
         exchangeState.addStateChangeListener(newState -> {
-            exchangeSpan.addEvent("exchange_state", Attributes.of(
-                    EVENT_STATE, newState.toString()));
+            if (newState == REMOVED) {
+                Attributes attributes = terminalResourceAttributes.get();
+                if (attributes != null) {
+                    Attributes removedStateEventAttributes = Attributes.builder()
+                            .putAll(attributes)
+                            .put(EVENT_STATE, REMOVED.toString())
+                            .build();
+                    exchangeSpan.addEvent("exchange_state", removedStateEventAttributes);
+                    return;
+                }
+            }
+            exchangeSpan.addEvent("exchange_state", Attributes.of(EVENT_STATE, newState.toString()));
         });
     }
 
@@ -115,15 +127,23 @@ public class ExchangeStateMachine
         }
     }
 
-    public boolean transitionToRemoved()
+    public boolean transitionToRemoved(Attributes exchangeResourceAttributes)
     {
         // This should not be called twice.
-        return exchangeState.trySet(REMOVED) != REMOVED;
+        terminalResourceAttributes.compareAndSet(null, exchangeResourceAttributes);
+        if (exchangeState.trySet(REMOVED) != REMOVED) {
+            return true;
+        }
+        return false;
     }
 
-    public boolean transitionToFailed()
+    public boolean transitionToFailed(Attributes exchangeResourceAttributes)
     {
-        // This will report success if the state has already been set to FAILED.
-        return exchangeState.trySet(FAILED) != REMOVED;
+        // This will report success if the state has already been set to REMOVED.
+        terminalResourceAttributes.compareAndSet(null, exchangeResourceAttributes);
+        if (exchangeState.trySet(FAILED) != REMOVED) {
+            return true;
+        }
+        return false;
     }
 }

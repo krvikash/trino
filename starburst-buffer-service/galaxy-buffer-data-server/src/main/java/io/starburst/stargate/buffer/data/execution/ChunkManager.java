@@ -19,6 +19,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimaps;
+import com.google.common.hash.HashFunction;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -47,6 +48,8 @@ import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -58,6 +61,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
 
@@ -65,6 +69,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static com.google.common.hash.Hashing.murmur3_32_fixed;
 import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
@@ -96,6 +101,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 public class ChunkManager
 {
     private static final Logger LOG = Logger.get(ChunkManager.class);
+    private static final HashFunction HASH_FUNC = murmur3_32_fixed();
 
     private final long bufferNodeId;
     private final BufferNodeStateManager bufferNodeStateManager;
@@ -129,9 +135,14 @@ public class ChunkManager
     private final ScheduledExecutorService chunkSpoolExecutor = newSingleThreadScheduledExecutor();
     private final ScheduledExecutorService exchangeTimeoutExecutor = newSingleThreadScheduledExecutor();
     private final ScheduledExecutorService eagerDeliveryModeExecutor = newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService traceResourceReportExecutor = newSingleThreadScheduledExecutor();
     private final Cache<String, Object> recentlyRemovedExchanges = buildNonEvictableCache(CacheBuilder.newBuilder().expireAfterWrite(5, MINUTES));
     private final LoadingCache<Long, Map<Long, SpooledChunk>> drainedSpooledChunkMap;
     private final Set<String> exchangesBeingReleased = ConcurrentHashMap.newKeySet();
+    private final Duration traceResourceReportInterval;
+    final int traceResourceMaximumReportsPerExchange;
+    private final String trinoPlaneId;
+    private final AtomicBoolean resourceReportInProgress = new AtomicBoolean();
 
     private volatile boolean startedDraining;
 
@@ -160,6 +171,9 @@ public class ChunkManager
         this.chunkListTargetSize = dataServerConfig.getChunkListTargetSize();
         this.chunkListMaxSize = dataServerConfig.getChunkListMaxSize();
         this.chunkListPollTimeout = dataServerConfig.getChunkListPollTimeout();
+        this.traceResourceReportInterval = requireNonNull(dataServerConfig.getTraceResourceReportInterval(), "traceResourceReportInterval is null");
+        this.traceResourceMaximumReportsPerExchange = dataServerConfig.getTraceResourceMaximumReportsPerExchange();
+        this.trinoPlaneId = dataServerConfig.getTrinoPlaneId();
         this.exchangeStalenessThreshold = chunkManagerConfig.getExchangeStalenessThreshold();
         this.chunkSpoolInterval = chunkManagerConfig.getChunkSpoolInterval();
         this.chunkSpoolConcurrency = chunkManagerConfig.getChunkSpoolConcurrency();
@@ -223,6 +237,28 @@ public class ChunkManager
                 LOG.error(e, "Error calling eagerDeliveryModeCloseChunksIfNeeded");
             }
         }, eagerDeliveryModeCloseChunksInterval, eagerDeliveryModeCloseChunksInterval, MILLISECONDS);
+
+        // Add a cluster unique adjustment to the start value to minimize herd reporting spans
+        long adjustment = HASH_FUNC.hashBytes(trinoPlaneId.getBytes(StandardCharsets.UTF_8)).asInt() % traceResourceReportInterval.toMillis();
+        // When reporting intervals are large (minutes), it is ideal if all servers in the cluster reported events at roughly the same time.
+        long nextCheckpointTime = traceResourceReportInterval.toMillis() + adjustment - (Instant.now().toEpochMilli() % traceResourceReportInterval.toMillis());
+        traceResourceReportExecutor.scheduleAtFixedRate(() -> {
+            try {
+                // Avoid having multiple reports running concurrently.
+                if (resourceReportInProgress.compareAndSet(false, true)) {
+                    writeResourceReportToExchangeSpans();
+                }
+                else {
+                    LOG.warn("New resource report started before the prior report completed");
+                }
+            }
+            catch (Throwable e) {
+                LOG.error(e, "Error calling writeResourceReportToExchangeSpans");
+            }
+            finally {
+                resourceReportInProgress.set(false);
+            }
+        }, nextCheckpointTime, traceResourceReportInterval.toMillis(), MILLISECONDS);
     }
 
     @PreDestroy
@@ -233,6 +269,7 @@ public class ChunkManager
         closer.register(statsReportingExecutor::shutdownNow);
         closer.register(exchangeTimeoutExecutor::shutdownNow);
         closer.register(eagerDeliveryModeExecutor::shutdownNow);
+        closer.register(traceResourceReportExecutor::shutdownNow);
         if (!startedDraining) {
             closer.register(chunkSpoolExecutor::shutdownNow);
         }
@@ -346,6 +383,7 @@ public class ChunkManager
                     executor,
                     exchangeTimeoutExecutor,
                     tracer,
+                    traceResourceMaximumReportsPerExchange,
                     tickerReadMillis());
         });
     }
@@ -695,6 +733,7 @@ public class ChunkManager
                             spooledChunkMap -> {
                                 spooledChunksByExchange.update(exchangeId, spooledChunkMap);
                                 chunkDataLeaseMap.forEach((chunk, chunkDataLease) -> {
+                                    exchange.chunkSpooled(chunk.getHandle());
                                     chunkDataLease.release();
                                     chunk.release();
                                 });
@@ -732,6 +771,7 @@ public class ChunkManager
                     return Futures.transform(
                             spoolingFuture,
                             ignored -> {
+                                exchange.chunkSpooled(chunk.getHandle());
                                 chunkDataLease.release();
                                 chunk.release();
                                 return null;
@@ -745,6 +785,11 @@ public class ChunkManager
     private void eagerDeliveryModeCloseChunksIfNeeded()
     {
         exchanges.values().forEach(Exchange::eagerDeliveryModeCloseChunksIfNeeded);
+    }
+
+    private void writeResourceReportToExchangeSpans()
+    {
+        exchanges.values().forEach(Exchange::writeResourceReportToSpan);
     }
 
     private void reportStats()

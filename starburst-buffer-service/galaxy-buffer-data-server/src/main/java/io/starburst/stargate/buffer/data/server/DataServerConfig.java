@@ -14,12 +14,14 @@ import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.ConfigHidden;
 import io.airlift.configuration.LegacyConfig;
 import io.airlift.units.Duration;
+import io.airlift.units.MinDuration;
 
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 
 import static io.airlift.units.Duration.succinctDuration;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class DataServerConfig
@@ -37,6 +39,9 @@ public class DataServerConfig
     private int chunkListTargetSize = 1;
     private int chunkListMaxSize = 100;
     private Duration chunkListPollTimeout = succinctDuration(100, MILLISECONDS);
+    private Duration traceResourceReportInterval = succinctDuration(5, MINUTES);
+    private int traceResourceMaximumReportsPerExchange = 20;
+    private String trinoPlaneId;
 
     public boolean isDataIntegrityVerificationEnabled()
     {
@@ -201,5 +206,46 @@ public class DataServerConfig
     {
         this.chunkListPollTimeout = chunkListPollTimeout;
         return this;
+    }
+
+    @Config("trace-resource-report-interval")
+    @ConfigDescription("The interval at which all active exchanges will report current resource consumption.")
+    public DataServerConfig setTraceResourceReportInterval(Duration traceResourceReportInterval)
+    {
+        this.traceResourceReportInterval = traceResourceReportInterval;
+        return this;
+    }
+
+    @MinDuration("5s")
+    public Duration getTraceResourceReportInterval()
+    {
+        return traceResourceReportInterval;
+    }
+
+    @Config("trace-resource-maximum-reports-per-exchange")
+    @ConfigDescription("The maximum number of resource report events that will be in a span.")
+    public DataServerConfig setTraceResourceMaximumReportsPerExchange(int traceResourceMaximumReportsPerExchange)
+    {
+        this.traceResourceMaximumReportsPerExchange = traceResourceMaximumReportsPerExchange;
+        return this;
+    }
+
+    public int getTraceResourceMaximumReportsPerExchange()
+    {
+        return traceResourceMaximumReportsPerExchange;
+    }
+
+    @Config("trino.plane-id")
+    @ConfigDescription("The trino plane this Data Server is configured to run in.")
+    public DataServerConfig setTrinoPlaneId(String trinoPlaneId)
+    {
+        this.trinoPlaneId = trinoPlaneId;
+        return this;
+    }
+
+    @NotNull
+    public String getTrinoPlaneId()
+    {
+        return trinoPlaneId;
     }
 }

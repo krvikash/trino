@@ -19,6 +19,7 @@ import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDe
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
 import static io.airlift.units.Duration.succinctDuration;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class TestDataServerConfig
@@ -39,7 +40,10 @@ public class TestDataServerConfig
                 .setInProgressAddDataPagesRequestsThrottlingCounterDecayDuration(succinctDuration(5, SECONDS))
                 .setChunkListTargetSize(1)
                 .setChunkListMaxSize(100)
-                .setChunkListPollTimeout(succinctDuration(100, MILLISECONDS)));
+                .setChunkListPollTimeout(succinctDuration(100, MILLISECONDS))
+                .setTraceResourceReportInterval(succinctDuration(5, MINUTES))
+                .setTraceResourceMaximumReportsPerExchange(20)
+                .setTrinoPlaneId(null));
     }
 
     @Test
@@ -59,6 +63,9 @@ public class TestDataServerConfig
                 .put("chunk-list.target-size", "42")
                 .put("chunk-list.max-size", "1000")
                 .put("chunk-list.poll-timeout", "12345ms")
+                .put("trace-resource-report-interval", "2m")
+                .put("trace-resource-maximum-reports-per-exchange", "5")
+                .put("trino.plane-id", "aws-us-east1-1")
                 .buildOrThrow();
 
         DataServerConfig expected = new DataServerConfig()
@@ -74,7 +81,10 @@ public class TestDataServerConfig
                 .setInProgressAddDataPagesRequestsThrottlingCounterDecayDuration(succinctDuration(25, SECONDS))
                 .setChunkListTargetSize(42)
                 .setChunkListMaxSize(1000)
-                .setChunkListPollTimeout(succinctDuration(12345, MILLISECONDS));
+                .setChunkListPollTimeout(succinctDuration(12345, MILLISECONDS))
+                .setTraceResourceReportInterval(succinctDuration(2, MINUTES))
+                .setTraceResourceMaximumReportsPerExchange(5)
+                .setTrinoPlaneId("aws-us-east1-1");
 
         assertFullMapping(properties, expected);
     }

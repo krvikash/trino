@@ -23,6 +23,7 @@ import io.airlift.slice.Slice;
 import io.airlift.units.Duration;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.common.AttributesBuilder;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
@@ -48,6 +49,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.ToIntFunction;
@@ -61,6 +63,7 @@ import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.addExceptionCallback;
 import static io.airlift.concurrent.MoreFutures.asVoid;
+import static io.opentelemetry.api.common.AttributeKey.longKey;
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.EXCHANGE_CORRUPTED;
@@ -73,6 +76,8 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 public class Exchange
 {
     private static final Logger log = Logger.get(Exchange.class);
+    // FAILURE_MESSAGE is also specified in trino-main.TrinoAttirbutes, but we want to avoid this dependency
+    private static final AttributeKey<String> FAILURE_MESSAGE = stringKey("failure");
 
     private final long bufferNodeId;
     private final String exchangeId;
@@ -95,8 +100,7 @@ public class Exchange
     private final Map<Integer, Partition> partitions = new ConcurrentHashMap<>();
     private final ScheduledExecutorService longPollTimeoutExecutor;
     private final Tracer tracer;
-    // FAILURE_MESSAGE is also specified in trino-main.TrinoAttirbutes, but we want to avoid this dependency
-    private static final AttributeKey<String> FAILURE_MESSAGE = stringKey("failure");
+    private final int traceResourceMaximumReportsPerExchange;
 
     // temporary queue for newly closed chunks to allow de-synchronization of code which closes chunks
     // and code which handles polling for newly closed chunks to return those to the user
@@ -123,6 +127,11 @@ public class Exchange
     private volatile boolean allClosedChunksReceived;
     private final AtomicReference<Throwable> failure = new AtomicReference<>();
     private volatile boolean spooled;
+    private AtomicInteger spooledChunks = new AtomicInteger();
+    private AtomicLong spooledBytes = new AtomicLong();
+    private Optional<Integer> finishedClosedChunks = Optional.empty();
+    private Optional<Long> finishedClosedBytes = Optional.empty();
+    private int resourceReportsCounter;
 
     public Exchange(
             long bufferNodeId,
@@ -143,6 +152,7 @@ public class Exchange
             ExecutorService executor,
             ScheduledExecutorService longPollTimeoutExecutor,
             Tracer tracer,
+            int traceResourceMaximumReportsPerExchange,
             long currentTime)
     {
         this.bufferNodeId = bufferNodeId;
@@ -166,10 +176,11 @@ public class Exchange
         this.pendingChunkList = new ArrayList<>(chunkListTargetSize);
         this.chunkDeliveryMode = requireNonNull(chunkDeliveryMode, "chunkDeliveryMode is null");
         this.tracer = requireNonNull(tracer, "tracer is null");
+        this.traceResourceMaximumReportsPerExchange = traceResourceMaximumReportsPerExchange;
         this.lastUpdateTime = currentTime;
 
-        // The directExecutor can be used because StateChangeListeners will only perform complex tasks.
-        // As they may generate span events, there will be the potential for lock contention but it should be minimal.
+        // The directExecutor can be used because StateChangeListeners will only perform small tasks.
+        // As they may generate span events, there will be the potential for lock contention (blocking) but it should be minimal.
         this.exchangeStateMachine = new ExchangeStateMachine(exchangeId, initialState, directExecutor());
     }
 
@@ -204,7 +215,7 @@ public class Exchange
         AddDataPagesResult addDataPagesResult = partition.addDataPages(taskId, attemptId, dataPagesId, pages);
         addExceptionCallback(addDataPagesResult.addDataPagesFuture(), throwable -> {
             if (failure.compareAndSet(null, throwable)) {
-                exchangeStateMachine.transitionToFailed();
+                exchangeStateMachine.transitionToFailed(collectExchangeResourceUsage());
                 this.releaseChunks();
                 bufferServerExchangeSpan.get().ifPresent(span -> span.addEvent("buffer_failure", Attributes.of(FAILURE_MESSAGE, throwable.getMessage())));
             }
@@ -373,13 +384,20 @@ public class Exchange
                 @Override
                 public void onSuccess(Void result)
                 {
+                    ExchangeResourceUsage exchangeResourceUsage = new ExchangeResourceUsage();
+                    partitions.values().stream().forEach(partition -> partition.updateResourceUsage(exchangeResourceUsage));
+                    finishedClosedChunks = Optional.of(exchangeResourceUsage.closedChunks);
+                    finishedClosedBytes = Optional.of(exchangeResourceUsage.closedInMemoryBytes);
                     exchangeStateMachine.transitionToSourceFinished();
                 }
 
                 @Override
                 public void onFailure(Throwable t)
                 {
-                    exchangeStateMachine.transitionToFailed();
+                    ExchangeResourceUsage exchangeResourceUsage = new ExchangeResourceUsage();
+                    finishedClosedChunks = Optional.of(exchangeResourceUsage.closedChunks);
+                    finishedClosedBytes = Optional.of(exchangeResourceUsage.closedInMemoryBytes);
+                    exchangeStateMachine.transitionToFailed(collectExchangeResourceUsage());
                     releaseChunks();
                     bufferServerExchangeSpan.get().ifPresent(span -> span.addEvent("buffer_failure", Attributes.of(FAILURE_MESSAGE, t.getMessage())));
                 }
@@ -411,6 +429,7 @@ public class Exchange
 
     public ListenableFuture<Void> releaseChunks()
     {
+        Attributes exchangeResourceAttributes = collectExchangeResourceUsage();
         partitions.values().forEach(Partition::releaseChunks);
         partitions.clear();
 
@@ -419,12 +438,12 @@ public class Exchange
             addExceptionCallback(removeFuture, throwable -> {
                 log.warn(throwable, "error while removing stored files for exchange %s", exchangeId);
             });
-            removeFuture.addListener(this::removeExchange, directExecutor());
+            removeFuture.addListener(() -> removeExchange(exchangeResourceAttributes), directExecutor());
             return removeFuture;
         }
 
         // did not spool
-        removeExchange();
+        removeExchange(exchangeResourceAttributes);
         return immediateFuture(null);
     }
 
@@ -520,9 +539,96 @@ public class Exchange
                 () -> bufferServerExchangeSpan.compareAndSet(Optional.empty(), Optional.of(Span.getInvalid())));
     }
 
-    private void removeExchange()
+    public void chunkSpooled(ChunkHandle chunkHandle)
     {
-        if (exchangeStateMachine.transitionToRemoved()) {
+        spooledChunks.incrementAndGet();
+        spooledBytes.addAndGet(chunkHandle.dataSizeInBytes());
+    }
+
+    public static class ExchangeResourceUsage
+    {
+        private static final AttributeKey<Long> EXCHANGE_PARTITIONS = longKey("exchange_partitions");
+        private static final AttributeKey<Long> EXCHANGE_SPOOLED_CHUNKS = longKey("exchange_spooled_chunks");
+        private static final AttributeKey<Long> EXCHANGE_SPOOLED_BYTES = longKey("exchange_spooled_bytes");
+        private static final AttributeKey<Long> EXCHANGE_CLOSED_CHUNKS = longKey("exchange_closed_chunks");
+        private static final AttributeKey<Long> EXCHANGE_CLOSED_BYTES = longKey("exchange_closed_bytes");
+        private static final AttributeKey<Long> EXCHANGE_PARTIAL_CHUNKS = longKey("exchange_partial_chunks");
+        private static final AttributeKey<Long> EXCHANGE_PARTIAL_BYTES = longKey("exchange_partial_bytes");
+
+        int partitionCount;
+        int spooledChunks;
+        long spooledBytes;
+        int closedChunks;
+        long closedInMemoryBytes;
+        int partialChunks;
+        long partialChunkBytes;
+
+        public ExchangeResourceUsage()
+        {
+        }
+
+        public ExchangeResourceUsage(int partitionCount, int spooledChunks, long spooledBytes)
+        {
+            this.partitionCount = partitionCount;
+            this.spooledChunks = spooledChunks;
+            this.spooledBytes = spooledBytes;
+        }
+
+        public void updatePartialChunkResource(long partialChunkBytes)
+        {
+            this.partialChunks++;
+            this.partialChunkBytes += partialChunkBytes;
+        }
+
+        public void updateTotalChunkResources(int closedChunks, long closedChunkBytes)
+        {
+            this.closedChunks += closedChunks;
+            this.closedInMemoryBytes += closedChunkBytes;
+        }
+
+        public Attributes toOpentelemetryAttributes(boolean exchangeFinished)
+        {
+            AttributesBuilder attributesBuilder = Attributes.builder()
+                    .put(EXCHANGE_PARTITIONS, partitionCount)
+                    .put(EXCHANGE_SPOOLED_CHUNKS, spooledChunks)
+                    .put(EXCHANGE_SPOOLED_BYTES, spooledBytes)
+                    .put(EXCHANGE_CLOSED_CHUNKS, closedChunks)
+                    .put(EXCHANGE_CLOSED_BYTES, closedInMemoryBytes);
+            if (!exchangeFinished) {
+                attributesBuilder
+                        .put(EXCHANGE_PARTIAL_CHUNKS, partialChunks)
+                        .put(EXCHANGE_PARTIAL_BYTES, partialChunkBytes);
+            }
+            return attributesBuilder.build();
+        }
+    }
+
+    private Attributes collectExchangeResourceUsage()
+    {
+        ExchangeResourceUsage exchangeResourceUsage = new ExchangeResourceUsage(partitions.size(), spooledChunks.get(), spooledBytes.get());
+        if (finishedClosedBytes.isPresent() && finishedClosedChunks.isPresent()) {
+            exchangeResourceUsage.updateTotalChunkResources(finishedClosedChunks.get(), finishedClosedBytes.get());
+            return exchangeResourceUsage.toOpentelemetryAttributes(true);
+        }
+        else {
+            partitions.values().forEach(partition -> partition.updateResourceUsage(exchangeResourceUsage));
+            return exchangeResourceUsage.toOpentelemetryAttributes(false);
+        }
+    }
+
+    public void writeResourceReportToSpan()
+    {
+        bufferServerExchangeSpan.get().ifPresent(span -> {
+            if (span.isRecording() && resourceReportsCounter < traceResourceMaximumReportsPerExchange) {
+                span.addEvent("exchange_resources", collectExchangeResourceUsage());
+                resourceReportsCounter++;
+            }
+        });
+    }
+
+    private void removeExchange(Attributes exchangeResourceAttributes)
+    {
+        if (exchangeStateMachine.transitionToRemoved(exchangeResourceAttributes)) {
             bufferServerExchangeSpan.getAndSet(Optional.of(Span.getInvalid())).ifPresent(Span::end);
         }
     }

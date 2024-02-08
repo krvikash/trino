@@ -111,6 +111,12 @@ public class Chunk
         return chunkData.isEmpty();
     }
 
+    public int openChunkDataSizeInBytes()
+    {
+        checkState(!closed, "openChunkDataSizeInBytes() called on an closed chunk");
+        return chunkData.dataSizeInBytes();
+    }
+
     @VisibleForTesting
     int dataSizeInBytes()
     {
