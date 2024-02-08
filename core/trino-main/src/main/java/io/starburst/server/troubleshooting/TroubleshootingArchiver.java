@@ -98,6 +98,17 @@ public class TroubleshootingArchiver
         catch (Exception e) {
             throw new RuntimeException("Encountered error while archiving troubleshooting information", e);
         }
+        finally {
+            // In case of an error `close` method on `ZipOutputStream` will try to end ZIP archive properly.
+            // The `close` method can throw an IOException and in turn passed `PipedOutputStream` will not be closed.
+            // In effect the client will wait for incoming data forever.
+            try {
+                outputStreamCloseableByReceiver.close();
+            }
+            catch (IOException e) {
+                log.error(e, "Failed to close archiving output stream");
+            }
+        }
     }
 
     private void writeErrorsToArchive(TroubleshootingContext context, ZipOutputStream archive)
