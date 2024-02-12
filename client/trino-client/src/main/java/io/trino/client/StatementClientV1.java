@@ -274,6 +274,12 @@ class StatementClientV1
     }
 
     @Override
+    public QueryResults currentQueryResults()
+    {
+        return currentResults.get();
+    }
+
+    @Override
     public QueryStatusInfo finalStatusInfo()
     {
         checkState(!isRunning(), "current position is still valid");

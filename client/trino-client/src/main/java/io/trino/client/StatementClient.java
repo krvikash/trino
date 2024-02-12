@@ -44,6 +44,8 @@ public interface StatementClient
     // For backward compatibility and migration path
     QueryData currentData();
 
+    QueryResults currentQueryResults();
+
     ResultRows currentRows();
 
     QueryStatusInfo finalStatusInfo();

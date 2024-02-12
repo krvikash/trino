@@ -345,6 +345,12 @@
         </artifact>
     </artifactSet>
 
+    <artifactSet to="plugin/stargate-parallel">
+        <artifact id="${project.groupId}:starburst-stargate-parallel:zip:${project.version}">
+            <unpack />
+        </artifact>
+    </artifactSet>
+
     <artifactSet to="plugin/synapse">
         <artifact id="${project.groupId}:starburst-synapse:zip:${project.version}">
             <unpack />

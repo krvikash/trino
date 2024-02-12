@@ -18,6 +18,7 @@ import io.trino.client.ClientSelectedRole;
 import io.trino.client.Column;
 import io.trino.client.QueryData;
 import io.trino.client.QueryError;
+import io.trino.client.QueryResults;
 import io.trino.client.QueryStatusInfo;
 import io.trino.client.ResultRows;
 import io.trino.client.StageStats;
@@ -176,6 +177,12 @@ class TestAsyncResultIterator
         public ResultRows currentRows()
         {
             return queryData.get();
+        }
+
+        @Override
+        public QueryResults currentQueryResults()
+        {
+            throw new UnsupportedOperationException();
         }
 
         @Override

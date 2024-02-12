@@ -182,13 +182,18 @@ public class TrinoUri
         return URI.create(format("%s://%s:%d", isUseSecureConnection() ? "https" : "http", uri.getHost(), getPort()));
     }
 
-    private int getPort()
+    public int getPort()
     {
         if (uri.getPort() > 0) {
             return uri.getPort();
         }
 
         return isUseSecureConnection() ? DEFAULT_SECURE_PORT : DEFAULT_INSECURE_PORT;
+    }
+
+    public String getHost()
+    {
+        return uri.getHost();
     }
 
     public String getRequiredUser()

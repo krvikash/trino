@@ -40,7 +40,7 @@ public class PasswordCatalogIdentityFactory
 
         // Mask the catalog name in the connection URL
         String catalog = uri.getCatalog().orElseThrow();
-        String baseUri = "jdbc:trino://" + uri.getAddress() + "/";
+        String baseUri = "jdbc:trino://" + uri.getHost() + ":" + uri.getPort() + "/";
         String newConnectionUrl = config.getConnectionUrl().replace(baseUri + catalog, baseUri + "***");
         verify(!config.getConnectionUrl().equals(newConnectionUrl), "Cannot replace the catalog name");
 

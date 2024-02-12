@@ -13,11 +13,15 @@
  */
 package io.trino.client;
 
+import io.trino.client.uri.TrinoUri;
 import okhttp3.Call;
 import okhttp3.OkHttpClient;
 
 import java.util.Optional;
 import java.util.Set;
+
+import static io.trino.client.uri.HttpClientFactory.toHttpClientBuilder;
+import static io.trino.client.uri.HttpClientFactory.unauthenticatedClientBuilder;
 
 public final class StatementClientFactory
 {
@@ -41,5 +45,11 @@ public final class StatementClientFactory
     public static StatementClient newStatementClient(OkHttpClient httpClient, ClientSession session, String query, Optional<Set<String>> clientCapabilities)
     {
         return new StatementClientV1((Call.Factory) httpClient, new OkHttpClient(), session, query, clientCapabilities);
+    }
+
+    // This allows avoiding shading issues with relocated OkHttp classes
+    public static StatementClient newStatementClient(TrinoUri trinoUri, String sourceName, ClientSession session, String query, Optional<Set<String>> clientCapabilities)
+    {
+        return new StatementClientV1(toHttpClientBuilder(trinoUri, sourceName).build(), unauthenticatedClientBuilder(trinoUri, sourceName).build(), session, query, clientCapabilities);
     }
 }

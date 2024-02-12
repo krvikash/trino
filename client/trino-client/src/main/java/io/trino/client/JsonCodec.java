@@ -24,11 +24,14 @@ import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.google.common.reflect.TypeParameter;
+import com.google.common.reflect.TypeToken;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.lang.reflect.Type;
+import java.util.List;
 import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -67,6 +70,15 @@ public class JsonCodec<T>
     public static <T> JsonCodec<T> jsonCodec(Class<T> type)
     {
         return new JsonCodec<>(OBJECT_MAPPER_SUPPLIER.get(), type);
+    }
+
+    public static <T> JsonCodec<List<T>> listJsonCodec(Class<T> type)
+    {
+        Type listType = new TypeToken<List<T>>() {}
+                .where(new TypeParameter<T>() {}, type)
+                .getType();
+
+        return new JsonCodec<>(OBJECT_MAPPER_SUPPLIER.get(), listType);
     }
 
     private final ObjectMapper mapper;

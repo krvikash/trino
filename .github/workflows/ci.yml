@@ -536,6 +536,7 @@ jobs:
             !:starburst-snowflake,
             !:starburst-sqlserver,
             !:starburst-stargate,
+            !:starburst-stargate-parallel,
             !:starburst-synapse,
             !:trino-accumulo,
             !:trino-base-jdbc,
@@ -671,6 +672,7 @@ jobs:
             - { modules: plugin/starburst-snowflake, profile: fte-tests, cloud: amazon-web-service }
             - { modules: plugin/starburst-sqlserver }
             - { modules: plugin/starburst-stargate, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ] }
+            - { modules: plugin/starburst-stargate-parallel, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ] }
             - { modules: plugin/starburst-synapse }
             - { modules: plugin/starburst-synapse, profile: fte-tests }
             - { modules: plugin/starburst-synapse, profile: long-running-tests }
