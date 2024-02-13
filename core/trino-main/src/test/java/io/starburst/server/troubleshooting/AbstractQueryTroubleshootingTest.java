@@ -36,6 +36,7 @@ import io.trino.testing.TestingTrinoClient;
 import org.assertj.core.api.SoftAssertions;
 import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
 import org.intellij.lang.annotations.Language;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -96,12 +97,22 @@ public abstract class AbstractQueryTroubleshootingTest
     @TempDir
     private Path tmpDir;
 
+    private TestingJaegerService testingJaegerService;
+
     @BeforeAll
     public void localInit()
     {
         troubleshootingContextManager = getDistributedQueryRunner().getCoordinator().getInstance(Key.get(TroubleshootingContextManager.class));
         queryManager = getDistributedQueryRunner().getCoordinator().getQueryManager();
         coordinatorId = getDistributedQueryRunner().getCoordinator().getInstance(Key.get(InternalNodeManager.class)).getCurrentNode().getNodeIdentifier();
+        testingJaegerService = new TestingJaegerService();
+        testingJaegerService.start();
+    }
+
+    @AfterAll
+    public void tearDown()
+    {
+        testingJaegerService.close();
     }
 
     @Override
@@ -155,7 +166,8 @@ public abstract class AbstractQueryTroubleshootingTest
 
         softly.assertThat(inputsMap.contents())
                 .hasEntrySatisfying(getPath(data, "version.txt"), value -> softly.assertThat(byteToString(value)).contains("testversion"))
-                .hasEntrySatisfying(getPath(data, "recordings/coordinator.jfr"), value -> softly.assertThat(value).isNotEmpty());
+                .hasEntrySatisfying(getPath(data, "recordings/coordinator.jfr"), value -> softly.assertThat(value).isNotEmpty())
+                .hasEntrySatisfying(getPath(data, "opentelemetry-coordinator.grpc"), value -> softly.assertThat(value).isNotEmpty());
 
         ObjectMapper mapper = new ObjectMapper();
         mapper.readValue(inputsMap.contents().get(getPath(data, "jmx/metrics-before.json")), new TypeReference<>() {});
@@ -173,6 +185,13 @@ public abstract class AbstractQueryTroubleshootingTest
                             .describedAs("worker %s recording", workerId)
                             .isNotEmpty());
         }
+
+        boolean exportSuccessful = testingJaegerService.exportOpenTelemetryData(inputsMap.contents().get(getPath(data, "opentelemetry-coordinator.grpc")));
+        assertThat(exportSuccessful).isTrue();
+
+        JsonNode traceSpans = testingJaegerService.getTraceSpans(data.getQueryId());
+        assertThat(traceSpans).isNotNull();
+        assertThat(traceSpans.size()).isGreaterThan(70);
     }
 
     @Test
