@@ -11,6 +11,7 @@ package io.starburst.server.troubleshooting;
 
 import com.google.inject.Inject;
 import com.starburstdata.presto.server.security.webui.access.WebUiAccessControl;
+import io.starburst.server.troubleshooting.tracing.SpanInterceptor;
 import io.trino.eventlistener.EventListenerManager;
 import io.trino.spi.QueryId;
 import io.trino.spi.eventlistener.EventListener;
@@ -28,14 +29,21 @@ public class TroubleshootingEventListener
     private final WebUiAccessControl accessControl;
     private final TroubleshootingContextManager troubleshootingContextManager;
     private final boolean anonymizePlan;
+    private final SpanInterceptor spanInterceptor;
 
     @Inject
-    public TroubleshootingEventListener(WebUiAccessControl accessControl, TroubleshootingConfig config, TroubleshootingContextManager troubleshootingContextManager, EventListenerManager listenerManager)
+    public TroubleshootingEventListener(
+            WebUiAccessControl accessControl,
+            TroubleshootingConfig config,
+            TroubleshootingContextManager troubleshootingContextManager,
+            EventListenerManager listenerManager,
+            SpanInterceptor spanInterceptor)
     {
         this.accessControl = requireNonNull(accessControl, "accessControl is null");
         this.anonymizePlan = requireNonNull(config, "config is null").isAnonymizedPlan();
         this.troubleshootingContextManager = requireNonNull(troubleshootingContextManager, "troubleshootingContextManager is null");
         requireNonNull(listenerManager, "listenerManager is null").addEventListener(this);
+        this.spanInterceptor = requireNonNull(spanInterceptor, "spanInterceptor is null");
     }
 
     @Override
@@ -53,6 +61,8 @@ public class TroubleshootingEventListener
     @Override
     public void queryCompleted(QueryCompletedEvent event)
     {
+        spanInterceptor.forgetTracking(QueryId.valueOf(event.getMetadata().getQueryId()));
+
         if (!isTroubleshootingEnabled(event.getContext())) {
             return;
         }

@@ -17,7 +17,12 @@ import io.starburst.server.troubleshooting.jmx.JmxTroubleshootingProvider;
 import io.starburst.server.troubleshooting.providers.QueryJsonProvider;
 import io.starburst.server.troubleshooting.providers.SoftwareVersionProvider;
 import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
+import io.starburst.server.troubleshooting.tracing.OpenTelemetryTraceProvider;
+import io.starburst.server.troubleshooting.tracing.SpanInterceptor;
+import io.starburst.server.troubleshooting.tracing.SpanSerializer;
+import io.starburst.server.troubleshooting.tracing.TroubleshootingSpanProcessor;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.opentelemetry.sdk.trace.SpanProcessor;
 import io.trino.server.ServerConfig;
 import jakarta.annotation.PreDestroy;
 import jdk.jfr.FlightRecorder;
@@ -52,11 +57,15 @@ public class TroubleshootingModule
                 .toInstance(newScheduledThreadPool(4, daemonThreadsNamed("query-troubleshooting-%s")));
         binder.bind(FullQueryInfoProvider.class).to(FullQueryInfoProviderDispatchManager.class).in(Scopes.SINGLETON);
         binder.bind(TroubleshootingArchiver.class).in(Scopes.SINGLETON);
+        binder.bind(SpanInterceptor.class).in(Scopes.SINGLETON);
+        binder.bind(SpanSerializer.class);
+        newSetBinder(binder, SpanProcessor.class).addBinding().to(TroubleshootingSpanProcessor.class).in(Scopes.SINGLETON);
 
         Multibinder<TroubleshootingProvider> setBinder = newSetBinder(binder, TroubleshootingProvider.class);
         setBinder.addBinding().to(SoftwareVersionProvider.class);
         setBinder.addBinding().to(JmxTroubleshootingProvider.class);
         setBinder.addBinding().to(QueryJsonProvider.class);
+        setBinder.addBinding().to(OpenTelemetryTraceProvider.class);
     }
 
     @PreDestroy
