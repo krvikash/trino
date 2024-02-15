@@ -28,7 +28,7 @@ RUN \
     DD_AGENT_JAR="${PROJECT_DIR}/lib/$(ls ${PROJECT_DIR}/lib | grep dd-java-agent | head -n 1)" && \
     test -f ${DD_AGENT_JAR} && \
     ln -s ${DD_AGENT_JAR} ${PROJECT_DIR}/lib/dd-java-agent.jar && \
-    echo "${PROJECT_DIR}/bin/launcher run --config=${PROJECT_DIR}/etc/config.properties" > /start.sh && \
+    echo "exec ${PROJECT_DIR}/bin/launcher run --config=${PROJECT_DIR}/etc/config.properties" > /start.sh && \
     chown -R "${CHOWN}" /start.sh && \
     chmod +x /start.sh
 

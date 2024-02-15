@@ -25,7 +25,7 @@ RUN \
     mv /tmp/${PROJECT_NAME}/${MODULE_NAME}-${PROJECT_VERSION}/* ${PROJECT_DIR} && \
     chown ${CHOWN} -R ${PROJECT_DIR} && \
     rm -rf /tmp/${PROJECT_NAME} && \
-    echo "${PROJECT_DIR}/bin/launcher run --config=${PROJECT_DIR}/etc/config.properties" > /start.sh && \
+    echo "exec ${PROJECT_DIR}/bin/launcher run --config=${PROJECT_DIR}/etc/config.properties" > /start.sh && \
     chown -R "${CHOWN}" /start.sh && \
     chmod +x /start.sh
 
