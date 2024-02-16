@@ -380,6 +380,7 @@ public class Exchange
                 public void onFailure(Throwable t)
                 {
                     exchangeStateMachine.transitionToFailed();
+                    releaseChunks();
                 }
             }, directExecutor());
         }
