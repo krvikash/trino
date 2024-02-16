@@ -37,4 +37,4 @@ VOLUME ${PROJECT_DIR}/etc
 
 EXPOSE 8080
 USER ${CHOWN}
-CMD /start.sh
+CMD ["/start.sh"]
