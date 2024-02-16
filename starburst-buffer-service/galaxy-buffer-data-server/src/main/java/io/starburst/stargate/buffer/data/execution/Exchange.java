@@ -381,6 +381,7 @@ public class Exchange
                 {
                     exchangeStateMachine.transitionToFailed();
                     releaseChunks();
+                    bufferServerExchangeSpan.get().ifPresent(span -> span.addEvent("buffer_failure", Attributes.of(FAILURE_MESSAGE, t.getMessage())));
                 }
             }, directExecutor());
         }
