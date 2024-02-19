@@ -26,14 +26,11 @@ RUN \
     rm -rf /tmp/${PROJECT_NAME} && \
     DD_AGENT_JAR="/opt/app/lib/$(ls /opt/app/lib | grep dd-java-agent | head -n 1)" && \
     test -f ${DD_AGENT_JAR} && \
-    ln -s ${DD_AGENT_JAR} /opt/app/lib/dd-java-agent.jar && \
-    echo "exec /opt/app/bin/launcher run --config=/opt/app/etc/config.properties" > /start.sh && \
-    chown -R "${CHOWN}" /start.sh && \
-    chmod +x /start.sh
+    ln -s ${DD_AGENT_JAR} /opt/app/lib/dd-java-agent.jar
 
 COPY --chown=${CHOWN} etc /opt/app/etc
 VOLUME /opt/app/etc
 
 EXPOSE 8080
 USER ${CHOWN}
-CMD ["/start.sh"]
+CMD ["/opt/app/bin/launcher", "run", "--config=/opt/app/etc/config.properties"]

@@ -23,14 +23,11 @@ RUN \
     chown -R "${CHOWN}" /opt/app && \
     mv /tmp/${PROJECT_NAME}/${MODULE_NAME}-${PROJECT_VERSION}/* /opt/app && \
     chown ${CHOWN} -R /opt/app && \
-    rm -rf /tmp/${PROJECT_NAME} && \
-    echo "exec /opt/app/bin/launcher run --config=/opt/app/etc/config.properties" > /start.sh && \
-    chown -R "${CHOWN}" /start.sh && \
-    chmod +x /start.sh
+    rm -rf /tmp/${PROJECT_NAME}
 
 COPY --chown=${CHOWN} etc /opt/app/etc
 VOLUME /opt/app/etc
 
 EXPOSE 8080
 USER ${CHOWN}
-CMD ["/start.sh"]
+CMD ["/opt/app/bin/launcher", "run", "--config=/opt/app/etc/config.properties"]
