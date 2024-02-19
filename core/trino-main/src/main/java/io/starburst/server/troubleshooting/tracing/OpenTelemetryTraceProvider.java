@@ -11,7 +11,6 @@ package io.starburst.server.troubleshooting.tracing;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
-import com.google.inject.Provider;
 import io.starburst.server.troubleshooting.TroubleshootingContext;
 import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
 
@@ -22,13 +21,11 @@ public class OpenTelemetryTraceProvider
         implements TroubleshootingProvider
 {
     private final SpanInterceptor spanInterceptor;
-    private final Provider<SpanSerializer> spanSerializerProvider;
 
     @Inject
-    public OpenTelemetryTraceProvider(SpanInterceptor spanInterceptor, Provider<SpanSerializer> spanSerializerProvider)
+    public OpenTelemetryTraceProvider(SpanInterceptor spanInterceptor)
     {
         this.spanInterceptor = spanInterceptor;
-        this.spanSerializerProvider = spanSerializerProvider;
     }
 
     @Override
@@ -40,6 +37,6 @@ public class OpenTelemetryTraceProvider
     @Override
     public Map<String, InputStream> getInputStreams(TroubleshootingContext context)
     {
-        return ImmutableMap.of("opentelemetry-coordinator.grpc", spanSerializerProvider.get().execute(spanInterceptor.removeSpans(context.getQueryId())));
+        return ImmutableMap.of("opentelemetry-coordinator.grpc", spanInterceptor.removeSpans(context.getQueryId()));
     }
 }

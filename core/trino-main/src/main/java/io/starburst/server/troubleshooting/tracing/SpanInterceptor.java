@@ -9,10 +9,13 @@
  */
 package io.starburst.server.troubleshooting.tracing;
 
+import com.google.inject.Inject;
+import com.google.inject.Provider;
 import io.opentelemetry.sdk.trace.ReadableSpan;
 import io.opentelemetry.sdk.trace.data.SpanData;
 import io.trino.spi.QueryId;
 
+import java.io.InputStream;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.Set;
@@ -20,12 +23,20 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import static java.util.Collections.emptySet;
+import static java.util.Objects.requireNonNull;
 
 public class SpanInterceptor
 {
+    private final Provider<SpanSerializer> spanSerializerProvider;
     private ConcurrentMap<String, QueryId> queryIdByTraceId = new ConcurrentHashMap<>();
     private ConcurrentMap<QueryId, Set<SpanData>> spansByQueryIds = new ConcurrentHashMap<>();
     private ConcurrentMap<QueryId, QueryId> collectSpansForTheseQueryIds = new ConcurrentHashMap<>();
+
+    @Inject
+    public SpanInterceptor(Provider<SpanSerializer> spanSerializerProvider)
+    {
+        this.spanSerializerProvider = requireNonNull(spanSerializerProvider, "spanSerializerProvider is null");
+    }
 
     public void requestSpanCollect(QueryId queryId)
     {
@@ -56,8 +67,8 @@ public class SpanInterceptor
         queryIdByTraceId.entrySet().removeIf(entry -> entry.getValue().equals(queryId));
     }
 
-    public Collection<SpanData> removeSpans(QueryId queryId)
+    public InputStream removeSpans(QueryId queryId)
     {
-        return Optional.ofNullable(spansByQueryIds.remove(queryId)).orElse(emptySet());
+        return spanSerializerProvider.get().execute(Optional.ofNullable(spansByQueryIds.remove(queryId)).orElse(emptySet()));
     }
 }
