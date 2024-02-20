@@ -25,6 +25,7 @@ import io.trino.execution.StageInfo;
 import io.trino.execution.TaskInfo;
 import io.trino.execution.TaskStatus;
 import io.trino.metadata.InternalNodeManager;
+import io.trino.server.BasicQueryInfo;
 import io.trino.spi.QueryId;
 import io.trino.spi.security.Identity;
 import io.trino.testing.AbstractTestQueryFramework;
@@ -51,8 +52,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.starburstdata.presto.server.StarburstClientCapabilities.QUERY_TROUBLESHOOTING;
@@ -227,6 +233,71 @@ public abstract class AbstractQueryTroubleshootingTest
     }
 
     @Test
+    public void testTroubleshootingQueryCollectsOnlyItsOwnTrace(SoftAssertions softly)
+            throws Exception
+    {
+        ExecutorService executorService = Executors.newFixedThreadPool(2);
+        Session session = testSessionBuilder()
+                .setClientCapabilities(Set.of(QUERY_TROUBLESHOOTING.name()))
+                .setSystemProperty(QUERY_MAX_MEMORY_PER_NODE, "100MB")
+                .setIdentity(getIdentityOfAuthorizedUser())
+                .setCatalog("tpch")
+                .build();
+        // random number added to SELECT clause, to have a unique query string
+        // which won't interfere with other test cases run in other threads
+        String slowQuery = String.format("SELECT *, %d FROM tpch.sf10.orders", ThreadLocalRandom.current().nextLong());
+        String fastQuery = "SHOW CATALOGS";
+        AtomicReference<QueryId> slowQueryId = new AtomicReference<>();
+
+        try {
+            Future<QueryId> slowQueryIdFuture = runQueryOnExecutor(executorService, session, slowQuery);
+            assertEventually(Duration.valueOf("10s"), () -> {
+                slowQueryId.set(getQueryId(slowQuery));
+                assertThat(slowQueryId.get()).isNotNull();
+            });
+            QueryId fastQueryId = runQueryOnExecutor(executorService, session, fastQuery).get();
+
+            assertThat(slowQueryIdFuture.isDone()).isFalse();
+            queryManager.cancelQuery(slowQueryId.get());
+
+            TroubleshootingData fastQueryTroubleshootingData = awaitForTroubleshootingData(fastQueryId);
+            assertThat(fastQueryTroubleshootingData.getStream()).isPresent();
+
+            Unzipped fastQueryInputsMap = zipInputStreamToMap(fastQueryTroubleshootingData.getRequiredStreams().get(), tmpDir);
+            softly.assertThat(fastQueryInputsMap.contents())
+                    .hasEntrySatisfying(getPath(fastQueryTroubleshootingData, "opentelemetry-coordinator.grpc"), value -> softly.assertThat(value).isNotEmpty());
+
+            boolean fastQueryExportSuccessful = testingJaegerService.exportOpenTelemetryData(fastQueryInputsMap.contents().get(getPath(fastQueryTroubleshootingData, "opentelemetry-coordinator.grpc")));
+            assertThat(fastQueryExportSuccessful).isTrue();
+
+            JsonNode traces = testingJaegerService.getTraces();
+            assertThat(traces.size()).isEqualTo(1);
+
+            TroubleshootingData slowQueryTroubleshootingData = awaitForTroubleshootingData(slowQueryId.get());
+            assertThat(slowQueryTroubleshootingData.getStream()).isPresent();
+
+            Unzipped slowQueryInputsMap = zipInputStreamToMap(slowQueryTroubleshootingData.getRequiredStreams().get(), tmpDir);
+            softly.assertThat(slowQueryInputsMap.contents())
+                    .hasEntrySatisfying(getPath(slowQueryTroubleshootingData, "opentelemetry-coordinator.grpc"), value -> softly.assertThat(value).isNotEmpty());
+
+            boolean slowQueryExportSuccessful = testingJaegerService.exportOpenTelemetryData(slowQueryInputsMap.contents().get(getPath(slowQueryTroubleshootingData, "opentelemetry-coordinator.grpc")));
+            assertThat(slowQueryExportSuccessful).isTrue();
+
+            JsonNode slowQueryTraceSpans = testingJaegerService.getTraceSpans(slowQueryId.get());
+            assertThat(slowQueryTraceSpans).isNotNull();
+
+            traces = testingJaegerService.getTraces();
+            assertThat(traces.size()).isEqualTo(2);
+        }
+        finally {
+            if (slowQueryId.get() != null && !queryManager.getFullQueryInfo(slowQueryId.get()).getState().isDone()) {
+                queryManager.cancelQuery(slowQueryId.get());
+            }
+            executorService.shutdownNow();
+        }
+    }
+
+    @Test
     public void testTroubleshootingIsRemovedAfterDuration()
     {
         String exampleQuery = "SELECT count(comment) FROM tpch.tiny.lineitem";
@@ -347,5 +418,23 @@ public abstract class AbstractQueryTroubleshootingTest
     private static String byteToString(byte[] input)
     {
         return new String(input, UTF_8);
+    }
+
+    private Future<QueryId> runQueryOnExecutor(ExecutorService executorService, Session session, @Language("SQL") String query)
+    {
+        return executorService.submit(() -> {
+            try (TestingTrinoClient client = new TestingTrinoClient(getDistributedQueryRunner().getCoordinator(), session)) {
+                return client.execute(query).getQueryId();
+            }
+        });
+    }
+
+    private QueryId getQueryId(String query)
+    {
+        return queryManager.getQueries().stream()
+                .filter(queryInfo -> queryInfo.getQuery().equals(query))
+                .findFirst()
+                .map(BasicQueryInfo::getQueryId)
+                .orElse(null);
     }
 }

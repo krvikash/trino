@@ -104,6 +104,12 @@ public class TestingJaegerService
         return exportResult.isDone() && exportResult.isSuccess();
     }
 
+    public JsonNode getTraces()
+    {
+        JsonNode tracesRootNode = callJaegerApi(getUiUri().resolve("/api/traces?service=trino"));
+        return tracesRootNode.get("data");
+    }
+
     public JsonNode getTraceSpans(QueryId queryId)
     {
         String traceId = findTraceId(queryId);
@@ -121,12 +127,8 @@ public class TestingJaegerService
 
     private String findTraceId(QueryId queryId)
     {
-        JsonNode tracesRootNode = callJaegerApi(getUiUri().resolve("/api/traces?service=trino"));
-        if (!tracesRootNode.has("data")) {
-            return null;
-        }
-
-        for (JsonNode traceNode : tracesRootNode.get("data")) {
+        JsonNode traceNodes = getTraces();
+        for (JsonNode traceNode : traceNodes) {
             if (!traceNode.has("traceID") || !traceNode.has("spans")) {
                 continue;
             }
