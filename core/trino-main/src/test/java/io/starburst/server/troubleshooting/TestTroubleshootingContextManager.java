@@ -10,12 +10,15 @@
 package io.starburst.server.troubleshooting;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.inject.AbstractModule;
+import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import io.starburst.server.troubleshooting.TroubleshootingTestHelper.Unzipped;
 import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
 import io.airlift.bootstrap.Bootstrap;
+import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.airlift.configuration.ConfigDefaults;
+import io.airlift.units.Duration;
 import io.trino.execution.QueryInfo;
 import io.trino.spi.QueryId;
 import org.assertj.core.api.SoftAssertions;
@@ -40,8 +43,14 @@ import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.zipInputStreamToMap;
 import static io.starburst.server.troubleshooting.providers.TroubleshootingProvider.toInputStream;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
+import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.airlift.units.Duration.succinctDuration;
+import static io.trino.testing.assertions.Assert.assertEventually;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.concurrent.Executors.newScheduledThreadPool;
+import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @ExtendWith(SoftAssertionsExtension.class)
 @Timeout(value = 30)
@@ -53,26 +62,9 @@ public class TestTroubleshootingContextManager
     {
         AtomicBoolean onContextStartedCalled = new AtomicBoolean();
         AtomicBoolean onContextFinishedCalled = new AtomicBoolean();
+        HappyPathProvider happyPathProvider = new HappyPathProvider(onContextStartedCalled, onContextFinishedCalled);
 
-        TroubleshootingContextManager manager = new Bootstrap(new AbstractModule()
-        {
-            @Override
-            protected void configure()
-            {
-                bind(FullQueryInfoProvider.class).to(FullQueryInfoProviderTesting.class).in(Scopes.SINGLETON);
-                bind(TroubleshootingContextManager.class).in(Scopes.SINGLETON);
-                bind(TroubleshootingArchiver.class).in(Scopes.SINGLETON);
-                bind(TroubleshootingConfig.class).in(Scopes.SINGLETON);
-                bind(ScheduledExecutorService.class).annotatedWith(ForTroubleshooting.class)
-                        .toInstance(newScheduledThreadPool(1, daemonThreadsNamed("query-troubleshooting-%s")));
-
-                Multibinder<TroubleshootingProvider> setBinder = newSetBinder(binder(), TroubleshootingProvider.class);
-                setBinder.addBinding().to(ThrowingProvider.class).in(Scopes.SINGLETON);
-                setBinder.addBinding().toInstance(new HappyPathProvider(onContextStartedCalled, onContextFinishedCalled));
-            }
-        })
-                .initialize()
-                .getInstance(TroubleshootingContextManager.class);
+        TroubleshootingContextManager manager = createTroubleshootingContextManager(config -> {}, new ThrowingProvider(), happyPathProvider);
 
         QueryId queryId = new QueryId("123");
         manager.start(queryId);
@@ -89,6 +81,64 @@ public class TestTroubleshootingContextManager
 
         softly.assertThat(onContextStartedCalled.get()).isTrue();
         softly.assertThat(onContextFinishedCalled.get()).isTrue();
+    }
+
+    @Test
+    public void shouldRetryRemove()
+    {
+        AtomicBoolean removeTried = new AtomicBoolean();
+        AtomicBoolean removeSucceeded = new AtomicBoolean();
+        TroubleshootingProvider shouldRetryRemoveProvider = new TroubleshootingProvider()
+        {
+            @Override
+            public void onContextRemoved(TroubleshootingContext context)
+            {
+                if (!removeTried.get()) {
+                    removeTried.set(true);
+                    throw new RuntimeException("remove failed");
+                }
+                removeSucceeded.set(true);
+            }
+        };
+
+        TroubleshootingContextManager manager = createTroubleshootingContextManager(config -> {
+            config.setMaxAccessDuration(Duration.ZERO);
+            config.setCleanupInterval(new Duration(1, MILLISECONDS));
+        }, shouldRetryRemoveProvider);
+
+        QueryId queryId = new QueryId("123");
+        manager.start(queryId);
+        manager.finish(queryId);
+
+        assertEventually(succinctDuration(1, SECONDS), () -> assertTrue(removeSucceeded.get()));
+    }
+
+    private static TroubleshootingContextManager createTroubleshootingContextManager(
+            ConfigDefaults<TroubleshootingConfig> troubleshootingConfigDefaults,
+            TroubleshootingProvider... providers)
+    {
+        return new Bootstrap(new AbstractConfigurationAwareModule()
+        {
+            @Override
+            protected void setup(Binder binder)
+            {
+                configBinder(binder).bindConfig(TroubleshootingConfig.class);
+                configBinder(binder).bindConfigDefaults(TroubleshootingConfig.class, troubleshootingConfigDefaults);
+                binder.bind(FullQueryInfoProvider.class).to(FullQueryInfoProviderTesting.class).in(Scopes.SINGLETON);
+                binder.bind(TroubleshootingContextManager.class).in(Scopes.SINGLETON);
+                binder.bind(TroubleshootingArchiver.class).in(Scopes.SINGLETON);
+                binder.bind(ScheduledExecutorService.class).annotatedWith(ForTroubleshooting.class)
+                        .toInstance(newSingleThreadScheduledExecutor(daemonThreadsNamed("query-troubleshooting-%s")));
+
+                Multibinder<TroubleshootingProvider> setBinder = newSetBinder(binder, TroubleshootingProvider.class);
+
+                for (TroubleshootingProvider provider : providers) {
+                    setBinder.addBinding().toInstance(provider);
+                }
+            }
+        })
+                .initialize()
+                .getInstance(TroubleshootingContextManager.class);
     }
 
     private static class FullQueryInfoProviderTesting

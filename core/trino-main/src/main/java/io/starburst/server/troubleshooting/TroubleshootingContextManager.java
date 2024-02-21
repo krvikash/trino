@@ -26,10 +26,12 @@ import io.trino.spi.QueryId;
 
 import java.io.InputStream;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -57,6 +59,7 @@ public class TroubleshootingContextManager
     private final ScheduledExecutorService executorService;
     private final Duration destroyAfterFinishDelay;
     private final TroubleshootingArchiver troubleshootingArchiver;
+    private final Set<QueryId> toBeRemoved = ConcurrentHashMap.newKeySet();
 
     @Inject
     public TroubleshootingContextManager(
@@ -75,6 +78,8 @@ public class TroubleshootingContextManager
         this.executorService = requireNonNull(executorService, "executorService is null");
         this.destroyAfterFinishDelay = requireNonNull(config, "config is null").getMaxAccessDuration();
         this.troubleshootingArchiver = requireNonNull(troubleshootingArchiver, "troubleshootingArchiver is null");
+
+        executorService.scheduleAtFixedRate(this::cleanup, config.getCleanupInterval().toMillis(), config.getCleanupInterval().toMillis(), MILLISECONDS);
     }
 
     public void start(QueryId queryId)
@@ -115,7 +120,14 @@ public class TroubleshootingContextManager
             if (transitionContextTo(context, FINISHED)) {
                 log.info("%s has finished", context);
                 executorService.schedule(() -> {
-                    remove(queryId);
+                    try {
+                        remove(queryId);
+                    }
+                    catch (RuntimeException e) {
+                        log.warn(e, "Remove failed for query: %s", queryId);
+                        toBeRemoved.add(queryId);
+                        throw e;
+                    }
                     log.info("Removed %s after timeout %s", context, destroyAfterFinishDelay);
                 }, destroyAfterFinishDelay.toMillis(), MILLISECONDS);
             }
@@ -215,6 +227,21 @@ public class TroubleshootingContextManager
         }
         dataProviders.forEach(provider -> provider.onContextRemoved(context));
         return context.getState().setIf(TroubleshootingContext.State.REMOVED, oldState -> oldState == STARTED || oldState == FINISHED);
+    }
+
+    private void cleanup()
+    {
+        Iterator<QueryId> iterator = toBeRemoved.iterator();
+        while (iterator.hasNext()) {
+            QueryId queryId = iterator.next();
+            try {
+                remove(queryId);
+                iterator.remove();
+            }
+            catch (RuntimeException e) {
+                log.warn(e, "Cleanup failed for query: %s", queryId);
+            }
+        }
     }
 
     private boolean isInExpectedState(TroubleshootingContext context, TroubleshootingContext.State expectedState)

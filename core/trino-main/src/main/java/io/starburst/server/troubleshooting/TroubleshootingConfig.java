@@ -14,7 +14,6 @@ import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.DefunctConfig;
 import io.airlift.units.Duration;
 import io.airlift.units.MaxDuration;
-import io.airlift.units.MinDuration;
 
 import static io.airlift.units.Duration.succinctDuration;
 import static java.util.concurrent.TimeUnit.MINUTES;
@@ -24,7 +23,7 @@ public class TroubleshootingConfig
 {
     private int maxActiveQueries = 128;
     private Duration maxAccessDuration = succinctDuration(5, MINUTES);
-
+    private Duration cleanupInterval = succinctDuration(1, MINUTES);
     private boolean anonymizedPlan = true;
 
     public int getMaxActiveQueries()
@@ -40,7 +39,6 @@ public class TroubleshootingConfig
         return this;
     }
 
-    @MinDuration("1s")
     @MaxDuration("1h")
     public Duration getMaxAccessDuration()
     {
@@ -52,6 +50,19 @@ public class TroubleshootingConfig
     public TroubleshootingConfig setMaxAccessDuration(Duration maxAccessDuration)
     {
         this.maxAccessDuration = maxAccessDuration;
+        return this;
+    }
+
+    public Duration getCleanupInterval()
+    {
+        return cleanupInterval;
+    }
+
+    @Config("troubleshooting.cleanup-interval")
+    @ConfigDescription("Time interval between retrying failed removal of troubleshooting information")
+    public TroubleshootingConfig setCleanupInterval(Duration cleanupInterval)
+    {
+        this.cleanupInterval = cleanupInterval;
         return this;
     }
 
