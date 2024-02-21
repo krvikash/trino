@@ -295,10 +295,7 @@ public class Partition
     private void closeChunk(Chunk chunk)
     {
         // ignore empty chunks
-        if (chunk.isEmpty()) {
-            chunk.release();
-        }
-        else {
+        if (!chunk.isEmpty()) {
             lastChunkCloseTime = System.currentTimeMillis();
             chunk.close();
             closedChunks.put(chunk.getChunkId(), chunk);
@@ -395,6 +392,7 @@ public class Partition
                     openChunk = createNewOpenChunk(chunkSliceSizeInBytes * (((requiredStorageSize - 1) / chunkSliceSizeInBytes) + 1));
                 }
                 else {
+                    openChunk = null;
                     setException(new IllegalArgumentException("requiredStorageSize %d larger than chunkMaxSizeInBytes %d".formatted(requiredStorageSize, chunkMaxSizeInBytes)));
                     return;
                 }
