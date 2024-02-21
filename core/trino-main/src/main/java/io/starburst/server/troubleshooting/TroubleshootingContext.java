@@ -16,7 +16,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
@@ -30,6 +32,8 @@ public class TroubleshootingContext
     private final QueryId queryId;
     private final StateMachine<State> state;
     private final Map<String, Object> values = new ConcurrentHashMap<>();
+    // available only once the query is finished
+    private volatile Optional<Set<String>> processingNodeIds = Optional.empty();
     private final List<Exception> topLevelErrors = new ArrayList<>();
     private final Map<String, Exception> errors = new HashMap<>();
 
@@ -89,6 +93,16 @@ public class TroubleshootingContext
     public Map<String, Exception> getErrors()
     {
         return errors;
+    }
+
+    public Set<String> getProcessingNodeIds()
+    {
+        return processingNodeIds.orElseThrow(() -> new NoSuchElementException("processingNodeIds not available"));
+    }
+
+    public void setProcessingNodeIds(Set<String> processingNodeIds)
+    {
+        this.processingNodeIds = Optional.of(processingNodeIds);
     }
 
     public enum State

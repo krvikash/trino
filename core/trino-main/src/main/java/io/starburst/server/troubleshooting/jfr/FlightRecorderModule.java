@@ -14,16 +14,12 @@ import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
-import io.starburst.server.troubleshooting.ForTroubleshooting;
 import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
-import io.airlift.units.DataSize;
 import io.trino.server.ServerConfig;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
-import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
-import static io.trino.server.InternalCommunicationHttpClientModule.internalHttpClientModule;
 import static java.util.Objects.requireNonNull;
 
 public class FlightRecorderModule
@@ -32,13 +28,7 @@ public class FlightRecorderModule
     @Override
     protected void setup(Binder binder)
     {
-        configBinder(binder).bindConfig(FlightRecorderConfig.class);
-
         FlightRecorderConfig flightRecorderConfig = buildConfigObject(FlightRecorderConfig.class);
-        DataSize maxRecordingSize = flightRecorderConfig.getMaxRecordingSize();
-        install(internalHttpClientModule("flight-recorder", ForTroubleshooting.class)
-                .withConfigDefaults(httpClientConfig -> httpClientConfig.setMaxContentLength(maxRecordingSize))
-                .build());
         binder.bind(LocalRecordingFactory.class);
 
         if (buildConfigObject(ServerConfig.class).isCoordinator()) {

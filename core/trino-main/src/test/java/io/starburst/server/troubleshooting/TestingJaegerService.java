@@ -11,6 +11,7 @@ package io.starburst.server.troubleshooting;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.io.ByteStreams;
 import io.airlift.log.Logger;
 import io.opentelemetry.exporter.internal.grpc.GrpcExporter;
 import io.opentelemetry.exporter.internal.grpc.GrpcExporterBuilder;
@@ -25,14 +26,17 @@ import okhttp3.ResponseBody;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.utility.DockerImageName;
 
+import java.io.ByteArrayInputStream;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.concurrent.TimeUnit;
+import java.util.zip.GZIPInputStream;
 
 import static java.util.Objects.requireNonNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestingJaegerService
         implements Closeable
@@ -97,8 +101,10 @@ public class TestingJaegerService
                 "/opentelemetry.proto.collector.trace.v1.TraceService/Export");
         GrpcExporter<RawMarshaler> grpcExporter = grpcExporterBuilder.build();
 
+        byte[] decompressed = decompress(data);
+        assertThat(decompressed).isNotEmpty();
         // 10 seconds timeout left for CI environment
-        CompletableResultCode exportResult = grpcExporter.export(new RawMarshaler(data), 1)
+        CompletableResultCode exportResult = grpcExporter.export(new RawMarshaler(decompressed), 1)
                 .join(10, TimeUnit.SECONDS);
 
         return exportResult.isDone() && exportResult.isSuccess();
@@ -108,6 +114,16 @@ public class TestingJaegerService
     {
         JsonNode tracesRootNode = callJaegerApi(getUiUri().resolve("/api/traces?service=trino"));
         return tracesRootNode.get("data");
+    }
+
+    public static byte[] decompress(byte[] data)
+    {
+        try {
+            return ByteStreams.toByteArray(new GZIPInputStream(new ByteArrayInputStream(data)));
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public JsonNode getTraceSpans(QueryId queryId)

@@ -16,22 +16,23 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.util.Collection;
+import java.util.zip.GZIPOutputStream;
 
 public class SpanSerializer
 {
     public InputStream execute(Collection<SpanData> spans)
     {
         TraceRequestMarshaler marshaller = TraceRequestMarshaler.create(spans);
-        ByteArrayOutputStream os = new ByteArrayOutputStream();
-        try {
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        try (OutputStream os = new GZIPOutputStream(bos)) {
             marshaller.writeBinaryTo(os);
-            os.close();
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-        return new ByteArrayInputStream(os.toByteArray());
+        return new ByteArrayInputStream(bos.toByteArray());
     }
 }

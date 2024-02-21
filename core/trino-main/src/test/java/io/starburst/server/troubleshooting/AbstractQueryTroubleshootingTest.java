@@ -34,6 +34,7 @@ import io.trino.testing.QueryFailedException;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.ResultWithQueryId;
 import io.trino.testing.TestingTrinoClient;
+import org.assertj.core.api.Condition;
 import org.assertj.core.api.SoftAssertions;
 import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
 import org.intellij.lang.annotations.Language;
@@ -61,6 +62,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.starburstdata.presto.server.StarburstClientCapabilities.QUERY_TROUBLESHOOTING;
 import static io.starburst.server.troubleshooting.TroubleshootingArchiver.TOP_LEVEL_ERRORS_FILENAME;
@@ -69,10 +71,15 @@ import static io.trino.SystemSessionProperties.QUERY_MAX_MEMORY_PER_NODE;
 import static io.trino.testing.DataProviders.toDataProvider;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static io.trino.testing.assertions.Assert.assertEventually;
+import static java.lang.Math.toIntExact;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
+import static java.util.Spliterator.ORDERED;
+import static java.util.Spliterators.spliteratorUnknownSize;
+import static java.util.stream.StreamSupport.stream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
 @ExtendWith(SoftAssertionsExtension.class)
@@ -169,7 +176,7 @@ public abstract class AbstractQueryTroubleshootingTest
     public void testTroubleshootingDataAvailableForAuthorizedUser(SoftAssertions softly)
             throws Exception
     {
-        String troubleshootedQuery = "SHOW CATALOGS";
+        String troubleshootedQuery = "select linenumber, count(*) from tpch.tiny.lineitem l group by 1;";
         TroubleshootingData data = getTroubleshootingDataForQuery(troubleshootedSession, troubleshootedQuery);
         assertThat(data.getStream()).isPresent();
         Unzipped inputsMap = zipInputStreamToMap(data.getRequiredStreams().get(), tmpDir);
@@ -178,7 +185,7 @@ public abstract class AbstractQueryTroubleshootingTest
                 .hasEntrySatisfying(getPath(data, "version.txt"), value -> softly.assertThat(byteToString(value)).contains("testversion"))
                 .hasEntrySatisfying(getPath(data, "query_plan.txt"), value -> assertThat(value).isNotEmpty())
                 .hasEntrySatisfying(getPath(data, "recordings/coordinator.jfr"), value -> softly.assertThat(value).isNotEmpty())
-                .hasEntrySatisfying(getPath(data, "opentelemetry-coordinator.grpc"), value -> softly.assertThat(value).isNotEmpty());
+                .hasEntrySatisfying(getPath(data, "traces/opentelemetry-coordinator.grpc.gz"), value -> softly.assertThat(value).isNotEmpty());
 
         ObjectMapper mapper = new ObjectMapper();
         mapper.readValue(inputsMap.contents().get(getPath(data, "jmx/metrics-before.json")), new TypeReference<>() {});
@@ -197,12 +204,26 @@ public abstract class AbstractQueryTroubleshootingTest
                             .isNotEmpty());
         }
 
-        boolean exportSuccessful = testingJaegerService.exportOpenTelemetryData(inputsMap.contents().get(getPath(data, "opentelemetry-coordinator.grpc")));
+        boolean exportSuccessful = testingJaegerService.exportOpenTelemetryData(inputsMap.contents().get(getPath(data, "traces/opentelemetry-coordinator.grpc.gz")));
         assertThat(exportSuccessful).isTrue();
+        assertThat(inputsMap.contents().keySet()).areExactly(getWorkerCount(), new Condition<>(key -> key.contains("traces/opentelemetry-worker"), "worker trace"));
+        List<String> workerSpans = inputsMap.contents()
+                .keySet()
+                .stream()
+                .filter(key -> key.contains("traces/opentelemetry-worker"))
+                .collect(toImmutableList());
+        for (String workerSpan : workerSpans) {
+            boolean workerExportSuccessful = testingJaegerService.exportOpenTelemetryData(inputsMap.contents().get(workerSpan));
+            assertThat(workerExportSuccessful).isTrue();
+        }
 
         JsonNode traceSpans = testingJaegerService.getTraceSpans(data.getQueryId());
         assertThat(traceSpans).isNotNull();
         assertThat(traceSpans.size()).isGreaterThan(70);
+        boolean workerSpansIncluded = stream(spliteratorUnknownSize(traceSpans.elements(), ORDERED), false)
+                // split (leaf) span is executed on a worker
+                .anyMatch(span -> "split (leaf)".equals(span.get("operationName").asText()));
+        assertTrue(workerSpansIncluded);
     }
 
     @Test
@@ -270,9 +291,9 @@ public abstract class AbstractQueryTroubleshootingTest
 
             Unzipped fastQueryInputsMap = zipInputStreamToMap(fastQueryTroubleshootingData.getRequiredStreams().get(), tmpDir);
             softly.assertThat(fastQueryInputsMap.contents())
-                    .hasEntrySatisfying(getPath(fastQueryTroubleshootingData, "opentelemetry-coordinator.grpc"), value -> softly.assertThat(value).isNotEmpty());
+                    .hasEntrySatisfying(getPath(fastQueryTroubleshootingData, "traces/opentelemetry-coordinator.grpc.gz"), value -> softly.assertThat(value).isNotEmpty());
 
-            boolean fastQueryExportSuccessful = testingJaegerService.exportOpenTelemetryData(fastQueryInputsMap.contents().get(getPath(fastQueryTroubleshootingData, "opentelemetry-coordinator.grpc")));
+            boolean fastQueryExportSuccessful = testingJaegerService.exportOpenTelemetryData(fastQueryInputsMap.contents().get(getPath(fastQueryTroubleshootingData, "traces/opentelemetry-coordinator.grpc.gz")));
             assertThat(fastQueryExportSuccessful).isTrue();
 
             JsonNode traces = testingJaegerService.getTraces();
@@ -283,9 +304,9 @@ public abstract class AbstractQueryTroubleshootingTest
 
             Unzipped slowQueryInputsMap = zipInputStreamToMap(slowQueryTroubleshootingData.getRequiredStreams().get(), tmpDir);
             softly.assertThat(slowQueryInputsMap.contents())
-                    .hasEntrySatisfying(getPath(slowQueryTroubleshootingData, "opentelemetry-coordinator.grpc"), value -> softly.assertThat(value).isNotEmpty());
+                    .hasEntrySatisfying(getPath(slowQueryTroubleshootingData, "traces/opentelemetry-coordinator.grpc.gz"), value -> softly.assertThat(value).isNotEmpty());
 
-            boolean slowQueryExportSuccessful = testingJaegerService.exportOpenTelemetryData(slowQueryInputsMap.contents().get(getPath(slowQueryTroubleshootingData, "opentelemetry-coordinator.grpc")));
+            boolean slowQueryExportSuccessful = testingJaegerService.exportOpenTelemetryData(slowQueryInputsMap.contents().get(getPath(slowQueryTroubleshootingData, "traces/opentelemetry-coordinator.grpc.gz")));
             assertThat(slowQueryExportSuccessful).isTrue();
 
             JsonNode slowQueryTraceSpans = testingJaegerService.getTraceSpans(slowQueryId.get());
@@ -314,6 +335,14 @@ public abstract class AbstractQueryTroubleshootingTest
                 assertZipContainsOnlyErrorFileWithStackTrace(awaitForTroubleshootingData(result.getQueryId()));
             });
         }
+    }
+
+    private int getWorkerCount()
+    {
+        return toIntExact(getDistributedQueryRunner().getServers()
+                .stream()
+                .filter(server -> !server.isCoordinator())
+                .count());
     }
 
     private TroubleshootingData getTroubleshootingDataForQuery(Session session, @Language("SQL") String query)

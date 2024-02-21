@@ -16,7 +16,6 @@ import io.opentelemetry.sdk.trace.data.SpanData;
 import io.trino.spi.QueryId;
 
 import java.io.InputStream;
-import java.util.Collection;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -70,5 +69,11 @@ public class SpanInterceptor
     public InputStream removeSpans(QueryId queryId)
     {
         return spanSerializerProvider.get().execute(Optional.ofNullable(spansByQueryIds.remove(queryId)).orElse(emptySet()));
+    }
+
+    public void remove(QueryId queryId)
+    {
+        forgetTracking(queryId);
+        spansByQueryIds.remove(queryId);
     }
 }

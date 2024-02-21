@@ -10,6 +10,7 @@
 package io.starburst.server.troubleshooting;
 
 import com.google.common.cache.Cache;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
 import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
@@ -17,16 +18,24 @@ import io.airlift.log.Logger;
 import io.airlift.units.Duration;
 import io.trino.cache.EvictableCacheBuilder;
 import io.trino.execution.QueryInfo;
+import io.trino.execution.StageInfo;
 import io.trino.execution.StateMachine;
+import io.trino.execution.TaskInfo;
+import io.trino.execution.TaskStatus;
 import io.trino.spi.QueryId;
 
 import java.io.InputStream;
+import java.util.Collection;
+import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static com.google.common.base.Verify.verify;
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.Futures.transform;
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.FINISHED;
@@ -34,6 +43,7 @@ import static io.starburst.server.troubleshooting.TroubleshootingContext.State.I
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.INVALID;
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.REMOVED;
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.STARTED;
+import static io.trino.execution.StageInfo.getAllStages;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -98,7 +108,10 @@ public class TroubleshootingContextManager
         try {
             waitForQueryInfoIsGathered();
             fullQueryInfoProvider.getFullQueryInfo(queryId)
-                    .ifPresent(value -> context.set(QueryInfo.class, value));
+                    .ifPresent(value -> {
+                        context.set(QueryInfo.class, value);
+                        context.setProcessingNodeIds(getProcessingNodesForQuery(value));
+                    });
             if (transitionContextTo(context, FINISHED)) {
                 log.info("%s has finished", context);
                 executorService.schedule(() -> {
@@ -220,5 +233,23 @@ public class TroubleshootingContextManager
         catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private static Set<String> getProcessingNodesForQuery(QueryInfo queryInfo)
+    {
+        return queryInfo.getOutputStage().map(TroubleshootingContextManager::getNodeIdsProcessingQuery).orElse(ImmutableSet.of());
+    }
+
+    private static Set<String> getNodeIdsProcessingQuery(StageInfo outputStage)
+    {
+        List<TaskInfo> tasks = getAllStages(Optional.of(outputStage)).stream()
+                .map(StageInfo::getTasks)
+                .flatMap(Collection::stream)
+                .collect(toImmutableList());
+
+        return tasks.stream()
+                .map(TaskInfo::getTaskStatus)
+                .map(TaskStatus::getNodeId)
+                .collect(toImmutableSet());
     }
 }
