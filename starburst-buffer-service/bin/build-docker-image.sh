@@ -77,6 +77,8 @@ for imageRepository in ${imageRepositories[@]}; do
         imageRepository="${imageRepository}/"
     fi
     imageTags+=("${imageRepository}trino-buffer-service/${projectName}:${projectVersion}")
+    # temporary tags until we remove appending -jdk21 in stargate`
+    imageTags+=("${imageRepository}trino-buffer-service/${projectName}:${projectVersion}-jdk21")
 done
 
 buildArguments=""
