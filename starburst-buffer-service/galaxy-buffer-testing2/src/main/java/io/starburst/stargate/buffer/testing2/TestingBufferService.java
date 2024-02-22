@@ -7,7 +7,7 @@
  *
  * Redistribution of this material is strictly prohibited.
  */
-package io.starburst.stargate.buffer.testing;
+package io.starburst.stargate.buffer.testing2;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Closer;

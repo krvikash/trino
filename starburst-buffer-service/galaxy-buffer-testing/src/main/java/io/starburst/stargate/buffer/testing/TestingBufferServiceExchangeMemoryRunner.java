@@ -10,6 +10,7 @@
 package io.starburst.stargate.buffer.testing;
 
 import com.google.common.collect.ImmutableMap;
+import io.starburst.stargate.buffer.testing2.TestingBufferService;
 import io.starburst.stargate.buffer.trino.exchange.BufferExchangePlugin;
 import io.trino.plugin.memory.MemoryQueryRunner;
 import io.trino.testing.FaultTolerantExecutionConnectorTestHelper;

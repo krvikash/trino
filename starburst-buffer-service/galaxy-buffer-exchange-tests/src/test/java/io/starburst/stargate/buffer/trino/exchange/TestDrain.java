@@ -24,7 +24,7 @@ import io.airlift.http.client.jetty.JettyHttpClient;
 import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
 import io.starburst.stargate.buffer.data.server.testing.TestingDataServer;
-import io.starburst.stargate.buffer.testing.TestingBufferService;
+import io.starburst.stargate.buffer.testing2.TestingBufferService;
 import io.trino.plugin.memory.MemoryQueryRunner;
 import io.trino.spi.type.BigintType;
 import io.trino.testing.DistributedQueryRunner;
