@@ -11,7 +11,12 @@ package io.starburst.server.troubleshooting;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
+import com.google.inject.Key;
 import io.airlift.log.Logger;
+import io.trino.Session;
+import io.trino.testing.DistributedQueryRunner;
+import io.trino.testing.TestingTrinoClient;
+import org.intellij.lang.annotations.Language;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -20,6 +25,7 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -51,6 +57,16 @@ class TroubleshootingTestHelper
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);
+        }
+    }
+
+    public static Unzipped getTroubleshootingDataForQuery(DistributedQueryRunner queryRunner, Session session, @Language("SQL") String query, Path tmpDir)
+            throws Exception
+    {
+        try (TestingTrinoClient client = new TestingTrinoClient(queryRunner.getCoordinator(), session)) {
+            TroubleshootingContextManager troubleshootingContextManager = queryRunner.getCoordinator().getInstance(Key.get(TroubleshootingContextManager.class));
+            InputStream inputStream = troubleshootingContextManager.getArchive(client.execute(query).getQueryId()).get(10, TimeUnit.SECONDS);
+            return zipInputStreamToMap(inputStream, tmpDir);
         }
     }
 

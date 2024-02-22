@@ -34,7 +34,8 @@ public class FlightRecorderModule
     {
         configBinder(binder).bindConfig(FlightRecorderConfig.class);
 
-        DataSize maxRecordingSize = buildConfigObject(FlightRecorderConfig.class).getMaxRecordingSize();
+        FlightRecorderConfig flightRecorderConfig = buildConfigObject(FlightRecorderConfig.class);
+        DataSize maxRecordingSize = flightRecorderConfig.getMaxRecordingSize();
         install(internalHttpClientModule("flight-recorder", ForTroubleshooting.class)
                 .withConfigDefaults(httpClientConfig -> httpClientConfig.setMaxContentLength(maxRecordingSize))
                 .build());
@@ -44,7 +45,13 @@ public class FlightRecorderModule
             binder.bind(RemoteRecordingFactory.class).in(Scopes.SINGLETON);
             Multibinder<TroubleshootingProvider> setBinder = newSetBinder(binder, TroubleshootingProvider.class);
             setBinder.addBinding().to(FlightRecordingProvider.class);
-            binder.bind(FlightRecordingFactory.class).toProvider(AggregatingRecordingFactoryProvider.class).in(Scopes.SINGLETON);
+            if (flightRecorderConfig.getMaxCollectedWorkersJfr() == 0) {
+                // we don't need RemoteRecordingFactory as the remote collection is disabled
+                binder.bind(FlightRecordingFactory.class).to(LocalRecordingFactory.class);
+            }
+            else {
+                binder.bind(FlightRecordingFactory.class).toProvider(AggregatingRecordingFactoryProvider.class).in(Scopes.SINGLETON);
+            }
             binder.bind(FlightRecorderHttpClient.Factory.class).in(Scopes.SINGLETON);
             binder.bind(FlightRecorderHttpClient.WorkerNodesProvider.class).in(Scopes.SINGLETON);
         }
