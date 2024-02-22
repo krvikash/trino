@@ -25,8 +25,8 @@
         <module>galaxy-buffer-discovery-server</module>
         <module>galaxy-buffer-exchange</module>
         <module>galaxy-buffer-exchange-tests</module>
+        <module>galaxy-buffer-mocking</module>
         <module>galaxy-buffer-status</module>
-        <module>galaxy-buffer-testing</module>
         <module>galaxy-buffer-testing2</module>
     </modules>
 
@@ -99,13 +99,13 @@
 
             <dependency>
                 <groupId>${project.groupId}</groupId>
-                <artifactId>galaxy-buffer-status</artifactId>
+                <artifactId>galaxy-buffer-mocking</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
                 <groupId>${project.groupId}</groupId>
-                <artifactId>galaxy-buffer-testing</artifactId>
+                <artifactId>galaxy-buffer-status</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

@@ -7,7 +7,7 @@
  *
  * Redistribution of this material is strictly prohibited.
  */
-package io.starburst.stargate.buffer.testing;
+package io.starburst.stargate.buffer.mocking;
 
 import com.google.common.collect.ImmutableList;
 import io.starburst.stargate.buffer.BufferNodeInfo;

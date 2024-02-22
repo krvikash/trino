@@ -7,7 +7,7 @@
  *
  * Redistribution of this material is strictly prohibited.
  */
-package io.starburst.stargate.buffer.testing;
+package io.starburst.stargate.buffer.mocking;
 
 import io.starburst.stargate.buffer.data.client.DataPage;
 

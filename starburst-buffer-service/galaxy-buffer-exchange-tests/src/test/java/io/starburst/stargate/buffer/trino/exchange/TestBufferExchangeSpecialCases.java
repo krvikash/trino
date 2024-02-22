@@ -11,9 +11,9 @@ package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.collect.ImmutableMap;
 import io.airlift.units.Duration;
-import io.starburst.stargate.buffer.testing.MockBufferExchangePlugin;
-import io.starburst.stargate.buffer.testing.MockBufferService;
-import io.starburst.stargate.buffer.testing.MockDataNodeStats;
+import io.starburst.stargate.buffer.mocking.MockBufferExchangePlugin;
+import io.starburst.stargate.buffer.mocking.MockBufferService;
+import io.starburst.stargate.buffer.mocking.MockDataNodeStats;
 import io.trino.plugin.memory.MemoryQueryRunner;
 import io.trino.sql.query.QueryAssertions;
 import io.trino.testing.FaultTolerantExecutionConnectorTestHelper;
@@ -33,10 +33,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static io.airlift.testing.Closeables.closeAll;
-import static io.starburst.stargate.buffer.testing.MockDataNodeStats.Key.FAILED_GET_CHUNK_DATA_CHUNK_DRAINED_REQUEST_COUNT;
-import static io.starburst.stargate.buffer.testing.MockDataNodeStats.Key.FAILED_GET_CHUNK_DATA_NOT_FOUND_IN_DRAINED_STORAGE_REQUEST_COUNT;
-import static io.starburst.stargate.buffer.testing.MockDataNodeStats.Key.SUCCESSFUL_ADD_DATA_PAGES_REQUEST_COUNT;
-import static io.starburst.stargate.buffer.testing.MockDataNodeStats.Key.SUCCESSFUL_GET_CHUNK_DATA_FROM_DRAINED_STORAGE_REQUEST_COUNT;
+import static io.starburst.stargate.buffer.mocking.MockDataNodeStats.Key.FAILED_GET_CHUNK_DATA_CHUNK_DRAINED_REQUEST_COUNT;
+import static io.starburst.stargate.buffer.mocking.MockDataNodeStats.Key.FAILED_GET_CHUNK_DATA_NOT_FOUND_IN_DRAINED_STORAGE_REQUEST_COUNT;
+import static io.starburst.stargate.buffer.mocking.MockDataNodeStats.Key.SUCCESSFUL_ADD_DATA_PAGES_REQUEST_COUNT;
+import static io.starburst.stargate.buffer.mocking.MockDataNodeStats.Key.SUCCESSFUL_GET_CHUNK_DATA_FROM_DRAINED_STORAGE_REQUEST_COUNT;
 import static io.trino.sql.query.QueryAssertions.QueryAssert;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;

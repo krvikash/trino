@@ -9,8 +9,8 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>galaxy-buffer-testing</artifactId>
-    <description>Buffer Service Testing Utils</description>
+    <artifactId>galaxy-buffer-mocking</artifactId>
+    <description>Buffer Service Testing Utils that depend on trino-main</description>
 
     <properties>
         <air.main.basedir>${project.parent.basedir}/..</air.main.basedir>

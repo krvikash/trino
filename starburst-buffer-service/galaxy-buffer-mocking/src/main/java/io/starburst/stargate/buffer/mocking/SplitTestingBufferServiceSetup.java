@@ -7,7 +7,9 @@
  *
  * Redistribution of this material is strictly prohibited.
  */
-package io.starburst.stargate.buffer.testing;
+
+// This class can't go into io.starburst.stargate.buffer.testing, since it (transitively) depends on trino-main.
+package io.starburst.stargate.buffer.mocking;
 
 import com.google.common.collect.ImmutableMap;
 import io.starburst.stargate.buffer.testing2.TestingBufferService;

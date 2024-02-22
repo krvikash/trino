@@ -7,13 +7,17 @@
  *
  * Redistribution of this material is strictly prohibited.
  */
-package io.starburst.stargate.buffer.testing;
+package io.starburst.stargate.buffer.mocking;
 
-import org.junit.jupiter.api.Test;
-
-// Dummy test class to make maven happy
-public class TestDummy
+public enum MockBufferNodeState
 {
-    @Test
-    void testDummy() {}
+    RUNNING,
+    DRAINING, // draining - data still on the node
+    DRAINED, // draining - data already gone
+    GONE;
+
+    public boolean isDraining()
+    {
+        return this == DRAINED || this == DRAINING;
+    }
 }

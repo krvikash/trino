@@ -7,7 +7,7 @@
  *
  * Redistribution of this material is strictly prohibited.
  */
-package io.starburst.stargate.buffer.testing;
+package io.starburst.stargate.buffer.mocking;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
@@ -44,14 +44,14 @@ import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
 import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
-import static io.starburst.stargate.buffer.testing.MockBufferNodeState.DRAINED;
-import static io.starburst.stargate.buffer.testing.MockBufferNodeState.GONE;
-import static io.starburst.stargate.buffer.testing.MockDataNodeStats.Key.FAILED_GET_CHUNK_DATA_CHUNK_DRAINED_REQUEST_COUNT;
-import static io.starburst.stargate.buffer.testing.MockDataNodeStats.Key.FAILED_GET_CHUNK_DATA_NOT_FOUND_IN_DRAINED_STORAGE_REQUEST_COUNT;
-import static io.starburst.stargate.buffer.testing.MockDataNodeStats.Key.REJECTED_DRAINING_ADD_DATA_PAGES_REQUEST_COUNT;
-import static io.starburst.stargate.buffer.testing.MockDataNodeStats.Key.REJECTED_EXCHANGE_FINISHED_ADD_DATA_PAGES_REQUEST_COUNT;
-import static io.starburst.stargate.buffer.testing.MockDataNodeStats.Key.SUCCESSFUL_ADD_DATA_PAGES_REQUEST_COUNT;
-import static io.starburst.stargate.buffer.testing.MockDataNodeStats.Key.SUCCESSFUL_GET_CHUNK_DATA_FROM_DRAINED_STORAGE_REQUEST_COUNT;
+import static io.starburst.stargate.buffer.mocking.MockBufferNodeState.DRAINED;
+import static io.starburst.stargate.buffer.mocking.MockBufferNodeState.GONE;
+import static io.starburst.stargate.buffer.mocking.MockDataNodeStats.Key.FAILED_GET_CHUNK_DATA_CHUNK_DRAINED_REQUEST_COUNT;
+import static io.starburst.stargate.buffer.mocking.MockDataNodeStats.Key.FAILED_GET_CHUNK_DATA_NOT_FOUND_IN_DRAINED_STORAGE_REQUEST_COUNT;
+import static io.starburst.stargate.buffer.mocking.MockDataNodeStats.Key.REJECTED_DRAINING_ADD_DATA_PAGES_REQUEST_COUNT;
+import static io.starburst.stargate.buffer.mocking.MockDataNodeStats.Key.REJECTED_EXCHANGE_FINISHED_ADD_DATA_PAGES_REQUEST_COUNT;
+import static io.starburst.stargate.buffer.mocking.MockDataNodeStats.Key.SUCCESSFUL_ADD_DATA_PAGES_REQUEST_COUNT;
+import static io.starburst.stargate.buffer.mocking.MockDataNodeStats.Key.SUCCESSFUL_GET_CHUNK_DATA_FROM_DRAINED_STORAGE_REQUEST_COUNT;
 import static java.util.Objects.requireNonNull;
 
 class MockDataNode

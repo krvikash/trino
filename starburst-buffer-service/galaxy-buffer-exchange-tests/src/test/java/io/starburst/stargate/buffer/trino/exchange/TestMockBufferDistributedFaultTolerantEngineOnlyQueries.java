@@ -10,8 +10,8 @@
 package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.collect.ImmutableMap;
-import io.starburst.stargate.buffer.testing.MockBufferExchangePlugin;
-import io.starburst.stargate.buffer.testing.MockBufferService;
+import io.starburst.stargate.buffer.mocking.MockBufferExchangePlugin;
+import io.starburst.stargate.buffer.mocking.MockBufferService;
 import io.trino.connector.MockConnectorFactory;
 import io.trino.connector.MockConnectorPlugin;
 import io.trino.plugin.memory.MemoryQueryRunner;

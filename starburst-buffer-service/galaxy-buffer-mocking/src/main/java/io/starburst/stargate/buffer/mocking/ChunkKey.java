@@ -7,6 +7,6 @@
  *
  * Redistribution of this material is strictly prohibited.
  */
-package io.starburst.stargate.buffer.testing;
+package io.starburst.stargate.buffer.mocking;
 
 record ChunkKey(long bufferNodeId, int partitionId, long chunkId) {}
