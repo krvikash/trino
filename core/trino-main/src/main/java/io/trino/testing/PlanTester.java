@@ -197,6 +197,7 @@ import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.function.FunctionBundle;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.security.AiModelAccessControl;
+import io.trino.spi.security.LocationAccessControl;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeDescriptor;
 import io.trino.spi.type.TypeManager;
@@ -514,6 +515,7 @@ public class PlanTester
         TestingAccessControlManager accessControlManager = new TestingAccessControlManager(transactionManager, eventListenerManager, secretsResolver);
         this.accessControl = accessControlManager;
         accessControl.loadSystemAccessControl(AllowAllSystemAccessControl.NAME, ImmutableMap.of());
+        accessControl.loadLocationAccessControl(LocationAccessControl.DEFAULT_NAME, ImmutableMap.of());
 
         CacheMetadata cacheMetadata = new CacheMetadata(createCacheMetadata(catalogManager));
         FunctionManager functionManager = new FunctionManager(createFunctionProvider(catalogManager), globalFunctionCatalog, languageFunctionManager);
