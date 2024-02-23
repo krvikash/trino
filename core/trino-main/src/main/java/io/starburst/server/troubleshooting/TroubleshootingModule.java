@@ -15,6 +15,7 @@ import com.google.inject.multibindings.Multibinder;
 import io.starburst.server.troubleshooting.jfr.FlightRecorderModule;
 import io.starburst.server.troubleshooting.jmx.JmxTroubleshootingProvider;
 import io.starburst.server.troubleshooting.providers.QueryJsonProvider;
+import io.starburst.server.troubleshooting.providers.QueryPlanProvider;
 import io.starburst.server.troubleshooting.providers.SoftwareVersionProvider;
 import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
 import io.starburst.server.troubleshooting.tracing.OpenTelemetryTraceProvider;
@@ -62,6 +63,7 @@ public class TroubleshootingModule
         newSetBinder(binder, SpanProcessor.class).addBinding().to(TroubleshootingSpanProcessor.class).in(Scopes.SINGLETON);
 
         Multibinder<TroubleshootingProvider> setBinder = newSetBinder(binder, TroubleshootingProvider.class);
+        setBinder.addBinding().to(QueryPlanProvider.class);
         setBinder.addBinding().to(SoftwareVersionProvider.class);
         setBinder.addBinding().to(JmxTroubleshootingProvider.class);
         setBinder.addBinding().to(QueryJsonProvider.class);

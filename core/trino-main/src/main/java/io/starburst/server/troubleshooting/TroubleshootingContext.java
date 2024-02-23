@@ -56,6 +56,11 @@ public class TroubleshootingContext
                 .map(clazz::cast);
     }
 
+    public <T> boolean has(Class<T> clazz)
+    {
+        return values.containsKey(clazz.getSimpleName());
+    }
+
     public <T> T getOrThrow(Class<T> clazz)
     {
         return get(clazz).orElseThrow();

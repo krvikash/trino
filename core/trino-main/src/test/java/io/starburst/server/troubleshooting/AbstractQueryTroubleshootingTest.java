@@ -176,6 +176,7 @@ public abstract class AbstractQueryTroubleshootingTest
 
         softly.assertThat(inputsMap.contents())
                 .hasEntrySatisfying(getPath(data, "version.txt"), value -> softly.assertThat(byteToString(value)).contains("testversion"))
+                .hasEntrySatisfying(getPath(data, "query_plan.txt"), value -> assertThat(value).isNotEmpty())
                 .hasEntrySatisfying(getPath(data, "recordings/coordinator.jfr"), value -> softly.assertThat(value).isNotEmpty())
                 .hasEntrySatisfying(getPath(data, "opentelemetry-coordinator.grpc"), value -> softly.assertThat(value).isNotEmpty());
 
