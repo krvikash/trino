@@ -22,7 +22,7 @@ import io.airlift.tracing.Tracing;
 import io.airlift.units.DataSize;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
-import io.starburst.stargate.buffer.testing2.TestingBufferService;
+import io.starburst.stargate.buffer.testing.TestingBufferService;
 import io.starburst.stargate.buffer.trino.exchange.BufferExchangeManagerFactory;
 import io.trino.exchange.ExchangeContextInstance;
 import io.trino.exchange.ExchangeManagerContextInstance;

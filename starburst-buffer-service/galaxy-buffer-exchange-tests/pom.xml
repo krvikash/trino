@@ -172,6 +172,12 @@
         </dependency>
 
         <dependency>
+            <groupId>io.starburst.stargate.buffer</groupId>
+            <artifactId>galaxy-buffer-testing</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
             <groupId>io.trino</groupId>
             <artifactId>trino-exchange-filesystem</artifactId>
             <type>test-jar</type>

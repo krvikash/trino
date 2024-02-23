@@ -90,7 +90,7 @@
 
         <dependency>
             <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>galaxy-buffer-testing2</artifactId>
+            <artifactId>galaxy-buffer-testing</artifactId>
         </dependency>
 
         <dependency>

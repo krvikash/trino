@@ -12,7 +12,7 @@ package io.starburst.stargate.buffer.trino.exchange;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
-import io.starburst.stargate.buffer.testing2.TestingBufferService;
+import io.starburst.stargate.buffer.testing.TestingBufferService;
 import io.trino.operator.RetryPolicy;
 import io.trino.plugin.iceberg.BaseIcebergFailureRecoveryTest;
 import io.trino.plugin.iceberg.IcebergQueryRunner;

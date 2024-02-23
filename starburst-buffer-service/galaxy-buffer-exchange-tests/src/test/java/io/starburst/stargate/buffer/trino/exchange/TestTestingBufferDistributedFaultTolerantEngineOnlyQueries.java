@@ -12,7 +12,7 @@ package io.starburst.stargate.buffer.trino.exchange;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
-import io.starburst.stargate.buffer.testing2.TestingBufferService;
+import io.starburst.stargate.buffer.testing.TestingBufferService;
 import io.trino.connector.MockConnectorFactory;
 import io.trino.connector.MockConnectorPlugin;
 import io.trino.plugin.memory.MemoryQueryRunner;

@@ -9,7 +9,7 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>galaxy-buffer-testing2</artifactId>
+    <artifactId>galaxy-buffer-testing</artifactId>
     <description>Buffer Service Testing Utils that don't depend on trino-main</description>
 
     <properties>
@@ -42,21 +42,9 @@
     </dependencyManagement>
 
     <dependencies>
-
-        <dependency>
-            <groupId>com.google.errorprone</groupId>
-            <artifactId>error_prone_annotations</artifactId>
-            <optional>true</optional>
-        </dependency>
-
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>io.airlift</groupId>
-            <artifactId>slice</artifactId>
         </dependency>
 
         <dependency>
@@ -67,11 +55,6 @@
         <dependency>
             <groupId>io.starburst.stargate.buffer</groupId>
             <artifactId>galaxy-buffer-discovery-server</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>galaxy-buffer-exchange</artifactId>
         </dependency>
 
         <dependency>
