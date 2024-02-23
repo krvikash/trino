@@ -42,6 +42,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -72,8 +73,11 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
+import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
 @ExtendWith(SoftAssertionsExtension.class)
+// run in the same thread to avoid multiple big JFR profiles causing OOM
+@Execution(SAME_THREAD)
 public abstract class AbstractQueryTroubleshootingTest
         extends AbstractTestQueryFramework
 {
