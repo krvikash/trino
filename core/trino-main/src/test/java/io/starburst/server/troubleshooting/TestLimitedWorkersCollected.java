@@ -37,7 +37,7 @@ import static io.trino.testing.TestingSession.testSessionBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class TestLimitJfrWorkerCollected
+public class TestLimitedWorkersCollected
 {
     private static final String AUTHORIZED_USER = "bob";
 
