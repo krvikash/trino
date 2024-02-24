@@ -28,20 +28,15 @@ public class FlightRecorderModule
     @Override
     protected void setup(Binder binder)
     {
-        FlightRecorderConfig flightRecorderConfig = buildConfigObject(FlightRecorderConfig.class);
         binder.bind(LocalRecordingFactory.class);
 
         if (buildConfigObject(ServerConfig.class).isCoordinator()) {
             binder.bind(RemoteRecordingFactory.class).in(Scopes.SINGLETON);
             Multibinder<TroubleshootingProvider> setBinder = newSetBinder(binder, TroubleshootingProvider.class);
             setBinder.addBinding().to(FlightRecordingProvider.class);
-            if (flightRecorderConfig.getMaxCollectedWorkersJfr() == 0) {
-                // we don't need RemoteRecordingFactory as the remote collection is disabled
-                binder.bind(FlightRecordingFactory.class).to(LocalRecordingFactory.class);
-            }
-            else {
-                binder.bind(FlightRecordingFactory.class).toProvider(AggregatingRecordingFactoryProvider.class).in(Scopes.SINGLETON);
-            }
+
+            binder.bind(FlightRecordingFactory.class).toProvider(AggregatingRecordingFactoryProvider.class).in(Scopes.SINGLETON);
+
             binder.bind(FlightRecorderHttpClient.Factory.class).in(Scopes.SINGLETON);
             binder.bind(FlightRecorderHttpClient.WorkerNodesProvider.class).in(Scopes.SINGLETON);
         }

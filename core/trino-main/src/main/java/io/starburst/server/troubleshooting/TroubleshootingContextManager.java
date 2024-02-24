@@ -13,10 +13,10 @@ import com.google.common.cache.Cache;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
-import io.starburst.server.troubleshooting.jfr.FlightRecorderConfig;
 import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
+import io.trino.Session;
 import io.trino.cache.EvictableCacheBuilder;
 import io.trino.execution.QueryInfo;
 import io.trino.execution.StageInfo;
@@ -25,6 +25,7 @@ import io.trino.execution.TaskInfo;
 import io.trino.execution.TaskStatus;
 import io.trino.metadata.InternalNode;
 import io.trino.metadata.InternalNodeManager;
+import io.trino.metadata.SessionPropertyManager;
 import io.trino.spi.QueryId;
 
 import java.io.InputStream;
@@ -50,6 +51,8 @@ import static io.starburst.server.troubleshooting.TroubleshootingContext.State.I
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.INVALID;
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.REMOVED;
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.STARTED;
+import static io.starburst.server.troubleshooting.TroubleshootingSessionProperties.getMaxCollectedWorkersJfr;
+import static io.starburst.server.troubleshooting.TroubleshootingSessionProperties.getMaxCollectedWorkersTrace;
 import static io.trino.execution.StageInfo.getAllStages;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -66,18 +69,17 @@ public class TroubleshootingContextManager
     private final TroubleshootingArchiver troubleshootingArchiver;
     private final Set<QueryId> toBeRemoved = ConcurrentHashMap.newKeySet();
     private final InternalNodeManager internalNodeManager;
-    private final int maxCollectedWorkersJfr;
-    private final int maxCollectedWorkersTrace;
+    private final SessionPropertyManager sessionPropertyManager;
 
     @Inject
     public TroubleshootingContextManager(
             TroubleshootingConfig config,
-            FlightRecorderConfig flightRecorderConfig,
             FullQueryInfoProvider fullQueryInfoProvider,
             Set<TroubleshootingProvider> dataProviders,
             @ForTroubleshooting ScheduledExecutorService executorService,
             TroubleshootingArchiver troubleshootingArchiver,
-            InternalNodeManager internalNodeManager)
+            InternalNodeManager internalNodeManager,
+            SessionPropertyManager sessionPropertyManager)
     {
         this.fullQueryInfoProvider = requireNonNull(fullQueryInfoProvider, "dispatchManager is null");
         this.contexts = EvictableCacheBuilder.newBuilder()
@@ -89,8 +91,7 @@ public class TroubleshootingContextManager
         this.destroyAfterFinishDelay = requireNonNull(config, "config is null").getMaxAccessDuration();
         this.troubleshootingArchiver = requireNonNull(troubleshootingArchiver, "troubleshootingArchiver is null");
         this.internalNodeManager = requireNonNull(internalNodeManager, "internalNodeManager is null");
-        this.maxCollectedWorkersJfr = flightRecorderConfig.getMaxCollectedWorkersJfr();
-        this.maxCollectedWorkersTrace = config.getMaxCollectedWorkersTrace();
+        this.sessionPropertyManager = requireNonNull(sessionPropertyManager, "sessionPropertyManager is null");
 
         executorService.scheduleAtFixedRate(this::cleanup, config.getCleanupInterval().toMillis(), config.getCleanupInterval().toMillis(), MILLISECONDS);
     }
@@ -157,6 +158,10 @@ public class TroubleshootingContextManager
         // we want to have traces and jfr on the same set of nodes, and if the number of nodes is different, one set should contain the other
         Set<String> traceNodes;
         Set<String> jfrNodes;
+
+        Session session = queryInfo.getSession().toSession(sessionPropertyManager);
+        int maxCollectedWorkersTrace = getMaxCollectedWorkersTrace(session);
+        int maxCollectedWorkersJfr = getMaxCollectedWorkersJfr(session);
         if (maxCollectedWorkersTrace >= maxCollectedWorkersJfr) {
             traceNodes = limitWorkerNodes(internalNodeManager, getProcessingNodesForQuery(queryInfo), maxCollectedWorkersTrace);
             jfrNodes = limitWorkerNodes(internalNodeManager, traceNodes, maxCollectedWorkersJfr);

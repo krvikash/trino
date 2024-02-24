@@ -29,6 +29,7 @@ import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
 import io.opentelemetry.sdk.trace.SpanProcessor;
+import io.trino.SystemSessionPropertiesProvider;
 import io.trino.server.ServerConfig;
 import jakarta.annotation.PreDestroy;
 import jdk.jfr.FlightRecorder;
@@ -70,6 +71,7 @@ public class TroubleshootingModule
         }
 
         configBinder(binder).bindConfig(TroubleshootingConfig.class);
+        newSetBinder(binder, SystemSessionPropertiesProvider.class).addBinding().to(TroubleshootingSessionProperties.class);
         binder.bind(TroubleshootingEventListener.class).in(Scopes.SINGLETON);
         jaxrsBinder(binder).bind(TroubleshootingCoordinatorResource.class);
         binder.bind(TroubleshootingContextManager.class).in(Scopes.SINGLETON);

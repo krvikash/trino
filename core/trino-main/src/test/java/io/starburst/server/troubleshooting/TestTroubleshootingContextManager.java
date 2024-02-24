@@ -25,6 +25,7 @@ import io.trino.execution.QueryInfo;
 import io.trino.metadata.InMemoryNodeManager;
 import io.trino.metadata.InternalNode;
 import io.trino.metadata.InternalNodeManager;
+import io.trino.metadata.SessionPropertyManager;
 import io.trino.spi.QueryId;
 import org.assertj.core.api.SoftAssertions;
 import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
@@ -138,6 +139,7 @@ public class TestTroubleshootingContextManager
                         .toInstance(newSingleThreadScheduledExecutor(daemonThreadsNamed("query-troubleshooting-%s")));
                 binder.bind(InternalNodeManager.class).toInstance(new InMemoryNodeManager(
                         new InternalNode("coordinator", URI.create("http://127.0.0.1:11"), NodeVersion.UNKNOWN, true)));
+                binder.bind(SessionPropertyManager.class).in(Scopes.SINGLETON);
 
                 Multibinder<TroubleshootingProvider> setBinder = newSetBinder(binder, TroubleshootingProvider.class);
 
