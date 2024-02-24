@@ -15,7 +15,6 @@ import io.airlift.configuration.validation.FileExists;
 import io.airlift.units.DataSize;
 import io.airlift.units.MaxDataSize;
 import io.airlift.units.MinDataSize;
-import jakarta.validation.constraints.Min;
 
 import java.nio.file.Path;
 import java.util.Optional;
@@ -26,7 +25,6 @@ public class FlightRecorderConfig
 {
     private DataSize maxRecordingSize = DataSize.of(128, MEGABYTE);
     private Optional<Path> temporaryDirectory = Optional.empty();
-    private int maxCollectedWorkersJfr = 2;
 
     @Config("troubleshooting.jfr.temporary-directory")
     @ConfigDescription("Path that will be used for saving Java Flight Recorder files")
@@ -54,19 +52,5 @@ public class FlightRecorderConfig
     public DataSize getMaxRecordingSize()
     {
         return maxRecordingSize;
-    }
-
-    @Min(0)
-    public int getMaxCollectedWorkersJfr()
-    {
-        return maxCollectedWorkersJfr;
-    }
-
-    @Config("troubleshooting.jfr.max-collected-workers")
-    @ConfigDescription("Limits the number of workers nodes from which troubleshooting data is collected")
-    public FlightRecorderConfig setMaxCollectedWorkersJfr(int maxCollectedWorkersJfr)
-    {
-        this.maxCollectedWorkersJfr = maxCollectedWorkersJfr;
-        return this;
     }
 }

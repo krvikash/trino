@@ -26,6 +26,7 @@ public class TroubleshootingConfig
     private Duration maxAccessDuration = succinctDuration(5, MINUTES);
     private Duration cleanupInterval = succinctDuration(1, MINUTES);
     private boolean anonymizedPlan = true;
+    private int maxCollectedWorkersJfr = 2;
     private int maxCollectedWorkersTrace = Integer.MAX_VALUE;
 
     public int getMaxActiveQueries()
@@ -78,6 +79,20 @@ public class TroubleshootingConfig
     public TroubleshootingConfig setAnonymizedPlan(boolean anonymizedPlan)
     {
         this.anonymizedPlan = anonymizedPlan;
+        return this;
+    }
+
+    @Min(0)
+    public int getMaxCollectedWorkersJfr()
+    {
+        return maxCollectedWorkersJfr;
+    }
+
+    @Config("troubleshooting.jfr.max-collected-workers")
+    @ConfigDescription("Limits the number of workers nodes from which troubleshooting data is collected")
+    public TroubleshootingConfig setMaxCollectedWorkersJfr(int maxCollectedWorkersJfr)
+    {
+        this.maxCollectedWorkersJfr = maxCollectedWorkersJfr;
         return this;
     }
 

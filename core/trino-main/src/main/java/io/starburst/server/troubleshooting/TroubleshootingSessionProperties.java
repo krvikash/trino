@@ -11,7 +11,6 @@ package io.starburst.server.troubleshooting;
 
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
-import io.starburst.server.troubleshooting.jfr.FlightRecorderConfig;
 import io.trino.Session;
 import io.trino.SystemSessionPropertiesProvider;
 import io.trino.spi.session.PropertyMetadata;
@@ -29,13 +28,13 @@ public final class TroubleshootingSessionProperties
     private final List<PropertyMetadata<?>> sessionProperties;
 
     @Inject
-    public TroubleshootingSessionProperties(TroubleshootingConfig config, FlightRecorderConfig flightRecorderConfig)
+    public TroubleshootingSessionProperties(TroubleshootingConfig config)
     {
         sessionProperties = ImmutableList.of(
                 integerProperty(
                         TROUBLESHOOTING_JFR_MAX_COLLECTED_WORKERS,
                         "Limits the number of workers nodes from which jfr profile is collected during troubleshooting",
-                        flightRecorderConfig.getMaxCollectedWorkersJfr(),
+                        config.getMaxCollectedWorkersJfr(),
                         false),
                 integerProperty(
                         TROUBLESHOOTING_TRACE_MAX_COLLECTED_WORKERS,
