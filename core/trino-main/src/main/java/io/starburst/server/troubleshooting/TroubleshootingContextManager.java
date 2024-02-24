@@ -13,6 +13,7 @@ import com.google.common.cache.Cache;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
+import io.starburst.server.troubleshooting.jfr.FlightRecorderConfig;
 import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
@@ -22,10 +23,14 @@ import io.trino.execution.StageInfo;
 import io.trino.execution.StateMachine;
 import io.trino.execution.TaskInfo;
 import io.trino.execution.TaskStatus;
+import io.trino.metadata.InternalNode;
+import io.trino.metadata.InternalNodeManager;
 import io.trino.spi.QueryId;
 
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -60,14 +65,19 @@ public class TroubleshootingContextManager
     private final Duration destroyAfterFinishDelay;
     private final TroubleshootingArchiver troubleshootingArchiver;
     private final Set<QueryId> toBeRemoved = ConcurrentHashMap.newKeySet();
+    private final InternalNodeManager internalNodeManager;
+    private final int maxCollectedWorkersJfr;
+    private final int maxCollectedWorkersTrace;
 
     @Inject
     public TroubleshootingContextManager(
             TroubleshootingConfig config,
+            FlightRecorderConfig flightRecorderConfig,
             FullQueryInfoProvider fullQueryInfoProvider,
             Set<TroubleshootingProvider> dataProviders,
             @ForTroubleshooting ScheduledExecutorService executorService,
-            TroubleshootingArchiver troubleshootingArchiver)
+            TroubleshootingArchiver troubleshootingArchiver,
+            InternalNodeManager internalNodeManager)
     {
         this.fullQueryInfoProvider = requireNonNull(fullQueryInfoProvider, "dispatchManager is null");
         this.contexts = EvictableCacheBuilder.newBuilder()
@@ -78,6 +88,9 @@ public class TroubleshootingContextManager
         this.executorService = requireNonNull(executorService, "executorService is null");
         this.destroyAfterFinishDelay = requireNonNull(config, "config is null").getMaxAccessDuration();
         this.troubleshootingArchiver = requireNonNull(troubleshootingArchiver, "troubleshootingArchiver is null");
+        this.internalNodeManager = requireNonNull(internalNodeManager, "internalNodeManager is null");
+        this.maxCollectedWorkersJfr = flightRecorderConfig.getMaxCollectedWorkersJfr();
+        this.maxCollectedWorkersTrace = config.getMaxCollectedWorkersTrace();
 
         executorService.scheduleAtFixedRate(this::cleanup, config.getCleanupInterval().toMillis(), config.getCleanupInterval().toMillis(), MILLISECONDS);
     }
@@ -115,7 +128,7 @@ public class TroubleshootingContextManager
             fullQueryInfoProvider.getFullQueryInfo(queryId)
                     .ifPresent(value -> {
                         context.set(QueryInfo.class, value);
-                        context.setProcessingNodeIds(getProcessingNodesForQuery(value));
+                        setCollectedNodes(context, value);
                     });
             if (transitionContextTo(context, FINISHED)) {
                 log.info("%s has finished", context);
@@ -139,7 +152,53 @@ public class TroubleshootingContextManager
         }
     }
 
-    public void remove(QueryId queryId)
+    private void setCollectedNodes(TroubleshootingContext context, QueryInfo queryInfo)
+    {
+        // we want to have traces and jfr on the same set of nodes, and if the number of nodes is different, one set should contain the other
+        Set<String> traceNodes;
+        Set<String> jfrNodes;
+        if (maxCollectedWorkersTrace >= maxCollectedWorkersJfr) {
+            traceNodes = limitWorkerNodes(internalNodeManager, getProcessingNodesForQuery(queryInfo), maxCollectedWorkersTrace);
+            jfrNodes = limitWorkerNodes(internalNodeManager, traceNodes, maxCollectedWorkersJfr);
+        }
+        else {
+            jfrNodes = limitWorkerNodes(internalNodeManager, getProcessingNodesForQuery(queryInfo), maxCollectedWorkersJfr);
+            traceNodes = limitWorkerNodes(internalNodeManager, jfrNodes, maxCollectedWorkersTrace);
+        }
+        context.setCollectedNodes(jfrNodes, traceNodes);
+    }
+
+    public static Set<String> limitWorkerNodes(InternalNodeManager nodeManager, Set<String> nodes, int maxCollectedWorkers)
+    {
+        if (nodes.size() <= maxCollectedWorkers) {
+            return nodes;
+        }
+        // first split input nodes to workers and coordinators
+        Set<String> coordinatorIds = nodeManager.getCoordinators().stream().map(InternalNode::getNodeIdentifier).collect(toImmutableSet());
+        List<String> workers = new ArrayList<>(nodes.size());
+        List<String> coordinators = new ArrayList<>();
+        for (String node : nodes) {
+            if (coordinatorIds.contains(node)) {
+                coordinators.add(node);
+            }
+            else {
+                workers.add(node);
+            }
+        }
+
+        if (workers.size() <= maxCollectedWorkers) {
+            return nodes;
+        }
+
+        // then choose maxCollectedWorkers workers randomly
+        Collections.shuffle(workers);
+        return ImmutableSet.<String>builder()
+                .addAll(coordinators)
+                .addAll(workers.subList(0, maxCollectedWorkers))
+                .build();
+    }
+
+    private void remove(QueryId queryId)
     {
         TroubleshootingContext context = contexts.getIfPresent(queryId);
         if (null == context) {

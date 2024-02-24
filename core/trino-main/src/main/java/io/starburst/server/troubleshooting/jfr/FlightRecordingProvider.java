@@ -19,14 +19,10 @@ import io.trino.execution.QueryManager;
 import io.trino.execution.StageInfo;
 import io.trino.execution.TaskInfo;
 import io.trino.execution.TaskStatus;
-import io.trino.metadata.InternalNode;
-import io.trino.metadata.InternalNodeManager;
 import io.trino.spi.QueryId;
 
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -42,16 +38,12 @@ public class FlightRecordingProvider
 {
     private final FlightRecordingFactory recordingFactory;
     private final QueryManager queryManager;
-    private final int maxCollectedWorkersJfr;
-    private final InternalNodeManager internalNodeManager;
 
     @Inject
-    public FlightRecordingProvider(FlightRecordingFactory recordingFactory, QueryManager queryManager, InternalNodeManager internalNodeManager, FlightRecorderConfig config)
+    public FlightRecordingProvider(FlightRecordingFactory recordingFactory, QueryManager queryManager)
     {
         this.recordingFactory = requireNonNull(recordingFactory, "recordingFactory is null");
         this.queryManager = requireNonNull(queryManager, "queryManager is null");
-        this.internalNodeManager = requireNonNull(internalNodeManager, "internalNodeManager is null");
-        this.maxCollectedWorkersJfr = config.getMaxCollectedWorkersJfr();
     }
 
     @Override
@@ -64,38 +56,8 @@ public class FlightRecordingProvider
     public void onContextFinished(TroubleshootingContext context)
     {
         FlightRecording recording = context.getOrThrow(FlightRecording.class);
-        recording.retainForNodes(limitWorkerNodes(internalNodeManager, getProcessingNodesForQuery(context.getQueryId()), maxCollectedWorkersJfr));
+        recording.retainForNodes(context.getJfrCollectedNodes());
         recording.finish();
-    }
-
-    private static Set<String> limitWorkerNodes(InternalNodeManager nodeManager, Set<String> nodes, int maxCollectedWorkers)
-    {
-        if (nodes.size() <= maxCollectedWorkers) {
-            return nodes;
-        }
-        // first split input nodes to workers and coordinators
-        Set<String> coordinatorIds = nodeManager.getCoordinators().stream().map(InternalNode::getNodeIdentifier).collect(toImmutableSet());
-        List<String> workers = new ArrayList<>(nodes.size());
-        List<String> coordinators = new ArrayList<>();
-        for (String node : nodes) {
-            if (coordinatorIds.contains(node)) {
-                coordinators.add(node);
-            }
-            else {
-                workers.add(node);
-            }
-        }
-
-        if (workers.size() <= maxCollectedWorkers) {
-            return nodes;
-        }
-
-        // then choose maxCollectedWorkers workers randomly
-        Collections.shuffle(workers);
-        return ImmutableSet.<String>builder()
-                .addAll(coordinators)
-                .addAll(workers.subList(0, maxCollectedWorkers))
-                .build();
     }
 
     private Set<String> getProcessingNodesForQuery(QueryId queryId)

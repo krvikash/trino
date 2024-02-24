@@ -14,6 +14,7 @@ import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.DefunctConfig;
 import io.airlift.units.Duration;
 import io.airlift.units.MaxDuration;
+import jakarta.validation.constraints.Min;
 
 import static io.airlift.units.Duration.succinctDuration;
 import static java.util.concurrent.TimeUnit.MINUTES;
@@ -25,6 +26,7 @@ public class TroubleshootingConfig
     private Duration maxAccessDuration = succinctDuration(5, MINUTES);
     private Duration cleanupInterval = succinctDuration(1, MINUTES);
     private boolean anonymizedPlan = true;
+    private int maxCollectedWorkersTrace = Integer.MAX_VALUE;
 
     public int getMaxActiveQueries()
     {
@@ -76,6 +78,20 @@ public class TroubleshootingConfig
     public TroubleshootingConfig setAnonymizedPlan(boolean anonymizedPlan)
     {
         this.anonymizedPlan = anonymizedPlan;
+        return this;
+    }
+
+    @Min(0)
+    public int getMaxCollectedWorkersTrace()
+    {
+        return maxCollectedWorkersTrace;
+    }
+
+    @Config("troubleshooting.trace.max-collected-workers")
+    @ConfigDescription("Limits the number of workers nodes from which opentelemetry trace is collected during troubleshooting")
+    public TroubleshootingConfig setMaxCollectedWorkersTrace(int maxCollectedWorkersTrace)
+    {
+        this.maxCollectedWorkersTrace = maxCollectedWorkersTrace;
         return this;
     }
 }

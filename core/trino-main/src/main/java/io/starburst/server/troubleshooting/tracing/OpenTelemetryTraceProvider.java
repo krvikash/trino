@@ -18,7 +18,6 @@ import io.trino.spi.Node;
 
 import java.io.InputStream;
 import java.util.Map;
-import java.util.Set;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static java.util.Objects.requireNonNull;
@@ -46,8 +45,7 @@ public class OpenTelemetryTraceProvider
     @Override
     public void onContextFinished(TroubleshootingContext context)
     {
-        Set<String> processingNodesForQuery = context.getProcessingNodeIds();
-        remoteTroubleshootingTraceClient.retain(context.getQueryId(), processingNodesForQuery);
+        remoteTroubleshootingTraceClient.retain(context.getQueryId(), context.getTraceCollectedNodes());
     }
 
     @Override
@@ -60,7 +58,7 @@ public class OpenTelemetryTraceProvider
     @Override
     public Map<String, InputStream> getInputStreams(TroubleshootingContext context)
     {
-        Map<Node, DownloadResult> remoteInputStreams = remoteTroubleshootingTraceClient.download(context.getQueryId(), context.getProcessingNodeIds());
+        Map<Node, DownloadResult> remoteInputStreams = remoteTroubleshootingTraceClient.download(context.getQueryId(), context.getTraceCollectedNodes());
         Map<String, InputStream> remoteInputStreamsByNodeId = remoteInputStreams.entrySet()
                 .stream()
                 .collect(toImmutableMap(

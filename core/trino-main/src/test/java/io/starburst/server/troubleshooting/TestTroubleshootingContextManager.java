@@ -14,12 +14,17 @@ import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import io.starburst.server.troubleshooting.TroubleshootingTestHelper.Unzipped;
+import io.starburst.server.troubleshooting.jfr.FlightRecorderConfig;
 import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.configuration.ConfigDefaults;
 import io.airlift.units.Duration;
+import io.trino.client.NodeVersion;
 import io.trino.execution.QueryInfo;
+import io.trino.metadata.InMemoryNodeManager;
+import io.trino.metadata.InternalNode;
+import io.trino.metadata.InternalNodeManager;
 import io.trino.spi.QueryId;
 import org.assertj.core.api.SoftAssertions;
 import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
@@ -32,6 +37,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.io.UncheckedIOException;
+import java.net.URI;
 import java.nio.channels.Channels;
 import java.nio.file.Path;
 import java.util.Map;
@@ -123,12 +129,15 @@ public class TestTroubleshootingContextManager
             protected void setup(Binder binder)
             {
                 configBinder(binder).bindConfig(TroubleshootingConfig.class);
+                configBinder(binder).bindConfig(FlightRecorderConfig.class);
                 configBinder(binder).bindConfigDefaults(TroubleshootingConfig.class, troubleshootingConfigDefaults);
                 binder.bind(FullQueryInfoProvider.class).to(FullQueryInfoProviderTesting.class).in(Scopes.SINGLETON);
                 binder.bind(TroubleshootingContextManager.class).in(Scopes.SINGLETON);
                 binder.bind(TroubleshootingArchiver.class).in(Scopes.SINGLETON);
                 binder.bind(ScheduledExecutorService.class).annotatedWith(ForTroubleshooting.class)
                         .toInstance(newSingleThreadScheduledExecutor(daemonThreadsNamed("query-troubleshooting-%s")));
+                binder.bind(InternalNodeManager.class).toInstance(new InMemoryNodeManager(
+                        new InternalNode("coordinator", URI.create("http://127.0.0.1:11"), NodeVersion.UNKNOWN, true)));
 
                 Multibinder<TroubleshootingProvider> setBinder = newSetBinder(binder, TroubleshootingProvider.class);
 

@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 import static java.util.UUID.randomUUID;
 import static java.util.stream.Collectors.joining;
@@ -33,7 +34,9 @@ public class TroubleshootingContext
     private final StateMachine<State> state;
     private final Map<String, Object> values = new ConcurrentHashMap<>();
     // available only once the query is finished
-    private volatile Optional<Set<String>> processingNodeIds = Optional.empty();
+    private Optional<Set<String>> jfrCollectedNodes = Optional.empty();
+    // available only once the query is finished
+    private Optional<Set<String>> traceCollectedNodes = Optional.empty();
     private final List<Exception> topLevelErrors = new ArrayList<>();
     private final Map<String, Exception> errors = new HashMap<>();
 
@@ -95,14 +98,21 @@ public class TroubleshootingContext
         return errors;
     }
 
-    public Set<String> getProcessingNodeIds()
+    public void setCollectedNodes(Set<String> jfrCollectedNodes, Set<String> traceCollectedNodes)
     {
-        return processingNodeIds.orElseThrow(() -> new NoSuchElementException("processingNodeIds not available"));
+        checkArgument(jfrCollectedNodes.containsAll(traceCollectedNodes) || traceCollectedNodes.containsAll(jfrCollectedNodes));
+        this.jfrCollectedNodes = Optional.of(jfrCollectedNodes);
+        this.traceCollectedNodes = Optional.of(traceCollectedNodes);
     }
 
-    public void setProcessingNodeIds(Set<String> processingNodeIds)
+    public Set<String> getTraceCollectedNodes()
     {
-        this.processingNodeIds = Optional.of(processingNodeIds);
+        return traceCollectedNodes.orElseThrow(() -> new NoSuchElementException("traceCollectedNodes not available"));
+    }
+
+    public Set<String> getJfrCollectedNodes()
+    {
+        return jfrCollectedNodes.orElseThrow(() -> new NoSuchElementException("jfrCollectedNodes not available"));
     }
 
     public enum State
