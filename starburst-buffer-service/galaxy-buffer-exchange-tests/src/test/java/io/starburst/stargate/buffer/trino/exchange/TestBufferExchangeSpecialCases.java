@@ -21,7 +21,6 @@ import io.trino.testing.QueryRunner;
 import io.trino.testing.assertions.Assert;
 import org.assertj.core.api.AssertProvider;
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
@@ -87,7 +86,6 @@ public class TestBufferExchangeSpecialCases
     }
 
     @Test
-    @Disabled // TODO(https://github.com/starburstdata/galaxy-trino/issues/1570) reenable after fixing flakiness
     public void testNodeFullyDrainedWhileLongRunningQuery()
             throws Exception
     {
@@ -97,11 +95,11 @@ public class TestBufferExchangeSpecialCases
             // long-running query which and writes reasonably sized output (not too small, not too big) to an exchange.
             Future<AssertProvider<QueryAssertions.QueryAssert>> queryFuture = executor.submit(() -> testSetup.query("""
                     WITH big        AS (SELECT custkey k FROM tpch.sf10.orders),
-                         single_row AS (SELECT custkey AS k FROM tpch.tiny.customer WHERE acctbal = 2237.64)
-                    SELECT count(*) FROM single_row,big WHERE single_row.k = big.k"""));
+                         small AS (SELECT custkey AS k FROM tpch.tiny.customer WHERE acctbal < 10)
+                    SELECT count(*) FROM small,big WHERE small.k = big.k"""));
 
             int nodeToBeDrained = 1;
-            Assert.assertEventually(Duration.valueOf("1m"), () -> {
+            Assert.assertEventually(Duration.valueOf("2m"), () -> {
                 // wait until some data is written to node to be drained
                 MockDataNodeStats stats = mockBufferService.getNodeStats(nodeToBeDrained);
                 assertThat(stats.get(SUCCESSFUL_ADD_DATA_PAGES_REQUEST_COUNT)).isGreaterThan(0);
@@ -111,7 +109,7 @@ public class TestBufferExchangeSpecialCases
             mockBufferService.markNodeDrained(nodeToBeDrained);
 
             queryFuture.get();
-            assertThat(queryFuture.get()).matches("VALUES (BIGINT '25')");
+            assertThat(queryFuture.get()).matches("VALUES (BIGINT '1480')");
             MockDataNodeStats drainedNodeStats = mockBufferService.getNodeStats(nodeToBeDrained);
             MockDataNodeStats newNodeStats = mockBufferService.getNodeStats(addedNode);
 
