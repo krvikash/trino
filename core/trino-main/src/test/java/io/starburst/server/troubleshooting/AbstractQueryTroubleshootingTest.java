@@ -38,7 +38,6 @@ import org.assertj.core.api.Condition;
 import org.assertj.core.api.SoftAssertions;
 import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
 import org.intellij.lang.annotations.Language;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -114,22 +113,12 @@ public abstract class AbstractQueryTroubleshootingTest
     @TempDir
     private Path tmpDir;
 
-    private TestingJaegerService testingJaegerService;
-
     @BeforeAll
     public void localInit()
     {
         troubleshootingContextManager = getDistributedQueryRunner().getCoordinator().getInstance(Key.get(TroubleshootingContextManager.class));
         queryManager = getDistributedQueryRunner().getCoordinator().getQueryManager();
         coordinatorId = getDistributedQueryRunner().getCoordinator().getInstance(Key.get(InternalNodeManager.class)).getCurrentNode().getNodeIdentifier();
-        testingJaegerService = new TestingJaegerService();
-        testingJaegerService.start();
-    }
-
-    @AfterAll
-    public void tearDown()
-    {
-        testingJaegerService.close();
     }
 
     @Override
@@ -204,26 +193,28 @@ public abstract class AbstractQueryTroubleshootingTest
                             .isNotEmpty());
         }
 
-        boolean exportSuccessful = testingJaegerService.exportOpenTelemetryData(inputsMap.contents().get(getPath(data, "traces/opentelemetry-coordinator.grpc.gz")));
-        assertThat(exportSuccessful).isTrue();
-        assertThat(inputsMap.contents().keySet()).areExactly(getWorkerCount(), new Condition<>(key -> key.contains("traces/opentelemetry-worker"), "worker trace"));
-        List<String> workerSpans = inputsMap.contents()
-                .keySet()
-                .stream()
-                .filter(key -> key.contains("traces/opentelemetry-worker"))
-                .collect(toImmutableList());
-        for (String workerSpan : workerSpans) {
-            boolean workerExportSuccessful = testingJaegerService.exportOpenTelemetryData(inputsMap.contents().get(workerSpan));
-            assertThat(workerExportSuccessful).isTrue();
-        }
+        try (TestingJaegerService testingJaegerService = TestingJaegerService.createStarted()) {
+            boolean exportSuccessful = testingJaegerService.exportOpenTelemetryData(inputsMap.contents().get(getPath(data, "traces/opentelemetry-coordinator.grpc.gz")));
+            assertThat(exportSuccessful).isTrue();
+            assertThat(inputsMap.contents().keySet()).areExactly(getWorkerCount(), new Condition<>(key -> key.contains("traces/opentelemetry-worker"), "worker trace"));
+            List<String> workerSpans = inputsMap.contents()
+                    .keySet()
+                    .stream()
+                    .filter(key -> key.contains("traces/opentelemetry-worker"))
+                    .collect(toImmutableList());
+            for (String workerSpan : workerSpans) {
+                boolean workerExportSuccessful = testingJaegerService.exportOpenTelemetryData(inputsMap.contents().get(workerSpan));
+                assertThat(workerExportSuccessful).isTrue();
+            }
 
-        JsonNode traceSpans = testingJaegerService.getTraceSpans(data.getQueryId());
-        assertThat(traceSpans).isNotNull();
-        assertThat(traceSpans.size()).isGreaterThan(70);
-        boolean workerSpansIncluded = stream(spliteratorUnknownSize(traceSpans.elements(), ORDERED), false)
-                // split (leaf) span is executed on a worker
-                .anyMatch(span -> "split (leaf)".equals(span.get("operationName").asText()));
-        assertTrue(workerSpansIncluded);
+            JsonNode traceSpans = testingJaegerService.getTraceSpans(data.getQueryId());
+            assertThat(traceSpans).isNotNull();
+            assertThat(traceSpans.size()).isGreaterThan(70);
+            boolean workerSpansIncluded = stream(spliteratorUnknownSize(traceSpans.elements(), ORDERED), false)
+                    // split (leaf) span is executed on a worker
+                    .anyMatch(span -> "split (leaf)".equals(span.get("operationName").asText()));
+            assertTrue(workerSpansIncluded);
+        }
     }
 
     @Test
@@ -293,27 +284,29 @@ public abstract class AbstractQueryTroubleshootingTest
             softly.assertThat(fastQueryInputsMap.contents())
                     .hasEntrySatisfying(getPath(fastQueryTroubleshootingData, "traces/opentelemetry-coordinator.grpc.gz"), value -> softly.assertThat(value).isNotEmpty());
 
-            boolean fastQueryExportSuccessful = testingJaegerService.exportOpenTelemetryData(fastQueryInputsMap.contents().get(getPath(fastQueryTroubleshootingData, "traces/opentelemetry-coordinator.grpc.gz")));
-            assertThat(fastQueryExportSuccessful).isTrue();
+            try (TestingJaegerService testingJaegerService = TestingJaegerService.createStarted()) {
+                boolean fastQueryExportSuccessful = testingJaegerService.exportOpenTelemetryData(fastQueryInputsMap.contents().get(getPath(fastQueryTroubleshootingData, "traces/opentelemetry-coordinator.grpc.gz")));
+                assertThat(fastQueryExportSuccessful).isTrue();
 
-            JsonNode traces = testingJaegerService.getTraces();
-            assertThat(traces.size()).isEqualTo(1);
+                JsonNode traces = testingJaegerService.getTraces();
+                assertThat(traces.size()).isEqualTo(1);
 
-            TroubleshootingData slowQueryTroubleshootingData = awaitForTroubleshootingData(slowQueryId.get());
-            assertThat(slowQueryTroubleshootingData.getStream()).isPresent();
+                TroubleshootingData slowQueryTroubleshootingData = awaitForTroubleshootingData(slowQueryId.get());
+                assertThat(slowQueryTroubleshootingData.getStream()).isPresent();
 
-            Unzipped slowQueryInputsMap = zipInputStreamToMap(slowQueryTroubleshootingData.getRequiredStreams().get(), tmpDir);
-            softly.assertThat(slowQueryInputsMap.contents())
-                    .hasEntrySatisfying(getPath(slowQueryTroubleshootingData, "traces/opentelemetry-coordinator.grpc.gz"), value -> softly.assertThat(value).isNotEmpty());
+                Unzipped slowQueryInputsMap = zipInputStreamToMap(slowQueryTroubleshootingData.getRequiredStreams().get(), tmpDir);
+                softly.assertThat(slowQueryInputsMap.contents())
+                        .hasEntrySatisfying(getPath(slowQueryTroubleshootingData, "traces/opentelemetry-coordinator.grpc.gz"), value -> softly.assertThat(value).isNotEmpty());
 
-            boolean slowQueryExportSuccessful = testingJaegerService.exportOpenTelemetryData(slowQueryInputsMap.contents().get(getPath(slowQueryTroubleshootingData, "traces/opentelemetry-coordinator.grpc.gz")));
-            assertThat(slowQueryExportSuccessful).isTrue();
+                boolean slowQueryExportSuccessful = testingJaegerService.exportOpenTelemetryData(slowQueryInputsMap.contents().get(getPath(slowQueryTroubleshootingData, "traces/opentelemetry-coordinator.grpc.gz")));
+                assertThat(slowQueryExportSuccessful).isTrue();
 
-            JsonNode slowQueryTraceSpans = testingJaegerService.getTraceSpans(slowQueryId.get());
-            assertThat(slowQueryTraceSpans).isNotNull();
+                JsonNode slowQueryTraceSpans = testingJaegerService.getTraceSpans(slowQueryId.get());
+                assertThat(slowQueryTraceSpans).isNotNull();
 
-            traces = testingJaegerService.getTraces();
-            assertThat(traces.size()).isEqualTo(2);
+                traces = testingJaegerService.getTraces();
+                assertThat(traces.size()).isEqualTo(2);
+            }
         }
         finally {
             if (slowQueryId.get() != null && !queryManager.getFullQueryInfo(slowQueryId.get()).getState().isDone()) {

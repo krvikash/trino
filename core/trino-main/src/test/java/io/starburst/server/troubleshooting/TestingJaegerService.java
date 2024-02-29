@@ -56,6 +56,13 @@ public class TestingJaegerService
         jaegerHttpClient = new OkHttpClient();
     }
 
+    public static TestingJaegerService createStarted()
+    {
+        TestingJaegerService testingJaegerService = new TestingJaegerService();
+        testingJaegerService.start();
+        return testingJaegerService;
+    }
+
     public void start()
     {
         jaegerDockerContainer.start();
