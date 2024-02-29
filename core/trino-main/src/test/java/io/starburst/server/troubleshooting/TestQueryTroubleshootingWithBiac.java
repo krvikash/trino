@@ -43,6 +43,7 @@ public class TestQueryTroubleshootingWithBiac
         JdbcDatabaseContainer<?> container = closeAfterClass(new TestingEventLoggerPostgreSqlServer());
 
         DistributedQueryRunner queryRunner = StarburstQueryRunner.createStarburstQueryRunnerWithBiac(SESSION, container)
+                .addExtraProperty("troubleshooting.jfr.max-recording-size", "8MB")
                 .setCoordinatorProperties(Map.of("starburst.access-control.authorized-users", AUTHORIZED_USER, "troubleshooting.max-access-duration", "20s"))
                 .build();
 

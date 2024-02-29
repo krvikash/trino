@@ -24,6 +24,7 @@ public class TestQueryTroubleshooting
             throws Exception
     {
         DistributedQueryRunner queryRunner = StarburstQueryRunner.builder(SESSION)
+                .addExtraProperty("troubleshooting.jfr.max-recording-size", "8MB")
                 .setCoordinatorProperties(Map.of("insights.authorized-users", AUTHORIZED_USER, "troubleshooting.max-access-duration", "20s"))
                 .build();
 

@@ -26,6 +26,7 @@ import io.starburst.server.troubleshooting.tracing.SpanSerializer;
 import io.starburst.server.troubleshooting.tracing.TroubleshootingSpanProcessor;
 import io.starburst.server.troubleshooting.tracing.TroubleshootingTraceResource;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.airlift.units.DataSize;
 import io.opentelemetry.sdk.trace.SpanProcessor;
 import io.trino.server.ServerConfig;
 import jakarta.annotation.PreDestroy;
@@ -47,8 +48,11 @@ public class TroubleshootingModule
     protected void setup(Binder binder)
     {
         FlightRecorderConfig flightRecorderConfig = buildConfigObject(FlightRecorderConfig.class);
+        // flight recording file size can be bigger than maxRecordingSize by a few MB due to how jvm JFR profile flushing to disk works
+        DataSize maxContentLength = DataSize.ofBytes(
+                flightRecorderConfig.getMaxRecordingSize().toBytes() + DataSize.of(8, DataSize.Unit.MEGABYTE).toBytes());
         install(internalHttpClientModule("troubleshooting", ForTroubleshooting.class)
-                .withConfigDefaults(httpClientConfig -> httpClientConfig.setMaxContentLength(flightRecorderConfig.getMaxRecordingSize()))
+                .withConfigDefaults(httpClientConfig -> httpClientConfig.setMaxContentLength(maxContentLength))
                 .build());
         if (FlightRecorder.isAvailable()) {
             install(new FlightRecorderModule());
