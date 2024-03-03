@@ -26,12 +26,14 @@ import io.starburst.server.troubleshooting.tracing.SpanSerializer;
 import io.starburst.server.troubleshooting.tracing.TroubleshootingSpanProcessor;
 import io.starburst.server.troubleshooting.tracing.TroubleshootingTraceResource;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
 import io.opentelemetry.sdk.trace.SpanProcessor;
 import io.trino.server.ServerConfig;
 import jakarta.annotation.PreDestroy;
 import jdk.jfr.FlightRecorder;
 
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
@@ -39,6 +41,7 @@ import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
 import static io.trino.server.InternalCommunicationHttpClientModule.internalHttpClientModule;
+import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newScheduledThreadPool;
 
 public class TroubleshootingModule
@@ -70,8 +73,10 @@ public class TroubleshootingModule
         binder.bind(TroubleshootingEventListener.class).in(Scopes.SINGLETON);
         jaxrsBinder(binder).bind(TroubleshootingCoordinatorResource.class);
         binder.bind(TroubleshootingContextManager.class).in(Scopes.SINGLETON);
+        ScheduledExecutorService troubleshootingExecutor = newScheduledThreadPool(4, daemonThreadsNamed("query-troubleshooting-%s"));
         binder.bind(ScheduledExecutorService.class).annotatedWith(ForTroubleshooting.class)
-                .toInstance(newScheduledThreadPool(4, daemonThreadsNamed("query-troubleshooting-%s")));
+                .toInstance(troubleshootingExecutor);
+        binder.bind(ExecutorServiceCleaner.class).toInstance(new ExecutorServiceCleaner(troubleshootingExecutor));
         binder.bind(FullQueryInfoProvider.class).to(FullQueryInfoProviderDispatchManager.class).in(Scopes.SINGLETON);
         binder.bind(TroubleshootingArchiver.class).in(Scopes.SINGLETON);
         binder.bind(RemoteTroubleshootingTraceClient.class).in(Scopes.SINGLETON);
@@ -84,9 +89,21 @@ public class TroubleshootingModule
         setBinder.addBinding().to(OpenTelemetryTraceProvider.class);
     }
 
-    @PreDestroy
-    public void cleanup(@ForTroubleshooting ScheduledExecutorService executorService)
+    public static class ExecutorServiceCleaner
     {
-        executorService.shutdownNow();
+        private static final Logger log = Logger.get(ExecutorServiceCleaner.class);
+        private final ExecutorService executorService;
+
+        ExecutorServiceCleaner(ExecutorService executorService)
+        {
+            this.executorService = requireNonNull(executorService, "executor is null");
+        }
+
+        @PreDestroy
+        public void cleanNow()
+        {
+            log.info("cleanNow %s", executorService);
+            executorService.shutdownNow();
+        }
     }
 }
