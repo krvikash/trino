@@ -29,6 +29,7 @@ import io.trino.spi.connector.BeginTableExecuteResult;
 import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ColumnMetadata;
+import io.trino.spi.connector.ColumnPosition;
 import io.trino.spi.connector.ConnectorAccessControl;
 import io.trino.spi.connector.ConnectorAnalyzeMetadata;
 import io.trino.spi.connector.ConnectorInsertTableHandle;
@@ -365,12 +366,19 @@ public class DispatcherMetadata
     }
 
     @Override
+    @Deprecated
     public void addColumn(ConnectorSession session, ConnectorTableHandle tableHandle, ColumnMetadata column)
     {
         proxiedConnectorMetadata.addColumn(
                 session,
                 ((DispatcherTableHandle) tableHandle).getProxyConnectorTableHandle(),
                 column);
+    }
+
+    @Override
+    public void addColumn(ConnectorSession session, ConnectorTableHandle tableHandle, ColumnMetadata column, ColumnPosition position)
+    {
+        proxiedConnectorMetadata.addColumn(session, ((DispatcherTableHandle) tableHandle).getProxyConnectorTableHandle(), column, position);
     }
 
     @Override

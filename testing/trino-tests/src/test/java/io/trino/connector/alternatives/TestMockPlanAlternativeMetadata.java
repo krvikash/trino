@@ -34,7 +34,7 @@ public class TestMockPlanAlternativeMetadata
     public void testEverythingImplemented()
     {
         assertAllMethodsOverridden(ConnectorMetadata.class, MockPlanAlternativeMetadata.class, ImmutableSet.<Method>builder()
-                // Do not require implementation of deprecated methods, as they are not called by the engine
+                // Forbid implementation of deprecated methods, as they are not called by the engine
                 .addAll(Stream.of(ConnectorMetadata.class.getMethods())
                         .filter(method -> method.isAnnotationPresent(Deprecated.class))
                         .collect(toImmutableList()))
