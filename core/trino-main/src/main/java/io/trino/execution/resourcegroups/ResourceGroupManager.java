@@ -15,10 +15,12 @@ package io.trino.execution.resourcegroups;
 
 import com.google.errorprone.annotations.ThreadSafe;
 import io.trino.execution.ManagedQueryExecution;
+import io.trino.server.ResourceGroupInfo;
 import io.trino.spi.resourcegroups.ResourceGroupConfigurationManagerFactory;
 import io.trino.spi.resourcegroups.SelectionContext;
 import io.trino.spi.resourcegroups.SelectionCriteria;
 
+import java.util.List;
 import java.util.concurrent.Executor;
 
 /**
@@ -32,6 +34,8 @@ public interface ResourceGroupManager<C>
     void submit(ManagedQueryExecution queryExecution, SelectionContext<C> selectionContext, Executor executor);
 
     SelectionContext<C> selectGroup(SelectionCriteria criteria);
+
+    List<ResourceGroupInfo> listResourceGroups();
 
     void addConfigurationManagerFactory(ResourceGroupConfigurationManagerFactory factory);
 

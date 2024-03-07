@@ -51,6 +51,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
@@ -104,6 +105,12 @@ public final class InternalResourceGroupManager<C>
         InternalResourceGroup resourceGroup = groups.get(id);
         return Optional.ofNullable(resourceGroup)
                 .map(InternalResourceGroup::getFullInfo);
+    }
+
+    @Override
+    public List<ResourceGroupInfo> listResourceGroups()
+    {
+        return groups.values().stream().map(InternalResourceGroup::getFullInfo).collect(Collectors.toList());
     }
 
     @Override

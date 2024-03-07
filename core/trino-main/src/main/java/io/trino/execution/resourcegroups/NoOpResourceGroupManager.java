@@ -20,8 +20,11 @@ import io.trino.spi.resourcegroups.ResourceGroupId;
 import io.trino.spi.resourcegroups.SelectionContext;
 import io.trino.spi.resourcegroups.SelectionCriteria;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Executor;
+
+import static java.util.Collections.emptyList;
 
 /**
  * Used on workers.
@@ -39,6 +42,12 @@ public final class NoOpResourceGroupManager
     public Optional<ResourceGroupInfo> tryGetResourceGroupInfo(ResourceGroupId id)
     {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public List<ResourceGroupInfo> listResourceGroups()
+    {
+        return emptyList();
     }
 
     @Override
