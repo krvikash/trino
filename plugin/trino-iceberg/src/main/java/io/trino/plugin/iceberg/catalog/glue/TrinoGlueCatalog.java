@@ -52,9 +52,11 @@ import io.trino.plugin.hive.TrinoViewUtil;
 import io.trino.plugin.hive.ViewAlreadyExistsException;
 import io.trino.plugin.hive.ViewReaderUtil;
 import io.trino.plugin.hive.metastore.glue.GlueMetastoreStats;
+import io.trino.plugin.hive.metastore.glue.v1.converter.GlueToTrinoConverter;
 import io.trino.plugin.iceberg.IcebergMaterializedViewDefinition;
 import io.trino.plugin.iceberg.IcebergMetadata;
 import io.trino.plugin.iceberg.UnknownTableTypeException;
+import io.trino.plugin.iceberg.WorkScheduler;
 import io.trino.plugin.iceberg.catalog.AbstractTrinoCatalog;
 import io.trino.plugin.iceberg.catalog.IcebergTableOperations;
 import io.trino.plugin.iceberg.catalog.IcebergTableOperationsProvider;
@@ -143,6 +145,7 @@ import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_INVALID_METADATA;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewDefinition.decodeMaterializedViewData;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewDefinition.encodeMaterializedViewData;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewDefinition.fromConnectorMaterializedViewDefinition;
+import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.REFRESH_SCHEDULE;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.STORAGE_SCHEMA;
 import static io.trino.plugin.iceberg.IcebergSchemaProperties.LOCATION_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergTableName.tableNameWithType;
@@ -206,6 +209,7 @@ public class TrinoGlueCatalog
 
     public TrinoGlueCatalog(
             CatalogName catalogName,
+            WorkScheduler workScheduler,
             TrinoFileSystemFactory fileSystemFactory,
             TypeManager typeManager,
             boolean cacheTableMetadata,
@@ -219,7 +223,7 @@ public class TrinoGlueCatalog
             boolean hideMaterializedViewStorageTable,
             Executor metadataFetchingExecutor)
     {
-        super(catalogName, typeManager, tableOperationsProvider, fileSystemFactory, useUniqueTableLocation);
+        super(catalogName, workScheduler, typeManager, tableOperationsProvider, fileSystemFactory, useUniqueTableLocation);
         this.trinoVersion = requireNonNull(trinoVersion, "trinoVersion is null");
         this.cacheTableMetadata = cacheTableMetadata;
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
@@ -889,7 +893,8 @@ public class TrinoGlueCatalog
                     ConnectorMaterializedViewDefinition materializedView = createMaterializedViewDefinition(schemaTableName, table);
                     return new MaterializedViewData(
                             materializedView,
-                            Optional.ofNullable(parameters.get(METADATA_LOCATION_PROP)));
+                            Optional.ofNullable(parameters.get(METADATA_LOCATION_PROP)),
+                            getTableParameters(table));
                 });
             }
             catch (RuntimeException e) {
@@ -1151,11 +1156,13 @@ public class TrinoGlueCatalog
 
         if (hideMaterializedViewStorageTable) {
             Location storageMetadataLocation = createMaterializedViewStorage(session, viewName, definition, materializedViewProperties);
+            Optional<String> refreshJobId = createOrUpdateMaterializedViewRefreshJob(session, viewName, materializedViewProperties, existing.map(GlueToTrinoConverter::getTableParameters));
+
             TableInput materializedViewTableInput = getMaterializedViewTableInput(
                     viewName.getTableName(),
                     encodeMaterializedViewData(fromConnectorMaterializedViewDefinition(definition)),
                     isUsingSystemSecurity ? null : session.getUser(),
-                    createMaterializedViewProperties(session, storageMetadataLocation));
+                    createMaterializedViewProperties(session, storageMetadataLocation, refreshJobId));
             try {
                 if (existing.isPresent()) {
                     updateTable(viewName.getSchemaName(), materializedViewTableInput);
@@ -1193,12 +1200,14 @@ public class TrinoGlueCatalog
     {
         // Create the storage table
         SchemaTableName storageTable = createMaterializedViewStorageTable(session, viewName, definition, materializedViewProperties);
+        Optional<String> refreshJobId = createOrUpdateMaterializedViewRefreshJob(session, viewName, materializedViewProperties, existing.map(GlueToTrinoConverter::getTableParameters));
+
         // Create a view indicating the storage table
         TableInput materializedViewTableInput = getMaterializedViewTableInput(
                 viewName.getTableName(),
                 encodeMaterializedViewData(fromConnectorMaterializedViewDefinition(definition)),
                 isUsingSystemSecurity ? null : session.getUser(),
-                createMaterializedViewProperties(session, storageTable));
+                createMaterializedViewProperties(session, storageTable, refreshJobId));
 
         if (existing.isPresent()) {
             try {
@@ -1244,6 +1253,30 @@ public class TrinoGlueCatalog
         updateMaterializedView(viewName, newDefinition);
     }
 
+    @Override
+    public void updateMaterializedViewRefreshSchedule(ConnectorSession session, SchemaTableName viewName, Optional<String> schedule)
+    {
+        com.amazonaws.services.glue.model.Table view = getTableAndCacheMetadata(session, viewName)
+                .orElseThrow(() -> new MaterializedViewNotFoundException(viewName));
+
+        if (!isTrinoMaterializedView(getTableType(view), getTableParameters(view))) {
+            throw new TrinoException(UNSUPPORTED_TABLE_TYPE, "Not a Materialized View: " + view.getDatabaseName() + "." + view.getName());
+        }
+
+        Optional<String> existingJobId = Optional.ofNullable(getTableParameters(view).get(REFRESH_JOB_ID_PROPERTY));
+        Optional<String> updatedJobId = createOrUpdateMaterializedViewRefreshJob(session, viewName, existingJobId, schedule);
+
+        if (!existingJobId.equals(updatedJobId)) {
+            ImmutableMap.Builder<String, String> tableParameters = ImmutableMap.builder();
+            getTableParameters(view).entrySet().stream()
+                    .filter(entry -> !entry.getKey().equals(REFRESH_JOB_ID_PROPERTY))
+                    .forEach(tableParameters::put);
+            updatedJobId.ifPresent(id -> tableParameters.put(REFRESH_JOB_ID_PROPERTY, id));
+            view.setParameters(tableParameters.buildOrThrow());
+            updateMaterializedView(viewName, createMaterializedViewDefinition(viewName, view));
+        }
+    }
+
     private void updateMaterializedView(SchemaTableName viewName, ConnectorMaterializedViewDefinition newDefinition)
     {
         com.amazonaws.services.glue.model.Table table = getTable(viewName, false);
@@ -1270,8 +1303,10 @@ public class TrinoGlueCatalog
             throw new TrinoException(UNSUPPORTED_TABLE_TYPE, "Not a Materialized View: " + view.getDatabaseName() + "." + view.getName());
         }
         materializedViewCache.invalidate(viewName);
+        Optional<String> refreshJobId = Optional.ofNullable(getTableParameters(view).get(REFRESH_JOB_ID_PROPERTY));
         dropMaterializedViewStorage(session, view);
         deleteTable(view.getDatabaseName(), view.getName());
+        refreshJobId.ifPresent(jobId -> workScheduler.deleteJobSchedule(session, jobId));
     }
 
     private void dropMaterializedViewStorage(ConnectorSession session, com.amazonaws.services.glue.model.Table view)
@@ -1360,6 +1395,25 @@ public class TrinoGlueCatalog
     }
 
     @Override
+    public Map<String, Object> getMaterializedViewProperties(ConnectorSession session, SchemaTableName viewName, ConnectorMaterializedViewDefinition definition)
+    {
+        ImmutableMap.Builder<String, Object> properties = ImmutableMap.<String, Object>builder()
+                .putAll(super.getMaterializedViewProperties(session, viewName, definition));
+
+        MaterializedViewData materializedViewData = materializedViewCache.getIfPresent(viewName);
+        Optional<String> jobId;
+        if (materializedViewData != null) {
+            jobId = Optional.ofNullable(materializedViewData.properties.get(REFRESH_JOB_ID_PROPERTY));
+        }
+        else {
+            jobId = Optional.ofNullable(getTableParameters(getTableAndCacheMetadata(session, viewName).orElseThrow()).get(REFRESH_JOB_ID_PROPERTY));
+        }
+
+        jobId.flatMap(id -> workScheduler.getJobSchedule(session, id)).ifPresent(cronSchedule -> properties.put(REFRESH_SCHEDULE, cronSchedule));
+        return properties.buildOrThrow();
+    }
+
+    @Override
     public Optional<BaseTable> getMaterializedViewStorageTable(ConnectorSession session, SchemaTableName viewName)
     {
         String storageMetadataLocation;
@@ -1427,6 +1481,9 @@ public class TrinoGlueCatalog
             if (!isTrinoMaterializedView(getTableType(glueTable), tableParameters)) {
                 throw new TrinoException(UNSUPPORTED_TABLE_TYPE, "Not a Materialized View: " + source);
             }
+
+            updateMaterializedViewNameForScheduledWork(session, getTableParameters(glueTable), target);
+
             TableInput tableInput = getMaterializedViewTableInput(target.getTableName(), glueTable.getViewOriginalText(), glueTable.getOwner(), tableParameters);
             createTable(target.getSchemaName(), tableInput);
             newTableCreated = true;
@@ -1590,12 +1647,14 @@ public class TrinoGlueCatalog
 
     private record MaterializedViewData(
             ConnectorMaterializedViewDefinition connectorMaterializedViewDefinition,
-            Optional<String> storageMetadataLocation)
+            Optional<String> storageMetadataLocation,
+            Map<String, String> properties)
     {
         private MaterializedViewData
         {
             requireNonNull(connectorMaterializedViewDefinition, "connectorMaterializedViewDefinition is null");
             requireNonNull(storageMetadataLocation, "storageMetadataLocation is null");
+            requireNonNull(properties, "properties is null");
         }
     }
 }

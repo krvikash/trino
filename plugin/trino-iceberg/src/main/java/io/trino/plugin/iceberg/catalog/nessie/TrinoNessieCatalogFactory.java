@@ -16,6 +16,7 @@ package io.trino.plugin.iceberg.catalog.nessie;
 import com.google.inject.Inject;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.plugin.iceberg.IcebergConfig;
+import io.trino.plugin.iceberg.WorkScheduler;
 import io.trino.plugin.iceberg.catalog.IcebergTableOperationsProvider;
 import io.trino.plugin.iceberg.catalog.TrinoCatalog;
 import io.trino.plugin.iceberg.catalog.TrinoCatalogFactory;
@@ -34,12 +35,14 @@ public class TrinoNessieCatalogFactory
     private final NessieIcebergClient nessieClient;
     private final boolean isUniqueTableLocation;
     private final CatalogName catalogName;
+    private final WorkScheduler workScheduler;
     private final TypeManager typeManager;
     private final TrinoFileSystemFactory fileSystemFactory;
 
     @Inject
     public TrinoNessieCatalogFactory(
             CatalogName catalogName,
+            WorkScheduler workScheduler,
             TypeManager typeManager,
             TrinoFileSystemFactory fileSystemFactory,
             IcebergTableOperationsProvider tableOperationsProvider,
@@ -48,6 +51,7 @@ public class TrinoNessieCatalogFactory
             IcebergConfig icebergConfig)
     {
         this.catalogName = requireNonNull(catalogName, "catalogName is null");
+        this.workScheduler = requireNonNull(workScheduler, "workScheduler is null");
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.tableOperationsProvider = requireNonNull(tableOperationsProvider, "tableOperationsProvider is null");
@@ -59,6 +63,6 @@ public class TrinoNessieCatalogFactory
     @Override
     public TrinoCatalog create(ConnectorIdentity identity)
     {
-        return new TrinoNessieCatalog(catalogName, typeManager, fileSystemFactory, tableOperationsProvider, nessieClient, warehouseLocation, isUniqueTableLocation);
+        return new TrinoNessieCatalog(catalogName, workScheduler, typeManager, fileSystemFactory, tableOperationsProvider, nessieClient, warehouseLocation, isUniqueTableLocation);
     }
 }

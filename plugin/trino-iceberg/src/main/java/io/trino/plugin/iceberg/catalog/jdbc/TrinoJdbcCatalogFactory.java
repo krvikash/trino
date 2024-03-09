@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.plugin.iceberg.IcebergConfig;
+import io.trino.plugin.iceberg.WorkScheduler;
 import io.trino.plugin.iceberg.catalog.IcebergTableOperationsProvider;
 import io.trino.plugin.iceberg.catalog.TrinoCatalog;
 import io.trino.plugin.iceberg.catalog.TrinoCatalogFactory;
@@ -39,6 +40,7 @@ public class TrinoJdbcCatalogFactory
         implements TrinoCatalogFactory
 {
     private final CatalogName catalogName;
+    private final WorkScheduler workScheduler;
     private final TypeManager typeManager;
     private final IcebergTableOperationsProvider tableOperationsProvider;
     private final TrinoFileSystemFactory fileSystemFactory;
@@ -54,12 +56,14 @@ public class TrinoJdbcCatalogFactory
             CatalogName catalogName,
             TypeManager typeManager,
             IcebergTableOperationsProvider tableOperationsProvider,
+            WorkScheduler workScheduler,
             TrinoFileSystemFactory fileSystemFactory,
             IcebergJdbcClient jdbcClient,
             IcebergJdbcCatalogConfig jdbcConfig,
             IcebergConfig icebergConfig)
     {
         this.catalogName = requireNonNull(catalogName, "catalogName is null");
+        this.workScheduler = requireNonNull(workScheduler, "workScheduler is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.tableOperationsProvider = requireNonNull(tableOperationsProvider, "tableOperationsProvider is null");
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
@@ -98,6 +102,7 @@ public class TrinoJdbcCatalogFactory
 
         return new TrinoJdbcCatalog(
                 catalogName,
+                workScheduler,
                 typeManager,
                 tableOperationsProvider,
                 jdbcCatalog,

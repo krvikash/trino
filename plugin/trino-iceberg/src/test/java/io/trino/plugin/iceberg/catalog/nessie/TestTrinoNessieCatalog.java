@@ -20,6 +20,7 @@ import io.trino.plugin.hive.LocationAccessControl;
 import io.trino.plugin.hive.NodeVersion;
 import io.trino.plugin.iceberg.CommitTaskData;
 import io.trino.plugin.iceberg.IcebergMetadata;
+import io.trino.plugin.iceberg.NoopWorkScheduler;
 import io.trino.plugin.iceberg.TableStatisticsWriter;
 import io.trino.plugin.iceberg.catalog.BaseTrinoCatalogTest;
 import io.trino.plugin.iceberg.catalog.TrinoCatalog;
@@ -103,6 +104,7 @@ public class TestTrinoNessieCatalog
         NessieIcebergClient nessieClient = new NessieIcebergClient(nessieApi, icebergNessieCatalogConfig.getDefaultReferenceName(), null, ImmutableMap.of());
         return new TrinoNessieCatalog(
                 new CatalogName("catalog_name"),
+                new NoopWorkScheduler(),
                 new TestingTypeManager(),
                 fileSystemFactory,
                 new IcebergNessieTableOperationsProvider(fileSystemFactory, nessieClient),
@@ -127,6 +129,7 @@ public class TestTrinoNessieCatalog
         NessieIcebergClient nessieClient = new NessieIcebergClient(nessieApi, icebergNessieCatalogConfig.getDefaultReferenceName(), null, ImmutableMap.of());
         TrinoCatalog catalogWithDefaultLocation = new TrinoNessieCatalog(
                 new CatalogName("catalog_name"),
+                new NoopWorkScheduler(),
                 new TestingTypeManager(),
                 fileSystemFactory,
                 new IcebergNessieTableOperationsProvider(fileSystemFactory, nessieClient),

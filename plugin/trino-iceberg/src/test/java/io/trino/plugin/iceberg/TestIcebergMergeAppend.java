@@ -54,6 +54,7 @@ public class TestIcebergMergeAppend
         tableOperationsProvider = new FileMetastoreTableOperationsProvider(fileSystemFactory);
         trinoCatalog = new TrinoHiveCatalog(
                 new CatalogName("catalog"),
+                new NoopWorkScheduler(),
                 cachingHiveMetastore,
                 new TrinoViewHiveMetastore(cachingHiveMetastore, false, "trino-version", "test"),
                 fileSystemFactory,

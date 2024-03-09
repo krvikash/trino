@@ -16,6 +16,7 @@ package org.apache.iceberg.snowflake;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.trino.filesystem.TrinoFileSystemFactory;
+import io.trino.plugin.iceberg.WorkScheduler;
 import io.trino.plugin.iceberg.catalog.IcebergTableOperationsProvider;
 import io.trino.plugin.iceberg.catalog.TrinoCatalog;
 import io.trino.plugin.iceberg.catalog.TrinoCatalogFactory;
@@ -47,6 +48,7 @@ public class TrinoIcebergSnowflakeCatalogFactory
 
     private final TrinoFileSystemFactory fileSystemFactory;
     private final CatalogName catalogName;
+    private final WorkScheduler workScheduler;
     private final TypeManager typeManager;
     private final IcebergTableOperationsProvider tableOperationsProvider;
 
@@ -58,12 +60,14 @@ public class TrinoIcebergSnowflakeCatalogFactory
     public TrinoIcebergSnowflakeCatalogFactory(
             TrinoFileSystemFactory fileSystemFactory,
             CatalogName catalogName,
+            WorkScheduler workScheduler,
             IcebergSnowflakeCatalogConfig snowflakeCatalogConfig,
             TypeManager typeManager,
             IcebergTableOperationsProvider tableOperationsProvider)
     {
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.catalogName = requireNonNull(catalogName, "catalogName is null");
+        this.workScheduler = requireNonNull(workScheduler, "workScheduler is null");
 
         this.snowflakeDriverProperties = getSnowflakeDriverProperties(
                 snowflakeCatalogConfig.getUri(),
@@ -91,7 +95,7 @@ public class TrinoIcebergSnowflakeCatalogFactory
         SnowflakeCatalog icebergSnowflakeCatalog = new SnowflakeCatalog();
         icebergSnowflakeCatalog.initialize(catalogName.toString(), snowflakeClient, new TrinoIcebergSnowflakeCatalogFileIOFactory(fileSystemFactory, identity), snowflakeDriverProperties);
 
-        return new TrinoSnowflakeCatalog(icebergSnowflakeCatalog, catalogName, typeManager, fileSystemFactory, tableOperationsProvider, snowflakeDatabase);
+        return new TrinoSnowflakeCatalog(icebergSnowflakeCatalog, catalogName, workScheduler, typeManager, fileSystemFactory, tableOperationsProvider, snowflakeDatabase);
     }
 
     public static Map<String, String> getSnowflakeDriverProperties(URI snowflakeUri, String snowflakeUser, String snowflakePassword, Optional<String> snowflakeRole)

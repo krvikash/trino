@@ -26,6 +26,7 @@ import io.trino.plugin.hive.NodeVersion;
 import io.trino.plugin.iceberg.ColumnIdentity;
 import io.trino.plugin.iceberg.CommitTaskData;
 import io.trino.plugin.iceberg.IcebergMetadata;
+import io.trino.plugin.iceberg.NoopWorkScheduler;
 import io.trino.plugin.iceberg.TableStatisticsWriter;
 import io.trino.plugin.iceberg.catalog.BaseTrinoCatalogTest;
 import io.trino.plugin.iceberg.catalog.IcebergTableOperationsProvider;
@@ -178,6 +179,7 @@ public class TestTrinoSnowflakeCatalog
         return new TrinoSnowflakeCatalog(
                 snowflakeCatalog,
                 catalogName,
+                new NoopWorkScheduler(),
                 TESTING_TYPE_MANAGER,
                 s3FileSystemFactory,
                 tableOperationsProvider,

@@ -1,0 +1,58 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.trino.plugin.iceberg;
+
+import io.trino.spi.connector.ConnectorSession;
+
+import java.util.Optional;
+
+public class NoopWorkScheduler
+        implements WorkScheduler
+{
+    @Override
+    public String createMaterializedViewRefreshJob(
+            ConnectorSession session,
+            String catalogName,
+            String schemaName,
+            String materializedViewName,
+            String jobCron)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Optional<String> getJobSchedule(ConnectorSession session, String jobId)
+    {
+        // Metadata server may call this method to get materialized view definition
+        return Optional.empty();
+    }
+
+    @Override
+    public void deleteJobSchedule(ConnectorSession session, String jobId)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean updateJobSchedule(ConnectorSession session, String jobId, String jobCron)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean updateMaterializedViewName(ConnectorSession session, String jobId, String materializedViewName)
+    {
+        throw new UnsupportedOperationException();
+    }
+}

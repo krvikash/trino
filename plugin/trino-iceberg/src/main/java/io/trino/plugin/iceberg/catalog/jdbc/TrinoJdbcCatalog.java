@@ -22,6 +22,7 @@ import io.trino.cache.EvictableCacheBuilder;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.metastore.TableInfo;
 import io.trino.plugin.iceberg.IcebergUtil;
+import io.trino.plugin.iceberg.WorkScheduler;
 import io.trino.plugin.iceberg.catalog.AbstractTrinoCatalog;
 import io.trino.plugin.iceberg.catalog.IcebergTableOperationsProvider;
 import io.trino.spi.TrinoException;
@@ -106,6 +107,7 @@ public class TrinoJdbcCatalog
 
     public TrinoJdbcCatalog(
             CatalogName catalogName,
+            WorkScheduler workScheduler,
             TypeManager typeManager,
             IcebergTableOperationsProvider tableOperationsProvider,
             JdbcCatalog jdbcCatalog,
@@ -114,7 +116,7 @@ public class TrinoJdbcCatalog
             boolean useUniqueTableLocation,
             String defaultWarehouseDir)
     {
-        super(catalogName, typeManager, tableOperationsProvider, fileSystemFactory, useUniqueTableLocation);
+        super(catalogName, workScheduler, typeManager, tableOperationsProvider, fileSystemFactory, useUniqueTableLocation);
         this.jdbcCatalog = requireNonNull(jdbcCatalog, "jdbcCatalog is null");
         this.jdbcClient = requireNonNull(jdbcClient, "jdbcClient is null");
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
@@ -555,6 +557,12 @@ public class TrinoJdbcCatalog
 
     @Override
     public void updateMaterializedViewColumnComment(ConnectorSession session, SchemaTableName schemaViewName, String columnName, Optional<String> comment)
+    {
+        throw new TrinoException(NOT_SUPPORTED, "updateMaterializedViewColumnComment is not supported for Iceberg JDBC catalogs");
+    }
+
+    @Override
+    public void updateMaterializedViewRefreshSchedule(ConnectorSession session, SchemaTableName viewName, Optional<String> schedule)
     {
         throw new TrinoException(NOT_SUPPORTED, "updateMaterializedViewColumnComment is not supported for Iceberg JDBC catalogs");
     }

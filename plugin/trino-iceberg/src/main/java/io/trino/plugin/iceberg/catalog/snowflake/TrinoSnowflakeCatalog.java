@@ -20,6 +20,7 @@ import io.trino.cache.EvictableCacheBuilder;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.metastore.TableInfo;
 import io.trino.plugin.iceberg.ColumnIdentity;
+import io.trino.plugin.iceberg.WorkScheduler;
 import io.trino.plugin.iceberg.catalog.AbstractTrinoCatalog;
 import io.trino.plugin.iceberg.catalog.IcebergTableOperationsProvider;
 import io.trino.spi.TrinoException;
@@ -81,12 +82,13 @@ public class TrinoSnowflakeCatalog
     public TrinoSnowflakeCatalog(
             SnowflakeCatalog snowflakeCatalog,
             CatalogName catalogName,
+            WorkScheduler workScheduler,
             TypeManager typeManager,
             TrinoFileSystemFactory trinoFileSystemFactory,
             IcebergTableOperationsProvider tableOperationsProvider,
             String snowflakeDatabase)
     {
-        super(catalogName, typeManager, tableOperationsProvider, trinoFileSystemFactory, false);
+        super(catalogName, workScheduler, typeManager, tableOperationsProvider, trinoFileSystemFactory, false);
         this.snowflakeCatalog = requireNonNull(snowflakeCatalog, "snowflakeCatalog is null");
         this.snowflakeDatabase = requireNonNull(snowflakeDatabase, "snowflakeDatabase is null");
     }
@@ -361,6 +363,12 @@ public class TrinoSnowflakeCatalog
 
     @Override
     public void updateMaterializedViewColumnComment(ConnectorSession session, SchemaTableName schemaViewName, String columnName, Optional<String> comment)
+    {
+        throw new TrinoException(NOT_SUPPORTED, "Materialized views are not supported for the Snowflake Iceberg catalog");
+    }
+
+    @Override
+    public void updateMaterializedViewRefreshSchedule(ConnectorSession session, SchemaTableName viewName, Optional<String> schedule)
     {
         throw new TrinoException(NOT_SUPPORTED, "Materialized views are not supported for the Snowflake Iceberg catalog");
     }

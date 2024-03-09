@@ -25,27 +25,40 @@ import static io.trino.spi.session.PropertyMetadata.stringProperty;
 
 public class IcebergMaterializedViewProperties
 {
+    public static final String REFRESH_SCHEDULE = "refresh_schedule";
     public static final String STORAGE_SCHEMA = "storage_schema";
 
     private final List<PropertyMetadata<?>> materializedViewProperties;
 
     @Inject
-    public IcebergMaterializedViewProperties(IcebergConfig icebergConfig, IcebergTableProperties tableProperties)
+    public IcebergMaterializedViewProperties(IcebergConfig icebergConfig, GalaxyIcebergConfig galaxyIcebergConfig, IcebergTableProperties tableProperties)
     {
-        materializedViewProperties = ImmutableList.<PropertyMetadata<?>>builder()
-                .add(stringProperty(
+        ImmutableList.Builder<PropertyMetadata<?>> materializedViewProperties = ImmutableList.builder();
+        materializedViewProperties.add(stringProperty(
                         STORAGE_SCHEMA,
                         "Schema for creating materialized view storage table",
                         icebergConfig.getMaterializedViewsStorageSchema().orElse(null),
                         false))
                 // Materialized view should allow configuring all the supported iceberg table properties for the storage table
-                .addAll(tableProperties.getTableProperties())
-                .build();
+                .addAll(tableProperties.getTableProperties());
+        if (galaxyIcebergConfig.isScheduledMaterializedViewRefreshEnabled()) {
+            materializedViewProperties.add(stringProperty(
+                    REFRESH_SCHEDULE,
+                    "Cron schedule to use for refreshing the materialized view",
+                    null,
+                    false));
+        }
+        this.materializedViewProperties = materializedViewProperties.build();
     }
 
     public List<PropertyMetadata<?>> getMaterializedViewProperties()
     {
         return materializedViewProperties;
+    }
+
+    public static Optional<String> getRefreshSchedule(Map<String, Object> materializedViewProperties)
+    {
+        return Optional.ofNullable((String) materializedViewProperties.get(REFRESH_SCHEDULE));
     }
 
     public static Optional<String> getStorageSchema(Map<String, Object> materializedViewProperties)

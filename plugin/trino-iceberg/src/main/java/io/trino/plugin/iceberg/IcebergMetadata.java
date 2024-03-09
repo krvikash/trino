@@ -253,6 +253,7 @@ import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_FILESYSTEM_ERROR;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_INVALID_METADATA;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_MISSING_METADATA;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_UNSUPPORTED_VIEW_DIALECT;
+import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.REFRESH_SCHEDULE;
 import static io.trino.plugin.iceberg.IcebergMetadataColumn.FILE_MODIFIED_TIME;
 import static io.trino.plugin.iceberg.IcebergMetadataColumn.FILE_PATH;
 import static io.trino.plugin.iceberg.IcebergMetadataColumn.isMetadataColumnId;
@@ -391,6 +392,7 @@ public class IcebergMetadata
             .add(PARTITIONING_PROPERTY)
             .add(SORTED_BY_PROPERTY)
             .build();
+    public static final Set<String> UPDATABLE_MATERIALIZED_VIEW_PROPERTIES = ImmutableSet.of(REFRESH_SCHEDULE);
 
     public static final String NUMBER_OF_DISTINCT_VALUES_NAME = "NUMBER_OF_DISTINCT_VALUES";
     private static final FunctionName NUMBER_OF_DISTINCT_VALUES_FUNCTION = new FunctionName(IcebergThetaSketchForStats.NAME);
@@ -3557,6 +3559,17 @@ public class IcebergMetadata
             throw new TrinoException(NOT_SUPPORTED, "Materialized View rename across schemas is not supported");
         }
         catalog.renameMaterializedView(session, source, target);
+    }
+
+    @Override
+    public void setMaterializedViewProperties(ConnectorSession session, SchemaTableName viewName, Map<String, Optional<Object>> properties)
+    {
+        Set<String> unsupportedProperties = difference(properties.keySet(), UPDATABLE_MATERIALIZED_VIEW_PROPERTIES);
+        if (!unsupportedProperties.isEmpty()) {
+            throw new TrinoException(NOT_SUPPORTED, "The following properties cannot be updated: " + String.join(", ", unsupportedProperties));
+        }
+
+        catalog.updateMaterializedViewRefreshSchedule(session, viewName, properties.get(REFRESH_SCHEDULE).map(String.class::cast));
     }
 
     @Override

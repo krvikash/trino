@@ -92,6 +92,7 @@ public class TestIcebergOrcMetricsCollection
         CachingHiveMetastore cachingHiveMetastore = createPerTransactionCache(metastore, 1000);
         trinoCatalog = new TrinoHiveCatalog(
                 new CatalogName("catalog"),
+                new NoopWorkScheduler(),
                 cachingHiveMetastore,
                 new TrinoViewHiveMetastore(cachingHiveMetastore, false, "trino-version", "test"),
                 fileSystemFactory,
