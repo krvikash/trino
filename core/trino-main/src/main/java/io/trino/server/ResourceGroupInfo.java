@@ -46,7 +46,9 @@ public record ResourceGroupInfo(
         int numRunningQueries,
         int numEligibleSubGroups,
         Optional<List<ResourceGroupInfo>> subGroups,
-        Optional<List<QueryStateInfo>> runningQueries)
+        Optional<List<QueryStateInfo>> runningQueries,
+        long softCpuLimitMillis,
+        long hardCpuLimitMillis)
 {
     public ResourceGroupInfo
     {

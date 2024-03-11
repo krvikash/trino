@@ -187,7 +187,9 @@ public class InternalResourceGroup
                             .filter(group -> group.getRunningQueries() + group.getQueuedQueries() > 0)
                             .map(InternalResourceGroup::getSummaryInfo)
                             .collect(toImmutableList())),
-                    Optional.of(getAggregatedRunningQueriesInfo()));
+                    Optional.of(getAggregatedRunningQueriesInfo()),
+                    softCpuLimitMillis,
+                    hardCpuLimitMillis);
         }
     }
 
@@ -211,7 +213,9 @@ public class InternalResourceGroup
                     getRunningQueries(),
                     eligibleSubGroups.size(),
                     Optional.empty(),
-                    Optional.empty());
+                    Optional.empty(),
+                    softCpuLimitMillis,
+                    hardCpuLimitMillis);
         }
     }
 
