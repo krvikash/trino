@@ -498,6 +498,7 @@ public class BufferExchangeSource
     public void close()
     {
         SettableFuture<Void> memoryFutureToUnblock;
+        CompletableFuture<Void> isBlockedFuture;
         synchronized (this) {
             currentReaders.forEach(ChunkReader::close);
 
@@ -506,9 +507,13 @@ public class BufferExchangeSource
             decreaseReadSlicesMemoryUsage(readSlicesMemoryUsage.get());
             closed = true;
             memoryFutureToUnblock = memoryUsageExceeded;
+            isBlockedFuture = isBlockedReference.get();
         }
         // complete future outside the synchronized block
         memoryFutureToUnblock.set(null);
+        if (isBlockedFuture != null) {
+            isBlockedFuture.complete(null);
+        }
     }
 
     // This class is not thread safe

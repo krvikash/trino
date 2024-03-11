@@ -24,12 +24,14 @@ import io.trino.tpch.TpchTable;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 
 import static io.airlift.testing.Closeables.closeAllSuppress;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestTestingBufferDistributedFaultTolerantEngineOnlyQueries
         extends AbstractDistributedEngineOnlyQueries
@@ -96,6 +98,18 @@ public class TestTestingBufferDistributedFaultTolerantEngineOnlyQueries
             throw closeAllSuppress(e, queryRunner);
         }
         return queryRunner;
+    }
+
+    @Test
+    @Timeout(60)
+    public void stressUnionWithLimit()
+    {
+        // regression test for query stuck because future returned by BufferExchangeSource.isBlocked() was not completed
+        // in BufferExchangeSource.close() which was called before all data was produced by source
+        for (int i = 0; i < 10; i++) {
+            assertThat(query("SELECT DISTINCT x FROM (SELECT custkey x FROM customer) UNION  (SELECT nationkey x FROM nation) LIMIT 1"))
+                    .result().rowCount().isEqualTo(1);
+        }
     }
 
     @Override
