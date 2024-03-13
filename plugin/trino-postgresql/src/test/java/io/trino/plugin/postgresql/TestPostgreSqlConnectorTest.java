@@ -1245,16 +1245,16 @@ public class TestPostgreSqlConnectorTest
                                         assertThat(jdbcTableHandle.isSynthetic()).isTrue();
                                         return ((JdbcQueryRelationHandle) jdbcTableHandle.getRelationHandle()).getPreparedQuery()
                                                 .equals(new PreparedQuery(
-                                                        "SELECT \"id\", REVERSE(\"_pfgnrtd_3\") AS \"_pfgnrtd_4\" FROM (SELECT \"id\", REVERSE(\"_pfgnrtd_2\") AS \"_pfgnrtd_3\" FROM " +
-                                                                "(SELECT \"id\", REVERSE(\"_pfgnrtd_1\") AS \"_pfgnrtd_2\" FROM (SELECT \"id\", REVERSE(\"_pfgnrtd_0\") AS \"_pfgnrtd_1\" FROM " +
-                                                                "(SELECT \"id\", REVERSE(\"varchar_col\") AS \"_pfgnrtd_0\" FROM \"tpch\".\"tpch\".\"%s\") o) o) o) o"
+                                                        "SELECT \"id\", REVERSE(\"pfgnrtd_3\") AS \"pfgnrtd_4\" FROM (SELECT \"id\", REVERSE(\"pfgnrtd_2\") AS \"pfgnrtd_3\" FROM " +
+                                                                "(SELECT \"id\", REVERSE(\"pfgnrtd_1\") AS \"pfgnrtd_2\" FROM (SELECT \"id\", REVERSE(\"pfgnrtd_0\") AS \"pfgnrtd_1\" FROM " +
+                                                                "(SELECT \"id\", REVERSE(\"varchar_col\") AS \"pfgnrtd_0\" FROM \"tpch\".\"tpch\".\"%s\") o) o) o) o"
                                                                         .formatted(table.getName()),
                                                         ImmutableList.of()));
                                     },
                                     TupleDomain.all(),
                                     ImmutableMap.of(
                                             "id", columnHandle -> ((JdbcColumnHandle) columnHandle).getColumnName().equals("id"),
-                                            "pfgnrtd", columnHandle -> ((JdbcColumnHandle) columnHandle).getColumnName().startsWith("_pfgnrtd_")))));
+                                            "pfgnrtd", columnHandle -> ((JdbcColumnHandle) columnHandle).getColumnName().startsWith("pfgnrtd_")))));
 
             assertThat(query("SELECT reverse(lower(varchar_col)) FROM " + table.getName()))
                     .skippingTypesCheck()
@@ -1311,13 +1311,13 @@ public class TestPostgreSqlConnectorTest
                                                         assertThat(jdbcTableHandle.isSynthetic()).isTrue();
                                                         return ((JdbcQueryRelationHandle) jdbcTableHandle.getRelationHandle()).getPreparedQuery()
                                                                 .equals(new PreparedQuery(
-                                                                        "SELECT \"id\", REVERSE(\"cola\") AS \"_pfgnrtd_0\", REVERSE(\"colb\") AS \"_pfgnrtd_1\" FROM \"tpch\".\"tpch\".\"%s\"".formatted(table.getName()),
+                                                                        "SELECT \"id\", REVERSE(\"cola\") AS \"pfgnrtd_0\", REVERSE(\"colb\") AS \"pfgnrtd_1\" FROM \"tpch\".\"tpch\".\"%s\"".formatted(table.getName()),
                                                                         ImmutableList.of()));
                                                     },
                                                     TupleDomain.all(),
                                                     ImmutableMap.of(
-                                                            "reverse_cola", columnHandle -> ((JdbcColumnHandle) columnHandle).getColumnName().equals("_pfgnrtd_0"),
-                                                            "reverse_colb", columnHandle -> ((JdbcColumnHandle) columnHandle).getColumnName().equals("_pfgnrtd_1"),
+                                                            "reverse_cola", columnHandle -> ((JdbcColumnHandle) columnHandle).getColumnName().equals("pfgnrtd_0"),
+                                                            "reverse_colb", columnHandle -> ((JdbcColumnHandle) columnHandle).getColumnName().equals("pfgnrtd_1"),
                                                             "id", columnHandle -> ((JdbcColumnHandle) columnHandle).getColumnName().equals("id"))))));
         }
     }

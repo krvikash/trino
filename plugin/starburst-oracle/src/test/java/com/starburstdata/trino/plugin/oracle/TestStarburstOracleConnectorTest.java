@@ -519,17 +519,17 @@ public class TestStarburstOracleConnectorTest
                                             ImmutableMap.of("id", equalTo(idColumnHandle), "VARCHAR_50", equalTo(varchar50ColumnHandle)))));
 
             // Inner Join with Order by using right table column
-            JdbcColumnHandle varchar100SyntheticColumnHandle = new JdbcColumnHandle("_pfgnrtd_0_2", varchar100JdbcTypeHandle, createVarcharType(100));
+            JdbcColumnHandle varchar100SyntheticColumnHandle = new JdbcColumnHandle("pfgnrtd_0_2", varchar100JdbcTypeHandle, createVarcharType(100));
             JdbcSortItem rightTableColumnSyntheticJdbcSortItem = new JdbcSortItem(varchar100SyntheticColumnHandle, ASC_NULLS_LAST);
             assertThat(query(session, "SELECT id FROM %s l INNER JOIN %s r ON l.varchar_50 = r.varchar_100 ORDER BY r.varchar_100 LIMIT 1".formatted(leftTable.getName(), rightTable.getName())))
                     .hasPlan(
                             topNMatchPattern(
-                                    "_pfgnrtd_0_2",
+                                    "pfgnrtd_0_2",
                                     1,
                                     sortOrdersMatchPattern(
                                             rightTableColumnSyntheticJdbcSortItem,
                                             1,
-                                            ImmutableMap.of("id", equalTo(idColumnHandle), "_pfgnrtd_0_2", equalTo(varchar100SyntheticColumnHandle)))));
+                                            ImmutableMap.of("id", equalTo(idColumnHandle), "pfgnrtd_0_2", equalTo(varchar100SyntheticColumnHandle)))));
 
             // Full Join with Order by using left table column
             assertThat(query(session, "SELECT id FROM %s l FULL JOIN %s r ON l.varchar_50 = r.varchar_100 ORDER BY l.varchar_50 LIMIT 1".formatted(leftTable.getName(), rightTable.getName())))
@@ -546,12 +546,12 @@ public class TestStarburstOracleConnectorTest
             assertThat(query(session, "SELECT id FROM %s l FULL JOIN %s r ON l.varchar_50 = r.varchar_100 ORDER BY r.varchar_100 LIMIT 1".formatted(leftTable.getName(), rightTable.getName())))
                     .hasPlan(
                             topNMatchPattern(
-                                    "_pfgnrtd_0_2",
+                                    "pfgnrtd_0_2",
                                     1,
                                     sortOrdersMatchPattern(
                                             rightTableJdbcSortItem,
                                             1,
-                                            ImmutableMap.of("id", equalTo(idColumnHandle), "_pfgnrtd_0_2", equalTo(varchar100ColumnHandle)))));
+                                            ImmutableMap.of("id", equalTo(idColumnHandle), "pfgnrtd_0_2", equalTo(varchar100ColumnHandle)))));
         }
     }
 

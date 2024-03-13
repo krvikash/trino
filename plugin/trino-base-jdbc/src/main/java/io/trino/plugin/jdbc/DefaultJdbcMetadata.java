@@ -143,7 +143,8 @@ public class DefaultJdbcMetadata
         implements JdbcMetadata
 {
     public static final String MERGE_ROW_ID = "$merge_row_id";
-    private static final String SYNTHETIC_COLUMN_NAME_PREFIX = "_pfgnrtd_";
+    // Make sure the prefix doesn't start with an underscore, as some databases (like Netezza) ignore such columns in SELECT *
+    private static final String SYNTHETIC_COLUMN_NAME_PREFIX = "pfgnrtd_";
     private static final String DELETE_ROW_ID = "_trino_artificial_column_handle_for_delete_row_id_";
 
     private final JdbcClient jdbcClient;
