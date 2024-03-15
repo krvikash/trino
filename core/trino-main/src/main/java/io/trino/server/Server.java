@@ -153,6 +153,9 @@ public class Server
             var catalogStoreManager = injector.getInstance(Key.get(new TypeLiteral<Optional<CatalogStoreManager>>() {}));
             catalogStoreManager.ifPresent(CatalogStoreManager::loadConfiguredCatalogStore);
 
+            Set<ServerLoadableComponent> loadableComponents = injector.getInstance(Key.get(new TypeLiteral<>() {}));
+            loadableComponents.forEach(ServerLoadableComponent::load);
+
             ConnectorServicesProvider connectorServicesProvider = injector.getInstance(ConnectorServicesProvider.class);
             connectorServicesProvider.loadInitialCatalogs();
 
@@ -176,9 +179,6 @@ public class Server
 
             injector.getInstance(Key.get(new TypeLiteral<Optional<OAuth2Client>>() {}))
                     .ifPresent(OAuth2Client::load);
-
-            Set<ServerLoadableComponent> loadableComponents = injector.getInstance(Key.get(new TypeLiteral<>() {}));
-            loadableComponents.forEach(ServerLoadableComponent::load);
 
             injector.getInstance(Announcer.class).start();
 
