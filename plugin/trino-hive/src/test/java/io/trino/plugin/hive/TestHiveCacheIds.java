@@ -110,7 +110,7 @@ public class TestHiveCacheIds
                         new PartitionsSystemTableProvider(hivePartitionManager, TESTING_TYPE_MANAGER),
                         new PropertiesSystemTableProvider()),
                 SqlStandardAccessControlMetadata::new,
-                new FileSystemDirectoryLister(),
+                new FileSystemDirectoryLister(config),
                 new TransactionScopeCachingDirectoryListerFactory(config),
                 true);
 
