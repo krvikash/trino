@@ -14,6 +14,7 @@
 package io.trino.plugin.hive;
 
 import com.google.common.collect.ImmutableList;
+import com.google.inject.Module;
 import io.trino.metastore.HiveMetastore;
 import io.trino.parquet.crypto.DecryptionKeyRetriever;
 import io.trino.spi.Plugin;
@@ -21,7 +22,9 @@ import io.trino.spi.connector.ConnectorFactory;
 
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.function.Supplier;
 
+import static com.google.inject.util.Modules.EMPTY_MODULE;
 import static java.util.Objects.requireNonNull;
 
 public class TestingHivePlugin
@@ -31,16 +34,17 @@ public class TestingHivePlugin
     private final Optional<HiveMetastore> metastore;
     private final boolean metastoreImpersonationEnabled;
     private final Optional<DecryptionKeyRetriever> decryptionKeyRetriever;
+    private final Supplier<Module> module;
 
     public TestingHivePlugin(Path localFileSystemRootPath)
     {
-        this(localFileSystemRootPath, Optional.empty(), false, Optional.empty());
+        this(localFileSystemRootPath, Optional.empty(), false, Optional.empty(), () -> EMPTY_MODULE);
     }
 
     @Deprecated
     public TestingHivePlugin(Path localFileSystemRootPath, HiveMetastore metastore)
     {
-        this(localFileSystemRootPath, Optional.of(metastore), false, Optional.empty());
+        this(localFileSystemRootPath, Optional.of(metastore), false, Optional.empty(), () -> EMPTY_MODULE);
     }
 
     @Deprecated
@@ -48,17 +52,19 @@ public class TestingHivePlugin
             Path localFileSystemRootPath,
             Optional<HiveMetastore> metastore,
             boolean metastoreImpersonationEnabled,
-            Optional<DecryptionKeyRetriever> decryptionKeyRetriever)
+            Optional<DecryptionKeyRetriever> decryptionKeyRetriever,
+            Supplier<Module> module)
     {
         this.localFileSystemRootPath = requireNonNull(localFileSystemRootPath, "localFileSystemRootPath is null");
         this.metastore = requireNonNull(metastore, "metastore is null");
         this.metastoreImpersonationEnabled = metastoreImpersonationEnabled;
         this.decryptionKeyRetriever = requireNonNull(decryptionKeyRetriever, "decryptionKeyRetriever is null");
+        this.module = requireNonNull(module, "module is null");
     }
 
     @Override
     public Iterable<ConnectorFactory> getConnectorFactories()
     {
-        return ImmutableList.of(new TestingHiveConnectorFactory(localFileSystemRootPath, metastore, metastoreImpersonationEnabled, decryptionKeyRetriever));
+        return ImmutableList.of(new TestingHiveConnectorFactory(localFileSystemRootPath, metastore, metastoreImpersonationEnabled, decryptionKeyRetriever, module));
     }
 }

@@ -35,8 +35,10 @@ import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Supplier;
 
 import static com.google.inject.multibindings.MapBinder.newMapBinder;
+import static com.google.inject.util.Modules.EMPTY_MODULE;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.trino.plugin.hive.HiveConnectorFactory.createBootstrap;
 import static io.trino.plugin.hive.HiveConnectorFactory.createConnector;
@@ -49,10 +51,11 @@ public class TestingHiveConnectorFactory
     private final boolean metastoreImpersonationEnabled;
     private final Path localFileSystemRootPath;
     private final Optional<DecryptionKeyRetriever> decryptionKeyRetriever;
+    private final Supplier<Module> module;
 
     public TestingHiveConnectorFactory(Path localFileSystemRootPath)
     {
-        this(localFileSystemRootPath, Optional.empty(), false, Optional.empty());
+        this(localFileSystemRootPath, Optional.empty(), false, Optional.empty(), () -> EMPTY_MODULE);
     }
 
     @Deprecated
@@ -60,7 +63,8 @@ public class TestingHiveConnectorFactory
             Path localFileSystemRootPath,
             Optional<HiveMetastore> metastore,
             boolean metastoreImpersonationEnabled,
-            Optional<DecryptionKeyRetriever> decryptionKeyRetriever)
+            Optional<DecryptionKeyRetriever> decryptionKeyRetriever,
+            Supplier<Module> module)
     {
         this.metastore = requireNonNull(metastore, "metastore is null");
         this.metastoreImpersonationEnabled = metastoreImpersonationEnabled;
@@ -68,6 +72,7 @@ public class TestingHiveConnectorFactory
         var _ = rootPath.mkdirs();
         this.localFileSystemRootPath = localFileSystemRootPath;
         this.decryptionKeyRetriever = requireNonNull(decryptionKeyRetriever, "decryptionKeyRetriever is null");
+        this.module = requireNonNull(module, "module is null");
     }
 
     @Override
@@ -79,7 +84,7 @@ public class TestingHiveConnectorFactory
     @Override
     public Connector create(String catalogName, Map<String, String> config, ConnectorContext context)
     {
-        return createConnector(catalogName, createConfig(config), context, () -> createAdditionalModule(catalogName), metastore, metastoreImpersonationEnabled, Optional.empty());
+        return createConnector(catalogName, createConfig(config), context, () -> createAdditionalModule(catalogName, module.get()), metastore, metastoreImpersonationEnabled, Optional.empty());
     }
 
     @Override
@@ -87,7 +92,7 @@ public class TestingHiveConnectorFactory
     {
         ClassLoader classLoader = HiveConnectorFactory.class.getClassLoader();
         try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
-            Bootstrap app = createBootstrap(catalogName, createConfig(config), ImmutableMap.of(), context, () -> createAdditionalModule(catalogName), metastore, metastoreImpersonationEnabled, Optional.empty(), true);
+            Bootstrap app = createBootstrap(catalogName, createConfig(config), ImmutableMap.of(), context, () -> createAdditionalModule(catalogName, module.get()), metastore, metastoreImpersonationEnabled, Optional.empty(), true);
             Set<ConfigPropertyMetadata> usedProperties = app.configure();
             return ConfigUtils.getSecuritySensitivePropertyNames(config, usedProperties);
         }
@@ -104,13 +109,14 @@ public class TestingHiveConnectorFactory
         return configBuilder.buildOrThrow();
     }
 
-    private Module createAdditionalModule(String catalogName)
+    private Module createAdditionalModule(String catalogName, Module module)
     {
         return new AbstractConfigurationAwareModule()
         {
             @Override
             protected void setup(Binder binder)
             {
+                install(module);
                 newMapBinder(binder, String.class, TrinoFileSystemFactory.class)
                         .addBinding("local").toInstance(new LocalFileSystemFactory(localFileSystemRootPath));
                 configBinder(binder).bindConfigDefaults(

@@ -16,6 +16,7 @@ package io.trino.plugin.hive;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
+import com.google.inject.Module;
 import io.airlift.log.Logger;
 import io.airlift.log.Logging;
 import io.trino.Session;
@@ -48,7 +49,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
+import static com.google.inject.util.Modules.EMPTY_MODULE;
 import static io.airlift.log.Level.WARN;
 import static io.airlift.units.Duration.nanosSince;
 import static io.trino.plugin.hive.HiveTestUtils.SESSION;
@@ -123,6 +126,7 @@ public final class HiveQueryRunner
         private List<TpchTable<?>> initialTables = ImmutableList.of();
         private Optional<String> initialSchemasLocationBase = Optional.empty();
         private Optional<Function<DistributedQueryRunner, HiveMetastore>> metastore = Optional.empty();
+        private Supplier<Module> module = () -> EMPTY_MODULE;
         private boolean metastoreImpersonationEnabled;
         private boolean tpcdsCatalogEnabled;
         private boolean tpchBucketedCatalogEnabled;
@@ -189,6 +193,13 @@ public final class HiveQueryRunner
         public SELF setMetastore(Function<DistributedQueryRunner, HiveMetastore> metastore)
         {
             this.metastore = Optional.of(metastore);
+            return self();
+        }
+
+        @CanIgnoreReturnValue
+        public SELF setModule(Supplier<Module> module)
+        {
+            this.module = requireNonNull(module, "module is null");
             return self();
         }
 
@@ -285,8 +296,8 @@ public final class HiveQueryRunner
                 Optional<HiveMetastore> metastore = this.metastore.map(factory -> factory.apply(queryRunner));
                 Path dataDir = queryRunner.getCoordinator().getBaseDataDir().resolve("hive_data");
 
-                queryRunner.installPlugin(new TestingHivePlugin(dataDir, metastore, metastoreImpersonationEnabled, decryptionKeyRetriever));
-                queryRunner.installPlugin(new MockPlanAlternativePlugin(new TestingHivePlugin(dataDir, metastore, metastoreImpersonationEnabled, decryptionKeyRetriever)));
+                queryRunner.installPlugin(new TestingHivePlugin(dataDir, metastore, metastoreImpersonationEnabled, decryptionKeyRetriever, module));
+                queryRunner.installPlugin(new MockPlanAlternativePlugin(new TestingHivePlugin(dataDir, metastore, metastoreImpersonationEnabled, decryptionKeyRetriever, module)));
 
                 Map<String, String> hiveProperties = new HashMap<>();
                 if (!skipTimezoneSetup) {
