@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.inject.Module;
 import io.trino.metastore.HiveMetastore;
 import io.trino.parquet.crypto.DecryptionKeyRetriever;
+import io.trino.plugin.hive.fs.DirectoryLister;
 import io.trino.spi.Plugin;
 import io.trino.spi.connector.ConnectorFactory;
 
@@ -35,16 +36,17 @@ public class TestingHivePlugin
     private final boolean metastoreImpersonationEnabled;
     private final Optional<DecryptionKeyRetriever> decryptionKeyRetriever;
     private final Supplier<Module> module;
+    private final Optional<DirectoryLister> directoryLister;
 
     public TestingHivePlugin(Path localFileSystemRootPath)
     {
-        this(localFileSystemRootPath, Optional.empty(), false, Optional.empty(), () -> EMPTY_MODULE);
+        this(localFileSystemRootPath, Optional.empty(), false, Optional.empty(), () -> EMPTY_MODULE, Optional.empty());
     }
 
     @Deprecated
     public TestingHivePlugin(Path localFileSystemRootPath, HiveMetastore metastore)
     {
-        this(localFileSystemRootPath, Optional.of(metastore), false, Optional.empty(), () -> EMPTY_MODULE);
+        this(localFileSystemRootPath, Optional.of(metastore), false, Optional.empty(), () -> EMPTY_MODULE, Optional.empty());
     }
 
     @Deprecated
@@ -53,18 +55,20 @@ public class TestingHivePlugin
             Optional<HiveMetastore> metastore,
             boolean metastoreImpersonationEnabled,
             Optional<DecryptionKeyRetriever> decryptionKeyRetriever,
-            Supplier<Module> module)
+            Supplier<Module> module,
+            Optional<DirectoryLister> directoryLister)
     {
         this.localFileSystemRootPath = requireNonNull(localFileSystemRootPath, "localFileSystemRootPath is null");
         this.metastore = requireNonNull(metastore, "metastore is null");
         this.metastoreImpersonationEnabled = metastoreImpersonationEnabled;
         this.decryptionKeyRetriever = requireNonNull(decryptionKeyRetriever, "decryptionKeyRetriever is null");
         this.module = requireNonNull(module, "module is null");
+        this.directoryLister = requireNonNull(directoryLister, "directoryLister is null");
     }
 
     @Override
     public Iterable<ConnectorFactory> getConnectorFactories()
     {
-        return ImmutableList.of(new TestingHiveConnectorFactory(localFileSystemRootPath, metastore, metastoreImpersonationEnabled, decryptionKeyRetriever, module));
+        return ImmutableList.of(new TestingHiveConnectorFactory(localFileSystemRootPath, metastore, metastoreImpersonationEnabled, decryptionKeyRetriever, module, directoryLister));
     }
 }

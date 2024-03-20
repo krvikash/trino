@@ -22,6 +22,7 @@ import io.trino.metastore.HiveMetastore;
 import io.trino.plugin.base.config.ConfigUtils;
 import io.trino.plugin.base.jmx.ConnectorObjectNameGeneratorModule;
 import io.trino.plugin.hive.HiveConnectorFactory;
+import io.trino.plugin.hive.fs.DirectoryLister;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.ProxiedConnectorInitializer;
 import io.trino.spi.classloader.ThreadContextClassLoader;
@@ -44,6 +45,7 @@ public class HiveProxiedConnectorInitializer
     private static final Optional<HiveMetastore> DEFAULT_METASTORE = Optional.empty();
     private static final boolean DEFAULT_METASTORE_IMPERSONATION_ENABLED = false;
     private static final Optional<TrinoFileSystemFactory> DEFAULT_FILESYSTEM_FACTORY = Optional.empty();
+    private static final Optional<DirectoryLister> DEFAULT_DIRECTORY_LISTENER = Optional.empty();
 
     @Override
     public Supplier<List<Module>> getModules(ConnectorContext context)
@@ -68,7 +70,8 @@ public class HiveProxiedConnectorInitializer
                     () -> DEFAULT_ADDITIONAL_MODULE,
                     DEFAULT_METASTORE,
                     DEFAULT_METASTORE_IMPERSONATION_ENABLED,
-                    DEFAULT_FILESYSTEM_FACTORY);
+                    DEFAULT_FILESYSTEM_FACTORY,
+                    DEFAULT_DIRECTORY_LISTENER);
         }
         catch (Exception e) {
             throw new RuntimeException("cant create hive connector", e);
@@ -91,6 +94,7 @@ public class HiveProxiedConnectorInitializer
                     DEFAULT_METASTORE,
                     DEFAULT_METASTORE_IMPERSONATION_ENABLED,
                     DEFAULT_FILESYSTEM_FACTORY,
+                    DEFAULT_DIRECTORY_LISTENER,
                     true);
 
             Set<ConfigPropertyMetadata> usedProperties = app.configure();

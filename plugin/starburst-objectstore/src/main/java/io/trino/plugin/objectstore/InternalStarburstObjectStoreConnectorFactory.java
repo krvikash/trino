@@ -279,6 +279,7 @@ public final class InternalStarburstObjectStoreConnectorFactory
                         new GalaxyLocationSecurityModule()),
                 hiveMetastore,
                 false,
+                Optional.empty(),
                 Optional.empty());
         return hiveConnector;
     }

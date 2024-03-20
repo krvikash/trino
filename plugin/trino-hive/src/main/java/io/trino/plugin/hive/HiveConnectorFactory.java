@@ -40,6 +40,8 @@ import io.trino.plugin.base.connector.SystemTableProvider;
 import io.trino.plugin.base.jmx.ConnectorObjectNameGeneratorModule;
 import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.plugin.base.session.SessionPropertiesProvider;
+import io.trino.plugin.hive.fs.CachingDirectoryListerModule;
+import io.trino.plugin.hive.fs.DirectoryLister;
 import io.trino.plugin.hive.metastore.HiveMetastoreModule;
 import io.trino.plugin.hive.procedure.HiveProcedureModule;
 import io.trino.plugin.hive.security.HiveSecurityModule;
@@ -78,6 +80,7 @@ public class HiveConnectorFactory
     private static final Optional<HiveMetastore> DEFAULT_METASTORE = Optional.empty();
     private static final boolean DEFAULT_METASTORE_IMPERSONATION_ENABLED = false;
     private static final Optional<TrinoFileSystemFactory> DEFAULT_FILESYSTEM_FACTORY = Optional.empty();
+    private static final Optional<DirectoryLister> DEFAULT_DIRECTORY_LISTENER = Optional.empty();
 
     @Override
     public String getName()
@@ -89,7 +92,7 @@ public class HiveConnectorFactory
     public Connector create(String catalogName, Map<String, String> config, ConnectorContext context)
     {
         checkStrictSpiVersionMatch(context, this);
-        return createConnector(catalogName, config, context, () -> DEFAULT_ADDITIONAL_MODULE, DEFAULT_METASTORE, DEFAULT_METASTORE_IMPERSONATION_ENABLED, DEFAULT_FILESYSTEM_FACTORY);
+        return createConnector(catalogName, config, context, () -> DEFAULT_ADDITIONAL_MODULE, DEFAULT_METASTORE, DEFAULT_METASTORE_IMPERSONATION_ENABLED, DEFAULT_FILESYSTEM_FACTORY, DEFAULT_DIRECTORY_LISTENER);
     }
 
     @Override
@@ -97,8 +100,9 @@ public class HiveConnectorFactory
     {
         ClassLoader classLoader = HiveConnectorFactory.class.getClassLoader();
         try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
-            Bootstrap app = createBootstrap(catalogName, config, ImmutableMap.of(), context, () -> DEFAULT_ADDITIONAL_MODULE, DEFAULT_METASTORE, DEFAULT_METASTORE_IMPERSONATION_ENABLED, DEFAULT_FILESYSTEM_FACTORY, true);
+            Bootstrap app = createBootstrap(catalogName, config, ImmutableMap.of(), context, () -> DEFAULT_ADDITIONAL_MODULE, DEFAULT_METASTORE, DEFAULT_METASTORE_IMPERSONATION_ENABLED, DEFAULT_FILESYSTEM_FACTORY, DEFAULT_DIRECTORY_LISTENER, true);
             Set<ConfigPropertyMetadata> usedProperties = app.configure();
+
             return ConfigUtils.getSecuritySensitivePropertyNames(config, usedProperties);
         }
     }
@@ -110,9 +114,10 @@ public class HiveConnectorFactory
             Supplier<Module> module,
             Optional<HiveMetastore> metastore,
             boolean metastoreImpersonationEnabled,
-            Optional<TrinoFileSystemFactory> fileSystemFactory)
+            Optional<TrinoFileSystemFactory> fileSystemFactory,
+            Optional<DirectoryLister> directoryLister)
     {
-        return createConnector(catalogName, config, ImmutableMap.of(), _ -> {}, context, module, metastore, metastoreImpersonationEnabled, fileSystemFactory);
+        return createConnector(catalogName, config, ImmutableMap.of(), _ -> {}, context, module, metastore, metastoreImpersonationEnabled, fileSystemFactory, directoryLister);
     }
 
     public static Connector createConnector(
@@ -124,11 +129,12 @@ public class HiveConnectorFactory
             Supplier<Module> module,
             Optional<HiveMetastore> metastore,
             boolean metastoreImpersonationEnabled,
-            Optional<TrinoFileSystemFactory> fileSystemFactory)
+            Optional<TrinoFileSystemFactory> fileSystemFactory,
+            Optional<DirectoryLister> directoryLister)
     {
         ClassLoader classLoader = HiveConnectorFactory.class.getClassLoader();
         try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
-            Bootstrap app = createBootstrap(catalogName, requiredConfig, optionalConfig, context, module, metastore, metastoreImpersonationEnabled, fileSystemFactory, false);
+            Bootstrap app = createBootstrap(catalogName, requiredConfig, optionalConfig, context, module, metastore, metastoreImpersonationEnabled, fileSystemFactory, directoryLister, false);
 
             usedConfigPropertiesConsumer.accept(app.configure().stream()
                     .map(ConfigPropertyMetadata::name)
@@ -192,6 +198,7 @@ public class HiveConnectorFactory
             Optional<HiveMetastore> metastore,
             boolean metastoreImpersonationEnabled,
             Optional<TrinoFileSystemFactory> fileSystemFactory,
+            Optional<DirectoryLister> directoryLister,
             boolean quietBootstrap)
     {
         Bootstrap app = new Bootstrap(
@@ -201,6 +208,7 @@ public class HiveConnectorFactory
                 new JsonModule(),
                 new TypeDeserializerModule(),
                 new HiveModule(),
+                new CachingDirectoryListerModule(directoryLister),
                 new HiveMetastoreModule(metastore, true, metastoreImpersonationEnabled),
                 new HiveSecurityModule(),
                 fileSystemFactory
