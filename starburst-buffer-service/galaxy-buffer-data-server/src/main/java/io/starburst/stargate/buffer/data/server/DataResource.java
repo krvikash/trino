@@ -825,7 +825,9 @@ public class DataResource
     private void completeServletResponse(AsyncContext asyncContext, long processingStart, Optional<Throwable> throwable)
     {
         try {
-            HttpServletResponse servletResponse = (HttpServletResponse) asyncContext.getResponse();
+            if (!(asyncContext.getResponse() instanceof HttpServletResponse servletResponse)) {
+                throw new IllegalStateException("AsyncContext response is not HttpServletResponse");
+            }
             servletResponse.setContentType(TEXT_PLAIN);
             getRateLimitHeaders((HttpServletRequest) asyncContext.getRequest()).forEach(servletResponse::setHeader);
 
