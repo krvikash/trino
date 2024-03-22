@@ -19,6 +19,7 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
 
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.ERROR_CODE_HEADER;
+import static jakarta.ws.rs.core.MediaType.TEXT_PLAIN;
 import static java.util.Objects.requireNonNull;
 
 @Path("/api/v1/buffer/data")
@@ -56,7 +57,7 @@ public class LifecycleResource
 
     @GET
     @Path("state")
-    @Produces("text/plain")
+    @Produces(TEXT_PLAIN)
     public Response state()
     {
         try {

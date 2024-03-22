@@ -108,6 +108,7 @@ import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_CHU
 import static io.starburst.stargate.buffer.data.execution.ChunkDataLease.CHUNK_SLICES_METADATA_SIZE;
 import static jakarta.servlet.http.HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
 import static jakarta.servlet.http.HttpServletResponse.SC_OK;
+import static jakarta.ws.rs.core.MediaType.TEXT_PLAIN;
 import static java.lang.String.format;
 import static java.util.Collections.emptyList;
 import static java.util.Objects.requireNonNull;
@@ -787,7 +788,7 @@ public class DataResource
             throws IOException
     {
         HttpServletResponse servletResponse = (HttpServletResponse) asyncContext.getResponse();
-        servletResponse.setContentType("text/plain");
+        servletResponse.setContentType(TEXT_PLAIN);
         getRateLimitHeaders((HttpServletRequest) asyncContext.getRequest()).forEach(servletResponse::setHeader);
 
         if (throwable.isPresent()) {
