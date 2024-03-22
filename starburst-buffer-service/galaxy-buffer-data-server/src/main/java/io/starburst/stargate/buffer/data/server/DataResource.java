@@ -281,12 +281,12 @@ public class DataResource
         }
         catch (RuntimeException e) {
             logger.warn(e, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
-            completeServletResponse(asyncContext, processingStart, Optional.of(e));
+            consumeRequestAndCompleteServletResponse(asyncContext, processingStart, Optional.of(e));
             return;
         }
 
         if (dropUploadedPages) {
-            completeServletResponse(asyncContext, processingStart, Optional.empty());
+            consumeRequestAndCompleteServletResponse(asyncContext, processingStart, Optional.empty());
             return;
         }
 
@@ -294,7 +294,7 @@ public class DataResource
         if (bufferNodeStateManager.isDrainingStarted()) {
             decrementInProgressAddDataPagesRequests();
             logger.info("rejecting POST /%s/addDataPages/%s/%s/%s; node already DRAINING", exchangeId, taskId, attemptId, dataPagesId);
-            completeServletResponse(asyncContext, processingStart, Optional.of(new DataServerException(DRAINING, "Node %d is draining and not accepting any more data".formatted(bufferNodeId))));
+            consumeRequestAndCompleteServletResponse(asyncContext, processingStart, Optional.of(new DataServerException(DRAINING, "Node %d is draining and not accepting any more data".formatted(bufferNodeId))));
             return;
         }
 
@@ -304,7 +304,7 @@ public class DataResource
             addDataPagesThrottlingCalculator.recordThrottlingEvent();
             logger.warn("rejecting POST /%s/addDataPages/%s/%s/%s; exceeded maximum in progress addDataPages requests (%s > %s)",
                     exchangeId, taskId, attemptId, dataPagesId, currentInProgressAddDataPagesRequests, maxInProgressAddDataPagesRequests);
-            completeServletResponse(
+            consumeRequestAndCompleteServletResponse(
                     asyncContext,
                     processingStart,
                     Optional.of(new DataServerException(OVERLOADED, "Exceeded maximum in progress addDataPages requests (%s)".formatted(maxInProgressAddDataPagesRequests))));
@@ -382,7 +382,7 @@ public class DataResource
                             public void onDataAvailable()
                                     throws IOException
                             {
-                                while (inputStream.isReady()) {
+                                while (inputStream.isReady() && !inputStream.isFinished()) {
                                     int readLength = inputStream.read(slice.byteArray(), slice.byteArrayOffset() + bytesRead, contentLength - bytesRead);
                                     if (readLength == -1) {
                                         break;
@@ -783,8 +783,38 @@ public class DataResource
         return ImmutableMap.of();
     }
 
-    // this function is needed to immediately return http response letting Jetty consume request payload behind the scenes.
-    // for more information, see https://github.com/starburstdata/trino-buffer-service/issues/269
+    // Consume payload and return response; payload need to be consumed so client is able to see response.
+    // For more information, see https://github.com/starburstdata/trino-buffer-service/issues/269
+    private void consumeRequestAndCompleteServletResponse(AsyncContext asyncContext, long processingStart, Optional<Throwable> throwable)
+            throws IOException
+    {
+        byte[] skipBuffer = new byte[2048];
+        ServletInputStream inputStream = asyncContext.getRequest().getInputStream();
+        inputStream.setReadListener(new ReadListener() {
+            @Override
+            public void onDataAvailable()
+                    throws IOException
+            {
+                while (inputStream.isReady() && !inputStream.isFinished()) {
+                    inputStream.read(skipBuffer);
+                }
+            }
+
+            @Override
+            public void onAllDataRead()
+            {
+                completeServletResponse(asyncContext, processingStart, throwable);
+            }
+
+            @Override
+            public void onError(Throwable e)
+            {
+                logger.warn(e, "Got error while consuming request");
+                completeServletResponse(asyncContext, processingStart, throwable);
+            }
+        });
+    }
+
     private void completeServletResponse(AsyncContext asyncContext, long processingStart, Optional<Throwable> throwable)
     {
         try {

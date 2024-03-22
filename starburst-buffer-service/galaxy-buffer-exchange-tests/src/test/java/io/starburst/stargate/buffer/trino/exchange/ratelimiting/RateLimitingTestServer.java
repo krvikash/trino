@@ -233,7 +233,7 @@ public class RateLimitingTestServer
                 public void onDataAvailable()
                         throws IOException
                 {
-                    while (inputStream.isReady()) {
+                    while (inputStream.isReady() && !inputStream.isFinished()) {
                         int n = inputStream.read(drainBuffer);
                         if (n == -1) {
                             break;
