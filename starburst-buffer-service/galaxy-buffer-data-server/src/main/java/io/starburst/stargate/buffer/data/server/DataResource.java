@@ -65,6 +65,7 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
@@ -785,29 +786,35 @@ public class DataResource
     // this function is needed to immediately return http response letting Jetty consume request payload behind the scenes.
     // for more information, see https://github.com/starburstdata/trino-buffer-service/issues/269
     private void completeServletResponse(AsyncContext asyncContext, long processingStart, Optional<Throwable> throwable)
-            throws IOException
     {
-        HttpServletResponse servletResponse = (HttpServletResponse) asyncContext.getResponse();
-        servletResponse.setContentType(TEXT_PLAIN);
-        getRateLimitHeaders((HttpServletRequest) asyncContext.getRequest()).forEach(servletResponse::setHeader);
+        try {
+            HttpServletResponse servletResponse = (HttpServletResponse) asyncContext.getResponse();
+            servletResponse.setContentType(TEXT_PLAIN);
+            getRateLimitHeaders((HttpServletRequest) asyncContext.getRequest()).forEach(servletResponse::setHeader);
 
-        if (throwable.isPresent()) {
-            servletResponse.setStatus(SC_INTERNAL_SERVER_ERROR);
-            servletResponse.getWriter().write(throwable.get().getMessage());
-            if (throwable.get() instanceof DataServerException dataServerException) {
-                servletResponse.setHeader(ERROR_CODE_HEADER, dataServerException.getErrorCode().toString());
+            if (throwable.isPresent()) {
+                servletResponse.setStatus(SC_INTERNAL_SERVER_ERROR);
+                servletResponse.getWriter().write(throwable.get().getMessage());
+                if (throwable.get() instanceof DataServerException dataServerException) {
+                    servletResponse.setHeader(ERROR_CODE_HEADER, dataServerException.getErrorCode().toString());
+                }
+                else {
+                    servletResponse.setHeader(ERROR_CODE_HEADER, INTERNAL_ERROR.toString());
+                }
             }
             else {
-                servletResponse.setHeader(ERROR_CODE_HEADER, INTERNAL_ERROR.toString());
+                servletResponse.setStatus(SC_OK);
             }
-        }
-        else {
-            servletResponse.setStatus(SC_OK);
-        }
 
-        recordAddDataPagesRequest(processingStart, (HttpServletRequest) asyncContext.getRequest());
-
-        asyncContext.complete();
+            recordAddDataPagesRequest(processingStart, (HttpServletRequest) asyncContext.getRequest());
+        }
+        catch (IOException e) {
+            logger.error(e, "IO error while writing response");
+            throw new UncheckedIOException(e);
+        }
+        finally {
+            asyncContext.complete();
+        }
     }
 
     private static Response errorResponse(Throwable throwable)
