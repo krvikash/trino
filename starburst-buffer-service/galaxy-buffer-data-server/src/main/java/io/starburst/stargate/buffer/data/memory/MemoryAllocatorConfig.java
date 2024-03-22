@@ -12,8 +12,7 @@ package io.starburst.stargate.buffer.data.memory;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.units.DataSize;
-
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 public class MemoryAllocatorConfig
 {

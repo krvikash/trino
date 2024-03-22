@@ -15,9 +15,8 @@ import io.airlift.configuration.ConfigHidden;
 import io.airlift.configuration.LegacyConfig;
 import io.airlift.units.Duration;
 import io.airlift.units.MinDuration;
-
-import javax.validation.constraints.Min;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 
 import static io.airlift.units.Duration.succinctDuration;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;

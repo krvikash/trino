@@ -11,8 +11,7 @@ package io.starburst.stargate.buffer.data.client;
 
 import io.airlift.configuration.Config;
 import io.starburst.stargate.buffer.data.client.spooling.SpoolingStorageType;
-
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 public class DataApiConfig
 {

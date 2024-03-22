@@ -11,11 +11,10 @@ package io.starburst.stargate.buffer.data.spooling.s3;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigSecuritySensitive;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 import software.amazon.awssdk.core.retry.RetryMode;
 import software.amazon.awssdk.regions.Region;
-
-import javax.validation.constraints.Min;
-import javax.validation.constraints.NotNull;
 
 import java.util.Optional;
 

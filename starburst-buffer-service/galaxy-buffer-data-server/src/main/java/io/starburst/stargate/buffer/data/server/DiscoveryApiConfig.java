@@ -10,8 +10,7 @@
 package io.starburst.stargate.buffer.data.server;
 
 import io.airlift.configuration.Config;
-
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 import java.net.URI;
 

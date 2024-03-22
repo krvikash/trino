@@ -17,9 +17,8 @@ import io.airlift.units.Duration;
 import io.airlift.units.MaxDataSize;
 import io.airlift.units.MinDataSize;
 import jakarta.annotation.PostConstruct;
-
-import javax.validation.constraints.Min;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 
 import java.net.URI;
 
