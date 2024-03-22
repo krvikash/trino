@@ -106,6 +106,8 @@ import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLING_F
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
 import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_CHUNK_DATA;
 import static io.starburst.stargate.buffer.data.execution.ChunkDataLease.CHUNK_SLICES_METADATA_SIZE;
+import static jakarta.servlet.http.HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+import static jakarta.servlet.http.HttpServletResponse.SC_OK;
 import static java.lang.String.format;
 import static java.util.Collections.emptyList;
 import static java.util.Objects.requireNonNull;
@@ -789,7 +791,7 @@ public class DataResource
         getRateLimitHeaders((HttpServletRequest) asyncContext.getRequest()).forEach(servletResponse::setHeader);
 
         if (throwable.isPresent()) {
-            servletResponse.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            servletResponse.setStatus(SC_INTERNAL_SERVER_ERROR);
             servletResponse.getWriter().write(throwable.get().getMessage());
             if (throwable.get() instanceof DataServerException dataServerException) {
                 servletResponse.setHeader(ERROR_CODE_HEADER, dataServerException.getErrorCode().toString());
@@ -799,7 +801,7 @@ public class DataResource
             }
         }
         else {
-            servletResponse.setStatus(HttpServletResponse.SC_OK);
+            servletResponse.setStatus(SC_OK);
         }
 
         recordAddDataPagesRequest(processingStart, (HttpServletRequest) asyncContext.getRequest());
