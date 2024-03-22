@@ -379,11 +379,11 @@ public class DataResource
                                     throws IOException
                             {
                                 while (inputStream.isReady()) {
-                                    int n = inputStream.read(slice.byteArray(), slice.byteArrayOffset() + bytesRead, contentLength - bytesRead);
-                                    if (n == -1) {
+                                    int readLength = inputStream.read(slice.byteArray(), slice.byteArrayOffset() + bytesRead, contentLength - bytesRead);
+                                    if (readLength == -1) {
                                         break;
                                     }
-                                    bytesRead += n;
+                                    bytesRead += readLength;
                                 }
                             }
 
