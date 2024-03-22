@@ -383,11 +383,18 @@ public class DataResource
                                     throws IOException
                             {
                                 while (inputStream.isReady() && !inputStream.isFinished()) {
-                                    int readLength = inputStream.read(slice.byteArray(), slice.byteArrayOffset() + bytesRead, contentLength - bytesRead);
-                                    if (readLength == -1) {
+                                    if (bytesRead < contentLength) {
+                                        int readLength = inputStream.read(slice.byteArray(), slice.byteArrayOffset() + bytesRead, contentLength - bytesRead);
+                                        if (readLength == -1) {
+                                            break;
+                                        }
+                                        bytesRead += readLength;
+                                    }
+                                    else {
+                                        int readLength = inputStream.read();
+                                        checkState(readLength == -1, "expected EOF but got " + readLength);
                                         break;
                                     }
-                                    bytesRead += readLength;
                                 }
                             }
 
