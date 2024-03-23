@@ -121,7 +121,7 @@ public class DataResource
     private static final Logger logger = Logger.get(DataResource.class);
 
     private static final Duration CLIENT_MAX_WAIT_LIMIT = succinctDuration(60, TimeUnit.SECONDS);
-    public static final int SKIP_BUFFER_SIZE = 2048;
+    private static final int SKIP_BUFFER_SIZE = 8192;
 
     private final long bufferNodeId;
     private final ChunkManager chunkManager;
