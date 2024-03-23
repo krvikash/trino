@@ -803,8 +803,10 @@ public class DataResource
             public void onDataAvailable()
                     throws IOException
             {
-                while (inputStream.isReady() && !inputStream.isFinished()) {
-                    inputStream.read(skipBuffer);
+                while (inputStream.isReady()) {
+                    if (inputStream.read(skipBuffer) == -1) {
+                        return;
+                    }
                 }
             }
 
