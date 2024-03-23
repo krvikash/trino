@@ -392,6 +392,8 @@ public class DataResource
                                         bytesRead += readLength;
                                     }
                                     else {
+                                        // we need extra call to read after we read number of bytes denoted by contentLength,
+                                        // otherwise inputStream will never signal EOF and `onAllDataRead` will not be called.
                                         int readLength = inputStream.read();
                                         checkState(readLength == -1, "expected EOF but read %s", readLength);
                                         break;
