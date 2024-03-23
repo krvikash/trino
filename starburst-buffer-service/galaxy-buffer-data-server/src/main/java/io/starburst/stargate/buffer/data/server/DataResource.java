@@ -121,6 +121,7 @@ public class DataResource
     private static final Logger logger = Logger.get(DataResource.class);
 
     private static final Duration CLIENT_MAX_WAIT_LIMIT = succinctDuration(60, TimeUnit.SECONDS);
+    public static final int SKIP_BUFFER_SIZE = 2048;
 
     private final long bufferNodeId;
     private final ChunkManager chunkManager;
@@ -795,7 +796,7 @@ public class DataResource
     private void consumeRequestAndCompleteServletResponse(AsyncContext asyncContext, long processingStart, Optional<Throwable> throwable)
             throws IOException
     {
-        byte[] skipBuffer = new byte[2048];
+        byte[] skipBuffer = new byte[SKIP_BUFFER_SIZE];
         ServletInputStream inputStream = asyncContext.getRequest().getInputStream();
         inputStream.setReadListener(new ReadListener() {
             @Override
