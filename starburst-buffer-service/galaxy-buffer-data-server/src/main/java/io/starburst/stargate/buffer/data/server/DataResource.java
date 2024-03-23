@@ -383,7 +383,7 @@ public class DataResource
                             public void onDataAvailable()
                                     throws IOException
                             {
-                                while (inputStream.isReady() && !inputStream.isFinished()) {
+                                while (inputStream.isReady()) {
                                     if (bytesRead < contentLength) {
                                         int readLength = inputStream.read(slice.byteArray(), slice.byteArrayOffset() + bytesRead, contentLength - bytesRead);
                                         if (readLength == -1) {
