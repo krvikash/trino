@@ -393,7 +393,7 @@ public class DataResource
                                     }
                                     else {
                                         int readLength = inputStream.read();
-                                        checkState(readLength == -1, "expected EOF but got " + readLength);
+                                        checkState(readLength == -1, "expected EOF but read %s", readLength);
                                         break;
                                     }
                                 }
