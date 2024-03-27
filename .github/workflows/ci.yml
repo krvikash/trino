@@ -104,7 +104,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { java-version: 21, cache: 'true', cleanup-node: false }
           - { java-version: 22, cache: 'restore', cleanup-node: false }
           - { java-version: 23-ea, cache: 'restore', cleanup-node: true }
     timeout-minutes: 45
@@ -160,8 +159,6 @@ jobs:
           secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
       - uses: ./.github/actions/setup
         with:
-          # Warp build with Java 22 cannot be run with Java 21
-          java-version: 21
           cache: 'restore'
           cleanup-node: 'true'
       - name: "Login to ECR pull-through cache"
@@ -441,8 +438,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.ENG_AWS_SECRET_ACCESS_KEY }}
           secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
       - uses: ./.github/actions/setup
-        with:
-          java-version: 21
       - name: Maven install
         run: |
           export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
