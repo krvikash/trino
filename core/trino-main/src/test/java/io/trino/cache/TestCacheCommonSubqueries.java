@@ -373,7 +373,7 @@ public class TestCacheCommonSubqueries
         CanonicalAggregation sum = canonicalAggregation("sum", nationkey);
         CanonicalAggregation avg = canonicalAggregation("avg", nationkey);
         List<CacheColumnId> cacheColumnIds = ImmutableList.of(REGIONKEY_COLUMN_ID, canonicalAggregationToColumnId(sum), canonicalAggregationToColumnId(max), canonicalAggregationToColumnId(avg));
-        List<Type> cacheColumnTypes = ImmutableList.of(BIGINT, RowType.anonymousRow(BIGINT, BIGINT), BIGINT, RowType.anonymousRow(DOUBLE, BIGINT));
+        List<Type> cacheColumnTypes = ImmutableList.of(BIGINT, BIGINT, BIGINT, RowType.anonymousRow(DOUBLE, BIGINT));
         PlanSignatureWithPredicate signature = new PlanSignatureWithPredicate(
                 new PlanSignature(
                         aggregationKey(scanFilterProjectKey(new CacheTableId(testCatalogId + ":tiny:nation:0.01"))),
