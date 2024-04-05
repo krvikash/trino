@@ -66,6 +66,7 @@ public final class JoinMatcher
     private final Optional<Expression> filter;
     private final Optional<DistributionType> distributionType;
     private final Optional<Boolean> spillable;
+    private final Optional<Boolean> maySkipOutputDuplicates;
     // LEFT_SYMBOL -> RIGHT_SYMBOL
     private final Optional<List<DynamicFilterPattern>> expectedDynamicFilter;
 
@@ -76,6 +77,7 @@ public final class JoinMatcher
             Optional<Expression> filter,
             Optional<DistributionType> distributionType,
             Optional<Boolean> spillable,
+            Optional<Boolean> maySkipOutputDuplicates,
             Optional<List<DynamicFilterPattern>> expectedDynamicFilter)
     {
         this.joinType = requireNonNull(joinType, "joinType is null");
@@ -87,6 +89,7 @@ public final class JoinMatcher
         this.filter = requireNonNull(filter, "filter cannot be null");
         this.distributionType = requireNonNull(distributionType, "distributionType is null");
         this.spillable = requireNonNull(spillable, "spillable is null");
+        this.maySkipOutputDuplicates = requireNonNull(maySkipOutputDuplicates, "MaySkipOutputDuplicates is null");
         this.expectedDynamicFilter = requireNonNull(expectedDynamicFilter, "expectedDynamicFilter is null");
     }
 
@@ -130,6 +133,10 @@ public final class JoinMatcher
         }
 
         if (spillable.isPresent() && !spillable.equals(joinNode.isSpillable())) {
+            return NO_MATCH;
+        }
+
+        if (maySkipOutputDuplicates.isPresent() && maySkipOutputDuplicates.get() != joinNode.isMaySkipOutputDuplicates()) {
             return NO_MATCH;
         }
 
@@ -228,6 +235,7 @@ public final class JoinMatcher
         private Optional<List<PlanMatchPattern.DynamicFilterPattern>> dynamicFilter = Optional.empty();
         private Optional<DistributionType> distributionType = Optional.empty();
         private Optional<Boolean> expectedSpillable = Optional.empty();
+        private Optional<Boolean> expectedMaySkipOutputDuplicates = Optional.empty();
         private PlanMatchPattern left;
         private PlanMatchPattern right;
         private Optional<Expression> filter = Optional.empty();
@@ -313,6 +321,14 @@ public final class JoinMatcher
         }
 
         @CanIgnoreReturnValue
+        public Builder maySkipOutputDuplicates(Boolean expectedMaySkipOutputDuplicates)
+        {
+            this.expectedMaySkipOutputDuplicates = Optional.of(expectedMaySkipOutputDuplicates);
+
+            return this;
+        }
+
+        @CanIgnoreReturnValue
         public Builder left(PlanMatchPattern left)
         {
             this.left = left;
@@ -345,6 +361,7 @@ public final class JoinMatcher
                                     filter,
                                     distributionType,
                                     expectedSpillable,
+                                    expectedMaySkipOutputDuplicates,
                                     dynamicFilter));
         }
     }

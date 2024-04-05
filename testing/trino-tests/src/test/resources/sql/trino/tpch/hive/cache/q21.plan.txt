@@ -21,7 +21,7 @@ local exchange (GATHER, SINGLE, [])
                                                 final aggregation over (commitdate, name, name_11, nationkey, orderkey_16, orderstatus, receiptdate, suppkey_0, unique_59)
                                                     local exchange (GATHER, SINGLE, [])
                                                         intermediate aggregation over (commitdate, name, name_11, nationkey, orderkey_16, orderstatus, receiptdate, suppkey_0, unique_59)
-                                                            join (INNER, PARTITIONED):
+                                                            join (INNER, PARTITIONED, can skip output duplicates):
                                                                 remote exchange (REPARTITION, HASH, [orderkey_16])
                                                                     partial aggregation over (orderkey_16, suppkey_18)
                                                                         alternatives

@@ -153,6 +153,7 @@ import io.trino.sql.planner.iterative.rule.PushDownDereferencesThroughTopN;
 import io.trino.sql.planner.iterative.rule.PushDownDereferencesThroughTopNRanking;
 import io.trino.sql.planner.iterative.rule.PushDownDereferencesThroughWindow;
 import io.trino.sql.planner.iterative.rule.PushDownProjectionsFromPatternRecognition;
+import io.trino.sql.planner.iterative.rule.PushFilterThroughBoolOrAggregation;
 import io.trino.sql.planner.iterative.rule.PushFilterThroughCountAggregation;
 import io.trino.sql.planner.iterative.rule.PushInequalityFilterExpressionBelowJoinRuleSet;
 import io.trino.sql.planner.iterative.rule.PushJoinIntoTableScan;
@@ -608,6 +609,7 @@ public class PlanOptimizers
                                 .addAll(columnPruningRules)
                                 .add(new InlineProjections())
                                 .addAll(new PushFilterThroughCountAggregation(plannerContext).rules()) // must run after PredicatePushDown and after TransformFilteringSemiJoinToInnerJoin
+                                .addAll(new PushFilterThroughBoolOrAggregation(plannerContext).rules())
                                 .build()));
 
         // Perform redirection before CBO rules to ensure stats from destination connector are used
