@@ -49,6 +49,8 @@ public class AzureBlobSpooledChunkReader
         this.azureClient = requireNonNull(blobServiceAsyncClient, "blobServiceAsyncClient is null");
     }
 
+    // remove suppressWarnings https://github.com/starburstdata/galaxy-trino/issues/2077
+    @SuppressWarnings("ByteBufferBackingArray")
     @Override
     public ListenableFuture<List<DataPage>> getDataPages(SpooledChunk spooledChunk)
     {
