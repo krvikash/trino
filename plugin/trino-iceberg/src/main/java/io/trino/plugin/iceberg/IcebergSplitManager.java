@@ -156,7 +156,8 @@ public class IcebergSplitManager
                 // weight does not impact split rows
                 SplitWeight.standard(),
                 icebergSplit.getFileStatisticsDomain(),
-                icebergSplit.getFileIoProperties());
+                icebergSplit.getFileIoProperties(),
+                icebergSplit.getDataSequenceNumber());
 
         return Optional.of(new CacheSplitId(splitIdCodec.toJson(new IcebergCacheSplitId(
                 icebergSplit.getPath(),

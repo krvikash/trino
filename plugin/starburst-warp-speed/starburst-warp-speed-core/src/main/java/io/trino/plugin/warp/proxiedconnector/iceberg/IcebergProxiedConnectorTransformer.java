@@ -156,7 +156,8 @@ public class IcebergProxiedConnectorTransformer
                 original.getDeletes(),
                 original.getSplitWeight(),
                 original.getFileStatisticsDomain(),
-                original.getFileIoProperties());
+                original.getFileIoProperties(),
+                original.getDataSequenceNumber());
     }
 
     @Override

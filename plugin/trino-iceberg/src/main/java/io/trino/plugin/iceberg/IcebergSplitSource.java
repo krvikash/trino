@@ -519,6 +519,7 @@ public class IcebergSplitSource
                 SplitWeight.fromProportion(clamp((double) task.length() / tableScan.targetSplitSize(), minimumAssignedSplitWeight, 1.0)),
                 fileStatisticsDomain,
                 fileIoProperties,
-                cachingHostAddressProvider.getHosts(task.file().path().toString(), ImmutableList.of()));
+                cachingHostAddressProvider.getHosts(task.file().path().toString(), ImmutableList.of()),
+                task.file().dataSequenceNumber());
     }
 }
