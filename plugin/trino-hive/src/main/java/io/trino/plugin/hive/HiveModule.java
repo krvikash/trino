@@ -83,6 +83,8 @@ public class HiveModule
         systemTableProviders.addBinding().to(PropertiesSystemTableProvider.class).in(Scopes.SINGLETON);
         newOptionalBinder(binder, HiveViewReaderFactory.class)
                 .setDefault().to(DefaultHiveViewReaderFactory.class).in(Scopes.SINGLETON);
+        newOptionalBinder(binder, HiveMaterializedViewMetadataFactory.class)
+                .setDefault().to(DefaultHiveMaterializedViewMetadataFactory.class).in(Scopes.SINGLETON);
         newOptionalBinder(binder, TransactionalMetadataFactory.class)
                 .setDefault().to(HiveMetadataFactory.class).in(Scopes.SINGLETON);
         binder.bind(TransactionScopeCachingDirectoryListerFactory.class).in(Scopes.SINGLETON);

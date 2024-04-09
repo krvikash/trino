@@ -17,12 +17,14 @@ import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.trino.plugin.base.connector.SystemTableProvider;
+import io.trino.plugin.hive.DefaultHiveMaterializedViewMetadataFactory;
 import io.trino.plugin.hive.DefaultHiveViewReaderFactory;
 import io.trino.plugin.hive.HiveCacheSplitId;
 import io.trino.plugin.hive.HiveConfig;
 import io.trino.plugin.hive.HiveExecutorModule;
 import io.trino.plugin.hive.HiveFormatsModule;
 import io.trino.plugin.hive.HiveLocationService;
+import io.trino.plugin.hive.HiveMaterializedViewMetadataFactory;
 import io.trino.plugin.hive.HiveMetadataFactory;
 import io.trino.plugin.hive.HiveNodePartitioningProvider;
 import io.trino.plugin.hive.HivePageSinkProvider;
@@ -127,5 +129,9 @@ class LakehouseHiveModule
 
         newOptionalBinder(binder, HiveViewReaderFactory.class)
                 .setDefault().to(DefaultHiveViewReaderFactory.class).in(Scopes.SINGLETON);
+
+        // SEP legacy bindings
+        newOptionalBinder(binder, HiveMaterializedViewMetadataFactory.class)
+                .setDefault().to(DefaultHiveMaterializedViewMetadataFactory.class).in(Scopes.SINGLETON);
     }
 }
