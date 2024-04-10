@@ -14,6 +14,8 @@
 
     <properties>
         <air.main.basedir>${project.parent.basedir}/..</air.main.basedir>
+        <!-- TODO enable @GuardedBy checks in galaxy-buffer-mocking https://github.com/starburstdata/galaxy-trino/issues/2081 -->
+        <trino.error-prone.guarded-by>WARN</trino.error-prone.guarded-by>
     </properties>
 
     <dependencyManagement>
