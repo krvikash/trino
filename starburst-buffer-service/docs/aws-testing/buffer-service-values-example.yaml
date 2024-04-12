@@ -37,7 +37,7 @@ bufferService:
       "config.properties": |
         node.environment={{ .Values.bufferService.environment }}
         node.internal-address=${ENV:POD_IP}
-        
+
         spooling.directory=s3://galaxy-tardigrade-demo-aws-us-east1
         spooling.s3.region=us-east-1
         spooling.s3.aws-access-key=<put_access_key_here>
@@ -56,7 +56,7 @@ bufferService:
         # client-rate-counter-decay-duration=10s
 
         in-progress-add-data-pages-requests-throttling-counter-decay-duration=5s
-        
+
         #chunk.target-size=16kB
         #chunk.slice-size=16kB
 
