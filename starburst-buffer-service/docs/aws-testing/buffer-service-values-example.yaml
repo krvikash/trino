@@ -70,7 +70,6 @@ bufferService:
         -XX:+ExitOnOutOfMemoryError
         -XX:+UnlockDiagnosticVMOptions
         -XX:GCLockerRetryAllocationCount=10
-        -XX:-G1UsePreventiveGC
     autoscaling:
       type: "static"
       static:
