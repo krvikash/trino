@@ -65,7 +65,7 @@ public class TestHiveDefaultCacheManager
     }
 
     @Test
-    public void testSimple_Warm()
+    public void testSimpleWarm()
     {
         prepare();
         DistributedQueryRunner queryRunner = (DistributedQueryRunner) getQueryRunner();
@@ -102,13 +102,13 @@ public class TestHiveDefaultCacheManager
      */
     private void prepare()
     {
-        assertUpdate("CREATE TABLE table1(" +
-                "int1 integer, " +
-                "v1 varchar(20)) WITH (format='PARQUET', partitioned_by = ARRAY[])");
+        createTable(DEFAULT_SCHEMA,
+                "table1",
+                "(int1 integer, v1 varchar(20)) WITH (format='PARQUET', partitioned_by = ARRAY[])");
         computeActual(getSession(), "INSERT INTO table1 VALUES (1, 'shlomi'), (2, 'kobi')");
-        assertUpdate("CREATE TABLE table2(" +
-                "int1 integer, " +
-                "v1 varchar(20)) WITH (format='PARQUET', partitioned_by = ARRAY[])");
+        createTable(DEFAULT_SCHEMA,
+                "table2",
+                "(int1 integer, v1 varchar(20)) WITH (format='PARQUET', partitioned_by = ARRAY[])");
         computeActual(getSession(), "INSERT INTO table2 VALUES (3, 'roman'), (4, 'tal')");
         String query2 = "select int1, v1 from table2 where int1 > 0 and v1 like '%shlomi%' and v1 > 's' and upper(v1) = 'SHLOMI'";
         warmAndValidate(query2, true, 5, 2);

@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.plugin.varada.it.smoke;
+package io.trino.plugin.warp.it;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.MoreCollectors;
@@ -26,6 +26,7 @@ import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.MaterializedRow;
 import jakarta.ws.rs.HttpMethod;
+import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -76,7 +77,7 @@ public abstract class VaradaAbstractTestQueryFramework
     {
         if (Objects.nonNull(hiveDir)) {
             try {
-                Files.deleteIfExists(hiveDir);
+                FileUtils.deleteDirectory(hiveDir.toFile());
             }
             catch (IOException e) {
                 logger.warn(e, "failed to delete hive dir [%s]", hiveDir);
@@ -97,9 +98,9 @@ public abstract class VaradaAbstractTestQueryFramework
      */
     protected void initializeWorkers(String catalogName)
     {
-        assertUpdate("CREATE SCHEMA fake_schema");
-        assertUpdate(String.format("CREATE TABLE %s.fake_schema.fake_table (%s integer, %s varchar(20))", catalogName, "col1", "col2"));
-
+        String schema = "fake_schema";
+        String table = "fake_table";
+        createSchemaAndTable(schema, table, "(%s integer, %s varchar(20))".formatted("col1", "col2"));
         computeActual(String.format("INSERT INTO %s.fake_schema.fake_table VALUES (1, 'shlomi')", catalogName));
         getQueryRunner().execute(String.format("drop table %s.fake_schema.fake_table", catalogName));
         getQueryRunner().execute(String.format("drop schema %s.fake_schema", catalogName));
@@ -121,13 +122,17 @@ public abstract class VaradaAbstractTestQueryFramework
                 .filter(materializedRowTmp -> materializedRowTmp.getField(0).equals(table))
                 .findFirst();
 
-        assertThat(optionalMaterializedRow).isPresent();
+        assertThat(optionalMaterializedRow)
+                .describedAs("missing table %s.%s".formatted(schema, table))
+                .isPresent();
 
         MaterializedRow materializedRow = optionalMaterializedRow.orElseThrow();
         assertThat(materializedRow.getFields().size()).isEqualTo(1);
-        assertThat(materializedRow.getFields().stream().collect(MoreCollectors.onlyElement())).isEqualTo(table);
+        assertThat(materializedRow.getFields().stream().collect(MoreCollectors.onlyElement()))
+                .describedAs("missing table %s.%s".formatted(schema, table))
+                .isEqualTo(table);
 
-        result = computeActual("SELECT * FROM " + schema + "." + table);
+        result = computeActual("SELECT * FROM %s.%s".formatted(schema, table));
         assertThat(result.getRowCount()).isZero();
     }
 
@@ -140,27 +145,32 @@ public abstract class VaradaAbstractTestQueryFramework
                 .filter(materializedRowTmp -> materializedRowTmp.getField(0).equals(schema))
                 .findFirst();
 
-        assertThat(optionalMaterializedRow.isPresent()).isTrue();
+        assertThat(optionalMaterializedRow.isPresent())
+                .describedAs("missing schema " + schema)
+                .isTrue();
     }
 
     void assertSchemaIsEmpty(String schema)
     {
         MaterializedResult result = computeActual("show tables from " + schema);
-        assertThat(result.getRowCount()).isEqualTo(0);
+        assertThat(result.getRowCount())
+                .describedAs("schema [%s] is not empty".formatted(schema))
+                .isEqualTo(0);
     }
 
     protected void createSchemaAndTable(String schemaName, String tableName, String columns)
     {
         assertUpdate("CREATE SCHEMA " + schemaName);
-
         assertSchema(schemaName);
-
         assertSchemaIsEmpty(schemaName);
-
-        assertUpdate(format("CREATE TABLE %s.%s %s", schemaName, tableName, columns));
-
-        assertTableExists(schemaName, tableName);
+        createTable(schemaName, tableName, columns);
         createdSchemas.add(schemaName);
+    }
+
+    protected void createTable(String schemaName, String tableName, String columns)
+    {
+        assertUpdate(format("CREATE TABLE %s.%s %s", schemaName, tableName, columns));
+        assertTableExists(schemaName, tableName);
         createdTables.add(schemaName + "." + tableName);
     }
 

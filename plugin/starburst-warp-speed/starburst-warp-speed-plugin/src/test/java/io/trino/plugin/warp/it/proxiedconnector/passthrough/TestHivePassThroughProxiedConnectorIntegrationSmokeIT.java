@@ -75,18 +75,16 @@ public class TestHivePassThroughProxiedConnectorIntegrationSmokeIT
     @Test
     public void testSinglePartitionMultipleSplits()
     {
-        try {
-            computeActual("CREATE TABLE pt(id integer, a varchar, date_date date) " +
-                    "WITH (format='PARQUET', partitioned_by = ARRAY['date_date'])");
-            IntStream.range(1, 9).forEach(value -> assertUpdate(format("INSERT INTO pt(id, a, date_date) VALUES(%d, 'a-%d',CAST('2020-04-0%d' AS date))", value, value, value), 1));
+        String table = "pt";
+        createTable(DEFAULT_SCHEMA,
+                table,
+                "(id integer, a varchar, date_date date) WITH (format='PARQUET', partitioned_by = ARRAY['date_date'])");
+        IntStream.range(1, 9)
+                .forEach(value -> assertUpdate("INSERT INTO %s(id, a, date_date) VALUES(%d, 'a-%d',CAST('2020-04-0%d' AS date))".formatted(table, value, value, value), 1));
 
-            MaterializedResult materializedRows = computeActual("SELECT count(a) FROM pt WHERE date_date=CAST('2020-04-01' AS date)");
-            assertThat(materializedRows.getRowCount()).isEqualTo(1);
-            assertThat(materializedRows.getMaterializedRows().getFirst().getField(0)).isEqualTo(1L);
-        }
-        finally {
-            computeActual("DROP TABLE IF EXISTS pt");
-        }
+        MaterializedResult materializedRows = computeActual("SELECT count(a) FROM %s WHERE date_date=CAST('2020-04-01' AS date)".formatted(table));
+        assertThat(materializedRows.getRowCount()).isEqualTo(1);
+        assertThat(materializedRows.getMaterializedRows().getFirst().getField(0)).isEqualTo(1L);
     }
 
     @Test
@@ -96,46 +94,46 @@ public class TestHivePassThroughProxiedConnectorIntegrationSmokeIT
         String aCol = "a";
         String dateIntCol = "date_int";
         String dateDateCol = "date_date";
-        try {
-            computeActual(format("CREATE TABLE %s(%s varchar, %s integer, %s date) " +
-                            "WITH (format='PARQUET', partitioned_by = ARRAY['%s', '%s'])",
-                    table, aCol, dateIntCol, dateDateCol, dateIntCol, dateDateCol));
 
-            IntStream.range(0, 2).forEach(indexDateInt -> IntStream.range(1, 3).forEach(indexDateDate -> assertUpdate(format("INSERT INTO %s(%s, %s, %s) VALUES('a-%d', 2019031%d, CAST('2020-04-%d%d' AS date))",
-                            table, aCol, dateIntCol, dateDateCol, indexDateDate, indexDateInt, indexDateInt, indexDateDate),
-                    1)));
+        createTable(DEFAULT_SCHEMA,
+                table,
+                "(%s varchar, %s integer, %s date) WITH (format='PARQUET', partitioned_by = ARRAY['%s', '%s'])"
+                        .formatted(aCol, dateIntCol, dateDateCol, dateIntCol, dateDateCol));
 
-            MaterializedResultWithPlan materializedResultResultWithQueryId = getQueryRunner()
-                    .executeWithPlan(getSession(),
-                            format("SELECT %s, %s FROM %s WHERE %s=20190311 AND %s='a-1'",
-                                    aCol, dateIntCol, table, dateIntCol, aCol));
+        IntStream.range(0, 2)
+                .forEach(indexDateInt ->
+                        IntStream.range(1, 3)
+                                .forEach(indexDateDate -> assertUpdate("INSERT INTO %s(%s, %s, %s) VALUES('a-%d', 2019031%d, CAST('2020-04-%d%d' AS date))"
+                                                .formatted(table, aCol, dateIntCol, dateDateCol, indexDateDate, indexDateInt, indexDateInt, indexDateDate),
+                                        1)));
 
-            assertThat(materializedResultResultWithQueryId.result()
-                    .getStatementStats()
-                    .orElseThrow()
-                    .getTotalSplits())
-                    .isEqualTo(2);
+        MaterializedResultWithPlan materializedResultResultWithQueryId = getQueryRunner()
+                .executeWithPlan(getSession(),
+                        format("SELECT %s, %s FROM %s WHERE %s=20190311 AND %s='a-1'",
+                                aCol, dateIntCol, table, dateIntCol, aCol));
 
-            assertThat(materializedResultResultWithQueryId.result().getRowCount())
-                    .isEqualTo(1);
+        assertThat(materializedResultResultWithQueryId.result()
+                .getStatementStats()
+                .orElseThrow()
+                .getTotalSplits())
+                .isEqualTo(2);
 
-            materializedResultResultWithQueryId = getQueryRunner()
-                    .executeWithPlan(getSession(),
-                            format("SELECT %s, %s FROM %s WHERE %s=20190311 AND %s=CAST('2020-04-12' AS date) AND %s='a-1'",
-                                    aCol, dateIntCol, table, dateIntCol, dateDateCol, aCol));
+        assertThat(materializedResultResultWithQueryId.result().getRowCount())
+                .isEqualTo(1);
 
-            assertThat(materializedResultResultWithQueryId.result()
-                    .getStatementStats()
-                    .orElseThrow()
-                    .getTotalSplits())
-                    .isEqualTo(1);
+        materializedResultResultWithQueryId = getQueryRunner()
+                .executeWithPlan(getSession(),
+                        format("SELECT %s, %s FROM %s WHERE %s=20190311 AND %s=CAST('2020-04-12' AS date) AND %s='a-1'",
+                                aCol, dateIntCol, table, dateIntCol, dateDateCol, aCol));
 
-            assertThat(materializedResultResultWithQueryId.result().getRowCount())
-                    .isEqualTo(0);
-        }
-        finally {
-            computeActual("DROP TABLE IF EXISTS pt");
-        }
+        assertThat(materializedResultResultWithQueryId.result()
+                .getStatementStats()
+                .orElseThrow()
+                .getTotalSplits())
+                .isEqualTo(1);
+
+        assertThat(materializedResultResultWithQueryId.result().getRowCount())
+                .isEqualTo(0);
     }
 
     @Test
@@ -147,7 +145,7 @@ public class TestHivePassThroughProxiedConnectorIntegrationSmokeIT
     }
 
     @Test
-    public void test_CTAS()
+    public void testCTAS()
     {
         computeActual("CREATE TABLE t2 AS SELECT * FROM t");
         computeActual("DROP TABLE t2");
@@ -156,19 +154,14 @@ public class TestHivePassThroughProxiedConnectorIntegrationSmokeIT
     @Test
     public void testRowDereference()
     {
-        try {
-            computeActual("CREATE TABLE evolve_test (dummy bigint, a row(b bigint, c varchar), d bigint)");
-            computeActual("INSERT INTO evolve_test values (1, row(1, 'abc'), 1)");
-            MaterializedResult materializedRows = computeActual(getSession(), "select * from evolve_test where a[1] = 1");
-            assertThat(materializedRows.getRowCount()).isEqualTo(1);
-        }
-        finally {
-            computeActual("DROP TABLE IF EXISTS evolve_test");
-        }
+        createTable(DEFAULT_SCHEMA, "evolve_test", "(dummy bigint, a row(b bigint, c varchar), d bigint)");
+        computeActual("INSERT INTO evolve_test values (1, row(1, 'abc'), 1)");
+        MaterializedResult materializedRows = computeActual(getSession(), "select * from evolve_test where a[1] = 1");
+        assertThat(materializedRows.getRowCount()).isEqualTo(1);
     }
 
     @Test
-    public void testSimple_AnalyzeWithColumns()
+    public void testSimpleAnalyzeWithColumns()
     {
         computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomi')");
         computeActual(getSession(), "ANALYZE t WITH (columns = ARRAY['int1'])");

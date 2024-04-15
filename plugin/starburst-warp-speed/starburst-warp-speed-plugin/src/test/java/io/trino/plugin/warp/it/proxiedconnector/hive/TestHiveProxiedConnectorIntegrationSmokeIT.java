@@ -181,61 +181,59 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     public void testBucketedBy()
             throws IOException
     {
-        try {
-            computeActual(getSession(),
-                    "CREATE TABLE bt(int_1 integer, bigint_2 bigint, smallint_3 smallint, tinyint_4 tinyint, char_5 char(9))" +
-                            " WITH (format = 'PARQUET', bucketed_by = ARRAY['int_1'], bucket_count = 4)");
+        String table = "bt";
+        createTable(DEFAULT_SCHEMA,
+                table,
+                "(int_1 integer, bigint_2 bigint, smallint_3 smallint, tinyint_4 tinyint, char_5 char(9))" +
+                        " WITH (format = 'PARQUET', bucketed_by = ARRAY['int_1'], bucket_count = 4)");
 
-            // "warp-speed.config.dictionary.max-size" == "3" in DispatcherQueryRunner.createQueryRunner()
-            IntStream.range(1, 4).forEach(value -> assertUpdate(format("INSERT INTO bt(int_1, bigint_2, smallint_3, tinyint_4, char_5) VALUES (%d, %d, %d, %d, '%09d')",
-                    value, value, value, value, value), 1));
+        // "warp-speed.config.dictionary.max-size" == "3" in DispatcherQueryRunner.createQueryRunner()
+        IntStream.range(1, 4).forEach(value -> assertUpdate(format("INSERT INTO bt(int_1, bigint_2, smallint_3, tinyint_4, char_5) VALUES (%d, %d, %d, %d, '%09d')",
+                value, value, value, value, value), 1));
 
-            createWarmupRules(DEFAULT_SCHEMA,
-                    "bt",
-                    Map.of("int_1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL),
-                                    new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL)),
-                            "bigint_2", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL),
-                                    new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))));
+        createWarmupRules(DEFAULT_SCHEMA,
+                table,
+                Map.of("int_1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL),
+                                new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL)),
+                        "bigint_2", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL),
+                                new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))));
 
-            @Language("SQL") String query = "SELECT * FROM bt";
-            warmAndValidate(query, false, 12 /* 2 cols * 2 types * 3 rows */, 3);
+        @Language("SQL") String query = "SELECT * FROM " + table;
+        warmAndValidate(query, false, 12 /* 2 cols * 2 types * 3 rows */, 3);
 
-            Map<String, Long> expectedQueryStats = Map.of(
-                    CACHED_TOTAL_ROWS, 3L,
-                    VARADA_MATCH_COLUMNS_STAT, 0L,
-                    VARADA_COLLECT_COLUMNS_STAT, 6L /* 2 cols * 3 rows */,
-                    EXTERNAL_MATCH_STAT, 0L,
-                    EXTERNAL_COLLECT_STAT, 9L /* 3 cols * 3 rows */);
-            validateQueryStats(query, getSession(), expectedQueryStats);
+        Map<String, Long> expectedQueryStats = Map.of(
+                CACHED_TOTAL_ROWS, 3L,
+                VARADA_MATCH_COLUMNS_STAT, 0L,
+                VARADA_COLLECT_COLUMNS_STAT, 6L /* 2 cols * 3 rows */,
+                EXTERNAL_MATCH_STAT, 0L,
+                EXTERNAL_COLLECT_STAT, 9L /* 3 cols * 3 rows */);
+        validateQueryStats(query, getSession(), expectedQueryStats);
 
-            expectedQueryStats = Map.of(
-                    CACHED_TOTAL_ROWS, 1L,
-                    VARADA_MATCH_COLUMNS_STAT, 1L,
-                    VARADA_COLLECT_COLUMNS_STAT, 1L,
-                    PREFILLED_COLUMNS_STAT, 1L,
-                    EXTERNAL_MATCH_STAT, 0L,
-                    EXTERNAL_COLLECT_STAT, 3L);
-            validateQueryStats("SELECT * FROM bt WHERE int_1 = 1", getSession(), expectedQueryStats);
-        }
-        finally {
-            computeActual("DROP TABLE IF EXISTS bt");
-        }
+        expectedQueryStats = Map.of(
+                CACHED_TOTAL_ROWS, 1L,
+                VARADA_MATCH_COLUMNS_STAT, 1L,
+                VARADA_COLLECT_COLUMNS_STAT, 1L,
+                PREFILLED_COLUMNS_STAT, 1L,
+                EXTERNAL_MATCH_STAT, 0L,
+                EXTERNAL_COLLECT_STAT, 3L);
+        validateQueryStats("SELECT * FROM %s WHERE int_1 = 1".formatted(table),
+                getSession(),
+                expectedQueryStats);
     }
 
     @Test
     public void testSinglePartitionMultipleSplits()
     {
-        try {
-            computeActual("CREATE TABLE pt(id integer, a varchar, date_date date) " +
-                    "WITH (format='PARQUET', partitioned_by = ARRAY['date_date'])");
-            IntStream.range(1, 9).forEach(value -> assertUpdate(format("INSERT INTO pt(id, a, date_date) VALUES(%d, 'a-%d',CAST('2020-04-0%d' AS date))", value, value, value), 1));
+        String table = "pt";
+        createTable(DEFAULT_SCHEMA,
+                table,
+                "(id integer, a varchar, date_date date) " +
+                        "WITH (format='PARQUET', partitioned_by = ARRAY['date_date'])");
+        IntStream.range(1, 9)
+                .forEach(value -> assertUpdate(format("INSERT INTO %s(id, a, date_date) VALUES(%d, 'a-%d',CAST('2020-04-0%d' AS date))", table, value, value, value), 1));
 
-            MaterializedResult materializedRows = computeActual("SELECT count(a) FROM pt WHERE date_date=CAST('2020-04-01' AS date)");
-            assertThat(materializedRows.getMaterializedRows().getFirst().getField(0)).isEqualTo(1L);
-        }
-        finally {
-            computeActual("DROP TABLE IF EXISTS pt");
-        }
+        MaterializedResult materializedRows = computeActual("SELECT count(a) FROM %s WHERE date_date=CAST('2020-04-01' AS date)".formatted(table));
+        assertThat(materializedRows.getMaterializedRows().getFirst().getField(0)).isEqualTo(1L);
     }
 
     @Test
@@ -246,66 +244,63 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         String aCol = "a";
         String dateIntCol = "date_int";
         String dateDateCol = "date_date";
-        try {
-            computeActual(format("CREATE TABLE %s(%s varchar, %s integer, %s date) " +
-                            "WITH (format='PARQUET', partitioned_by = ARRAY['%s', '%s'])",
-                    table, aCol, dateIntCol, dateDateCol, dateIntCol, dateDateCol));
 
-            IntStream.range(0, 2).forEach(indexDateInt -> IntStream.range(1, 3).forEach(indexDateDate -> assertUpdate(format("INSERT INTO %s(%s, %s, %s) VALUES('a-%d', 2019031%d, CAST('2020-04-%d%d' AS date))",
-                            table, aCol, dateIntCol, dateDateCol, indexDateDate, indexDateInt, indexDateInt, indexDateDate),
-                    1)));
+        createTable(DEFAULT_SCHEMA,
+                table,
+                "(%s varchar, %s integer, %s date) WITH (format='PARQUET', partitioned_by = ARRAY['%s', '%s'])"
+                        .formatted(aCol, dateIntCol, dateDateCol, dateIntCol, dateDateCol));
 
-            createWarmupRules(DEFAULT_SCHEMA,
-                    table,
-                    Map.of(aCol,
-                            Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, 2, DEFAULT_TTL),
-                                    new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, 2, DEFAULT_TTL)),
-                            dateIntCol,
-                            Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, 2, DEFAULT_TTL),
-                                    new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, 2, DEFAULT_TTL)),
-                            dateDateCol,
-                            Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, 2, DEFAULT_TTL),
-                                    new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, 2, DEFAULT_TTL))));
+        IntStream.range(0, 2).forEach(indexDateInt -> IntStream.range(1, 3).forEach(indexDateDate -> assertUpdate(format("INSERT INTO %s(%s, %s, %s) VALUES('a-%d', 2019031%d, CAST('2020-04-%d%d' AS date))",
+                        table, aCol, dateIntCol, dateDateCol, indexDateDate, indexDateInt, indexDateInt, indexDateDate),
+                1)));
 
-            warmAndValidate(format("select %s, %s, %s from %s", aCol, dateIntCol, dateDateCol, table),
-                    Session.builder(getSession())
-                            .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, Boolean.FALSE.toString())
-                            .build(),
-                    24,
-                    4,
-                    Optional.empty());
+        createWarmupRules(DEFAULT_SCHEMA,
+                table,
+                Map.of(aCol,
+                        Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, 2, DEFAULT_TTL),
+                                new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, 2, DEFAULT_TTL)),
+                        dateIntCol,
+                        Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, 2, DEFAULT_TTL),
+                                new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, 2, DEFAULT_TTL)),
+                        dateDateCol,
+                        Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, 2, DEFAULT_TTL),
+                                new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, 2, DEFAULT_TTL))));
 
-            @Language("SQL") String query = format("SELECT %s, %s FROM %s WHERE %s=20190311 AND %s='a-1'",
-                    aCol, dateIntCol, table, dateIntCol, aCol);
-            Map<String, Long> expectedQueryStats = Map.of(
-                    CACHED_TOTAL_ROWS, 2L,
-                    VARADA_MATCH_COLUMNS_STAT, 2L,
-                    VARADA_COLLECT_COLUMNS_STAT, 0L,
-                    PREFILLED_COLUMNS_STAT, 4L,
-                    EXTERNAL_MATCH_STAT, 0L,
-                    EXTERNAL_COLLECT_STAT, 0L);
-            int expectedSplits = 2;
-            validateQueryStats(query, getSession(), expectedQueryStats, OptionalInt.of(expectedSplits));
+        warmAndValidate(format("select %s, %s, %s from %s", aCol, dateIntCol, dateDateCol, table),
+                Session.builder(getSession())
+                        .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, Boolean.FALSE.toString())
+                        .build(),
+                24,
+                4,
+                Optional.empty());
 
-            query = format("SELECT %s, %s FROM %s WHERE %s=20190311 AND %s=CAST('2020-04-12' AS date) AND %s='a-1'",
-                    aCol, dateIntCol, table, dateIntCol, dateDateCol, aCol);
-            expectedQueryStats = Map.of(
-                    CACHED_TOTAL_ROWS, 1L,
-                    VARADA_MATCH_COLUMNS_STAT, 1L,
-                    VARADA_COLLECT_COLUMNS_STAT, 0L,
-                    PREFILLED_COLUMNS_STAT, 2L,
-                    EXTERNAL_MATCH_STAT, 0L,
-                    EXTERNAL_COLLECT_STAT, 0L);
-            expectedSplits = 1;
-            validateQueryStats(query, getSession(), expectedQueryStats, OptionalInt.of(expectedSplits));
-        }
-        finally {
-            computeActual("DROP TABLE IF EXISTS pt");
-        }
+        @Language("SQL") String query = format("SELECT %s, %s FROM %s WHERE %s=20190311 AND %s='a-1'",
+                aCol, dateIntCol, table, dateIntCol, aCol);
+        Map<String, Long> expectedQueryStats = Map.of(
+                CACHED_TOTAL_ROWS, 2L,
+                VARADA_MATCH_COLUMNS_STAT, 2L,
+                VARADA_COLLECT_COLUMNS_STAT, 0L,
+                PREFILLED_COLUMNS_STAT, 4L,
+                EXTERNAL_MATCH_STAT, 0L,
+                EXTERNAL_COLLECT_STAT, 0L);
+        int expectedSplits = 2;
+        validateQueryStats(query, getSession(), expectedQueryStats, OptionalInt.of(expectedSplits));
+
+        query = format("SELECT %s, %s FROM %s WHERE %s=20190311 AND %s=CAST('2020-04-12' AS date) AND %s='a-1'",
+                aCol, dateIntCol, table, dateIntCol, dateDateCol, aCol);
+        expectedQueryStats = Map.of(
+                CACHED_TOTAL_ROWS, 1L,
+                VARADA_MATCH_COLUMNS_STAT, 1L,
+                VARADA_COLLECT_COLUMNS_STAT, 0L,
+                PREFILLED_COLUMNS_STAT, 2L,
+                EXTERNAL_MATCH_STAT, 0L,
+                EXTERNAL_COLLECT_STAT, 0L);
+        expectedSplits = 1;
+        validateQueryStats(query, getSession(), expectedQueryStats, OptionalInt.of(expectedSplits));
     }
 
     @Test
-    public void testSimple_withoutWarm_ReturnHive()
+    public void testSimpleWithoutWarmReturnHive()
     {
         computeActual("INSERT INTO t VALUES (1, 'shlomi')");
         MaterializedResult materializedRows = computeActual(format("SELECT %s FROM t WHERE %s = 1", C2, C1));
@@ -313,7 +308,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     }
 
     @Test
-    public void test_CTAS()
+    public void testCTAS()
     {
         computeActual("CREATE TABLE t2 AS SELECT * FROM t");
         computeActual("DROP TABLE t2");
@@ -323,99 +318,130 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     public void testWarmCharArray()
             throws IOException
     {
-        computeActual("CREATE TABLE array_test (dummy ARRAY(CHAR(5)))");
-        computeActual("INSERT INTO array_test values (ARRAY ['1','2','3','4'])");
+        String table = "array_test";
+        createTable(DEFAULT_SCHEMA, table, "(dummy ARRAY(CHAR(5)))");
+        computeActual("INSERT INTO %s values (ARRAY ['1','2','3','4'])".formatted(table));
         createWarmupRules(DEFAULT_SCHEMA,
-                "array_test",
+                table,
                 Map.of("dummy", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_LUCENE, DEFAULT_PRIORITY, DEFAULT_TTL))));
         Session session = buildSession(false, false);
-        warmAndValidate("select * from array_test", session, 1, 1, 0);
+        warmAndValidate("select * from %s".formatted(table),
+                session,
+                1,
+                1,
+                0);
         Map<String, Long> expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 1L,
                 "external_collect_columns", 1L,
                 "external_match_columns", 0L);
-        validateQueryStats("select * from array_test where contains(dummy, '5')", session, expectedJmxQueryStats);
+        validateQueryStats("select * from %s where contains(dummy, '5')".formatted(table),
+                session,
+                expectedJmxQueryStats);
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 0L,
                 "external_collect_columns", 1L,
                 "external_match_columns", 0L);
-        validateQueryStats("select * from array_test where element_at(dummy,1) = '1'", session, expectedJmxQueryStats);
-        computeActual("DROP TABLE array_test");
+        validateQueryStats("select * from %s where element_at(dummy,1) = '1'".formatted(table),
+                session,
+                expectedJmxQueryStats);
     }
 
     @Test
     public void testWarmLuceneVarcharArray()
             throws IOException
     {
-        computeActual("CREATE TABLE array_test (dummy ARRAY(VARCHAR(5)))");
+        String table = "array_test";
+        createTable(DEFAULT_SCHEMA, table, "(dummy ARRAY(VARCHAR(5)))");
         computeActual("INSERT INTO array_test values (ARRAY ['1','2','3','4'])");
         createWarmupRules(DEFAULT_SCHEMA,
-                "array_test",
+                table,
                 Map.of("dummy", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_LUCENE, DEFAULT_PRIORITY, DEFAULT_TTL))));
 
         Session session = buildSession(false, false);
-        warmAndValidate("select * from array_test", session, 1, 1, 0);
+        warmAndValidate("select * from %s".formatted(table),
+                session,
+                1,
+                1,
+                0);
         Map<String, Long> expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 1L,
                 "external_match_columns", 0L);
-        validateQueryStats("select * from array_test where contains(dummy, '1')", session, expectedJmxQueryStats);
+        validateQueryStats("select * from %s where contains(dummy, '1')".formatted(table),
+                session,
+                expectedJmxQueryStats);
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 0L,
                 "external_match_columns", 0L);
-        validateQueryStats("select * from array_test where element_at(dummy,1) = '1'", session, expectedJmxQueryStats);
-        computeActual("DROP TABLE array_test");
+        validateQueryStats("select * from %s where element_at(dummy,1) = '1'".formatted(table),
+                session,
+                expectedJmxQueryStats);
     }
 
     @Test
     public void testWarmBooleanArray()
     {
-        computeActual("CREATE TABLE array_test (dummy ARRAY(BOOLEAN))");
-        computeActual("INSERT INTO array_test values (ARRAY [true, false, true, false])");
+        String table = "array_test";
+        createTable(DEFAULT_SCHEMA, table, "(dummy ARRAY(BOOLEAN))");
+        computeActual("INSERT INTO %s values (ARRAY [true, false, true, false])".formatted(table));
         Session session = buildSession(true, false);
-        warmAndValidate("select * from array_test", session, 1, 1, 0);
+        warmAndValidate("select * from %s".formatted(table),
+                session,
+                1,
+                1,
+                0);
         Map<String, Long> expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 0L,
                 "external_match_columns", 0L);
-        validateQueryStats("select * from array_test where contains(dummy, false)", session, expectedJmxQueryStats);
-        computeActual("DROP TABLE array_test");
+        validateQueryStats("select * from %s where contains(dummy, false)".formatted(table),
+                session,
+                expectedJmxQueryStats);
     }
 
     @Test
     public void testWarmDateArray()
     {
-        computeActual("CREATE TABLE array_test (dummy ARRAY(DATE))");
-        computeActual("INSERT INTO array_test values (ARRAY [DATE '2022-02-02'])");
+        String table = "array_test";
+        createTable(DEFAULT_SCHEMA, table, "(dummy ARRAY(DATE))");
+        computeActual("INSERT INTO %s values (ARRAY [DATE '2022-02-02'])".formatted(table));
         Session session = buildSession(true, false);
-        warmAndValidate("select * from array_test", session, 1, 1, 0);
+        warmAndValidate("select * from %s".formatted(table),
+                session,
+                1,
+                1,
+                0);
         Map<String, Long> expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 0L,
                 "external_match_columns", 0L);
-        validateQueryStats("select * from array_test where contains(dummy, CAST('2002-04-29' as date))", session, expectedJmxQueryStats);
-        computeActual("DROP TABLE array_test");
+        validateQueryStats("select * from %s where contains(dummy, CAST('2002-04-29' as date))".formatted(table),
+                session,
+                expectedJmxQueryStats);
     }
 
     @Test
     public void testWarmTimestampArray()
     {
-        computeActual("CREATE TABLE array_test (dummy ARRAY(TIMESTAMP))");
-        computeActual("INSERT INTO array_test values (ARRAY [current_timestamp])");
+        String table = "array_test";
+        createTable(DEFAULT_SCHEMA, table, "(dummy ARRAY(TIMESTAMP))");
+        computeActual("INSERT INTO %s values (ARRAY [current_timestamp])".formatted(table));
         Session session = buildSession(true, false);
-        warmAndValidate("select * from array_test", session, 1, 1, 0);
-        computeActual("DROP TABLE array_test");
+        warmAndValidate("select * from %s".formatted(table),
+                session,
+                1,
+                1,
+                0);
     }
 
     @Test
     // TODO stuck in endless loop
     public void testRowDereference()
     {
-        computeActual("CREATE TABLE evolve_test (dummy bigint, a row(b bigint, c varchar), d bigint)");
+        createTable(DEFAULT_SCHEMA, "evolve_test", "(dummy bigint, a row(b bigint, c varchar), d bigint)");
         computeActual("INSERT INTO evolve_test values (1, row(1, 'abc'), 1)");
         computeActual(getSession(), "select * from evolve_test where a[1] > 1");
-        computeActual("DROP TABLE evolve_test");
     }
 
     @Test
-    public void testSimple_Warm()
+    public void testSimpleWarm()
             throws IOException
     {
         computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomi')");
@@ -447,18 +473,27 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     @Test
     public void testUnsupportedArrayOperation()
     {
-        computeActual("CREATE TABLE t0(varcharColumn varchar, arrayColumn array(varchar))");
-        computeActual("INSERT INTO t0 values ('a', ARRAY ['1','2','3','4'])");
-        warmAndValidate("SELECT arrayColumn from t0 WHERE arrayColumn = ARRAY['a', 'b']", true, 1, 1); //only DATA
-        warmAndValidate("SELECT * from t0 WHERE arrayColumn = ARRAY['a', 'b'] OR varcharColumn='a'", true, 1, 1); //DATA for varcharColumn
+        String table = "t0";
+        createTable(DEFAULT_SCHEMA, table, "(varcharColumn varchar, arrayColumn array(varchar))");
+        computeActual("INSERT INTO %s values ('a', ARRAY ['1','2','3','4'])".formatted(table));
+        warmAndValidate("SELECT arrayColumn from %s WHERE arrayColumn = ARRAY['a', 'b']".formatted(table),
+                true,
+                1,
+                1); //only DATA
+        warmAndValidate("SELECT * from %s WHERE arrayColumn = ARRAY['a', 'b'] OR varcharColumn='a'".formatted(table),
+                true,
+                1,
+                1); //DATA for varcharColumn
 
         Map<String, Long> expectedQueryStats = Map.of(
                 "varada_collect_columns", 2L,
                 "external_collect_columns", 0L,
                 "varada_match_columns", 0L,
                 "external_match_columns", 0L);
-        validateQueryStats("SELECT * from t0 WHERE arrayColumn = ARRAY['a', 'b'] OR varcharColumn='a'", getSession(), expectedQueryStats);
-        validateQueryStats("SELECT * from t0 WHERE contains(split('%, NULL', ', '), varcharColumn)", getSession(), expectedQueryStats);
+        validateQueryStats("SELECT * from %s WHERE arrayColumn = ARRAY['a', 'b'] OR varcharColumn='a'".formatted(table),
+                getSession(),
+                expectedQueryStats);
+        validateQueryStats("SELECT * from " + table + " WHERE contains(split('%, NULL', ', '), varcharColumn)", getSession(), expectedQueryStats);
     }
 
     /**
@@ -468,16 +503,14 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     @Test
     public void testCompositeMap()
     {
-        assertUpdate(" CREATE TABLE maps_table (" +
-                "int1 integer," +
-                "map_column_integer map(integer, map(integer, integer))" +
-                ")  WITH (format='PARQUET', partitioned_by = ARRAY[])");
-        computeActual("INSERT INTO maps_table " +
-                "VALUES " +
-                "  (1, " +
-                "MAP(ARRAY[1], ARRAY[MAP(ARRAY[(2)], ARRAY[(3)])])" +
-                "  )");
-        @Language("SQL") String query = "select int1 from maps_table where element_at(map_column_integer[1], 2) = 3";
+        String table = "maps_table";
+        createTable(DEFAULT_SCHEMA,
+                table,
+                "(int1 integer, map_column_integer map(integer, map(integer, integer))) " +
+                        "WITH (format='PARQUET', partitioned_by = ARRAY[])");
+        computeActual("INSERT INTO %s ".formatted(table) +
+                "VALUES (1, MAP(ARRAY[1], ARRAY[MAP(ARRAY[(2)], ARRAY[(3)])]))");
+        @Language("SQL") String query = "select int1 from %s where element_at(map_column_integer[1], 2) = 3".formatted(table);
         warmAndValidate(query, true, 1, 1);
         Map<String, Long> expectedQueryStats = Map.of(
                 "varada_collect_columns", 1L,
@@ -485,7 +518,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "varada_match_columns", 0L,
                 "external_match_columns", 0L);
         validateQueryStats(query, getSession(), expectedQueryStats);
-        query = "select int1 from maps_table where element_at(element_at(map_column_integer,1),2) = 3";
+        query = "select int1 from %s where element_at(element_at(map_column_integer,1),2) = 3".formatted(table);
         validateQueryStats(query, getSession(), expectedQueryStats);
     }
 
@@ -493,21 +526,22 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     public void testMapMultipleMapTypes()
             throws IOException
     {
-        assertUpdate(" CREATE TABLE maps_table (" +
-                "int1 integer," +
-                "varchar1 varchar, " +
-                "smallint_integer map(smallint, integer)," +
-                "integer_real map(integer, real)," +
-                "real_integer map(real, integer)," +
-                "integer_smallint map(integer, smallint)," +
-                "varchar_double map(varchar, double)," +
-                "varchar_integer map(varchar, integer)," +
-                "varchar_varchar map(varchar, varchar)," +
-                "integer_varchar map(integer, varchar)," +
-                "integer_bigint map(integer, bigint)," +
-                "integer_array_not_support map(integer, ARRAY(integer)), " +
-                "bigint_decimal_not_support map(bigint, decimal(38,0))" +
-                ")  WITH (format='PARQUET', partitioned_by = ARRAY[])");
+        createTable(DEFAULT_SCHEMA,
+                "maps_table",
+                "(int1 integer," +
+                        "varchar1 varchar, " +
+                        "smallint_integer map(smallint, integer)," +
+                        "integer_real map(integer, real)," +
+                        "real_integer map(real, integer)," +
+                        "integer_smallint map(integer, smallint)," +
+                        "varchar_double map(varchar, double)," +
+                        "varchar_integer map(varchar, integer)," +
+                        "varchar_varchar map(varchar, varchar)," +
+                        "integer_varchar map(integer, varchar)," +
+                        "integer_bigint map(integer, bigint)," +
+                        "integer_array_not_support map(integer, ARRAY(integer)), " +
+                        "bigint_decimal_not_support map(bigint, decimal(38,0)))" +
+                        " WITH (format='PARQUET', partitioned_by = ARRAY[])");
         computeActual("INSERT INTO maps_table " +
                 "VALUES " +
                 "  (1, " +
@@ -770,10 +804,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     @MethodSource("provideJsonExtractScalarTestParams")
     void testJsonExtractScalar(int expectedWarmupElements, int expectedWarmFinished, long varadaCollectColumns, long varadaMatchColumns, String jsonExtractScalarPredicate)
     {
-        assertUpdate(" CREATE TABLE json_test_table (" +
-                "varchar1 varchar, " +
-                "varchar2 varchar" +
-                ") WITH (format='PARQUET', partitioned_by = ARRAY[])");
+        createTable(DEFAULT_SCHEMA,
+                "json_test_table",
+                "(varchar1 varchar, varchar2 varchar) WITH (format='PARQUET', partitioned_by = ARRAY[])");
         computeActual("INSERT INTO json_test_table " +
                 "VALUES " +
                 "  ( '{ \"first\" : \"John\" , \"middle\" : \"K\", \"last name\" : \"Doe\" }', '{ \"father\": \"John\", \"mother\": \"Mary\", \"children\": [ { \"age\": 12 }, { \"age\": 10 } ] }' ), " +
@@ -796,10 +829,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     void testJsonExtractScalar()
             throws IOException
     {
-        assertUpdate(" CREATE TABLE json_test_table (" +
-                "varchar1 varchar, " +
-                "varchar2 varchar" +
-                ") WITH (format='PARQUET', partitioned_by = ARRAY[])");
+        createTable(DEFAULT_SCHEMA,
+                "json_test_table",
+                "(varchar1 varchar, varchar2 varchar) WITH (format='PARQUET', partitioned_by = ARRAY[])");
         computeActual("INSERT INTO json_test_table " +
                 "VALUES " +
                 "  ( '{ \"first\" : \"John\" , \"middle\" : \"K\", \"last name\" : \"Doe\" }', '{ \"father\": \"John\", \"mother\": \"Mary\", \"children\": [ { \"age\": 12 }, { \"age\": 10 } ] }' ), " +
@@ -834,10 +866,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     @Test
     void testJsonExtractScalarFunction()
     {
-        assertUpdate(" CREATE TABLE json_test_table (" +
-                "varchar1 varchar, " +
-                "varchar2 varchar" +
-                ") WITH (format='PARQUET', partitioned_by = ARRAY[])");
+        createTable(DEFAULT_SCHEMA,
+                "json_test_table",
+                "(varchar1 varchar, varchar2 varchar) WITH (format='PARQUET', partitioned_by = ARRAY[])");
         computeActual("INSERT INTO json_test_table " +
                 "VALUES " +
                 "  ( '{ \"first\" : \"John\" , \"middle\" : \"K\", \"last name\" : \"Doe\" }', '{ \"father\": \"John\", \"mother\": \"Mary\", \"children\": [ { \"age\": 12 }, { \"age\": 10 } ] }' ), " +
@@ -932,25 +963,30 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     public void testFilterRanges()
             throws IOException
     {
-        assertUpdate("CREATE TABLE filterRanges(" +
-                "double1 double, " +
-                "double2 double, " +
-                "n_long_decimal decimal(30, 2), " +
-                "s_real real, " +
-                "bingint1 bigint, " +
-                "int_1 integer,  " +
-                "date_col date, " +
-                "timestamp_col TIMESTAMP(3), " +
-                "small_int_col smallint, " +
-                "tiny_int_col TINYINT, " +
-                "varchar_col varchar, " +
-                "varchar_10_col varchar(10), " +
-                "char_8_col char(8), " +
-                "not_warm_double double) WITH (format='PARQUET', partitioned_by = ARRAY[])");
+        String schema = "filterranges";
+        String table = "filterrangestable";
+        createSchemaAndTable(schema,
+                table,
+                "(" +
+                        "double1 double, " +
+                        "double2 double, " +
+                        "n_long_decimal decimal(30, 2), " +
+                        "s_real real, " +
+                        "bingint1 bigint, " +
+                        "int_1 integer,  " +
+                        "date_col date, " +
+                        "timestamp_col TIMESTAMP(3), " +
+                        "small_int_col smallint, " +
+                        "tiny_int_col TINYINT, " +
+                        "varchar_col varchar, " +
+                        "varchar_10_col varchar(10), " +
+                        "char_8_col char(8), " +
+                        "not_warm_double double) WITH (format='PARQUET', partitioned_by = ARRAY[])");
 
-        computeActual(getSession(), "INSERT INTO filterRanges(int_1, tiny_int_col, small_int_col, varchar_col) VALUES(1 ,2, 3, '2'), (NULL, NULL, NULL, NULL)");
-        createWarmupRules(DEFAULT_SCHEMA,
-                "filterRanges",
+        computeActual(getSession(),
+                "INSERT INTO %s.%s (int_1, tiny_int_col, small_int_col, varchar_col) VALUES(1 ,2, 3, '2'), (NULL, NULL, NULL, NULL)".formatted(schema, table));
+        createWarmupRules(schema,
+                table,
                 Map.ofEntries(
                         entry("int_1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL),
                                 new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL))),
@@ -958,11 +994,15 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                                 new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL))),
                         entry("small_int_col", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL))),
                         entry("varchar_col", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL)))));
-        warmAndValidate("select int_1, tiny_int_col, small_int_col, varchar_col from filterRanges where int_1 = 1 and tiny_int_col = 2", false, 6, 1);
+        warmAndValidate(
+                "select int_1, tiny_int_col, small_int_col, varchar_col from %s.%s where int_1 = 1 and tiny_int_col = 2".formatted(schema, table),
+                false,
+                6,
+                1);
         Session session = Session.builder(getSession())
                 .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "false")
                 .build();
-        @Language("SQL") String query = "select not_warm_double ,int_1 from filterRanges where int_1 > 0";
+        @Language("SQL") String query = "select not_warm_double ,int_1 from %s.%s where int_1 > 0".formatted(schema, table);
         Map<String, Long> expectedQueryStats = Map.of(
                 "filtered_by_predicate", 0L,
                 "varada_match_columns", 1L,
@@ -970,7 +1010,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "external_collect_columns", 1L);
         validateQueryStats(query, session, expectedQueryStats, true);
 
-        query = "select not_warm_double ,int_1 from filterRanges where int_1 > 1";
+        query = "select not_warm_double ,int_1 from %s.%s where int_1 > 1".formatted(schema, table);
         expectedQueryStats = Map.of(
                 "filtered_by_predicate", 1L,
                 "varada_match_columns", 1L,
@@ -978,7 +1018,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "external_collect_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats, true);
 
-        query = "select not_warm_double ,int_1 from filterRanges where int_1 > 1 and tiny_int_col > 5";
+        query = "select not_warm_double ,int_1 from %s.%s where int_1 > 1 and tiny_int_col > 5".formatted(schema, table);
         expectedQueryStats = Map.of(
                 "filtered_by_predicate", 1L,
                 "varada_match_columns", 2L,
@@ -986,7 +1026,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "external_collect_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats, true);
 
-        query = "select small_int_col from filterRanges where small_int_col > 5";
+        query = "select small_int_col from %s.%s where small_int_col > 5".formatted(schema, table);
         expectedQueryStats = Map.of(
                 "filtered_by_predicate", 1L,
                 "varada_match_columns", 1L,
@@ -995,7 +1035,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats, true);
 
-        query = "select small_int_col, varchar_col from filterRanges where small_int_col > 5 and varchar_col > '6'";
+        query = "select small_int_col, varchar_col from %s.%s where small_int_col > 5 and varchar_col > '6'".formatted(schema, table);
         expectedQueryStats = Map.of(
                 "filtered_by_predicate", 1L,
                 "varada_match_columns", 2L,
@@ -1004,7 +1044,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats, true);
 
-        query = "select not_warm_double ,int_1 from filterRanges where int_1 is null";
+        query = "select not_warm_double ,int_1 from %s.%s where int_1 is null".formatted(schema, table);
         expectedQueryStats = Map.of(
                 "filtered_by_predicate", 0L,
                 "varada_match_columns", 1L,
@@ -1013,7 +1053,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "external_collect_columns", 1L);
         validateQueryStats(query, session, expectedQueryStats, true);
 
-        query = "select not_warm_double ,int_1 from filterRanges where int_1 > 0 or int_1 is null";
+        query = "select not_warm_double ,int_1 from %s.%s where int_1 > 0 or int_1 is null".formatted(schema, table);
         expectedQueryStats = Map.of(
                 "filtered_by_predicate", 0L,
                 "varada_match_columns", 1L,
@@ -1021,7 +1061,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "external_collect_columns", 1L);
         validateQueryStats(query, session, expectedQueryStats, true);
 
-        query = "select not_warm_double ,tiny_int_col from filterRanges where tiny_int_col > 3";
+        query = "select not_warm_double ,tiny_int_col from %s.%s where tiny_int_col > 3".formatted(schema, table);
         expectedQueryStats = Map.of(
                 "filtered_by_predicate", 1L,
                 "varada_match_columns", 1L,
@@ -1171,316 +1211,316 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     @Test
     public void testTransformColumnDate()
     {
-        try {
-            assertUpdate("CREATE TABLE transform_data(" +
-                    "var_date_col varchar) WITH (format='PARQUET', partitioned_by = ARRAY[])");
+        createTable(DEFAULT_SCHEMA,
+                "transform_data",
+                "(var_date_col varchar) WITH (format='PARQUET', partitioned_by = ARRAY[])");
 
-            computeActual(getSession(), "INSERT INTO transform_data VALUES ('2002-04-29')");
-            Session warmSession = Session.builder(getSession())
-                    .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "true")
-                    .build();
-            warmAndValidate("select var_date_col from transform_data where var_date_col = 'a'", warmSession, 2, 1, 0);
+        computeActual(getSession(), "INSERT INTO transform_data VALUES ('2002-04-29')");
+        Session warmSession = Session.builder(getSession())
+                .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "true")
+                .build();
+        warmAndValidate("select var_date_col from transform_data where var_date_col = 'a'", warmSession, 2, 1, 0);
 
-            //now warm with transform column
-            warmAndValidate("select var_date_col from transform_data where day_of_week(CAST(var_date_col as date)) = 2012", warmSession, 1, 1, 0);
+        //now warm with transform column
+        warmAndValidate("select var_date_col from transform_data where day_of_week(CAST(var_date_col as date)) = 2012", warmSession, 1, 1, 0);
 
-            String baseQuery = "select var_date_col from transform_data where %s(CAST(var_date_col as date)) = 5";
-            Map<String, Long> expectedQueryStats = Map.of(
-                    "transformed_column", 1L,
-                    "varada_collect_columns", 1L,
-                    "varada_match_columns", 1L,
-                    "external_match_columns", 0L);
-            for (FunctionName dateFunction : SupportedFunctions.DATE_FUNCTIONS) {
-                @Language("SQL") String dateFunctionQuery = format(baseQuery, dateFunction.getName());
-                validateQueryStats(dateFunctionQuery, getSession(), expectedQueryStats);
-            }
-            baseQuery = "select var_date_col from transform_data where %s(date(var_date_col)) = 5";
-            for (FunctionName dateFunction : SupportedFunctions.DATE_FUNCTIONS) {
-                @Language("SQL") String dateFunctionQuery = format(baseQuery, dateFunction.getName());
-                validateQueryStats(dateFunctionQuery, getSession(), expectedQueryStats);
-            }
-            List<String> queriesWithoutDateFunction = List.of(
-                    "select var_date_col from transform_data where date(var_date_col) = date('2002-04-29')",
-                    "select var_date_col from transform_data where CAST(var_date_col as date) = CAST('2002-04-29' as date)",
-                    "select var_date_col from transform_data where CAST(var_date_col as date) in (CAST('2002-04-29' as date), CAST('2002-05-29' as date))",
-                    "select var_date_col from transform_data where CAST(var_date_col as date) = CAST('2002-04-29' as date) or CAST(var_date_col as date) = CAST('2002-04-30' as date)");
-            for (@Language("SQL") String query : queriesWithoutDateFunction) {
-                validateQueryStats(query, getSession(), expectedQueryStats);
-            }
+        String baseQuery = "select var_date_col from transform_data where %s(CAST(var_date_col as date)) = 5";
+        Map<String, Long> expectedQueryStats = Map.of(
+                "transformed_column", 1L,
+                "varada_collect_columns", 1L,
+                "varada_match_columns", 1L,
+                "external_match_columns", 0L);
+        for (FunctionName dateFunction : SupportedFunctions.DATE_FUNCTIONS) {
+            @Language("SQL") String dateFunctionQuery = format(baseQuery, dateFunction.getName());
+            validateQueryStats(dateFunctionQuery, getSession(), expectedQueryStats);
         }
-        finally {
-            computeActual("DROP TABLE IF EXISTS transform_data");
+        baseQuery = "select var_date_col from transform_data where %s(date(var_date_col)) = 5";
+        for (FunctionName dateFunction : SupportedFunctions.DATE_FUNCTIONS) {
+            @Language("SQL") String dateFunctionQuery = format(baseQuery, dateFunction.getName());
+            validateQueryStats(dateFunctionQuery, getSession(), expectedQueryStats);
+        }
+        List<String> queriesWithoutDateFunction = List.of(
+                "select var_date_col from transform_data where date(var_date_col) = date('2002-04-29')",
+                "select var_date_col from transform_data where CAST(var_date_col as date) = CAST('2002-04-29' as date)",
+                "select var_date_col from transform_data where CAST(var_date_col as date) in (CAST('2002-04-29' as date), CAST('2002-05-29' as date))",
+                "select var_date_col from transform_data where CAST(var_date_col as date) = CAST('2002-04-29' as date) or CAST(var_date_col as date) = CAST('2002-04-30' as date)");
+        for (@Language("SQL") String query : queriesWithoutDateFunction) {
+            validateQueryStats(query, getSession(), expectedQueryStats);
         }
     }
 
     @Test
     public void testTransformColumnDateInvalidSplit()
     {
-        try {
-            assertUpdate("CREATE TABLE transform_data(" +
-                    "var_date_col varchar) WITH (format='PARQUET', partitioned_by = ARRAY[])");
+        createTable(DEFAULT_SCHEMA,
+                "transform_data",
+                "(var_date_col varchar) WITH (format='PARQUET', partitioned_by = ARRAY[])");
 
-            computeActual(getSession(), "INSERT INTO transform_data (var_date_col) VALUES ('2002-04-29'), ('2002-04-29bla')");
-            Session warmSession = Session.builder(getSession())
-                    .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "true")
-                    .build();
-            warmAndValidate("select var_date_col from transform_data where var_date_col = 'a'", warmSession, 2, 1, 0);
+        computeActual(getSession(), "INSERT INTO transform_data (var_date_col) VALUES ('2002-04-29'), ('2002-04-29bla')");
+        Session warmSession = Session.builder(getSession())
+                .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "true")
+                .build();
+        warmAndValidate("select var_date_col from transform_data where var_date_col = 'a'", warmSession, 2, 1, 0);
 
-            //now warm with transform column - expected to fail
-            @Language("SQL") String query = "select var_date_col from transform_data where day_of_week(CAST(var_date_col as date)) = 2012";
-            warmAndValidate(query, warmSession, 0, 1, 1);
-            Map<String, Long> expectedQueryStats = Map.of(
-                    "transformed_column", 0L,
-                    "varada_collect_columns", 1L,
-                    "varada_match_columns", 0L,
-                    "external_match_columns", 1L);
-            validateQueryStats(query, getSession(), expectedQueryStats);
-        }
-        finally {
-            computeActual("DROP TABLE IF EXISTS transform_data");
-        }
+        //now warm with transform column - expected to fail
+        @Language("SQL") String query = "select var_date_col from transform_data where day_of_week(CAST(var_date_col as date)) = 2012";
+        warmAndValidate(query, warmSession, 0, 1, 1);
+        Map<String, Long> expectedQueryStats = Map.of(
+                "transformed_column", 0L,
+                "varada_collect_columns", 1L,
+                "varada_match_columns", 0L,
+                "external_match_columns", 1L);
+        validateQueryStats(query, getSession(), expectedQueryStats);
     }
 
     @Test
     public void testOrPredicates()
             throws IOException
     {
-        try {
-            assertUpdate("CREATE TABLE functionsTable(" +
-                    "double1 double, " +
-                    "double2 double, " +
-                    "n_long_decimal decimal(30, 2), " +
-                    "s_real real, " +
-                    "bingint1 bigint, " +
-                    "int_1 integer,  " +
-                    "date_col date, " +
-                    "timestamp_col TIMESTAMP(3), " +
-                    "small_int_col smallint, " +
-                    "tiny_int_col TINYINT, " +
-                    "varchar_col varchar, " +
-                    "varchar_10_col varchar(10), " +
-                    "char_8_col char(8), " +
-                    "not_warm_double double) WITH (format='PARQUET', partitioned_by = ARRAY[])");
+        String schema = "orpredicates";
+        String table = "functionstable";
+        createSchemaAndTable(schema,
+                table,
+                "(" +
+                        "double1 double, " +
+                        "double2 double, " +
+                        "n_long_decimal decimal(30, 2), " +
+                        "s_real real, " +
+                        "bingint1 bigint, " +
+                        "int_1 integer,  " +
+                        "date_col date, " +
+                        "timestamp_col TIMESTAMP(3), " +
+                        "small_int_col smallint, " +
+                        "tiny_int_col TINYINT, " +
+                        "varchar_col varchar, " +
+                        "varchar_10_col varchar(10), " +
+                        "char_8_col char(8), " +
+                        "not_warm_double double) WITH (format='PARQUET', partitioned_by = ARRAY[])");
 
-            computeActual(getSession(), "INSERT INTO functionsTable VALUES (" +
-                    "1.2, " +
-                    "12.3, " +
-                    "5.42, " +
-                    "10.3e0, " +
-                    "2147483649, " +
-                    "2147483647, " +
-                    "CAST('2002-04-29' as date), " +
-                    "CAST('2002-04-29' as TIMESTAMP), " +
-                    "9, " +
-                    "7, " +
-                    "'shlomi', " +
-                    "'assaf', " +
-                    "'aaaaaaaa', " +
-                    "4.0)");
+        computeActual(getSession(), "INSERT INTO %s.%s VALUES (".formatted(schema, table) +
+                "1.2, " +
+                "12.3, " +
+                "5.42, " +
+                "10.3e0, " +
+                "2147483649, " +
+                "2147483647, " +
+                "CAST('2002-04-29' as date), " +
+                "CAST('2002-04-29' as TIMESTAMP), " +
+                "9, " +
+                "7, " +
+                "'shlomi', " +
+                "'assaf', " +
+                "'aaaaaaaa', " +
+                "4.0)");
 
-            createWarmupRules(DEFAULT_SCHEMA,
-                    "functionsTable",
-                    Map.ofEntries(
-                            entry("bingint1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))),
-                            entry("int_1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))),
-                            entry("n_long_decimal", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))),
-                            entry("tiny_int_col", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))),
-                            entry("varchar_col", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))),
-                            entry("char_8_col", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))),
-                            entry("varchar_10_col", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))),
-                            entry("small_int_col", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))),
-                            entry("timestamp_col", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))),
-                            entry("date_col", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))),
-                            entry("s_real", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL)))));
-            Session warmSession = Session.builder(getSession())
-                    .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "false")
-                    .build();
-            warmAndValidate("select * from functionsTable", warmSession, 11, 1, 0);
-            warmSession = Session.builder(getSession())
-                    .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "true")
-                    .build();
-            warmAndValidate("select count(*) from functionsTable where double1 > 2 or double2 > 3 or varchar_10_col like '%warm lucene%'", warmSession, 6, 1, 0);
+        createWarmupRules(schema,
+                table,
+                Map.ofEntries(
+                        entry("bingint1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))),
+                        entry("int_1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))),
+                        entry("n_long_decimal", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))),
+                        entry("tiny_int_col", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))),
+                        entry("varchar_col", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))),
+                        entry("char_8_col", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))),
+                        entry("varchar_10_col", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))),
+                        entry("small_int_col", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))),
+                        entry("timestamp_col", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))),
+                        entry("date_col", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))),
+                        entry("s_real", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL)))));
+        Session warmSession = Session.builder(getSession())
+                .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "false")
+                .build();
+        warmAndValidate("select * from %s.%s".formatted(schema, table),
+                warmSession,
+                11,
+                1,
+                0);
+        warmSession = Session.builder(getSession())
+                .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "true")
+                .build();
+        warmAndValidate(
+                "select count(*) from " + schema + "." + table + " where double1 > 2 or double2 > 3 or varchar_10_col like '%warm lucene%'",
+                warmSession,
+                6,
+                1,
+                0);
 
-            Session session = Session.builder(getSession())
-                    .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "false")
-                    .build();
+        Session session = Session.builder(getSession())
+                .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "false")
+                .build();
 
-            @Language("SQL") String query = "select count(*) from functionsTable where double1 > 2 OR n_long_decimal > 3"; ////todo bug in serialization of LongDecimal type
-            Map<String, Long> expectedQueryStats = Map.of(
-                    "varada_match_columns", 0L,
-                    "external_match_columns", 0L);
-            validateQueryStats(query, session, expectedQueryStats);
+        @Language("SQL") String query = "select count(*) from %s.%s where double1 > 2 OR n_long_decimal > 3".formatted(schema, table); ////todo bug in serialization of LongDecimal type
+        Map<String, Long> expectedQueryStats = Map.of(
+                "varada_match_columns", 0L,
+                "external_match_columns", 0L);
+        validateQueryStats(query, session, expectedQueryStats);
 
-            query = "select * from functionsTable where cast(n_long_decimal as varchar) = '5.00'";
-            validateQueryStats(query, session, expectedQueryStats);
+        query = "select * from %s.%s where cast(n_long_decimal as varchar) = '5.00'".formatted(schema, table);
+        validateQueryStats(query, session, expectedQueryStats);
 
-            query = "select count(*) from functionsTable where double1 is null or ceil(double1) > 3";
-            expectedQueryStats = Map.of(
-                    "varada_match_columns", 1L,
-                    "external_match_columns", 0L);
-            validateQueryStats(query, session, expectedQueryStats);
+        query = "select count(*) from %s.%s where double1 is null or ceil(double1) > 3".formatted(schema, table);
+        expectedQueryStats = Map.of(
+                "varada_match_columns", 1L,
+                "external_match_columns", 0L);
+        validateQueryStats(query, session, expectedQueryStats);
 
-            query = "select count(*) from functionsTable where ceil(double1) > 2 and ceil(double2) > 3";
-            expectedQueryStats = Map.of(
-                    "varada_match_columns", 2L,
-                    "external_match_columns", 0L);
-            validateQueryStats(query, session, expectedQueryStats);
-            query = "select count(*) from functionsTable where ceil(double1) > 2 and ceiling(double2) > 3";
-            expectedQueryStats = Map.of(
-                    "varada_match_columns", 2L,
-                    "external_match_columns", 0L);
-            validateQueryStats(query, session, expectedQueryStats);
+        query = "select count(*) from %s.%s where ceil(double1) > 2 and ceil(double2) > 3".formatted(schema, table);
+        expectedQueryStats = Map.of(
+                "varada_match_columns", 2L,
+                "external_match_columns", 0L);
+        validateQueryStats(query, session, expectedQueryStats);
+        query = "select count(*) from %s.%s where ceil(double1) > 2 and ceiling(double2) > 3".formatted(schema, table);
+        expectedQueryStats = Map.of(
+                "varada_match_columns", 2L,
+                "external_match_columns", 0L);
+        validateQueryStats(query, session, expectedQueryStats);
 
-            query = "select count(*) from functionsTable where double1 > 2 or double2 > 3 or varchar_10_col like '%lucene%'";
-            expectedQueryStats = Map.of(
-                    "varada_match_columns", 3L,
-                    "external_match_columns", 0L);
-            validateQueryStats(query, session, expectedQueryStats);
+        query = "select count(*) from " + schema + "." + table + " where double1 > 2 or double2 > 3 or varchar_10_col like '%lucene%'";
+        expectedQueryStats = Map.of(
+                "varada_match_columns", 3L,
+                "external_match_columns", 0L);
+        validateQueryStats(query, session, expectedQueryStats);
 
-            query = "select count(*) from functionsTable where ceil(double1) > 2 or ceil(double2) > 3";
-            expectedQueryStats = Map.of(
-                    "varada_match_columns", 2L,
-                    "external_match_columns", 0L);
-            validateQueryStats(query, session, expectedQueryStats);
+        query = "select count(*) from %s.%s where ceil(double1) > 2 or ceil(double2) > 3".formatted(schema, table);
+        expectedQueryStats = Map.of(
+                "varada_match_columns", 2L,
+                "external_match_columns", 0L);
+        validateQueryStats(query, session, expectedQueryStats);
 
-            query = "select count(*) from functionsTable where double1 is null or double2 > 3";
-            expectedQueryStats = Map.of(
-                    "varada_match_columns", 2L,
-                    "external_match_columns", 0L);
-            validateQueryStats(query, session, expectedQueryStats);
+        query = "select count(*) from %s.%s where double1 is null or double2 > 3".formatted(schema, table);
+        expectedQueryStats = Map.of(
+                "varada_match_columns", 2L,
+                "external_match_columns", 0L);
+        validateQueryStats(query, session, expectedQueryStats);
 
-            query = "select count(*) from functionsTable where double1 is null or double2 is null";
-            expectedQueryStats = Map.of(
-                    "varada_match_columns", 2L,
-                    "external_match_columns", 0L);
-            validateQueryStats(query, session, expectedQueryStats);
+        query = "select count(*) from %s.%s where double1 is null or double2 is null".formatted(schema, table);
+        expectedQueryStats = Map.of(
+                "varada_match_columns", 2L,
+                "external_match_columns", 0L);
+        validateQueryStats(query, session, expectedQueryStats);
 
-            query = "select count(*) from functionsTable where ceil(double1) = 2 or ceil(double1) = 3";
-            expectedQueryStats = Map.of(
-                    "varada_match_columns", 1L,
-                    "external_match_columns", 0L);
-            validateQueryStats(query, session, expectedQueryStats);
+        query = "select count(*) from %s.%s where ceil(double1) = 2 or ceil(double1) = 3".formatted(schema, table);
+        expectedQueryStats = Map.of(
+                "varada_match_columns", 1L,
+                "external_match_columns", 0L);
+        validateQueryStats(query, session, expectedQueryStats);
 
-            query = "select count(*) from functionsTable where ceil(double1) = 2 or ceil(double1) = 3 or ceil(double2) =9";
-            expectedQueryStats = Map.of(
-                    "varada_match_columns", 2L,
-                    "external_match_columns", 0L);
-            validateQueryStats(query, session, expectedQueryStats);
+        query = "select count(*) from %s.%s where ceil(double1) = 2 or ceil(double1) = 3 or ceil(double2) =9".formatted(schema, table);
+        expectedQueryStats = Map.of(
+                "varada_match_columns", 2L,
+                "external_match_columns", 0L);
+        validateQueryStats(query, session, expectedQueryStats);
 
-            query = "select count(*) from functionsTable where double1 is null or double2 is not null";
-            //not x is unsupported function
-            expectedQueryStats = Map.of(
-                    "varada_match_columns", 0L,
-                    "external_match_columns", 0L);
-            validateQueryStats(query, session, expectedQueryStats);
+        query = "select count(*) from %s.%s where double1 is null or double2 is not null".formatted(schema, table);
+        //not x is unsupported function
+        expectedQueryStats = Map.of(
+                "varada_match_columns", 0L,
+                "external_match_columns", 0L);
+        validateQueryStats(query, session, expectedQueryStats);
 
-            query = "select count(*) from functionsTable where double1 is null or double1 > 3 or double2 > 5";
-            expectedQueryStats = Map.of(
-                    "varada_match_columns", 2L,
-                    "external_match_columns", 0L);
-            validateQueryStats(query, session, expectedQueryStats);
+        query = "select count(*) from %s.%s where double1 is null or double1 > 3 or double2 > 5".formatted(schema, table);
+        expectedQueryStats = Map.of(
+                "varada_match_columns", 2L,
+                "external_match_columns", 0L);
+        validateQueryStats(query, session, expectedQueryStats);
 
-            query = "select count(*) from functionsTable where double1 > 5 AND (not_warm_double > 9 or double2 > 3)";
-            ////a and (c or b) -> double1 is part of tupleDomain and not part of ConnectorExpression, currently we drop the OR section
-            expectedQueryStats = Map.of(
-                    "varada_match_columns", 1L,
-                    "external_match_columns", 2L);
-            validateQueryStats(query, session, expectedQueryStats);
+        query = "select count(*) from %s.%s where double1 > 5 AND (not_warm_double > 9 or double2 > 3)".formatted(schema, table);
+        ////a and (c or b) -> double1 is part of tupleDomain and not part of ConnectorExpression, currently we drop the OR section
+        expectedQueryStats = Map.of(
+                "varada_match_columns", 1L,
+                "external_match_columns", 2L);
+        validateQueryStats(query, session, expectedQueryStats);
 
-            query = "select count(*) from functionsTable where ceil(double1) > 5 AND (not_warm_double > 9 or double2 > 3)";
-            ////ceil(a) and (c or b) -> all columns exist in ConnectorExpression
-            expectedQueryStats = Map.of(
-                    "varada_match_columns", 1L,
-                    "external_match_columns", 2L);
-            validateQueryStats(query, session, expectedQueryStats);
+        query = "select count(*) from %s.%s where ceil(double1) > 5 AND (not_warm_double > 9 or double2 > 3)".formatted(schema, table);
+        ////ceil(a) and (c or b) -> all columns exist in ConnectorExpression
+        expectedQueryStats = Map.of(
+                "varada_match_columns", 1L,
+                "external_match_columns", 2L);
+        validateQueryStats(query, session, expectedQueryStats);
 
-            query = "select count(*) from functionsTable where ceil(double1) > 5 AND (bingint1 > 9 or double2 > 3)";
-            expectedQueryStats = Map.of(
-                    "varada_match_columns", 3L,
-                    "external_match_columns", 0L);
-            validateQueryStats(query, session, expectedQueryStats);
+        query = "select count(*) from %s.%s where ceil(double1) > 5 AND (bingint1 > 9 or double2 > 3)".formatted(schema, table);
+        expectedQueryStats = Map.of(
+                "varada_match_columns", 3L,
+                "external_match_columns", 0L);
+        validateQueryStats(query, session, expectedQueryStats);
 
-            query = "select count(*) from functionsTable where ceil(double1) > 5 OR (varchar_10_col like '%warm lucene%' and ceil(double2) > 3)";
-            expectedQueryStats = Map.of(
-                    "varada_match_columns", 3L,
-                    "external_match_columns", 0L);
-            validateQueryStats(query, session, expectedQueryStats);
+        query = "select count(*) from " + schema + "." + table + " where ceil(double1) > 5 OR (varchar_10_col like '%warm lucene%' and ceil(double2) > 3)";
+        expectedQueryStats = Map.of(
+                "varada_match_columns", 3L,
+                "external_match_columns", 0L);
+        validateQueryStats(query, session, expectedQueryStats);
 
-            query = "select count(*) from functionsTable where not_warm_double > 5 or double1 > 3";
-            expectedQueryStats = Map.of(
-                    "varada_match_columns", 0L,
-                    "external_match_columns", 2L);
-            validateQueryStats(query, session, expectedQueryStats);
+        query = "select count(*) from %s.%s where not_warm_double > 5 or double1 > 3".formatted(schema, table);
+        expectedQueryStats = Map.of(
+                "varada_match_columns", 0L,
+                "external_match_columns", 2L);
+        validateQueryStats(query, session, expectedQueryStats);
 
-            query = "select count(*) from functionsTable where int_1 in (1,2) and (varchar_col = 'str3' or varchar_col like '%str%')";
-            expectedQueryStats = Map.of(
-                    "varada_match_columns", 1L,
-                    "external_match_columns", 1L);
-            validateQueryStats(query, session, expectedQueryStats);
+        query = "select count(*) from " + schema + "." + table + " where int_1 in (1,2) and (varchar_col = 'str3' or varchar_col like '%str%')";
+        expectedQueryStats = Map.of(
+                "varada_match_columns", 1L,
+                "external_match_columns", 1L);
+        validateQueryStats(query, session, expectedQueryStats);
 
-            query = "select count(*) from functionsTable where  (s_real > 0 AND    (double1 < 5 or double2 > 2) AND (bingint1 > 3 or int_1 > 4) OR varchar_col = 'f')";
-            //      ( s_real  AND (double1 OR double2 ) AND (bingint1 OR int_1) OR varchar_col ) =>
-            //     ( (varchar_col OR  s_real) AND ( varchar_col OR double1 OR double2) AND (varchar_col OR bingint1 OR int_1)
-            expectedQueryStats = Map.of(
-                    "varada_match_columns", 6L,
-                    "external_match_columns", 0L);
-            validateQueryStats(query, session, expectedQueryStats);
+        query = "select count(*) from %s.%s where  (s_real > 0 AND    (double1 < 5 or double2 > 2) AND (bingint1 > 3 or int_1 > 4) OR varchar_col = 'f')".formatted(schema, table);
+        //      ( s_real  AND (double1 OR double2 ) AND (bingint1 OR int_1) OR varchar_col ) =>
+        //     ( (varchar_col OR  s_real) AND ( varchar_col OR double1 OR double2) AND (varchar_col OR bingint1 OR int_1)
+        expectedQueryStats = Map.of(
+                "varada_match_columns", 6L,
+                "external_match_columns", 0L);
+        validateQueryStats(query, session, expectedQueryStats);
 
-            query = "select count(*) from functionsTable where  (not_warm_double > 0 AND    (double1 < 5 or double2 > 2) AND (bingint1 > 3 or int_1 > 4) OR varchar_col = 'f')";
-            //      ( not_warm_double  AND (double1 OR double2 ) AND (bingint1 OR int_1) OR varchar_col ) =>
-            //     ( (varchar_col OR  not_warm_double) AND ( not_warm_double OR double1 OR double2) AND (not_warm_double OR bingint1 OR int_1)
-            expectedQueryStats = Map.of(
-                    "varada_match_columns", 5L,
-                    "external_match_columns", 1L);
-            validateQueryStats(query, session, expectedQueryStats);
+        query = "select count(*) from %s.%s where  (not_warm_double > 0 AND    (double1 < 5 or double2 > 2) AND (bingint1 > 3 or int_1 > 4) OR varchar_col = 'f')".formatted(schema, table);
+        //      ( not_warm_double  AND (double1 OR double2 ) AND (bingint1 OR int_1) OR varchar_col ) =>
+        //     ( (varchar_col OR  not_warm_double) AND ( not_warm_double OR double1 OR double2) AND (not_warm_double OR bingint1 OR int_1)
+        expectedQueryStats = Map.of(
+                "varada_match_columns", 5L,
+                "external_match_columns", 1L);
+        validateQueryStats(query, session, expectedQueryStats);
 
-            query = "select count(*) from functionsTable where  (s_real > 0 AND    (double1 < 5 or double2 > 2) AND (bingint1 > 3 or int_1 > 4) OR not_warm_double = 5.0)";
-            //      ( s_real  AND (double1 OR double2 ) AND (bingint1 OR int_1) OR not_warm_double ) =>
-            //     ( (varchar_col OR  s_real) AND ( not_warm_double OR double1 OR double2) AND (not_warm_double OR bingint1 OR int_1)
-            expectedQueryStats = Map.of(
-                    "varada_match_columns", 0L,
-                    "external_match_columns", 6L);
-            validateQueryStats(query, session, expectedQueryStats);
+        query = "select count(*) from %s.%s where  (s_real > 0 AND    (double1 < 5 or double2 > 2) AND (bingint1 > 3 or int_1 > 4) OR not_warm_double = 5.0)".formatted(schema, table);
+        //      ( s_real  AND (double1 OR double2 ) AND (bingint1 OR int_1) OR not_warm_double ) =>
+        //     ( (varchar_col OR  s_real) AND ( not_warm_double OR double1 OR double2) AND (not_warm_double OR bingint1 OR int_1)
+        expectedQueryStats = Map.of(
+                "varada_match_columns", 0L,
+                "external_match_columns", 6L);
+        validateQueryStats(query, session, expectedQueryStats);
 
-            query = "select count(*) from functionsTable where  (s_real > 0 AND    (not_warm_double < 5 or double2 > 2) AND (bingint1 > 3 or int_1 > 4) OR varchar_col = 'f')";
-            //      ( s_real  AND (not_warm_double OR double2 ) AND (bingint1 OR int_1) OR varchar_col ) =>
-            //     ( (varchar_col OR  s_real) AND ( varchar_col OR not_warm_double OR double2) AND (varchar_col OR bingint1 OR int_1)
-            expectedQueryStats = Map.of(
-                    "varada_match_columns", 4L,
-                    "external_match_columns", 2L);
-            validateQueryStats(query, session, expectedQueryStats);
+        query = "select count(*) from %s.%s where  (s_real > 0 AND    (not_warm_double < 5 or double2 > 2) AND (bingint1 > 3 or int_1 > 4) OR varchar_col = 'f')".formatted(schema, table);
+        //      ( s_real  AND (not_warm_double OR double2 ) AND (bingint1 OR int_1) OR varchar_col ) =>
+        //     ( (varchar_col OR  s_real) AND ( varchar_col OR not_warm_double OR double2) AND (varchar_col OR bingint1 OR int_1)
+        expectedQueryStats = Map.of(
+                "varada_match_columns", 4L,
+                "external_match_columns", 2L);
+        validateQueryStats(query, session, expectedQueryStats);
 
-            query = "select count(*) from functionsTable where (double1 = 2 AND double2 = 3) OR (double1 = 4 AND double2 = 5)";
-            //(A = 2 AND B = 3) OR (A = 4 AND B = 5) => (A = 2 OR B = 5 ) AND (A = 4 OR B = 3). Domain will be A[2, 4], B[3,5]
-            expectedQueryStats = Map.of(
-                    "varada_match_columns", 2L,
-                    "external_match_columns", 0L);
-            validateQueryStats(query, session, expectedQueryStats);
+        query = "select count(*) from %s.%s where (double1 = 2 AND double2 = 3) OR (double1 = 4 AND double2 = 5)".formatted(schema, table);
+        //(A = 2 AND B = 3) OR (A = 4 AND B = 5) => (A = 2 OR B = 5 ) AND (A = 4 OR B = 3). Domain will be A[2, 4], B[3,5]
+        expectedQueryStats = Map.of(
+                "varada_match_columns", 2L,
+                "external_match_columns", 0L);
+        validateQueryStats(query, session, expectedQueryStats);
 
-            query = "select count(*) from functionsTable where  (((s_real > 5 AND ceil(double1) = 1)) OR    (s_real < 0 and ceil(double2) = 2))";
-            // (s_real' AND double1 ) OR (s_real'' AND double2) =>
-            // ((s_real' OR double2) AND (double1 OR s_real'') AND (double1 OR double2)) // Domain will be s_real( [infinte,0), (5, infinte])
-            expectedQueryStats = Map.of(
-                    "varada_match_columns", 3L,
-                    "external_match_columns", 0L);
-            validateQueryStats(query, session, expectedQueryStats);
+        query = "select count(*) from %s.%s where  (((s_real > 5 AND ceil(double1) = 1)) OR    (s_real < 0 and ceil(double2) = 2))".formatted(schema, table);
+        // (s_real' AND double1 ) OR (s_real'' AND double2) =>
+        // ((s_real' OR double2) AND (double1 OR s_real'') AND (double1 OR double2)) // Domain will be s_real( [infinte,0), (5, infinte])
+        expectedQueryStats = Map.of(
+                "varada_match_columns", 3L,
+                "external_match_columns", 0L);
+        validateQueryStats(query, session, expectedQueryStats);
 
-            query = "select count(*) from functionsTable where cast(timestamp_col as varchar) = '2021-04-12 00:00:00.000' or ceil(double2) > 3";
-            expectedQueryStats = Map.of(
-                    "varada_match_columns", 2L,
-                    "external_match_columns", 0L);
-            validateQueryStats(query, session, expectedQueryStats);
+        query = "select count(*) from %s.%s where cast(timestamp_col as varchar) = '2021-04-12 00:00:00.000' or ceil(double2) > 3".formatted(schema, table);
+        expectedQueryStats = Map.of(
+                "varada_match_columns", 2L,
+                "external_match_columns", 0L);
+        validateQueryStats(query, session, expectedQueryStats);
 
-            query = "select count(*) from functionsTable where ((ceil(double1) > 5 AND ceil(double2) > 5) OR  (ceil(double1) < 5 AND ceil(double2) < 5))";
-            //domain is translated to double1 ( [infinte,5), (5, infinte]), double2 ( [infinte,5), (5, infinte])
-            expectedQueryStats = Map.of(
-                    "varada_match_columns", 2L,
-                    "external_match_columns", 0L);
-            validateQueryStats(query, session, expectedQueryStats);
-        }
-        finally {
-            computeActual("DROP TABLE IF EXISTS functionsTable");
-        }
+        query = "select count(*) from %s.%s where ((ceil(double1) > 5 AND ceil(double2) > 5) OR  (ceil(double1) < 5 AND ceil(double2) < 5))".formatted(schema, table);
+        //domain is translated to double1 ( [infinte,5), (5, infinte]), double2 ( [infinte,5), (5, infinte])
+        expectedQueryStats = Map.of(
+                "varada_match_columns", 2L,
+                "external_match_columns", 0L);
+        validateQueryStats(query, session, expectedQueryStats);
     }
 
     @Test
@@ -1550,11 +1590,10 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     public void testTripsDataTableCase4()
             throws IOException
     {
-        assertUpdate("CREATE TABLE trips_data_table(" +
-                "driver_age integer, " +
-                "ts timestamp(3), " +
-                "driver_last varchar(32), " +
-                "driver_first varchar(32)) WITH (format='PARQUET', partitioned_by = ARRAY[])");
+        createTable(DEFAULT_SCHEMA,
+                "trips_data_table",
+                "(driver_age integer, ts timestamp(3), driver_last varchar(32), driver_first varchar(32)) " +
+                        "WITH (format='PARQUET', partitioned_by = ARRAY[])");
 
         computeActual(getSession(), "INSERT INTO trips_data_table VALUES (" +
                 "1, " +
@@ -1602,12 +1641,10 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     public void testTripsDataTableCase5()
             throws IOException
     {
-        assertUpdate("CREATE TABLE trips_data_table(" +
-                "driver_age integer, " +
-                "ts timestamp(3), " +
-                "driver_gender char(1), " +
-                "driver_last varchar(32), " +
-                "driver_first varchar(32)) WITH (format='PARQUET', partitioned_by = ARRAY[])");
+        createTable(DEFAULT_SCHEMA,
+                "trips_data_table",
+                "(driver_age integer, ts timestamp(3), driver_gender char(1), driver_last varchar(32), driver_first varchar(32))" +
+                        " WITH (format='PARQUET', partitioned_by = ARRAY[])");
 
         computeActual(getSession(), "INSERT INTO trips_data_table VALUES (" +
                 "1, " +
@@ -1647,23 +1684,27 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     public void testQueriesWithFunctions()
             throws IOException
     {
-        assertUpdate("CREATE TABLE functionsTable(" +
-                "double1 double, " +
-                "double2 double, " +
-                "n_long_decimal decimal(30, 2), " +
-                "s_real real, " +
-                "bingint1 bigint, " +
-                "int_1 integer,  " +
-                "date_col date, " +
-                "timestamp_col TIMESTAMP(3), " +
-                "small_int_col smallint, " +
-                "tiny_int_col TINYINT, " +
-                "varchar_col varchar, " +
-                "varchar_10_col varchar(10), " +
-                "char_8_col char(8), " +
-                "not_warm_double double) WITH (format='PARQUET', partitioned_by = ARRAY[])");
+        String schema = "querieswithfunctions";
+        String table = "functionstable";
+        createSchemaAndTable(schema,
+                table,
+                "(" +
+                        "double1 double, " +
+                        "double2 double, " +
+                        "n_long_decimal decimal(30, 2), " +
+                        "s_real real, " +
+                        "bingint1 bigint, " +
+                        "int_1 integer,  " +
+                        "date_col date, " +
+                        "timestamp_col TIMESTAMP(3), " +
+                        "small_int_col smallint, " +
+                        "tiny_int_col TINYINT, " +
+                        "varchar_col varchar, " +
+                        "varchar_10_col varchar(10), " +
+                        "char_8_col char(8), " +
+                        "not_warm_double double) WITH (format='PARQUET', partitioned_by = ARRAY[])");
 
-        computeActual(getSession(), "INSERT INTO functionsTable VALUES (" +
+        computeActual(getSession(), "INSERT INTO %s.%s VALUES (".formatted(schema, table) +
                 "1.2, " +
                 "12.3, " +
                 "5.42, " +
@@ -1679,8 +1720,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "'aaaaaaaa', " +
                 "4.0)");
 
-        createWarmupRules(DEFAULT_SCHEMA,
-                "functionsTable",
+        createWarmupRules(schema,
+                table,
                 Map.ofEntries(
                         entry("double1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))),
                         entry("double2", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))),
@@ -1695,166 +1736,169 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                         entry("timestamp_col", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))),
                         entry("date_col", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))),
                         entry("s_real", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL)))));
-        warmAndValidate("select * from functionsTable", false, 13, 1);
+        warmAndValidate("select * from %s.%s".formatted(schema, table),
+                false,
+                13,
+                1);
 
         Session session = Session.builder(getSession())
                 .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "true")
                 .build();
 
         //cast nonVarchar to varchar
-        @Language("SQL") String query = "select * from functionsTable where cast(char_8_col as varchar) = 'aaaaaaaa'";
+        @Language("SQL") String query = "select * from %s.%s where cast(char_8_col as varchar) = 'aaaaaaaa'".formatted(schema, table);
         Map<String, Long> expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where cast(timestamp_col as varchar) = '2021-04-12 00:00:00.000'";
+        query = "select * from %s.%s where cast(timestamp_col as varchar) = '2021-04-12 00:00:00.000'".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where cast(date_col as varchar) = '2021-04-12'";
+        query = "select * from %s.%s where cast(date_col as varchar) = '2021-04-12'".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where cast(s_real as varchar) = '7.2961776E7' or cast(s_real as varchar) = '7.296178E7'";
+        query = "select * from %s.%s where cast(s_real as varchar) = '7.2961776E7' or cast(s_real as varchar) = '7.296178E7'".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where cast(s_real as varchar) = '5.0E0'";
+        query = "select * from %s.%s where cast(s_real as varchar) = '5.0E0'".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where cast(double1 as varchar) = '5.0E0'";
+        query = "select * from %s.%s where cast(double1 as varchar) = '5.0E0'".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where cast(double1 as varchar) = '5.0E0'";
+        query = "select * from %s.%s where cast(double1 as varchar) = '5.0E0'".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where cast(small_int_col as varchar) = '5'";
+        query = "select * from %s.%s where cast(small_int_col as varchar) = '5'".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where cast(tiny_int_col as varchar) = '5'";
+        query = "select * from %s.%s where cast(tiny_int_col as varchar) = '5'".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where cast(bingint1 as varchar) = '5'";
+        query = "select * from %s.%s where cast(bingint1 as varchar) = '5'".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where cast(int_1 as varchar) = '5'";
+        query = "select * from %s.%s where cast(int_1 as varchar) = '5'".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 0L,
                 "varada_collect_columns", 1L,
                 "external_match_columns", 0L);
-        query = "select n_long_decimal from functionsTable where cast(n_long_decimal as varchar) = '5.00'";
+        query = "select n_long_decimal from %s.%s where cast(n_long_decimal as varchar) = '5.00'".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where cast(double1 as varchar) > '5.0E0'";
+        query = "select * from %s.%s where cast(double1 as varchar) > '5.0E0'".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 0L,
                 "external_match_columns", 1L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where cast(varchar_col as varchar) = 'shlomi'";
+        query = "select * from %s.%s where cast(varchar_col as varchar) = 'shlomi'".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
         //cast to limited varchar
-        query = "select * from functionsTable where cast(int_1 as varchar(20)) = '5'";
+        query = "select * from %s.%s where cast(int_1 as varchar(20)) = '5'".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where cast(int_1 as varchar(1)) = '44' and varchar_col = 'shlomi'";
+        query = "select * from %s.%s where cast(int_1 as varchar(1)) = '44' and varchar_col = 'shlomi'".formatted(schema, table);
         QueryRunner.MaterializedResultWithPlan materializedResult = getQueryRunner()
                 .executeWithPlan(session, query);
         assertThat(getCustomMetrics(materializedResult.queryId(), getDistributedQueryRunner()).size()).isEqualTo(0); // no pushdown
 
-        query = "select * from functionsTable where cast(int_1 as varchar(1)) = '44' or varchar_col = 'shlomi'";
+        query = "select * from %s.%s where cast(int_1 as varchar(1)) = '44' or varchar_col = 'shlomi'".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where cast(int_1 as varchar(1)) = '44'";
+        query = "select * from %s.%s where cast(int_1 as varchar(1)) = '44'".formatted(schema, table);
         materializedResult = getQueryRunner()
                 .executeWithPlan(session, query);
         assertThat(getCustomMetrics(materializedResult.queryId(), getDistributedQueryRunner()).size()).isEqualTo(0); // no pushdown
 
-        query = "select* from functionsTable where cast(char_8_col as varchar(2)) = 'aa'";
+        query = "select* from %s.%s where cast(char_8_col as varchar(2)) = 'aa'".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 0L,
                 "external_match_columns", 1L);
         validateQueryStats(query, session, expectedJmxQueryStats);
-        query = "select * from functionsTable where cast(char_8_col as varchar(2)) = 'aa' or cast(char_8_col as varchar(2)) = 'bb'";
+        query = "select * from %s.%s where cast(char_8_col as varchar(2)) = 'aa' or cast(char_8_col as varchar(2)) = 'bb'".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where cast(char_8_col as varchar(10)) = 'aaaaaaaa'";
+        query = "select * from %s.%s where cast(char_8_col as varchar(10)) = 'aaaaaaaa'".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where cast(varchar_10_col as varchar(20)) = 'aaa' or cast(varchar_10_col as varchar(20)) = 'bbb'";
+        query = "select * from %s.%s where cast(varchar_10_col as varchar(20)) = 'aaa' or cast(varchar_10_col as varchar(20)) = 'bbb'".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats); //not pushdown as expression
 
-        query = "select * from functionsTable where cast(varchar_10_col as varchar(5)) = 'aaa' or cast(varchar_10_col as varchar(5)) = 'bbb'";
+        query = "select * from %s.%s where cast(varchar_10_col as varchar(5)) = 'aaa' or cast(varchar_10_col as varchar(5)) = 'bbb'".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 0L,
                 "external_match_columns", 1L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
         //cast to nonVarchar
-        query = "select * from functionsTable where cast(double1 as real) >= 4.02";
+        query = "select * from %s.%s where cast(double1 as real) >= 4.02".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where cast(double1 as real) >= 4.02 or cast(double1 as real) = 2.96";
+        query = "select * from %s.%s where cast(double1 as real) >= 4.02 or cast(double1 as real) = 2.96".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where cast(double1 as real) = 10";
+        query = "select * from %s.%s where cast(double1 as real) = 10".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where cast(double1 as real) = 10 or cast(double1 as real) = 50";
+        query = "select * from %s.%s where cast(double1 as real) = 10 or cast(double1 as real) = 50".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where cast(double1 as int) = 5";
+        query = "select * from %s.%s where cast(double1 as int) = 5".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 0L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
         //notEqual - not currently to supported to nativeExpression
-        query = "select * from functionsTable where double1 <> 5";
+        query = "select * from %s.%s where double1 <> 5".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 0L,
                 "external_match_columns", 1L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where double1 != 5";
+        query = "select * from %s.%s where double1 != 5".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
         //ceil
-        query = "select * from functionsTable where ceil(not_warm_double) > 5";
+        query = "select * from %s.%s where ceil(not_warm_double) > 5".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 0L,
                 "external_match_columns", 1L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where ceil(double1) != 5";
+        query = "select * from %s.%s where ceil(double1) != 5".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where ceil(double1) = 5  or ceil(double1) = 9";
+        query = "select * from %s.%s where ceil(double1) = 5  or ceil(double1) = 9".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where ceil(s_real) > 5 ";
+        query = "select * from %s.%s where ceil(s_real) > 5 ".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
         expectedJmxQueryStats = Map.of(
@@ -1863,13 +1907,13 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "varada_collect_columns", 1L,
                 "external_match_columns", 0L);
 
-        query = "select double1 from functionsTable where cast(double1 as varchar) = '01111111111111111111E0'";
+        query = "select double1 from %s.%s where cast(double1 as varchar) = '01111111111111111111E0'".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats); // '01111111111111111111E0' is a non-default format- EmptyPageSource
 
-        query = "select double1 from functionsTable where ceil(double1) = 5  and cast(double1 as varchar)= '5'"; // cast(double1 as varchar)= '5' is not possible cast - EmptyPageSource
+        query = "select double1 from %s.%s where ceil(double1) = 5  and cast(double1 as varchar)= '5'".formatted(schema, table); // cast(double1 as varchar)= '5' is not possible cast - EmptyPageSource
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select double1 from functionsTable where ceil(double1) > 5  and ceil(double1) < 4"; // EmptyPageSource
+        query = "select double1 from %s.%s where ceil(double1) > 5  and ceil(double1) < 4".formatted(schema, table); // EmptyPageSource
         validateQueryStats(query, session, expectedJmxQueryStats);
 
         expectedJmxQueryStats = Map.of(
@@ -1878,10 +1922,10 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "varada_collect_columns", 1L,
                 "external_match_columns", 0L);
 
-        query = "select double1 from functionsTable where ceil(double1) > 5  and ceil(double1) < 4 and double2 > 6"; // EmptyPageSource
+        query = "select double1 from %s.%s where ceil(double1) > 5  and ceil(double1) < 4 and double2 > 6".formatted(schema, table); // EmptyPageSource
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select double1 from functionsTable where double2 > 5 and ceil(double1) > 5  and ceil(double1) < 4"; // EmptyPageSource
+        query = "select double1 from %s.%s where double2 > 5 and ceil(double1) > 5  and ceil(double1) < 4".formatted(schema, table); // EmptyPageSource
         validateQueryStats(query, session, expectedJmxQueryStats);
 
         expectedJmxQueryStats = Map.of(
@@ -1890,42 +1934,42 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "varada_collect_columns", 2L,
                 "external_match_columns", 0L);
 
-        query = "select double1 from functionsTable where ceil(double1) > 5  and ceil(double1) < 4 and  yow(date_col) = 53"; // EmptyPageSource
+        query = "select double1 from %s.%s where ceil(double1) > 5  and ceil(double1) < 4 and  yow(date_col) = 53".formatted(schema, table); // EmptyPageSource
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select double1 from functionsTable where ceil(double1) > 5  and ceil(double1) < 4 and ceil(not_warm_double) > 5"; // EmptyPageSource
+        query = "select double1 from %s.%s where ceil(double1) > 5  and ceil(double1) < 4 and ceil(not_warm_double) > 5".formatted(schema, table); // EmptyPageSource
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select n_long_decimal from functionsTable where ceil(n_long_decimal) > " + Integer.MAX_VALUE + 1;
+        query = "select n_long_decimal from %s.%s where ceil(n_long_decimal) > ".formatted(schema, table) + Integer.MAX_VALUE + 1;
         validateQueryStats(query, session, Map.of(
                 "varada_collect_columns", 1L,
                 "varada_match_columns", 0L,
                 "external_match_columns", 0L));
 
-        query = "select double1 from functionsTable where double2 > 5 or ceil(double1) > 9  and ceil(double1) < 4";
+        query = "select double1 from %s.%s where double2 > 5 or ceil(double1) > 9  and ceil(double1) < 4".formatted(schema, table);
         //translated to: (double2 > 5 or ceil(double1) > 9) AND (double2 > 5 or ceil(double1) < 4)
         validateQueryStats(query, session, Map.of(
                 "varada_collect_columns", 2L,
                 "varada_match_columns", 2L,
                 "external_match_columns", 0L));
 
-        query = "select * from functionsTable where year(date_col) = 53";
+        query = "select * from %s.%s where year(date_col) = 53".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select count(*) from functionsTable where double1 is null and ceil(double1) > 3";
+        query = "select count(*) from %s.%s where double1 is null and ceil(double1) > 3".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select count(*) from functionsTable where cast(double1 as varchar) = '01111111111111111111E0' or double2 > 2";
+        query = "select count(*) from %s.%s where cast(double1 as varchar) = '01111111111111111111E0' or double2 > 2".formatted(schema, table);
         //cast(double1 as varchar) = '01111111111111111111E0' is invalid but left is valid
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 1L,
                 "external_match_columns", 1L); //todo: fix?
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select count(*) from functionsTable where cast(double1 as varchar) = '01111111111111111111E0' or cast(double2 as varchar) = '01111111111111111111E0'";
+        query = "select count(*) from %s.%s where cast(double1 as varchar) = '01111111111111111111E0' or cast(double2 as varchar) = '01111111111111111111E0'".formatted(schema, table);
         //both are invalid
         expectedJmxQueryStats = Map.of(
                 "filtered_by_predicate", 1L,
@@ -1935,133 +1979,147 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         validateQueryStats(query, session, expectedJmxQueryStats);
 
         //date functions
-        query = "select * from functionsTable where day(date_col) > 2012";
+        query = "select * from %s.%s where day(date_col) > 2012".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
-        query = "select * from functionsTable where day(date_col) = 2012";
+        query = "select * from %s.%s where day(date_col) = 2012".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
-        query = "select * from functionsTable where day_of_month(date_col) = 2012";
+        query = "select * from %s.%s where day_of_month(date_col) = 2012".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
-        query = "select * from functionsTable where day_of_week(date_col) = 2012";
+        query = "select * from %s.%s where day_of_week(date_col) = 2012".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
-        query = "select * from functionsTable where dow(date_col) < 2012";
+        query = "select * from %s.%s where dow(date_col) < 2012".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
-        query = "select * from functionsTable where dow(date_col) = 2012";
+        query = "select * from %s.%s where dow(date_col) = 2012".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
-        query = "select * from functionsTable where day_of_year(date_col) = 2012";
+        query = "select * from %s.%s where day_of_year(date_col) = 2012".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
-        query = "select * from functionsTable where day_of_year(date_col) >2 and day_of_year(date_col) <60";
+        query = "select * from %s.%s where day_of_year(date_col) >2 and day_of_year(date_col) <60".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
-        query = "select * from functionsTable where doy(date_col) = 2012";
+        query = "select * from %s.%s where doy(date_col) = 2012".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
-        query = "select * from functionsTable where week(date_col) = 53";
+        query = "select * from %s.%s where week(date_col) = 53".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
-        query = "select * from functionsTable where week_of_year(date_col) = 53";
+        query = "select * from %s.%s where week_of_year(date_col) = 53".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where year_of_week(date_col) = 53";
+        query = "select * from %s.%s where year_of_week(date_col) = 53".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
-        query = "select * from functionsTable where yow(date_col) = 53";
+        query = "select * from %s.%s where yow(date_col) = 53".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
-        query = "select * from functionsTable where yow(date_col) >= 53";
+        query = "select * from %s.%s where yow(date_col) >= 53".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
-        query = "select count(*) from functionsTable where  year(date_col) = 2003 or  year(date_col) = 2001 or   year(date_col) = 1990";
+        query = "select count(*) from %s.%s where  year(date_col) = 2003 or  year(date_col) = 2001 or   year(date_col) = 1990".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
-        query = "select * from functionsTable where ceil(double1) in (5, 6, 8, 10)";
+        query = "select * from %s.%s where ceil(double1) in (5, 6, 8, 10)".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
-        query = "select * from functionsTable where ceil(double1) in (5, 6, 8, 10) or ceil(double1) > 90";
+        query = "select * from %s.%s where ceil(double1) in (5, 6, 8, 10) or ceil(double1) > 90".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
         //functions with operators
-        validateQueryStats("select count(*) from functionsTable where ceil(s_real)<=97 and s_real>=12", session, expectedJmxQueryStats);
-        validateQueryStats("select * from functionsTable where cast(char_8_col as varchar(10)) = 'aaa' or cast(char_8_col as varchar(10)) = 'bbb'", session, expectedJmxQueryStats);
-        validateQueryStats("select * from functionsTable where cast(double1 as varchar) = '5.0E0' or cast(double1 as varchar) = '6.0E0'", session, expectedJmxQueryStats);
-        validateQueryStats("select * from functionsTable where cast(double1 as varchar) = '5.0E0' and cast(double1 as varchar) > '6.0E0'", session, expectedJmxQueryStats);
-        validateQueryStats("select * from functionsTable where ceil(double1) = 5  or ceil(double1) > 9", session, expectedJmxQueryStats);
-        validateQueryStats("select * from functionsTable where ceil(double1) = 5  or ceil(double1) = 7 or ceil(double1) > 9", session, expectedJmxQueryStats);
-        validateQueryStats("select count(*) from functionsTable where ceil(double2)<=14455 OR ceil(double2)>=75767", session, expectedJmxQueryStats);
+        validateQueryStats("select count(*) from %s.%s where ceil(s_real)<=97 and s_real>=12".formatted(schema, table),
+                session,
+                expectedJmxQueryStats);
+        validateQueryStats("select * from %s.%s where cast(char_8_col as varchar(10)) = 'aaa' or cast(char_8_col as varchar(10)) = 'bbb'".formatted(schema, table),
+                session,
+                expectedJmxQueryStats);
+        validateQueryStats("select * from %s.%s where cast(double1 as varchar) = '5.0E0' or cast(double1 as varchar) = '6.0E0'".formatted(schema, table),
+                session,
+                expectedJmxQueryStats);
+        validateQueryStats("select * from %s.%s where cast(double1 as varchar) = '5.0E0' and cast(double1 as varchar) > '6.0E0'".formatted(schema, table),
+                session,
+                expectedJmxQueryStats);
+        validateQueryStats("select * from %s.%s where ceil(double1) = 5  or ceil(double1) > 9".formatted(schema, table),
+                session,
+                expectedJmxQueryStats);
+        validateQueryStats("select * from %s.%s where ceil(double1) = 5  or ceil(double1) = 7 or ceil(double1) > 9".formatted(schema, table),
+                session,
+                expectedJmxQueryStats);
+        validateQueryStats("select count(*) from %s.%s where ceil(double2)<=14455 OR ceil(double2)>=75767".formatted(schema, table),
+                session,
+                expectedJmxQueryStats);
 
-        query = "select * from functionsTable where ceil(double1) = 5  or ceil(double1) = 10 or ceil(double1) = 30 or is_nan(double1)=true or (double1 < 19 and double1 > 17)";
+        query = "select * from %s.%s where ceil(double1) = 5  or ceil(double1) = 10 or ceil(double1) = 30 or is_nan(double1)=true or (double1 < 19 and double1 > 17)".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where ceil(double1) = 5  or is_nan(double2)=true";
+        query = "select * from %s.%s where ceil(double1) = 5  or is_nan(double2)=true".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 2L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where ceil(double1) = 5  and is_nan(double2)=true";
+        query = "select * from %s.%s where ceil(double1) = 5  and is_nan(double2)=true".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 2L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
-        query = "select * from functionsTable where ceil(double1) = 5  or is_nan(double1)=true";
+        query = "select * from %s.%s where ceil(double1) = 5  or is_nan(double1)=true".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
-        query = "select * from functionsTable where (ceil(double1) = 5  or is_nan(double1)=true) and (mod(double2 , 2) = 0 and mod(double2 , 3) = 0)";
+        query = "select * from %s.%s where (ceil(double1) = 5  or is_nan(double1)=true) and (mod(double2 , 2) = 0 and mod(double2 , 3) = 0)".formatted(schema, table);
 
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where ceil(double1) = 5  or (double1 < 19 and double1 > 17)";
+        query = "select * from %s.%s where ceil(double1) = 5  or (double1 < 19 and double1 > 17)".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
-        query = "select * from functionsTable where (ceil(double1) = 5  or is_nan(double1)=true) and (ceil(double2) = 5  or ceil(double2) = 9)";
+        query = "select * from %s.%s where (ceil(double1) = 5  or is_nan(double1)=true) and (ceil(double2) = 5  or ceil(double2) = 9)".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 2L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where double1 < 19 and double1 > 17";
+        query = "select * from %s.%s where double1 < 19 and double1 > 17".formatted(schema, table);
         // expression translated to: (ceil(double1) = 5 OR double1 < 19) AND (ceil(double1) = 5 OR double1 > 17)
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where is_nan(double1)";
+        query = "select * from %s.%s where is_nan(double1)".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
-        query = "select * from functionsTable where ST_CONTAINS(ST_Polygon('polygon((-73.9266974303558 40.7398342228254))'),(ST_Point(double1, double2)))";
+        query = "select * from %s.%s where ST_CONTAINS(ST_Polygon('polygon((-73.9266974303558 40.7398342228254))'),(ST_Point(double1, double2)))".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 0L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
-        query = "select * from functionsTable where is_nan(double1) = false";
+        query = "select * from %s.%s where is_nan(double1) = false".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 0L,
                 "external_match_columns", 1L);
         validateQueryStats(query, session, expectedJmxQueryStats, List.of("unsupported_functions_native"));
 
-        query = "select * from functionsTable where true = is_nan(double1)";
+        query = "select * from %s.%s where true = is_nan(double1)".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where ST_EQUALS(ST_Point(double1, double2),ST_Point(n_long_decimal, s_real))";
+        query = "select * from %s.%s where ST_EQUALS(ST_Point(double1, double2),ST_Point(n_long_decimal, s_real))".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 0L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats, List.of("unsupported_functions"));
 
-        query = "select count(*) from functionsTable where double1 = double2";
+        query = "select count(*) from %s.%s where double1 = double2".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
-        query = "select * from functionsTable where (( double1 = 4  AND  double2 <= 6 )  OR  double1 = 2)";
+        query = "select * from %s.%s where (( double1 = 4  AND  double2 <= 6 )  OR  double1 = 2)".formatted(schema, table);
         //trino convert to a single domain predicate 2 <= double1 <= 4
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 2L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
-        query = "select * from functionsTable where (( double1 = 4  AND  double2 <= 6 )  OR  n_long_decimal = 2)"; //composite, currently unsupported
+        query = "select * from %s.%s where (( double1 = 4  AND  double2 <= 6 )  OR  n_long_decimal = 2)".formatted(schema, table); //composite, currently unsupported
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 0L,
                 "external_match_columns", 0L);
@@ -2071,86 +2129,74 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 .setSystemProperty(catalog + "." + UNSUPPORTED_NATIVE_FUNCTIONS, "ceiling")
                 .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "true")
                 .build();
-        query = "select * from functionsTable where ceil(s_real) > 5";
+        query = "select * from %s.%s where ceil(s_real) > 5".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
                 "varada_match_columns", 0L,
                 "external_match_columns", 1L);
         validateQueryStats(query, session, expectedJmxQueryStats);
-        computeActual("DROP TABLE IF EXISTS functionsTable");
     }
 
     @Test
-    public void test_dont_warm_default()
+    public void testDontWarmDefault()
             throws IOException
     {
-        try {
-            computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomi')");
-            createWarmupRules(DEFAULT_SCHEMA,
-                    "t",
-                    Map.of(C1, Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL))));
-            warmAndValidate(format("select %s, %s from t where %s = 'shlomi' and %s = 1", C1, C2, C2, C1), false, 1, 1);
-            RowGroupCountResult ret = getRowGroupCount();
-            assertThat(ret.nodesWarmupElementsCount().size()).isEqualTo(1);
-            assertThat(ret.warmupColumnNames().contains(format("%s.%s.%s.%s", DEFAULT_SCHEMA, "t", C1, WarmUpType.WARM_UP_TYPE_DATA))).isTrue();
-            assertThat(ret.warmupColumnNames().contains(format("%s.%s.%s.%s", DEFAULT_SCHEMA, "t", C1, WarmUpType.WARM_UP_TYPE_BASIC))).isFalse();
+        computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomi')");
+        createWarmupRules(DEFAULT_SCHEMA,
+                "t",
+                Map.of(C1, Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL))));
+        warmAndValidate(format("select %s, %s from t where %s = 'shlomi' and %s = 1", C1, C2, C2, C1), false, 1, 1);
+        RowGroupCountResult ret = getRowGroupCount();
+        assertThat(ret.nodesWarmupElementsCount().size()).isEqualTo(1);
+        assertThat(ret.warmupColumnNames().contains(format("%s.%s.%s.%s", DEFAULT_SCHEMA, "t", C1, WarmUpType.WARM_UP_TYPE_DATA))).isTrue();
+        assertThat(ret.warmupColumnNames().contains(format("%s.%s.%s.%s", DEFAULT_SCHEMA, "t", C1, WarmUpType.WARM_UP_TYPE_BASIC))).isFalse();
 
-            buildAndWarmWideTable(100, true, 0, Optional.empty());
-            ret = getRowGroupCount();
-            assertThat(ret.warmupColumnNames().contains(format("%s.%s.%s.%s", DEFAULT_SCHEMA, WIDE_TABLE_NAME, "c00", WarmUpType.WARM_UP_TYPE_DATA))).isFalse();
-            computeActual("DROP TABLE IF EXISTS " + WIDE_TABLE_NAME);
-            computeActual("DROP TABLE IF EXISTS t");
+        buildAndWarmWideTable(100, true, 0, Optional.empty());
+        ret = getRowGroupCount();
+        assertThat(ret.warmupColumnNames().contains(format("%s.%s.%s.%s", DEFAULT_SCHEMA, WIDE_TABLE_NAME, "c00", WarmUpType.WARM_UP_TYPE_DATA))).isFalse();
+        computeActual("DROP TABLE IF EXISTS " + WIDE_TABLE_NAME);
+        computeActual("DROP TABLE IF EXISTS t");
 
-            buildAndWarmWideTable(30, true, 90, Optional.empty());
-            Failsafe.with(new RetryPolicy<>()
-                            .handle(AssertionError.class)
-                            .withMaxRetries(5)
-                            .withDelay(Duration.ofSeconds(1))
-                            .withMaxDuration(Duration.ofSeconds(3)))
-                    .run(() -> {
-                        RowGroupCountResult rgCount = getRowGroupCount();
-                        assertThat(rgCount.warmupColumnNames().contains(format("%s.%s.%s.%s", DEFAULT_SCHEMA, WIDE_TABLE_NAME, "c010", WarmUpType.WARM_UP_TYPE_DATA))).isTrue();
-                    });
-        }
-        finally {
-            computeActual("DROP TABLE IF EXISTS " + WIDE_TABLE_NAME);
-            computeActual("DROP TABLE IF EXISTS t");
-        }
+        buildAndWarmWideTable(30, true, 90, Optional.empty());
+        Failsafe.with(new RetryPolicy<>()
+                        .handle(AssertionError.class)
+                        .withMaxRetries(5)
+                        .withDelay(Duration.ofSeconds(1))
+                        .withMaxDuration(Duration.ofSeconds(3)))
+                .run(() -> {
+                    RowGroupCountResult rgCount = getRowGroupCount();
+                    assertThat(rgCount.warmupColumnNames().contains(format("%s.%s.%s.%s", DEFAULT_SCHEMA, WIDE_TABLE_NAME, "c010", WarmUpType.WARM_UP_TYPE_DATA))).isTrue();
+                });
     }
 
     @Test
-    public void test_never_rule()
+    public void testNeverRule()
             throws IOException
     {
-        try {
-            computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomi')");
-            createWarmupRules(DEFAULT_SCHEMA,
-                    "t",
-                    Map.of(C2, Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, NEVER_PRIORITY, DEFAULT_TTL),
-                            new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, 5, DEFAULT_TTL))));
-            warmAndValidate(format("select %s from t", C2), true, 1, 1);
+        computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomi')");
+        createWarmupRules(DEFAULT_SCHEMA,
+                "t",
+                Map.of(C2, Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, NEVER_PRIORITY, DEFAULT_TTL),
+                        new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, 5, DEFAULT_TTL))));
+        warmAndValidate(format("select %s from t", C2), true, 1, 1);
 
-            RowGroupCountResult ret = getRowGroupCount();
+        RowGroupCountResult ret = getRowGroupCount();
 
-            assertThat(ret.warmupColumnCount().size()).isEqualTo(1);
-            assertThat(ret.warmupColumnNames().contains(format("%s.%s.%s.%s", DEFAULT_SCHEMA, "t", C2, WarmUpType.WARM_UP_TYPE_DATA))).isFalse();
-            assertThat(ret.warmupColumnNames().contains(format("%s.%s.%s.%s", DEFAULT_SCHEMA, "t", C2, WarmUpType.WARM_UP_TYPE_BASIC))).isTrue();
+        assertThat(ret.warmupColumnCount().size()).isEqualTo(1);
+        assertThat(ret.warmupColumnNames().contains(format("%s.%s.%s.%s", DEFAULT_SCHEMA, "t", C2, WarmUpType.WARM_UP_TYPE_DATA))).isFalse();
+        assertThat(ret.warmupColumnNames().contains(format("%s.%s.%s.%s", DEFAULT_SCHEMA, "t", C2, WarmUpType.WARM_UP_TYPE_BASIC))).isTrue();
 
-            cleanWarmupRules();
+        cleanWarmupRules();
 
-            createWarmupRules(DEFAULT_SCHEMA,
-                    "t",
-                    Map.of(C2, Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, NEVER_PRIORITY, DEFAULT_TTL))));
-            warmAndValidate(format("select %s from t", C2), true, "all_elements_warmed_or_skipped");
-            ret = getRowGroupCount();
-            assertThat(ret.warmupColumnCount().size()).isEqualTo(1);
-        }
-        finally {
-            computeActual("DROP TABLE IF EXISTS t");
-        }
+        createWarmupRules(DEFAULT_SCHEMA,
+                "t",
+                Map.of(C2, Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, NEVER_PRIORITY, DEFAULT_TTL))));
+        warmAndValidate(format("select %s from t", C2), true, "all_elements_warmed_or_skipped");
+        ret = getRowGroupCount();
+        assertThat(ret.warmupColumnCount().size()).isEqualTo(1);
     }
 
     @Test
-    public void test_warm_default_with_lucene_rule()
+    public void testWarmDefaultWithLuceneRule()
             throws IOException
     {
         computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomi')");
@@ -2224,7 +2270,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     }
 
     @Test
-    public void test_warm_default()
+    public void testWarmDefault()
             throws IOException
     {
         computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomi')");
@@ -2302,23 +2348,29 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     public void testWarmDoubleIndexOnly()
             throws IOException
     {
-        createSchemaAndTable("schema_double", "t_double", format("(%s double, %s varchar(20))", C1, C2));
+        String schema = "schema_double";
+        String table = "t_double";
+        createSchemaAndTable(schema, table, format("(%s double, %s varchar(20))", C1, C2));
 
-        computeActual(getSession(), "INSERT INTO schema_double.t_double VALUES (1000000000000, 'shlomi')");
+        computeActual(getSession(), "INSERT INTO %s.%s VALUES (1000000000000, 'shlomi')".formatted(schema, table));
 
-        createWarmupRules("schema_double",
-                "t_double",
+        createWarmupRules(schema,
+                table,
                 Map.of(C1, Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL)),
                         C2, Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL))));
-        warmAndValidate("select * from schema_double.t_double", false, 2, 1);
+        warmAndValidate("select * from %s.%s".formatted(schema, table),
+                false,
+                2,
+                1);
 
-        MaterializedResult materializedRows = computeActual(getSession(), format("select %s from schema_double.t_double where %s = 1000000000000", C2, C1));
+        MaterializedResult materializedRows = computeActual(getSession(),
+                "select %s from %s.%s where %s = 1000000000000".formatted(C2, schema, table, C1));
         //return 0 because we don't have native, if returns 1 then got it from hive
         assertThat(materializedRows.getRowCount()).describedAs(materializedRows.toString()).isEqualTo(0);
     }
 
     @Test
-    public void testSimple_WarmOnlyOne()
+    public void testSimpleWarmOnlyOne()
             throws IOException
     {
         computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomi')");
@@ -2328,7 +2380,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     }
 
     @Test
-    public void testWarmPredicatePushdownVarchar()
+    public void testWarmPredicatePushDownVarchar()
             throws IOException
     {
         computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomishlomishlomi')");
@@ -2373,7 +2425,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     }
 
     // since we have no native and the merge of pages fail. kept it here in case as a scenario
-    // that can be debugged(maybe in the future we will have a native stub)
+// that can be debugged(maybe in the future we will have a native stub)
     @Test
     @Disabled
     public void testWarmIndexOnly()
@@ -2399,7 +2451,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     {
         int varcharMaxLen = storageEngineModule.getStorageEngineConstants().getVarcharMaxLen();
 
-        assertUpdate("CREATE TABLE varchar_max_table (varchar_max varchar) WITH (format='PARQUET', partitioned_by = ARRAY[])");
+        createTable(DEFAULT_SCHEMA, "varchar_max_table", "(varchar_max varchar) WITH (format='PARQUET', partitioned_by = ARRAY[])");
         computeActual(getSession(), format("INSERT INTO varchar_max_table VALUES ('%s')", "varcharMaxLen"));
         computeActual(getSession(), format("INSERT INTO varchar_max_table VALUES ('%s')", "varcharMaxLen" + StringUtils.randomAlphanumeric(varcharMaxLen)));
 
@@ -2420,14 +2472,13 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 VARADA_COLLECT_COLUMNS_STAT, 1L,
                 EXTERNAL_COLLECT_STAT, 1L);
         validateQueryStats(query, getSession(), expectedQueryStats, OptionalInt.empty(), OptionalInt.of(1));
-        assertUpdate("DROP TABLE varchar_max_table");
     }
 
     @Test
     public void testUTF8CharDataFail()
             throws IOException
     {
-        assertUpdate("CREATE TABLE char_128_table (cchar_128 char(1)) WITH (format='PARQUET', partitioned_by = ARRAY[])");
+        createTable(DEFAULT_SCHEMA, "char_128_table", "(cchar_128 char(1)) WITH (format='PARQUET', partitioned_by = ARRAY[])");
 
         //each insert cmd is a single parquet file
         computeActual(getSession(), "INSERT INTO char_128_table (cchar_128) VALUES ('G'), ('É')");
@@ -2448,15 +2499,13 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         MaterializedResult materializedRows = computeActual(getSession(), "select cchar_128 from char_128_table where cchar_128 is not null");
         // fetch from proxy since warmup failed
         assertThat(materializedRows.getRowCount()).isEqualTo(2);
-
-        assertUpdate("DROP TABLE char_128_table");
     }
 
     @Test
     public void testUTF8CharBasic()
             throws IOException
     {
-        assertUpdate("CREATE TABLE char_128_table (cchar_128 char(1)) WITH (format='PARQUET', partitioned_by = ARRAY[])");
+        createTable(DEFAULT_SCHEMA, "char_128_table", "(cchar_128 char(1)) WITH (format='PARQUET', partitioned_by = ARRAY[])");
 
         //each insert cmd is a single parquet file
         computeActual(getSession(), "INSERT INTO char_128_table (cchar_128) VALUES ('G'), ('É')");
@@ -2477,8 +2526,6 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         MaterializedResult materializedRows = computeActual(getSession(), "select cchar_128 from char_128_table where cchar_128 is not null");
         // fetch from proxy since warmup failed
         assertThat(materializedRows.getRowCount()).isEqualTo(0);
-
-        assertUpdate("DROP TABLE char_128_table");
     }
 
     @Test
@@ -2553,7 +2600,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     public void testDataIndexWithBloom()
             throws IOException
     {
-        assertUpdate("CREATE TABLE pt(some_date date, bigint_2 bigint, tinyint_4 tinyint,t_time timestamp(3)) WITH (format='PARQUET', partitioned_by = ARRAY[])");
+        createTable(DEFAULT_SCHEMA, "pt", "(some_date date, bigint_2 bigint, tinyint_4 tinyint,t_time timestamp(3)) WITH (format='PARQUET', partitioned_by = ARRAY[])");
 
         computeActual(getSession(), "INSERT INTO pt VALUES (CAST('2002-04-29' as date), 100, 1, CAST('2002-04-29' as TIMESTAMP))");
 
@@ -2599,7 +2646,6 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "external_collect_columns", 0L,
                 "external_match_columns", 0L);
         validateQueryStats(query, getSession(), expectedQueryStats);
-        assertUpdate("DROP TABLE pt");
     }
 
     @Test
@@ -2661,7 +2707,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     }
 
     @Test
-    public void testSimple_AnalyzeWithColumns()
+    public void testSimpleAnalyzeWithColumns()
     {
         computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomi')");
         computeActual(getSession(), "ANALYZE t WITH (columns = ARRAY['int1'])");
@@ -2675,15 +2721,21 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     @Test
     public void testMixedQueryWithPartitionColumn()
     {
-        assertUpdate("CREATE TABLE partitionTable(warmedColumn integer, notWarmedColumn varchar, warmedPartition varchar, notWarmedPartition varchar) WITH (format='PARQUET', partitioned_by = ARRAY['warmedPartition', 'notWarmedPartition'])");
-        assertUpdate("INSERT INTO partitionTable(warmedColumn, notWarmedColumn, warmedPartition, notWarmedPartition) VALUES(1, 'a1','partition1', 'partition2')", 1);
-        warmAndValidate("select warmedColumn, warmedPartition from partitionTable", true, 2, 1);
+        String schema = "MixedQueryWithPartitionColumn".toLowerCase(Locale.ROOT);
+        String table = "partitionTable".toLowerCase(Locale.ROOT);
+        createSchemaAndTable(schema, table, "(warmedColumn integer, notWarmedColumn varchar, warmedPartition varchar, notWarmedPartition varchar) WITH (format='PARQUET', partitioned_by = ARRAY['warmedPartition', 'notWarmedPartition'])");
+        assertUpdate("INSERT INTO %s.%s (warmedColumn, notWarmedColumn, warmedPartition, notWarmedPartition) VALUES(1, 'a1','partition1', 'partition2')".formatted(schema, table),
+                1);
+        warmAndValidate("select warmedColumn, warmedPartition from %s.%s".formatted(schema, table),
+                true,
+                2,
+                1);
         Session session = Session.builder(getSession())
                 .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, Boolean.toString(false))
                 .build();
 
         //query on warmed partition column and not warmed regular column
-        @Language("SQL") String query = "select warmedPartition, notWarmedColumn from partitionTable where warmedPartition in ('partition1', 'partition2')";
+        @Language("SQL") String query = "select warmedPartition, notWarmedColumn from %s.%s where warmedPartition in ('partition1', 'partition2')".formatted(schema, table);
         Map<String, Long> expectedQueryStats = Map.of(
                 "prefilled_collect_columns", 1L,
                 "varada_match_columns", 0L,
@@ -2693,7 +2745,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         validateQueryStats(query, session, expectedQueryStats);
 
         //query on non warmed partition column and a warmed regular column
-        query = "select warmedColumn, notWarmedPartition from partitionTable where notWarmedPartition in ('partition1', 'partition2')";
+        query = "select warmedColumn, notWarmedPartition from %s.%s where notWarmedPartition in ('partition1', 'partition2')".formatted(schema, table);
         expectedQueryStats = Map.of(
                 "prefilled_collect_columns", 1L,
                 "varada_match_columns", 0L,
@@ -2703,7 +2755,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         validateQueryStats(query, session, expectedQueryStats);
 
         //only query on notWarmedPartition, and warmedPartition
-        query = "select warmedPartition, notWarmedPartition from partitionTable where notWarmedPartition in ('partition1', 'partition2')";
+        query = "select warmedPartition, notWarmedPartition from %s.%s where notWarmedPartition in ('partition1', 'partition2')".formatted(schema, table);
         expectedQueryStats = Map.of(
                 "prefilled_collect_columns", 2L,
                 "varada_match_columns", 0L,
@@ -2713,7 +2765,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         validateQueryStats(query, session, expectedQueryStats);
 
         //only query on notWarmedPartition, and warmedPartition
-        query = "select warmedPartition, notWarmedPartition from partitionTable where warmedPartition in ('partition1', 'partition2')";
+        query = "select warmedPartition, notWarmedPartition from %s.%s where warmedPartition in ('partition1', 'partition2')".formatted(schema, table);
         expectedQueryStats = Map.of(
                 "prefilled_collect_columns", 2L,
                 "varada_match_columns", 0L,
@@ -2723,7 +2775,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         validateQueryStats(query, session, expectedQueryStats);
 
         //query on notWarmedPartition
-        query = "select notWarmedPartition from partitionTable where notWarmedPartition in ('partition1', 'partition2')";
+        query = "select notWarmedPartition from %s.%s where notWarmedPartition in ('partition1', 'partition2')".formatted(schema, table);
         expectedQueryStats = Map.of(
                 "prefilled_collect_columns", 0L,
                 "varada_match_columns", 0L,
@@ -2731,13 +2783,12 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "external_collect_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats);
-        assertUpdate("DROP TABLE partitionTable");
     }
 
     @Test
-    public void testSimple_AllPartitionQuery()
+    public void testSimpleAllPartitionQuery()
     {
-        assertUpdate("CREATE TABLE pt(id integer, a varchar, b varchar, ds varchar) WITH (format='PARQUET', partitioned_by = ARRAY['ds'])");
+        createTable(DEFAULT_SCHEMA, "pt", "(id integer, a varchar, b varchar, ds varchar) WITH (format='PARQUET', partitioned_by = ARRAY['ds'])");
         assertUpdate("INSERT INTO pt(id,a,ds) VALUES(1, 'a1','a1')", 1);
         assertUpdate("INSERT INTO pt(id,a,ds) VALUES(2, 'b1','b1')", 1);
         warmAndValidate("select id, ds from pt", true, 4, 2);
@@ -2749,7 +2800,6 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         query = "SELECT COUNT(*) FROM pt where ds = 'b1'";
         Map<String, Long> expectedQueryStats = Map.of("empty_collect_columns", 1L);
         validateQueryStats(query, getSession(), expectedQueryStats);
-        assertUpdate("DROP TABLE pt");
     }
 
     @Test
@@ -2922,7 +2972,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
     @SuppressWarnings("LanguageMismatch")
     @Test
-    public void testLuceneQueryPushdown()
+    public void testLuceneQueryPushDown()
     {
         // We're just checking the pushdown - warmup is not required
         String prefixLikePattern = "prefix%";
@@ -3001,40 +3051,35 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     public void testReplaceLuceneRuleWithBasic()
             throws IOException
     {
-        try {
-            computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomi')");
+        computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomi')");
 
-            createWarmupRules(DEFAULT_SCHEMA,
-                    "t",
-                    Map.of(C2,
-                            Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_LUCENE, DEFAULT_PRIORITY, DEFAULT_TTL),
-                                    new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL))));
-            warmAndValidate("select * from t", false, 2, 1);
-            // Query
-            @Language("SQL") String query = "SELECT v1 FROM t WHERE v1 = 'singleValue'";
-            Map<String, Long> expectedQueryStats = Map.of(VARADA_MATCH_COLUMNS_STAT, 1L);
-            validateQueryStats(query, getSession(), expectedQueryStats);
+        createWarmupRules(DEFAULT_SCHEMA,
+                "t",
+                Map.of(C2,
+                        Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_LUCENE, DEFAULT_PRIORITY, DEFAULT_TTL),
+                                new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL))));
+        warmAndValidate("select * from t", false, 2, 1);
+        // Query
+        @Language("SQL") String query = "SELECT v1 FROM t WHERE v1 = 'singleValue'";
+        Map<String, Long> expectedQueryStats = Map.of(VARADA_MATCH_COLUMNS_STAT, 1L);
+        validateQueryStats(query, getSession(), expectedQueryStats);
 
-            // Replace lucene rule with a basic rule
-            cleanWarmupRules();
-            createWarmupRules(DEFAULT_SCHEMA,
-                    "t",
-                    Map.of(C2,
-                            Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL),
-                                    new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))));
+        // Replace lucene rule with a basic rule
+        cleanWarmupRules();
+        createWarmupRules(DEFAULT_SCHEMA,
+                "t",
+                Map.of(C2,
+                        Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL),
+                                new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))));
 
-            // warm (no need to validate - data was already warmed so we won't go to hive)
-            warmAndValidate("select * from t", false, 1, 1);
+        // warm (no need to validate - data was already warmed so we won't go to hive)
+        warmAndValidate("select * from t", false, 1, 1);
 
-            // Query again, expect the same counters
-            query = "SELECT v1 FROM t WHERE v1 = 'singleValue'";
-            // (Lucene index may or may not be deleted - either way we should match from Varada since we query for a single value)
-            expectedQueryStats = Map.of(VARADA_MATCH_COLUMNS_STAT, 1L);
-            validateQueryStats(query, getSession(), expectedQueryStats);
-        }
-        finally {
-            computeActual("DROP TABLE IF EXISTS ext");
-        }
+        // Query again, expect the same counters
+        query = "SELECT v1 FROM t WHERE v1 = 'singleValue'";
+        // (Lucene index may or may not be deleted - either way we should match from Varada since we query for a single value)
+        expectedQueryStats = Map.of(VARADA_MATCH_COLUMNS_STAT, 1L);
+        validateQueryStats(query, getSession(), expectedQueryStats);
     }
 
     @Test
@@ -3071,7 +3116,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     }
 
     @Test
-    public void testBasicLuceneDataQueryPushdown()
+    public void testBasicLuceneDataQueryPushDown()
             throws IOException
     {
         computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomishlomishlomi')");
@@ -3098,20 +3143,21 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     }
 
     @Test
-    public void testMixedLuceneQueryPushdown()
+    public void testMixedLuceneQueryPushDown()
             throws IOException
     {
-        assertUpdate("CREATE TABLE luceneTable(" +
-                "luceneColumn varchar, " +
-                "basicColumn varchar, " +
-                "luceneAndBasic varchar) WITH (format='PARQUET', partitioned_by = ARRAY[])");
+        String schema = "MixedLuceneQueryPushdown".toLowerCase(Locale.ROOT);
+        String table = "luceneTable".toLowerCase(Locale.ROOT);
+        createSchemaAndTable(schema,
+                table,
+                "(luceneColumn varchar, basicColumn varchar, luceneAndBasic varchar) WITH (format='PARQUET', partitioned_by = ARRAY[])");
 
-        computeActual(getSession(), "INSERT INTO luceneTable VALUES (" +
+        computeActual(getSession(), "INSERT INTO %s.%s VALUES (".formatted(schema, table) +
                 "'shlomi', " +
                 "'assaf', " +
                 "'tzachi')");
-        createWarmupRules(DEFAULT_SCHEMA,
-                "luceneTable",
+        createWarmupRules(schema,
+                table,
                 Map.of("luceneColumn",
                         Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_LUCENE, DEFAULT_PRIORITY, DEFAULT_TTL)),
                         "basicColumn",
@@ -3120,7 +3166,10 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                         Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_LUCENE, DEFAULT_PRIORITY, DEFAULT_TTL),
                                 new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))));
 
-        warmAndValidate("select * from luceneTable", false, 4, 1);
+        warmAndValidate("select * from %s.%s".formatted(schema, table),
+                false,
+                4,
+                1);
 
         List<String> predicates = List.of(
                 "where luceneColumn like '%mishlomi%'",
@@ -3135,10 +3184,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "external_collect_columns", 1L,
                 "external_match_columns", 0L);
         for (String predicate : predicates) {
-            @Language("SQL") String query = "select count(*) from luceneTable " + predicate;
+            @Language("SQL") String query = "select count(*) from %s.%s %s".formatted(schema, table, predicate);
             validateQueryStats(query, getSession(), expectedQueryStats);
         }
-        computeActual("DROP TABLE IF EXISTS luceneTable");
     }
 
     @Test
@@ -3197,306 +3245,283 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     public void testWarmupDemoterStartExe()
             throws IOException
     {
-        try {
-            WarmupDemoterData warmupDemoterData = WarmupDemoterData.builder()
-                    .maxUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
-                    .cleanupUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
-                    .executeDemoter(true)
-                    .build();
-            Map<String, Object> res = demote(warmupDemoterData);
-            long totalUsage = ((Number) res.entrySet()
-                    .stream()
-                    .filter(entry -> entry.getKey().contains(WorkerWarmupDemoterTask.TOTAL_USAGE_THRESHOLD_KEY))
-                    .findAny()
-                    .orElseThrow()
-                    .getValue())
-                    .longValue();
-            long currentUsage = ((Number) res.entrySet()
-                    .stream()
-                    .filter(entry -> entry.getKey().contains(WorkerWarmupDemoterTask.CURRENT_USAGE_THRESHOLD_KEY))
-                    .findAny()
-                    .orElseThrow()
-                    .getValue())
-                    .longValue();
-            double maxUsageThreshold = ((Number) res.entrySet()
-                    .stream()
-                    .filter(entry -> entry.getKey().contains(WorkerWarmupDemoterTask.MAX_USAGE_THRESHOLD_KEY))
-                    .findAny()
-                    .orElseThrow()
-                    .getValue())
-                    .doubleValue();
-            double cleanupUsageThreshold = ((Number) res.entrySet()
-                    .stream()
-                    .filter(entry -> entry.getKey().contains(WorkerWarmupDemoterTask.CLEANUP_USAGE_THRESHOLD_KEY))
-                    .findAny()
-                    .orElseThrow()
-                    .getValue())
-                    .doubleValue();
-            assertThat(currentUsage).isEqualTo(0);
-            assertThat(maxUsageThreshold).isEqualTo(0d);
-            assertThat(cleanupUsageThreshold).isEqualTo(0d);
-            warmupDemoterData = WarmupDemoterData.builder()
-                    .maxUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
-                    .cleanupUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
-                    .resetHighestPriority(true)
-                    .build();
-            demote(warmupDemoterData);
+        WarmupDemoterData warmupDemoterData = WarmupDemoterData.builder()
+                .maxUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
+                .cleanupUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
+                .executeDemoter(true)
+                .build();
+        Map<String, Object> res = demote(warmupDemoterData);
+        long totalUsage = ((Number) res.entrySet()
+                .stream()
+                .filter(entry -> entry.getKey().contains(WorkerWarmupDemoterTask.TOTAL_USAGE_THRESHOLD_KEY))
+                .findAny()
+                .orElseThrow()
+                .getValue())
+                .longValue();
+        long currentUsage = ((Number) res.entrySet()
+                .stream()
+                .filter(entry -> entry.getKey().contains(WorkerWarmupDemoterTask.CURRENT_USAGE_THRESHOLD_KEY))
+                .findAny()
+                .orElseThrow()
+                .getValue())
+                .longValue();
+        double maxUsageThreshold = ((Number) res.entrySet()
+                .stream()
+                .filter(entry -> entry.getKey().contains(WorkerWarmupDemoterTask.MAX_USAGE_THRESHOLD_KEY))
+                .findAny()
+                .orElseThrow()
+                .getValue())
+                .doubleValue();
+        double cleanupUsageThreshold = ((Number) res.entrySet()
+                .stream()
+                .filter(entry -> entry.getKey().contains(WorkerWarmupDemoterTask.CLEANUP_USAGE_THRESHOLD_KEY))
+                .findAny()
+                .orElseThrow()
+                .getValue())
+                .doubleValue();
+        assertThat(currentUsage).isEqualTo(0);
+        assertThat(maxUsageThreshold).isEqualTo(0d);
+        assertThat(cleanupUsageThreshold).isEqualTo(0d);
+        warmupDemoterData = WarmupDemoterData.builder()
+                .maxUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
+                .cleanupUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
+                .resetHighestPriority(true)
+                .build();
+        demote(warmupDemoterData);
 
-            Session jmxSession = createJmxSession();
-            buildAndWarmWideTable(10, false, 30, Optional.empty());
+        Session jmxSession = createJmxSession();
+        buildAndWarmWideTable(10, false, 30, Optional.empty());
 
-            MaterializedResult jmx0 = computeActual(
-                    jmxSession,
-                    "select sum(currentUsage), sum(totalUsage) from \"%s*%s\"".formatted(
-                            VaradaStatsWarmupDemoter.class.getPackageName(),
-                            VaradaStatsWarmupDemoter.class.getSimpleName().toLowerCase(Locale.ROOT)));
-            long jmxUsageStart = (long) jmx0.getMaterializedRows().getFirst().getField(0);
-            long jmxTotalUsage = (long) jmx0.getMaterializedRows().getFirst().getField(1);
-            assertThat(jmxTotalUsage).isEqualTo(totalUsage);
-            warmupDemoterData = WarmupDemoterData.builder()
-                    .batchSize(2)
-                    .executeDemoter(true)
-                    .warmupDemoterThreshold(new WarmupDemoterThreshold(0.95, 0.7))
-                    .build();
+        MaterializedResult jmx0 = computeActual(
+                jmxSession,
+                "select sum(currentUsage), sum(totalUsage) from \"%s*%s\"".formatted(
+                        VaradaStatsWarmupDemoter.class.getPackageName(),
+                        VaradaStatsWarmupDemoter.class.getSimpleName().toLowerCase(Locale.ROOT)));
+        long jmxUsageStart = (long) jmx0.getMaterializedRows().getFirst().getField(0);
+        long jmxTotalUsage = (long) jmx0.getMaterializedRows().getFirst().getField(1);
+        assertThat(jmxTotalUsage).isEqualTo(totalUsage);
+        warmupDemoterData = WarmupDemoterData.builder()
+                .batchSize(2)
+                .executeDemoter(true)
+                .warmupDemoterThreshold(new WarmupDemoterThreshold(0.95, 0.7))
+                .build();
 
-            res = demote(warmupDemoterData);
+        res = demote(warmupDemoterData);
 
-            MaterializedResult jmx1 = computeActual(
-                    jmxSession,
-                    "select sum(currentUsage) from \"%s*%s\"".formatted(
-                            VaradaStatsWarmupDemoter.class.getPackageName(),
-                            VaradaStatsWarmupDemoter.class.getSimpleName().toLowerCase(Locale.ROOT)));
-            long jmxUsageEnd = (long) jmx1.getMaterializedRows().getFirst().getField(0);
-            assertThat(jmxUsageEnd).isLessThan(jmxUsageStart);
-            Integer deadObjectsDeletedCount = (Integer) res.entrySet()
-                    .stream()
-                    .filter(entry -> entry.getKey().endsWith("dead_objects_deleted"))
-                    .findAny()
-                    .orElseThrow()
-                    .getValue();
-            Integer deletedByLowPriorityCount = (Integer) res.entrySet()
-                    .stream()
-                    .filter(entry -> entry.getKey().endsWith("deleted_by_low_priority"))
-                    .findAny()
-                    .orElseThrow()
-                    .getValue();
-            Double highestPriority = (Double) res.entrySet()
-                    .stream()
-                    .filter(entry -> entry.getKey().endsWith(WorkerWarmupDemoterTask.HIGHEST_PRIORITY_KEY))
-                    .findAny()
-                    .orElseThrow()
-                    .getValue();
-            currentUsage = ((Number) res.entrySet()
-                    .stream()
-                    .filter(entry -> entry.getKey().contains(WorkerWarmupDemoterTask.CURRENT_USAGE_THRESHOLD_KEY))
-                    .findAny()
-                    .orElseThrow()
-                    .getValue())
-                    .longValue();
-            long totalUsageEnd = ((Number) res.entrySet()
-                    .stream()
-                    .filter(entry -> entry.getKey().contains(WorkerWarmupDemoterTask.TOTAL_USAGE_THRESHOLD_KEY))
-                    .findAny()
-                    .orElseThrow()
-                    .getValue())
-                    .longValue();
-            assertThat(totalUsage).isEqualTo(totalUsageEnd);
-            assertThat(currentUsage).isEqualTo(jmxUsageEnd);
-            assertThat(deletedByLowPriorityCount).isGreaterThan(1);
-            assertThat(deadObjectsDeletedCount).isGreaterThan(1);
-            assertThat(highestPriority).isLessThan(7.5);
-        }
-        finally {
-            computeActual("DROP TABLE IF EXISTS " + WIDE_TABLE_NAME);
-        }
+        MaterializedResult jmx1 = computeActual(
+                jmxSession,
+                "select sum(currentUsage) from \"%s*%s\"".formatted(
+                        VaradaStatsWarmupDemoter.class.getPackageName(),
+                        VaradaStatsWarmupDemoter.class.getSimpleName().toLowerCase(Locale.ROOT)));
+        long jmxUsageEnd = (long) jmx1.getMaterializedRows().getFirst().getField(0);
+        assertThat(jmxUsageEnd).isLessThan(jmxUsageStart);
+        Integer deadObjectsDeletedCount = (Integer) res.entrySet()
+                .stream()
+                .filter(entry -> entry.getKey().endsWith("dead_objects_deleted"))
+                .findAny()
+                .orElseThrow()
+                .getValue();
+        Integer deletedByLowPriorityCount = (Integer) res.entrySet()
+                .stream()
+                .filter(entry -> entry.getKey().endsWith("deleted_by_low_priority"))
+                .findAny()
+                .orElseThrow()
+                .getValue();
+        Double highestPriority = (Double) res.entrySet()
+                .stream()
+                .filter(entry -> entry.getKey().endsWith(WorkerWarmupDemoterTask.HIGHEST_PRIORITY_KEY))
+                .findAny()
+                .orElseThrow()
+                .getValue();
+        currentUsage = ((Number) res.entrySet()
+                .stream()
+                .filter(entry -> entry.getKey().contains(WorkerWarmupDemoterTask.CURRENT_USAGE_THRESHOLD_KEY))
+                .findAny()
+                .orElseThrow()
+                .getValue())
+                .longValue();
+        long totalUsageEnd = ((Number) res.entrySet()
+                .stream()
+                .filter(entry -> entry.getKey().contains(WorkerWarmupDemoterTask.TOTAL_USAGE_THRESHOLD_KEY))
+                .findAny()
+                .orElseThrow()
+                .getValue())
+                .longValue();
+        assertThat(totalUsage).isEqualTo(totalUsageEnd);
+        assertThat(currentUsage).isEqualTo(jmxUsageEnd);
+        assertThat(deletedByLowPriorityCount).isGreaterThan(1);
+        assertThat(deadObjectsDeletedCount).isGreaterThan(1);
+        assertThat(highestPriority).isLessThan(7.5);
     }
 
     @Test
     public void testWarmupDemoteAutomatic()
             throws IOException
     {
-        try {
-            Session jmxSession = createJmxSession();
-            MaterializedResult jmx0 = computeActual(
-                    jmxSession,
-                    "select sum(number_of_runs), sum(deleted_by_low_priority) from \"%s*%s\"".formatted(
-                            VaradaStatsWarmupDemoter.class.getPackageName(),
-                            VaradaStatsWarmupDemoter.class.getSimpleName().toLowerCase(Locale.ROOT)));
-            long numOfRuns0 = (long) jmx0.getMaterializedRows().getFirst().getField(0);
-            long numberOfDeletedByLowPrio0 = (long) jmx0.getMaterializedRows().getFirst().getField(1);
-            buildAndWarmWideTable(10, true, 30, Optional.empty());
-            WarmupDemoterData warmupDemoterData = WarmupDemoterData.builder()
-                    .batchSize(2)
-                    .executeDemoter(false)
-                    .modifyConfiguration(true)
-                    .warmupDemoterThreshold(new WarmupDemoterThreshold(0.95, 0.6))
-                    .build();
-            demote(warmupDemoterData);
+        Session jmxSession = createJmxSession();
+        MaterializedResult jmx0 = computeActual(
+                jmxSession,
+                "select sum(number_of_runs), sum(deleted_by_low_priority) from \"%s*%s\"".formatted(
+                        VaradaStatsWarmupDemoter.class.getPackageName(),
+                        VaradaStatsWarmupDemoter.class.getSimpleName().toLowerCase(Locale.ROOT)));
+        long numOfRuns0 = (long) jmx0.getMaterializedRows().getFirst().getField(0);
+        long numberOfDeletedByLowPrio0 = (long) jmx0.getMaterializedRows().getFirst().getField(1);
+        buildAndWarmWideTable(10, true, 30, Optional.empty());
+        WarmupDemoterData warmupDemoterData = WarmupDemoterData.builder()
+                .batchSize(2)
+                .executeDemoter(false)
+                .modifyConfiguration(true)
+                .warmupDemoterThreshold(new WarmupDemoterThreshold(0.95, 0.6))
+                .build();
+        demote(warmupDemoterData);
 
-            MaterializedResult jmx1 = computeActual(
+        MaterializedResult jmx1 = computeActual(
+                jmxSession,
+                "select sum(number_of_runs), sum(deleted_by_low_priority), sum(number_of_calls), sum(number_of_runs_fail) from \"%s*%s\"".formatted(
+                        VaradaStatsWarmupDemoter.class.getPackageName(),
+                        VaradaStatsWarmupDemoter.class.getSimpleName().toLowerCase(Locale.ROOT)));
+        long numOfRuns1 = (long) jmx1.getMaterializedRows().getFirst().getField(0);
+        long numberOfDeletedByLowPrio1 = (long) jmx1.getMaterializedRows().getFirst().getField(1);
+        long numberOfCalls = (long) jmx1.getMaterializedRows().getFirst().getField(2);
+        long numberOfFails = (long) jmx1.getMaterializedRows().getFirst().getField(3);
+        assertThat(numOfRuns0).isEqualTo(numOfRuns1);
+        assertThat(numberOfDeletedByLowPrio0).isEqualTo(numberOfDeletedByLowPrio1);
+        computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomishlomishlomi')");
+        warmAndValidateLazyDemote("select * from t", true);
+        runWithRetries(() -> {
+            MaterializedResult jmx2 = computeActual(
                     jmxSession,
                     "select sum(number_of_runs), sum(deleted_by_low_priority), sum(number_of_calls), sum(number_of_runs_fail) from \"%s*%s\"".formatted(
                             VaradaStatsWarmupDemoter.class.getPackageName(),
                             VaradaStatsWarmupDemoter.class.getSimpleName().toLowerCase(Locale.ROOT)));
-            long numOfRuns1 = (long) jmx1.getMaterializedRows().getFirst().getField(0);
-            long numberOfDeletedByLowPrio1 = (long) jmx1.getMaterializedRows().getFirst().getField(1);
-            long numberOfCalls = (long) jmx1.getMaterializedRows().getFirst().getField(2);
-            long numberOfFails = (long) jmx1.getMaterializedRows().getFirst().getField(3);
-            assertThat(numOfRuns0).isEqualTo(numOfRuns1);
-            assertThat(numberOfDeletedByLowPrio0).isEqualTo(numberOfDeletedByLowPrio1);
-            computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomishlomishlomi')");
-            warmAndValidateLazyDemote("select * from t", true);
-            runWithRetries(() -> {
-                MaterializedResult jmx2 = computeActual(
-                        jmxSession,
-                        "select sum(number_of_runs), sum(deleted_by_low_priority), sum(number_of_calls), sum(number_of_runs_fail) from \"%s*%s\"".formatted(
-                                VaradaStatsWarmupDemoter.class.getPackageName(),
-                                VaradaStatsWarmupDemoter.class.getSimpleName().toLowerCase(Locale.ROOT)));
-                long numOfRuns2 = (long) jmx2.getMaterializedRows().getFirst().getField(0);
-                long numberOfCalls2 = (long) jmx2.getMaterializedRows().getFirst().getField(2);
-                long numberOfFails2 = (long) jmx2.getMaterializedRows().getFirst().getField(3);
-                assertThat(numberOfFails2).isEqualTo(numberOfFails);
-                assertThat(numberOfCalls2).isGreaterThan(numberOfCalls);
-                assertThat(numOfRuns2 - 1).isEqualTo(numOfRuns1);
-            });
-        }
-        finally {
-            computeActual("DROP TABLE IF EXISTS " + WIDE_TABLE_NAME);
-        }
+            long numOfRuns2 = (long) jmx2.getMaterializedRows().getFirst().getField(0);
+            long numberOfCalls2 = (long) jmx2.getMaterializedRows().getFirst().getField(2);
+            long numberOfFails2 = (long) jmx2.getMaterializedRows().getFirst().getField(3);
+            assertThat(numberOfFails2).isEqualTo(numberOfFails);
+            assertThat(numberOfCalls2).isGreaterThan(numberOfCalls);
+            assertThat(numOfRuns2 - 1).isEqualTo(numOfRuns1);
+        });
     }
 
     @Test
-    public void test_export()
+    public void testExport()
             throws IOException
     {
-        try {
-            final String schemaName = "varada";
-            final String tableName = "ext";
-            assertUpdate("CREATE SCHEMA " + schemaName);
-            computeActual(format("CREATE TABLE %s.%s(c1 varchar, c2 varchar, c3 varchar) WITH (format='PARQUET', partitioned_by = ARRAY[])", schemaName, tableName));
-            computeActual(getSession(), format("INSERT INTO %s.%s VALUES ('import', 'export', 'test')", schemaName, tableName));
-            createWarmupRules(schemaName,
-                    tableName,
-                    Map.of("c1",
-                            Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL),
-                                    new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL),
-                                    new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_LUCENE, DEFAULT_PRIORITY, DEFAULT_TTL)),
-                            "c2",
-                            Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL),
-                                    new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_LUCENE, DEFAULT_PRIORITY, DEFAULT_TTL))));
-            Session session = Session.builder(getSession())
-                    .setSystemProperty(catalog + ".enable_import_export", "true")
-                    .build();
-            int expectedWarmupElements = 5;
-            warmAndValidateWithExport(format("select count(c1), count(c2) from %s.%s", schemaName, tableName),
-                    session,
-                    expectedWarmupElements,
-                    1,
-                    1);
-        }
-        finally {
-            computeActual("DROP TABLE IF EXISTS varada.ext");
-        }
+        final String schemaName = "varada";
+        final String tableName = "ext";
+        createSchemaAndTable(
+                schemaName,
+                tableName,
+                "(c1 varchar, c2 varchar, c3 varchar) WITH (format='PARQUET', partitioned_by = ARRAY[])");
+        computeActual(getSession(), format("INSERT INTO %s.%s VALUES ('import', 'export', 'test')", schemaName, tableName));
+        createWarmupRules(schemaName,
+                tableName,
+                Map.of("c1",
+                        Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL),
+                                new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL),
+                                new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_LUCENE, DEFAULT_PRIORITY, DEFAULT_TTL)),
+                        "c2",
+                        Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL),
+                                new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_LUCENE, DEFAULT_PRIORITY, DEFAULT_TTL))));
+        Session session = Session.builder(getSession())
+                .setSystemProperty(catalog + ".enable_import_export", "true")
+                .build();
+        int expectedWarmupElements = 5;
+        warmAndValidateWithExport(format("select count(c1), count(c2) from %s.%s", schemaName, tableName),
+                session,
+                expectedWarmupElements,
+                1,
+                1);
     }
 
     @Test
     public void testWarmupDemoterWithFilterShouldDemoteOnlyByTable()
             throws IOException
     {
-        try {
-            int numberOfColumns = 3;
-            int expectedElementCount = 9;
-            buildAndWarmWideTable(numberOfColumns, false, expectedElementCount, Optional.empty());
+        int numberOfColumns = 3;
+        int expectedElementCount = 9;
+        buildAndWarmWideTable(numberOfColumns, false, expectedElementCount, Optional.empty());
 
-            List<WarmupDemoterWarmupElementData> warmupDemoterWarmupElementDataList = new ArrayList<>(expectedElementCount);
-            IntStream.range(0, numberOfColumns).forEach(columnId -> {
-                warmupDemoterWarmupElementDataList.add(new WarmupDemoterWarmupElementData("c0" + columnId, Collections.emptyList()));
-                warmupDemoterWarmupElementDataList.add(new WarmupDemoterWarmupElementData("c1" + columnId, Collections.emptyList()));
-                warmupDemoterWarmupElementDataList.add(new WarmupDemoterWarmupElementData("c2" + columnId, Collections.emptyList()));
-            });
-            WarmupDemoterData warmupDemoterData = WarmupDemoterData.builder()
-                    .maxUsageThresholdInPercentage(31d)
-                    .cleanupUsageThresholdInPercentage(21d)
-                    .batchSize(10)
-                    .executeDemoter(true)
-                    .forceExecuteDeadObjects(true)
-                    .schemaTableName(new SchemaTableName(DEFAULT_SCHEMA, WIDE_TABLE_NAME))
-                    .warmupElementsData(warmupDemoterWarmupElementDataList)
-                    .resetHighestPriority(true)
-                    .build();
-            Map<String, Object> res = demote(warmupDemoterData);
-            Integer deadObjectsDeletedCount = (Integer) res.entrySet()
-                    .stream()
-                    .filter(entry -> entry.getKey().endsWith("dead_objects_deleted"))
-                    .findAny()
-                    .orElseThrow()
-                    .getValue();
-            Integer deletedByLowPriorityCount = (Integer) res.entrySet()
-                    .stream()
-                    .filter(entry -> entry.getKey().endsWith("deleted_by_low_priority"))
-                    .findAny()
-                    .orElseThrow()
-                    .getValue();
-            Double highestPriority = (Double) res.entrySet()
-                    .stream()
-                    .filter(entry -> entry.getKey().endsWith(WorkerWarmupDemoterTask.HIGHEST_PRIORITY_KEY))
-                    .findAny()
-                    .orElseThrow()
-                    .getValue();
-            assertThat(highestPriority).isEqualTo(0);
-            assertThat(deadObjectsDeletedCount).isEqualTo(9);
-            assertThat(deletedByLowPriorityCount).isEqualTo(0);
-        }
-        finally {
-            computeActual("DROP TABLE IF EXISTS " + WIDE_TABLE_NAME);
-        }
+        List<WarmupDemoterWarmupElementData> warmupDemoterWarmupElementDataList = new ArrayList<>(expectedElementCount);
+        IntStream.range(0, numberOfColumns).forEach(columnId -> {
+            warmupDemoterWarmupElementDataList.add(new WarmupDemoterWarmupElementData("c0" + columnId, Collections.emptyList()));
+            warmupDemoterWarmupElementDataList.add(new WarmupDemoterWarmupElementData("c1" + columnId, Collections.emptyList()));
+            warmupDemoterWarmupElementDataList.add(new WarmupDemoterWarmupElementData("c2" + columnId, Collections.emptyList()));
+        });
+        WarmupDemoterData warmupDemoterData = WarmupDemoterData.builder()
+                .maxUsageThresholdInPercentage(31d)
+                .cleanupUsageThresholdInPercentage(21d)
+                .batchSize(10)
+                .executeDemoter(true)
+                .forceExecuteDeadObjects(true)
+                .schemaTableName(new SchemaTableName(DEFAULT_SCHEMA, WIDE_TABLE_NAME))
+                .warmupElementsData(warmupDemoterWarmupElementDataList)
+                .resetHighestPriority(true)
+                .build();
+        Map<String, Object> res = demote(warmupDemoterData);
+        Integer deadObjectsDeletedCount = (Integer) res.entrySet()
+                .stream()
+                .filter(entry -> entry.getKey().endsWith("dead_objects_deleted"))
+                .findAny()
+                .orElseThrow()
+                .getValue();
+        Integer deletedByLowPriorityCount = (Integer) res.entrySet()
+                .stream()
+                .filter(entry -> entry.getKey().endsWith("deleted_by_low_priority"))
+                .findAny()
+                .orElseThrow()
+                .getValue();
+        Double highestPriority = (Double) res.entrySet()
+                .stream()
+                .filter(entry -> entry.getKey().endsWith(WorkerWarmupDemoterTask.HIGHEST_PRIORITY_KEY))
+                .findAny()
+                .orElseThrow()
+                .getValue();
+        assertThat(highestPriority).isEqualTo(0);
+        assertThat(deadObjectsDeletedCount).isEqualTo(9);
+        assertThat(deletedByLowPriorityCount).isEqualTo(0);
     }
 
     @Test
     public void testSimpleWarmupSyncDemoter()
             throws IOException
     {
-        try {
-            buildAndWarmWideTable(3, false, 9, Optional.of(Duration.ofMinutes(0)));
-            WarmupDemoterData warmupDemoterData = WarmupDemoterData.builder()
-                    .maxUsageThresholdInPercentage(31d)
-                    .cleanupUsageThresholdInPercentage(21d)
-                    .batchSize(10)
-                    .executeDemoter(true)
-                    .forceExecuteDeadObjects(true)
-                    .forceDeleteFailedObjects(true)
-                    .modifyConfiguration(true)
-                    .build();
-            Map<String, Object> res = demote(warmupDemoterData);
+        buildAndWarmWideTable(3, false, 9, Optional.of(Duration.ofMinutes(0)));
+        WarmupDemoterData warmupDemoterData = WarmupDemoterData.builder()
+                .maxUsageThresholdInPercentage(31d)
+                .cleanupUsageThresholdInPercentage(21d)
+                .batchSize(10)
+                .executeDemoter(true)
+                .forceExecuteDeadObjects(true)
+                .forceDeleteFailedObjects(true)
+                .modifyConfiguration(true)
+                .build();
+        Map<String, Object> res = demote(warmupDemoterData);
 
-            Integer deadObjectsDeletedCount = (Integer) res.entrySet()
-                    .stream()
-                    .filter(entry -> entry.getKey().endsWith("dead_objects_deleted"))
-                    .findAny()
-                    .orElseThrow()
-                    .getValue();
-            Integer deletedByLowPriorityCount = (Integer) res.entrySet()
-                    .stream()
-                    .filter(entry -> entry.getKey().endsWith("deleted_by_low_priority"))
-                    .findAny()
-                    .orElseThrow()
-                    .getValue();
-            assertThat(deadObjectsDeletedCount).isEqualTo(9);
-            assertThat(deletedByLowPriorityCount).isEqualTo(0);
-        }
-        finally {
-            computeActual("DROP TABLE IF EXISTS " + WIDE_TABLE_NAME);
-        }
+        Integer deadObjectsDeletedCount = (Integer) res.entrySet()
+                .stream()
+                .filter(entry -> entry.getKey().endsWith("dead_objects_deleted"))
+                .findAny()
+                .orElseThrow()
+                .getValue();
+        Integer deletedByLowPriorityCount = (Integer) res.entrySet()
+                .stream()
+                .filter(entry -> entry.getKey().endsWith("deleted_by_low_priority"))
+                .findAny()
+                .orElseThrow()
+                .getValue();
+        assertThat(deadObjectsDeletedCount).isEqualTo(9);
+        assertThat(deletedByLowPriorityCount).isEqualTo(0);
     }
 
     @Test
     public void testWarmUnsupportedColTypes()
     {
-        assertUpdate("CREATE TABLE schema.test_table(" +
-                "intCol integer, " +
-                "rowCol ROW(latitudedeg varchar, longitudedeg double), " +
-                "mapCol MAP(varchar(3), integer), " +
-                "arrayCol ARRAY(integer))");
+        createTable("schema",
+                "test_table",
+                "(intCol integer, rowCol ROW(latitudedeg varchar, longitudedeg double), " +
+                        "mapCol MAP(varchar(3), integer), " +
+                        "arrayCol ARRAY(integer))");
         computeActual("INSERT INTO schema.test_table select " +
                 "7, " +
                 "CAST(ROW('x', 4.5) AS ROW(latitudedeg varchar, longitudedeg double)), " +
@@ -3508,15 +3533,14 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 .build();
         warmAndValidate("select intCol, rowCol, mapCol, arrayCol from schema.test_table where rowCol.latitudedeg = 'x' and rowCol.longitudedeg > 2", session, 6, 1, 0);
         computeActual("select count(rowCol.latitudedeg), count(rowCol.longitudedeg) from schema.test_table where rowCol.latitudedeg = 'x'");
-        assertUpdate("DROP TABLE test_table");
     }
 
     @Test
     public void testWarmInternalRowFields()
             throws IOException
     {
-        assertUpdate("CREATE TABLE schema.test_table(" +
-                "rowCol ROW(latitudedeg varchar, longitudedeg double))");
+        createTable("schema", "test_table",
+                "(rowCol ROW(latitudedeg varchar, longitudedeg double))");
         computeActual("INSERT INTO schema.test_table select " +
                 "CAST(ROW('x', 4.5) AS ROW(latitudedeg varchar, longitudedeg double))");
 
@@ -3538,15 +3562,13 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         MaterializedResult materializedRows = computeActual(session, "select rowCol.latitudedeg, rowCol.longitudedeg from schema.test_table where rowCol.latitudedeg = 'x'");
         assertThat(materializedRows.getRowCount()).isEqualTo(0); //return 0 because we don't have native, just to check the init of reader
-
-        assertUpdate("DROP TABLE test_table");
     }
 
     @Test
-    public void testNeverRuleShouldNotWarmUnsupportColumnType()
+    public void testNeverRuleShouldNotWarmUnSupportColumnType()
             throws IOException
     {
-        computeActual("CREATE TABLE bbb (a ARRAY(ROW(b integer, c varchar)), d varchar) WITH (format='PARQUET', partitioned_by = ARRAY['d'])");
+        createTable(DEFAULT_SCHEMA, "bbb", "(a ARRAY(ROW(b integer, c varchar)), d varchar) WITH (format='PARQUET', partitioned_by = ARRAY['d'])");
         computeActual("INSERT INTO bbb values (array[row(1, 'abc')], 'a')");
         Map<String, Set<WarmupPropertiesData>> rules = new HashMap<>();
         rules.put("a", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, NEVER_PRIORITY, DEFAULT_TTL),
@@ -3563,7 +3585,6 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         String str = executeRestCommand(RowGroupTask.ROW_GROUP_PATH, RowGroupTask.ROW_GROUP_COUNT_WITH_FILES_TASK_NAME, null, HttpMethod.GET, HttpURLConnection.HTTP_OK);
         result = objectMapper.readerFor(RowGroupCountResult.class).readValue(str);
         assertThat(result.warmupColumnNames()).containsExactly("schema.bbb.d.WARM_UP_TYPE_DATA");
-        computeActual("DROP TABLE bbb");
     }
 
     /**
@@ -3573,9 +3594,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     public void testExportedDictionaries()
     {
         String tableName = "dictionary_exporter_test";
-        computeActual(format("CREATE TABLE  %s (int1 bigint)", tableName));
-        computeActual(getSession(), "INSERT INTO dictionary_exporter_test VALUES (1)"); //split1
-        computeActual(getSession(), "INSERT INTO dictionary_exporter_test VALUES (1)"); //split2
+        createTable(DEFAULT_SCHEMA, tableName, "(int1 bigint)");
+        computeActual(getSession(), "INSERT INTO %s VALUES (1)".formatted(tableName)); //split1
+        computeActual(getSession(), "INSERT INTO %s VALUES (1)".formatted(tableName)); //split2
 
         Session session = Session.builder(getSession())
                 .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, Boolean.toString(true))
@@ -3590,13 +3611,12 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         long beforeDictionaryMaxExceptionCount = (long) dictionaryStats.getMaterializedRows().getFirst().getField(0);
         long beforeWriteDictionaryCount = (long) dictionaryStats.getMaterializedRows().getFirst().getField(1);
         long expectedReadDictionaryCount = (long) dictionaryStats.getMaterializedRows().getFirst().getField(2);
-        warmAndValidateWithExport("select * from dictionary_exporter_test",
+        warmAndValidateWithExport("select * from %s".formatted(tableName),
                 session,
                 expectedWarmupElements,
                 expectedWarmFinished,
                 expectedExportRowGroupsAccomplished);
         validateDictionaryStats(jmxSession, beforeDictionaryMaxExceptionCount, beforeWriteDictionaryCount + createdDictionaries, expectedReadDictionaryCount);
-        computeActual("DROP TABLE dictionary_exporter_test");
     }
 
     @Test
@@ -3604,9 +3624,11 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
             throws IOException
     {
         String tableName = "dictionary_test_1";
-        computeActual(format("CREATE TABLE  %s (bingint1 bigint, var1 varchar, char1 char(5), int1 integer, shortdecimal decimal(2,1))", tableName));
+        createTable(DEFAULT_SCHEMA,
+                tableName,
+                "(bingint1 bigint, var1 varchar, char1 char(5), int1 integer, shortdecimal decimal(2,1))");
 
-        computeActual(getSession(), "INSERT INTO dictionary_test_1 VALUES (1, 'tzachi', 'bla', 2, 3)");
+        computeActual(getSession(), "INSERT INTO %s VALUES (1, 'tzachi', 'bla', 2, 3)".formatted(tableName));
 
         Session session = Session.builder(getSession())
                 .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, Boolean.toString(true))
@@ -3619,7 +3641,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         long beforeWriteDictionaryCount = (long) dictionaryStats.getMaterializedRows().getFirst().getField(1);
         long expectedReadDictionaryCount = (long) dictionaryStats.getMaterializedRows().getFirst().getField(2);
 //        int beforeWarmDictionaryUsage = getDictionariesUsage();
-        warmAndValidateWithExport("select * from dictionary_test_1",
+        warmAndValidateWithExport("select * from %s".formatted(tableName),
                 session,
                 createdDictionaries,
                 1,
@@ -3668,10 +3690,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         beforeDictionaryMaxExceptionCount = (long) dictionaryStats.getMaterializedRows().getFirst().getField(0);
         beforeWriteDictionaryCount = (long) dictionaryStats.getMaterializedRows().getFirst().getField(1);
         long beforeReadDictionaryCount = (long) dictionaryStats.getMaterializedRows().getFirst().getField(2);
-        MaterializedResult materializedRows = computeActual(getSession(), "select * from dictionary_test_1");
+        MaterializedResult materializedRows = computeActual(getSession(), "select * from %s".formatted(tableName));
         validateDictionaryStats(jmxSession, beforeDictionaryMaxExceptionCount, beforeWriteDictionaryCount, beforeReadDictionaryCount + createdDictionaries);
         assertThat(materializedRows.getRowCount()).isEqualTo(0);
-        computeActual("DROP TABLE dictionary_test_1");
     }
 
     @Disabled
@@ -3682,12 +3703,12 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         int maxSize = 3;
         int numberOfExpectedWriteDictionaries = 2;
         String tableName = "dictionary_test_2";
-        computeActual(format("CREATE TABLE %s (int1 bigint, var varchar)", tableName));
+        createTable(DEFAULT_SCHEMA, tableName, "(int1 bigint, var varchar)");
         // one row group per successfully dictionary key + one to fail
-        computeActual(getSession(), "INSERT INTO dictionary_test_2 VALUES (1, 'tzachi1')");
-        computeActual(getSession(), "INSERT INTO dictionary_test_2 VALUES (2, 'tzachi2')");
-        computeActual(getSession(), "INSERT INTO dictionary_test_2 VALUES (3, 'tzachi3')");
-        computeActual(getSession(), "INSERT INTO dictionary_test_2 VALUES (4, 'tzachi4')");
+        computeActual(getSession(), "INSERT INTO %s VALUES (1, 'tzachi1')".formatted(tableName));
+        computeActual(getSession(), "INSERT INTO %s VALUES (2, 'tzachi2')".formatted(tableName));
+        computeActual(getSession(), "INSERT INTO %s VALUES (3, 'tzachi3')".formatted(tableName));
+        computeActual(getSession(), "INSERT INTO %s VALUES (4, 'tzachi4')".formatted(tableName));
 
         Session session = Session.builder(getSession())
                 .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, Boolean.toString(true))
@@ -3698,7 +3719,11 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         long beforeWriteDictionaryCount = (long) dictionaryStats.getMaterializedRows().getFirst().getField(1);
         long expectedReadDictionaryCount = (long) dictionaryStats.getMaterializedRows().getFirst().getField(2);
         int expectedFailures = 2;
-        warmAndValidate("select * from dictionary_test_2", session, 8, 5, expectedFailures);
+        warmAndValidate("select * from %s".formatted(tableName),
+                session,
+                8,
+                5,
+                expectedFailures);
         long expectedDictionaryWriteCount = beforeWriteDictionaryCount + expectedFailures;
         validateDictionaryStats(jmxSession, beforeDictionaryMaxExceptionCount + expectedFailures, expectedDictionaryWriteCount, expectedReadDictionaryCount);
         String executeRestCommand = executeRestCommand(DictionaryTask.DICTIONARY_PATH, DictionaryTask.DICTIONARY_COUNT_AGGREGATED_TASK_NAME, null, HttpMethod.POST, HttpURLConnection.HTTP_OK);
@@ -3723,7 +3748,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         beforeDictionaryMaxExceptionCount = (long) dictionaryStats.getMaterializedRows().getFirst().getField(0);
         beforeWriteDictionaryCount = (long) dictionaryStats.getMaterializedRows().getFirst().getField(1);
         long beforeReadDictionaryCount = (long) dictionaryStats.getMaterializedRows().getFirst().getField(2);
-        MaterializedResult materializedRows = computeActual(getSession(), "select * from dictionary_test_2");
+        MaterializedResult materializedRows = computeActual(getSession(), "select * from %s".formatted(tableName));
         int expectedValidDictionaries = 3 * 2; //3 rowGroups each one use 2 dictionaries
         validateDictionaryStats(jmxSession, beforeDictionaryMaxExceptionCount, beforeWriteDictionaryCount, beforeReadDictionaryCount + expectedValidDictionaries);
         assertThat(materializedRows.getRowCount()).isEqualTo(0);
@@ -3731,8 +3756,6 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         //reset dictionaries
         String dictionariesReset = executeRestCommand(DictionaryTask.DICTIONARY_PATH, DictionaryTask.DICTIONARY_RESET_MEMORY_TASK_NAME, null, HttpMethod.POST, HttpURLConnection.HTTP_OK);
         assertThat(Integer.valueOf(dictionariesReset.trim())).isEqualTo(numberOfExpectedWriteDictionaries);
-
-        computeActual(format("DROP TABLE %s", tableName));
     }
 
     @Test
@@ -3742,14 +3765,18 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     {
         String tableName = "dictionary_test_3";
         String var = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-        computeActual(format("CREATE TABLE %s (int1 bigint, var1 varchar, var2 varchar, var3 varchar)", tableName));
+        createTable(DEFAULT_SCHEMA, tableName, "(int1 bigint, var1 varchar, var2 varchar, var3 varchar)");
         computeActual(getSession(), format("INSERT INTO %s VALUES (1, '%s', '%s', '%s')", tableName, var + "0", var + "00", var + "00"));
 
         Session session = Session.builder(getSession())
                 .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, Boolean.toString(true))
                 .build();
         Session jmxSession = createJmxSession();
-        warmAndValidate("select * from dictionary_test_3", session, 4, 1, 0);
+        warmAndValidate("select * from %s".formatted(tableName),
+                session,
+                4,
+                1,
+                0);
 
         computeActual(getSession(), format("INSERT INTO %s VALUES (2, '%s', '%s', '%s')", tableName, var + "1", var + "10", var + "10"));
         computeActual(getSession(), format("INSERT INTO %s VALUES (3, '%s', '%s', '%s')", tableName, var + "2", var + "20", var + "20"));
@@ -3764,7 +3791,11 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 .readValue(executeRestCommand(DictionaryTask.DICTIONARY_PATH, DictionaryTask.DICTIONARY_GET_CONFIGURATION, null, HttpMethod.GET, HttpURLConnection.HTTP_OK));
         assertThat(configurationResults.values().stream().findAny().orElseThrow().getMaxDictionaryTotalCacheWeight()).isEqualTo(300);
         assertThat(configurationResults.values().stream().findAny().orElseThrow().getConcurrency()).isEqualTo(1);
-        warmAndValidate("select * from dictionary_test_3", session, 8, 2, 0);
+        warmAndValidate("select * from %s".formatted(tableName),
+                session,
+                8,
+                2,
+                0);
         MaterializedResult dictionaryStats = computeActual(jmxSession, "select sum(dictionary_evicted_entries), sum(dictionary_active_size), sum(dictionaries_weight), sum(dictionary_entries), sum(write_dictionaries_count) from \"*dictionary*\"");
         MaterializedRow stats = dictionaryStats.getMaterializedRows().getFirst();
         assertThat((long) stats.getField(0)).isEqualTo(1); //dictionary_evicted_entries
@@ -3773,7 +3804,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         assertThat((long) stats.getField(3)).isEqualTo(3); // dictionary_entries
 
         //we run query on int 1 - so var will be evicted
-        computeActual(getSession(), "select int1 from dictionary_test_3");
+        computeActual(getSession(), "select int1 from %s".formatted(tableName));
         dictionaryStats = computeActual(jmxSession, "select sum(dictionary_evicted_entries), sum(dictionary_active_size), sum(dictionaries_weight), sum(dictionaries_varlen_str_weight), sum(dictionary_entries), sum(write_dictionaries_count) from \"*dictionary*\"");
         MaterializedRow statsAfterWarmInt = dictionaryStats.getMaterializedRows().getFirst();
         assertThat((long) statsAfterWarmInt.getField(1)).isEqualTo(0); // dictionary_active_size
@@ -3783,11 +3814,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         assertThat(cacheTotalSize).isGreaterThan(cacheTotalStrSize); // dictionary_entries
         Map<String, Map<String, Integer>> cachedValues = objectMapper.readerFor(new TypeReference<Map<String, Map<String, Long>>>() {})
                 .readValue(executeRestCommand(DictionaryTask.DICTIONARY_PATH, DictionaryTask.DICTIONARY_GET_CACHE_KEYS, null, HttpMethod.GET, HttpURLConnection.HTTP_OK));
-        assertThat(cachedValues.values().stream().findAny().orElseThrow()).containsKey("schema.dictionary_test_3.int1");
+        assertThat(cachedValues.values().stream().findAny().orElseThrow()).containsKey("%s.%s.int1".formatted(DEFAULT_SCHEMA, tableName));
         //reset dictionaries
         executeRestCommand(DictionaryTask.DICTIONARY_PATH, DictionaryTask.DICTIONARY_RESET_MEMORY_TASK_NAME, null, HttpMethod.POST, HttpURLConnection.HTTP_OK);
-
-        computeActual(format("DROP TABLE %s", tableName));
     }
 
     /**
@@ -3861,7 +3890,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     public void testPrefill()
             throws IOException
     {
-        computeActual("CREATE TABLE table_with_nulls (c_char varchar, c_null varchar, c_partition varchar) WITH (format='PARQUET', partitioned_by = ARRAY['c_partition'])");
+        createTable(DEFAULT_SCHEMA,
+                "table_with_nulls",
+                "(c_char varchar, c_null varchar, c_partition varchar) WITH (format='PARQUET', partitioned_by = ARRAY['c_partition'])");
         computeActual("INSERT INTO table_with_nulls values ('a', NULL, 'a_p')");
 //        computeActual("INSERT INTO table_with_nulls values ('b', NULL, 'b_p')");
 
@@ -3917,7 +3948,6 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "varada_match_columns", 0L,
                 "external_match_columns", 0L);
         validateQueryStats(query, getSession(), expectedQueryStats);
-        computeActual("DROP TABLE table_with_nulls");
     }
 
     @Test
@@ -4138,104 +4168,97 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     @Test
     public void testAlternatives()
     {
-        try {
-            computeActual("CREATE TABLE table1(id1 integer)");
-            computeActual("INSERT INTO table1 VALUES(2)");
+        createTable(DEFAULT_SCHEMA, "table1", "(id1 integer)");
+        computeActual("INSERT INTO table1 VALUES(2)");
 
-            warmAndValidate("SELECT * from table1 WHERE id1 > 0", true, 2, 1);
+        warmAndValidate("SELECT * from table1 WHERE id1 > 0", true, 2, 1);
 
-            @Language("SQL") String query = "SELECT count(*) FROM table1 WHERE id1 > 5";
+        @Language("SQL") String query = "SELECT count(*) FROM table1 WHERE id1 > 5";
 
-            String plan = computeActual("EXPLAIN ANALYZE " + query).getMaterializedRows().getFirst().getFields().getFirst().toString();
-            assertThat(plan).containsOnlyOnce("ChooseAlternativeNode[alternativesCount = 2]"); // there are 2 alternatives
-            assertThat(plan).containsOnlyOnce("TableScan"); // only 1 alternative was used (analyze shows only the alternatives that were used)
-            assertThat(plan).containsOnlyOnce("subsumedPredicates=true"); // assert usage of the alternative in which the filter is subsumed by WarpSpeed
+        String plan = computeActual("EXPLAIN ANALYZE " + query).getMaterializedRows().getFirst().getFields().getFirst().toString();
+        assertThat(plan).containsOnlyOnce("ChooseAlternativeNode[alternativesCount = 2]"); // there are 2 alternatives
+        assertThat(plan).containsOnlyOnce("TableScan"); // only 1 alternative was used (analyze shows only the alternatives that were used)
+        assertThat(plan).containsOnlyOnce("subsumedPredicates=true"); // assert usage of the alternative in which the filter is subsumed by WarpSpeed
 
-            Map<String, Long> expectedQueryStats = Map.of(
-                    CACHED_TOTAL_ROWS, 1L, // table1's row
-                    VARADA_MATCH_COLUMNS_STAT, 1L, // id1 > 5
-                    VARADA_COLLECT_COLUMNS_STAT, 0L, // predicate is fully pushed down - no need to collect
-                    PREFILLED_COLUMNS_STAT, 0L,
-                    EXTERNAL_MATCH_STAT, 0L,
-                    EXTERNAL_COLLECT_STAT, 0L);
-            validateQueryStats(query, getSession(), expectedQueryStats);
-        }
-        finally {
-            computeActual("DROP TABLE table1");
-        }
+        Map<String, Long> expectedQueryStats = Map.of(
+                CACHED_TOTAL_ROWS, 1L, // table1's row
+                VARADA_MATCH_COLUMNS_STAT, 1L, // id1 > 5
+                VARADA_COLLECT_COLUMNS_STAT, 0L, // predicate is fully pushed down - no need to collect
+                PREFILLED_COLUMNS_STAT, 0L,
+                EXTERNAL_MATCH_STAT, 0L,
+                EXTERNAL_COLLECT_STAT, 0L);
+        validateQueryStats(query, getSession(), expectedQueryStats);
     }
 
     @Test
     public void testMappedMatchCollect()
             throws IOException
     {
-        try {
-            computeActual("CREATE TABLE mapped_match_collect_test (double_1 double, varchar_1 varchar, short_decimal decimal(2,1))");
-            computeActual("INSERT INTO mapped_match_collect_test (double_1, varchar_1, short_decimal) values (1, '1', 1.0), (2, '2', 2.0), (3, '3', 3.0)");
-            String warmQuery = "select double_1, short_decimal, varchar_1 from mapped_match_collect_test";
+        String table = "mapped_match_collect_test";
+        createTable(DEFAULT_SCHEMA,
+                table,
+                "(double_1 double, varchar_1 varchar, short_decimal decimal(2,1))");
+        computeActual("INSERT INTO %s (double_1, varchar_1, short_decimal) values (1, '1', 1.0), (2, '2', 2.0), (3, '3', 3.0)".formatted(table));
+        String warmQuery = "select double_1, short_decimal, varchar_1 from %s".formatted(table);
 
-            Session session = Session.builder(getSession())
-                    .setSystemProperty(catalog + "." + ENABLE_MAPPED_MATCH_COLLECT, "false")
-                    .build();
-            createWarmupRules(DEFAULT_SCHEMA,
-                    "mapped_match_collect_test",
-                    Map.of("double_1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL)),
-                            "short_decimal", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL)),
-                            "varchar_1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_LUCENE, DEFAULT_PRIORITY, DEFAULT_TTL))));
+        Session session = Session.builder(getSession())
+                .setSystemProperty(catalog + "." + ENABLE_MAPPED_MATCH_COLLECT, "false")
+                .build();
+        createWarmupRules(DEFAULT_SCHEMA,
+                table,
+                Map.of("double_1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL)),
+                        "short_decimal", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL)),
+                        "varchar_1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_LUCENE, DEFAULT_PRIORITY, DEFAULT_TTL))));
 
-            warmAndValidate(warmQuery, session, 3, 1, 0);
+        warmAndValidate(warmQuery, session, 3, 1, 0);
 
-            // ================== Mapped match collect supported ================== //
-            List<String> mapSupportedQueries = List.of(
-                    "select double_1 from mapped_match_collect_test where double_1=1 or double_1=3",
-                    "select double_1 from mapped_match_collect_test where double_1 in(1, 3)",
-                    "select short_decimal from mapped_match_collect_test where short_decimal=1 or short_decimal=3");
+        // ================== Mapped match collect supported ================== //
+        List<String> mapSupportedQueries = List.of(
+                "select double_1 from %s where double_1=1 or double_1=3".formatted(table),
+                "select double_1 from %s where double_1 in(1, 3)".formatted(table),
+                "select short_decimal from %s where short_decimal=1 or short_decimal=3".formatted(table));
 
-            Map<String, Long> expectedStatsMapSupported = Map.of(
-                    "varada_match_collect_columns", 1L,
-                    "varada_mapped_match_collect_columns", 1L);
+        Map<String, Long> expectedStatsMapSupported = Map.of(
+                "varada_match_collect_columns", 1L,
+                "varada_mapped_match_collect_columns", 1L);
 
-            // ================== Mapped match collect unsupported ================== //
+        // ================== Mapped match collect unsupported ================== //
 
-            List<String> mapUnsupportedQueries = List.of(
-                    "select double_1 from mapped_match_collect_test where double_1<3",
-                    "select double_1 from mapped_match_collect_test where ceil(double_1)=1 or ceil(double_1)=3");
+        List<String> mapUnsupportedQueries = List.of(
+                "select double_1 from %s where double_1<3".formatted(table),
+                "select double_1 from %s where ceil(double_1)=1 or ceil(double_1)=3".formatted(table));
 
-            Map<String, Long> expectedStatsMapUnsupported = Map.of(
-                    "varada_match_collect_columns", 1L,
-                    "varada_mapped_match_collect_columns", 0L);
+        Map<String, Long> expectedStatsMapUnsupported = Map.of(
+                "varada_match_collect_columns", 1L,
+                "varada_mapped_match_collect_columns", 0L);
 
-            // ================== Match collect unsupported ================== //
+        // ================== Match collect unsupported ================== //
 
-            List<String> matchCollectUnsupportedQueries = List.of(
-                    "select varchar_1 from mapped_match_collect_test where varchar_1 in('1', '3')");
+        List<String> matchCollectUnsupportedQueries = List.of(
+                "select varchar_1 from %s where varchar_1 in('1', '3')".formatted(table));
 
-            Map<String, Long> expectedStatsMatchCollectUnsupported = Map.of(
-                    "varada_match_collect_columns", 0L,
-                    "varada_mapped_match_collect_columns", 0L);
+        Map<String, Long> expectedStatsMatchCollectUnsupported = Map.of(
+                "varada_match_collect_columns", 0L,
+                "varada_mapped_match_collect_columns", 0L);
 
-            for (@Language("SQL") String query : mapSupportedQueries) {
-                validateQueryStats(query, session, expectedStatsMapUnsupported);
-            }
-
-            session = Session.builder(getSession())
-                    .setSystemProperty(catalog + "." + VaradaSessionProperties.ENABLE_MAPPED_MATCH_COLLECT, "true")
-                    .build();
-
-            for (@Language("SQL") String query : mapSupportedQueries) {
-                validateQueryStats(query, session, expectedStatsMapSupported);
-            }
-
-            for (@Language("SQL") String query : mapUnsupportedQueries) {
-                validateQueryStats(query, session, expectedStatsMapUnsupported);
-            }
-
-            for (@Language("SQL") String query : matchCollectUnsupportedQueries) {
-                validateQueryStats(query, session, expectedStatsMatchCollectUnsupported);
-            }
+        for (@Language("SQL") String query : mapSupportedQueries) {
+            validateQueryStats(query, session, expectedStatsMapUnsupported);
         }
-        finally {
-            computeActual("DROP TABLE IF EXISTS mapped_match_collect_test");
+
+        session = Session.builder(getSession())
+                .setSystemProperty(catalog + "." + VaradaSessionProperties.ENABLE_MAPPED_MATCH_COLLECT, "true")
+                .build();
+
+        for (@Language("SQL") String query : mapSupportedQueries) {
+            validateQueryStats(query, session, expectedStatsMapSupported);
+        }
+
+        for (@Language("SQL") String query : mapUnsupportedQueries) {
+            validateQueryStats(query, session, expectedStatsMapUnsupported);
+        }
+
+        for (@Language("SQL") String query : matchCollectUnsupportedQueries) {
+            validateQueryStats(query, session, expectedStatsMatchCollectUnsupported);
         }
     }
 
@@ -4265,7 +4288,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
             }
         });
 
-        computeActual(getSession(), format("create table %s %s", WIDE_TABLE_NAME, columnDefinition));
+        createTable(DEFAULT_SCHEMA, WIDE_TABLE_NAME, columnDefinition.toString());
         if (!defaultWarm) {
             createWarmupRules(DEFAULT_SCHEMA, WIDE_TABLE_NAME, rules);
         }
@@ -4330,12 +4353,6 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         }
         assertThat(numFailed).isEqualTo(expectedNumFailedWarmupElements);
     }
-
-//    private int getDictionariesUsage()
-//            throws IOException
-//    {
-//        return Integer.parseInt(executeRestCommand(DictionaryTask.DICTIONARY_PATH, DictionaryTask.DICTIONARY_USAGE_TASK_NAME, null, HttpMethod.GET, HttpURLConnection.HTTP_OK).trim());
-//    }
 
     private void assertPredicate(DispatcherTableHandle table,
             String columnName,

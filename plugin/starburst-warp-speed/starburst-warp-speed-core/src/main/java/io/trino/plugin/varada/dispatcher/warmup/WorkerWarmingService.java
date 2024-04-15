@@ -278,7 +278,10 @@ public class WorkerWarmingService
                 // Map<WarmUpType, WarmUpElement> existingWarmUpTypeToElement = warmedWarmupTypes.is(varadaColumn, Map.of());
 
                 if (warmedWarmupTypes.isNewColumn(varadaColumn)) {
-                    logger.debug("new column to warm in an existing row group. newColumn=%s, warmUpTypes=%s", varadaColumn, requiredWarmUpTypeToProperties.keySet());
+                    logger.debug("new column to warm%s. newColumn=%s, warmUpTypes=%s",
+                            warmedWarmupTypes.getWarmedColumns().isEmpty() ? "" : " in an existing row group",
+                            varadaColumn,
+                            requiredWarmUpTypeToProperties.keySet());
                     newRequiredWarmUpTypeMap.putAll(varadaColumn, requiredWarmUpTypeToProperties.values());
                 }
                 else {

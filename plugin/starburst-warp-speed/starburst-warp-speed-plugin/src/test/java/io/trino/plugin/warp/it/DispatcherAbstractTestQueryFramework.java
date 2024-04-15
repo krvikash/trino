@@ -22,7 +22,6 @@ import io.trino.plugin.varada.api.warmup.column.RegularColumnData;
 import io.trino.plugin.varada.api.warmup.column.TransformedColumnData;
 import io.trino.plugin.varada.api.warmup.column.VaradaColumnData;
 import io.trino.plugin.varada.api.warmup.expression.TransformFunctionData;
-import io.trino.plugin.varada.it.smoke.VaradaAbstractTestQueryFramework;
 import io.trino.plugin.varada.warmup.WarmupRuleService;
 import io.trino.plugin.warp.extension.execution.debugtools.RowGroupCountResult;
 import io.trino.plugin.warp.extension.execution.debugtools.RowGroupTask;

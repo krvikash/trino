@@ -40,6 +40,7 @@ import io.trino.spi.metrics.Metrics;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.MaterializedRow;
+import io.trino.testing.QueryFailedException;
 import io.trino.testing.QueryRunner;
 import jakarta.ws.rs.HttpMethod;
 import net.jodah.failsafe.Failsafe;
@@ -64,8 +65,10 @@ import java.util.Set;
 import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
+import static io.trino.plugin.varada.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
 import static java.lang.String.format;
 import static java.util.Map.entry;
+import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
@@ -129,13 +132,29 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                     executeRestCommand(WarmupRuleService.WARMUP_PATH, WarmupTask.TASK_NAME_REPLACE, List.of(), HttpMethod.POST, HttpURLConnection.HTTP_OK);
                     cleanWarmupRules();
                 }
-                MaterializedResult materializedRows = computeActual(format("show tables from %s", DEFAULT_SCHEMA));
-                for (MaterializedRow materializedRow : materializedRows.getMaterializedRows()) {
-                    logger.info("deleting table %s", materializedRow.getField(0));
-                    computeActual("DROP TABLE IF EXISTS " + materializedRow.getField(0));
-                }
-                computeActual(format("DROP SCHEMA IF EXISTS %s", DEFAULT_SCHEMA));
 
+                try {
+                    createdSchemas.forEach(schemaName -> {
+                        MaterializedResult materializedRows = computeActual("show tables from " + schemaName);
+                        if (!materializedRows.getMaterializedRows().isEmpty()) {
+                            for (MaterializedRow materializedRow : materializedRows.getMaterializedRows()) {
+                                assertUpdate("DROP TABLE IF EXISTS %s.%s".formatted(schemaName, materializedRow.getField(0)));
+                            }
+                        }
+                        try {
+                            assertUpdate("DROP SCHEMA IF EXISTS " + schemaName);
+                        }
+                        catch (QueryFailedException e) {
+                            if (!e.getMessage().endsWith("does not exist")) {
+                                throw e;
+                            }
+                        }
+                    });
+                    createdSchemas.clear();
+                }
+                catch (Throwable e) {
+                    logger.error(e, "failed on drop schema");
+                }
                 stubsStorageEngine.clear();
             }
             catch (Throwable e) {
@@ -148,7 +167,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
     protected void demoteAll()
     {
         try {
-            logger.info("demote all start");
+            logger.debug("demote all start");
             WarmupDemoterData warmupDemoterData = WarmupDemoterData.builder().maxUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
                     .cleanupUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
                     .executeDemoter(true)
@@ -168,7 +187,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                     .findAny()
                     .orElseThrow()
                     .getValue();
-            logger.info("demote task finish =" + res);
+            logger.debug("demote task finish =" + res);
             assertThat(highestPriority).isEqualTo(0);
             restDemoteConfigurationToDefaults();
 //            validateEmptyUsage();
@@ -177,8 +196,8 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                     null,
                     HttpMethod.POST,
                     HttpURLConnection.HTTP_OK);
-            logger.info("reset %s existing dictionaries after demoting all", dictionariesReset);
-            logger.info("demote all finish");
+            logger.debug("reset %s existing dictionaries after demoting all", dictionariesReset);
+            logger.debug("demote all finish");
         }
         catch (IOException e) {
             fail("demote failed", e);
@@ -423,9 +442,10 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                 "warmup_elements_count",
                 "warm_failed",
                 "warm_started");
-        String warmStatsTableName = "%s:catalog=%s,name=warming-service.%s,type=%s".formatted(
+        String warmStatsTableName = "%s:catalog=%s,name=%s.%s,type=%s".formatted(
                 VaradaStatsWarmingService.class.getPackageName(),
                 catalog,
+                WARMING_SERVICE_STAT_GROUP,
                 catalog,
                 VaradaStatsWarmingService.class.getSimpleName().toLowerCase(Locale.ROOT));
         Session jmxSession = createJmxSession();
@@ -444,17 +464,18 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                             .collect(Collectors.toList()));
             fail("materializedRow is null", e);
         }
-        long beforeWarmAccomplishedStats = (Long) materializedRow.getField(0);
+        long beforeWarmAccomplishedStats = (Long) requireNonNull(materializedRow).getField(0);
         long beforeWarmupElementsCount = (Long) materializedRow.getField(1);
         long beforeWarmupFailedCount = (Long) materializedRow.getField(2);
         computeActual(session, query);
 
         runWithRetries(() -> {
             MaterializedRow materializedRowAfter = getServiceStats(jmxSession, warmStatsTableName, statsColNames);
+            logger.debug("beforeWarmAccomplishedStats=%d, materializedRowAfter.getField(0)=%s", beforeWarmAccomplishedStats, materializedRowAfter.getField(0));
             long actualWarmAccomplished = (Long) materializedRowAfter.getField(0) - beforeWarmAccomplishedStats;
             long actualElementsFinishedCount = (Long) materializedRowAfter.getField(1) - beforeWarmupElementsCount;
             long actualWarmFailed = (Long) materializedRowAfter.getField(2) - beforeWarmupFailedCount;
-            logger.info("actualWarmAccomplished=%d, expectedWarmAccomplished=%d, actualElementsFinishedCount=%d, expectedFinishedWarmupElements=%d, actualWarmFailed=%d, expectedWarmedFailed=%s",
+            logger.debug("actualWarmAccomplished=%d, expectedWarmAccomplished=%d, actualElementsFinishedCount=%d, expectedFinishedWarmupElements=%d, actualWarmFailed=%d, expectedWarmedFailed=%s",
                     actualWarmAccomplished, expectedWarmAccomplished, actualElementsFinishedCount, expectedFinishedWarmupElements, actualWarmFailed, expectedWarmedFailed.toString());
             assertThat(actualWarmAccomplished)
                     .describedAs("actualWarmAccomplished is not as expected. %s", query)
@@ -550,7 +571,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
     protected void validateDemoter(int expectedDeadObjects)
             throws IOException
     {
-        logger.info("DEMOTER ######");
+        logger.debug("DEMOTER ######");
         WarmupDemoterData warmupDemoterData = WarmupDemoterData.builder().maxUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
                 .cleanupUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
                 .executeDemoter(true)
@@ -610,8 +631,15 @@ public abstract class DispatcherStubsIntegrationSmokeIT
 
     protected int getWarmingServiceStats(Session jmxSession, String statColName)
     {
+        String warmStatsTableName = "%s:catalog=%s,name=%s.%s,type=%s".formatted(
+                VaradaStatsWarmingService.class.getPackageName(),
+                catalog,
+                WARMING_SERVICE_STAT_GROUP,
+                catalog,
+                VaradaStatsWarmingService.class.getSimpleName().toLowerCase(Locale.ROOT));
+
         long result = (long) getServiceStats(jmxSession,
-                "io.trino.plugin.warp.gen.stats:catalog=" + catalog + ",name=warming-service." + catalog + ",type=varadastatswarmingservice",
+                warmStatsTableName,
                 List.of(statColName))
                 .getField(0);
         return (int) result;
@@ -623,7 +651,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                 .map(s -> "sum(" + s + ")")
                 .collect(Collectors.joining(","));
         MaterializedResult jmx0 = computeActual(jmxSession, String.format("select %s from \"*%s*\"", statSumColNames, jmxTable));
-        logger.info("getServiceStats::jmxTable=%s", jmxTable);
+        logger.debug("getServiceStats::jmxTable=%s", jmxTable);
         return jmx0.getMaterializedRows().getFirst();
     }
 
@@ -652,30 +680,35 @@ public abstract class DispatcherStubsIntegrationSmokeIT
     public void testGoAllProxyOnlyWhenHavePushDowns()
             throws IOException
     {
-        try {
-            computeActual("CREATE TABLE all_proxy_test (int_1 integer, int_2 integer)");
-            computeActual("INSERT INTO all_proxy_test (int_1, int_2) values (1, 10), (2, 20), (3, 30)");
-            createWarmupRules(DEFAULT_SCHEMA, "all_proxy_test", Map.ofEntries(entry("int_1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL)))));
-            Session session = buildSession(false, false);
-            warmAndValidate("select * from all_proxy_test", session, 1, 1, 0);
+        String schema = "all_proxy_test";
+        String table = "all_proxy_test_table";
+        createSchemaAndTable(schema, table, "(int_1 integer, int_2 integer)");
+        computeActual("INSERT INTO %s.%s (int_1, int_2) values (1, 10), (2, 20), (3, 30)".formatted(schema, table));
+        createWarmupRules(
+                schema,
+                table,
+                Map.ofEntries(
+                        entry("int_1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL)))));
+        Session session = buildSession(false, false);
+        warmAndValidate("select * from %s.%s".formatted(schema, table),
+                session,
+                1,
+                1,
+                0);
 
-            @Language("SQL") String pushDownQuery = "select * from all_proxy_test where int_1 < 2";
-            Map<String, Long> expectedPushDownQueryStats = Map.of(
-                    "varada_match_columns", 0L,
-                    "varada_collect_columns", 0L,
-                    "external_match_columns", 1L,
-                    "external_collect_columns", 2L);
-            validateQueryStats(pushDownQuery, session, expectedPushDownQueryStats);
-            @Language("SQL") String noPushDownQuery = "select * from all_proxy_test where ceiling(int_1) < 2";
-            Map<String, Long> expectedNoPushDownQueryStats = Map.of(
-                    "varada_match_columns", 0L,
-                    "varada_collect_columns", 1L,
-                    "external_match_columns", 0L,
-                    "external_collect_columns", 1L);
-            validateQueryStats(noPushDownQuery, session, expectedNoPushDownQueryStats);
-        }
-        finally {
-            computeActual("DROP TABLE IF EXISTS all_proxy_test");
-        }
+        @Language("SQL") String pushDownQuery = "select * from %s.%s where int_1 < 2".formatted(schema, table);
+        Map<String, Long> expectedPushDownQueryStats = Map.of(
+                "varada_match_columns", 0L,
+                "varada_collect_columns", 0L,
+                "external_match_columns", 1L,
+                "external_collect_columns", 2L);
+        validateQueryStats(pushDownQuery, session, expectedPushDownQueryStats);
+        @Language("SQL") String noPushDownQuery = "select * from %s.%s where ceiling(int_1) < 2".formatted(schema, table);
+        Map<String, Long> expectedNoPushDownQueryStats = Map.of(
+                "varada_match_columns", 0L,
+                "varada_collect_columns", 1L,
+                "external_match_columns", 0L,
+                "external_collect_columns", 1L);
+        validateQueryStats(noPushDownQuery, session, expectedNoPushDownQueryStats);
     }
 }

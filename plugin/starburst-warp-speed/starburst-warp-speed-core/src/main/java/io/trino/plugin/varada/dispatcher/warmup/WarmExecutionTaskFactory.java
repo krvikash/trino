@@ -116,9 +116,9 @@ public class WarmExecutionTaskFactory
                     globalConfiguration,
                     cloudVendorConfiguration);
             case PROXY -> new ProxyExecutionTask(this,
-                        eventBus,
-                        dispatcherProxiedConnectorTransformer,
-                        warmingManager,
+                    eventBus,
+                    dispatcherProxiedConnectorTransformer,
+                    warmingManager,
                     statsWarmingService,
                     workerWarmingService,
                     connectorPageSourceProvider,
@@ -136,7 +136,7 @@ public class WarmExecutionTaskFactory
                     iterationCount,
                     executionTaskPriority,
                     workerTaskExecutorService,
-                        storageWarmerService);
+                    storageWarmerService);
             case IMPORT -> new ImportExecutionTask(this,
                     statsWarmingService,
                     workerWarmingService,

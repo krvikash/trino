@@ -69,7 +69,8 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
             throws Exception
     {
         QueryRunner queryRunner = DispatcherQueryRunner.createQueryRunner(new VaradaStubsStorageEngineModule(),
-                Optional.empty(), numNodes,
+                Optional.empty(),
+                numNodes,
                 Collections.emptyMap(),
                 Map.of("http-server.log.enabled", "false",
                         WARP_SPEED_PREFIX + USE_HTTP_SERVER_PORT, "false",
@@ -98,160 +99,174 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
     @Test
     public void testPartitionOnTimestampColumn()
     {
-        try {
-            computeActual("CREATE TABLE pt (\n" +
-                    "    id INTEGER,\n" +
-                    "    a VARCHAR,\n" +
-                    "    timestamp_col TIMESTAMP\n" +
-                    ")\n" +
-                    "WITH (\n" +
-                    "    format = 'PARQUET',\n" +
-                    "    partitioning = ARRAY['timestamp_col']\n" +
-                    ")");
-            assertUpdate("INSERT INTO pt(id, a, timestamp_col) VALUES(1, 'bla', CAST('2024-02-13 10:15:30' AS TIMESTAMP))", 1);
+        String table = "partitionontimestampcolumn";
+        createTable(DEFAULT_SCHEMA,
+                table,
+                "(\n" +
+                        "    id INTEGER,\n" +
+                        "    a VARCHAR,\n" +
+                        "    timestamp_col TIMESTAMP\n" +
+                        ")\n" +
+                        "WITH (\n" +
+                        "    format = 'PARQUET',\n" +
+                        "    partitioning = ARRAY['timestamp_col']\n" +
+                        ")");
+        assertUpdate("INSERT INTO %s(id, a, timestamp_col) VALUES(1, 'bla', CAST('2024-02-13 10:15:30' AS TIMESTAMP))".formatted(table),
+                1);
 
-            Session warmSession = Session.builder(getSession())
-                    .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "true")
-                    .build();
-            @Language("SQL") String query = "SELECT * FROM pt WHERE timestamp_col=CAST('2024-02-13 10:15:30' AS TIMESTAMP)";
-            warmAndValidate(query, warmSession, 3, 1, 0);
-            Map<String, Long> expectedQueryStats = Map.of(
-                    VARADA_MATCH_COLUMNS_STAT, 0L,
-                    "prefilled_collect_columns", 1L,
-                    VARADA_COLLECT_COLUMNS_STAT, 2L);
-            validateQueryStats(query, getSession(), expectedQueryStats);
-        }
-        finally {
-            computeActual("DROP TABLE IF EXISTS pt");
-        }
+        Session warmSession = Session.builder(getSession())
+                .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "true")
+                .build();
+        @Language("SQL") String query = "SELECT * FROM %s WHERE timestamp_col=CAST('2024-02-13 10:15:30' AS TIMESTAMP)".formatted(table);
+        warmAndValidate(query, warmSession, 3, 1, 0);
+        Map<String, Long> expectedQueryStats = Map.of(
+                VARADA_MATCH_COLUMNS_STAT, 0L,
+                "prefilled_collect_columns", 1L,
+                VARADA_COLLECT_COLUMNS_STAT, 2L);
+        validateQueryStats(query, getSession(), expectedQueryStats);
     }
 
     @Test
     public void testRenameWithPredicate()
             throws IOException
     {
-        try {
-            assertUpdate("CREATE TABLE schema.my_table3 (c1 integer,c2 integer) WITH (format = 'PARQUET', partitioning = ARRAY[])");
-            computeActual(getSession(), "INSERT INTO schema.my_table3 VALUES (1, 2)");
-            createWarmupRules(DEFAULT_SCHEMA,
-                    "my_table3",
-                    Map.of("c1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, Duration.ofSeconds(0)),
-                                    new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, Duration.ofSeconds(0))),
-                            "c2", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, Duration.ofSeconds(0)),
-                                    new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, Duration.ofSeconds(0)))));
-            Session warmSession = Session.builder(getSession())
-                    .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "false")
-                    .build();
-            warmAndValidate("select * from schema.my_table3", warmSession, 4, 1, 0);
+        String schema = "renamewithpredicate";
+        String table = "my_table3";
+        createSchemaAndTable(schema, table, "(c1 integer,c2 integer) WITH (format = 'PARQUET', partitioning = ARRAY[])");
+        computeActual(getSession(), "INSERT INTO %s.%s VALUES (1, 2)".formatted(schema, table));
+        createWarmupRules(schema,
+                table,
+                Map.of("c1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, Duration.ofSeconds(0)),
+                                new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, Duration.ofSeconds(0))),
+                        "c2", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, Duration.ofSeconds(0)),
+                                new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, Duration.ofSeconds(0)))));
+        Session warmSession = Session.builder(getSession())
+                .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "false")
+                .build();
+        warmAndValidate("select * from %s.%s".formatted(schema, table),
+                warmSession,
+                4,
+                1,
+                0);
 
-            @Language("SQL") String query = "select * from schema.my_table3 where c1 > 0 and c2 > 0";
-            Map<String, Long> expectedQueryStats = Map.of(
-                    VARADA_MATCH_COLUMNS_STAT, 2L,
-                    VARADA_COLLECT_COLUMNS_STAT, 2L);
-            validateQueryStats(query, getSession(), expectedQueryStats);
+        @Language("SQL") String query = "select * from %s.%s where c1 > 0 and c2 > 0".formatted(schema, table);
+        Map<String, Long> expectedQueryStats = Map.of(
+                VARADA_MATCH_COLUMNS_STAT, 2L,
+                VARADA_COLLECT_COLUMNS_STAT, 2L);
+        validateQueryStats(query, getSession(), expectedQueryStats);
 
-            computeActual("ALTER TABLE schema.my_table3 RENAME COLUMN c1 TO tmpColumn");
-            query = "select * from schema.my_table3 where tmpColumn > 0 and c2 > 0";
-            expectedQueryStats = Map.of(
-                    VARADA_MATCH_COLUMNS_STAT, 2L,
-                    VARADA_COLLECT_COLUMNS_STAT, 2L);
-            validateQueryStats(query, getSession(), expectedQueryStats);
-            int expectedDeadObjects = 4;
-            validateDemoter(expectedDeadObjects);
-        }
-        finally {
-            assertUpdate("DROP TABLE IF EXISTS schema.my_table3");
-        }
+        computeActual("ALTER TABLE %s.%s RENAME COLUMN c1 TO tmpColumn".formatted(schema, table));
+        query = "select * from %s.%s where tmpColumn > 0 and c2 > 0".formatted(schema, table);
+        expectedQueryStats = Map.of(
+                VARADA_MATCH_COLUMNS_STAT, 2L,
+                VARADA_COLLECT_COLUMNS_STAT, 2L);
+        validateQueryStats(query, getSession(), expectedQueryStats);
+        int expectedDeadObjects = 4;
+        validateDemoter(expectedDeadObjects);
     }
 
     @Test
     public void testRename()
             throws IOException
     {
-        try {
-            assertUpdate("CREATE TABLE schema.my_table1 (c1 integer,c2 integer) WITH (format = 'PARQUET', partitioning = ARRAY[])");
-            computeActual(getSession(), "INSERT INTO schema.my_table1 VALUES (1, 2)");
-            createWarmupRules(DEFAULT_SCHEMA,
-                    "my_table1",
-                    Map.of("c1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, Duration.ofSeconds(0))),
-                            "c2", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, Duration.ofSeconds(0)))));
-            Session warmSession = Session.builder(getSession())
-                    .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "false")
-                    .build();
-            warmAndValidate("select * from schema.my_table1", warmSession, 2, 1, 0);
+        String schema = "rename";
+        String table = "my_table1";
+        createSchemaAndTable(schema, table, "(c1 integer,c2 integer) WITH (format = 'PARQUET', partitioning = ARRAY[])");
+        computeActual(getSession(), "INSERT INTO %s.%s VALUES (1, 2)".formatted(schema, table));
+        createWarmupRules(schema,
+                table,
+                Map.of("c1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, Duration.ofSeconds(0))),
+                        "c2", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, Duration.ofSeconds(0)))));
+        Session warmSession = Session.builder(getSession())
+                .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "false")
+                .build();
+        warmAndValidate("select * from %s.%s".formatted(schema, table),
+                warmSession,
+                2,
+                1,
+                0);
 
-            @Language("SQL") String query = "select * from schema.my_table1";
-            Map<String, Long> expectedQueryStats = Map.of(VARADA_COLLECT_COLUMNS_STAT, 2L);
-            validateQueryStats(query, getSession(), expectedQueryStats);
+        @Language("SQL") String query = "select * from %s.%s".formatted(schema, table);
+        Map<String, Long> expectedQueryStats = Map.of(VARADA_COLLECT_COLUMNS_STAT, 2L);
+        validateQueryStats(query, getSession(), expectedQueryStats);
 
-            computeActual("ALTER TABLE schema.my_table1 RENAME COLUMN c1 TO tmpColumn");
+        computeActual("ALTER TABLE %s.%s RENAME COLUMN c1 TO tmpColumn".formatted(schema, table));
 
-            query = "select tmpColumn from schema.my_table1";
-            expectedQueryStats = Map.of(VARADA_COLLECT_COLUMNS_STAT, 1L);
-            validateQueryStats(query, getSession(), expectedQueryStats);
+        query = "select tmpColumn from %s.%s".formatted(schema, table);
+        expectedQueryStats = Map.of(VARADA_COLLECT_COLUMNS_STAT, 1L);
+        validateQueryStats(query, getSession(), expectedQueryStats);
 
-            //now create new split
-            computeActual(getSession(), "INSERT INTO schema.my_table1 VALUES (9, 9)");
-            // after altering the table a new snapshot is created so we are warming all elements
-            warmAndValidate("select * from schema.my_table1", warmSession, 2, 2, 0);
+        //now create new split
+        computeActual(getSession(), "INSERT INTO %s.%s VALUES (9, 9)".formatted(schema, table));
+        // after altering the table a new snapshot is created so we are warming all elements
+        warmAndValidate("select * from %s.%s".formatted(schema, table),
+                warmSession,
+                2,
+                2,
+                0);
 
-            query = "select * from schema.my_table1";
-            expectedQueryStats = Map.of(VARADA_COLLECT_COLUMNS_STAT, 2L);
-            validateQueryStats(query, getSession(), expectedQueryStats);
-            warmSession = Session.builder(getSession())
-                    .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "true")
-                    .build();
-            warmAndValidate("select tmpColumn from schema.my_table1 where tmpColumn > 5", warmSession, 2, 1, 0);
+        query = "select * from %s.%s".formatted(schema, table);
+        expectedQueryStats = Map.of(VARADA_COLLECT_COLUMNS_STAT, 2L);
+        validateQueryStats(query, getSession(), expectedQueryStats);
+        warmSession = Session.builder(getSession())
+                .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "true")
+                .build();
+        warmAndValidate("select tmpColumn from %s.%s where tmpColumn > 5".formatted(schema, table),
+                warmSession,
+                2,
+                1,
+                0);
 
-            int expectedDeadObjects = 4; // 1 from previous snapshot and 3 objects with ttl 0 (tmpColumn ttl -1)
-            validateDemoter(expectedDeadObjects);
-        }
-        finally {
-            assertUpdate("DROP TABLE IF EXISTS schema.my_table1");
-        }
+        int expectedDeadObjects = 4; // 1 from previous snapshot and 3 objects with ttl 0 (tmpColumn ttl -1)
+        validateDemoter(expectedDeadObjects);
     }
 
     @Test
     public void testRenameSwapColumn()
             throws IOException
     {
-        try {
-            assertUpdate("CREATE TABLE schema.my_table (int1 integer,v1 varchar) WITH (format = 'PARQUET', partitioning = ARRAY[])");
-            computeActual(getSession(), "INSERT INTO schema.my_table VALUES (1, 'string')");
-            createWarmupRules(DEFAULT_SCHEMA,
-                    "my_table",
-                    Map.of("int1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, Duration.ofSeconds(0))),
-                            "v1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, Duration.ofSeconds(0)))));
-            Session warmSession = Session.builder(getSession())
-                    .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "false")
-                    .build();
-            warmAndValidate("select * from schema.my_table", warmSession, 2, 1, 0);
-            @Language("SQL") String query = "select * from schema.my_table";
-            Map<String, Long> expectedQueryStats = Map.of(VARADA_COLLECT_COLUMNS_STAT, 2L);
-            validateQueryStats(query, getSession(), expectedQueryStats);
+        String schema = "testrenameswapcolumn";
+        String table = "my_table";
+        createSchemaAndTable(schema, table, "(int1 integer,v1 varchar) WITH (format = 'PARQUET', partitioning = ARRAY[])");
+        computeActual(getSession(), "INSERT INTO %s.%s VALUES (1, 'string')".formatted(schema, table));
+        createWarmupRules(schema,
+                table,
+                Map.of("int1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, Duration.ofSeconds(0))),
+                        "v1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, Duration.ofSeconds(0)))));
+        Session warmSession = Session.builder(getSession())
+                .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "false")
+                .build();
+        warmAndValidate("select * from %s.%s".formatted(schema, table),
+                warmSession,
+                2,
+                1,
+                0);
+        @Language("SQL") String query = "select * from %s.%s".formatted(schema, table);
+        Map<String, Long> expectedQueryStats = Map.of(VARADA_COLLECT_COLUMNS_STAT, 2L);
+        validateQueryStats(query, getSession(), expectedQueryStats);
 
-            computeActual("ALTER TABLE schema.my_table RENAME COLUMN int1 TO tmpColumn");
-            computeActual("ALTER TABLE schema.my_table RENAME COLUMN v1 TO int1");
-            computeActual("ALTER TABLE schema.my_table RENAME COLUMN tmpColumn TO v1");
+        computeActual("ALTER TABLE %s.%s RENAME COLUMN int1 TO tmpColumn".formatted(schema, table));
+        computeActual("ALTER TABLE %s.%s RENAME COLUMN v1 TO int1".formatted(schema, table));
+        computeActual("ALTER TABLE %s.%s RENAME COLUMN tmpColumn TO v1".formatted(schema, table));
 
-            query = "select * from schema.my_table";
-            expectedQueryStats = Map.of(VARADA_COLLECT_COLUMNS_STAT, 2L);
-            validateQueryStats(query, getSession(), expectedQueryStats);
+        query = "select * from %s.%s".formatted(schema, table);
+        expectedQueryStats = Map.of(VARADA_COLLECT_COLUMNS_STAT, 2L);
+        validateQueryStats(query, getSession(), expectedQueryStats);
 
-            //now create new split
-            computeActual(getSession(), "INSERT INTO schema.my_table VALUES (9, 'another string')");
-            //each alter table has a different snapshot id which get warm
-            warmAndValidate("select * from schema.my_table", warmSession, 4, 2, 0);
+        //now create new split
+        computeActual(getSession(), "INSERT INTO %s.%s VALUES (9, 'another string')".formatted(schema, table));
+        //each alter table has a different snapshot id which get warm
+        warmAndValidate("select * from %s.%s".formatted(schema, table),
+                warmSession,
+                4,
+                2,
+                0);
 
-            query = "select * from schema.my_table";
-            expectedQueryStats = Map.of(VARADA_COLLECT_COLUMNS_STAT, 4L);
-            validateQueryStats(query, getSession(), expectedQueryStats);
+        query = "select * from %s.%s".formatted(schema, table);
+        expectedQueryStats = Map.of(VARADA_COLLECT_COLUMNS_STAT, 4L);
+        validateQueryStats(query, getSession(), expectedQueryStats);
 
-            validateDemoter(6);
-        }
-        finally {
-            assertUpdate("DROP TABLE IF EXISTS schema.my_table");
-        }
+        validateDemoter(6);
     }
 
     @Test
@@ -298,12 +313,20 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
     @Test
     public void testLongTimestampWithTimeZoneType()
     {
-        computeActual("CREATE TABLE longTimezoneTable (int1 integer, \n" +
-                "longTimestampWithTimeZoneTypeColumn TIMESTAMP(6) WITH TIME ZONE)");
-        computeActual("INSERT INTO longTimezoneTable (int1, longTimestampWithTimeZoneTypeColumn)\n" +
+        String schema = "longtimestampwithtimezonetype";
+        String table = "long_timezone_table";
+        createSchemaAndTable(
+                schema,
+                table,
+                "(int1 integer, longTimestampWithTimeZoneTypeColumn TIMESTAMP(6) WITH TIME ZONE)");
+        computeActual("INSERT INTO %s.%s (int1, longTimestampWithTimeZoneTypeColumn)\n".formatted(schema, table) +
                 "VALUES (1, TIMESTAMP '2023-06-18 10:30:00.000000 America/New_York')");
-        warmAndValidate("select * from longTimezoneTable", true, 1, 1);
-        @Language("SQL") String query = "SELECT longTimestampWithTimeZoneTypeColumn FROM longTimezoneTable WHERE longTimestampWithTimeZoneTypeColumn >= TIMESTAMP '2023-06-18 10:30:00.000000 America/New_York'";
+        warmAndValidate("select * from %s.%s".formatted(schema, table),
+                true,
+                1,
+                1);
+        @Language("SQL") String query = ("SELECT longTimestampWithTimeZoneTypeColumn FROM %s.%s".formatted(schema, table) +
+                " WHERE longTimestampWithTimeZoneTypeColumn >= TIMESTAMP '2023-06-18 10:30:00.000000 America/New_York'");
         //predicate in domain
         Map<String, Long> expectedQueryStats = Map.of(
                 "varada_collect_columns", 0L,
@@ -312,14 +335,14 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
                 "external_match_columns", 0L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
-        query = "SELECT longTimestampWithTimeZoneTypeColumn FROM longTimezoneTable WHERE day(longTimestampWithTimeZoneTypeColumn) > 3";
+        query = "SELECT longTimestampWithTimeZoneTypeColumn FROM %s.%s".formatted(schema, table) +
+                " WHERE day(longTimestampWithTimeZoneTypeColumn) > 3";
         expectedQueryStats = Map.of(
                 "varada_collect_columns", 0L,
                 "varada_match_columns", 0L,
                 "external_collect_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, getSession(), expectedQueryStats);
-        computeActual("drop table longTimezoneTable");
     }
 
     @Test
@@ -331,7 +354,7 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
         MaterializedResult result = computeActual(getSession(), "select count(*) from t");
         assertThat(result.getMaterializedRows().getFirst().getField(0)).isEqualTo(2L); // collect from row group
 
-        assertUpdate("CREATE TABLE t2 (int2 int, var2 varchar)");
+        createTable(DEFAULT_SCHEMA, "t2", "(int2 int, var2 varchar)");
         assertUpdate(getSession(), "INSERT INTO t2 VALUES (2, 'shlomi2-1')", 1);
 
         MaterializedResult materializedRows = computeActual("select * from t2");
@@ -350,13 +373,14 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
     @Test
     public void testDuplicateSourceIdPartition()
     {
-        String table = "pt1";
+        String table = "duplicate_source_id_partition";
         String aCol = "a";
         String dateIntCol = "date_int";
         String dateDateCol = "date_date";
-        computeActual(format("CREATE TABLE %s(%s varchar, %s integer, %s date) " +
-                        "WITH (format='PARQUET', partitioning = ARRAY['bucket(%s, 1)', 'truncate(%s, 1)'])",
-                table, aCol, dateIntCol, dateDateCol, aCol, aCol));
+        createTable(DEFAULT_SCHEMA,
+                table,
+                "(%s varchar, %s integer, %s date) WITH (format='PARQUET', partitioning = ARRAY['bucket(%s, 1)', 'truncate(%s, 1)'])"
+                        .formatted(aCol, dateIntCol, dateDateCol, aCol, aCol));
         int partitionValue = 20190315;
         @Language("SQL") String sql = format("INSERT INTO %s(%s, %s, %s) VALUES('a-%d', %d, CAST('2020-04-%d%d' AS date))",
                 table, aCol, dateIntCol, dateDateCol, 1, partitionValue, 1, 2);
@@ -368,13 +392,14 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
     public void testRenamePartition()
             throws IOException
     {
-        String table = "pt1";
+        String table = "rename_partition";
         String aCol = "a";
         String dateIntCol = "date_int";
         String dateDateCol = "date_date";
-        computeActual(format("CREATE TABLE %s(%s varchar, %s integer, %s date) " +
-                        "WITH (format='PARQUET', partitioning = ARRAY['%s'])",
-                table, aCol, dateIntCol, dateDateCol, dateIntCol));
+        createTable(DEFAULT_SCHEMA,
+                table,
+                "(%s varchar, %s integer, %s date) WITH (format='PARQUET', partitioning = ARRAY['%s'])"
+                        .formatted(aCol, dateIntCol, dateDateCol, dateIntCol));
         int partitionValue = 20190315;
         int notPartitionValue = 4;
         @Language("SQL") String sql = format("INSERT INTO %s(%s, %s, %s) VALUES('a-%d', %d, CAST('2020-04-%d%d' AS date))",
@@ -397,7 +422,7 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
         Session warmSession = Session.builder(getSession())
                 .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "false")
                 .build();
-        @Language("SQL") String query = format("select %s,%s,%s from pt1", aCol, dateIntCol, dateDateCol);
+        @Language("SQL") String query = format("select %s,%s,%s from %s", aCol, dateIntCol, dateDateCol, table);
         warmAndValidate(query, warmSession, 1, 1, 0);
 
         Map<String, Long> expectedQueryStats = Map.of(
@@ -434,72 +459,69 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
     public void testMultiplePartitionsMultipleSplits()
             throws IOException
     {
-        String table = "pt";
+        String table = "multiple_partitions_multiple_splits";
         String aCol = "a";
         String dateIntCol = "date_int";
         String dateDateCol = "date_date";
-        try {
-            computeActual(format("CREATE TABLE %s(%s varchar, %s integer, %s date) " +
-                            "WITH (format='PARQUET', partitioning = ARRAY['%s', '%s'])",
-                    table, aCol, dateIntCol, dateDateCol, dateIntCol, dateDateCol));
 
-            IntStream.range(0, 2).forEach(indexDateInt -> IntStream.range(1, 3).forEach(indexDateDate -> {
-                @Language("SQL") String sql = format("INSERT INTO %s(%s, %s, %s) VALUES('a-%d', 2019031%d, CAST('2020-04-%d%d' AS date))",
-                        table, aCol, dateIntCol, dateDateCol, indexDateDate, indexDateInt, indexDateInt, indexDateDate);
-                assertUpdate(sql,
-                        1);
-            }));
+        createTable(DEFAULT_SCHEMA,
+                table,
+                "(%s varchar, %s integer, %s date) WITH (format='PARQUET', partitioning = ARRAY['%s', '%s'])"
+                        .formatted(aCol, dateIntCol, dateDateCol, dateIntCol, dateDateCol));
 
-            createWarmupRules(DEFAULT_SCHEMA,
-                    table,
-                    Map.of(aCol,
-                            Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, 2, DEFAULT_TTL),
-                                    new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, 2, DEFAULT_TTL)),
-                            dateIntCol,
-                            Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, 2, DEFAULT_TTL),
-                                    new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, 2, DEFAULT_TTL)),
-                            dateDateCol,
-                            Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, 2, DEFAULT_TTL),
-                                    new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, 2, DEFAULT_TTL))));
+        IntStream.range(0, 2).forEach(indexDateInt -> IntStream.range(1, 3).forEach(indexDateDate -> {
+            @Language("SQL") String sql = format("INSERT INTO %s(%s, %s, %s) VALUES('a-%d', 2019031%d, CAST('2020-04-%d%d' AS date))",
+                    table, aCol, dateIntCol, dateDateCol, indexDateDate, indexDateInt, indexDateInt, indexDateDate);
+            assertUpdate(sql,
+                    1);
+        }));
 
-            warmAndValidate(format("select %s, %s, %s from %s", aCol, dateIntCol, dateDateCol, table),
-                    Session.builder(getSession())
-                            .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, Boolean.FALSE.toString())
-                            .build(),
-                    24,
-                    4,
-                    Optional.empty());
-            @Language("SQL") String query = format("SELECT %s, %s FROM %s WHERE %s=20190311 AND %s='a-1'",
-                    aCol, dateIntCol, table, dateIntCol, aCol);
-            Map<String, Long> expectedQueryStats = Map.of(
-                    CACHED_TOTAL_ROWS, 1L,
-                    VARADA_MATCH_COLUMNS_STAT, 1L,
-                    VARADA_COLLECT_COLUMNS_STAT, 0L,
-                    PREFILLED_COLUMNS_STAT, 2L,
-                    EXTERNAL_MATCH_STAT, 0L,
-                    EXTERNAL_COLLECT_STAT, 0L);
-            validateQueryStats(query, getSession(), expectedQueryStats, OptionalInt.of(1));
+        createWarmupRules(DEFAULT_SCHEMA,
+                table,
+                Map.of(aCol,
+                        Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, 2, DEFAULT_TTL),
+                                new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, 2, DEFAULT_TTL)),
+                        dateIntCol,
+                        Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, 2, DEFAULT_TTL),
+                                new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, 2, DEFAULT_TTL)),
+                        dateDateCol,
+                        Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, 2, DEFAULT_TTL),
+                                new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, 2, DEFAULT_TTL))));
 
-            query = format("SELECT %s, %s FROM %s WHERE %s=20190311 AND %s=CAST('2020-04-12' AS date) AND %s='a-2'",
-                    aCol, dateIntCol, table, dateIntCol, dateDateCol, aCol);
-            expectedQueryStats = Map.of(
-                    CACHED_TOTAL_ROWS, 1L,
-                    VARADA_MATCH_COLUMNS_STAT, 1L,
-                    VARADA_COLLECT_COLUMNS_STAT, 0L,
-                    PREFILLED_COLUMNS_STAT, 2L,
-                    EXTERNAL_MATCH_STAT, 0L,
-                    EXTERNAL_COLLECT_STAT, 0L);
-            validateQueryStats(query, getSession(), expectedQueryStats, OptionalInt.of(1));
-        }
-        finally {
-            computeActual("DROP TABLE IF EXISTS pt");
-        }
+        warmAndValidate(format("select %s, %s, %s from %s", aCol, dateIntCol, dateDateCol, table),
+                Session.builder(getSession())
+                        .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, Boolean.FALSE.toString())
+                        .build(),
+                24,
+                4,
+                Optional.empty());
+        @Language("SQL") String query = format("SELECT %s, %s FROM %s WHERE %s=20190311 AND %s='a-1'",
+                aCol, dateIntCol, table, dateIntCol, aCol);
+        Map<String, Long> expectedQueryStats = Map.of(
+                CACHED_TOTAL_ROWS, 1L,
+                VARADA_MATCH_COLUMNS_STAT, 1L,
+                VARADA_COLLECT_COLUMNS_STAT, 0L,
+                PREFILLED_COLUMNS_STAT, 2L,
+                EXTERNAL_MATCH_STAT, 0L,
+                EXTERNAL_COLLECT_STAT, 0L);
+        validateQueryStats(query, getSession(), expectedQueryStats, OptionalInt.of(1));
+
+        query = format("SELECT %s, %s FROM %s WHERE %s=20190311 AND %s=CAST('2020-04-12' AS date) AND %s='a-2'",
+                aCol, dateIntCol, table, dateIntCol, dateDateCol, aCol);
+        expectedQueryStats = Map.of(
+                CACHED_TOTAL_ROWS, 1L,
+                VARADA_MATCH_COLUMNS_STAT, 1L,
+                VARADA_COLLECT_COLUMNS_STAT, 0L,
+                PREFILLED_COLUMNS_STAT, 2L,
+                EXTERNAL_MATCH_STAT, 0L,
+                EXTERNAL_COLLECT_STAT, 0L);
+        validateQueryStats(query, getSession(), expectedQueryStats, OptionalInt.of(1));
     }
 
     @Test
     public void testTimestamp6WithTimezone()
     {
-        assertUpdate("CREATE TABLE timestamp_6(timestamp_col TIMESTAMP(6) with time zone, another_column TIMESTAMP(6) with time zone) WITH (format='PARQUET')");
+        createTable(DEFAULT_SCHEMA, "timestamp_6", "(timestamp_col TIMESTAMP(6) with time zone, another_column TIMESTAMP(6) with time zone) WITH (format='PARQUET')");
         computeActual("INSERT INTO timestamp_6 VALUES (CAST('1969-12-31 15:03:00.123456 +01:00' as TIMESTAMP), CAST('1969-12-31 15:03:00.123456 +02:00' as TIMESTAMP))");
         computeActual("SELECT * FROM timestamp_6 WHERE timestamp_col = TIMESTAMP '1969-12-31 15:03:00.123456 +01:00' OR another_column = TIMESTAMP '1969-12-31 15:03:00.123456 +01:00'");
     }
