@@ -363,7 +363,7 @@ public class PlanFragmenter
             PartitioningHandle partitioning = metadata.getTableProperties(session, node.getTable())
                     .getTablePartitioning()
                     .filter(value -> node.isUseConnectorNodePartitioning())
-                    .map(TablePartitioning::getPartitioningHandle)
+                    .map(TablePartitioning::partitioningHandle)
                     .orElse(SOURCE_DISTRIBUTION);
 
             context.get().addSourceDistribution(node.getId(), partitioning, metadata, session);
@@ -445,7 +445,7 @@ public class PlanFragmenter
             PartitioningHandle partitioning = metadata.getTableProperties(session, scan.getTable())
                     .getTablePartitioning()
                     .filter(value -> scan.isUseConnectorNodePartitioning())
-                    .map(TablePartitioning::getPartitioningHandle)
+                    .map(TablePartitioning::partitioningHandle)
                     .orElse(SOURCE_DISTRIBUTION);
             context.get().addSourceDistribution(node.getId(), partitioning, metadata, session);
 
@@ -817,7 +817,7 @@ public class PlanFragmenter
             PartitioningHandle partitioning = metadata.getTableProperties(session, node.getTable())
                     .getTablePartitioning()
                     .filter(value -> node.isUseConnectorNodePartitioning())
-                    .map(TablePartitioning::getPartitioningHandle)
+                    .map(TablePartitioning::partitioningHandle)
                     .orElse(SOURCE_DISTRIBUTION);
             if (partitioning.equals(fragmentPartitioningHandle)) {
                 // do nothing if the current scan node's partitioning matches the fragment's
