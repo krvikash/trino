@@ -15,25 +15,18 @@ package io.trino.plugin.varada.dispatcher.warmup.warmers;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.airlift.log.Logger;
 import io.trino.plugin.varada.VaradaErrorCode;
 import io.trino.plugin.varada.dictionary.DictionaryWarmInfo;
 import io.trino.plugin.varada.dispatcher.WarmupElementWriteMetadata;
-import io.trino.plugin.varada.dispatcher.model.RegularColumn;
 import io.trino.plugin.varada.dispatcher.model.RowGroupData;
 import io.trino.plugin.varada.dispatcher.model.RowGroupKey;
 import io.trino.plugin.varada.dispatcher.model.SchemaTableColumn;
-import io.trino.plugin.varada.dispatcher.model.VaradaColumn;
 import io.trino.plugin.varada.dispatcher.model.WarmUpElement;
-import io.trino.plugin.varada.dispatcher.model.WarmUpElementState;
 import io.trino.plugin.varada.dispatcher.services.RowGroupDataService;
-import io.trino.plugin.varada.metrics.MetricsManager;
-import io.trino.plugin.varada.storage.flows.FlowIdGenerator;
 import io.trino.plugin.varada.storage.write.PageSink;
 import io.trino.plugin.varada.storage.write.StorageWriterService;
 import io.trino.plugin.varada.storage.write.StorageWriterSplitConfig;
 import io.trino.plugin.varada.storage.write.VaradaPageSinkFactory;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmingService;
 import io.trino.spi.TrinoException;
 import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.connector.SchemaTableName;
@@ -43,73 +36,70 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-import static io.trino.plugin.varada.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
-import static io.trino.plugin.varada.dispatcher.warmup.warmers.StorageWarmerService.INVALID_TX_ID;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
 public class CacheWarmer
 {
-    private static final Logger logger = Logger.get(CacheWarmer.class);
-
     private final RowGroupDataService rowGroupDataService;
     private final WarmupElementsCreator warmupElementsCreator;
-    private final VaradaStatsWarmingService statsWarmingService;
     private final VaradaPageSinkFactory varadaPageSinkFactory;
     private final StorageWarmerService storageWarmerService;
     private final StorageWriterService storageWriterService;
-    private final UUID storeId = UUID.randomUUID(); //todo: change to inner function when support multi column warming
     private final AtomicInteger tmpUniqueKeyMarker;
 
     @Inject
     public CacheWarmer(RowGroupDataService rowGroupDataService,
             WarmupElementsCreator warmupElementsCreator,
-            MetricsManager metricsManager,
             VaradaPageSinkFactory varadaPageSinkFactory,
             StorageWarmerService storageWarmerService,
             StorageWriterService storageWriterService)
     {
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.warmupElementsCreator = requireNonNull(warmupElementsCreator);
-        this.statsWarmingService = metricsManager.registerMetric(VaradaStatsWarmingService.create(WARMING_SERVICE_STAT_GROUP));
         this.varadaPageSinkFactory = requireNonNull(varadaPageSinkFactory);
         this.storageWarmerService = requireNonNull(storageWarmerService);
         this.storageWriterService = requireNonNull(storageWriterService);
         this.tmpUniqueKeyMarker = new AtomicInteger(0);
     }
 
-    public Optional<WarmupElementWriteMetadata> getWarmupElementWriteMetadata(List<CacheColumnId> columns,
+    public List<WarmupElementWriteMetadata> getWarmupElementWriteMetadatasToWarm(List<CacheColumnId> columns,
             List<Type> columnsTypes,
             RowGroupKey rowGroupKey)
     {
         RowGroupData rowGroupData = rowGroupDataService.get(rowGroupKey);
-
-        Set<VaradaColumn> existingColumns = Collections.emptySet();
+        Set<String> failedWarmupElements = Collections.emptySet();
         if (rowGroupData != null) {
-            existingColumns = rowGroupData.getWarmUpElements().stream()
-                    .map(WarmUpElement::getVaradaColumn)
-                    .collect(Collectors.toSet());
+            //currently, all failed warmup elements are handled the same, do not try to re-warm
+            failedWarmupElements = rowGroupData.getWarmUpElements().stream().filter(x -> !x.isValid()).map(x -> x.getVaradaColumn().getName()).collect(Collectors.toSet());
         }
-
-        Optional<WarmupElementWriteMetadata> result = Optional.empty();
+        UUID storeId = UUID.randomUUID();
+        List<WarmupElementWriteMetadata> result = new ArrayList<>();
         for (int i = 0; i < columns.size(); i++) {
-            RegularColumn currentColumn = new RegularColumn(columns.get(i).toString());
-            if (!existingColumns.contains(currentColumn)) {
-                result = createCacheWarmupElement(rowGroupKey, columns.get(i), columnsTypes.get(i), i, storeId);
+            String cacheColumnId = columns.get(i).toString().toLowerCase(Locale.ROOT);
+            if (failedWarmupElements.contains(cacheColumnId)) {
                 break;
             }
+            Optional<WarmupElementWriteMetadata> we = createCacheWarmupElements(rowGroupKey, cacheColumnId, columnsTypes.get(i), i, storeId);
+            if (we.isEmpty()) {
+                break;
+            }
+            result.add(we.get());
+        }
+        if (result.size() != columns.size()) {
+            result = Collections.emptyList();
         }
         return result;
     }
 
-    private Optional<WarmupElementWriteMetadata> createCacheWarmupElement(RowGroupKey rowGroupKey, CacheColumnId cacheColumnId, Type type, int connectorBlockIndex, UUID storeId)
+    private Optional<WarmupElementWriteMetadata> createCacheWarmupElements(RowGroupKey rowGroupKey, String cacheColumnId, Type type, int connectorBlockIndex, UUID storeId)
     {
         Optional<WarmupElementWriteMetadata> res = Optional.empty();
         Optional<WarmUpElement> warmupElement = warmupElementsCreator.createWarmupElement(cacheColumnId, type, storeId);
@@ -125,64 +115,7 @@ public class CacheWarmer
         return res;
     }
 
-    public WarmingCacheData initCacheWarming(RowGroupKey permanentRowGroupKey,
-            WarmupElementWriteMetadata warmUpElementToWarm)
-            throws IOException, InterruptedException, ExecutionException
-    {
-        long fileCookie;
-        boolean locked;
-        PageSink pageSink;
-        long flowId;
-        int fileOffset;
-        int txId = INVALID_TX_ID;
-        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("WarpCacheManager", permanentRowGroupKey.filePath(), false);
-        RowGroupKey tempRowGroupKey = getTempKeyFile(warmUpElementToWarm, permanentRowGroupKey);
-        try {
-            flowId = FlowIdGenerator.generateFlowId();
-            storageWarmerService.tryRunningWarmFlow(flowId, tempRowGroupKey);
-            statsWarmingService.incwarm_started();
-            pageSink = varadaPageSinkFactory.create(storageWriterSplitConfig);
-
-            RowGroupData rowGroupData = rowGroupDataService.getOrCreateRowGroupData(tempRowGroupKey, Collections.emptyMap());
-            storageWarmerService.lockRowGroup(rowGroupData);
-            locked = true;
-            storageWarmerService.createFile(tempRowGroupKey);
-            fileCookie = storageWarmerService.fileOpen(tempRowGroupKey);
-            txId = storageWarmerService.warmupOpen(txId);
-            fileOffset = getFileOffset(tempRowGroupKey);
-            List<DictionaryWarmInfo> outDictionaryWarmInfos = new ArrayList<>();
-            boolean success = pageSink.open(txId, fileCookie, fileOffset, warmUpElementToWarm, outDictionaryWarmInfos);
-            if (!success) {
-                throw new TrinoException(VaradaErrorCode.VARADA_WARMUP_OPEN_ERROR, "failed to open warmup element for write");
-            }
-        }
-        catch (Exception e) {
-            logger.error(e, "failed to init warm for key=%s. %s", permanentRowGroupKey, warmUpElementToWarm);
-            throw e;
-        }
-        return new WarmingCacheData(fileCookie, pageSink, flowId, fileOffset, locked, txId, tempRowGroupKey, storageWriterSplitConfig);
-    }
-
-    public void finishCacheWarming(WarmingCacheData warmingCacheData)
-    {
-        storageWriterService.finishWarming(warmingCacheData.storageWriterSplitConfig());
-    }
-
-    private int getFileOffset(RowGroupKey rowGroupKey)
-    {
-        RowGroupData rowGroupData = rowGroupDataService.get(rowGroupKey);
-        return (rowGroupData != null) ? rowGroupData.getNextOffset() : 0;
-    }
-
-    public void warmEmptyPageSource(RowGroupData rowGroupData, WarmupElementWriteMetadata warmupElementWriteMetadata)
-    {
-        WarmUpElement warmUpElement = WarmUpElement.builder(warmupElementWriteMetadata.warmUpElement())
-                .state(WarmUpElementState.VALID)
-                .build();
-        rowGroupDataService.updateRowGroupData(rowGroupData, warmUpElement, 0, 0);
-    }
-
-    private RowGroupKey getTempKeyFile(WarmupElementWriteMetadata warmupElementWriteMetadata, RowGroupKey permanentRowGroupKey)
+    public RowGroupKey getTempRowGroupKey(WarmupElementWriteMetadata warmupElementWriteMetadata, RowGroupKey permanentRowGroupKey)
     {
         String uniqueKey = permanentRowGroupKey.table();
         uniqueKey = uniqueKey + tmpUniqueKeyMarker.incrementAndGet();
@@ -194,5 +127,50 @@ public class CacheWarmer
                 0,
                 "",
                 permanentRowGroupKey.catalogName());
+    }
+
+    public WarmingCandidate initCandidate(int txId, StorageWriterSplitConfig storageWriterSplitConfig, WarmupElementWriteMetadata warmUpElementToWarm, RowGroupKey tmpRowGroupKey)
+            throws IOException
+    {
+        PageSink pageSink = varadaPageSinkFactory.create(storageWriterSplitConfig);
+        rowGroupDataService.getOrCreateTmpRowGroupData(tmpRowGroupKey);
+        storageWarmerService.createFile(tmpRowGroupKey);
+        long fileCookie = storageWarmerService.fileOpen(tmpRowGroupKey);
+        int fileOffset = getFileOffset(tmpRowGroupKey);
+        List<DictionaryWarmInfo> outDictionaryWarmInfos = new ArrayList<>();
+
+        boolean success = pageSink.open(txId, fileCookie, fileOffset, warmUpElementToWarm, outDictionaryWarmInfos);
+        if (!success) {
+            throw new TrinoException(VaradaErrorCode.VARADA_WARMUP_OPEN_ERROR, "failed to open warmup element for write");
+        }
+        return new WarmingCandidate(fileCookie, pageSink, fileOffset, warmUpElementToWarm, tmpRowGroupKey);
+    }
+
+    public StorageWriterSplitConfig lockAndStartWarming(RowGroupKey permanentRowGroupKey)
+            throws InterruptedException
+    {
+        RowGroupData rowGroupData = rowGroupDataService.getOrCreateRowGroupData(permanentRowGroupKey, Collections.emptyMap());
+        storageWarmerService.lockRowGroup(rowGroupData);
+        return storageWriterService.startWarming("WarpCacheManager", permanentRowGroupKey.filePath(), false);
+    }
+
+    public void finishWarmingAndUnlock(int txId, StorageWriterSplitConfig storageWriterSplitConfig, RowGroupKey permanentRowGroupKey)
+    {
+        try {
+            storageWarmerService.warmupClose(txId);
+            if (storageWriterSplitConfig != null) {
+                storageWriterService.finishWarming(storageWriterSplitConfig);
+            }
+        }
+        finally {
+            RowGroupData rowGroupData = rowGroupDataService.getOrCreateRowGroupData(permanentRowGroupKey, Collections.emptyMap());
+            storageWarmerService.releaseRowGroup(rowGroupData, true);
+        }
+    }
+
+    private int getFileOffset(RowGroupKey rowGroupKey)
+    {
+        RowGroupData rowGroupData = rowGroupDataService.get(rowGroupKey);
+        return (rowGroupData != null) ? rowGroupData.getNextOffset() : 0;
     }
 }

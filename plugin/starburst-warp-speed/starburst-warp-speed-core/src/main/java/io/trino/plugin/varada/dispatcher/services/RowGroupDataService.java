@@ -115,7 +115,7 @@ public class RowGroupDataService
             List<WarmUpElement> warmUpElementsToDelete)
     {
         if (!rowGroupData.isEmpty()) {
-            throw new TrinoException(VARADA_ROW_GROUP_ILLEGAL_STATE, "row group should be null " + rowGroupData);
+            throw new TrinoException(VARADA_ROW_GROUP_ILLEGAL_STATE, "row group should be empty " + rowGroupData);
         }
         List<WarmUpElement> updatedWarmupElements = Stream.concat(rowGroupData.getWarmUpElements().stream().filter(we -> !warmUpElementsToDelete.contains(we)),
                         newWarmUpElements.stream()
@@ -206,6 +206,52 @@ public class RowGroupDataService
             varadaStatsWarmingService.incrow_group_count();
         }
         return rowGroupData;
+    }
+
+    public RowGroupData getOrCreateTmpRowGroupData(RowGroupKey rowGroupKey)
+    {
+        RowGroupData rowGroupData = get(rowGroupKey);
+
+        if (rowGroupData == null) {
+            rowGroupData = RowGroupData.builder()
+                    .rowGroupKey(rowGroupKey)
+                    .nodeIdentifier(nodeIdentifier)
+                    .partitionKeys(Collections.emptyMap())
+                    .warmUpElements(Collections.emptyList())
+                    .build();
+            save(rowGroupData);
+        }
+        return rowGroupData;
+    }
+
+    public void updateTmpRowGroupData(RowGroupData rowGroupData,
+            WarmUpElement warmUpElement,
+            int nextOffset,
+            int totalRecords)
+    {
+        Collection<WarmUpElement> existingWarmUpElements = rowGroupData.getWarmUpElements();
+        WarmUpElement.Builder warmupElementBuilder = WarmUpElement.builder(warmUpElement).totalRecords(totalRecords);
+        if (!warmUpElement.isValid()) {
+            warmupElementBuilder
+                    .state(addTemporaryFailure(warmUpElement.getState(), System.currentTimeMillis()))
+                    .warmState(WarmState.COLD);
+        }
+        warmUpElement = warmupElementBuilder.build();
+
+        Collection<WarmUpElement> updatedWarmUpElements = new ArrayList<>(existingWarmUpElements);
+
+        updatedWarmUpElements.add(warmUpElement);
+
+        RowGroupData.Builder rowGroupDataBuilder = RowGroupData.builder(rowGroupData).warmUpElements(updatedWarmUpElements);
+
+        if (warmUpElement.isValid()) {
+            rowGroupDataBuilder.isEmpty(totalRecords == 0);
+        }
+        RowGroupData updatedRowGroupData = rowGroupDataBuilder
+                .nextOffset(nextOffset)
+                .fastWarmingState(FastWarmingState.NOT_EXPORTED)
+                .build();
+        save(updatedRowGroupData);
     }
 
     public synchronized RowGroupData updateRowGroupData(RowGroupData rowGroupData,
@@ -412,7 +458,7 @@ public class RowGroupDataService
         }
 
         // no offsets to keep
-        if (updatedWarmUpElements.size() == 0) {
+        if (updatedWarmUpElements.isEmpty()) {
             deleteData(rowGroupData, true);
             return;
         }

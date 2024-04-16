@@ -69,6 +69,7 @@ import io.varada.log.ShapingLogger;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -710,7 +711,7 @@ public class DispatcherPageSourceFactory
         ImmutableList.Builder<ColumnHandle> columns = ImmutableList.builder();
         for (int i = 0; i < planSignature.getColumns().size(); i++) {
             columns.add(new WarpCacheColumnHandle(
-                    planSignature.getColumns().get(i).toString(),
+                    planSignature.getColumns().get(i).toString().toLowerCase(Locale.ROOT),
                     planSignature.getColumnsTypes().get(i)));
         }
         QueryContext queryContext = queryClassifier.classifyCache(columns.build(), queryStoreId, rowGroupData);

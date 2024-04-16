@@ -116,7 +116,7 @@ public class TestWarpCache
     public void cache(TestFormat testFormat)
             throws IOException
     {
-        execute(testFormat, "synthetic", List.of(new TableFormat(testFormat.table_name(), testFormat.structure())), true);
+        execute(testFormat, "synthetic", List.of(new TableFormat(testFormat.table_name(), testFormat.structure())));
     }
 
     @DataProvider
@@ -130,10 +130,10 @@ public class TestWarpCache
     public void synthetic(TestFormat testFormat)
             throws IOException
     {
-        execute(testFormat, "synthetic", List.of(new TableFormat(testFormat.name(), testFormat.structure())), false);
+        execute(testFormat, "synthetic", List.of(new TableFormat(testFormat.name(), testFormat.structure())));
     }
 
-    private void execute(TestFormat testFormat, String schemaName, List<TableFormat> usedTables, boolean assertOnCounters)
+    private void execute(TestFormat testFormat, String schemaName, List<TableFormat> usedTables)
             throws IOException
     {
         if (testFormat.skip() || testFormat.skip_caching()) {
@@ -146,7 +146,7 @@ public class TestWarpCache
             onTrino().executeQuery(format("set session warp.import_export_s3_path = 's3://systemtest-export-import/test_export_import/pt/%s'", formattedDateTime));
             onTrino().executeQuery("set session warp.enable_import_export = true");
             onTrino().executeQuery(format("USE warp.%s", schemaName));
-            queryUtils.runCacheQueries(testFormat, assertOnCounters);
+            queryUtils.runCacheQueries(testFormat);
             logger.info("successfully finish run test %s", testFormat.name());
         }
         catch (Exception e) {

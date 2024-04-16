@@ -40,7 +40,6 @@ import io.trino.plugin.varada.type.TypeUtils;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.VaradaStatsWarmingService;
-import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.type.DateType;
@@ -210,11 +209,11 @@ public class WarmupElementsCreator
                 recTypeLength);
     }
 
-    public Optional<WarmUpElement> createWarmupElement(CacheColumnId cacheColumnId, Type columnType, UUID storeId)
+    public Optional<WarmUpElement> createWarmupElement(String cacheColumnId, Type columnType, UUID storeId)
     {
         Optional<WarmUpElement> res = Optional.empty();
         try {
-            VaradaColumn cachedColumn = new RegularColumn(cacheColumnId.toString());
+            VaradaColumn cachedColumn = new RegularColumn(cacheColumnId);
             int recTypeLength = TypeUtils.getTypeLength(columnType, storageEngineConstants.getVarcharMaxLen());
             RecTypeCode recTypeCode = TypeUtils.convertToRecTypeCode(columnType, recTypeLength, storageEngineConstants.getFixedLengthStringLimit());
             res = Optional.of(WarmUpElement

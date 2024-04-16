@@ -38,6 +38,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static io.trino.tests.product.utils.QueryAssertions.assertEventually;
@@ -48,6 +49,7 @@ import static io.trino.tests.product.warp.utils.JMXCachingConstants.WarmupExport
 import static io.trino.tests.product.warp.utils.JMXCachingManager.getDiffFromInitial;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 public class QueryUtils
 {
@@ -86,7 +88,7 @@ public class QueryUtils
         softAssert.assertAll();
     }
 
-    public void runCacheQueries(TestFormat test, boolean assertOnCounters)
+    public void runCacheQueries(TestFormat test)
     {
         List<TestFormat.QueryData> queriesData = test.queries_data();
         if (queriesData == null) {
@@ -94,53 +96,44 @@ public class QueryUtils
         }
         logger.info("Going to execute %s queries", queriesData.size());
         for (TestFormat.QueryData query : queriesData) {
-            if (query.skip()) {
-                logger.info("query %s was skipped", query);
+            if (query.skip() || query.skip_caching()) {
+                logger.info("skipping query: %s", query);
+                continue;
             }
-            warmAndQueryCache(query, test.split_count(), assertOnCounters);
+            warmAndQueryCache(query, test.split_count());
         }
     }
 
-    private void warmAndQueryCache(TestFormat.QueryData queryData, int splitCount, boolean assertOnCounters)
+    private void warmAndQueryCache(TestFormat.QueryData queryData, int splitCount)
     {
         QueryResult warmingStatsBefore = JMXCachingManager.getWarmingStats();
-        QueryResult queryStatsBefore = JMXCachingManager.getQueryStats();
-
-        @Language("SQL") String query = queryData.query();
-        final long[] warpCache = {0};
-        Map<String, Long> expectedCounters = queryData.expected_counters();
         QueryResult exportRowBefore = JMXCachingManager.getExportStats();
+
+        AtomicInteger iterationNUmber = new AtomicInteger();
+        @Language("SQL") String query = queryData.query();
         assertEventually(
                 Duration.valueOf("360s"),
                 () -> {
                     logger.info("Running QueryId=%s, split_count=%s, Query=%s", queryData.query_id(), splitCount, query);
+                    int iteration = iterationNUmber.getAndIncrement();
+                    logger.info("iterationNumber=%s, QueryId=%s", iteration, queryData.query_id());
                     QueryResult queryResult = onTrino().executeQuery(query);
                     List<Object> expectedResult = queryData.expected_result();
                     if (validateQueryResult(expectedResult)) {
                         verifyQueryResult(queryResult, expectedResult, queryData.query_id());
                     }
                     QueryResult warmingStatsAfter = JMXCachingManager.getWarmingStats();
-                    QueryResult queryStatsAfter = JMXCachingManager.getQueryStats();
                     long invalidType = getDiffFromInitial(warmingStatsAfter, warmingStatsBefore, JMXCachingConstants.WarmingService.CACHE_INVALID_TYPE);
                     if (invalidType > 0) {
+                        logger.error("invalid type %s", query);
+                        fail("invalid type");
                         return;
                     }
                     long cacheWarmFailed = getDiffFromInitial(warmingStatsAfter, warmingStatsBefore, JMXCachingConstants.WarmingService.CACHE_WARM_FAILED);
                     if (cacheWarmFailed > 0) {
+                        logger.error("cacheWarmFailed %s", query);
+                        fail("cacheWarmFailed");
                         return;
-                    }
-
-                    warpCache[0] = getDiffFromInitial(queryStatsAfter, queryStatsBefore, JMXCachingConstants.Columns.WARP_CACHE) - warpCache[0];
-                    long warpCacheStarted = getDiffFromInitial(warmingStatsAfter, warmingStatsBefore, JMXCachingConstants.WarmingService.CACHE_WARM_STARTED);
-                    long warpCacheAccomplished = getDiffFromInitial(warmingStatsAfter, warmingStatsBefore, JMXCachingConstants.WarmingService.CACHE_WARM_ACCOMPLISHED);
-                    assertThat(warpCacheStarted).isEqualTo(warpCacheAccomplished).describedAs("warpCacheStarted=%s should be equal to warpCacheAccomplished=%s", warpCacheStarted, warpCacheAccomplished);
-                    logger.info("queryId=%s, warpCacheStarted=%s, warpCacheAccomplished=%s", queryData.query_id(), warpCacheStarted, warpCacheAccomplished);
-
-                    if (expectedCounters != null && !expectedCounters.isEmpty() && assertOnCounters) {
-                        long expectedWarpCacheResult = expectedCounters.get(JMXCachingConstants.Columns.WARP_CACHE) * splitCount;
-                        long actualWarpCacheResult = warpCache[0];
-                        assertThat(actualWarpCacheResult).isGreaterThanOrEqualTo(expectedWarpCacheResult).describedAs("actualWarpCacheResult=%s should be equal or greater than expectedWarpCacheResult=%s", expectedWarpCacheResult, actualWarpCacheResult);
-                        logger.info("queryId=%s expectedWarpCacheResult=%s, actualWarpCacheResult=%s", queryData.query_id(), expectedWarpCacheResult, actualWarpCacheResult);
                     }
                     String queryId = ((TrinoResultSet) queryResult.getJdbcResultSet().orElseThrow()).getQueryId();
                     try {

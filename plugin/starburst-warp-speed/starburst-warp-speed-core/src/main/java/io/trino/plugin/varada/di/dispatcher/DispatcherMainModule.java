@@ -24,7 +24,6 @@ import io.trino.plugin.varada.dispatcher.DispatcherPageSourceFactory;
 import io.trino.plugin.varada.dispatcher.DispatcherTableHandleBuilderProvider;
 import io.trino.plugin.varada.dispatcher.ReadErrorHandler;
 import io.trino.plugin.varada.dispatcher.cache.CoordinatorCacheManager;
-import io.trino.plugin.varada.dispatcher.cache.WorkerCacheManager;
 import io.trino.plugin.varada.dispatcher.connectors.CoordinatorDispatcherConnector;
 import io.trino.plugin.varada.dispatcher.connectors.DispatcherConnectorBase;
 import io.trino.plugin.varada.dispatcher.connectors.SingleDispatcherConnector;
@@ -43,7 +42,6 @@ import io.trino.plugin.varada.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.varada.dispatcher.warmup.export.WarmupElementsCloudExporter;
 import io.trino.plugin.varada.dispatcher.warmup.export.WarmupExportingService;
 import io.trino.plugin.varada.dispatcher.warmup.transform.BlockTransformerFactory;
-import io.trino.plugin.varada.dispatcher.warmup.warmers.CacheWarmer;
 import io.trino.plugin.varada.dispatcher.warmup.warmers.EmptyRowGroupWarmer;
 import io.trino.plugin.varada.dispatcher.warmup.warmers.StorageWarmerService;
 import io.trino.plugin.varada.dispatcher.warmup.warmers.VaradaProxiedWarmer;
@@ -57,7 +55,6 @@ import io.trino.plugin.varada.storage.read.StorageCollectorService;
 import io.trino.plugin.varada.storage.read.fill.BlockFillersFactory;
 import io.trino.plugin.varada.storage.write.StorageWriterService;
 import io.trino.plugin.varada.storage.write.VaradaPageSinkFactory;
-import io.trino.plugin.varada.storage.write.WarpCacheFilesMerger;
 import io.trino.plugin.varada.storage.write.appenders.BlockAppenderFactory;
 import io.trino.plugin.varada.storage.write.dictionary.DictionaryWriterFactory;
 import io.trino.plugin.varada.util.FailureGeneratorInvocationHandler;
@@ -123,23 +120,18 @@ public class DispatcherMainModule
             binder.bind(StorageWriterService.class);
             binder.bind(BlockAppenderFactory.class);
             binder.bind(BlockTransformerFactory.class);
-            binder.bind(WarpCacheFilesMerger.class);
         }
         if (VaradaBaseModule.isSingle(config)) {
             binder.bind(DispatcherConnectorBase.class).to(SingleDispatcherConnector.class);
             binder.bind(CoordinatorDispatcherConnector.class);
             binder.bind(WorkerDispatcherConnector.class);
-            binder.bind(CacheManager.class).to(WorkerCacheManager.class);
-            binder.bind(CacheWarmer.class);
         }
         else if (VaradaBaseModule.isCoordinator(context)) {
             binder.bind(CacheManager.class).to(CoordinatorCacheManager.class);
             binder.bind(DispatcherConnectorBase.class).to(CoordinatorDispatcherConnector.class);
         }
         else {
-            binder.bind(CacheManager.class).to(WorkerCacheManager.class);
             binder.bind(DispatcherConnectorBase.class).to(WorkerDispatcherConnector.class);
-            binder.bind(CacheWarmer.class);
         }
         binder.bind(WarmupRuleDao.class);
         binder.bind(DispatcherTableHandleBuilderProvider.class);

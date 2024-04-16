@@ -15,6 +15,7 @@ package io.trino.plugin.varada.storage.write;
 
 import io.trino.plugin.varada.dictionary.DictionaryWarmInfo;
 import io.trino.plugin.varada.dispatcher.WarmupElementWriteMetadata;
+import io.trino.plugin.varada.dispatcher.cache.WarmupElementBlocks;
 import io.trino.plugin.varada.dispatcher.warmup.warmers.WarmSinkResult;
 import io.trino.spi.Page;
 
@@ -25,6 +26,8 @@ public interface PageSink
     boolean open(int txId, long fileCookie, int fileOffset, WarmupElementWriteMetadata warmupElementWriteMetadata, List<DictionaryWarmInfo> outDictionaryWarmInfos);
 
     boolean appendPage(Page page, int totalRecords);
+
+    WarmResult appendWarmupElementBlocks(WarmupElementBlocks warmupElementBlocks);
 
     WarmSinkResult close(int totalRecords);
 

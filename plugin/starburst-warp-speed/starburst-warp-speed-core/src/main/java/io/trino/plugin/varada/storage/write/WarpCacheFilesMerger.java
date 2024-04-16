@@ -15,6 +15,7 @@ package io.trino.plugin.varada.storage.write;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import io.airlift.log.Logger;
 import io.trino.filesystem.Location;
 import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.model.RowGroupData;
@@ -38,13 +39,18 @@ import static java.util.Objects.requireNonNull;
 public class WarpCacheFilesMerger
 {
     private static final int BUFFER_SIZE = 8192;
+    private static final Logger logger = Logger.get(WarpCacheFilesMerger.class);
+
     private final RowGroupDataService rowGroupDataService;
     private final StorageWarmerService storageWarmerService;
     private final GlobalConfig globalConfig;
     private final int pageSizeShift;
 
     @Inject
-    public WarpCacheFilesMerger(RowGroupDataService rowGroupDataService, StorageWarmerService storageWarmerService, GlobalConfig globalConfig, StorageEngineConstants storageEngineConstants)
+    public WarpCacheFilesMerger(RowGroupDataService rowGroupDataService,
+            StorageWarmerService storageWarmerService,
+            GlobalConfig globalConfig,
+            StorageEngineConstants storageEngineConstants)
     {
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.storageWarmerService = requireNonNull(storageWarmerService);
@@ -52,47 +58,62 @@ public class WarpCacheFilesMerger
         this.pageSizeShift = requireNonNull(storageEngineConstants).getPageSizeShift();
     }
 
-    public void mergeTmpFiles(List<RowGroupData> tmpRowGroupDataList, RowGroupKey permanentRowGroupKey)
+    public boolean mergeTmpFiles(List<RowGroupData> tmpRowGroupDataList, RowGroupKey permanentRowGroupKey, boolean success)
             throws IOException
     {
-        RowGroupData permanentRowGroupData = rowGroupDataService.getOrCreateRowGroupData(permanentRowGroupKey, Collections.emptyMap());
-        storageWarmerService.createFile(permanentRowGroupKey);
-        boolean allWeAreValid = tmpRowGroupDataList.stream().flatMap(x -> x.getValidWarmUpElements().stream()).allMatch(WarmUpElement::isValid);
-        int maxOffset = permanentRowGroupData.getNextOffset();
-        if (allWeAreValid) {
-            String permanentRowGroupPath = permanentRowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
-            try (RandomAccessFile mergedFile = new RandomAccessFile(permanentRowGroupPath, "rw")) {
-                int offset = maxOffset << pageSizeShift;
-                mergedFile.seek(offset);
-                for (RowGroupData tmpRowGroupData : tmpRowGroupDataList) {
-                    List<WarmUpElement> validWarmUpElements = tmpRowGroupData.getValidWarmUpElements();
-                    WarmUpElement warmUpElement = validWarmUpElements.get(0); //todo: we know we have only 1 column
-                    checkArgument(warmUpElement.getStartOffset() == 0, "start offset must be zero but wasn't warmUpElement=%s", warmUpElement);
-                    int relativeStartOffset = maxOffset;
-                    int relativeEndOffset = maxOffset + (warmUpElement.getEndOffset() - warmUpElement.getStartOffset());
-                    int relativeQueryOffset = warmUpElement.getQueryOffset() + maxOffset;
-                    WarmUpElement newWarmupElement = WarmUpElement.builder(warmUpElement)
-                            .startOffset(relativeStartOffset)
-                            .endOffset(relativeEndOffset)
-                            .queryOffset(relativeQueryOffset)
-                            .build();
-                    copyFileContent(tmpRowGroupData.getRowGroupKey(), permanentRowGroupPath, mergedFile, tmpRowGroupData.getNextOffset() << pageSizeShift);
-                    maxOffset += tmpRowGroupData.getNextOffset();
-                    permanentRowGroupData = rowGroupDataService.updateRowGroupData(permanentRowGroupData,
-                            newWarmupElement,
-                            maxOffset,
-                            newWarmupElement.getTotalRecords());
-                    maxOffset = permanentRowGroupData.getNextOffset();
+        boolean mergeSucceeded = true;
+        try {
+            RowGroupData permanentRowGroupData = rowGroupDataService.getOrCreateRowGroupData(permanentRowGroupKey, Collections.emptyMap());
+            storageWarmerService.createFile(permanentRowGroupKey);
+            int maxOffset = permanentRowGroupData.getNextOffset();
+            if (success && isAllElementsAreValid(tmpRowGroupDataList)) {
+                String permanentRowGroupPath = permanentRowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
+                try (RandomAccessFile mergedFile = new RandomAccessFile(permanentRowGroupPath, "rw")) {
+                    int offset = maxOffset << pageSizeShift;
+                    mergedFile.seek(offset);
+                    for (RowGroupData tmpRowGroupData : tmpRowGroupDataList) {
+                        try {
+                            List<WarmUpElement> validWarmUpElements = tmpRowGroupData.getValidWarmUpElements();
+                            checkArgument(validWarmUpElements.size() == 1, "only one WarmUpElement is supported");
+                            WarmUpElement warmUpElement = validWarmUpElements.get(0);
+                            checkArgument(warmUpElement.getStartOffset() == 0, "start offset must be zero but wasn't warmUpElement=%s", warmUpElement);
+                            int relativeStartOffset = maxOffset;
+                            int relativeEndOffset = maxOffset + (warmUpElement.getEndOffset() - warmUpElement.getStartOffset());
+                            int relativeQueryOffset = warmUpElement.getQueryOffset() + maxOffset;
+                            WarmUpElement newWarmupElement = WarmUpElement.builder(warmUpElement)
+                                    .startOffset(relativeStartOffset)
+                                    .endOffset(relativeEndOffset)
+                                    .queryOffset(relativeQueryOffset)
+                                    .build();
+                            copyFileContent(tmpRowGroupData.getRowGroupKey(), permanentRowGroupPath, mergedFile, tmpRowGroupData.getNextOffset() << pageSizeShift);
+                            maxOffset += tmpRowGroupData.getNextOffset();
+                            permanentRowGroupData = rowGroupDataService.updateRowGroupData(permanentRowGroupData,
+                                    newWarmupElement,
+                                    maxOffset,
+                                    newWarmupElement.getTotalRecords());
+                            maxOffset = permanentRowGroupData.getNextOffset();
+                        }
+                        catch (Exception e) {
+                            logger.error(e, "failed to merge tmpRowGroupData into permanentRowGroupData. tmpRowGroupData=%s, permanentRowGroupData=%s", tmpRowGroupData, permanentRowGroupData);
+                            setAllWeToFailedState(tmpRowGroupDataList, permanentRowGroupKey);
+                            mergeSucceeded = false;
+                            break;
+                        }
+                    }
+                    rowGroupDataService.flush(permanentRowGroupKey);
                 }
-                rowGroupDataService.flush(permanentRowGroupKey);
+            }
+            else {
+                //in case of failure, add all WE as failed to permanent RG
+                for (RowGroupData tmpRowGroupData : tmpRowGroupDataList) {
+                    rowGroupDataService.markAsFailed(permanentRowGroupKey, tmpRowGroupData.getWarmUpElements(), Collections.emptyMap());
+                }
             }
         }
-        else {
-            //in case of failure, add all WE as failed to permanent RG
-            for (RowGroupData tmpRowGroupData : tmpRowGroupDataList) {
-                rowGroupDataService.markAsFailed(permanentRowGroupKey, tmpRowGroupData.getWarmUpElements(), Collections.emptyMap());
-            }
+        finally {
+            deleteTmpRowGroups(tmpRowGroupDataList);
         }
+        return mergeSucceeded;
     }
 
     private void copyFileContent(RowGroupKey tmpRowGroupKey, String permanentRowGroupPath, RandomAccessFile mergedFile, int length)
@@ -131,6 +152,19 @@ public class WarpCacheFilesMerger
         }
     }
 
+    private static boolean isAllElementsAreValid(List<RowGroupData> tmpRowGroupDataList)
+    {
+        return tmpRowGroupDataList.stream().flatMap(x -> x.getValidWarmUpElements().stream()).allMatch(WarmUpElement::isValid);
+    }
+
+    private void setAllWeToFailedState(List<RowGroupData> tmpRowGroupDataList, RowGroupKey expectedMergedKey)
+    {
+        //in case of failure, add all WE as failed to permanent RG
+        for (RowGroupData tmpRowGroupData : tmpRowGroupDataList) {
+            rowGroupDataService.markAsFailed(expectedMergedKey, tmpRowGroupData.getWarmUpElements(), Collections.emptyMap());
+        }
+    }
+
     private void validateLocation(String path)
     {
         requireNonNull(getLocation(path));
@@ -151,7 +185,7 @@ public class WarpCacheFilesMerger
         return Location.of(path);
     }
 
-    public void deleteTmpRowGroups(List<RowGroupData> tmpRowGroupDataList)
+    private void deleteTmpRowGroups(List<RowGroupData> tmpRowGroupDataList)
     {
         for (RowGroupData tmpRowGroupData : tmpRowGroupDataList) {
             rowGroupDataService.deleteFile(tmpRowGroupData);

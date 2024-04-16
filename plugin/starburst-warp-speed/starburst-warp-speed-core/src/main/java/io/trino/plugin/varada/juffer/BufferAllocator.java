@@ -519,7 +519,7 @@ public class BufferAllocator
 
     public void freeLoadSegment(MemorySegment loadSegment)
     {
-        checkArgument(loadSegment != null, "warmingCacheData must be set");
+        checkArgument(loadSegment != null, "loadSegment must be set");
         loadSegmentsQueue.add(loadSegment);
     }
 
@@ -530,7 +530,7 @@ public class BufferAllocator
 
     public void freeLoadWriteBuffer(MemorySegment loadWriteBuffer)
     {
-        checkArgument(loadWriteBuffer != null, "warmingCacheData must be set");
+        checkArgument(loadWriteBuffer != null, "loadWriteBuffer must be set");
         loadWriteBufferQueue.add(loadWriteBuffer);
     }
 

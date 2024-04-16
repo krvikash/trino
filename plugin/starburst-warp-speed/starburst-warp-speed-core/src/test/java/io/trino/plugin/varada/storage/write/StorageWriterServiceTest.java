@@ -21,12 +21,16 @@ import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.dictionary.DictionaryCacheService;
 import io.trino.plugin.varada.dictionary.DictionaryWarmInfo;
 import io.trino.plugin.varada.dispatcher.WarmupElementWriteMetadata;
+import io.trino.plugin.varada.dispatcher.cache.WarmupElementBlocks;
 import io.trino.plugin.varada.dispatcher.model.DictionaryState;
 import io.trino.plugin.varada.dispatcher.warmup.transform.BlockTransformerFactory;
 import io.trino.plugin.varada.juffer.BufferAllocator;
 import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.metrics.PrintMetricsTimerTask;
+import io.trino.plugin.varada.storage.engine.CustomPageSizeStorageEngineConstants;
+import io.trino.plugin.varada.storage.engine.CustomRecordBufferSizeStorageEngine;
 import io.trino.plugin.varada.storage.engine.StorageEngine;
+import io.trino.plugin.varada.storage.engine.StubsStorageEngine;
 import io.trino.plugin.varada.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.varada.storage.juffers.BaseJuffer;
 import io.trino.plugin.varada.storage.juffers.WriteJuffersWarmUpElement;
@@ -74,6 +78,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -116,9 +121,13 @@ public class StorageWriterServiceTest
     @BeforeEach
     public void before()
     {
-        storageEngine = mock(StorageEngine.class);
+        initiate(new StubsStorageEngine(), new StubsStorageEngineConstants());
+    }
+
+    private void initiate(StorageEngine storageEngineToSpy, StubsStorageEngineConstants storageEngineConstants)
+    {
+        storageEngine = spy(storageEngineToSpy);
         when(storageEngine.warmupElementOpen(anyInt(), anyLong(), anyInt(), anyInt(), anyInt(), anyInt(), anyLong(), any())).thenReturn(1L);
-        StubsStorageEngineConstants storageEngineConstants = new StubsStorageEngineConstants();
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
 
         DictionaryConfig dictionaryConfig = new DictionaryConfig();
@@ -129,7 +138,7 @@ public class StorageWriterServiceTest
         nativeConfig.setTaskMaxWorkerThreads(4);
         nativeConfig.setPredicateBundleSizeInMegaBytes(20);
 
-        BufferAllocator bufferAllocator = mockBufferAllocator(storageEngineConstants, nativeConfig, metricsManager);
+        BufferAllocator bufferAllocator = mockBufferAllocator(storageEngine, storageEngineConstants, nativeConfig, metricsManager);
         dictionaryCacheService = mock(DictionaryCacheService.class);
         BlockTransformerFactory blockTransformerFactory = new BlockTransformerFactory();
         BlockAppenderFactory blockAppenderFactory = new BlockAppenderFactory(storageEngineConstants, bufferAllocator, new GlobalConfig(), blockTransformerFactory);
@@ -488,6 +497,203 @@ public class StorageWriterServiceTest
         verify(storageEngine, never()).luceneCommitBuffers(anyLong(), anyBoolean(), any(int[].class));
     }
 
+    @Test
+    public void testAppendWarmupElementBlocksNotReady()
+    {
+        int chunkSize = 10;
+        int recordBufferSize = 10000;
+        int numberOfBlocks = 2;
+        int recordsPerBlock = 3;
+
+        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(
+                WarmColumnDataTestUtil.generateRecordData("col1", BIGINT),
+                WarmUpType.WARM_UP_TYPE_DATA);
+
+        List<DictionaryWarmInfo> outDictionaryWarmInfos = new ArrayList<>();
+        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", "rowGroupFilePath", true);
+        StorageWriterContext storageWriterContext = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata, outDictionaryWarmInfos);
+        storageWriterContext.setRecordBufferSize(chunkSize);
+
+        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(warmupElementWriteMetadata, recordBufferSize, chunkSize);
+        buildLongBlocks(numberOfBlocks, recordsPerBlock)
+                .forEach(warmupElementBlocks::add);
+
+        assertThat(warmupElementBlocks.isReady()).isFalse();
+        WarmResult warmResult = storageWriterService.appendWarmupElementBlocks(warmupElementBlocks, storageWriterContext);
+        assertThat(warmResult.success()).isTrue();
+        assertThat(warmResult.columnBlockIndex()).isEqualTo(numberOfBlocks);
+        assertThat(warmResult.offset()).isEqualTo(0);
+        assertThat(warmResult.notFlushedBytes()).isEqualTo(0);
+    }
+
+    @Test
+    public void testAppendWarmupElementBlocksReadyOnChunkSize()
+    {
+        int chunkSize = 10;
+        int recordBufferSize = 10000;
+        int recordsPerBlock = 3;
+        int expectedBlockIndex = chunkSize / recordsPerBlock;
+        int expectedOffset = chunkSize % recordsPerBlock;
+
+        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(
+                WarmColumnDataTestUtil.generateRecordData("col1", BIGINT),
+                WarmUpType.WARM_UP_TYPE_DATA);
+
+        List<DictionaryWarmInfo> outDictionaryWarmInfos = new ArrayList<>();
+        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", "rowGroupFilePath", true);
+        StorageWriterContext storageWriterContext = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata, outDictionaryWarmInfos);
+        storageWriterContext.setRecordBufferSize(chunkSize);
+
+        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(warmupElementWriteMetadata, recordBufferSize, chunkSize);
+        buildLongBlocks(expectedBlockIndex + 1, recordsPerBlock)
+                .forEach(warmupElementBlocks::add);
+
+        assertThat(warmupElementBlocks.isReady()).isTrue();
+        WarmResult warmResult = storageWriterService.appendWarmupElementBlocks(warmupElementBlocks, storageWriterContext);
+        assertThat(warmResult.success()).isTrue();
+        assertThat(warmResult.columnBlockIndex()).isEqualTo(expectedBlockIndex);
+        assertThat(warmResult.offset()).isEqualTo(expectedOffset);
+        assertThat(warmResult.notFlushedBytes()).isEqualTo(0);
+    }
+
+    @Test
+    public void testAppendWarmupElementBlocksNumberOfRecordsEqualsChunkSize()
+    {
+        int recordBufferSize = 10000;
+        int recordsPerBlock = 3;
+        int blocksNumber = 5;
+        int chunkSize = recordsPerBlock * blocksNumber;
+
+        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(
+                WarmColumnDataTestUtil.generateRecordData("col1", BIGINT),
+                WarmUpType.WARM_UP_TYPE_DATA);
+
+        List<DictionaryWarmInfo> outDictionaryWarmInfos = new ArrayList<>();
+        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", "rowGroupFilePath", true);
+        StorageWriterContext storageWriterContext = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata, outDictionaryWarmInfos);
+        storageWriterContext.setRecordBufferSize(chunkSize);
+
+        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(warmupElementWriteMetadata, recordBufferSize, chunkSize);
+        buildLongBlocks(blocksNumber, recordsPerBlock)
+                .forEach(warmupElementBlocks::add);
+
+        assertThat(warmupElementBlocks.isReady()).isTrue();
+        WarmResult warmResult = storageWriterService.appendWarmupElementBlocks(warmupElementBlocks, storageWriterContext);
+        assertThat(warmResult.success()).isTrue();
+        assertThat(warmResult.columnBlockIndex()).isEqualTo(blocksNumber);
+        assertThat(warmResult.offset()).isEqualTo(0);
+        assertThat(warmResult.notFlushedBytes()).isEqualTo(0);
+    }
+
+    @Test
+    public void testAppendWarmupElementBlocksVarcharReadyOnRecordBufferSize()
+    {
+        int recordBufferSize = 4096; // must be a power of 2
+        int blocksNumber = 2;
+        int recordLength = 30;
+        int recordSizeInStorage = recordLength + 1; // each record needs an extra byte
+        int recordsPerBlock = (recordBufferSize / blocksNumber / recordSizeInStorage) + 10; // record buffer can't contain all records - WarmupElementBlocks will be ready on recordBufferSize
+        int chunkSize = recordsPerBlock * blocksNumber + 1; // all records can fit into a single chunk - WarmupElementBlocks won't be ready on chunkSize
+
+        int recordsFitInBuffer = recordBufferSize / recordSizeInStorage;
+        int expectedBlockNumber = recordsFitInBuffer / recordsPerBlock;
+        int expectedOffset = recordsFitInBuffer % recordsPerBlock;
+
+        initiate(
+                new CustomRecordBufferSizeStorageEngine(recordBufferSize),
+                new CustomPageSizeStorageEngineConstants(recordBufferSize));
+
+        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(
+                WarmColumnDataTestUtil.generateRecordData("col1", VARCHAR),
+                WarmUpType.WARM_UP_TYPE_DATA);
+
+        List<DictionaryWarmInfo> outDictionaryWarmInfos = new ArrayList<>();
+        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", "rowGroupFilePath", true);
+        StorageWriterContext storageWriterContext = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata, outDictionaryWarmInfos);
+        storageWriterContext.setRecordBufferSize(chunkSize);
+
+        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(warmupElementWriteMetadata, recordBufferSize, chunkSize);
+        buildVarcharBlocks(blocksNumber, recordsPerBlock, recordLength)
+                .forEach(warmupElementBlocks::add);
+
+        assertThat(warmupElementBlocks.isReady()).isTrue();
+        WarmResult warmResult = storageWriterService.appendWarmupElementBlocks(warmupElementBlocks, storageWriterContext);
+        assertThat(warmResult.success()).isTrue();
+        assertThat(warmResult.columnBlockIndex()).isEqualTo(expectedBlockNumber);
+        assertThat(warmResult.offset()).isEqualTo(expectedOffset);
+        assertThat(warmResult.notFlushedBytes()).isEqualTo(0);
+    }
+
+    @Test
+    public void testAppendWarmupElementBlocksReadyButNotFlushed()
+    {
+        int recordBufferSize = 10000;
+        int valuesPerBlock = 3;
+        int blocksNumber = 5;
+        int chunkSize = 10 + valuesPerBlock * blocksNumber;
+
+        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(
+                WarmColumnDataTestUtil.generateRecordData("col1", BIGINT),
+                WarmUpType.WARM_UP_TYPE_DATA);
+
+        List<DictionaryWarmInfo> outDictionaryWarmInfos = new ArrayList<>();
+        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", "rowGroupFilePath", true);
+        StorageWriterContext storageWriterContext = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata, outDictionaryWarmInfos);
+        storageWriterContext.setRecordBufferSize(chunkSize);
+
+        WarmupElementBlocks warmupElementBlocks = spy(new WarmupElementBlocks(warmupElementWriteMetadata, recordBufferSize, chunkSize));
+        buildLongBlocks(blocksNumber, valuesPerBlock)
+                .forEach(warmupElementBlocks::add);
+        when(warmupElementBlocks.isReady()).thenReturn(true);
+
+        WarmResult warmResult = storageWriterService.appendWarmupElementBlocks(warmupElementBlocks, storageWriterContext);
+        assertThat(warmResult.success()).isTrue();
+        assertThat(warmResult.columnBlockIndex()).isEqualTo(0);
+        assertThat(warmResult.offset()).isEqualTo(0);
+        assertThat(warmResult.notFlushedBytes()).isGreaterThan(0);
+    }
+
+    @Test
+    public void testAppendWarmupElementBlocksNotReadyButActuallyContainsEnoughDataToFillTheBuffer()
+    {
+        int recordBufferSize = 4096; // must be a power of 2
+        int blocksNumber = 2;
+        int recordLength = 30;
+        int recordSizeInStorage = recordLength + 1; // each record needs an extra byte
+        int recordsPerBlock = (recordBufferSize / blocksNumber / recordSizeInStorage) + 10; // record buffer can't contain all records - WarmupElementBlocks will contain enough data to fill the buffer
+        int chunkSize = recordsPerBlock * blocksNumber + 1; // all records can fit into a single chunk - WarmupElementBlocks won't be ready on chunkSize
+
+        initiate(
+                new CustomRecordBufferSizeStorageEngine(recordBufferSize),
+                new CustomPageSizeStorageEngineConstants(recordBufferSize));
+
+        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(
+                WarmColumnDataTestUtil.generateRecordData("col1", VARCHAR),
+                WarmUpType.WARM_UP_TYPE_DATA);
+
+        List<DictionaryWarmInfo> outDictionaryWarmInfos = new ArrayList<>();
+        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", "rowGroupFilePath", true);
+        StorageWriterContext storageWriterContext = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata, outDictionaryWarmInfos);
+        storageWriterContext.setRecordBufferSize(chunkSize);
+
+        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(warmupElementWriteMetadata, recordBufferSize, chunkSize);
+        buildVarcharBlocks(blocksNumber, recordsPerBlock, recordLength)
+                .forEach(warmupElementBlocks::add);
+
+        // Set a factor so WarmupElementBlocks will be considered as not ready, even though it contains enough data to fill the buffer
+        assertThat(warmupElementBlocks.isReady()).isTrue();
+        warmupElementBlocks.updateFactor(recordBufferSize / 10);
+        assertThat(warmupElementBlocks.isReady()).isFalse();
+
+        WarmResult warmResult = storageWriterService.appendWarmupElementBlocks(warmupElementBlocks, storageWriterContext);
+        assertThat(warmResult.success()).isTrue();
+
+        // assert all data was consumed
+        assertThat(warmResult.columnBlockIndex()).isEqualTo(warmupElementBlocks.getBlocks().size());
+        assertThat(warmResult.offset()).isEqualTo(0);
+        assertThat(warmResult.notFlushedBytes()).isEqualTo(0);
+    }
+
     private StorageWriterContext txCreate(StorageWriterSplitConfig storageWriterSplitConfig, WarmupElementWriteMetadata warmupElementWriteMetadata, List<DictionaryWarmInfo> outDictionaryWarmInfos)
     {
         return storageWriterService.open(0, 0, 0, storageWriterSplitConfig, warmupElementWriteMetadata, outDictionaryWarmInfos);
@@ -604,5 +810,31 @@ public class StorageWriterServiceTest
         }
         ArrayType arrayType = new ArrayType(IntegerType.INTEGER);
         arrayType.writeObject(blockBuilder, elementBlockBuilder.build());
+    }
+
+    private List<Block> buildLongBlocks(int numberOfBlocks, int valuesOnEachBlock)
+    {
+        List<Block> blocks = new ArrayList<>(numberOfBlocks);
+        for (int i = 0; i < numberOfBlocks; i++) {
+            LongArrayBlockBuilder block = new LongArrayBlockBuilder(null, valuesOnEachBlock);
+            IntStream.range(0, valuesOnEachBlock).forEach(block::writeLong);
+            LazyBlock lazyBlock = new LazyBlock(valuesOnEachBlock, block::build);
+            blocks.add(lazyBlock);
+        }
+        return blocks;
+    }
+
+    private List<Block> buildVarcharBlocks(int numberOfBlocks, int valuesOnEachBlock, int recordLength)
+    {
+        VarcharType unboundedVarcharType = VarcharType.createVarcharType(recordLength);
+        List<Block> blocks = new ArrayList<>(numberOfBlocks);
+        String value = "c".repeat(recordLength);
+
+        IntStream.range(0, numberOfBlocks).forEach(_ -> {
+            VariableWidthBlockBuilder blockBuilder = new VariableWidthBlockBuilder(null, valuesOnEachBlock, valuesOnEachBlock * recordLength);
+            IntStream.range(0, valuesOnEachBlock).forEach(_ -> unboundedVarcharType.writeString(blockBuilder, value));
+            blocks.add(blockBuilder.build());
+        });
+        return blocks;
     }
 }

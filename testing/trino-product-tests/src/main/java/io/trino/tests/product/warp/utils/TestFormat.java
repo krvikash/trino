@@ -33,7 +33,7 @@ public record TestFormat(String name, int lines, String table_name, List<Column>
     public record QueryData(String query, List<Object> expected_result, String query_id,
                             Map<String, Long> expected_counters, Map<String, Object> session_properties,
                             boolean skip, List<Object> expected_iceberg_result, List<Object> expected_dl_result,
-                            Map<String, Long> iceberg_expected_counters, Map<String, Long> dl_expected_counters) {}
+                            Map<String, Long> iceberg_expected_counters, Map<String, Long> dl_expected_counters, boolean skip_caching) {}
 
     public String getTableName()
     {
@@ -136,7 +136,7 @@ public record TestFormat(String name, int lines, String table_name, List<Column>
 
         return new QueryData(updatedQuery, expectedResult,
                 queryData.query_id, expectedCounters, queryData.session_properties, queryData.skip,
-                null, null, null, null);
+                null, null, null, null, queryData.skip_caching);
     }
 
     public static class Builder

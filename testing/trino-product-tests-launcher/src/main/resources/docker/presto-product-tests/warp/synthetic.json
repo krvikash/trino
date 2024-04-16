@@ -48,10 +48,10 @@
     "warm_query": "select * from check_limit where col1_val_0_1=1 and col2_val_0_2=2 and col3_val_0_2=1",
     "data": "resources/synthetic/check_limit.jsonl",
     "pt_enable": true,
-    "skip_caching": true,
     "queries_data": [
       {
         "query": "select avg(I.col1_val_0_1),avg(I.col2_val_0_2),avg(I.col3_val_0_2) from (select * from check_limit where col1_val_0_1=1 and col2_val_0_2=2 and col3_val_0_2=2 limit 1000) as I",
+        "skip_caching": true,
         "expected_result": [
           1.0,
           2.0,
@@ -68,6 +68,7 @@
       },
       {
         "query": "select count(*) from check_limit",
+        "skip_caching": true,
         "expected_result": [
           100000
         ],
@@ -2622,7 +2623,6 @@
   {
     "name": "tuples_40keys",
     "pt_enable": false,
-    "skip_caching": true,
     "lines": 60000000,
     "structure": [
       {
@@ -2889,6 +2889,7 @@
       },
       {
         "query": "select avg(decimal_1) from tuples_40keys",
+        "skip_caching": true,
         "expected_result": [
           "53883.72"
         ],
@@ -3670,7 +3671,6 @@
   {
     "name": "limit_mix",
     "pt_enable": true,
-    "skip_caching": true,
     "structure": [
       {
         "name": "col_1",
@@ -4709,7 +4709,6 @@
   {
     "name": "arr_collect_optim",
     "pt_enable": true,
-    "skip_caching": true,
     "structure": [
       {
         "name": "varchar_20_one_val",
@@ -4979,7 +4978,6 @@
   {
     "name": "arr_collect_more",
     "pt_enable": true,
-    "skip_caching": true,
     "structure": [
       {
         "name": "char_1_one_val",
@@ -7066,7 +7064,6 @@
   {
     "name": "wide_varchar_chunks",
     "pt_enable": true,
-    "skip_caching": true,
     "data": "resources/synthetic/wide_varchar_chunks.jsonl",
     "warm_type_for_strings": "no_lucene",
     "expected_warm_failures": 3,
@@ -7529,7 +7526,6 @@
   {
     "name": "storesales_with_null_dates",
     "pt_enable": true,
-    "skip_caching": true,
     "session_properties": {
       "enable_import_export": false
     },
@@ -7871,6 +7867,7 @@
       {
         "query": "select avg(ss_sold_date_sk), min(ss_ticket_number) from storesales_with_null_dates where (cast(ss_sold_date_sk as varchar) = '2450882' or cast(ss_sold_date_sk as varchar) = '2450885') and (cast(ss_ticket_number as varchar) = '807106366' OR cast(ss_ticket_number as varchar) = '566126307' )",
         "query_id": "storesales_with_null_dates_8",
+        "skip_caching": true,
         "expected_result": [
           2450882.0,
           566126307
@@ -7940,6 +7937,7 @@
       {
         "query": "select max(c_description60), count(c_town), avg(ss_quantity) from storesales_with_null_dates where year(d_date) > 1990",
         "query_id": "storesales_with_null_dates_12",
+        "skip_caching": true,
         "expected_result": [
           "Young, valuable companies watch walls. Payments can flour",
           945459,
@@ -8009,7 +8007,6 @@
   {
     "name": "seagate_with_nulls",
     "pt_enable": true,
-    "skip_caching": true,
     "description": "table with NULL values in timestamp",
     "structure": [
       {
@@ -8234,6 +8231,7 @@
       {
         "query": "select avg(radius) from seagate_with_nulls where (year_of_week(part_load_time)<=1980 or year_of_week(part_load_time)>1990) and year(fcd_edw_insert_date)=2004",
         "query_id": "seagate_with_nulls_3",
+        "skip_caching": true,
         "expected_result": [
           2.247616942216
         ],
@@ -8457,6 +8455,7 @@
       {
         "query": "select max(col_int), avg(col_bigint), max(col_varchar) from bucketed_by where col_smallint>-1021",
         "query_id": "bucketed_by_02",
+        "skip_caching": true,
         "expected_result": [
           2147481578,
           -3.509758682189295E15,
@@ -10078,7 +10077,6 @@
     "name": "nan_single",
     "comment": "single and NaN chunks",
     "pt_enable": true,
-    "skip_caching": true,
     "structure": [
       {
         "name": "col_double",
@@ -10188,6 +10186,7 @@
       {
         "query": "select max(col_double), min(col_double), avg(col_double) from nan_single where is_nan(col_double) = true",
         "query_id": "nan_single_8",
+        "skip_caching": true,
         "expected_result": [
           "NaN",
           "NaN",
@@ -10205,7 +10204,6 @@
   {
     "name": "geospatial_basic",
     "pt_enable": true,
-    "skip_caching": true,
     "lines": 1000000,
     "structure": [
       {
@@ -10662,7 +10660,6 @@
     "name": "extreme_mixed",
     "lines": 200000,
     "pt_enable": true,
-    "skip_caching": true,
     "data": "resources/synthetic/extreme_mixed.jsonl",
     "structure": [
       {
@@ -10700,6 +10697,7 @@
       },
       {
         "query": "select sum(col_intb) from extreme_mixed where col_inta<5",
+        "skip_caching": true,
         "expected_result": [
           5054717
         ],
@@ -10714,6 +10712,7 @@
       },
       {
         "query": "select sum(col_intb) from extreme_mixed where col_inta>5",
+        "skip_caching": true,
         "expected_result": [
           5056654
         ],
@@ -10728,6 +10727,7 @@
       },
       {
         "query": "select sum(col_inta) from extreme_mixed where col_intb>50",
+        "skip_caching": true,
         "expected_result": [
           525927
         ],

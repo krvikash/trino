@@ -41,7 +41,7 @@ public class VaradaPageSinkFactory
 
     public PageSink create(StorageWriterSplitConfig storageWriterSplitConfig)
     {
-        PageSink pageSink = new VaradaPageSink(storageWriterService, storageWriterSplitConfig);
+        PageSink pageSink = new VaradaPageSink(storageWriterService, storageWriterSplitConfig, globalConfig);
 
         if (globalConfig.isFailureGeneratorEnabled()) {
             pageSink = (PageSink) Proxy.newProxyInstance(pageSink.getClass().getClassLoader(),

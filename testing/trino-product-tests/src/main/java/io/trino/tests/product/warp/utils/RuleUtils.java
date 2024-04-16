@@ -153,7 +153,7 @@ public class RuleUtils
         assertThat(res.rejectedRules().isEmpty() && !res.appliedRules().isEmpty())
                 .as("some rules are rejected. %s", res.rejectedRules())
                 .isTrue();
-        logger.debug("created %s rules for schemaTable=%s.%s", res.appliedRules(), schema, testFormat.name());
+        logger.info("created %s rules for schemaTable=%s.%s", res.appliedRules().size(), schema, testFormat.name());
     }
 
     public SetMultimap<String, Object> getCustomStats(String queryId, String summaryType)

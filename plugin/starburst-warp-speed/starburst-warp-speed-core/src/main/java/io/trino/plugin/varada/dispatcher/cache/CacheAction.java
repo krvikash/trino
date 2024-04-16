@@ -11,17 +11,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.plugin.varada.dispatcher.warmup.warmers;
+
+package io.trino.plugin.varada.dispatcher.cache;
 
 import io.trino.plugin.varada.dispatcher.model.RowGroupKey;
-import io.trino.plugin.varada.storage.write.PageSink;
+import io.trino.plugin.varada.dispatcher.warmup.CacheWarmState;
+import io.trino.plugin.varada.dispatcher.warmup.warmers.WarmingCandidate;
 import io.trino.plugin.varada.storage.write.StorageWriterSplitConfig;
 
-public record WarmingCacheData(long fileCookie,
-                               PageSink pageSink,
-                               long flowId,
-                               int fileOffset,
-                               boolean locked,
-                               int txId,
-                               RowGroupKey tmpRowGroupKey,
-                               StorageWriterSplitConfig storageWriterSplitConfig) {}
+import java.util.List;
+
+public interface CacheAction
+{
+    CacheWarmState act(List<WarmingCandidate> warmingCandidates, int totalRecord, RowGroupKey permanentRowGroupKey);
+
+    // return true if warm was successful
+    boolean close(List<WarmingCandidate> warmingCandidates, RowGroupKey permanentRowGroupKey, long flowId, StorageWriterSplitConfig storageWriterSplitConfig, int txId);
+}

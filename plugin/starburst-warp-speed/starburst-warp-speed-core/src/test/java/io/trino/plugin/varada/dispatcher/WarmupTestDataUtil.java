@@ -35,8 +35,8 @@ import io.trino.plugin.varada.dispatcher.warmup.WarmupProperties;
 import io.trino.plugin.varada.expression.TransformFunction;
 import io.trino.plugin.varada.juffer.BufferAllocator;
 import io.trino.plugin.varada.metrics.MetricsManager;
+import io.trino.plugin.varada.storage.engine.StorageEngine;
 import io.trino.plugin.varada.storage.engine.StorageEngineConstants;
-import io.trino.plugin.varada.storage.engine.StubsStorageEngine;
 import io.trino.plugin.varada.storage.lucene.LuceneFileType;
 import io.trino.plugin.varada.storage.write.WarmupElementStats;
 import io.trino.plugin.varada.type.TypeUtils;
@@ -317,13 +317,15 @@ public class WarmupTestDataUtil
                 .build();
     }
 
-    public static BufferAllocator mockBufferAllocator(StorageEngineConstants storageEngineConstants,
+    public static BufferAllocator mockBufferAllocator(
+            StorageEngine storageEngine,
+            StorageEngineConstants storageEngineConstants,
             NativeConfig nativeConfig,
             MetricsManager metricsManager)
     {
         int defaultSize = 1 << 12;
         BufferAllocator bufferAllocator = spy(new BufferAllocator(
-                new StubsStorageEngine(),
+                storageEngine,
                 storageEngineConstants,
                 nativeConfig,
                 metricsManager,

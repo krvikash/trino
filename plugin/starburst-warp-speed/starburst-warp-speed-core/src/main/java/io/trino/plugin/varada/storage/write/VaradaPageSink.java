@@ -14,8 +14,10 @@
 package io.trino.plugin.varada.storage.write;
 
 import io.airlift.log.Logger;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dictionary.DictionaryWarmInfo;
 import io.trino.plugin.varada.dispatcher.WarmupElementWriteMetadata;
+import io.trino.plugin.varada.dispatcher.cache.WarmupElementBlocks;
 import io.trino.plugin.varada.dispatcher.model.WarmUpElement;
 import io.trino.plugin.varada.dispatcher.model.WarmUpElementState;
 import io.trino.plugin.varada.dispatcher.warmup.warmers.WarmSinkResult;
@@ -23,6 +25,7 @@ import io.trino.plugin.varada.storage.engine.ExceptionThrower;
 import io.trino.plugin.varada.warmup.exceptions.MaxRowsException;
 import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
+import io.varada.log.ShapingLogger;
 
 import java.util.List;
 
@@ -30,6 +33,7 @@ public class VaradaPageSink
         implements PageSink
 {
     private static final Logger logger = Logger.get(VaradaPageSink.class);
+    private final ShapingLogger shapingLogger;
     private final StorageWriterService storageWriterService;
     private final StorageWriterSplitConfig storageWriterSplitConfig;
     private boolean writerOpened; // represents a writer(native) open
@@ -37,8 +41,14 @@ public class VaradaPageSink
 
     private StorageWriterContext storageWriterContext;
 
-    public VaradaPageSink(StorageWriterService storageWriterService, StorageWriterSplitConfig storageWriterSplitConfig)
+    public VaradaPageSink(StorageWriterService storageWriterService, StorageWriterSplitConfig storageWriterSplitConfig, GlobalConfig globalConfig)
     {
+        this.shapingLogger = ShapingLogger.getInstance(
+                logger,
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
+
         this.storageWriterService = storageWriterService;
         this.storageWriterSplitConfig = storageWriterSplitConfig;
     }
@@ -55,7 +65,7 @@ public class VaradaPageSink
             writerOpened = true;
         }
         catch (Exception e) {
-            logger.error("we create failed %s", e.getMessage());
+            shapingLogger.error("we create failed %s", e.getMessage());
             throw e;
         }
         return true;
@@ -71,6 +81,7 @@ public class VaradaPageSink
             return storageWriterService.appendPage(page, storageWriterContext);
         }
         catch (TrinoException te) {
+            shapingLogger.error(te, "appendWarmupElementBlocks thrown a TrinoException - aborting");
             abort(ExceptionThrower.isNativeException(te));
             return false;
         }
@@ -80,8 +91,27 @@ public class VaradaPageSink
             return false;
         }
         catch (Exception e) { // in case of exception the writer has aborted the tx internally already, we need to release it now
+            shapingLogger.error(e, "appendWarmupElementBlocks thrown an exception - aborting");
             abort(false);
             return false;
+        }
+    }
+
+    @Override
+    public WarmResult appendWarmupElementBlocks(WarmupElementBlocks warmupElementBlocks)
+    {
+        try {
+            return storageWriterService.appendWarmupElementBlocks(warmupElementBlocks, storageWriterContext);
+        }
+        catch (TrinoException te) {
+            shapingLogger.error(te, "appendWarmupElementBlocks thrown a TrinoException - aborting");
+            abort(ExceptionThrower.isNativeException(te));
+            return new WarmResult(false, 0, warmupElementBlocks.getStartOffsetInFirstBlock(), 0);
+        }
+        catch (Exception e) { // in case of exception the writer has aborted the tx internally already, we need to release it now
+            shapingLogger.error(e, "appendWarmupElementBlocks thrown an exception - aborting");
+            abort(false);
+            return new WarmResult(false, 0, warmupElementBlocks.getStartOffsetInFirstBlock(), 0);
         }
     }
 

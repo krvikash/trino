@@ -22,6 +22,7 @@ import io.airlift.log.Logger;
 import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.plugin.varada.annotations.ForWarp;
 import io.trino.plugin.varada.config.ProxiedConnectorConfig;
+import io.trino.plugin.varada.di.CacheManagerModule;
 import io.trino.plugin.varada.di.VaradaInitializedServiceRegistry;
 import io.trino.plugin.varada.di.VaradaModules;
 import io.trino.plugin.varada.di.dispatcher.DispatcherCoordinatorModule;
@@ -94,6 +95,7 @@ public class InternalDispatcherConnectorFactory
                 new MBeanModule(),
                 new DispatcherMainModule(catalogName, warpConfig, context),
                 new DispatcherCoordinatorModule(warpConfig, context),
+                new CacheManagerModule(warpConfig, context),
                 binder -> {
                     binder.bind(TypeManager.class).toInstance(context.getTypeManager());
                     binder.bind(NodeManager.class).toInstance(context.getNodeManager());

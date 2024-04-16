@@ -42,6 +42,7 @@ public class GlobalConfig
     public static final String FAILURE_GENERATOR_ENABLED = "warp-speed.config.failure-generator-enabled";
     public static final String WARMING_SINGLE_THREADED = "warp-speed.debug.warming-single-threaded";
     public static final String DATA_ONLY_WARMING = "warp-speed.data-only-warming";
+    public static final String CACHE_MANAGER_MAX_PARALLEL_WARMUP_ELEMENTS = "warp-speed.cache-manager.max-parallel-warmup-elements";
     public static final int MAX_NUMBER_OF_MAPPED_MATCH_COLLECT_ELEMENTS = 1 << Byte.SIZE; //256
     private static final Logger logger = Logger.get(GlobalConfig.class);
 
@@ -83,6 +84,7 @@ public class GlobalConfig
     private int shapingLoggerNumberOfSamples = 3;
     private boolean dataOnlyWarming;
     private boolean enableInverseWithNulls;
+    private int cacheManagerMaxParallelWarmupElements = 200;
 
     public int getStripeSize()
     {
@@ -481,6 +483,17 @@ public class GlobalConfig
         this.dataOnlyWarming = dataOnlyWarming;
     }
 
+    public int getCacheManagerMaxParallelWarmupElements()
+    {
+        return cacheManagerMaxParallelWarmupElements;
+    }
+
+    @Config(CACHE_MANAGER_MAX_PARALLEL_WARMUP_ELEMENTS)
+    public void setCacheManagerMaxParallelWarmupElements(int cacheManagerMaxParallelWarmupElements)
+    {
+        this.cacheManagerMaxParallelWarmupElements = cacheManagerMaxParallelWarmupElements;
+    }
+
     @Override
     public String toString()
     {
@@ -518,6 +531,7 @@ public class GlobalConfig
                 ", dataOnlyWarming=" + dataOnlyWarming +
                 ", enableWarmingExtraLogs=" + enableWarmingExtraLogs +
                 ", warmingSingleThreaded=" + warmingSingleThreaded +
+                ", cacheManagerMaxParallelWarmupElements=" + cacheManagerMaxParallelWarmupElements +
                 '}';
     }
 }
