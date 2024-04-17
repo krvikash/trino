@@ -15,7 +15,6 @@ package io.trino.tests.tpch;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
-import io.trino.Session;
 import io.trino.connector.alternatives.MockPlanAlternativePlugin;
 import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.testing.DistributedQueryRunner;
@@ -27,18 +26,15 @@ import static io.trino.testing.TestingSession.testSessionBuilder;
 public final class TpchQueryRunnerBuilder
         extends DistributedQueryRunner.Builder<TpchQueryRunnerBuilder>
 {
-    private static final Session DEFAULT_SESSION = testSessionBuilder()
-            .setSource("test")
-            .setCatalog("tpch")
-            .setSchema("tiny")
-            .build();
-
     private Map<String, String> connectorProperties = ImmutableMap.of();
     private boolean withPlanAlternatives;
 
     private TpchQueryRunnerBuilder()
     {
-        super(DEFAULT_SESSION);
+        super(testSessionBuilder()
+                .setCatalog("tpch")
+                .setSchema("tiny")
+                .build());
     }
 
     @CanIgnoreReturnValue
