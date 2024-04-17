@@ -14,11 +14,13 @@
 package io.trino.tests.tpch;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import io.trino.Session;
 import io.trino.connector.alternatives.MockPlanAlternativePlugin;
 import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.testing.DistributedQueryRunner;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 
@@ -39,6 +41,7 @@ public final class TpchQueryRunnerBuilder
             .setSchema("tiny")
             .build();
 
+    private Map<String, String> connectorProperties = ImmutableMap.of();
     private Optional<Integer> maxRowsPerPage = Optional.empty();
     private Optional<Boolean> producePages = Optional.empty();
     private Optional<String> destinationCatalog = Optional.empty();
@@ -50,6 +53,13 @@ public final class TpchQueryRunnerBuilder
     private TpchQueryRunnerBuilder()
     {
         super(DEFAULT_SESSION);
+    }
+
+    @CanIgnoreReturnValue
+    public TpchQueryRunnerBuilder withConnectorProperties(Map<String, String> connectorProperties)
+    {
+        this.connectorProperties = ImmutableMap.copyOf(connectorProperties);
+        return this;
     }
 
     public TpchQueryRunnerBuilder withMaxRowsPerPage(int maxRowsPerPage)
@@ -106,9 +116,12 @@ public final class TpchQueryRunnerBuilder
         if (withPlanAlternatives) {
             super.addExtraProperty("optimizer.use-sub-plan-alternatives", "true");
         }
-        DistributedQueryRunner queryRunner = buildWithoutCatalogs();
+        DistributedQueryRunner queryRunner = super.build();
         try {
+            queryRunner.installPlugin(new TpchPlugin());
+            queryRunner.installPlugin(new MockPlanAlternativePlugin(new TpchPlugin()));
             ImmutableMap.Builder<String, String> properties = ImmutableMap.builder();
+            properties.putAll(connectorProperties);
             maxRowsPerPage.ifPresent(value -> properties.put(TPCH_MAX_ROWS_PER_PAGE_PROPERTY, value.toString()));
             producePages.ifPresent(value -> properties.put(TPCH_PRODUCE_PAGES, value.toString()));
             destinationCatalog.ifPresent(value -> properties.put(TPCH_TABLE_SCAN_REDIRECTION_CATALOG, value));
@@ -116,21 +129,6 @@ public final class TpchQueryRunnerBuilder
             splitsPerNode.ifPresent(value -> properties.put(TPCH_SPLITS_PER_NODE, Integer.toString(value)));
             partitioningEnabled.ifPresent(value -> properties.put(TPCH_PARTITIONING_ENABLED, value.toString()));
             queryRunner.createCatalog("tpch", withPlanAlternatives ? "plan_alternatives_tpch" : "tpch", properties.buildOrThrow());
-            return queryRunner;
-        }
-        catch (Exception e) {
-            queryRunner.close();
-            throw e;
-        }
-    }
-
-    public DistributedQueryRunner buildWithoutCatalogs()
-            throws Exception
-    {
-        DistributedQueryRunner queryRunner = super.build();
-        try {
-            queryRunner.installPlugin(new TpchPlugin());
-            queryRunner.installPlugin(new MockPlanAlternativePlugin(new TpchPlugin()));
             return queryRunner;
         }
         catch (Exception e) {
