@@ -88,20 +88,23 @@ public class QueryUtils
         softAssert.assertAll();
     }
 
-    public void runCacheQueries(TestFormat test)
+    public int runCacheQueries(TestFormat test)
     {
         List<TestFormat.QueryData> queriesData = test.queries_data();
         if (queriesData == null) {
-            return;
+            return 0;
         }
         logger.info("Going to execute %s queries", queriesData.size());
+        int ranQueries = 0;
         for (TestFormat.QueryData query : queriesData) {
             if (query.skip() || query.skip_caching()) {
                 logger.info("skipping query: %s", query);
                 continue;
             }
             warmAndQueryCache(query, test.split_count());
+            ranQueries++;
         }
+        return ranQueries;
     }
 
     private void warmAndQueryCache(TestFormat.QueryData queryData, int splitCount)

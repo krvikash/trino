@@ -62,6 +62,7 @@ public class JMXCachingConstants
     {
         public static final String NUMBER_OF_RUNS = "number_of_runs";
         public static final String NUMBER_OF_RUNS_FAIL = "number_of_runs_fail";
+        public static final String DELETED_BY_LOW_PRIORITY = "deleted_by_low_priority";
     }
 
     public static class WarmupExportService

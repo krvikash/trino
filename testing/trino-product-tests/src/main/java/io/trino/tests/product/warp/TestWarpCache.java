@@ -22,7 +22,6 @@ import io.trino.tempto.BeforeMethodWithContext;
 import io.trino.tests.product.warp.utils.DemoterUtils;
 import io.trino.tests.product.warp.utils.QueryUtils;
 import io.trino.tests.product.warp.utils.RuleUtils;
-import io.trino.tests.product.warp.utils.TableFormat;
 import io.trino.tests.product.warp.utils.TestFormat;
 import io.trino.tests.product.warp.utils.syntheticconfig.TestConfiguration;
 import org.testng.ITestContext;
@@ -116,7 +115,7 @@ public class TestWarpCache
     public void cache(TestFormat testFormat)
             throws IOException
     {
-        execute(testFormat, "synthetic", List.of(new TableFormat(testFormat.table_name(), testFormat.structure())));
+        execute(testFormat, "synthetic");
     }
 
     @DataProvider
@@ -130,23 +129,24 @@ public class TestWarpCache
     public void synthetic(TestFormat testFormat)
             throws IOException
     {
-        execute(testFormat, "synthetic", List.of(new TableFormat(testFormat.name(), testFormat.structure())));
+        execute(testFormat, "synthetic");
     }
 
-    private void execute(TestFormat testFormat, String schemaName, List<TableFormat> usedTables)
+    private void execute(TestFormat testFormat, String schemaName)
             throws IOException
     {
         if (testFormat.skip() || testFormat.skip_caching()) {
             logger.info("test %s is skipped. description=%s", testFormat.name(), testFormat.description());
             throw new SkipException("Skipping this test");
         }
+        int ranQueries = 0;
         try {
             logger.info("starting run test %s", testFormat.name());
             onTrino().executeQuery("set session warp.enable_default_warming = false");
             onTrino().executeQuery(format("set session warp.import_export_s3_path = 's3://systemtest-export-import/test_export_import/pt/%s'", formattedDateTime));
             onTrino().executeQuery("set session warp.enable_import_export = true");
             onTrino().executeQuery(format("USE warp.%s", schemaName));
-            queryUtils.runCacheQueries(testFormat);
+            ranQueries = queryUtils.runCacheQueries(testFormat);
             logger.info("successfully finish run test %s", testFormat.name());
         }
         catch (Exception e) {
@@ -154,10 +154,10 @@ public class TestWarpCache
             throw e;
         }
         finally {
-            for (TableFormat tableFormat : usedTables) {
-                demoterUtils.demote(schemaName, tableFormat.tableName(), tableFormat);
+            if (ranQueries > 0) {
+                demoterUtils.demoteAllByMaxUsage();
+                demoterUtils.resetToDefaultDemoterConfiguration();
             }
-            demoterUtils.resetToDefaultDemoterConfiguration();
         }
     }
 }
