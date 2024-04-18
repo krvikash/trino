@@ -838,7 +838,8 @@ public class DataResource
                 throw new IllegalStateException("AsyncContext response is not HttpServletResponse");
             }
             servletResponse.setContentType(TEXT_PLAIN);
-            getRateLimitHeaders(getClientId((HttpServletRequest) asyncContext.getRequest())).forEach(servletResponse::setHeader);
+            String clientId = getClientId((HttpServletRequest) asyncContext.getRequest());
+            getRateLimitHeaders(clientId).forEach(servletResponse::setHeader);
 
             if (throwable.isPresent()) {
                 servletResponse.setStatus(SC_INTERNAL_SERVER_ERROR);
@@ -854,7 +855,7 @@ public class DataResource
                 servletResponse.setStatus(SC_OK);
             }
 
-            recordAddDataPagesRequest(processingStart, getClientId((HttpServletRequest) asyncContext.getRequest()));
+            recordAddDataPagesRequest(processingStart, clientId);
         }
         catch (IOException e) {
             logger.error(e, "IO error while writing response");
