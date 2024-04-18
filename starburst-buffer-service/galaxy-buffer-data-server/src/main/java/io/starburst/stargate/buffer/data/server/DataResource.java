@@ -932,20 +932,41 @@ public class DataResource
         public void onDataAvailable()
                 throws IOException
         {
-            getDelegate().onDataAvailable();
+            try {
+                getDelegate().onDataAvailable();
+            }
+            catch (Throwable callbackError) {
+                logger.error(callbackError, "unexpected error in onDataAvailable");
+                throw callbackError;
+            }
         }
 
         @Override
         public void onAllDataRead()
                 throws IOException
         {
-            getDelegate().onAllDataRead();
+            try {
+                getDelegate().onAllDataRead();
+            }
+            catch (Throwable callbackError) {
+                logger.error(callbackError, "unexpected error in onAllDataRead");
+                throw callbackError;
+            }
         }
 
         @Override
         public void onError(Throwable t)
         {
-            getDelegate().onError(t);
+            try {
+                getDelegate().onError(t);
+            }
+            catch (Throwable callbackError) {
+                if (callbackError != t) {
+                    callbackError.addSuppressed(t);
+                }
+                logger.error(callbackError, "unexpected error in onError");
+                throw callbackError;
+            }
         }
     }
 }
