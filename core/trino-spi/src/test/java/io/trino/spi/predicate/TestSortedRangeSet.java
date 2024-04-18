@@ -17,6 +17,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import io.airlift.json.ObjectMapperProvider;
+import io.airlift.slice.Slice;
+import io.airlift.slice.Slices;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.LongArrayBlock;
@@ -32,6 +34,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
@@ -583,6 +586,26 @@ public class TestSortedRangeSet
                         Range.range(BIGINT, 10L, false, 19L, true),
                         Range.range(BIGINT, 20L, true, 29L, false),
                         Range.range(BIGINT, 40L, false, 49L, false)));
+
+        // ValueBlock
+        List<Slice> slices = IntStream.rangeClosed(0, 500)
+                .mapToObj(String::valueOf)
+                .map(Slices::utf8Slice)
+                .sorted()
+                .toList();
+        assertIntersect(
+                SortedRangeSet.copyOf(VARCHAR,
+                        Stream.concat(
+                                IntStream.range(0, 2).mapToObj(l -> Range.range(VARCHAR, slices.get(l * 50), l % 2 == 0, slices.get((l + 1) * 50 - 1), l % 2 == 1)),
+                                IntStream.range(3, 5).mapToObj(l -> Range.range(VARCHAR, slices.get(l * 50), l % 2 == 0, slices.get((l + 1) * 50 - 1), l % 2 == 1))).toList()),
+                SortedRangeSet.copyOf(
+                        VARCHAR,
+                        IntStream.rangeClosed(1, 50).mapToObj(l -> Range.range(VARCHAR, slices.get(l * 5), l % 2 == 1, slices.get((l + 1) * 5 - 1), l % 2 == 0)).toList()),
+                SortedRangeSet.copyOf(
+                        VARCHAR,
+                        Stream.concat(
+                                IntStream.rangeClosed(1, 19).mapToObj(l -> Range.range(VARCHAR, slices.get(l * 5), l % 2 == 1, slices.get((l + 1) * 5 - 1), l % 2 == 0)),
+                                IntStream.rangeClosed(30, 49).mapToObj(l -> Range.range(VARCHAR, slices.get(l * 5), l % 2 == 1, slices.get((l + 1) * 5 - 1), l % 2 == 0))).toList()));
     }
 
     private void assertIntersect(SortedRangeSet first, SortedRangeSet second, SortedRangeSet result)

@@ -670,7 +670,7 @@ public final class SortedRangeSet
                         if (block instanceof DictionaryBlock) {
                             copyDictionaryBlock(blockBuilder, inclusive, probeRangeSet, offset, resultIndex, size);
                         }
-                        else if (block instanceof ValueBlock) {
+                        else {
                             copyValueBlock(blockBuilder, inclusive, probeRangeSet, offset, resultIndex, size);
                         }
                         probeIndex += size;

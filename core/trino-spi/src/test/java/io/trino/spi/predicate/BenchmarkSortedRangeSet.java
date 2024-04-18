@@ -365,11 +365,13 @@ public class BenchmarkSortedRangeSet
         linearIntersectSmall(data);
         linearIntersectLarge(data);
         linearIntersectLarge(data);
+        linearIntersectSmallOnVeryLarge(data);
         linearIntersectRangeOnLarge(data);
         linearIntersectDiscreteOnLarge(data);
         binaryIntersectSmall(data);
         binaryIntersectLarge(data);
         binaryIntersectLarge(data);
+        binaryIntersectSmallOnVeryLarge(data);
         binaryIntersectRangeOnLarge(data);
         binaryIntersectDiscreteOnLarge(data);
 
