@@ -31,6 +31,8 @@ public final class TestingBufferServiceExchangeMemoryRunner
     {
         TestingBufferService bufferService = TestingBufferService
                 .builder()
+                .withDataServerBuilder(
+                        builder -> builder.setConfigProperty("testing.enable-stats-logging", "true"))
                 .withDiscoveryServerBuilder(
                         builder -> builder.setConfigProperty("buffer.discovery.start-grace-period", "3s"))
                 .build();
