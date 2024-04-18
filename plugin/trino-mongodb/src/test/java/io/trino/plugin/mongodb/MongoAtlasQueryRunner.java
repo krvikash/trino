@@ -42,7 +42,11 @@ public final class MongoAtlasQueryRunner
             Iterable<TpchTable<?>> tables)
             throws Exception
     {
-        DistributedQueryRunner queryRunner = DistributedQueryRunner.builder(MongoQueryRunner.createSession())
+        Session session = testSessionBuilder()
+                .setCatalog("mongodb")
+                .setSchema(TPCH_SCHEMA)
+                .build();
+        DistributedQueryRunner queryRunner = DistributedQueryRunner.builder(session)
                 .setExtraProperties(extraProperties)
                 .build();
         try {
@@ -55,7 +59,7 @@ public final class MongoAtlasQueryRunner
             queryRunner.createCatalog("mongodb", "mongodb", connectorProperties);
             queryRunner.execute("CREATE SCHEMA IF NOT EXISTS mongodb." + TPCH_SCHEMA);
 
-            copyTpchTables(queryRunner, "tpch", TINY_SCHEMA_NAME, MongoQueryRunner.createSession(), tables);
+            copyTpchTables(queryRunner, "tpch", TINY_SCHEMA_NAME, session, tables);
             return queryRunner;
         }
         catch (Throwable e) {
@@ -70,7 +74,11 @@ public final class MongoAtlasQueryRunner
             Iterable<TpchTable<?>> tables)
             throws Exception
     {
-        DistributedQueryRunner queryRunner = DistributedQueryRunner.builder(MongoQueryRunner.createSession())
+        Session session = testSessionBuilder()
+                .setCatalog("mongodb")
+                .setSchema(TPCH_SCHEMA)
+                .build();
+        DistributedQueryRunner queryRunner = DistributedQueryRunner.builder(session)
                 .setExtraProperties(extraProperties)
                 .build();
         try {
