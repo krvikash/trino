@@ -365,6 +365,10 @@ public class DataResource
             throw e;
         }
 
+        // compute clientId outside for whenAllComplete callback; callback execution may happen when HTTP request is already closed and
+        // inner objects in non-usable state.
+        String clientId = getClientId(request);
+
         AtomicReference<ReleasableReadListener> releasableReadListenerWrapper = new AtomicReference<>();
         AtomicBoolean inProgressCompletionFlag = new AtomicBoolean();
         Futures.addCallback(
@@ -470,7 +474,7 @@ public class DataResource
                                                 Futures.transform(
                                                         nonCancellationPropagating(allAsList(addDataPagesFutures)),
                                                         ignored -> {
-                                                            OptionalDouble rateLimit = addDataPagesThrottlingCalculator.getRateLimit(getClientId(request), inProgressAddDataPagesRequests.get());
+                                                            OptionalDouble rateLimit = addDataPagesThrottlingCalculator.getRateLimit(clientId, inProgressAddDataPagesRequests.get());
                                                             if (rateLimit.isPresent()) {
                                                                 return Response.ok()
                                                                         .header(RATE_LIMIT_HEADER, Double.toString(rateLimit.getAsDouble()))
@@ -491,7 +495,7 @@ public class DataResource
                             {
                                 finalizeAddDataPagesRequest(addDataPagesFutures, sliceLease);
                                 logger.warn(throwable, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
-                                asyncResponse.resume(errorResponse(throwable, getRateLimitHeaders(request)));
+                                asyncResponse.resume(errorResponse(throwable, getRateLimitHeaders(clientId)));
                             }
                         };
 
@@ -505,7 +509,7 @@ public class DataResource
                     {
                         finalizeAddDataPagesRequest(emptyList(), sliceLease);
                         logger.warn(t, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
-                        asyncResponse.resume(errorResponse(t, getRateLimitHeaders(request)));
+                        asyncResponse.resume(errorResponse(t, getRateLimitHeaders(clientId)));
                     }
 
                     private void finalizeAddDataPagesRequest(List<ListenableFuture<Void>> addDataPagesFutures, SliceLease sliceLease)
@@ -519,7 +523,7 @@ public class DataResource
                                     sliceLease.release();
                                 }
                                 finally {
-                                    recordAddDataPagesRequest(processingStart, request);
+                                    recordAddDataPagesRequest(processingStart, clientId);
                                     decrementInProgressAddDataPagesRequests();
 
                                     // break reference chain from Jetty's HttpInput (implementation of ServletInputStream) to registered ReadListener.
@@ -539,10 +543,10 @@ public class DataResource
                 executor);
     }
 
-    private void recordAddDataPagesRequest(long start, HttpServletRequest request)
+    private void recordAddDataPagesRequest(long start, String clientId)
     {
         addDataPagesThrottlingCalculator.recordProcessTimeInMillis(System.currentTimeMillis() - start);
-        addDataPagesThrottlingCalculator.updateCounterStat(getClientId(request), 1);
+        addDataPagesThrottlingCalculator.updateCounterStat(clientId, 1);
     }
 
     private static String getClientId(HttpServletRequest request)
@@ -782,9 +786,9 @@ public class DataResource
         }
     }
 
-    private Map<String, String> getRateLimitHeaders(HttpServletRequest request)
+    private Map<String, String> getRateLimitHeaders(String clientId)
     {
-        OptionalDouble rateLimit = addDataPagesThrottlingCalculator.getRateLimit(getClientId(request), inProgressAddDataPagesRequests.get());
+        OptionalDouble rateLimit = addDataPagesThrottlingCalculator.getRateLimit(clientId, inProgressAddDataPagesRequests.get());
         if (rateLimit.isPresent()) {
             return ImmutableMap.of(
                     RATE_LIMIT_HEADER, Double.toString(rateLimit.getAsDouble()),
@@ -834,7 +838,7 @@ public class DataResource
                 throw new IllegalStateException("AsyncContext response is not HttpServletResponse");
             }
             servletResponse.setContentType(TEXT_PLAIN);
-            getRateLimitHeaders((HttpServletRequest) asyncContext.getRequest()).forEach(servletResponse::setHeader);
+            getRateLimitHeaders(getClientId((HttpServletRequest) asyncContext.getRequest())).forEach(servletResponse::setHeader);
 
             if (throwable.isPresent()) {
                 servletResponse.setStatus(SC_INTERNAL_SERVER_ERROR);
@@ -850,7 +854,7 @@ public class DataResource
                 servletResponse.setStatus(SC_OK);
             }
 
-            recordAddDataPagesRequest(processingStart, (HttpServletRequest) asyncContext.getRequest());
+            recordAddDataPagesRequest(processingStart, getClientId((HttpServletRequest) asyncContext.getRequest()));
         }
         catch (IOException e) {
             logger.error(e, "IO error while writing response");
