@@ -128,8 +128,7 @@ public final class KuduQueryRunnerFactory
         QueryRunner runner = null;
         try {
             String kuduSchema = kuduSchemaEmulationPrefix.isPresent() ? "tpch" : "default";
-            Session session = createSession(kuduSchema, kuduSessionProperties);
-            runner = DistributedQueryRunner.builder(session)
+            runner = DistributedQueryRunner.builder(createSession(kuduSchema, kuduSessionProperties))
                     .setExtraProperties(extraProperties)
                     .build();
 
@@ -138,7 +137,7 @@ public final class KuduQueryRunnerFactory
 
             installKuduConnector(masterAddress, runner, kuduSchema, kuduSchemaEmulationPrefix, kuduExtraProperties);
 
-            copyTpchTables(runner, "tpch", TINY_SCHEMA_NAME, session, tables);
+            copyTpchTables(runner, "tpch", TINY_SCHEMA_NAME, tables);
 
             return runner;
         }
