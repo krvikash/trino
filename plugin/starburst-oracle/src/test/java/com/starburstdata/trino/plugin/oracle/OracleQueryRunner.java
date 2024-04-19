@@ -65,7 +65,7 @@ public final class OracleQueryRunner
     {
         Session session = sessionModifier.apply(createSession(ALICE_USER, catalogName));
         QueryRunner queryRunner = DistributedQueryRunner.builder(session)
-                .setNodeCount(nodesCount)
+                .setWorkerCount(nodesCount - 1)
                 .setCoordinatorProperties(coordinatorProperties)
                 .build();
 

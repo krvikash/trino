@@ -113,7 +113,7 @@ public class DispatcherQueryRunner
             throws Exception
     {
         DistributedQueryRunner.Builder<?> queryRunnerBuilder = DistributedQueryRunner.builder(createSession(catalogName))
-                .setNodeCount(numOfNodes)
+                .setWorkerCount(numOfNodes - 1)
                 .setCoordinatorProperties(coordinatorProperties)
                 .setExtraProperties(ImmutableMap.<String, String>builder().put("query.schedule-split-batch-size", "3")
                         .put("optimizer.use-sub-plan-alternatives", "true")

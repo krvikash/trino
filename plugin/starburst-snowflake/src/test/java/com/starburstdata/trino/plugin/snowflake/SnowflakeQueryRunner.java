@@ -83,7 +83,7 @@ public class SnowflakeQueryRunner
             throws Exception
     {
         DistributedQueryRunner.Builder builder = DistributedQueryRunner.builder(createSessionForUser(USER, catalogName))
-                .setNodeCount(nodeCount);
+                .setWorkerCount(nodeCount - 1);
         extraProperties.forEach(builder::addExtraProperty);
         DistributedQueryRunner queryRunner = builder
                 .setCoordinatorProperties(coordinatorProperties)

@@ -58,7 +58,7 @@ public final class StargateQueryRunner
                     .setSchema("unspecified_schema")
                     .build();
             DistributedQueryRunner.Builder<?> queryRunnerBuilder = DistributedQueryRunner.builder(session)
-                    .setNodeCount(1); // 1 is perfectly enough until we do parallel Stargate connector
+                    .setWorkerCount(0); // Coordinator only is perfectly enough until we do parallel Stargate connector
 
             systemAccessControl.ifPresent(queryRunnerBuilder::setSystemAccessControl);
 
@@ -248,7 +248,7 @@ public final class StargateQueryRunner
                         .setSchema("unspecified_schema")
                         .build())
                 .setExtraProperties(Map.of("http-server.http.port", "8081"))
-                .setNodeCount(1)// 1 is perfectly enough until we do parallel Stargate connector
+                .setWorkerCount(0)// Coordinator only is perfectly enough until we do parallel Stargate connector
                 .build();
 
         stargateQueryRunner.installPlugin(new TpchPlugin());
