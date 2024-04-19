@@ -24,7 +24,6 @@ import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
-import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
 
 import java.util.ArrayDeque;
 import java.util.Collection;
@@ -56,7 +55,6 @@ public class Partition
     private final String exchangeId;
     private final int partitionId;
     private final MemoryAllocator memoryAllocator;
-    private final SpoolingStorage spoolingStorage;
     private final SpooledChunksByExchange spooledChunksByExchange;
     private final int chunkTargetSizeInBytes;
     private final int chunkMaxSizeInBytes;
@@ -91,7 +89,6 @@ public class Partition
             String exchangeId,
             int partitionId,
             MemoryAllocator memoryAllocator,
-            SpoolingStorage spoolingStorage,
             SpooledChunksByExchange spooledChunksByExchange,
             int chunkTargetSizeInBytes,
             int chunkMaxSizeInBytes,
@@ -106,7 +103,6 @@ public class Partition
         this.exchangeId = requireNonNull(exchangeId, "exchangeId is null");
         this.partitionId = partitionId;
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
-        this.spoolingStorage = requireNonNull(spoolingStorage, "spoolingStorage is null");
         this.spooledChunksByExchange = requireNonNull(spooledChunksByExchange, "spooledChunksByExchange is null");
         this.chunkTargetSizeInBytes = chunkTargetSizeInBytes;
         this.chunkMaxSizeInBytes = chunkMaxSizeInBytes;
@@ -188,25 +184,18 @@ public class Partition
         return new AddDataPagesResult(addDataPagesFuture, true);
     }
 
-    public ChunkDataResult getChunkData(long bufferNodeId, long chunkId, boolean chunkSpoolMergeEnabled)
+    public ChunkDataResult getChunkData(long bufferNodeId, long chunkId)
     {
         Chunk chunk = closedChunks.get(chunkId);
         ChunkDataLease chunkDataLease = (chunk == null ? null : chunk.getChunkDataLease());
         if (chunkDataLease == null) {
             // chunk already spooled
-            if (chunkSpoolMergeEnabled) {
-                Optional<SpooledChunk> spooledChunk = spooledChunksByExchange.getSpooledChunk(exchangeId, chunkId);
-                if (spooledChunk.isPresent()) {
-                    return ChunkDataResult.of(spooledChunk.get());
-                }
-                else {
-                    throw new DataServerException(CHUNK_NOT_FOUND,
-                            "No closed chunk found for bufferNodeId %d, exchange %s, chunk %d".formatted(bufferNodeId, exchangeId, chunkId));
-                }
+            Optional<SpooledChunk> spooledChunk = spooledChunksByExchange.getSpooledChunk(exchangeId, chunkId);
+            if (spooledChunk.isPresent()) {
+                return ChunkDataResult.of(spooledChunk.get());
             }
-            else {
-                return ChunkDataResult.of(spoolingStorage.getSpooledChunk(bufferNodeId, exchangeId, chunkId));
-            }
+            throw new DataServerException(CHUNK_NOT_FOUND,
+                    "No closed chunk found for bufferNodeId %d, exchange %s, chunk %d".formatted(bufferNodeId, exchangeId, chunkId));
         }
         return ChunkDataResult.of(chunkDataLease);
     }

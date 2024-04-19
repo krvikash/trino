@@ -14,7 +14,6 @@ import com.azure.storage.blob.BlobContainerAsyncClient;
 import com.azure.storage.blob.BlobServiceAsyncClient;
 import com.azure.storage.blob.batch.BlobBatchAsyncClient;
 import com.azure.storage.blob.batch.BlobBatchClientBuilder;
-import com.azure.storage.blob.models.BlobStorageException;
 import com.azure.storage.blob.models.BlockBlobItem;
 import com.azure.storage.blob.models.DeleteSnapshotsOptionType;
 import com.azure.storage.blob.models.ListBlobsOptions;
@@ -34,7 +33,6 @@ import io.starburst.stargate.buffer.data.server.BufferNodeId;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
 import io.starburst.stargate.buffer.data.spooling.AbstractSpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.MergedFileNameGenerator;
-import io.starburst.stargate.buffer.data.spooling.SpooledChunkNotFoundException;
 import io.starburst.stargate.buffer.data.spooling.SpoolingUtils;
 import reactor.core.publisher.Flux;
 
@@ -72,7 +70,7 @@ public class AzureBlobSpoolingStorage
             BlobServiceAsyncClient blobServiceAsyncClient,
             AzureBlobSpoolingConfig azureBlobSpoolingConfig)
     {
-        super(bufferNodeId, chunkManagerConfig.isChunkSpoolMergeEnabled(), mergedFileNameGenerator, dataServerStats);
+        super(bufferNodeId, mergedFileNameGenerator, dataServerStats);
 
         URI spoolingDirectory = requireNonNull(chunkManagerConfig.getSpoolingDirectory(), "spoolingDirectory is null");
         this.hostName = getHostName(spoolingDirectory);
@@ -82,18 +80,6 @@ public class AzureBlobSpoolingStorage
         requireNonNull(azureBlobSpoolingConfig, "azureBlobSpoolingConfig is null");
         this.uploadBlockSize = azureBlobSpoolingConfig.getUploadBlockSize().toBytes();
         this.uploadMaxConcurrency = azureBlobSpoolingConfig.getUploadMaxConcurrency();
-    }
-
-    @Override
-    protected int getFileSize(String fileName)
-            throws SpooledChunkNotFoundException
-    {
-        try {
-            return (int) containerClient.getBlobAsyncClient(fileName).getProperties().block().getBlobSize();
-        }
-        catch (BlobStorageException e) {
-            throw new SpooledChunkNotFoundException(e);
-        }
     }
 
     @Override
@@ -114,21 +100,6 @@ public class AzureBlobSpoolingStorage
                 .toFuture();
 
         return toListenableFuture(result);
-    }
-
-    @Override
-    protected ListenableFuture<?> putStorageObject(String fileName, ChunkDataLease chunkDataLease)
-    {
-        BlobAsyncClient blobClient = containerClient.getBlobAsyncClient(fileName);
-        Flux<ByteBuffer> parts = Flux.create(fluxSink -> {
-            SpoolingUtils.writeChunkDataLease(chunkDataLease, fluxSink::next);
-            fluxSink.complete();
-        });
-        CompletableFuture<BlockBlobItem> future = blobClient.upload(parts, new ParallelTransferOptions()
-                .setBlockSizeLong(uploadBlockSize)
-                .setMaxConcurrency(uploadMaxConcurrency), true)
-                .toFuture();
-        return toListenableFuture(future);
     }
 
     @Override

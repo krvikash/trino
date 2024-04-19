@@ -20,11 +20,6 @@ import java.util.Map;
 public interface SpoolingStorage
         extends AutoCloseable
 {
-    SpooledChunk getSpooledChunk(long chunkBufferNodeId, String exchangeId, long chunkId);
-
-    // TODO: drop this code path after spooling merged chunks is stable (https://github.com/starburstdata/trino-buffer-service/issues/414)
-    ListenableFuture<Void> writeChunk(long bufferNodeId, String exchangeId, long chunkId, ChunkDataLease chunkDataLease);
-
     // Have another method as:
     // 1. Keep old code untouched in case we need to fall back
     // 2. writeMergedChunks needs a different signature to update metadata
@@ -35,6 +30,4 @@ public interface SpoolingStorage
     ListenableFuture<Slice> readMetadataFile(long bufferNodeId);
 
     ListenableFuture<Void> removeExchange(long bufferNodeId, String exchangeId);
-
-    int getSpooledChunksCount();
 }

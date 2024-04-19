@@ -80,7 +80,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 @TestInstance(TestInstance.Lifecycle.PER_METHOD)
-public abstract class AbstractTestDataServer
+public class TestDataServer
 {
     private static final String EXCHANGE_0 = "exchange-0";
     private static final String EXCHANGE_1 = "exchange-1";
@@ -103,7 +103,6 @@ public abstract class AbstractTestDataServer
         dataServer = TestingDataServer.builder()
                 .withDiscoveryApiModule(new TestingDiscoveryApiModule())
                 .setConfigProperty("spooling.directory", System.getProperty("java.io.tmpdir") + "/spooling-storage-" + UUID.randomUUID())
-                .setConfigProperty("chunk.spool-merge-enabled", String.valueOf(isChunkSpoolMergeEnabled()))
                 .setConfigProperty("discovery-broadcast-interval", "10ms")
                 .setConfigProperty("memory.heap-headroom", succinctBytes(Runtime.getRuntime().maxMemory() - DATA_SERVER_AVAILABLE_MEMORY.toBytes()).toString())
                 .setConfigProperty("memory.allocation-low-watermark", "0.99")
@@ -134,8 +133,6 @@ public abstract class AbstractTestDataServer
         executor.shutdownNow();
         closeAll(dataServer, httpClient);
     }
-
-    protected abstract boolean isChunkSpoolMergeEnabled();
 
     @Test
     public void testBufferNodeInfo()

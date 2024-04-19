@@ -34,7 +34,6 @@ import io.starburst.stargate.buffer.data.server.BufferNodeId;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
 import io.starburst.stargate.buffer.data.spooling.AbstractSpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.MergedFileNameGenerator;
-import io.starburst.stargate.buffer.data.spooling.SpooledChunkNotFoundException;
 import io.starburst.stargate.buffer.data.spooling.gcs.GcsClientConfig;
 import jakarta.annotation.PreDestroy;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
@@ -43,9 +42,7 @@ import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.Delete;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
-import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Object;
@@ -65,7 +62,6 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static com.google.common.util.concurrent.MoreExecutors.listeningDecorator;
 import static io.airlift.concurrent.MoreFutures.asVoid;
-import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.concurrent.MoreFutures.toListenableFuture;
 import static io.airlift.concurrent.Threads.threadsNamed;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.PATH_SEPARATOR;
@@ -73,7 +69,6 @@ import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.getBu
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getMetadataFileName;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.translateFailures;
 import static io.starburst.stargate.buffer.data.spooling.s3.S3SpoolingStorage.CompatibilityMode.GCP;
-import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -104,7 +99,7 @@ public class S3SpoolingStorage
             GcsClientConfig gcsClientConfig)
             throws IOException
     {
-        super(bufferNodeId, chunkManagerConfig.isChunkSpoolMergeEnabled(), mergedFileNameGenerator, dataServerStats);
+        super(bufferNodeId, mergedFileNameGenerator, dataServerStats);
 
         this.s3AsyncClient = s3AsyncClient;
         this.bucketName = getBucketName(requireNonNull(chunkManagerConfig.getSpoolingDirectory(), "spoolingDirectory is null"));
@@ -137,16 +132,6 @@ public class S3SpoolingStorage
     }
 
     @Override
-    protected ListenableFuture<?> putStorageObject(String fileName, ChunkDataLease chunkDataLease)
-    {
-        PutObjectRequest putObjectRequest = PutObjectRequest.builder()
-                .bucket(bucketName)
-                .key(fileName)
-                .build();
-        return toListenableFuture(s3AsyncClient.putObject(putObjectRequest, ChunkDataAsyncRequestBody.fromChunkDataLease(chunkDataLease)));
-    }
-
-    @Override
     protected ListenableFuture<Map<Long, SpooledChunk>> putStorageObject(String fileName, Map<Chunk, ChunkDataLease> chunkDataLeaseMap, long contentLength)
     {
         PutObjectRequest putObjectRequest = PutObjectRequest.builder()
@@ -172,22 +157,6 @@ public class S3SpoolingStorage
     {
         try (Closer closer = Closer.create()) {
             closer.register(s3AsyncClient::close);
-        }
-    }
-
-    @Override
-    protected int getFileSize(String fileName)
-            throws SpooledChunkNotFoundException
-    {
-        HeadObjectRequest headObjectRequest = HeadObjectRequest.builder()
-                .bucket(bucketName)
-                .key(fileName)
-                .build();
-        try {
-            return toIntExact(getFutureValue(s3AsyncClient.headObject(headObjectRequest)).contentLength());
-        }
-        catch (NoSuchKeyException e) {
-            throw new SpooledChunkNotFoundException(e);
         }
     }
 

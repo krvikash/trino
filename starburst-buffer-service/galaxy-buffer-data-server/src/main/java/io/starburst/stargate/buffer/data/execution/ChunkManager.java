@@ -117,7 +117,6 @@ public class ChunkManager
     private final Duration exchangeStalenessThreshold;
     private final Duration chunkSpoolInterval;
     private final int chunkSpoolConcurrency;
-    private final boolean chunkSpoolMergeEnabled;
     private final int chunkSpoolMergeThreshold;
     private final MemoryAllocator memoryAllocator;
     private final SpoolingStorage spoolingStorage;
@@ -177,7 +176,6 @@ public class ChunkManager
         this.exchangeStalenessThreshold = chunkManagerConfig.getExchangeStalenessThreshold();
         this.chunkSpoolInterval = chunkManagerConfig.getChunkSpoolInterval();
         this.chunkSpoolConcurrency = chunkManagerConfig.getChunkSpoolConcurrency();
-        this.chunkSpoolMergeEnabled = chunkManagerConfig.isChunkSpoolMergeEnabled();
         this.chunkSpoolMergeThreshold = chunkManagerConfig.getChunkSpoolMergeThreshold();
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.spoolingStorage = requireNonNull(spoolingStorage, "spoolingStorage is null");
@@ -297,14 +295,6 @@ public class ChunkManager
 
     public ChunkDataResult getChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId)
     {
-        if (chunkSpoolMergeEnabled) {
-            return getChunkDataMerge(bufferNodeId, exchangeId, partitionId, chunkId);
-        }
-        return getChunkDataNoMerge(bufferNodeId, exchangeId, partitionId, chunkId);
-    }
-
-    public ChunkDataResult getChunkDataMerge(long bufferNodeId, String exchangeId, int partitionId, long chunkId)
-    {
         if (bufferNodeId != this.bufferNodeId) {
             // this is a request to get drained chunk data on a different node, return spooling file info directly
             Map<Long, SpooledChunk> spooledChunkMap = drainedSpooledChunkMap.getUnchecked(bufferNodeId);
@@ -316,18 +306,7 @@ public class ChunkManager
         }
 
         Exchange exchange = getExchangeAndHeartbeat(exchangeId);
-        return exchange.getChunkData(bufferNodeId, partitionId, chunkId, chunkSpoolMergeEnabled);
-    }
-
-    public ChunkDataResult getChunkDataNoMerge(long bufferNodeId, String exchangeId, int partitionId, long chunkId)
-    {
-        if (bufferNodeId != this.bufferNodeId) {
-            // this is a request to get drained chunk data on a different node, return spooling file info directly
-            return ChunkDataResult.of(spoolingStorage.getSpooledChunk(bufferNodeId, exchangeId, chunkId));
-        }
-
-        Exchange exchange = getExchangeAndHeartbeat(exchangeId);
-        return exchange.getChunkData(bufferNodeId, partitionId, chunkId, chunkSpoolMergeEnabled);
+        return exchange.getChunkData(bufferNodeId, partitionId, chunkId);
     }
 
     public ListenableFuture<ChunkList> listClosedChunks(String exchangeId, OptionalLong pagingId)
@@ -429,10 +408,7 @@ public class ChunkManager
 
     public int getSpooledChunksCount()
     {
-        if (chunkSpoolMergeEnabled) {
-            return spooledChunksByExchange.getSpooledChunksCount();
-        }
-        return spoolingStorage.getSpooledChunksCount();
+        return spooledChunksByExchange.getSpooledChunksCount();
     }
 
     public synchronized void drainAllChunks()
@@ -482,7 +458,7 @@ public class ChunkManager
         LOG.info("Finished draining all chunks");
 
         // persist spooledChunkMapByExchange to S3
-        if (chunkSpoolMergeEnabled && spooledChunksByExchange.size() > 0) {
+        if (spooledChunksByExchange.size() > 0) {
             getFutureValue(spoolingStorage.writeMetadataFile(bufferNodeId, spooledChunksByExchange.encodeMetadataSlice()));
             LOG.info("Finished writing metadata of spooled chunks");
         }
@@ -672,17 +648,6 @@ public class ChunkManager
 
     private void spoolChunksSync(List<Chunk> chunks)
     {
-        if (chunkSpoolMergeEnabled) {
-            spoolChunksMerge(chunks);
-        }
-        else {
-            // TODO: drop this code path after spooling merged chunks is stable (https://github.com/starburstdata/trino-buffer-service/issues/414)
-            spoolChunksNoMerge(chunks);
-        }
-    }
-
-    private void spoolChunksMerge(List<Chunk> chunks)
-    {
         ImmutableList.Builder<ChunksWithExchangeId> chunksWithExchangeIdBuilder = ImmutableList.builder();
         for (Map.Entry<String, Collection<Chunk>> entry : Multimaps.index(chunks, Chunk::getExchangeId).asMap().entrySet()) {
             String exchangeId = entry.getKey();
@@ -737,43 +702,6 @@ public class ChunkManager
                                     chunkDataLease.release();
                                     chunk.release();
                                 });
-                                return null;
-                            },
-                            executor);
-                },
-                chunkSpoolConcurrency,
-                executor));
-    }
-
-    private void spoolChunksNoMerge(List<Chunk> chunks)
-    {
-        getFutureValue(processAll(
-                chunks,
-                chunk -> {
-                    ChunkDataLease chunkDataLease = chunk.getChunkDataLease();
-                    if (chunkDataLease == null) {
-                        // already released
-                        return immediateVoidFuture();
-                    }
-
-                    String exchangeId = chunk.getExchangeId();
-                    Exchange exchange = exchanges.get(exchangeId);
-                    if (exchange == null) {
-                        // exchange gone; not spooling
-                        return immediateVoidFuture();
-                    }
-
-                    ListenableFuture<Void> spoolingFuture = spoolingStorage.writeChunk(bufferNodeId, exchangeId, chunk.getChunkId(), chunkDataLease);
-                    exchange.markSpooled();
-                    // in case of failure we still need to decrease reference count to avoid memory leak
-                    addExceptionCallback(spoolingFuture, failure -> chunkDataLease.release());
-
-                    return Futures.transform(
-                            spoolingFuture,
-                            ignored -> {
-                                exchange.chunkSpooled(chunk.getHandle());
-                                chunkDataLease.release();
-                                chunk.release();
                                 return null;
                             },
                             executor);

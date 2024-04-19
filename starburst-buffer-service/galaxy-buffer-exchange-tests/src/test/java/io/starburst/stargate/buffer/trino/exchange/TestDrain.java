@@ -86,36 +86,21 @@ public class TestDrain
     }
 
     @Test
-    public void testDrainQuickMerge()
+    public void testDrainQuick()
             throws Exception
     {
-        testDrain(3, true);
-    }
-
-    @Test
-    public void testDrainQuickNoMerge()
-            throws Exception
-    {
-        testDrain(3, false);
+        testDrain(3);
     }
 
     @Test
     @Disabled// too slow for automation
-    public void testDrainStressMerge()
+    public void testDrainStress()
             throws Exception
     {
-        testDrain(20, true);
+        testDrain(20);
     }
 
-    @Test
-    @Disabled// too slow for automation
-    public void testDrainStressNoMerge()
-            throws Exception
-    {
-        testDrain(20, false);
-    }
-
-    private void testDrain(int drainIterations, boolean chunkSpoolMergeEnabled)
+    private void testDrain(int drainIterations)
             throws Exception
     {
         long maxMemory = Runtime.getRuntime().maxMemory();
@@ -130,7 +115,6 @@ public class TestDrain
                                 .setConfigProperty("testing.enable-stats-logging", "false")
                                 .setConfigProperty("memory.heap-headroom", DataSize.succinctBytes(memoryHeadroom).toString())
                                 .setConfigProperty("draining.min-duration", "10s")
-                                .setConfigProperty("chunk.spool-merge-enabled", String.valueOf(chunkSpoolMergeEnabled))
                                 .setConfigProperty("exchange.staleness-threshold", "2h")) //tmp
                 .setDataServersCount(3)
                 .build();

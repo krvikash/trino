@@ -74,9 +74,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public abstract class AbstractTestChunkManager
+public class TestChunkManager
 {
-    private static final Logger log = Logger.get(AbstractTestChunkManager.class);
+    private static final Logger log = Logger.get(TestChunkManager.class);
 
     protected static final String EXCHANGE_0 = "exchange-0";
     protected static final String EXCHANGE_1 = "exchange-1";
@@ -860,8 +860,6 @@ public abstract class AbstractTestChunkManager
         }
     }
 
-    protected abstract boolean isChunkSpoolMergeEnabled();
-
     protected MemoryAllocator defaultMemoryAllocator()
     {
         return new MemoryAllocator(new MemoryAllocatorConfig(), new ChunkManagerConfig(), new DataServerStats());
@@ -879,7 +877,6 @@ public abstract class AbstractTestChunkManager
                 .setChunkMaxSize(chunkMaxSize)
                 .setChunkSliceSize(chunkSliceSize)
                 .setSpoolingDirectory("s3://" + minioStorage.getBucketName())
-                .setChunkSpoolMergeEnabled(isChunkSpoolMergeEnabled())
                 .setChunkSpoolInterval(succinctDuration(100, SECONDS)); // only manual triggering in tests
         DataServerConfig dataServerConfig = new DataServerConfig()
                 .setDataIntegrityVerificationEnabled(true)
@@ -948,13 +945,8 @@ public abstract class AbstractTestChunkManager
         ChunkDataResult chunkDataResult = chunkManager.getChunkData(drainedBufferNodeId, EXCHANGE_0, 0, 0L);
         assertTrue(chunkDataResult.spooledChunk().isPresent());
         assertEquals(52, chunkDataResult.spooledChunk().get().length());
-        if (isChunkSpoolMergeEnabled()) {
-            assertTrue(chunkDataResult.spooledChunk().get().location().startsWith("s3://" + minioStorage.getBucketName()));
-            assertTrue(chunkDataResult.spooledChunk().get().location().contains("exchange-0." + drainedBufferNodeId));
-        }
-        else {
-            assertEquals("s3://" + minioStorage.getBucketName() + "/0a.exchange-0.1/0", chunkDataResult.spooledChunk().get().location());
-        }
+        assertTrue(chunkDataResult.spooledChunk().get().location().startsWith("s3://" + minioStorage.getBucketName()));
+        assertTrue(chunkDataResult.spooledChunk().get().location().contains("exchange-0." + drainedBufferNodeId));
     }
 
     private static ConditionFactory awaitOneSecond()

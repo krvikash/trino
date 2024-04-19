@@ -12,6 +12,7 @@ package io.starburst.stargate.buffer.data.execution;
 import com.google.common.annotations.VisibleForTesting;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
+import io.airlift.configuration.DefunctConfig;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 import io.airlift.units.MaxDataSize;
@@ -30,6 +31,7 @@ import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.PATH_
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.MINUTES;
 
+@DefunctConfig("chunk.spool-merge-enabled")
 public class ChunkManagerConfig
 {
     @VisibleForTesting
@@ -42,7 +44,6 @@ public class ChunkManagerConfig
     private URI spoolingDirectory;
     private Duration chunkSpoolInterval = succinctDuration(50, MILLISECONDS);
     private int chunkSpoolConcurrency = 32;
-    private boolean chunkSpoolMergeEnabled;
     private int chunkSpoolMergeThreshold = 10;
 
     @NotNull
@@ -147,18 +148,6 @@ public class ChunkManagerConfig
     public ChunkManagerConfig setChunkSpoolConcurrency(int chunkSpoolConcurrency)
     {
         this.chunkSpoolConcurrency = chunkSpoolConcurrency;
-        return this;
-    }
-
-    public boolean isChunkSpoolMergeEnabled()
-    {
-        return chunkSpoolMergeEnabled;
-    }
-
-    @Config("chunk.spool-merge-enabled")
-    public ChunkManagerConfig setChunkSpoolMergeEnabled(boolean chunkSpoolMergeEnabled)
-    {
-        this.chunkSpoolMergeEnabled = chunkSpoolMergeEnabled;
         return this;
     }
 

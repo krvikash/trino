@@ -24,13 +24,11 @@
 package io.starburst.stargate.buffer.data.server.testing;
 
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.inject.Inject;
 import io.airlift.concurrent.MoreFutures;
 import io.airlift.slice.Slice;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.execution.Chunk;
 import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
-import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
 
 import java.util.HashMap;
@@ -38,31 +36,11 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
 
 public class BlackholeSpoolingStorage
         implements SpoolingStorage
 {
-    @Inject
-    public BlackholeSpoolingStorage(
-            ChunkManagerConfig config)
-    {
-        checkArgument(config.isChunkSpoolMergeEnabled(), "chunk merging on spool must be enabled");
-    }
-
-    @Override
-    public SpooledChunk getSpooledChunk(long chunkBufferNodeId, String exchangeId, long chunkId)
-    {
-        throw new RuntimeException("not supported");
-    }
-
-    @Override
-    public ListenableFuture<Void> writeChunk(long bufferNodeId, String exchangeId, long chunkId, ChunkDataLease chunkDataLease)
-    {
-        throw new RuntimeException("not supported");
-    }
-
     @Override
     public ListenableFuture<Map<Long, SpooledChunk>> writeMergedChunks(long bufferNodeId, String exchangeId, Map<Chunk, ChunkDataLease> chunkDataLeaseMap, long contentLength)
     {
@@ -89,13 +67,6 @@ public class BlackholeSpoolingStorage
     public ListenableFuture<Slice> readMetadataFile(long bufferNodeId)
     {
         throw new RuntimeException("not supported");
-    }
-
-    @Override
-    public int getSpooledChunksCount()
-    {
-        // we do not keep track of count; this is only used for statistics so returning dummy value in test code does not matter
-        return 0;
     }
 
     @Override

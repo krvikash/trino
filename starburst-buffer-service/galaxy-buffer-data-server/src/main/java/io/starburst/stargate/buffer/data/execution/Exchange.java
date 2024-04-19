@@ -198,7 +198,6 @@ public class Exchange
                     exchangeId,
                     partitionId,
                     memoryAllocator,
-                    spoolingStorage,
                     spooledChunksByExchange,
                     chunkTargetSizeInBytes,
                     chunkMaxSizeInBytes,
@@ -223,7 +222,7 @@ public class Exchange
         return addDataPagesResult;
     }
 
-    public ChunkDataResult getChunkData(long bufferNodeId, int partitionId, long chunkId, boolean chunkSpoolMergeEnabled)
+    public ChunkDataResult getChunkData(long bufferNodeId, int partitionId, long chunkId)
     {
         throwIfFailed();
 
@@ -232,7 +231,7 @@ public class Exchange
         if (partition == null) {
             throw new DataServerException(CHUNK_NOT_FOUND, "partition %d not found for exchange %s".formatted(partitionId, exchangeId));
         }
-        return partition.getChunkData(bufferNodeId, chunkId, chunkSpoolMergeEnabled);
+        return partition.getChunkData(bufferNodeId, chunkId);
     }
 
     private Consumer<ChunkHandle> closedChunkConsumer()

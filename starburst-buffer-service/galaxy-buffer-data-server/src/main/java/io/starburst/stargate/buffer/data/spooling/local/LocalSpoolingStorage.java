@@ -18,7 +18,6 @@ import io.airlift.slice.Slice;
 import io.airlift.slice.SliceOutput;
 import io.airlift.slice.Slices;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
-import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.execution.Chunk;
 import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
@@ -38,25 +37,18 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Verify.verify;
 import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
 import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
 import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
-import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
-import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.CHUNK_FILE_HEADER_SIZE;
-import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getFileName;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getMetadataFileName;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getPrefixedDirectories;
-import static java.lang.StrictMath.toIntExact;
 import static java.util.Objects.requireNonNull;
 
 public class LocalSpoolingStorage
         implements SpoolingStorage
 {
     private final URI spoolingDirectory;
-    private final boolean chunkSpoolMergeEnabled;
     private final MergedFileNameGenerator mergedFileNameGenerator;
 
     private final Map<String, AtomicInteger> counts = new ConcurrentHashMap<>();
@@ -67,51 +59,7 @@ public class LocalSpoolingStorage
             MergedFileNameGenerator mergedFileNameGenerator)
     {
         this.spoolingDirectory = requireNonNull(config.getSpoolingDirectory(), "spoolingDirectory is null");
-        this.chunkSpoolMergeEnabled = config.isChunkSpoolMergeEnabled();
         this.mergedFileNameGenerator = requireNonNull(mergedFileNameGenerator, "mergedFileNameGenerator is null");
-    }
-
-    @Override
-    public SpooledChunk getSpooledChunk(long chunkBufferNodeId, String exchangeId, long chunkId)
-    {
-        if (chunkSpoolMergeEnabled) {
-            throw new IllegalStateException("getSpooledChunk() called when chunk spool merge is enabled");
-        }
-
-        File file = getFilePath(chunkBufferNodeId, exchangeId, chunkId).toFile();
-        if (!file.exists()) {
-            throw new DataServerException(CHUNK_NOT_FOUND, "No closed chunk found for bufferNodeId %d, exchange %s, chunk %d".formatted(chunkBufferNodeId, exchangeId, chunkId));
-        }
-        int sizeInBytes = toIntExact(file.length());
-        verify(sizeInBytes > CHUNK_FILE_HEADER_SIZE,
-                "length %s should be larger than %s", sizeInBytes, CHUNK_FILE_HEADER_SIZE);
-        return new SpooledChunk(file.getPath(), 0, sizeInBytes);
-    }
-
-    @Override
-    public ListenableFuture<Void> writeChunk(long bufferNodeId, String exchangeId, long chunkId, ChunkDataLease chunkDataLease)
-    {
-        checkArgument(!chunkDataLease.chunkSlices().isEmpty(), "unexpected empty chunk when spooling");
-
-        File file = getFilePath(bufferNodeId, exchangeId, chunkId).toFile();
-        File parent = file.getParentFile();
-        if (parent != null && !parent.exists() && !parent.mkdirs() && !parent.exists()) {
-            // It is possible that directory does not exist when first
-            // `parent.exists()` is called but then is created by some other thread and
-            // `parent.mkdirs()` returns false. To treat such race condition as success
-            // we add yet another call to `parent.exists()` at the end of the chain.
-            throw new IllegalStateException("Couldn't create dir: " + parent);
-        }
-        try (SliceOutput sliceOutput = new OutputStreamSliceOutput(new FileOutputStream(file))) {
-            sliceOutput.writeLong(chunkDataLease.checksum());
-            sliceOutput.writeInt(chunkDataLease.numDataPages());
-            chunkDataLease.chunkSlices().forEach(sliceOutput::writeBytes);
-        }
-        catch (IOException e) {
-            return immediateFailedFuture(e);
-        }
-        counts.computeIfAbsent(exchangeId, ignored -> new AtomicInteger()).incrementAndGet();
-        return immediateVoidFuture();
     }
 
     @Override
@@ -201,17 +149,6 @@ public class LocalSpoolingStorage
         catch (IOException e) {
             return immediateFailedFuture(e);
         }
-    }
-
-    @Override
-    public int getSpooledChunksCount()
-    {
-        return counts.values().stream().mapToInt(AtomicInteger::get).sum();
-    }
-
-    private Path getFilePath(long bufferNodeId, String exchangeId, long chunkId)
-    {
-        return getPath(getFileName(bufferNodeId, exchangeId, chunkId));
     }
 
     private Path getMergedFilePath(long bufferNodeId, String exchangeId)
