@@ -56,7 +56,8 @@ public final class DataServer
                 new EventModule(),
                 new StatusModule(),
                 new DiscoveryApiModule(),
-                new MainModule());
+                new MainModule(),
+                new SpoolingStorageModule());
 
         try {
             Injector injector = app.initialize();

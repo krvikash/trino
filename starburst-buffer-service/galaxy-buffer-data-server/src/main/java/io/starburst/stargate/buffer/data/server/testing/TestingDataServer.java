@@ -29,6 +29,7 @@ import io.starburst.stargate.buffer.data.server.BufferNodeStateManager;
 import io.starburst.stargate.buffer.data.server.DataServerStatusProvider;
 import io.starburst.stargate.buffer.data.server.DiscoveryApiModule;
 import io.starburst.stargate.buffer.data.server.MainModule;
+import io.starburst.stargate.buffer.data.server.SpoolingStorageModule;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 import io.starburst.stargate.buffer.status.StatusModule;
 import io.starburst.stargate.buffer.status.StatusProvider;
@@ -76,7 +77,8 @@ public class TestingDataServer
                 new TracingModule("buffer-data-server", "testing"),
                 new EventModule(),
                 new StatusModule(),
-                new MainModule(nodeId, discoveryApiModule.isPresent(), Ticker.systemTicker())));
+                new MainModule(nodeId, discoveryApiModule.isPresent(), Ticker.systemTicker()),
+                new SpoolingStorageModule()));
         discoveryApiModule.ifPresent(modules::add);
 
         Bootstrap app = new Bootstrap(modules);
