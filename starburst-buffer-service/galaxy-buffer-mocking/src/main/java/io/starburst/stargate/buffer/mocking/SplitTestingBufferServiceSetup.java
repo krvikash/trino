@@ -79,7 +79,7 @@ public class SplitTestingBufferServiceSetup
 
             MemoryQueryRunner.builder()
                     .setExtraProperties(properties)
-                    .setNodeCount(1)
+                    .setWorkerCount(0)
                     .setAdditionalSetup(runner -> {
                         runner.installPlugin(new BufferExchangePlugin());
                         runner.loadExchangeManager("buffer", exchangeManagerProperties);
