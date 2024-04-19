@@ -83,8 +83,6 @@ public class HttpDataClient
     public static final String AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER = "X-trino-average-process-time-in-millis";
     public static final String SPOOLING_FILE_LOCATION_HEADER = "X-trino-buffer-spooling-file-location";
     public static final String SPOOLED_CHUNK_OFFSET_HEADER = "X-trino-buffer-spooled-chunk-offset";
-    @Deprecated // we can delete use SPOOLING_FILE_SIZE_HEADER once buffer service version is in sync in galaxy-trino and stargate
-    public static final String SPOOLING_FILE_SIZE_HEADER = "X-trino-buffer-spooling-file-size";
     public static final String SPOOLED_CHUNK_LENGTH_HEADER = "X-trino-buffer-spooled-chunk-length";
     public static final String CLIENT_ID_HEADER = "X-trino-buffer-client-id";
 

@@ -103,7 +103,6 @@ import static io.starburst.stargate.buffer.data.client.HttpDataClient.RATE_LIMIT
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLED_CHUNK_LENGTH_HEADER;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLED_CHUNK_OFFSET_HEADER;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLING_FILE_LOCATION_HEADER;
-import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLING_FILE_SIZE_HEADER;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
 import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_CHUNK_DATA;
 import static io.starburst.stargate.buffer.data.execution.ChunkDataLease.CHUNK_SLICES_METADATA_SIZE;
@@ -689,7 +688,6 @@ public class DataResource
                 asyncResponse.resume(Response.status(Status.NOT_FOUND)
                         .header(SPOOLING_FILE_LOCATION_HEADER, spooledChunk.location())
                         .header(SPOOLED_CHUNK_OFFSET_HEADER, String.valueOf(spooledChunk.offset()))
-                        .header(SPOOLING_FILE_SIZE_HEADER, String.valueOf(spooledChunk.length()))
                         .header(SPOOLED_CHUNK_LENGTH_HEADER, String.valueOf(spooledChunk.length()))
                         .build());
             }
