@@ -10,6 +10,7 @@
 package io.starburst.stargate.buffer.data.server;
 
 import com.azure.storage.blob.BlobServiceAsyncClient;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Ticker;
 import com.google.inject.Binder;
 import com.google.inject.Provides;
@@ -70,11 +71,12 @@ public class MainModule
         this(new SecureRandom().nextLong());
     }
 
-    public MainModule(long bufferNodeId)
+    private MainModule(long bufferNodeId)
     {
         this(bufferNodeId, true, Ticker.systemTicker());
     }
 
+    @VisibleForTesting
     public MainModule(long bufferNodeId, boolean discoveryBroadcastEnabled, Ticker ticker)
     {
         this.bufferNodeId = bufferNodeId;
