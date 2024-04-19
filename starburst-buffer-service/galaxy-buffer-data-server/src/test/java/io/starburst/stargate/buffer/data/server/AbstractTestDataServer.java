@@ -33,8 +33,8 @@ import io.starburst.stargate.buffer.data.client.DataApiConfig;
 import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.client.HttpDataClient;
+import io.starburst.stargate.buffer.data.client.spooling.blackhole.BlackholeSpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.local.LocalSpooledChunkReader;
-import io.starburst.stargate.buffer.data.client.spooling.noop.NoopSpooledChunkReader;
 import io.starburst.stargate.buffer.data.server.testing.TestingDataServer;
 import io.starburst.stargate.buffer.data.server.testing.TestingDiscoveryApiModule;
 import org.junit.jupiter.api.AfterEach;
@@ -373,7 +373,7 @@ public abstract class AbstractTestDataServer
                 dataServer.getBaseUri(),
                 BUFFER_NODE_ID + 1,
                 httpClient, succinctDuration(60, SECONDS),
-                new NoopSpooledChunkReader(),
+                new BlackholeSpooledChunkReader(),
                 true,
                 Optional.empty(),
                 spanJsonCodec);

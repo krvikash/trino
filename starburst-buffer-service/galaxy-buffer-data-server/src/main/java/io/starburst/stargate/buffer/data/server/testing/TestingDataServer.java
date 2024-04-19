@@ -60,7 +60,10 @@ public class TestingDataServer
     private final Optional<DiscoveryApi> discovery;
     private final long nodeId;
 
-    private TestingDataServer(long nodeId, Optional<Module> discoveryApiModule, Map<String, String> configProperties)
+    private TestingDataServer(long nodeId,
+            Optional<Module> discoveryApiModule,
+            Map<String, String> configProperties,
+            boolean useBlackholeStorage)
     {
         this.nodeId = nodeId;
         Map<String, String> finalConfigProperties = new HashMap<>(configProperties);
@@ -78,7 +81,7 @@ public class TestingDataServer
                 new EventModule(),
                 new StatusModule(),
                 new MainModule(nodeId, discoveryApiModule.isPresent(), Ticker.systemTicker()),
-                new SpoolingStorageModule()));
+                useBlackholeStorage ? new BlackholeSpoolingStorageModule() : new SpoolingStorageModule()));
         discoveryApiModule.ifPresent(modules::add);
 
         Bootstrap app = new Bootstrap(modules);
@@ -130,6 +133,7 @@ public class TestingDataServer
     {
         private Optional<Module> discoveryApiModule = Optional.empty();
         private Map<String, String> configProperties = new HashMap<>();
+        private boolean useBlackholeStorage;
 
         public Builder withDefaultDiscoveryApiModule()
         {
@@ -156,6 +160,12 @@ public class TestingDataServer
             return this;
         }
 
+        public Builder withBlackholeStorage()
+        {
+            this.useBlackholeStorage = true;
+            return this;
+        }
+
         public TestingDataServer build()
         {
             return build(0);
@@ -166,7 +176,7 @@ public class TestingDataServer
             if (!configProperties.containsKey("spooling.directory")) {
                 configProperties.put("spooling.directory", "%s/spooling-storage-%s".formatted(System.getProperty("java.io.tmpdir"), nodeId));
             }
-            return new TestingDataServer(nodeId, discoveryApiModule, configProperties);
+            return new TestingDataServer(nodeId, discoveryApiModule, configProperties, useBlackholeStorage);
         }
     }
 
