@@ -387,7 +387,11 @@ public class DataResource
                             public void onDataAvailable()
                                     throws IOException
                             {
-                                while (inputStream.isReady()) {
+                                // && !inputStream.isFinished() seems unnecessary but it is still
+                                // added in Jetty 12 examples using ReadListener
+                                // Keeping for now to see if we still get some spurious internal
+                                // race conditions with it.
+                                while (inputStream.isReady() && !inputStream.isFinished()) {
                                     if (bytesRead < contentLength) {
                                         int readLength = inputStream.read(slice.byteArray(), slice.byteArrayOffset() + bytesRead, contentLength - bytesRead);
                                         if (readLength == -1) {

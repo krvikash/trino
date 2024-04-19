@@ -73,7 +73,7 @@ public final class StressTestDataResource
 
     private static final int MAX_REQUEST_SIZE = toIntExact(DataSize.of(32, MEGABYTE).toBytes());
 
-    private static final byte[] textPool;
+    private static final byte[] randomBytes;
 
     public static final int WRITER_THREADS = 10;
     public static final int READER_THREADS = 10;
@@ -83,9 +83,9 @@ public final class StressTestDataResource
     private StressTestDataResource() {}
 
     static {
-        textPool = new byte[toIntExact(DataSize.of(128, MEGABYTE).toBytes())];
-        for (int i = 0; i < textPool.length; i++) {
-            textPool[i] = (byte) (i % 128);
+        randomBytes = new byte[toIntExact(DataSize.of(128, MEGABYTE).toBytes())];
+        for (int i = 0; i < randomBytes.length; i++) {
+            randomBytes[i] = (byte) (i % 128);
         }
     }
 
@@ -287,7 +287,7 @@ public final class StressTestDataResource
     private static Slice randomSlice(int maxSize)
     {
         int length = ThreadLocalRandom.current().nextInt(0, maxSize);
-        int offset = ThreadLocalRandom.current().nextInt(0, textPool.length - length);
-        return Slices.wrappedBuffer(textPool, offset, length);
+        int offset = ThreadLocalRandom.current().nextInt(0, randomBytes.length - length);
+        return Slices.wrappedBuffer(randomBytes, offset, length);
     }
 }
