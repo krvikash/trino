@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.deltalake;
 
-import com.google.common.collect.ImmutableMap;
 import io.trino.execution.DynamicFilterConfig;
 import io.trino.plugin.hive.containers.HiveMinioDataLake;
 import io.trino.spi.connector.ConnectorTableHandle;
@@ -41,12 +40,10 @@ public class TestDeltaLakeDynamicRowFiltering
         hiveMinioDataLake = closeAfterClass(new HiveMinioDataLake(bucketName));
         hiveMinioDataLake.start();
 
-        QueryRunner queryRunner = DeltaLakeQueryRunner.createS3DeltaLakeQueryRunner(
-                DELTA_CATALOG,
-                "tpch",
-                ImmutableMap.of("delta.register-table-procedure.enabled", "true"),
-                hiveMinioDataLake.getMinio().getMinioAddress(),
-                hiveMinioDataLake.getHiveHadoop());
+        QueryRunner queryRunner = DeltaLakeQueryRunner.builder()
+                .addDeltaProperty("delta.register-table-procedure.enabled", "true")
+                .addS3Properties(hiveMinioDataLake.getMinio(), bucketName)
+                .build();
 
         queryRunner.execute(format("CREATE SCHEMA IF NOT EXISTS %s.tpch", DELTA_CATALOG));
 

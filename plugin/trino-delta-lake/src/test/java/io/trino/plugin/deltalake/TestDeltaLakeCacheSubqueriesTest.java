@@ -14,7 +14,6 @@
 package io.trino.plugin.deltalake;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
 import io.trino.operator.TableScanOperator;
 import io.trino.testing.BaseCacheSubqueriesTest;
@@ -34,8 +33,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
 
-import static io.trino.plugin.deltalake.DeltaLakeQueryRunner.DELTA_CATALOG;
-import static io.trino.plugin.deltalake.DeltaLakeQueryRunner.createDeltaLakeQueryRunner;
 import static io.trino.plugin.tpch.TpchMetadata.TINY_SCHEMA_NAME;
 import static io.trino.testing.QueryAssertions.assertEqualsIgnoreOrder;
 import static io.trino.testing.QueryAssertions.copyTpchTables;
@@ -57,9 +54,11 @@ public class TestDeltaLakeCacheSubqueriesTest
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        QueryRunner queryRunner = createDeltaLakeQueryRunner(DELTA_CATALOG, EXTRA_PROPERTIES,
-                ImmutableMap.of("delta.register-table-procedure.enabled", "true",
-                        "delta.enable-non-concurrent-writes", "true"));
+        QueryRunner queryRunner = DeltaLakeQueryRunner.builder()
+                .setExtraProperties(EXTRA_PROPERTIES)
+                .addDeltaProperty("delta.register-table-procedure.enabled", "true")
+                .addDeltaProperty("delta.enable-non-concurrent-writes", "true")
+                .build();
         copyTpchTables(queryRunner, "tpch", TINY_SCHEMA_NAME, queryRunner.getDefaultSession(), REQUIRED_TABLES);
         return queryRunner;
     }
