@@ -406,7 +406,7 @@ public class SqlQueryExecution
                 AtomicReference<Thread> planningThread = new AtomicReference<>(currentThread());
                 stateMachine.getStateChange(PLANNING).addListener(() -> {
                     if (stateMachine.getQueryState() == FAILED) {
-                        synchronized (this) {
+                        synchronized (planningThread) {
                             Thread thread = planningThread.get();
                             if (thread != null) {
                                 thread.interrupt();
@@ -424,7 +424,7 @@ public class SqlQueryExecution
                     planDistribution(plan, tableStatsProvider);
                 }
                 finally {
-                    synchronized (this) {
+                    synchronized (planningThread) {
                         planningThread.set(null);
                         // Clear the interrupted flag in case there was a race condition where
                         // the planning thread was interrupted right after planning completes above
