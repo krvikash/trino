@@ -19,13 +19,13 @@ import com.google.common.io.Resources;
 import io.airlift.units.DataSize;
 import io.trino.parquet.ParquetDataSource;
 import io.trino.parquet.ParquetReaderOptions;
+import io.trino.parquet.metadata.ParquetMetadata;
 import io.trino.parquet.writer.ParquetWriterOptions;
 import io.trino.spi.Page;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.Type;
-import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;

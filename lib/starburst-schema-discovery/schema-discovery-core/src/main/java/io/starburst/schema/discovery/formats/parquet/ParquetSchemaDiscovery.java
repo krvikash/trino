@@ -17,9 +17,9 @@ import io.starburst.schema.discovery.internal.HiveTypes;
 import io.starburst.schema.discovery.io.DiscoveryInput;
 import io.starburst.schema.discovery.models.DiscoveredColumns;
 import io.trino.parquet.ParquetDataSource;
+import io.trino.parquet.metadata.ParquetMetadata;
 import io.trino.parquet.reader.MetadataReader;
 import io.trino.spi.TrinoException;
-import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.schema.MessageType;
 
 import java.io.EOFException;
