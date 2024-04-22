@@ -12,7 +12,7 @@ defaults:
 
 jobs:
   set-milestone:
-    runs-on: [self-hosted, sep-cicd, gha-fleet-nano]
+    runs-on: [self-hosted, gha-fleet-ec2-2cpu-8gb-amd64, latest]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

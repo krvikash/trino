@@ -73,9 +73,3 @@ runs:
       shell: bash
       run: |
         aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 843985043183.dkr.ecr.us-east-1.amazonaws.com
-    - name: "Login to docker hub"
-      if: inputs.login-docker != 'false'
-      uses: docker/login-action@v3
-      with:
-        username: ${{ env.SEP_CI_SEP_DOCKERHUBUSERNAME }}
-        password: ${{ env.SEP_CI_SEP_DOCKERHUBPASSWORD }}

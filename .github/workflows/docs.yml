@@ -30,7 +30,7 @@ concurrency:
 
 jobs:
   path-filters:
-    runs-on: [self-hosted, sep-cicd, gha-fleet-nano]
+    runs-on: [self-hosted, gha-fleet-ec2-2cpu-8gb-amd64, latest]
     outputs:
       docs: ${{ steps.filter.outputs.docs }}
       other: ${{ steps.filter.outputs.other }}
@@ -45,7 +45,7 @@ jobs:
   docs-checks:
     needs: path-filters
     if: ${{ needs.path-filters.outputs.docs == 'true' && needs.path-filters.outputs.other == 'false' }}
-    runs-on: [self-hosted, sep-cicd, gha-fleet-nano]
+    runs-on: [self-hosted, gha-fleet-ec2-2cpu-8gb-amd64, latest]
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -69,7 +69,7 @@ jobs:
   test-docs:
     needs: path-filters
     if: ${{ needs.path-filters.outputs.docs == 'true' && needs.path-filters.outputs.other == 'false' && !contains(github.event.pull_request.labels.*.name, 'release-notes') }}
-    runs-on: [self-hosted, sep-cicd, gha-fleet-nano]
+    runs-on: [self-hosted, gha-fleet-ec2-2cpu-8gb-amd64, latest]
     strategy:
       fail-fast: false
       matrix:

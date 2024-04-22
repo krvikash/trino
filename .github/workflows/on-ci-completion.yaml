@@ -7,7 +7,7 @@ on:
 
 jobs:
   spot-loss-retry:
-    runs-on: [self-hosted, sep-cicd, gha-fleet-nano]
+    runs-on: [self-hosted, gha-fleet-ec2-2cpu-8gb-amd64, latest]
     if: ${{ github.event.workflow_run.conclusion == 'failure' }}
     steps:
       - name: spot-loss-retry

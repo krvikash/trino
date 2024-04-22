@@ -70,8 +70,9 @@ public class TestStarburstWorkflows
                 Object runsOn = job.get("runs-on");
                 verifyNotNull(runsOn, "No runs-on for job %s".formatted(jobName));
                 assertThat(runsOn.toString()).as("runs-on for job %s", jobName)
-                        // TODO enforce "self-hosted" in runs-on? or is it redundant?
-                        .contains("sep-cicd");
+                        .contains("self-hosted")
+                        .contains("latest") // optionally could be something like "v3"
+                        .contains("gha-fleet-ec2-");
             });
         }
         catch (AssertionError | Exception e) {
