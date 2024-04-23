@@ -484,9 +484,7 @@ public class DataResource
                                                                 .header(AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER, Long.toString(addDataPagesThrottlingCalculator.getAverageProcessTimeInMillis()))
                                                                 .build();
                                                     }
-                                                    else {
-                                                        return Response.ok().build();
-                                                    }
+                                                    return Response.ok().build();
                                                 },
                                                 directExecutor()),
                                         () -> "POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId));
