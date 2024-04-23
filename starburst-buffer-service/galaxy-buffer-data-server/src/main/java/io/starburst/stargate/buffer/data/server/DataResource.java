@@ -472,26 +472,44 @@ public class DataResource
                                     finalizeAddDataPagesRequest(emptyList(), sliceLease);
                                 }
 
-                                bindAsyncResponse(
-                                        asyncResponse,
-                                        logAndTranslateExceptions(
-                                                Futures.transform(
-                                                        nonCancellationPropagating(allAsList(addDataPagesFutures)),
-                                                        ignored -> {
-                                                            OptionalDouble rateLimit = addDataPagesThrottlingCalculator.getRateLimit(clientId, inProgressAddDataPagesRequests.get());
-                                                            if (rateLimit.isPresent()) {
-                                                                return Response.ok()
-                                                                        .header(RATE_LIMIT_HEADER, Double.toString(rateLimit.getAsDouble()))
-                                                                        .header(AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER, Long.toString(addDataPagesThrottlingCalculator.getAverageProcessTimeInMillis()))
-                                                                        .build();
-                                                            }
-                                                            else {
-                                                                return Response.ok().build();
-                                                            }
-                                                        },
-                                                        directExecutor()),
-                                                () -> "POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId)),
-                                        responseExecutor);
+                                // prepare response future
+                                ListenableFuture<Response> futureResponse = logAndTranslateExceptions(
+                                        Futures.transform(
+                                                nonCancellationPropagating(allAsList(addDataPagesFutures)),
+                                                ignored -> {
+                                                    OptionalDouble rateLimit = addDataPagesThrottlingCalculator.getRateLimit(clientId, inProgressAddDataPagesRequests.get());
+                                                    if (rateLimit.isPresent()) {
+                                                        return Response.ok()
+                                                                .header(RATE_LIMIT_HEADER, Double.toString(rateLimit.getAsDouble()))
+                                                                .header(AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER, Long.toString(addDataPagesThrottlingCalculator.getAverageProcessTimeInMillis()))
+                                                                .build();
+                                                    }
+                                                    else {
+                                                        return Response.ok().build();
+                                                    }
+                                                },
+                                                directExecutor()),
+                                        () -> "POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId));
+
+                                // complete http response if not completed yet via timeout
+                                Futures.addCallback(futureResponse, new FutureCallback<>()
+                                {
+                                    @Override
+                                    public void onSuccess(Response value)
+                                    {
+                                        if (!asyncResponse.isDone()) {
+                                            asyncResponse.resume(value);
+                                        }
+                                    }
+
+                                    @Override
+                                    public void onFailure(Throwable t)
+                                    {
+                                        if (!asyncResponse.isDone()) {
+                                            asyncResponse.resume(t);
+                                        }
+                                    }
+                                }, responseExecutor);
                             }
 
                             @Override
@@ -499,7 +517,9 @@ public class DataResource
                             {
                                 finalizeAddDataPagesRequest(addDataPagesFutures, sliceLease);
                                 logger.warn(throwable, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
-                                asyncResponse.resume(errorResponse(throwable, getRateLimitHeaders(clientId)));
+                                if (!asyncResponse.isDone()) {
+                                    asyncResponse.resume(errorResponse(throwable, getRateLimitHeaders(clientId)));
+                                }
                             }
                         };
 
@@ -513,7 +533,9 @@ public class DataResource
                     {
                         finalizeAddDataPagesRequest(emptyList(), sliceLease);
                         logger.warn(t, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
-                        asyncResponse.resume(errorResponse(t, getRateLimitHeaders(clientId)));
+                        if (!asyncResponse.isDone()) {
+                            asyncResponse.resume(errorResponse(t, getRateLimitHeaders(clientId)));
+                        }
                     }
 
                     private void finalizeAddDataPagesRequest(List<ListenableFuture<Void>> addDataPagesFutures, SliceLease sliceLease)
