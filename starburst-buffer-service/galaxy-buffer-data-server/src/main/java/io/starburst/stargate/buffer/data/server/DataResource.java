@@ -42,7 +42,6 @@ import jakarta.servlet.AsyncContext;
 import jakarta.servlet.ReadListener;
 import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.ServletOutputStream;
-import jakarta.servlet.ServletResponse;
 import jakarta.servlet.WriteListener;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -65,7 +64,6 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
@@ -75,20 +73,23 @@ import java.util.OptionalDouble;
 import java.util.OptionalLong;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.net.HttpHeaders.CONTENT_LENGTH;
+import static com.google.common.net.HttpHeaders.CONTENT_TYPE;
+import static com.google.common.util.concurrent.Futures.addCallback;
 import static com.google.common.util.concurrent.Futures.allAsList;
 import static com.google.common.util.concurrent.Futures.nonCancellationPropagating;
+import static com.google.common.util.concurrent.Futures.withTimeout;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.addExceptionCallback;
-import static io.airlift.jaxrs.AsyncResponseHandler.bindAsyncResponse;
 import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.data.client.ChunkDeliveryMode.STANDARD;
 import static io.starburst.stargate.buffer.data.client.DataClientHeaders.MAX_WAIT;
@@ -106,8 +107,6 @@ import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLING_F
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
 import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_CHUNK_DATA;
 import static io.starburst.stargate.buffer.data.execution.ChunkDataLease.CHUNK_SLICES_METADATA_SIZE;
-import static jakarta.servlet.http.HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
-import static jakarta.servlet.http.HttpServletResponse.SC_OK;
 import static jakarta.ws.rs.core.MediaType.TEXT_PLAIN;
 import static java.lang.String.format;
 import static java.util.Collections.emptyList;
@@ -130,6 +129,7 @@ public class DataResource
     private final boolean dropUploadedPages;
     private final Executor responseExecutor;
     private final ExecutorService executor;
+    private final ScheduledExecutorService timeoutExecutor;
     private final DataServerStats stats;
     private final CounterStat writtenDataSize;
     private final DistributionStat writtenDataSizeDistribution;
@@ -154,6 +154,7 @@ public class DataResource
             @ForAsyncHttp BoundedExecutor responseExecutor,
             DataServerStats stats,
             ExecutorService executor,
+            ScheduledExecutorService timeoutExecutor,
             BufferNodeInfoService bufferNodeInfoService,
             AddDataPagesThrottlingCalculator addDataPagesThrottlingCalculator,
             JsonCodec<Span> spanJsonCodec)
@@ -166,6 +167,7 @@ public class DataResource
         this.dropUploadedPages = config.isTestingDropUploadedPages();
         this.responseExecutor = requireNonNull(responseExecutor, "responseExecutor is null");
         this.executor = requireNonNull(executor, "executor is null");
+        this.timeoutExecutor = requireNonNull(timeoutExecutor, "timeoutExecutor is null");
         this.bufferNodeInfoService = requireNonNull(bufferNodeInfoService, "bufferNodeInfoService is null");
         this.addDataPagesThrottlingCalculator = requireNonNull(addDataPagesThrottlingCalculator, "addDataPagesThrottlingCalculator is null");
         this.spanJsonCodec = requireNonNull(spanJsonCodec, "spanJsonCodec is null");
@@ -198,30 +200,45 @@ public class DataResource
     @Path("{exchangeId}/closedChunks")
     @Produces(MediaType.APPLICATION_JSON)
     public void listClosedChunks(
+            @Suspended AsyncResponse asyncResponse,
             @PathParam("exchangeId") String exchangeId,
             @QueryParam("pagingId") Long pagingId,
             @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId,
-            @HeaderParam(MAX_WAIT) Duration clientMaxWait,
-            @Suspended AsyncResponse asyncResponse)
+            @HeaderParam(MAX_WAIT) Duration clientMaxWait)
     {
         try {
             checkTargetBufferNodeId(targetBufferNodeId);
         }
         catch (RuntimeException e) {
-            asyncResponse.resume(errorResponse(e));
+            if (!asyncResponse.isDone()) {
+                asyncResponse.resume(errorResponse(e));
+            }
             return;
         }
 
-        ListenableFuture<ChunkList> chunkListFuture = chunkManager.listClosedChunks(
+        ListenableFuture<ChunkList> chunkListFuture = withTimeout(chunkManager.listClosedChunks(
                 exchangeId,
-                pagingId == null ? OptionalLong.empty() : OptionalLong.of(pagingId));
-        bindAsyncResponse(
-                asyncResponse,
-                logAndTranslateExceptions(
-                        Futures.transform(chunkListFuture, chunkList -> Response.ok().entity(chunkList).build(), directExecutor()),
-                        () -> "GET /%s/closedChunks?pagingId=%s".formatted(exchangeId, pagingId)),
-                responseExecutor)
-                .withTimeout(getAsyncTimeout(clientMaxWait));
+                pagingId == null ? OptionalLong.empty() : OptionalLong.of(pagingId)), getAsyncTimeout(clientMaxWait).toJavaTime(), timeoutExecutor);
+
+        addCallback(chunkListFuture, new FutureCallback<>()
+        {
+            @Override
+            public void onSuccess(ChunkList result)
+            {
+                if (!asyncResponse.isDone()) {
+                    asyncResponse.resume(Response.ok(result).build());
+                }
+            }
+
+            @Override
+            public void onFailure(Throwable throwable)
+            {
+                logger.warn(throwable, "error on %s", "GET /%s/closedChunks?pagingId=%s".formatted(exchangeId, pagingId));
+                if (!asyncResponse.isDone()) {
+                    asyncResponse.resume(errorResponse(throwable));
+                }
+            }
+        }, responseExecutor);
     }
 
     @GET
@@ -233,7 +250,7 @@ public class DataResource
         try {
             checkTargetBufferNodeId(targetBufferNodeId);
             chunkManager.markAllClosedChunksReceived(exchangeId);
-            return Response.ok().build();
+            return okResponse();
         }
         catch (RuntimeException e) {
             logger.warn(e, "error on GET /%s/markAllClosedChunksReceived", exchangeId);
@@ -251,7 +268,7 @@ public class DataResource
         try {
             checkTargetBufferNodeId(targetBufferNodeId);
             chunkManager.setChunkDeliveryMode(exchangeId, chunkDeliveryMode);
-            return Response.ok().build();
+            return okResponse();
         }
         catch (RuntimeException e) {
             logger.warn(e, "error on GET /%s/setChunkDeliveryMode?chunkDeliveryMode=%s", exchangeId, chunkDeliveryMode);
@@ -263,6 +280,7 @@ public class DataResource
     @Path("{exchangeId}/addDataPages/{taskId}/{attemptId}/{dataPagesId}")
     @Consumes(MediaType.APPLICATION_OCTET_STREAM)
     public void addDataPages(
+            @Suspended AsyncResponse asyncResponse,
             @Context HttpServletRequest request,
             @PathParam("exchangeId") String exchangeId,
             @PathParam("taskId") int taskId,
@@ -270,23 +288,35 @@ public class DataResource
             @PathParam("dataPagesId") long dataPagesId,
             @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId,
             @HeaderParam(CONTENT_LENGTH) Integer contentLength,
-            @HeaderParam(MAX_WAIT) Duration clientMaxWait,
-            @Suspended AsyncResponse asyncResponse)
+            @HeaderParam(MAX_WAIT) Duration clientMaxWait)
             throws IOException
     {
+        String clientId = getClientId(request);
+        long asyncTimeout = getAsyncTimeout(clientMaxWait).toMillis();
         long processingStart = System.currentTimeMillis();
-        AsyncContext asyncContext = request.getAsyncContext();
+        long processingDeadline = processingStart + asyncTimeout;
+
+        ServletInputStream inputStream;
+        try {
+            inputStream = request.getInputStream();
+        }
+        catch (IOException e) {
+            logger.warn(e, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
+            completeServletResponse(clientId, asyncResponse, processingStart, Optional.of(e));
+            return;
+        }
+
         try {
             checkTargetBufferNodeId(targetBufferNodeId);
         }
         catch (RuntimeException e) {
             logger.warn(e, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
-            consumeRequestAndCompleteServletResponse(asyncContext, processingStart, Optional.of(e));
+            consumeRequestAndCompleteAsyncResponse(clientId, asyncResponse, inputStream, processingStart, Optional.of(e));
             return;
         }
 
         if (dropUploadedPages) {
-            consumeRequestAndCompleteServletResponse(asyncContext, processingStart, Optional.empty());
+            consumeRequestAndCompleteAsyncResponse(clientId, asyncResponse, inputStream, processingStart, Optional.empty());
             return;
         }
 
@@ -294,7 +324,7 @@ public class DataResource
         if (bufferNodeStateManager.isDrainingStarted()) {
             decrementInProgressAddDataPagesRequests();
             logger.info("rejecting POST /%s/addDataPages/%s/%s/%s; node already DRAINING", exchangeId, taskId, attemptId, dataPagesId);
-            consumeRequestAndCompleteServletResponse(asyncContext, processingStart, Optional.of(new DataServerException(DRAINING, "Node %d is draining and not accepting any more data".formatted(bufferNodeId))));
+            consumeRequestAndCompleteAsyncResponse(clientId, asyncResponse, inputStream, processingStart, Optional.of(new DataServerException(DRAINING, "Node %d is draining and not accepting any more data".formatted(bufferNodeId))));
             return;
         }
 
@@ -304,30 +334,16 @@ public class DataResource
             addDataPagesThrottlingCalculator.recordThrottlingEvent();
             logger.warn("rejecting POST /%s/addDataPages/%s/%s/%s; exceeded maximum in progress addDataPages requests (%s > %s)",
                     exchangeId, taskId, attemptId, dataPagesId, currentInProgressAddDataPagesRequests, maxInProgressAddDataPagesRequests);
-            consumeRequestAndCompleteServletResponse(
-                    asyncContext,
+            consumeRequestAndCompleteAsyncResponse(
+                    clientId,
+                    asyncResponse,
+                    inputStream,
                     processingStart,
                     Optional.of(new DataServerException(OVERLOADED, "Exceeded maximum in progress addDataPages requests (%s)".formatted(maxInProgressAddDataPagesRequests))));
             return;
         }
-        asyncResponse.setTimeout(getAsyncTimeout(clientMaxWait).toMillis(), MILLISECONDS);
-
-        ServletInputStream inputStream;
-        try {
-            inputStream = asyncContext.getRequest().getInputStream();
-        }
-        catch (IOException e) {
-            try {
-                logger.warn(e, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
-                completeServletResponse(asyncContext, processingStart, Optional.of(e));
-                return;
-            }
-            finally {
-                decrementInProgressAddDataPagesRequests();
-            }
-        }
-
         SliceLease sliceLease = new SliceLease(memoryAllocator, contentLength);
+        timeoutExecutor.schedule(sliceLease::cancel, asyncTimeout, MILLISECONDS);
         try {
             // callbacks must be registered before bindAsyncResponse is called; otherwise callback may be not called
             // if request is completed quickly
@@ -364,15 +380,12 @@ public class DataResource
             throw e;
         }
 
-        // compute clientId outside for whenAllComplete callback; callback execution may happen when HTTP request is already closed and
-        // inner objects in non-usable state.
-        String clientId = getClientId(request);
-
         AtomicReference<ReleasableReadListener> releasableReadListenerWrapper = new AtomicReference<>();
         AtomicBoolean inProgressCompletionFlag = new AtomicBoolean();
-        Futures.addCallback(
+        addCallback(
                 sliceLease.getSliceFuture(),
-                new FutureCallback<>() {
+                new FutureCallback<>()
+                {
                     @Override
                     public void onSuccess(Slice slice)
                     {
@@ -391,6 +404,14 @@ public class DataResource
                                 // Keeping for now to see if we still get some spurious internal
                                 // race conditions with it.
                                 while (inputStream.isReady() && !inputStream.isFinished()) {
+                                    if (processingDeadline < System.currentTimeMillis()) {
+                                        // we've exceeded client timeout for consuming an input stream
+                                        if (!asyncResponse.isDone()) {
+                                            asyncResponse.resume(errorResponse(new TimeoutException("Exceeded deadline")));
+                                        }
+                                        sliceLease.cancel();
+                                        break;
+                                    }
                                     if (bytesRead < contentLength) {
                                         int readLength = inputStream.read(slice.byteArray(), slice.byteArrayOffset() + bytesRead, contentLength - bytesRead);
                                         if (readLength == -1) {
@@ -453,10 +474,8 @@ public class DataResource
                                         throw new DataServerException(USER_ERROR, format("Data corruption, read checksum: 0x%08x, calculated checksum: 0x%08x", readChecksum, calculatedChecksum));
                                     }
                                 }
-                                else {
-                                    if (readChecksum != NO_CHECKSUM) {
-                                        throw new DataServerException(USER_ERROR, format("Expected checksum to be NO_CHECKSUM (0x%08x) but is 0x%08x", NO_CHECKSUM, readChecksum));
-                                    }
+                                else if (readChecksum != NO_CHECKSUM) {
+                                    throw new DataServerException(USER_ERROR, format("Expected checksum to be NO_CHECKSUM (0x%08x) but is 0x%08x", NO_CHECKSUM, readChecksum));
                                 }
 
                                 writtenDataSize.update(contentLength);
@@ -471,39 +490,29 @@ public class DataResource
                                     finalizeAddDataPagesRequest(emptyList(), sliceLease);
                                 }
 
-                                // prepare response future
-                                ListenableFuture<Response> futureResponse = logAndTranslateExceptions(
-                                        Futures.transform(
-                                                nonCancellationPropagating(allAsList(addDataPagesFutures)),
-                                                ignored -> {
-                                                    OptionalDouble rateLimit = addDataPagesThrottlingCalculator.getRateLimit(clientId, inProgressAddDataPagesRequests.get());
-                                                    if (rateLimit.isPresent()) {
-                                                        return Response.ok()
-                                                                .header(RATE_LIMIT_HEADER, Double.toString(rateLimit.getAsDouble()))
-                                                                .header(AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER, Long.toString(addDataPagesThrottlingCalculator.getAverageProcessTimeInMillis()))
-                                                                .build();
-                                                    }
-                                                    return Response.ok().build();
-                                                },
-                                                directExecutor()),
-                                        () -> "POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId));
-
                                 // complete http response if not completed yet via timeout
-                                Futures.addCallback(futureResponse, new FutureCallback<>()
+                                addCallback(nonCancellationPropagating(allAsList(addDataPagesFutures)), new FutureCallback<>()
                                 {
                                     @Override
-                                    public void onSuccess(Response value)
+                                    public void onSuccess(List<Void> value)
                                     {
+                                        OptionalDouble rateLimit = addDataPagesThrottlingCalculator.getRateLimit(clientId, inProgressAddDataPagesRequests.get());
+                                        Response response = rateLimit.isPresent() ? okResponse(Map.of(
+                                                RATE_LIMIT_HEADER, Double.toString(rateLimit.getAsDouble()),
+                                                AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER, Long.toString(addDataPagesThrottlingCalculator.getAverageProcessTimeInMillis())))
+                                                : okResponse();
+
                                         if (!asyncResponse.isDone()) {
-                                            asyncResponse.resume(value);
+                                            asyncResponse.resume(response);
                                         }
                                     }
 
                                     @Override
-                                    public void onFailure(Throwable t)
+                                    public void onFailure(Throwable throwable)
                                     {
+                                        logger.error(throwable, "error on POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId));
                                         if (!asyncResponse.isDone()) {
-                                            asyncResponse.resume(t);
+                                            asyncResponse.resume(errorResponse(throwable));
                                         }
                                     }
                                 }, responseExecutor);
@@ -526,12 +535,12 @@ public class DataResource
                     }
 
                     @Override
-                    public void onFailure(Throwable t)
+                    public void onFailure(Throwable throwable)
                     {
                         finalizeAddDataPagesRequest(emptyList(), sliceLease);
-                        logger.warn(t, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
+                        logger.warn(throwable, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
                         if (!asyncResponse.isDone()) {
-                            asyncResponse.resume(errorResponse(t, getRateLimitHeaders(clientId)));
+                            asyncResponse.resume(errorResponse(throwable, getRateLimitHeaders(clientId)));
                         }
                     }
 
@@ -605,100 +614,112 @@ public class DataResource
     @GET
     @Path("{bufferNodeId}/{exchangeId}/pages/{partitionId}/{chunkId}")
     public void getChunkData(
+            @Suspended AsyncResponse asyncResponse,
             @Context HttpServletRequest request,
+            @Context HttpServletResponse response,
             @PathParam("bufferNodeId") long bufferNodeId,
             @PathParam("exchangeId") String exchangeId,
             @PathParam("partitionId") int partitionId,
             @PathParam("chunkId") long chunkId,
-            @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId,
-            @HeaderParam(MAX_WAIT) Duration clientMaxWait,
-            @Suspended AsyncResponse asyncResponse)
+            @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId)
     {
-        ChunkDataResult chunkDataResult = null;
+        ServletOutputStream outputStream;
         try {
-            checkTargetBufferNodeId(targetBufferNodeId);
-            chunkDataResult = chunkManager.getChunkData(bufferNodeId, exchangeId, partitionId, chunkId);
-            if (chunkDataResult.chunkDataLease().isPresent()) {
-                ChunkDataLease chunkDataLease = chunkDataResult.chunkDataLease().get();
-                int dataSize = chunkDataLease.serializedSizeInBytes() - CHUNK_SLICES_METADATA_SIZE;
-                readDataSize.update(dataSize);
-                readDataSizeDistribution.add(dataSize);
-
-                AsyncContext asyncContext = request.getAsyncContext();
-                asyncContext.setTimeout(getAsyncTimeout(clientMaxWait).toMillis());
-                ServletResponse response = asyncContext.getResponse();
-                ServletOutputStream outputStream = response.getOutputStream();
-                response.setContentType(TRINO_CHUNK_DATA);
-                response.setContentLength(chunkDataLease.serializedSizeInBytes());
-
-                Slice metaDataSlice = Slices.allocate(CHUNK_SLICES_METADATA_SIZE);
-                SliceOutput sliceOutput = metaDataSlice.getOutput();
-                sliceOutput.writeLong(chunkDataLease.checksum());
-                sliceOutput.writeInt(chunkDataLease.numDataPages());
-
-                ArrayDeque<Slice> sliceQueue = new ArrayDeque<>(chunkDataLease.chunkSlices().size() + 1);
-                sliceQueue.add(metaDataSlice);
-                sliceQueue.addAll(chunkDataLease.chunkSlices());
-
-                outputStream.setWriteListener(new WriteListener() {
-                    private boolean done;
-
-                    @Override
-                    public void onWritePossible()
-                            throws IOException
-                    {
-                        if (done) {
-                            logger.warn("onWritePossible when already done on GET /%s/%s/pages/%s/%s", bufferNodeId, exchangeId, partitionId, chunkId);
-                            return;
-                        }
-                        while (outputStream.isReady()) {
-                            if (sliceQueue.isEmpty()) {
-                                done = true;
-                                chunkDataLease.release();
-                                asyncContext.complete();
-                                return;
-                            }
-
-                            Slice slice = sliceQueue.poll();
-                            outputStream.write(slice.byteArray(), slice.byteArrayOffset(), slice.length());
-                        }
-                    }
-
-                    @Override
-                    public void onError(Throwable throwable)
-                    {
-                        try {
-                            logger.warn(throwable, "error on GET /%s/%s/pages/%s/%s; alreadyDone=%s", bufferNodeId, exchangeId, partitionId, chunkId, done);
-                            if (!done) {
-                                done = true;
-                                chunkDataLease.release();
-                                asyncContext.complete();
-                            }
-                        }
-                        catch (Throwable e) {
-                            logger.error(e, "error in error handler for GET /%s/%s/pages/%s/%s", bufferNodeId, exchangeId, partitionId, chunkId);
-                            throw e;
-                        }
-                    }
-                });
-            }
-            else {
-                verify(chunkDataResult.spooledChunk().isPresent(), "Either chunkDataLease or spooledChunk should be present");
-                SpooledChunk spooledChunk = chunkDataResult.spooledChunk().get();
-                asyncResponse.resume(Response.status(Status.NOT_FOUND)
-                        .header(SPOOLING_FILE_LOCATION_HEADER, spooledChunk.location())
-                        .header(SPOOLED_CHUNK_OFFSET_HEADER, String.valueOf(spooledChunk.offset()))
-                        .header(SPOOLED_CHUNK_LENGTH_HEADER, String.valueOf(spooledChunk.length()))
-                        .build());
-            }
+            outputStream = response.getOutputStream();
         }
-        catch (RuntimeException | IOException e) {
+        catch (IOException e) {
             logger.warn(e, "error on GET /%s/%s/pages/%s/%s", bufferNodeId, exchangeId, partitionId, chunkId);
-            if (chunkDataResult != null && chunkDataResult.chunkDataLease().isPresent()) {
-                chunkDataResult.chunkDataLease().get().release();
-            }
             asyncResponse.resume(errorResponse(e));
+            return;
         }
+
+        checkTargetBufferNodeId(targetBufferNodeId);
+        ChunkDataResult chunkDataResult;
+
+        try {
+            chunkDataResult = chunkManager.getChunkData(bufferNodeId, exchangeId, partitionId, chunkId);
+        }
+        catch (RuntimeException e) {
+            logger.warn(e, "error on GET /%s/%s/pages/%s/%s", bufferNodeId, exchangeId, partitionId, chunkId);
+            asyncResponse.resume(errorResponse(e));
+            return;
+        }
+
+        if (chunkDataResult.chunkDataLease().isEmpty()) {
+            verify(chunkDataResult.spooledChunk().isPresent(), "Either chunkDataLease or spooledChunk should be present");
+            SpooledChunk spooledChunk = chunkDataResult.spooledChunk().get();
+
+            asyncResponse.resume(Response.status(Status.NOT_FOUND)
+                    .header(SPOOLING_FILE_LOCATION_HEADER, spooledChunk.location())
+                    .header(SPOOLED_CHUNK_OFFSET_HEADER, String.valueOf(spooledChunk.offset()))
+                    .header(SPOOLED_CHUNK_LENGTH_HEADER, String.valueOf(spooledChunk.length()))
+                    .build());
+            return;
+        }
+
+        ChunkDataLease chunkDataLease = chunkDataResult.chunkDataLease().get();
+        int dataSize = chunkDataLease.serializedSizeInBytes() - CHUNK_SLICES_METADATA_SIZE;
+        readDataSize.update(dataSize);
+        readDataSizeDistribution.add(dataSize);
+
+        // We need AsyncContext to complete an asynchronous write
+        AsyncContext context = request.getAsyncContext();
+        response.setStatus(Status.OK.getStatusCode());
+        response.setContentType(TRINO_CHUNK_DATA);
+        response.setContentLength(chunkDataLease.serializedSizeInBytes());
+
+        Slice metaDataSlice = Slices.allocate(CHUNK_SLICES_METADATA_SIZE);
+        SliceOutput sliceOutput = metaDataSlice.getOutput();
+        sliceOutput.writeLong(chunkDataLease.checksum());
+        sliceOutput.writeInt(chunkDataLease.numDataPages());
+
+        ArrayDeque<Slice> sliceQueue = new ArrayDeque<>(chunkDataLease.chunkSlices().size() + 1);
+        sliceQueue.add(metaDataSlice);
+        sliceQueue.addAll(chunkDataLease.chunkSlices());
+
+        outputStream.setWriteListener(new WriteListener() {
+            private boolean done;
+
+            @Override
+            public void onWritePossible()
+                    throws IOException
+            {
+                if (done) {
+                    logger.warn("onWritePossible when already done on GET /%s/%s/pages/%s/%s", bufferNodeId, exchangeId, partitionId, chunkId);
+                    return;
+                }
+                while (outputStream.isReady()) {
+                    if (sliceQueue.isEmpty()) {
+                        done = true;
+                        chunkDataLease.release();
+                        context.complete();
+                        return;
+                    }
+
+                    Slice slice = sliceQueue.poll();
+                    outputStream.write(slice.byteArray(), slice.byteArrayOffset(), slice.length());
+                }
+            }
+
+            @Override
+            public void onError(Throwable throwable)
+            {
+                try {
+                    logger.warn(throwable, "error on GET /%s/%s/pages/%s/%s; alreadyDone=%s", bufferNodeId, exchangeId, partitionId, chunkId, done);
+                    if (!done) {
+                        done = true;
+                        chunkDataLease.release();
+                    }
+                }
+                catch (Throwable e) {
+                    logger.error(e, "error in error handler for GET /%s/%s/pages/%s/%s", bufferNodeId, exchangeId, partitionId, chunkId);
+                    throw e;
+                }
+                finally {
+                    context.complete();
+                }
+            }
+        });
     }
 
     @GET
@@ -724,7 +745,7 @@ public class DataResource
             chunkDeliveryMode = Optional.ofNullable(chunkDeliveryMode).orElse(STANDARD);
             Optional<Span> exchangeSpan = Optional.ofNullable(serializedExchangeSpan).map(spanJsonCodec::fromJson);
             chunkManager.registerExchange(exchangeId, chunkDeliveryMode, exchangeSpan);
-            return Response.ok().build();
+            return okResponse();
         }
         catch (RuntimeException e) {
             logger.warn(e, "error on GET /%s/register", exchangeId);
@@ -735,27 +756,40 @@ public class DataResource
     @GET
     @Path("{exchangeId}/finish")
     public void finishExchange(
+            @Suspended AsyncResponse asyncResponse,
             @PathParam("exchangeId") String exchangeId,
             @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId,
-            @HeaderParam(MAX_WAIT) Duration clientMaxWait,
-            @Suspended AsyncResponse asyncResponse)
+            @HeaderParam(MAX_WAIT) Duration clientMaxWait)
     {
         try {
             checkTargetBufferNodeId(targetBufferNodeId);
-            bindAsyncResponse(
-                    asyncResponse,
-                    logAndTranslateExceptions(
-                            Futures.transform(
-                                    chunkManager.finishExchange(exchangeId),
-                                    ignored -> Response.ok().build(),
-                                    directExecutor()),
-                            () -> "GET /%s/finish".formatted(exchangeId)),
-                    responseExecutor)
-                    .withTimeout(getAsyncTimeout(clientMaxWait));
+
+            ListenableFuture<Void> completedFuture = withTimeout(chunkManager.finishExchange(exchangeId), getAsyncTimeout(clientMaxWait).toJavaTime(), timeoutExecutor);
+            addCallback(completedFuture, new FutureCallback<>()
+            {
+                @Override
+                public void onSuccess(Void result)
+                {
+                    if (!asyncResponse.isDone()) {
+                        asyncResponse.resume(okResponse());
+                    }
+                }
+
+                @Override
+                public void onFailure(Throwable throwable)
+                {
+                    logger.warn(throwable, "error on GET /%s/finish".formatted(exchangeId));
+                    if (!asyncResponse.isDone()) {
+                        asyncResponse.resume(errorResponse(throwable));
+                    }
+                }
+            }, responseExecutor);
         }
         catch (RuntimeException e) {
             logger.warn(e, "error on GET /%s/finish", exchangeId);
-            asyncResponse.resume(errorResponse(e));
+            if (!asyncResponse.isDone()) {
+                asyncResponse.resume(errorResponse(e));
+            }
         }
     }
 
@@ -768,7 +802,7 @@ public class DataResource
         try {
             checkTargetBufferNodeId(targetBufferNodeId);
             chunkManager.pingExchange(exchangeId);
-            return Response.ok().build();
+            return okResponse();
         }
         catch (RuntimeException e) {
             logger.warn(e, "error on GET /%s/ping", exchangeId);
@@ -785,7 +819,7 @@ public class DataResource
         try {
             checkTargetBufferNodeId(targetBufferNodeId);
             chunkManager.removeExchange(exchangeId);
-            return Response.ok().build();
+            return okResponse();
         }
         catch (RuntimeException e) {
             logger.warn(e, "error on DELETE /%s", exchangeId);
@@ -821,11 +855,9 @@ public class DataResource
 
     // Consume payload and return response; payload need to be consumed so client is able to see response.
     // For more information, see https://github.com/starburstdata/trino-buffer-service/issues/269
-    private void consumeRequestAndCompleteServletResponse(AsyncContext asyncContext, long processingStart, Optional<Throwable> throwable)
-            throws IOException
+    private void consumeRequestAndCompleteAsyncResponse(String clientId, AsyncResponse response, ServletInputStream inputStream, long processingStart, Optional<Throwable> throwable)
     {
         byte[] skipBuffer = new byte[SKIP_BUFFER_SIZE];
-        ServletInputStream inputStream = asyncContext.getRequest().getInputStream();
         inputStream.setReadListener(new ReadListener() {
             @Override
             public void onDataAvailable()
@@ -841,51 +873,31 @@ public class DataResource
             @Override
             public void onAllDataRead()
             {
-                completeServletResponse(asyncContext, processingStart, throwable);
+                completeServletResponse(clientId, response, processingStart, throwable);
             }
 
             @Override
             public void onError(Throwable e)
             {
                 logger.warn(e, "Got error while consuming request");
-                completeServletResponse(asyncContext, processingStart, throwable);
+                completeServletResponse(clientId, response, processingStart, throwable);
             }
         });
     }
 
-    private void completeServletResponse(AsyncContext asyncContext, long processingStart, Optional<Throwable> throwable)
+    private void completeServletResponse(String clientId, AsyncResponse asyncResponse, long processingStart, Optional<Throwable> throwable)
     {
-        try {
-            if (!(asyncContext.getResponse() instanceof HttpServletResponse servletResponse)) {
-                throw new IllegalStateException("AsyncContext response is not HttpServletResponse");
+        if (throwable.isPresent()) {
+            if (!asyncResponse.isDone()) {
+                asyncResponse.resume(errorResponse(throwable.get()));
             }
-            servletResponse.setContentType(TEXT_PLAIN);
-            String clientId = getClientId((HttpServletRequest) asyncContext.getRequest());
-            getRateLimitHeaders(clientId).forEach(servletResponse::setHeader);
+            return;
+        }
 
-            if (throwable.isPresent()) {
-                servletResponse.setStatus(SC_INTERNAL_SERVER_ERROR);
-                servletResponse.getWriter().write(throwable.get().getMessage());
-                if (throwable.get() instanceof DataServerException dataServerException) {
-                    servletResponse.setHeader(ERROR_CODE_HEADER, dataServerException.getErrorCode().toString());
-                }
-                else {
-                    servletResponse.setHeader(ERROR_CODE_HEADER, INTERNAL_ERROR.toString());
-                }
-            }
-            else {
-                servletResponse.setStatus(SC_OK);
-            }
-
-            recordAddDataPagesRequest(processingStart, clientId);
+        if (!asyncResponse.isDone()) {
+            asyncResponse.resume(okResponse(getRateLimitHeaders(clientId)));
         }
-        catch (IOException e) {
-            logger.error(e, "IO error while writing response");
-            throw new UncheckedIOException(e);
-        }
-        finally {
-            asyncContext.complete();
-        }
+        recordAddDataPagesRequest(processingStart, clientId);
     }
 
     private static Response errorResponse(Throwable throwable)
@@ -893,30 +905,39 @@ public class DataResource
         return errorResponse(throwable, ImmutableMap.of());
     }
 
+    private static Response okResponse()
+    {
+        return okResponse(Map.of());
+    }
+
+    private static Response okResponse(Map<String, String> headers)
+    {
+        Response.ResponseBuilder responseBuilder = Response
+                .status(Status.OK)
+                .header(CONTENT_TYPE, TEXT_PLAIN);
+        headers.forEach(responseBuilder::header);
+        return responseBuilder.build();
+    }
+
     private static Response errorResponse(Throwable throwable, Map<String, String> headers)
     {
-        Response.ResponseBuilder responseBuilder;
+        Response.ResponseBuilder responseBuilder = Response
+                .status(Status.INTERNAL_SERVER_ERROR)
+                .header(CONTENT_TYPE, TEXT_PLAIN);
+
         if (throwable instanceof DataServerException dataServerException) {
-            responseBuilder = Response.status(Status.INTERNAL_SERVER_ERROR)
+            responseBuilder
                     .header(ERROR_CODE_HEADER, dataServerException.getErrorCode())
                     .entity(throwable.getMessage());
         }
         else {
-            responseBuilder = Response.status(Status.INTERNAL_SERVER_ERROR)
+            responseBuilder
                     .header(ERROR_CODE_HEADER, INTERNAL_ERROR)
                     .entity(throwable.getMessage());
         }
 
         headers.forEach(responseBuilder::header);
         return responseBuilder.build();
-    }
-
-    private static ListenableFuture<Response> logAndTranslateExceptions(ListenableFuture<Response> listenableFuture, Supplier<String> loggingContext)
-    {
-        return Futures.catching(listenableFuture, Exception.class, e -> {
-            logger.warn(e, "error on %s", loggingContext.get());
-            return errorResponse(e);
-        }, directExecutor());
     }
 
     private static class ReleasableReadListener
@@ -927,27 +948,29 @@ public class DataResource
             DELEGATE_RELEASED
         }
 
-        private volatile ReadListener delegate;
+        private volatile Optional<ReadListener> delegate;
         private final AtomicReference<State> state;
 
         public ReleasableReadListener(ReadListener delegate)
         {
-            this.delegate = requireNonNull(delegate, "delegate is null");
+            this.delegate = Optional.of(requireNonNull(delegate, "delegate is null"));
             this.state = new AtomicReference<>(State.DELEGATE_SET);
         }
 
-        private ReadListener getDelegate()
+        private Optional<ReadListener> getDelegate()
         {
-            checkState(state.get() == State.DELEGATE_SET, "Delegate already released");
-            ReadListener readListener = delegate;
-            verify(readListener != null);
-            return readListener;
+            if (state.get() == State.DELEGATE_RELEASED) {
+                logger.warn("Delegate already release");
+            }
+            return delegate;
         }
 
         public void releaseDelegate()
         {
-            checkState(state.compareAndSet(State.DELEGATE_SET, State.DELEGATE_RELEASED), "Cannot set delegate; current state is %s", state.get());
-            delegate = null;
+            if (state.get() == State.DELEGATE_RELEASED) {
+                logger.warn("Cannote release delegate; delegate already released");
+            }
+            delegate = Optional.empty();
         }
 
         @Override
@@ -955,7 +978,10 @@ public class DataResource
                 throws IOException
         {
             try {
-                getDelegate().onDataAvailable();
+                Optional<ReadListener> currentDelegate = getDelegate();
+                if (currentDelegate.isPresent()) {
+                    currentDelegate.get().onDataAvailable();
+                }
             }
             catch (Throwable callbackError) {
                 logger.error(callbackError, "unexpected error in onDataAvailable");
@@ -968,7 +994,10 @@ public class DataResource
                 throws IOException
         {
             try {
-                getDelegate().onAllDataRead();
+                Optional<ReadListener> currentDelegate = getDelegate();
+                if (currentDelegate.isPresent()) {
+                    currentDelegate.get().onAllDataRead();
+                }
             }
             catch (Throwable callbackError) {
                 logger.error(callbackError, "unexpected error in onAllDataRead");
@@ -977,14 +1006,15 @@ public class DataResource
         }
 
         @Override
-        public void onError(Throwable t)
+        public void onError(Throwable throwable)
         {
             try {
-                getDelegate().onError(t);
+                Optional<ReadListener> currentDelegate = getDelegate();
+                currentDelegate.ifPresent(readListener -> readListener.onError(throwable));
             }
             catch (Throwable callbackError) {
-                if (callbackError != t) {
-                    callbackError.addSuppressed(t);
+                if (callbackError != throwable) {
+                    callbackError.addSuppressed(throwable);
                 }
                 logger.error(callbackError, "unexpected error in onError");
                 throw callbackError;

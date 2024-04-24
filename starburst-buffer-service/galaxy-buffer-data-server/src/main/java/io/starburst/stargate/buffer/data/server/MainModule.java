@@ -30,6 +30,7 @@ import io.starburst.stargate.buffer.status.StatusProvider;
 
 import java.security.SecureRandom;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static com.google.inject.Scopes.SINGLETON;
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
@@ -40,8 +41,10 @@ import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
 import static io.airlift.json.JsonCodecBinder.jsonCodecBinder;
+import static java.lang.Runtime.getRuntime;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newCachedThreadPool;
+import static java.util.concurrent.Executors.newScheduledThreadPool;
 import static org.weakref.jmx.guice.ExportBinder.newExporter;
 
 public class MainModule
@@ -97,6 +100,7 @@ public class MainModule
         binder.bind(DrainService.class).in(SINGLETON);
         newSetBinder(binder, StatusProvider.class).addBinding().to(DataServerStatusProvider.class);
         binder.bind(ExecutorService.class).toInstance(newCachedThreadPool(daemonThreadsNamed("buffer-node-execution-%s")));
+        binder.bind(ScheduledExecutorService.class).toInstance(newScheduledThreadPool(getRuntime().availableProcessors(), daemonThreadsNamed("buffer-node-execution-%s")));
         newOptionalBinder(binder, DiscoveryBroadcast.class);
         if (discoveryBroadcastEnabled) {
             binder.bind(DiscoveryBroadcast.class).in(SINGLETON);
