@@ -11,13 +11,17 @@ package io.starburst.stargate.buffer.data.client.spooling.azure;
 
 import com.azure.core.http.rest.ResponseBase;
 import com.azure.storage.blob.BlobServiceAsyncClient;
+import com.azure.storage.blob.models.BlobErrorCode;
 import com.azure.storage.blob.models.BlobRange;
+import com.azure.storage.blob.models.BlobStorageException;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
 import io.starburst.stargate.buffer.data.client.DataApiConfig;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
+import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkNotFoundException;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
+import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReaderException;
 
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -61,6 +65,12 @@ public class AzureBlobSpooledChunkReader
                 .flatMapMany(ResponseBase::getValue)
                 .reduce(ByteBuffer.allocate(length), ByteBuffer::put)
                 .map(byteBuffer -> toDataPages(byteBuffer.array(), dataIntegrityVerificationEnabled))
+                .onErrorMap(BlobStorageException.class, e -> {
+                    if (e.getErrorCode() == BlobErrorCode.BLOB_NOT_FOUND) {
+                        return new SpooledChunkNotFoundException(e);
+                    }
+                    return new SpooledChunkReaderException(e);
+                })
                 .toFuture());
     }
 

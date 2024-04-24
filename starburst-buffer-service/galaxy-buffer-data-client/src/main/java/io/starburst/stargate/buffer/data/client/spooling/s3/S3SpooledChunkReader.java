@@ -10,22 +10,26 @@
 package io.starburst.stargate.buffer.data.client.spooling.s3;
 
 import com.google.common.io.Closer;
-import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.FluentFuture;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
 import io.starburst.stargate.buffer.data.client.DataApiConfig;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
+import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkNotFoundException;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
+import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReaderException;
 import jakarta.annotation.PreDestroy;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.toListenableFuture;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.getBucketName;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.keyFromUri;
@@ -65,10 +69,15 @@ public class S3SpooledChunkReader
                 .key(keyFromUri(uri))
                 .range("bytes=" + offset + "-" + (offset + length - 1))
                 .build();
-        return Futures.transform(
-                toListenableFuture(s3AsyncClient.getObject(getObjectRequest, ByteArrayAsyncResponseTransformer.toByteArray(length))),
-                bytes -> toDataPages(bytes, dataIntegrityVerificationEnabled),
-                executor);
+
+        return FluentFuture.from(toListenableFuture(s3AsyncClient.getObject(getObjectRequest, ByteArrayAsyncResponseTransformer.toByteArray(length))))
+                .transform(bytes -> toDataPages(bytes, dataIntegrityVerificationEnabled), executor)
+                .catching(Exception.class, e -> {
+                    if (e.getCause() instanceof NoSuchKeyException) {
+                        throw new SpooledChunkNotFoundException(e);
+                    }
+                    throw new SpooledChunkReaderException(e);
+                }, directExecutor());
     }
 
     @PreDestroy

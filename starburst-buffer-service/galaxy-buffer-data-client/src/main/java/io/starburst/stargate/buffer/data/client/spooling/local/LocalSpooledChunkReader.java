@@ -14,10 +14,13 @@ import com.google.inject.Inject;
 import io.starburst.stargate.buffer.data.client.DataApiConfig;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
+import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkNotFoundException;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
+import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReaderException;
 import jakarta.annotation.PreDestroy;
 
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Paths;
@@ -57,7 +60,10 @@ public class LocalSpooledChunkReader
             verify(bytesRead == length, "bytesRead %s not equal to length %s", bytesRead, length);
         }
         catch (IOException e) {
-            return immediateFailedFuture(e);
+            if (e instanceof FileNotFoundException) {
+                return immediateFailedFuture(new SpooledChunkNotFoundException(e));
+            }
+            return immediateFailedFuture(new SpooledChunkReaderException(e));
         }
         return immediateFuture(toDataPages(bytes, dataIntegrityVerificationEnabled));
     }
