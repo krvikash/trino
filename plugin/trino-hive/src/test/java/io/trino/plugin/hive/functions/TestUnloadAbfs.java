@@ -55,8 +55,11 @@ public class TestUnloadAbfs
     {
         return HiveQueryRunner.builder()
                 .setHiveProperties(ImmutableMap.<String, String>builder()
-                        .put("hive.azure.abfs-storage-account", account)
-                        .put("hive.azure.abfs-access-key", accessKey)
+                        .put("hive.metastore", "file")
+                        .put("fs.hadoop.enabled", "false")
+                        .put("fs.native-azure.enabled", "true")
+                        .put("azure.auth-type", "ACCESS_KEY")
+                        .put("azure.access-key", accessKey)
                         .buildOrThrow())
                 .build();
     }
