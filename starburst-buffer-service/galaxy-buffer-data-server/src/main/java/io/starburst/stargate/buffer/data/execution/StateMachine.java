@@ -84,11 +84,6 @@ public class StateMachine<T>
             fireStateChange(newState, directExecutor());
         }
 
-        public void complete(T newState, Executor executor)
-        {
-            fireStateChange(newState, executor);
-        }
-
         private void fireStateChange(T newState, Executor executor)
         {
             requireNonNull(executor, "executor is null");
@@ -339,14 +334,6 @@ public class StateMachine<T>
     boolean isTerminalState(T state)
     {
         return terminalStates.contains(state);
-    }
-
-    @VisibleForTesting
-    List<StateChangeListener<T>> getStateChangeListeners()
-    {
-        synchronized (lock) {
-            return ImmutableList.copyOf(stateChangeListeners);
-        }
     }
 
     public interface StateChangeListener<T>
