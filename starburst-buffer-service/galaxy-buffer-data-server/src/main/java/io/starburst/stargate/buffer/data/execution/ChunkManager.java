@@ -63,7 +63,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.ToIntFunction;
-import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
@@ -481,7 +480,7 @@ public class ChunkManager
                 LOG.info("All closed chunks of all exchanges have been consumed by Trino");
                 return;
             }
-            List<Exchange> pendingExchanges = exchanges.values().stream().filter(exchage -> !exchage.isAllClosedChunksReceived()).collect(Collectors.toList());
+            List<Exchange> pendingExchanges = exchanges.values().stream().filter(exchage -> !exchage.isAllClosedChunksReceived()).toList();
             for (Exchange pendingExchange : pendingExchanges) {
                 // some exchanges could be added after we already started draining.
                 // we wait for all addDataPages requests to complete before we enter drainAllChunks method
@@ -542,9 +541,7 @@ public class ChunkManager
         String exchangeId = exchange.getExchangeId();
         exchangesBeingReleased.add(exchangeId);
         ListenableFuture<Void> future = exchange.releaseChunks();
-        future.addListener(() -> {
-            exchangesBeingReleased.remove(exchangeId);
-        }, directExecutor());
+        future.addListener(() -> exchangesBeingReleased.remove(exchangeId), directExecutor());
     }
 
     @VisibleForTesting

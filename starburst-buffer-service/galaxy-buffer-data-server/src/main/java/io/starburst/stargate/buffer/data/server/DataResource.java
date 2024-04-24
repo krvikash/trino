@@ -722,7 +722,7 @@ public class DataResource
             // * Trino coordinator calls registerExchange
             // at this point Trino coordinator must proceed with polling for chunks which would not happen if `registerExchange` returned DRAINING error code.
             chunkDeliveryMode = Optional.ofNullable(chunkDeliveryMode).orElse(STANDARD);
-            Optional<Span> exchangeSpan = Optional.ofNullable(serializedExchangeSpan).map(span -> spanJsonCodec.fromJson(span));
+            Optional<Span> exchangeSpan = Optional.ofNullable(serializedExchangeSpan).map(spanJsonCodec::fromJson);
             chunkManager.registerExchange(exchangeId, chunkDeliveryMode, exchangeSpan);
             return Response.ok().build();
         }

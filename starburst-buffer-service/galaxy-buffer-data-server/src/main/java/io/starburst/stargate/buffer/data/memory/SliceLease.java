@@ -26,7 +26,6 @@ import static java.util.Objects.requireNonNull;
  * Lease class for slice allocated from {@link MemoryAllocator}. Obtained slice can be obtained via
  * {@link SliceLease#getSliceFuture} method. The slice may not be available immediately. Calling party needs to wait
  * until future returned is done.
- *
  * It is obligatory for the calling party to release all the leases they obtained via {@link SliceLease#release()}.
  */
 public class SliceLease

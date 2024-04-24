@@ -127,8 +127,8 @@ public class Exchange
     private volatile boolean allClosedChunksReceived;
     private final AtomicReference<Throwable> failure = new AtomicReference<>();
     private volatile boolean spooled;
-    private AtomicInteger spooledChunks = new AtomicInteger();
-    private AtomicLong spooledBytes = new AtomicLong();
+    private final AtomicInteger spooledChunks = new AtomicInteger();
+    private final AtomicLong spooledBytes = new AtomicLong();
     private Optional<Integer> finishedClosedChunks = Optional.empty();
     private Optional<Long> finishedClosedBytes = Optional.empty();
     private int resourceReportsCounter;
@@ -315,9 +315,7 @@ public class Exchange
                                     pendingChunkListFuture = null;
                                     return immediateFuture(nextChunkList(pagingId));
                                 }
-                                else {
-                                    return listClosedChunks(OptionalLong.of(pagingId));
-                                }
+                                return listClosedChunks(OptionalLong.of(pagingId));
                             }
                         },
                         longPollTimeoutExecutor);
@@ -331,7 +329,7 @@ public class Exchange
         List<ChunkHandle> chunks = ImmutableList.copyOf(pendingChunkList.subList(0, chunkListSize));
         pendingChunkList = pendingChunkList.subList(chunkListSize, pendingChunkList.size());
 
-        if (finishFuture != null && finishFuture.isDone() && pendingChunkList.size() == 0 && recentlyClosedChunksCount.get() == 0) {
+        if (finishFuture != null && finishFuture.isDone() && pendingChunkList.isEmpty() && recentlyClosedChunksCount.get() == 0) {
             nextPagingId = OptionalLong.empty();
         }
         else {
@@ -384,7 +382,7 @@ public class Exchange
                 public void onSuccess(Void result)
                 {
                     ExchangeResourceUsage exchangeResourceUsage = new ExchangeResourceUsage();
-                    partitions.values().stream().forEach(partition -> partition.updateResourceUsage(exchangeResourceUsage));
+                    partitions.values().forEach(partition -> partition.updateResourceUsage(exchangeResourceUsage));
                     finishedClosedChunks = Optional.of(exchangeResourceUsage.closedChunks);
                     finishedClosedBytes = Optional.of(exchangeResourceUsage.closedInMemoryBytes);
                     exchangeStateMachine.transitionToSourceFinished();
@@ -434,9 +432,7 @@ public class Exchange
 
         if (spooled) {
             ListenableFuture<Void> removeFuture = spoolingStorage.removeExchange(bufferNodeId, exchangeId);
-            addExceptionCallback(removeFuture, throwable -> {
-                log.warn(throwable, "error while removing stored files for exchange %s", exchangeId);
-            });
+            addExceptionCallback(removeFuture, throwable -> log.warn(throwable, "error while removing stored files for exchange %s", exchangeId));
             removeFuture.addListener(() -> removeExchange(exchangeResourceAttributes), directExecutor());
             return removeFuture;
         }
@@ -609,10 +605,8 @@ public class Exchange
             exchangeResourceUsage.updateTotalChunkResources(finishedClosedChunks.get(), finishedClosedBytes.get());
             return exchangeResourceUsage.toOpentelemetryAttributes(true);
         }
-        else {
-            partitions.values().forEach(partition -> partition.updateResourceUsage(exchangeResourceUsage));
-            return exchangeResourceUsage.toOpentelemetryAttributes(false);
-        }
+        partitions.values().forEach(partition -> partition.updateResourceUsage(exchangeResourceUsage));
+        return exchangeResourceUsage.toOpentelemetryAttributes(false);
     }
 
     public void writeResourceReportToSpan()
