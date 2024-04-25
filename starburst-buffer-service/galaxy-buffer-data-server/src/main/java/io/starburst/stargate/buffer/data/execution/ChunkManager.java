@@ -480,7 +480,7 @@ public class ChunkManager
                 LOG.info("All closed chunks of all exchanges have been consumed by Trino");
                 return;
             }
-            List<Exchange> pendingExchanges = exchanges.values().stream().filter(exchage -> !exchage.isAllClosedChunksReceived()).toList();
+            List<Exchange> pendingExchanges = exchanges.values().stream().filter(exchange -> !exchange.isAllClosedChunksReceived()).toList();
             for (Exchange pendingExchange : pendingExchanges) {
                 // some exchanges could be added after we already started draining.
                 // we wait for all addDataPages requests to complete before we enter drainAllChunks method
