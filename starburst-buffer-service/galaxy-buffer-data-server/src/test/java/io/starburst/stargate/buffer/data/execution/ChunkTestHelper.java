@@ -16,6 +16,7 @@ import io.airlift.slice.Slices;
 import io.starburst.stargate.buffer.data.client.DataPage;
 
 import java.util.List;
+import java.util.Set;
 
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.calculateChecksum;
@@ -60,6 +61,31 @@ public final class ChunkTestHelper
                 ImmutableList.of(slice),
                 calculateChecksum(dataPages),
                 dataPages.size(),
+                () -> {});
+    }
+
+    public static ChunkDataLease toChunkDataLease(Set<List<DataPage>> slicesOfDataPages)
+    {
+        ImmutableList.Builder<Slice> sliceBuilder = ImmutableList.builder();
+        ImmutableList.Builder<DataPage> dataPageBuilder = ImmutableList.builder();
+        for (List<DataPage> dataPages : slicesOfDataPages) {
+            int length = dataPages.stream().mapToInt(dataPage -> dataPage.data().length() + DATA_PAGE_HEADER_SIZE).sum();
+            Slice slice = Slices.allocate(length);
+            SliceOutput sliceOutput = slice.getOutput();
+            for (DataPage dataPage : dataPages) {
+                sliceOutput.writeShort(dataPage.taskId());
+                sliceOutput.writeByte(dataPage.attemptId());
+                sliceOutput.writeInt(dataPage.data().length());
+                sliceOutput.writeBytes(dataPage.data());
+                dataPageBuilder.add(dataPage);
+            }
+            sliceBuilder.add(slice);
+        }
+        List<DataPage> allDataPages = dataPageBuilder.build();
+        return new ChunkDataLease(
+                sliceBuilder.build(),
+                calculateChecksum(allDataPages),
+                allDataPages.size(),
                 () -> {});
     }
 }

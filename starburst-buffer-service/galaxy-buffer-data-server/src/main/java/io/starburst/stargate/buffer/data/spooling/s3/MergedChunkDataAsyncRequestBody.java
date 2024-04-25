@@ -9,12 +9,15 @@
  */
 package io.starburst.stargate.buffer.data.spooling.s3;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
+import io.airlift.slice.Slice;
+import io.airlift.slice.SliceOutput;
+import io.airlift.slice.Slices;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.execution.Chunk;
 import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
-import io.starburst.stargate.buffer.data.spooling.SpoolingUtils;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
@@ -24,7 +27,12 @@ import software.amazon.awssdk.core.internal.util.Mimetype;
 import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.CHUNK_FILE_HEADER_SIZE;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -39,7 +47,7 @@ public class MergedChunkDataAsyncRequestBody
     private static final Logger log = Logger.get(MergedChunkDataAsyncRequestBody.class);
 
     private final String location;
-    private final Map<Chunk, ChunkDataLease> chunkDataLeaseMap;
+    private final ImmutableList<Map.Entry<Chunk, ChunkDataLease>> chunkDataLeaseList;
     private final ImmutableMap.Builder<Long, SpooledChunk> spooledChunkMap;
     private final String mimetype;
     private final long contentLength;
@@ -52,7 +60,8 @@ public class MergedChunkDataAsyncRequestBody
             String mimetype)
     {
         this.location = requireNonNull(location, "location is null");
-        this.chunkDataLeaseMap = requireNonNull(chunkDataLeaseMap, "chunkDataLeaseMap is null");
+        requireNonNull(chunkDataLeaseMap, "chunkDataLeaseMap is null");
+        this.chunkDataLeaseList = chunkDataLeaseMap.entrySet().stream().collect(toImmutableList());
         this.spooledChunkMap = requireNonNull(spooledChunkMap, "spooledChunkMap is null");
         this.mimetype = requireNonNull(mimetype, "mimeType is null");
         this.contentLength = contentLength;
@@ -82,40 +91,65 @@ public class MergedChunkDataAsyncRequestBody
         try {
             s.onSubscribe(
                     new Subscription() {
-                        private boolean done;
-                        private long offset;
+                        private final AtomicLong fileOffset = new AtomicLong(0);
+                        private final AtomicInteger chunkOffset = new AtomicInteger(0);
+                        private final AtomicInteger sliceOffset = new AtomicInteger(0);
+                        private final AtomicBoolean done = new AtomicBoolean(false);
 
+                        // As per 3.2, it should be possible to call request() from onNext(). This implies that offsets need to be advanced before calls to onNext().
                         @Override
-                        public void request(long n)
+                        public void request(long consumerCallLimit)
                         {
-                            if (done) {
+                            if (done.get()) {
                                 return;
                             }
-                            if (n > 0) {
-                                done = true;
-                                for (Map.Entry<Chunk, ChunkDataLease> entry : chunkDataLeaseMap.entrySet()) {
-                                    Chunk chunk = entry.getKey();
-                                    ChunkDataLease chunkDataLease = entry.getValue();
-                                    SpoolingUtils.writeChunkDataLease(chunkDataLease, s::onNext);
-                                    int length = chunkDataLease.serializedSizeInBytes();
-                                    spooledChunkMap.put(chunk.getChunkId(), new SpooledChunk(location, offset, length));
-                                    offset += length;
-                                }
-                                s.onComplete();
-                            }
-                            else {
+                            if (consumerCallLimit <= 0) {
                                 s.onError(new IllegalArgumentException("§3.9: non-positive requests are not allowed!"));
+                                return;
+                            }
+                            int consumerCallCount = 0;
+                            while (consumerCallCount < consumerCallLimit && chunkOffset.get() < chunkDataLeaseList.size()) {
+                                Map.Entry<Chunk, ChunkDataLease> entry = chunkDataLeaseList.get(chunkOffset.get());
+                                ChunkDataLease chunkDataLease = entry.getValue();
+                                int localSliceOffset = sliceOffset.get();
+                                if (localSliceOffset == 0) {
+                                    SliceOutput sliceOutput = Slices.allocate(CHUNK_FILE_HEADER_SIZE).getOutput();
+                                    sliceOutput.writeLong(chunkDataLease.getChecksum());
+                                    sliceOutput.writeInt(chunkDataLease.getNumDataPages());
+                                    sliceOffset.set(1);
+                                    localSliceOffset++;
+                                    s.onNext(ByteBuffer.wrap(sliceOutput.slice().byteArray()));
+                                    consumerCallCount++;
+                                }
+                                // Since every slice has a header, chunkSliceOffset is tracked as 1 relative.
+                                while (consumerCallCount < consumerCallLimit && localSliceOffset <= chunkDataLease.getChunkSlices().size()) {
+                                    if (localSliceOffset == chunkDataLease.getChunkSlices().size()) {
+                                        // This is the last slice in the chunk, all thread safe updates must be done before calling onNext() which may start a new (nested) request.
+                                        int length = chunkDataLease.serializedSizeInBytes();
+                                        Chunk chunk = entry.getKey();
+                                        spooledChunkMap.put(chunk.getChunkId(), new SpooledChunk(location, fileOffset.get(), length));
+                                        fileOffset.addAndGet(length);
+                                        sliceOffset.set(0);
+                                        chunkOffset.incrementAndGet();
+                                    }
+                                    else {
+                                        sliceOffset.incrementAndGet();
+                                    }
+                                    Slice chunkSlice = chunkDataLease.getChunkSlices().get(localSliceOffset - 1);
+                                    s.onNext(ByteBuffer.wrap(chunkSlice.byteArray(), chunkSlice.byteArrayOffset(), chunkSlice.length()));
+                                    localSliceOffset++;
+                                    consumerCallCount++;
+                                }
+                            }
+                            if (chunkOffset.get() == chunkDataLeaseList.size() && done.compareAndSet(false, true)) {
+                                s.onComplete();
                             }
                         }
 
                         @Override
                         public void cancel()
                         {
-                            synchronized (this) {
-                                if (!done) {
-                                    done = true;
-                                }
-                            }
+                            done.compareAndSet(false, true);
                         }
                     });
         }

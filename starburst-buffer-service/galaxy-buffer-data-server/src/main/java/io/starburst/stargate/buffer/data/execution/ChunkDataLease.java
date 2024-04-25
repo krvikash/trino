@@ -19,10 +19,11 @@ import static java.util.Objects.requireNonNull;
 
 public class ChunkDataLease
 {
-    private List<Slice> chunkSlices;
+    private ImmutableList<Slice> chunkSlices;
     private final long checksum;
     private final int numDataPages;
     private final Runnable releaseCallback;
+
     public static final int CHUNK_SLICES_METADATA_SIZE = Long.BYTES + Integer.BYTES;
 
     public ChunkDataLease(List<Slice> chunkSlices, long checksum, int numDataPages, Runnable releaseCallback)
@@ -33,7 +34,7 @@ public class ChunkDataLease
         this.releaseCallback = requireNonNull(releaseCallback, "releaseCallback is null");
     }
 
-    public List<Slice> getChunkSlices()
+    public ImmutableList<Slice> getChunkSlices()
     {
         checkState(chunkSlices != null, "already released");
         return chunkSlices;

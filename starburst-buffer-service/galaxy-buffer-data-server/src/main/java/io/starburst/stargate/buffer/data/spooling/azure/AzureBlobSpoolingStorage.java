@@ -113,6 +113,7 @@ public class AzureBlobSpoolingStorage
             for (Map.Entry<Chunk, ChunkDataLease> entry : chunkDataLeaseMap.entrySet()) {
                 Chunk chunk = entry.getKey();
                 ChunkDataLease chunkDataLease = entry.getValue();
+
                 SpoolingUtils.writeChunkDataLease(chunkDataLease, fluxSink::next);
                 int length = chunkDataLease.serializedSizeInBytes();
                 spooledChunkMap.put(chunk.getChunkId(), new SpooledChunk(location, offset, length));
