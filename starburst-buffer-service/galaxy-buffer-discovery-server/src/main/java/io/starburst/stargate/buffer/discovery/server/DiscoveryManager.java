@@ -37,6 +37,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.BufferNodeState.DRAINED;
 import static java.lang.annotation.ElementType.FIELD;
@@ -81,7 +82,7 @@ public class DiscoveryManager
                 bufferNodeDiscoveryStalenessThreshold, DRAINED_NODES_STALENESS_THRESHOLD);
         this.startGracePeriod = config.getStartGracePeriod();
         this.discoveryStats = requireNonNull(discoveryStats, "discoveryStats is null");
-        this.executor = newSingleThreadScheduledExecutor();
+        this.executor = newSingleThreadScheduledExecutor(daemonThreadsNamed("discovery-manager-%s"));
     }
 
     @PostConstruct

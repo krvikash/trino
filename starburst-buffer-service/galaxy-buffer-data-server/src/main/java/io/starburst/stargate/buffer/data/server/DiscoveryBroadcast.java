@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.common.base.Preconditions.checkState;
+import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.starburst.stargate.buffer.BufferNodeState.ACTIVE;
 import static io.starburst.stargate.buffer.BufferNodeState.STARTING;
 import static java.util.Objects.isNull;
@@ -39,7 +40,7 @@ public class DiscoveryBroadcast
     private final BufferNodeStateManager stateManager;
     private final BufferNodeInfoService bufferNodeInfoService;
 
-    private final ScheduledExecutorService executor = newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService executor = newSingleThreadScheduledExecutor(daemonThreadsNamed("discovery-broadcast-%s"));
     private final AtomicReference<Boolean> discoveryRegistrationState = new AtomicReference<>(null);
 
     private final Duration broadcastInterval;

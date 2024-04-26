@@ -75,6 +75,7 @@ import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterrup
 import static io.airlift.concurrent.AsyncSemaphore.processAll;
 import static io.airlift.concurrent.MoreFutures.addExceptionCallback;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
+import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.data.client.ChunkDeliveryMode.STANDARD;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
@@ -128,12 +129,12 @@ public class ChunkManager
     // exchangeId -> exchange
     private final Map<String, Exchange> exchanges = new ConcurrentHashMap<>();
     private final ChunkIdGenerator chunkIdGenerator = new ChunkIdGenerator();
-    private final ScheduledExecutorService cleanupExecutor = newSingleThreadScheduledExecutor();
-    private final ScheduledExecutorService statsReportingExecutor = newSingleThreadScheduledExecutor();
-    private final ScheduledExecutorService chunkSpoolExecutor = newSingleThreadScheduledExecutor();
-    private final ScheduledExecutorService exchangeTimeoutExecutor = newSingleThreadScheduledExecutor();
-    private final ScheduledExecutorService eagerDeliveryModeExecutor = newSingleThreadScheduledExecutor();
-    private final ScheduledExecutorService traceResourceReportExecutor = newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService cleanupExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("chunk-manager-cleanup-%s"));
+    private final ScheduledExecutorService statsReportingExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("chunk-manager-stats-reporting-%s"));
+    private final ScheduledExecutorService chunkSpoolExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("chunk-manager-spool-%s"));
+    private final ScheduledExecutorService exchangeTimeoutExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("chunk-manager-exchange-timeout-%s"));
+    private final ScheduledExecutorService eagerDeliveryModeExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("chunk-manager-eager-delivery-%s"));
+    private final ScheduledExecutorService traceResourceReportExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("chunk-manager-trace-resource-report-%s"));
     private final Cache<String, Object> recentlyRemovedExchanges = buildNonEvictableCache(CacheBuilder.newBuilder().expireAfterWrite(5, MINUTES));
     private final LoadingCache<Long, Map<Long, SpooledChunk>> drainedSpooledChunkMap;
     private final Set<String> exchangesBeingReleased = ConcurrentHashMap.newKeySet();

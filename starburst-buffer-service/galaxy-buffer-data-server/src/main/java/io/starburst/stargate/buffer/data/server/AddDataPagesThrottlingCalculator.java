@@ -27,6 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static com.google.common.base.Preconditions.checkState;
+import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.units.Duration.succinctDuration;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -49,7 +50,7 @@ public class AddDataPagesThrottlingCalculator
 
     private final Ticker ticker = Ticker.systemTicker();
     private final Map<String, CounterWithRate> counters = new ConcurrentHashMap<>();
-    private final ScheduledExecutorService cleanupExecutor = newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService cleanupExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("add-data-pages-throttling-calculator-cleanup-%s"));
     @GuardedBy("this")
     private final Queue<Long> recentProcessTimeQueue;
     @GuardedBy("this")
