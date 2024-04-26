@@ -187,7 +187,7 @@ public class SqlQueryExecution
             EventDrivenTaskSourceFactory eventDrivenTaskSourceFactory,
             TaskDescriptorStorage taskDescriptorStorage)
     {
-        try (SetThreadName ignored = new SetThreadName("Query-%s", stateMachine.getQueryId())) {
+        try (SetThreadName _ = new SetThreadName("Query-%s", stateMachine.getQueryId())) {
             this.slug = requireNonNull(slug, "slug is null");
             this.tracer = requireNonNull(tracer, "tracer is null");
             this.plannerContext = requireNonNull(plannerContext, "plannerContext is null");
@@ -396,7 +396,7 @@ public class SqlQueryExecution
     @Override
     public void start()
     {
-        try (SetThreadName ignored = new SetThreadName("Query-%s", stateMachine.getQueryId())) {
+        try (SetThreadName _ = new SetThreadName("Query-%s", stateMachine.getQueryId())) {
             try {
                 if (!stateMachine.transitionToPlanning()) {
                     // query already started or finished
@@ -456,7 +456,7 @@ public class SqlQueryExecution
     @Override
     public void addStateChangeListener(StateChangeListener<QueryState> stateChangeListener)
     {
-        try (SetThreadName ignored = new SetThreadName("Query-%s", stateMachine.getQueryId())) {
+        try (SetThreadName _ = new SetThreadName("Query-%s", stateMachine.getQueryId())) {
             stateMachine.addStateChangeListener(stateChangeListener);
         }
     }
@@ -608,7 +608,7 @@ public class SqlQueryExecution
     {
         requireNonNull(stageId, "stageId is null");
 
-        try (SetThreadName ignored = new SetThreadName("Query-%s", stateMachine.getQueryId())) {
+        try (SetThreadName _ = new SetThreadName("Query-%s", stateMachine.getQueryId())) {
             QueryScheduler scheduler = queryScheduler.get();
             if (scheduler != null) {
                 scheduler.cancelStage(stageId);
@@ -621,7 +621,7 @@ public class SqlQueryExecution
     {
         requireNonNull(taskId, "stageId is null");
 
-        try (SetThreadName ignored = new SetThreadName("Query-%s", stateMachine.getQueryId())) {
+        try (SetThreadName _ = new SetThreadName("Query-%s", stateMachine.getQueryId())) {
             QueryScheduler scheduler = queryScheduler.get();
             if (scheduler != null) {
                 scheduler.failTask(taskId, reason);
@@ -694,7 +694,7 @@ public class SqlQueryExecution
     @Override
     public QueryInfo getQueryInfo()
     {
-        try (SetThreadName ignored = new SetThreadName("Query-%s", stateMachine.getQueryId())) {
+        try (SetThreadName _ = new SetThreadName("Query-%s", stateMachine.getQueryId())) {
             // acquire reference to scheduler before checking finalQueryInfo, because
             // state change listener sets finalQueryInfo and then clears scheduler when
             // the query finishes.
