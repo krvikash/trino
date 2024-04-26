@@ -30,7 +30,6 @@ import org.junit.jupiter.api.Test;
 import java.util.Optional;
 import java.util.Set;
 
-import static io.trino.SystemSessionProperties.USE_HIGHEST_CARDINALITY_COLUMN_FOR_REPARTITIONING_BELOW_GROUP_ID;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.aggregation;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.exchange;
@@ -48,22 +47,20 @@ public class TestAddExchangesBelowPartialAggregationOverGroupIdRuleSet
     @Test
     public void testAddExchangesWithoutProjection()
     {
-        testAddExchangesWithoutProjection(1000, 10_000, 1_000_000, false, ImmutableSet.of("groupingKey1", "groupingKey2", "groupingKey3"));
-        testAddExchangesWithoutProjection(1000, 10_000, 1_000_000, true, ImmutableSet.of("groupingKey3"));
-        testAddExchangesWithoutProjection(1000, 1000, 1000, true, ImmutableSet.of("groupingKey1"));
+        testAddExchangesWithoutProjection(1000, 10_000, 1_000_000, ImmutableSet.of("groupingKey3"));
+        testAddExchangesWithoutProjection(1000, 1000, 1000, ImmutableSet.of("groupingKey1"));
         // stats not available on any symbol make the rule to not fire
-        testAddExchangesWithoutProjection(1000, 10_000, Double.NaN, true, ImmutableSet.of());
-        testAddExchangesWithoutProjection(1000, Double.NaN, 10_000, true, ImmutableSet.of());
-        testAddExchangesWithoutProjection(1000, 10_000, Double.NaN, false, ImmutableSet.of());
+        testAddExchangesWithoutProjection(1000, 10_000, Double.NaN, ImmutableSet.of());
+        testAddExchangesWithoutProjection(1000, Double.NaN, 10_000, ImmutableSet.of());
+        testAddExchangesWithoutProjection(1000, 10_000, Double.NaN, ImmutableSet.of());
     }
 
     // empty partitionedBy means exchanges should not be added
-    private void testAddExchangesWithoutProjection(double groupingKey1NDV, double groupingKey2NDV, double groupingKey3NDV, boolean useHighestCardinalityColumn, Set<String> partitionedBy)
+    private void testAddExchangesWithoutProjection(double groupingKey1NDV, double groupingKey2NDV, double groupingKey3NDV, Set<String> partitionedBy)
     {
         RuleTester ruleTester = tester();
         String groupIdSourceId = "groupIdSourceId";
         RuleAssert ruleAssert = ruleTester.assertThat(belowExchangeRule(ruleTester))
-                .setSystemProperty(USE_HIGHEST_CARDINALITY_COLUMN_FOR_REPARTITIONING_BELOW_GROUP_ID, String.valueOf(useHighestCardinalityColumn))
                 .overrideStats(groupIdSourceId, PlanNodeStatsEstimate
                         .builder()
                         .setOutputRowCount(100_000_000)
@@ -73,10 +70,10 @@ public class TestAddExchangesBelowPartialAggregationOverGroupIdRuleSet
                                 new Symbol(BIGINT, "groupingKey3"), SymbolStatsEstimate.builder().setDistinctValuesCount(groupingKey3NDV).build()))
                         .build())
                 .on(p -> {
-                    Symbol groupingKey1 = p.symbol("groupingKey1");
-                    Symbol groupingKey2 = p.symbol("groupingKey2");
-                    Symbol groupingKey3 = p.symbol("groupingKey3");
-                    Symbol groupId = p.symbol("groupId");
+                    Symbol groupingKey1 = p.symbol("groupingKey1", BIGINT);
+                    Symbol groupingKey2 = p.symbol("groupingKey2", BIGINT);
+                    Symbol groupingKey3 = p.symbol("groupingKey3", BIGINT);
+                    Symbol groupId = p.symbol("groupId", BIGINT);
                     return p.exchange(
                             exchangeBuilder -> exchangeBuilder
                                     .scope(REMOTE)

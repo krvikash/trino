@@ -53,7 +53,6 @@ import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.SystemSessionProperties.getTaskConcurrency;
 import static io.trino.SystemSessionProperties.isEnableForcedExchangeBelowGroupId;
 import static io.trino.SystemSessionProperties.isEnableStatsCalculator;
-import static io.trino.SystemSessionProperties.isUseHighestCardinalityColumnForForcedExchangeBelowGroupId;
 import static io.trino.matching.Capture.newCapture;
 import static io.trino.matching.Pattern.nonEmpty;
 import static io.trino.matching.Pattern.typeOf;
@@ -69,6 +68,7 @@ import static io.trino.sql.planner.plan.Patterns.Exchange.scope;
 import static io.trino.sql.planner.plan.Patterns.source;
 import static java.lang.Double.isNaN;
 import static java.lang.Math.min;
+import static java.util.Comparator.comparing;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -262,24 +262,13 @@ public class AddExchangesBelowPartialAggregationOverGroupIdRuleSet
                     .map(groupId.getGroupingColumns()::get)
                     .collect(toImmutableList());
 
-            if (isUseHighestCardinalityColumnForForcedExchangeBelowGroupId(context.getSession())) {
-                // use only the symbol with the highest cardinality.
-                // this makes partial aggregation more efficient in case of low correlation between symbols
-                // that are in every grouping set vs additional symbols
-                PlanNodeStatsEstimate sourceStats = context.getStatsProvider().getStats(groupId.getSource());
-                Symbol maxNdvSymbol = null;
-                double maxNdv = Double.MIN_VALUE;
-                for (Symbol desiredHashSymbol : desiredHashSymbols) {
-                    double distinctValuesCount = sourceStats.getSymbolStatistics(desiredHashSymbol).getDistinctValuesCount();
-                    if (!Double.isNaN(distinctValuesCount) && (maxNdvSymbol == null || distinctValuesCount > maxNdv)) {
-                        maxNdvSymbol = desiredHashSymbol;
-                        maxNdv = distinctValuesCount;
-                    }
-                }
-                if (maxNdvSymbol != null) {
-                    desiredHashSymbols = ImmutableList.of(maxNdvSymbol);
-                }
-            }
+            // Use only the symbol with the highest cardinality (if we have statistics). This makes partial aggregation more efficient in case of
+            // low correlation between symbol that are in every grouping set vs additional symbols.
+            PlanNodeStatsEstimate sourceStats = context.getStatsProvider().getStats(groupId.getSource());
+            desiredHashSymbols = desiredHashSymbols.stream()
+                    .filter(symbol -> !isNaN(sourceStats.getSymbolStatistics(symbol).getDistinctValuesCount()))
+                    .max(comparing(symbol -> sourceStats.getSymbolStatistics(symbol).getDistinctValuesCount()))
+                    .map(symbol -> (List<Symbol>) ImmutableList.of(symbol)).orElse(desiredHashSymbols);
 
             StreamPreferredProperties requiredProperties = fixedParallelism().withPartitioning(desiredHashSymbols);
             StreamProperties sourceProperties = derivePropertiesRecursively(groupId.getSource(), context);
