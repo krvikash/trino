@@ -21,7 +21,7 @@ import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.type.Type;
 import io.trino.type.BlockTypeOperators.BlockPositionEqual;
 import io.trino.type.BlockTypeOperators.BlockPositionHashCode;
-import io.trino.type.BlockTypeOperators.BlockPositionIsDistinctFrom;
+import io.trino.type.BlockTypeOperators.BlockPositionIsIdentical;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -47,7 +47,7 @@ public class TypedSet
 
     private final Type elementType;
     private final BlockPositionEqual elementEqualOperator;
-    private final BlockPositionIsDistinctFrom elementDistinctFromOperator;
+    private final BlockPositionIsIdentical elementIdenticalOperator;
     private final BlockPositionHashCode elementHashCodeOperator;
     private final IntArrayList blockPositionByHash;
     private final BlockBuilder elementBlock;
@@ -96,7 +96,7 @@ public class TypedSet
     private TypedSet(
             Type elementType,
             BlockPositionEqual elementEqualOperator,
-            BlockPositionIsDistinctFrom elementDistinctFromOperator,
+            BlockPositionIsIdentical elementIdenticalOperator,
             BlockPositionHashCode elementHashCodeOperator,
             BlockBuilder elementBlock,
             int expectedSize,
@@ -106,9 +106,9 @@ public class TypedSet
         checkArgument(expectedSize >= 0, "expectedSize must not be negative");
         this.elementType = requireNonNull(elementType, "elementType is null");
 
-        checkArgument(elementEqualOperator == null ^ elementDistinctFromOperator == null, "Element equal or distinct_from operator must be provided");
+        checkArgument(elementEqualOperator == null ^ elementIdenticalOperator == null, "Element equal or identical operator must be provided");
         this.elementEqualOperator = elementEqualOperator;
-        this.elementDistinctFromOperator = elementDistinctFromOperator;
+        this.elementIdenticalOperator = elementIdenticalOperator;
         this.elementHashCodeOperator = requireNonNull(elementHashCodeOperator, "elementHashCodeOperator is null");
 
         this.elementBlock = requireNonNull(elementBlock, "elementBlock must not be null");
@@ -201,8 +201,8 @@ public class TypedSet
 
     private boolean isNotDistinct(Block leftBlock, int leftPosition, Block rightBlock, int rightPosition)
     {
-        if (elementDistinctFromOperator != null) {
-            return !elementDistinctFromOperator.isDistinctFrom(leftBlock, leftPosition, rightBlock, rightPosition);
+        if (elementIdenticalOperator != null) {
+            return elementIdenticalOperator.isIdentical(leftBlock, leftPosition, rightBlock, rightPosition);
         }
         return elementEqualOperator.equalNullSafe(leftBlock, leftPosition, rightBlock, rightPosition);
     }

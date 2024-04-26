@@ -31,7 +31,6 @@ import io.trino.spi.predicate.TupleDomain;
 import io.trino.sql.DynamicFilters;
 import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.Expression;
-import io.trino.sql.ir.Not;
 import io.trino.sql.ir.Row;
 import io.trino.sql.planner.PartitioningHandle;
 import io.trino.sql.planner.Symbol;
@@ -100,7 +99,7 @@ import static io.trino.spi.connector.SortOrder.ASC_NULLS_LAST;
 import static io.trino.spi.connector.SortOrder.DESC_NULLS_FIRST;
 import static io.trino.spi.connector.SortOrder.DESC_NULLS_LAST;
 import static io.trino.sql.DynamicFilters.extractDynamicFilters;
-import static io.trino.sql.ir.Comparison.Operator.IS_DISTINCT_FROM;
+import static io.trino.sql.ir.Comparison.Operator.IDENTICAL;
 import static io.trino.sql.ir.IrUtils.extractDisjuncts;
 import static io.trino.sql.planner.assertions.MatchResult.NO_MATCH;
 import static io.trino.sql.planner.assertions.MatchResult.match;
@@ -1304,11 +1303,10 @@ public final class PlanMatchPattern
         {
             Expression probeMapped = symbolMapper(aliases).map(probe);
             if (nullAllowed) {
-                return new Not(
-                        new Comparison(
-                                IS_DISTINCT_FROM,
-                                probeMapped,
-                                build.toSymbol(aliases).toSymbolReference()));
+                return new Comparison(
+                        IDENTICAL,
+                        probeMapped,
+                        build.toSymbol(aliases).toSymbolReference());
             }
             return new Comparison(
                     operator,

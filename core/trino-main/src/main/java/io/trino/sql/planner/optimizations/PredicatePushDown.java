@@ -29,9 +29,9 @@ import io.trino.sql.ir.Booleans;
 import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Cast;
 import io.trino.sql.ir.Comparison;
+import io.trino.sql.ir.Comparison.Operator;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
-import io.trino.sql.ir.Not;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.EffectivePredicateExtractor;
 import io.trino.sql.planner.EqualityInference;
@@ -97,7 +97,7 @@ import static io.trino.sql.ir.Booleans.TRUE;
 import static io.trino.sql.ir.Comparison.Operator.EQUAL;
 import static io.trino.sql.ir.Comparison.Operator.GREATER_THAN;
 import static io.trino.sql.ir.Comparison.Operator.GREATER_THAN_OR_EQUAL;
-import static io.trino.sql.ir.Comparison.Operator.IS_DISTINCT_FROM;
+import static io.trino.sql.ir.Comparison.Operator.IDENTICAL;
 import static io.trino.sql.ir.Comparison.Operator.LESS_THAN;
 import static io.trino.sql.ir.Comparison.Operator.LESS_THAN_OR_EQUAL;
 import static io.trino.sql.ir.IrExpressions.mayFail;
@@ -119,7 +119,7 @@ import static java.util.Objects.requireNonNull;
 public class PredicatePushDown
         implements PlanOptimizer
 {
-    private static final Set<Comparison.Operator> DYNAMIC_FILTERING_SUPPORTED_COMPARISONS = ImmutableSet.of(
+    private static final Set<Operator> DYNAMIC_FILTERING_SUPPORTED_COMPARISONS = ImmutableSet.of(
             EQUAL,
             GREATER_THAN,
             GREATER_THAN_OR_EQUAL,
@@ -596,8 +596,7 @@ public class PredicatePushDown
                                     .flatMap(Rewriter::tryConvertBetweenIntoComparisons)
                                     .filter(clause -> joinDynamicFilteringExpression(clause, node.getLeft().getOutputSymbols(), node.getRight().getOutputSymbols()))
                                     .map(expression -> {
-                                        if (expression instanceof Not notExpression) {
-                                            Comparison comparison = (Comparison) notExpression.value();
+                                        if (expression instanceof Comparison comparison && comparison.operator() == IDENTICAL) {
                                             return new DynamicFilterExpression(new Comparison(EQUAL, comparison.left(), comparison.right()), true);
                                         }
                                         return new DynamicFilterExpression((Comparison) expression);
@@ -1308,53 +1307,49 @@ public class PredicatePushDown
 
         private boolean joinEqualityExpression(Expression expression, Collection<Symbol> leftSymbols, Collection<Symbol> rightSymbols)
         {
-            return joinComparisonExpression(expression, leftSymbols, rightSymbols, ImmutableSet.of(EQUAL));
+            // At this point in time, our join predicates need to be deterministic
+            if (expression instanceof Comparison comparison && comparison.operator() == EQUAL && isDeterministic(expression)) {
+                Set<Symbol> symbols1 = extractUnique(comparison.left());
+                Set<Symbol> symbols2 = extractUnique(comparison.right());
+                if (symbols1.isEmpty() || symbols2.isEmpty()) {
+                    return false;
+                }
+                return (leftSymbols.containsAll(symbols1) && rightSymbols.containsAll(symbols2)) ||
+                        (rightSymbols.containsAll(symbols1) && leftSymbols.containsAll(symbols2));
+            }
+            return false;
         }
 
         private boolean joinDynamicFilteringExpression(Expression expression, Collection<Symbol> leftSymbols, Collection<Symbol> rightSymbols)
         {
-            Comparison comparison;
-            if (expression instanceof Not not) {
-                boolean isDistinctFrom = joinComparisonExpression(not.value(), leftSymbols, rightSymbols, ImmutableSet.of(IS_DISTINCT_FROM));
-                if (!isDistinctFrom) {
-                    return false;
-                }
-                comparison = (Comparison) not.value();
-                Set<Type> expressionTypes = ImmutableSet.of(
-                        comparison.left().type(),
-                        comparison.right().type());
-                // Dynamic filtering is not supported with IS NOT DISTINCT FROM clause on REAL or DOUBLE types to avoid dealing with NaN values
-                if (expressionTypes.contains(REAL) || expressionTypes.contains(DOUBLE)) {
+            if (!(expression instanceof Comparison(Operator operator, Expression left, Expression right)) || !isDeterministic(expression)) {
+                return false;
+            }
+
+            Set<Symbol> symbols1 = extractUnique(left);
+            Set<Symbol> symbols2 = extractUnique(right);
+
+            if (symbols1.isEmpty() || symbols2.isEmpty()) {
+                return false;
+            }
+
+            if (!(leftSymbols.containsAll(symbols1) && rightSymbols.containsAll(symbols2)) &&
+                    !(rightSymbols.containsAll(symbols1) && leftSymbols.containsAll(symbols2))) {
+                return false;
+            }
+
+            if (operator == IDENTICAL) {
+                if ((left.type().equals(REAL) || right.type().equals(REAL) || left.type().equals(DOUBLE) || right.type().equals(DOUBLE))) {
                     return false;
                 }
             }
-            else {
-                if (!joinComparisonExpression(expression, leftSymbols, rightSymbols, DYNAMIC_FILTERING_SUPPORTED_COMPARISONS)) {
-                    return false;
-                }
-                comparison = (Comparison) expression;
+            else if (!DYNAMIC_FILTERING_SUPPORTED_COMPARISONS.contains(operator)) {
+                return false;
             }
 
             // Build side expression must be a symbol reference, since DynamicFilterSourceOperator can only collect column values (not expressions)
-            return (comparison.right() instanceof Reference && rightSymbols.contains(Symbol.from(comparison.right())))
-                    || (comparison.left() instanceof Reference && rightSymbols.contains(Symbol.from(comparison.left())));
-        }
-
-        private boolean joinComparisonExpression(Expression expression, Collection<Symbol> leftSymbols, Collection<Symbol> rightSymbols, Set<Comparison.Operator> operators)
-        {
-            // At this point in time, our join predicates need to be deterministic
-            if (expression instanceof Comparison comparison && isDeterministic(expression)) {
-                if (operators.contains(comparison.operator())) {
-                    Set<Symbol> symbols1 = extractUnique(comparison.left());
-                    Set<Symbol> symbols2 = extractUnique(comparison.right());
-                    if (symbols1.isEmpty() || symbols2.isEmpty()) {
-                        return false;
-                    }
-                    return (leftSymbols.containsAll(symbols1) && rightSymbols.containsAll(symbols2)) ||
-                            (rightSymbols.containsAll(symbols1) && leftSymbols.containsAll(symbols2));
-                }
-            }
-            return false;
+            return (right instanceof Reference && rightSymbols.contains(Symbol.from(right)))
+                    || (left instanceof Reference && rightSymbols.contains(Symbol.from(left)));
         }
 
         @Override

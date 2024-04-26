@@ -492,13 +492,12 @@ public class TestSynapseConnectorTest
                         .setSystemProperty("enable_dynamic_filtering", "false")
                         .build();
 
-                String notDistinctOperator = "IS NOT DISTINCT FROM";
                 @SuppressWarnings({"deprecation", "DeprecatedApi"})
                 List<String> nonEqualities = Stream.concat(
                                 Stream.of(JoinCondition.Operator.values())
-                                        .filter(operator -> operator != JoinCondition.Operator.EQUAL)
+                                        .filter(operator -> operator != JoinCondition.Operator.EQUAL && operator != JoinCondition.Operator.IDENTICAL)
                                         .map(JoinCondition.Operator::getValue),
-                                Stream.of(notDistinctOperator))
+                                Stream.of("IS NOT DISTINCT FROM", "IS DISTINCT FROM"))
                         .collect(toImmutableList());
 
                 try (TestTable nationLowercaseTable = new TestTable(
@@ -604,30 +603,31 @@ public class TestSynapseConnectorTest
     @SuppressWarnings({"deprecation", "DeprecatedApi"})
     private boolean expectVarcharJoinPushdown(String operator)
     {
-        if ("IS NOT DISTINCT FROM".equals(operator)) {
-            return false;
+        if ("IS DISTINCT FROM".equals(operator)) {
+            return this.hasBehavior(TestingConnectorBehavior.SUPPORTS_JOIN_PUSHDOWN_WITH_DISTINCT_FROM) && this.hasBehavior(TestingConnectorBehavior.SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_EQUALITY);
         }
-        else {
-            switch (this.toJoinConditionOperator(operator)) {
-                case EQUAL:
-                case NOT_EQUAL:
-                    return this.hasBehavior(TestingConnectorBehavior.SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_EQUALITY);
-                case LESS_THAN:
-                case LESS_THAN_OR_EQUAL:
-                case GREATER_THAN:
-                case GREATER_THAN_OR_EQUAL:
-                    return this.hasBehavior(TestingConnectorBehavior.SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_INEQUALITY);
-                case IS_DISTINCT_FROM:
-                    return this.hasBehavior(TestingConnectorBehavior.SUPPORTS_JOIN_PUSHDOWN_WITH_DISTINCT_FROM) && this.hasBehavior(TestingConnectorBehavior.SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_EQUALITY);
-                default:
-                    throw new AssertionError();
-            }
+        switch (this.toJoinConditionOperator(operator)) {
+            case EQUAL:
+            case NOT_EQUAL:
+                return this.hasBehavior(TestingConnectorBehavior.SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_EQUALITY);
+            case LESS_THAN:
+            case LESS_THAN_OR_EQUAL:
+            case GREATER_THAN:
+            case GREATER_THAN_OR_EQUAL:
+                return this.hasBehavior(TestingConnectorBehavior.SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_INEQUALITY);
+            case IDENTICAL:
+                return false;
+            default:
+                throw new AssertionError();
         }
     }
 
     @SuppressWarnings({"deprecation", "DeprecatedApi"})
     private JoinCondition.Operator toJoinConditionOperator(String operator)
     {
+        if (operator.equals("IS NOT DISTINCT FROM")) {
+            return JoinCondition.Operator.IDENTICAL;
+        }
         return Stream.of(JoinCondition.Operator.values())
                 .filter(joinOperator -> joinOperator.getValue().equals(operator))
                 .collect(toOptional())

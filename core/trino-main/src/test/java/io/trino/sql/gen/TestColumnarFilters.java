@@ -53,8 +53,8 @@ import static io.trino.metadata.FunctionManager.createTestingFunctionManager;
 import static io.trino.spi.block.BlockTestUtils.assertBlockEquals;
 import static io.trino.spi.function.OperatorType.EQUAL;
 import static io.trino.spi.function.OperatorType.HASH_CODE;
+import static io.trino.spi.function.OperatorType.IDENTICAL;
 import static io.trino.spi.function.OperatorType.INDETERMINATE;
-import static io.trino.spi.function.OperatorType.IS_DISTINCT_FROM;
 import static io.trino.spi.function.OperatorType.LESS_THAN;
 import static io.trino.spi.function.OperatorType.LESS_THAN_OR_EQUAL;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -97,48 +97,48 @@ public class TestColumnarFilters
 
     @ParameterizedTest
     @MethodSource("inputProviders")
-    public void testIsDistinctFrom(NullsProvider nullsProvider, boolean dictionaryEncoded)
+    public void testIsIdentical(NullsProvider nullsProvider, boolean dictionaryEncoded)
     {
         List<Page> inputPages = createInputPages(nullsProvider, dictionaryEncoded);
-        // col IS DISTINCT FROM constant
-        RowExpression isDistinctFromFilter = call(
-                FUNCTION_RESOLUTION.resolveOperator(IS_DISTINCT_FROM, ImmutableList.of(INTEGER, INTEGER)),
+        // col IS IDENTICAL TO constant
+        RowExpression isIdenticalFilter = call(
+                FUNCTION_RESOLUTION.resolveOperator(IDENTICAL, ImmutableList.of(INTEGER, INTEGER)),
                 constant(CONSTANT, INTEGER),
                 field(INT_CHANNEL_A, INTEGER));
-        assertThat(createColumnarFilterEvaluator(isDistinctFromFilter, COMPILER)).isNotEmpty();
-        assertFilter(inputPages, isDistinctFromFilter);
+        assertThat(createColumnarFilterEvaluator(isIdenticalFilter, COMPILER)).isNotEmpty();
+        assertFilter(inputPages, isIdenticalFilter);
 
-        // colA IS DISTINCT FROM colB
-        isDistinctFromFilter = call(
-                FUNCTION_RESOLUTION.resolveOperator(IS_DISTINCT_FROM, ImmutableList.of(INTEGER, INTEGER)),
+        // colA IS IDENTICAL TO colB
+        isIdenticalFilter = call(
+                FUNCTION_RESOLUTION.resolveOperator(IDENTICAL, ImmutableList.of(INTEGER, INTEGER)),
                 field(INT_CHANNEL_C, INTEGER),
                 field(INT_CHANNEL_A, INTEGER));
-        assertThat(createColumnarFilterEvaluator(isDistinctFromFilter, COMPILER)).isNotEmpty();
-        assertFilter(inputPages, isDistinctFromFilter);
+        assertThat(createColumnarFilterEvaluator(isIdenticalFilter, COMPILER)).isNotEmpty();
+        assertFilter(inputPages, isIdenticalFilter);
     }
 
     @ParameterizedTest
     @MethodSource("inputProviders")
-    public void testIsNotDistinctFrom(NullsProvider nullsProvider, boolean dictionaryEncoded)
+    public void testIsNotIdentical(NullsProvider nullsProvider, boolean dictionaryEncoded)
     {
         List<Page> inputPages = createInputPages(nullsProvider, dictionaryEncoded);
-        // col IS NOT DISTINCT FROM constant
-        RowExpression isNotDistinctFromFilter = createNotExpression(call(
-                FUNCTION_RESOLUTION.resolveOperator(IS_DISTINCT_FROM, ImmutableList.of(INTEGER, INTEGER)),
+        // col IS NOT IDENTICAL TO constant
+        RowExpression isNotIdenticalFilter = createNotExpression(call(
+                FUNCTION_RESOLUTION.resolveOperator(IDENTICAL, ImmutableList.of(INTEGER, INTEGER)),
                 constant(CONSTANT, INTEGER),
                 field(INT_CHANNEL_A, INTEGER)));
         // IS NOT DISTINCT is not supported in columnar evaluation yet
-        assertThat(createColumnarFilterEvaluator(isNotDistinctFromFilter, COMPILER)).isEmpty();
-        assertFilter(inputPages, isNotDistinctFromFilter);
+        assertThat(createColumnarFilterEvaluator(isNotIdenticalFilter, COMPILER)).isEmpty();
+        assertFilter(inputPages, isNotIdenticalFilter);
 
-        // colA IS NOT DISTINCT FROM colB
-        isNotDistinctFromFilter = createNotExpression(call(
-                FUNCTION_RESOLUTION.resolveOperator(IS_DISTINCT_FROM, ImmutableList.of(INTEGER, INTEGER)),
+        // colA IS NOT IDENTICAL TO colB
+        isNotIdenticalFilter = createNotExpression(call(
+                FUNCTION_RESOLUTION.resolveOperator(IDENTICAL, ImmutableList.of(INTEGER, INTEGER)),
                 field(INT_CHANNEL_B, INTEGER),
                 field(INT_CHANNEL_A, INTEGER)));
         // IS NOT DISTINCT is not supported in columnar evaluation yet
-        assertThat(createColumnarFilterEvaluator(isNotDistinctFromFilter, COMPILER)).isEmpty();
-        assertFilter(inputPages, isNotDistinctFromFilter);
+        assertThat(createColumnarFilterEvaluator(isNotIdenticalFilter, COMPILER)).isEmpty();
+        assertFilter(inputPages, isNotIdenticalFilter);
     }
 
     @ParameterizedTest
@@ -261,15 +261,15 @@ public class TestColumnarFilters
                 BOOLEAN,
                 ImmutableList.of(
                         call(
-                                FUNCTION_RESOLUTION.resolveOperator(IS_DISTINCT_FROM, ImmutableList.of(INTEGER, INTEGER)),
+                                FUNCTION_RESOLUTION.resolveOperator(IDENTICAL, ImmutableList.of(INTEGER, INTEGER)),
                                 field(INT_CHANNEL_A, INTEGER),
                                 constant(CONSTANT - 5, INTEGER)),
                         call(
-                                FUNCTION_RESOLUTION.resolveOperator(IS_DISTINCT_FROM, ImmutableList.of(INTEGER, INTEGER)),
+                                FUNCTION_RESOLUTION.resolveOperator(IDENTICAL, ImmutableList.of(INTEGER, INTEGER)),
                                 field(INT_CHANNEL_C, INTEGER),
                                 constant(CONSTANT + 5, INTEGER)),
                         call(
-                                FUNCTION_RESOLUTION.resolveOperator(IS_DISTINCT_FROM, ImmutableList.of(INTEGER, INTEGER)),
+                                FUNCTION_RESOLUTION.resolveOperator(IDENTICAL, ImmutableList.of(INTEGER, INTEGER)),
                                 field(INT_CHANNEL_B, INTEGER),
                                 constant(CONSTANT, INTEGER))),
                 ImmutableList.of());
@@ -287,15 +287,15 @@ public class TestColumnarFilters
                 BOOLEAN,
                 ImmutableList.of(
                         call(
-                                FUNCTION_RESOLUTION.resolveOperator(IS_DISTINCT_FROM, ImmutableList.of(INTEGER, INTEGER)),
+                                FUNCTION_RESOLUTION.resolveOperator(IDENTICAL, ImmutableList.of(INTEGER, INTEGER)),
                                 field(INT_CHANNEL_A, INTEGER),
                                 constant(CONSTANT - 5, INTEGER)),
                         call(
-                                FUNCTION_RESOLUTION.resolveOperator(IS_DISTINCT_FROM, ImmutableList.of(VARCHAR, VARCHAR)),
+                                FUNCTION_RESOLUTION.resolveOperator(IDENTICAL, ImmutableList.of(VARCHAR, VARCHAR)),
                                 field(STRING_CHANNEL, VARCHAR),
                                 constant(Slices.utf8Slice(Long.toString(CONSTANT + 5)), VARCHAR)),
                         call(
-                                FUNCTION_RESOLUTION.resolveOperator(IS_DISTINCT_FROM, ImmutableList.of(INTEGER, INTEGER)),
+                                FUNCTION_RESOLUTION.resolveOperator(IDENTICAL, ImmutableList.of(INTEGER, INTEGER)),
                                 field(INT_CHANNEL_B, INTEGER),
                                 constant(CONSTANT, INTEGER))),
                 ImmutableList.of());
@@ -707,13 +707,13 @@ public class TestColumnarFilters
                 AND,
                 BOOLEAN,
                 ImmutableList.of(
-                        call(
-                                FUNCTION_RESOLUTION.resolveOperator(IS_DISTINCT_FROM, ImmutableList.of(INTEGER, INTEGER)),
+                        createNotExpression(call(
+                                FUNCTION_RESOLUTION.resolveOperator(IDENTICAL, ImmutableList.of(INTEGER, INTEGER)),
                                 constant(CONSTANT + 3, INTEGER),
-                                field(INT_CHANNEL_A, INTEGER)),
+                                field(INT_CHANNEL_A, INTEGER))),
                         filter),
                 ImmutableList.of());
-        // Adding an IS_DISTINCT_FROM filter first creates a list of filtered positions as input to
+        // Adding an not IDENTICAL filter first creates a list of filtered positions as input to
         // the filter implementation being tested while also keeping NULLs as input
         assertFilterInternal(inputPages, andFilter);
     }

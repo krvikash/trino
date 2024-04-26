@@ -2659,12 +2659,11 @@ public class TestSalesforceConnectorTest
                 .setSystemProperty("enable_dynamic_filtering", "false")
                 .build();
 
-        String notDistinctOperator = "IS NOT DISTINCT FROM";
         List<String> nonEqualities = Stream.concat(
                 Stream.of(JoinCondition.Operator.values())
                         .filter(operator -> operator != JoinCondition.Operator.EQUAL)
                         .map(JoinCondition.Operator::getValue),
-                Stream.of(notDistinctOperator))
+                Stream.of("IS DISTINCT FROM", "IS NOT DISTINCT FROM"))
                 .collect(toImmutableList());
 
         try (TestTable nationLowercaseTable = new TestTable(
@@ -3000,10 +2999,10 @@ public class TestSalesforceConnectorTest
     @SuppressWarnings({"deprecation", "DeprecatedApi"})
     private boolean expectJoinPushdown(String operator)
     {
-        if ("IS NOT DISTINCT FROM".equals(operator)) {
-            // TODO (https://github.com/trinodb/trino/issues/6967) support join pushdown for IS NOT DISTINCT FROM
-            return false;
+        if ("IS DISTINCT FROM".equals(operator)) {
+            return hasBehavior(SUPPORTS_JOIN_PUSHDOWN_WITH_DISTINCT_FROM);
         }
+
         switch (toJoinConditionOperator(operator)) {
             case EQUAL:
             case NOT_EQUAL:
@@ -3012,8 +3011,9 @@ public class TestSalesforceConnectorTest
             case GREATER_THAN:
             case GREATER_THAN_OR_EQUAL:
                 return true;
-            case IS_DISTINCT_FROM:
-                return hasBehavior(SUPPORTS_JOIN_PUSHDOWN_WITH_DISTINCT_FROM);
+            case IDENTICAL:
+                // TODO (https://github.com/trinodb/trino/issues/6967) support join pushdown for IS NOT DISTINCT FROM
+                return false;
         }
         throw new AssertionError(); // unreachable
     }
@@ -3021,10 +3021,10 @@ public class TestSalesforceConnectorTest
     @SuppressWarnings({"deprecation", "DeprecatedApi"})
     private boolean expectVarcharJoinPushdown(String operator)
     {
-        if ("IS NOT DISTINCT FROM".equals(operator)) {
-            // TODO (https://github.com/trinodb/trino/issues/6967) support join pushdown for IS NOT DISTINCT FROM
-            return false;
+        if ("IS DISTINCT FROM".equals(operator)) {
+            return hasBehavior(SUPPORTS_JOIN_PUSHDOWN_WITH_DISTINCT_FROM) && hasBehavior(SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_EQUALITY);
         }
+
         switch (toJoinConditionOperator(operator)) {
             case EQUAL:
             case NOT_EQUAL:
@@ -3034,8 +3034,9 @@ public class TestSalesforceConnectorTest
             case GREATER_THAN:
             case GREATER_THAN_OR_EQUAL:
                 return hasBehavior(SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_INEQUALITY);
-            case IS_DISTINCT_FROM:
-                return hasBehavior(SUPPORTS_JOIN_PUSHDOWN_WITH_DISTINCT_FROM) && hasBehavior(SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_EQUALITY);
+            case IDENTICAL:
+                // TODO (https://github.com/trinodb/trino/issues/6967) support join pushdown for IS NOT DISTINCT FROM
+                return false;
         }
         throw new AssertionError(); // unreachable
     }
@@ -3043,6 +3044,9 @@ public class TestSalesforceConnectorTest
     @SuppressWarnings({"deprecation", "DeprecatedApi"})
     private JoinCondition.Operator toJoinConditionOperator(String operator)
     {
+        if (operator.equals("IS NOT DISTINCT FROM")) {
+            return JoinCondition.Operator.IDENTICAL;
+        }
         return Stream.of(JoinCondition.Operator.values())
                 .filter(joinOperator -> joinOperator.getValue().equals(operator))
                 .collect(toOptional())
