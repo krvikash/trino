@@ -257,7 +257,7 @@ public class LogicalPlanner
     public Plan plan(Analysis analysis, Stage stage, boolean collectPlanStatistics)
     {
         PlanNode root;
-        try (var ignored = scopedSpan(plannerContext.getTracer(), "plan")) {
+        try (var _ = scopedSpan(plannerContext.getTracer(), "plan")) {
             root = planStatement(analysis, analysis.getStatement());
         }
 
@@ -272,12 +272,12 @@ public class LogicalPlanner
                     false));
         }
 
-        try (var ignored = scopedSpan(plannerContext.getTracer(), "validate-intermediate")) {
+        try (var _ = scopedSpan(plannerContext.getTracer(), "validate-intermediate")) {
             planSanityChecker.validateIntermediatePlan(root, session, plannerContext, warningCollector);
         }
 
         if (stage.ordinal() >= OPTIMIZED.ordinal()) {
-            try (var ignored = scopedSpan(plannerContext.getTracer(), "optimizer")) {
+            try (var _ = scopedSpan(plannerContext.getTracer(), "optimizer")) {
                 for (PlanOptimizer optimizer : planOptimizers) {
                     root = runOptimizer(root, tableStatsProvider, optimizer);
                 }
@@ -286,13 +286,13 @@ public class LogicalPlanner
 
         if (stage.ordinal() >= OPTIMIZED_AND_VALIDATED.ordinal()) {
             // make sure we produce a valid plan after optimizations run. This is mainly to catch programming errors
-            try (var ignored = scopedSpan(plannerContext.getTracer(), "validate-optimized")) {
+            try (var _ = scopedSpan(plannerContext.getTracer(), "validate-optimized")) {
                 planSanityChecker.validateOptimizedPlan(root, session, plannerContext, warningCollector);
             }
         }
 
         if (cacheEnabled || isUseSubPlanAlternatives(session)) {
-            try (var ignored = scopedSpan(plannerContext.getTracer(), "cache-subqueries")) {
+            try (var _ = scopedSpan(plannerContext.getTracer(), "cache-subqueries")) {
                 root = cacheCommonSubqueries.cacheSubqueries(root);
                 if (stage.ordinal() >= OPTIMIZED_AND_VALIDATED.ordinal()) {
                     try (var span = scopedSpan(plannerContext.getTracer(), "validate-alternatives")) {
@@ -306,14 +306,14 @@ public class LogicalPlanner
 
             if (isUseSubPlanAlternatives(session)) {
                 for (PlanOptimizer optimizer : alternativeOptimizers) {
-                    try (var ignored = scopedSpan(plannerContext.getTracer(), "alternative-optimizer")) {
+                    try (var _ = scopedSpan(plannerContext.getTracer(), "alternative-optimizer")) {
                         root = runOptimizer(root, tableStatsProvider, optimizer);
                     }
                 }
             }
 
             if (stage.ordinal() >= OPTIMIZED_AND_VALIDATED.ordinal()) {
-                try (var ignored = scopedSpan(plannerContext.getTracer(), "validate-alternatives")) {
+                try (var _ = scopedSpan(plannerContext.getTracer(), "validate-alternatives")) {
                     planSanityChecker.validatePlanWithAlternatives(root, session, plannerContext, warningCollector);
                 }
             }
@@ -333,7 +333,7 @@ public class LogicalPlanner
         StatsAndCosts statsAndCosts;
         StatsProvider statsProvider = new CachingStatsProvider(statsCalculator, session, collectTableStatsProvider);
         CostProvider costProvider = new CachingCostProvider(costCalculator, statsProvider, Optional.empty(), session);
-        try (var ignored = scopedSpan(plannerContext.getTracer(), "plan-stats")) {
+        try (var _ = scopedSpan(plannerContext.getTracer(), "plan-stats")) {
             statsAndCosts = StatsAndCosts.create(root, statsProvider, costProvider);
         }
         return new Plan(root, statsAndCosts);
@@ -343,7 +343,7 @@ public class LogicalPlanner
     private PlanNode runOptimizer(PlanNode root, TableStatsProvider tableStatsProvider, PlanOptimizer optimizer)
     {
         PlanNode result;
-        try (var ignored = optimizerSpan(optimizer)) {
+        try (var _ = optimizerSpan(optimizer)) {
             result = optimizer.optimize(root, new PlanOptimizer.Context(session, symbolAllocator, idAllocator, warningCollector, planOptimizersStatsCollector, tableStatsProvider, RuntimeInfoProvider.noImplementation()));
         }
         if (result == null) {
