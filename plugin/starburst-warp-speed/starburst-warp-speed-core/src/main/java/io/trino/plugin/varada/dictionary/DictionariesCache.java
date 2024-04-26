@@ -44,6 +44,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
+import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.trino.plugin.varada.dictionary.DictionaryCacheService.DICTIONARY_STAT_GROUP;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -80,7 +81,7 @@ public class DictionariesCache
         initCache(new DictionaryCacheConfig(
                 dictionaryConfig.getMaxDictionaryTotalCacheWeight(),
                 dictionaryConfig.getDictionaryCacheConcurrencyLevel()));
-        this.executorService = Executors.newFixedThreadPool(1);
+        this.executorService = Executors.newFixedThreadPool(1, daemonThreadsNamed("warp-speed-dictionaries-cache-%s"));
     }
 
     private void initCache(DictionaryCacheConfig dictionaryConfig)

@@ -47,6 +47,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
+import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -112,7 +113,7 @@ public class WorkerTaskExecutorService
     private ScheduledExecutorService getScheduledCloudExecutorService()
     {
         int poolSize = warmupDemoterConfig.getCloudExecutorPoolSize();
-        return new ScheduledThreadPoolExecutor(poolSize);
+        return new ScheduledThreadPoolExecutor(poolSize, daemonThreadsNamed("warp-speed-worker-task-executor-%s"));
     }
 
     private ExecutorService getProxyExecutorService()

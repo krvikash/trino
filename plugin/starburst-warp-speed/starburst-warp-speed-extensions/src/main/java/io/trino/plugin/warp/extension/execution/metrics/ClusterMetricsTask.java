@@ -38,6 +38,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.http.client.FullJsonResponseHandler.createFullJsonResponseHandler;
 import static io.airlift.http.client.Request.Builder.prepareGet;
 import static io.trino.plugin.warp.extension.execution.metrics.ClusterMetricsTask.TASK_NAME;
@@ -73,7 +74,8 @@ public class ClusterMetricsTask
                 10,
                 10L,
                 TimeUnit.SECONDS,
-                new LinkedBlockingQueue<>(1000));
+                new LinkedBlockingQueue<>(1000),
+                daemonThreadsNamed("warp-speed-cluster-metrics-task-%s"));
     }
 
     @GET

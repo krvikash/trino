@@ -43,6 +43,7 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import static com.google.common.base.Throwables.throwIfInstanceOf;
 import static com.google.common.base.Verify.verify;
+import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.trino.cache.SafeCaches.buildNonEvictableCacheWithWeakInvalidateAll;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
@@ -61,7 +62,7 @@ public class PoolingConnectionFactory
     private final CredentialPropertiesProvider<String, String> credentialPropertiesProvider;
     private final NonKeyEvictableCache<IdentityCacheKey, HikariDataSource> dataSourceCache;
     private final Queue<HikariDataSource> evictedDataSources = new ConcurrentLinkedQueue<>();
-    private final ScheduledExecutorService executorService = newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService executorService = newSingleThreadScheduledExecutor(daemonThreadsNamed("pooling-connection-factory-%s"));
     private final IdentityCacheMapping identityCacheMapping;
 
     public PoolingConnectionFactory(

@@ -37,6 +37,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.starburst.schema.discovery.generation.Dialect.TRINO;
 import static io.starburst.schema.discovery.options.GeneralOptions.DEFAULT_OPTIONS;
 import static io.starburst.schema.discovery.options.GeneralOptions.MAX_SAMPLE_FILES_PER_TABLE;
@@ -64,7 +65,7 @@ public final class ShallowDiscoveryCommand
     @Override
     public void run()
     {
-        ExecutorService executorService = Executors.newCachedThreadPool();
+        ExecutorService executorService = Executors.newCachedThreadPool(daemonThreadsNamed("shallow-discovery-command-%s"));
         try {
             URI parsedUri = new URI(uri);
             Map<String, String> defaultOverwrite = ImmutableMap.of(

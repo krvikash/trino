@@ -29,6 +29,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -38,7 +39,7 @@ public class NativeConnectorSync
     private static final Logger logger = Logger.get(NativeConnectorSync.class);
     private final CatalogNameProvider catalogNameProvider;
     private final EventBus eventBus;
-    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+    private final ExecutorService executorService = Executors.newSingleThreadExecutor(daemonThreadsNamed("warp-speed-native-connector-sync-%s"));
     private WarmupDemoterService warmupDemoterService;
     private Integer catalogSequence;
     private String catalogName;

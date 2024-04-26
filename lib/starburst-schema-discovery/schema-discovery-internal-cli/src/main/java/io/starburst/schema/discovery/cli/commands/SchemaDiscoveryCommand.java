@@ -54,6 +54,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.starburst.schema.discovery.generation.Dialect.TRINO;
 import static java.util.Locale.ENGLISH;
 import static picocli.CommandLine.Help.Visibility.ALWAYS;
@@ -116,7 +117,7 @@ public final class SchemaDiscoveryCommand
     {
         Map<String, String> combinedOptions = new HashMap<>(CsvOptions.standard());
         combinedOptions.putAll(options);
-        ExecutorService executorService = Executors.newCachedThreadPool();
+        ExecutorService executorService = Executors.newCachedThreadPool(daemonThreadsNamed("schema-discovery-command-%s"));
         try {
             URI parsedUri = new URI(uri);
             SchemaDiscoveryController controller = buildSchemaDiscoveryController(executorService);
