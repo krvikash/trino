@@ -257,7 +257,7 @@ public class HudiPageSourceProvider
                     dataSource.close();
                 }
             }
-            catch (IOException ignored) {
+            catch (IOException _) {
             }
             if (e instanceof TrinoException) {
                 throw (TrinoException) e;

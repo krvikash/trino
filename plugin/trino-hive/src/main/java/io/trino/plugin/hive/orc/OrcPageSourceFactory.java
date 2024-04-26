@@ -445,7 +445,7 @@ public class OrcPageSourceFactory
             try {
                 orcDataSource.close();
             }
-            catch (IOException ignored) {
+            catch (IOException _) {
             }
             if (e instanceof TrinoException) {
                 throw (TrinoException) e;
@@ -497,7 +497,7 @@ public class OrcPageSourceFactory
         try {
             return Optional.of(Integer.valueOf(slice.toString(UTF_8)));
         }
-        catch (RuntimeException ignored) {
+        catch (RuntimeException _) {
             return Optional.empty();
         }
     }
