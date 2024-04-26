@@ -51,7 +51,7 @@ public final class ClassLoaderSafeConnectorSplitManager
             DynamicFilter dynamicFilter,
             Constraint constraint)
     {
-        try (ThreadContextClassLoader ignored = new ThreadContextClassLoader(classLoader)) {
+        try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
             return delegate.getSplits(transaction, session, table, dynamicFilter, constraint);
         }
     }
@@ -62,7 +62,7 @@ public final class ClassLoaderSafeConnectorSplitManager
             ConnectorSession session,
             ConnectorTableFunctionHandle function)
     {
-        try (ThreadContextClassLoader ignored = new ThreadContextClassLoader(classLoader)) {
+        try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
             return delegate.getSplits(transaction, session, function);
         }
     }

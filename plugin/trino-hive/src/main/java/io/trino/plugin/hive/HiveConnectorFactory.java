@@ -95,7 +95,7 @@ public class HiveConnectorFactory
             Optional<TrinoFileSystemFactory> fileSystemFactory)
     {
         ClassLoader classLoader = HiveConnectorFactory.class.getClassLoader();
-        try (ThreadContextClassLoader ignored = new ThreadContextClassLoader(classLoader)) {
+        try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
             Bootstrap app = new Bootstrap(
                     new CatalogNameModule(catalogName),
                     new EventModule(),

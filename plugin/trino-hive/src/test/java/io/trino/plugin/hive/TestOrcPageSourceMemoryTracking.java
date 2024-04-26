@@ -731,7 +731,7 @@ public class TestOrcPageSourceMemoryTracking
 
     private static RecordWriter createRecordWriter(Path target, Configuration conf)
     {
-        try (ThreadContextClassLoader ignored = new ThreadContextClassLoader(FileSystem.class.getClassLoader())) {
+        try (ThreadContextClassLoader _ = new ThreadContextClassLoader(FileSystem.class.getClassLoader())) {
             WriterOptions options = OrcFile.writerOptions(conf)
                     .memory(new NullMemoryManager())
                     .compress(ZLIB);

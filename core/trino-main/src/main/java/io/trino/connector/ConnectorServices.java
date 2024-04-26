@@ -381,7 +381,7 @@ public class ConnectorServices
             return;
         }
 
-        try (ThreadContextClassLoader ignored = new ThreadContextClassLoader(connector.getClass().getClassLoader())) {
+        try (ThreadContextClassLoader _ = new ThreadContextClassLoader(connector.getClass().getClassLoader())) {
             connector.shutdown();
         }
         catch (Throwable t) {
