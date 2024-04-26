@@ -24,6 +24,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
 import io.airlift.slice.Slice;
+import io.airlift.slice.SliceOutput;
 import io.airlift.slice.Slices;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.execution.Chunk;
@@ -33,7 +34,6 @@ import io.starburst.stargate.buffer.data.server.BufferNodeId;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
 import io.starburst.stargate.buffer.data.spooling.AbstractSpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.MergedFileNameGenerator;
-import io.starburst.stargate.buffer.data.spooling.SpoolingUtils;
 import reactor.core.publisher.Flux;
 
 import java.net.URI;
@@ -45,6 +45,7 @@ import java.util.concurrent.CompletableFuture;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.concurrent.MoreFutures.toListenableFuture;
+import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.CHUNK_FILE_HEADER_SIZE;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getMetadataFileName;
 import static io.starburst.stargate.buffer.data.spooling.azure.AzureSpoolUtils.PATH_SEPARATOR;
 import static io.starburst.stargate.buffer.data.spooling.azure.AzureSpoolUtils.getContainerName;
@@ -114,7 +115,13 @@ public class AzureBlobSpoolingStorage
                 Chunk chunk = entry.getKey();
                 ChunkDataLease chunkDataLease = entry.getValue();
 
-                SpoolingUtils.writeChunkDataLease(chunkDataLease, fluxSink::next);
+                SliceOutput sliceOutput = Slices.allocate(CHUNK_FILE_HEADER_SIZE).getOutput();
+                sliceOutput.writeLong(chunkDataLease.getChecksum());
+                sliceOutput.writeInt(chunkDataLease.getNumDataPages());
+                fluxSink.next(ByteBuffer.wrap(sliceOutput.slice().byteArray()));
+                for (Slice chunkSlice : chunkDataLease.getChunkSlices()) {
+                    fluxSink.next(ByteBuffer.wrap(chunkSlice.byteArray(), chunkSlice.byteArrayOffset(), chunkSlice.length()));
+                }
                 int length = chunkDataLease.serializedSizeInBytes();
                 spooledChunkMap.put(chunk.getChunkId(), new SpooledChunk(location, offset, length));
                 offset += length;
