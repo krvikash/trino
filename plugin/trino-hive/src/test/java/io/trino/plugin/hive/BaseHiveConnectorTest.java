@@ -9273,7 +9273,6 @@ public abstract class BaseHiveConnectorTest
         assertQueryFails(
                 "CREATE VIEW create_view_with_predefined_view_properties WITH (extra_properties = MAP(ARRAY['%s'], ARRAY['true'])) AS SELECT 1 as colA".formatted(TRINO_QUERY_ID_NAME),
                 "Illegal keys in extra_properties: \\[trino_query_id]");
-
     }
 
     @Test
@@ -9342,7 +9341,6 @@ public abstract class BaseHiveConnectorTest
                     .failure()
                     .hasMessageMatching(".*Failed to read ORC file: .*")
                     .hasStackTraceContaining("Unknown time-zone ID: EST");
-
         }
     }
 
