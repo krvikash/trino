@@ -124,7 +124,7 @@ public class InColumnarFilterGenerator
             }
         }
         constantValues = constantValuesBuilder.build();
-        useSwitchCase = useSwitchCaseGeneration(valueExpression.getType(), expressions);
+        useSwitchCase = useSwitchCaseGeneration(valueExpression.type(), expressions);
     }
 
     public Supplier<ColumnarFilter> generateColumnarFilter()
@@ -140,7 +140,7 @@ public class InColumnarFilterGenerator
 
         generateGetInputChannels(callSiteBinder, classDefinition, valueExpression);
 
-        Set<?> constantValuesSet = toFastutilHashSet(constantValues, valueExpression.getType(), hashCodeMethodHandle, equalsMethodHandle);
+        Set<?> constantValuesSet = toFastutilHashSet(constantValues, valueExpression.type(), hashCodeMethodHandle, equalsMethodHandle);
         Binding constant = callSiteBinder.bind(constantValuesSet, constantValuesSet.getClass());
 
         generateFilterRangeMethod(callSiteBinder, classDefinition, constantValuesSet, constant);
@@ -265,7 +265,7 @@ public class InColumnarFilterGenerator
 
     private BytecodeBlock generateSetContainsCall(CallSiteBinder binder, Scope scope, Set<?> constantValuesSet, Binding constant, BytecodeExpression position, Variable result)
     {
-        Type valueType = valueExpression.getType();
+        Type valueType = valueExpression.type();
         Class<?> javaType = valueType.getJavaType();
 
         Class<?> callType = javaType;

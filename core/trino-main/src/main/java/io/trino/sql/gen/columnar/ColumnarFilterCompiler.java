@@ -218,7 +218,7 @@ public class ColumnarFilterCompiler
                         page.invoke(
                                 "getBlock",
                                 Block.class,
-                                constantInt(fieldToChannel.computeIfAbsent(inputReference.getField(), key -> channel.getAndIncrement()))));
+                                constantInt(fieldToChannel.computeIfAbsent(inputReference.field(), key -> channel.getAndIncrement()))));
                 blocksCount++;
             }
         }

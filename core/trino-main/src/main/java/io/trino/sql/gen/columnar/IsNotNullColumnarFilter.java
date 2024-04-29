@@ -30,7 +30,7 @@ public final class IsNotNullColumnarFilter
 
     public IsNotNullColumnarFilter(InputReferenceExpression inputReferenceExpression)
     {
-        List<Integer> channels = ImmutableList.of(inputReferenceExpression.getField());
+        List<Integer> channels = ImmutableList.of(inputReferenceExpression.field());
         this.inputChannels = new InputChannels(channels, channels);
     }
 

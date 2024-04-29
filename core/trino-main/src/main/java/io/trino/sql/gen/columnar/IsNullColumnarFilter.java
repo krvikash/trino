@@ -28,7 +28,7 @@ public final class IsNullColumnarFilter
 
     public IsNullColumnarFilter(InputReferenceExpression inputReferenceExpression)
     {
-        List<Integer> channels = ImmutableList.of(inputReferenceExpression.getField());
+        List<Integer> channels = ImmutableList.of(inputReferenceExpression.field());
         this.inputChannels = new InputChannels(channels, channels);
     }
 
