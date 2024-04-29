@@ -29,7 +29,7 @@ public final class InExpressionEvaluator
 {
     public static Optional<Supplier<ExpressionEvaluator>> createInExpressionEvaluator(ColumnarFilterCompiler compiler, SpecialForm specialForm)
     {
-        checkArgument(specialForm.getForm() == IN, "specialForm %s should be IN", specialForm);
+        checkArgument(specialForm.form() == IN, "specialForm %s should be IN", specialForm);
         Optional<Supplier<ColumnarFilter>> compiledFilter = compiler.generateFilter(specialForm);
         return compiledFilter.map(filterSupplier -> () -> new InExpressionEvaluator(filterSupplier.get()));
     }

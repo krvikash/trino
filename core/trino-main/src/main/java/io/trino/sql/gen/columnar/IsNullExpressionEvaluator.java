@@ -31,7 +31,7 @@ public final class IsNullExpressionEvaluator
 {
     public static Optional<Supplier<ExpressionEvaluator>> createIsNullExpressionEvaluator(ColumnarFilterCompiler compiler, SpecialForm specialForm)
     {
-        checkArgument(specialForm.getForm() == IS_NULL, "specialForm %s should be IS_NULL", specialForm);
+        checkArgument(specialForm.form() == IS_NULL, "specialForm %s should be IS_NULL", specialForm);
         Optional<Supplier<ColumnarFilter>> compiledFilter = compiler.generateFilter(specialForm);
         return compiledFilter.map(filterSupplier -> () -> new IsNullExpressionEvaluator(filterSupplier.get(), specialForm));
     }
@@ -41,7 +41,7 @@ public final class IsNullExpressionEvaluator
 
     private IsNullExpressionEvaluator(ColumnarFilter filter, SpecialForm specialForm)
     {
-        this.argumentType = specialForm.getArguments().get(0).type();
+        this.argumentType = specialForm.arguments().get(0).type();
         this.processor = new ColumnFilterProcessor(new DictionaryAwareColumnarFilter(filter));
     }
 

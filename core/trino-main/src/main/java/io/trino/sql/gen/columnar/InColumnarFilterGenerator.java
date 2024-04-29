@@ -95,13 +95,13 @@ public class InColumnarFilterGenerator
 
     public InColumnarFilterGenerator(SpecialForm specialForm, FunctionManager functionManager)
     {
-        checkArgument(specialForm.getForm() == IN, "specialForm should be IN");
-        checkArgument(specialForm.getArguments().size() >= 2, "At least two arguments are required");
-        if (!(specialForm.getArguments().get(0) instanceof InputReferenceExpression)) {
+        checkArgument(specialForm.form() == IN, "specialForm should be IN");
+        checkArgument(specialForm.arguments().size() >= 2, "At least two arguments are required");
+        if (!(specialForm.arguments().get(0) instanceof InputReferenceExpression)) {
             throw new UnsupportedOperationException();
         }
-        valueExpression = (InputReferenceExpression) specialForm.getArguments().get(0);
-        List<RowExpression> expressions = specialForm.getArguments().subList(1, specialForm.getArguments().size());
+        valueExpression = (InputReferenceExpression) specialForm.arguments().get(0);
+        List<RowExpression> expressions = specialForm.arguments().subList(1, specialForm.arguments().size());
         expressions.forEach(expression -> {
             if (!(expression instanceof ConstantExpression)) {
                 throw new UnsupportedOperationException();
@@ -109,7 +109,7 @@ public class InColumnarFilterGenerator
         });
         List<ConstantExpression> testExpressions = expressions.stream().map(ConstantExpression.class::cast).collect(toImmutableList());
 
-        checkArgument(specialForm.getFunctionDependencies().size() == 3);
+        checkArgument(specialForm.functionDependencies().size() == 3);
         ResolvedFunction resolvedEqualsFunction = specialForm.getOperatorDependency(EQUAL);
         ResolvedFunction resolvedHashCodeFunction = specialForm.getOperatorDependency(HASH_CODE);
         ResolvedFunction resolvedIsIndeterminate = specialForm.getOperatorDependency(INDETERMINATE);

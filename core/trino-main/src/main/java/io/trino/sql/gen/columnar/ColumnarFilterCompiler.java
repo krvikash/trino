@@ -125,7 +125,7 @@ public class ColumnarFilterCompiler
                 if (isNotExpression(callExpression)) {
                     // "not(is_null(input_reference))" is handled explicitly as it is easy.
                     // more generic cases like "not(equal(input_reference, constant))" are not handled yet
-                    if (callExpression.arguments().get(0) instanceof SpecialForm specialForm && specialForm.getForm() == IS_NULL) {
+                    if (callExpression.arguments().get(0) instanceof SpecialForm specialForm && specialForm.form() == IS_NULL) {
                         return Optional.of(createIsolatedIsNotNullColumnarFilter(specialForm));
                     }
                     return Optional.empty();
@@ -133,13 +133,13 @@ public class ColumnarFilterCompiler
                 return Optional.of(new CallColumnarFilterGenerator(callExpression, functionManager).generateColumnarFilter());
             }
             else if (filter instanceof SpecialForm specialForm) {
-                if (specialForm.getForm() == IS_NULL) {
+                if (specialForm.form() == IS_NULL) {
                     return Optional.of(createIsolatedIsNullColumnarFilter(specialForm));
                 }
-                if (specialForm.getForm() == IN) {
+                if (specialForm.form() == IN) {
                     return Optional.of(new InColumnarFilterGenerator(specialForm, functionManager).generateColumnarFilter());
                 }
-                if (specialForm.getForm() == BETWEEN) {
+                if (specialForm.form() == BETWEEN) {
                     return Optional.of(new BetweenInlineColumnarFilterGenerator(specialForm, functionManager).generateColumnarFilter());
                 }
             }

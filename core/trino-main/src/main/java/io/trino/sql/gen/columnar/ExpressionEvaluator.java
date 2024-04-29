@@ -64,7 +64,7 @@ public interface ExpressionEvaluator
             if (isNotExpression(callExpression)) {
                 // "not(is_null(input_reference))" is handled explicitly as it is easy.
                 // more generic cases like "not(equal(input_reference, constant))" are not handled yet
-                if (callExpression.arguments().get(0) instanceof SpecialForm specialFormArg && specialFormArg.getForm() == IS_NULL) {
+                if (callExpression.arguments().get(0) instanceof SpecialForm specialFormArg && specialFormArg.form() == IS_NULL) {
                     return createIsNotNullExpressionEvaluator(compiler, callExpression);
                 }
                 return Optional.empty();
@@ -72,19 +72,19 @@ public interface ExpressionEvaluator
             return createCallExpressionEvaluator(compiler, callExpression);
         }
         if (rowExpression instanceof SpecialForm specialFormArg) {
-            if (specialFormArg.getForm() == IS_NULL) {
+            if (specialFormArg.form() == IS_NULL) {
                 return createIsNullExpressionEvaluator(compiler, specialFormArg);
             }
-            if (specialFormArg.getForm() == AND) {
+            if (specialFormArg.form() == AND) {
                 return createAndExpressionEvaluator(compiler, specialFormArg);
             }
-            if (specialFormArg.getForm() == OR) {
+            if (specialFormArg.form() == OR) {
                 return createOrExpressionEvaluator(compiler, specialFormArg);
             }
-            if (specialFormArg.getForm() == BETWEEN) {
+            if (specialFormArg.form() == BETWEEN) {
                 return createBetweenEvaluator(compiler, specialFormArg);
             }
-            if (specialFormArg.getForm() == IN) {
+            if (specialFormArg.form() == IN) {
                 return createInExpressionEvaluator(compiler, specialFormArg);
             }
         }

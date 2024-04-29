@@ -39,20 +39,20 @@ public final class BetweenExpressionEvaluator
 {
     public static Optional<Supplier<ExpressionEvaluator>> createBetweenEvaluator(ColumnarFilterCompiler compiler, SpecialForm specialForm)
     {
-        checkArgument(specialForm.getForm() == BETWEEN, "specialForm should be BETWEEN");
-        checkArgument(specialForm.getArguments().size() == 3, "BETWEEN should have 3 arguments %s", specialForm.getArguments());
-        checkArgument(specialForm.getFunctionDependencies().size() == 1, "BETWEEN should have 1 functional dependency %s", specialForm.getFunctionDependencies());
+        checkArgument(specialForm.form() == BETWEEN, "specialForm should be BETWEEN");
+        checkArgument(specialForm.arguments().size() == 3, "BETWEEN should have 3 arguments %s", specialForm.arguments());
+        checkArgument(specialForm.functionDependencies().size() == 1, "BETWEEN should have 1 functional dependency %s", specialForm.functionDependencies());
 
         ResolvedFunction lessThanOrEqual = specialForm.getOperatorDependency(LESS_THAN_OR_EQUAL);
         // Between requires evaluate once semantic for the value being tested
         // Until we can pre-project it into a temporary variable, we apply columnar evaluation only on InputReference
-        RowExpression valueExpression = specialForm.getArguments().get(0);
+        RowExpression valueExpression = specialForm.arguments().get(0);
         if (!(valueExpression instanceof InputReferenceExpression)) {
             return Optional.empty();
         }
 
         // When the min and max arguments of a BETWEEN expression are both constants, evaluating them inline is cheaper than AND-ing subexpressions
-        if (specialForm.getArguments().get(1) instanceof ConstantExpression && specialForm.getArguments().get(2) instanceof ConstantExpression) {
+        if (specialForm.arguments().get(1) instanceof ConstantExpression && specialForm.arguments().get(2) instanceof ConstantExpression) {
             Optional<Supplier<ColumnarFilter>> compiledFilter = compiler.generateFilter(specialForm);
             return compiledFilter.map(filterSupplier -> () -> new BetweenExpressionEvaluator(filterSupplier.get()));
         }
@@ -61,7 +61,7 @@ public final class BetweenExpressionEvaluator
                 new SpecialForm(
                         AND,
                         BOOLEAN,
-                        ImmutableList.of(call(lessThanOrEqual, specialForm.getArguments().get(1), valueExpression), call(lessThanOrEqual, valueExpression, specialForm.getArguments().get(2))),
+                        ImmutableList.of(call(lessThanOrEqual, specialForm.arguments().get(1), valueExpression), call(lessThanOrEqual, valueExpression, specialForm.arguments().get(2))),
                         ImmutableList.of()));
     }
 

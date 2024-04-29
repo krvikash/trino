@@ -33,11 +33,11 @@ public final class OrExpressionEvaluator
 {
     public static Optional<Supplier<ExpressionEvaluator>> createOrExpressionEvaluator(ColumnarFilterCompiler compiler, SpecialForm specialForm)
     {
-        checkArgument(specialForm.getForm() == OR, "specialForm %s should be OR", specialForm);
-        checkArgument(specialForm.getArguments().size() >= 2, "OR expression %s should have at least 2 arguments", specialForm);
+        checkArgument(specialForm.form() == OR, "specialForm %s should be OR", specialForm);
+        checkArgument(specialForm.arguments().size() >= 2, "OR expression %s should have at least 2 arguments", specialForm);
 
         ImmutableList.Builder<Supplier<ExpressionEvaluator>> builder = ImmutableList.builder();
-        for (RowExpression expression : specialForm.getArguments()) {
+        for (RowExpression expression : specialForm.arguments()) {
             Optional<Supplier<ExpressionEvaluator>> subExpressionEvaluator = ExpressionEvaluator.createColumnarFilterEvaluator(expression, compiler);
             if (subExpressionEvaluator.isEmpty()) {
                 return Optional.empty();

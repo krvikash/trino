@@ -33,11 +33,11 @@ public final class AndExpressionEvaluator
 {
     public static Optional<Supplier<ExpressionEvaluator>> createAndExpressionEvaluator(ColumnarFilterCompiler compiler, SpecialForm specialForm)
     {
-        checkArgument(specialForm.getForm() == AND, "specialForm %s should be AND", specialForm);
-        checkArgument(specialForm.getArguments().size() >= 2, "AND expression %s should have at least 2 arguments", specialForm);
+        checkArgument(specialForm.form() == AND, "specialForm %s should be AND", specialForm);
+        checkArgument(specialForm.arguments().size() >= 2, "AND expression %s should have at least 2 arguments", specialForm);
 
         ImmutableList.Builder<Supplier<ExpressionEvaluator>> builder = ImmutableList.builder();
-        for (RowExpression expression : specialForm.getArguments()) {
+        for (RowExpression expression : specialForm.arguments()) {
             Optional<Supplier<ExpressionEvaluator>> subExpressionEvaluator = ExpressionEvaluator.createColumnarFilterEvaluator(expression, compiler);
             if (subExpressionEvaluator.isEmpty()) {
                 return Optional.empty();

@@ -65,18 +65,18 @@ public class BetweenInlineColumnarFilterGenerator
 
     public BetweenInlineColumnarFilterGenerator(SpecialForm specialForm, FunctionManager functionManager)
     {
-        checkArgument(specialForm.getForm() == BETWEEN, "specialForm should be BETWEEN");
-        checkArgument(specialForm.getArguments().size() == 3, "BETWEEN should have 3 arguments %s", specialForm.getArguments());
-        checkArgument(specialForm.getFunctionDependencies().size() == 1, "BETWEEN should have 1 functional dependency %s", specialForm.getFunctionDependencies());
+        checkArgument(specialForm.form() == BETWEEN, "specialForm should be BETWEEN");
+        checkArgument(specialForm.arguments().size() == 3, "BETWEEN should have 3 arguments %s", specialForm.arguments());
+        checkArgument(specialForm.functionDependencies().size() == 1, "BETWEEN should have 1 functional dependency %s", specialForm.functionDependencies());
         this.functionManager = requireNonNull(functionManager, "functionManager is null");
 
         // Between requires evaluate once semantic for the value being tested
         // Until we can pre-project it into a temporary variable, we apply columnar evaluation only on InputReference
-        checkArgument(specialForm.getArguments().get(0) instanceof InputReferenceExpression, "valueExpression is not an InputReference");
-        this.valueExpression = (InputReferenceExpression) specialForm.getArguments().get(0);
+        checkArgument(specialForm.arguments().get(0) instanceof InputReferenceExpression, "valueExpression is not an InputReference");
+        this.valueExpression = (InputReferenceExpression) specialForm.arguments().get(0);
         ResolvedFunction lessThanOrEqual = specialForm.getOperatorDependency(LESS_THAN_OR_EQUAL);
-        this.leftExpression = call(lessThanOrEqual, specialForm.getArguments().get(1), valueExpression);
-        this.rightExpression = call(lessThanOrEqual, valueExpression, specialForm.getArguments().get(2));
+        this.leftExpression = call(lessThanOrEqual, specialForm.arguments().get(1), valueExpression);
+        this.rightExpression = call(lessThanOrEqual, valueExpression, specialForm.arguments().get(2));
     }
 
     public Supplier<ColumnarFilter> generateColumnarFilter()

@@ -46,9 +46,9 @@ public final class IsolatedFilterFactory
 
     private static Supplier<ColumnarFilter> createIsolatedColumnarFilter(SpecialForm specialForm, Class<? extends ColumnarFilter> filterClazz)
     {
-        checkArgument(specialForm.getForm() == IS_NULL, "specialForm %s should be IS_NULL", specialForm);
-        checkArgument(specialForm.getArguments().size() == 1, "specialForm %s should have single argument", specialForm);
-        if (!(specialForm.getArguments().get(0) instanceof InputReferenceExpression inputReferenceExpression)) {
+        checkArgument(specialForm.form() == IS_NULL, "specialForm %s should be IS_NULL", specialForm);
+        checkArgument(specialForm.arguments().size() == 1, "specialForm %s should have single argument", specialForm);
+        if (!(specialForm.arguments().get(0) instanceof InputReferenceExpression inputReferenceExpression)) {
             throw new UnsupportedOperationException("IS_NULL columnar evaluation is supported only for InputReferenceExpression");
         }
 
