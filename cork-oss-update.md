@@ -26,6 +26,11 @@ Galaxy and SEP.
 When `cork` is based on an old OSS release (`OLD`) and a new OSS release (`NEW`) made in `trino` we cherry pick all the
 commits from `trino` using the steps outlined below.
 
+## Updating cork
+
+This instruction is for updating Cork from OSS.
+Any other downstream repositories likely have separate update instructions.
+
 ### prerequisites
 
 1. Make sure you have GNU versions of sed and find installed and in PATH. The PATH is usually displayed at the end of brew install.

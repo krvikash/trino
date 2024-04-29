@@ -28,7 +28,7 @@ Use one either from [Galaxy](https://github.com/starburstdata/stargate) or
 
 ### How to update this Trino fork to a newer Trino version?
 
-Follow instructions in [Maintaining cork (Common Starburst Trino Fork)](oss-update.md).
+Follow instructions in [Maintaining cork (Common Starburst Trino Fork)](cork-oss-update).
 
 
 ---
