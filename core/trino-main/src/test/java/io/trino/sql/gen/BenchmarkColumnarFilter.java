@@ -102,7 +102,8 @@ public class BenchmarkColumnarFilter
                 return new SpecialForm(
                         SpecialForm.Form.IS_NULL,
                         BOOLEAN,
-                        ImmutableList.of(field(0, type)));
+                        ImmutableList.of(field(0, type)),
+                        ImmutableList.of());
             }
         },
         IS_NOT_NULL {
@@ -114,7 +115,8 @@ public class BenchmarkColumnarFilter
                         new SpecialForm(
                                 SpecialForm.Form.IS_NULL,
                                 BOOLEAN,
-                                ImmutableList.of(field(0, type))));
+                                ImmutableList.of(field(0, type)),
+                                ImmutableList.of()));
             }
         }
         /**/;

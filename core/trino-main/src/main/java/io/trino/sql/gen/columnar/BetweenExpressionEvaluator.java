@@ -13,6 +13,7 @@
  */
 package io.trino.sql.gen.columnar;
 
+import com.google.common.collect.ImmutableList;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.operator.project.SelectedPositions;
 import io.trino.spi.Page;
@@ -60,8 +61,8 @@ public final class BetweenExpressionEvaluator
                 new SpecialForm(
                         AND,
                         BOOLEAN,
-                        call(lessThanOrEqual, specialForm.getArguments().get(1), valueExpression),
-                        call(lessThanOrEqual, valueExpression, specialForm.getArguments().get(2))));
+                        ImmutableList.of(call(lessThanOrEqual, specialForm.getArguments().get(1), valueExpression), call(lessThanOrEqual, valueExpression, specialForm.getArguments().get(2))),
+                        ImmutableList.of()));
     }
 
     private final ColumnFilterProcessor processor;

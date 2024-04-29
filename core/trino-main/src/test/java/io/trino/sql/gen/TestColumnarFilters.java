@@ -146,7 +146,7 @@ public class TestColumnarFilters
     public void testIsNull(NullsProvider nullsProvider, boolean dictionaryEncoded)
     {
         List<Page> inputPages = createInputPages(nullsProvider, dictionaryEncoded);
-        RowExpression isNullFilter = new SpecialForm(IS_NULL, BOOLEAN, ImmutableList.of(field(INT_CHANNEL_A, INTEGER)));
+        RowExpression isNullFilter = new SpecialForm(IS_NULL, BOOLEAN, ImmutableList.of(field(INT_CHANNEL_A, INTEGER)), ImmutableList.of());
         assertThat(createColumnarFilterEvaluator(isNullFilter, COMPILER)).isNotEmpty();
         assertFilter(inputPages, isNullFilter);
     }
@@ -156,7 +156,7 @@ public class TestColumnarFilters
     public void testIsNotNull(NullsProvider nullsProvider, boolean dictionaryEncoded)
     {
         List<Page> inputPages = createInputPages(nullsProvider, dictionaryEncoded);
-        RowExpression isNotNullFilter = createNotExpression(new SpecialForm(IS_NULL, BOOLEAN, ImmutableList.of(field(INT_CHANNEL_A, INTEGER))));
+        RowExpression isNotNullFilter = createNotExpression(new SpecialForm(IS_NULL, BOOLEAN, ImmutableList.of(field(INT_CHANNEL_A, INTEGER)), ImmutableList.of()));
         assertThat(createColumnarFilterEvaluator(isNotNullFilter, COMPILER)).isNotEmpty();
         assertFilter(inputPages, isNotNullFilter);
     }
@@ -259,18 +259,20 @@ public class TestColumnarFilters
         RowExpression orFilter = new SpecialForm(
                 OR,
                 BOOLEAN,
-                call(
-                        FUNCTION_RESOLUTION.resolveOperator(IS_DISTINCT_FROM, ImmutableList.of(INTEGER, INTEGER)),
-                        field(INT_CHANNEL_A, INTEGER),
-                        constant(CONSTANT - 5, INTEGER)),
-                call(
-                        FUNCTION_RESOLUTION.resolveOperator(IS_DISTINCT_FROM, ImmutableList.of(INTEGER, INTEGER)),
-                        field(INT_CHANNEL_C, INTEGER),
-                        constant(CONSTANT + 5, INTEGER)),
-                call(
-                        FUNCTION_RESOLUTION.resolveOperator(IS_DISTINCT_FROM, ImmutableList.of(INTEGER, INTEGER)),
-                        field(INT_CHANNEL_B, INTEGER),
-                        constant(CONSTANT, INTEGER)));
+                ImmutableList.of(
+                        call(
+                                FUNCTION_RESOLUTION.resolveOperator(IS_DISTINCT_FROM, ImmutableList.of(INTEGER, INTEGER)),
+                                field(INT_CHANNEL_A, INTEGER),
+                                constant(CONSTANT - 5, INTEGER)),
+                        call(
+                                FUNCTION_RESOLUTION.resolveOperator(IS_DISTINCT_FROM, ImmutableList.of(INTEGER, INTEGER)),
+                                field(INT_CHANNEL_C, INTEGER),
+                                constant(CONSTANT + 5, INTEGER)),
+                        call(
+                                FUNCTION_RESOLUTION.resolveOperator(IS_DISTINCT_FROM, ImmutableList.of(INTEGER, INTEGER)),
+                                field(INT_CHANNEL_B, INTEGER),
+                                constant(CONSTANT, INTEGER))),
+                ImmutableList.of());
         assertThat(createColumnarFilterEvaluator(orFilter, COMPILER)).isNotEmpty();
         assertFilter(inputPages, orFilter);
     }
@@ -283,18 +285,20 @@ public class TestColumnarFilters
         RowExpression andFilter = new SpecialForm(
                 AND,
                 BOOLEAN,
-                call(
-                        FUNCTION_RESOLUTION.resolveOperator(IS_DISTINCT_FROM, ImmutableList.of(INTEGER, INTEGER)),
-                        field(INT_CHANNEL_A, INTEGER),
-                        constant(CONSTANT - 5, INTEGER)),
-                call(
-                        FUNCTION_RESOLUTION.resolveOperator(IS_DISTINCT_FROM, ImmutableList.of(VARCHAR, VARCHAR)),
-                        field(STRING_CHANNEL, VARCHAR),
-                        constant(Slices.utf8Slice(Long.toString(CONSTANT + 5)), VARCHAR)),
-                call(
-                        FUNCTION_RESOLUTION.resolveOperator(IS_DISTINCT_FROM, ImmutableList.of(INTEGER, INTEGER)),
-                        field(INT_CHANNEL_B, INTEGER),
-                        constant(CONSTANT, INTEGER)));
+                ImmutableList.of(
+                        call(
+                                FUNCTION_RESOLUTION.resolveOperator(IS_DISTINCT_FROM, ImmutableList.of(INTEGER, INTEGER)),
+                                field(INT_CHANNEL_A, INTEGER),
+                                constant(CONSTANT - 5, INTEGER)),
+                        call(
+                                FUNCTION_RESOLUTION.resolveOperator(IS_DISTINCT_FROM, ImmutableList.of(VARCHAR, VARCHAR)),
+                                field(STRING_CHANNEL, VARCHAR),
+                                constant(Slices.utf8Slice(Long.toString(CONSTANT + 5)), VARCHAR)),
+                        call(
+                                FUNCTION_RESOLUTION.resolveOperator(IS_DISTINCT_FROM, ImmutableList.of(INTEGER, INTEGER)),
+                                field(INT_CHANNEL_B, INTEGER),
+                                constant(CONSTANT, INTEGER))),
+                ImmutableList.of());
         assertThat(createColumnarFilterEvaluator(andFilter, COMPILER)).isNotEmpty();
         assertFilter(inputPages, andFilter);
     }
@@ -702,11 +706,13 @@ public class TestColumnarFilters
         RowExpression andFilter = new SpecialForm(
                 AND,
                 BOOLEAN,
-                call(
-                        FUNCTION_RESOLUTION.resolveOperator(IS_DISTINCT_FROM, ImmutableList.of(INTEGER, INTEGER)),
-                        constant(CONSTANT + 3, INTEGER),
-                        field(INT_CHANNEL_A, INTEGER)),
-                filter);
+                ImmutableList.of(
+                        call(
+                                FUNCTION_RESOLUTION.resolveOperator(IS_DISTINCT_FROM, ImmutableList.of(INTEGER, INTEGER)),
+                                constant(CONSTANT + 3, INTEGER),
+                                field(INT_CHANNEL_A, INTEGER)),
+                        filter),
+                ImmutableList.of());
         // Adding an IS_DISTINCT_FROM filter first creates a list of filtered positions as input to
         // the filter implementation being tested while also keeping NULLs as input
         assertFilterInternal(inputPages, andFilter);
