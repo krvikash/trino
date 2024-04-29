@@ -120,7 +120,7 @@ public class InColumnarFilterGenerator
         ImmutableSet.Builder<Object> constantValuesBuilder = ImmutableSet.builder();
         for (ConstantExpression testValue : testExpressions) {
             if (isDeterminateConstant(testValue, indeterminateMethodHandle)) {
-                constantValuesBuilder.add(testValue.getValue());
+                constantValuesBuilder.add(testValue.value());
             }
         }
         constantValues = constantValuesBuilder.build();
@@ -331,7 +331,7 @@ public class InColumnarFilterGenerator
         if (!(expression instanceof ConstantExpression constantExpression)) {
             return false;
         }
-        Object value = constantExpression.getValue();
+        Object value = constantExpression.value();
         if (value == null) {
             return false;
         }
@@ -366,7 +366,7 @@ public class InColumnarFilterGenerator
             if (!(expression instanceof ConstantExpression)) {
                 throw new UnsupportedOperationException();
             }
-            Object constant = ((ConstantExpression) expression).getValue();
+            Object constant = ((ConstantExpression) expression).value();
             if (constant == null) {
                 continue;
             }

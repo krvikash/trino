@@ -433,13 +433,13 @@ public class CallColumnarFilterGenerator
 
     private static BytecodeNode generateConstant(CallSiteBinder callSiteBinder, ConstantExpression constant)
     {
-        Object value = constant.getValue();
-        Class<?> javaType = constant.getType().getJavaType();
+        Object value = constant.value();
+        Class<?> javaType = constant.type().getJavaType();
 
         BytecodeBlock block = new BytecodeBlock();
 
         // use LDC for primitives (boolean, short, int, long, float, double)
-        block.comment("constant " + constant.getType().getTypeSignature());
+        block.comment("constant " + constant.type().getTypeSignature());
         if (javaType == boolean.class) {
             return block.append(loadBoolean((Boolean) value));
         }
@@ -454,10 +454,10 @@ public class CallColumnarFilterGenerator
         }
 
         // bind constant object directly into the call-site using invoke dynamic
-        Binding binding = callSiteBinder.bind(value, constant.getType().getJavaType());
+        Binding binding = callSiteBinder.bind(value, constant.type().getJavaType());
 
         return new BytecodeBlock()
-                .setDescription("constant " + constant.getType())
+                .setDescription("constant " + constant.type())
                 .comment(constant.toString())
                 .append(loadConstant(binding));
     }
