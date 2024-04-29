@@ -41,7 +41,7 @@ public final class IsNullExpressionEvaluator
 
     private IsNullExpressionEvaluator(ColumnarFilter filter, SpecialForm specialForm)
     {
-        this.argumentType = specialForm.getArguments().get(0).getType();
+        this.argumentType = specialForm.getArguments().get(0).type();
         this.processor = new ColumnFilterProcessor(new DictionaryAwareColumnarFilter(filter));
     }
 

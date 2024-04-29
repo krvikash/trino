@@ -159,7 +159,7 @@ public class BenchmarkScanFilterAndProjectOperator
             }
 
             List<RowExpression> projections = getProjections(type);
-            List<Type> types = projections.stream().map(RowExpression::getType).collect(toList());
+            List<Type> types = projections.stream().map(RowExpression::type).collect(toList());
             List<ColumnHandle> columnHandles = IntStream.range(0, columnCount)
                     .mapToObj(i -> new TestingColumnHandle(Integer.toString(i)))
                     .collect(toImmutableList());

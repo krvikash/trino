@@ -46,7 +46,7 @@ public final class IsNotNullExpressionEvaluator
         SpecialForm specialForm = (SpecialForm) callExpression.getArguments().get(0);
         checkArgument(specialForm.getForm() == IS_NULL, "specialForm %s should be IS_NULL", specialForm);
 
-        this.argumentType = specialForm.getArguments().get(0).getType();
+        this.argumentType = specialForm.getArguments().get(0).type();
         this.processor = new ColumnFilterProcessor(new DictionaryAwareColumnarFilter(filter));
     }
 
