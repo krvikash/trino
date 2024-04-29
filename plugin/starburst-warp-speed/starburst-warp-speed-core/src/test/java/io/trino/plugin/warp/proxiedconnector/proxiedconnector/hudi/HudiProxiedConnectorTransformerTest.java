@@ -113,7 +113,7 @@ public class HudiProxiedConnectorTransformerTest
                 false);
         List<PartitionKey> partitionKeys = hudiSplit.getPartitionKeys()
                 .stream()
-                .map(hivePartitionKey -> new PartitionKey(new RegularColumn(hivePartitionKey.getName()), hivePartitionKey.getValue()))
+                .map(hivePartitionKey -> new PartitionKey(new RegularColumn(hivePartitionKey.name()), hivePartitionKey.value()))
                 .toList();
         DispatcherSplit expectedDispatcherSplit = new DispatcherSplit(
                 dispatcherTableHandle.getSchemaName(),

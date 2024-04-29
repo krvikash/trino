@@ -126,7 +126,7 @@ public class HiveProxiedConnectorTransformerTest
                 false);
         List<PartitionKey> partitionKeys = hiveSplit.getPartitionKeys()
                 .stream()
-                .map(hivePartitionKey -> new PartitionKey(new RegularColumn(hivePartitionKey.getName()), hivePartitionKey.getValue()))
+                .map(hivePartitionKey -> new PartitionKey(new RegularColumn(hivePartitionKey.name()), hivePartitionKey.value()))
                 .toList();
         DispatcherSplit expectedDispatcherSplit = new DispatcherSplit(
                 dispatcherTableHandle.getSchemaName(),

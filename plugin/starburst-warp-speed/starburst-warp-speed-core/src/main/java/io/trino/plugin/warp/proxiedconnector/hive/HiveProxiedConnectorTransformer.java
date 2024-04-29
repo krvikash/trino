@@ -203,7 +203,7 @@ public class HiveProxiedConnectorTransformer
 
         List<PartitionKey> partitionKeys = new ArrayList<>();
         for (HivePartitionKey hivePartitionKey : hiveSplit.getPartitionKeys()) {
-            partitionKeys.add(new PartitionKey(new RegularColumn(hivePartitionKey.getName()), hivePartitionKey.getValue()));
+            partitionKeys.add(new PartitionKey(new RegularColumn(hivePartitionKey.name()), hivePartitionKey.value()));
         }
 
         return new DispatcherSplit(dispatcherTableHandle.getSchemaName(),
