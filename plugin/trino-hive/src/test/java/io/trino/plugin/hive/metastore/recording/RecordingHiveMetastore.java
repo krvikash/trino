@@ -90,7 +90,7 @@ public class RecordingHiveMetastore
                         new HiveTableName(databaseName, tableName),
                         () -> {
                             throw new RuntimeException("recording partition statistics not supported");
-                        }).getColumnStatistics(),
+                        }).columnStatistics(),
                 columnNames::contains);
     }
 
@@ -111,7 +111,7 @@ public class RecordingHiveMetastore
                     throw new RuntimeException("recording partition statistics not supported");
                 });
 
-        return transformValues(partitionStatisticsMap, partitionStatistics -> filterKeys(partitionStatistics.getColumnStatistics(), columnNames::contains));
+        return transformValues(partitionStatisticsMap, partitionStatistics -> filterKeys(partitionStatistics.columnStatistics(), columnNames::contains));
     }
 
     @Override
