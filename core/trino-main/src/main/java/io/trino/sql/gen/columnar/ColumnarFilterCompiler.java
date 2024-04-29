@@ -125,7 +125,7 @@ public class ColumnarFilterCompiler
                 if (isNotExpression(callExpression)) {
                     // "not(is_null(input_reference))" is handled explicitly as it is easy.
                     // more generic cases like "not(equal(input_reference, constant))" are not handled yet
-                    if (callExpression.getArguments().get(0) instanceof SpecialForm specialForm && specialForm.getForm() == IS_NULL) {
+                    if (callExpression.arguments().get(0) instanceof SpecialForm specialForm && specialForm.getForm() == IS_NULL) {
                         return Optional.of(createIsolatedIsNotNullColumnarFilter(specialForm));
                     }
                     return Optional.empty();

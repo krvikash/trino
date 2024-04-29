@@ -78,7 +78,7 @@ public class CallColumnarFilterGenerator
 
     public CallColumnarFilterGenerator(CallExpression callExpression, FunctionManager functionManager)
     {
-        callExpression.getResolvedFunction().signature().getArgumentTypes().forEach(type -> {
+        callExpression.resolvedFunction().signature().getArgumentTypes().forEach(type -> {
             if (type instanceof FunctionType) {
                 throw new UnsupportedOperationException(format("Function with argument type %s is not supported", type));
             }
@@ -91,7 +91,7 @@ public class CallColumnarFilterGenerator
     {
         ClassDefinition classDefinition = new ClassDefinition(
                 a(PUBLIC, FINAL),
-                makeClassName(ColumnarFilter.class.getSimpleName() + callExpression.getResolvedFunction().signature().getName(), Optional.empty()),
+                makeClassName(ColumnarFilter.class.getSimpleName() + callExpression.resolvedFunction().signature().getName(), Optional.empty()),
                 type(Object.class),
                 type(ColumnarFilter.class));
         CallSiteBinder callSiteBinder = new CallSiteBinder();
@@ -100,7 +100,7 @@ public class CallColumnarFilterGenerator
 
         generateGetInputChannels(callSiteBinder, classDefinition, callExpression);
 
-        FunctionNullability functionNullability = callExpression.getResolvedFunction().functionNullability();
+        FunctionNullability functionNullability = callExpression.resolvedFunction().functionNullability();
         if (functionNullability.getArgumentNullable().stream().noneMatch(nullable -> nullable)) {
             generateFilterRangeMethod(callSiteBinder, classDefinition, callExpression);
             generateFilterListMethod(callSiteBinder, classDefinition, callExpression);
@@ -132,14 +132,14 @@ public class CallColumnarFilterGenerator
         Scope scope = method.getScope();
         BytecodeBlock body = method.getBody();
 
-        declareBlockVariables(callExpression.getArguments(), page, scope, body);
+        declareBlockVariables(callExpression.arguments(), page, scope, body);
 
         Variable outputPositionsCount = scope.declareVariable("outputPositionsCount", body, constantInt(0));
         Variable position = scope.declareVariable(int.class, "position");
         Variable result = scope.declareVariable(boolean.class, "result");
 
         IfStatement ifStatement = new IfStatement()
-                .condition(generateBlockMayHaveNull(callExpression.getArguments(), scope));
+                .condition(generateBlockMayHaveNull(callExpression.arguments(), scope));
         body.append(ifStatement);
 
         /* if (block_0.mayHaveNull() || block_1.mayHaveNull()...) {
@@ -157,7 +157,7 @@ public class CallColumnarFilterGenerator
                 .condition(lessThan(position, add(offset, size)))
                 .update(position.increment())
                 .body(new IfStatement()
-                        .condition(generateBlockPositionNotNull(callExpression.getArguments(), scope, position))
+                        .condition(generateBlockPositionNotNull(callExpression.arguments(), scope, position))
                         .ifTrue(new BytecodeBlock()
                                 .append(generateFunctionCall(functionManager, binder, callExpression, scope, position)
                                         .putVariable(result))
@@ -194,7 +194,7 @@ public class CallColumnarFilterGenerator
         Scope scope = method.getScope();
         BytecodeBlock body = method.getBody();
 
-        declareBlockVariables(callExpression.getArguments(), page, scope, body);
+        declareBlockVariables(callExpression.arguments(), page, scope, body);
 
         Variable outputPositionsCount = scope.declareVariable("outputPositionsCount", body, constantInt(0));
         scope.declareVariable(int.class, "position");
@@ -228,7 +228,7 @@ public class CallColumnarFilterGenerator
         Scope scope = method.getScope();
         BytecodeBlock body = method.getBody();
 
-        declareBlockVariables(callExpression.getArguments(), page, scope, body);
+        declareBlockVariables(callExpression.arguments(), page, scope, body);
 
         Variable outputPositionsCount = scope.declareVariable("outputPositionsCount", body, constantInt(0));
         Variable index = scope.declareVariable(int.class, "index");
@@ -236,7 +236,7 @@ public class CallColumnarFilterGenerator
         Variable result = scope.declareVariable(boolean.class, "result");
 
         IfStatement ifStatement = new IfStatement()
-                .condition(generateBlockMayHaveNull(callExpression.getArguments(), scope));
+                .condition(generateBlockMayHaveNull(callExpression.arguments(), scope));
         body.append(ifStatement);
 
         /* if (block_0.mayHaveNull() || block_1.mayHaveNull()...) {
@@ -257,7 +257,7 @@ public class CallColumnarFilterGenerator
                 .body(new BytecodeBlock()
                         .append(position.set(activePositions.getElement(index)))
                         .append(new IfStatement()
-                                .condition(generateBlockPositionNotNull(callExpression.getArguments(), scope, position))
+                                .condition(generateBlockPositionNotNull(callExpression.arguments(), scope, position))
                                 .ifTrue(new BytecodeBlock()
                                         .append(generateFunctionCall(functionManager, binder, callExpression, scope, position)
                                                 .putVariable(result))
@@ -296,7 +296,7 @@ public class CallColumnarFilterGenerator
         Scope scope = method.getScope();
         BytecodeBlock body = method.getBody();
 
-        declareBlockVariables(callExpression.getArguments(), page, scope, body);
+        declareBlockVariables(callExpression.arguments(), page, scope, body);
 
         Variable outputPositionsCount = scope.declareVariable("outputPositionsCount", body, constantInt(0));
         scope.declareVariable(int.class, "position");
@@ -391,8 +391,8 @@ public class CallColumnarFilterGenerator
             Scope scope,
             BytecodeExpression position)
     {
-        List<RowExpression> arguments = callExpression.getArguments();
-        ResolvedFunction resolvedFunction = callExpression.getResolvedFunction();
+        List<RowExpression> arguments = callExpression.arguments();
+        ResolvedFunction resolvedFunction = callExpression.resolvedFunction();
         String functionName = resolvedFunction.signature().getName().getFunctionName();
         BytecodeBlock block = new BytecodeBlock()
                 .setDescription("invoke " + functionName);

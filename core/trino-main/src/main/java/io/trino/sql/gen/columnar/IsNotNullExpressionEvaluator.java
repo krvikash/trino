@@ -42,8 +42,8 @@ public final class IsNotNullExpressionEvaluator
 
     private IsNotNullExpressionEvaluator(ColumnarFilter filter, CallExpression callExpression)
     {
-        checkArgument(callExpression.getArguments().size() == 1);
-        SpecialForm specialForm = (SpecialForm) callExpression.getArguments().get(0);
+        checkArgument(callExpression.arguments().size() == 1);
+        SpecialForm specialForm = (SpecialForm) callExpression.arguments().get(0);
         checkArgument(specialForm.getForm() == IS_NULL, "specialForm %s should be IS_NULL", specialForm);
 
         this.argumentType = specialForm.getArguments().get(0).type();
