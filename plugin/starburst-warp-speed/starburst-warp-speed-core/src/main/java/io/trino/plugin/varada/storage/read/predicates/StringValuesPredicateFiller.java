@@ -62,7 +62,8 @@ public class StringValuesPredicateFiller
         Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(type,
                 typeLength,
                 typeLength <= storageEngineConstants.getFixedLengthStringLimit(),
-                true);
+                // isValidateSize is false to allow too long strings (like utf8
+                false);
         // this predicate order MUST be kept !!!
         convertString(value, predicateBufferLow, predicateBufferHigh, typeLength, sliceConverter);
     }

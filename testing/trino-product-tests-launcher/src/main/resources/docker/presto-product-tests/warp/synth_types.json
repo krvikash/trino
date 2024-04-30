@@ -2386,6 +2386,45 @@
     ]
   },
   {
+    "name": "strings_char_100_utf8_encoding",
+    "structure": [
+      {
+        "name": "str",
+        "type": "char",
+        "args": [
+          100
+        ]
+      }
+    ],
+    "warmup_rules": [
+      {
+        "colNameId": "str",
+        "predicates": [],
+        "warmUpTypes": [
+          "WARM_UP_TYPE_DATA",
+          "WARM_UP_TYPE_BASIC"
+        ]
+      }
+    ],
+    "warm_query": "select count(str) from strings_char_100 where str='©P2∂n3q÷ød≤π∑Jß®je1∂∂D´¨ijG∆c∆syV…0ˆ∫∆ˆ∆vΩå≤yå©Ob©s…¥Q®q¥§J√ˆ…7¢˚21®vƒi√Uxø©A∂…i`œ¬JV¨´®u∫i¬¬∑G4åœø1' or str='7∂çSåLfx5Jl1N∂jq´j`®ø§8´f∑œƒß√ˆ©ˆ5ø®ˆIˆqT¥x∆ßQX1PøœaDƒ´§∂Hˆ√¬¨®ç7∂÷…R3∑¨4X¢∆1Yy∫≈FP¨å´∆ßR0≤gGœ¬jåqå´'",
+    "data": "resources/synthetic/str_100.jsonl",
+    "queries_data": [
+      {
+        "query": "select count(str) from strings_char_100 where str='©P2∂n3q÷ød≤π∑Jß®je1∂∂D´¨ijG∆c∆syV…0ˆ∫∆ˆ∆vΩå≤yå©Ob©s…¥Q®q¥§J√ˆ…7¢˚21®vƒi√Uxø©A∂…i`œ¬JV¨´®u∫i¬¬∑G4åœø1' or str='7∂çSåLfx5Jl1N∂jq´j`®ø§8´f∑œƒß√ˆ©ˆ5ø®ˆIˆqT¥x∆ßQX1PøœaDƒ´§∂Hˆ√¬¨®ç7∂÷…R3∑¨4X¢∆1Yy∫≈FP¨å´∆ßR0≤gGœ¬jåqå´'",
+        "expected_result": [
+          2
+        ],
+        "query_id": "strings_char_100_1",
+        "expected_counters": {
+          "varada_match_columns": 1,
+          "varada_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 1
+        }
+      }
+    ]
+  },
+  {
     "name": "char_127",
     "pt_enable": true,
     "lines": 127,
