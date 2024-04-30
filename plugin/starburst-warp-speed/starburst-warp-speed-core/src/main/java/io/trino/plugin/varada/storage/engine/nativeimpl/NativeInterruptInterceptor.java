@@ -28,7 +28,7 @@ public class NativeInterruptInterceptor
             return invocation.proceed();
         }
         finally {
-            if (Thread.interrupted()) {
+            if (Thread.currentThread().isInterrupted()) {
                 throw new InterruptedException("Thread was interrupted while native code was running");
             }
         }

@@ -199,7 +199,7 @@ public class DispatcherPageSource
         }
         catch (Throwable e) {
             stats.inccached_varada_failed_pages();
-            if (!Thread.interrupted()) {
+            if (!Thread.currentThread().isInterrupted()) {
                 shapingLogger.error(e, "failed to read cache file %s from varada.", rowGroupData.getRowGroupKey());
             }
             readErrorHandler.handle(e, rowGroupData, queryContext);

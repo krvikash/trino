@@ -179,7 +179,9 @@ public class VaradaPageSource
             }
             catch (Exception e) {
                 close();
-                shapingLogger.error(e, "query failure filePath %s matchList %s collectList %s", queryParams.getFilePath(), queryParams.getMatchElementsParamsList(), queryParams.getCollectElementsParamsList());
+                if (!Thread.currentThread().isInterrupted()) {
+                    shapingLogger.error(e, "query failure filePath %s matchList %s collectList %s", queryParams.getFilePath(), queryParams.getMatchElementsParamsList(), queryParams.getCollectElementsParamsList());
+                }
                 throw e;
             }
         }
