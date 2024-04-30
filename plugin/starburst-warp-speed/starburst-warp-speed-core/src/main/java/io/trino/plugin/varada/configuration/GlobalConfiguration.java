@@ -80,6 +80,7 @@ public class GlobalConfiguration
     private boolean enableMappedMatchCollect = true;
     private boolean enableOrPushdown = true;
     private boolean enableRangeFilter = true;
+    private boolean enableWarmingExtraLogs;
     private int shapingLoggerThreshold = 1000;
     private Duration shapingLoggerDuration = Duration.ofSeconds(60);
     private int shapingLoggerNumberOfSamples = 3;
@@ -410,6 +411,18 @@ public class GlobalConfiguration
         this.allowVaradaStatsCollection = allowVaradaStatsCollection;
     }
 
+    public boolean getEnableWarmingExtraLogs()
+    {
+        return enableWarmingExtraLogs;
+    }
+
+    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "enable.warming-extra-logs")
+    @Config(WARP_SPEED_PREFIX + "enable.warming-extra-logs")
+    public void setEnableWarmingExtraLogs(boolean enableWarmingExtraLogs)
+    {
+        this.enableWarmingExtraLogs = enableWarmingExtraLogs;
+    }
+
     public boolean isFailureGeneratorEnabled()
     {
         return failureGeneratorEnabled;
@@ -529,6 +542,7 @@ public class GlobalConfiguration
                 ", shapingLoggerDuration=" + shapingLoggerDuration +
                 ", shapingLoggerNumberOfSamplings=" + shapingLoggerNumberOfSamples +
                 ", dataOnlyWarming=" + dataOnlyWarming +
+                ", enableWarmingExtraLogs=" + enableWarmingExtraLogs +
                 '}';
     }
 }

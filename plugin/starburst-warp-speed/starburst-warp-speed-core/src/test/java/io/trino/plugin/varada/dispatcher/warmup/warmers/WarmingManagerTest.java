@@ -207,7 +207,6 @@ public class WarmingManagerTest
                 nodeManager,
                 connectorSync,
                 globalConfiguration,
-                nativeConfiguration,
                 rowGroupDataService,
                 storageWarmerService,
                 storageWriterService);

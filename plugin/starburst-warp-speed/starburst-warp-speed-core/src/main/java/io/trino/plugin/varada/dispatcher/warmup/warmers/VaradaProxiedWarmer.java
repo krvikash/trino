@@ -23,7 +23,6 @@ import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.trino.plugin.varada.VaradaSessionProperties;
 import io.trino.plugin.varada.configuration.GlobalConfiguration;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
 import io.trino.plugin.varada.dictionary.DictionaryWarmInfo;
 import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.varada.dispatcher.DispatcherSplit;
@@ -87,7 +86,6 @@ public class VaradaProxiedWarmer
     private final VaradaPageSinkFactory varadaPageSinkFactory;
     private final ConnectorSync connectorSync;
     private final GlobalConfiguration globalConfiguration;
-    private final NativeConfiguration nativeConfiguration;
     private final RowGroupDataService rowGroupDataService;
     private final StorageWarmerService storageWarmerService;
     private final StorageWriterService storageWriterService;
@@ -98,7 +96,6 @@ public class VaradaProxiedWarmer
             NodeManager nodeManager,
             ConnectorSync connectorSync,
             GlobalConfiguration globalConfiguration,
-            NativeConfiguration nativeConfiguration,
             RowGroupDataService rowGroupDataService,
             StorageWarmerService storageWarmerService,
             StorageWriterService storageWriterService)
@@ -108,7 +105,6 @@ public class VaradaProxiedWarmer
         this.nodeIdentifier = requireNonNull(nodeManager).getCurrentNode().getNodeIdentifier();
         this.connectorSync = requireNonNull(connectorSync);
         this.globalConfiguration = requireNonNull(globalConfiguration);
-        this.nativeConfiguration = requireNonNull(nativeConfiguration);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.storageWarmerService = requireNonNull(storageWarmerService);
         this.storageWriterService = requireNonNull(storageWriterService);
@@ -207,14 +203,6 @@ public class VaradaProxiedWarmer
                         }
                         rowGroupData = rowGroupDataService.updateRowGroupData(rowGroupData, warmSinkResult.warmUpElement(), fileOffset, rowCount);
                         warmIdToRowGroup.put(txId, rowGroupData); // saving row group data after the update (failed or succeeded)
-
-                        if (nativeConfiguration.getEnableWarmDelay() && (rowCount < 100000)) {
-                            try {
-                                Thread.sleep(5000);
-                            }
-                            catch (Exception e) {
-                            }
-                        }
                     }
                     catch (Exception e) {
                         if (pageSink != null) {
@@ -234,7 +222,7 @@ public class VaradaProxiedWarmer
             }
             finally {
                 storageWarmerService.warmupClose(txId);
-                storageWarmerService.flushRecords(fileCookie, rowGroupData);
+                storageWarmerService.flushRecords(fileCookie, rowGroupData); // a log will also be written here
             }
         }
         catch (IOException e) {

@@ -66,6 +66,7 @@ public class NativeStorageEngine
                     nativeConfiguration.getEnableSingleChunk(),
                     nativeConfiguration.getEnableQueryResultType(),
                     nativeConfiguration.getEnablePackedChunk(),
+                    nativeConfiguration.getEnableWarmingExtraLogs(),
                     nativeConfiguration.getEnableCompression(),
                     nativeConfiguration.getExceptionalListCompression());
         }
@@ -92,6 +93,7 @@ public class NativeStorageEngine
             boolean enableSingleChunk,
             boolean enableQueryResultType,
             boolean enablePackedChunk,
+            boolean enableWarmingExtraLogs,
             boolean enableCompression,
             int exceptionalListCompression);
 
@@ -105,7 +107,7 @@ public class NativeStorageEngine
     public native int initWarmupTxSizes(int[] fixedWarmupDataTxSizes, int[] varlenWarmupDataTxSizes);
 
     @Override
-    public native long fileOpen(String fileName);
+    public native long fileOpen(String fileName, boolean isWrite);
 
     @Override
     public native void fileClose(long fileCookie);

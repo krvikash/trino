@@ -302,7 +302,7 @@ public class StorageCollectorService
             throw new RuntimeException("no chunks");
         }
         //  file
-        long fileCookie = storageEngine.fileOpen(queryParams.getFilePath());
+        long fileCookie = storageEngine.fileOpen(queryParams.getFilePath(), false);
         ChunksQueue chunksQueue = new ChunksQueue(numChunksInRange, storageEngineConstants.getPageSize());
         return new StorageCollectorArgs(
                 blockFillers,

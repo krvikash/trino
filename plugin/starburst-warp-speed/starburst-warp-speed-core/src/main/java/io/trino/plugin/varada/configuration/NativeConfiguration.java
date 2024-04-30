@@ -66,8 +66,8 @@ public class NativeConfiguration
     private boolean enableSingleChunk = true;
     private boolean enableQueryResultType;
     private boolean enablePackedChunk = true;
+    private boolean enableWarmingExtraLogs;
     private boolean enableCompression = true;
-    private boolean enableWarmDelay;
     private int exceptionalListCompression;
     private Set<String> unsupportedNativeFunctions = Collections.emptySet();
     private Duration storageTemporaryExceptionDuration = Duration.of(5, ChronoUnit.MINUTES);
@@ -239,6 +239,18 @@ public class NativeConfiguration
         this.enablePackedChunk = enablePackedChunk;
     }
 
+    public boolean getEnableWarmingExtraLogs()
+    {
+        return enableWarmingExtraLogs;
+    }
+
+    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "enable.native-warming-extra-logs")
+    @Config(WARP_SPEED_PREFIX + "enable.native-warming-extra-logs")
+    public void setEnableWarmingExtraLogs(boolean enableWarmingExtraLogs)
+    {
+        this.enableWarmingExtraLogs = enableWarmingExtraLogs;
+    }
+
     public boolean getEnableCompression()
     {
         return enableCompression;
@@ -249,18 +261,6 @@ public class NativeConfiguration
     public void setEnableCompression(boolean enableCompression)
     {
         this.enableCompression = enableCompression;
-    }
-
-    public boolean getEnableWarmDelay()
-    {
-        return enableWarmDelay;
-    }
-
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "enable.warm-delay")
-    @Config(WARP_SPEED_PREFIX + "enable.warm-delay")
-    public void setEnableWarmDelay(boolean enableWarmDelay)
-    {
-        this.enableWarmDelay = enableWarmDelay;
     }
 
     public int getTaskMaxWorkerThreads()

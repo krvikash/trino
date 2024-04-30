@@ -46,7 +46,7 @@ public interface StorageEngine
     }
 
     //----------------------- file ----------------------------------------
-    default long fileOpen(String fileName)
+    default long fileOpen(String fileName, boolean isWrite)
     {
         throw new UnsupportedOperationException();
     }

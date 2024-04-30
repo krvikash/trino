@@ -85,6 +85,8 @@ public class StorageWarmerService
     public void createFile(RowGroupKey rowGroupKey)
             throws IOException
     {
+        rowGroupDataService.logRowGroup(rowGroupKey, "before createFile");
+
         String rowGroupFilePath = rowGroupKey.stringFileNameRepresentation(globalConfiguration.getLocalStorePath());
         File file = new File(rowGroupFilePath);
         if (!file.exists()) {
@@ -97,7 +99,7 @@ public class StorageWarmerService
     {
         String rowGroupFilePath = rowGroupKey.stringFileNameRepresentation(globalConfiguration.getLocalStorePath());
         // fileCookie was initialized to -1. In case fileOpen throws an exception we will not close it in the finally clause
-        return storageEngine.fileOpen(rowGroupFilePath);
+        return storageEngine.fileOpen(rowGroupFilePath, true);
     }
 
     // in case we already have an open tx we close it and open a new one

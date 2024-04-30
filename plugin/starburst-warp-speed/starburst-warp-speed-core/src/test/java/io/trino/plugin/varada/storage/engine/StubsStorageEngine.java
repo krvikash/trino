@@ -70,7 +70,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public long fileOpen(String fileName)
+    public long fileOpen(String fileName, boolean isWrite)
     {
         return 0;
     }
