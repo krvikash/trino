@@ -31,6 +31,7 @@ import io.trino.spi.block.Block;
 import io.varada.log.ShapingLogger;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static io.trino.plugin.varada.VaradaErrorCode.VARADA_MATCH_FAILED;
@@ -250,14 +251,15 @@ public class StorageReader
                 logger.debug("matchIfNeeded matchExhausted %b after full scan update", matchExhausted);
             }
             else {
-                long matcheResult = 0;
+                long matchResult = 0;
+                int chunkIndex = chunksQueueService.getChunkIndexForMatch(chunksQueue);
                 try {
-                    matcheResult = storageEngine.match(matchTxId, chunksQueueService.getChunkIndexForMatch(chunksQueue), matchedChunksIndexes, matchBitmapResetPoints);
+                    matchResult = storageEngine.match(matchTxId, chunkIndex, matchedChunksIndexes, matchBitmapResetPoints);
                 }
                 catch (Exception e) {
-                    abortMatch(e); // will close only the match tx here. the caller will close the collect tx
+                    abortMatch(Optional.of(e)); // will close only the match tx here. the caller will close the collect tx
                     // We can't throw the original exception cause it will skip closing the collect TX.
-                    // But we do need to preserve the recverable notion from native.
+                    // But we do need to preserve the recoverable notion from native.
                     if (e instanceof TrinoException trinoException &&
                             trinoException.getErrorCode().equals(VARADA_NATIVE_UNRECOVERABLE_ERROR.toErrorCode())) {
                         throw new TrinoException(VARADA_UNRECOVERABLE_MATCH_FAILED, "failed to match: " + e.getMessage());
@@ -266,11 +268,17 @@ public class StorageReader
                         throw new TrinoException(VARADA_MATCH_FAILED, "failed to match: " + e.getMessage());
                     }
                 }
+                finally {
+                    if (matchResult == -1) {
+                        abortMatch(Optional.empty()); // will close only the match tx here. the caller will close the collect tx
+                        throw new TrinoException(VARADA_UNRECOVERABLE_MATCH_FAILED, "storage engine failed to match. chunkIndex " + chunkIndex);
+                    }
+                }
 
-                matchExhausted = matcheResult == 0;
+                matchExhausted = matchResult == 0;
                 if (!matchExhausted) {
-                    int matchEndChunkIndex = (int) (matcheResult & MATCH_RESULT_MASK);
-                    int numMatchedChunks = (int) (matcheResult >> 32);
+                    int matchEndChunkIndex = (int) (matchResult & MATCH_RESULT_MASK);
+                    int numMatchedChunks = (int) (matchResult >> 32);
                     logger.debug("matchIfNeeded matchStartChunkIndex %d matchEndChunkIndex %d numMatchedChunks %d",
                             chunksQueueService.getChunkIndexForMatch(chunksQueue), matchEndChunkIndex, numMatchedChunks);
                     chunksQueueService.updateChunkRangeAfterMatch(chunksQueue, matchEndChunkIndex, numMatchedChunks, matchedChunksIndexes, matchBitmapResetPoints);
@@ -327,12 +335,12 @@ public class StorageReader
         return collectCloseResult.readPages();
     }
 
-    void abortMatch(Exception e)
+    void abortMatch(Optional<Exception> e)
     {
         if (matchTxId != INVALID_TX_ID) {
             boolean nativeThrowed = false;
-            if (e instanceof TrinoException) {
-                nativeThrowed = ExceptionThrower.isNativeException((TrinoException) e);
+            if (e.isPresent() && (e.get() instanceof TrinoException)) {
+                nativeThrowed = ExceptionThrower.isNativeException((TrinoException) e.get());
             }
             storageEngine.queryAbort(matchTxId, nativeThrowed);
             matchTxId = INVALID_TX_ID;

@@ -29,6 +29,8 @@ import io.trino.spi.block.Block;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.varada.log.ShapingLogger;
 
+import java.util.Optional;
+
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -224,7 +226,7 @@ public class VaradaPageSource
             }
         }
         catch (Exception e) {
-            reader.abortMatch(e);
+            reader.abortMatch(Optional.of(e));
             reader.abortCollect(e, collectOpenResult);
             throw e;
         }
