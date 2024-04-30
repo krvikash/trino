@@ -122,6 +122,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.ENG_AWS_SECRET_ACCESS_KEY }}
           secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
       - uses: ./.github/actions/setup
+        timeout-minutes: 10
         with:
           cache: ${{ matrix.cache }}
           java-version: ${{ matrix.java-version }}
@@ -158,6 +159,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.ENG_AWS_SECRET_ACCESS_KEY }}
           secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
       - uses: ./.github/actions/setup
+        timeout-minutes: 10
         with:
           cache: 'restore'
           cleanup-node: 'true'
@@ -259,6 +261,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.ENG_AWS_SECRET_ACCESS_KEY }}
           secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
       - uses: ./.github/actions/setup
+        timeout-minutes: 10
         with:
           cache: restore
       - name: Maven Install
@@ -312,6 +315,7 @@ jobs:
         run: |
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 843985043183.dkr.ecr.us-east-1.amazonaws.com
       - uses: ./.github/actions/setup
+        timeout-minutes: 10
         with:
           cache: restore
       - name: Maven Install
@@ -362,6 +366,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.ENG_AWS_SECRET_ACCESS_KEY }}
           secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
       - uses: ./.github/actions/setup
+        timeout-minutes: 10
         with:
           cache: restore
       - name: Install Hive Module
@@ -528,6 +533,7 @@ jobs:
           secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
           login-docker: true
       - uses: ./.github/actions/setup
+        timeout-minutes: 10
         with:
           cache: restore
           cleanup-node: true
@@ -626,6 +632,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.ENG_AWS_SECRET_ACCESS_KEY }}
           secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
       - uses: ./.github/actions/setup
+        timeout-minutes: 10
         with:
           cache: restore
       - name: Update PR check
@@ -761,6 +768,7 @@ jobs:
           secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
           login-docker: true
       - uses: ./.github/actions/setup
+        timeout-minutes: 10
         with:
           cache: restore
           cleanup-node: ${{ format('{0}', matrix.modules == 'plugin/trino-singlestore') }}
@@ -1142,6 +1150,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.ENG_AWS_SECRET_ACCESS_KEY }}
           secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
       - uses: ./.github/actions/setup
+        timeout-minutes: 10
         with:
           cache: restore
           cleanup-node: true
@@ -1366,6 +1375,7 @@ jobs:
                 github.event.client_payload.pull_request.head.sha == github.event.client_payload.slash_command.args.named.sha &&
                 format('refs/pull/{0}/head', github.event.client_payload.pull_request.number) || '' }}
       - uses: ./.github/actions/setup
+        timeout-minutes: 10
         with:
           # The job doesn't build anything, so the ~/.m2/repository cache isn't useful
           cache: 'false'
