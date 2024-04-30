@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.varada.dispatcher.warmup;
 
+import io.trino.plugin.varada.configuration.GlobalConfiguration;
 import io.trino.plugin.varada.configuration.NativeConfiguration;
 import io.trino.plugin.varada.configuration.WarmupDemoterConfiguration;
 import io.trino.plugin.varada.dispatcher.model.RowGroupKey;
@@ -47,7 +48,8 @@ public class WorkerTaskExecutorServiceTest
         this.taskExecutorService = new WorkerTaskExecutorService(
                 new WarmupDemoterConfiguration(),
                 new NativeConfiguration(),
-                metricManager);
+                metricManager,
+                new GlobalConfiguration());
     }
 
     @Test

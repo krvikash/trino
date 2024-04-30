@@ -19,6 +19,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
+import io.trino.plugin.varada.configuration.GlobalConfiguration;
 import io.trino.plugin.varada.configuration.NativeConfiguration;
 import io.trino.plugin.varada.configuration.WarmupDemoterConfiguration;
 import io.trino.plugin.varada.dispatcher.model.RowGroupKey;
@@ -67,17 +68,20 @@ public class WorkerTaskExecutorService
     private final ExecutorService proxyExecutorService;
     private final ScheduledExecutorService scheduledCloudExecutorService;
     private final int queueSize;
+    private final GlobalConfiguration globalConfiguration;
 
     @Inject
     public WorkerTaskExecutorService(
             WarmupDemoterConfiguration warmupDemoterConfiguration,
             NativeConfiguration nativeConfiguration,
-            MetricsManager metricsManager)
+            MetricsManager metricsManager,
+            GlobalConfiguration globalConfiguration)
     {
         this.warmupDemoterConfiguration = requireNonNull(warmupDemoterConfiguration);
         this.nativeConfiguration = requireNonNull(nativeConfiguration);
         this.statsWorkerTaskExecutorService = metricsManager.registerMetric(new VaradaStatsWorkerTaskExecutorService(WORKER_TASK_EXECUTOR_STAT_GROUP));
         this.queueSize = warmupDemoterConfiguration.getTasksExecutorQueueSize();
+        this.globalConfiguration = requireNonNull(globalConfiguration);
         prioritizeExecutorService = getPrioritizeExecutorService();
         cloudExecutorService = getCloudExecutorService();
         scheduledCloudExecutorService = getScheduledCloudExecutorService();
@@ -86,7 +90,7 @@ public class WorkerTaskExecutorService
 
     private ExecutorService getPrioritizeExecutorService()
     {
-        int poolSize = warmupDemoterConfiguration.getPrioritizeExecutorPoolSize();
+        int poolSize = getPoolSize(warmupDemoterConfiguration.getPrioritizeExecutorPoolSize());
         return new ThreadPoolExecutor(poolSize, poolSize,
                 60L, TimeUnit.SECONDS,
                 new ArrayBlockingQueue<>(queueSize),
@@ -113,7 +117,7 @@ public class WorkerTaskExecutorService
 
     private ExecutorService getProxyExecutorService()
     {
-        int poolSize = nativeConfiguration.getTaskMaxWorkerThreads();
+        int poolSize = getPoolSize(nativeConfiguration.getTaskMaxWorkerThreads());
         BlockingQueue<Runnable> blockingQueue = new PriorityBlockingQueue<>(
                 queueSize,
                 Comparator.comparingDouble(x -> ((WorkerSubmittableTask) x).getPriority()).reversed());
@@ -122,6 +126,11 @@ public class WorkerTaskExecutorService
                 60L, TimeUnit.SECONDS,
                 blockingQueue,
                 new ThreadFactoryBuilder().setNameFormat("warp-speed-proxy-%s").setDaemon(true).build());
+    }
+
+    private int getPoolSize(int size)
+    {
+        return globalConfiguration.isWarmingSingleThreaded() ? 1 : size;
     }
 
     public SubmissionResult submitTask(WorkerSubmittableTask task, boolean allowConflicts)

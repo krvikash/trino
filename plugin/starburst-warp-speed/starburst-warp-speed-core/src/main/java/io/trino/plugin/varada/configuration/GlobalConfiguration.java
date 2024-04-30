@@ -45,6 +45,7 @@ public class GlobalConfiguration
     public static final String AZURE_CONNECTION_STRING = "config.azure.connection-string";
     public static final String STATS_COLLECTION_ENABLED = "config.stats-collection-enabled";
     public static final String FAILURE_GENERATOR_ENABLED = "config.failure-generator-enabled";
+    public static final String WARMING_SINGLE_THREADED = "debug.warming-single-threaded";
     public static final String DATA_ONLY_WARMING = "data-only-warming";
     public static final int MAX_NUMBER_OF_MAPPED_MATCH_COLLECT_ELEMENTS = 1 << Byte.SIZE; //256
     private static final Logger logger = Logger.get(GlobalConfiguration.class);
@@ -71,6 +72,7 @@ public class GlobalConfiguration
     private String deviceIdentifier;
     private String azureConnectionString;
     private boolean allowVaradaStatsCollection;
+    private boolean warmingSingleThreaded;
     private boolean failureGeneratorEnabled;
     private SwaggerExposingLevel swaggerExposingLevel = SwaggerExposingLevel.DEBUG;
 
@@ -423,6 +425,18 @@ public class GlobalConfiguration
         this.enableWarmingExtraLogs = enableWarmingExtraLogs;
     }
 
+    public boolean isWarmingSingleThreaded()
+    {
+        return warmingSingleThreaded;
+    }
+
+    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + WARMING_SINGLE_THREADED)
+    @Config(WARP_SPEED_PREFIX + WARMING_SINGLE_THREADED)
+    public void setWarmingSingleThreaded(boolean warmingSingleThreaded)
+    {
+        this.warmingSingleThreaded = warmingSingleThreaded;
+    }
+
     public boolean isFailureGeneratorEnabled()
     {
         return failureGeneratorEnabled;
@@ -543,6 +557,7 @@ public class GlobalConfiguration
                 ", shapingLoggerNumberOfSamplings=" + shapingLoggerNumberOfSamples +
                 ", dataOnlyWarming=" + dataOnlyWarming +
                 ", enableWarmingExtraLogs=" + enableWarmingExtraLogs +
+                ", warmingSingleThreaded=" + warmingSingleThreaded +
                 '}';
     }
 }
