@@ -29,7 +29,6 @@ import io.trino.spi.type.Type;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 
@@ -85,7 +84,14 @@ public class StringValuesPredicateFiller
             long maxStr = Long.MIN_VALUE;
             lowBuf.position(0);
             highBuf.position(highBufStartPos);
-            List<StringPredicateData> strList = orderRanges(domain, recLength, sliceConverter);
+
+            List<Slice> slices = new ArrayList<>(sortedRangeSet.getRangeCount());
+            Block sortedRangesBlock = sortedRangeSet.getSortedRanges();
+            Type type = domain.getType();
+            for (int i = 0; i < sortedRangesBlock.getPositionCount(); i += 2) {
+                slices.add(type.getSlice(sortedRangesBlock, i));
+            }
+            List<StringPredicateData> strList = SliceUtils.orderRanges(slices, recLength, sliceConverter);
             for (StringPredicateData str : strList) {
                 lowBuf.putLong(str.comperationValue());
                 long val = SliceUtils.str2int(str.value(), str.length(), true);
@@ -103,26 +109,5 @@ public class StringValuesPredicateFiller
             logger.error(e, "convertString failed");
             throw e;
         }
-    }
-
-    private List<StringPredicateData> orderRanges(Domain domain, int recLength, Function<Slice, Slice> sliceConverter)
-    {
-        SortedRangeSet sortedRangeSet = (SortedRangeSet) domain.getValues();
-        List<StringPredicateData> strList = new ArrayList<>(sortedRangeSet.getRangeCount());
-
-        SliceUtils.StringPredicateDataFactory stringPredicateDataFactory = new SliceUtils.StringPredicateDataFactory();
-        Block sortedRangesBlock = sortedRangeSet.getSortedRanges();
-        Type type = domain.getType();
-        for (int i = 0; i < sortedRangesBlock.getPositionCount(); i += 2) {
-            Slice slice = type.getSlice(sortedRangesBlock, i);
-            Slice value = sliceConverter.apply(slice);
-            // crc is calculated on the string without the length byte in native as well
-            strList.add(stringPredicateDataFactory.create(value, recLength, true));
-        }
-
-        // sort the crc array and put it in the low buf
-        Collections.sort(strList);
-
-        return strList;
     }
 }

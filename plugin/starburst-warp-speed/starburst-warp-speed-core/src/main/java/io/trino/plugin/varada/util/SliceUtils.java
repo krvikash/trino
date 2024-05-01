@@ -25,6 +25,9 @@ import io.trino.spi.type.Type;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.function.Function;
 
 import static java.lang.String.format;
@@ -249,5 +252,23 @@ public class SliceUtils
             return new StringPredicateData(byteBuffer, value.length(),
                     calcStringValue(byteBuffer, value.length(), weRecLength, crc));
         }
+    }
+
+    public static List<StringPredicateData> orderRanges(List<Slice> slices, int recLength, Function<Slice, Slice> sliceConverter)
+    {
+        List<StringPredicateData> strList = new ArrayList<>(slices.size());
+
+        SliceUtils.StringPredicateDataFactory stringPredicateDataFactory = new SliceUtils.StringPredicateDataFactory();
+
+        for (Slice slice : slices) {
+            Slice value = sliceConverter.apply(slice);
+            // crc is calculated on the string without the length byte in native as well
+            strList.add(stringPredicateDataFactory.create(value, recLength, true));
+        }
+
+        // sort the crc array and put it in the low buf
+        Collections.sort(strList);
+
+        return strList;
     }
 }

@@ -26,6 +26,8 @@ import io.trino.spi.predicate.SortedRangeSet;
 import io.trino.spi.type.Type;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Function;
 
 public class InverseStringValuesPredicateFiller
@@ -52,14 +54,21 @@ public class InverseStringValuesPredicateFiller
             int numValues = ((SortedRangeSet) domain.getValues()).getRangeCount() - 1;
             lowBuf.position(0);
             highBuf.position(Long.BYTES * numValues);
+
+            SortedRangeSet sortedRangeSet = (SortedRangeSet) domain.getValues();
+            List<Slice> slices = new ArrayList<>(sortedRangeSet.getRangeCount());
+            Block sortedRangesBlock = sortedRangeSet.getSortedRanges();
             Type type = domain.getType();
-            Block sortedRangesBlock = ((SortedRangeSet) domain.getValues()).getSortedRanges();
-            for (int i = 1; i < numValues * 2; i += 2) { // each value has low, high. upper bound of one range equals the lower bound of the next range
-                Slice value = sliceConverter.apply(type.getSlice(sortedRangesBlock, i));
-                SliceUtils.StringPredicateDataFactory stringPredicateDataFactory = new SliceUtils.StringPredicateDataFactory();
-                StringPredicateData predicateData = stringPredicateDataFactory.create(value, recLength, true);
-                lowBuf.putLong(predicateData.comperationValue());
-                highBuf.putLong(SliceUtils.str2int(predicateData.value(), predicateData.length(), true));
+            // each value has low, high. upper bound of one range equals the lower bound of the next range. Starts with MIN and ends with MAX
+            for (int i = 1; i < numValues * 2; i += 2) {
+                slices.add(type.getSlice(sortedRangesBlock, i));
+            }
+
+            List<StringPredicateData> strList = SliceUtils.orderRanges(slices, recLength, sliceConverter);
+
+            for (StringPredicateData str : strList) {
+                lowBuf.putLong(str.comperationValue());
+                highBuf.putLong(SliceUtils.str2int(str.value(), str.length(), true));
             }
         }
         catch (Exception e) {
