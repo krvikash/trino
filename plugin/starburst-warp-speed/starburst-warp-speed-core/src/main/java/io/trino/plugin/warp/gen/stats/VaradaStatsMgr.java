@@ -51,6 +51,5 @@ public final class VaradaStatsMgr
         metricsManager.registerMetric(new VaradaStatsRowgroup());
         metricsManager.registerMetric(new VaradaStatsStoragecache());
         metricsManager.registerMetric(new VaradaStatsStorageio());
-        metricsManager.registerMetric(new VaradaStatsStorageusage());
     }
 }
