@@ -8,59 +8,60 @@ local exchange (GATHER, SINGLE, [])
                             local exchange (REPARTITION, HASH, [groupid, s_county_gid, s_state_gid])
                                 remote exchange (REPARTITION, HASH, [groupid, s_county_gid, s_state_gid])
                                     partial aggregation over (groupid, s_county_gid, s_state_gid)
-                                        join (INNER, PARTITIONED):
-                                            remote exchange (REPARTITION, HASH, [s_state])
+                                        join (INNER, REPLICATED):
+                                            join (INNER, REPLICATED):
                                                 join (INNER, REPLICATED):
-                                                    join (INNER, REPLICATED):
-                                                        alternatives
+                                                    alternatives
+                                                        dynamic filter (await [ss_sold_date_sk::bigint, ss_store_sk::bigint])
+                                                            scan store_sales
+                                                        cache data
                                                             dynamic filter (await [ss_sold_date_sk::bigint, ss_store_sk::bigint])
                                                                 scan store_sales
-                                                            cache data
-                                                                dynamic filter (await [ss_sold_date_sk::bigint, ss_store_sk::bigint])
-                                                                    scan store_sales
-                                                            load from cache
-                                                        local exchange (GATHER, SINGLE, [])
-                                                            remote exchange (REPLICATE, BROADCAST, [])
-                                                                alternatives
-                                                                    scan date_dim
-                                                                    cache data
-                                                                        scan date_dim
-                                                                    load from cache
+                                                        load from cache
                                                     local exchange (GATHER, SINGLE, [])
                                                         remote exchange (REPLICATE, BROADCAST, [])
                                                             alternatives
+                                                                scan date_dim
+                                                                cache data
+                                                                    scan date_dim
+                                                                load from cache
+                                                local exchange (GATHER, SINGLE, [])
+                                                    remote exchange (REPLICATE, BROADCAST, [])
+                                                        alternatives
+                                                            dynamic filter ([s_state::char(2)])
+                                                                scan store
+                                                            cache data
                                                                 dynamic filter ([s_state::char(2)])
                                                                     scan store
-                                                                cache data
-                                                                    dynamic filter ([s_state::char(2)])
-                                                                        scan store
-                                                                load from cache
-                                            single aggregation over (s_state_56)
-                                                final aggregation over (s_state_56)
-                                                    local exchange (GATHER, SINGLE, [])
-                                                        remote exchange (REPARTITION, HASH, [s_state_56])
-                                                            intermediate aggregation over (s_state_56)
-                                                                join (INNER, REPLICATED):
-                                                                    partial aggregation over (ss_store_sk_13)
+                                                            load from cache
+                                            local exchange (GATHER, SINGLE, [])
+                                                remote exchange (REPLICATE, BROADCAST, [])
+                                                    single aggregation over (s_state_56)
+                                                        final aggregation over (s_state_56)
+                                                            local exchange (GATHER, SINGLE, [])
+                                                                remote exchange (REPARTITION, HASH, [s_state_56])
+                                                                    intermediate aggregation over (s_state_56)
                                                                         join (INNER, REPLICATED):
-                                                                            alternatives
-                                                                                dynamic filter (await [ss_sold_date_sk_6::bigint, ss_store_sk_13::bigint])
-                                                                                    scan store_sales
-                                                                                cache data
-                                                                                    dynamic filter (await [ss_sold_date_sk_6::bigint, ss_store_sk_13::bigint])
-                                                                                        scan store_sales
-                                                                                load from cache
+                                                                            partial aggregation over (ss_store_sk_13)
+                                                                                join (INNER, REPLICATED):
+                                                                                    alternatives
+                                                                                        dynamic filter (await [ss_sold_date_sk_6::bigint, ss_store_sk_13::bigint])
+                                                                                            scan store_sales
+                                                                                        cache data
+                                                                                            dynamic filter (await [ss_sold_date_sk_6::bigint, ss_store_sk_13::bigint])
+                                                                                                scan store_sales
+                                                                                        load from cache
+                                                                                    local exchange (GATHER, SINGLE, [])
+                                                                                        remote exchange (REPLICATE, BROADCAST, [])
+                                                                                            alternatives
+                                                                                                scan date_dim
+                                                                                                cache data
+                                                                                                    scan date_dim
+                                                                                                load from cache
                                                                             local exchange (GATHER, SINGLE, [])
                                                                                 remote exchange (REPLICATE, BROADCAST, [])
                                                                                     alternatives
-                                                                                        scan date_dim
+                                                                                        scan store
                                                                                         cache data
-                                                                                            scan date_dim
+                                                                                            scan store
                                                                                         load from cache
-                                                                    local exchange (GATHER, SINGLE, [])
-                                                                        remote exchange (REPLICATE, BROADCAST, [])
-                                                                            alternatives
-                                                                                scan store
-                                                                                cache data
-                                                                                    scan store
-                                                                                load from cache

@@ -84,6 +84,7 @@ public class StatsCalculatorModule
             rules.add(new ChooseAlternativeRule(normalizer));
             rules.add(new DynamicFilterSourceStatsRule());
             rules.add(new RemoteSourceStatsRule(normalizer));
+            rules.add(new TopNRankingStatsRule(normalizer));
 
             return rules.build();
         }
