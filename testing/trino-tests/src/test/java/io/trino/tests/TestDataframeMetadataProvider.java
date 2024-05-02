@@ -46,6 +46,7 @@ import io.trino.security.AccessControlManager;
 import io.trino.server.dataframe.DataTypeMapper;
 import io.trino.server.dataframe.DataframeMetadataProvider;
 import io.trino.sql.PlannerContext;
+import io.trino.sql.SqlEnvironmentConfig;
 import io.trino.sql.analyzer.AnalyzerFactory;
 import io.trino.sql.analyzer.SessionTimeProvider;
 import io.trino.sql.analyzer.StatementAnalyzerFactory;
@@ -111,6 +112,7 @@ public class TestDataframeMetadataProvider
         analyzePropertyManager = planTester.getAnalyzePropertyManager();
 
         StatementRewrite statementRewrite = new StatementRewrite(ImmutableSet.of(new ShowQueriesRewrite(
+                new SqlEnvironmentConfig(),
                 plannerContext.getMetadata(),
                 SQL_PARSER,
                 accessControl,

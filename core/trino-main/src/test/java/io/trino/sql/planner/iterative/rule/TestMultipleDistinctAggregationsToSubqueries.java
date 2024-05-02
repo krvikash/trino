@@ -1944,6 +1944,12 @@ public class TestMultipleDistinctAggregationsToSubqueries
         }
 
         @Override
+        public Collection<LanguageFunction> getLanguageFunctions(Session session, QualifiedObjectName name)
+        {
+            return metadata.getLanguageFunctions(session, name);
+        }
+
+        @Override
         public boolean languageFunctionExists(Session session, QualifiedObjectName name, String signatureToken)
         {
             return metadata.languageFunctionExists(session, name, signatureToken);
