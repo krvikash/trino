@@ -15,6 +15,7 @@ package io.trino.tests.product.warp;
 
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
+import io.airlift.units.Duration;
 import io.trino.plugin.varada.util.FailureGeneratorInvocationHandler;
 import io.trino.plugin.warp.extension.execution.debugtools.FailureGeneratorResource;
 import io.trino.plugin.warp.extension.execution.debugtools.NativeStorageStateResource;
@@ -22,38 +23,59 @@ import io.trino.plugin.warp.gen.constants.FailureRepetitionMode;
 import io.trino.tempto.AfterMethodWithContext;
 import io.trino.tempto.BeforeMethodWithContext;
 import io.trino.tempto.query.QueryExecutor;
+import io.trino.testing.minio.MinioClient;
+import io.trino.tests.product.warp.utils.QueryUtils;
 import io.trino.tests.product.warp.utils.RestUtils;
+import io.trino.tests.product.warp.utils.WarmUtils;
 import jakarta.ws.rs.HttpMethod;
 import org.testng.ITestContext;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.sql.SQLException;
 import java.util.List;
+import java.util.Map;
 
+import static io.trino.tempto.assertions.QueryAssert.assertQueryFailure;
 import static io.trino.tests.product.TestGroups.PROFILE_SPECIFIC_TESTS;
-import static io.trino.tests.product.TestGroups.WARP_SPEED_HIVE_2;
+import static io.trino.tests.product.TestGroups.WARP_SPEED_MINIO;
 import static io.trino.tests.product.utils.QueryExecutors.onTrino;
+import static io.trino.tests.product.warp.utils.DemoterUtils.objectMapper;
+import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.EXTERNAL_COLLECT;
+import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.EXTERNAL_MATCH;
+import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.VARADA_COLLECT;
+import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.VARADA_MATCH;
+import static io.trino.tests.product.warp.utils.JMXCachingConstants.WarmingService.ROW_GROUP_COUNT;
+import static io.trino.tests.product.warp.utils.JMXCachingConstants.WarmingService.WARM_ACCOMPLISHED;
 import static java.lang.String.format;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestWarpSpeedNative
 {
     private static final Logger logger = Logger.get(TestWarpSpeedNative.class);
-
+    private static final String QUERY = "SELECT %s FROM %s WHERE nationkey > 1";
+    private static final String BUCKET_NAME = "product-tests-warp-speed";
     private static final String CATALOG_NAME = "warp";
     private static final String SCHEMA_NAME = "warp_product_tests";
 
     @Inject
     WarpSpeedTests warpSpeedTests;
-
+    @Inject
+    WarmUtils warmUtils;
+    @Inject
+    QueryUtils queryUtils;
     @Inject
     RestUtils restUtils;
-
     private final String tableName = "nation_native";
+    private MinioClient client;
 
     @BeforeMethodWithContext
     public void beforeMethod()
     {
+        client = new MinioClient();
+        client.ensureBucketExists(BUCKET_NAME);
+
         try {
             restUtils.executeWorkerRestCommand(
                     NativeStorageStateResource.PATH,
@@ -63,6 +85,7 @@ public class TestWarpSpeedNative
                     HttpURLConnection.HTTP_NO_CONTENT);
 
             QueryExecutor queryExecutor = onTrino();
+            queryExecutor.executeQuery(format("CREATE SCHEMA IF NOT EXISTS %s.%s WITH (location = 's3://%s/')", CATALOG_NAME, SCHEMA_NAME, BUCKET_NAME));
             queryExecutor.executeQuery(format("USE %s.%s", CATALOG_NAME, SCHEMA_NAME));
             queryExecutor.executeQuery("set session warp.enable_import_export = false");
             queryExecutor.executeQuery(format("CREATE TABLE IF NOT EXISTS %s.%s.%s AS SELECT * FROM tpch.tiny.nation", CATALOG_NAME, SCHEMA_NAME, tableName));
@@ -85,13 +108,18 @@ public class TestWarpSpeedNative
 
             String[] columnNames = new String[] {"name", "nationkey", "regionkey", "comment"};
             warpSpeedTests.testCleanup(SCHEMA_NAME, tableName, columnNames);
+
+            if (client != null) {
+                client.close();
+                client = null;
+            }
         }
         catch (Throwable e) {
             logger.error(e, "afterMethod failed");
         }
     }
 
-    @Test(groups = {WARP_SPEED_HIVE_2, PROFILE_SPECIFIC_TESTS}, priority = 10)
+    @Test(groups = {WARP_SPEED_MINIO, PROFILE_SPECIFIC_TESTS}, priority = 10)
     public void testWarpGenerateNativePanicStorageWrite(ITestContext iTestContext)
             throws IOException
     {
@@ -108,8 +136,7 @@ public class TestWarpSpeedNative
                 HttpURLConnection.HTTP_NO_CONTENT);
     }
 
-    /* ToDo: temporarily commented out until fixing
-    @Test(groups = {WARP_SPEED_HIVE_2, PROFILE_SPECIFIC_TESTS}, priority = 10)
+    @Test(groups = {WARP_SPEED_MINIO, PROFILE_SPECIFIC_TESTS}, priority = 10)
     public void testWarpGenerateNativePanicStorageRead(ITestContext iTestContext)
             throws IOException
     {
@@ -122,7 +149,7 @@ public class TestWarpSpeedNative
                 iTestContext.getName());
     }
 
-    @Test(groups = {WARP_SPEED_HIVE_2, PROFILE_SPECIFIC_TESTS}, priority = 10)
+    @Test(groups = {WARP_SPEED_MINIO, PROFILE_SPECIFIC_TESTS}, priority = 10)
     public void testWarpGenerateNativePanicStorageWait(ITestContext iTestContext)
             throws IOException
     {
@@ -206,5 +233,4 @@ public class TestWarpSpeedNative
         assertThat(state.storagePermanentException()).isEqualTo(storagePermanentException);
         assertThat(state.storageTemporaryException()).isEqualTo(storageTemporaryException);
     }
-    */
 }

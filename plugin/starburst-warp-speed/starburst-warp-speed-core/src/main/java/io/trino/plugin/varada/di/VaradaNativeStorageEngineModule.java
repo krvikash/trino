@@ -112,7 +112,8 @@ public class VaradaNativeStorageEngineModule
     private static void loadNativeLibrary()
     {
         Path nativeLibrariesDirectoryPath = getNativeLibrariesDirectory();
-        loadLibrary(nativeLibrariesDirectoryPath.resolve(System.mapLibraryName(baseNativeLibName)));
+        String libName = System.getProperty("NATIVE_LIB_NAME", baseNativeLibName);
+        loadLibrary(nativeLibrariesDirectoryPath.resolve(System.mapLibraryName(libName)));
     }
 
     @Override
