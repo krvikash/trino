@@ -32,7 +32,7 @@ public class StorageCollectorCallBack
 
     // this method is used only as a StorageEngine callback from native code
     @SuppressWarnings("unused")
-    void collectStoreState(long stateBuffId, int size)
+    void collectStoreStateCB(long stateBuffId, int size)
     {
         ByteBuffer bufferToCopy = bufferAllocator.id2ByteBuff(stateBuffId).slice();
         bufferToCopy.get(storageCollectorArgs.collectStoreBuff(), 0, size);
@@ -42,7 +42,7 @@ public class StorageCollectorCallBack
     // this method is used only as a StorageEngine callback from native code
     // returns the size of the state restored
     @SuppressWarnings("unused")
-    int collectRestoreState(long stateBuffId)
+    int collectRestoreStateCB(long stateBuffId)
     {
         if (collectStoreCurrSize > 0) {
             ByteBuffer targetByteBuffer = bufferAllocator.id2ByteBuff(stateBuffId);
