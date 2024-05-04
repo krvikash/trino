@@ -236,11 +236,6 @@ public interface StorageEngine
         throw new UnsupportedOperationException();
     }
 
-    default void queryAbort(int txId, boolean nativeThrowed)
-    {
-        throw new UnsupportedOperationException();
-    }
-
     default int luceneReadBuffer(long nativeCookie, int fileId, int offset, int length)
     {
         return -1;

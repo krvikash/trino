@@ -214,11 +214,6 @@ public class StubsStorageEngine
     }
 
     @Override
-    public void queryAbort(int txId, boolean nativeThrowed)
-    {
-    }
-
-    @Override
     public ByteBuffer getBundleFromPool(int bufIx)
     {
         if (bufIx == 0) {

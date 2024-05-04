@@ -342,7 +342,9 @@ public class StorageReader
             if (e.isPresent() && (e.get() instanceof TrinoException)) {
                 nativeThrowed = ExceptionThrower.isNativeException((TrinoException) e.get());
             }
-            storageEngine.queryAbort(matchTxId, nativeThrowed);
+            if (!nativeThrowed) {
+                storageEngine.matchClose(matchTxId);
+            }
             matchTxId = INVALID_TX_ID;
         }
     }

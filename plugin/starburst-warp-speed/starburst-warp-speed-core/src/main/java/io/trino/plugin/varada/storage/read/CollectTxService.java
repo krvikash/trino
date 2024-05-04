@@ -209,7 +209,9 @@ public class CollectTxService
         if (e instanceof TrinoException) {
             nativeThrowed = ExceptionThrower.isNativeException((TrinoException) e);
         }
-        storageEngine.queryAbort(collectTxId, nativeThrowed);
+        if (!nativeThrowed) {
+            storageEngine.collectClose(collectTxId, null, 0, null);
+        }
         freeCollectOpenResources(collectOpenResult);
     }
 }

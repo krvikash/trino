@@ -187,9 +187,6 @@ public class NativeStorageEngine
     public native void matchClose(int txId);
 
     @Override
-    public native void queryAbort(int txId, boolean nativeThrowed);
-
-    @Override
     public native ByteBuffer getBundleFromPool(int bufIx);
 
     @Override
