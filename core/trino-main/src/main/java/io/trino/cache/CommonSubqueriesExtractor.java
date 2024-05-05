@@ -292,7 +292,7 @@ public final class CommonSubqueriesExtractor
                     Map<CacheColumnId, Symbol> columnIdMapping = createSubplanColumnIdMapping(subplan, commonColumnIds, Optional.of(childAdaptation));
                     SymbolMapper symbolMapper = createSymbolMapper(columnIdMapping);
                     PlanNode commonSubplan = createSubplanProjection(
-                            createSubplanFilter(commonPredicate, childAdaptation.getCommonSubplan()),
+                            createSubplanFilter(commonPredicate, childAdaptation.getCommonSubplan(), symbolMapper),
                             commonProjections,
                             columnIdMapping,
                             symbolMapper);
@@ -783,12 +783,12 @@ public final class CommonSubqueriesExtractor
         return new SubplanFilter(filterNode, Optional.of(predicateWithDynamicFilters), tableScan);
     }
 
-    private PlanNode createSubplanFilter(Expression predicate, PlanNode source)
+    private PlanNode createSubplanFilter(Expression predicate, PlanNode source, SymbolMapper symbolMapper)
     {
         if (predicate.equals(TRUE)) {
             return source;
         }
-        return new FilterNode(idAllocator.getNextId(), source, predicate);
+        return new FilterNode(idAllocator.getNextId(), source, symbolMapper.map(predicate));
     }
 
     private record SubplanFilter(PlanNode subplan, Optional<Expression> predicate, TableScanNode tableScan) {}

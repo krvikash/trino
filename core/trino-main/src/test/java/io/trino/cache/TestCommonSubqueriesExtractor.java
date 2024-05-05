@@ -1155,6 +1155,63 @@ public class TestCommonSubqueriesExtractor
     }
 
     @Test
+    public void testNestedFilters()
+    {
+        CommonSubqueries commonSubqueries = extractTpchCommonSubqueries("""
+                SELECT nationkey_mul FROM (SELECT nationkey * 2 AS nationkey_mul FROM nation) WHERE nationkey_mul * nationkey_mul = nationkey_mul
+                UNION ALL
+                SELECT nationkey_add FROM (SELECT nationkey + 2 AS nationkey_add FROM nation) WHERE nationkey_add + nationkey_add = nationkey_add""");
+
+        Map<PlanNode, CommonPlanAdaptation> planAdaptations = commonSubqueries.planAdaptations();
+        assertThat(planAdaptations).hasSize(2);
+        assertThat(planAdaptations).allSatisfy((node, adaptation) ->
+                assertThat(node).isInstanceOf(FilterNode.class));
+
+        CommonPlanAdaptation filterA = Iterables.get(planAdaptations.values(), 0);
+        CommonPlanAdaptation filterB = Iterables.get(planAdaptations.values(), 1);
+
+        PlanMatchPattern commonSubplan = filter(
+                new Logical(OR, ImmutableList.of(
+                        new Comparison(EQUAL, new Call(MULTIPLY_BIGINT, ImmutableList.of(new Reference(BIGINT, "NATIONKEY_MUL"), new Reference(BIGINT, "NATIONKEY_MUL"))), new Reference(BIGINT, "NATIONKEY_MUL")),
+                        new Comparison(EQUAL, new Call(ADD_BIGINT, ImmutableList.of(new Reference(BIGINT, "NATIONKEY_ADD"), new Reference(BIGINT, "NATIONKEY_ADD"))), new Reference(BIGINT, "NATIONKEY_ADD")))),
+                strictProject(
+                        ImmutableMap.of(
+                                "NATIONKEY_MUL", PlanMatchPattern.expression(new Call(MULTIPLY_BIGINT, ImmutableList.of(new Reference(BIGINT, "NATIONKEY"), new Constant(BIGINT, 2L)))),
+                                "NATIONKEY_ADD", PlanMatchPattern.expression(new Call(ADD_BIGINT, ImmutableList.of(new Reference(BIGINT, "NATIONKEY"), new Constant(BIGINT, 2L))))),
+                        tableScan("nation", ImmutableMap.of("NATIONKEY", "nationkey"))));
+
+        assertTpchPlan(filterA.getCommonSubplan(), commonSubplan);
+        assertTpchPlan(filterB.getCommonSubplan(), commonSubplan);
+
+        // validate adaptations
+        PlanNodeIdAllocator idAllocator = commonSubqueries.idAllocator();
+        assertTpchPlan(filterA.adaptCommonSubplan(filterA.getCommonSubplan(), idAllocator),
+                strictProject(ImmutableMap.of("NATIONKEY_MUL", PlanMatchPattern.expression(new Reference(BIGINT, "NATIONKEY_MUL"))),
+                        filter(
+                                new Comparison(EQUAL, new Call(MULTIPLY_BIGINT, ImmutableList.of(new Reference(BIGINT, "NATIONKEY_MUL"), new Reference(BIGINT, "NATIONKEY_MUL"))), new Reference(BIGINT, "NATIONKEY_MUL")),
+                                commonSubplan)));
+        assertTpchPlan(filterB.adaptCommonSubplan(filterB.getCommonSubplan(), idAllocator),
+                strictProject(ImmutableMap.of("NATIONKEY_ADD", PlanMatchPattern.expression(new Reference(BIGINT, "NATIONKEY_ADD"))),
+                        filter(
+                                new Comparison(EQUAL, new Call(ADD_BIGINT, ImmutableList.of(new Reference(BIGINT, "NATIONKEY_ADD"), new Reference(BIGINT, "NATIONKEY_ADD"))), new Reference(BIGINT, "NATIONKEY_ADD")),
+                                commonSubplan)));
+
+        // make sure plan signatures are same
+        Reference nationKeyMultiplyReference = columnIdToSymbol(canonicalExpressionToColumnId(new Call(MULTIPLY_BIGINT, ImmutableList.of(new Reference(BIGINT, "[nationkey:bigint]"), new Constant(BIGINT, 2L)))), BIGINT).toSymbolReference();
+        Reference nationKeyAddReference = columnIdToSymbol(canonicalExpressionToColumnId(new Call(ADD_BIGINT, ImmutableList.of(new Reference(BIGINT, "[nationkey:bigint]"), new Constant(BIGINT, 2L)))), BIGINT).toSymbolReference();
+        assertThat(filterA.getCommonSubplanSignature()).isEqualTo(filterB.getCommonSubplanSignature());
+        assertThat(filterB.getCommonSubplanSignature()).isEqualTo(new PlanSignatureWithPredicate(
+                new PlanSignature(
+                        combine(filterProjectKey(scanFilterProjectKey(new CacheTableId(tpchCatalogId + ":tiny:nation:0.01"))),
+                                "filters=(($operator$multiply(\"($operator$multiply(\"\"[nationkey:bigint]\"\", bigint '2'))\", \"($operator$multiply(\"\"[nationkey:bigint]\"\", bigint '2'))\") = \"($operator$multiply(\"\"[nationkey:bigint]\"\", bigint '2'))\") " +
+                                        "OR ($operator$add(\"($operator$add(\"\"[nationkey:bigint]\"\", bigint '2'))\", \"($operator$add(\"\"[nationkey:bigint]\"\", bigint '2'))\") = \"($operator$add(\"\"[nationkey:bigint]\"\", bigint '2'))\"))"),
+                        Optional.empty(),
+                        ImmutableList.of(canonicalExpressionToColumnId(nationKeyMultiplyReference), canonicalExpressionToColumnId(nationKeyAddReference)),
+                        ImmutableList.of(BIGINT, BIGINT)),
+                TupleDomain.all()));
+    }
+
+    @Test
     public void testNestedProjections()
     {
         CommonSubqueries commonSubqueries = extractTpchCommonSubqueries("""
