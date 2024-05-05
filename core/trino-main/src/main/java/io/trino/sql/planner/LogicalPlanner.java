@@ -294,6 +294,11 @@ public class LogicalPlanner
         if (cacheEnabled || isUseSubPlanAlternatives(session)) {
             try (var ignored = scopedSpan(plannerContext.getTracer(), "cache-subqueries")) {
                 root = cacheCommonSubqueries.cacheSubqueries(root);
+                if (stage.ordinal() >= OPTIMIZED_AND_VALIDATED.ordinal()) {
+                    try (var span = scopedSpan(plannerContext.getTracer(), "validate-alternatives")) {
+                        planSanityChecker.validatePlanWithAlternatives(root, session, plannerContext, warningCollector);
+                    }
+                }
             }
             catch (Throwable t) {
                 throw new TrinoException(GENERIC_INTERNAL_ERROR, "SUBQUERY CACHE: planning exception", t);
