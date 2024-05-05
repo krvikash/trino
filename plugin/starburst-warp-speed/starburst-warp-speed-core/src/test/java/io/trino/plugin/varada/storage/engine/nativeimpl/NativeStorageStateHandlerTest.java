@@ -14,8 +14,8 @@
 package io.trino.plugin.varada.storage.engine.nativeimpl;
 
 import io.airlift.units.Duration;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
+import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.warp.gen.errorcodes.ErrorCodes;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,19 +37,19 @@ public class NativeStorageStateHandlerTest
     private final Map<Integer, ErrorCodes> tempErrorCodes = Map.of(
             0, ENV_EXCEPTION_STORAGE_TEMPORARY_ERROR,
             1, ENV_EXCEPTION_STORAGE_TIMEOUT_ERROR);
-    private NativeConfiguration nativeConfiguration;
+    private NativeConfig nativeConfig;
     private NativeStorageStateHandler handler;
     private final Random random = new Random();
 
     @BeforeEach
     public void beforeEach()
     {
-        nativeConfiguration = new NativeConfiguration();
-        nativeConfiguration.setStorageTemporaryExceptionDuration(new Duration(1000, TimeUnit.MILLISECONDS));
-        nativeConfiguration.setStorageTemporaryExceptionExpiryDuration(new Duration(10000, TimeUnit.MILLISECONDS));
+        nativeConfig = new NativeConfig();
+        nativeConfig.setStorageTemporaryExceptionDuration(new Duration(1000, TimeUnit.MILLISECONDS));
+        nativeConfig.setStorageTemporaryExceptionExpiryDuration(new Duration(10000, TimeUnit.MILLISECONDS));
 
         NativeExceptionThrower nativeExceptionThrower = mock(NativeExceptionThrower.class);
-        handler = new NativeStorageStateHandler(nativeConfiguration, nativeExceptionThrower, new GlobalConfiguration());
+        handler = new NativeStorageStateHandler(nativeConfig, nativeExceptionThrower, new GlobalConfig());
     }
 
     @Test
@@ -98,7 +98,7 @@ public class NativeStorageStateHandlerTest
     @Test
     public void testStorageStateTempErrorCodesNoTimeout()
     {
-        int times = nativeConfiguration.getStorageTemporaryExceptionNumTries();
+        int times = nativeConfig.getStorageTemporaryExceptionNumTries();
 
         IntStream.range(1, times)
                 .forEach(i -> {
@@ -123,7 +123,7 @@ public class NativeStorageStateHandlerTest
     @Test
     public void testStorageStateTempErrorCodesSmallTimeout()
     {
-        int times = nativeConfiguration.getStorageTemporaryExceptionNumTries();
+        int times = nativeConfig.getStorageTemporaryExceptionNumTries();
 
         IntStream.range(1, times)
                 .forEach(i -> {
@@ -156,9 +156,9 @@ public class NativeStorageStateHandlerTest
     @Test
     public void testStorageStateTempErrorCodesWithTimeoutToPermanent()
     {
-        nativeConfiguration.setStorageTemporaryExceptionDuration(new Duration(10, TimeUnit.MILLISECONDS));
-        int times = nativeConfiguration.getStorageTemporaryExceptionNumTries();
-        long sleepTime = nativeConfiguration.getStorageTemporaryExceptionDuration().toMillis() + 1;
+        nativeConfig.setStorageTemporaryExceptionDuration(new Duration(10, TimeUnit.MILLISECONDS));
+        int times = nativeConfig.getStorageTemporaryExceptionNumTries();
+        long sleepTime = nativeConfig.getStorageTemporaryExceptionDuration().toMillis() + 1;
 
         IntStream.range(1, times)
                 .forEach(i -> {
@@ -184,7 +184,7 @@ public class NativeStorageStateHandlerTest
 
         assertThat(handler.storageDisablePermanently).isTrue();
         assertThat(handler.storageDisableTemporarily).isTrue();
-        assertThat(handler.storageTemporaryExceptionNumTries).isEqualTo(nativeConfiguration.getStorageTemporaryExceptionNumTries());
+        assertThat(handler.storageTemporaryExceptionNumTries).isEqualTo(nativeConfig.getStorageTemporaryExceptionNumTries());
         assertThat(handler.storageTemporaryExceptionTimestamp).isNotZero();
         assertThat(handler.storageTemporaryExceptionExpiryTimestamp).isNotZero();
     }
@@ -193,10 +193,10 @@ public class NativeStorageStateHandlerTest
     public void testStorageStateTempErrorCodesReset()
             throws InterruptedException
     {
-        nativeConfiguration.setStorageTemporaryExceptionDuration(new Duration(10, TimeUnit.MILLISECONDS));
-        nativeConfiguration.setStorageTemporaryExceptionExpiryDuration(new Duration(100, TimeUnit.MILLISECONDS));
-        int times = nativeConfiguration.getStorageTemporaryExceptionNumTries();
-        long sleepTime = nativeConfiguration.getStorageTemporaryExceptionDuration().toMillis() + 1;
+        nativeConfig.setStorageTemporaryExceptionDuration(new Duration(10, TimeUnit.MILLISECONDS));
+        nativeConfig.setStorageTemporaryExceptionExpiryDuration(new Duration(100, TimeUnit.MILLISECONDS));
+        int times = nativeConfig.getStorageTemporaryExceptionNumTries();
+        long sleepTime = nativeConfig.getStorageTemporaryExceptionDuration().toMillis() + 1;
 
         IntStream.range(1, times)
                 .forEach(i -> {
@@ -221,11 +221,11 @@ public class NativeStorageStateHandlerTest
 
         assertThat(handler.storageDisablePermanently).isFalse();
         assertThat(handler.storageDisableTemporarily).isTrue();
-        assertThat(handler.storageTemporaryExceptionNumTries).isLessThan(nativeConfiguration.getStorageTemporaryExceptionNumTries());
+        assertThat(handler.storageTemporaryExceptionNumTries).isLessThan(nativeConfig.getStorageTemporaryExceptionNumTries());
         assertThat(handler.storageTemporaryExceptionTimestamp).isNotZero();
         assertThat(handler.storageTemporaryExceptionExpiryTimestamp).isNotZero();
 
-        Thread.sleep(nativeConfiguration.getStorageTemporaryExceptionExpiryDuration().toMillis() + 1);
+        Thread.sleep(nativeConfig.getStorageTemporaryExceptionExpiryDuration().toMillis() + 1);
 
         assertThat(handler.isStorageAvailable()).isTrue();
 

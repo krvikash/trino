@@ -16,7 +16,7 @@ package io.trino.plugin.varada.dispatcher.warmup.export;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import io.trino.plugin.varada.VaradaSessionProperties;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.model.FastWarmingState;
 import io.trino.plugin.varada.dispatcher.model.RegularColumn;
 import io.trino.plugin.varada.dispatcher.model.RowGroupData;
@@ -29,7 +29,7 @@ import io.trino.plugin.varada.dispatcher.warmup.WorkerTaskExecutorService;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.VaradaStatsWarmupExportService;
 import io.varada.cloudvendors.CloudVendorService;
-import io.varada.cloudvendors.configuration.CloudVendorConfiguration;
+import io.varada.cloudvendors.config.CloudVendorConfig;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -60,7 +60,7 @@ public class WeGroupCloudExporterTaskTest
     private WorkerTaskExecutorService workerTaskExecutorService;
     private RowGroupDataService rowGroupDataService;
     private WarmupElementsCloudExporter warmupElementsCloudExporter;
-    private GlobalConfiguration globalConfiguration;
+    private GlobalConfig globalConfig;
     private VaradaStatsWarmupExportService varadaStatsWarmupExportService;
 
     @BeforeEach
@@ -83,19 +83,19 @@ public class WeGroupCloudExporterTaskTest
 
         warmupElementsCloudExporter = mock(WarmupElementsCloudExporter.class);
 
-        globalConfiguration = new GlobalConfiguration();
-        globalConfiguration.setEnableImportExport(true);
+        globalConfig = new GlobalConfig();
+        globalConfig.setEnableImportExport(true);
 
-        CloudVendorConfiguration cloudVendorConfiguration = new CloudVendorConfiguration();
-        cloudVendorConfiguration.setStoreType("s3");
-        cloudVendorConfiguration.setStorePath("s3://bucket/");
+        CloudVendorConfig cloudVendorConfig = new CloudVendorConfig();
+        cloudVendorConfig.setStoreType("s3");
+        cloudVendorConfig.setStorePath("s3://bucket/");
 
         varadaStatsWarmupExportService = new VaradaStatsWarmupExportService(WARMUP_EXPORTER_STAT_GROUP);
 
         CloudVendorService cloudVendorService = mock(CloudVendorService.class);
         when(cloudVendorService.getLocation(anyString())).thenCallRealMethod();
 
-        cloudImportExportPath = VaradaSessionProperties.getS3ImportExportPath(null, cloudVendorConfiguration, cloudVendorService);
+        cloudImportExportPath = VaradaSessionProperties.getS3ImportExportPath(null, cloudVendorConfig, cloudVendorService);
     }
 
     @Test
@@ -111,7 +111,7 @@ public class WeGroupCloudExporterTaskTest
                 workerTaskExecutorService,
                 rowGroupDataService,
                 warmupElementsCloudExporter,
-                globalConfiguration,
+                globalConfig,
                 varadaStatsWarmupExportService);
         task.run();
 
@@ -139,7 +139,7 @@ public class WeGroupCloudExporterTaskTest
                 workerTaskExecutorService,
                 rowGroupDataService,
                 warmupElementsCloudExporter,
-                globalConfiguration,
+                globalConfig,
                 varadaStatsWarmupExportService);
         task.run();
 

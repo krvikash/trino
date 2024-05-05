@@ -15,7 +15,7 @@ package io.trino.plugin.varada.dispatcher;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.expression.rewrite.ExpressionService;
 import io.trino.spi.connector.ConnectorMetadata;
 
@@ -26,17 +26,17 @@ public class DispatcherMetadataFactory
 {
     private final ExpressionService expressionService;
     private final DispatcherTableHandleBuilderProvider dispatcherTableHandleBuilderProvider;
-    private final GlobalConfiguration globalConfiguration;
+    private final GlobalConfig globalConfig;
 
     @Inject
     public DispatcherMetadataFactory(
             ExpressionService expressionService,
             DispatcherTableHandleBuilderProvider dispatcherTableHandleBuilderProvider,
-            GlobalConfiguration globalConfiguration)
+            GlobalConfig globalConfig)
     {
         this.expressionService = requireNonNull(expressionService);
         this.dispatcherTableHandleBuilderProvider = requireNonNull(dispatcherTableHandleBuilderProvider);
-        this.globalConfiguration = requireNonNull(globalConfiguration);
+        this.globalConfig = requireNonNull(globalConfig);
     }
 
     public DispatcherMetadata createMetadata(ConnectorMetadata connectorMetadata)
@@ -45,6 +45,6 @@ public class DispatcherMetadataFactory
                 connectorMetadata,
                 expressionService,
                 dispatcherTableHandleBuilderProvider,
-                globalConfiguration);
+                globalConfig);
     }
 }

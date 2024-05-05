@@ -17,7 +17,7 @@ import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.trino.plugin.varada.TestingTxService;
-import io.trino.plugin.varada.configuration.DictionaryConfiguration;
+import io.trino.plugin.varada.config.DictionaryConfig;
 import io.trino.plugin.varada.dispatcher.model.DictionaryKey;
 import io.trino.plugin.varada.dispatcher.model.DictionaryState;
 import io.trino.plugin.varada.dispatcher.model.RegularColumn;
@@ -60,7 +60,7 @@ public class DictionaryCacheServiceTest
 {
     private static final Logger logger = Logger.get(DictionaryCacheServiceTest.class);
 
-    private DictionaryConfiguration dictionaryConfiguration;
+    private DictionaryConfig dictionaryConfig;
     private MetricsManager metricsManager;
     private DictionaryCacheService dictionaryCacheService;
     private NodeManager nodeManager;
@@ -91,11 +91,11 @@ public class DictionaryCacheServiceTest
     public void before()
     {
         nodeManager = mockNodeManager();
-        dictionaryConfiguration = new DictionaryConfiguration();
-        dictionaryConfiguration.setEnableDictionary(true);
+        dictionaryConfig = new DictionaryConfig();
+        dictionaryConfig.setEnableDictionary(true);
         metricsManager = TestingTxService.createMetricsManager();
         attachDictionaryService = mock(AttachDictionaryService.class);
-        this.dictionaryCacheService = new DictionaryCacheService(dictionaryConfiguration,
+        this.dictionaryCacheService = new DictionaryCacheService(dictionaryConfig,
                 metricsManager,
                 attachDictionaryService);
     }
@@ -122,7 +122,7 @@ public class DictionaryCacheServiceTest
                 WarmUpType.WARM_UP_TYPE_BLOOM_HIGH,
                 WarmUpType.WARM_UP_TYPE_BLOOM_LOW,
                 WarmUpType.WARM_UP_TYPE_BLOOM_MEDIUM);
-        DictionaryCacheService dictionaryCacheService = new DictionaryCacheService(dictionaryConfiguration,
+        DictionaryCacheService dictionaryCacheService = new DictionaryCacheService(dictionaryConfig,
                 metricsManager,
                 attachDictionaryService);
         for (WarmUpElement warmUpElement : warmupElements) {

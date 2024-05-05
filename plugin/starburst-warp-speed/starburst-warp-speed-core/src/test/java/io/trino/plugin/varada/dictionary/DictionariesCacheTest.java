@@ -19,7 +19,7 @@ import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.airlift.units.DataSize;
 import io.trino.plugin.varada.TestingTxService;
-import io.trino.plugin.varada.configuration.DictionaryConfiguration;
+import io.trino.plugin.varada.config.DictionaryConfig;
 import io.trino.plugin.varada.dispatcher.model.DictionaryKey;
 import io.trino.plugin.varada.dispatcher.model.SchemaTableColumn;
 import io.trino.plugin.varada.metrics.MetricsManager;
@@ -50,14 +50,14 @@ class DictionariesCacheTest
     @BeforeEach
     public void before()
     {
-        DictionaryConfiguration dictionaryConfiguration = new DictionaryConfiguration();
-        dictionaryConfiguration.setMaxDictionaryTotalCacheWeight(DataSize.of(20, DataSize.Unit.BYTE));
-//        dictionaryConfiguration.setMaxDictionaryCacheWeight(DataSize.of(20, DataSize.Unit.BYTE));
-        dictionaryConfiguration.setDictionaryCacheConcurrencyLevel(1);
+        DictionaryConfig dictionaryConfig = new DictionaryConfig();
+        dictionaryConfig.setMaxDictionaryTotalCacheWeight(DataSize.of(20, DataSize.Unit.BYTE));
+//        dictionaryConfig.setMaxDictionaryCacheWeight(DataSize.of(20, DataSize.Unit.BYTE));
+        dictionaryConfig.setDictionaryCacheConcurrencyLevel(1);
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
         attachDictionaryService = mock(AttachDictionaryService.class);
         dictionariesCache = new DictionariesCache(
-                dictionaryConfiguration,
+                dictionaryConfig,
                 metricsManager,
                 attachDictionaryService);
         varadaStatsDictionary = (VaradaStatsDictionary) metricsManager.get(VaradaStatsDictionary.createKey(DICTIONARY_STAT_GROUP));

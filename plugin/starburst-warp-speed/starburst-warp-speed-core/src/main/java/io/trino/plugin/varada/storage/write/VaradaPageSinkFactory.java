@@ -15,7 +15,7 @@ package io.trino.plugin.varada.storage.write;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.util.FailureGeneratorInvocationHandler;
 
 import java.lang.reflect.Proxy;
@@ -26,24 +26,24 @@ import static java.util.Objects.requireNonNull;
 public class VaradaPageSinkFactory
 {
     private final StorageWriterService storageWriterService;
-    private final GlobalConfiguration globalConfiguration;
+    private final GlobalConfig globalConfig;
     private final FailureGeneratorInvocationHandler failureGeneratorInvocationHandler;
 
     @Inject
     public VaradaPageSinkFactory(FailureGeneratorInvocationHandler failureGeneratorInvocationHandler,
             StorageWriterService storageWriterService,
-            GlobalConfiguration globalConfiguration)
+            GlobalConfig globalConfig)
     {
         this.storageWriterService = requireNonNull(storageWriterService);
-        this.globalConfiguration = requireNonNull(globalConfiguration);
+        this.globalConfig = requireNonNull(globalConfig);
         this.failureGeneratorInvocationHandler = requireNonNull(failureGeneratorInvocationHandler);
     }
 
-    public PageSink create(StorageWriterSplitConfiguration storageWriterSplitConfiguration)
+    public PageSink create(StorageWriterSplitConfig storageWriterSplitConfig)
     {
-        PageSink pageSink = new VaradaPageSink(storageWriterService, storageWriterSplitConfiguration);
+        PageSink pageSink = new VaradaPageSink(storageWriterService, storageWriterSplitConfig);
 
-        if (globalConfiguration.isFailureGeneratorEnabled()) {
+        if (globalConfig.isFailureGeneratorEnabled()) {
             pageSink = (PageSink) Proxy.newProxyInstance(pageSink.getClass().getClassLoader(),
                     new Class<?>[] {PageSink.class},
                     failureGeneratorInvocationHandler.getMethodInvocationHandler(pageSink));

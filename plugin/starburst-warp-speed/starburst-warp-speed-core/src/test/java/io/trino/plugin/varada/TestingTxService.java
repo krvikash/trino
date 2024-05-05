@@ -13,8 +13,8 @@
  */
 package io.trino.plugin.varada;
 
-import io.trino.plugin.varada.configuration.MetricsConfiguration;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.MetricsConfig;
+import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.juffer.StorageEngineTxService;
 import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.metrics.MetricsRegistry;
@@ -26,15 +26,15 @@ public class TestingTxService
 
     public static StorageEngineTxService create()
     {
-        return new StorageEngineTxService(new NativeConfiguration(), createMetricsManager());
+        return new StorageEngineTxService(new NativeConfig(), createMetricsManager());
     }
 
     @SuppressWarnings("UnstableApiUsage")
     public static MetricsManager createMetricsManager()
     {
-        MetricsConfiguration metricsConfiguration = new MetricsConfiguration();
-        metricsConfiguration.setEnabled(false);
-        MetricsRegistry metricsRegistry = new MetricsRegistry(new CatalogNameProvider("catalog-name"), metricsConfiguration);
+        MetricsConfig metricsConfig = new MetricsConfig();
+        metricsConfig.setEnabled(false);
+        MetricsRegistry metricsRegistry = new MetricsRegistry(new CatalogNameProvider("catalog-name"), metricsConfig);
         return new MetricsManager(metricsRegistry);
     }
 }

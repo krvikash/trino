@@ -17,7 +17,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Provider;
 import io.airlift.log.Logger;
 import io.trino.plugin.varada.VaradaErrorCode;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.model.RowGroupData;
 import io.trino.plugin.varada.dispatcher.query.QueryContext;
 import io.trino.plugin.varada.dispatcher.query.classifier.QueryClassifier;
@@ -93,7 +93,7 @@ public class DispatcherPageSource
             VaradaStatsDispatcherPageSource stats,
             RowGroupCloseHandler closeHandler,
             ReadErrorHandler readErrorHandler,
-            GlobalConfiguration globalConfiguration)
+            GlobalConfig globalConfig)
     {
         this.proxiedConnectorPageSourceProvider = proxiedConnectorPageSourceProvider;
         this.queryClassifier = queryClassifier;
@@ -116,9 +116,9 @@ public class DispatcherPageSource
         this.startTime = System.currentTimeMillis();
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
-                globalConfiguration.getShapingLoggerThreshold(),
-                globalConfiguration.getShapingLoggerDuration(),
-                globalConfiguration.getShapingLoggerNumberOfSamples());
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
         this.varadaWithoutPrefilledAndProxiedCollectTypes = Stream.concat(
                         queryContext.getRemainingCollectColumns().stream().map(dispatcherProxiedConnectorTransformer::getColumnType),
                         queryContext.getNativeQueryCollectDataList().stream().map(QueryColumn::getType))

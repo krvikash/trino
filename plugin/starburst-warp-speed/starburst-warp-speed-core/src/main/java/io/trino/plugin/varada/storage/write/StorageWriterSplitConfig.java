@@ -15,7 +15,7 @@ package io.trino.plugin.varada.storage.write;
 
 import java.lang.foreign.MemorySegment;
 
-public record StorageWriterSplitConfiguration(String nodeIdentifier,
+public record StorageWriterSplitConfig(String nodeIdentifier,
                                               String rowGroupFilePath,
                                               MemorySegment buff,
                                               MemorySegment writeBuff,

@@ -15,8 +15,8 @@ package io.trino.plugin.varada.dispatcher.warmup.warmers;
 
 import com.google.common.collect.SetMultimap;
 import io.trino.plugin.varada.TestingTxService;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
+import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.connector.TestingConnectorColumnHandle;
 import io.trino.plugin.varada.dictionary.DictionaryCacheService;
 import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
@@ -63,7 +63,7 @@ import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.Type;
-import io.varada.cloudvendors.configuration.CloudVendorConfiguration;
+import io.varada.cloudvendors.config.CloudVendorConfig;
 import io.varada.tools.util.Pair;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -100,8 +100,8 @@ public class WarmingManagerTest
     private SchemaTableName schemaTableName;
     private RowGroupKey rowGroupKey;
     private List<RecordData> recordDataList;
-    private GlobalConfiguration globalConfiguration;
-    private CloudVendorConfiguration cloudVendorConfiguration;
+    private GlobalConfig globalConfig;
+    private CloudVendorConfig cloudVendorConfig;
     private VaradaStatsWarmingService varadaStatsWarmingService;
     private StorageEngine storageEngine;
     private ConnectorSession connectorSession;
@@ -120,11 +120,11 @@ public class WarmingManagerTest
     {
         schemaTableName = new SchemaTableName("schema", "table");
         rowGroupKey = new RowGroupKey(schemaTableName.getSchemaName(), schemaTableName.getTableName(), "file_path", 0, 1L, 0, "", "");
-        globalConfiguration = new GlobalConfiguration();
-        globalConfiguration.setMaxWarmRetries(5);
-        globalConfiguration.setLocalStorePath(
+        globalConfig = new GlobalConfig();
+        globalConfig.setMaxWarmRetries(5);
+        globalConfig.setLocalStorePath(
                 Files.createTempDirectory(this.getClass().getName()).toFile().getAbsolutePath());
-        cloudVendorConfiguration = new CloudVendorConfiguration();
+        cloudVendorConfig = new CloudVendorConfig();
         varadaStatsWarmingService = VaradaStatsWarmingService.create(WARMING_SERVICE_STAT_GROUP);
         storageEngine = new StubsStorageEngine();
         connectorSession = mock(ConnectorSession.class);
@@ -146,7 +146,7 @@ public class WarmingManagerTest
     {
         RowGroupDataService rowGroupDataService = spy(new RowGroupDataService(mock(RowGroupDataDao.class),
                 storageEngine,
-                globalConfiguration,
+                globalConfig,
                 metricsManager,
                 nodeManager,
                 mock(ConnectorSync.class)));
@@ -174,14 +174,14 @@ public class WarmingManagerTest
 
     private WarmingManager createWarmingManager()
     {
-        VaradaProxiedWarmer varadaProxiedWarmer = createVaradaProxiedWarmer(metricsManager, globalConfiguration, new NativeConfiguration());
+        VaradaProxiedWarmer varadaProxiedWarmer = createVaradaProxiedWarmer(metricsManager, globalConfig, new NativeConfig());
         EmptyRowGroupWarmer emptyRowGroupWarmer = new EmptyRowGroupWarmer(rowGroupDataService);
         WeGroupWarmer weGroupWarmer = mock(WeGroupWarmer.class);
         return new WarmingManager(
                 varadaProxiedWarmer,
                 emptyRowGroupWarmer,
-                globalConfiguration,
-                cloudVendorConfiguration,
+                globalConfig,
+                cloudVendorConfig,
                 rowGroupDataService,
                 metricsManager,
                 dictionaryCacheService,
@@ -191,22 +191,22 @@ public class WarmingManagerTest
 
     private VaradaProxiedWarmer createVaradaProxiedWarmer(
             MetricsManager metricsManager,
-            GlobalConfiguration globalConfiguration,
-            NativeConfiguration nativeConfiguration)
+            GlobalConfig globalConfig,
+            NativeConfig nativeConfig)
     {
-        StorageEngineTxService storageEngineTxService = new StorageEngineTxService(nativeConfiguration, metricsManager);
+        StorageEngineTxService storageEngineTxService = new StorageEngineTxService(nativeConfig, metricsManager);
         StorageWriterService storageWriterService = mock(StorageWriterService.class);
         VaradaPageSinkFactory varadaPageSinkFactory = new VaradaPageSinkFactory(
                 mock(FailureGeneratorInvocationHandler.class),
                 storageWriterService,
-                new GlobalConfiguration());
+                new GlobalConfig());
         ConnectorSync connectorSync = mock(ConnectorSync.class);
-        StorageWarmerService storageWarmerService = new StorageWarmerService(rowGroupDataService, storageEngine, globalConfiguration, connectorSync, mock(WarmupDemoterService.class), storageEngineTxService, mock(FlowsSequencer.class), TestingTxService.createMetricsManager());
+        StorageWarmerService storageWarmerService = new StorageWarmerService(rowGroupDataService, storageEngine, globalConfig, connectorSync, mock(WarmupDemoterService.class), storageEngineTxService, mock(FlowsSequencer.class), TestingTxService.createMetricsManager());
         return new VaradaProxiedWarmer(varadaPageSinkFactory,
                 dispatcherProxiedConnectorTransformer,
                 nodeManager,
                 connectorSync,
-                globalConfiguration,
+                globalConfig,
                 rowGroupDataService,
                 storageWarmerService,
                 storageWriterService);
@@ -219,7 +219,7 @@ public class WarmingManagerTest
         WarmData dataToWarm = arrange();
 
         warmFirstTimeAndFail(dataToWarm);
-        for (int i = 0; i < globalConfiguration.getMaxWarmRetries() - 1; i++) {
+        for (int i = 0; i < globalConfig.getMaxWarmRetries() - 1; i++) {
             retryAndFail(dataToWarm);
         }
 
@@ -233,7 +233,7 @@ public class WarmingManagerTest
         WarmData dataToWarm = arrange();
 
         warmFirstTimeAndFail(dataToWarm);
-        for (int i = 0; i < globalConfiguration.getMaxWarmRetries(); i++) {
+        for (int i = 0; i < globalConfig.getMaxWarmRetries(); i++) {
             retryAndFail(dataToWarm);
         }
     }
@@ -249,7 +249,7 @@ public class WarmingManagerTest
         WarmData dataToWarm = arrange(columnsMetadata, warmUpTypeList);
 
         warmFirstTimeAndFail(dataToWarm);
-        for (int i = 0; i < globalConfiguration.getMaxWarmRetries() - 1; i++) {
+        for (int i = 0; i < globalConfig.getMaxWarmRetries() - 1; i++) {
             retryAndFail(dataToWarm);
         }
 
@@ -407,7 +407,7 @@ public class WarmingManagerTest
                 int oldRetriesCount = oldWarmUpElementState.temporaryFailureCount();
                 int newRetriesCount = newWarmUpElement.getState().temporaryFailureCount();
                 if (oldRetriesCount < newRetriesCount) {
-                    if (oldRetriesCount == globalConfiguration.getMaxWarmRetries()) {
+                    if (oldRetriesCount == globalConfig.getMaxWarmRetries()) {
                         assertThat(newWarmUpElement.getState().state()).isEqualTo(WarmUpElementState.State.FAILED_PERMANENTLY);
                     }
                     else {

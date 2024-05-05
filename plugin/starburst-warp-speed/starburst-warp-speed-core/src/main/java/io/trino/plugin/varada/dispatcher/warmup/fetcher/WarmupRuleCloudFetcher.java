@@ -61,7 +61,7 @@ public class WarmupRuleCloudFetcher
             1,
             ShapingLogger.MODE.FULL);
 
-    private final WarmupRuleCloudFetcherConfiguration warmupRuleCloudFetcherConfiguration;
+    private final WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig;
     private final CloudVendorService cloudVendorService;
     private final WarmupRuleService warmupRuleService;
     private final EventBus eventBus;
@@ -76,7 +76,7 @@ public class WarmupRuleCloudFetcher
     @SuppressWarnings("unused")
     @Inject
     public WarmupRuleCloudFetcher(
-            @ForWarmupRuleCloudFetcher WarmupRuleCloudFetcherConfiguration warmupRuleCloudFetcherConfiguration,
+            @ForWarmupRuleCloudFetcher WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig,
             @ForWarmupRuleCloudFetcher CloudVendorService cloudVendorService,
             WarmupRuleService warmupRuleService,
             EventBus eventBus,
@@ -84,7 +84,7 @@ public class WarmupRuleCloudFetcher
             MetricsManager metricsManager,
             ObjectMapperProvider objectMapperProvider)
     {
-        this(warmupRuleCloudFetcherConfiguration,
+        this(warmupRuleCloudFetcherConfig,
                 cloudVendorService,
                 warmupRuleService,
                 eventBus,
@@ -96,7 +96,7 @@ public class WarmupRuleCloudFetcher
 
     @VisibleForTesting
     WarmupRuleCloudFetcher(
-            WarmupRuleCloudFetcherConfiguration warmupRuleCloudFetcherConfiguration,
+            WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig,
             CloudVendorService cloudVendorService,
             WarmupRuleService warmupRuleService,
             EventBus eventBus,
@@ -105,7 +105,7 @@ public class WarmupRuleCloudFetcher
             ObjectMapperProvider objectMapperProvider,
             Timer timer)
     {
-        this.warmupRuleCloudFetcherConfiguration = requireNonNull(warmupRuleCloudFetcherConfiguration);
+        this.warmupRuleCloudFetcherConfig = requireNonNull(warmupRuleCloudFetcherConfig);
         this.cloudVendorService = requireNonNull(cloudVendorService);
         this.warmupRuleService = requireNonNull(warmupRuleService);
         this.eventBus = requireNonNull(eventBus);
@@ -124,8 +124,8 @@ public class WarmupRuleCloudFetcher
                         fetch();
                     }
                 },
-                warmupRuleCloudFetcherConfiguration.getFetchDelayDuration().toMillis(),
-                warmupRuleCloudFetcherConfiguration.getFetchDuration().toMillis());
+                warmupRuleCloudFetcherConfig.getFetchDelayDuration().toMillis(),
+                warmupRuleCloudFetcherConfig.getFetchDuration().toMillis());
 
         this.varadaStatsWarmupRuleFetcher = requireNonNull(metricsManager).registerMetric(VaradaStatsWarmupRuleFetcher.create(WARM_FETCHER_STAT_GROUP));
     }
@@ -157,7 +157,7 @@ public class WarmupRuleCloudFetcher
     void fetch()
     {
         String path = CloudVendorService.concatenatePath(
-                warmupRuleCloudFetcherConfiguration.getStorePath(),
+                warmupRuleCloudFetcherConfig.getStorePath(),
                 catalogNameProvider.get());
 
         if (readLock.tryLock()) {
@@ -166,8 +166,8 @@ public class WarmupRuleCloudFetcher
                     return;
                 }
                 StorageObjectMetadata storageObjectMetadata = Failsafe.with(RetryPolicy.builder()
-                                .withMaxRetries(warmupRuleCloudFetcherConfiguration.getDownloadRetries())
-                                .withDelay(warmupRuleCloudFetcherConfiguration.getDownloadDuration())
+                                .withMaxRetries(warmupRuleCloudFetcherConfig.getDownloadRetries())
+                                .withDelay(warmupRuleCloudFetcherConfig.getDownloadDuration())
                                 .build())
                         .get(() -> cloudVendorService.getObjectMetadata(path));
 
@@ -179,8 +179,8 @@ public class WarmupRuleCloudFetcher
 
                 if (currentStorageObjectMetadata.getContentLength().isPresent()) {
                     Optional<String> optionalJson = Failsafe.with(RetryPolicy.builder()
-                                    .withMaxRetries(warmupRuleCloudFetcherConfiguration.getDownloadRetries())
-                                    .withDelay(warmupRuleCloudFetcherConfiguration.getDownloadDuration())
+                                    .withMaxRetries(warmupRuleCloudFetcherConfig.getDownloadRetries())
+                                    .withDelay(warmupRuleCloudFetcherConfig.getDownloadDuration())
                                     .build())
                             .get(() -> cloudVendorService.downloadCompressedFromCloud(path, true));
                     logger.debug("fetching from %s -> %s", path, optionalJson.orElse(""));

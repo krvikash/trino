@@ -19,7 +19,7 @@ import com.google.common.collect.TreeMultimap;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.model.VaradaColumn;
 import io.trino.plugin.varada.dispatcher.model.WarmUpElement;
 import io.trino.plugin.varada.dispatcher.query.PredicateContext;
@@ -56,13 +56,13 @@ public class RangeMatcher
     private static final Logger logger = Logger.get(RangeMatcher.class);
     private final ShapingLogger shapingLogger;
 
-    public RangeMatcher(GlobalConfiguration globalConfiguration)
+    public RangeMatcher(GlobalConfig globalConfig)
     {
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
-                globalConfiguration.getShapingLoggerThreshold(),
-                globalConfiguration.getShapingLoggerDuration(),
-                globalConfiguration.getShapingLoggerNumberOfSamples());
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
     }
 
     @Override

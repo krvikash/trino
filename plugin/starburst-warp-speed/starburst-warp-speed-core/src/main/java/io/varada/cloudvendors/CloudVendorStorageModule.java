@@ -21,7 +21,7 @@ import io.airlift.log.Logger;
 import io.trino.spi.connector.ConnectorContext;
 import io.varada.cloudstorage.CloudStorage;
 import io.varada.cloudstorage.CloudStorageModule;
-import io.varada.cloudvendors.configuration.CloudVendorConfiguration;
+import io.varada.cloudvendors.config.CloudVendorConfig;
 
 import java.lang.annotation.Annotation;
 import java.util.Map;
@@ -42,9 +42,9 @@ public class CloudVendorStorageModule
             Map<String, String> config,
             String catalogName,
             ConnectorContext context,
-            Class<? extends CloudVendorConfiguration> configurationClazz)
+            Class<? extends CloudVendorConfig> configClazz)
     {
-        super(prefix, annotation, config, configurationClazz);
+        super(prefix, annotation, config, configClazz);
         this.catalogName = requireNonNull(catalogName, "catalogName is null");
         this.context = requireNonNull(context, "context is null");
     }
@@ -54,8 +54,8 @@ public class CloudVendorStorageModule
     {
         super.configure();
 
-        ConfigurationFactory configurationFactory = new ConfigurationFactoryWithPrefix(config, prefix, logger::warn);
-        Injector injector = Guice.createInjector(new CloudStorageModule(catalogName, context, configurationFactory, annotation));
+        ConfigurationFactory configFactory = new ConfigFactoryWithPrefix(config, prefix, logger::warn);
+        Injector injector = Guice.createInjector(new CloudStorageModule(catalogName, context, configFactory, annotation));
 
         CloudStorage cloudStorage = injector.getInstance(Key.get(CloudStorage.class, annotation));
         bind(CloudVendorService.class).annotatedWith(annotation).toInstance(new CloudVendorStorageService(cloudStorage));

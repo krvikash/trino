@@ -16,7 +16,7 @@ package io.trino.plugin.varada.dispatcher;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import io.trino.plugin.varada.VaradaErrorCode;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.connector.TestingConnectorColumnHandle;
 import io.trino.plugin.varada.dispatcher.model.RegularColumn;
 import io.trino.plugin.varada.dispatcher.model.RowGroupData;
@@ -766,7 +766,7 @@ public class DispatcherPageSourceTest
                 stats,
                 closeHandler,
                 readErrorHandler,
-                new GlobalConfiguration());
+                new GlobalConfig());
     }
 
     private Page buildPageLong(long[] values)

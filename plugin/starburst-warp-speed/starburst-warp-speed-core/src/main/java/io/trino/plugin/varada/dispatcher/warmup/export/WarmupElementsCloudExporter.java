@@ -16,7 +16,7 @@ package io.trino.plugin.varada.dispatcher.warmup.export;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.trino.plugin.varada.annotations.ForWarp;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.model.RowGroupData;
 import io.trino.plugin.varada.dispatcher.model.RowGroupDataValidation;
 import io.trino.plugin.varada.dispatcher.model.RowGroupKey;
@@ -39,20 +39,20 @@ public class WarmupElementsCloudExporter
 
     private static final int MB = 1048576;
 
-    private final GlobalConfiguration globalConfiguration;
+    private final GlobalConfig globalConfig;
     private final StorageEngineConstants storageEngineConstants;
     private final RowGroupDataService rowGroupDataService;
     private final CloudVendorService cloudVendorService;
     private final VaradaStatsWarmupExportService statsWarmupExportService;
 
     @Inject
-    public WarmupElementsCloudExporter(GlobalConfiguration globalConfiguration,
+    public WarmupElementsCloudExporter(GlobalConfig globalConfig,
             StorageEngineConstants storageEngineConstants,
             RowGroupDataService rowGroupDataService,
             @ForWarp CloudVendorService cloudVendorService,
             MetricsManager metricsManager)
     {
-        this.globalConfiguration = requireNonNull(globalConfiguration);
+        this.globalConfig = requireNonNull(globalConfig);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.cloudVendorService = cloudVendorService;
@@ -70,7 +70,7 @@ public class WarmupElementsCloudExporter
         RowGroupKey rowGroupKey = rowGroupData.getRowGroupKey();
         String cloudPath = WarmUtils.getCloudPath(rowGroupKey, cloudImportExportPath);
         RowGroupDataValidation dataValidation = getRowGroupDataValidation(cloudPath);
-        String localFileName = rowGroupKey.stringFileNameRepresentation(globalConfiguration.getLocalStorePath());
+        String localFileName = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
         File localFile = new File(localFileName);
         boolean isUploadDone = false;
 
@@ -99,7 +99,7 @@ public class WarmupElementsCloudExporter
 
                 logger.debug("exportFile append rowGroupKey %s cloudPath '%s' localFileName '%s' contentLength %d nextOffset %d nextExportOffset %d isSparseFile %b",
                         rowGroupKey, cloudPath, localFileName, contentLength, rowGroupData.getNextOffset(), rowGroupData.getNextExportOffset(), rowGroupData.isSparseFile());
-                if ((contentLength < 5 * MB) || !globalConfiguration.getEnableExportAppendOnCloud()) {
+                if ((contentLength < 5 * MB) || !globalConfig.getEnableExportAppendOnCloud()) {
                     if (rowGroupData.isSparseFile()) {
                         // local file is sparse, so append locally
                         isUploadDone = cloudVendorService.appendOnLocal(cloudPath, localFile, startOffset,

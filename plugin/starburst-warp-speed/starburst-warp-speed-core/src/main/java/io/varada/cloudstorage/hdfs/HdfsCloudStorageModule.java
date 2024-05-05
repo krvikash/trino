@@ -37,19 +37,19 @@ public class HdfsCloudStorageModule
 {
     private final String catalogName;
     private final ConnectorContext context;
-    private final ConfigurationFactory configurationFactory;
+    private final ConfigurationFactory configFactory;
     private final Class<? extends Annotation> annotation;
     private final boolean isHadoopEnabled;
 
     public HdfsCloudStorageModule(String catalogName,
                                   ConnectorContext context,
-                                  ConfigurationFactory configurationFactory,
+                                  ConfigurationFactory configFactory,
                                   Class<? extends Annotation> annotation,
                                   boolean isHadoopEnabled)
     {
         this.catalogName = requireNonNull(catalogName, "catalogName is null");
         this.context = requireNonNull(context, "context is null");
-        this.configurationFactory = requireNonNull(configurationFactory, "configurationFactory is null");
+        this.configFactory = requireNonNull(configFactory, "configFactory is null");
         this.annotation = requireNonNull(annotation, "annotation is null");
         this.isHadoopEnabled = isHadoopEnabled;
     }
@@ -69,7 +69,7 @@ public class HdfsCloudStorageModule
                     @Override
                     public void configure(Binder binder)
                     {
-                        binder.bind(ConfigurationFactory.class).toInstance(configurationFactory);
+                        binder.bind(ConfigurationFactory.class).toInstance(configFactory);
                         binder.bind(CatalogHandle.class).toInstance(context.getCatalogHandle());
                         OpenTelemetry openTelemetry = context.getOpenTelemetry();
                         binder.bind(OpenTelemetry.class).toInstance(openTelemetry);
@@ -78,7 +78,7 @@ public class HdfsCloudStorageModule
                         binder.install(new LifeCycleModule());
 
                         FileSystemModule fileSystemModule = new FileSystemModule(catalogName, context.getNodeManager(), openTelemetry);
-                        fileSystemModule.setConfigurationFactory(configurationFactory);
+                        fileSystemModule.setConfigurationFactory(configFactory);
                         binder.install(fileSystemModule);
                     }
                 });

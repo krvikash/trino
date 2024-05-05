@@ -20,8 +20,8 @@ import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.trino.plugin.varada.VaradaErrorCode;
 import io.trino.plugin.varada.annotations.ForWarp;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
-import io.trino.plugin.varada.configuration.WarmupDemoterConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
+import io.trino.plugin.varada.config.WarmupDemoterConfig;
 import io.trino.plugin.varada.di.FakeConnectorSessionProvider;
 import io.trino.plugin.varada.di.VaradaInitializedServiceRegistry;
 import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
@@ -80,34 +80,34 @@ public class WarmupRuleService
 
     private final Connector proxiedConnector;
     private final StorageEngineConstants storageEngineConstants;
-    private final WarmupDemoterConfiguration warmupDemoterConfiguration;
+    private final WarmupDemoterConfig warmupDemoterConfig;
     private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
     private final FakeConnectorSessionProvider fakeConnectorSessionProvider;
     private final WarmupRuleDao warmupRuleDao;
     private final EventBus eventBus;
 
     protected final ReadWriteLock readWriteLock;
-    private final GlobalConfiguration globalConfiguration;
+    private final GlobalConfig globalConfig;
 
     @Inject
     public WarmupRuleService(@ForWarp Connector proxiedConnector,
                              StorageEngineConstants storageEngineConstants,
-                             WarmupDemoterConfiguration warmupDemoterConfiguration,
+                             WarmupDemoterConfig warmupDemoterConfig,
                              DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
                              FakeConnectorSessionProvider fakeConnectorSessionProvider,
                              WarmupRuleDao warmupRuleDao,
                              EventBus eventBus,
                              VaradaInitializedServiceRegistry varadaInitializedServiceRegistry,
-                             GlobalConfiguration globalConfiguration)
+                             GlobalConfig globalConfig)
     {
         this.proxiedConnector = requireNonNull(proxiedConnector);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
-        this.warmupDemoterConfiguration = requireNonNull(warmupDemoterConfiguration);
+        this.warmupDemoterConfig = requireNonNull(warmupDemoterConfig);
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
         this.fakeConnectorSessionProvider = requireNonNull(fakeConnectorSessionProvider);
         this.warmupRuleDao = requireNonNull(warmupRuleDao);
         this.eventBus = requireNonNull(eventBus);
-        this.globalConfiguration = requireNonNull(globalConfiguration);
+        this.globalConfig = requireNonNull(globalConfig);
         varadaInitializedServiceRegistry.addService(this);
 
         this.readWriteLock = new ReentrantReadWriteLock();
@@ -259,7 +259,7 @@ public class WarmupRuleService
         if (!(warmupRule.getVaradaColumn() instanceof WildcardColumn)) {
             if (optionalType.isPresent()) {
                 Type type = optionalType.get();
-                if (warmupRule.getPriority() >= warmupDemoterConfiguration.getDefaultRulePriority()) {
+                if (warmupRule.getPriority() >= warmupDemoterConfig.getDefaultRulePriority()) {
                     validateTypeIsSupported(errors, warmupRule, type);
                     validateMaxCharLength(errors, warmupRule, type);
                 }
@@ -341,7 +341,7 @@ public class WarmupRuleService
 
     private void validateDataOnly(Set<String> errors, WarmupRule warmupRule)
     {
-        if (globalConfiguration.isDataOnlyWarming() && !warmupRule.getWarmUpType().equals(WarmUpType.WARM_UP_TYPE_DATA)) {
+        if (globalConfig.isDataOnlyWarming() && !warmupRule.getWarmUpType().equals(WarmUpType.WARM_UP_TYPE_DATA)) {
             errors.add(String.format("%d: creation of %s warmUpType is not supported with Local Data Storage connector",
                     VaradaErrorCode.VARADA_INDEX_WARMUP_RULE_IS_NOT_ALLOWED.getCode(),
                     warmupRule.getWarmUpType()));
@@ -363,7 +363,7 @@ public class WarmupRuleService
         catch (Exception e) {
             logger.error("failed to delete new rules ids=%s.", ids);
             throw new TrinoException(VaradaErrorCode.VARADA_RULE_CONFIGURATION_ERROR,
-                    "failed to save new rules configuration",
+                    "failed to save new rules config",
                     e);
         }
         finally {

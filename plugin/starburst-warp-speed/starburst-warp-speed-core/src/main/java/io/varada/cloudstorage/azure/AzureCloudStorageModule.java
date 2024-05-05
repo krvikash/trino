@@ -43,22 +43,22 @@ public class AzureCloudStorageModule
         implements Module
 {
     private final ConnectorContext context;
-    private final ConfigurationFactory configurationFactory;
+    private final ConfigurationFactory configFactory;
     private final Class<? extends Annotation> annotation;
 
     public AzureCloudStorageModule(ConnectorContext context,
-            ConfigurationFactory configurationFactory,
+            ConfigurationFactory configFactory,
             Class<? extends Annotation> annotation)
     {
         this.context = requireNonNull(context, "context is null");
-        this.configurationFactory = requireNonNull(configurationFactory, "configurationFactory is null");
+        this.configFactory = requireNonNull(configFactory, "configFactory is null");
         this.annotation = requireNonNull(annotation, "annotation is null");
     }
 
     @Override
     public void configure(Binder binder)
     {
-        binder.bind(ConfigurationFactory.class).toInstance(configurationFactory);
+        binder.bind(ConfigurationFactory.class).toInstance(configFactory);
 
         configBinder(binder).bindConfig(AzureFileSystemConfig.class);
 
@@ -66,7 +66,7 @@ public class AzureCloudStorageModule
         binder.bind(CatalogHandle.class).toInstance(context.getCatalogHandle());
         binder.bind(AzureFileSystemFactory.class);
 
-        AzureFileSystemConfig config = configurationFactory.build(AzureFileSystemConfig.class);
+        AzureFileSystemConfig config = configFactory.build(AzureFileSystemConfig.class);
         switch (config.getAuthType()) {
             case ACCESS_KEY -> {
                 configBinder(binder).bindConfig(AzureAuthAccessKeyConfig.class);
@@ -91,10 +91,10 @@ public class AzureCloudStorageModule
         AzureFileSystemFactory azureFileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         TracingOptions tracingOptions = new OpenTelemetryTracingOptions().setOpenTelemetry(openTelemetry);
 
-        ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
+        ConfigurationBuilder configBuilder = new ConfigurationBuilder();
 
         HttpClient httpClient = HttpClient.createDefault((HttpClientOptions) new HttpClientOptions()
-                .setConfiguration(configurationBuilder.build())
+                .setConfiguration(configBuilder.build())
                 .setTracingOptions(tracingOptions));
 
         return new AzureCloudStorage(azureFileSystemFactory, httpClient, tracingOptions, azureAuth);

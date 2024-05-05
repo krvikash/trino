@@ -18,8 +18,8 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.AtomicDouble;
 import io.trino.plugin.varada.TestingTxService;
 import io.trino.plugin.varada.VaradaErrorCode;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
-import io.trino.plugin.varada.configuration.WarmupDemoterConfiguration;
+import io.trino.plugin.varada.config.NativeConfig;
+import io.trino.plugin.varada.config.WarmupDemoterConfig;
 import io.trino.plugin.varada.dispatcher.model.RegularColumn;
 import io.trino.plugin.varada.dispatcher.model.RowGroupData;
 import io.trino.plugin.varada.dispatcher.model.RowGroupKey;
@@ -107,7 +107,7 @@ public class WarmupDemoterServiceTest
     private RowGroupDataService rowGroupDataService;
     private WarmupDemoterService warmupDemoterService;
     private WorkerWarmupRuleService workerWarmupRuleService;
-    private WarmupDemoterConfiguration warmupDemoterConfiguration;
+    private WarmupDemoterConfig warmupDemoterConfig;
     private ConnectorSync connectorSync;
     private CatalogNameProvider catalogNameProvider;
     private List<TupleRank> failedObjects;
@@ -152,16 +152,16 @@ public class WarmupDemoterServiceTest
         FlowsSequencer flowsSequencer = spy(new FlowsSequencer(metricsManager));
         connectorSync = mock(ConnectorSync.class);
         when(connectorSync.tryAcquireAllocation()).thenReturn(successResult);
-        warmupDemoterConfiguration = new WarmupDemoterConfiguration();
-        warmupDemoterConfiguration.setEnableDemote(true);
+        warmupDemoterConfig = new WarmupDemoterConfig();
+        warmupDemoterConfig.setEnableDemote(true);
         catalogNameProvider = mock(CatalogNameProvider.class);
         when(catalogNameProvider.get()).thenReturn("catalogTest");
         warmupDemoterService = spy(new WarmupDemoterService(
                 workerCapacityManager,
                 rowGroupDataService,
                 workerWarmupRuleService,
-                warmupDemoterConfiguration,
-                new NativeConfiguration(),
+                warmupDemoterConfig,
+                new NativeConfig(),
                 metricsManager,
                 flowsSequencer,
                 connectorSync,
@@ -207,7 +207,7 @@ public class WarmupDemoterServiceTest
         when(rowGroupDataService.get(eq(rowGroupDataList.get(0).getRowGroupKey()))).thenReturn(rowGroupDataList.get(0));
         when(workerWarmupRuleService.fetchRulesFromCoordinator()).thenReturn(warmupRules);
         when(connectorSync.tryAcquireAllocation()).thenReturn(failResult, failResult, failResult, successResult);
-        setConfiguration(85, 80, 100, 100, List.of());
+        setConfig(85, 80, 100, 100, List.of());
         warmupDemoterService.connectorSyncStartDemote(warmupDemoterService.getCurrentRunSequence());
         warmupDemoterService.connectorSyncStartDemoteCycle(10, true);
         warmupDemoterService.connectorSyncDemoteEnd(warmupDemoterService.getCurrentRunSequence(), warmupDemoterService.getDemoterHighestPriority().get());
@@ -228,7 +228,7 @@ public class WarmupDemoterServiceTest
             warmUpElements.add(buildWarmupElement(index, Instant.now().toEpochMilli()));
         });
         when(workerCapacityManager.getFractionCurrentUsageFromTotal()).thenReturn(0.98);
-        warmupDemoterConfiguration.setMaxRetriesAcquireThread(20);
+        warmupDemoterConfig.setMaxRetriesAcquireThread(20);
 
         RowGroupData rowGroupData = buildRowGroupData(defaultSchemaName,
                 defaultTableName,
@@ -239,7 +239,7 @@ public class WarmupDemoterServiceTest
         when(workerWarmupRuleService.fetchRulesFromCoordinator()).thenReturn(warmupRules);
 
         when(connectorSync.tryAcquireAllocation()).thenReturn(failResult);
-        setConfiguration(85, 80, 100, 100, List.of());
+        setConfig(85, 80, 100, 100, List.of());
         warmupDemoterService.connectorSyncStartDemote(warmupDemoterService.getCurrentRunSequence());
         warmupDemoterService.connectorSyncStartDemoteCycle(10, true);
         warmupDemoterService.connectorSyncDemoteEnd(warmupDemoterService.getCurrentRunSequence(), warmupDemoterService.getDemoterHighestPriority().get());
@@ -271,7 +271,7 @@ public class WarmupDemoterServiceTest
         when(workerCapacityManager.getFractionCurrentUsageFromTotal()).thenReturn(10d);
         when(rowGroupDataService.getAll()).thenReturn(new ArrayList<>(rowGroupDataMapTest.values()));
         when(rowGroupDataService.get(any())).thenAnswer(i -> rowGroupDataMapTest.get(i.getArguments()[0]));
-        setConfiguration(0, 0, 1, 1, List.of());
+        setConfig(0, 0, 1, 1, List.of());
         doThrow(new TrinoException(VaradaErrorCode.VARADA_NATIVE_ERROR, "test"))
                 .doNothing()
                 .when(rowGroupDataService).removeElements(eq(rowGroupData1), any(Collection.class));
@@ -301,7 +301,7 @@ public class WarmupDemoterServiceTest
     {
         VaradaStatsWarmupDemoter varadaStatsWarmupDemoter = (VaradaStatsWarmupDemoter) metricsManager.get(WARMUP_DEMOTER_STAT_GROUP);
         varadaStatsWarmupDemoter.setcurrentUsage(1000);
-        setConfiguration(defaultMaxThreshold, defaultCleanThreshold, 0, 1, List.of());
+        setConfig(defaultMaxThreshold, defaultCleanThreshold, 0, 1, List.of());
         assertThat(varadaStatsWarmupDemoter.getnumber_of_runs()).isEqualTo(0);
         assertThat(varadaStatsWarmupDemoter.getcurrentUsage()).isEqualTo(1000);
         assertThat(varadaStatsWarmupDemoter.getnumber_of_runs_fail()).isEqualTo(0);
@@ -330,7 +330,7 @@ public class WarmupDemoterServiceTest
         when(workerWarmupRuleService.fetchRulesFromCoordinator()).thenReturn(warmupRules);
         when(workerCapacityManager.getFractionCurrentUsageFromTotal()).thenReturn(0.98);
 
-        setConfiguration(defaultMaxThreshold, defaultCleanThreshold, defaultBatchSize, defaultMaxElementsToDemote, List.of());
+        setConfig(defaultMaxThreshold, defaultCleanThreshold, defaultBatchSize, defaultMaxElementsToDemote, List.of());
         warmupDemoterService.tryDemoteStart();
         warmupDemoterService.connectorSyncStartDemote(warmupDemoterService.getCurrentRunSequence());
         assertThat(warmupDemoterService.getCurrentRunStats().getdead_objects_deleted()).isEqualTo(elements.size());
@@ -367,7 +367,7 @@ public class WarmupDemoterServiceTest
         when(workerCapacityManager.getFractionCurrentUsageFromTotal()).thenReturn(10d);
         when(rowGroupDataService.getAll()).thenReturn(new ArrayList<>(rowGroupDataMap.values()));
         when(rowGroupDataService.get(any())).thenAnswer(i -> rowGroupDataMap.get(i.getArguments()[0]));
-        setConfiguration(0, 0, 1, 100, List.of());
+        setConfig(0, 0, 1, 100, List.of());
         warmupDemoterService.connectorSyncStartDemote(warmupDemoterService.getCurrentRunSequence());
         warmupDemoterService.connectorSyncStartDemoteCycle(10, true);
         assertThat(warmupDemoterService.getDemoterHighestPriority().get()).isEqualTo(0);
@@ -412,7 +412,7 @@ public class WarmupDemoterServiceTest
         when(rowGroupDataService.get(eq(rowGroupData3.getRowGroupKey()))).thenReturn(rowGroupData3);
         when(workerWarmupRuleService.fetchRulesFromCoordinator()).thenReturn(warmupRules);
 
-        setConfiguration(85, 80, 2, 100, List.of());
+        setConfig(85, 80, 2, 100, List.of());
         warmupDemoterService.connectorSyncStartDemote(warmupDemoterService.getCurrentRunSequence());
         warmupDemoterService.connectorSyncStartDemoteCycle(10, true);
         verify(connectorSync, times(1))
@@ -627,15 +627,15 @@ public class WarmupDemoterServiceTest
             rowGroupDataList.add(buildRowGroupData(schemaName, tableName, elements, Map.of(), index, false));
         });
 
-        warmupDemoterConfiguration.setTasksExecutorQueueSize(5);
-        warmupDemoterConfiguration.setEnableDemote(true);
-        NativeConfiguration nativeConfiguration = new NativeConfiguration();
-        nativeConfiguration.setTaskMaxWorkerThreads(1);
+        warmupDemoterConfig.setTasksExecutorQueueSize(5);
+        warmupDemoterConfig.setEnableDemote(true);
+        NativeConfig nativeConfig = new NativeConfig();
+        nativeConfig.setTaskMaxWorkerThreads(1);
         warmupDemoterService = new WarmupDemoterService(workerCapacityManager,
                 rowGroupDataService,
                 workerWarmupRuleService,
-                warmupDemoterConfiguration,
-                nativeConfiguration,
+                warmupDemoterConfig,
+                nativeConfig,
                 metricsManager,
                 mock(FlowsSequencer.class),
                 connectorSync,
@@ -657,7 +657,7 @@ public class WarmupDemoterServiceTest
     @Test
     public void testDemoteAllEmptyRowGroup()
     {
-        setConfiguration(0, 0, 100, 100, List.of());
+        setConfig(0, 0, 100, 100, List.of());
         List<WarmUpElement> elements = IntStream.range(0, 20)
                 .mapToObj(index -> buildWarmupElement(index, Instant.now().toEpochMilli(), WarmUpType.WARM_UP_TYPE_DATA, false))
                 .collect(Collectors.toList());
@@ -680,7 +680,7 @@ public class WarmupDemoterServiceTest
     public void testDemotePartialEmptyRowGroup()
     {
         ColumnFilter columnFilterNonMatch = createColumnFilter(List.of(WarmUpType.WARM_UP_TYPE_DATA));
-        setConfiguration(0, 0, 100, 100, List.of(columnFilterNonMatch));
+        setConfig(0, 0, 100, 100, List.of(columnFilterNonMatch));
         List<WarmUpElement> elements = IntStream.range(0, 20)
                 .mapToObj(index -> buildWarmupElement(index, Instant.now().toEpochMilli(), WarmUpType.WARM_UP_TYPE_DATA, false))
                 .collect(Collectors.toList());
@@ -759,7 +759,7 @@ public class WarmupDemoterServiceTest
     {
         when(connectorSync.syncDemotePrepare(defaultEpsilon)).thenReturn(-1);
         when(workerCapacityManager.getFractionCurrentUsageFromTotal()).thenReturn(0.98);
-        setConfiguration(defaultMaxThreshold, defaultCleanThreshold, defaultBatchSize, defaultMaxElementsToDemote, List.of());
+        setConfig(defaultMaxThreshold, defaultCleanThreshold, defaultBatchSize, defaultMaxElementsToDemote, List.of());
         warmupDemoterService.initiateDemoteProcess();
         VaradaStatsWarmupDemoter varadaStatsWarmupDemoter = (VaradaStatsWarmupDemoter) metricsManager.get(WARMUP_DEMOTER_STAT_GROUP);
         assertThat(varadaStatsWarmupDemoter.getnot_executed_due_sync_demote_start_rejected()).isEqualTo(1);
@@ -770,7 +770,7 @@ public class WarmupDemoterServiceTest
     {
         when(connectorSync.syncDemotePrepare(defaultEpsilon)).thenReturn(1);
         when(workerCapacityManager.getFractionCurrentUsageFromTotal()).thenReturn(0.98);
-        setConfiguration(defaultMaxThreshold, defaultCleanThreshold, defaultBatchSize, defaultMaxElementsToDemote, List.of());
+        setConfig(defaultMaxThreshold, defaultCleanThreshold, defaultBatchSize, defaultMaxElementsToDemote, List.of());
         int demoteProcess = warmupDemoterService.initiateDemoteProcess();
         warmupDemoterService.initDemoteArguments(demoteProcess);
         warmupDemoterService.initiateDemoteProcess();
@@ -782,7 +782,7 @@ public class WarmupDemoterServiceTest
     public void testInitiateSyncDemoteProcess()
     {
         when(connectorSync.syncDemotePrepare(defaultEpsilon)).thenReturn(1);
-        setConfiguration(defaultMaxThreshold, defaultCleanThreshold, defaultBatchSize, defaultMaxElementsToDemote, List.of());
+        setConfig(defaultMaxThreshold, defaultCleanThreshold, defaultBatchSize, defaultMaxElementsToDemote, List.of());
         warmupDemoterService.initiateDemoteProcess();
     }
 
@@ -833,22 +833,22 @@ public class WarmupDemoterServiceTest
                     return new TupleRank(warmupProperties, null, rowGroupKey);
                 }).collect(Collectors.toList());
 
-        setConfiguration(0, 0, 1, 100, List.of());
+        setConfig(0, 0, 1, 100, List.of());
         warmupDemoterService.connectorSyncStartDemote(warmupDemoterService.getCurrentRunSequence());
         assertThat(warmupDemoterService.delete(tupleRanksToDemote)).isEqualTo(tupleRanksToDemote.size());
     }
 
-    private void setConfiguration(double maxUsageThresholdPercentage,
+    private void setConfig(double maxUsageThresholdPercentage,
             double cleanupUsageThresholdPercentage,
             int batchSize,
             long maxElementsToDemote,
             List<TupleFilter> tupleFilters)
     {
-        warmupDemoterConfiguration.setBatchSize(batchSize);
-        warmupDemoterConfiguration.setMaxUsageThresholdPercentage(maxUsageThresholdPercentage);
-        warmupDemoterConfiguration.setCleanupUsageThresholdPercentage(cleanupUsageThresholdPercentage);
-        warmupDemoterConfiguration.setEpsilon(1);
-        warmupDemoterConfiguration.setMaxElementsToDemoteInIteration(maxElementsToDemote);
+        warmupDemoterConfig.setBatchSize(batchSize);
+        warmupDemoterConfig.setMaxUsageThresholdPercentage(maxUsageThresholdPercentage);
+        warmupDemoterConfig.setCleanupUsageThresholdPercentage(cleanupUsageThresholdPercentage);
+        warmupDemoterConfig.setEpsilon(1);
+        warmupDemoterConfig.setMaxElementsToDemoteInIteration(maxElementsToDemote);
         warmupDemoterService.setTupleFilters(tupleFilters);
         warmupDemoterService.setForceDeleteDeadObjects(false);
     }

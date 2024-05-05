@@ -104,36 +104,36 @@ public class StorageWriterService
         this.metricsTimerTask = requireNonNull(metricsTimerTask);
     }
 
-    public StorageWriterSplitConfiguration startWarming(String nodeIdentifier,
+    public StorageWriterSplitConfig startWarming(String nodeIdentifier,
             String rowGroupFilePath,
             Boolean dictionaryEnabled)
     {
-        return new StorageWriterSplitConfiguration(nodeIdentifier,
+        return new StorageWriterSplitConfig(nodeIdentifier,
                 rowGroupFilePath,
                 bufferAllocator.allocateLoadSegment(),
                 bufferAllocator.allocateLoadWriteBuffer(),
                 dictionaryEnabled);
     }
 
-    public void finishWarming(StorageWriterSplitConfiguration storageWriterSplitConfiguration)
+    public void finishWarming(StorageWriterSplitConfig storageWriterSplitConfig)
     {
-        bufferAllocator.freeLoadWriteBuffer(storageWriterSplitConfiguration.writeBuff());
-        bufferAllocator.freeLoadSegment(storageWriterSplitConfiguration.buff());
+        bufferAllocator.freeLoadWriteBuffer(storageWriterSplitConfig.writeBuff());
+        bufferAllocator.freeLoadSegment(storageWriterSplitConfig.buff());
     }
 
     StorageWriterContext open(int txId,
             long fileCookie,
             int fileOffset,
-            StorageWriterSplitConfiguration storageWriterSplitConfiguration,
+            StorageWriterSplitConfig storageWriterSplitConfig,
             WarmupElementWriteMetadata warmupElementWriteMetadata,
             List<DictionaryWarmInfo> outDictionaryWarmInfos)
     {
         Optional<LuceneIndexer> luceneIndexerOpt = Optional.empty();
         Optional<WriteDictionary> writeDictionaryOpt = Optional.empty();
-        Pair<DictionaryKey, DictionaryState> dictionaryKeyAndState = dictionaryOpen(warmupElementWriteMetadata, storageWriterSplitConfiguration.nodeIdentifier(), storageWriterSplitConfiguration.dictionaryEnabled());
+        Pair<DictionaryKey, DictionaryState> dictionaryKeyAndState = dictionaryOpen(warmupElementWriteMetadata, storageWriterSplitConfig.nodeIdentifier(), storageWriterSplitConfig.dictionaryEnabled());
         DictionaryState dictionaryState = dictionaryKeyAndState.getValue();
         DictionaryKey dictionaryKey = dictionaryKeyAndState.getKey();
-        WarmUpElementAllocationParams allocParams = bufferAllocator.calculateAllocationParams(warmupElementWriteMetadata, storageWriterSplitConfiguration.buff());
+        WarmUpElementAllocationParams allocParams = bufferAllocator.calculateAllocationParams(warmupElementWriteMetadata, storageWriterSplitConfig.buff());
 
         // initialize file
         WarmUpElement warmUpElement = warmupElementWriteMetadata.warmUpElement();
@@ -147,7 +147,7 @@ public class StorageWriterService
                 txId,
                 fileCookie,
                 fileOffset,
-                storageWriterSplitConfiguration.writeBuff().address(),
+                storageWriterSplitConfig.writeBuff().address(),
                 allocParams);
         if (storageOpenResult.weCookie() == 0) {
             return null;
@@ -249,7 +249,7 @@ public class StorageWriterService
         return new StorageOpenResult(buffs, weCookie);
     }
 
-    WarmSinkResult close(int totalRecords, StorageWriterSplitConfiguration storageWriterSplitConfiguration, StorageWriterContext storageWriterContext)
+    WarmSinkResult close(int totalRecords, StorageWriterSplitConfig storageWriterSplitConfig, StorageWriterContext storageWriterContext)
     {
         int[] outFileParams = cleanup(false, false, storageWriterContext);
 
@@ -288,7 +288,7 @@ public class StorageWriterService
 
         int offset = outFileParams[WeProperties.WE_PROPERTIES_END_OFFSET.ordinal()];
         if (offset == 0) {
-            logger.error("offset 0 warmupElementWriteMetadata=%s, storageWriterSplitConfiguration=%s", warmupElementWriteMetadata, storageWriterSplitConfiguration);
+            logger.error("offset 0 warmupElementWriteMetadata=%s, storageWriterSplitConfig=%s", warmupElementWriteMetadata, storageWriterSplitConfig);
             // Native failed to write
             updateToFailedState(warmupElementBuilder, storageWriterContext.getWarmupElementWriteMetadata());
             storageWriterContext.setFailed();
@@ -303,7 +303,7 @@ public class StorageWriterService
                         writeDictionary.getDictionaryKey(),
                         warmupElementWriteMetadata.warmUpElement().getRecTypeCode(),
                         offset,
-                        storageWriterSplitConfiguration.rowGroupFilePath());
+                        storageWriterSplitConfig.rowGroupFilePath());
             }
             catch (Exception e) {
                 storageWriterContext.setFailed();
@@ -329,7 +329,7 @@ public class StorageWriterService
     }
 
     // bad path cleanup of resources and release the storage engine tx
-    WarmUpElement abort(boolean nativeThrowed, StorageWriterContext storageWriterContext, StorageWriterSplitConfiguration storageWriterSplitConfiguration)
+    WarmUpElement abort(boolean nativeThrowed, StorageWriterContext storageWriterContext, StorageWriterSplitConfig storageWriterSplitConfig)
     {
         storageWriterContext.getLuceneIndexer().ifPresent(LuceneIndexer::abort);
         cleanup(true, nativeThrowed, storageWriterContext);
@@ -340,7 +340,7 @@ public class StorageWriterService
 
         WarmUpElement abortedWarmupElement = storageWriterContext.getWarmupElementBuilder().build();
         if (nativeThrowed) {
-            logger.error("warm failed path %s native throwed on element %s", storageWriterSplitConfiguration.rowGroupFilePath(), abortedWarmupElement);
+            logger.error("warm failed path %s native throwed on element %s", storageWriterSplitConfig.rowGroupFilePath(), abortedWarmupElement);
             metricsTimerTask.print(false);
         }
         return abortedWarmupElement;

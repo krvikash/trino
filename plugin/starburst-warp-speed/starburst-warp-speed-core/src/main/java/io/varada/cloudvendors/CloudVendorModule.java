@@ -15,8 +15,8 @@ package io.varada.cloudvendors;
 
 import com.google.inject.Module;
 import io.trino.spi.connector.ConnectorContext;
-import io.varada.cloudvendors.configuration.CloudVendorConfiguration;
-import io.varada.cloudvendors.configuration.StoreType;
+import io.varada.cloudvendors.config.CloudVendorConfig;
+import io.varada.cloudvendors.config.StoreType;
 import io.varada.cloudvendors.local.LocalStoreModule;
 
 import java.lang.annotation.Annotation;
@@ -37,9 +37,9 @@ public interface CloudVendorModule
                 annotation,
                 catalogName,
                 config,
-                CloudVendorConfiguration.STORE_PATH,
-                CloudVendorConfiguration.STORE_TYPE,
-                CloudVendorConfiguration.class);
+                CloudVendorConfig.STORE_PATH,
+                CloudVendorConfig.STORE_TYPE,
+                CloudVendorConfig.class);
     }
 
     static CloudVendorModule getModule(
@@ -50,12 +50,12 @@ public interface CloudVendorModule
             Map<String, String> config,
             String storePathName,
             String storeTypeName,
-            Class<? extends CloudVendorConfiguration> configurationClazz)
+            Class<? extends CloudVendorConfig> configClazz)
     {
         StoreType storeType = StoreType.ofConfigName(config.get(storePathName), config.get(storeTypeName));
         return switch (storeType) {
-            case S3, AZURE, GS -> new CloudVendorStorageModule(annotation, prefix, config, catalogName, context, configurationClazz);
-            case LOCAL -> new LocalStoreModule(prefix, annotation, config, configurationClazz);
+            case S3, AZURE, GS -> new CloudVendorStorageModule(annotation, prefix, config, catalogName, context, configClazz);
+            case LOCAL -> new LocalStoreModule(prefix, annotation, config, configClazz);
         };
     }
 }

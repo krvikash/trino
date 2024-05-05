@@ -20,28 +20,28 @@ import io.trino.Session;
 import io.trino.SystemSessionProperties;
 import io.trino.plugin.geospatial.GeoPlugin;
 import io.trino.plugin.jmx.JmxPlugin;
-import io.trino.plugin.varada.configuration.DictionaryConfiguration;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.DictionaryConfig;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.CachingPlugin;
-import io.trino.plugin.warp.extension.configuration.WarpExtensionConfiguration;
+import io.trino.plugin.warp.extension.config.WarpExtensionConfig;
 import io.trino.spi.Plugin;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingSession;
-import io.varada.cloudvendors.configuration.CloudVendorConfiguration;
-import io.varada.tools.configuration.MultiPrefixConfigurationWrapper;
+import io.varada.cloudvendors.config.CloudVendorConfig;
+import io.varada.tools.config.MultiPrefixConfigWrapper;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
 
-import static io.trino.plugin.varada.configuration.GlobalConfiguration.CONFIG_IS_SINGLE;
-import static io.trino.plugin.varada.configuration.GlobalConfiguration.ENABLE_DEFAULT_WARMING;
-import static io.trino.plugin.varada.configuration.GlobalConfiguration.FAILURE_GENERATOR_ENABLED;
-import static io.trino.plugin.varada.configuration.GlobalConfiguration.STATS_COLLECTION_ENABLED;
-import static io.trino.plugin.warp.extension.configuration.WarpExtensionConfiguration.CLUSTER_UUID;
-import static io.varada.tools.configuration.MultiPrefixConfigurationWrapper.WARP_SPEED_PREFIX;
+import static io.trino.plugin.varada.config.GlobalConfig.CONFIG_IS_SINGLE;
+import static io.trino.plugin.varada.config.GlobalConfig.ENABLE_DEFAULT_WARMING;
+import static io.trino.plugin.varada.config.GlobalConfig.FAILURE_GENERATOR_ENABLED;
+import static io.trino.plugin.varada.config.GlobalConfig.STATS_COLLECTION_ENABLED;
+import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.CLUSTER_UUID;
+import static io.varada.tools.config.MultiPrefixConfigWrapper.WARP_SPEED_PREFIX;
 
 public class DispatcherQueryRunner
 {
@@ -64,13 +64,13 @@ public class DispatcherQueryRunner
         Path localStorePath = Files.createTempDirectory("local_store_");
         ImmutableMap<String, String> additionalCatalogConfig = ImmutableMap.<String, String>builder()
                 .putAll(varadaConfig)
-                // replace this configuration with the other 3 when you want to use a real thrift meta-store (E.g. local docker)
+                // replace this config with the other 3 when you want to use a real thrift meta-store (E.g. local docker)
 //          .put("hive.metastore.uri", "thrift://localhost:9083").build();
 //                .put("testMode", "true")
                 .put(WARP_SPEED_PREFIX + CONFIG_IS_SINGLE, String.valueOf(numOfNodes < 2))
                 .put(WARP_SPEED_PREFIX + "config.bundle-size-mb", "128")
                 .put(WARP_SPEED_PREFIX + ENABLE_DEFAULT_WARMING, "false")
-                .put(WARP_SPEED_PREFIX + CloudVendorConfiguration.STORE_PATH, "file:/" + localStorePath.toAbsolutePath())
+                .put(WARP_SPEED_PREFIX + CloudVendorConfig.STORE_PATH, "file:/" + localStorePath.toAbsolutePath())
                 .put(WARP_SPEED_PREFIX + CLUSTER_UUID, "some-uuid")
 //                .put(WARP_SPEED_PREFIX + "metrics.enabled", (numOfNodes > 0) ? "false" : "true") // in case more than one node the jmx register fail on duplicate tables
                 .put("hive.metastore", "file")
@@ -78,12 +78,12 @@ public class DispatcherQueryRunner
                 .put("hive.metastore.disable-location-checks", "true")
                 .put("hive.metastore.catalog.dir", "file://" + hiveDir.toAbsolutePath())
 //                .put("hive.metastore", "glue")
-                .put(WARP_SPEED_PREFIX + DictionaryConfiguration.EXCEPTIONAL_LIST_DICTIONARY, "REC_TYPE_ARRAY_INT,REC_TYPE_ARRAY_BIGINT")
+                .put(WARP_SPEED_PREFIX + DictionaryConfig.EXCEPTIONAL_LIST_DICTIONARY, "REC_TYPE_ARRAY_INT,REC_TYPE_ARRAY_BIGINT")
                 .put(WARP_SPEED_PREFIX + "config.dictionary.max-size", "3")
 //                .put(HTTP_REST_PORT, "" + restPort)
-                .put(WARP_SPEED_PREFIX + WarpExtensionConfiguration.ENABLED, Boolean.TRUE.toString())
-                .put(WARP_SPEED_PREFIX + WarpExtensionConfiguration.HTTP_REST_PORT_ENABLED, Boolean.FALSE.toString())
-                .put(WARP_SPEED_PREFIX + GlobalConfiguration.LOCAL_STORE_PATH, localStorePath.toAbsolutePath().toString())
+                .put(WARP_SPEED_PREFIX + WarpExtensionConfig.ENABLED, Boolean.TRUE.toString())
+                .put(WARP_SPEED_PREFIX + WarpExtensionConfig.HTTP_REST_PORT_ENABLED, Boolean.FALSE.toString())
+                .put(WARP_SPEED_PREFIX + GlobalConfig.LOCAL_STORE_PATH, localStorePath.toAbsolutePath().toString())
                 .put(WARP_SPEED_PREFIX + STATS_COLLECTION_ENABLED, "true")
                 .put(WARP_SPEED_PREFIX + FAILURE_GENERATOR_ENABLED, "true")
                 .put(WARP_SPEED_PREFIX + "objectstore.warmup.cloud.retries", "0")
@@ -153,7 +153,7 @@ public class DispatcherQueryRunner
 //                .put("debug.limitnumobjs", "0")
                 .put("warp-speed.config.task.max-worker-threads", "4")
                 .put("warp-speed.config.warm-retry-backoff-factor-in-millis", "250");
-        return new MultiPrefixConfigurationWrapper(configMapBuilder.buildOrThrow());
+        return new MultiPrefixConfigWrapper(configMapBuilder.buildOrThrow());
     }
 
     private static Session createSession(String catalogName)

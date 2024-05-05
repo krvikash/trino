@@ -14,7 +14,7 @@ package io.trino.plugin.varada.storage.read;
  */
 
 import io.airlift.log.Logger;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dictionary.DictionaryCacheService;
 import io.trino.plugin.varada.dispatcher.DispatcherPageSourceFactory;
 import io.trino.plugin.varada.juffer.BufferAllocator;
@@ -55,7 +55,7 @@ public class VaradaPageSource
     private final boolean isMatchGetNumRanges;
     private final PredicatesCacheService predicatesCacheService;
     private final BufferAllocator bufferAllocator;
-    private final GlobalConfiguration globalConfiguration;
+    private final GlobalConfig globalConfig;
     private final QueryParams queryParams;
     private StorageReader reader;
     private long rowsLimit;
@@ -76,7 +76,7 @@ public class VaradaPageSource
             PredicatesCacheService predicatesCacheService,
             DictionaryCacheService dictionaryCacheService,
             CustomStatsContext customStatsContext,
-            GlobalConfiguration globalConfiguration,
+            GlobalConfig globalConfig,
             CollectTxService collectTxService,
             ChunksQueueService chunksQueueService,
             StorageCollectorService storageCollectorService,
@@ -88,7 +88,7 @@ public class VaradaPageSource
         this.isMatchGetNumRanges = isMatchGetNumRanges;
         this.predicatesCacheService = predicatesCacheService;
         this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
-        this.globalConfiguration = requireNonNull(globalConfiguration);
+        this.globalConfig = requireNonNull(globalConfig);
         this.stats = (VaradaStatsDispatcherPageSource) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
         this.varadaStatsDictionary = (VaradaStatsDictionary) customStatsContext.getStat(DictionaryCacheService.DICTIONARY_STAT_GROUP);
         this.collectTxService = collectTxService;
@@ -100,9 +100,9 @@ public class VaradaPageSource
         this.queryParams = queryParams;
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
-                globalConfiguration.getShapingLoggerThreshold(),
-                globalConfiguration.getShapingLoggerDuration(),
-                globalConfiguration.getShapingLoggerNumberOfSamples());
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
     }
 
     @Override
@@ -175,7 +175,7 @@ public class VaradaPageSource
                             collectTxService,
                             chunksQueueService,
                             storageCollectorService,
-                            globalConfiguration);
+                            globalConfig);
                 }
                 return pipe(blocks);
             }

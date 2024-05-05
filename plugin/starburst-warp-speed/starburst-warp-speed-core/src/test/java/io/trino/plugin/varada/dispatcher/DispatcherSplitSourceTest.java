@@ -15,7 +15,7 @@ package io.trino.plugin.varada.dispatcher;
 
 import com.google.common.collect.MoreCollectors;
 import io.trino.plugin.varada.CoordinatorNodeManager;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.connector.TestingConnectorProxiedConnectorTransformer;
 import io.trino.plugin.varada.storage.splits.ConnectorSplitConsistentHashNodeDistributor;
 import io.trino.plugin.varada.util.NodeUtils;
@@ -56,7 +56,7 @@ public class DispatcherSplitSourceTest
     public void before()
     {
         ConnectorSplitSource connectorSplitSource = mock(ConnectorSplitSource.class);
-        GlobalConfiguration globalConfiguration = new GlobalConfiguration();
+        GlobalConfig globalConfig = new GlobalConfig();
 
         connectorSplits = IntStream.range(0, 10)
                 .mapToObj(i -> new DispatcherSplit(
@@ -82,7 +82,7 @@ public class DispatcherSplitSourceTest
                 mock(DispatcherTableHandle.class),
                 mock(ConnectorSession.class),
                 new TestingConnectorProxiedConnectorTransformer(),
-                new ConnectorSplitConsistentHashNodeDistributor(globalConfiguration, coordinatorNodeManager));
+                new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager));
     }
 
     @Test

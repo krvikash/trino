@@ -35,7 +35,7 @@ public class WarmupDemoterData
     private final Set<String> filePaths;
     private final int batchSize;
     private final boolean executeDemoter;
-    private final boolean modifyConfiguration;
+    private final boolean modifyConfig;
     private final boolean forceExecuteDeadObjects;
     private final boolean resetHighestPriority;
     private final boolean forceDeleteFailedObjects;
@@ -51,7 +51,7 @@ public class WarmupDemoterData
             @JsonProperty(value = "warmupElementsData") List<WarmupDemoterWarmupElementData> warmupElementsData,
             @JsonProperty(value = "filePaths") Set<String> filePaths,
             @JsonProperty(value = "executeDemoter", defaultValue = "true") boolean executeDemoter,
-            @JsonProperty(value = "modifyConfiguration", defaultValue = "false") boolean modifyConfiguration,
+            @JsonProperty(value = "modifyConfig", defaultValue = "false") boolean modifyConfig,
             @JsonProperty(value = "forceExecuteDeadObjects", defaultValue = "false") boolean forceExecuteDeadObjects,
             @JsonProperty(value = "forceDeleteFailedObjects", defaultValue = "false") boolean forceDeleteFailedObjects,
             @JsonProperty(value = "resetHighestPriority", defaultValue = "false") boolean resetHighestPriority,
@@ -67,7 +67,7 @@ public class WarmupDemoterData
         this.filePaths = filePaths;
         this.batchSize = batchSize != null ? batchSize : -1;
         this.executeDemoter = executeDemoter;
-        this.modifyConfiguration = modifyConfiguration;
+        this.modifyConfig = modifyConfig;
         this.forceExecuteDeadObjects = forceExecuteDeadObjects;
         this.forceDeleteFailedObjects = forceDeleteFailedObjects;
         this.resetHighestPriority = resetHighestPriority;
@@ -107,9 +107,9 @@ public class WarmupDemoterData
     }
 
     @JsonProperty
-    public boolean isModifyConfiguration()
+    public boolean isModifyConfig()
     {
-        return modifyConfiguration;
+        return modifyConfig;
     }
 
     @JsonProperty
@@ -189,7 +189,7 @@ public class WarmupDemoterData
                 ", filePaths=" + filePaths +
                 ", batchSize=" + batchSize +
                 ", executeDemoter=" + executeDemoter +
-                ", modifyConfiguration=" + modifyConfiguration +
+                ", modifyConfig=" + modifyConfig +
                 ", forceExecuteDeadObjects=" + forceExecuteDeadObjects +
                 ", forceDeleteFailedObjects=" + forceDeleteFailedObjects +
                 ", resetHighestPriority=" + resetHighestPriority +
@@ -211,7 +211,7 @@ public class WarmupDemoterData
         private Set<String> filePaths = Collections.emptySet();
         private int batchSize = -1;
         private boolean executeDemoter;
-        private boolean modifyConfiguration = true;
+        private boolean modifyConfig = true;
         private boolean forceExecuteDeadObjects;
         private boolean forceDeleteFailedObjects;
         private boolean resetHighestPriority;
@@ -276,9 +276,9 @@ public class WarmupDemoterData
             return this;
         }
 
-        public Builder modifyConfiguration(boolean modifyConfiguration)
+        public Builder modifyConfig(boolean modifyConfig)
         {
-            this.modifyConfiguration = modifyConfiguration;
+            this.modifyConfig = modifyConfig;
             return this;
         }
 
@@ -321,7 +321,7 @@ public class WarmupDemoterData
                     warmupElementsData,
                     filePaths,
                     executeDemoter,
-                    modifyConfiguration,
+                    modifyConfig,
                     forceExecuteDeadObjects,
                     forceDeleteFailedObjects,
                     resetHighestPriority,

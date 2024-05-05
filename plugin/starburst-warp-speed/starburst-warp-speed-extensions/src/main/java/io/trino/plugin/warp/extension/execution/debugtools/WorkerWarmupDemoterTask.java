@@ -18,7 +18,7 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
-import io.trino.plugin.varada.configuration.WarmupDemoterConfiguration;
+import io.trino.plugin.varada.config.WarmupDemoterConfig;
 import io.trino.plugin.varada.dispatcher.warmup.demoter.TupleFilter;
 import io.trino.plugin.varada.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.varada.dispatcher.warmup.demoter.events.WarmupDemoterFinishEvent;
@@ -75,7 +75,7 @@ public class WorkerWarmupDemoterTask
     public static final String END_EXECUTION_KEY = String.format("%s:endExecution", WARMUP_DEMOTER_STAT_GROUP);
     private static final Logger logger = Logger.get(WorkerWarmupDemoterTask.class);
     private final WarmupDemoterService warmupDemoterService;
-    private final WarmupDemoterConfiguration warmupDemoterConfiguration;
+    private final WarmupDemoterConfig warmupDemoterConfig;
     private final WorkerCapacityManager workerCapacityManager;
     private final CatalogNameProvider catalogNameProvider;
     private final VaradaStatsWarmupDemoter globalStatsDemoter;
@@ -83,14 +83,14 @@ public class WorkerWarmupDemoterTask
 
     @Inject
     public WorkerWarmupDemoterTask(WarmupDemoterService warmupDemoterService,
-            WarmupDemoterConfiguration warmupDemoterConfiguration,
+            WarmupDemoterConfig warmupDemoterConfig,
             WorkerCapacityManager workerCapacityManager,
             CatalogNameProvider catalogNameProvider,
             MetricsManager metricsManager,
             EventBus eventBus)
     {
         this.warmupDemoterService = requireNonNull(warmupDemoterService);
-        this.warmupDemoterConfiguration = warmupDemoterConfiguration;
+        this.warmupDemoterConfig = warmupDemoterConfig;
         this.workerCapacityManager = workerCapacityManager;
         this.catalogNameProvider = catalogNameProvider;
         eventBus.register(this);
@@ -104,9 +104,9 @@ public class WorkerWarmupDemoterTask
     public Map<String, Object> start(WarmupDemoterData warmupDemoterData)
     {
         logger.debug("%s: start warmup demote task", catalogNameProvider.get());
-        modifyConfigurationIfRequired(warmupDemoterData);
+        modifyConfigIfRequired(warmupDemoterData);
         if (!warmupDemoterData.isExecuteDemoter()) {
-            return getConfigurationResults();
+            return getConfigResults();
         }
         Instant start = Instant.now();
         Map<String, Object> result = new HashMap<>();
@@ -126,7 +126,7 @@ public class WorkerWarmupDemoterTask
                 }
                 result.put(DEMOTE_SEQUENCE_KEY, finishEvent.demoteSequence());
             }
-            result.putAll(getConfigurationResults());
+            result.putAll(getConfigResults());
             workerCapacityManager.setCurrentUsage();
         }
         catch (Exception e) {
@@ -157,20 +157,20 @@ public class WorkerWarmupDemoterTask
     public Map<String, Object> getSkippedResult()
     {
         logger.debug("return skipped results");
-        Map<String, Object> result = getConfigurationResults();
+        Map<String, Object> result = getConfigResults();
         result.putAll(globalStatsDemoter.statsCounterMapper());
         return result;
     }
 
-    public Map<String, Object> getConfigurationResults()
+    public Map<String, Object> getConfigResults()
     {
         Map<String, Object> result = new HashMap<>();
         result.put(HIGHEST_PRIORITY_KEY, warmupDemoterService.getDemoterHighestPriority());
-        result.put(MAX_USAGE_THRESHOLD_KEY, warmupDemoterConfiguration.getMaxUsageThresholdPercentage());
-        result.put(CLEANUP_USAGE_THRESHOLD_KEY, warmupDemoterConfiguration.getCleanupUsageThresholdPercentage());
-        result.put(BATCH_SIZE_KEY, warmupDemoterConfiguration.getBatchSize());
-        result.put(EPSILON_KEY, warmupDemoterConfiguration.getEpsilon());
-        result.put(MAX_ELEMENTS_TO_DEMOTE_ITERATION_KEY, warmupDemoterConfiguration.getMaxElementsToDemoteInIteration());
+        result.put(MAX_USAGE_THRESHOLD_KEY, warmupDemoterConfig.getMaxUsageThresholdPercentage());
+        result.put(CLEANUP_USAGE_THRESHOLD_KEY, warmupDemoterConfig.getCleanupUsageThresholdPercentage());
+        result.put(BATCH_SIZE_KEY, warmupDemoterConfig.getBatchSize());
+        result.put(EPSILON_KEY, warmupDemoterConfig.getEpsilon());
+        result.put(MAX_ELEMENTS_TO_DEMOTE_ITERATION_KEY, warmupDemoterConfig.getMaxElementsToDemoteInIteration());
         return result;
     }
 
@@ -198,24 +198,24 @@ public class WorkerWarmupDemoterTask
         return (currentUsage * factorThreshold) * 100 / totalCapacity;
     }
 
-    private void modifyConfigurationIfRequired(WarmupDemoterData warmupDemoterData)
+    private void modifyConfigIfRequired(WarmupDemoterData warmupDemoterData)
     {
-        if (warmupDemoterData.isModifyConfiguration()) {
+        if (warmupDemoterData.isModifyConfig()) {
             Thresholds thresholds = getThresholds(warmupDemoterData);
             if (warmupDemoterData.getBatchSize() > -1) {
-                warmupDemoterConfiguration.setBatchSize(warmupDemoterData.getBatchSize());
+                warmupDemoterConfig.setBatchSize(warmupDemoterData.getBatchSize());
             }
             if (thresholds.maxUsageThreshold > -1) {
-                warmupDemoterConfiguration.setMaxUsageThresholdPercentage(thresholds.maxUsageThreshold);
+                warmupDemoterConfig.setMaxUsageThresholdPercentage(thresholds.maxUsageThreshold);
             }
             if (thresholds.cleanupUsageThreshold > -1) {
-                warmupDemoterConfiguration.setCleanupUsageThresholdPercentage(thresholds.cleanupUsageThreshold);
+                warmupDemoterConfig.setCleanupUsageThresholdPercentage(thresholds.cleanupUsageThreshold);
             }
             if (warmupDemoterData.getEpsilon() > -1) {
-                warmupDemoterConfiguration.setEpsilon(warmupDemoterData.getEpsilon());
+                warmupDemoterConfig.setEpsilon(warmupDemoterData.getEpsilon());
             }
             if (warmupDemoterData.getMaxElementsToDemoteInIteration() > -1) {
-                warmupDemoterConfiguration.setMaxElementsToDemoteInIteration(warmupDemoterData.getMaxElementsToDemoteInIteration());
+                warmupDemoterConfig.setMaxElementsToDemoteInIteration(warmupDemoterData.getMaxElementsToDemoteInIteration());
             }
             warmupDemoterService.setTupleFilters(calculateTupleFilter(warmupDemoterData));
             warmupDemoterService.setForceDeleteDeadObjects(warmupDemoterData.isForceExecuteDeadObjects());
@@ -223,7 +223,7 @@ public class WorkerWarmupDemoterTask
             warmupDemoterService.setResetHigestPriority(warmupDemoterData.isResetHighestPriority());
             warmupDemoterService.setEnableDemote(warmupDemoterData.isEnableDemoteFeature());
         }
-        logger.debug("%s, modifyConfigurationIfRequired: current configuration = batchSize=%d, maxUsageThresholdPercentage=%f, cleanupUsageThresholdPercentage=%f, enableDemoteFeature=%b", catalogNameProvider.get(), warmupDemoterConfiguration.getBatchSize(), warmupDemoterConfiguration.getMaxUsageThresholdPercentage(), warmupDemoterConfiguration.getCleanupUsageThresholdPercentage(), warmupDemoterData.isEnableDemoteFeature());
+        logger.debug("%s, modifyConfigIfRequired: current config = batchSize=%d, maxUsageThresholdPercentage=%f, cleanupUsageThresholdPercentage=%f, enableDemoteFeature=%b", catalogNameProvider.get(), warmupDemoterConfig.getBatchSize(), warmupDemoterConfig.getMaxUsageThresholdPercentage(), warmupDemoterConfig.getCleanupUsageThresholdPercentage(), warmupDemoterData.isEnableDemoteFeature());
     }
 
     private List<TupleFilter> calculateTupleFilter(WarmupDemoterData warmupDemoterData)

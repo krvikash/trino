@@ -18,7 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import io.airlift.json.ObjectMapperProvider;
 import io.airlift.log.Logger;
-import io.trino.plugin.varada.configuration.MetricsConfiguration;
+import io.trino.plugin.varada.config.MetricsConfig;
 import io.varada.log.ShapingLogger;
 import io.varada.tools.CatalogNameProvider;
 
@@ -42,11 +42,11 @@ public class PrintMetricsTimerTask
     private final CatalogNameProvider catalogNameProvider;
 
     @Inject
-    public PrintMetricsTimerTask(MetricsConfiguration metricsConfiguration,
+    public PrintMetricsTimerTask(MetricsConfig metricsConfig,
             MetricsManager metricsManager,
             CatalogNameProvider catalogNameProvider)
     {
-        super(metricsConfiguration);
+        super(metricsConfig);
         this.metricsManager = requireNonNull(metricsManager);
         this.catalogNameProvider = requireNonNull(catalogNameProvider);
         this.shapingLogger = ShapingLogger.getInstance(
@@ -61,7 +61,7 @@ public class PrintMetricsTimerTask
     @Override
     public Duration getInterval()
     {
-        return metricsConfiguration.getPrintMetricsDuration();
+        return metricsConfig.getPrintMetricsDuration();
     }
 
     @Override

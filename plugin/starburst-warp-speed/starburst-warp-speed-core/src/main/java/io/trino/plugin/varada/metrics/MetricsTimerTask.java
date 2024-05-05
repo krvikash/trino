@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.varada.metrics;
 
-import io.trino.plugin.varada.configuration.MetricsConfiguration;
+import io.trino.plugin.varada.config.MetricsConfig;
 
 import java.time.Duration;
 import java.util.TimerTask;
@@ -23,16 +23,16 @@ import static java.util.Objects.requireNonNull;
 public abstract class MetricsTimerTask
         extends TimerTask
 {
-    final MetricsConfiguration metricsConfiguration;
+    final MetricsConfig metricsConfig;
 
-    protected MetricsTimerTask(MetricsConfiguration metricsConfiguration)
+    protected MetricsTimerTask(MetricsConfig metricsConfig)
     {
-        this.metricsConfiguration = requireNonNull(metricsConfiguration);
+        this.metricsConfig = requireNonNull(metricsConfig);
     }
 
     public Duration getDelay()
     {
-        return metricsConfiguration.getDelayDuration();
+        return metricsConfig.getDelayDuration();
     }
 
     public abstract Duration getInterval();

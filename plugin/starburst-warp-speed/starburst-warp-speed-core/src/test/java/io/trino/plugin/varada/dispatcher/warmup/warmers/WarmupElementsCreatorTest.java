@@ -15,7 +15,7 @@ package io.trino.plugin.varada.dispatcher.warmup.warmers;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.SetMultimap;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.connector.TestingConnectorProxiedConnectorTransformer;
 import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.varada.dispatcher.model.ExportState;
@@ -72,7 +72,7 @@ public class WarmupElementsCreatorTest
                 mock(StorageEngineConstants.class),
                 mock(BufferAllocator.class),
                 new TestingConnectorProxiedConnectorTransformer(),
-                new GlobalConfiguration());
+                new GlobalConfig());
     }
 
     @Test

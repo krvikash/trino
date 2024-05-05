@@ -17,8 +17,8 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.SetMultimap;
 import com.google.common.eventbus.EventBus;
 import io.trino.plugin.varada.TestingTxService;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
+import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.connector.TestingConnectorColumnHandle;
 import io.trino.plugin.varada.connector.TestingConnectorProxiedConnectorTransformer;
 import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
@@ -92,7 +92,7 @@ public class ProxyExecutionTaskTest
     private DispatcherSplit dispatcherSplit;
     private List<ColumnHandle> columnHandleList;
     private FlowsSequencer flowsSequencer;
-    private GlobalConfiguration globalConfiguration;
+    private GlobalConfig globalConfig;
     private StorageEngineTxService storageEngineTxService;
     private QueryClassifier queryClassifier;
     private RowGroupDataService rowGroupDataService;
@@ -128,11 +128,11 @@ public class ProxyExecutionTaskTest
         TestingConnectorColumnHandle columnHandle = new TestingConnectorColumnHandle(IntegerType.INTEGER, "column");
         columnHandleList = List.of(columnHandle);
         flowsSequencer = mock(FlowsSequencer.class);
-        globalConfiguration = new GlobalConfiguration();
-        NativeConfiguration nativeConfiguration = new NativeConfiguration();
-        nativeConfiguration.setTaskMinWarmingThreads(2);
+        globalConfig = new GlobalConfig();
+        NativeConfig nativeConfig = new NativeConfig();
+        nativeConfig.setTaskMinWarmingThreads(2);
         RegularColumn regularColumn = new RegularColumn(columnHandle.name());
-        storageEngineTxService = new StorageEngineTxService(nativeConfiguration, mock(MetricsManager.class));
+        storageEngineTxService = new StorageEngineTxService(nativeConfig, mock(MetricsManager.class));
         requiredWarmUpTypeMap = HashMultimap.create();
         requiredWarmUpTypeMap.put(regularColumn, new WarmupProperties(WarmUpType.WARM_UP_TYPE_BASIC, 0, 0, TransformFunction.NONE));
         MetricsManager metricsManager = mock(MetricsManager.class);
@@ -141,7 +141,7 @@ public class ProxyExecutionTaskTest
                 metricsManager,
                 mock(StorageEngineConstants.class),
                 mock(BufferAllocator.class),
-                new TestingConnectorProxiedConnectorTransformer(), globalConfiguration);
+                new TestingConnectorProxiedConnectorTransformer(), globalConfig);
     }
 
     @Test
@@ -236,7 +236,7 @@ public class ProxyExecutionTaskTest
     public void testWarmExecutionTask_max_warmup_iterations()
     {
         VaradaStatsWarmingService varadaStatsWarmingService = VaradaStatsWarmingService.create(WARMING_SERVICE_STAT_GROUP);
-        globalConfiguration.setMaxWarmupIterationsPerQuery(1);
+        globalConfig.setMaxWarmupIterationsPerQuery(1);
         WarmData warmData = new WarmData(columnHandleList, requiredWarmUpTypeMap, WarmExecutionState.WARM, true, queryContext, null);
         when(workerWarmingService.getWarmData(any(),
                 any(),
@@ -291,7 +291,7 @@ public class ProxyExecutionTaskTest
 
     private ProxyExecutionTask createWarmExecutionTask(VaradaStatsWarmingService varadaStatsWarmingService, EventBus eventBus)
     {
-        StorageWarmerService storageWarmerService = new StorageWarmerService(rowGroupDataService, new StubsStorageEngine(), globalConfiguration, mock(ConnectorSync.class), warmupDemoterService, storageEngineTxService, flowsSequencer, TestingTxService.createMetricsManager());
+        StorageWarmerService storageWarmerService = new StorageWarmerService(rowGroupDataService, new StubsStorageEngine(), globalConfig, mock(ConnectorSync.class), warmupDemoterService, storageEngineTxService, flowsSequencer, TestingTxService.createMetricsManager());
         return new ProxyExecutionTask(mock(WarmExecutionTaskFactory.class),
                 eventBus,
                 dispatcherProxiedConnectorTransformer,
@@ -307,7 +307,7 @@ public class ProxyExecutionTaskTest
                 dispatcherSplit,
                 DynamicFilter.EMPTY,
                 rowGroupDataService,
-                globalConfiguration,
+                globalConfig,
                 queryClassifier,
                 warmupElementsCreator,
                 1,

@@ -18,7 +18,7 @@ import io.trino.spi.connector.ConnectorContext;
 
 import java.util.Map;
 
-import static io.trino.plugin.varada.configuration.GlobalConfiguration.CONFIG_IS_SINGLE;
+import static io.trino.plugin.varada.config.GlobalConfig.CONFIG_IS_SINGLE;
 
 public interface VaradaBaseModule
         extends Module

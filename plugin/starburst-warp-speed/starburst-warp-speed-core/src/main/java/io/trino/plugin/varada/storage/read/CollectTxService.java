@@ -15,7 +15,7 @@ package io.trino.plugin.varada.storage.read;
 
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.storage.engine.ExceptionThrower;
 import io.trino.plugin.varada.storage.engine.StorageEngine;
 import io.trino.plugin.varada.storage.engine.StorageEngineConstants;
@@ -53,13 +53,13 @@ public class CollectTxService
             ChunksQueueService chunksQueueService,
             RangeFillerService rangeFillerService,
             StorageEngineConstants storageEngineConstants,
-            NativeConfiguration nativeConfiguration)
+            NativeConfig nativeConfig)
     {
         this.storageEngine = storageEngine;
         this.chunksQueueService = chunksQueueService;
         this.rangeFillerService = rangeFillerService;
 
-        final int numSegments = nativeConfiguration.getTaskMaxWorkerThreads();
+        final int numSegments = nativeConfig.getTaskMaxWorkerThreads();
         checkArgument(numSegments > 0, "no segments configured for match bitmaps");
         final long alignment = 32; // this is the alignment required for intel optimized bitmap operations
         final long maxChunks = storageEngineConstants.getMaxChunksInRange();

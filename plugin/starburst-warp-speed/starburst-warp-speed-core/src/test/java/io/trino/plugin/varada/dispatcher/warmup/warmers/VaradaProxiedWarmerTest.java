@@ -18,7 +18,7 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.SetMultimap;
 import io.trino.plugin.varada.TestingTxService;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.varada.dispatcher.DispatcherSplit;
 import io.trino.plugin.varada.dispatcher.DispatcherTableHandle;
@@ -85,7 +85,7 @@ public class VaradaProxiedWarmerTest
 {
     private final int defaultPriority = 2;
     private final int notEmptyTTL = 2;
-    private GlobalConfiguration globalConfiguration;
+    private GlobalConfig globalConfig;
     private DispatcherTableHandle dispatcherTableHandle;
     private ConnectorTransactionHandle connectorTransactionHandle;
     private ConnectorPageSourceProvider connectorPageSourceProvider;
@@ -125,8 +125,8 @@ public class VaradaProxiedWarmerTest
         when(metricsManager.get(STATS_GROUP_NAME)).thenReturn(varadaStatsTxService);
         storageEngineTxService = mock(StorageEngineTxService.class);
         connectorPageSource = mock(ConnectorPageSource.class);
-        globalConfiguration = new GlobalConfiguration();
-        globalConfiguration.setLocalStorePath(
+        globalConfig = new GlobalConfig();
+        globalConfig.setLocalStorePath(
                 Files.createTempDirectory(this.getClass().getName()).toFile().getAbsolutePath());
         when(connectorPageSourceProvider.createPageSource(any(),
                 any(),
@@ -362,14 +362,14 @@ public class VaradaProxiedWarmerTest
         VaradaPageSinkFactory varadaPageSinkFactory = new VaradaPageSinkFactory(
                 mock(FailureGeneratorInvocationHandler.class),
                 storageWriterService,
-                new GlobalConfiguration());
+                new GlobalConfig());
         ConnectorSync connectorSync = mock(ConnectorSync.class);
-        StorageWarmerService storageWarmerService = new StorageWarmerService(rowGroupDataService, storageEngine, globalConfiguration, connectorSync, mock(WarmupDemoterService.class), storageEngineTxService, mock(FlowsSequencer.class), TestingTxService.createMetricsManager());
+        StorageWarmerService storageWarmerService = new StorageWarmerService(rowGroupDataService, storageEngine, globalConfig, connectorSync, mock(WarmupDemoterService.class), storageEngineTxService, mock(FlowsSequencer.class), TestingTxService.createMetricsManager());
         return new VaradaProxiedWarmer(varadaPageSinkFactory,
                 dispatcherProxiedConnectorTransformer,
                 nodeManager,
                 connectorSync,
-                globalConfiguration,
+                globalConfig,
                 rowGroupDataService,
                 storageWarmerService,
                 storageWriterService);

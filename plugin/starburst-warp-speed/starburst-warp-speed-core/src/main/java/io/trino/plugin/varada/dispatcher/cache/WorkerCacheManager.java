@@ -20,7 +20,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.json.ObjectMapperProvider;
 import io.airlift.log.Logger;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.DispatcherPageSourceFactory;
 import io.trino.plugin.varada.dispatcher.WarmupElementWriteMetadata;
 import io.trino.plugin.varada.dispatcher.model.RowGroupKey;
@@ -75,7 +75,7 @@ public class WorkerCacheManager
             ObjectMapperProvider objectMapper,
             StorageWarmerService storageWarmerService,
             WarpCacheFilesMerger warpCacheFilesMerger,
-            GlobalConfiguration globalConfiguration,
+            GlobalConfig globalConfig,
             ConnectorSync connectorSync)
     {
         this.dispatcherPageSourceFactory = requireNonNull(dispatcherPageSourceFactory);
@@ -88,9 +88,9 @@ public class WorkerCacheManager
         this.warpCacheFilesMerger = requireNonNull(warpCacheFilesMerger);
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
-                globalConfiguration.getShapingLoggerThreshold(),
-                globalConfiguration.getShapingLoggerDuration(),
-                globalConfiguration.getShapingLoggerNumberOfSamples());
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
         this.connectorSync = requireNonNull(connectorSync);
     }
 

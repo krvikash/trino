@@ -46,30 +46,30 @@ public class CloudStorageModule
 {
     private final String catalogName;
     private final ConnectorContext context;
-    private final ConfigurationFactory configurationFactory;
+    private final ConfigurationFactory configFactory;
     private final Class<? extends Annotation> annotation;
 
     public CloudStorageModule(String catalogName,
                               ConnectorContext context,
-                              ConfigurationFactory configurationFactory,
+                              ConfigurationFactory configFactory,
                               Class<? extends Annotation> annotation)
     {
         this.catalogName = requireNonNull(catalogName, "catalogName is null");
         this.context = requireNonNull(context, "context is null");
-        this.configurationFactory = requireNonNull(configurationFactory, "configurationFactory is null");
+        this.configFactory = requireNonNull(configFactory, "configFactory is null");
         this.annotation = requireNonNull(annotation, "annotation is null");
     }
 
     @Override
     public void configure(Binder binder)
     {
-        binder.bind(ConfigurationFactory.class).toInstance(configurationFactory);
+        binder.bind(ConfigurationFactory.class).toInstance(configFactory);
 
         configBinder(binder).bindConfig(FileSystemConfig.class);
-        FileSystemConfig config = configurationFactory.build(FileSystemConfig.class);
+        FileSystemConfig config = configFactory.build(FileSystemConfig.class);
 
         Injector injector = Guice.createInjector(
-                new HdfsCloudStorageModule(catalogName, context, configurationFactory, annotation, config.isHadoopEnabled()),
+                new HdfsCloudStorageModule(catalogName, context, configFactory, annotation, config.isHadoopEnabled()),
                 new Module()
                 {
                     @Override
@@ -78,20 +78,20 @@ public class CloudStorageModule
                         MapBinder<String, CloudStorage> cloudStorageMap = newMapBinder(binder, String.class, CloudStorage.class, annotation);
 
                         if (config.isNativeS3Enabled()) {
-                            binder.install(new S3CloudStorageModule(context, configurationFactory, annotation));
+                            binder.install(new S3CloudStorageModule(context, configFactory, annotation));
                             Key<S3CloudStorage> s3CloudStorageKey = Key.get(S3CloudStorage.class, annotation);
                             cloudStorageMap.addBinding("s3").to(s3CloudStorageKey);
                             cloudStorageMap.addBinding("s3a").to(s3CloudStorageKey);
                             cloudStorageMap.addBinding("s3n").to(s3CloudStorageKey);
                         }
                         if (config.isNativeAzureEnabled()) {
-                            binder.install(new AzureCloudStorageModule(context, configurationFactory, annotation));
+                            binder.install(new AzureCloudStorageModule(context, configFactory, annotation));
                             Key<AzureCloudStorage> azureCloudStorageKey = Key.get(AzureCloudStorage.class, annotation);
                             cloudStorageMap.addBinding("abfs").to(azureCloudStorageKey);
                             cloudStorageMap.addBinding("abfss").to(azureCloudStorageKey);
                         }
                         if (config.isNativeGcsEnabled()) {
-                            binder.install(new GcsCloudStorageModule(context, configurationFactory, annotation));
+                            binder.install(new GcsCloudStorageModule(context, configFactory, annotation));
                             Key<GcsCloudStorage> gcsCloudStorageKey = Key.get(GcsCloudStorage.class, annotation);
                             cloudStorageMap.addBinding("gs").to(gcsCloudStorageKey);
                         }

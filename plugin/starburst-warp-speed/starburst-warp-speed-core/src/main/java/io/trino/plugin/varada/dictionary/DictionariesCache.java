@@ -22,7 +22,7 @@ import io.airlift.slice.Slice;
 import io.airlift.slice.SliceOutput;
 import io.airlift.slice.Slices;
 import io.trino.cache.SafeCaches;
-import io.trino.plugin.varada.configuration.DictionaryConfiguration;
+import io.trino.plugin.varada.config.DictionaryConfig;
 import io.trino.plugin.varada.dispatcher.model.DictionaryKey;
 import io.trino.plugin.varada.dispatcher.model.SchemaTableColumn;
 import io.trino.plugin.varada.metrics.MetricsManager;
@@ -54,7 +54,7 @@ public class DictionariesCache
     //number of times we allow exceeding number of max elements before marking the dictionary invalid for write
     public static final int MAX_FAILED_SPLITS = 10;
 
-    private final DictionaryConfiguration dictionaryConfiguration;
+    private final DictionaryConfig dictionaryConfig;
     private final AttachDictionaryService attachDictionaryService;
     private final VaradaStatsDictionary globalVaradaStatsDictionary;
     private final Lock readLock;
@@ -65,29 +65,29 @@ public class DictionariesCache
 
     private ConcurrentHashMap<DictionaryId, DataValueDictionary> activeDataValuesDictionaries;
     private Cache<DictionaryKey, DataValueDictionary> cache;
-    private DictionaryCacheConfiguration activeConfiguration;
+    private DictionaryCacheConfig activeConfig;
 
-    DictionariesCache(DictionaryConfiguration dictionaryConfiguration,
+    DictionariesCache(DictionaryConfig dictionaryConfig,
             MetricsManager metricsManager,
             AttachDictionaryService attachDictionaryService)
     {
-        this.dictionaryConfiguration = requireNonNull(dictionaryConfiguration);
+        this.dictionaryConfig = requireNonNull(dictionaryConfig);
         this.attachDictionaryService = requireNonNull(attachDictionaryService);
         this.globalVaradaStatsDictionary = requireNonNull(metricsManager).registerMetric(VaradaStatsDictionary.create(DICTIONARY_STAT_GROUP));
         ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
         this.readLock = readWriteLock.readLock();
         this.writeLock = readWriteLock.writeLock();
-        initCache(new DictionaryCacheConfiguration(
-                dictionaryConfiguration.getMaxDictionaryTotalCacheWeight(),
-                dictionaryConfiguration.getDictionaryCacheConcurrencyLevel()));
+        initCache(new DictionaryCacheConfig(
+                dictionaryConfig.getMaxDictionaryTotalCacheWeight(),
+                dictionaryConfig.getDictionaryCacheConcurrencyLevel()));
         this.executorService = Executors.newFixedThreadPool(1);
     }
 
-    private void initCache(DictionaryCacheConfiguration dictionaryConfiguration)
+    private void initCache(DictionaryCacheConfig dictionaryConfig)
     {
         Weigher<DictionaryKey, DataValueDictionary> weighByLength =
                 (dictionaryKey, dataValueDictionary) -> dataValueDictionary.getDictionaryWeight();
-        activeConfiguration = dictionaryConfiguration;
+        activeConfig = dictionaryConfig;
         RemovalListener<DictionaryKey, DataValueDictionary> listener = removalNotification -> {
             if (!removalNotification.wasEvicted()) { //do nothing
                 return;
@@ -117,10 +117,10 @@ public class DictionariesCache
             }
         };
         this.cache = SafeCaches.buildNonEvictableCache(CacheBuilder.newBuilder()
-                .maximumWeight(activeConfiguration.totalWeight())
+                .maximumWeight(activeConfig.totalWeight())
                 .weigher(weighByLength)
                 .removalListener(listener)
-                .concurrencyLevel(activeConfiguration.concurrency()));
+                .concurrencyLevel(activeConfig.concurrency()));
         activeDataValuesDictionaries = new ConcurrentHashMap<>();
     }
 
@@ -266,7 +266,7 @@ public class DictionariesCache
                     int fixedRecTypeLength = calculateFixedRecTypeLength(recTypeCode);
 
                     // configuring max rec type length same as the fixed one for new dictionary. in vase of varchar it will be zero.
-                    dataValueDictionary = new DataValueDictionary(dictionaryConfiguration,
+                    dataValueDictionary = new DataValueDictionary(dictionaryConfig,
                             createdDictionaryKey,
                             fixedRecTypeLength,
                             fixedRecTypeLength,
@@ -368,9 +368,9 @@ public class DictionariesCache
         cache.asMap().values().forEach(DataValueDictionary::reset);
         dictionaryMetadataMap.clear();
         activeDataValuesDictionaries.clear();
-        initCache(new DictionaryCacheConfiguration(
-                dictionaryConfiguration.getMaxDictionaryTotalCacheWeight(),
-                dictionaryConfiguration.getDictionaryCacheConcurrencyLevel()));
+        initCache(new DictionaryCacheConfig(
+                dictionaryConfig.getMaxDictionaryTotalCacheWeight(),
+                dictionaryConfig.getDictionaryCacheConcurrencyLevel()));
         resetCacheStats();
     }
 
@@ -387,7 +387,7 @@ public class DictionariesCache
         dictionaryMetadataMap.clear();
         activeDataValuesDictionaries.clear();
         int cleanedDictionaries = (int) cache.size();
-        initCache(new DictionaryCacheConfiguration(dictionaryCacheTotalWeight, concurrency));
+        initCache(new DictionaryCacheConfig(dictionaryCacheTotalWeight, concurrency));
         resetCacheStats();
         return cleanedDictionaries;
     }
@@ -468,12 +468,12 @@ public class DictionariesCache
 
     protected long getDictionaryCacheTotalSize()
     {
-        return activeConfiguration.totalWeight();
+        return activeConfig.totalWeight();
     }
 
     protected int getCacheConcurrency()
     {
-        return activeConfiguration.concurrency();
+        return activeConfig.concurrency();
     }
 
     protected Map<String, Integer> getDictionaryCachedKeys()
@@ -484,7 +484,7 @@ public class DictionariesCache
                         e.getKey().schemaTableColumn().varadaColumn().getName()), e -> e.getValue().getDictionaryWeight()));
     }
 
-    private record DictionaryCacheConfiguration(
+    private record DictionaryCacheConfig(
             @SuppressWarnings("unused") long totalWeight,
             @SuppressWarnings("unused") int concurrency) {}
 

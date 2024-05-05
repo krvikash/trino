@@ -16,7 +16,7 @@ package io.trino.plugin.varada.dispatcher.query.classifier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.varada.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.varada.dispatcher.SingleValue;
@@ -54,14 +54,14 @@ class PrefilledCollectClassifier
 
     public PrefilledCollectClassifier(
             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
-            GlobalConfiguration globalConfiguration)
+            GlobalConfig globalConfig)
     {
         this.dispatcherProxiedConnectorTransformer = dispatcherProxiedConnectorTransformer;
         shapingLogger = ShapingLogger.getInstance(
                 logger,
-                globalConfiguration.getShapingLoggerThreshold(),
-                globalConfiguration.getShapingLoggerDuration(),
-                globalConfiguration.getShapingLoggerNumberOfSamples());
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
     }
 
     @Override

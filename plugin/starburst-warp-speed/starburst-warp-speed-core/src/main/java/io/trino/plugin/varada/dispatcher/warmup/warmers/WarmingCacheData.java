@@ -15,7 +15,7 @@ package io.trino.plugin.varada.dispatcher.warmup.warmers;
 
 import io.trino.plugin.varada.dispatcher.model.RowGroupKey;
 import io.trino.plugin.varada.storage.write.PageSink;
-import io.trino.plugin.varada.storage.write.StorageWriterSplitConfiguration;
+import io.trino.plugin.varada.storage.write.StorageWriterSplitConfig;
 
 public record WarmingCacheData(long fileCookie,
                                PageSink pageSink,
@@ -24,4 +24,4 @@ public record WarmingCacheData(long fileCookie,
                                boolean locked,
                                int txId,
                                RowGroupKey tmpRowGroupKey,
-                               StorageWriterSplitConfiguration storageWriterSplitConfiguration) {}
+                               StorageWriterSplitConfig storageWriterSplitConfig) {}

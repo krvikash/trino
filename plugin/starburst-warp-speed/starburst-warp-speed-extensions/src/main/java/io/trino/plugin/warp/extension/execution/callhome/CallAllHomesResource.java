@@ -25,7 +25,7 @@ import io.airlift.http.client.JsonBodyGenerator;
 import io.airlift.http.client.Request;
 import io.airlift.json.JsonCodec;
 import io.trino.plugin.varada.CoordinatorNodeManager;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.execution.VaradaClient;
 import io.trino.plugin.varada.util.UriUtils;
 import io.trino.plugin.warp.extension.execution.TaskResource;
@@ -60,17 +60,17 @@ public class CallAllHomesResource
     private static final JsonCodec<CallHomeData> callHomeDataJsonCodec = JsonCodec.jsonCodec(CallHomeData.class);
 
     private final CoordinatorNodeManager coordinatorNodeManager;
-    private final GlobalConfiguration globalConfiguration;
+    private final GlobalConfig globalConfig;
     private final VaradaClient varadaClient;
 
     @Inject
     public CallAllHomesResource(
             CoordinatorNodeManager coordinatorNodeManager,
-            GlobalConfiguration globalConfiguration,
+            GlobalConfig globalConfig,
             VaradaClient varadaClient)
     {
         this.coordinatorNodeManager = requireNonNull(coordinatorNodeManager);
-        this.globalConfiguration = requireNonNull(globalConfiguration);
+        this.globalConfig = requireNonNull(globalConfig);
         this.varadaClient = requireNonNull(varadaClient);
     }
 
@@ -93,7 +93,7 @@ public class CallAllHomesResource
             allFutures.put(node.getNodeIdentifier(), varadaClient.executeAsync(request, FullJsonResponseHandler.createFullJsonResponseHandler(VaradaClient.VOID_RESULTS_CODEC)));
         });
 
-        if (!globalConfiguration.getIsSingle()) {
+        if (!globalConfig.getIsSingle()) {
             HttpUriBuilder uriBuilder = varadaClient.getRestEndpoint(UriUtils.getHttpUri(coordinatorNodeManager.getCoordinatorNode()));
             uriBuilder.appendPath(CALL_HOME_PATH);
 

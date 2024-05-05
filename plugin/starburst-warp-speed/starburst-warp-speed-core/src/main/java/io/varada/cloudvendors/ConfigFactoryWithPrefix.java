@@ -19,10 +19,10 @@ import io.airlift.configuration.WarningsMonitor;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-public class ConfigurationFactoryWithPrefix
+public class ConfigFactoryWithPrefix
         extends ConfigurationFactory
 {
-    public ConfigurationFactoryWithPrefix(Map<String, String> properties, String prefix, WarningsMonitor warningsMonitor)
+    public ConfigFactoryWithPrefix(Map<String, String> properties, String prefix, WarningsMonitor warningsMonitor)
     {
         super(properties.entrySet()
                         .stream()

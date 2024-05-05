@@ -15,7 +15,7 @@ package io.trino.plugin.varada.storage.read.fill;
 
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.dictionary.ReadDictionary;
 import io.trino.plugin.varada.storage.engine.StorageEngineConstants;
 import io.trino.plugin.varada.storage.juffers.ReadJuffersWarmUpElement;
@@ -35,17 +35,17 @@ public abstract class SliceBlockFiller
         extends BlockFiller<Slice>
 {
     protected final StorageEngineConstants storageEngineConstants;
-    protected final NativeConfiguration nativeConfiguration;
+    protected final NativeConfig nativeConfig;
     protected final int queryStringNullValueSize;
 
     public SliceBlockFiller(
             Type spiBuilderType,
             StorageEngineConstants storageEngineConstants,
-            NativeConfiguration nativeConfiguration)
+            NativeConfig nativeConfig)
     {
         super(spiBuilderType, BlockFillerType.SLICE);
         this.storageEngineConstants = storageEngineConstants;
-        this.nativeConfiguration = nativeConfiguration;
+        this.nativeConfig = nativeConfig;
         this.queryStringNullValueSize = storageEngineConstants.getQueryStringNullValueSize();
     }
 
@@ -278,7 +278,7 @@ public abstract class SliceBlockFiller
 
     private byte[] allocateValuesByteArray(int rowsToFill, int recTypeLength)
     {
-        final int maxValuesArraySize = nativeConfiguration.getMaxRecJufferSize();
+        final int maxValuesArraySize = nativeConfig.getMaxRecJufferSize();
         long maxNeededBuffLong = (long) rowsToFill * (long) recTypeLength;
         int maxNeededBuff = (int) maxNeededBuffLong;
         if (maxNeededBuff != maxNeededBuffLong) { // rowsToFill * recTypeLength might cause an overflow so we need to handle it as max buffer size

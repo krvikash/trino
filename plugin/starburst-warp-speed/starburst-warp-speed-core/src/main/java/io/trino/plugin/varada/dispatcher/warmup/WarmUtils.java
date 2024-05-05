@@ -15,11 +15,11 @@ package io.trino.plugin.varada.dispatcher.warmup;
 
 import io.airlift.log.Logger;
 import io.trino.plugin.varada.VaradaSessionProperties;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.model.RowGroupKey;
 import io.trino.spi.connector.ConnectorSession;
-import io.varada.cloudvendors.configuration.CloudVendorConfiguration;
-import io.varada.cloudvendors.configuration.StoreType;
+import io.varada.cloudvendors.config.CloudVendorConfig;
+import io.varada.cloudvendors.config.StoreType;
 
 public class WarmUtils
 {
@@ -33,14 +33,14 @@ public class WarmUtils
     }
 
     public static boolean isImportExportEnabled(
-            GlobalConfiguration globalConfiguration,
-            CloudVendorConfiguration cloudVendorConfiguration,
+            GlobalConfig globalConfig,
+            CloudVendorConfig cloudVendorConfig,
             ConnectorSession session)
     {
         Boolean sessionEnabled = VaradaSessionProperties.getEnableImportExport(session);
         return sessionEnabled != null ? sessionEnabled :
-                globalConfiguration.getEnableImportExport() &&
-                        cloudVendorConfiguration.getStoreType() != StoreType.LOCAL;
+                globalConfig.getEnableImportExport() &&
+                        cloudVendorConfig.getStoreType() != StoreType.LOCAL;
     }
 
     public static String getRowGroupStorageObjectName(RowGroupKey rowGroupKey, String path)

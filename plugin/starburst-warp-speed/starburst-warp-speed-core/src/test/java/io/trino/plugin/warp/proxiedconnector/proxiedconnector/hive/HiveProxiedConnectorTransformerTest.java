@@ -21,7 +21,7 @@ import io.trino.plugin.hive.HiveSplit;
 import io.trino.plugin.hive.HiveTableHandle;
 import io.trino.plugin.hive.HiveType;
 import io.trino.plugin.hive.acid.AcidTransaction;
-import io.trino.plugin.varada.configuration.ProxiedConnectorConfiguration;
+import io.trino.plugin.varada.config.ProxiedConnectorConfig;
 import io.trino.plugin.varada.dispatcher.DispatcherSplit;
 import io.trino.plugin.varada.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.varada.dispatcher.PartitionKey;
@@ -71,7 +71,7 @@ public class HiveProxiedConnectorTransformerTest
         extends ProxyConnectorTransformerBaseTest
 {
     private final HiveProxiedConnectorTransformer hiveProxiedConnectorTransformer =
-            new HiveProxiedConnectorTransformer(new ProxiedConnectorConfiguration());
+            new HiveProxiedConnectorTransformer(new ProxiedConnectorConfig());
 
     @Test
     public void testCalculateColumnsStatisticsBucketPriority()

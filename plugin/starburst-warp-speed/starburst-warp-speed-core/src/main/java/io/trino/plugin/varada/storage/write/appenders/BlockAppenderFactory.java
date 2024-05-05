@@ -20,7 +20,7 @@ import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.trino.operator.scalar.JsonExtract;
 import io.trino.operator.scalar.JsonPath;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.model.TransformedColumn;
 import io.trino.plugin.varada.dispatcher.model.WarmUpElement;
 import io.trino.plugin.varada.dispatcher.model.WarmUpElementState;
@@ -57,12 +57,12 @@ public class BlockAppenderFactory
     @Inject
     public BlockAppenderFactory(StorageEngineConstants storageEngineConstants,
             BufferAllocator bufferAllocator,
-            GlobalConfiguration globalConfiguration,
+            GlobalConfig globalConfig,
             BlockTransformerFactory blockTransformerFactory)
     {
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.bufferAllocator = requireNonNull(bufferAllocator);
-        this.warmDataVarcharMaxLength = requireNonNull(globalConfiguration).getWarmDataVarcharMaxLength();
+        this.warmDataVarcharMaxLength = requireNonNull(globalConfig).getWarmDataVarcharMaxLength();
         this.blockTransformerFactory = requireNonNull(blockTransformerFactory);
     }
 

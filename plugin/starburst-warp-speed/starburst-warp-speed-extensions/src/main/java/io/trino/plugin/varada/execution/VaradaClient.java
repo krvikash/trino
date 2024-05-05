@@ -32,7 +32,7 @@ import io.airlift.log.Logger;
 import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.impl.DefaultJwtBuilder;
 import io.jsonwebtoken.jackson.io.JacksonSerializer;
-import io.trino.plugin.warp.extension.configuration.WarpExtensionConfiguration;
+import io.trino.plugin.warp.extension.config.WarpExtensionConfig;
 import io.varada.tools.CatalogNameProvider;
 
 import java.io.IOException;
@@ -50,8 +50,8 @@ import java.util.concurrent.Callable;
 import java.util.function.Supplier;
 
 import static io.jsonwebtoken.security.Keys.hmacShaKeyFor;
-import static io.trino.plugin.warp.extension.configuration.WarpExtensionConfiguration.HTTP_REST_PORT_ENABLED;
-import static io.trino.plugin.warp.extension.configuration.WarpExtensionConfiguration.USE_HTTP_SERVER_PORT;
+import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.HTTP_REST_PORT_ENABLED;
+import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP_SERVER_PORT;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 
@@ -63,23 +63,23 @@ public class VaradaClient
     private static final Logger logger = Logger.get(VaradaClient.class);
     private final CatalogNameProvider catalogNameProvider;
     private final HttpClient httpClient;
-    private final WarpExtensionConfiguration warpExtensionConfiguration;
+    private final WarpExtensionConfig warpExtensionConfig;
     private final Optional<Supplier<JwtBuilder>> jwtBuilder;
 
     @Inject
     public VaradaClient(CatalogNameProvider catalogNameProvider,
             @ForVarada HttpClient httpClient,
-            WarpExtensionConfiguration warpExtensionConfiguration)
+            WarpExtensionConfig warpExtensionConfig)
     {
         this.catalogNameProvider = requireNonNull(catalogNameProvider, "httpClient is null");
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
-        this.warpExtensionConfiguration = requireNonNull(warpExtensionConfiguration);
+        this.warpExtensionConfig = requireNonNull(warpExtensionConfig);
 
-        jwtBuilder = warpExtensionConfiguration.getInternalCommunicationSharedSecret() != null ?
+        jwtBuilder = warpExtensionConfig.getInternalCommunicationSharedSecret() != null ?
                 Optional.of(() -> new DefaultJwtBuilder()
                         .serializeToJsonWith(new JacksonSerializer<>())
-                        .signWith(hmacShaKeyFor(Hashing.sha256().hashString(warpExtensionConfiguration.getInternalCommunicationSharedSecret(), UTF_8).asBytes()))
-                        .subject(warpExtensionConfiguration.getClusterUUID())
+                        .signWith(hmacShaKeyFor(Hashing.sha256().hashString(warpExtensionConfig.getInternalCommunicationSharedSecret(), UTF_8).asBytes()))
+                        .subject(warpExtensionConfig.getClusterUUID())
                         .expiration(Date.from(ZonedDateTime.now(ZoneId.systemDefault()).plusMinutes(5).toInstant()))) :
                 Optional.empty();
     }
@@ -176,18 +176,18 @@ public class VaradaClient
         catch (MalformedURLException e) {
             throw new RuntimeException(e);
         }
-        if (!warpExtensionConfiguration.isUseHttpServerPort()) {
+        if (!warpExtensionConfig.isUseHttpServerPort()) {
             restPort = getRestHttpPort(
-                    Map.of(USE_HTTP_SERVER_PORT, Boolean.toString(warpExtensionConfiguration.isUseHttpServerPort()),
-                            HTTP_REST_PORT_ENABLED, Boolean.toString(warpExtensionConfiguration.isRestHttpDefaultPortEnabled()),
-                            WarpExtensionConfiguration.HTTP_REST_PORT, Integer.toString(warpExtensionConfiguration.getRestHttpPort())),
+                    Map.of(USE_HTTP_SERVER_PORT, Boolean.toString(warpExtensionConfig.isUseHttpServerPort()),
+                            HTTP_REST_PORT_ENABLED, Boolean.toString(warpExtensionConfig.isRestHttpDefaultPortEnabled()),
+                            WarpExtensionConfig.HTTP_REST_PORT, Integer.toString(warpExtensionConfig.getRestHttpPort())),
                     nodeUri.getPort());
         }
         HttpUriBuilder uriBuilder = HttpUriBuilder.uriBuilderFrom(nodeUri)
                 .port(restPort);
-        if (warpExtensionConfiguration.isUseHttpServerPort()) {
+        if (warpExtensionConfig.isUseHttpServerPort()) {
             uriBuilder.appendPath("ext");
-            if (isInternal && warpExtensionConfiguration.getInternalCommunicationSharedSecret() != null) {
+            if (isInternal && warpExtensionConfig.getInternalCommunicationSharedSecret() != null) {
                 uriBuilder.appendPath("internal");
             }
             uriBuilder.appendPath(catalogNameProvider.get());
@@ -208,8 +208,8 @@ public class VaradaClient
     public static String getRestHttpPortStr(Map<String, String> config, int nodePort)
     {
         String restPort = config.getOrDefault(
-                WarpExtensionConfiguration.HTTP_REST_PORT,
-                String.valueOf(WarpExtensionConfiguration.HTTP_REST_DEFAULT_PORT));
+                WarpExtensionConfig.HTTP_REST_PORT,
+                String.valueOf(WarpExtensionConfig.HTTP_REST_DEFAULT_PORT));
         if (!Boolean.parseBoolean(config.getOrDefault(USE_HTTP_SERVER_PORT, Boolean.TRUE.toString()))) {
             if (!Boolean.parseBoolean(config.getOrDefault(HTTP_REST_PORT_ENABLED, Boolean.TRUE.toString()))) {
                 restPort = String.valueOf(nodePort + 1);

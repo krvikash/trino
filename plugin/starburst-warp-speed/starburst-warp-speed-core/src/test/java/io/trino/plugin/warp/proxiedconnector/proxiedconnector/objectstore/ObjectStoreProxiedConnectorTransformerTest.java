@@ -19,7 +19,7 @@ import io.trino.plugin.hive.HivePartitionKey;
 import io.trino.plugin.hive.HiveSplit;
 import io.trino.plugin.hive.HiveTableHandle;
 import io.trino.plugin.hive.acid.AcidTransaction;
-import io.trino.plugin.varada.configuration.ProxiedConnectorConfiguration;
+import io.trino.plugin.varada.config.ProxiedConnectorConfig;
 import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.varada.dispatcher.DispatcherSplit;
 import io.trino.plugin.varada.dispatcher.DispatcherTableHandle;
@@ -62,7 +62,7 @@ public class ObjectStoreProxiedConnectorTransformerTest
         extends ProxyConnectorTransformerBaseTest
 {
     private final HiveProxiedConnectorTransformer hiveProxiedConnectorTransformer =
-            new HiveProxiedConnectorTransformer(new ProxiedConnectorConfiguration());
+            new HiveProxiedConnectorTransformer(new ProxiedConnectorConfig());
     final Map<String, DispatcherProxiedConnectorTransformer> transformerMap =
             Map.of(ObjectStoreProxiedConnectorTransformer.getTransformerKey(HiveColumnHandle.class),
                     hiveProxiedConnectorTransformer);

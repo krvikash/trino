@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.varada.dispatcher.passthrough;
 
-import io.trino.plugin.varada.configuration.ProxiedConnectorConfiguration;
+import io.trino.plugin.varada.config.ProxiedConnectorConfig;
 import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.varada.dispatcher.DispatcherSplit;
 import io.trino.plugin.varada.dispatcher.DispatcherStatisticsProvider;
@@ -39,17 +39,17 @@ import static java.util.Objects.requireNonNull;
 public class PassThroughProxiedConnectorTransformer
         implements DispatcherProxiedConnectorTransformer
 {
-    private final ProxiedConnectorConfiguration proxiedConnectorConfiguration;
+    private final ProxiedConnectorConfig proxiedConnectorConfig;
     private final DispatcherProxiedConnectorColumnTransformer dispatcherProxiedConnectorColumnTransformer;
 
     private final String connectorName;
 
     public PassThroughProxiedConnectorTransformer(
-            ProxiedConnectorConfiguration proxiedConnectorConfiguration,
+            ProxiedConnectorConfig proxiedConnectorConfig,
             DispatcherProxiedConnectorColumnTransformer dispatcherProxiedConnectorColumnTransformer,
             String connectorName)
     {
-        this.proxiedConnectorConfiguration = requireNonNull(proxiedConnectorConfiguration);
+        this.proxiedConnectorConfig = requireNonNull(proxiedConnectorConfig);
         this.dispatcherProxiedConnectorColumnTransformer = requireNonNull(dispatcherProxiedConnectorColumnTransformer);
         this.connectorName = requireNonNull(connectorName);
     }
@@ -116,7 +116,7 @@ public class PassThroughProxiedConnectorTransformer
     @Override
     public boolean isValidForAcceleration(DispatcherTableHandle dispatcherTableHandle)
     {
-        return !proxiedConnectorConfiguration.getPassThroughDispatcherSet().contains(connectorName);
+        return !proxiedConnectorConfig.getPassThroughDispatcherSet().contains(connectorName);
     }
 
     @Override

@@ -17,8 +17,8 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.trino.plugin.varada.VaradaErrorCode;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
-import io.trino.plugin.varada.configuration.WarmupDemoterConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
+import io.trino.plugin.varada.config.WarmupDemoterConfig;
 import io.trino.plugin.varada.di.VaradaInitializedServiceRegistry;
 import io.trino.plugin.varada.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.varada.metrics.MetricsManager;
@@ -47,8 +47,8 @@ public class WorkerCapacityManager
 {
     private static final Logger logger = Logger.get(WorkerCapacityManager.class);
 
-    private final GlobalConfiguration globalConfiguration;
-    private final WarmupDemoterConfiguration warmupDemoterConfiguration;
+    private final GlobalConfig globalConfig;
+    private final WarmupDemoterConfig warmupDemoterConfig;
     private final StorageEngineConstants storageEngineConstants;
     private final VaradaStatsWarmupDemoter statsWarmupDemoter;
     private final NativeStorageStateHandler nativeStorageStateHandler;
@@ -60,15 +60,15 @@ public class WorkerCapacityManager
     private long reservationUsageForSingleTx;
 
     @Inject
-    WorkerCapacityManager(GlobalConfiguration globalConfiguration,
-            WarmupDemoterConfiguration warmupDemoterConfiguration,
+    WorkerCapacityManager(GlobalConfig globalConfig,
+            WarmupDemoterConfig warmupDemoterConfig,
             StorageEngineConstants storageEngineConstants,
             NativeStorageStateHandler nativeStorageStateHandler,
             VaradaInitializedServiceRegistry varadaInitializedServiceRegistry,
             MetricsManager metricsManager)
     {
-        this.globalConfiguration = requireNonNull(globalConfiguration);
-        this.warmupDemoterConfiguration = requireNonNull(warmupDemoterConfiguration);
+        this.globalConfig = requireNonNull(globalConfig);
+        this.warmupDemoterConfig = requireNonNull(warmupDemoterConfig);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
         statsWarmupDemoter = metricsManager.registerMetric(VaradaStatsWarmupDemoter.create(WarmupDemoterService.WARMUP_DEMOTER_STAT_GROUP));
@@ -91,7 +91,7 @@ public class WorkerCapacityManager
     private void calculateReservationUsageForSingleTx()
     {
         int pageSize = storageEngineConstants.getPageSize();
-        reservationUsageForSingleTx = globalConfiguration.getReservationUsageForSingleTxInBytes() / pageSize;
+        reservationUsageForSingleTx = globalConfig.getReservationUsageForSingleTxInBytes() / pageSize;
     }
 
     public boolean isWorkerInitialized()
@@ -107,7 +107,7 @@ public class WorkerCapacityManager
     public double getFractionCurrentUsageFromTotal()
     {
         double fractionUsedUsageFromTotal = (double) getCurrentUsageGross() / (double) getTotalCapacity();
-        if (fractionUsedUsageFromTotal > warmupDemoterConfiguration.getMaxUsageThresholdPercentage()) {
+        if (fractionUsedUsageFromTotal > warmupDemoterConfig.getMaxUsageThresholdPercentage()) {
             logger.debug("get fraction usage=%f, executingTxCount=%d", fractionUsedUsageFromTotal, executingTxCount.get());
         }
         return fractionUsedUsageFromTotal;
@@ -153,9 +153,9 @@ public class WorkerCapacityManager
 
     private void calculateTotalCapacity()
     {
-        Path dataPath = Paths.get(globalConfiguration.getLocalStorePath());
+        Path dataPath = Paths.get(globalConfig.getLocalStorePath());
         if (!Files.exists(dataPath)) {
-            logger.error("local store directory does not exists %s setting StorageDisableState to permanently disabled", globalConfiguration.getLocalStorePath());
+            logger.error("local store directory does not exists %s setting StorageDisableState to permanently disabled", globalConfig.getLocalStorePath());
             nativeStorageStateHandler.setStorageDisableState(true, false);
             return;
         }
@@ -174,7 +174,7 @@ public class WorkerCapacityManager
 
     private void cleanLocalStorage()
     {
-        String localStorePath = globalConfiguration.getLocalStorePath();
+        String localStorePath = globalConfig.getLocalStorePath();
 
         File doNotRemove = new File(PathUtils.getUriPath(localStorePath, "DO-NOT-REMOVE"));
         if (doNotRemove.exists()) {

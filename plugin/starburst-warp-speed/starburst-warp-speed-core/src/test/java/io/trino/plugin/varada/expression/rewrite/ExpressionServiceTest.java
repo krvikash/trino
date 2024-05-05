@@ -16,8 +16,8 @@ package io.trino.plugin.varada.expression.rewrite;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.trino.plugin.varada.TestingTxService;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
+import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.connector.TestingConnectorColumnHandle;
 import io.trino.plugin.varada.connector.TestingConnectorProxiedConnectorTransformer;
 import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
@@ -111,7 +111,7 @@ public class ExpressionServiceTest
     private final Variable varcharVariable = new Variable("varchar1", varcharType);
     private final Variable realVariable = new Variable("real1", RealType.REAL);
     private ExpressionService expressionService;
-    private GlobalConfiguration globalConfiguration;
+    private GlobalConfig globalConfig;
     private ConnectorSession connectorSession;
     private Map<String, ColumnHandle> assignments;
     private MetricsManager metricsManager;
@@ -140,15 +140,15 @@ public class ExpressionServiceTest
     public void beforeEach()
     {
         this.customStats = new HashMap<>();
-        globalConfiguration = new GlobalConfiguration();
+        globalConfig = new GlobalConfig();
         metricsManager = TestingTxService.createMetricsManager();
         StorageEngineConstants storageEngineConstants = new StubsStorageEngineConstants();
         NativeExpressionRulesHandler nativeExpressionRulesHandler = new NativeExpressionRulesHandler(storageEngineConstants, metricsManager);
         DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer = new TestingConnectorProxiedConnectorTransformer();
         expressionService = new ExpressionService(dispatcherProxiedConnectorTransformer,
                 new ExperimentSupportedFunction(metricsManager),
-                globalConfiguration,
-                new NativeConfiguration(),
+                globalConfig,
+                new NativeConfig(),
                 metricsManager,
                 nativeExpressionRulesHandler);
         connectorSession = mock(ConnectorSession.class);
@@ -959,7 +959,7 @@ public class ExpressionServiceTest
     @Test
     public void testUnsupportAllExpression()
     {
-        globalConfiguration.setUnsupportedFunctions("*");
+        globalConfig.setUnsupportedFunctions("*");
 
         Call expression = new Call(
                 BooleanType.BOOLEAN,

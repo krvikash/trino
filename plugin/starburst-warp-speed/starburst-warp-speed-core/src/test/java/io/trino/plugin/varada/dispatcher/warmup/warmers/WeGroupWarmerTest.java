@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.varada.dispatcher.warmup.warmers;
 
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.model.RowGroupData;
 import io.trino.plugin.varada.dispatcher.model.RowGroupDataValidation;
 import io.trino.plugin.varada.dispatcher.model.RowGroupKey;
@@ -26,7 +26,7 @@ import io.trino.plugin.varada.storage.write.WarmupElementStats;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.VaradaStatsWarmupImportService;
 import io.varada.cloudvendors.CloudVendorService;
-import io.varada.cloudvendors.configuration.CloudVendorConfiguration;
+import io.varada.cloudvendors.config.CloudVendorConfig;
 import io.varada.cloudvendors.model.StorageObjectMetadata;
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.AfterAll;
@@ -65,7 +65,7 @@ public class WeGroupWarmerTest
 {
     private static Path localStorePath;
 
-    private GlobalConfiguration globalConfiguration;
+    private GlobalConfig globalConfig;
     private RowGroupDataService rowGroupDataService;
     private CloudVendorService cloudVendorService;
     private VaradaStatsWarmupImportService varadaStatsWarmupImportService;
@@ -96,12 +96,12 @@ public class WeGroupWarmerTest
     @BeforeEach
     void setUp()
     {
-        globalConfiguration = new GlobalConfiguration();
-        globalConfiguration.setLocalStorePath(localStorePath.toFile().getAbsolutePath());
+        globalConfig = new GlobalConfig();
+        globalConfig.setLocalStorePath(localStorePath.toFile().getAbsolutePath());
 
-        CloudVendorConfiguration cloudVendorConfiguration = new CloudVendorConfiguration();
-        cloudVendorConfiguration.setStoreType("s3");
-        cloudVendorConfiguration.setStorePath("s3://store-bucket/");
+        CloudVendorConfig cloudVendorConfig = new CloudVendorConfig();
+        cloudVendorConfig.setStoreType("s3");
+        cloudVendorConfig.setStorePath("s3://store-bucket/");
 
         StorageEngineConstants storageEngineConstants = mock(StorageEngineConstants.class);
         when(storageEngineConstants.getPageSize()).thenReturn(8192);
@@ -115,8 +115,8 @@ public class WeGroupWarmerTest
         varadaStatsWarmupImportService = VaradaStatsWarmupImportService.create(WARMUP_IMPORTER_STAT_GROUP);
         when(metricsManager.registerMetric(any())).thenReturn(varadaStatsWarmupImportService);
 
-        weGroupWarmer = new WeGroupWarmer(globalConfiguration,
-                cloudVendorConfiguration,
+        weGroupWarmer = new WeGroupWarmer(globalConfig,
+                cloudVendorConfig,
                 storageEngineConstants,
                 rowGroupDataService,
                 cloudVendorService,
@@ -218,7 +218,7 @@ public class WeGroupWarmerTest
             throws IOException
     {
         RowGroupKey rowGroupKey = new RowGroupKey("schema", "table", "s3://test-bucket/column_split_file", 0, 0L, 0, "", "");
-        String localFileName = rowGroupKey.stringFileNameRepresentation(globalConfiguration.getLocalStorePath());
+        String localFileName = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
         File localFile = new File(localFileName);
         File localTmpFile = new File(localFileName + ".tmp");
 
@@ -254,7 +254,7 @@ public class WeGroupWarmerTest
             throws IOException
     {
         RowGroupKey rowGroupKey = new RowGroupKey("schema", "table", "s3://test-bucket/column_split_file", 1, 1L, 1, "", "");
-        String localFileName = rowGroupKey.stringFileNameRepresentation(globalConfiguration.getLocalStorePath());
+        String localFileName = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
         File localFile = new File(localFileName);
         File localTmpFile = new File(localFileName + ".tmp");
 
@@ -293,7 +293,7 @@ public class WeGroupWarmerTest
             throws IOException
     {
         RowGroupKey rowGroupKey = new RowGroupKey("schema-1", "table-1", "s3://test-bucket/column_split_file", 1, 1L, 1, "", "");
-        String localFileName = rowGroupKey.stringFileNameRepresentation(globalConfiguration.getLocalStorePath());
+        String localFileName = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
         File localFile = new File(localFileName);
 
         FileUtils.createParentDirectories(localFile);
@@ -415,7 +415,7 @@ public class WeGroupWarmerTest
             throws IOException
     {
         RowGroupKey rowGroupKey = new RowGroupKey("schema-2", "table-2", "s3://test-bucket/column_split_file", 2, 2L, 2, "", "");
-        String localFileName = rowGroupKey.stringFileNameRepresentation(globalConfiguration.getLocalStorePath());
+        String localFileName = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
         File localFile = new File(localFileName);
 
         FileUtils.createParentDirectories(localFile);
@@ -525,7 +525,7 @@ public class WeGroupWarmerTest
             throws IOException
     {
         RowGroupKey rowGroupKey = new RowGroupKey("schema-3", "table-3", "s3://test-bucket/column_split_file", 3, 3L, 3, "", "");
-        String localFileName = rowGroupKey.stringFileNameRepresentation(globalConfiguration.getLocalStorePath());
+        String localFileName = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
         File localFile = new File(localFileName);
 
         FileUtils.createParentDirectories(localFile);

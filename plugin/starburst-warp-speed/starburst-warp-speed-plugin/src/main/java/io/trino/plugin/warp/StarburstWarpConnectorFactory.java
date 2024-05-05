@@ -17,14 +17,14 @@ import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.starburstdata.trino.plugin.license.LicenseManager;
 import io.airlift.configuration.ConfigurationFactory;
-import io.trino.plugin.varada.configuration.ProxiedConnectorConfiguration;
+import io.trino.plugin.varada.config.ProxiedConnectorConfig;
 import io.trino.plugin.varada.di.DefaultFakeConnectorSessionProvider;
 import io.trino.plugin.varada.di.FakeConnectorSessionProvider;
 import io.trino.plugin.varada.di.InitializationModule;
 import io.trino.plugin.varada.dispatcher.DispatcherConnectorFactory;
 import io.trino.plugin.varada.execution.VaradaClient;
 import io.trino.plugin.varada.util.UriUtils;
-import io.trino.plugin.warp.extension.configuration.WarpExtensionConfiguration;
+import io.trino.plugin.warp.extension.config.WarpExtensionConfig;
 import io.trino.plugin.warp.extension.di.WarpEmptyExtensionModule;
 import io.trino.plugin.warp.extension.di.WarpExtensionModule;
 import io.trino.plugin.warp.proxiedconnector.deltalake.DeltaLakeProxiedConnectorInitializer;
@@ -36,7 +36,7 @@ import io.trino.spi.cache.CacheManagerFactory;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
-import io.varada.tools.configuration.MultiPrefixConfigurationWrapper;
+import io.varada.tools.config.MultiPrefixConfigWrapper;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -73,15 +73,15 @@ public class StarburstWarpConnectorFactory
     public Connector create(String catalogName, Map<String, String> config, ConnectorContext context)
     {
         requireNonNull(licenseManager, "licenseManager is null");
-        Map<String, String> configMap = new MultiPrefixConfigurationWrapper(new HashMap<>(config));
+        Map<String, String> configMap = new MultiPrefixConfigWrapper(new HashMap<>(config));
 
-        if (!Boolean.parseBoolean(configMap.getOrDefault(WarpExtensionConfiguration.USE_HTTP_SERVER_PORT, Boolean.TRUE.toString()))) {
+        if (!Boolean.parseBoolean(configMap.getOrDefault(WarpExtensionConfig.USE_HTTP_SERVER_PORT, Boolean.TRUE.toString()))) {
             String httpRestPortStr = VaradaClient.getRestHttpPortStr(configMap,
                     UriUtils.getHttpUri(context.getNodeManager().getCurrentNode()).getPort());
 
             configMap.put("http-server.http.port", httpRestPortStr);
-            if (!config.containsKey(WarpExtensionConfiguration.HTTP_REST_PORT)) {
-                configMap.put(WarpExtensionConfiguration.HTTP_REST_PORT, httpRestPortStr);
+            if (!config.containsKey(WarpExtensionConfig.HTTP_REST_PORT)) {
+                configMap.put(WarpExtensionConfig.HTTP_REST_PORT, httpRestPortStr);
             }
         }
 
@@ -93,9 +93,9 @@ public class StarburstWarpConnectorFactory
                 configMap,
                 context,
                 Optional.of(extraModules),
-                Map.of(ProxiedConnectorConfiguration.DELTA_LAKE_CONNECTOR_NAME, DeltaLakeProxiedConnectorInitializer.class.getName(),
-                        ProxiedConnectorConfiguration.HIVE_CONNECTOR_NAME, HiveProxiedConnectorInitializer.class.getName(),
-                        ProxiedConnectorConfiguration.ICEBERG_CONNECTOR_NAME, IcebergProxiedConnectorInitializer.class.getName())));
+                Map.of(ProxiedConnectorConfig.DELTA_LAKE_CONNECTOR_NAME, DeltaLakeProxiedConnectorInitializer.class.getName(),
+                        ProxiedConnectorConfig.HIVE_CONNECTOR_NAME, HiveProxiedConnectorInitializer.class.getName(),
+                        ProxiedConnectorConfig.ICEBERG_CONNECTOR_NAME, IcebergProxiedConnectorInitializer.class.getName())));
     }
 
     @Override
@@ -130,9 +130,9 @@ public class StarburstWarpConnectorFactory
         @Override
         public void configure(Binder binder)
         {
-            ConfigurationFactory configurationFactory = new ConfigurationFactory(config);
-            WarpExtensionConfiguration warpExtensionConfiguration = configurationFactory.build(WarpExtensionConfiguration.class);
-            if (warpExtensionConfiguration.isEnabled()) {
+            ConfigurationFactory configFactory = new ConfigurationFactory(config);
+            WarpExtensionConfig warpExtensionConfig = configFactory.build(WarpExtensionConfig.class);
+            if (warpExtensionConfig.isEnabled()) {
                 binder.install(new WarpExtensionModule(config, connectorContext, catalogName));
             }
             else {

@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.plugin.varada.configuration;
+package io.trino.plugin.varada.config;
 
 import com.google.common.base.Splitter;
 import io.airlift.configuration.Config;
@@ -22,10 +22,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static io.varada.tools.configuration.MultiPrefixConfigurationWrapper.LOCAL_DATA_STORAGE_PREFIX;
-import static io.varada.tools.configuration.MultiPrefixConfigurationWrapper.WARP_SPEED_PREFIX;
+import static io.varada.tools.config.MultiPrefixConfigWrapper.LOCAL_DATA_STORAGE_PREFIX;
+import static io.varada.tools.config.MultiPrefixConfigWrapper.WARP_SPEED_PREFIX;
 
-public class MetricsConfiguration
+public class MetricsConfig
 {
     private final Map<String, Long> limits;
     private boolean enabled = true;
@@ -36,7 +36,7 @@ public class MetricsConfiguration
     private Duration cleanerKeepDuration = Duration.ofDays(7);
     private Duration printMetricsDuration = Duration.ofMinutes(15);
 
-    public MetricsConfiguration()
+    public MetricsConfig()
     {
         limits = new HashMap<>();
         limits.put("column", 16384L);
@@ -135,7 +135,7 @@ public class MetricsConfiguration
     @Override
     public String toString()
     {
-        return "MetricsConfiguration{" +
+        return "MetricsConfig{" +
                 "limits=" + limits +
                 ", enabled=" + enabled +
                 ", delayDuration=" + delayDuration +

@@ -14,7 +14,7 @@
 package io.trino.plugin.varada.node;
 
 import com.google.common.eventbus.EventBus;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.spi.Node;
 import org.junit.jupiter.api.Test;
 
@@ -28,16 +28,16 @@ public class CoordinatorInitializedEventHandlerTest
     {
         CoordinatorInitializedEvent event = new CoordinatorInitializedEvent(mock(Node.class));
 
-        GlobalConfiguration globalConfiguration = new GlobalConfiguration();
+        GlobalConfig globalConfig = new GlobalConfig();
         CoordinatorInitializedEventHandler handler = new CoordinatorInitializedEventHandler(mock(EventBus.class),
-                globalConfiguration);
+                globalConfig);
 
         handler.handleEvent(event);
 
-        assertThat(globalConfiguration.getClusterUpTime()).isNotEqualTo(0);
+        assertThat(globalConfig.getClusterUpTime()).isNotEqualTo(0);
 
-        globalConfiguration.setClusterUpTime(2022L);
+        globalConfig.setClusterUpTime(2022L);
         handler.handleEvent(event);
-        assertThat(globalConfiguration.getClusterUpTime()).isEqualTo(2022);
+        assertThat(globalConfig.getClusterUpTime()).isEqualTo(2022);
     }
 }

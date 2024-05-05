@@ -14,7 +14,7 @@
 package io.trino.plugin.varada.dispatcher.warmup.warmers;
 
 import io.trino.plugin.varada.TestingTxService;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.varada.dispatcher.warmup.demoter.AcquireWarmupStatus;
 import io.trino.plugin.varada.dispatcher.warmup.demoter.WarmupDemoterService;
@@ -39,7 +39,7 @@ class StorageWarmerServiceTest
                 AcquireWarmupStatus.REACHED_THRESHOLD);
         StorageWarmerService storageWarmerService = new StorageWarmerService(mock(RowGroupDataService.class),
                 new StubsStorageEngine(),
-                new GlobalConfiguration(),
+                new GlobalConfig(),
                 mock(ConnectorSync.class),
                 warmupDemoterService,
                 mock(StorageEngineTxService.class),

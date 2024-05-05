@@ -16,7 +16,7 @@ package io.trino.plugin.varada.juffer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.warp.gen.stats.VaradaStatsTxService;
 
@@ -35,7 +35,7 @@ public class StorageEngineTxService
 {
     static final String STATS_GROUP_NAME = "txService";
 
-    private final NativeConfiguration nativeConfiguration;
+    private final NativeConfig nativeConfig;
     private final VaradaStatsTxService statsTxService;
     private final ConcurrentLinkedQueue<CompletableFuture<Boolean>> warmingBlockingFutures;
     private final AtomicInteger runningPageSources = new AtomicInteger();
@@ -43,10 +43,10 @@ public class StorageEngineTxService
 
     @Inject
     public StorageEngineTxService(
-            NativeConfiguration nativeConfiguration,
+            NativeConfig nativeConfig,
             MetricsManager metricsManager)
     {
-        this.nativeConfiguration = requireNonNull(nativeConfiguration);
+        this.nativeConfig = requireNonNull(nativeConfig);
         this.warmingBlockingFutures = new ConcurrentLinkedQueue<>();
 
         statsTxService = metricsManager.registerMetric(VaradaStatsTxService.create(STATS_GROUP_NAME));
@@ -56,7 +56,7 @@ public class StorageEngineTxService
     {
         long ticket = runningLoaders.getAndIncrement();
 
-        if (ticket < nativeConfiguration.getTaskMinWarmingThreads()) {
+        if (ticket < nativeConfig.getTaskMinWarmingThreads()) {
             return true;
         }
         else {
@@ -84,7 +84,7 @@ public class StorageEngineTxService
             if (currentlyRunningPageSources == 0) {
                 releaseAllWaitingWarm();
             }
-            else if (currentlyRunningPageSources < nativeConfiguration.getMaxPageSourcesWithoutWarmingLimit()) {
+            else if (currentlyRunningPageSources < nativeConfig.getMaxPageSourcesWithoutWarmingLimit()) {
                 releaseOneWaitingWarm();
             }
         }
@@ -109,7 +109,7 @@ public class StorageEngineTxService
     public CompletableFuture<Boolean> tryToWarm()
     {
         CompletableFuture<Boolean> ret;
-        if (runningPageSources.get() >= nativeConfiguration.getMaxPageSourcesWithoutWarmingLimit()) {
+        if (runningPageSources.get() >= nativeConfig.getMaxPageSourcesWithoutWarmingLimit()) {
             ret = new CompletableFuture<>();
             warmingBlockingFutures.add(ret);
             statsTxService.setblocking_warmings(warmingBlockingFutures.size());

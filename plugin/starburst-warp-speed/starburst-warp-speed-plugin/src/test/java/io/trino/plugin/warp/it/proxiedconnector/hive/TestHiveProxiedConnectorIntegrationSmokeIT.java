@@ -69,7 +69,7 @@ import io.trino.plugin.warp.extension.execution.debugtools.RowGroupTask;
 import io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterData;
 import io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterThreshold;
 import io.trino.plugin.warp.extension.execution.debugtools.WorkerWarmupDemoterTask;
-import io.trino.plugin.warp.extension.execution.debugtools.dictionary.DictionaryConfigurationResult;
+import io.trino.plugin.warp.extension.execution.debugtools.dictionary.DictionaryConfigResult;
 import io.trino.plugin.warp.extension.execution.debugtools.dictionary.DictionaryCountResult;
 import io.trino.plugin.warp.extension.execution.debugtools.dictionary.DictionaryTask;
 import io.trino.plugin.warp.extension.execution.health.ClusterHealthTask;
@@ -131,17 +131,17 @@ import static io.trino.plugin.varada.VaradaSessionProperties.ENABLE_MAPPED_MATCH
 import static io.trino.plugin.varada.VaradaSessionProperties.PREDICATE_SIMPLIFY_THRESHOLD;
 import static io.trino.plugin.varada.VaradaSessionProperties.UNSUPPORTED_FUNCTIONS;
 import static io.trino.plugin.varada.VaradaSessionProperties.UNSUPPORTED_NATIVE_FUNCTIONS;
-import static io.trino.plugin.varada.configuration.ProxiedConnectorConfiguration.HIVE_CONNECTOR_NAME;
-import static io.trino.plugin.varada.configuration.ProxiedConnectorConfiguration.PROXIED_CONNECTOR;
+import static io.trino.plugin.varada.config.ProxiedConnectorConfig.HIVE_CONNECTOR_NAME;
+import static io.trino.plugin.varada.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
 import static io.trino.plugin.varada.dispatcher.DispatcherPageSourceFactory.PREFILLED;
 import static io.trino.plugin.varada.dispatcher.DispatcherPageSourceFactory.createFixedStatKey;
 import static io.trino.plugin.varada.dispatcher.model.DictionaryState.DICTIONARY_MAX_EXCEPTION;
-import static io.trino.plugin.warp.extension.configuration.WarpExtensionConfiguration.USE_HTTP_SERVER_PORT;
+import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP_SERVER_PORT;
 import static io.trino.plugin.warp.extension.execution.dump.RowGroupDataDumpTask.CACHED_ROW_GROUP;
 import static io.trino.plugin.warp.extension.execution.dump.RowGroupDataDumpTask.CACHED_SHARED_ROW_GROUP;
 import static io.trino.spi.expression.StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.LIKE_FUNCTION_NAME;
-import static io.varada.tools.configuration.MultiPrefixConfigurationWrapper.WARP_SPEED_PREFIX;
+import static io.varada.tools.config.MultiPrefixConfigWrapper.WARP_SPEED_PREFIX;
 import static java.lang.String.format;
 import static java.util.Map.entry;
 import static java.util.stream.Collectors.toList;
@@ -3371,7 +3371,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         WarmupDemoterData warmupDemoterData = WarmupDemoterData.builder()
                 .batchSize(2)
                 .executeDemoter(false)
-                .modifyConfiguration(true)
+                .modifyConfig(true)
                 .warmupDemoterThreshold(new WarmupDemoterThreshold(0.95, 0.6))
                 .build();
         demote(warmupDemoterData);
@@ -3495,7 +3495,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 .executeDemoter(true)
                 .forceExecuteDeadObjects(true)
                 .forceDeleteFailedObjects(true)
-                .modifyConfiguration(true)
+                .modifyConfig(true)
                 .build();
         Map<String, Object> res = demote(warmupDemoterData);
 
@@ -3783,15 +3783,15 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         computeActual(getSession(), format("INSERT INTO %s VALUES (3, '%s', '%s', '%s')", tableName, var + "2", var + "20", var + "20"));
 
         //reset dictionaries
-        Map<String, DictionaryConfigurationResult> configurationResults = objectMapper.readerFor(new TypeReference<Map<String, DictionaryConfigurationResult>>() {})
+        Map<String, DictionaryConfigResult> configResults = objectMapper.readerFor(new TypeReference<Map<String, DictionaryConfigResult>>() {})
                 .readValue(executeRestCommand(DictionaryTask.DICTIONARY_PATH, DictionaryTask.DICTIONARY_GET_CONFIGURATION, null, HttpMethod.GET, HttpURLConnection.HTTP_OK));
-        DictionaryConfigurationResult configuration = new DictionaryConfigurationResult(300, 1, -1);
-        assertThat(configurationResults.values().stream().findAny().orElseThrow().getMaxDictionaryTotalCacheWeight()).isGreaterThan(300);
-        executeRestCommand(DictionaryTask.DICTIONARY_PATH, DictionaryTask.DICTIONARY_SET_CONFIGURATION_AND_RESET_CACHE, configuration, HttpMethod.POST, HttpURLConnection.HTTP_OK);
-        configurationResults = objectMapper.readerFor(new TypeReference<Map<String, DictionaryConfigurationResult>>() {})
+        DictionaryConfigResult config = new DictionaryConfigResult(300, 1, -1);
+        assertThat(configResults.values().stream().findAny().orElseThrow().getMaxDictionaryTotalCacheWeight()).isGreaterThan(300);
+        executeRestCommand(DictionaryTask.DICTIONARY_PATH, DictionaryTask.DICTIONARY_SET_CONFIGURATION_AND_RESET_CACHE, config, HttpMethod.POST, HttpURLConnection.HTTP_OK);
+        configResults = objectMapper.readerFor(new TypeReference<Map<String, DictionaryConfigResult>>() {})
                 .readValue(executeRestCommand(DictionaryTask.DICTIONARY_PATH, DictionaryTask.DICTIONARY_GET_CONFIGURATION, null, HttpMethod.GET, HttpURLConnection.HTTP_OK));
-        assertThat(configurationResults.values().stream().findAny().orElseThrow().getMaxDictionaryTotalCacheWeight()).isEqualTo(300);
-        assertThat(configurationResults.values().stream().findAny().orElseThrow().getConcurrency()).isEqualTo(1);
+        assertThat(configResults.values().stream().findAny().orElseThrow().getMaxDictionaryTotalCacheWeight()).isEqualTo(300);
+        assertThat(configResults.values().stream().findAny().orElseThrow().getConcurrency()).isEqualTo(1);
         warmAndValidate("select * from %s".formatted(tableName),
                 session,
                 8,

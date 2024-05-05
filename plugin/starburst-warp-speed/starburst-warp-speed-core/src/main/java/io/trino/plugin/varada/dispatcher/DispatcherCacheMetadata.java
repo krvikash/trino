@@ -20,7 +20,7 @@ import com.google.inject.Inject;
 import io.airlift.json.ObjectMapperProvider;
 import io.airlift.log.Logger;
 import io.trino.plugin.varada.annotations.ForWarp;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.cache.CacheTableId;
 import io.trino.spi.cache.ConnectorCacheMetadata;
@@ -46,18 +46,18 @@ public class DispatcherCacheMetadata
     public DispatcherCacheMetadata(
             @ForWarp ConnectorCacheMetadata proxiedConnectorCacheMetadata,
             DispatcherTableHandleBuilderProvider dispatcherTableHandleBuilderProvider,
-            GlobalConfiguration globalConfiguration,
+            GlobalConfig globalConfig,
             ObjectMapperProvider objectMapperProvider)
     {
         this.proxiedConnectorCacheMetadata = requireNonNull(proxiedConnectorCacheMetadata);
         this.dispatcherTableHandleBuilderProvider = requireNonNull(dispatcherTableHandleBuilderProvider);
-        predicateThreashold = requireNonNull(globalConfiguration).getPredicateSimplifyThreshold();
+        predicateThreashold = requireNonNull(globalConfig).getPredicateSimplifyThreshold();
         this.objectMapper = objectMapperProvider.get();
         this.shapingLogger = ShapingLogger.getInstance(
                 Logger.get(DispatcherCacheMetadata.class),
-                globalConfiguration.getShapingLoggerThreshold(),
-                globalConfiguration.getShapingLoggerDuration(),
-                globalConfiguration.getShapingLoggerNumberOfSamples());
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
     }
 
     @Override

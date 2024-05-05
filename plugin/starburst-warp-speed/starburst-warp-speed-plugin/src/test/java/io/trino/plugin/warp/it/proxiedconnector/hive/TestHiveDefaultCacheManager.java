@@ -30,10 +30,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static io.trino.plugin.varada.configuration.ProxiedConnectorConfiguration.HIVE_CONNECTOR_NAME;
-import static io.trino.plugin.varada.configuration.ProxiedConnectorConfiguration.PROXIED_CONNECTOR;
-import static io.trino.plugin.warp.extension.configuration.WarpExtensionConfiguration.USE_HTTP_SERVER_PORT;
-import static io.varada.tools.configuration.MultiPrefixConfigurationWrapper.WARP_SPEED_PREFIX;
+import static io.trino.plugin.varada.config.ProxiedConnectorConfig.HIVE_CONNECTOR_NAME;
+import static io.trino.plugin.varada.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
+import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP_SERVER_PORT;
+import static io.varada.tools.config.MultiPrefixConfigWrapper.WARP_SPEED_PREFIX;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestHiveDefaultCacheManager

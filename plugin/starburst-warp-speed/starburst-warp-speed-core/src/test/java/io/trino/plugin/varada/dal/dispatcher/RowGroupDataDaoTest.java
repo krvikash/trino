@@ -19,7 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.MoreCollectors;
 import io.airlift.json.ObjectMapperProvider;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.dal.RowGroupDataDao;
 import io.trino.plugin.varada.dispatcher.model.DictionaryInfo;
 import io.trino.plugin.varada.dispatcher.model.DictionaryKey;
@@ -77,7 +77,7 @@ public class RowGroupDataDaoTest
 {
     private static Path localStorePath;
 
-    private GlobalConfiguration globalConfiguration;
+    private GlobalConfig globalConfig;
     private StorageEngineConstants storageEngineConstants;
     private RowGroupDataDao rowGroupDataDao;
 
@@ -106,13 +106,13 @@ public class RowGroupDataDaoTest
     @BeforeEach
     public void before()
     {
-        globalConfiguration = new GlobalConfiguration();
-        globalConfiguration.setLocalStorePath(localStorePath.toFile().getAbsolutePath());
+        globalConfig = new GlobalConfig();
+        globalConfig.setLocalStorePath(localStorePath.toFile().getAbsolutePath());
 
         storageEngineConstants = mock(StorageEngineConstants.class);
         when(storageEngineConstants.getPageSize()).thenReturn(8192);
 
-        rowGroupDataDao = new RowGroupDataDao(globalConfiguration, new ObjectMapperProvider(), storageEngineConstants);
+        rowGroupDataDao = new RowGroupDataDao(globalConfig, new ObjectMapperProvider(), storageEngineConstants);
     }
 
     private void createFileIfNeeded(String filePath)
@@ -213,7 +213,7 @@ public class RowGroupDataDaoTest
                 .nextOffset(1)
                 .build();
 
-        createFileIfNeeded(rowGroupData.getRowGroupKey().stringFileNameRepresentation(globalConfiguration.getLocalStorePath()));
+        createFileIfNeeded(rowGroupData.getRowGroupKey().stringFileNameRepresentation(globalConfig.getLocalStorePath()));
 
         rowGroupDataDao.save(List.of(rowGroupData));
         rowGroupDataDao.flush(rowGroupData.getRowGroupKey());
@@ -232,7 +232,7 @@ public class RowGroupDataDaoTest
                 "",
                 "");
 
-        assertThatThrownBy(() -> createFileIfNeeded(nonValidRowGroupKey.stringFileNameRepresentation(globalConfiguration.getLocalStorePath())))
+        assertThatThrownBy(() -> createFileIfNeeded(nonValidRowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath())))
                 .hasCauseInstanceOf(IOException.class)
                 .hasMessageContaining("Cannot create directory");
     }
@@ -292,7 +292,7 @@ public class RowGroupDataDaoTest
                 .dataValidation(new RowGroupDataValidation(987654321, 918273645))
                 .build();
 
-        createFileIfNeeded(rowGroupData.getRowGroupKey().stringFileNameRepresentation(globalConfiguration.getLocalStorePath()));
+        createFileIfNeeded(rowGroupData.getRowGroupKey().stringFileNameRepresentation(globalConfig.getLocalStorePath()));
 
         rowGroupDataDao.save(List.of(rowGroupData));
         rowGroupDataDao.flush(rowGroupData.getRowGroupKey());
@@ -300,7 +300,7 @@ public class RowGroupDataDaoTest
         assertThat(rowGroupDataDao.get(rowGroupData.getRowGroupKey())).isEqualTo(rowGroupData);
 
         //read from another dao
-        RowGroupDataDao rowGroupDataDao2 = new RowGroupDataDao(globalConfiguration, new ObjectMapperProvider(), storageEngineConstants);
+        RowGroupDataDao rowGroupDataDao2 = new RowGroupDataDao(globalConfig, new ObjectMapperProvider(), storageEngineConstants);
         assertThat(rowGroupDataDao2.get(rowGroupData.getRowGroupKey())).isEqualTo(rowGroupData);
     }
 

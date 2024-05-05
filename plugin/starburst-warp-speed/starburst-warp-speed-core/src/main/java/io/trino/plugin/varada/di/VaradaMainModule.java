@@ -25,12 +25,12 @@ import io.trino.plugin.varada.CoordinatorNodeManager;
 import io.trino.plugin.varada.VaradaSessionProperties;
 import io.trino.plugin.varada.WorkerNodeManager;
 import io.trino.plugin.varada.annotations.ForWarp;
-import io.trino.plugin.varada.configuration.DictionaryConfiguration;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
-import io.trino.plugin.varada.configuration.MetricsConfiguration;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
-import io.trino.plugin.varada.configuration.ProxiedConnectorConfiguration;
-import io.trino.plugin.varada.configuration.WarmupDemoterConfiguration;
+import io.trino.plugin.varada.config.DictionaryConfig;
+import io.trino.plugin.varada.config.GlobalConfig;
+import io.trino.plugin.varada.config.MetricsConfig;
+import io.trino.plugin.varada.config.NativeConfig;
+import io.trino.plugin.varada.config.ProxiedConnectorConfig;
+import io.trino.plugin.varada.config.WarmupDemoterConfig;
 import io.trino.plugin.varada.juffer.BufferAllocator;
 import io.trino.plugin.varada.juffer.StorageEngineTxService;
 import io.trino.plugin.varada.metrics.MetricsManager;
@@ -45,7 +45,7 @@ import io.trino.plugin.varada.warmup.WarmupRuleService;
 import io.trino.spi.VersionEmbedder;
 import io.trino.spi.block.Block;
 import io.trino.spi.connector.ConnectorContext;
-import io.varada.cloudvendors.configuration.CloudVendorConfiguration;
+import io.varada.cloudvendors.config.CloudVendorConfig;
 
 import java.util.Map;
 
@@ -79,18 +79,18 @@ public class VaradaMainModule
         binder.bind(VaradaInitializedServiceRegistry.class);
 
         bindMetricsServices(binder);
-        bindConfigurations(binder);
+        bindConfigs(binder);
     }
 
-    private void bindConfigurations(Binder binder)
+    private void bindConfigs(Binder binder)
     {
-        configBinder(binder).bindConfig(MetricsConfiguration.class);
-        configBinder(binder).bindConfig(GlobalConfiguration.class);
-        configBinder(binder).bindConfig(NativeConfiguration.class);
-        configBinder(binder).bindConfig(WarmupDemoterConfiguration.class);
-        configBinder(binder).bindConfig(ProxiedConnectorConfiguration.class);
-        configBinder(binder).bindConfig(DictionaryConfiguration.class);
-        configBinder(binder).bindConfig(CloudVendorConfiguration.class, ForWarp.class);
+        configBinder(binder).bindConfig(MetricsConfig.class);
+        configBinder(binder).bindConfig(GlobalConfig.class);
+        configBinder(binder).bindConfig(NativeConfig.class);
+        configBinder(binder).bindConfig(WarmupDemoterConfig.class);
+        configBinder(binder).bindConfig(ProxiedConnectorConfig.class);
+        configBinder(binder).bindConfig(DictionaryConfig.class);
+        configBinder(binder).bindConfig(CloudVendorConfig.class, ForWarp.class);
     }
 
     private void configureCommon(Binder binder)

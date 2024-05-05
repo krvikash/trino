@@ -20,7 +20,7 @@ import io.trino.plugin.varada.di.InitializationModule;
 import io.trino.plugin.varada.di.WarmupCloudFetcherModule;
 import io.trino.plugin.varada.dispatcher.connectors.ConnectorTaskExecutor;
 import io.trino.plugin.varada.dispatcher.warmup.fetcher.EmptyWarmupRuleFetcher;
-import io.trino.plugin.varada.dispatcher.warmup.fetcher.WarmupRuleCloudFetcherConfiguration;
+import io.trino.plugin.varada.dispatcher.warmup.fetcher.WarmupRuleCloudFetcherConfig;
 import io.trino.plugin.varada.dispatcher.warmup.fetcher.WarmupRuleFetcher;
 import io.trino.spi.connector.ConnectorContext;
 import io.varada.tools.util.StringUtils;
@@ -56,9 +56,9 @@ public class WarpEmptyExtensionModule
     {
         binder().bind(ConnectorTaskExecutor.class).to(EmptyTaskExecutor.class);
 
-        ConfigurationFactory configurationFactory = new ConfigurationFactory(config);
-        WarmupRuleCloudFetcherConfiguration warmupRuleCloudFetcherConfiguration = configurationFactory.build(WarmupRuleCloudFetcherConfiguration.class);
-        if (StringUtils.isEmpty(warmupRuleCloudFetcherConfiguration.getStorePath())) {
+        ConfigurationFactory configFactory = new ConfigurationFactory(config);
+        WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig = configFactory.build(WarmupRuleCloudFetcherConfig.class);
+        if (StringUtils.isEmpty(warmupRuleCloudFetcherConfig.getStorePath())) {
             binder().bind(WarmupRuleFetcher.class).to(EmptyWarmupRuleFetcher.class);
         }
         else {

@@ -21,7 +21,7 @@ import io.trino.plugin.hive.HivePartitionKey;
 import io.trino.plugin.hive.HivePartitioningHandle;
 import io.trino.plugin.hive.HiveSplit;
 import io.trino.plugin.hive.HiveTableHandle;
-import io.trino.plugin.varada.configuration.ProxiedConnectorConfiguration;
+import io.trino.plugin.varada.config.ProxiedConnectorConfig;
 import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.varada.dispatcher.DispatcherSplit;
 import io.trino.plugin.varada.dispatcher.DispatcherStatisticsProvider;
@@ -59,12 +59,12 @@ import static java.util.Objects.requireNonNull;
 public class HiveProxiedConnectorTransformer
         implements DispatcherProxiedConnectorTransformer
 {
-    private final ProxiedConnectorConfiguration proxiedConnectorConfiguration;
+    private final ProxiedConnectorConfig proxiedConnectorConfig;
 
     @Inject
-    public HiveProxiedConnectorTransformer(ProxiedConnectorConfiguration proxiedConnectorConfiguration)
+    public HiveProxiedConnectorTransformer(ProxiedConnectorConfig proxiedConnectorConfig)
     {
-        this.proxiedConnectorConfiguration = requireNonNull(proxiedConnectorConfiguration);
+        this.proxiedConnectorConfig = requireNonNull(proxiedConnectorConfig);
     }
 
     @Override
@@ -173,7 +173,7 @@ public class HiveProxiedConnectorTransformer
     @Override
     public boolean isValidForAcceleration(DispatcherTableHandle dispatcherTableHandle)
     {
-        if (proxiedConnectorConfiguration.getPassThroughDispatcherSet().contains(ProxiedConnectorConfiguration.HIVE_CONNECTOR_NAME)) {
+        if (proxiedConnectorConfig.getPassThroughDispatcherSet().contains(ProxiedConnectorConfig.HIVE_CONNECTOR_NAME)) {
             return false;
         }
 

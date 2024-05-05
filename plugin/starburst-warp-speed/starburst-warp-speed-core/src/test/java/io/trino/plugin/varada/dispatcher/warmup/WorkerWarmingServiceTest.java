@@ -18,8 +18,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
-import io.trino.plugin.varada.configuration.WarmupDemoterConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
+import io.trino.plugin.varada.config.WarmupDemoterConfig;
 import io.trino.plugin.varada.connector.TestingConnectorColumnHandle;
 import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.varada.dispatcher.DispatcherSplit;
@@ -101,8 +101,8 @@ public class WorkerWarmingServiceTest
     private VaradaStatsWarmingService varadaStatsWarmingService;
     private WorkerTaskExecutorService workerTaskExecutorService;
     private WarmExecutionTaskFactory warmExecutionTaskFactory;
-    private WarmupDemoterConfiguration warmupDemoterConfiguration;
-    private GlobalConfiguration globalConfiguration;
+    private WarmupDemoterConfig warmupDemoterConfig;
+    private GlobalConfig globalConfig;
     private DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
     private RowGroupKey rowGroupKey;
 
@@ -117,8 +117,8 @@ public class WorkerWarmingServiceTest
         warmExecutionTaskFactory = mock(WarmExecutionTaskFactory.class);
         ProxyExecutionTask proxyExecutionTask = mock(ProxyExecutionTask.class);
         when(warmExecutionTaskFactory.createExecutionTask(any(), any(), any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt(), eq(WorkerTaskExecutorService.TaskExecutionType.PROXY))).thenReturn(proxyExecutionTask);
-        warmupDemoterConfiguration = new WarmupDemoterConfiguration();
-        globalConfiguration = new GlobalConfiguration();
+        warmupDemoterConfig = new WarmupDemoterConfig();
+        globalConfig = new GlobalConfig();
         rowGroupKey = mock(RowGroupKey.class);
         dispatcherProxiedConnectorTransformer = mock(DispatcherProxiedConnectorTransformer.class);
     }
@@ -257,8 +257,8 @@ public class WorkerWarmingServiceTest
                 rowGroupKey,
                 false);
 
-        globalConfiguration.setDataOnlyWarming(true);
-        globalConfiguration.setCreateIndexInDefaultWarming(true);
+        globalConfig.setDataOnlyWarming(true);
+        globalConfig.setCreateIndexInDefaultWarming(true);
         WarmData warmData = act(columns,
                 rowGroupData,
                 warmupDemoterService,
@@ -309,7 +309,7 @@ public class WorkerWarmingServiceTest
         assertThat(getActualColTypesToWarm(COLUMN2, warmData.requiredWarmUpTypeMap()))
                 .isEqualTo(Set.of(WARM_UP_TYPE_DATA));
         assertThat(warmData.columnHandleList()).isEqualTo(columns);
-        globalConfiguration.setCreateIndexInDefaultWarming(true);
+        globalConfig.setCreateIndexInDefaultWarming(true);
         warmData = act(columns,
                 rowGroupData,
                 warmupDemoterService,
@@ -372,7 +372,7 @@ public class WorkerWarmingServiceTest
     public void testUnsupportedTypes(Type type, List<WarmUpType> expectedWarmupTypes)
     {
         WarmupDemoterService warmupDemoterService = mockWarmupDemoterService(false, AcquireWarmupStatus.SUCCESS);
-        globalConfiguration.setCreateIndexInDefaultWarming(true);
+        globalConfig.setCreateIndexInDefaultWarming(true);
         List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer, List.of(Pair.of(type.getBaseName(), type)));
         List<WarmupRule> warmupRules = List.of();
         WarmData warmData = act(columns,
@@ -785,7 +785,7 @@ public class WorkerWarmingServiceTest
         int lowPriority = -5;
         int validPriority = 2;
 
-        warmupDemoterConfiguration.setDefaultRulePriority(lowPriority);
+        warmupDemoterConfig.setDefaultRulePriority(lowPriority);
         when(warmupDemoterService.canAllowWarmup(lowPriority)).thenReturn(false);
         when(warmupDemoterService.canAllowWarmup(validPriority)).thenReturn(true);
         List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer,
@@ -922,9 +922,9 @@ public class WorkerWarmingServiceTest
         when(workerWarmupRuleService.getWarmupRules(any())).thenReturn(warmupRules);
         RowGroupDataService rowGroupDataService = mock(RowGroupDataService.class);
         ConnectorSession connectorSession = mock(ConnectorSession.class);
-        when(connectorSession.getProperty(eq(ENABLE_DEFAULT_WARMING_INDEX), any())).thenReturn(globalConfiguration.isCreateIndexInDefaultWarming());
+        when(connectorSession.getProperty(eq(ENABLE_DEFAULT_WARMING_INDEX), any())).thenReturn(globalConfig.isCreateIndexInDefaultWarming());
         if (defaultWarmingTestState == DefaultWarmingTestState.WITHOUT_DEFAULT_WARMING) {
-            globalConfiguration.setEnableDefaultWarming(false);
+            globalConfig.setEnableDefaultWarming(false);
             when(connectorSession.getProperty(eq(ENABLE_DEFAULT_WARMING), any())).thenReturn(false);
         }
         StorageWarmerService storageWarmerService = mock(StorageWarmerService.class);
@@ -936,8 +936,8 @@ public class WorkerWarmingServiceTest
                 warmupDemoterService,
                 workerWarmupRuleService,
                 rowGroupDataService,
-                warmupDemoterConfiguration,
-                globalConfiguration,
+                warmupDemoterConfig,
+                globalConfig,
                 storageWarmerService,
                 batchSize);
         Pair<DispatcherSplit, RowGroupKey> dispatcherSplitRowGroupKeyPair = mockConnectorSplit();

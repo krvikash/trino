@@ -171,7 +171,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
             WarmupDemoterData warmupDemoterData = WarmupDemoterData.builder().maxUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
                     .cleanupUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
                     .executeDemoter(true)
-                    .modifyConfiguration(true)
+                    .modifyConfig(true)
                     .resetHighestPriority(true)
                     .forceDeleteFailedObjects(true)
                     .build();
@@ -189,7 +189,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                     .getValue();
             logger.debug("demote task finish =" + res);
             assertThat(highestPriority).isEqualTo(0);
-            restDemoteConfigurationToDefaults();
+            restDemoteConfigToDefaults();
 //            validateEmptyUsage();
             String dictionariesReset = executeRestCommand(DictionaryTask.DICTIONARY_PATH,
                     DictionaryTask.DICTIONARY_RESET_MEMORY_TASK_NAME,
@@ -204,7 +204,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
         }
     }
 
-    protected void restDemoteConfigurationToDefaults()
+    protected void restDemoteConfigToDefaults()
     {
         try {
             WarmupDemoterData warmupDemoterData = WarmupDemoterData.builder()
@@ -214,7 +214,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                     .epsilon(DEMOTE_DEFAULT_EPSILON)
                     .maxElementsToDemoteInIteration(DEMOTE_MAX_ELEMENTS_TO_DEMOTE)
                     .forceExecuteDeadObjects(false)
-                    .modifyConfiguration(true)
+                    .modifyConfig(true)
                     .resetHighestPriority(true)
                     .executeDemoter(false)
                     .build();
@@ -575,11 +575,11 @@ public abstract class DispatcherStubsIntegrationSmokeIT
         WarmupDemoterData warmupDemoterData = WarmupDemoterData.builder().maxUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
                 .cleanupUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
                 .executeDemoter(true)
-                .modifyConfiguration(true)
+                .modifyConfig(true)
                 .resetHighestPriority(true)
                 .forceDeleteFailedObjects(true)
                 .build();
-        restDemoteConfigurationToDefaults();
+        restDemoteConfigToDefaults();
         Session jmxSession = createJmxSession();
         String jmxTable = "warmupDemoter";
         List<String> deadObjectsDeleted = List.of("dead_objects_deleted");
@@ -596,7 +596,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
     protected Map<String, Object> demote(WarmupDemoterData warmupDemoterData)
             throws IOException
     {
-        restDemoteConfigurationToDefaults();
+        restDemoteConfigToDefaults();
         Session jmxSession = createJmxSession();
         String jmxTable = "warmupDemoter";
         MaterializedRow before = getServiceStats(jmxSession, jmxTable, DEMOTE_JMX_NAMES);

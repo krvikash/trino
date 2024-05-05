@@ -17,7 +17,7 @@ import com.google.common.eventbus.EventBus;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.trino.plugin.varada.annotations.ForWarp;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.varada.dispatcher.DispatcherSplit;
 import io.trino.plugin.varada.dispatcher.DispatcherTableHandle;
@@ -34,7 +34,7 @@ import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
-import io.varada.cloudvendors.configuration.CloudVendorConfiguration;
+import io.varada.cloudvendors.config.CloudVendorConfig;
 
 import java.util.List;
 
@@ -50,11 +50,11 @@ public class WarmExecutionTaskFactory
     private final VaradaStatsWarmingService statsWarmingService;
     private final QueryClassifier queryClassifier;
     private final RowGroupDataService rowGroupDataService;
-    private final GlobalConfiguration globalConfiguration;
+    private final GlobalConfig globalConfig;
     private final WarmupElementsCreator warmupElementsCreator;
     private final WorkerTaskExecutorService workerTaskExecutorService;
     private final StorageWarmerService storageWarmerService;
-    private final CloudVendorConfiguration cloudVendorConfiguration;
+    private final CloudVendorConfig cloudVendorConfig;
 
     @Inject
     public WarmExecutionTaskFactory(DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
@@ -63,11 +63,11 @@ public class WarmExecutionTaskFactory
             MetricsManager metricsManager,
             QueryClassifier queryClassifier,
             RowGroupDataService rowGroupDataService,
-            GlobalConfiguration globalConfiguration,
+            GlobalConfig globalConfig,
             WarmupElementsCreator warmupElementsCreator,
             WorkerTaskExecutorService workerTaskExecutorService,
             StorageWarmerService storageWarmerService,
-            @ForWarp CloudVendorConfiguration cloudVendorConfiguration)
+            @ForWarp CloudVendorConfig cloudVendorConfig)
     {
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
         this.eventBus = requireNonNull(eventBus);
@@ -75,11 +75,11 @@ public class WarmExecutionTaskFactory
         this.queryClassifier = requireNonNull(queryClassifier);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.statsWarmingService = metricsManager.registerMetric(VaradaStatsWarmingService.create(WARMING_SERVICE_STAT_GROUP));
-        this.globalConfiguration = requireNonNull(globalConfiguration);
+        this.globalConfig = requireNonNull(globalConfig);
         this.warmupElementsCreator = requireNonNull(warmupElementsCreator);
         this.workerTaskExecutorService = requireNonNull(workerTaskExecutorService);
         this.storageWarmerService = requireNonNull(storageWarmerService);
-        this.cloudVendorConfiguration = requireNonNull(cloudVendorConfiguration);
+        this.cloudVendorConfig = requireNonNull(cloudVendorConfig);
     }
 
     public WorkerSubmittableTask createExecutionTask(ConnectorPageSourceProvider connectorPageSourceProvider,
@@ -113,8 +113,8 @@ public class WarmExecutionTaskFactory
                     statsWarmingService,
                     warmingManager,
                     warmupElementsCreator,
-                    globalConfiguration,
-                    cloudVendorConfiguration);
+                    globalConfig,
+                    cloudVendorConfig);
             case PROXY -> new ProxyExecutionTask(this,
                     eventBus,
                     dispatcherProxiedConnectorTransformer,
@@ -130,7 +130,7 @@ public class WarmExecutionTaskFactory
                     dispatcherSplit,
                     dynamicFilter,
                     rowGroupDataService,
-                    globalConfiguration,
+                    globalConfig,
                     queryClassifier,
                     warmupElementsCreator,
                     iterationCount,

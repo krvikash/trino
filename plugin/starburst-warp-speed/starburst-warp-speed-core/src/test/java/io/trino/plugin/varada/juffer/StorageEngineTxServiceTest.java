@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.varada.juffer;
 
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.warp.gen.stats.VaradaStatsTxService;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,23 +31,23 @@ import static org.mockito.Mockito.when;
 public class StorageEngineTxServiceTest
 {
     private StorageEngineTxService storageEngineTxService;
-    private NativeConfiguration nativeConfiguration;
+    private NativeConfig nativeConfig;
     private MetricsManager metricsManager;
 
     @BeforeEach
     public void before()
     {
-        nativeConfiguration = new NativeConfiguration();
+        nativeConfig = new NativeConfig();
         metricsManager = mock(MetricsManager.class);
         when(metricsManager.registerMetric(any())).thenReturn(VaradaStatsTxService.create(STATS_GROUP_NAME));
-        this.storageEngineTxService = new StorageEngineTxService(nativeConfiguration, metricsManager);
+        this.storageEngineTxService = new StorageEngineTxService(nativeConfig, metricsManager);
     }
 
     @Test
     public void testTooManyPageSourcesBlockWarm()
     {
         int numOfPageSources = 1;
-        nativeConfiguration.setMaxPageSourcesWithoutWarmingLimit(1);
+        nativeConfig.setMaxPageSourcesWithoutWarmingLimit(1);
         runPageSource(numOfPageSources, true);
         CompletableFuture<Boolean> future = storageEngineTxService.tryToWarm();
         assertThat(future.isDone()).isFalse();
@@ -57,8 +57,8 @@ public class StorageEngineTxServiceTest
     public void testClosingPageSourceExecuteWarm()
     {
         int numOfPageSources = 1;
-        nativeConfiguration.setMaxPageSourcesWithoutWarmingLimit(numOfPageSources);
-        storageEngineTxService = new StorageEngineTxService(nativeConfiguration, metricsManager);
+        nativeConfig.setMaxPageSourcesWithoutWarmingLimit(numOfPageSources);
+        storageEngineTxService = new StorageEngineTxService(nativeConfig, metricsManager);
         runPageSource(numOfPageSources, true);
         CompletableFuture<Boolean> future = storageEngineTxService.tryToWarm();
         assertThat(future.isDone()).isFalse();
@@ -70,8 +70,8 @@ public class StorageEngineTxServiceTest
     public void testClosingPageSourceShouldExecuteOnlySingleWarm()
     {
         int numOfPageSources = 3;
-        nativeConfiguration.setMaxPageSourcesWithoutWarmingLimit(numOfPageSources);
-        storageEngineTxService = new StorageEngineTxService(nativeConfiguration, metricsManager);
+        nativeConfig.setMaxPageSourcesWithoutWarmingLimit(numOfPageSources);
+        storageEngineTxService = new StorageEngineTxService(nativeConfig, metricsManager);
         runPageSource(numOfPageSources + 2, true);
         CompletableFuture<Boolean> future1 = storageEngineTxService.tryToWarm();
         CompletableFuture<Boolean> future2 = storageEngineTxService.tryToWarm();
@@ -86,8 +86,8 @@ public class StorageEngineTxServiceTest
     public void testMinWarmingThreads()
     {
         int minWarmingThreads = 2;
-        nativeConfiguration.setTaskMinWarmingThreads(minWarmingThreads);
-        storageEngineTxService = new StorageEngineTxService(nativeConfiguration, metricsManager);
+        nativeConfig.setTaskMinWarmingThreads(minWarmingThreads);
+        storageEngineTxService = new StorageEngineTxService(nativeConfig, metricsManager);
         assertThat(storageEngineTxService.isLoaderAvailable()).isTrue();
         assertThat(storageEngineTxService.isLoaderAvailable()).isTrue();
         assertThat(storageEngineTxService.isLoaderAvailable()).isFalse();

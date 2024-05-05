@@ -11,15 +11,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.plugin.warp.extension.configuration;
+package io.trino.plugin.warp.extension.config;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.LegacyConfig;
 
-import static io.varada.tools.configuration.MultiPrefixConfigurationWrapper.LOCAL_DATA_STORAGE_PREFIX;
-import static io.varada.tools.configuration.MultiPrefixConfigurationWrapper.WARP_SPEED_PREFIX;
+import static io.varada.tools.config.MultiPrefixConfigWrapper.LOCAL_DATA_STORAGE_PREFIX;
+import static io.varada.tools.config.MultiPrefixConfigWrapper.WARP_SPEED_PREFIX;
 
-public class WarpExtensionConfiguration
+public class WarpExtensionConfig
 {
     public static final String CLUSTER_UUID = "cluster-uuid";
     public static final String HTTP_REST_PORT = "http-rest-port";

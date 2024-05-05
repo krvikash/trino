@@ -19,7 +19,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.trino.plugin.varada.CoordinatorNodeManager;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.spi.Node;
 
 import java.nio.charset.StandardCharsets;
@@ -43,7 +43,7 @@ public class ConnectorSplitConsistentHashNodeDistributor
      */
     private static final int HASH_PRIME = 173923;
 
-    private final GlobalConfiguration globalConfiguration;
+    private final GlobalConfig globalConfig;
     private final CoordinatorNodeManager coordinatorNodeManager;
 
     //key = bucket hash, value = node
@@ -51,10 +51,10 @@ public class ConnectorSplitConsistentHashNodeDistributor
     private int workerNodesHash;
 
     @Inject
-    public ConnectorSplitConsistentHashNodeDistributor(GlobalConfiguration globalConfiguration,
+    public ConnectorSplitConsistentHashNodeDistributor(GlobalConfig globalConfig,
             CoordinatorNodeManager coordinatorNodeManager)
     {
-        this.globalConfiguration = requireNonNull(globalConfiguration);
+        this.globalConfig = requireNonNull(globalConfig);
         this.coordinatorNodeManager = requireNonNull(coordinatorNodeManager);
         this.nodeBucketsTreeMap = new TreeMap<>();
         updateNodeBucketsIfNeeded();
@@ -74,7 +74,7 @@ public class ConnectorSplitConsistentHashNodeDistributor
 
         List<Node> workers = coordinatorNodeManager.getWorkerNodes();
 
-        IntStream.range(0, globalConfiguration.getConsistentSplitBucketsPerWorker())
+        IntStream.range(0, globalConfig.getConsistentSplitBucketsPerWorker())
                 .boxed()
                 .forEach(i -> workers.forEach(node -> {
                     String nodeIdentifier = node.getNodeIdentifier();

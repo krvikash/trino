@@ -15,7 +15,7 @@ package io.trino.plugin.varada.dispatcher.query.classifier;
 
 import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.model.VaradaColumn;
 import io.trino.plugin.varada.dispatcher.query.PredicateContext;
 import io.trino.plugin.varada.dispatcher.query.QueryContext;
@@ -54,14 +54,14 @@ class MatchClassifier
 
     private final List<Matcher> matchers;
 
-    MatchClassifier(List<Matcher> matchers, GlobalConfiguration globalConfiguration)
+    MatchClassifier(List<Matcher> matchers, GlobalConfig globalConfig)
     {
         this.matchers = matchers;
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
-                globalConfiguration.getShapingLoggerThreshold(),
-                globalConfiguration.getShapingLoggerDuration(),
-                globalConfiguration.getShapingLoggerNumberOfSamples());
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
     }
 
     @Override

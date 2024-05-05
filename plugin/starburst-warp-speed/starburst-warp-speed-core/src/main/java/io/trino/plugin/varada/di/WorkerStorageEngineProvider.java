@@ -16,8 +16,8 @@ package io.trino.plugin.varada.di;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.google.inject.Singleton;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
+import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.storage.engine.ExceptionThrower;
 import io.trino.plugin.varada.storage.engine.StorageEngine;
@@ -32,8 +32,8 @@ import static java.util.Objects.requireNonNull;
 public class WorkerStorageEngineProvider
         implements Provider<StorageEngine>
 {
-    private final GlobalConfiguration globalConfiguration;
-    private final NativeConfiguration nativeConfiguration;
+    private final GlobalConfig globalConfig;
+    private final NativeConfig nativeConfig;
     private final MetricsManager metricsManager;
     private final ExceptionThrower exceptionThrower;
     private final FailureGeneratorInvocationHandler failureGeneratorInvocationHandler;
@@ -41,14 +41,14 @@ public class WorkerStorageEngineProvider
 
     @Inject
     public WorkerStorageEngineProvider(
-            GlobalConfiguration globalConfiguration,
-            NativeConfiguration nativeConfiguration,
+            GlobalConfig globalConfig,
+            NativeConfig nativeConfig,
             MetricsManager metricsManager,
             ExceptionThrower exceptionThrower,
             FailureGeneratorInvocationHandler failureGeneratorInvocationHandler)
     {
-        this.globalConfiguration = requireNonNull(globalConfiguration);
-        this.nativeConfiguration = requireNonNull(nativeConfiguration);
+        this.globalConfig = requireNonNull(globalConfig);
+        this.nativeConfig = requireNonNull(nativeConfig);
         this.metricsManager = requireNonNull(metricsManager);
         this.exceptionThrower = requireNonNull(exceptionThrower);
         this.failureGeneratorInvocationHandler = requireNonNull(failureGeneratorInvocationHandler);
@@ -59,11 +59,11 @@ public class WorkerStorageEngineProvider
     {
         if (storageEngine == null) {
             storageEngine = new NativeStorageEngine(
-                    nativeConfiguration,
+                    nativeConfig,
                     metricsManager,
                     exceptionThrower);
 
-            if (globalConfiguration.isFailureGeneratorEnabled()) {
+            if (globalConfig.isFailureGeneratorEnabled()) {
                 storageEngine = (StorageEngine) Proxy.newProxyInstance(storageEngine.getClass().getClassLoader(),
                         new Class<?>[] {StorageEngine.class},
                         failureGeneratorInvocationHandler.getMethodInvocationHandler(storageEngine));

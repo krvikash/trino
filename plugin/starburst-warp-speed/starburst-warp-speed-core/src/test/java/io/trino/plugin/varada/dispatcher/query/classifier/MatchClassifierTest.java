@@ -14,7 +14,7 @@
 package io.trino.plugin.varada.dispatcher.query.classifier;
 
 import com.google.common.collect.ImmutableList;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.connector.TestingConnectorColumnHandle;
 import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.varada.dispatcher.DispatcherTableHandle;
@@ -78,15 +78,15 @@ class MatchClassifierTest
         dispatcherProxiedConnectorTransformer = mock(DispatcherProxiedConnectorTransformer.class);
         dispatcherTableHandle = mock(DispatcherTableHandle.class);
         BasicMatcher basicMatcher = new BasicMatcher();
-        matchClassifier = new MatchClassifier(List.of(basicMatcher), new GlobalConfiguration());
+        matchClassifier = new MatchClassifier(List.of(basicMatcher), new GlobalConfig());
         List<String> columnNames = List.of("a", "b", "c", "d");
         columns = columnNames.stream().map(columnName -> mockColumnHandle(columnName, IntegerType.INTEGER, dispatcherProxiedConnectorTransformer)).collect(Collectors.toMap(TestingConnectorColumnHandle::name, columnHandle -> columnHandle));
-        predicateContextFactory = new PredicateContextFactory(new GlobalConfiguration(),
+        predicateContextFactory = new PredicateContextFactory(new GlobalConfig(),
                 dispatcherProxiedConnectorTransformer);
         session = mock(ConnectorSession.class);
     }
 
-    static Stream<Arguments> configuration()
+    static Stream<Arguments> config()
     {
         return Stream.of(
                 arguments(List.of("a", "b", "c", "d"), List.of("b", "c", "a", "b", "c", "d", "a")),
@@ -106,7 +106,7 @@ class MatchClassifierTest
      * ---                                    c   d
      */
     @ParameterizedTest
-    @MethodSource("configuration")
+    @MethodSource("config")
     public void testExpression(List<String> matchColumnNames, List<String> expectedMatchColumns)
     {
         WarpExpression warpExpression = createWrapExpression();

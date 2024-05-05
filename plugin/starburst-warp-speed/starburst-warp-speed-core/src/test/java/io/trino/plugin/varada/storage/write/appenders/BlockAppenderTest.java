@@ -16,7 +16,7 @@ package io.trino.plugin.varada.storage.write.appenders;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.trino.plugin.varada.TestingTxService;
-import io.trino.plugin.varada.configuration.DictionaryConfiguration;
+import io.trino.plugin.varada.config.DictionaryConfig;
 import io.trino.plugin.varada.dictionary.AttachDictionaryService;
 import io.trino.plugin.varada.dictionary.DictionaryCacheService;
 import io.trino.plugin.varada.dictionary.WriteDictionary;
@@ -100,7 +100,7 @@ public abstract class BlockAppenderTest
         when(writeJuffersWarmUpElement.getCrcJuffer()).thenReturn(crcJuffer);
         jufferPos = 0;
         dictionaryKey = new DictionaryKey(new SchemaTableColumn(new SchemaTableName("schema", "table"), "columns"), "1234", 12);
-        dictionaryCacheService = new DictionaryCacheService(new DictionaryConfiguration(), TestingTxService.createMetricsManager(), mock(AttachDictionaryService.class));
+        dictionaryCacheService = new DictionaryCacheService(new DictionaryConfig(), TestingTxService.createMetricsManager(), mock(AttachDictionaryService.class));
         storageEngineConstants = new StubsStorageEngineConstants();
     }
 

@@ -20,7 +20,7 @@ import com.google.inject.Singleton;
 import io.trino.filesystem.Location;
 import io.trino.plugin.varada.VaradaSessionProperties;
 import io.trino.plugin.varada.annotations.ForWarp;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.di.VaradaInitializedServiceRegistry;
 import io.trino.plugin.varada.dispatcher.model.RowGroupData;
 import io.trino.plugin.varada.dispatcher.model.RowGroupKey;
@@ -32,7 +32,7 @@ import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.util.VaradaInitializedServiceMarker;
 import io.trino.plugin.warp.gen.stats.VaradaStatsWarmupExportService;
 import io.varada.cloudvendors.CloudVendorService;
-import io.varada.cloudvendors.configuration.CloudVendorConfiguration;
+import io.varada.cloudvendors.config.CloudVendorConfig;
 import io.varada.tools.util.StringUtils;
 
 import static io.trino.plugin.varada.dispatcher.warmup.WarmUtils.isImportExportEnabled;
@@ -46,8 +46,8 @@ public class WarmupExportingService
 
     private final RowGroupDataService rowGroupDataService;
     private final WarmupElementsCloudExporter warmupElementsCloudExporter;
-    private final GlobalConfiguration globalConfiguration;
-    private final CloudVendorConfiguration cloudVendorConfiguration;
+    private final GlobalConfig globalConfig;
+    private final CloudVendorConfig cloudVendorConfig;
     private final WorkerTaskExecutorService workerTaskExecutorService;
     private final VaradaStatsWarmupExportService statsWarmupExportService;
     private final CloudVendorService cloudVendorService;
@@ -58,21 +58,21 @@ public class WarmupExportingService
             EventBus eventBus,
             RowGroupDataService rowGroupDataService,
             WarmupElementsCloudExporter warmupElementsCloudExporter,
-            GlobalConfiguration globalConfiguration,
+            GlobalConfig globalConfig,
             WorkerTaskExecutorService workerTaskExecutorService,
-            @ForWarp CloudVendorConfiguration cloudVendorConfiguration,
+            @ForWarp CloudVendorConfig cloudVendorConfig,
             @ForWarp CloudVendorService cloudVendorService,
             VaradaInitializedServiceRegistry varadaInitializedServiceRegistry)
     {
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.warmupElementsCloudExporter = warmupElementsCloudExporter;
-        this.globalConfiguration = requireNonNull(globalConfiguration);
+        this.globalConfig = requireNonNull(globalConfig);
         this.workerTaskExecutorService = requireNonNull(workerTaskExecutorService);
-        this.cloudVendorConfiguration = requireNonNull(cloudVendorConfiguration);
+        this.cloudVendorConfig = requireNonNull(cloudVendorConfig);
         this.cloudVendorService = requireNonNull(cloudVendorService);
         requireNonNull(eventBus).register(this);
         this.statsWarmupExportService = requireNonNull(metricsManager).registerMetric(new VaradaStatsWarmupExportService(WARMUP_EXPORTER_STAT_GROUP));
-        if (isImportExportEnabled(globalConfiguration, cloudVendorConfiguration, null)) {
+        if (isImportExportEnabled(globalConfig, cloudVendorConfig, null)) {
             varadaInitializedServiceRegistry.addService(this);
             validateS3ImportExportPath();
         }
@@ -80,10 +80,10 @@ public class WarmupExportingService
 
     private void validateS3ImportExportPath()
     {
-        if (StringUtils.isEmpty(cloudVendorConfiguration.getStorePath())) {
+        if (StringUtils.isEmpty(cloudVendorConfig.getStorePath())) {
             throw new RuntimeException("backup location is not available");
         }
-        String s3ImportExportPath = VaradaSessionProperties.getS3ImportExportPath(null, cloudVendorConfiguration, cloudVendorService);
+        String s3ImportExportPath = VaradaSessionProperties.getS3ImportExportPath(null, cloudVendorConfig, cloudVendorService);
         Location location = cloudVendorService.getLocation(s3ImportExportPath);
         String pathToValidate = s3ImportExportPath.substring(0, s3ImportExportPath.indexOf(location.path()));
         if (!cloudVendorService.directoryExists(pathToValidate)) {
@@ -109,7 +109,7 @@ public class WarmupExportingService
                 workerTaskExecutorService,
                 rowGroupDataService,
                 warmupElementsCloudExporter,
-                globalConfiguration,
+                globalConfig,
                 statsWarmupExportService);
         workerTaskExecutorService.delaySubmit(delay, weGroupCloudExporterTask, this::handleConflict);
     }
@@ -122,16 +122,16 @@ public class WarmupExportingService
     @Subscribe
     public void warmingFinished(WarmingFinishedEvent warmingFinishedEvent)
     {
-        if (!isImportExportEnabled(globalConfiguration, cloudVendorConfiguration, warmingFinishedEvent.session())) {
+        if (!isImportExportEnabled(globalConfig, cloudVendorConfig, warmingFinishedEvent.session())) {
             // mostly for integration test, but maybe it's good to skip in this case in general
             return;
         }
         String s3ImportExportPath = VaradaSessionProperties.getS3ImportExportPath(
                 warmingFinishedEvent.session(),
-                cloudVendorConfiguration,
+                cloudVendorConfig,
                 cloudVendorService);
 
-        int exportDelay = globalConfiguration.getExportDelayInSeconds();
+        int exportDelay = globalConfig.getExportDelayInSeconds();
         export(s3ImportExportPath, warmingFinishedEvent.rowGroupKey(), exportDelay);
     }
 }

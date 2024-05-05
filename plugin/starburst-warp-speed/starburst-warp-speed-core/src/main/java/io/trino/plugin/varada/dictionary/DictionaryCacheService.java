@@ -17,7 +17,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.trino.plugin.varada.VaradaErrorCode;
-import io.trino.plugin.varada.configuration.DictionaryConfiguration;
+import io.trino.plugin.varada.config.DictionaryConfig;
 import io.trino.plugin.varada.dispatcher.model.DictionaryInfo;
 import io.trino.plugin.varada.dispatcher.model.DictionaryKey;
 import io.trino.plugin.varada.dispatcher.model.DictionaryState;
@@ -45,16 +45,16 @@ public class DictionaryCacheService
 
     private final DictionariesCache dictionariesCache;
     private final AttachDictionaryService attachDictionaryService;
-    private final DictionaryConfiguration dictionaryConfiguration;
+    private final DictionaryConfig dictionaryConfig;
 
     @Inject
-    public DictionaryCacheService(DictionaryConfiguration dictionaryConfiguration,
+    public DictionaryCacheService(DictionaryConfig dictionaryConfig,
             MetricsManager metricsManager,
             AttachDictionaryService attachDictionaryService)
     {
         this.attachDictionaryService = requireNonNull(attachDictionaryService);
-        this.dictionaryConfiguration = dictionaryConfiguration;
-        this.dictionariesCache = new DictionariesCache(dictionaryConfiguration, metricsManager, attachDictionaryService);
+        this.dictionaryConfig = dictionaryConfig;
+        this.dictionariesCache = new DictionariesCache(dictionaryConfig, metricsManager, attachDictionaryService);
     }
 
     public WriteDictionary computeWriteIfAbsent(DictionaryKey dictionaryKey, RecTypeCode recTypeCode)
@@ -164,9 +164,9 @@ public class DictionaryCacheService
         if (sessionPropertyEnableDictionary != null) {
             return sessionPropertyEnableDictionary;
         }
-        // no session property we use the global configuration list and flag
-        boolean inExceptionalList = dictionaryConfiguration.getExceptionalListDictionary().contains(recTypeCode);
-        if (dictionaryConfiguration.getEnableDictionary()) {
+        // no session property we use the global config list and flag
+        boolean inExceptionalList = dictionaryConfig.getExceptionalListDictionary().contains(recTypeCode);
+        if (dictionaryConfig.getEnableDictionary()) {
             // dictionary is enabled - the list contains disabled record types
             return !inExceptionalList;
         }
@@ -191,12 +191,12 @@ public class DictionaryCacheService
         }
     }
 
-    public DictionaryCacheConfiguration getDictionaryConfiguration()
+    public DictionaryCacheConfig getDictionaryConfig()
     {
-        return new DictionaryCacheConfiguration(
+        return new DictionaryCacheConfig(
                 dictionariesCache.getDictionaryCacheTotalSize(),
                 dictionariesCache.getCacheConcurrency(),
-                dictionaryConfiguration.getDictionaryMaxSize());
+                dictionaryConfig.getDictionaryMaxSize());
     }
 
     public Map<String, Integer> getDictionaryCachedKeys()
@@ -204,7 +204,7 @@ public class DictionaryCacheService
         return dictionariesCache.getDictionaryCachedKeys();
     }
 
-    public record DictionaryCacheConfiguration(
+    public record DictionaryCacheConfig(
             long maxDictionaryTotalCacheWeight,
             int concurrency,
             long dictionaryMaxSize) {}

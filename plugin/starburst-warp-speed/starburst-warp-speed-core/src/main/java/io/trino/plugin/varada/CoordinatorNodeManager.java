@@ -17,7 +17,7 @@ import com.google.common.eventbus.EventBus;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.di.VaradaInitializedServiceRegistry;
 import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.node.CoordinatorInitializedEvent;
@@ -55,7 +55,7 @@ public class CoordinatorNodeManager
     private static final Logger logger = Logger.get(CoordinatorNodeManager.class);
 
     private final NodeManager nodeManager;
-    private final GlobalConfiguration globalConfiguration;
+    private final GlobalConfig globalConfig;
     private final EventBus eventBus; // required for @Subscribe methods
     private final MetricsManager metricsManager;
     private boolean coordinatorInitialized; // no need to set, default is false
@@ -64,13 +64,13 @@ public class CoordinatorNodeManager
 
     @Inject
     public CoordinatorNodeManager(NodeManager nodeManager,
-            GlobalConfiguration globalConfiguration,
+            GlobalConfig globalConfig,
             EventBus eventBus,
             MetricsManager metricsManager,
             VaradaInitializedServiceRegistry varadaInitializedServiceRegistry)
     {
         this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
-        this.globalConfiguration = requireNonNull(globalConfiguration, "globalConfiguration is null");
+        this.globalConfig = requireNonNull(globalConfig, "globalConfig is null");
         this.eventBus = requireNonNull(eventBus, "EventBus is null");
         this.metricsManager = requireNonNull(metricsManager);
         varadaInitializedServiceRegistry.addService(this);
@@ -104,7 +104,7 @@ public class CoordinatorNodeManager
     public List<Node> getWorkerNodes()
     {
         List<Node> workers;
-        if (globalConfiguration.getIsSingle()) {
+        if (globalConfig.getIsSingle()) {
             workers = List.of(nodeManager.getCurrentNode());
         }
         else {
@@ -130,6 +130,6 @@ public class CoordinatorNodeManager
                 isCoordinatorReady(),
                 nodeManager.getWorkerNodes());
         return isCoordinatorReady() &&
-                (nodeManager.getWorkerNodes().size() != 0 || globalConfiguration.getIsSingle());
+                (nodeManager.getWorkerNodes().size() != 0 || globalConfig.getIsSingle());
     }
 }

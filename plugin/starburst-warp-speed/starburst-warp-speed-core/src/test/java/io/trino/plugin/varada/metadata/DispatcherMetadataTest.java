@@ -21,8 +21,8 @@ import io.trino.plugin.hive.HiveMetadata;
 import io.trino.plugin.hive.HiveStorageFormat;
 import io.trino.plugin.hive.HiveTableProperties;
 import io.trino.plugin.varada.TestingTxService;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
+import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.connector.TestingConnectorColumnHandle;
 import io.trino.plugin.varada.connector.TestingConnectorProxiedConnectorTransformer;
 import io.trino.plugin.varada.connector.TestingConnectorTableHandle;
@@ -109,14 +109,14 @@ public class DispatcherMetadataTest
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
         session = mock(ConnectorSession.class);
         when(session.getProperty(eq(PREDICATE_SIMPLIFY_THRESHOLD), eq(Integer.class))).thenReturn(5);
-        GlobalConfiguration globalConfiguration = new GlobalConfiguration();
+        GlobalConfig globalConfig = new GlobalConfig();
         dispatcherProxiedConnectorTransformer = new TestingConnectorProxiedConnectorTransformer();
         dispatcherTableHandleBuilderProvider = new DispatcherTableHandleBuilderProvider(dispatcherProxiedConnectorTransformer);
         NativeExpressionRulesHandler nativeExpressionRulesHandler = new NativeExpressionRulesHandler(new StubsStorageEngineConstants(), metricsManager);
         expressionService = new ExpressionService(dispatcherProxiedConnectorTransformer,
                 new ExperimentSupportedFunction(metricsManager),
-                globalConfiguration,
-                new NativeConfiguration(),
+                globalConfig,
+                new NativeConfig(),
                 metricsManager,
                 nativeExpressionRulesHandler);
     }
@@ -156,7 +156,7 @@ public class DispatcherMetadataTest
                 hiveMetadata,
                 expressionService,
                 dispatcherTableHandleBuilderProvider,
-                new GlobalConfiguration());
+                new GlobalConfig());
 
         // Apply predicate pushdown on the first column.
         DispatcherTableHandle dispatcherTableHandle = createDispatcherTableHandle();
@@ -410,7 +410,7 @@ public class DispatcherMetadataTest
                 proxyMetadata,
                 expressionService,
                 dispatcherTableHandleBuilderProvider,
-                new GlobalConfiguration());
+                new GlobalConfig());
         when(session.getProperty(ENABLE_OR_PUSHDOWN, Boolean.class)).thenReturn(true);
         Optional<ConstraintApplicationResult<ConnectorTableHandle>> result = dispatcherMetadata.applyFilter(
                 session, dispatcherTableHandle, constraint);
@@ -437,7 +437,7 @@ public class DispatcherMetadataTest
                 hiveMetadata,
                 expressionService,
                 dispatcherTableHandleBuilderProvider,
-                new GlobalConfiguration());
+                new GlobalConfig());
         Optional<LimitApplicationResult<ConnectorTableHandle>> result = dispatcherMetadata.applyLimit(session, dispatcherTableHandle, 1);
         assertThat(result.isPresent()).isTrue();
         DispatcherTableHandle dispatcherTableHandle1 = (DispatcherTableHandle) result.orElseThrow().getHandle();

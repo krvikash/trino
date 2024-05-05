@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.plugin.varada.configuration;
+package io.trino.plugin.varada.config;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigSecuritySensitive;
@@ -28,11 +28,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static io.varada.tools.configuration.MultiPrefixConfigurationWrapper.LOCAL_DATA_STORAGE_PREFIX;
-import static io.varada.tools.configuration.MultiPrefixConfigurationWrapper.WARP_SPEED_PREFIX;
+import static io.varada.tools.config.MultiPrefixConfigWrapper.LOCAL_DATA_STORAGE_PREFIX;
+import static io.varada.tools.config.MultiPrefixConfigWrapper.WARP_SPEED_PREFIX;
 
 @SuppressWarnings("unused")
-public class GlobalConfiguration
+public class GlobalConfig
 {
     public static final String CONFIG_IS_SINGLE = "config.is-single";
     public static final String CLUSTER_UP_TIME = "cluster_up_time";
@@ -48,7 +48,7 @@ public class GlobalConfiguration
     public static final String WARMING_SINGLE_THREADED = "debug.warming-single-threaded";
     public static final String DATA_ONLY_WARMING = "data-only-warming";
     public static final int MAX_NUMBER_OF_MAPPED_MATCH_COLLECT_ELEMENTS = 1 << Byte.SIZE; //256
-    private static final Logger logger = Logger.get(GlobalConfiguration.class);
+    private static final Logger logger = Logger.get(GlobalConfig.class);
 
     private final Optional<String> authorization = Optional.empty();  // by default, no authorization
     private int stripeSize = 32;
@@ -524,7 +524,7 @@ public class GlobalConfiguration
     @Override
     public String toString()
     {
-        return "GlobalConfiguration{" +
+        return "GlobalConfig{" +
                 "authorization=" + authorization +
                 ", stripeSize=" + stripeSize +
                 ", cardinalityBuckets='" + cardinalityBuckets + '\'' +

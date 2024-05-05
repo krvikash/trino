@@ -89,11 +89,11 @@ public class HdfsCloudStorageAzureTest
             properties.put("hive.azure.abfs-storage-account", ABFS_ACCOUNT);
             properties.put("hive.azure.abfs-access-key", ABFS_ACCESS_KEY);
 
-            ConfigurationFactory configurationFactory = new ConfigurationFactory(properties);
-            binder.bind(ConfigurationFactory.class).toInstance(configurationFactory);
+            ConfigurationFactory configFactory = new ConfigurationFactory(properties);
+            binder.bind(ConfigurationFactory.class).toInstance(configFactory);
 
             FileSystemModule fileSystemModule = new FileSystemModule(catalogName, nodeManager, openTelemetry);
-            fileSystemModule.setConfigurationFactory(configurationFactory);
+            fileSystemModule.setConfigurationFactory(configFactory);
             binder.install(fileSystemModule);
 
             Tracer tracer = openTelemetry.getTracer("warp.cloud-vendor");

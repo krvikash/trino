@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.varada.metrics;
 
-import io.trino.plugin.varada.configuration.MetricsConfiguration;
+import io.trino.plugin.varada.config.MetricsConfig;
 import io.varada.tools.CatalogNameProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,7 +31,7 @@ public class CustomStatsContextTest
     @BeforeEach
     public void before()
     {
-        metricsManager = new MetricsManager(new MetricsRegistry(new CatalogNameProvider("catalog-name"), new MetricsConfiguration()));
+        metricsManager = new MetricsManager(new MetricsRegistry(new CatalogNameProvider("catalog-name"), new MetricsConfig()));
         customStatsContext = new CustomStatsContext(metricsManager, Collections.emptyList());
     }
 

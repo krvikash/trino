@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.varada.storage.read.fill;
 
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import org.junit.jupiter.api.Test;
@@ -27,7 +27,7 @@ public class BlockFillersFactoryTest
     {
         BlockFillersFactory blockFillersFactory = new BlockFillersFactory(
                 new StubsStorageEngineConstants(),
-                new NativeConfiguration());
+                new NativeConfig());
         BlockFiller blockFiller = blockFillersFactory.getBlockFiller(RecTypeCode.REC_TYPE_REAL.ordinal());
         assertThat(blockFiller).isInstanceOf(IntBlockFiller.class);
     }

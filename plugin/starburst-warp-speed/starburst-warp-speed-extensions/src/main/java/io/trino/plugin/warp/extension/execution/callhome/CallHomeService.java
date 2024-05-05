@@ -22,12 +22,12 @@ import io.airlift.log.Logger;
 import io.trino.plugin.varada.annotations.ForWarp;
 import io.trino.plugin.varada.storage.engine.ConnectorSync;
 import io.trino.plugin.varada.storage.engine.ConnectorSyncInitializedEvent;
-import io.trino.plugin.warp.extension.configuration.CallHomeConfiguration;
+import io.trino.plugin.warp.extension.config.CallHomeConfig;
 import io.trino.spi.HostAddress;
 import io.trino.spi.NodeManager;
 import io.varada.cloudvendors.CloudVendorService;
-import io.varada.cloudvendors.configuration.CloudVendorConfiguration;
-import io.varada.cloudvendors.configuration.StoreType;
+import io.varada.cloudvendors.config.CloudVendorConfig;
+import io.varada.cloudvendors.config.StoreType;
 import io.varada.tools.CatalogNameProvider;
 import io.varada.tools.util.Version;
 import jakarta.ws.rs.core.UriBuilder;
@@ -59,8 +59,8 @@ public class CallHomeService
     private final ConnectorSync connectorSync;
     private final ScheduledExecutorService scheduledExecutorService;
     private final NodeManager nodeManager;
-    private final CloudVendorConfiguration cloudVendorConfiguration;
-    private final CallHomeConfiguration callHomeConfiguration;
+    private final CloudVendorConfig cloudVendorConfig;
+    private final CallHomeConfig callHomeConfig;
     private final CloudVendorService cloudVendorService;
     private final HostAddress currentNodeAddress;
     private final String nodeStorePathPrefix;
@@ -72,16 +72,16 @@ public class CallHomeService
     public CallHomeService(ConnectorSync connectorSync,
             NodeManager nodeManager,
             CatalogNameProvider catalogNameProvider,
-            @ForWarp CloudVendorConfiguration cloudVendorConfiguration,
-            CallHomeConfiguration callHomeConfiguration,
+            @ForWarp CloudVendorConfig cloudVendorConfig,
+            CallHomeConfig callHomeConfig,
             @ForWarp CloudVendorService cloudVendorService,
             EventBus eventBus)
     {
         this(connectorSync,
                 nodeManager,
                 catalogNameProvider,
-                cloudVendorConfiguration,
-                callHomeConfiguration,
+                cloudVendorConfig,
+                callHomeConfig,
                 cloudVendorService,
                 eventBus,
                 Executors.newSingleThreadScheduledExecutor(r -> {
@@ -96,19 +96,19 @@ public class CallHomeService
     public CallHomeService(ConnectorSync connectorSync,
             NodeManager nodeManager,
             CatalogNameProvider catalogNameProvider,
-            CloudVendorConfiguration cloudVendorConfiguration,
-            CallHomeConfiguration callHomeConfiguration,
+            CloudVendorConfig cloudVendorConfig,
+            CallHomeConfig callHomeConfig,
             CloudVendorService cloudVendorService,
             EventBus eventBus,
             ScheduledExecutorService scheduledExecutorService)
     {
         this.connectorSync = requireNonNull(connectorSync);
         this.nodeManager = requireNonNull(nodeManager);
-        this.cloudVendorConfiguration = requireNonNull(cloudVendorConfiguration);
-        this.callHomeConfiguration = requireNonNull(callHomeConfiguration);
+        this.cloudVendorConfig = requireNonNull(cloudVendorConfig);
+        this.callHomeConfig = requireNonNull(callHomeConfig);
         this.cloudVendorService = requireNonNull(cloudVendorService);
         this.currentNodeAddress = nodeManager.getCurrentNode().getHostAndPort();
-        this.nodeStorePathPrefix = UriBuilder.fromPath(cloudVendorConfiguration.getStorePath()).path(catalogNameProvider.get()).path(CALL_HOME_STORE_PATH_PREFIX).path(nodeManager.getCurrentNode().getNodeIdentifier()).build().toString();
+        this.nodeStorePathPrefix = UriBuilder.fromPath(cloudVendorConfig.getStorePath()).path(catalogNameProvider.get()).path(CALL_HOME_STORE_PATH_PREFIX).path(nodeManager.getCurrentNode().getNodeIdentifier()).build().toString();
         eventBus.register(this);
         this.scheduledExecutorService = requireNonNull(scheduledExecutorService);
     }
@@ -117,8 +117,8 @@ public class CallHomeService
     @Subscribe
     public void connectorSyncInitialized(ConnectorSyncInitializedEvent event)
     {
-        if (event.catalogSequence() == DEFAULT_CATALOG && callHomeConfiguration.isEnable() && cloudVendorConfiguration.getStoreType() != StoreType.LOCAL) {
-            logger.debug("scheduling call-home every %s seconds", callHomeConfiguration.getIntervalInSeconds());
+        if (event.catalogSequence() == DEFAULT_CATALOG && callHomeConfig.isEnable() && cloudVendorConfig.getStoreType() != StoreType.LOCAL) {
+            logger.debug("scheduling call-home every %s seconds", callHomeConfig.getIntervalInSeconds());
             uploadNodeInfo();
             scheduledFuture = scheduledExecutorService.scheduleAtFixedRate(
                     new CallHomeJob(
@@ -128,8 +128,8 @@ public class CallHomeService
                             getServerLogPath(),
                             getCatalogPath(),
                             false),
-                    callHomeConfiguration.getIntervalInSeconds(),
-                    callHomeConfiguration.getIntervalInSeconds(),
+                    callHomeConfig.getIntervalInSeconds(),
+                    callHomeConfig.getIntervalInSeconds(),
                     TimeUnit.SECONDS);
         }
         else {

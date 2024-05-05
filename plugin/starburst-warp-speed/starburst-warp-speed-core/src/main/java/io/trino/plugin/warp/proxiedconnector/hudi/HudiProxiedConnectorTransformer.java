@@ -21,7 +21,7 @@ import io.trino.plugin.hive.HivePartitionKey;
 import io.trino.plugin.hive.HivePartitioningHandle;
 import io.trino.plugin.hudi.HudiSplit;
 import io.trino.plugin.hudi.HudiTableHandle;
-import io.trino.plugin.varada.configuration.ProxiedConnectorConfiguration;
+import io.trino.plugin.varada.config.ProxiedConnectorConfig;
 import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.varada.dispatcher.DispatcherSplit;
 import io.trino.plugin.varada.dispatcher.DispatcherStatisticsProvider;
@@ -59,12 +59,12 @@ import static java.util.Objects.requireNonNull;
 public class HudiProxiedConnectorTransformer
         implements DispatcherProxiedConnectorTransformer
 {
-    private final ProxiedConnectorConfiguration proxiedConnectorConfiguration;
+    private final ProxiedConnectorConfig proxiedConnectorConfig;
 
     @Inject
-    public HudiProxiedConnectorTransformer(ProxiedConnectorConfiguration proxiedConnectorConfiguration)
+    public HudiProxiedConnectorTransformer(ProxiedConnectorConfig proxiedConnectorConfig)
     {
-        this.proxiedConnectorConfiguration = requireNonNull(proxiedConnectorConfiguration);
+        this.proxiedConnectorConfig = requireNonNull(proxiedConnectorConfig);
     }
 
     @Override
@@ -119,8 +119,8 @@ public class HudiProxiedConnectorTransformer
     @Override
     public boolean isValidForAcceleration(DispatcherTableHandle dispatcherTableHandle)
     {
-        return !proxiedConnectorConfiguration.getPassThroughDispatcherSet()
-                .contains(ProxiedConnectorConfiguration.HUDI_CONNECTOR_NAME);
+        return !proxiedConnectorConfig.getPassThroughDispatcherSet()
+                .contains(ProxiedConnectorConfig.HUDI_CONNECTOR_NAME);
     }
 
     @Override

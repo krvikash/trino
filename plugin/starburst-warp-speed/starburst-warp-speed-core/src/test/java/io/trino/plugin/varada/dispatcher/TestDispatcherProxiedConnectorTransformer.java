@@ -17,7 +17,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.MoreCollectors;
 import io.airlift.log.Logger;
 import io.trino.plugin.varada.CoordinatorNodeManager;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.connector.TestingConnectorProxiedConnectorTransformer;
 import io.trino.plugin.varada.storage.splits.ConnectorSplitConsistentHashNodeDistributor;
 import io.trino.plugin.varada.storage.splits.ConnectorSplitNodeDistributor;
@@ -47,14 +47,14 @@ public class TestDispatcherProxiedConnectorTransformer
     private static final Logger logger = Logger.get(TestDispatcherProxiedConnectorTransformer.class);
 
     private final Random random = new Random();
-    private GlobalConfiguration globalConfiguration;
+    private GlobalConfig globalConfig;
     private CoordinatorNodeManager coordinatorNodeManager;
     private ConnectorSplitNodeDistributor connectorSplitNodeDistributor;
 
     @BeforeEach
     public void before()
     {
-        globalConfiguration = new GlobalConfiguration();
+        globalConfig = new GlobalConfig();
         coordinatorNodeManager = mock(CoordinatorNodeManager.class);
     }
 
@@ -79,7 +79,7 @@ public class TestDispatcherProxiedConnectorTransformer
                 .collect(Collectors.toList());
 
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(workers1);
-        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfiguration, coordinatorNodeManager);
+        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
 
         Map<Node, Set<DispatcherSplit>> nodeToHiveSplitsMap1 = getNodeToPathsMap(dispatcherSplits,
                 connectorTransformer,
@@ -93,7 +93,7 @@ public class TestDispatcherProxiedConnectorTransformer
         List<Node> workers2 = Lists.newArrayList(workers1).subList(1, 3);
 
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(workers2);
-        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfiguration, coordinatorNodeManager);
+        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
 
         Map<Node, Set<DispatcherSplit>> nodeToHiveSplitsMap2 = getNodeToPathsMap(dispatcherSplits,
                 connectorTransformer,
@@ -117,7 +117,7 @@ public class TestDispatcherProxiedConnectorTransformer
                 .collect(Collectors.toList());
 
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(workers3);
-        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfiguration, coordinatorNodeManager);
+        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
 
         Map<Node, Set<DispatcherSplit>> nodeToHiveSplitsMap3 = getNodeToPathsMap(dispatcherSplits,
                 connectorTransformer,
@@ -142,7 +142,7 @@ public class TestDispatcherProxiedConnectorTransformer
                 .collect(Collectors.toList());
 
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(workers4);
-        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfiguration, coordinatorNodeManager);
+        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
 
         Map<Node, Set<DispatcherSplit>> nodeToHiveSplitsMap4 = getNodeToPathsMap(dispatcherSplits,
                 connectorTransformer,
@@ -164,7 +164,7 @@ public class TestDispatcherProxiedConnectorTransformer
         List<Node> workers5 = Lists.newArrayList(workers4).subList(1, 4);
 
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(workers5);
-        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfiguration, coordinatorNodeManager);
+        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
 
         Map<Node, Set<DispatcherSplit>> nodeToHiveSplitsMap5 = getNodeToPathsMap(dispatcherSplits,
                 connectorTransformer,
@@ -185,7 +185,7 @@ public class TestDispatcherProxiedConnectorTransformer
         List<Node> workers6 = Lists.newArrayList(workers5).subList(1, 3);
 
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(workers6);
-        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfiguration, coordinatorNodeManager);
+        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
 
         Map<Node, Set<DispatcherSplit>> nodeToHiveSplitsMap6 = getNodeToPathsMap(dispatcherSplits,
                 connectorTransformer,
@@ -224,7 +224,7 @@ public class TestDispatcherProxiedConnectorTransformer
                 .collect(Collectors.toList());
 
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(workers1);
-        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfiguration, coordinatorNodeManager);
+        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
 
         Map<Node, Set<DispatcherSplit>> nodeToHiveSplitsMap1 = getNodeToPathsMap(splits,
                 connectorTransformer,
@@ -238,7 +238,7 @@ public class TestDispatcherProxiedConnectorTransformer
         List<Node> workers2 = Lists.newArrayList(workers1).subList(0, 2);
 
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(workers2);
-        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfiguration, coordinatorNodeManager);
+        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
 
         Map<Node, Set<DispatcherSplit>> nodeToHiveSplitsMap2 = getNodeToPathsMap(splits,
                 connectorTransformer,
@@ -262,7 +262,7 @@ public class TestDispatcherProxiedConnectorTransformer
                 .collect(Collectors.toList());
 
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(workers3);
-        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfiguration, coordinatorNodeManager);
+        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
 
         Map<Node, Set<DispatcherSplit>> nodeToHiveSplitsMap3 = getNodeToPathsMap(splits,
                 connectorTransformer,
@@ -286,7 +286,7 @@ public class TestDispatcherProxiedConnectorTransformer
                 .collect(Collectors.toList());
 
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(workers4);
-        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfiguration, coordinatorNodeManager);
+        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
 
         Map<Node, Set<DispatcherSplit>> nodeToHiveSplitsMap4 = getNodeToPathsMap(splits,
                 connectorTransformer,

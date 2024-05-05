@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.plugin.varada.configuration;
+package io.trino.plugin.varada.config;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.LegacyConfig;
@@ -29,17 +29,17 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static io.varada.tools.configuration.MultiPrefixConfigurationWrapper.LOCAL_DATA_STORAGE_PREFIX;
-import static io.varada.tools.configuration.MultiPrefixConfigurationWrapper.WARP_SPEED_PREFIX;
+import static io.varada.tools.config.MultiPrefixConfigWrapper.LOCAL_DATA_STORAGE_PREFIX;
+import static io.varada.tools.config.MultiPrefixConfigWrapper.WARP_SPEED_PREFIX;
 
-public class NativeConfiguration
+public class NativeConfig
 {
     public static final int READERS_WARMERS_RATIO = 32;
     public static final int MIN_WARMING_THREADS = 2;
     public static final int DEFAULT_GENERAL_RESERVED_MEMORY_IN_GB = 8;
     public static final int DEFAULT_STORAGE_CACHE_SIZE_IN_PAGES = 4 * 1024 * 1024;
     public static final String EXCEPTIONAL_LIST_COMPRESSION = "enable.compression.exceptional-list";
-    private static final Logger logger = Logger.get(NativeConfiguration.class);
+    private static final Logger logger = Logger.get(NativeConfig.class);
 
     private int predicateBundleSizeInMegaBytes = 110;
     private DataSize generalReservedMemory = DataSize.of(0, DataSize.Unit.GIGABYTE);
@@ -61,7 +61,7 @@ public class NativeConfiguration
     //     In case the general rule is Enable, the exceptional list will contain Disabled record types
     //     In case the general rule is Disable, the exceptional list will contain Enabled record types
     // With this approach field engineers can very easily disable/enable fully or partially any supported feature
-    // Exception lists in NativeConfiguration are held as integer bitmaps while every bit represents each potential
+    // Exception lists in NativeConfig are held as integer bitmaps while every bit represents each potential
     // enum value (on - in the list, off - not in the list)
     private boolean enableSingleChunk = true;
     private boolean enableQueryResultType;

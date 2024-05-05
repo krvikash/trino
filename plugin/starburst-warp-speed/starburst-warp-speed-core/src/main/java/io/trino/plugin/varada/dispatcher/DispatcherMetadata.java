@@ -16,7 +16,7 @@ package io.trino.plugin.varada.dispatcher;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.trino.plugin.varada.VaradaSessionProperties;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.expression.rewrite.ExpressionService;
 import io.trino.plugin.varada.expression.rewrite.WarpExpression;
 import io.trino.spi.connector.AggregateFunction;
@@ -113,17 +113,17 @@ public class DispatcherMetadata
     private final ConnectorMetadata proxiedConnectorMetadata;
     private final ExpressionService expressionService;
     private final DispatcherTableHandleBuilderProvider dispatcherTableHandleBuilderProvider;
-    private final GlobalConfiguration globalConfiguration;
+    private final GlobalConfig globalConfig;
 
     public DispatcherMetadata(ConnectorMetadata proxiedConnectorMetadata,
             ExpressionService expressionService,
             DispatcherTableHandleBuilderProvider dispatcherTableHandleBuilderProvider,
-            GlobalConfiguration globalConfiguration)
+            GlobalConfig globalConfig)
     {
         this.proxiedConnectorMetadata = requireNonNull(proxiedConnectorMetadata);
         this.expressionService = requireNonNull(expressionService);
         this.dispatcherTableHandleBuilderProvider = requireNonNull(dispatcherTableHandleBuilderProvider);
-        this.globalConfiguration = requireNonNull(globalConfiguration);
+        this.globalConfig = requireNonNull(globalConfig);
     }
 
     @Override
@@ -1369,7 +1369,7 @@ public class DispatcherMetadata
             Optional<DispatcherTableHandle> optionalDispatcherTableHandle,
             ConnectorTableHandle proxiedConnectorTableHandle)
     {
-        int predicateThreashold = VaradaSessionProperties.getPredicateSimplifyThreshold(session, globalConfiguration);
+        int predicateThreashold = VaradaSessionProperties.getPredicateSimplifyThreshold(session, globalConfig);
 
         return optionalDispatcherTableHandle.map(dispatcherTableHandle ->
                         dispatcherTableHandleBuilderProvider.builder(dispatcherTableHandle, predicateThreashold)

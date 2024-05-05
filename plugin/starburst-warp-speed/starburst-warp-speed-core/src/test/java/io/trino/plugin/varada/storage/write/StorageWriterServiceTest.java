@@ -15,9 +15,9 @@ package io.trino.plugin.varada.storage.write;
 
 import io.trino.plugin.varada.TestingTxService;
 import io.trino.plugin.varada.WarmColumnDataTestUtil;
-import io.trino.plugin.varada.configuration.DictionaryConfiguration;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.DictionaryConfig;
+import io.trino.plugin.varada.config.GlobalConfig;
+import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.dictionary.DictionaryCacheService;
 import io.trino.plugin.varada.dictionary.DictionaryWarmInfo;
 import io.trino.plugin.varada.dispatcher.WarmupElementWriteMetadata;
@@ -121,18 +121,18 @@ public class StorageWriterServiceTest
         StubsStorageEngineConstants storageEngineConstants = new StubsStorageEngineConstants();
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
 
-        DictionaryConfiguration dictionaryConfiguration = new DictionaryConfiguration();
-        dictionaryConfiguration.setDictionaryCacheConcurrencyLevel(1);
+        DictionaryConfig dictionaryConfig = new DictionaryConfig();
+        dictionaryConfig.setDictionaryCacheConcurrencyLevel(1);
 
-        NativeConfiguration nativeConfiguration = new NativeConfiguration();
-        nativeConfiguration.setBundleSize(1 << 27);
-        nativeConfiguration.setTaskMaxWorkerThreads(4);
-        nativeConfiguration.setPredicateBundleSizeInMegaBytes(20);
+        NativeConfig nativeConfig = new NativeConfig();
+        nativeConfig.setBundleSize(1 << 27);
+        nativeConfig.setTaskMaxWorkerThreads(4);
+        nativeConfig.setPredicateBundleSizeInMegaBytes(20);
 
-        BufferAllocator bufferAllocator = mockBufferAllocator(storageEngineConstants, nativeConfiguration, metricsManager);
+        BufferAllocator bufferAllocator = mockBufferAllocator(storageEngineConstants, nativeConfig, metricsManager);
         dictionaryCacheService = mock(DictionaryCacheService.class);
         BlockTransformerFactory blockTransformerFactory = new BlockTransformerFactory();
-        BlockAppenderFactory blockAppenderFactory = new BlockAppenderFactory(storageEngineConstants, bufferAllocator, new GlobalConfiguration(), blockTransformerFactory);
+        BlockAppenderFactory blockAppenderFactory = new BlockAppenderFactory(storageEngineConstants, bufferAllocator, new GlobalConfig(), blockTransformerFactory);
         storageWriterService = new StorageWriterService(storageEngine,
                 storageEngineConstants,
                 bufferAllocator,
@@ -333,8 +333,8 @@ public class StorageWriterServiceTest
         WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1", varcharArrayType), WarmUpType.WARM_UP_TYPE_DATA);
 
         List<DictionaryWarmInfo> outDictionaryWarmInfos = new ArrayList<>();
-        StorageWriterSplitConfiguration storageWriterSplitConfiguration = storageWriterService.startWarming("nodeIdentifier", "rowGroupFilePath", true);
-        StorageWriterContext storageWriterContext = txCreate(storageWriterSplitConfiguration, warmupElementWriteMetadata, outDictionaryWarmInfos);
+        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", "rowGroupFilePath", true);
+        StorageWriterContext storageWriterContext = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata, outDictionaryWarmInfos);
         storageWriterService.appendPage(page, storageWriterContext);
         verify(storageEngine, times(2)).commitRecordBufferPrepare(0);
 
@@ -354,8 +354,8 @@ public class StorageWriterServiceTest
         WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1", VARCHAR), WarmUpType.WARM_UP_TYPE_DATA);
 
         List<DictionaryWarmInfo> outDictionaryWarmInfos = new ArrayList<>();
-        StorageWriterSplitConfiguration storageWriterSplitConfiguration = storageWriterService.startWarming("nodeIdentifier", "rowGroupFilePath", true);
-        StorageWriterContext storageWriterContext = txCreate(storageWriterSplitConfiguration, warmupElementWriteMetadata, outDictionaryWarmInfos);
+        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", "rowGroupFilePath", true);
+        StorageWriterContext storageWriterContext = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata, outDictionaryWarmInfos);
         storageWriterService.appendPage(page, storageWriterContext);
 
         verify(storageEngine, times(2)).commitRecordBufferPrepare(0);
@@ -434,15 +434,15 @@ public class StorageWriterServiceTest
         String[] values = new String[] {"a", "b"};
         Page page = buildVarcharPage(values);
         List<DictionaryWarmInfo> outDictionaryWarmInfos = new ArrayList<>();
-        StorageWriterSplitConfiguration storageWriterSplitConfiguration = storageWriterService.startWarming("nodeIdentifier", "rowGroupFilePath", true);
-        StorageWriterContext storageWriterContext = txCreate(storageWriterSplitConfiguration, warmupElementWriteMetadata, outDictionaryWarmInfos);
+        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", "rowGroupFilePath", true);
+        StorageWriterContext storageWriterContext = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata, outDictionaryWarmInfos);
         storageWriterService.appendPage(page, storageWriterContext);
         WriteJuffersWarmUpElement dataRecordJuffer = storageWriterContext.getWriteJuffersWarmUpElement();
 
         LuceneIndexer luceneIndexer = storageWriterContext.getLuceneIndexer().get();
         ByteBuffersDirectory directory = (ByteBuffersDirectory) luceneIndexer.getLuceneDirectory();
         assertThat(directory).isNotNull();
-        storageWriterService.close(page.getPositionCount(), storageWriterSplitConfiguration, storageWriterContext);
+        storageWriterService.close(page.getPositionCount(), storageWriterSplitConfig, storageWriterContext);
 
         assertThatThrownBy(directory::listAll).isInstanceOf(AlreadyClosedException.class); //since it finish will throw AlreadyClosedException.class
 
@@ -466,17 +466,17 @@ public class StorageWriterServiceTest
         String[] values = new String[] {"a"};
         Page page = buildVarcharPage(values);
         List<DictionaryWarmInfo> outDictionaryWarmInfos = new ArrayList<>();
-        StorageWriterSplitConfiguration storageWriterSplitConfiguration = storageWriterService.startWarming("nodeIdentifier", "rowGroupFilePath", true);
-        StorageWriterContext storageWriterContext = txCreate(storageWriterSplitConfiguration, warmupElementWriteMetadata, outDictionaryWarmInfos);
+        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", "rowGroupFilePath", true);
+        StorageWriterContext storageWriterContext = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata, outDictionaryWarmInfos);
         storageWriterService.appendPage(page, storageWriterContext);
 
-        storageWriterService.abort(false, storageWriterContext, storageWriterSplitConfiguration);
+        storageWriterService.abort(false, storageWriterContext, storageWriterSplitConfig);
         WriteJuffersWarmUpElement juffersWE = storageWriterContext.getWriteJuffersWarmUpElement();
 
         LuceneIndexer luceneIndexer = storageWriterContext.getLuceneIndexer().get();
         ByteBuffersDirectory directory = (ByteBuffersDirectory) luceneIndexer.getLuceneDirectory();
         assertThat(directory).isNotNull();
-        storageWriterService.abort(false, storageWriterContext, storageWriterSplitConfiguration);
+        storageWriterService.abort(false, storageWriterContext, storageWriterSplitConfig);
 
         assertThatThrownBy(directory::listAll).isInstanceOf(AlreadyClosedException.class); //since it finish will throw AlreadyClosedException.class
 
@@ -488,15 +488,15 @@ public class StorageWriterServiceTest
         verify(storageEngine, never()).luceneCommitBuffers(anyLong(), anyBoolean(), any(int[].class));
     }
 
-    private StorageWriterContext txCreate(StorageWriterSplitConfiguration storageWriterSplitConfiguration, WarmupElementWriteMetadata warmupElementWriteMetadata, List<DictionaryWarmInfo> outDictionaryWarmInfos)
+    private StorageWriterContext txCreate(StorageWriterSplitConfig storageWriterSplitConfig, WarmupElementWriteMetadata warmupElementWriteMetadata, List<DictionaryWarmInfo> outDictionaryWarmInfos)
     {
-        return storageWriterService.open(0, 0, 0, storageWriterSplitConfiguration, warmupElementWriteMetadata, outDictionaryWarmInfos);
+        return storageWriterService.open(0, 0, 0, storageWriterSplitConfig, warmupElementWriteMetadata, outDictionaryWarmInfos);
     }
 
     private StorageWriterContext runTest(Page page, WarmupElementWriteMetadata warmupElementWriteMetadata, List<DictionaryWarmInfo> outDictionaryWarmInfos)
     {
-        StorageWriterSplitConfiguration storageWriterSplitConfiguration = storageWriterService.startWarming("nodeIdentifier", "rowGroupFilePath", true);
-        StorageWriterContext storageWriterContext = txCreate(storageWriterSplitConfiguration, warmupElementWriteMetadata, outDictionaryWarmInfos);
+        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", "rowGroupFilePath", true);
+        StorageWriterContext storageWriterContext = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata, outDictionaryWarmInfos);
         storageWriterService.appendPage(page, storageWriterContext);
         return storageWriterContext;
     }

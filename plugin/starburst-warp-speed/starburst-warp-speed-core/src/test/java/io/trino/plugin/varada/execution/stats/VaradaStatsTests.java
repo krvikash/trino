@@ -17,7 +17,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.airlift.json.ObjectMapperProvider;
-import io.trino.plugin.varada.configuration.MetricsConfiguration;
+import io.trino.plugin.varada.config.MetricsConfig;
 import io.trino.plugin.varada.metrics.MetricsRegistry;
 import io.trino.plugin.warp.gen.stats.VaradaStatsTest;
 import io.varada.tools.CatalogNameProvider;
@@ -57,7 +57,7 @@ public class VaradaStatsTests
     @Test
     public void testMergePersistentStat()
     {
-        MetricsRegistry metricRegistry = new MetricsRegistry(new CatalogNameProvider("catalog-name"), new MetricsConfiguration());
+        MetricsRegistry metricRegistry = new MetricsRegistry(new CatalogNameProvider("catalog-name"), new MetricsConfig());
         long hotQueryVal = 50;
         long expectedResultAfterMerge = hotQueryVal * 2;
         VaradaStatsTest stat = new VaradaStatsTest("group2");

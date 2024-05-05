@@ -16,17 +16,20 @@ package io.trino.plugin.warp.extension.execution.debugtools.dictionary;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public class DictionaryConfigurationRequest
+public class DictionaryConfigResult
 {
     private final long maxDictionaryTotalCacheWeight;
     private final int concurrency;
+    private final long dictionaryMaxSize;
 
     @JsonCreator
-    public DictionaryConfigurationRequest(@JsonProperty("maxDictionaryTotalCacheWeight") long dictionaryCacheTotalSize,
-            @JsonProperty("concurrency") int concurrency)
+    public DictionaryConfigResult(@JsonProperty("maxDictionaryTotalCacheWeight") long dictionaryCacheTotalSize,
+            @JsonProperty("concurrency") int concurrency,
+            @JsonProperty("dictionaryMaxSize") long dictionaryMaxSize)
     {
         this.maxDictionaryTotalCacheWeight = dictionaryCacheTotalSize;
         this.concurrency = concurrency;
+        this.dictionaryMaxSize = dictionaryMaxSize;
     }
 
     @JsonProperty
@@ -41,12 +44,19 @@ public class DictionaryConfigurationRequest
         return concurrency;
     }
 
+    @JsonProperty
+    public long getDictionaryMaxSize()
+    {
+        return dictionaryMaxSize;
+    }
+
     @Override
     public String toString()
     {
-        return "DictionaryConfigurationResult{" +
+        return "DictionaryConfigResult{" +
                 "maxDictionaryTotalCacheWeight=" + maxDictionaryTotalCacheWeight +
                 ", concurrency=" + concurrency +
+                ", dictionaryMaxSize=" + dictionaryMaxSize +
                 '}';
     }
 }

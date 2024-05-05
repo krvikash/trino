@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.varada.dispatcher.warmup;
 
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.DispatcherSplit;
 import io.trino.plugin.varada.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.varada.dispatcher.model.RowGroupKey;
@@ -28,7 +28,7 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.SchemaTableName;
-import io.varada.cloudvendors.configuration.CloudVendorConfiguration;
+import io.varada.cloudvendors.config.CloudVendorConfig;
 
 import java.util.List;
 import java.util.Optional;
@@ -38,8 +38,8 @@ import static io.trino.plugin.varada.dispatcher.warmup.WarmUtils.isImportExportE
 public class PrioritizeTask
         extends WorkerWarmerBaseTask
 {
-    private final GlobalConfiguration globalConfiguration;
-    private final CloudVendorConfiguration cloudVendorConfiguration;
+    private final GlobalConfig globalConfig;
+    private final CloudVendorConfig cloudVendorConfig;
 
     public PrioritizeTask(WarmExecutionTaskFactory warmExecutionTaskFactory,
             WorkerWarmingService workerWarmingService,
@@ -57,12 +57,12 @@ public class PrioritizeTask
             int iterationCount,
             VaradaStatsWarmingService statsWarmingService,
             WarmingManager warmingManager, WarmupElementsCreator warmupElementsCreator,
-            GlobalConfiguration globalConfiguration,
-            CloudVendorConfiguration cloudVendorConfiguration)
+            GlobalConfig globalConfig,
+            CloudVendorConfig cloudVendorConfig)
     {
         super(warmExecutionTaskFactory, workerTaskExecutorService, statsWarmingService, warmingManager, workerWarmingService, connectorPageSourceProvider, transactionHandle, session, dispatcherTableHandle, rowGroupKey, columns, dispatcherSplit, dynamicFilter, rowGroupDataService, queryClassifier, warmupElementsCreator, iterationCount);
-        this.globalConfiguration = globalConfiguration;
-        this.cloudVendorConfiguration = cloudVendorConfiguration;
+        this.globalConfig = globalConfig;
+        this.cloudVendorConfig = cloudVendorConfig;
     }
 
     @Override
@@ -87,7 +87,7 @@ public class PrioritizeTask
                     dataToWarm.columnHandleList()));
             return;
         }
-        if (isImportExportEnabled(globalConfiguration, cloudVendorConfiguration, session)) {
+        if (isImportExportEnabled(globalConfig, cloudVendorConfig, session)) {
             nextTask = Optional.of(createImportTask((int) dataToWarm.highestPriority()));
         }
         else {

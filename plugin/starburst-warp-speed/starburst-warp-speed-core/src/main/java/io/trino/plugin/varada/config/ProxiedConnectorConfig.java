@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.plugin.varada.configuration;
+package io.trino.plugin.varada.config;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.LegacyConfig;
@@ -21,11 +21,11 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static io.varada.tools.configuration.MultiPrefixConfigurationWrapper.LOCAL_DATA_STORAGE_PREFIX;
-import static io.varada.tools.configuration.MultiPrefixConfigurationWrapper.WARP_SPEED_PREFIX;
+import static io.varada.tools.config.MultiPrefixConfigWrapper.LOCAL_DATA_STORAGE_PREFIX;
+import static io.varada.tools.config.MultiPrefixConfigWrapper.WARP_SPEED_PREFIX;
 import static java.lang.String.format;
 
-public class ProxiedConnectorConfiguration
+public class ProxiedConnectorConfig
 {
     public static final String PROXIED_CONNECTOR = "proxied-connector";
     public static final String PASS_THROUGH_DISPATCHER = "enable.passthrough";
@@ -65,13 +65,13 @@ public class ProxiedConnectorConfiguration
                 .map(String::trim)
                 .collect(Collectors.toSet());
         checkArgument(supportedConnectors.containsAll(passThroughDispatcherSet),
-                format("%s configuration only supports %s", PASS_THROUGH_DISPATCHER, supportedConnectors));
+                format("%s config only supports %s", PASS_THROUGH_DISPATCHER, supportedConnectors));
     }
 
     @Override
     public String toString()
     {
-        return "ProxiedConnectorConfiguration{" +
+        return "ProxiedConnectorConfig{" +
                 "proxiedConnector='" + proxiedConnector + '\'' +
                 ", passThroughDispatcherSet=" + passThroughDispatcherSet +
                 '}';

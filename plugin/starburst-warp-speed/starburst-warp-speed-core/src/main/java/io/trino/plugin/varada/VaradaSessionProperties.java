@@ -17,13 +17,13 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
+import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.session.PropertyMetadata;
 import io.varada.cloudvendors.CloudVendorService;
-import io.varada.cloudvendors.configuration.CloudVendorConfiguration;
+import io.varada.cloudvendors.config.CloudVendorConfig;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -63,10 +63,10 @@ public final class VaradaSessionProperties
     /**
      * MAKE SURE THAT IN CASES THAT THE SESSION PROPERTY IS OVERRIDING GLOBAL CONFIGURATION THE DEFAULT VALUE IS PROVIDED IN THE PROPERTY DEFINITION AND NOT AS STATIC METHOD
      *
-     * @param globalConfiguration - global configuration
+     * @param globalConfig - global config
      */
     @Inject
-    public VaradaSessionProperties(GlobalConfiguration globalConfiguration)
+    public VaradaSessionProperties(GlobalConfig globalConfig)
     {
         sessionProperties = List.of(
                 booleanProperty(
@@ -77,17 +77,17 @@ public final class VaradaSessionProperties
                 booleanProperty(
                         ENABLE_DEFAULT_WARMING,
                         "Warm query fields,with no WarmupRules",
-                        globalConfiguration.isEnableDefaultWarming(),
+                        globalConfig.isEnableDefaultWarming(),
                         true),
                 booleanProperty(
                         ENABLE_DEFAULT_WARMING_INDEX,
                         "In default warming, warm as index if field was present in query",
-                        globalConfiguration.isCreateIndexInDefaultWarming(),
+                        globalConfig.isCreateIndexInDefaultWarming(),
                         true),
                 booleanProperty(
                         ENABLE_IMPORT_EXPORT,
                         "export and import warmup files",
-                        globalConfiguration.getEnableImportExport(),
+                        globalConfig.getEnableImportExport(),
                         true),
                 booleanProperty(
                         ENABLE_DICTIONARY,
@@ -97,22 +97,22 @@ public final class VaradaSessionProperties
                 booleanProperty(
                         ENABLE_MATCH_COLLECT,
                         "match collect feature enabled",
-                        globalConfiguration.getEnableMatchCollect(),
+                        globalConfig.getEnableMatchCollect(),
                         true),
                 booleanProperty(
                         ENABLE_MAPPED_MATCH_COLLECT,
                         "mapped match collect feature enabled",
-                        globalConfiguration.getEnableMappedMatchCollect(),
+                        globalConfig.getEnableMappedMatchCollect(),
                         true),
                 booleanProperty(
                         ENABLE_INVERSE_WITH_NULLS,
                         "inverse with nulls feature enabled",
-                        globalConfiguration.getEnableInverseWithNulls(),
+                        globalConfig.getEnableInverseWithNulls(),
                         true),
                 integerProperty(
                         PREDICATE_SIMPLIFY_THRESHOLD,
                         "Max allowed predicate before simplifying",
-                        globalConfiguration.getPredicateSimplifyThreshold(),
+                        globalConfig.getPredicateSimplifyThreshold(),
                         false),
                 stringProperty(
                         UNSUPPORTED_FUNCTIONS,
@@ -142,7 +142,7 @@ public final class VaradaSessionProperties
                 booleanProperty(
                         ENABLE_OR_PUSHDOWN,
                         "support pushdown of OR predicates",
-                        globalConfiguration.getEnableOrPushdown(),
+                        globalConfig.getEnableOrPushdown(),
                         true),
                 booleanProperty(
                         MIN_MAX_FILTER,
@@ -153,11 +153,11 @@ public final class VaradaSessionProperties
 
     public static Set<String> getUnsupportedNativeFunctions(
             ConnectorSession session,
-            NativeConfiguration nativeConfiguration)
+            NativeConfig nativeConfig)
     {
         String properties = getProperty(session, UNSUPPORTED_NATIVE_FUNCTIONS, String.class);
         if (properties == null) {
-            return nativeConfiguration.getUnsupportedNativeFunctions();
+            return nativeConfig.getUnsupportedNativeFunctions();
         }
         if (properties.isEmpty()) {
             return Collections.emptySet();
@@ -168,16 +168,16 @@ public final class VaradaSessionProperties
         }
         catch (Exception e) {
             logger.error("failed to parse session unsupported_functions properties, return default=%s",
-                    nativeConfiguration.getUnsupportedNativeFunctions());
-            return nativeConfiguration.getUnsupportedNativeFunctions();
+                    nativeConfig.getUnsupportedNativeFunctions());
+            return nativeConfig.getUnsupportedNativeFunctions();
         }
     }
 
-    public static Set<String> getUnsupportedFunctions(ConnectorSession session, GlobalConfiguration globalConfiguration)
+    public static Set<String> getUnsupportedFunctions(ConnectorSession session, GlobalConfig globalConfig)
     {
         String properties = getProperty(session, UNSUPPORTED_FUNCTIONS, String.class);
         if (properties == null) {
-            return globalConfiguration.getUnsupportedFunctions();
+            return globalConfig.getUnsupportedFunctions();
         }
         if (properties.isEmpty()) {
             return Collections.emptySet();
@@ -187,8 +187,8 @@ public final class VaradaSessionProperties
             return Arrays.stream(properties.trim().split(",")).map(String::trim).collect(Collectors.toSet());
         }
         catch (Exception e) {
-            logger.error("failed to parse session unsupported_functions properties, return default=%s", globalConfiguration.getUnsupportedFunctions());
-            return globalConfiguration.getUnsupportedFunctions();
+            logger.error("failed to parse session unsupported_functions properties, return default=%s", globalConfig.getUnsupportedFunctions());
+            return globalConfig.getUnsupportedFunctions();
         }
     }
 
@@ -252,11 +252,11 @@ public final class VaradaSessionProperties
 
     public static String getS3ImportExportPath(
             ConnectorSession session,
-            CloudVendorConfiguration configuration,
+            CloudVendorConfig config,
             CloudVendorService cloudVendorService)
     {
         if (session == null || getProperty(session, IMPORT_EXPORT_S3_PATH, String.class) == null) {
-            return getS3ImportExportPath(configuration.getStorePath());
+            return getS3ImportExportPath(config.getStorePath());
         }
         else {
             return getS3ImportExportPath(getProperty(session, IMPORT_EXPORT_S3_PATH, String.class));
@@ -271,13 +271,13 @@ public final class VaradaSessionProperties
 
     public static int getPredicateSimplifyThreshold(
             ConnectorSession session,
-            GlobalConfiguration globalConfiguration)
+            GlobalConfig globalConfig)
     {
         Object obj = getProperty(session, PREDICATE_SIMPLIFY_THRESHOLD, Integer.class);
         if (obj != null) {
             return (int) obj;
         }
-        return globalConfiguration.getPredicateSimplifyThreshold();
+        return globalConfig.getPredicateSimplifyThreshold();
     }
 
     public static String getMatchCollectCatalog(ConnectorSession session)

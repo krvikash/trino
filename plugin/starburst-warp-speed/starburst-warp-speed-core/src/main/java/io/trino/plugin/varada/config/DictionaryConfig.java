@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.plugin.varada.configuration;
+package io.trino.plugin.varada.config;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.LegacyConfig;
@@ -23,10 +23,10 @@ import java.util.Arrays;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static io.varada.tools.configuration.MultiPrefixConfigurationWrapper.LOCAL_DATA_STORAGE_PREFIX;
-import static io.varada.tools.configuration.MultiPrefixConfigurationWrapper.WARP_SPEED_PREFIX;
+import static io.varada.tools.config.MultiPrefixConfigWrapper.LOCAL_DATA_STORAGE_PREFIX;
+import static io.varada.tools.config.MultiPrefixConfigWrapper.WARP_SPEED_PREFIX;
 
-public class DictionaryConfiguration
+public class DictionaryConfig
 {
     public static final String EXCEPTIONAL_LIST_DICTIONARY = "enable.dictionary.exceptional-list";
     private int dictionaryMaxSize = 64 * 1024;
@@ -44,7 +44,7 @@ public class DictionaryConfiguration
     private boolean enableDictionary = true;
     private Set<RecTypeCode> exceptionalListDictionary;
 
-    private static final Logger logger = Logger.get(DictionaryConfiguration.class);
+    private static final Logger logger = Logger.get(DictionaryConfig.class);
 
     public int getDictionaryMaxSize()
     {

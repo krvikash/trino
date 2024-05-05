@@ -18,7 +18,7 @@ import io.airlift.http.client.HttpUriBuilder;
 import io.airlift.http.client.Request;
 import io.airlift.json.JsonCodec;
 import io.trino.plugin.varada.CoordinatorNodeManager;
-import io.trino.plugin.varada.configuration.DictionaryConfiguration;
+import io.trino.plugin.varada.config.DictionaryConfig;
 import io.trino.plugin.varada.dictionary.DebugDictionaryKey;
 import io.trino.plugin.varada.dictionary.DebugDictionaryMetadata;
 import io.trino.plugin.varada.execution.VaradaClient;
@@ -56,26 +56,26 @@ public class DictionaryTask
     public static final String DICTIONARY_USAGE_TASK_NAME = "dictionary-usage";
     public static final String DICTIONARY_RESET_MEMORY_TASK_NAME = "dictionary-memory-reset";
     public static final String DICTIONARY_COUNT_AGGREGATED_TASK_NAME = "dictionary-count-aggregated";
-    public static final String DICTIONARY_GET_CONFIGURATION = "dictionary-get-configuration";
-    public static final String DICTIONARY_SET_CONFIGURATION_AND_RESET_CACHE = "set-configuration-reset-cache";
+    public static final String DICTIONARY_GET_CONFIGURATION = "dictionary-get-config";
+    public static final String DICTIONARY_SET_CONFIGURATION_AND_RESET_CACHE = "set-config-reset-cache";
     public static final String DICTIONARY_GET_CACHE_KEYS = "dictionary-get-cache-keys";
     private static final JsonCodec<WorkerDictionaryCountResult> workerDictionaryCountResultJsonCoded = JsonCodec.jsonCodec(WorkerDictionaryCountResult.class);
-    private static final JsonCodec<DictionaryConfigurationResult> workerDictionaryConfigurationResultJsonCoded = JsonCodec.jsonCodec(DictionaryConfigurationResult.class);
-    private static final JsonCodec<DictionaryConfigurationRequest> workerDictionaryConfigurationRequestJsonCoded = JsonCodec.jsonCodec(DictionaryConfigurationRequest.class);
+    private static final JsonCodec<DictionaryConfigResult> workerDictionaryConfigResultJsonCoded = JsonCodec.jsonCodec(DictionaryConfigResult.class);
+    private static final JsonCodec<DictionaryConfigRequest> workerDictionaryConfigRequestJsonCoded = JsonCodec.jsonCodec(DictionaryConfigRequest.class);
     private static final JsonCodec<Map<String, Object>> mapJsonCoded = JsonCodec.mapJsonCodec(String.class, Object.class);
 
     private final CoordinatorNodeManager coordinatorNodeManager;
-    private final DictionaryConfiguration dictionaryConfiguration;
+    private final DictionaryConfig dictionaryConfig;
     private final VaradaClient varadaClient;
 
     @Inject
     public DictionaryTask(
             CoordinatorNodeManager coordinatorNodeManager,
-            DictionaryConfiguration dictionaryConfiguration,
+            DictionaryConfig dictionaryConfig,
             VaradaClient varadaClient)
     {
         this.coordinatorNodeManager = requireNonNull(coordinatorNodeManager);
-        this.dictionaryConfiguration = requireNonNull(dictionaryConfiguration);
+        this.dictionaryConfig = requireNonNull(dictionaryConfig);
         this.varadaClient = requireNonNull(varadaClient);
     }
 
@@ -84,7 +84,7 @@ public class DictionaryTask
     //@ApiOperation(value = "reset", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public int resetMemoryDictionaries()
     {
-        return resetMemoryDictionaries(new DictionaryConfigurationRequest(dictionaryConfiguration.getMaxDictionaryTotalCacheWeight(), dictionaryConfiguration.getDictionaryCacheConcurrencyLevel()));
+        return resetMemoryDictionaries(new DictionaryConfigRequest(dictionaryConfig.getMaxDictionaryTotalCacheWeight(), dictionaryConfig.getDictionaryCacheConcurrencyLevel()));
     }
 
     @POST
@@ -97,28 +97,28 @@ public class DictionaryTask
 
     @GET
     @Path(DICTIONARY_GET_CONFIGURATION)
-    //@ApiOperation(value = "get dictionary configuration", nickname = "dictionaryGetConfiguration", extensions = {
+    //@ApiOperation(value = "get dictionary config", nickname = "dictionaryGetConfig", extensions = {
 //            @Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
-    public Map<String, DictionaryConfigurationResult> getDictionaryConfiguration()
+    public Map<String, DictionaryConfigResult> getDictionaryConfig()
     {
         List<Node> workerNodes = coordinatorNodeManager.getWorkerNodes();
         return workerNodes.stream()
-                .collect(Collectors.toMap(Node::getNodeIdentifier, workerNode -> (DictionaryConfigurationResult) getWorkerResult(workerNode, WorkerDictionaryCountTask.WORKER_DICTIONARY_GET_CONFIGURATION, workerDictionaryConfigurationResultJsonCoded)));
+                .collect(Collectors.toMap(Node::getNodeIdentifier, workerNode -> (DictionaryConfigResult) getWorkerResult(workerNode, WorkerDictionaryCountTask.WORKER_DICTIONARY_GET_CONFIGURATION, workerDictionaryConfigResultJsonCoded)));
     }
 
     @POST
     @Path(DICTIONARY_SET_CONFIGURATION_AND_RESET_CACHE)
-    //@ApiOperation(value = "set dictionary configuration and reset cache", nickname = "dictionarySetConfiguration", extensions = {
+    //@ApiOperation(value = "set dictionary config and reset cache", nickname = "dictionarySetConfig", extensions = {
 //            @Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
-    public int setDictionaryConfiguration(DictionaryConfigurationRequest dictionaryConfiguration)
+    public int setDictionaryConfig(DictionaryConfigRequest dictionaryConfig)
     {
-        long confTotalWeight = dictionaryConfiguration.getMaxDictionaryTotalCacheWeight() > -1 ?
-                dictionaryConfiguration.getMaxDictionaryTotalCacheWeight() :
-                this.dictionaryConfiguration.getMaxDictionaryTotalCacheWeight();
-        int confConcurrency = dictionaryConfiguration.getConcurrency() > -1 ?
-                dictionaryConfiguration.getConcurrency() :
-                this.dictionaryConfiguration.getDictionaryCacheConcurrencyLevel();
-        return resetMemoryDictionaries(new DictionaryConfigurationRequest(confTotalWeight, confConcurrency));
+        long confTotalWeight = dictionaryConfig.getMaxDictionaryTotalCacheWeight() > -1 ?
+                dictionaryConfig.getMaxDictionaryTotalCacheWeight() :
+                this.dictionaryConfig.getMaxDictionaryTotalCacheWeight();
+        int confConcurrency = dictionaryConfig.getConcurrency() > -1 ?
+                dictionaryConfig.getConcurrency() :
+                this.dictionaryConfig.getDictionaryCacheConcurrencyLevel();
+        return resetMemoryDictionaries(new DictionaryConfigRequest(confTotalWeight, confConcurrency));
     }
 
     @GET
@@ -140,15 +140,15 @@ public class DictionaryTask
         return innerCount(true);
     }
 
-    private int resetMemoryDictionaries(DictionaryConfigurationRequest dictionaryConfiguration)
+    private int resetMemoryDictionaries(DictionaryConfigRequest dictionaryConfig)
     {
         List<Node> workerNodes = coordinatorNodeManager.getWorkerNodes();
         AtomicInteger totalRemoved = new AtomicInteger();
         workerNodes.forEach(workerNode -> {
             Integer res = (Integer) postWorkerResult(workerNode,
                     WORKER_DICTIONARY_RESET_TASK_NAME,
-                    workerDictionaryConfigurationRequestJsonCoded,
-                    dictionaryConfiguration,
+                    workerDictionaryConfigRequestJsonCoded,
+                    dictionaryConfig,
                     JsonCodec.jsonCodec(Integer.class));
             totalRemoved.addAndGet(res);
         });

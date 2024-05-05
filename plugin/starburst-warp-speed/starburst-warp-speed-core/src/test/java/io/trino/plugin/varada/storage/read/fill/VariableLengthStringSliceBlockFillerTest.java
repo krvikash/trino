@@ -40,7 +40,7 @@ public class VariableLengthStringSliceBlockFillerTest
     @Override
     BlockFiller<Slice> createBlockFiller()
     {
-        return new VariableLengthStringSliceBlockFiller(storageEngineConstants, nativeConfiguration);
+        return new VariableLengthStringSliceBlockFiller(storageEngineConstants, nativeConfig);
     }
 
     @Override

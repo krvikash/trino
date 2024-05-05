@@ -16,8 +16,8 @@ package io.trino.plugin.varada.storage.engine.nativeimpl;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
+import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.gen.errorcodes.ErrorCodes;
 import io.varada.log.ShapingLogger;
@@ -27,7 +27,7 @@ import static java.util.Objects.requireNonNull;
 @Singleton
 public class NativeStorageStateHandler
 {
-    private final NativeConfiguration nativeConfiguration;
+    private final NativeConfig nativeConfig;
     private final ShapingLogger shapingLogger;
 
     boolean storageDisablePermanently;
@@ -38,17 +38,17 @@ public class NativeStorageStateHandler
 
     @Inject
     public NativeStorageStateHandler(
-            NativeConfiguration nativeConfiguration,
+            NativeConfig nativeConfig,
             ExceptionThrower exceptionThrower,
-            GlobalConfiguration globalConfiguration)
+            GlobalConfig globalConfig)
     {
-        this.nativeConfiguration = requireNonNull(nativeConfiguration);
+        this.nativeConfig = requireNonNull(nativeConfig);
         exceptionThrower.addExceptionConsumer(this::handleErrorCode);
         shapingLogger = ShapingLogger.getInstance(
                 Logger.get(NativeStorageStateHandler.class),
-                globalConfiguration.getShapingLoggerThreshold(),
-                globalConfiguration.getShapingLoggerDuration(),
-                globalConfiguration.getShapingLoggerNumberOfSamples());
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
     }
 
     public boolean isStorageAvailable()
@@ -57,7 +57,7 @@ public class NativeStorageStateHandler
             return false;
         }
         if (isStorageDisabledTemporarily()) {
-            long configuredExpiryDurationMillis = nativeConfiguration.getStorageTemporaryExceptionExpiryDuration().toMillis();
+            long configuredExpiryDurationMillis = nativeConfig.getStorageTemporaryExceptionExpiryDuration().toMillis();
             long currentDurationMillis = System.currentTimeMillis() - storageTemporaryExceptionTimestamp;
 
             // reset storage temp params in case timeout expiry passed
@@ -96,7 +96,7 @@ public class NativeStorageStateHandler
             shapingLogger.warn("set storage temporary tries [%d]", storageTemporaryExceptionNumTries);
 
             // mark as permanent in case too many temp errors
-            if (storageTemporaryExceptionNumTries >= nativeConfiguration.getStorageTemporaryExceptionNumTries()) {
+            if (storageTemporaryExceptionNumTries >= nativeConfig.getStorageTemporaryExceptionNumTries()) {
                 storageDisablePermanently = true;
                 shapingLogger.warn("set storage permanent state due to too many temporary errors - %s", errorCode);
             }

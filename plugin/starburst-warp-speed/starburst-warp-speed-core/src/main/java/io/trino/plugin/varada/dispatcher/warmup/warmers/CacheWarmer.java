@@ -31,7 +31,7 @@ import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.storage.flows.FlowIdGenerator;
 import io.trino.plugin.varada.storage.write.PageSink;
 import io.trino.plugin.varada.storage.write.StorageWriterService;
-import io.trino.plugin.varada.storage.write.StorageWriterSplitConfiguration;
+import io.trino.plugin.varada.storage.write.StorageWriterSplitConfig;
 import io.trino.plugin.varada.storage.write.VaradaPageSinkFactory;
 import io.trino.plugin.warp.gen.stats.VaradaStatsWarmingService;
 import io.trino.spi.TrinoException;
@@ -135,13 +135,13 @@ public class CacheWarmer
         long flowId;
         int fileOffset;
         int txId = INVALID_TX_ID;
-        StorageWriterSplitConfiguration storageWriterSplitConfiguration = storageWriterService.startWarming("WarpCacheManager", permanentRowGroupKey.filePath(), false);
+        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("WarpCacheManager", permanentRowGroupKey.filePath(), false);
         RowGroupKey tempRowGroupKey = getTempKeyFile(warmUpElementToWarm, permanentRowGroupKey);
         try {
             flowId = FlowIdGenerator.generateFlowId();
             storageWarmerService.tryRunningWarmFlow(flowId, tempRowGroupKey);
             statsWarmingService.incwarm_started();
-            pageSink = varadaPageSinkFactory.create(storageWriterSplitConfiguration);
+            pageSink = varadaPageSinkFactory.create(storageWriterSplitConfig);
 
             RowGroupData rowGroupData = rowGroupDataService.getOrCreateRowGroupData(tempRowGroupKey, Collections.emptyMap());
             storageWarmerService.lockRowGroup(rowGroupData);
@@ -160,12 +160,12 @@ public class CacheWarmer
             logger.error(e, "failed to init warm for key=%s. %s", permanentRowGroupKey, warmUpElementToWarm);
             throw e;
         }
-        return new WarmingCacheData(fileCookie, pageSink, flowId, fileOffset, locked, txId, tempRowGroupKey, storageWriterSplitConfiguration);
+        return new WarmingCacheData(fileCookie, pageSink, flowId, fileOffset, locked, txId, tempRowGroupKey, storageWriterSplitConfig);
     }
 
     public void finishCacheWarming(WarmingCacheData warmingCacheData)
     {
-        storageWriterService.finishWarming(warmingCacheData.storageWriterSplitConfiguration());
+        storageWriterService.finishWarming(warmingCacheData.storageWriterSplitConfig());
     }
 
     private int getFileOffset(RowGroupKey rowGroupKey)

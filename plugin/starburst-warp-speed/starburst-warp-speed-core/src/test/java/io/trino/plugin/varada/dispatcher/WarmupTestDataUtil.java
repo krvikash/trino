@@ -18,7 +18,7 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.SetMultimap;
 import io.airlift.slice.Slice;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.connector.TestingConnectorColumnHandle;
 import io.trino.plugin.varada.connector.TestingConnectorTableHandle;
 import io.trino.plugin.varada.di.VaradaInitializedServiceRegistry;
@@ -318,14 +318,14 @@ public class WarmupTestDataUtil
     }
 
     public static BufferAllocator mockBufferAllocator(StorageEngineConstants storageEngineConstants,
-            NativeConfiguration nativeConfiguration,
+            NativeConfig nativeConfig,
             MetricsManager metricsManager)
     {
         int defaultSize = 1 << 12;
         BufferAllocator bufferAllocator = spy(new BufferAllocator(
                 new StubsStorageEngine(),
                 storageEngineConstants,
-                nativeConfiguration,
+                nativeConfig,
                 metricsManager,
                 new VaradaInitializedServiceRegistry()));
 

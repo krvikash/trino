@@ -16,7 +16,7 @@ package io.trino.plugin.varada.dispatcher.query.classifier;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.connector.TestingConnectorProxiedConnectorTransformer;
 import io.trino.plugin.varada.dispatcher.model.RegularColumn;
 import io.trino.plugin.varada.dispatcher.model.RowGroupData;
@@ -106,7 +106,7 @@ public class LuceneMatcherTest
     public void before()
     {
         init();
-        this.predicateContextFactory = new PredicateContextFactory(new GlobalConfiguration(),
+        this.predicateContextFactory = new PredicateContextFactory(new GlobalConfig(),
                 new TestingConnectorProxiedConnectorTransformer());
         luceneElementsMatcher = new LuceneElementsMatcher(dispatcherProxiedConnectorTransformer);
         rowGroupData = mock(RowGroupData.class);

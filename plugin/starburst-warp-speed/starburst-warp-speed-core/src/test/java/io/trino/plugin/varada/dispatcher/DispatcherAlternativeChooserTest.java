@@ -16,8 +16,8 @@ package io.trino.plugin.varada.dispatcher;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.varada.TestingTxService;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
+import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.connector.TestingConnectorProxiedConnectorTransformer;
 import io.trino.plugin.varada.dispatcher.dal.RowGroupDataDao;
 import io.trino.plugin.varada.dispatcher.model.RowGroupData;
@@ -143,7 +143,7 @@ public class DispatcherAlternativeChooserTest
         when(rowGroupDataDao.get(rowGroupKey)).thenReturn(rowGroupData);
         when(rowGroupDataDao.getIfPresent(rowGroupKey)).thenReturn(rowGroupData);
         StubsStorageEngine storageEngine = new StubsStorageEngine();
-        GlobalConfiguration globalConfiguration = new GlobalConfiguration();
+        GlobalConfig globalConfig = new GlobalConfig();
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
         NodeManager nodeManager = mockNodeManager();
         ConnectorSync connectorSync = mock(ConnectorSync.class);
@@ -151,7 +151,7 @@ public class DispatcherAlternativeChooserTest
         when(connectorSync.getCatalogSequence()).thenReturn(0);
         rowGroupDataService = new RowGroupDataService(rowGroupDataDao,
                 storageEngine,
-                globalConfiguration,
+                globalConfig,
                 metricsManager,
                 nodeManager,
                 connectorSync);
@@ -164,19 +164,19 @@ public class DispatcherAlternativeChooserTest
         when(predicatesCacheService.getOrCreatePredicateBufferId(isA(PredicateData.class), any()))
                 .thenReturn(Optional.of(new PredicateCacheData(predicateBufferInfo, Optional.empty())));
         BufferAllocator bufferAllocator = mock(BufferAllocator.class);
-        NativeConfiguration nativeConfiguration = mock(NativeConfiguration.class);
+        NativeConfig nativeConfig = mock(NativeConfig.class);
         DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer = new TestingConnectorProxiedConnectorTransformer();
         MatchCollectIdService matchCollectIdService = mock(MatchCollectIdService.class);
-        PredicateContextFactory predicateContextFactory = new PredicateContextFactory(globalConfiguration, new TestingConnectorProxiedConnectorTransformer());
+        PredicateContextFactory predicateContextFactory = new PredicateContextFactory(globalConfig, new TestingConnectorProxiedConnectorTransformer());
         QueryClassifier queryClassifier = new QueryClassifier(
                 new ClassifierFactory(
                         storageEngineConstants,
                         predicatesCacheService,
                         bufferAllocator,
-                        nativeConfiguration,
+                        nativeConfig,
                         dispatcherProxiedConnectorTransformer,
                         matchCollectIdService,
-                        globalConfiguration),
+                        globalConfig),
                 connectorSync,
                 matchCollectIdService,
                 predicateContextFactory);

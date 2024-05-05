@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.varada.storage.write.appenders;
 
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.model.WarmUpElement;
 import io.trino.plugin.varada.dispatcher.warmup.transform.BlockTransformerFactory;
 import io.trino.plugin.varada.juffer.BufferAllocator;
@@ -74,7 +74,7 @@ class BlockAppenderFactoryTest
     {
         storageEngineConstants = new StubsStorageEngineConstants();
         BlockTransformerFactory blockTransformerFactory = new BlockTransformerFactory();
-        blockAppenderFactory = new BlockAppenderFactory(storageEngineConstants, mock(BufferAllocator.class), new GlobalConfiguration(), blockTransformerFactory);
+        blockAppenderFactory = new BlockAppenderFactory(storageEngineConstants, mock(BufferAllocator.class), new GlobalConfig(), blockTransformerFactory);
     }
 
     static Stream<Arguments> params()

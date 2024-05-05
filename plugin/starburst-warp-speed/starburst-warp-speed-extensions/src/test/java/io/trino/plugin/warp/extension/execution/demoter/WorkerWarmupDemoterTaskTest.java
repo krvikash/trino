@@ -17,7 +17,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.eventbus.EventBus;
 import io.airlift.json.ObjectMapperProvider;
-import io.trino.plugin.varada.configuration.WarmupDemoterConfiguration;
+import io.trino.plugin.varada.config.WarmupDemoterConfig;
 import io.trino.plugin.varada.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.varada.dispatcher.warmup.demoter.events.WarmupDemoterFinishEvent;
 import io.trino.plugin.varada.metrics.MetricsManager;
@@ -47,13 +47,13 @@ public class WorkerWarmupDemoterTaskTest
     private WorkerWarmupDemoterTask workerWarmupDemoterTask;
     private WarmupDemoterService warmupDemoterService;
     private WorkerCapacityManager workerCapacityManager;
-    private WarmupDemoterConfiguration warmupDemoterConfiguration;
+    private WarmupDemoterConfig warmupDemoterConfig;
     private EventBus eventBus;
 
     @BeforeEach
     public void before()
     {
-        warmupDemoterConfiguration = new WarmupDemoterConfiguration();
+        warmupDemoterConfig = new WarmupDemoterConfig();
         workerCapacityManager = Mockito.mock(WorkerCapacityManager.class);
         warmupDemoterService = Mockito.mock(WarmupDemoterService.class);
         eventBus = new EventBus();
@@ -61,7 +61,7 @@ public class WorkerWarmupDemoterTaskTest
         MetricsManager metricsManager = Mockito.mock(MetricsManager.class);
         Mockito.when(metricsManager.registerMetric(ArgumentMatchers.any())).thenReturn(varadaStatsWarmupDemoter);
         workerWarmupDemoterTask = new WorkerWarmupDemoterTask(warmupDemoterService,
-                warmupDemoterConfiguration,
+                warmupDemoterConfig,
                 workerCapacityManager,
                 Mockito.mock(CatalogNameProvider.class),
                 metricsManager,
@@ -80,13 +80,13 @@ public class WorkerWarmupDemoterTaskTest
         WarmupDemoterData warmupDemoterData = WarmupDemoterData.builder()
                 .batchSize(1)
                 .executeDemoter(true)
-                .modifyConfiguration(true)
+                .modifyConfig(true)
                 .warmupDemoterThreshold(new WarmupDemoterThreshold(0.9, 0.7))
                 .build();
         workerWarmupDemoterTask.start(warmupDemoterData);
-        Assertions.assertThat(warmupDemoterConfiguration.getMaxUsageThresholdPercentage()).isEqualTo(45d);
-        Assertions.assertThat(warmupDemoterConfiguration.getCleanupUsageThresholdPercentage()).isEqualTo(35d);
-        Assertions.assertThat(warmupDemoterConfiguration.getBatchSize()).isEqualTo(1);
+        Assertions.assertThat(warmupDemoterConfig.getMaxUsageThresholdPercentage()).isEqualTo(45d);
+        Assertions.assertThat(warmupDemoterConfig.getCleanupUsageThresholdPercentage()).isEqualTo(35d);
+        Assertions.assertThat(warmupDemoterConfig.getBatchSize()).isEqualTo(1);
     }
 
     @Test

@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.varada.dispatcher.warmup.export;
 
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.model.RowGroupData;
 import io.trino.plugin.varada.dispatcher.model.RowGroupDataValidation;
 import io.trino.plugin.varada.dispatcher.model.RowGroupKey;
@@ -45,8 +45,8 @@ public class WarmupElementsCloudExporterTest
     @BeforeEach
     void setUp()
     {
-        GlobalConfiguration globalConfiguration = new GlobalConfiguration();
-        globalConfiguration.setLocalStorePath("/tmp/test/");
+        GlobalConfig globalConfig = new GlobalConfig();
+        globalConfig.setLocalStorePath("/tmp/test/");
 
         StorageEngineConstants storageEngineConstants = mock(StorageEngineConstants.class);
         when(storageEngineConstants.getPageSize()).thenReturn(8192);
@@ -60,7 +60,7 @@ public class WarmupElementsCloudExporterTest
         MetricsManager metricsManager = mock(MetricsManager.class);
         when(metricsManager.registerMetric(any(VaradaStatsWarmupExportService.class))).thenReturn(varadaStatsWarmupExportService);
 
-        warmupElementsCloudExporter = new WarmupElementsCloudExporter(globalConfiguration,
+        warmupElementsCloudExporter = new WarmupElementsCloudExporter(globalConfig,
                 storageEngineConstants,
                 rowGroupDataService,
                 cloudVendorService,

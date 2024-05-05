@@ -19,7 +19,7 @@ import io.trino.plugin.deltalake.CorruptedDeltaLakeTableHandle;
 import io.trino.plugin.deltalake.DeltaLakeColumnHandle;
 import io.trino.plugin.deltalake.DeltaLakeSplit;
 import io.trino.plugin.deltalake.DeltaLakeTableHandle;
-import io.trino.plugin.varada.configuration.ProxiedConnectorConfiguration;
+import io.trino.plugin.varada.config.ProxiedConnectorConfig;
 import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.varada.dispatcher.DispatcherSplit;
 import io.trino.plugin.varada.dispatcher.DispatcherStatisticsProvider;
@@ -50,12 +50,12 @@ import static java.util.Objects.requireNonNull;
 public class DeltaLakeProxiedConnectorTransformer
         implements DispatcherProxiedConnectorTransformer
 {
-    private final ProxiedConnectorConfiguration proxiedConnectorConfiguration;
+    private final ProxiedConnectorConfig proxiedConnectorConfig;
 
     @Inject
-    public DeltaLakeProxiedConnectorTransformer(ProxiedConnectorConfiguration proxiedConnectorConfiguration)
+    public DeltaLakeProxiedConnectorTransformer(ProxiedConnectorConfig proxiedConnectorConfig)
     {
-        this.proxiedConnectorConfiguration = requireNonNull(proxiedConnectorConfiguration);
+        this.proxiedConnectorConfig = requireNonNull(proxiedConnectorConfig);
     }
 
     @Override
@@ -123,7 +123,7 @@ public class DeltaLakeProxiedConnectorTransformer
     @Override
     public boolean isValidForAcceleration(DispatcherTableHandle dispatcherTableHandle)
     {
-        if (proxiedConnectorConfiguration.getPassThroughDispatcherSet().contains(ProxiedConnectorConfiguration.DELTA_LAKE_CONNECTOR_NAME)) {
+        if (proxiedConnectorConfig.getPassThroughDispatcherSet().contains(ProxiedConnectorConfig.DELTA_LAKE_CONNECTOR_NAME)) {
             return false;
         }
 

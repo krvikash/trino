@@ -15,7 +15,7 @@ package io.trino.plugin.varada.storage.read.fill;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 
@@ -27,7 +27,7 @@ public class BlockFillersFactory
     @Inject
     public BlockFillersFactory(
             StorageEngineConstants storageEngineConstants,
-            NativeConfiguration nativeConfiguration)
+            NativeConfig nativeConfig)
     {
         recTypeCodeToBlockFiller = new BlockFiller[RecTypeCode.REC_TYPE_NUM_OF.ordinal() + 1];
         for (RecTypeCode recTypeCode : RecTypeCode.values()) {
@@ -39,8 +39,8 @@ public class BlockFillersFactory
                 case REC_TYPE_SMALLINT -> new ShortBlockFiller();
                 case REC_TYPE_TINYINT -> new TinyIntBlockFiller();
                 case REC_TYPE_DECIMAL_LONG -> new LongDecimalBlockFiller();
-                case REC_TYPE_CHAR -> new FixedLengthStringSliceBlockFiller(storageEngineConstants, nativeConfiguration);
-                case REC_TYPE_VARCHAR -> new VariableLengthStringSliceBlockFiller(storageEngineConstants, nativeConfiguration);
+                case REC_TYPE_CHAR -> new FixedLengthStringSliceBlockFiller(storageEngineConstants, nativeConfig);
+                case REC_TYPE_VARCHAR -> new VariableLengthStringSliceBlockFiller(storageEngineConstants, nativeConfig);
                 case REC_TYPE_ARRAY_INT -> new IntArrayBlockFiller(storageEngineConstants);
                 case REC_TYPE_ARRAY_BIGINT, REC_TYPE_ARRAY_DOUBLE -> new BigIntArrayBlockFiller(storageEngineConstants);
                 case REC_TYPE_ARRAY_VARCHAR -> new VarcharArrayBlockFiller(storageEngineConstants);

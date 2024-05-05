@@ -20,7 +20,7 @@ import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.trino.plugin.varada.VaradaErrorCode;
 import io.trino.plugin.varada.VaradaSessionProperties;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dictionary.DictionaryCacheService;
 import io.trino.plugin.varada.dispatcher.model.RegularColumn;
 import io.trino.plugin.varada.dispatcher.model.RowGroupData;
@@ -107,7 +107,7 @@ public class DispatcherPageSourceFactory
     private final QueryClassifier queryClassifier;
     private final DictionaryCacheService dictionaryCacheService;
 
-    private final GlobalConfiguration globalConfiguration;
+    private final GlobalConfig globalConfig;
     private final NativeStorageStateHandler nativeStorageStateHandler;
     private final VaradaStatsDispatcherPageSource statsDispatcherPageSource;
 
@@ -122,7 +122,7 @@ public class DispatcherPageSourceFactory
             PredicatesCacheService predicatesCacheService,
             QueryClassifier queryClassifier,
             DictionaryCacheService dictionaryCacheService,
-            GlobalConfiguration globalConfiguration,
+            GlobalConfig globalConfig,
             NativeStorageStateHandler nativeStorageStateHandler,
             ReadErrorHandler readErrorHandler,
             CollectTxService collectTxService,
@@ -140,13 +140,13 @@ public class DispatcherPageSourceFactory
         this.predicatesCacheService = requireNonNull(predicatesCacheService);
         this.queryClassifier = requireNonNull(queryClassifier);
         this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
-        this.globalConfiguration = requireNonNull(globalConfiguration);
+        this.globalConfig = requireNonNull(globalConfig);
         this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
-                globalConfiguration.getShapingLoggerThreshold(),
-                globalConfiguration.getShapingLoggerDuration(),
-                globalConfiguration.getShapingLoggerNumberOfSamples());
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
         this.readErrorHandler = requireNonNull(readErrorHandler);
         this.collectTxService = collectTxService;
         this.chunksQueueService = chunksQueueService;
@@ -470,7 +470,7 @@ public class DispatcherPageSourceFactory
         }
 
         boolean isMixedQuery = PageSourceDecision.MIXED.equals(pageSourceDecision);
-        String filePath = rowGroupData.getRowGroupKey().stringFileNameRepresentation(globalConfiguration.getLocalStorePath());
+        String filePath = rowGroupData.getRowGroupKey().stringFileNameRepresentation(globalConfig.getLocalStorePath());
         QueryParams queryParams = createQueryParams(queryContext, filePath);
         VaradaPageSource varadaPageSource = new VaradaPageSource(storageEngine,
                 storageEngineConstants,
@@ -481,7 +481,7 @@ public class DispatcherPageSourceFactory
                 predicatesCacheService,
                 dictionaryCacheService,
                 customStatsContext,
-                globalConfiguration,
+                globalConfig,
                 collectTxService,
                 chunksQueueService,
                 storageCollectorService,
@@ -499,7 +499,7 @@ public class DispatcherPageSourceFactory
                 pageSourceStats,
                 closeHandler,
                 readErrorHandler,
-                globalConfiguration);
+                globalConfig);
     }
 
     // it is assumed that in case all match are proxied,
@@ -711,7 +711,7 @@ public class DispatcherPageSourceFactory
         QueryContext queryContext = queryClassifier.classifyCache(columns.build(), queryStoreId, rowGroupData);
         CustomStatsContext customStatsContext = new CustomStatsContext(metricsManager, List.of());
         initializeCustomStats(customStatsContext);
-        String filePath = rowGroupData.getRowGroupKey().stringFileNameRepresentation(globalConfiguration.getLocalStorePath());
+        String filePath = rowGroupData.getRowGroupKey().stringFileNameRepresentation(globalConfig.getLocalStorePath());
         QueryParams queryParams = createQueryParams(queryContext, filePath);
         VaradaPageSource varadaPageSource = new VaradaPageSource(storageEngine,
                 storageEngineConstants,
@@ -722,7 +722,7 @@ public class DispatcherPageSourceFactory
                 predicatesCacheService,
                 dictionaryCacheService,
                 customStatsContext,
-                globalConfiguration,
+                globalConfig,
                 collectTxService,
                 chunksQueueService,
                 storageCollectorService,
@@ -740,7 +740,7 @@ public class DispatcherPageSourceFactory
                     statsDispatcherPageSource,
                     closeHandler,
                     readErrorHandler,
-                    globalConfiguration);
+                    globalConfig);
             statsDispatcherPageSource.addvarada_collect_columns(planSignature.getColumns().size());
             statsDispatcherPageSource.incwarp_cache_manager();
             return Optional.of(dispatcherPageSource);

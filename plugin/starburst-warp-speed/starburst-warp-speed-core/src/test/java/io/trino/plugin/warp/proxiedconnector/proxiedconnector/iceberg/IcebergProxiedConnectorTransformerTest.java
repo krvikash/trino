@@ -19,7 +19,7 @@ import io.trino.plugin.iceberg.ColumnIdentity;
 import io.trino.plugin.iceberg.IcebergColumnHandle;
 import io.trino.plugin.iceberg.IcebergTableHandle;
 import io.trino.plugin.iceberg.TableType;
-import io.trino.plugin.varada.configuration.ProxiedConnectorConfiguration;
+import io.trino.plugin.varada.config.ProxiedConnectorConfig;
 import io.trino.plugin.varada.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.varada.dispatcher.SimplifiedColumns;
 import io.trino.plugin.varada.dispatcher.model.RegularColumn;
@@ -51,7 +51,7 @@ public class IcebergProxiedConnectorTransformerTest
         extends ProxyConnectorTransformerBaseTest
 {
     private final IcebergProxiedConnectorTransformer icebergProxiedConnectorTransformer =
-            new IcebergProxiedConnectorTransformer(new ProxiedConnectorConfiguration());
+            new IcebergProxiedConnectorTransformer(new ProxiedConnectorConfig());
 
     @Test
     public void testCalculateColumnsStatisticsBucketPriority()

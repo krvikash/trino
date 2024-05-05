@@ -14,7 +14,7 @@
 package io.trino.plugin.varada.storage.read;
 
 import io.trino.plugin.varada.TestingTxService;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dictionary.DictionaryCacheService;
 import io.trino.plugin.varada.dispatcher.DispatcherPageSourceFactory;
 import io.trino.plugin.varada.dispatcher.model.RegularColumn;
@@ -70,7 +70,7 @@ public class VaradaPageSourceTest
     private BufferAllocator bufferAllocator;
     private DictionaryCacheService dictionaryCacheService;
     private CustomStatsContext customStatsContext;
-    private GlobalConfiguration globalConfiguration;
+    private GlobalConfig globalConfig;
 
     @BeforeEach
     public void before()
@@ -84,7 +84,7 @@ public class VaradaPageSourceTest
         this.customStatsContext = new CustomStatsContext(metricsManager, Collections.emptyList());
         customStatsContext.getOrRegister(new VaradaStatsDispatcherPageSource(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY));
         customStatsContext.getOrRegister(new VaradaStatsDictionary(DictionaryCacheService.DICTIONARY_STAT_GROUP));
-        globalConfiguration = new GlobalConfiguration();
+        globalConfig = new GlobalConfig();
         dictionaryCacheService = mock(DictionaryCacheService.class);
     }
 
@@ -104,7 +104,7 @@ public class VaradaPageSourceTest
                 predicatesCacheService,
                 dictionaryCacheService,
                 customStatsContext,
-                globalConfiguration,
+                globalConfig,
                 mock(CollectTxService.class),
                 mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
@@ -161,7 +161,7 @@ public class VaradaPageSourceTest
                 predicatesCacheService,
                 dictionaryCacheService,
                 customStatsContext,
-                globalConfiguration,
+                globalConfig,
                 mock(CollectTxService.class),
                 mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
@@ -210,7 +210,7 @@ public class VaradaPageSourceTest
                 predicatesCacheService,
                 dictionaryCacheService,
                 customStatsContext,
-                globalConfiguration,
+                globalConfig,
                 mock(CollectTxService.class),
                 mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
@@ -250,7 +250,7 @@ public class VaradaPageSourceTest
                 predicatesCacheService,
                 dictionaryCacheService,
                 customStatsContext,
-                globalConfiguration,
+                globalConfig,
                 mock(CollectTxService.class),
                 mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
@@ -313,7 +313,7 @@ public class VaradaPageSourceTest
                 predicatesCacheService,
                 dictionaryCacheService,
                 customStatsContext,
-                globalConfiguration,
+                globalConfig,
                 mock(CollectTxService.class),
                 mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),

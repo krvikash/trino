@@ -96,11 +96,11 @@ public class HdfsCloudStorageS3Test
             properties.put("hive.s3.iam-role", IAM_ROLE);
             properties.put("hive.s3.external-id", EXTERNAL_ID);
 
-            ConfigurationFactory configurationFactory = new ConfigurationFactory(properties);
-            binder.bind(ConfigurationFactory.class).toInstance(configurationFactory);
+            ConfigurationFactory configFactory = new ConfigurationFactory(properties);
+            binder.bind(ConfigurationFactory.class).toInstance(configFactory);
 
             FileSystemModule fileSystemModule = new FileSystemModule(catalogName, nodeManager, openTelemetry);
-            fileSystemModule.setConfigurationFactory(configurationFactory);
+            fileSystemModule.setConfigurationFactory(configFactory);
             binder.install(fileSystemModule);
 
             Tracer tracer = openTelemetry.getTracer("warp.cloud-vendor");

@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.varada;
 
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.DispatcherStatisticsProvider;
 import io.trino.spi.statistics.Estimate;
 import org.junit.jupiter.api.Test;
@@ -24,25 +24,25 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 public class DispatcherStatisticsProviderTest
 {
     @Test
-    public void cardinalityIllegalConfigurationShouldThrow()
+    public void cardinalityIllegalConfigShouldThrow()
     {
-        GlobalConfiguration globalConfiguration = new GlobalConfiguration();
-        globalConfiguration.setCardinalityBuckets("");
-        assertThatThrownBy(() -> new DispatcherStatisticsProvider(globalConfiguration));
-        globalConfiguration.setCardinalityBuckets("1.5");
-        assertThatThrownBy(() -> new DispatcherStatisticsProvider(globalConfiguration));
-        globalConfiguration.setCardinalityBuckets("abc");
-        assertThatThrownBy(() -> new DispatcherStatisticsProvider(globalConfiguration));
-        globalConfiguration.setCardinalityBuckets("1,10,5");
-        assertThatThrownBy(() -> new DispatcherStatisticsProvider(globalConfiguration));
+        GlobalConfig globalConfig = new GlobalConfig();
+        globalConfig.setCardinalityBuckets("");
+        assertThatThrownBy(() -> new DispatcherStatisticsProvider(globalConfig));
+        globalConfig.setCardinalityBuckets("1.5");
+        assertThatThrownBy(() -> new DispatcherStatisticsProvider(globalConfig));
+        globalConfig.setCardinalityBuckets("abc");
+        assertThatThrownBy(() -> new DispatcherStatisticsProvider(globalConfig));
+        globalConfig.setCardinalityBuckets("1,10,5");
+        assertThatThrownBy(() -> new DispatcherStatisticsProvider(globalConfig));
     }
 
     @Test
     public void cardinalitySimpleGet()
     {
-        GlobalConfiguration globalConfiguration = new GlobalConfiguration();
-        globalConfiguration.setCardinalityBuckets("1,100,300");
-        DispatcherStatisticsProvider dispatcherStatisticsProvider = new DispatcherStatisticsProvider(globalConfiguration);
+        GlobalConfig globalConfig = new GlobalConfig();
+        globalConfig.setCardinalityBuckets("1,100,300");
+        DispatcherStatisticsProvider dispatcherStatisticsProvider = new DispatcherStatisticsProvider(globalConfig);
         assertThat(dispatcherStatisticsProvider.getColumnCardinalityBucket(Estimate.of(20))).isEqualTo(1);
         assertThat(dispatcherStatisticsProvider.getColumnCardinalityBucket(Estimate.of(110))).isEqualTo(2);
         assertThat(dispatcherStatisticsProvider.getColumnCardinalityBucket(Estimate.of(400))).isEqualTo(3);
@@ -51,9 +51,9 @@ public class DispatcherStatisticsProviderTest
     @Test
     public void cardinalityUnknownShouldReturnZero()
     {
-        GlobalConfiguration globalConfiguration = new GlobalConfiguration();
-        globalConfiguration.setCardinalityBuckets("1,100,300");
-        DispatcherStatisticsProvider dispatcherStatisticsProvider = new DispatcherStatisticsProvider(globalConfiguration);
+        GlobalConfig globalConfig = new GlobalConfig();
+        globalConfig.setCardinalityBuckets("1,100,300");
+        DispatcherStatisticsProvider dispatcherStatisticsProvider = new DispatcherStatisticsProvider(globalConfig);
         assertThat(dispatcherStatisticsProvider.getColumnCardinalityBucket(Estimate.unknown())).isEqualTo(0);
     }
 }

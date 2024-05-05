@@ -24,8 +24,8 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.trino.plugin.varada.VaradaSessionProperties;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
-import io.trino.plugin.varada.configuration.WarmupDemoterConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
+import io.trino.plugin.varada.config.WarmupDemoterConfig;
 import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.varada.dispatcher.DispatcherSplit;
 import io.trino.plugin.varada.dispatcher.DispatcherTableHandle;
@@ -97,8 +97,8 @@ public class WorkerWarmingService
     private final WarmupDemoterService warmupDemoterService;
     private final WorkerWarmupRuleService workerWarmupRuleService;
     private final RowGroupDataService rowGroupDataService;
-    private final WarmupDemoterConfiguration warmupDemoterConfiguration;
-    private final GlobalConfiguration globalConfiguration;
+    private final WarmupDemoterConfig warmupDemoterConfig;
+    private final GlobalConfig globalConfig;
     private ImmutableMap<WarmUpType, WarmupProperties> defaultRules;
     private Map<WarmUpType, Predicate<Type>> warmupTypeValidators;
     private final StorageWarmerService storageWarmerService;
@@ -112,8 +112,8 @@ public class WorkerWarmingService
             WarmupDemoterService warmupDemoterService,
             WorkerWarmupRuleService workerWarmupRuleService,
             RowGroupDataService rowGroupDataService,
-            WarmupDemoterConfiguration warmupDemoterConfiguration,
-            GlobalConfiguration globalConfiguration,
+            WarmupDemoterConfig warmupDemoterConfig,
+            GlobalConfig globalConfig,
             StorageWarmerService storageWarmerService)
     {
         this(metricsManager,
@@ -123,8 +123,8 @@ public class WorkerWarmingService
                 warmupDemoterService,
                 workerWarmupRuleService,
                 rowGroupDataService,
-                warmupDemoterConfiguration,
-                globalConfiguration,
+                warmupDemoterConfig,
+                globalConfig,
                 storageWarmerService,
                 MAX_BATCH_SIZE);
     }
@@ -137,8 +137,8 @@ public class WorkerWarmingService
             WarmupDemoterService warmupDemoterService,
             WorkerWarmupRuleService workerWarmupRuleService,
             RowGroupDataService rowGroupDataService,
-            WarmupDemoterConfiguration warmupDemoterConfiguration,
-            GlobalConfiguration globalConfiguration,
+            WarmupDemoterConfig warmupDemoterConfig,
+            GlobalConfig globalConfig,
             StorageWarmerService storageWarmerService,
             int batchSize)
     {
@@ -149,8 +149,8 @@ public class WorkerWarmingService
         this.warmupDemoterService = requireNonNull(warmupDemoterService);
         this.workerWarmupRuleService = requireNonNull(workerWarmupRuleService);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
-        this.warmupDemoterConfiguration = requireNonNull(warmupDemoterConfiguration);
-        this.globalConfiguration = requireNonNull(globalConfiguration);
+        this.warmupDemoterConfig = requireNonNull(warmupDemoterConfig);
+        this.globalConfig = requireNonNull(globalConfig);
         this.storageWarmerService = storageWarmerService;
         this.batchSize = batchSize;
         initDefaultRules();
@@ -400,12 +400,12 @@ public class WorkerWarmingService
             return true;
         }
 
-        double nextAttemptTime = warmUpElement.getState().lastTemporaryFailure() + globalConfiguration.getWarmRetryBackoffFactorInMillis() * Math.pow(2, temporaryFailureCount - 1);
+        double nextAttemptTime = warmUpElement.getState().lastTemporaryFailure() + globalConfig.getWarmRetryBackoffFactorInMillis() * Math.pow(2, temporaryFailureCount - 1);
         boolean backoffElapsed = System.currentTimeMillis() > nextAttemptTime;
 
         if (backoffElapsed) {
             logger.debug("will retry to warm a failed warmUpElement (failed %d / %d times). columnKey=%s, warmUpType=%s",
-                    temporaryFailureCount, globalConfiguration.getMaxWarmRetries(), warmUpElement.getVaradaColumn().getName(), warmUpElement.getWarmUpType());
+                    temporaryFailureCount, globalConfig.getMaxWarmRetries(), warmUpElement.getVaradaColumn().getName(), warmUpElement.getWarmUpType());
         }
         else {
             logger.debug("won't retry to warm a temporary failed warmUpElement, backoff is until timestamp %f. columnKey=%s, warmUpType=%s",
@@ -429,15 +429,15 @@ public class WorkerWarmingService
     private boolean canAddDefaultRules(ConnectorSession session, QueryContext queryContext)
     {
         return isDefaultWarmingEnabled(session, queryContext.getRemainingCollectColumns().size()) &&
-                warmupDemoterService.canAllowWarmup(warmupDemoterConfiguration.getDefaultRulePriority());
+                warmupDemoterService.canAllowWarmup(warmupDemoterConfig.getDefaultRulePriority());
     }
 
     private boolean isDefaultWarmingEnabled(ConnectorSession session, int collectColumnsCount)
     {
         Boolean sessionEnabled = VaradaSessionProperties.isDefaultWarmingEnabled(session);
-        boolean defaultWarmingEnabled = sessionEnabled != null ? sessionEnabled : globalConfiguration.isEnableDefaultWarming();
+        boolean defaultWarmingEnabled = sessionEnabled != null ? sessionEnabled : globalConfig.isEnableDefaultWarming();
         if (defaultWarmingEnabled) {
-            int maxElementsToCollect = globalConfiguration.getMaxCollectColumnsSkipDefaultWarming();
+            int maxElementsToCollect = globalConfig.getMaxCollectColumnsSkipDefaultWarming();
             return collectColumnsCount <= maxElementsToCollect;
         }
         return false;
@@ -459,7 +459,7 @@ public class WorkerWarmingService
             varadaColumns.addAll(columnNameToColumnType.keySet());
         }
 
-        if (!globalConfiguration.isDataOnlyWarming()) {
+        if (!globalConfig.isDataOnlyWarming()) {
             varadaColumns.forEach(varadaColumn -> {
                 Set<WarmupProperties> properties = new HashSet<>();
                 PredicateContextData predicateContextData = queryContext.getPredicateContextData();
@@ -471,7 +471,7 @@ public class WorkerWarmingService
                 else if (varadaColumn instanceof TransformedColumn transformedColumn) {
                     // we already validated that TransformedColumn isWarmBasicSupported at Coordinator.
                     WarmupProperties warmingProperty = new WarmupProperties(WarmUpType.WARM_UP_TYPE_BASIC,
-                            warmupDemoterConfiguration.getDefaultRulePriority(),
+                            warmupDemoterConfig.getDefaultRulePriority(),
                             NA_TTL,
                             transformedColumn.getTransformFunction());
                     properties.add(warmingProperty);
@@ -485,7 +485,7 @@ public class WorkerWarmingService
                         }
                         else {
                             for (PredicateContext remainingPredicates : remainingPredicatesByColumn) {
-                                WarmupProperties defaultWarmingProperty = new WarmupProperties(WarmUpType.WARM_UP_TYPE_BASIC, warmupDemoterConfiguration.getDefaultRulePriority(), NA_TTL, remainingPredicates.getTransformedColumn());
+                                WarmupProperties defaultWarmingProperty = new WarmupProperties(WarmUpType.WARM_UP_TYPE_BASIC, warmupDemoterConfig.getDefaultRulePriority(), NA_TTL, remainingPredicates.getTransformedColumn());
                                 properties.add(defaultWarmingProperty);
                             }
                         }
@@ -601,9 +601,9 @@ public class WorkerWarmingService
     private void initDefaultRules()
     {
         this.defaultRules = ImmutableMap.<WarmUpType, WarmupProperties>builder()
-                .put(WarmUpType.WARM_UP_TYPE_DATA, new WarmupProperties(WarmUpType.WARM_UP_TYPE_DATA, warmupDemoterConfiguration.getDefaultRulePriority(), NA_TTL, TransformFunction.NONE))
-                .put(WarmUpType.WARM_UP_TYPE_BASIC, new WarmupProperties(WarmUpType.WARM_UP_TYPE_BASIC, warmupDemoterConfiguration.getDefaultRulePriority(), NA_TTL, TransformFunction.NONE))
-                .put(WarmUpType.WARM_UP_TYPE_LUCENE, new WarmupProperties(WarmUpType.WARM_UP_TYPE_LUCENE, warmupDemoterConfiguration.getDefaultRulePriority(), NA_TTL, TransformFunction.NONE))
+                .put(WarmUpType.WARM_UP_TYPE_DATA, new WarmupProperties(WarmUpType.WARM_UP_TYPE_DATA, warmupDemoterConfig.getDefaultRulePriority(), NA_TTL, TransformFunction.NONE))
+                .put(WarmUpType.WARM_UP_TYPE_BASIC, new WarmupProperties(WarmUpType.WARM_UP_TYPE_BASIC, warmupDemoterConfig.getDefaultRulePriority(), NA_TTL, TransformFunction.NONE))
+                .put(WarmUpType.WARM_UP_TYPE_LUCENE, new WarmupProperties(WarmUpType.WARM_UP_TYPE_LUCENE, warmupDemoterConfig.getDefaultRulePriority(), NA_TTL, TransformFunction.NONE))
                 .buildOrThrow();
     }
 

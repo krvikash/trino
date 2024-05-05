@@ -15,8 +15,8 @@ package io.trino.plugin.varada.dictionary;
 
 import io.airlift.slice.Slices;
 import io.trino.plugin.varada.TestingTxService;
-import io.trino.plugin.varada.configuration.DictionaryConfiguration;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.DictionaryConfig;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.model.DictionaryKey;
 import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.storage.capacity.WorkerCapacityManager;
@@ -41,12 +41,12 @@ import static org.mockito.Mockito.when;
 class AttachDictionaryServiceTest
 {
     private AttachDictionaryService attachDictionaryService;
-    private final GlobalConfiguration globalConfiguration = new GlobalConfiguration();
+    private final GlobalConfig globalConfig = new GlobalConfig();
 
     @BeforeEach
     public void before()
     {
-        globalConfiguration.setLocalStorePath("/tmp/test/");
+        globalConfig.setLocalStorePath("/tmp/test/");
 
         StorageEngineConstants storageEngineConstants = mock(StorageEngineConstants.class);
         when(storageEngineConstants.getPageSize()).thenReturn(8192);
@@ -57,7 +57,7 @@ class AttachDictionaryServiceTest
 
         attachDictionaryService = new AttachDictionaryService(mock(WorkerCapacityManager.class),
                 storageEngineConstants,
-                new DictionaryConfiguration(),
+                new DictionaryConfig(),
                 metricsManager,
                 dictionaryWriterFactory);
     }
@@ -69,7 +69,7 @@ class AttachDictionaryServiceTest
         Integer[] intDictionary = {1, 2};
         DictionaryToWrite dictionaryToWrite = new DictionaryToWrite(intDictionary, 2, 4, 8);
         DictionaryKey dictionaryKey = buildDictionaryKey("int1");
-        String rowGroupFilePath = globalConfiguration.getLocalStorePath() + dictionaryKey.stringFileNameRepresentation();
+        String rowGroupFilePath = globalConfig.getLocalStorePath() + dictionaryKey.stringFileNameRepresentation();
         FileUtils.createParentDirectories(new File(rowGroupFilePath));
 
         attachDictionaryService.save(dictionaryToWrite, RecTypeCode.REC_TYPE_INTEGER, 0, rowGroupFilePath);
@@ -96,7 +96,7 @@ class AttachDictionaryServiceTest
         };
         DictionaryToWrite dictionaryToWrite = new DictionaryToWrite(values, 5, 4, 19);
         DictionaryKey dictionaryKey = buildDictionaryKey("char4");
-        String rowGroupFilePath = globalConfiguration.getLocalStorePath() + dictionaryKey.stringFileNameRepresentation();
+        String rowGroupFilePath = globalConfig.getLocalStorePath() + dictionaryKey.stringFileNameRepresentation();
         FileUtils.createParentDirectories(new File(rowGroupFilePath));
 
         attachDictionaryService.save(dictionaryToWrite, RecTypeCode.REC_TYPE_CHAR, 0, rowGroupFilePath);
@@ -126,7 +126,7 @@ class AttachDictionaryServiceTest
         };
         DictionaryToWrite dictionaryToWrite = new DictionaryToWrite(values, 5, 256, 18);
         DictionaryKey dictionaryKey = buildDictionaryKey("varchar");
-        String rowGroupFilePath = globalConfiguration.getLocalStorePath() + dictionaryKey.stringFileNameRepresentation();
+        String rowGroupFilePath = globalConfig.getLocalStorePath() + dictionaryKey.stringFileNameRepresentation();
         FileUtils.createParentDirectories(new File(rowGroupFilePath));
 
         attachDictionaryService.save(dictionaryToWrite, RecTypeCode.REC_TYPE_VARCHAR, 0, rowGroupFilePath);
@@ -151,7 +151,7 @@ class AttachDictionaryServiceTest
         DictionaryToWrite dictionaryToWrite = new DictionaryToWrite(intDictionary, 2, 4, 8);
         int dictionaryOffset = Integer.MAX_VALUE;
         DictionaryKey dictionaryKey = buildDictionaryKey("int1");
-        String rowGroupFilePath = globalConfiguration.getLocalStorePath() + dictionaryKey.stringFileNameRepresentation() + "/// ...";
+        String rowGroupFilePath = globalConfig.getLocalStorePath() + dictionaryKey.stringFileNameRepresentation() + "/// ...";
 
         assertThrows(RuntimeException.class, () ->
                 attachDictionaryService.save(dictionaryToWrite, RecTypeCode.REC_TYPE_INTEGER, dictionaryOffset, rowGroupFilePath));

@@ -18,7 +18,7 @@ import com.google.common.eventbus.Subscribe;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 
 import java.time.Instant;
 
@@ -30,27 +30,27 @@ public class CoordinatorInitializedEventHandler
 {
     private static final Logger logger = Logger.get(CoordinatorInitializedEventHandler.class);
 
-    private final GlobalConfiguration globalConfiguration;
+    private final GlobalConfig globalConfig;
 
     @Inject
     public CoordinatorInitializedEventHandler(EventBus eventBus,
-            GlobalConfiguration globalConfiguration)
+            GlobalConfig globalConfig)
     {
         requireNonNull(eventBus);
-        this.globalConfiguration = requireNonNull(globalConfiguration);
+        this.globalConfig = requireNonNull(globalConfig);
         eventBus.register(this);
     }
 
     @Subscribe
     public void handleEvent(CoordinatorInitializedEvent event)
     {
-        if (globalConfiguration.getClusterUpTime() > 0) {
+        if (globalConfig.getClusterUpTime() > 0) {
             logger.debug("skipping CoordinatorInitializedEvent.ClusterUpTime since ClusterUpTime=%d",
-                    globalConfiguration.getClusterUpTime());
+                    globalConfig.getClusterUpTime());
             return; // ignore
         }
         logger.debug("setting CoordinatorInitializedEvent.ClusterUpTime new ClusterUpTime=%d",
                      Instant.now().toEpochMilli());
-        globalConfiguration.setClusterUpTime(Instant.now().toEpochMilli());
+        globalConfig.setClusterUpTime(Instant.now().toEpochMilli());
     }
 }

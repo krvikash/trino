@@ -15,9 +15,9 @@ package io.trino.plugin.varada.dispatcher.warmup;
 
 import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
-import io.trino.plugin.varada.configuration.WarmupDemoterConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
+import io.trino.plugin.varada.config.NativeConfig;
+import io.trino.plugin.varada.config.WarmupDemoterConfig;
 import io.trino.plugin.varada.dispatcher.model.RowGroupKey;
 import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.warp.gen.stats.VaradaStatsWorkerTaskExecutorService;
@@ -46,10 +46,10 @@ public class WorkerTaskExecutorServiceTest
         MetricsManager metricManager = mock(MetricsManager.class);
         when(metricManager.registerMetric(any())).thenReturn(statsWorkerTaskExecutorService);
         this.taskExecutorService = new WorkerTaskExecutorService(
-                new WarmupDemoterConfiguration(),
-                new NativeConfiguration(),
+                new WarmupDemoterConfig(),
+                new NativeConfig(),
                 metricManager,
-                new GlobalConfiguration());
+                new GlobalConfig());
     }
 
     @Test

@@ -11,13 +11,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.varada.tools.configuration;
+package io.varada.tools.config;
 
 import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 
-public class MultiPrefixConfigurationWrapper
+public class MultiPrefixConfigWrapper
         implements Map<String, String>
 {
     public static final String WARP_SPEED = "warp-speed";
@@ -26,7 +26,7 @@ public class MultiPrefixConfigurationWrapper
     public static final String LOCAL_DATA_STORAGE_PREFIX = LOCAL_DATA_STORAGE + ".";
     private final Map<String, String> originalConfig;
 
-    public MultiPrefixConfigurationWrapper(Map<String, String> originalConfig)
+    public MultiPrefixConfigWrapper(Map<String, String> originalConfig)
     {
         this.originalConfig = originalConfig;
     }

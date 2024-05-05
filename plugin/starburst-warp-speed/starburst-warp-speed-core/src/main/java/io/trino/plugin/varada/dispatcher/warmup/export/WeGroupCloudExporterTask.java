@@ -14,7 +14,7 @@
 package io.trino.plugin.varada.dispatcher.warmup.export;
 
 import io.airlift.log.Logger;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.model.FastWarmingState;
 import io.trino.plugin.varada.dispatcher.model.RowGroupData;
 import io.trino.plugin.varada.dispatcher.model.RowGroupKey;
@@ -39,7 +39,7 @@ public class WeGroupCloudExporterTask
     private final WorkerTaskExecutorService workerTaskExecutorService;
     private final RowGroupDataService rowGroupDataService;
     private final WarmupElementsCloudExporter warmupElementsCloudExporter;
-    private final GlobalConfiguration globalConfiguration;
+    private final GlobalConfig globalConfig;
     private final VaradaStatsWarmupExportService statsWarmupExportService;
 
     public WeGroupCloudExporterTask(RowGroupKey rowGroupKey,
@@ -47,7 +47,7 @@ public class WeGroupCloudExporterTask
             WorkerTaskExecutorService workerTaskExecutorService,
             RowGroupDataService rowGroupDataService,
             WarmupElementsCloudExporter warmupElementsCloudExporter,
-            GlobalConfiguration globalConfiguration,
+            GlobalConfig globalConfig,
             VaradaStatsWarmupExportService statsWarmupExportService)
     {
         this.rowGroupKey = requireNonNull(rowGroupKey);
@@ -55,7 +55,7 @@ public class WeGroupCloudExporterTask
         this.workerTaskExecutorService = requireNonNull(workerTaskExecutorService);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.warmupElementsCloudExporter = requireNonNull(warmupElementsCloudExporter);
-        this.globalConfiguration = requireNonNull(globalConfiguration);
+        this.globalConfig = requireNonNull(globalConfig);
         this.statsWarmupExportService = requireNonNull(statsWarmupExportService);
         this.id = UUID.randomUUID();
     }
@@ -186,7 +186,7 @@ public class WeGroupCloudExporterTask
     private FastWarmingState addTemporaryFailure(FastWarmingState fastWarmingState, long lastTemporaryFailure)
     {
         if (FastWarmingState.State.FAILED_PERMANENTLY.equals(fastWarmingState.state()) ||
-                fastWarmingState.temporaryFailureCount() >= globalConfiguration.getMaxWarmRetries()) {
+                fastWarmingState.temporaryFailureCount() >= globalConfig.getMaxWarmRetries()) {
             return FastWarmingState.FAILED_PERMANENTLY;
         }
 

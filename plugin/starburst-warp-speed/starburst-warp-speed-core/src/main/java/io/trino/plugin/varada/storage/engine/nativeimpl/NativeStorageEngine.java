@@ -15,7 +15,7 @@ package io.trino.plugin.varada.storage.engine.nativeimpl;
 
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.di.VaradaNativeStorageEngineModule;
 import io.trino.plugin.varada.dispatcher.query.classifier.PredicateUtil;
 import io.trino.plugin.varada.metrics.MetricsManager;
@@ -38,37 +38,37 @@ public class NativeStorageEngine
     private final ExceptionThrower exceptionThrower; // we keep a reference to hold this object for native layer ref
 
     public NativeStorageEngine(
-            NativeConfiguration nativeConfiguration,
+            NativeConfig nativeConfig,
             MetricsManager metricsManager,
             ExceptionThrower exceptionThrower)
     {
         this.exceptionThrower = requireNonNull(exceptionThrower);
 
-        final int taskMaxWorkerThreads = nativeConfiguration.getTaskMaxWorkerThreads();
-        final int panicHaltPolicy = nativeConfiguration.getDebugPanicHaltPolicy();
+        final int taskMaxWorkerThreads = nativeConfig.getTaskMaxWorkerThreads();
+        final int panicHaltPolicy = nativeConfig.getDebugPanicHaltPolicy();
         logger.info("load storage engine taskMaxWorkerThreads %d panicHaltPolicy %d bundleSize %d",
                 taskMaxWorkerThreads,
                 panicHaltPolicy,
-                nativeConfiguration.getBundleSize());
+                nativeConfig.getBundleSize());
         try {
             nativeInit(taskMaxWorkerThreads,
                     Runtime.getRuntime().maxMemory(),
-                    nativeConfiguration.getGeneralReservedMemory(),
-                    nativeConfiguration.getBundleSize(),
-                    nativeConfiguration.getMaxRecJufferSize(),
-                    nativeConfiguration.getCompressionLevel(),
+                    nativeConfig.getGeneralReservedMemory(),
+                    nativeConfig.getBundleSize(),
+                    nativeConfig.getMaxRecJufferSize(),
+                    nativeConfig.getCompressionLevel(),
                     panicHaltPolicy,
-                    nativeConfiguration.getCollectTxSize(),
-                    nativeConfiguration.getStorageCacheSizeInPages(),
+                    nativeConfig.getCollectTxSize(),
+                    nativeConfig.getStorageCacheSizeInPages(),
                     PredicateUtil.PREDICATE_HEADER_SIZE,
-                    nativeConfiguration.getSkipIndexPercent(),
+                    nativeConfig.getSkipIndexPercent(),
                     VaradaNativeStorageEngineModule.getNativeLibrariesDirectory().toString(),
-                    nativeConfiguration.getEnableSingleChunk(),
-                    nativeConfiguration.getEnableQueryResultType(),
-                    nativeConfiguration.getEnablePackedChunk(),
-                    nativeConfiguration.getEnableWarmingExtraLogs(),
-                    nativeConfiguration.getEnableCompression(),
-                    nativeConfiguration.getExceptionalListCompression());
+                    nativeConfig.getEnableSingleChunk(),
+                    nativeConfig.getEnableQueryResultType(),
+                    nativeConfig.getEnablePackedChunk(),
+                    nativeConfig.getEnableWarmingExtraLogs(),
+                    nativeConfig.getEnableCompression(),
+                    nativeConfig.getExceptionalListCompression());
         }
         catch (Throwable t) {
             logger.error(t, "failed loading storage engine");

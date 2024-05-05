@@ -14,8 +14,8 @@
 package io.trino.plugin.varada.storage.capacity;
 
 import io.trino.plugin.varada.TestingTxService;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
-import io.trino.plugin.varada.configuration.WarmupDemoterConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
+import io.trino.plugin.varada.config.WarmupDemoterConfig;
 import io.trino.plugin.varada.di.VaradaInitializedServiceRegistry;
 import io.trino.plugin.varada.storage.engine.StorageEngineConstants;
 import io.trino.plugin.varada.storage.engine.nativeimpl.NativeStorageStateHandler;
@@ -38,14 +38,14 @@ import static org.mockito.Mockito.mock;
 public class WorkerCapacityManagerTest
 {
     private WorkerCapacityManager workerCapacityManager;
-    private GlobalConfiguration globalConfiguration;
+    private GlobalConfig globalConfig;
 
     @BeforeEach
     public void before()
     {
-        globalConfiguration = new GlobalConfiguration();
-        workerCapacityManager = new WorkerCapacityManager(globalConfiguration,
-                mock(WarmupDemoterConfiguration.class),
+        globalConfig = new GlobalConfig();
+        workerCapacityManager = new WorkerCapacityManager(globalConfig,
+                mock(WarmupDemoterConfig.class),
                 mock(StorageEngineConstants.class),
                 mock(NativeStorageStateHandler.class),
                 mock(VaradaInitializedServiceRegistry.class),
@@ -63,7 +63,7 @@ public class WorkerCapacityManagerTest
             throw new RuntimeException(e);
         }
         File localStoreDirectory = localStorePath.toFile();
-        globalConfiguration.setLocalStorePath(localStoreDirectory.getAbsolutePath());
+        globalConfig.setLocalStorePath(localStoreDirectory.getAbsolutePath());
 
         try {
             int numFiles = 10;
@@ -117,7 +117,7 @@ public class WorkerCapacityManagerTest
             throw new RuntimeException(e);
         }
         File localStoreDirectory = localStorePath.toFile();
-        globalConfiguration.setLocalStorePath(localStoreDirectory.getAbsolutePath());
+        globalConfig.setLocalStorePath(localStoreDirectory.getAbsolutePath());
 
         try {
             String tempFileName = String.format(localStorePath + "/test/bucket/schema/table/part-7a144fa0-52b0-473d-b1ab-a5dbbadd01ae-c000.snappy.parquet/0/110606/");

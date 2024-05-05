@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.varada.cloudvendors.configuration;
+package io.varada.cloudvendors.config;
 
 import java.util.Arrays;
 import java.util.Locale;

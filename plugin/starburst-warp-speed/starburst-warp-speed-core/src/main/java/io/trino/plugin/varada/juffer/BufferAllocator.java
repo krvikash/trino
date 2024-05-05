@@ -18,7 +18,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.di.VaradaInitializedServiceRegistry;
 import io.trino.plugin.varada.dispatcher.WarmupElementWriteMetadata;
 import io.trino.plugin.varada.dispatcher.model.WarmUpElement;
@@ -71,7 +71,7 @@ public class BufferAllocator
     private final ByteBuffer[] bundles;         // pool of Buffers initialized at startup. native layer manages alloc/free
     private ArrayBlockingQueue<MemorySegment> loadSegmentsQueue; // loadSegment is the bundle, we use it to allocate juffers (record/null/etc)
     private ArrayBlockingQueue<MemorySegment> loadWriteBufferQueue; // loadWriteBuffer is storage engine buffer used to write to disk
-    private final NativeConfiguration nativeConfiguration;
+    private final NativeConfig nativeConfig;
     private final int maxRecLenForVarlenRecordBuffer;
     private final int maxRecLenForFixedRecordBuffer;
     private final int maxRecLenForVarlenTxSize;
@@ -96,7 +96,7 @@ public class BufferAllocator
     @Inject
     public BufferAllocator(StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
-            NativeConfiguration nativeConfiguration,
+            NativeConfig nativeConfig,
             MetricsManager metricsManager,
             VaradaInitializedServiceRegistry varadaInitializedServiceRegistry)
     {
@@ -104,7 +104,7 @@ public class BufferAllocator
         this.storageEngine = requireNonNull(storageEngine);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.metricsManager = requireNonNull(metricsManager);
-        this.nativeConfiguration = requireNonNull(nativeConfiguration);
+        this.nativeConfig = requireNonNull(nativeConfig);
         varadaInitializedServiceRegistry.addService(this);
 
         // constants
@@ -129,14 +129,14 @@ public class BufferAllocator
         }
 
         logger.info("loadSegmentsSize %d warmBundleSize %d warmWriteBufferSize %d readNumBundles %d predicateBundleSize %dMB",
-                loadSegmentsQueue.size(), warmBundleSize, warmWriteBufferSize, bundles.length, nativeConfiguration.getPredicateBundleSizeInMegaBytes());
+                loadSegmentsQueue.size(), warmBundleSize, warmWriteBufferSize, bundles.length, nativeConfig.getPredicateBundleSizeInMegaBytes());
         this.stats = VaradaStatsBufferAllocator.create(BUFFER_ALLOCATOR_METRICS_GROUP);
     }
 
     private void initWarmBundles()
     {
         final long alignment = storageEngineConstants.getPageSize();
-        final int numSegments = nativeConfiguration.getTaskMaxWorkerThreads();
+        final int numSegments = nativeConfig.getTaskMaxWorkerThreads();
         checkArgument(numSegments > 0, "no segments configured for warm bundles");
         final long allocSize = (long) warmBundleSize * numSegments + alignment;
 
@@ -156,7 +156,7 @@ public class BufferAllocator
         int basicWriteBufferSize = storageEngineConstants.getIndexChunkMaxSize();
 
         final long alignment = storageEngineConstants.getPageSize();
-        final int numSegments = nativeConfiguration.getTaskMaxWorkerThreads();
+        final int numSegments = nativeConfig.getTaskMaxWorkerThreads();
         checkArgument(numSegments > 0, "no segments configured for warm write buffers");
 
         // we take WRITE_BUFFER_SIZE_SPARE_PAGES from the start and from the end so we multiply by 2
@@ -180,7 +180,7 @@ public class BufferAllocator
         this.predicateBufferPools = new PredicateBufferPool[PredicateBufferPoolType.values().length];
 
         final long alignment = storageEngineConstants.getPageSize();
-        final long predicateBundleSize = (long) (nativeConfiguration.getPredicateBundleSizeInMegaBytes() << 20) + alignment;
+        final long predicateBundleSize = (long) (nativeConfig.getPredicateBundleSizeInMegaBytes() << 20) + alignment;
 
         SegmentAllocator poolSlicer = SegmentAllocator.slicingAllocator(Arena.global().allocate(predicateBundleSize, alignment));
         predicateBufferPools[PredicateBufferPoolType.SMALL.ordinal()] = new PredicateBufferPool(PredicateBufferPoolType.SMALL,

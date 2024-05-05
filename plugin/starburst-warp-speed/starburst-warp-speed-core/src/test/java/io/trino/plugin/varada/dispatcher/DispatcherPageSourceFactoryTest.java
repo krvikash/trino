@@ -15,9 +15,9 @@ package io.trino.plugin.varada.dispatcher;
 
 import io.airlift.units.DataSize;
 import io.trino.plugin.varada.TestingTxService;
-import io.trino.plugin.varada.configuration.DictionaryConfiguration;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.DictionaryConfig;
+import io.trino.plugin.varada.config.GlobalConfig;
+import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.connector.TestingConnectorPageSource;
 import io.trino.plugin.varada.connector.TestingConnectorProxiedConnectorTransformer;
 import io.trino.plugin.varada.connector.TestingConnectorTableHandle;
@@ -170,41 +170,41 @@ public class DispatcherPageSourceFactoryTest
         when(bufferAllocator.getQueryNullBufferSize(any())).thenReturn(64 * 1024);
         MatchCollectIdService matchCollectIdService = mock(MatchCollectIdService.class);
         rowGroupDataDao = mock(RowGroupDataDao.class);
-        GlobalConfiguration globalConfiguration = new GlobalConfiguration();
-        DictionaryConfiguration dictionaryConfiguration = new DictionaryConfiguration();
-        dictionaryConfiguration.setMaxDictionaryTotalCacheWeight(DataSize.of(16L, DataSize.Unit.MEGABYTE));
-        dictionaryConfiguration.setDictionaryCacheConcurrencyLevel(1);
-        NativeConfiguration nativeConfiguration = mock(NativeConfiguration.class);
-        when(nativeConfiguration.getBundleSize()).thenReturn(16 * 1024 * 1024);
-        when(nativeConfiguration.getCollectTxSize()).thenReturn(8 * 1024 * 1024);
-        when(nativeConfiguration.getTaskMaxWorkerThreads()).thenReturn(1);
+        GlobalConfig globalConfig = new GlobalConfig();
+        DictionaryConfig dictionaryConfig = new DictionaryConfig();
+        dictionaryConfig.setMaxDictionaryTotalCacheWeight(DataSize.of(16L, DataSize.Unit.MEGABYTE));
+        dictionaryConfig.setDictionaryCacheConcurrencyLevel(1);
+        NativeConfig nativeConfig = mock(NativeConfig.class);
+        when(nativeConfig.getBundleSize()).thenReturn(16 * 1024 * 1024);
+        when(nativeConfig.getCollectTxSize()).thenReturn(8 * 1024 * 1024);
+        when(nativeConfig.getTaskMaxWorkerThreads()).thenReturn(1);
         workerWarmingService = mock(WorkerWarmingService.class);
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
         NodeManager nodeManager = mockNodeManager();
         ConnectorSync connectorSync = mock(ConnectorSync.class);
         when(connectorSync.getCatalogName()).thenReturn("");
         when(connectorSync.getCatalogSequence()).thenReturn(0);
-        DictionaryCacheService dictionaryCacheService = new DictionaryCacheService(dictionaryConfiguration,
+        DictionaryCacheService dictionaryCacheService = new DictionaryCacheService(dictionaryConfig,
                 metricsManager,
                 mock(AttachDictionaryService.class));
         RowGroupDataService rowGroupDataService = new RowGroupDataService(
                 rowGroupDataDao,
                 storageEngine,
-                globalConfiguration,
+                globalConfig,
                 metricsManager,
                 nodeManager,
                 connectorSync);
         PredicatesCacheService predicatesCacheService = mock(PredicatesCacheService.class);
-        PredicateContextFactory predicateContextFactory = new PredicateContextFactory(globalConfiguration, new TestingConnectorProxiedConnectorTransformer());
+        PredicateContextFactory predicateContextFactory = new PredicateContextFactory(globalConfig, new TestingConnectorProxiedConnectorTransformer());
         when(predicatesCacheService.predicateDataToBuffer(isA(PredicateData.class), any())).thenReturn(Optional.of(new PredicateCacheData(new PredicateBufferInfo(null, PredicateBufferPoolType.INVALID), Optional.empty())));
         DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer = new TestingConnectorProxiedConnectorTransformer();
         ClassifierFactory classifierFactory = new ClassifierFactory(storageEngineConstants,
                 predicatesCacheService,
                 bufferAllocator,
-                nativeConfiguration,
+                nativeConfig,
                 dispatcherProxiedConnectorTransformer,
                 matchCollectIdService,
-                globalConfiguration);
+                globalConfig);
         QueryClassifier queryClassifier = new QueryClassifier(classifierFactory,
                 connectorSync,
                 matchCollectIdService,
@@ -223,7 +223,7 @@ public class DispatcherPageSourceFactoryTest
                 predicatesCacheService,
                 queryClassifier,
                 dictionaryCacheService,
-                new GlobalConfiguration(),
+                new GlobalConfig(),
                 nativeStorageStateHandler,
                 new ReadErrorHandler(mock(WarmupDemoterService.class), rowGroupDataService, mock(PrintMetricsTimerTask.class)),
                 mock(CollectTxService.class),

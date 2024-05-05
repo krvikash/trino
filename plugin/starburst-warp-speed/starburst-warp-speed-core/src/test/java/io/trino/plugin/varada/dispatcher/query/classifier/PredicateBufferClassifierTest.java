@@ -14,7 +14,7 @@
 package io.trino.plugin.varada.dispatcher.query.classifier;
 
 import com.google.common.collect.ImmutableMap;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.connector.TestingConnectorProxiedConnectorTransformer;
 import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.varada.dispatcher.SimplifiedColumns;
@@ -78,9 +78,9 @@ class PredicateBufferClassifierTest
         predicateBufferClassifier = new PredicateBufferClassifier(predicatesCacheService);
 
         rowGroupData = mock(RowGroupData.class);
-        GlobalConfiguration globalConfiguration = new GlobalConfiguration();
+        GlobalConfig globalConfig = new GlobalConfig();
         DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer = new TestingConnectorProxiedConnectorTransformer();
-        predicateContextFactory = new PredicateContextFactory(globalConfiguration, dispatcherProxiedConnectorTransformer);
+        predicateContextFactory = new PredicateContextFactory(globalConfig, dispatcherProxiedConnectorTransformer);
     }
 
     @Test

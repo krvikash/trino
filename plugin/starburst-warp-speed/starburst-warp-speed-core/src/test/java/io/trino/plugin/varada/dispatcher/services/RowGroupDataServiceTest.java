@@ -15,7 +15,7 @@ package io.trino.plugin.varada.dispatcher.services;
 
 import com.google.common.collect.ImmutableList;
 import io.trino.plugin.varada.TestingTxService;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.dal.RowGroupDataDao;
 import io.trino.plugin.varada.dispatcher.model.RegularColumn;
 import io.trino.plugin.varada.dispatcher.model.RowGroupData;
@@ -68,7 +68,7 @@ public class RowGroupDataServiceTest
     public void before()
     {
         storageEngine = new StubsStorageEngine();
-        GlobalConfiguration globalConfiguration = new GlobalConfiguration();
+        GlobalConfig globalConfig = new GlobalConfig();
         rowGroupKey = mock(RowGroupKey.class);
         RowGroupDataDao rowGroupDataDao = mock(RowGroupDataDao.class);
         when(rowGroupDataDao.get(rowGroupKey)).thenReturn(null);
@@ -77,7 +77,7 @@ public class RowGroupDataServiceTest
         nodeIdentifier = nodeManager.getCurrentNode().getNodeIdentifier();
         rowGroupDataService = spy(new RowGroupDataService(rowGroupDataDao,
                 storageEngine,
-                globalConfiguration,
+                globalConfig,
                 metricsManager,
                 nodeManager,
                 mock(ConnectorSync.class)));
@@ -177,13 +177,13 @@ public class RowGroupDataServiceTest
     @Test
     public void testMarkAsFailedGeneralException()
     {
-        GlobalConfiguration globalConfiguration = new GlobalConfiguration();
+        GlobalConfig globalConfig = new GlobalConfig();
         RowGroupDataDao rowGroupDataDao = mock(RowGroupDataDao.class);
         when(rowGroupDataDao.get(rowGroupKey)).thenReturn(null);
 
         RowGroupDataService rowGroupDataService = spy(new RowGroupDataService(rowGroupDataDao,
                 storageEngine,
-                globalConfiguration,
+                globalConfig,
                 metricsManager,
                 nodeManager,
                 mock(ConnectorSync.class)));
@@ -206,7 +206,7 @@ public class RowGroupDataServiceTest
         RowGroupDataDao rowGroupDataDao = mock(RowGroupDataDao.class);
         rowGroupDataService = new RowGroupDataService(rowGroupDataDao,
                 storageEngine,
-                new GlobalConfiguration(),
+                new GlobalConfig(),
                 metricsManager,
                 nodeManager,
                 mock(ConnectorSync.class));
@@ -230,7 +230,7 @@ public class RowGroupDataServiceTest
         RowGroupDataDao rowGroupDataDao = mock(RowGroupDataDao.class);
         rowGroupDataService = new RowGroupDataService(rowGroupDataDao,
                 storageEngine,
-                new GlobalConfiguration(),
+                new GlobalConfig(),
                 metricsManager,
                 nodeManager,
                 mock(ConnectorSync.class));
@@ -271,7 +271,7 @@ public class RowGroupDataServiceTest
         RowGroupDataDao rowGroupDataDao = mock(RowGroupDataDao.class);
         rowGroupDataService = new RowGroupDataService(rowGroupDataDao,
                 storageEngine,
-                new GlobalConfiguration(),
+                new GlobalConfig(),
                 metricsManager,
                 nodeManager,
                 mock(ConnectorSync.class));

@@ -49,10 +49,10 @@ import java.util.Set;
 import java.util.stream.IntStream;
 
 import static io.trino.plugin.varada.VaradaSessionProperties.ENABLE_DEFAULT_WARMING;
-import static io.trino.plugin.varada.configuration.ProxiedConnectorConfiguration.ICEBERG_CONNECTOR_NAME;
-import static io.trino.plugin.varada.configuration.ProxiedConnectorConfiguration.PROXIED_CONNECTOR;
-import static io.trino.plugin.warp.extension.configuration.WarpExtensionConfiguration.USE_HTTP_SERVER_PORT;
-import static io.varada.tools.configuration.MultiPrefixConfigurationWrapper.WARP_SPEED_PREFIX;
+import static io.trino.plugin.varada.config.ProxiedConnectorConfig.ICEBERG_CONNECTOR_NAME;
+import static io.trino.plugin.varada.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
+import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP_SERVER_PORT;
+import static io.varada.tools.config.MultiPrefixConfigWrapper.WARP_SPEED_PREFIX;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 

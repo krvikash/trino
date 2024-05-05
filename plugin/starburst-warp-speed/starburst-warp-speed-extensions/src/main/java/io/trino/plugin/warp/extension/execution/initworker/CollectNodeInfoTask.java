@@ -15,7 +15,7 @@ package io.trino.plugin.warp.extension.execution.initworker;
 
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
 import jakarta.ws.rs.Consumes;
@@ -37,12 +37,12 @@ public class CollectNodeInfoTask
 {
     public static final String TASK_NAME = "collect-node-info";
     private static final Logger logger = Logger.get(CollectNodeInfoTask.class);
-    private final NativeConfiguration nativeConfiguration;
+    private final NativeConfig nativeConfig;
 
     @Inject
-    public CollectNodeInfoTask(NativeConfiguration nativeConfiguration)
+    public CollectNodeInfoTask(NativeConfig nativeConfig)
     {
-        this.nativeConfiguration = requireNonNull(nativeConfiguration);
+        this.nativeConfig = requireNonNull(nativeConfig);
     }
 
     @GET
@@ -50,7 +50,7 @@ public class CollectNodeInfoTask
     //@ApiOperation(value = "collectNodeInfo", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public CollectNodeInfoResult collectNodeInfo()
     {
-        CollectNodeInfoResult result = new CollectNodeInfoResult(nativeConfiguration.getTaskMaxWorkerThreads());
+        CollectNodeInfoResult result = new CollectNodeInfoResult(nativeConfig.getTaskMaxWorkerThreads());
         logger.debug("finished result=%s", result);
         return result;
     }

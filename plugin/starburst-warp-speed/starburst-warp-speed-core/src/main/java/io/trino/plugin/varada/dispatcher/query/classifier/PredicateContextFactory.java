@@ -16,7 +16,7 @@ package io.trino.plugin.varada.dispatcher.query.classifier;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.trino.plugin.varada.VaradaSessionProperties;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.varada.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.varada.dispatcher.model.RegularColumn;
@@ -52,13 +52,13 @@ import static io.trino.spi.type.BooleanType.BOOLEAN;
 
 public class PredicateContextFactory
 {
-    private final GlobalConfiguration globalConfiguration;
+    private final GlobalConfig globalConfig;
     private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
 
     @Inject
-    public PredicateContextFactory(GlobalConfiguration globalConfiguration, DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer)
+    public PredicateContextFactory(GlobalConfig globalConfig, DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer)
     {
-        this.globalConfiguration = globalConfiguration;
+        this.globalConfig = globalConfig;
         this.dispatcherProxiedConnectorTransformer = dispatcherProxiedConnectorTransformer;
     }
 
@@ -76,7 +76,7 @@ public class PredicateContextFactory
         if (intersectTupleDomain.isNone()) {
             return new PredicateContextData(ImmutableMap.of(), VaradaPrimitiveConstant.FALSE);
         }
-        int predicateThreshold = VaradaSessionProperties.getPredicateSimplifyThreshold(session, globalConfiguration);
+        int predicateThreshold = VaradaSessionProperties.getPredicateSimplifyThreshold(session, globalConfig);
 
         SimplifyResult<ColumnHandle> simplifyResult = DomainUtils.simplify(intersectTupleDomain, predicateThreshold);
         Set<RegularColumn> simplifiedColumns = Stream.concat(dispatcherTableHandle.getSimplifiedColumns().simplifiedColumns().stream(),

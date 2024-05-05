@@ -19,7 +19,7 @@ import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.trino.plugin.varada.VaradaSessionProperties;
 import io.trino.plugin.varada.annotations.ForWarp;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.model.RowGroupData;
 import io.trino.plugin.varada.dispatcher.model.RowGroupDataValidation;
 import io.trino.plugin.varada.dispatcher.model.RowGroupKey;
@@ -32,7 +32,7 @@ import io.trino.plugin.varada.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.gen.stats.VaradaStatsWarmupImportService;
 import io.trino.spi.connector.ConnectorSession;
 import io.varada.cloudvendors.CloudVendorService;
-import io.varada.cloudvendors.configuration.CloudVendorConfiguration;
+import io.varada.cloudvendors.config.CloudVendorConfig;
 import io.varada.cloudvendors.model.StorageObjectMetadata;
 import io.varada.log.ShapingLogger;
 import io.varada.tools.util.StopWatch;
@@ -58,8 +58,8 @@ public class WeGroupWarmer
 
     public static final String WARMUP_IMPORTER_STAT_GROUP = "import-service";
 
-    private final GlobalConfiguration globalConfiguration;
-    private final CloudVendorConfiguration cloudVendorConfiguration;
+    private final GlobalConfig globalConfig;
+    private final CloudVendorConfig cloudVendorConfig;
     private final StorageEngineConstants storageEngineConstants;
     private final RowGroupDataService rowGroupDataService;
     private final CloudVendorService cloudVendorService;
@@ -67,24 +67,24 @@ public class WeGroupWarmer
 
     @Inject
     public WeGroupWarmer(
-            GlobalConfiguration globalConfiguration,
-            @ForWarp CloudVendorConfiguration cloudVendorConfiguration,
+            GlobalConfig globalConfig,
+            @ForWarp CloudVendorConfig cloudVendorConfig,
             StorageEngineConstants storageEngineConstants,
             RowGroupDataService rowGroupDataService,
             @ForWarp CloudVendorService cloudVendorService,
             MetricsManager metricsManager)
     {
-        this.globalConfiguration = requireNonNull(globalConfiguration);
-        this.cloudVendorConfiguration = requireNonNull(cloudVendorConfiguration);
+        this.globalConfig = requireNonNull(globalConfig);
+        this.cloudVendorConfig = requireNonNull(cloudVendorConfig);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.cloudVendorService = requireNonNull(cloudVendorService);
         this.varadaStatsWarmupImportService = metricsManager.registerMetric(new VaradaStatsWarmupImportService(WARMUP_IMPORTER_STAT_GROUP));
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
-                globalConfiguration.getShapingLoggerThreshold(),
-                globalConfiguration.getShapingLoggerDuration(),
-                globalConfiguration.getShapingLoggerNumberOfSamples());
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
     }
 
     @VisibleForTesting
@@ -230,7 +230,7 @@ public class WeGroupWarmer
 
     public Optional<RowGroupData> importWeGroup(ConnectorSession session, RowGroupKey rowGroupKey)
     {
-        String cloudImportExportPath = VaradaSessionProperties.getS3ImportExportPath(session, cloudVendorConfiguration, cloudVendorService);
+        String cloudImportExportPath = VaradaSessionProperties.getS3ImportExportPath(session, cloudVendorConfig, cloudVendorService);
         String cloudPath = WarmUtils.getCloudPath(rowGroupKey, cloudImportExportPath);
         IsNeedDownloadResults isNeedDownloadResults;
         StopWatch stopWatch = new StopWatch();
@@ -245,7 +245,7 @@ public class WeGroupWarmer
                 return Optional.empty();
             }
 
-            String localFileName = rowGroupKey.stringFileNameRepresentation(globalConfiguration.getLocalStorePath());
+            String localFileName = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
             String localTmpFileName = localFileName + ".tmp";
             if (!download(rowGroupKey, cloudPath, localTmpFileName)) {
                 varadaStatsWarmupImportService.incimport_row_group_count_failed();
@@ -326,9 +326,9 @@ public class WeGroupWarmer
 
     public Optional<RowGroupData> importWarmUpElements(ConnectorSession session, RowGroupKey rowGroupKey, List<WarmUpElement> warmWarmUpElements)
     {
-        String cloudImportExportPath = VaradaSessionProperties.getS3ImportExportPath(session, cloudVendorConfiguration, cloudVendorService);
+        String cloudImportExportPath = VaradaSessionProperties.getS3ImportExportPath(session, cloudVendorConfig, cloudVendorService);
         String cloudPath = WarmUtils.getCloudPath(rowGroupKey, cloudImportExportPath);
-        String localFileName = rowGroupKey.stringFileNameRepresentation(globalConfiguration.getLocalStorePath());
+        String localFileName = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
         RowGroupData rowGroupData = rowGroupDataService.get(rowGroupKey);
         boolean locked = false;
 

@@ -11,15 +11,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.varada.cloudvendors.configuration;
+package io.varada.cloudvendors.config;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.LegacyConfig;
 
-import static io.varada.tools.configuration.MultiPrefixConfigurationWrapper.LOCAL_DATA_STORAGE_PREFIX;
-import static io.varada.tools.configuration.MultiPrefixConfigurationWrapper.WARP_SPEED_PREFIX;
+import static io.varada.tools.config.MultiPrefixConfigWrapper.LOCAL_DATA_STORAGE_PREFIX;
+import static io.varada.tools.config.MultiPrefixConfigWrapper.WARP_SPEED_PREFIX;
 
-public class CloudVendorConfiguration
+public class CloudVendorConfig
 {
     public static final String STORE_TYPE = "config.store.type";
     public static final String STORE_PATH = "store.path";

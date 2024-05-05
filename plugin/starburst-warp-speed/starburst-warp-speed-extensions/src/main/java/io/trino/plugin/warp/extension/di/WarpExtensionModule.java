@@ -26,10 +26,10 @@ import io.trino.plugin.varada.di.VaradaBaseModule;
 import io.trino.plugin.varada.di.VaradaClientModule;
 import io.trino.plugin.varada.di.WarmupCloudFetcherModule;
 import io.trino.plugin.varada.dispatcher.warmup.fetcher.EmptyWarmupRuleFetcher;
-import io.trino.plugin.varada.dispatcher.warmup.fetcher.WarmupRuleCloudFetcherConfiguration;
+import io.trino.plugin.varada.dispatcher.warmup.fetcher.WarmupRuleCloudFetcherConfig;
 import io.trino.plugin.varada.dispatcher.warmup.fetcher.WarmupRuleFetcher;
-import io.trino.plugin.warp.extension.configuration.CallHomeConfiguration;
-import io.trino.plugin.warp.extension.configuration.WarpExtensionConfiguration;
+import io.trino.plugin.warp.extension.config.CallHomeConfig;
+import io.trino.plugin.warp.extension.config.WarpExtensionConfig;
 import io.trino.plugin.warp.extension.execution.ClusterReadyTaskExecutionIsAllowedSupplier;
 import io.trino.plugin.warp.extension.execution.VaradaTasksModule;
 import io.trino.plugin.warp.extension.execution.WorkerReadyTaskExecutionIsAllowedSupplier;
@@ -79,21 +79,21 @@ public class WarpExtensionModule
                         VaradaBaseModule.isCoordinator(connectorContext),
                         VaradaBaseModule.isWorker(connectorContext, config),
                         booleanSuppliers.build()));
-        if (!Boolean.parseBoolean(config.getOrDefault(WarpExtensionConfiguration.USE_HTTP_SERVER_PORT, Boolean.TRUE.toString()))) {
+        if (!Boolean.parseBoolean(config.getOrDefault(WarpExtensionConfig.USE_HTTP_SERVER_PORT, Boolean.TRUE.toString()))) {
             configureHttpServer();
         }
 
         binder().bind(CallHomeService.class);
-        configBinder(binder()).bindConfig(WarpExtensionConfiguration.class);
-        configBinder(binder()).bindConfig(CallHomeConfiguration.class);
+        configBinder(binder()).bindConfig(WarpExtensionConfig.class);
+        configBinder(binder()).bindConfig(CallHomeConfig.class);
 
         if (VaradaBaseModule.isWorker(connectorContext, config)) {
             binder().bind(WarmupRuleFetcher.class).to(WorkerWarmupRuleFetcher.class);
         }
         else {
-            ConfigurationFactory configurationFactory = new ConfigurationFactory(config);
-            WarmupRuleCloudFetcherConfiguration warmupRuleCloudFetcherConfiguration = configurationFactory.build(WarmupRuleCloudFetcherConfiguration.class);
-            if (StringUtils.isEmpty(warmupRuleCloudFetcherConfiguration.getStorePath())) {
+            ConfigurationFactory configFactory = new ConfigurationFactory(config);
+            WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig = configFactory.build(WarmupRuleCloudFetcherConfig.class);
+            if (StringUtils.isEmpty(warmupRuleCloudFetcherConfig.getStorePath())) {
                 binder().bind(WarmupRuleFetcher.class).to(EmptyWarmupRuleFetcher.class);
             }
             else {
@@ -110,16 +110,16 @@ public class WarpExtensionModule
 
     private void configureHttpServer()
     {
-        ConfigurationFactory configurationFactory = new ConfigurationFactory(config);
+        ConfigurationFactory configFactory = new ConfigurationFactory(config);
         JaxrsModule jaxrsModule = new JaxrsModule();
-        configurationFactory.registerConfigurationClasses(jaxrsModule);
+        configFactory.registerConfigurationClasses(jaxrsModule);
         HttpServerModule httpServerModule = new HttpServerModule();
-        configurationFactory.registerConfigurationClasses(httpServerModule);
+        configFactory.registerConfigurationClasses(httpServerModule);
         binder().install(new NodeModule());
         binder().install(httpServerModule);
         binder().install(new JsonModule());
         VaradaJaxrsModule module = new VaradaJaxrsModule();
-        module.setConfigurationFactory(configurationFactory);
+        module.setConfigurationFactory(configFactory);
         binder().install(module);
         binder().install(binder1 -> binder1.bind(HttpServerLifeCycleHandler.class));
     }

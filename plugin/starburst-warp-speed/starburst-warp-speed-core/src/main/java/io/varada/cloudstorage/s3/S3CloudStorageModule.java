@@ -43,22 +43,22 @@ public class S3CloudStorageModule
         implements Module
 {
     private final ConnectorContext context;
-    private final ConfigurationFactory configurationFactory;
+    private final ConfigurationFactory configFactory;
     private final Class<? extends Annotation> annotation;
 
     public S3CloudStorageModule(ConnectorContext context,
-                                ConfigurationFactory configurationFactory,
+                                ConfigurationFactory configFactory,
                                 Class<? extends Annotation> annotation)
     {
         this.context = requireNonNull(context, "context is null");
-        this.configurationFactory = requireNonNull(configurationFactory, "configurationFactory is null");
+        this.configFactory = requireNonNull(configFactory, "configFactory is null");
         this.annotation = requireNonNull(annotation, "annotation is null");
     }
 
     @Override
     public void configure(Binder binder)
     {
-        binder.bind(ConfigurationFactory.class).toInstance(configurationFactory);
+        binder.bind(ConfigurationFactory.class).toInstance(configFactory);
 
         configBinder(binder).bindConfig(S3FileSystemConfig.class);
 

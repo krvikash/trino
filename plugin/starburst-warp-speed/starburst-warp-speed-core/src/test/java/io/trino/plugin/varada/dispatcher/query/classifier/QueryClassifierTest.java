@@ -18,8 +18,8 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
+import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.connector.TestingConnectorColumnHandle;
 import io.trino.plugin.varada.dispatcher.CompletedDynamicFilter;
 import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
@@ -137,8 +137,8 @@ public class QueryClassifierTest
     private QueryClassifier queryClassifier;
     private BufferAllocator bufferAllocator;
     private MatchCollectIdService matchCollectIdService;
-    private GlobalConfiguration globalConfiguration;
-    private NativeConfiguration nativeConfiguration;
+    private GlobalConfig globalConfig;
+    private NativeConfig nativeConfig;
     private DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
     private ConnectorSession session;
     private PredicateContextFactory predicateContextFactory;
@@ -193,20 +193,20 @@ public class QueryClassifierTest
         when(bufferAllocator.getMatchCollectRecordBufferSize(eq(4))).thenReturn(256 * 1024);
         when(bufferAllocator.getMatchCollectRecordBufferSize(eq(8))).thenReturn(512 * 1024);
         matchCollectIdService = mock(MatchCollectIdService.class);
-        globalConfiguration = new GlobalConfiguration();
+        globalConfig = new GlobalConfig();
         this.dispatcherProxiedConnectorTransformer = mock(DispatcherProxiedConnectorTransformer.class);
         when(dispatcherProxiedConnectorTransformer.getConvertedPartitionValue(any(RowGroupData.class), any(), any())).thenReturn(Optional.empty());
-        nativeConfiguration = mock(NativeConfiguration.class);
-        when(nativeConfiguration.getBundleSize()).thenReturn(16 * 1024 * 1024);
-        when(nativeConfiguration.getCollectTxSize()).thenReturn(8 * 1024 * 1024);
-        //when(globalConfiguration.getEnableMatchCollect()).thenReturn(true);
+        nativeConfig = mock(NativeConfig.class);
+        when(nativeConfig.getBundleSize()).thenReturn(16 * 1024 * 1024);
+        when(nativeConfig.getCollectTxSize()).thenReturn(8 * 1024 * 1024);
+        //when(globalConfig.getEnableMatchCollect()).thenReturn(true);
         // in each test we will set the correct record data (int/varchar) as return value from getType
         ClassifierFactory classifierFactory = new ClassifierFactory(storageEngineConstants,
                 predicatesCacheService,
                 bufferAllocator,
-                nativeConfiguration,
+                nativeConfig,
                 dispatcherProxiedConnectorTransformer,
-                matchCollectIdService, globalConfiguration);
+                matchCollectIdService, globalConfig);
 
         testingConnectorColumnHandles = new ArrayList<>();
         testingConnectorColumnHandles.add(mockColumnHandle("h0", IntegerType.INTEGER, dispatcherProxiedConnectorTransformer));
@@ -245,7 +245,7 @@ public class QueryClassifierTest
                 .partitionKeys(Map.of(new RegularColumn("v-int-data"), "1",
                         new RegularColumn("v-varchar-data-basic"), "str"))
                 .build();
-        predicateContextFactory = new PredicateContextFactory(globalConfiguration, dispatcherProxiedConnectorTransformer);
+        predicateContextFactory = new PredicateContextFactory(globalConfig, dispatcherProxiedConnectorTransformer);
 
         session = mock(ConnectorSession.class);
         when(session.getProperty(eq(ENABLE_MATCH_COLLECT), eq(Boolean.class))).thenReturn(true);
@@ -382,9 +382,9 @@ public class QueryClassifierTest
         ClassifierFactory classifierFactory = new ClassifierFactory(storageEngineConstants,
                 predicatesCacheService,
                 bufferAllocator,
-                nativeConfiguration,
+                nativeConfig,
                 dispatcherProxiedConnectorTransformer,
-                matchCollectIdService, globalConfiguration);
+                matchCollectIdService, globalConfig);
 
         QueryClassifier queryClassifier = new QueryClassifier(
                 classifierFactory,
@@ -441,9 +441,9 @@ public class QueryClassifierTest
         ClassifierFactory classifierFactory = new ClassifierFactory(storageEngineConstants,
                 predicatesCacheService,
                 bufferAllocator,
-                nativeConfiguration,
+                nativeConfig,
                 dispatcherProxiedConnectorTransformer,
-                matchCollectIdService, globalConfiguration);
+                matchCollectIdService, globalConfig);
 
         QueryClassifier queryClassifier = new QueryClassifier(
                 classifierFactory,
@@ -1242,7 +1242,7 @@ public class QueryClassifierTest
         ImmutableList<ColumnHandle> remainingCollectColumns = ImmutableList.of(matchOnlyBasicColumn);
         TupleDomain<ColumnHandle> fullPredicate = TupleDomain.withColumnDomains(Map.of(matchOnlyBasicColumn, matchDomain));
 
-        globalConfiguration.setPredicateSimplifyThreshold(0);
+        globalConfig.setPredicateSimplifyThreshold(0);
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(fullPredicate);
         PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
 

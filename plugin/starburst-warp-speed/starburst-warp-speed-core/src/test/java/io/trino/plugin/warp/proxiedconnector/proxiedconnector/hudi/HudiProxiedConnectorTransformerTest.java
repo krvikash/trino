@@ -23,7 +23,7 @@ import io.trino.plugin.hive.HiveType;
 import io.trino.plugin.hudi.HudiSplit;
 import io.trino.plugin.hudi.HudiTableHandle;
 import io.trino.plugin.hudi.model.HudiTableType;
-import io.trino.plugin.varada.configuration.ProxiedConnectorConfiguration;
+import io.trino.plugin.varada.config.ProxiedConnectorConfig;
 import io.trino.plugin.varada.dispatcher.DispatcherSplit;
 import io.trino.plugin.varada.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.varada.dispatcher.PartitionKey;
@@ -67,7 +67,7 @@ public class HudiProxiedConnectorTransformerTest
         extends ProxyConnectorTransformerBaseTest
 {
     private final HudiProxiedConnectorTransformer hudiProxiedConnectorTransformer =
-            new HudiProxiedConnectorTransformer(new ProxiedConnectorConfiguration());
+            new HudiProxiedConnectorTransformer(new ProxiedConnectorConfig());
 
     @Test
     public void testCalculateColumnsStatisticsBucketPriority()

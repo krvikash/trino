@@ -15,7 +15,7 @@ package io.trino.plugin.varada.dispatcher.query.classifier;
 
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.connector.TestingConnectorColumnHandle;
 import io.trino.plugin.varada.connector.TestingConnectorProxiedConnectorTransformer;
 import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
@@ -62,8 +62,8 @@ public class PredicateContextFactoryTest
     public void before()
     {
         DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer = new TestingConnectorProxiedConnectorTransformer();
-        GlobalConfiguration globalConfiguration = new GlobalConfiguration();
-        predicateContextFactory = new PredicateContextFactory(globalConfiguration, dispatcherProxiedConnectorTransformer);
+        GlobalConfig globalConfig = new GlobalConfig();
+        predicateContextFactory = new PredicateContextFactory(globalConfig, dispatcherProxiedConnectorTransformer);
     }
 
     /**

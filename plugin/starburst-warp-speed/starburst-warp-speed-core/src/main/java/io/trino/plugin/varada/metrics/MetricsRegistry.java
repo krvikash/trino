@@ -16,7 +16,7 @@ package io.trino.plugin.varada.metrics;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.varada.configuration.MetricsConfiguration;
+import io.trino.plugin.varada.config.MetricsConfig;
 import io.varada.tools.CatalogNameProvider;
 import org.weakref.jmx.MBeanExporter;
 
@@ -33,24 +33,24 @@ public class MetricsRegistry
     private static final Logger logger = Logger.get(MetricsRegistry.class);
     private final CatalogNameProvider catalogNameProvider;
     private final MBeanExporter exporter;
-    private final MetricsConfiguration metricsConfiguration;
+    private final MetricsConfig metricsConfig;
     private final Map<String, VaradaStatsBase> metricsRegistry;
 
     @Inject
     MetricsRegistry(
             CatalogNameProvider catalogNameProvider,
             MBeanExporter exporter,
-            MetricsConfiguration metricsConfiguration)
+            MetricsConfig metricsConfig)
     {
         this.catalogNameProvider = requireNonNull(catalogNameProvider);
         this.exporter = requireNonNull(exporter);
-        this.metricsConfiguration = requireNonNull(metricsConfiguration);
+        this.metricsConfig = requireNonNull(metricsConfig);
         metricsRegistry = new ConcurrentHashMap<>();
     }
 
-    public MetricsRegistry(CatalogNameProvider catalogNameProvider, MetricsConfiguration metricsConfiguration)
+    public MetricsRegistry(CatalogNameProvider catalogNameProvider, MetricsConfig metricsConfig)
     {
-        this(catalogNameProvider, MBeanExporter.withPlatformMBeanServer(), metricsConfiguration);
+        this(catalogNameProvider, MBeanExporter.withPlatformMBeanServer(), metricsConfig);
     }
 
     public String getKey(String objectKey)
@@ -62,7 +62,7 @@ public class MetricsRegistry
     {
         String jmxKey = getKey(statObject.getJmxKey());
         if (!metricsRegistry.containsKey(jmxKey)) {
-            if (metricsConfiguration.isEnabled()) {
+            if (metricsConfig.isEnabled()) {
                 exporter.exportWithGeneratedName(statObject, statObject.getClass(), jmxKey);
             }
             metricsRegistry.put(jmxKey, statObject);
@@ -79,7 +79,7 @@ public class MetricsRegistry
         logger.debug(" unregisterMetric: %s (%s)", key, jmxKey);
         VaradaStatsBase removedObject = metricsRegistry.remove(jmxKey);
         if (removedObject != null) {
-            if (metricsConfiguration.isEnabled()) {
+            if (metricsConfig.isEnabled()) {
                 exporter.unexportWithGeneratedName(removedObject.getClass(), jmxKey);
             }
             removedObject.reset();

@@ -16,7 +16,7 @@ package io.trino.plugin.varada.dictionary;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.trino.plugin.varada.TestingTxService;
-import io.trino.plugin.varada.configuration.DictionaryConfiguration;
+import io.trino.plugin.varada.config.DictionaryConfig;
 import io.trino.plugin.varada.dispatcher.model.DictionaryKey;
 import io.trino.plugin.varada.dispatcher.model.DictionaryState;
 import io.trino.plugin.varada.dispatcher.model.SchemaTableColumn;
@@ -64,7 +64,7 @@ import static org.mockito.Mockito.when;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class DataValueDictionaryTest
 {
-    private DictionaryConfiguration dictionaryConfiguration;
+    private DictionaryConfig dictionaryConfig;
     private DictionaryCacheService dictionaryCacheService;
     private VaradaStatsDictionary varadaStatsDictionary;
     private NodeManager nodeManager;
@@ -80,8 +80,8 @@ public class DataValueDictionaryTest
     @BeforeAll
     public void beforeAll()
     {
-        dictionaryConfiguration = new DictionaryConfiguration();
-        dictionaryConfiguration.setEnableDictionary(true);
+        dictionaryConfig = new DictionaryConfig();
+        dictionaryConfig.setEnableDictionary(true);
         nodeManager = mockNodeManager();
     }
 
@@ -89,7 +89,7 @@ public class DataValueDictionaryTest
     public void beforeEach()
     {
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
-        dictionaryCacheService = spy(new DictionaryCacheService(dictionaryConfiguration,
+        dictionaryCacheService = spy(new DictionaryCacheService(dictionaryConfig,
                 metricsManager,
                 mock(AttachDictionaryService.class)));
         varadaStatsDictionary = (VaradaStatsDictionary) metricsManager.get(VaradaStatsDictionary.createKey(DICTIONARY_STAT_GROUP));
@@ -128,7 +128,7 @@ public class DataValueDictionaryTest
         DictionaryState dictionaryState = dictionaryCacheService.calculateDictionaryStateForWrite(warmUpElement, null);
         assertThat(dictionaryState).isEqualTo(DictionaryState.DICTIONARY_VALID);
 
-        DataValueDictionary dataValueDictionary = new DataValueDictionary(dictionaryConfiguration, writeDictionaryKey, 0, 0, varadaStatsDictionary);
+        DataValueDictionary dataValueDictionary = new DataValueDictionary(dictionaryConfig, writeDictionaryKey, 0, 0, varadaStatsDictionary);
         Map<Slice, Short> validateDictionary = new HashMap<>();
 
         List<Future<?>> futures = new ArrayList<>(numberOfThreads);
@@ -224,14 +224,14 @@ public class DataValueDictionaryTest
         DictionaryState dictionaryState = dictionaryCacheService.calculateDictionaryStateForWrite(warmUpElement, null);
         assertThat(dictionaryState).isEqualTo(DictionaryState.DICTIONARY_VALID);
         DataValueDictionary dataValueDictionary = (DataValueDictionary) dictionaryCacheService.computeWriteIfAbsent(dictionaryKey, recTypeCode);
-        int overMaxLimit = dictionaryConfiguration.getDictionaryMaxSize() + 1;
+        int overMaxLimit = dictionaryConfig.getDictionaryMaxSize() + 1;
         Assertions.assertThrows(DictionaryMaxException.class, () -> {
             for (long j = 0; j < overMaxLimit; j++) {
                 dataValueDictionary.get(j);
             }
         });
         assertThat(dataValueDictionary.getDictionaryWeight()).isLessThan(MAX_DICTIONARY_SIZE);
-        assertThat(dataValueDictionary.getWriteSize()).isEqualTo(dictionaryConfiguration.getDictionaryMaxSize());
+        assertThat(dataValueDictionary.getWriteSize()).isEqualTo(dictionaryConfig.getDictionaryMaxSize());
     }
 
     /**
@@ -251,11 +251,11 @@ public class DataValueDictionaryTest
         DictionaryState dictionaryState = dictionaryCacheService.calculateDictionaryStateForWrite(warmUpElement, null);
         assertThat(dictionaryState).isEqualTo(DictionaryState.DICTIONARY_VALID);
         DataValueDictionary dataValueDictionary = (DataValueDictionary) dictionaryCacheService.computeWriteIfAbsent(dictionaryKey, recTypeCode);
-        for (long j = 0; j < dictionaryConfiguration.getDictionaryMaxSize(); j++) {
+        for (long j = 0; j < dictionaryConfig.getDictionaryMaxSize(); j++) {
             dataValueDictionary.get(j);
         }
         assertThat(dataValueDictionary.getDictionaryWeight()).isLessThan(MAX_DICTIONARY_SIZE);
-        assertThat(dataValueDictionary.getWriteSize()).isEqualTo(dictionaryConfiguration.getDictionaryMaxSize());
+        assertThat(dataValueDictionary.getWriteSize()).isEqualTo(dictionaryConfig.getDictionaryMaxSize());
     }
 
     private void putAndAssert(Map<Slice, Short> resultMap, Slice s1, short a)

@@ -16,8 +16,8 @@ package io.trino.plugin.varada.storage.read.fill;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.trino.plugin.varada.TestingTxService;
-import io.trino.plugin.varada.configuration.DictionaryConfiguration;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.DictionaryConfig;
+import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.dictionary.AttachDictionaryService;
 import io.trino.plugin.varada.dictionary.DataValueDictionary;
 import io.trino.plugin.varada.dictionary.DictionaryCacheService;
@@ -69,8 +69,8 @@ import static org.mockito.Mockito.when;
 public abstract class BaseDictionaryBlockTest
 {
     private static final Logger logger = Logger.get(BaseDictionaryBlockTest.class);
-    protected DictionaryConfiguration dictionaryConfiguration;
-    protected NativeConfiguration nativeConfiguration;
+    protected DictionaryConfig dictionaryConfig;
+    protected NativeConfig nativeConfig;
     protected StubsStorageEngineConstants storageEngineConstants;
     private DictionaryKey dictionaryKey;
     private DictionaryCacheService dictionaryCacheService;
@@ -104,9 +104,9 @@ public abstract class BaseDictionaryBlockTest
     @BeforeAll
     public void beforeAll()
     {
-        dictionaryConfiguration = new DictionaryConfiguration();
-        dictionaryConfiguration.setEnableDictionary(true);
-        nativeConfiguration = new NativeConfiguration();
+        dictionaryConfig = new DictionaryConfig();
+        dictionaryConfig.setEnableDictionary(true);
+        nativeConfig = new NativeConfig();
         storageEngineConstants = new StubsStorageEngineConstants();
         createConversionFunction();
         createValueFunction();
@@ -119,7 +119,7 @@ public abstract class BaseDictionaryBlockTest
     public void before()
     {
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
-        dictionaryCacheService = new DictionaryCacheService(dictionaryConfiguration,
+        dictionaryCacheService = new DictionaryCacheService(dictionaryConfig,
                 metricsManager,
                 mock(AttachDictionaryService.class));
         blockFiller = createBlockFiller();

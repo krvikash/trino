@@ -16,7 +16,7 @@ package io.trino.plugin.varada.dispatcher;
 import com.google.common.collect.ImmutableList;
 import io.trino.plugin.varada.TestingTxService;
 import io.trino.plugin.varada.VaradaErrorCode;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.dal.RowGroupDataDao;
 import io.trino.plugin.varada.dispatcher.model.RegularColumn;
 import io.trino.plugin.varada.dispatcher.model.RowGroupData;
@@ -74,7 +74,7 @@ class ReadErrorHandlerTest
         rowGroupDataDao = mock(RowGroupDataDao.class);
         rowGroupDataService = new RowGroupDataService(rowGroupDataDao,
                 new StubsStorageEngine(),
-                new GlobalConfiguration(),
+                new GlobalConfig(),
                 TestingTxService.createMetricsManager(),
                 NodeUtils.mockNodeManager(),
                 mock(ConnectorSync.class));

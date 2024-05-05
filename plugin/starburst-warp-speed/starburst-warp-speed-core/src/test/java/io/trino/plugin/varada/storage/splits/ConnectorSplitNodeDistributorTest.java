@@ -16,7 +16,7 @@ package io.trino.plugin.varada.storage.splits;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
 import io.trino.plugin.varada.CoordinatorNodeManager;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.util.NodeUtils;
 import io.trino.spi.Node;
 import io.trino.spi.NodeManager;
@@ -59,7 +59,7 @@ public class ConnectorSplitNodeDistributorTest
             .toList();
 
     private CoordinatorNodeManager coordinatorNodeManager;
-    private GlobalConfiguration globalConfiguration;
+    private GlobalConfig globalConfig;
     private ConnectorSplitNodeDistributor connectorSplitNodeDistributor;
 
     @BeforeEach
@@ -67,20 +67,20 @@ public class ConnectorSplitNodeDistributorTest
     public void before()
     {
         coordinatorNodeManager = mock(CoordinatorNodeManager.class);
-        globalConfiguration = new GlobalConfiguration();
+        globalConfig = new GlobalConfig();
     }
 
     @Test
     public void testGetNodeBuckets()
     {
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(ImmutableList.of());
-        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfiguration, coordinatorNodeManager);
+        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
 
         List<String> nodeIds = IntStream.range(1, 6)
                 .mapToObj(Integer::toString)
                 .collect(toCollection(ArrayList::new));
         Map<String, List<Integer>> origMap = nodeIds.stream()
-                .collect(Collectors.toMap(Function.identity(), nodeId -> IntStream.range(0, globalConfiguration.getConsistentSplitBucketsPerWorker())
+                .collect(Collectors.toMap(Function.identity(), nodeId -> IntStream.range(0, globalConfig.getConsistentSplitBucketsPerWorker())
                         .mapToObj(i -> ((ConnectorSplitConsistentHashNodeDistributor) connectorSplitNodeDistributor).getNodeBucket(nodeId, i))
                         .collect(Collectors.toList())));
 
@@ -89,7 +89,7 @@ public class ConnectorSplitNodeDistributorTest
         IntStream.range(0, 10).forEach(index -> {
             Collections.shuffle(nodeIds);
             Map<String, List<Integer>> currentMap = nodeIds.stream()
-                    .collect(Collectors.toMap(Function.identity(), nodeId -> IntStream.range(0, globalConfiguration.getConsistentSplitBucketsPerWorker())
+                    .collect(Collectors.toMap(Function.identity(), nodeId -> IntStream.range(0, globalConfig.getConsistentSplitBucketsPerWorker())
                             .mapToObj(i -> ((ConnectorSplitConsistentHashNodeDistributor) connectorSplitNodeDistributor).getNodeBucket(nodeId, i))
                             .collect(Collectors.toList())));
             assertThat(currentMap).isEqualTo(origMap);
@@ -100,7 +100,7 @@ public class ConnectorSplitNodeDistributorTest
     public void testIdentitiesHashValidation()
     {
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(ImmutableList.of());
-        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfiguration, coordinatorNodeManager);
+        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
 
         assertThatThrownBy(() -> connectorSplitNodeDistributor.getNode(UUID.randomUUID().toString()))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -116,7 +116,7 @@ public class ConnectorSplitNodeDistributorTest
                 .collect(Collectors.toMap(Node::getNodeIdentifier, Function.identity()));
 
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(new ArrayList<>(nodesMap.values()));
-        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfiguration, coordinatorNodeManager);
+        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
 
         Map<String, String> keyToNodeMap1 = keys.stream()
                 .collect(Collectors.toMap(Function.identity(), key -> connectorSplitNodeDistributor.getNode(key).getNodeIdentifier()));
@@ -133,7 +133,7 @@ public class ConnectorSplitNodeDistributorTest
     @Test
     public void testDistribution()
     {
-        globalConfiguration.setConsistentSplitBucketsPerWorker(2048);
+        globalConfig.setConsistentSplitBucketsPerWorker(2048);
         PearsonsCorrelation pearsonsCorrelation = new PearsonsCorrelation();
         int numKeysToTest = 10240;
         int[] buckets = new int[numKeysToTest];
@@ -147,7 +147,7 @@ public class ConnectorSplitNodeDistributorTest
                         .map(this::createNode)
                         .collect(Collectors.toMap(Node::getNodeIdentifier, Function.identity()));
                 when(coordinatorNodeManager.getWorkerNodes()).thenReturn(new ArrayList<>(nodesMap.values()));
-                connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfiguration, coordinatorNodeManager);
+                connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
                 Map<String, Integer> nodeToCountMap = new HashMap<>(numKeysToTest);
                 Map<String, Integer> nodeToRandMap = new HashMap<>(numKeysToTest);
                 for (int i = 0; i < numKeysToTest; i++) {
@@ -189,7 +189,7 @@ public class ConnectorSplitNodeDistributorTest
                 .collect(Collectors.toMap(Node::getNodeIdentifier, Function.identity()));
 
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(new ArrayList<>(nodesMap.values()));
-        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfiguration, coordinatorNodeManager);
+        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
 
         Map<String, String> keyToNodeMap1 = keys.stream()
                 .collect(Collectors.toMap(Function.identity(), key -> connectorSplitNodeDistributor.getNode(key).getNodeIdentifier()));
@@ -237,7 +237,7 @@ public class ConnectorSplitNodeDistributorTest
     {
         Map<String, Node> nodesMap = new HashMap<>();
 
-        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfiguration, coordinatorNodeManager);
+        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
 
         //add one node each time
         Map<String, Set<String>> nodeToKeysMap1 = assertAddNode(nodesMap, "a", Map.of());
@@ -259,7 +259,7 @@ public class ConnectorSplitNodeDistributorTest
         List<String> nodeIds = new ArrayList<>(List.of("a", "c", "e", "b", "d")); // when starting from 0 we get duplicates in hashes
         Map<String, Node> nodesMap = new HashMap<>();
 
-        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfiguration, coordinatorNodeManager);
+        connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
 
         //add one node each time
         Map<String, Set<String>> nodeToKeysMap1 = assertAddNode(nodesMap, nodeIds.remove(0), Map.of());

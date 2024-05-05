@@ -14,7 +14,7 @@
 package io.trino.plugin.varada.juffer;
 
 import io.trino.plugin.varada.WarmColumnDataTestUtil;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.di.VaradaInitializedServiceRegistry;
 import io.trino.plugin.varada.dispatcher.WarmupElementWriteMetadata;
 import io.trino.plugin.varada.dispatcher.model.RecordData;
@@ -47,16 +47,16 @@ public class BufferAllocatorTest
     private static final int REC_MAX_SIZE = 1 << 19;
     private static final int PAGE_SIZE = 8192;
     private BufferAllocator bufferAllocator;
-    private NativeConfiguration nativeConfiguration;
+    private NativeConfig nativeConfig;
     private StorageEngineConstants storageEngineConstants;
 
     @BeforeEach
     public void before()
     {
-        nativeConfiguration = mock(NativeConfiguration.class);
-        when(nativeConfiguration.getBundleSize()).thenReturn(1 << 27);
-        when(nativeConfiguration.getTaskMaxWorkerThreads()).thenReturn(4);
-        when(nativeConfiguration.getPredicateBundleSizeInMegaBytes()).thenReturn(20);
+        nativeConfig = mock(NativeConfig.class);
+        when(nativeConfig.getBundleSize()).thenReturn(1 << 27);
+        when(nativeConfig.getTaskMaxWorkerThreads()).thenReturn(4);
+        when(nativeConfig.getPredicateBundleSizeInMegaBytes()).thenReturn(20);
 
         storageEngineConstants = spy(new StubsStorageEngineConstants());
         initStorageEngineConstants(storageEngineConstants);
@@ -65,7 +65,7 @@ public class BufferAllocatorTest
 
         bufferAllocator = new BufferAllocator(storageEngine,
                 storageEngineConstants,
-                nativeConfiguration,
+                nativeConfig,
                 mock(MetricsManager.class),
                 new VaradaInitializedServiceRegistry());
     }
@@ -123,7 +123,7 @@ public class BufferAllocatorTest
         StorageEngine storageEngine = mock(StorageEngine.class);
         BufferAllocator bufferAllocator = new BufferAllocator(storageEngine,
                 storageEngineConstants,
-                nativeConfiguration,
+                nativeConfig,
                 mock(MetricsManager.class),
                 new VaradaInitializedServiceRegistry());
         // pre-alloc

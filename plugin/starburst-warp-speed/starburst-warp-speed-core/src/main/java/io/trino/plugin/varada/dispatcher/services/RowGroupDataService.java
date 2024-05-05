@@ -16,7 +16,7 @@ package io.trino.plugin.varada.dispatcher.services;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.dal.RowGroupDataDao;
 import io.trino.plugin.varada.dispatcher.model.FastWarmingState;
 import io.trino.plugin.varada.dispatcher.model.RowGroupData;
@@ -55,7 +55,7 @@ public class RowGroupDataService
     private static final Logger logger = Logger.get(RowGroupDataService.class);
 
     private final StorageEngine storageEngine;
-    private final GlobalConfiguration globalConfiguration;
+    private final GlobalConfig globalConfig;
     private final RowGroupDataDao rowGroupDataDao;
     private final VaradaStatsWarmingService varadaStatsWarmingService;
     private final ConnectorSync connectorSync;
@@ -64,14 +64,14 @@ public class RowGroupDataService
     @Inject
     public RowGroupDataService(RowGroupDataDao rowGroupDataDao,
             StorageEngine storageEngine,
-            GlobalConfiguration globalConfiguration,
+            GlobalConfig globalConfig,
             MetricsManager metricsManager,
             NodeManager nodeManager,
             ConnectorSync connectorSync)
     {
         this.rowGroupDataDao = requireNonNull(rowGroupDataDao);
         this.storageEngine = requireNonNull(storageEngine);
-        this.globalConfiguration = requireNonNull(globalConfiguration);
+        this.globalConfig = requireNonNull(globalConfig);
         this.varadaStatsWarmingService = metricsManager.registerMetric(VaradaStatsWarmingService.create(WARMING_SERVICE_STAT_GROUP));
         this.nodeIdentifier = requireNonNull(nodeManager).getCurrentNode().getNodeIdentifier();
         this.connectorSync = requireNonNull(connectorSync);
@@ -178,7 +178,7 @@ public class RowGroupDataService
             return;
         }
         RowGroupKey rowGroupKey = rowGroupData.getRowGroupKey();
-        storageEngine.fileIsAboutToBeDeleted(rowGroupKey.stringFileNameRepresentation(globalConfiguration.getLocalStorePath()), rowGroupData.getNextOffset());
+        storageEngine.fileIsAboutToBeDeleted(rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath()), rowGroupData.getNextOffset());
         rowGroupDataDao.delete(rowGroupKey, deleteFromCache);
         logger.debug("deleted rowGroupKey %s offset %d next-export-offset %d",
                 rowGroupKey, rowGroupData.getNextOffset(), rowGroupData.getNextExportOffset());
@@ -251,7 +251,7 @@ public class RowGroupDataService
             varadaStatsWarmingService.incwarmup_elements_count();
         }
         else {
-            logger.debug("updateRowGroupData failure, row groupKey = %s, warmupElement=%s", rowGroupData.getRowGroupKey().stringFileNameRepresentation(globalConfiguration.getLocalStorePath()), warmUpElement);
+            logger.debug("updateRowGroupData failure, row groupKey = %s, warmupElement=%s", rowGroupData.getRowGroupKey().stringFileNameRepresentation(globalConfig.getLocalStorePath()), warmUpElement);
             varadaStatsWarmingService.incwarm_failed();
         }
 
@@ -315,7 +315,7 @@ public class RowGroupDataService
     private WarmUpElementState addTemporaryFailure(WarmUpElementState warmUpElementState, long lastTemporaryFailure)
     {
         if (WarmUpElementState.State.FAILED_PERMANENTLY.equals(warmUpElementState.state()) ||
-                warmUpElementState.temporaryFailureCount() >= globalConfiguration.getMaxWarmRetries()) {
+                warmUpElementState.temporaryFailureCount() >= globalConfig.getMaxWarmRetries()) {
             return WarmUpElementState.FAILED_PERMANENTLY;
         }
 
@@ -351,7 +351,7 @@ public class RowGroupDataService
         List<WarmUpElement> updatedWarmUpElements = new ArrayList<>();
         Collection<WarmUpElement> toDeleteWarmUpElements = new ArrayList<>();
         RowGroupKey rowGroupKey = rowGroupData.getRowGroupKey();
-        String fileName = rowGroupKey.stringFileNameRepresentation(globalConfiguration.getLocalStorePath());
+        String fileName = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
 
         for (WarmUpElement existingWarmUpElement : existingWarmUpElements) {
             if (deletedWarmUpElements.stream().noneMatch(we -> we.isSameColNameAndWarmUpType(existingWarmUpElement))) {
@@ -395,7 +395,7 @@ public class RowGroupDataService
         Collection<WarmUpElement> existingWarmUpElements = rowGroupData.getWarmUpElements();
         List<WarmUpElement> updatedWarmUpElements = new ArrayList<>();
         RowGroupKey rowGroupKey = rowGroupData.getRowGroupKey();
-        String fileName = rowGroupKey.stringFileNameRepresentation(globalConfiguration.getLocalStorePath());
+        String fileName = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
 
         for (WarmUpElement existingWarmUpElement : existingWarmUpElements) {
             // keep offsets only for valid warmUpElements

@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.varada.metrics;
 
-import io.trino.plugin.varada.configuration.MetricsConfiguration;
+import io.trino.plugin.varada.config.MetricsConfig;
 import io.trino.plugin.warp.gen.stats.VaradaStatsDispatcherPageSource;
 import io.trino.plugin.warp.gen.stats.VaradaStatsWarmingService;
 import io.trino.plugin.warp.gen.stats.VaradaStatsWarmupDemoter;
@@ -43,10 +43,10 @@ public class PrintMetricsTimerTaskTest
     @BeforeEach
     public void before()
     {
-        MetricsConfiguration metricsConfiguration = new MetricsConfiguration();
-        metricsRegistry = new MetricsRegistry(new CatalogNameProvider(CATALOG_NAME), metricsConfiguration);
+        MetricsConfig metricsConfig = new MetricsConfig();
+        metricsRegistry = new MetricsRegistry(new CatalogNameProvider(CATALOG_NAME), metricsConfig);
         metricsManager = new MetricsManager(metricsRegistry);
-        printMetricsTimerTask = new PrintMetricsTimerTask(metricsConfiguration,
+        printMetricsTimerTask = new PrintMetricsTimerTask(metricsConfig,
                 metricsManager,
                 new CatalogNameProvider("varada"));
     }

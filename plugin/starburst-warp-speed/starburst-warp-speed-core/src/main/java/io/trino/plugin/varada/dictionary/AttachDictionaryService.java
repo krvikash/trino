@@ -16,7 +16,7 @@ package io.trino.plugin.varada.dictionary;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.varada.configuration.DictionaryConfiguration;
+import io.trino.plugin.varada.config.DictionaryConfig;
 import io.trino.plugin.varada.dispatcher.model.DictionaryKey;
 import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.storage.capacity.WorkerCapacityManager;
@@ -43,20 +43,20 @@ public class AttachDictionaryService
 
     private final StorageEngineConstants storageEngineConstants;
     private final WorkerCapacityManager workerCapacityManager;
-    private final DictionaryConfiguration dictionaryConfiguration;
+    private final DictionaryConfig dictionaryConfig;
     private final VaradaStatsDictionary varadaStatsDictionary;
     private final DictionaryWriterFactory dictionaryWriterFactory;
 
     @Inject
     public AttachDictionaryService(WorkerCapacityManager workerCapacityManager,
             StorageEngineConstants storageEngineConstants,
-            DictionaryConfiguration dictionaryConfiguration,
+            DictionaryConfig dictionaryConfig,
             MetricsManager metricsManager,
             DictionaryWriterFactory dictionaryWriterFactory)
     {
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.workerCapacityManager = requireNonNull(workerCapacityManager);
-        this.dictionaryConfiguration = requireNonNull(dictionaryConfiguration);
+        this.dictionaryConfig = requireNonNull(dictionaryConfig);
         this.varadaStatsDictionary = metricsManager.registerMetric(VaradaStatsDictionary.create(DICTIONARY_STAT_GROUP));
         this.dictionaryWriterFactory = requireNonNull(dictionaryWriterFactory);
     }
@@ -116,7 +116,7 @@ public class AttachDictionaryService
     {
         int fixedRecTypeLength = TypeUtils.isVarlenStr(recTypeCode) ? 0 : recTypeLength;
 
-        DataValueDictionary dataValuesDictionary = new DataValueDictionary(dictionaryConfiguration,
+        DataValueDictionary dataValuesDictionary = new DataValueDictionary(dictionaryConfig,
                 dictionaryKey,
                 fixedRecTypeLength,
                 recTypeLength,

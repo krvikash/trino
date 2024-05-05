@@ -14,7 +14,7 @@
 package io.trino.plugin.varada.dispatcher.query.classifier;
 
 import io.airlift.log.Logger;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.model.WarmUpElement;
 import io.trino.plugin.varada.dispatcher.query.PredicateData;
 import io.trino.plugin.varada.dispatcher.query.PredicateInfo;
@@ -357,6 +357,6 @@ public class PredicateUtil
         return TypeUtils.isMappedMatchCollectSupportedTypes(type) &&
                 (predicateType == PredicateType.PREDICATE_TYPE_VALUES) &&
                 (functionType == FunctionType.FUNCTION_TYPE_NONE) &&
-                (numValues <= GlobalConfiguration.MAX_NUMBER_OF_MAPPED_MATCH_COLLECT_ELEMENTS);
+                (numValues <= GlobalConfig.MAX_NUMBER_OF_MAPPED_MATCH_COLLECT_ELEMENTS);
     }
 }

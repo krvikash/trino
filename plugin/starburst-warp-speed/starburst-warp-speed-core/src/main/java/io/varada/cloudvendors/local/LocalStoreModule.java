@@ -15,7 +15,7 @@ package io.varada.cloudvendors.local;
 
 import io.varada.cloudvendors.CloudVendorModulePrivate;
 import io.varada.cloudvendors.CloudVendorService;
-import io.varada.cloudvendors.configuration.CloudVendorConfiguration;
+import io.varada.cloudvendors.config.CloudVendorConfig;
 
 import java.lang.annotation.Annotation;
 import java.util.Map;
@@ -28,9 +28,9 @@ public class LocalStoreModule
             String prefix,
             Class<? extends Annotation> annotation,
             Map<String, String> config,
-            Class<? extends CloudVendorConfiguration> configurationClazz)
+            Class<? extends CloudVendorConfig> configClazz)
     {
-        super(prefix, annotation, config, configurationClazz);
+        super(prefix, annotation, config, configClazz);
     }
 
     @Override

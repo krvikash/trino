@@ -16,11 +16,11 @@ package io.trino.plugin.warp.extension.execution.callhome;
 import com.google.common.eventbus.EventBus;
 import io.trino.plugin.varada.storage.engine.ConnectorSync;
 import io.trino.plugin.varada.util.NodeUtils;
-import io.trino.plugin.warp.extension.configuration.CallHomeConfiguration;
-import io.trino.plugin.warp.extension.configuration.WarpExtensionConfiguration;
+import io.trino.plugin.warp.extension.config.CallHomeConfig;
+import io.trino.plugin.warp.extension.config.WarpExtensionConfig;
 import io.trino.spi.NodeManager;
 import io.varada.cloudvendors.CloudVendorService;
-import io.varada.cloudvendors.configuration.CloudVendorConfiguration;
+import io.varada.cloudvendors.config.CloudVendorConfig;
 import io.varada.tools.CatalogNameProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -57,29 +57,29 @@ public class CallHomeServiceTest
         ConnectorSync connectorSync = mock(ConnectorSync.class);
         NodeManager nodeManager = NodeUtils.mockNodeManager();
 
-        CloudVendorConfiguration cloudVendorConfiguration = new CloudVendorConfiguration();
-        cloudVendorConfiguration.setStorePath("s3://storePathBucket/storePathS3_1/storePathS3_2");
+        CloudVendorConfig cloudVendorConfig = new CloudVendorConfig();
+        cloudVendorConfig.setStorePath("s3://storePathBucket/storePathS3_1/storePathS3_2");
 
-        WarpExtensionConfiguration warpExtensionConfiguration = new WarpExtensionConfiguration();
-        warpExtensionConfiguration.setClusterUUID(UUID.randomUUID().toString());
+        WarpExtensionConfig warpExtensionConfig = new WarpExtensionConfig();
+        warpExtensionConfig.setClusterUUID(UUID.randomUUID().toString());
 
         CatalogNameProvider catalogNameProvider = new CatalogNameProvider("warp");
 
-        CallHomeConfiguration callHomeConfiguration = new CallHomeConfiguration();
+        CallHomeConfig callHomeConfig = new CallHomeConfig();
 
         CloudVendorService cloudVendorService = mock(CloudVendorService.class);
 
         scheduledExecutorService = mock(ScheduledExecutorService.class);
         unusedScheduledFuture = mock(RunnableScheduledFuture.class);
         when(scheduledExecutorService.schedule(any(CallHomeJob.class),
-                eq(Integer.valueOf(callHomeConfiguration.getIntervalInSeconds()).longValue()),
+                eq(Integer.valueOf(callHomeConfig.getIntervalInSeconds()).longValue()),
                 eq(TimeUnit.SECONDS))).thenReturn(unusedScheduledFuture);
 
         callHomeService = new CallHomeService(connectorSync,
                 nodeManager,
                 catalogNameProvider,
-                cloudVendorConfiguration,
-                callHomeConfiguration,
+                cloudVendorConfig,
+                callHomeConfig,
                 cloudVendorService,
                 mock(EventBus.class),
                 scheduledExecutorService);

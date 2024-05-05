@@ -14,7 +14,7 @@
 package io.trino.plugin.varada.storage.read;
 
 import io.airlift.log.Logger;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dictionary.DictionaryCacheService;
 import io.trino.plugin.varada.juffer.BufferAllocator;
 import io.trino.plugin.varada.storage.engine.ExceptionThrower;
@@ -91,7 +91,7 @@ public class StorageReader
             CollectTxService collectTxService,
             ChunksQueueService chunksQueueService,
             StorageCollectorService storageCollectorService,
-            GlobalConfiguration globalConfiguration)
+            GlobalConfig globalConfig)
     {
         this.storageEngine = requireNonNull(storageEngine);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
@@ -125,13 +125,13 @@ public class StorageReader
                 .map(we -> new ReadJuffersWarmUpElement(bufferAllocator, false, we.hasLuceneParams()))
                 .collect(Collectors.toList());
 
-        createLuceneMatchers(globalConfiguration); // this call must be after creating the matchJuffersWE
+        createLuceneMatchers(globalConfig); // this call must be after creating the matchJuffersWE
 
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
-                globalConfiguration.getShapingLoggerThreshold(),
-                globalConfiguration.getShapingLoggerDuration(),
-                globalConfiguration.getShapingLoggerNumberOfSamples());
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
     }
 
     void close()
@@ -139,7 +139,7 @@ public class StorageReader
         storageEngine.fileClose(storageCollectorArgs.fileCookie());
     }
 
-    private void createLuceneMatchers(GlobalConfiguration globalConfiguration)
+    private void createLuceneMatchers(GlobalConfig globalConfig)
     {
         if (luceneMatchers.length == 0) {
             return;
@@ -153,7 +153,7 @@ public class StorageReader
                         matchJuffersWE.get(matchIx),
                         matchParams.getLuceneQueryMatchData(),
                         statsDispatcherPageSource,
-                        globalConfiguration);
+                        globalConfig);
             }
             matchIx++;
         }

@@ -14,7 +14,7 @@
 package io.varada.cloudvendors;
 
 import com.google.inject.AbstractModule;
-import io.varada.cloudvendors.configuration.CloudVendorConfiguration;
+import io.varada.cloudvendors.config.CloudVendorConfig;
 
 import java.lang.annotation.Annotation;
 import java.util.Map;
@@ -28,17 +28,17 @@ public abstract class CloudVendorModulePublic
     protected final String prefix;
     protected final Class<? extends Annotation> annotation;
     protected final Map<String, String> config;
-    protected final Class<? extends CloudVendorConfiguration> configurationClazz;
+    protected final Class<? extends CloudVendorConfig> configClazz;
 
     protected CloudVendorModulePublic(
             String prefix,
             Class<? extends Annotation> annotation,
             Map<String, String> config,
-            Class<? extends CloudVendorConfiguration> configurationClazz)
+            Class<? extends CloudVendorConfig> configClazz)
     {
         this.prefix = prefix;
         this.annotation = requireNonNull(annotation);
         this.config = requireNonNull(config);
-        this.configurationClazz = requireNonNull(configurationClazz);
+        this.configClazz = requireNonNull(configClazz);
     }
 }

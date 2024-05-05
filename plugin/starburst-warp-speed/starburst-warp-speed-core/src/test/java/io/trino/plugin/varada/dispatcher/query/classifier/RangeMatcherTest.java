@@ -16,7 +16,7 @@ package io.trino.plugin.varada.dispatcher.query.classifier;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.TreeMultimap;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.model.RegularColumn;
 import io.trino.plugin.varada.dispatcher.model.TransformedColumn;
 import io.trino.plugin.varada.dispatcher.model.VaradaColumn;
@@ -78,7 +78,7 @@ class RangeMatcherTest
         WarmupElementStats warmupElementStats = new WarmupElementStats(1, -100, 100);
         when(queryMatchData.getWarmUpElement()).thenReturn(warmUpElement);
         when(warmUpElement.getWarmupElementStats()).thenReturn(warmupElementStats);
-        rangeMatcher = new RangeMatcher(new GlobalConfiguration());
+        rangeMatcher = new RangeMatcher(new GlobalConfig());
         Map<VaradaColumn, PredicateContext> remainingPredicateContext = Map.of(new RegularColumn("remainingColumn"), mock(PredicateContext.class));
         MatchContext matchContext = new MatchContext(List.of(queryMatchData), remainingPredicateContext, true);
 
@@ -88,7 +88,7 @@ class RangeMatcherTest
         assertThat(res.remainingPredicateContext()).isEqualTo(remainingPredicateContext);
     }
 
-    static Stream<Arguments> rangeConfiguration()
+    static Stream<Arguments> rangeConfig()
     {
         ClassifyArgs classifyArgs = mock(ClassifyArgs.class);
         when(classifyArgs.isMinMaxFilter()).thenReturn(true);
@@ -103,7 +103,7 @@ class RangeMatcherTest
      * domain - 0
      */
     @ParameterizedTest
-    @MethodSource("rangeConfiguration")
+    @MethodSource("rangeConfig")
     public void testRangeMatcherInvalidRange(ClassifyArgs classifyArgs, boolean expectedValidRange)
     {
         QueryMatchData queryMatchData = mock(QueryMatchData.class);
@@ -133,7 +133,7 @@ class RangeMatcherTest
         when(warmupTypes.luceneWarmedElements()).thenReturn(ImmutableMap.of());
         when(classifyArgs.getWarmedWarmupTypes()).thenReturn(warmupTypes);
 
-        rangeMatcher = new RangeMatcher(new GlobalConfiguration());
+        rangeMatcher = new RangeMatcher(new GlobalConfig());
         Map<VaradaColumn, PredicateContext> remainingPredicateContext = Map.of(column, context);
         MatchContext matchContext = new MatchContext(List.of(queryMatchData), remainingPredicateContext, true);
 
@@ -149,7 +149,7 @@ class RangeMatcherTest
     }
 
     @ParameterizedTest
-    @MethodSource("rangeConfiguration")
+    @MethodSource("rangeConfig")
     public void testDataRangeMatcherInvalidRange(ClassifyArgs classifyArgs, boolean expectedValidRange)
     {
         QueryMatchData queryMatchData = mock(QueryMatchData.class);
@@ -181,7 +181,7 @@ class RangeMatcherTest
         when(warmupTypes.luceneWarmedElements()).thenReturn(ImmutableMap.of());
         when(classifyArgs.getWarmedWarmupTypes()).thenReturn(warmupTypes);
 
-        rangeMatcher = new RangeMatcher(new GlobalConfiguration());
+        rangeMatcher = new RangeMatcher(new GlobalConfig());
         Map<VaradaColumn, PredicateContext> remainingPredicateContext = Map.of(column, context);
         MatchContext matchContext = new MatchContext(List.of(queryMatchData), remainingPredicateContext, true);
 
@@ -220,7 +220,7 @@ class RangeMatcherTest
         when(classifyArgs.getWarmedWarmupTypes()).thenReturn(warmupTypes);
 
         PredicateContext context = mock(PredicateContext.class);
-        rangeMatcher = new RangeMatcher(new GlobalConfiguration());
+        rangeMatcher = new RangeMatcher(new GlobalConfig());
         Map<VaradaColumn, PredicateContext> remainingPredicateContext = Map.of(transformedColumn, context);
         MatchContext matchContext = new MatchContext(List.of(queryMatchData), remainingPredicateContext, true);
 

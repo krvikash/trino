@@ -16,7 +16,7 @@ package io.trino.plugin.varada.dispatcher.warmup.warmers;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.WarmupElementWriteMetadata;
 import io.trino.plugin.varada.dispatcher.model.RowGroupData;
 import io.trino.plugin.varada.dispatcher.model.RowGroupKey;
@@ -55,7 +55,7 @@ public class StorageWarmerService
 
     private final RowGroupDataService rowGroupDataService;
     private final StorageEngine storageEngine;
-    private final GlobalConfiguration globalConfiguration;
+    private final GlobalConfig globalConfig;
     private final ConnectorSync connectorSync;
     private final WarmupDemoterService warmupDemoterService;
     private final StorageEngineTxService storageEngineTxService;
@@ -65,7 +65,7 @@ public class StorageWarmerService
     @Inject
     public StorageWarmerService(RowGroupDataService rowGroupDataService,
             StorageEngine storageEngine,
-            GlobalConfiguration globalConfiguration,
+            GlobalConfig globalConfig,
             ConnectorSync connectorSync,
             WarmupDemoterService warmupDemoterService,
             StorageEngineTxService storageEngineTxService,
@@ -74,7 +74,7 @@ public class StorageWarmerService
     {
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.storageEngine = requireNonNull(storageEngine);
-        this.globalConfiguration = requireNonNull(globalConfiguration);
+        this.globalConfig = requireNonNull(globalConfig);
         this.connectorSync = requireNonNull(connectorSync);
         this.warmupDemoterService = requireNonNull(warmupDemoterService);
         this.storageEngineTxService = requireNonNull(storageEngineTxService);
@@ -87,7 +87,7 @@ public class StorageWarmerService
     {
         rowGroupDataService.logRowGroup(rowGroupKey, "before createFile");
 
-        String rowGroupFilePath = rowGroupKey.stringFileNameRepresentation(globalConfiguration.getLocalStorePath());
+        String rowGroupFilePath = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
         File file = new File(rowGroupFilePath);
         if (!file.exists()) {
             FileUtils.createParentDirectories(file);
@@ -97,7 +97,7 @@ public class StorageWarmerService
     public long fileOpen(RowGroupKey rowGroupKey)
             throws IOException
     {
-        String rowGroupFilePath = rowGroupKey.stringFileNameRepresentation(globalConfiguration.getLocalStorePath());
+        String rowGroupFilePath = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
         // fileCookie was initialized to -1. In case fileOpen throws an exception we will not close it in the finally clause
         return storageEngine.fileOpen(rowGroupFilePath, true);
     }
@@ -175,14 +175,14 @@ public class StorageWarmerService
             catch (Exception e) {
                 if (rowGroupData.isPresent()) {
                     rowGroupDataService.deleteData(rowGroupData.get(), true);
-                    String rowGroupFilePath = rowGroupData.get().getRowGroupKey().stringFileNameRepresentation(globalConfiguration.getLocalStorePath());
+                    String rowGroupFilePath = rowGroupData.get().getRowGroupKey().stringFileNameRepresentation(globalConfig.getLocalStorePath());
                     logger.error(e, String.format("failed to close file %s", rowGroupFilePath));
                 }
             }
         }
         else if (rowGroupData.isPresent()) { // we failed in opening the file
             rowGroupDataService.deleteData(rowGroupData.get(), true);
-            String rowGroupFilePath = rowGroupData.get().getRowGroupKey().stringFileNameRepresentation(globalConfiguration.getLocalStorePath());
+            String rowGroupFilePath = rowGroupData.get().getRowGroupKey().stringFileNameRepresentation(globalConfig.getLocalStorePath());
             logger.error(String.format("failed to open file %s", rowGroupFilePath));
         }
     }

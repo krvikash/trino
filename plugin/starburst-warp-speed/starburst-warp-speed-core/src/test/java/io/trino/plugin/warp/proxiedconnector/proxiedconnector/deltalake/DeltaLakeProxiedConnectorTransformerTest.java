@@ -18,7 +18,7 @@ import io.trino.plugin.deltalake.DeltaLakeSplit;
 import io.trino.plugin.deltalake.DeltaLakeTableHandle;
 import io.trino.plugin.deltalake.transactionlog.MetadataEntry;
 import io.trino.plugin.deltalake.transactionlog.ProtocolEntry;
-import io.trino.plugin.varada.configuration.ProxiedConnectorConfiguration;
+import io.trino.plugin.varada.config.ProxiedConnectorConfig;
 import io.trino.plugin.varada.dispatcher.DispatcherSplit;
 import io.trino.plugin.varada.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.varada.dispatcher.PartitionKey;
@@ -52,7 +52,7 @@ public class DeltaLakeProxiedConnectorTransformerTest
         extends ProxyConnectorTransformerBaseTest
 {
     private final DeltaLakeProxiedConnectorTransformer deltaLakeProxiedConnectorTransformer =
-            new DeltaLakeProxiedConnectorTransformer(new ProxiedConnectorConfiguration());
+            new DeltaLakeProxiedConnectorTransformer(new ProxiedConnectorConfig());
 
     @Test
     public void testCalculateColumnsStatisticsBucketPriority()

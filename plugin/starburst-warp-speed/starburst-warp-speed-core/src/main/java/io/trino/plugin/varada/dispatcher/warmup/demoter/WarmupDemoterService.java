@@ -28,8 +28,8 @@ import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
 import io.airlift.log.Logger;
 import io.trino.plugin.varada.VaradaErrorCode;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
-import io.trino.plugin.varada.configuration.WarmupDemoterConfiguration;
+import io.trino.plugin.varada.config.NativeConfig;
+import io.trino.plugin.varada.config.WarmupDemoterConfig;
 import io.trino.plugin.varada.dispatcher.model.RegularColumn;
 import io.trino.plugin.varada.dispatcher.model.RowGroupData;
 import io.trino.plugin.varada.dispatcher.model.RowGroupKey;
@@ -100,7 +100,7 @@ public class WarmupDemoterService
     private final WorkerCapacityManager workerCapacityManager;
     private final RowGroupDataService rowGroupDataService;
     private final ConnectorSync connectorSync;
-    private final WarmupDemoterConfiguration warmupDemoterConfiguration;
+    private final WarmupDemoterConfig warmupDemoterConfig;
     private final VaradaStatsWarmupDemoter globalStatsDemoter;
     private final ExecutorService rowGroupExecutorService;
     private final FlowsSequencer flowsSequencer;
@@ -123,8 +123,8 @@ public class WarmupDemoterService
     public WarmupDemoterService(WorkerCapacityManager workerCapacityManager,
             RowGroupDataService rowGroupDataService,
             WorkerWarmupRuleService workerWarmupRuleService,
-            WarmupDemoterConfiguration warmupDemoterConfiguration,
-            NativeConfiguration nativeConfiguration,
+            WarmupDemoterConfig warmupDemoterConfig,
+            NativeConfig nativeConfig,
             MetricsManager metricsManager,
             FlowsSequencer flowsSequencer,
             ConnectorSync connectorSync,
@@ -134,16 +134,16 @@ public class WarmupDemoterService
         this.workerCapacityManager = requireNonNull(workerCapacityManager);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.workerWarmupRuleService = requireNonNull(workerWarmupRuleService);
-        this.warmupDemoterConfiguration = requireNonNull(warmupDemoterConfiguration);
+        this.warmupDemoterConfig = requireNonNull(warmupDemoterConfig);
         this.globalStatsDemoter = (VaradaStatsWarmupDemoter) metricsManager.registerMetric(VaradaStatsWarmupDemoter.create(WARMUP_DEMOTER_STAT_GROUP));
         this.flowsSequencer = requireNonNull(flowsSequencer);
         this.connectorSync = requireNonNull(connectorSync);
         this.catalogNameProvider = requireNonNull(catalogNameProvider);
         this.eventBus = requireNonNull(eventBus);
-        this.defaultWarmupProperties = new WarmupProperties(WarmUpType.WARM_UP_TYPE_DATA, warmupDemoterConfiguration.getDefaultRulePriority(), NA_TTL, TransformFunction.NONE);
-        this.enableDemote = warmupDemoterConfiguration.isEnableDemote();
-        int rowGroupPoolSize = nativeConfiguration.getTaskMaxWorkerThreads();
-        int rowGroupQueueSize = warmupDemoterConfiguration.getTasksExecutorQueueSize();
+        this.defaultWarmupProperties = new WarmupProperties(WarmUpType.WARM_UP_TYPE_DATA, warmupDemoterConfig.getDefaultRulePriority(), NA_TTL, TransformFunction.NONE);
+        this.enableDemote = warmupDemoterConfig.isEnableDemote();
+        int rowGroupPoolSize = nativeConfig.getTaskMaxWorkerThreads();
+        int rowGroupQueueSize = warmupDemoterConfig.getTasksExecutorQueueSize();
         this.rowGroupExecutorService = new ThreadPoolExecutor(0, rowGroupPoolSize,
                 60L, TimeUnit.SECONDS,
                 new LinkedBlockingQueue<>(rowGroupQueueSize),
@@ -203,14 +203,14 @@ public class WarmupDemoterService
         if (CollectionUtils.isEmpty(tupleFilters)
                 && !forceDeleteDeadObjects
                 && !forceDeleteFailedObjects
-                && !reachedThreshold(warmupDemoterConfiguration.getMaxUsageThresholdPercentage())) {
+                && !reachedThreshold(warmupDemoterConfig.getMaxUsageThresholdPercentage())) {
             logger.debug("%s: not executing due thresholds", catalogNameProvider.get());
             globalStatsDemoter.incnot_executed_due_threshold();
             return FAILED_DEMOTE_SQUENCE;
         }
 
         logger.debug("%s: call start demote", catalogNameProvider.get());
-        int demoterSequence = connectorSync.syncDemotePrepare(warmupDemoterConfiguration.getEpsilon());
+        int demoterSequence = connectorSync.syncDemotePrepare(warmupDemoterConfig.getEpsilon());
         if (demoterSequence == FAILED_DEMOTE_SQUENCE) {
             logger.warn("%s: active demoter was initiated by another connector", catalogNameProvider.get());
             globalStatsDemoter.incnot_executed_due_sync_demote_start_rejected();
@@ -329,13 +329,13 @@ public class WarmupDemoterService
     {
         isExecuting.set(true);
         lastExecutionTime = System.currentTimeMillis();
-        int batchSize = Math.min(MAX_SUPPORTED_BATCH_SIZE, warmupDemoterConfiguration.getBatchSize());
+        int batchSize = Math.min(MAX_SUPPORTED_BATCH_SIZE, warmupDemoterConfig.getBatchSize());
         demoteArguments = new DemoteArguments(demoterSequence,
-                warmupDemoterConfiguration.getMaxUsageThresholdPercentage(),
-                warmupDemoterConfiguration.getCleanupUsageThresholdPercentage(),
+                warmupDemoterConfig.getMaxUsageThresholdPercentage(),
+                warmupDemoterConfig.getCleanupUsageThresholdPercentage(),
                 batchSize,
-                warmupDemoterConfiguration.getMaxElementsToDemoteInIteration(),
-                warmupDemoterConfiguration.getEpsilon(),
+                warmupDemoterConfig.getMaxElementsToDemoteInIteration(),
+                warmupDemoterConfig.getEpsilon(),
                 deleteEmptyRowGroups);
         logger.debug("%s: initDemoteArguments: %s", catalogNameProvider.get(), demoteArguments);
     }
@@ -449,13 +449,13 @@ public class WarmupDemoterService
 
     private void validateInput()
     {
-        if (warmupDemoterConfiguration.getBatchSize() < 1) {
+        if (warmupDemoterConfig.getBatchSize() < 1) {
             throw new IllegalArgumentException("batchSize must be greater than 0");
         }
-        if (warmupDemoterConfiguration.getEpsilon() <= 0) {
+        if (warmupDemoterConfig.getEpsilon() <= 0) {
             throw new IllegalArgumentException("epsilon must be greater than 0");
         }
-        if (warmupDemoterConfiguration.getMaxElementsToDemoteInIteration() < 1) {
+        if (warmupDemoterConfig.getMaxElementsToDemoteInIteration() < 1) {
             throw new IllegalArgumentException("maxElementsToDemote must be greater than 0");
         }
     }
@@ -482,12 +482,12 @@ public class WarmupDemoterService
 
     public boolean canAllowWarmup(double priority)
     {
-        return priority >= (highestPriority.get() - warmupDemoterConfiguration.getWarmingPriorityAllowThreshold());
+        return priority >= (highestPriority.get() - warmupDemoterConfig.getWarmingPriorityAllowThreshold());
     }
 
     public boolean canAllowWarmup()
     {
-        return !reachedThreshold(warmupDemoterConfiguration.getMaxUsageThresholdPercentage());
+        return !reachedThreshold(warmupDemoterConfig.getMaxUsageThresholdPercentage());
     }
 
     public synchronized AcquireWarmupStatus tryAllocateNativeResourceForWarmup()
@@ -734,11 +734,11 @@ public class WarmupDemoterService
         else {
             AtomicLong retryFailure = new AtomicLong();
             try {
-                RetryPolicy<Object> retryPolicy = RetryPolicy.builder().withDelay(warmupDemoterConfiguration.getDelayAcquireThread())
-                        .withMaxDuration(warmupDemoterConfiguration.getMaxDurationAcquireThread())
+                RetryPolicy<Object> retryPolicy = RetryPolicy.builder().withDelay(warmupDemoterConfig.getDelayAcquireThread())
+                        .withMaxDuration(warmupDemoterConfig.getMaxDurationAcquireThread())
                         .onFailedAttempt(a -> retryFailure.incrementAndGet())
                         .handle(TrinoException.class)
-                        .withMaxRetries(warmupDemoterConfiguration.getMaxRetriesAcquireThread()).handle(RuntimeException.class).build();
+                        .withMaxRetries(warmupDemoterConfig.getMaxRetriesAcquireThread()).handle(RuntimeException.class).build();
                 Failsafe.with(retryPolicy).run(() -> {
                     tryAllocateTx();
                     if (!coolRowGroupData(rowGroupData, elementsToDelete)) {

@@ -24,7 +24,7 @@ import com.google.inject.Singleton;
 import io.airlift.json.ObjectMapperProvider;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.model.RowGroupData;
 import io.trino.plugin.varada.dispatcher.model.RowGroupKey;
 import io.trino.plugin.varada.dispatcher.model.VaradaColumn;
@@ -54,7 +54,7 @@ public class RowGroupDataDao
 {
     private static final Logger logger = Logger.get(RowGroupDataDao.class);
 
-    private final GlobalConfiguration globalConfiguration;
+    private final GlobalConfig globalConfig;
     private final ObjectMapper objectMapper;
     private final LoadingCache<RowGroupKey, Optional<RowGroupData>> cache;
     private final StorageEngineConstants storageEngineConstants;
@@ -63,11 +63,11 @@ public class RowGroupDataDao
 
     @Inject
     public RowGroupDataDao(
-            GlobalConfiguration globalConfiguration,
+            GlobalConfig globalConfig,
             ObjectMapperProvider objectMapperProvider,
             StorageEngineConstants storageEngineConstants)
     {
-        this.globalConfiguration = requireNonNull(globalConfiguration);
+        this.globalConfig = requireNonNull(globalConfig);
 
         objectMapper = requireNonNull(objectMapperProvider).get();
         SimpleModule simpleModule = new SimpleModule();
@@ -121,7 +121,7 @@ public class RowGroupDataDao
             }
         };
         cache = buildUnsafeCache(CacheBuilder.newBuilder()
-                        .maximumSize(Integer.MAX_VALUE), // replace MAX_VALUE with a configuration
+                        .maximumSize(Integer.MAX_VALUE), // replace MAX_VALUE with a config
                 loader);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
     }
@@ -134,7 +134,7 @@ public class RowGroupDataDao
 
     private File getRowGroupDataFile(RowGroupKey rowGroupKey)
     {
-        return new File(rowGroupKey.stringFileNameRepresentation(globalConfiguration.getLocalStorePath()));
+        return new File(rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath()));
     }
 
     public RowGroupData merge(RowGroupData origRowGroupData, RowGroupData newRowGroupData)
@@ -288,11 +288,11 @@ public class RowGroupDataDao
 
     public void logRowGroup(RowGroupKey rowGroupKey, String msg)
     {
-        if (globalConfiguration.getEnableWarmingExtraLogs()) {
+        if (globalConfig.getEnableWarmingExtraLogs()) {
             RowGroupData rowGroupData = get(rowGroupKey);
             if ((rowGroupData != null) && rowGroupData.getValidWarmUpElements().stream().noneMatch(we -> we.getTotalRecords() > 20_000)) {
                 List<Integer> queryOffsets = rowGroupData.getWarmUpElements().stream().map(WarmUpElement::getQueryOffset).toList();
-                String fileName = rowGroupKey.stringFileNameRepresentation(globalConfiguration.getLocalStorePath());
+                String fileName = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
                 logger.warn("%s: rowGroupKey %s fileName %s nextOffset %d, numOfElements %d, queryOffsets %s",
                         msg, rowGroupKey, fileName, rowGroupData.getNextOffset(), rowGroupData.getWarmUpElements().size(), queryOffsets);
                 Set<Integer> distinctQueryOffsets = new HashSet<>(queryOffsets);

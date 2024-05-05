@@ -15,7 +15,7 @@ package io.trino.plugin.varada.dictionary;
 
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
-import io.trino.plugin.varada.configuration.DictionaryConfiguration;
+import io.trino.plugin.varada.config.DictionaryConfig;
 import io.trino.plugin.varada.dispatcher.model.DictionaryKey;
 import io.trino.plugin.varada.dispatcher.model.WarmUpElementState;
 import io.trino.plugin.warp.gen.stats.VaradaStatsDictionary;
@@ -53,7 +53,7 @@ public class DataValueDictionary
      * it's done because we need to use ShortBuffer, which gets only short values.
      * in Fillers, we convert back index value to positive number with Short.toUnsignedInt function.
      */
-    DataValueDictionary(DictionaryConfiguration dictionaryConfiguration,
+    DataValueDictionary(DictionaryConfig dictionaryConfig,
             DictionaryKey dictionaryKey,
             int fixedRecTypeLength,
             int maxRecTypeLength,
@@ -64,9 +64,9 @@ public class DataValueDictionary
         this.writeDictionary = new ConcurrentHashMap<>() {};
         this.dictionaryWeight = 0;
         this.attachedDictionarySize = 0;
-        this.readDictionary = new Object[dictionaryConfiguration.getDictionaryMaxSize()];
+        this.readDictionary = new Object[dictionaryConfig.getDictionaryMaxSize()];
         this.fixedRecTypeLength = fixedRecTypeLength;
-        this.maxDictionaryCacheWeight = dictionaryConfiguration.getMaxDictionaryCacheWeight();
+        this.maxDictionaryCacheWeight = dictionaryConfig.getMaxDictionaryCacheWeight();
         // maxRecTypeLength
         //   new or loaded fixed length dictionaries: equal to fixedRecTypeLength
         //   new varlen dictionaries: zero (and will be updated on each new key)

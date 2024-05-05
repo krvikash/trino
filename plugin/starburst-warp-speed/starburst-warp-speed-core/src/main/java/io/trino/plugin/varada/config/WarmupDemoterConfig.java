@@ -11,17 +11,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.plugin.varada.configuration;
+package io.trino.plugin.varada.config;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.LegacyConfig;
 
 import java.time.Duration;
 
-import static io.varada.tools.configuration.MultiPrefixConfigurationWrapper.LOCAL_DATA_STORAGE_PREFIX;
-import static io.varada.tools.configuration.MultiPrefixConfigurationWrapper.WARP_SPEED_PREFIX;
+import static io.varada.tools.config.MultiPrefixConfigWrapper.LOCAL_DATA_STORAGE_PREFIX;
+import static io.varada.tools.config.MultiPrefixConfigWrapper.WARP_SPEED_PREFIX;
 
-public class WarmupDemoterConfiguration
+public class WarmupDemoterConfig
 {
     private double maxUsageThresholdPercentage = 90;
     private double cleanupUsageThresholdPercentage = 85;
@@ -209,7 +209,7 @@ public class WarmupDemoterConfiguration
     @Override
     public String toString()
     {
-        return "WarmupDemoterConfiguration{" +
+        return "WarmupDemoterConfig{" +
                 "maxUsageThresholdPercentage=" + maxUsageThresholdPercentage +
                 ", cleanupUsageThresholdPercentage=" + cleanupUsageThresholdPercentage +
                 ", batchSize=" + batchSize +

@@ -16,7 +16,7 @@ package io.trino.plugin.varada.di;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.google.inject.Singleton;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.storage.engine.StorageEngine;
 import io.trino.plugin.varada.storage.engine.nativeimpl.DelegateStorageEngine;
@@ -28,18 +28,18 @@ import java.lang.reflect.Proxy;
 public class CoordinatorStorageEngineProvider
         implements Provider<StorageEngine>
 {
-    private final GlobalConfiguration globalConfiguration;
+    private final GlobalConfig globalConfig;
     private final MetricsManager metricsManager;
     private final FailureGeneratorInvocationHandler failureGeneratorInvocationHandler;
     private StorageEngine storageEngine;
 
     @Inject
     public CoordinatorStorageEngineProvider(
-            GlobalConfiguration globalConfiguration,
+            GlobalConfig globalConfig,
             MetricsManager metricsManager,
             FailureGeneratorInvocationHandler failureGeneratorInvocationHandler)
     {
-        this.globalConfiguration = globalConfiguration;
+        this.globalConfig = globalConfig;
         this.metricsManager = metricsManager;
         this.failureGeneratorInvocationHandler = failureGeneratorInvocationHandler;
     }
@@ -49,7 +49,7 @@ public class CoordinatorStorageEngineProvider
     {
         if (storageEngine == null) {
             this.storageEngine = new DelegateStorageEngine(metricsManager);
-            if (globalConfiguration.isFailureGeneratorEnabled()) {
+            if (globalConfig.isFailureGeneratorEnabled()) {
                 this.storageEngine = (StorageEngine) Proxy.newProxyInstance(storageEngine.getClass().getClassLoader(),
                         new Class<?>[] {StorageEngine.class},
                         failureGeneratorInvocationHandler.getMethodInvocationHandler(storageEngine));

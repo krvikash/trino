@@ -14,7 +14,7 @@
 package io.trino.plugin.varada.dispatcher.query.classifier;
 
 import com.google.common.collect.ImmutableMap;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.connector.TestingConnectorColumnHandle;
 import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.varada.dispatcher.DispatcherTableHandle;
@@ -61,7 +61,7 @@ public abstract class ClassifierTest
         dispatcherTableHandle = mock(DispatcherTableHandle.class);
         dispatcherProxiedConnectorTransformer = mock(DispatcherProxiedConnectorTransformer.class);
         when(dispatcherTableHandle.getSimplifiedColumns()).thenReturn(new SimplifiedColumns(Collections.emptySet()));
-        predicateContextFactory = new PredicateContextFactory(new GlobalConfiguration(), dispatcherProxiedConnectorTransformer);
+        predicateContextFactory = new PredicateContextFactory(new GlobalConfig(), dispatcherProxiedConnectorTransformer);
     }
 
     protected ImmutableMap<Integer, ColumnHandle> createCollectColumnsByBlockIndexMap(int numIntCols, int numStrCols)

@@ -16,8 +16,8 @@ package io.trino.plugin.varada.dispatcher;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.slice.Slices;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
-import io.trino.plugin.varada.configuration.MetricsConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
+import io.trino.plugin.varada.config.MetricsConfig;
 import io.trino.plugin.varada.connector.TestingConnectorPageSource;
 import io.trino.plugin.varada.connector.TestingConnectorPageSourceProvider;
 import io.trino.plugin.varada.dictionary.DictionaryCacheService;
@@ -95,7 +95,7 @@ import static org.mockito.Mockito.when;
 
 public class DispatcherAlternativePageSourceProviderTest
 {
-    private GlobalConfiguration globalConfiguration;
+    private GlobalConfig globalConfig;
     private ConnectorTransactionHandle connectorTransactionHandle;
     private MetricsManager metricsManager;
     private CustomStatsContext customStatsContext;
@@ -122,13 +122,13 @@ public class DispatcherAlternativePageSourceProviderTest
     {
         connectorTransactionHandle = mock(ConnectorTransactionHandle.class);
 
-        globalConfiguration = new GlobalConfiguration();
-        globalConfiguration.setEnableDefaultWarming(false);
+        globalConfig = new GlobalConfig();
+        globalConfig.setEnableDefaultWarming(false);
 
-        MetricsConfiguration metricsConfiguration = new MetricsConfiguration();
-        metricsConfiguration.setEnabled(false);
+        MetricsConfig metricsConfig = new MetricsConfig();
+        metricsConfig.setEnabled(false);
 
-        metricsManager = new MetricsManager(new MetricsRegistry(new CatalogNameProvider("catalog-name"), metricsConfiguration));
+        metricsManager = new MetricsManager(new MetricsRegistry(new CatalogNameProvider("catalog-name"), metricsConfig));
         workerWarmingService = mock(WorkerWarmingService.class);
         StorageEngine storageEngine = new StubsStorageEngine();
         storageEngineConstants = spy(new StubsStorageEngineConstants());
@@ -146,7 +146,7 @@ public class DispatcherAlternativePageSourceProviderTest
         when(connectorSync.getCatalogSequence()).thenReturn(0);
         rowGroupDataService = spy(new RowGroupDataService(mock(RowGroupDataDao.class),
                 storageEngine,
-                globalConfiguration,
+                globalConfig,
                 metricsManager,
                 mockNodeManager(),
                 connectorSync));
@@ -514,7 +514,7 @@ public class DispatcherAlternativePageSourceProviderTest
                 mock(PredicatesCacheService.class),
                 queryClassifier,
                 mock(DictionaryCacheService.class),
-                globalConfiguration,
+                globalConfig,
                 nativeStorageStateHandler,
                 new ReadErrorHandler(mock(WarmupDemoterService.class), rowGroupDataService, mock(PrintMetricsTimerTask.class)),
                 mock(CollectTxService.class),

@@ -21,7 +21,7 @@ import io.airlift.event.client.EventModule;
 import io.airlift.log.Logger;
 import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.plugin.varada.annotations.ForWarp;
-import io.trino.plugin.varada.configuration.ProxiedConnectorConfiguration;
+import io.trino.plugin.varada.config.ProxiedConnectorConfig;
 import io.trino.plugin.varada.di.VaradaInitializedServiceRegistry;
 import io.trino.plugin.varada.di.VaradaModules;
 import io.trino.plugin.varada.di.dispatcher.DispatcherCoordinatorModule;
@@ -37,7 +37,7 @@ import io.trino.spi.connector.ConnectorPageSinkProvider;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.type.TypeManager;
-import io.varada.tools.configuration.MultiPrefixConfigurationWrapper;
+import io.varada.tools.config.MultiPrefixConfigWrapper;
 import io.varada.tools.util.Pair;
 import org.weakref.jmx.guice.MBeanModule;
 
@@ -74,16 +74,16 @@ public class InternalDispatcherConnectorFactory
                 .filter(e ->
                         e.getKey().startsWith("warp-speed") ||
                         e.getKey().startsWith(WARP_PREFIX) ||
-                        // TrinoFileSystem hdfs configuration
+                        // TrinoFileSystem hdfs config
                         e.getKey().startsWith("hive.s3") || e.getKey().startsWith("hive.azure") || e.getKey().startsWith("hive.gcs") ||
-                        // TrinoFileSystem native configuration
+                        // TrinoFileSystem native config
                         e.getKey().startsWith("fs.") || e.getKey().startsWith("s3.") || e.getKey().startsWith("azure.") || e.getKey().startsWith("gcs.") ||
                         e.getKey().startsWith("http") ||
                         e.getKey().equals("node.environment"))
                 .collect(Collectors.toMap(entry -> entry.getKey().startsWith(WARP_PREFIX) ? entry.getKey().substring(WARP_PREFIX.length()) : entry.getKey(), Entry::getValue));
 
-        MultiPrefixConfigurationWrapper configWrapper = new MultiPrefixConfigurationWrapper(warpConfig);
-        String proxiedConnectorName = configWrapper.get(ProxiedConnectorConfiguration.PROXIED_CONNECTOR);
+        MultiPrefixConfigWrapper configWrapper = new MultiPrefixConfigWrapper(warpConfig);
+        String proxiedConnectorName = configWrapper.get(ProxiedConnectorConfig.PROXIED_CONNECTOR);
         ProxiedConnectorInitializer proxiedConnectorInitializer = getProxiedConnectorInitializer(proxiedConnectorName, proxiedConnectorInitializerMap);
         Connector proxiedConnector = proxiedConnectorInitializer.create(catalogName, config, context);
         List<Module> modules = new ArrayList<>();

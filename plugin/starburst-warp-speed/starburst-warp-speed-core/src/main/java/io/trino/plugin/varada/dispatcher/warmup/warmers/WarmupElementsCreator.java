@@ -17,7 +17,7 @@ import com.google.common.collect.SetMultimap;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.varada.dispatcher.model.ExportState;
 import io.trino.plugin.varada.dispatcher.model.RecordData;
@@ -78,7 +78,7 @@ public class WarmupElementsCreator
             StorageEngineConstants storageEngineConstants,
             BufferAllocator bufferAllocator,
             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
-            GlobalConfiguration globalConfiguration)
+            GlobalConfig globalConfig)
     {
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
@@ -87,9 +87,9 @@ public class WarmupElementsCreator
         this.statsWarmingService = (VaradaStatsWarmingService) metricsManager.get(VaradaStatsWarmingService.createKey(WARMING_SERVICE_STAT_GROUP));
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
-                globalConfiguration.getShapingLoggerThreshold(),
-                globalConfiguration.getShapingLoggerDuration(),
-                globalConfiguration.getShapingLoggerNumberOfSamples());
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
     }
 
     public List<WarmUpElement> createWarmupElements(

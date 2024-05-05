@@ -14,7 +14,7 @@
 package io.trino.plugin.varada.storage.read.fill;
 
 import io.airlift.slice.Slice;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.dictionary.ReadDictionary;
 import io.trino.plugin.varada.juffer.ByteBufferInputStream;
 import io.trino.plugin.varada.storage.engine.StorageEngineConstants;
@@ -29,9 +29,9 @@ public class FixedLengthStringSliceBlockFiller
         extends SliceBlockFiller
 {
     public FixedLengthStringSliceBlockFiller(StorageEngineConstants storageEngineConstants,
-            NativeConfiguration nativeConfiguration)
+            NativeConfig nativeConfig)
     {
-        super(CharType.createCharType(10), storageEngineConstants, nativeConfiguration); // need to check if length 10 is ok for all
+        super(CharType.createCharType(10), storageEngineConstants, nativeConfig); // need to check if length 10 is ok for all
     }
 
     @Override

@@ -16,7 +16,7 @@ package io.trino.plugin.warp.extension.execution.initworker;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.airlift.json.ObjectMapperProvider;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.NativeConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -24,19 +24,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class CollectNodeInfoTaskTest
 {
-    private NativeConfiguration nativeConfiguration;
+    private NativeConfig nativeConfig;
 
     @BeforeEach
     @SuppressWarnings("MockNotUsedInProduction")
     public void before()
     {
-        nativeConfiguration = new NativeConfiguration();
+        nativeConfig = new NativeConfig();
     }
 
     @Test
     public void testCollectInfo()
     {
-        CollectNodeInfoTask task = new CollectNodeInfoTask(nativeConfiguration);
+        CollectNodeInfoTask task = new CollectNodeInfoTask(nativeConfig);
 
         CollectNodeInfoResult collectNodeInfoResult = task.collectNodeInfo();
         assertThat(collectNodeInfoResult).isNotNull();

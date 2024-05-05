@@ -22,7 +22,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.trino.plugin.varada.VaradaSessionProperties;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dictionary.DictionaryWarmInfo;
 import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.varada.dispatcher.DispatcherSplit;
@@ -41,7 +41,7 @@ import io.trino.plugin.varada.storage.engine.ConnectorSync;
 import io.trino.plugin.varada.storage.engine.ExceptionThrower;
 import io.trino.plugin.varada.storage.write.PageSink;
 import io.trino.plugin.varada.storage.write.StorageWriterService;
-import io.trino.plugin.varada.storage.write.StorageWriterSplitConfiguration;
+import io.trino.plugin.varada.storage.write.StorageWriterSplitConfig;
 import io.trino.plugin.varada.storage.write.VaradaPageSinkFactory;
 import io.trino.spi.NodeManager;
 import io.trino.spi.Page;
@@ -85,7 +85,7 @@ public class VaradaProxiedWarmer
     private final ConcurrentHashMap<Integer, RowGroupData> warmIdToRowGroup;
     private final VaradaPageSinkFactory varadaPageSinkFactory;
     private final ConnectorSync connectorSync;
-    private final GlobalConfiguration globalConfiguration;
+    private final GlobalConfig globalConfig;
     private final RowGroupDataService rowGroupDataService;
     private final StorageWarmerService storageWarmerService;
     private final StorageWriterService storageWriterService;
@@ -95,7 +95,7 @@ public class VaradaProxiedWarmer
             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
             NodeManager nodeManager,
             ConnectorSync connectorSync,
-            GlobalConfiguration globalConfiguration,
+            GlobalConfig globalConfig,
             RowGroupDataService rowGroupDataService,
             StorageWarmerService storageWarmerService,
             StorageWriterService storageWriterService)
@@ -104,7 +104,7 @@ public class VaradaProxiedWarmer
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
         this.nodeIdentifier = requireNonNull(nodeManager).getCurrentNode().getNodeIdentifier();
         this.connectorSync = requireNonNull(connectorSync);
-        this.globalConfiguration = requireNonNull(globalConfiguration);
+        this.globalConfig = requireNonNull(globalConfig);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.storageWarmerService = requireNonNull(storageWarmerService);
         this.storageWriterService = requireNonNull(storageWriterService);
@@ -138,14 +138,14 @@ public class VaradaProxiedWarmer
         }
 
         WarmupElementWriteMetadata currWarmUpElementWriteMetadata;
-        String rowGroupFilePath = rowGroupKey.stringFileNameRepresentation(globalConfiguration.getLocalStorePath());
+        String rowGroupFilePath = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
         long fileCookie = INVALID_FILE_COOKIE;
         int txId = INVALID_TX_ID;
-        StorageWriterSplitConfiguration storageWriterSplitConfiguration = null;
+        StorageWriterSplitConfig storageWriterSplitConfig = null;
         try {
             storageWarmerService.createFile(rowGroupKey);
             fileCookie = storageWarmerService.fileOpen(rowGroupKey);
-            storageWriterSplitConfiguration = storageWriterService.startWarming(nodeIdentifier,
+            storageWriterSplitConfig = storageWriterService.startWarming(nodeIdentifier,
                     rowGroupFilePath,
                     VaradaSessionProperties.getEnableDictionary(session));
             try {
@@ -167,7 +167,7 @@ public class VaradaProxiedWarmer
                     PageSink pageSink = null;
                     try {
                         currWarmUpElementWriteMetadata = WarmupElementWriteMetadata.builder(pair.getKey()).connectorBlockIndex(0).build();
-                        pageSink = varadaPageSinkFactory.create(storageWriterSplitConfiguration);
+                        pageSink = varadaPageSinkFactory.create(storageWriterSplitConfig);
                         boolean isValidWE = true;
                         int rowCount = 0;
                         while (isValidWE && !connectorPageSource.isFinished()) {
@@ -229,9 +229,9 @@ public class VaradaProxiedWarmer
             throw new RuntimeException(e);
         }
         finally {
-            if (storageWriterSplitConfiguration != null) {
+            if (storageWriterSplitConfig != null) {
                 try {
-                    storageWriterService.finishWarming(storageWriterSplitConfiguration);
+                    storageWriterService.finishWarming(storageWriterSplitConfig);
                 }
                 catch (Exception e) {
                     logger.error(e, "failed to release warming resources file %s", rowGroupFilePath);

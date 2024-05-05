@@ -15,8 +15,8 @@ package io.trino.plugin.varada.di;
 
 import com.google.inject.Binder;
 import com.google.inject.Module;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
+import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.storage.engine.ConnectorSync;
 import io.trino.plugin.varada.storage.engine.StorageEngine;
 import io.trino.plugin.varada.storage.engine.StorageEngineConstants;
@@ -48,9 +48,9 @@ public class VaradaStubsStorageEngineModule
         binder.bind(ConnectorSync.class).to(StubsConnectorSync.class);
 
         NativeStorageStateHandler nativeStorageStateHandler = new NativeStorageStateHandler(
-                new NativeConfiguration(),
+                new NativeConfig(),
                 new StubExceptionThrower(),
-                new GlobalConfiguration());
+                new GlobalConfig());
         binder.bind(NativeStorageStateHandler.class).toInstance(nativeStorageStateHandler);
     }
 

@@ -24,8 +24,8 @@ import io.trino.matching.Match;
 import io.trino.matching.Pattern;
 import io.trino.plugin.base.expression.ConnectorExpressionRule;
 import io.trino.plugin.varada.VaradaSessionProperties;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
+import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.varada.dispatcher.model.RegularColumn;
 import io.trino.plugin.varada.dispatcher.model.TransformedColumn;
@@ -87,21 +87,21 @@ public class ExpressionService
     private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
     private final SupportedFunctions supportedFunctions;
     private final NativeExpressionRulesHandler nativeExpressionRulesHandler;
-    private final GlobalConfiguration globalConfiguration;
-    private final NativeConfiguration nativeConfiguration;
+    private final GlobalConfig globalConfig;
+    private final NativeConfig nativeConfig;
     private final VaradaStatsPushdownPredicates varadaStatsPushdownPredicates;
 
     @Inject
     public ExpressionService(
             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
             SupportedFunctions supportedFunctions,
-            GlobalConfiguration globalConfiguration,
-            NativeConfiguration nativeConfiguration,
+            GlobalConfig globalConfig,
+            NativeConfig nativeConfig,
             MetricsManager metricsManager,
             NativeExpressionRulesHandler nativeExpressionRulesHandler)
     {
-        this.globalConfiguration = requireNonNull(globalConfiguration);
-        this.nativeConfiguration = requireNonNull(nativeConfiguration);
+        this.globalConfig = requireNonNull(globalConfig);
+        this.nativeConfig = requireNonNull(nativeConfig);
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
         this.supportedFunctions = requireNonNull(supportedFunctions);
         this.varadaStatsPushdownPredicates = metricsManager.registerMetric(VaradaStatsPushdownPredicates.create(PUSHDOWN_PREDICATES_STAT_GROUP));
@@ -118,7 +118,7 @@ public class ExpressionService
             if (!VaradaSessionProperties.getEnableOrPushdown(session)) {
                 return Optional.empty();
             }
-            Set<String> unsupportedFunctions = VaradaSessionProperties.getUnsupportedFunctions(session, globalConfiguration);
+            Set<String> unsupportedFunctions = VaradaSessionProperties.getUnsupportedFunctions(session, globalConfig);
             if (unsupportedFunctions.size() == 1 &&
                     unsupportedFunctions.stream().collect(MoreCollectors.onlyElement()).equals("*")) {
                 return Optional.empty();
@@ -130,7 +130,7 @@ public class ExpressionService
                     customStats);
             if (varadaExpressionOpt.isPresent()) {
                 ImmutableSetMultimap.Builder<RegularColumn, VaradaExpressionData> outVaradaExpressionDataLeaves = ImmutableSetMultimap.builder();
-                Set<String> unsupportedNativeFunctions = VaradaSessionProperties.getUnsupportedNativeFunctions(session, nativeConfiguration);
+                Set<String> unsupportedNativeFunctions = VaradaSessionProperties.getUnsupportedNativeFunctions(session, nativeConfig);
 
                 boolean validExpression = convertToFlatVaradaExpressionDataList(varadaExpressionOpt.get(), outVaradaExpressionDataLeaves, unsupportedNativeFunctions, customStats, 0);
                 List<VaradaExpressionData> varadaExpressionDataLeaves = new ArrayList<>(outVaradaExpressionDataLeaves.build().values());

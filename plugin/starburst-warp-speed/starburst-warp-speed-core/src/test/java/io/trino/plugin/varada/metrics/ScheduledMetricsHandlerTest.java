@@ -15,7 +15,7 @@ package io.trino.plugin.varada.metrics;
 
 import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
-import io.trino.plugin.varada.configuration.MetricsConfiguration;
+import io.trino.plugin.varada.config.MetricsConfig;
 import io.trino.plugin.varada.di.VaradaInitializedServiceRegistry;
 import org.junit.jupiter.api.Test;
 
@@ -31,20 +31,20 @@ public class ScheduledMetricsHandlerTest
     @Test
     public void testScheduler()
     {
-        MetricsConfiguration metricsConfiguration = new MetricsConfiguration();
-        metricsConfiguration.setCleanerKeepDuration(Duration.ofMillis(1));
-        metricsConfiguration.setIntervalCleanerDuration(Duration.ofMillis(1));
-        metricsConfiguration.setDelayDuration(Duration.ofMillis(1));
+        MetricsConfig metricsConfig = new MetricsConfig();
+        metricsConfig.setCleanerKeepDuration(Duration.ofMillis(1));
+        metricsConfig.setIntervalCleanerDuration(Duration.ofMillis(1));
+        metricsConfig.setDelayDuration(Duration.ofMillis(1));
 
         AtomicBoolean isRun = new AtomicBoolean(false);
 
         Set<MetricsTimerTask> metricsTimerTasks = new HashSet<>();
-        metricsTimerTasks.add(new MetricsTimerTask(metricsConfiguration)
+        metricsTimerTasks.add(new MetricsTimerTask(metricsConfig)
         {
             @Override
             public Duration getInterval()
             {
-                return metricsConfiguration.getIntervalCleanerDuration();
+                return metricsConfig.getIntervalCleanerDuration();
             }
 
             @Override

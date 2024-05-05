@@ -16,8 +16,8 @@ package io.trino.plugin.varada.warmup;
 import com.google.common.collect.ImmutableList;
 import com.google.common.eventbus.EventBus;
 import io.trino.plugin.varada.VaradaErrorCode;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
-import io.trino.plugin.varada.configuration.WarmupDemoterConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
+import io.trino.plugin.varada.config.WarmupDemoterConfig;
 import io.trino.plugin.varada.di.DefaultFakeConnectorSessionProvider;
 import io.trino.plugin.varada.di.VaradaInitializedServiceRegistry;
 import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
@@ -81,7 +81,7 @@ public class WarmupRuleServiceTest
     private ConnectorMetadata connectorMetadata;
     private StorageEngineConstants storageEngineConstants;
     private WarmupRuleDao warmupRuleDao;
-    private GlobalConfiguration globalConfiguration;
+    private GlobalConfig globalConfig;
 
     @BeforeEach
     public void before()
@@ -99,16 +99,16 @@ public class WarmupRuleServiceTest
         this.tableHandle = mock(ConnectorTableHandle.class);
         when(connectorMetadata.getTableHandle(any(ConnectorSession.class), any(SchemaTableName.class), eq(Optional.empty()), eq(Optional.empty()))).thenAnswer(inv -> tableHandle);
         when(connectorMetadata.getColumnHandles(any(ConnectorSession.class), eq(tableHandle))).thenAnswer((inv) -> columnMap);
-        this.globalConfiguration = new GlobalConfiguration();
+        this.globalConfig = new GlobalConfig();
         warmupRuleService = new WarmupRuleService(proxiedConnector,
                 storageEngineConstants,
-                new WarmupDemoterConfiguration(),
+                new WarmupDemoterConfig(),
                 dispatcherProxiedConnectorTransformer,
                 new DefaultFakeConnectorSessionProvider(),
                 warmupRuleDao,
                 mock(EventBus.class),
                 new VaradaInitializedServiceRegistry(),
-                globalConfiguration);
+                globalConfig);
     }
 
     @Test
@@ -131,7 +131,7 @@ public class WarmupRuleServiceTest
     @Test
     public void testRejectIndexRulesWhenDataOnlyFlagIsOn()
     {
-        globalConfiguration.setDataOnlyWarming(true);
+        globalConfig.setDataOnlyWarming(true);
         createColumn(VarcharType.createVarcharType(10));
         WarmupRule warmupRule = createRule(WarmUpType.WARM_UP_TYPE_LUCENE);
         WarmupRuleResult warmupRuleResult = warmupRuleService.save(List.of(warmupRule));

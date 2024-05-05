@@ -16,7 +16,7 @@ package io.trino.plugin.varada.storage.write;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.trino.filesystem.Location;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.model.RowGroupData;
 import io.trino.plugin.varada.dispatcher.model.RowGroupKey;
 import io.trino.plugin.varada.dispatcher.model.WarmUpElement;
@@ -40,15 +40,15 @@ public class WarpCacheFilesMerger
     private static final int BUFFER_SIZE = 8192;
     private final RowGroupDataService rowGroupDataService;
     private final StorageWarmerService storageWarmerService;
-    private final GlobalConfiguration globalConfiguration;
+    private final GlobalConfig globalConfig;
     private final int pageSizeShift;
 
     @Inject
-    public WarpCacheFilesMerger(RowGroupDataService rowGroupDataService, StorageWarmerService storageWarmerService, GlobalConfiguration globalConfiguration, StorageEngineConstants storageEngineConstants)
+    public WarpCacheFilesMerger(RowGroupDataService rowGroupDataService, StorageWarmerService storageWarmerService, GlobalConfig globalConfig, StorageEngineConstants storageEngineConstants)
     {
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.storageWarmerService = requireNonNull(storageWarmerService);
-        this.globalConfiguration = requireNonNull(globalConfiguration);
+        this.globalConfig = requireNonNull(globalConfig);
         this.pageSizeShift = requireNonNull(storageEngineConstants).getPageSizeShift();
     }
 
@@ -60,7 +60,7 @@ public class WarpCacheFilesMerger
         boolean allWeAreValid = tmpRowGroupDataList.stream().flatMap(x -> x.getValidWarmUpElements().stream()).allMatch(WarmUpElement::isValid);
         int maxOffset = permanentRowGroupData.getNextOffset();
         if (allWeAreValid) {
-            String permanentRowGroupPath = permanentRowGroupKey.stringFileNameRepresentation(globalConfiguration.getLocalStorePath());
+            String permanentRowGroupPath = permanentRowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
             try (RandomAccessFile mergedFile = new RandomAccessFile(permanentRowGroupPath, "rw")) {
                 int offset = maxOffset << pageSizeShift;
                 mergedFile.seek(offset);
@@ -97,7 +97,7 @@ public class WarpCacheFilesMerger
 
     private void copyFileContent(RowGroupKey tmpRowGroupKey, String permanentRowGroupPath, RandomAccessFile mergedFile, int length)
     {
-        String tmpRowGroupFilePath = tmpRowGroupKey.stringFileNameRepresentation(globalConfiguration.getLocalStorePath());
+        String tmpRowGroupFilePath = tmpRowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
         validateAndCreateDirectoryIfNeeded(tmpRowGroupFilePath, permanentRowGroupPath);
         try (RandomAccessFile reader = new RandomAccessFile(tmpRowGroupFilePath, "r")) {
             byte[] buffer = new byte[BUFFER_SIZE];

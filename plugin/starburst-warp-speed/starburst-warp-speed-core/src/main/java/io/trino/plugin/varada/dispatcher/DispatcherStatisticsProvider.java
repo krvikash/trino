@@ -17,7 +17,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.trino.plugin.varada.VaradaErrorCode;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.spi.TrinoException;
 import io.trino.spi.statistics.Estimate;
 
@@ -33,9 +33,9 @@ public class DispatcherStatisticsProvider
     private final Map<Integer, Integer> cardinalityMap;
 
     @Inject
-    public DispatcherStatisticsProvider(GlobalConfiguration globalConfiguration)
+    public DispatcherStatisticsProvider(GlobalConfig globalConfig)
     {
-        String cardinalityBucketConfig = requireNonNull(globalConfiguration).getCardinalityBuckets();
+        String cardinalityBucketConfig = requireNonNull(globalConfig).getCardinalityBuckets();
         cardinalityMap = parseCardinalityConfig(cardinalityBucketConfig);
     }
 
@@ -58,7 +58,7 @@ public class DispatcherStatisticsProvider
         for (String bucket : buckets) {
             int currentBucket = Integer.parseInt(bucket);
             if (currentBucket <= previousBucket) {
-                throw new TrinoException(VaradaErrorCode.VARADA_ILLEGAL_BUCKET_CONFIGURATION, "invalid bucket configuration");
+                throw new TrinoException(VaradaErrorCode.VARADA_ILLEGAL_BUCKET_CONFIGURATION, "invalid bucket config");
             }
             cardinalityMap.put(currentBucket, bucketPriority);
             bucketPriority++;

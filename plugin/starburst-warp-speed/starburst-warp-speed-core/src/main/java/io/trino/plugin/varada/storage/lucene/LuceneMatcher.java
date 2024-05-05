@@ -14,7 +14,7 @@
 package io.trino.plugin.varada.storage.lucene;
 
 import io.airlift.log.Logger;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.query.data.match.LuceneQueryMatchData;
 import io.trino.plugin.varada.storage.engine.StorageEngine;
 import io.trino.plugin.varada.storage.engine.StorageEngineConstants;
@@ -53,7 +53,7 @@ public class LuceneMatcher
             ReadJuffersWarmUpElement juffersWE,
             LuceneQueryMatchData luceneQueryMatchData,
             VaradaStatsDispatcherPageSource statsDispatcherPageSource,
-            GlobalConfiguration globalConfiguration)
+            GlobalConfig globalConfig)
     {
         this.storageEngine = storageEngine;
         this.storageEngineConstants = storageEngineConstants;
@@ -62,9 +62,9 @@ public class LuceneMatcher
         this.statsDispatcherPageSource = statsDispatcherPageSource;
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
-                globalConfiguration.getShapingLoggerThreshold(),
-                globalConfiguration.getShapingLoggerDuration(),
-                globalConfiguration.getShapingLoggerNumberOfSamples());
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
         logger.debug("lucene matcher for luceneQueryMatchData %s", luceneQueryMatchData);
     }
 

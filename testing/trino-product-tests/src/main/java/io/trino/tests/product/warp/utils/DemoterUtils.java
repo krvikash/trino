@@ -90,7 +90,7 @@ public class DemoterUtils
             List<String> columnNames,
             double cleanupUsageThresholdInPercentage,
             double maxUsageThresholdInPercentage,
-            boolean modifyConfiguration,
+            boolean modifyConfig,
             boolean executeDemoter,
             boolean longDemote)
     {
@@ -99,7 +99,7 @@ public class DemoterUtils
                 .executeDemoter(executeDemoter)
                 .batchSize(batchSize)
                 .maxUsageThresholdInPercentage(maxUsageThresholdInPercentage)
-                .modifyConfiguration(modifyConfiguration)
+                .modifyConfig(modifyConfig)
                 .cleanupUsageThresholdInPercentage(cleanupUsageThresholdInPercentage)
                 .resetHighestPriority(true)
                 .forceExecuteDeadObjects(true)
@@ -170,7 +170,7 @@ public class DemoterUtils
                 .executeDemoter(false)
                 .batchSize(DEFAULT_DEMOTER_BATCH_SIZE)
                 .maxUsageThresholdInPercentage(DEFAULT_DEMOTER_MAX_USAGE_THRESHOLD)
-                .modifyConfiguration(true)
+                .modifyConfig(true)
                 .cleanupUsageThresholdInPercentage(DEFAULT_DEMOTER_CLEANUP_THRESHOLD)
                 .resetHighestPriority(true)
                 .forceExecuteDeadObjects(false)

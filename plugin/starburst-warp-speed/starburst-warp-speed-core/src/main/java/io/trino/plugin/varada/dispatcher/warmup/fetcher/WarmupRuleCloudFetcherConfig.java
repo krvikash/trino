@@ -15,15 +15,15 @@ package io.trino.plugin.varada.dispatcher.warmup.fetcher;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.LegacyConfig;
-import io.varada.cloudvendors.configuration.CloudVendorConfiguration;
+import io.varada.cloudvendors.config.CloudVendorConfig;
 
 import java.time.Duration;
 
-import static io.varada.tools.configuration.MultiPrefixConfigurationWrapper.LOCAL_DATA_STORAGE_PREFIX;
-import static io.varada.tools.configuration.MultiPrefixConfigurationWrapper.WARP_SPEED_PREFIX;
+import static io.varada.tools.config.MultiPrefixConfigWrapper.LOCAL_DATA_STORAGE_PREFIX;
+import static io.varada.tools.config.MultiPrefixConfigWrapper.WARP_SPEED_PREFIX;
 
-public class WarmupRuleCloudFetcherConfiguration
-        extends CloudVendorConfiguration
+public class WarmupRuleCloudFetcherConfig
+        extends CloudVendorConfig
 {
     public static final String PREFIX = "warp-speed.objectstore";
     public static final String STORE_TYPE = "objectstore.store.type";
@@ -36,7 +36,7 @@ public class WarmupRuleCloudFetcherConfiguration
     private int downloadRetries = 3;
     private Duration downloadDuration = Duration.ofSeconds(10);
 
-    public WarmupRuleCloudFetcherConfiguration() {}
+    public WarmupRuleCloudFetcherConfig() {}
 
     public Duration getFetchDuration()
     {

@@ -20,7 +20,7 @@ import io.trino.plugin.varada.WorkerNodeManager;
 import io.trino.plugin.varada.dictionary.DebugDictionaryKey;
 import io.trino.plugin.varada.dictionary.DebugDictionaryMetadata;
 import io.trino.plugin.varada.dictionary.DictionaryCacheService;
-import io.trino.plugin.varada.dictionary.DictionaryCacheService.DictionaryCacheConfiguration;
+import io.trino.plugin.varada.dictionary.DictionaryCacheService.DictionaryCacheConfig;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
 import io.trino.spi.TrinoException;
@@ -45,7 +45,7 @@ public class WorkerDictionaryCountTask
     public static final String WORKER_DICTIONARY_GROUP_PATH = "worker-dictionary-group";
     public static final String WORKER_DICTIONARY_RESET_TASK_NAME = "worker-dictionary-memory-reset";
     public static final String WORKER_DICTIONARY_PATH = "worker-dictionary-count";
-    public static final String WORKER_DICTIONARY_GET_CONFIGURATION = "worker-dictionary-get-configuration";
+    public static final String WORKER_DICTIONARY_GET_CONFIGURATION = "worker-dictionary-get-config";
     public static final String WORKER_DICTIONARY_GET_CACHED_KEYS = "worker-dictionary-get-cache-keys";
     public static final String WORKER_DICTIONARY_USAGE_PATH = "worker-dictionary-usage";
     private static final Logger logger = Logger.get(WorkerDictionaryCountTask.class);
@@ -62,13 +62,13 @@ public class WorkerDictionaryCountTask
 
     @Path(WORKER_DICTIONARY_RESET_TASK_NAME)
     @POST
-    public int reset(DictionaryConfigurationRequest configuration)
+    public int reset(DictionaryConfigRequest config)
     {
-        validateConfiguration(configuration);
-        return dictionaryCacheService.resetMemoryDictionaries(configuration.getMaxDictionaryTotalCacheWeight(), configuration.getConcurrency());
+        validateConfig(config);
+        return dictionaryCacheService.resetMemoryDictionaries(config.getMaxDictionaryTotalCacheWeight(), config.getConcurrency());
     }
 
-    private void validateConfiguration(DictionaryConfigurationRequest conf)
+    private void validateConfig(DictionaryConfigRequest conf)
     {
         if (conf.getMaxDictionaryTotalCacheWeight() < 0) {
             throw new TrinoException(VaradaErrorCode.VARADA_ILLEGAL_PARAMETER, "maxDictionaryWeight should be greater then -1");
@@ -101,10 +101,10 @@ public class WorkerDictionaryCountTask
 
     @Path(WORKER_DICTIONARY_GET_CONFIGURATION)
     @GET
-    public DictionaryConfigurationResult getDictionaryConfiguration()
+    public DictionaryConfigResult getDictionaryConfig()
     {
-        DictionaryCacheConfiguration dictionaryCacheConfiguration = dictionaryCacheService.getDictionaryConfiguration();
-        return new DictionaryConfigurationResult(dictionaryCacheConfiguration.dictionaryMaxSize(), dictionaryCacheConfiguration.concurrency(), dictionaryCacheConfiguration.maxDictionaryTotalCacheWeight());
+        DictionaryCacheConfig dictionaryCacheConfig = dictionaryCacheService.getDictionaryConfig();
+        return new DictionaryConfigResult(dictionaryCacheConfig.dictionaryMaxSize(), dictionaryCacheConfig.concurrency(), dictionaryCacheConfig.maxDictionaryTotalCacheWeight());
     }
 
     @Path(WORKER_DICTIONARY_GET_CACHED_KEYS)

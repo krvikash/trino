@@ -15,7 +15,7 @@ package io.trino.plugin.varada.dispatcher.warmup;
 
 import com.google.common.eventbus.EventBus;
 import io.airlift.log.Logger;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.varada.dispatcher.DispatcherSplit;
 import io.trino.plugin.varada.dispatcher.DispatcherTableHandle;
@@ -54,7 +54,7 @@ public class ProxyExecutionTask
 
     private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
     private final EventBus eventBus;
-    private final GlobalConfiguration globalConfiguration;
+    private final GlobalConfig globalConfig;
     private final int executionTaskPriority;
     private final StorageWarmerService storageWarmerService;
 
@@ -73,7 +73,7 @@ public class ProxyExecutionTask
             DispatcherSplit dispatcherSplit,
             DynamicFilter dynamicFilter,
             RowGroupDataService rowGroupDataService,
-            GlobalConfiguration globalConfiguration,
+            GlobalConfig globalConfig,
             QueryClassifier queryClassifier,
             WarmupElementsCreator warmupElementsCreator,
             int iterationCount,
@@ -84,7 +84,7 @@ public class ProxyExecutionTask
         super(warmExecutionTaskFactory, workerTaskExecutorService, varadaStatsWarmingService, warmingManager, workerWarmingService, connectorPageSourceProvider, transactionHandle, session, dispatcherTableHandle, rowGroupKey, columns, dispatcherSplit, dynamicFilter, rowGroupDataService, queryClassifier, warmupElementsCreator, iterationCount);
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
         this.eventBus = requireNonNull(eventBus);
-        this.globalConfiguration = requireNonNull(globalConfiguration);
+        this.globalConfig = requireNonNull(globalConfig);
         this.executionTaskPriority = executionTaskPriority;
         this.storageWarmerService = storageWarmerService;
     }
@@ -199,9 +199,9 @@ public class ProxyExecutionTask
         }
 
         // Just a precaution - make sure we're not stuck on an infinite loop of warmups.
-        if (iterationCount >= globalConfiguration.getMaxWarmupIterationsPerQuery()) {
+        if (iterationCount >= globalConfig.getMaxWarmupIterationsPerQuery()) {
             logger.error("Max iteration count has reached (%d), won't try to warm again. rowGroupKey=%s, varadaColumns=%s, dataToWarm=%s",
-                    globalConfiguration.getMaxWarmupIterationsPerQuery(),
+                    globalConfig.getMaxWarmupIterationsPerQuery(),
                     rowGroupKey,
                     columns.stream().map(dispatcherProxiedConnectorTransformer::getVaradaRegularColumn).collect(Collectors.toList()),
                     dataToWarm);

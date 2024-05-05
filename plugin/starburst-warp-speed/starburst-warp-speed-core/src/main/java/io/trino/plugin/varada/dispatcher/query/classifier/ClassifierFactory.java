@@ -17,8 +17,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
+import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.varada.dispatcher.cache.DispatcherCacheTransformer;
 import io.trino.plugin.varada.dispatcher.query.MatchCollectIdService;
@@ -37,8 +37,8 @@ public class ClassifierFactory
     private final PredicatesCacheService predicatesCacheService;
     private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
     private final MatchCollectIdService matchCollectIdService;
-    private final GlobalConfiguration globalConfiguration;
-    private final NativeConfiguration nativeConfiguration;
+    private final GlobalConfig globalConfig;
+    private final NativeConfig nativeConfig;
     private final BufferAllocator bufferAllocator;
     private ImmutableMap<ClassificationType, List<Classifier>> classificationTypeToClassifiers;
     private ImmutableMap<ClassificationType, DispatcherProxiedConnectorTransformer> classificationTypeToConnectorTransformer;
@@ -47,18 +47,18 @@ public class ClassifierFactory
     public ClassifierFactory(StorageEngineConstants storageEngineConstants,
             PredicatesCacheService predicatesCacheService,
             BufferAllocator bufferAllocator,
-            NativeConfiguration nativeConfiguration,
+            NativeConfig nativeConfig,
             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
             MatchCollectIdService matchCollectIdService,
-            GlobalConfiguration globalConfiguration)
+            GlobalConfig globalConfig)
     {
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.predicatesCacheService = requireNonNull(predicatesCacheService);
         this.bufferAllocator = requireNonNull(bufferAllocator);
-        this.nativeConfiguration = requireNonNull(nativeConfiguration);
+        this.nativeConfig = requireNonNull(nativeConfig);
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
         this.matchCollectIdService = requireNonNull(matchCollectIdService);
-        this.globalConfiguration = requireNonNull(globalConfiguration);
+        this.globalConfig = requireNonNull(globalConfig);
     }
 
     private void buildClassifiers()
@@ -68,12 +68,12 @@ public class ClassifierFactory
         MatchClassifier matchClassifier = getMatchClassifier();
         PrefilledCollectClassifier prefilledCollectClassifier = new PrefilledCollectClassifier(
                 dispatcherProxiedConnectorTransformer,
-                globalConfiguration);
+                globalConfig);
         NativeCollectClassifier nativeCollectClassifier = new NativeCollectClassifier(
                 storageEngineConstants.getMatchCollectBufferSize(),
                 storageEngineConstants.getMaxChunksInRange(),
-                nativeConfiguration.getBundleSize() - storageEngineConstants.getBundleNonCollectSize(),
-                nativeConfiguration.getCollectTxSize(),
+                nativeConfig.getBundleSize() - storageEngineConstants.getBundleNonCollectSize(),
+                nativeConfig.getCollectTxSize(),
                 storageEngineConstants.getMatchTxSize(),
                 storageEngineConstants.getMaxMatchColumns(),
                 bufferAllocator,
@@ -82,8 +82,8 @@ public class ClassifierFactory
         NativeCollectClassifier nativeCacheCollectClassifier = new NativeCollectClassifier(
                 storageEngineConstants.getMatchCollectBufferSize(),
                 storageEngineConstants.getMaxChunksInRange(),
-                nativeConfiguration.getBundleSize() - storageEngineConstants.getBundleNonCollectSize(),
-                nativeConfiguration.getCollectTxSize(),
+                nativeConfig.getBundleSize() - storageEngineConstants.getBundleNonCollectSize(),
+                nativeConfig.getCollectTxSize(),
                 storageEngineConstants.getMatchTxSize(),
                 storageEngineConstants.getMaxMatchColumns(),
                 bufferAllocator,
@@ -121,14 +121,14 @@ public class ClassifierFactory
     private MatchClassifier getMatchClassifier()
     {
         ImmutableList.Builder<Matcher> matchers = ImmutableList.builder();
-        if (globalConfiguration.getEnableRangeFilter()) {
-            matchers.add(new RangeMatcher(globalConfiguration));
+        if (globalConfig.getEnableRangeFilter()) {
+            matchers.add(new RangeMatcher(globalConfig));
         }
         matchers.add(new BloomMatcher(),
                 new LuceneElementsMatcher(dispatcherProxiedConnectorTransformer),
                 new BasicMatcher(),
                 new RemoveBloomFromRemainingMatcher());
-        return new MatchClassifier(matchers.build(), globalConfiguration);
+        return new MatchClassifier(matchers.build(), globalConfig);
     }
 
     List<Classifier> getClassifiers(ClassificationType classificationType)

@@ -89,11 +89,11 @@ public class HdfsCloudStorageGcsTest
             properties.put("hive.gcs.use-access-token", "false");
             properties.put("hive.gcs.json-key", GCP_CREDENTIAL_KEY);
 
-            ConfigurationFactory configurationFactory = new ConfigurationFactory(properties);
-            binder.bind(ConfigurationFactory.class).toInstance(configurationFactory);
+            ConfigurationFactory configFactory = new ConfigurationFactory(properties);
+            binder.bind(ConfigurationFactory.class).toInstance(configFactory);
 
             FileSystemModule fileSystemModule = new FileSystemModule(catalogName, nodeManager, openTelemetry);
-            fileSystemModule.setConfigurationFactory(configurationFactory);
+            fileSystemModule.setConfigurationFactory(configFactory);
             binder.install(fileSystemModule);
 
             Tracer tracer = openTelemetry.getTracer("warp.cloud-vendor");

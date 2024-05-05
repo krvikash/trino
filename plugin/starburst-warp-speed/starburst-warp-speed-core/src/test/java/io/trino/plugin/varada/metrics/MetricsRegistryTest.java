@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.varada.metrics;
 
-import io.trino.plugin.varada.configuration.MetricsConfiguration;
+import io.trino.plugin.varada.config.MetricsConfig;
 import io.varada.tools.CatalogNameProvider;
 import org.junit.jupiter.api.Test;
 import org.weakref.jmx.MBeanExporter;
@@ -33,7 +33,7 @@ public class MetricsRegistryTest
         MetricsRegistry metricsRegistry = new MetricsRegistry(
                 new CatalogNameProvider("catalog-name"),
                 mBeanExporter,
-                new MetricsConfiguration());
+                new MetricsConfig());
 
         VaradaTestStats stats = new VaradaTestStats("11111");
         String key = stats.getJmxKey() + ".catalog-name";
@@ -59,13 +59,13 @@ public class MetricsRegistryTest
     public void testMBeanExporterDisabled()
     {
         MBeanExporter mBeanExporter = mock(MBeanExporter.class);
-        MetricsConfiguration metricsConfiguration = new MetricsConfiguration();
-        metricsConfiguration.setEnabled(false);
+        MetricsConfig metricsConfig = new MetricsConfig();
+        metricsConfig.setEnabled(false);
 
         MetricsRegistry metricsRegistry = new MetricsRegistry(
                 new CatalogNameProvider("catalog-name"),
                 mBeanExporter,
-                metricsConfiguration);
+                metricsConfig);
 
         VaradaTestStats stats = new VaradaTestStats("11111");
         String key = stats.getJmxKey() + ".catalog-name";

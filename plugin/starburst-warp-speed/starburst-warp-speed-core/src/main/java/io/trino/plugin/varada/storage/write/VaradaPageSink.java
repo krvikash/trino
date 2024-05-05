@@ -31,16 +31,16 @@ public class VaradaPageSink
 {
     private static final Logger logger = Logger.get(VaradaPageSink.class);
     private final StorageWriterService storageWriterService;
-    private final StorageWriterSplitConfiguration storageWriterSplitConfiguration;
+    private final StorageWriterSplitConfig storageWriterSplitConfig;
     private boolean writerOpened; // represents a writer(native) open
     private WarmUpElement abortedWarmupElement;
 
     private StorageWriterContext storageWriterContext;
 
-    public VaradaPageSink(StorageWriterService storageWriterService, StorageWriterSplitConfiguration storageWriterSplitConfiguration)
+    public VaradaPageSink(StorageWriterService storageWriterService, StorageWriterSplitConfig storageWriterSplitConfig)
     {
         this.storageWriterService = storageWriterService;
-        this.storageWriterSplitConfiguration = storageWriterSplitConfiguration;
+        this.storageWriterSplitConfig = storageWriterSplitConfig;
     }
 
     @Override
@@ -48,7 +48,7 @@ public class VaradaPageSink
     {
         // now create the native tx
         try {
-            storageWriterContext = storageWriterService.open(txId, fileCookie, fileOffset, storageWriterSplitConfiguration, warmupElementWriteMetadata, outDictionaryWarmInfos);
+            storageWriterContext = storageWriterService.open(txId, fileCookie, fileOffset, storageWriterSplitConfig, warmupElementWriteMetadata, outDictionaryWarmInfos);
             if (storageWriterContext == null) {
                 return false;
             }
@@ -92,7 +92,7 @@ public class VaradaPageSink
             if (!writerOpened) {
                 return new WarmSinkResult(abortedWarmupElement, 0);
             }
-            return storageWriterService.close(totalRecords, storageWriterSplitConfiguration, storageWriterContext);
+            return storageWriterService.close(totalRecords, storageWriterSplitConfig, storageWriterContext);
         }
         finally {
             writerOpened = false;
@@ -104,7 +104,7 @@ public class VaradaPageSink
     {
         try {
             if (writerOpened) {
-                abortedWarmupElement = storageWriterService.abort(nativeThrowed, storageWriterContext, storageWriterSplitConfiguration);
+                abortedWarmupElement = storageWriterService.abort(nativeThrowed, storageWriterContext, storageWriterSplitConfig);
             }
         }
         finally {

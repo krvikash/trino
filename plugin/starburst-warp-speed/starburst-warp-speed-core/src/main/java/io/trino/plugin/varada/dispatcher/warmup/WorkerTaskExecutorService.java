@@ -19,9 +19,9 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
-import io.trino.plugin.varada.configuration.WarmupDemoterConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
+import io.trino.plugin.varada.config.NativeConfig;
+import io.trino.plugin.varada.config.WarmupDemoterConfig;
 import io.trino.plugin.varada.dispatcher.model.RowGroupKey;
 import io.trino.plugin.varada.dispatcher.warmup.export.WeGroupCloudExporterTask;
 import io.trino.plugin.varada.metrics.MetricsManager;
@@ -54,8 +54,8 @@ public class WorkerTaskExecutorService
 {
     public static final String WORKER_TASK_EXECUTOR_STAT_GROUP = "worker-task-executor";
     private static final Logger logger = Logger.get(WorkerTaskExecutorService.class);
-    private final WarmupDemoterConfiguration warmupDemoterConfiguration;
-    private final NativeConfiguration nativeConfiguration;
+    private final WarmupDemoterConfig warmupDemoterConfig;
+    private final NativeConfig nativeConfig;
     private final VaradaStatsWorkerTaskExecutorService statsWorkerTaskExecutorService;
     private final Map<RowGroupKey, UUID> submittedRowGroups = new ConcurrentHashMap<>();
     private final SetMultimap<RowGroupKey, WorkerSubmittableTask> pendingTasks = Multimaps.newSetMultimap(new ConcurrentHashMap<>(), () -> {
@@ -68,20 +68,20 @@ public class WorkerTaskExecutorService
     private final ExecutorService proxyExecutorService;
     private final ScheduledExecutorService scheduledCloudExecutorService;
     private final int queueSize;
-    private final GlobalConfiguration globalConfiguration;
+    private final GlobalConfig globalConfig;
 
     @Inject
     public WorkerTaskExecutorService(
-            WarmupDemoterConfiguration warmupDemoterConfiguration,
-            NativeConfiguration nativeConfiguration,
+            WarmupDemoterConfig warmupDemoterConfig,
+            NativeConfig nativeConfig,
             MetricsManager metricsManager,
-            GlobalConfiguration globalConfiguration)
+            GlobalConfig globalConfig)
     {
-        this.warmupDemoterConfiguration = requireNonNull(warmupDemoterConfiguration);
-        this.nativeConfiguration = requireNonNull(nativeConfiguration);
+        this.warmupDemoterConfig = requireNonNull(warmupDemoterConfig);
+        this.nativeConfig = requireNonNull(nativeConfig);
         this.statsWorkerTaskExecutorService = metricsManager.registerMetric(new VaradaStatsWorkerTaskExecutorService(WORKER_TASK_EXECUTOR_STAT_GROUP));
-        this.queueSize = warmupDemoterConfiguration.getTasksExecutorQueueSize();
-        this.globalConfiguration = requireNonNull(globalConfiguration);
+        this.queueSize = warmupDemoterConfig.getTasksExecutorQueueSize();
+        this.globalConfig = requireNonNull(globalConfig);
         prioritizeExecutorService = getPrioritizeExecutorService();
         cloudExecutorService = getCloudExecutorService();
         scheduledCloudExecutorService = getScheduledCloudExecutorService();
@@ -90,7 +90,7 @@ public class WorkerTaskExecutorService
 
     private ExecutorService getPrioritizeExecutorService()
     {
-        int poolSize = getPoolSize(warmupDemoterConfiguration.getPrioritizeExecutorPoolSize());
+        int poolSize = getPoolSize(warmupDemoterConfig.getPrioritizeExecutorPoolSize());
         return new ThreadPoolExecutor(poolSize, poolSize,
                 60L, TimeUnit.SECONDS,
                 new ArrayBlockingQueue<>(queueSize),
@@ -99,7 +99,7 @@ public class WorkerTaskExecutorService
 
     private ExecutorService getCloudExecutorService()
     {
-        int poolSize = warmupDemoterConfiguration.getCloudExecutorPoolSize();
+        int poolSize = warmupDemoterConfig.getCloudExecutorPoolSize();
         BlockingQueue<Runnable> blockingQueue = new PriorityBlockingQueue<>(
                 queueSize,
                 Comparator.comparingDouble(x -> ((WorkerSubmittableTask) x).getPriority()).reversed());
@@ -111,13 +111,13 @@ public class WorkerTaskExecutorService
 
     private ScheduledExecutorService getScheduledCloudExecutorService()
     {
-        int poolSize = warmupDemoterConfiguration.getCloudExecutorPoolSize();
+        int poolSize = warmupDemoterConfig.getCloudExecutorPoolSize();
         return new ScheduledThreadPoolExecutor(poolSize);
     }
 
     private ExecutorService getProxyExecutorService()
     {
-        int poolSize = getPoolSize(nativeConfiguration.getTaskMaxWorkerThreads());
+        int poolSize = getPoolSize(nativeConfig.getTaskMaxWorkerThreads());
         BlockingQueue<Runnable> blockingQueue = new PriorityBlockingQueue<>(
                 queueSize,
                 Comparator.comparingDouble(x -> ((WorkerSubmittableTask) x).getPriority()).reversed());
@@ -130,7 +130,7 @@ public class WorkerTaskExecutorService
 
     private int getPoolSize(int size)
     {
-        return globalConfiguration.isWarmingSingleThreaded() ? 1 : size;
+        return globalConfig.isWarmingSingleThreaded() ? 1 : size;
     }
 
     public SubmissionResult submitTask(WorkerSubmittableTask task, boolean allowConflicts)

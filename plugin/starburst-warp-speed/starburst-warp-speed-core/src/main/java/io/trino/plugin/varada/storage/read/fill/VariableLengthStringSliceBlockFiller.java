@@ -14,7 +14,7 @@
 package io.trino.plugin.varada.storage.read.fill;
 
 import io.airlift.slice.Slice;
-import io.trino.plugin.varada.configuration.NativeConfiguration;
+import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.dictionary.ReadDictionary;
 import io.trino.plugin.varada.juffer.ByteBufferInputStream;
 import io.trino.plugin.varada.storage.engine.StorageEngineConstants;
@@ -29,9 +29,9 @@ public class VariableLengthStringSliceBlockFiller
 {
     public VariableLengthStringSliceBlockFiller(
             StorageEngineConstants storageEngineConstants,
-            NativeConfiguration nativeConfiguration)
+            NativeConfig nativeConfig)
     {
-        super(VarcharType.createVarcharType(20), storageEngineConstants, nativeConfiguration); // using is size 20 is arbitrary since this type is used only for creating a block in RLE
+        super(VarcharType.createVarcharType(20), storageEngineConstants, nativeConfig); // using is size 20 is arbitrary since this type is used only for creating a block in RLE
     }
 
     @Override

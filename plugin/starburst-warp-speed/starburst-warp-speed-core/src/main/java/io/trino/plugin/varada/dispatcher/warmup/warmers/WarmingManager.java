@@ -18,7 +18,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.trino.plugin.varada.annotations.ForWarp;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dictionary.DictionaryCacheService;
 import io.trino.plugin.varada.dictionary.DictionaryWarmInfo;
 import io.trino.plugin.varada.dispatcher.DispatcherSplit;
@@ -37,7 +37,7 @@ import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTransactionHandle;
-import io.varada.cloudvendors.configuration.CloudVendorConfiguration;
+import io.varada.cloudvendors.config.CloudVendorConfig;
 import io.varada.log.ShapingLogger;
 import io.varada.tools.util.StopWatch;
 
@@ -59,8 +59,8 @@ public class WarmingManager
     private final VaradaStatsDictionary varadaStatsDictionary;
     private final VaradaProxiedWarmer varadaProxiedWarmer;
     private final EmptyRowGroupWarmer emptyRowGroupWarmer;
-    private final GlobalConfiguration globalConfiguration;
-    private final CloudVendorConfiguration cloudVendorConfiguration;
+    private final GlobalConfig globalConfig;
+    private final CloudVendorConfig cloudVendorConfig;
     private final RowGroupDataService rowGroupDataService;
     private final VaradaStatsWarmupImportService varadaStatsWarmupImportService;
     private final DictionaryCacheService dictionaryCacheService;
@@ -72,8 +72,8 @@ public class WarmingManager
     public WarmingManager(
             VaradaProxiedWarmer varadaProxiedWarmer,
             EmptyRowGroupWarmer emptyRowGroupWarmer,
-            GlobalConfiguration globalConfiguration,
-            @ForWarp CloudVendorConfiguration cloudVendorConfiguration,
+            GlobalConfig globalConfig,
+            @ForWarp CloudVendorConfig cloudVendorConfig,
             RowGroupDataService rowGroupDataService,
             MetricsManager metricsManager,
             DictionaryCacheService dictionaryCacheService,
@@ -82,8 +82,8 @@ public class WarmingManager
     {
         this.varadaProxiedWarmer = requireNonNull(varadaProxiedWarmer);
         this.emptyRowGroupWarmer = requireNonNull(emptyRowGroupWarmer);
-        this.globalConfiguration = requireNonNull(globalConfiguration);
-        this.cloudVendorConfiguration = requireNonNull(cloudVendorConfiguration);
+        this.globalConfig = requireNonNull(globalConfig);
+        this.cloudVendorConfig = requireNonNull(cloudVendorConfig);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.varadaStatsWarmupImportService = requireNonNull(metricsManager).registerMetric(new VaradaStatsWarmupImportService(WARMUP_IMPORTER_STAT_GROUP));
         this.varadaStatsDictionary = requireNonNull(metricsManager).registerMetric(VaradaStatsDictionary.create(DICTIONARY_STAT_GROUP));
@@ -93,14 +93,14 @@ public class WarmingManager
 
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
-                globalConfiguration.getShapingLoggerThreshold(),
-                globalConfiguration.getShapingLoggerDuration(),
-                globalConfiguration.getShapingLoggerNumberOfSamples());
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
     }
 
     public Optional<RowGroupData> importWeGroup(ConnectorSession session, RowGroupKey rowGroupKey, List<WarmUpElement> warmWarmUpElements)
     {
-        if (isImportExportEnabled(globalConfiguration, cloudVendorConfiguration, session)) {
+        if (isImportExportEnabled(globalConfig, cloudVendorConfig, session)) {
             if (warmWarmUpElements.isEmpty()) {
                 return weGroupWarmer.importWeGroup(session, rowGroupKey);
             }

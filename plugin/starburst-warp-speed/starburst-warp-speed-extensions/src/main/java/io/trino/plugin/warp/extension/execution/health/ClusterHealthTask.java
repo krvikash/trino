@@ -21,7 +21,7 @@ import io.airlift.json.JsonCodec;
 import io.trino.plugin.varada.CoordinatorNodeManager;
 import io.trino.plugin.varada.api.health.HealthNode;
 import io.trino.plugin.varada.api.health.HealthResult;
-import io.trino.plugin.varada.configuration.GlobalConfiguration;
+import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.execution.VaradaClient;
 import io.trino.plugin.varada.util.UriUtils;
 import io.trino.plugin.warp.extension.execution.TaskResource;
@@ -58,16 +58,16 @@ public class ClusterHealthTask
     private static final JsonCodec<HealthResult> HEALTH_RESULT_CODEC = JsonCodec.jsonCodec(HealthResult.class);
 
     private final CoordinatorNodeManager coordinatorNodeManager;
-    private final GlobalConfiguration globalConfiguration;
+    private final GlobalConfig globalConfig;
     private final VaradaClient varadaClient;
 
     @Inject
     public ClusterHealthTask(CoordinatorNodeManager coordinatorNodeManager,
-            GlobalConfiguration globalConfiguration,
+            GlobalConfig globalConfig,
             VaradaClient varadaClient)
     {
         this.coordinatorNodeManager = requireNonNull(coordinatorNodeManager);
-        this.globalConfiguration = requireNonNull(globalConfiguration);
+        this.globalConfig = requireNonNull(globalConfig);
         this.varadaClient = requireNonNull(varadaClient);
     }
 
@@ -106,7 +106,7 @@ public class ClusterHealthTask
         Optional<HealthNode> downNode = healthNodes.stream().filter(healthNode -> healthNode.state().equals("DOWN")).findAny();
         return new HealthResult(coordinatorNodeManager.isClusterReady() && downNode.isEmpty(),
                 Objects.nonNull(coordinatorNodeManager.getCoordinatorNode()) ? UriUtils.getHttpUri(coordinatorNodeManager.getCoordinatorNode()) : null,
-                globalConfiguration.getClusterUpTime(),
+                globalConfig.getClusterUpTime(),
                 ImmutableList.copyOf(healthNodes),
                 totalCapacityMB);
     }
