@@ -14,6 +14,8 @@
 package io.trino.plugin.warp.it;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import dev.failsafe.Failsafe;
+import dev.failsafe.RetryPolicy;
 import io.airlift.log.Logger;
 import io.trino.Session;
 import io.trino.execution.QueryInfo;
@@ -43,8 +45,6 @@ import io.trino.testing.MaterializedRow;
 import io.trino.testing.QueryFailedException;
 import io.trino.testing.QueryRunner;
 import jakarta.ws.rs.HttpMethod;
-import net.jodah.failsafe.Failsafe;
-import net.jodah.failsafe.RetryPolicy;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -657,10 +657,11 @@ public abstract class DispatcherStubsIntegrationSmokeIT
 
     protected void runWithRetries(Runnable runnable)
     {
-        Failsafe.with(new RetryPolicy<>()
+        Failsafe.with(RetryPolicy.builder()
                         .handle(AssertionError.class)
                         .withMaxRetries(10)
-                        .withDelay(Duration.ofSeconds(2)))
+                        .withDelay(Duration.ofSeconds(2))
+                        .build())
                 .run(runnable::run);
     }
 

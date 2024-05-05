@@ -13,10 +13,10 @@
  */
 package io.trino.plugin.varada.metrics;
 
+import dev.failsafe.Failsafe;
+import dev.failsafe.RetryPolicy;
 import io.trino.plugin.varada.configuration.MetricsConfiguration;
 import io.trino.plugin.varada.di.VaradaInitializedServiceRegistry;
-import net.jodah.failsafe.Failsafe;
-import net.jodah.failsafe.RetryPolicy;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -56,11 +56,12 @@ public class ScheduledMetricsHandlerTest
 
         ScheduledMetricsHandler scheduledMetricsHandler = new ScheduledMetricsHandler(metricsTimerTasks, new VaradaInitializedServiceRegistry());
         scheduledMetricsHandler.init();
-        Failsafe.with(new RetryPolicy<>()
+        Failsafe.with(RetryPolicy.builder()
                         .handle(AssertionError.class)
                         .withMaxRetries(50)
                         .withDelay(Duration.ofMillis(2))
-                        .withMaxDuration(Duration.ofMillis(100)))
+                        .withMaxDuration(Duration.ofMillis(100))
+                        .build())
                 .run(() -> assertThat(isRun).isTrue());
     }
 }

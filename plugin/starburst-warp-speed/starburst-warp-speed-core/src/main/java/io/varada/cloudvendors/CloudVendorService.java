@@ -14,12 +14,13 @@
 package io.varada.cloudvendors;
 
 import com.google.common.annotations.VisibleForTesting;
+import dev.failsafe.Failsafe;
+import dev.failsafe.RetryPolicy;
+import dev.failsafe.function.CheckedBiPredicate;
 import io.airlift.log.Logger;
 import io.trino.filesystem.Location;
 import io.varada.cloudvendors.model.StorageObjectMetadata;
 import io.varada.tools.util.PathUtils;
-import net.jodah.failsafe.Failsafe;
-import net.jodah.failsafe.RetryPolicy;
 import org.apache.commons.io.FileUtils;
 
 import java.io.File;
@@ -34,7 +35,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Callable;
-import java.util.function.BiPredicate;
 
 public abstract class CloudVendorService
 {
@@ -151,14 +151,15 @@ public abstract class CloudVendorService
         return LocalDateTime.now(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("_yyyyMMdd_HHmmss_SSS"));
     }
 
-    protected <T> T executeRequestUnderRetry(Callable<T> request, BiPredicate<T, ? extends Throwable> completionPredicate)
+    protected <T> T executeRequestUnderRetry(Callable<T> request, CheckedBiPredicate<Object, ? extends Throwable> completionPredicate)
     {
         return Failsafe
-                .with(new RetryPolicy<T>()
+                .with(RetryPolicy.builder()
                         .withMaxRetries(requestRetryRetries)
                         .withBackoff(requestRetryDelay, requestRetryMaxDelay, ChronoUnit.MILLIS)
                         .abortIf(completionPredicate)
-                        .onRetry(event -> logger.warn(event.getLastFailure(), "failed to execute cloud request, retrying. Attempt=%d", event.getAttemptCount())))
+                        .onRetry(event -> logger.warn("failed to execute cloud request, retrying. Attempt=%d", event.getAttemptCount()))
+                        .build())
                 .get(context -> request.call());
     }
 }

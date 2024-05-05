@@ -13,14 +13,14 @@
  */
 package io.trino.plugin.varada.dispatcher.warmup;
 
+import dev.failsafe.Failsafe;
+import dev.failsafe.RetryPolicy;
 import io.trino.plugin.varada.configuration.GlobalConfiguration;
 import io.trino.plugin.varada.configuration.NativeConfiguration;
 import io.trino.plugin.varada.configuration.WarmupDemoterConfiguration;
 import io.trino.plugin.varada.dispatcher.model.RowGroupKey;
 import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.warp.gen.stats.VaradaStatsWorkerTaskExecutorService;
-import net.jodah.failsafe.Failsafe;
-import net.jodah.failsafe.RetryPolicy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.opentest4j.AssertionFailedError;
@@ -114,10 +114,11 @@ public class WorkerTaskExecutorServiceTest
         RowGroupKey key1 = new RowGroupKey("s", "t", "fp", 0, 0, 0, "", "");
         TestSubmittableTask task1 = new TestSubmittableTask(key1, 1);
         taskExecutorService.delaySubmit(3, task1, this::handleConflict);
-        Failsafe.with(new RetryPolicy<>()
+        Failsafe.with(RetryPolicy.builder()
                         .handle(AssertionFailedError.class)
                         .withMaxRetries(10)
-                        .withDelay(Duration.ofSeconds(1)))
+                        .withDelay(Duration.ofSeconds(1))
+                        .build())
                 .run(() -> {
                     assertThat(this.statsWorkerTaskExecutorService.gettask_scheduled()).isEqualTo(1);
                     assertThat(this.statsWorkerTaskExecutorService.gettask_delayed()).isEqualTo(1);

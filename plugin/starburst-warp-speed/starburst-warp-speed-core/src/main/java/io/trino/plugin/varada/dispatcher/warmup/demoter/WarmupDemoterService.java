@@ -24,6 +24,8 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import dev.failsafe.Failsafe;
+import dev.failsafe.RetryPolicy;
 import io.airlift.log.Logger;
 import io.trino.plugin.varada.VaradaErrorCode;
 import io.trino.plugin.varada.configuration.NativeConfiguration;
@@ -56,8 +58,6 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.connector.SchemaTableName;
 import io.varada.tools.CatalogNameProvider;
 import io.varada.tools.util.StopWatch;
-import net.jodah.failsafe.Failsafe;
-import net.jodah.failsafe.RetryPolicy;
 import org.apache.commons.collections4.CollectionUtils;
 
 import java.time.Instant;
@@ -734,11 +734,11 @@ public class WarmupDemoterService
         else {
             AtomicLong retryFailure = new AtomicLong();
             try {
-                RetryPolicy<Boolean> retryPolicy = new RetryPolicy<Boolean>().withDelay(warmupDemoterConfiguration.getDelayAcquireThread())
+                RetryPolicy<Object> retryPolicy = RetryPolicy.builder().withDelay(warmupDemoterConfiguration.getDelayAcquireThread())
                         .withMaxDuration(warmupDemoterConfiguration.getMaxDurationAcquireThread())
                         .onFailedAttempt(a -> retryFailure.incrementAndGet())
                         .handle(TrinoException.class)
-                        .withMaxRetries(warmupDemoterConfiguration.getMaxRetriesAcquireThread()).handle(RuntimeException.class);
+                        .withMaxRetries(warmupDemoterConfiguration.getMaxRetriesAcquireThread()).handle(RuntimeException.class).build();
                 Failsafe.with(retryPolicy).run(() -> {
                     tryAllocateTx();
                     if (!coolRowGroupData(rowGroupData, elementsToDelete)) {

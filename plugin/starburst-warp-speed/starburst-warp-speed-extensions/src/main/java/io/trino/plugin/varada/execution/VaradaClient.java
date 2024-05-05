@@ -16,6 +16,8 @@ package io.trino.plugin.varada.execution;
 import com.google.common.hash.Hashing;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import dev.failsafe.Failsafe;
+import dev.failsafe.RetryPolicy;
 import io.airlift.http.client.FullJsonResponseHandler;
 import io.airlift.http.client.FullJsonResponseHandler.JsonResponse;
 import io.airlift.http.client.HttpClient;
@@ -32,8 +34,6 @@ import io.jsonwebtoken.impl.DefaultJwtBuilder;
 import io.jsonwebtoken.jackson.io.JacksonSerializer;
 import io.trino.plugin.warp.extension.configuration.WarpExtensionConfiguration;
 import io.varada.tools.CatalogNameProvider;
-import net.jodah.failsafe.Failsafe;
-import net.jodah.failsafe.RetryPolicy;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -153,11 +153,12 @@ public class VaradaClient
 
     public <T> T invokeWithRetry(Callable<T> func, URI uri, String callerName)
     {
-        return Failsafe.with(new RetryPolicy<>()
+        return Failsafe.with(RetryPolicy.builder()
                         .withMaxAttempts(2)
-                        .onFailedAttempt((executionAttemptedEvent) -> logger.warn(executionAttemptedEvent.getLastFailure(), "failed executing %s REST command to URI %s", callerName, uri))
+                        .onFailedAttempt((executionAttemptedEvent) -> logger.warn("failed executing %s REST command to URI %s", callerName, uri))
                         .withDelay(Duration.ofSeconds(10))
-                        .handle(IOException.class, UncheckedIOException.class, IllegalStateException.class))
+                        .handle(IOException.class, UncheckedIOException.class, IllegalStateException.class)
+                        .build())
                 .get(func::call);
     }
 

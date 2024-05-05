@@ -14,6 +14,8 @@
 
 package io.trino.plugin.warp.it.proxiedconnector.passthrough;
 
+import dev.failsafe.Failsafe;
+import dev.failsafe.RetryPolicy;
 import io.trino.plugin.varada.api.warmup.WarmUpType;
 import io.trino.plugin.varada.api.warmup.WarmupPropertiesData;
 import io.trino.plugin.varada.dispatcher.DispatcherConnectorFactory;
@@ -23,8 +25,6 @@ import io.trino.plugin.warp.it.DispatcherStubsIntegrationSmokeIT;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.QueryRunner.MaterializedResultWithPlan;
-import net.jodah.failsafe.Failsafe;
-import net.jodah.failsafe.RetryPolicy;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -221,9 +221,10 @@ public class TestHivePassThroughProxiedConnectorIntegrationSmokeIT
     {
         //here we check a few times that warmup was ignored for pass-through connector
         AtomicInteger counter = new AtomicInteger(4);
-        Failsafe.with(new RetryPolicy<>()
+        Failsafe.with(RetryPolicy.builder()
                         .withMaxRetries(10)
-                        .withDelay(Duration.ofSeconds(1)))
+                        .withDelay(Duration.ofSeconds(1))
+                        .build())
                 .run(() -> {
                     warmAndValidate(sql,
                             false,

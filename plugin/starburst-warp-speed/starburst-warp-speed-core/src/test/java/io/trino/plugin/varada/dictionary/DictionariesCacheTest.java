@@ -13,6 +13,8 @@
  */
 package io.trino.plugin.varada.dictionary;
 
+import dev.failsafe.Failsafe;
+import dev.failsafe.RetryPolicy;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.airlift.units.DataSize;
@@ -24,8 +26,6 @@ import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.stats.VaradaStatsDictionary;
 import io.trino.spi.connector.SchemaTableName;
-import net.jodah.failsafe.Failsafe;
-import net.jodah.failsafe.RetryPolicy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -197,9 +197,10 @@ class DictionariesCacheTest
                 .hasMessageContaining("dictionaryKey was not found in cache");
 
         //retry due to race condition of removal notification
-        Failsafe.with(new RetryPolicy<>()
+        Failsafe.with(RetryPolicy.builder()
                         .handle(AssertionError.class)
-                        .withMaxRetries(100))
+                        .withMaxRetries(100)
+                        .build())
                 .run(() -> {
                     assertThat(varadaStatsDictionary.getdictionary_entries()).isEqualTo(1);
                     assertThat(varadaStatsDictionary.getdictionary_evicted_entries()).isEqualTo(2);

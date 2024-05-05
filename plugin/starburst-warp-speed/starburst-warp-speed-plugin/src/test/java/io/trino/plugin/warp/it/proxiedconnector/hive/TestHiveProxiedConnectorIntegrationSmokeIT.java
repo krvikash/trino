@@ -17,6 +17,8 @@ package io.trino.plugin.warp.it.proxiedconnector.hive;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import dev.failsafe.Failsafe;
+import dev.failsafe.RetryPolicy;
 import io.airlift.slice.Slices;
 import io.trino.Session;
 import io.trino.plugin.hive.HiveColumnHandle;
@@ -96,8 +98,6 @@ import io.trino.testing.QueryRunner;
 import io.varada.tools.util.Pair;
 import io.varada.tools.util.StringUtils;
 import jakarta.ws.rs.HttpMethod;
-import net.jodah.failsafe.Failsafe;
-import net.jodah.failsafe.RetryPolicy;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -2157,11 +2157,12 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         computeActual("DROP TABLE IF EXISTS t");
 
         buildAndWarmWideTable(30, true, 90, Optional.empty());
-        Failsafe.with(new RetryPolicy<>()
+        Failsafe.with(RetryPolicy.builder()
                         .handle(AssertionError.class)
                         .withMaxRetries(5)
                         .withDelay(Duration.ofSeconds(1))
-                        .withMaxDuration(Duration.ofSeconds(3)))
+                        .withMaxDuration(Duration.ofSeconds(3))
+                        .build())
                 .run(() -> {
                     RowGroupCountResult rgCount = getRowGroupCount();
                     assertThat(rgCount.warmupColumnNames().contains(format("%s.%s.%s.%s", DEFAULT_SCHEMA, WIDE_TABLE_NAME, "c010", WarmUpType.WARM_UP_TYPE_DATA))).isTrue();
@@ -3837,11 +3838,12 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomishlomishlomi')");
         warmAndValidate("SELECT * FROM T", true, "warm_finished");
 
-        Failsafe.with(new RetryPolicy<>()
+        Failsafe.with(RetryPolicy.builder()
                         .handle(AssertionError.class)
                         .withMaxRetries(5)
                         .withDelay(Duration.ofMillis(100))
-                        .withMaxDuration(Duration.ofMillis(1000)))
+                        .withMaxDuration(Duration.ofMillis(1000))
+                        .build())
                 .run(() -> {
                     String cachedSharedRowGroupsStr = executeRestCommand(CACHED_SHARED_ROW_GROUP, "", null, HttpMethod.GET, HttpURLConnection.HTTP_OK);
                     List<Object> cachedSharedRowGroupRes = objectMapper.readerFor(new TypeReference<List<Object>>() {})
@@ -3869,11 +3871,12 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         executeRestCommand(FailureGeneratorResource.TASK_NAME, "", failureGeneratorDataList, HttpMethod.POST, HttpURLConnection.HTTP_NO_CONTENT);
         warmAndValidate("SELECT * FROM T", true, "warm_accomplished");
 
-        Failsafe.with(new RetryPolicy<>()
+        Failsafe.with(RetryPolicy.builder()
                         .handle(AssertionError.class)
                         .withMaxRetries(5)
                         .withDelay(Duration.ofSeconds(1))
-                        .withMaxDuration(Duration.ofSeconds(10)))
+                        .withMaxDuration(Duration.ofSeconds(10))
+                        .build())
                 .run(() -> {
                     String cachedRowGroupsStr = executeRestCommand(CACHED_ROW_GROUP, "", null, HttpMethod.GET, HttpURLConnection.HTTP_OK);
                     List<RowGroupData> cachedRowGroupRes = objectMapper.readerFor(new TypeReference<List<RowGroupData>>() {}).readValue(cachedRowGroupsStr);

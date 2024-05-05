@@ -19,6 +19,8 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.eventbus.EventBus;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import dev.failsafe.Failsafe;
+import dev.failsafe.RetryPolicy;
 import io.airlift.json.ObjectMapperProvider;
 import io.airlift.log.Logger;
 import io.trino.plugin.varada.annotations.ForWarmupRuleCloudFetcher;
@@ -34,8 +36,6 @@ import io.varada.cloudvendors.CloudVendorService;
 import io.varada.cloudvendors.model.StorageObjectMetadata;
 import io.varada.log.ShapingLogger;
 import io.varada.tools.CatalogNameProvider;
-import net.jodah.failsafe.Failsafe;
-import net.jodah.failsafe.RetryPolicy;
 
 import java.time.Duration;
 import java.util.List;
@@ -165,9 +165,10 @@ public class WarmupRuleCloudFetcher
                 if (path == null || !cloudVendorService.directoryExists(path)) {
                     return;
                 }
-                StorageObjectMetadata storageObjectMetadata = Failsafe.with(new RetryPolicy<>()
+                StorageObjectMetadata storageObjectMetadata = Failsafe.with(RetryPolicy.builder()
                                 .withMaxRetries(warmupRuleCloudFetcherConfiguration.getDownloadRetries())
-                                .withDelay(warmupRuleCloudFetcherConfiguration.getDownloadDuration()))
+                                .withDelay(warmupRuleCloudFetcherConfiguration.getDownloadDuration())
+                                .build())
                         .get(() -> cloudVendorService.getObjectMetadata(path));
 
                 if ((currentStorageObjectMetadata != null && storageObjectMetadata != null) && currentStorageObjectMetadata.equals(storageObjectMetadata)) {
@@ -177,9 +178,10 @@ public class WarmupRuleCloudFetcher
                 currentStorageObjectMetadata = storageObjectMetadata;
 
                 if (currentStorageObjectMetadata.getContentLength().isPresent()) {
-                    Optional<String> optionalJson = Failsafe.with(new RetryPolicy<>()
+                    Optional<String> optionalJson = Failsafe.with(RetryPolicy.builder()
                                     .withMaxRetries(warmupRuleCloudFetcherConfiguration.getDownloadRetries())
-                                    .withDelay(warmupRuleCloudFetcherConfiguration.getDownloadDuration()))
+                                    .withDelay(warmupRuleCloudFetcherConfiguration.getDownloadDuration())
+                                    .build())
                             .get(() -> cloudVendorService.downloadCompressedFromCloud(path, true));
                     logger.debug("fetching from %s -> %s", path, optionalJson.orElse(""));
 
