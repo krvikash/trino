@@ -30,7 +30,13 @@ import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MINUTES;
 
-@DefunctConfig({"adaptive-partial-aggregation.min-rows", "preferred-write-partitioning-min-number-of-partitions", "optimizer.use-mark-distinct", "use-highest-cardinality-column-for-forced-exchange-below-group-id"})
+@DefunctConfig({
+        "adaptive-partial-aggregation.min-rows",
+        "preferred-write-partitioning-min-number-of-partitions",
+        "optimizer.use-mark-distinct",
+        "use-highest-cardinality-column-for-forced-exchange-below-group-id",
+        "optimizer.optimize-mixed-distinct-aggregations",
+})
 public class OptimizerConfig
 {
     private double cpuCostWeight = 75;

@@ -33,13 +33,9 @@ import java.util.Optional;
 import java.util.Set;
 
 import static io.trino.SystemSessionProperties.distinctAggregationsStrategy;
-import static io.trino.SystemSessionProperties.markDistinctStrategy;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.sql.planner.OptimizerConfig.DistinctAggregationsStrategy.AUTOMATIC;
 import static io.trino.sql.planner.OptimizerConfig.DistinctAggregationsStrategy.MARK_DISTINCT;
-import static io.trino.sql.planner.OptimizerConfig.MarkDistinctStrategy.AUTOMATIC;
-import static io.trino.sql.planner.OptimizerConfig.MarkDistinctStrategy.NONE;
-import static io.trino.sql.planner.iterative.rule.DistinctAggregationStrategyChooser.createDistinctAggregationStrategyChooser;
 import static io.trino.sql.planner.plan.Patterns.aggregation;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toSet;

@@ -2138,11 +2138,6 @@ public final class SystemSessionProperties
         return session.getSystemProperty(PAGE_PARTITIONING_BUFFER_POOL_SIZE, Integer.class);
     }
 
-    public static boolean isColumnarFilterEvaluationEnabled(Session session)
-    {
-        return session.getSystemProperty(COLUMNAR_FILTER_EVALUATION_ENABLED, Boolean.class);
-    }
-
     public static DataSize getIdleWriterMinDataSizeThreshold(Session session)
     {
         return session.getSystemProperty(IDLE_WRITER_MIN_DATA_SIZE_THRESHOLD, DataSize.class);
