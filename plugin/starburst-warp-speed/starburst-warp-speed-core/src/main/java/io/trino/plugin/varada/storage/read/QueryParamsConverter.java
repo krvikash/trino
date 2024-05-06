@@ -143,7 +143,7 @@ public class QueryParamsConverter
                                 queryMatchData.isTightnessRequired(),
                                 matchCollectIndex,
                                 matchCollectOp,
-                                matchDataWarmUpElement.getWarmId(),
+                                matchDataWarmUpElement.hasStoreId() ? -1 : matchDataWarmUpElement.getWarmId(),
                                 luceneParams));
                 predicateCacheDataBuilder.add(queryMatchData.getPredicateCacheData());
             }
@@ -223,7 +223,7 @@ public class QueryParamsConverter
                                 matchCollectIndex,
                                 matchCollectId,
                                 isCollectNulls,
-                                collectDataWarmUpElement.getWarmId(),
+                                collectDataWarmUpElement.hasStoreId() ? -1 : collectDataWarmUpElement.getWarmId(),
                                 valuesDictBlock));
             }
             else {
@@ -245,7 +245,7 @@ public class QueryParamsConverter
                                 matchCollectIndex,
                                 matchCollectId,
                                 isCollectNulls,
-                                collectDataWarmUpElement.getWarmId(),
+                                collectDataWarmUpElement.hasStoreId() ? -1 : collectDataWarmUpElement.getWarmId(),
                                 valuesDictBlock));
             }
         }

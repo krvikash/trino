@@ -276,6 +276,12 @@ public class WarmUpElement
         return usedDictionarySize > 0;
     }
 
+    @JsonIgnore
+    public boolean hasStoreId()
+    {
+        return storeId != null;
+    }
+
     @JsonProperty(START_OFFSET)
     public int getStartOffset()
     {
