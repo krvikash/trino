@@ -44,6 +44,8 @@ public class TestUnloadGcs
     {
         return HiveQueryRunner.builder()
                 .setHiveProperties(ImmutableMap.<String, String>builder()
+                        .put("hive.metastore", "file")
+                        .put("fs.hadoop.enabled", "false")
                         .put("fs.native-gcs.enabled", "true")
                         .put("gcs.json-key", gcsJsonKey)
                         .put("hive.security", "allow-all")
