@@ -267,6 +267,13 @@ public class HudiMetadata
     }
 
     @Override
+    public boolean isColumnarTableScan(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        // hudi supports only a columnar (parquet) storage format
+        return true;
+    }
+
+    @Override
     public void validateScan(ConnectorSession session, ConnectorTableHandle handle)
     {
         HudiTableHandle hudiTableHandle = (HudiTableHandle) handle;

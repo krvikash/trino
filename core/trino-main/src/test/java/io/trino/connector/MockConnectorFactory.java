@@ -154,6 +154,7 @@ public class MockConnectorFactory
 
     private final WriterScalingOptions writerScalingOptions;
     private final Supplier<Set<ConnectorCapabilities>> capabilities;
+    private final boolean supportsSingleColumnReads;
 
     private MockConnectorFactory(
             String name,
@@ -162,7 +163,7 @@ public class MockConnectorFactory
             Function<ConnectorSession, List<String>> listSchemaNames,
             BiFunction<ConnectorSession, String, List<String>> listTables,
             Optional<BiFunction<ConnectorSession, SchemaTablePrefix, Iterator<TableColumnsMetadata>>> streamTableColumns,
-            Optional<MockConnectorFactory.StreamRelationColumns> streamRelationColumns,
+            Optional<StreamRelationColumns> streamRelationColumns,
             BiFunction<ConnectorSession, SchemaTablePrefix, Map<SchemaTableName, ConnectorViewDefinition>> getViews,
             Supplier<List<PropertyMetadata<?>>> getViewProperties,
             Supplier<List<PropertyMetadata<?>>> getMaterializedViewProperties,
@@ -210,7 +211,8 @@ public class MockConnectorFactory
             Function<ConnectorTableHandle, ConnectorTableHandle> getCanonicalTableHandle,
             BiFunction<ConnectorSession, ConnectorTableExecuteHandle, Optional<ConnectorTableLayout>> getLayoutForTableExecute,
             WriterScalingOptions writerScalingOptions,
-            Supplier<Set<ConnectorCapabilities>> capabilities)
+            Supplier<Set<ConnectorCapabilities>> capabilities,
+            boolean supportsSingleColumnReads)
     {
         this.name = requireNonNull(name, "name is null");
         this.sessionProperty = ImmutableList.copyOf(requireNonNull(sessionProperty, "sessionProperty is null"));
@@ -267,6 +269,7 @@ public class MockConnectorFactory
         this.getLayoutForTableExecute = requireNonNull(getLayoutForTableExecute, "getLayoutForTableExecute is null");
         this.writerScalingOptions = requireNonNull(writerScalingOptions, "writerScalingOptions is null");
         this.capabilities = requireNonNull(capabilities, "capabilities is null");
+        this.supportsSingleColumnReads = supportsSingleColumnReads;
     }
 
     @Override
@@ -332,7 +335,8 @@ public class MockConnectorFactory
                 getCanonicalTableHandle,
                 getLayoutForTableExecute,
                 writerScalingOptions,
-                capabilities);
+                capabilities,
+                supportsSingleColumnReads);
     }
 
     public static MockConnectorFactory create()
@@ -491,6 +495,7 @@ public class MockConnectorFactory
         private Function<ConnectorTableHandle, ConnectorTableHandle> getCanonicalTableHandle = Function.identity();
         private WriterScalingOptions writerScalingOptions = WriterScalingOptions.DISABLED;
         private Supplier<Set<ConnectorCapabilities>> capabilities = ImmutableSet::of;
+        private boolean supportsSingleColumnReads;
 
         private Builder() {}
 
@@ -868,6 +873,12 @@ public class MockConnectorFactory
             return this;
         }
 
+        public Builder withColumnarTableScan(boolean supportsSingleColumnReads)
+        {
+            this.supportsSingleColumnReads = supportsSingleColumnReads;
+            return this;
+        }
+
         public MockConnectorFactory build()
         {
             Optional<ConnectorAccessControl> accessControl = Optional.empty();
@@ -929,7 +940,8 @@ public class MockConnectorFactory
                     getCanonicalTableHandle,
                     getLayoutForTableExecute,
                     writerScalingOptions,
-                    capabilities);
+                    capabilities,
+                    supportsSingleColumnReads);
         }
 
         public static Function<ConnectorSession, List<String>> defaultListSchemaNames()

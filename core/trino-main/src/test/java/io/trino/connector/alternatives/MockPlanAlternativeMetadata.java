@@ -1029,6 +1029,12 @@ public class MockPlanAlternativeMetadata
     }
 
     @Override
+    public boolean isColumnarTableScan(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        return delegate.isColumnarTableScan(session, getDelegate(tableHandle));
+    }
+
+    @Override
     public WriterScalingOptions getNewTableWriterScalingOptions(ConnectorSession session, SchemaTableName tableName, Map<String, Object> tableProperties)
     {
         return delegate.getNewTableWriterScalingOptions(session, tableName, tableProperties);
