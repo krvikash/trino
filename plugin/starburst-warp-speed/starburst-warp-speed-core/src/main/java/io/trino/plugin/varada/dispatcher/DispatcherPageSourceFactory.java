@@ -63,9 +63,11 @@ import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.EmptyPageSource;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.type.Type;
 import io.varada.log.ShapingLogger;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -76,6 +78,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.plugin.varada.storage.read.QueryParamsConverter.createQueryParams;
 import static java.util.Collections.emptyMap;
 import static java.util.Objects.requireNonNull;
@@ -488,10 +491,13 @@ public class DispatcherPageSourceFactory
                 rangeFillerService);
 
         VaradaStatsDispatcherPageSource pageSourceStats = (VaradaStatsDispatcherPageSource) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
-
+        List<Type> varadaWithoutPrefilledAndProxiedCollectTypes = Stream.concat(
+                        queryContext.getRemainingCollectColumns().stream().map(dispatcherProxiedConnectorTransformer::getColumnType),
+                        queryContext.getNativeQueryCollectDataList().stream().map(QueryColumn::getType))
+                .collect(toImmutableList());
         return new DispatcherPageSource(proxiedConnectorPageSourceProvider,
-                dispatcherProxiedConnectorTransformer,
                 queryClassifier,
+                varadaWithoutPrefilledAndProxiedCollectTypes,
                 varadaPageSource,
                 queryContext,
                 rowGroupData,
@@ -736,8 +742,8 @@ public class DispatcherPageSourceFactory
         try {
             PageSourceDecision pageSourceDecision = PageSourceDecision.VARADA;
             DispatcherPageSource dispatcherPageSource = new DispatcherPageSource(EmptyPageSource::new,
-                    dispatcherProxiedConnectorTransformer,
                     queryClassifier,
+                    Collections.emptyList(), // no proxied in case of cache
                     varadaPageSource,
                     queryContext,
                     rowGroupData,

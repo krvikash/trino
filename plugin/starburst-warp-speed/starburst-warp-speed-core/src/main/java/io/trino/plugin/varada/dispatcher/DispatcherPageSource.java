@@ -21,7 +21,6 @@ import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.model.RowGroupData;
 import io.trino.plugin.varada.dispatcher.query.QueryContext;
 import io.trino.plugin.varada.dispatcher.query.classifier.QueryClassifier;
-import io.trino.plugin.varada.dispatcher.query.data.QueryColumn;
 import io.trino.plugin.varada.storage.read.PrefilledPageSource;
 import io.trino.plugin.varada.storage.read.VaradaStoragePageSource;
 import io.trino.plugin.warp.gen.stats.VaradaStatsDispatcherPageSource;
@@ -42,11 +41,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.StringJoiner;
-import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.lang.Math.toIntExact;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -84,8 +81,8 @@ public class DispatcherPageSource
     private Deque<RowRange> varadaPageRanges;
 
     public DispatcherPageSource(Provider<ConnectorPageSource> proxiedConnectorPageSourceProvider,
-            DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
             QueryClassifier queryClassifier,
+            List<Type> varadaWithoutPrefilledAndProxiedCollectTypes,
             VaradaStoragePageSource varadaPageSource,
             QueryContext queryContext,
             RowGroupData rowGroupData,
@@ -119,10 +116,7 @@ public class DispatcherPageSource
                 globalConfig.getShapingLoggerThreshold(),
                 globalConfig.getShapingLoggerDuration(),
                 globalConfig.getShapingLoggerNumberOfSamples());
-        this.varadaWithoutPrefilledAndProxiedCollectTypes = Stream.concat(
-                        queryContext.getRemainingCollectColumns().stream().map(dispatcherProxiedConnectorTransformer::getColumnType),
-                        queryContext.getNativeQueryCollectDataList().stream().map(QueryColumn::getType))
-                .collect(toImmutableList());
+        this.varadaWithoutPrefilledAndProxiedCollectTypes = varadaWithoutPrefilledAndProxiedCollectTypes;
     }
 
     @Override

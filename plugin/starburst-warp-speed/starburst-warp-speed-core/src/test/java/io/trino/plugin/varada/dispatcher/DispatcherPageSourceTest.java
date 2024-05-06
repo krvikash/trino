@@ -25,6 +25,7 @@ import io.trino.plugin.varada.dispatcher.model.WarmUpElement;
 import io.trino.plugin.varada.dispatcher.query.QueryContext;
 import io.trino.plugin.varada.dispatcher.query.classifier.PredicateContextData;
 import io.trino.plugin.varada.dispatcher.query.classifier.QueryClassifier;
+import io.trino.plugin.varada.dispatcher.query.data.QueryColumn;
 import io.trino.plugin.varada.dispatcher.query.data.collect.NativeQueryCollectData;
 import io.trino.plugin.varada.dispatcher.query.data.collect.PrefilledQueryCollectData;
 import io.trino.plugin.varada.expression.VaradaPrimitiveConstant;
@@ -56,7 +57,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.plugin.varada.storage.write.StorageWriterServiceTest.buildLongPage;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -756,9 +759,14 @@ public class DispatcherPageSourceTest
                 .prefilledQueryCollectDataByBlockIndex(prefilledQueryCollectDataByBlockIndex)
                 .build();
 
+        List<Type> varadaWithoutPrefilledAndProxiedCollectTypes = Stream.concat(
+                        queryContext.getRemainingCollectColumns().stream().map(dispatcherProxiedConnectorTransformer::getColumnType),
+                        queryContext.getNativeQueryCollectDataList().stream().map(QueryColumn::getType))
+                .collect(toImmutableList());
+
         return new DispatcherPageSource(() -> proxiedConnectorPageSource,
-                dispatcherProxiedConnectorTransformer,
                 mock(QueryClassifier.class),
+                varadaWithoutPrefilledAndProxiedCollectTypes,
                 varadaPageSource,
                 queryContext,
                 rowGroupData,
