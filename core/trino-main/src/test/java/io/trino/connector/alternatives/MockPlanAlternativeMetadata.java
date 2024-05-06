@@ -1036,6 +1036,12 @@ public class MockPlanAlternativeMetadata
     }
 
     @Override
+    public boolean allowSplittingReadIntoMultipleSubQueries(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        return delegate.allowSplittingReadIntoMultipleSubQueries(session, tableHandle);
+    }
+
+    @Override
     public WriterScalingOptions getNewTableWriterScalingOptions(ConnectorSession session, SchemaTableName tableName, Map<String, Object> tableProperties)
     {
         return delegate.getNewTableWriterScalingOptions(session, tableName, tableProperties);

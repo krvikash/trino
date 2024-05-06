@@ -1308,6 +1308,12 @@ public class DispatcherMetadata
     }
 
     @Override
+    public boolean allowSplittingReadIntoMultipleSubQueries(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        return proxiedConnectorMetadata.allowSplittingReadIntoMultipleSubQueries(session, tableHandle);
+    }
+
+    @Override
     public Optional<Type> getSupportedType(ConnectorSession session, Map<String, Object> map, Type type)
     {
         return proxiedConnectorMetadata.getSupportedType(session, map, type);

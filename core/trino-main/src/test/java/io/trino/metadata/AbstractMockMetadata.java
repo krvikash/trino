@@ -1026,6 +1026,12 @@ public abstract class AbstractMockMetadata
     }
 
     @Override
+    public boolean allowSplittingReadIntoMultipleSubQueries(Session session, TableHandle tableHandle)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public WriterScalingOptions getNewTableWriterScalingOptions(Session session, QualifiedObjectName tableName, Map<String, Object> tableProperties)
     {
         throw new UnsupportedOperationException();
