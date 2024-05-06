@@ -21,15 +21,7 @@ import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.testing.DistributedQueryRunner;
 
 import java.util.Map;
-import java.util.Optional;
-import java.util.OptionalInt;
 
-import static io.trino.plugin.tpch.TpchConnectorFactory.TPCH_MAX_ROWS_PER_PAGE_PROPERTY;
-import static io.trino.plugin.tpch.TpchConnectorFactory.TPCH_PARTITIONING_ENABLED;
-import static io.trino.plugin.tpch.TpchConnectorFactory.TPCH_PRODUCE_PAGES;
-import static io.trino.plugin.tpch.TpchConnectorFactory.TPCH_SPLITS_PER_NODE;
-import static io.trino.plugin.tpch.TpchConnectorFactory.TPCH_TABLE_SCAN_REDIRECTION_CATALOG;
-import static io.trino.plugin.tpch.TpchConnectorFactory.TPCH_TABLE_SCAN_REDIRECTION_SCHEMA;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 
 public final class TpchQueryRunnerBuilder
@@ -42,12 +34,6 @@ public final class TpchQueryRunnerBuilder
             .build();
 
     private Map<String, String> connectorProperties = ImmutableMap.of();
-    private Optional<Integer> maxRowsPerPage = Optional.empty();
-    private Optional<Boolean> producePages = Optional.empty();
-    private Optional<String> destinationCatalog = Optional.empty();
-    private Optional<String> destinationSchema = Optional.empty();
-    private OptionalInt splitsPerNode = OptionalInt.empty();
-    private Optional<Boolean> partitioningEnabled = Optional.empty();
     private boolean withPlanAlternatives;
 
     private TpchQueryRunnerBuilder()
@@ -59,42 +45,6 @@ public final class TpchQueryRunnerBuilder
     public TpchQueryRunnerBuilder withConnectorProperties(Map<String, String> connectorProperties)
     {
         this.connectorProperties = ImmutableMap.copyOf(connectorProperties);
-        return this;
-    }
-
-    public TpchQueryRunnerBuilder withMaxRowsPerPage(int maxRowsPerPage)
-    {
-        this.maxRowsPerPage = Optional.of(maxRowsPerPage);
-        return this;
-    }
-
-    public TpchQueryRunnerBuilder withProducePages(boolean producePages)
-    {
-        this.producePages = Optional.of(producePages);
-        return this;
-    }
-
-    public TpchQueryRunnerBuilder withTableScanRedirectionCatalog(String destinationCatalog)
-    {
-        this.destinationCatalog = Optional.of(destinationCatalog);
-        return this;
-    }
-
-    public TpchQueryRunnerBuilder withTableScanRedirectionSchema(String destinationSchema)
-    {
-        this.destinationSchema = Optional.of(destinationSchema);
-        return this;
-    }
-
-    public TpchQueryRunnerBuilder withSplitsPerNode(int splitsPerNode)
-    {
-        this.splitsPerNode = OptionalInt.of(splitsPerNode);
-        return this;
-    }
-
-    public TpchQueryRunnerBuilder withPartitioningEnabled(boolean partitioningEnabled)
-    {
-        this.partitioningEnabled = Optional.of(partitioningEnabled);
         return this;
     }
 
@@ -120,15 +70,7 @@ public final class TpchQueryRunnerBuilder
         try {
             queryRunner.installPlugin(new TpchPlugin());
             queryRunner.installPlugin(new MockPlanAlternativePlugin(new TpchPlugin()));
-            ImmutableMap.Builder<String, String> properties = ImmutableMap.builder();
-            properties.putAll(connectorProperties);
-            maxRowsPerPage.ifPresent(value -> properties.put(TPCH_MAX_ROWS_PER_PAGE_PROPERTY, value.toString()));
-            producePages.ifPresent(value -> properties.put(TPCH_PRODUCE_PAGES, value.toString()));
-            destinationCatalog.ifPresent(value -> properties.put(TPCH_TABLE_SCAN_REDIRECTION_CATALOG, value));
-            destinationSchema.ifPresent(value -> properties.put(TPCH_TABLE_SCAN_REDIRECTION_SCHEMA, value));
-            splitsPerNode.ifPresent(value -> properties.put(TPCH_SPLITS_PER_NODE, Integer.toString(value)));
-            partitioningEnabled.ifPresent(value -> properties.put(TPCH_PARTITIONING_ENABLED, value.toString()));
-            queryRunner.createCatalog("tpch", withPlanAlternatives ? "plan_alternatives_tpch" : "tpch", properties.buildOrThrow());
+            queryRunner.createCatalog("tpch", withPlanAlternatives ? "plan_alternatives_tpch" : "tpch", connectorProperties);
             return queryRunner;
         }
         catch (Exception e) {

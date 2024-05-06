@@ -27,6 +27,7 @@ import org.junit.jupiter.api.parallel.Isolated;
 import java.util.HashMap;
 import java.util.Map;
 
+import static io.trino.plugin.tpch.TpchConnectorFactory.TPCH_PARTITIONING_ENABLED;
 import static java.lang.Runtime.getRuntime;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -65,7 +66,7 @@ public class TestTaskSplitting
                     runner.loadExchangeManager("filesystem", ImmutableMap.of("exchange.base-directories",
                                     System.getProperty("java.io.tmpdir") + "/trino-local-file-system-exchange-manager"));
                 })
-                .withPartitioningEnabled(false)
+                .withConnectorProperties(Map.of(TPCH_PARTITIONING_ENABLED, "false"))
                 .build();
     }
 

@@ -21,7 +21,10 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.List;
+import java.util.Map;
 
+import static io.trino.plugin.tpch.TpchConnectorFactory.TPCH_PARTITIONING_ENABLED;
+import static io.trino.plugin.tpch.TpchConnectorFactory.TPCH_SPLITS_PER_NODE;
 import static org.junit.jupiter.api.Assumptions.abort;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
@@ -36,9 +39,8 @@ public class TestTpchCacheSubqueriesTest
         return TpchQueryRunnerBuilder.builder()
                 .addExtraProperties(EXTRA_PROPERTIES)
                 // cache doesn't support table partitioning yet
-                .withPartitioningEnabled(false)
                 // create enough splits for caching to be effective
-                .withSplitsPerNode(100)
+                .withConnectorProperties(Map.of(TPCH_PARTITIONING_ENABLED, "false", TPCH_SPLITS_PER_NODE, "100"))
                 .build();
     }
 
