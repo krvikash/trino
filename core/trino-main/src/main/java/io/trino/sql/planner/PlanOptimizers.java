@@ -694,7 +694,7 @@ public class PlanOptimizers
                                 // Run SingleDistinctAggregationToGroupBy after MultipleDistinctAggregationsToSubqueries to ensure the single column distinct is optimized
                                 new SingleDistinctAggregationToGroupBy(),
                                 new DistinctAggregationToGroupBy(plannerContext, distinctAggregationController), // Run this after aggregation pushdown so that multiple distinct aggregations can be pushed into a connector
-                                                                            // It also is run before MultipleDistinctAggregationToMarkDistinct to take precedence f enabled
+                                // It also is run before MultipleDistinctAggregationToMarkDistinct to take precedence if enabled
                                 new ImplementFilteredAggregations(), // DistinctAggregationToGroupBy will add filters if fired
                                 new MultipleDistinctAggregationToMarkDistinct(distinctAggregationController))), // Run this after aggregation pushdown so that multiple distinct aggregations can be pushed into a connector
                 inlineProjections,
