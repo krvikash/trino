@@ -46,7 +46,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.base.Throwables.throwIfUnchecked;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.sortedCopyOf;
 import static com.google.common.util.concurrent.Futures.addCallback;
@@ -370,8 +369,7 @@ public class BufferExchange
     private void throwIfFailed()
     {
         if (failure != null) {
-            throwIfUnchecked(failure);
-            throw new RuntimeException(failure);
+            throw new RuntimeException("Exchange marked already failed", failure);
         }
     }
 
