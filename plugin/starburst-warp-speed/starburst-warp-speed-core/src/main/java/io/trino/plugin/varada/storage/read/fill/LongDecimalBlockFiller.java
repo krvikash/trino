@@ -103,8 +103,8 @@ public class LongDecimalBlockFiller
     private Block createSingleMapWithNullFromMapBlock(Block mapBlock)
     {
         long[] mappingValues = new long[4]; // including null
-        mappingValues[0] = ((Int128ArrayBlock) mapBlock).getInt128Low(0);
-        mappingValues[1] = ((Int128ArrayBlock) mapBlock).getInt128High(0);
+        mappingValues[0] = ((Int128ArrayBlock) mapBlock).getInt128High(0);
+        mappingValues[1] = ((Int128ArrayBlock) mapBlock).getInt128Low(0);
         boolean[] nulls = new boolean[2];
         nulls[1] = true;
 

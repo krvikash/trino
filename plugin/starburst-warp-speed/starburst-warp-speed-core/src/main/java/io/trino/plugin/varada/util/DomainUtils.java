@@ -119,8 +119,8 @@ public class DomainUtils
             long[] longValues = new long[numValues * 2];
             Int128ArrayBlock int128Block = (Int128ArrayBlock) sortedRangesBlock.getUnderlyingValueBlock();
             for (arrIx = 0, buffIx = 0; buffIx < sortedRangesBlock.getPositionCount(); arrIx += 2, buffIx += 2) {
-                longValues[arrIx] = int128Block.getInt128Low(sortedRangesBlock.getUnderlyingValuePosition(buffIx));
-                longValues[arrIx + 1] = int128Block.getInt128High(sortedRangesBlock.getUnderlyingValuePosition(buffIx));
+                longValues[arrIx] = int128Block.getInt128High(sortedRangesBlock.getUnderlyingValuePosition(buffIx));
+                longValues[arrIx + 1] = int128Block.getInt128Low(sortedRangesBlock.getUnderlyingValuePosition(buffIx));
             }
             ret = Optional.of(new Int128ArrayBlock(numValues, Optional.ofNullable(nulls), longValues));
         }

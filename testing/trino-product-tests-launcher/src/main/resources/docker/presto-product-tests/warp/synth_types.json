@@ -7990,6 +7990,112 @@
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
+      },
+      {
+        "query": "select distinct(single_short) from single_chunks_table where single_short=1 or single_short=2 order by 1",
+        "query_id": "single_chunks_table_12",
+        "expected_result": [
+          [1],
+          [2]
+        ],
+        "expected_counters": {
+          "varada_match_columns": 3,
+          "varada_collect_columns": 3,
+          "varada_match_collect_columns": 1,
+          "varada_mapped_match_collect_columns": 1,
+          "filtered_by_predicate": 2,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        },
+        "iceberg_expected_counters": {
+          "varada_match_columns": 1,
+          "varada_collect_columns": 1,
+          "varada_match_collect_columns": 1,
+          "varada_mapped_match_collect_columns": 1,
+          "filtered_by_predicate": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        },
+        "dl_expected_counters": {
+          "varada_match_columns": 1,
+          "varada_collect_columns": 1,
+          "varada_match_collect_columns": 1,
+          "varada_mapped_match_collect_columns": 1,
+          "filtered_by_predicate": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
+      },
+      {
+        "query": "select distinct(single_short) from single_chunks_table where single_short=-28525 or single_short=-19117 order by 1",
+        "query_id": "single_chunks_table_13",
+        "expected_result": [
+          [-28525],
+          [-19117]
+        ],
+        "expected_counters": {
+          "varada_match_columns": 1,
+          "varada_collect_columns": 1,
+          "varada_match_collect_columns": 1,
+          "varada_mapped_match_collect_columns": 1,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
+      },
+      {
+        "query": "select distinct(single_long) from single_chunks_table where single_long=7761308209197128495 or single_long=7761308209197128501 order by 1",
+        "query_id": "single_chunks_table_14",
+        "expected_result": [
+          [7761308209197128495],
+          [7761308209197128501]
+        ],
+        "expected_counters": {
+          "varada_match_columns": 3,
+          "varada_collect_columns": 3,
+          "varada_match_collect_columns": 1,
+          "varada_mapped_match_collect_columns": 1,
+          "filtered_by_predicate": 2,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        },
+        "iceberg_expected_counters": {
+          "varada_match_columns": 1,
+          "varada_collect_columns": 1,
+          "varada_match_collect_columns": 1,
+          "varada_mapped_match_collect_columns": 1,
+          "filtered_by_predicate": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        },
+        "dl_expected_counters": {
+          "varada_match_columns": 1,
+          "varada_collect_columns": 1,
+          "varada_match_collect_columns": 1,
+          "varada_mapped_match_collect_columns": 1,
+          "filtered_by_predicate": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
+      },
+      {
+        "query": "select distinct(single_long_dec) from single_chunks_table where single_long_dec=3757825518217793400000000000.1234567891 or single_long_dec=4283625318878608300000000000.1234567891 order by 1",
+        "query_id": "single_chunks_table_15",
+        "expected_result": [
+          [
+            3757825518217793400000000000.1234567891
+          ],
+          [
+            4283625318878608300000000000.1234567891
+          ]
+        ],
+        "expected_counters": {
+          "varada_match_columns": 1,
+          "varada_collect_columns": 1,
+          "varada_match_collect_columns": 1,
+          "varada_mapped_match_collect_columns": 1,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
       }
     ]
   },
