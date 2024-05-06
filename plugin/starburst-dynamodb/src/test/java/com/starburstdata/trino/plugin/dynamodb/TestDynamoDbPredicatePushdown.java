@@ -108,7 +108,7 @@ public class TestDynamoDbPredicatePushdown
             assertThat(query("SELECT * FROM " + tableName + " WHERE col1 IN (true, null)"))
                     .isNotFullyPushedDown(node(TableScanNode.class)
                             .with(TableScanNode.class, tableScanNode -> {
-                                TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().getConnectorHandle()).getConstraint();
+                                TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().connectorHandle()).getConstraint();
                                 TupleDomain<?> expectedPredicate =
                                         TupleDomain.withColumnDomains(
                                                 Map.of(
@@ -209,7 +209,7 @@ public class TestDynamoDbPredicatePushdown
             assertThat(query("SELECT * FROM " + tableName + " WHERE col1 > 11111 AND col1 IS NOT NULL"))
                     .isNotFullyPushedDown(node(TableScanNode.class)
                             .with(TableScanNode.class, tableScanNode -> {
-                                TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().getConnectorHandle()).getConstraint();
+                                TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().connectorHandle()).getConstraint();
                                 TupleDomain<?> expectedPredicate =
                                         TupleDomain.withColumnDomains(
                                                 Map.of(
@@ -241,7 +241,7 @@ public class TestDynamoDbPredicatePushdown
             assertThat(query("SELECT * FROM " + tableName + " WHERE col1 >= 11111 OR col1 <= null"))
                     .isNotFullyPushedDown(node(TableScanNode.class)
                             .with(TableScanNode.class, tableScanNode -> {
-                                TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().getConnectorHandle()).getConstraint();
+                                TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().connectorHandle()).getConstraint();
                                 TupleDomain<?> expectedPredicate =
                                         TupleDomain.withColumnDomains(
                                                 Map.of(
@@ -255,7 +255,7 @@ public class TestDynamoDbPredicatePushdown
             assertThat(query("SELECT * FROM " + tableName + " WHERE col1 >= null OR col1 <= 11111"))
                     .isNotFullyPushedDown(node(TableScanNode.class)
                             .with(TableScanNode.class, tableScanNode -> {
-                                TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().getConnectorHandle()).getConstraint();
+                                TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().connectorHandle()).getConstraint();
                                 TupleDomain<?> expectedPredicate =
                                         TupleDomain.withColumnDomains(
                                                 Map.of(
@@ -269,7 +269,7 @@ public class TestDynamoDbPredicatePushdown
             assertThat(query("SELECT * FROM " + tableName + " WHERE col1 > 11111 OR col1 < null"))
                     .isNotFullyPushedDown(node(TableScanNode.class)
                             .with(TableScanNode.class, tableScanNode -> {
-                                TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().getConnectorHandle()).getConstraint();
+                                TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().connectorHandle()).getConstraint();
                                 TupleDomain<?> expectedPredicate =
                                         TupleDomain.withColumnDomains(
                                                 Map.of(
@@ -283,7 +283,7 @@ public class TestDynamoDbPredicatePushdown
             assertThat(query("SELECT * FROM " + tableName + " WHERE col1 > null OR col1 < 11111"))
                     .isNotFullyPushedDown(node(TableScanNode.class)
                             .with(TableScanNode.class, tableScanNode -> {
-                                TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().getConnectorHandle()).getConstraint();
+                                TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().connectorHandle()).getConstraint();
                                 TupleDomain<?> expectedPredicate =
                                         TupleDomain.withColumnDomains(
                                                 Map.of(
@@ -314,7 +314,7 @@ public class TestDynamoDbPredicatePushdown
             assertThat(query("SELECT * FROM " + tableName + " WHERE col1 != 22222"))
                     .isNotFullyPushedDown(node(TableScanNode.class)
                             .with(TableScanNode.class, tableScanNode -> {
-                                TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().getConnectorHandle()).getConstraint();
+                                TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().connectorHandle()).getConstraint();
                                 TupleDomain<?> expectedPredicate =
                                         TupleDomain.withColumnDomains(
                                                 Map.of(
@@ -427,7 +427,7 @@ public class TestDynamoDbPredicatePushdown
             assertThat(query("SELECT * FROM " + tableName + " WHERE col1 > 9223372036854775805 AND col1 IS NOT NULL"))
                     .isNotFullyPushedDown(node(TableScanNode.class)
                             .with(TableScanNode.class, tableScanNode -> {
-                                TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().getConnectorHandle()).getConstraint();
+                                TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().connectorHandle()).getConstraint();
                                 TupleDomain<?> expectedPredicate =
                                         TupleDomain.withColumnDomains(
                                                 Map.of(
@@ -458,7 +458,7 @@ public class TestDynamoDbPredicatePushdown
             assertThat(query("SELECT * FROM " + tableName + " WHERE col1 >= 9223372036854775805 OR col1 <= null"))
                     .isNotFullyPushedDown(node(TableScanNode.class)
                             .with(TableScanNode.class, tableScanNode -> {
-                                TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().getConnectorHandle()).getConstraint();
+                                TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().connectorHandle()).getConstraint();
                                 TupleDomain<?> expectedPredicate =
                                         TupleDomain.withColumnDomains(
                                                 Map.of(
@@ -472,7 +472,7 @@ public class TestDynamoDbPredicatePushdown
             assertThat(query("SELECT * FROM " + tableName + " WHERE col1 >= null OR col1 <= 9223372036854775805"))
                     .isNotFullyPushedDown(node(TableScanNode.class)
                             .with(TableScanNode.class, tableScanNode -> {
-                                TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().getConnectorHandle()).getConstraint();
+                                TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().connectorHandle()).getConstraint();
                                 TupleDomain<?> expectedPredicate =
                                         TupleDomain.withColumnDomains(
                                                 Map.of(
@@ -486,7 +486,7 @@ public class TestDynamoDbPredicatePushdown
             assertThat(query("SELECT * FROM " + tableName + " WHERE col1 > 9223372036854775805 OR col1 < null"))
                     .isNotFullyPushedDown(node(TableScanNode.class)
                             .with(TableScanNode.class, tableScanNode -> {
-                                TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().getConnectorHandle()).getConstraint();
+                                TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().connectorHandle()).getConstraint();
                                 TupleDomain<?> expectedPredicate =
                                         TupleDomain.withColumnDomains(
                                                 Map.of(
@@ -500,7 +500,7 @@ public class TestDynamoDbPredicatePushdown
             assertThat(query("SELECT * FROM " + tableName + " WHERE col1 > null OR col1 < 9223372036854775805"))
                     .isNotFullyPushedDown(node(TableScanNode.class)
                             .with(TableScanNode.class, tableScanNode -> {
-                                TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().getConnectorHandle()).getConstraint();
+                                TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().connectorHandle()).getConstraint();
                                 TupleDomain<?> expectedPredicate =
                                         TupleDomain.withColumnDomains(
                                                 Map.of(
@@ -531,7 +531,7 @@ public class TestDynamoDbPredicatePushdown
             assertThat(query("SELECT * FROM " + tableName + " WHERE col1 != 9223372036854775805"))
                     .isNotFullyPushedDown(node(TableScanNode.class)
                             .with(TableScanNode.class, tableScanNode -> {
-                                TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().getConnectorHandle()).getConstraint();
+                                TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().connectorHandle()).getConstraint();
                                 TupleDomain<?> expectedPredicate =
                                         TupleDomain.withColumnDomains(
                                                 Map.of(
@@ -666,7 +666,7 @@ public class TestDynamoDbPredicatePushdown
         assertThat(query("SELECT * FROM " + tableName + " WHERE " + columnName + " > '" + value1 + "' AND " + columnName + " IS NOT NULL"))
                 .isNotFullyPushedDown(node(TableScanNode.class)
                         .with(TableScanNode.class, tableScanNode -> {
-                            TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().getConnectorHandle()).getConstraint();
+                            TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().connectorHandle()).getConstraint();
                             TupleDomain<?> expectedPredicate =
                                     TupleDomain.withColumnDomains(
                                             Map.of(
@@ -698,7 +698,7 @@ public class TestDynamoDbPredicatePushdown
         assertThat(query("SELECT * FROM " + tableName + " WHERE " + columnName + " >= '" + value1 + "' OR " + columnName + " <= null"))
                 .isNotFullyPushedDown(node(TableScanNode.class)
                         .with(TableScanNode.class, tableScanNode -> {
-                            TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().getConnectorHandle()).getConstraint();
+                            TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().connectorHandle()).getConstraint();
                             TupleDomain<?> expectedPredicate =
                                     TupleDomain.withColumnDomains(
                                             Map.of(
@@ -712,7 +712,7 @@ public class TestDynamoDbPredicatePushdown
         assertThat(query("SELECT * FROM " + tableName + " WHERE " + columnName + " >= null OR " + columnName + " <= '" + value1 + "'"))
                 .isNotFullyPushedDown(node(TableScanNode.class)
                         .with(TableScanNode.class, tableScanNode -> {
-                            TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().getConnectorHandle()).getConstraint();
+                            TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().connectorHandle()).getConstraint();
                             TupleDomain<?> expectedPredicate =
                                     TupleDomain.withColumnDomains(
                                             Map.of(
@@ -726,7 +726,7 @@ public class TestDynamoDbPredicatePushdown
         assertThat(query("SELECT * FROM " + tableName + " WHERE " + columnName + " > '" + value1 + "' OR " + columnName + " < null"))
                 .isNotFullyPushedDown(node(TableScanNode.class)
                         .with(TableScanNode.class, tableScanNode -> {
-                            TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().getConnectorHandle()).getConstraint();
+                            TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().connectorHandle()).getConstraint();
                             TupleDomain<?> expectedPredicate =
                                     TupleDomain.withColumnDomains(
                                             Map.of(
@@ -740,7 +740,7 @@ public class TestDynamoDbPredicatePushdown
         assertThat(query("SELECT * FROM " + tableName + " WHERE " + columnName + " > null OR " + columnName + " < '" + value1 + "'"))
                 .isNotFullyPushedDown(node(TableScanNode.class)
                         .with(TableScanNode.class, tableScanNode -> {
-                            TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().getConnectorHandle()).getConstraint();
+                            TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().connectorHandle()).getConstraint();
                             TupleDomain<?> expectedPredicate =
                                     TupleDomain.withColumnDomains(
                                             Map.of(
@@ -771,7 +771,7 @@ public class TestDynamoDbPredicatePushdown
         assertThat(query("SELECT * FROM " + tableName + " WHERE " + columnName + " != '" + value1 + "'"))
                 .isNotFullyPushedDown(node(TableScanNode.class)
                         .with(TableScanNode.class, tableScanNode -> {
-                            TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().getConnectorHandle()).getConstraint();
+                            TupleDomain<?> effectivePredicate = ((JdbcTableHandle) tableScanNode.getTable().connectorHandle()).getConstraint();
                             TupleDomain<?> expectedPredicate =
                                     TupleDomain.withColumnDomains(
                                             Map.of(

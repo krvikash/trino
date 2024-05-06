@@ -4310,7 +4310,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 .map(node -> (TableScanNode) (node instanceof TableScanNode ? node : ((ChooseAlternativeNode) node).getOriginalTableScan().tableScanNode()))
                 .findFirst()
                 .orElseThrow();
-        return (DispatcherTableHandle) tableScanNode.getTable().getConnectorHandle();
+        return (DispatcherTableHandle) tableScanNode.getTable().connectorHandle();
     }
 
     @SuppressWarnings("LanguageMismatch")

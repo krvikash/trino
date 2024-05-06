@@ -351,7 +351,7 @@ public class TestAlternativesOptimizer
 
             TableScanNode alternativeScan = new TableScanNode(
                     context.getIdAllocator().getNextId(),
-                    new TableHandle(table.getCatalogHandle(), table.getConnectorHandle(), table.getTransaction()),
+                    new TableHandle(table.catalogHandle(), table.connectorHandle(), table.transaction()),
                     tableScan.getOutputSymbols(),
                     tableScan.getAssignments(),
                     tableScan.getEnforcedConstraint(),
@@ -398,7 +398,7 @@ public class TestAlternativesOptimizer
 
             TableScanNode alternativeScan = new TableScanNode(
                     context.getIdAllocator().getNextId(),
-                    new TableHandle(table.getCatalogHandle(), table.getConnectorHandle(), table.getTransaction()),
+                    new TableHandle(table.catalogHandle(), table.connectorHandle(), table.transaction()),
                     tableScan.getOutputSymbols(),
                     tableScan.getAssignments(),
                     tableScan.getEnforcedConstraint(),

@@ -39,29 +39,29 @@ public class CacheMetadata
 
     public Optional<CacheTableId> getCacheTableId(Session session, TableHandle tableHandle)
     {
-        CatalogHandle catalogHandle = tableHandle.getCatalogHandle();
+        CatalogHandle catalogHandle = tableHandle.catalogHandle();
         Optional<ConnectorCacheMetadata> service = cacheMetadataProvider.getService(catalogHandle);
 
-        return service.flatMap(cacheMetadata -> cacheMetadata.getCacheTableId(tableHandle.getConnectorHandle()));
+        return service.flatMap(cacheMetadata -> cacheMetadata.getCacheTableId(tableHandle.connectorHandle()));
     }
 
     public Optional<CacheColumnId> getCacheColumnId(Session session, TableHandle tableHandle, ColumnHandle columnHandle)
     {
-        CatalogHandle catalogHandle = tableHandle.getCatalogHandle();
+        CatalogHandle catalogHandle = tableHandle.catalogHandle();
         Optional<ConnectorCacheMetadata> service = cacheMetadataProvider.getService(catalogHandle);
 
-        return service.flatMap(cacheMetadata -> cacheMetadata.getCacheColumnId(tableHandle.getConnectorHandle(), columnHandle));
+        return service.flatMap(cacheMetadata -> cacheMetadata.getCacheColumnId(tableHandle.connectorHandle(), columnHandle));
     }
 
     public TableHandle getCanonicalTableHandle(Session session, TableHandle tableHandle)
     {
-        CatalogHandle catalogHandle = tableHandle.getCatalogHandle();
+        CatalogHandle catalogHandle = tableHandle.catalogHandle();
         Optional<ConnectorCacheMetadata> service = cacheMetadataProvider.getService(catalogHandle);
         return service
                 .map(connectorCacheMetadata -> new TableHandle(
-                        tableHandle.getCatalogHandle(),
-                        connectorCacheMetadata.getCanonicalTableHandle(tableHandle.getConnectorHandle()),
-                        tableHandle.getTransaction()))
+                        tableHandle.catalogHandle(),
+                        connectorCacheMetadata.getCanonicalTableHandle(tableHandle.connectorHandle()),
+                        tableHandle.transaction()))
                 .orElse(tableHandle);
     }
 }

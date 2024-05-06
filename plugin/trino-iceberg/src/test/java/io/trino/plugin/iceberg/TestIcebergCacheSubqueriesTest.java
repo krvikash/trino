@@ -89,7 +89,7 @@ public class TestIcebergCacheSubqueriesTest
             Optional<TableHandle> tableHandler = withTransaction(session -> getDistributedQueryRunner().getCoordinator()
                     .getPlannerContext().getMetadata()
                     .getTableHandle(session, new QualifiedObjectName(ICEBERG_CATALOG, session.getSchema().get(), testTable.getName())));
-            IcebergTableHandle icebergTableHandle = (IcebergTableHandle) tableHandler.get().getConnectorHandle();
+            IcebergTableHandle icebergTableHandle = (IcebergTableHandle) tableHandler.get().connectorHandle();
 
             @Language("SQL") String selectQuery = """
                     select name from %s where year = 2000

@@ -51,7 +51,7 @@ public class PageSourceManager
     public ConnectorPageSource createPageSource(Session session, Split split, TableHandle table, List<ColumnHandle> columns, DynamicFilter dynamicFilter)
     {
         requireNonNull(columns, "columns is null");
-        checkArgument(split.getCatalogHandle().equals(table.getCatalogHandle()), "mismatched split and table");
+        checkArgument(split.getCatalogHandle().equals(table.catalogHandle()), "mismatched split and table");
         CatalogHandle catalogHandle = split.getCatalogHandle();
 
         ConnectorPageSourceProvider provider = pageSourceProvider.getService(catalogHandle);
@@ -63,10 +63,10 @@ public class PageSourceManager
             dynamicFilter = DynamicFilter.EMPTY;
         }
         ConnectorPageSource pageSource = provider.createPageSource(
-                table.getTransaction(),
+                table.transaction(),
                 session.toConnectorSession(catalogHandle),
                 split.getConnectorSplit(),
-                table.getConnectorHandle(),
+                table.connectorHandle(),
                 columns,
                 dynamicFilter,
                 !split.getFailoverHappened());
@@ -91,9 +91,9 @@ public class PageSourceManager
         ConnectorPageSourceProvider provider = pageSourceProvider.getService(catalogHandle);
         ConnectorSession connectorSession = session.toConnectorSession(catalogHandle);
         if (!provider.shouldPerformDynamicRowFiltering()) {
-            return provider.getUnenforcedPredicate(connectorSession, split.getConnectorSplit(), table.getConnectorHandle(), dynamicFilter);
+            return provider.getUnenforcedPredicate(connectorSession, split.getConnectorSplit(), table.connectorHandle(), dynamicFilter);
         }
-        return dynamicRowFilteringPageSourceProvider.getUnenforcedPredicate(provider, session, connectorSession, split.getConnectorSplit(), table.getConnectorHandle(), dynamicFilter);
+        return dynamicRowFilteringPageSourceProvider.getUnenforcedPredicate(provider, session, connectorSession, split.getConnectorSplit(), table.connectorHandle(), dynamicFilter);
     }
 
     @Override
@@ -106,6 +106,6 @@ public class PageSourceManager
         CatalogHandle catalogHandle = split.getCatalogHandle();
         ConnectorPageSourceProvider provider = pageSourceProvider.getService(catalogHandle);
         ConnectorSession connectorSession = session.toConnectorSession(catalogHandle);
-        return provider.prunePredicate(connectorSession, split.getConnectorSplit(), table.getConnectorHandle(), predicate);
+        return provider.prunePredicate(connectorSession, split.getConnectorSplit(), table.connectorHandle(), predicate);
     }
 }

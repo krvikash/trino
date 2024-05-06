@@ -3815,7 +3815,7 @@ public abstract class BaseHiveConnectorTest
                     table = metadata.applyFilter(transactionSession, table, Constraint.alwaysTrue())
                             .orElseThrow(() -> new AssertionError("applyFilter did not return a result"))
                             .getHandle();
-                    return propertyGetter.apply((HiveTableHandle) table.getConnectorHandle());
+                    return propertyGetter.apply((HiveTableHandle) table.connectorHandle());
                 });
     }
 

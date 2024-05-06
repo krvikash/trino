@@ -212,7 +212,7 @@ public abstract class AbstractTestDynamicRowFiltering
                     if (extractDynamicFilters(filterNode.getPredicate()).getDynamicConjuncts().isEmpty()) {
                         return false;
                     }
-                    return getSchemaTableName(tableScanNode.getTable().getConnectorHandle())
+                    return getSchemaTableName(tableScanNode.getTable().connectorHandle())
                             .equals(new SchemaTableName("tpch", tableName));
                 })
                 .findOnlyElement();

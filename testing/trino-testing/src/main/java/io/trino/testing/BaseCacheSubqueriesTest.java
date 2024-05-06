@@ -524,7 +524,7 @@ public abstract class BaseCacheSubqueriesTest
                     TableHandle handle = metadata.getTableHandle(
                             transactionSession,
                             new QualifiedObjectName(catalog, transactionSession.getSchema().orElseThrow(), tableName)).orElseThrow();
-                    ConnectorTableHandle connectorTableHandle = handle.getConnectorHandle();
+                    ConnectorTableHandle connectorTableHandle = handle.connectorHandle();
 
                     SplitSource splitSource = coordinator.getSplitManager().getSplits(transactionSession, Span.current(), handle, DynamicFilter.EMPTY, alwaysTrue());
                     ConnectorSplit split = getFutureValue(splitSource.getNextBatch(1000)).getSplits().get(0).getConnectorSplit();
@@ -661,7 +661,7 @@ public abstract class BaseCacheSubqueriesTest
                     TableHandle handle = metadata.getTableHandle(
                             transactionSession,
                             new QualifiedObjectName(catalog, schema, "lineitem")).orElseThrow();
-                    ConnectorTableHandle connectorTableHandle = handle.getConnectorHandle();
+                    ConnectorTableHandle connectorTableHandle = handle.connectorHandle();
                     ColumnHandle orderKeyColumn = metadata.getColumnHandles(transactionSession, handle).get("orderkey");
 
                     // get table handle with filter applied
@@ -673,7 +673,7 @@ public abstract class BaseCacheSubqueriesTest
                             new Constraint(effectivePredicate));
                     assertThat(filterResult).isPresent();
                     TableHandle handleWithFilter = filterResult.get().getAlternatives().get(0).handle();
-                    ConnectorTableHandle connectorTableHandleWithFilter = handleWithFilter.getConnectorHandle();
+                    ConnectorTableHandle connectorTableHandleWithFilter = handleWithFilter.connectorHandle();
 
                     // make sure cache table ids are same for both table handles
                     CacheMetadata cacheMetadata = runner.getCacheMetadata();

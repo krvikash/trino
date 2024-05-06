@@ -1533,7 +1533,7 @@ public class AddExchanges
                 .findAll()
                 .stream()
                 .map(TableScanNode.class::cast)
-                .map(node -> node.getTable().getCatalogHandle());
+                .map(node -> node.getTable().catalogHandle());
     }
 
     private static boolean isNotRemoteExchange(PlanNode node)

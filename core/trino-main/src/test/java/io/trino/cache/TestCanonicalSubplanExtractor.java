@@ -101,7 +101,7 @@ public class TestCanonicalSubplanExtractor
     private static final Session TEST_SESSION = testSessionBuilder().build();
     private static final CacheTableId CACHE_TABLE_ID = new CacheTableId("cache_table_id");
     private static final PlanNodeId SCAN_NODE_ID = new PlanNodeId("scan_id");
-    private static final String CATALOG_ID = TEST_TABLE_HANDLE.getCatalogHandle().getId();
+    private static final String CATALOG_ID = TEST_TABLE_HANDLE.catalogHandle().getId();
     private static final CacheTableId CATALOG_CACHE_TABLE_ID = new CacheTableId(CATALOG_ID + ":" + CACHE_TABLE_ID);
     private static final CacheMetadata TEST_CACHE_METADATA = new TestCacheMetadata();
     private static final CacheColumnId CACHE_COL1 = new CacheColumnId("[cache_column1]");
@@ -759,7 +759,7 @@ public class TestCanonicalSubplanExtractor
                 new TestCacheMetadata(
                         handle -> Optional.of(new CacheColumnId(handle.getName())),
                         (tableHandle) -> canonicalTableHandle,
-                        (tableHandle) -> Optional.of(new CacheTableId(tableHandle.getConnectorHandle().toString()))),
+                        (tableHandle) -> Optional.of(new CacheTableId(tableHandle.connectorHandle().toString()))),
                 TEST_SESSION,
                 root).stream()
                 .map(subplan -> subplan.getTableScan().orElseThrow())
@@ -776,7 +776,7 @@ public class TestCanonicalSubplanExtractor
                 new TestCacheMetadata(
                         handle -> Optional.of(new CacheColumnId(handle.getName())),
                         (tableHandle) -> {
-                            TestingMetadata.TestingTableHandle handle = (TestingMetadata.TestingTableHandle) tableHandle.getConnectorHandle();
+                            TestingMetadata.TestingTableHandle handle = (TestingMetadata.TestingTableHandle) tableHandle.connectorHandle();
                             if (handle.getTableName().getTableName().equals("table1")) {
                                 return TestingHandles.createTestTableHandle(SchemaTableName.schemaTableName("schema", "common1"));
                             }
@@ -784,7 +784,7 @@ public class TestCanonicalSubplanExtractor
                                 return TestingHandles.createTestTableHandle(SchemaTableName.schemaTableName("schema", "common2"));
                             }
                         },
-                        (tableHandle) -> Optional.of(new CacheTableId(tableHandle.getConnectorHandle().toString()))),
+                        (tableHandle) -> Optional.of(new CacheTableId(tableHandle.connectorHandle().toString()))),
                 TEST_SESSION,
                 root).stream()
                 .map(subplan -> subplan.getTableScan().orElseThrow().getTableId())

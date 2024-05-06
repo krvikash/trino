@@ -883,7 +883,7 @@ public class PlanBuilder
         return new IndexSourceNode(
                 idAllocator.getNextId(),
                 new IndexHandle(
-                        tableHandle.getCatalogHandle(),
+                        tableHandle.catalogHandle(),
                         TestingConnectorTransactionHandle.INSTANCE,
                         TestingConnectorIndexHandle.INSTANCE),
                 tableHandle,

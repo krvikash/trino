@@ -503,7 +503,7 @@ public final class CanonicalSubplanExtractor
             TableHandle canonicalTableHandle = cacheMetadata.getCanonicalTableHandle(session, node.getTable());
             Optional<CacheTableId> tableId = cacheMetadata.getCacheTableId(session, canonicalTableHandle)
                     // prepend catalog id
-                    .map(id -> new CacheTableId(node.getTable().getCatalogHandle().getId() + ":" + id));
+                    .map(id -> new CacheTableId(node.getTable().catalogHandle().getId() + ":" + id));
             if (tableId.isEmpty()) {
                 return Optional.empty();
             }

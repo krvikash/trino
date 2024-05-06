@@ -55,7 +55,7 @@ public class AlternativeChooser
         ConnectorAlternativeChooser.Choice choice = alternativeChooser.chooseAlternative(
                 connectorSession,
                 split.getConnectorSplit(),
-                orderedAlternatives.stream().map(TableHandle::getConnectorHandle).collect(toImmutableList()));
+                orderedAlternatives.stream().map(TableHandle::connectorHandle).collect(toImmutableList()));
         return new Choice(orderedAlternatives.get(choice.chosenTableHandleIndex()), choice.pageSourceProvider());
     }
 

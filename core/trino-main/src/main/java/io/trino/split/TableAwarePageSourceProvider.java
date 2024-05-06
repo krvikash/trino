@@ -71,8 +71,8 @@ public class TableAwarePageSourceProvider
         return connectorAlternativePageSourceProvider
                 .map(factory -> {
                     ConnectorPageSource pageSource = factory.createPageSource(
-                            tableHandle.getTransaction(),
-                            session.toConnectorSession(tableHandle.getCatalogHandle()),
+                            tableHandle.transaction(),
+                            session.toConnectorSession(tableHandle.catalogHandle()),
                             columns,
                             dynamicFilter,
                             !split.getFailoverHappened());

@@ -1526,7 +1526,7 @@ public class TestCommonSubqueriesExtractor
         List<CacheColumnId> cacheColumnIds = ImmutableList.of(canonicalExpressionToColumnId(new Call(MULTIPLY_BIGINT, ImmutableList.of(new Reference(BIGINT, "[cache_column1]"), new Constant(BIGINT, 10L)))), column1);
         List<Type> cacheColumnsTypes = ImmutableList.of(BIGINT, BIGINT);
         assertThat(subqueryA.getCommonSubplanSignature()).isEqualTo(new PlanSignatureWithPredicate(new PlanSignature(
-                combine(scanFilterProjectKey(new CacheTableId(testTableHandle.getCatalogHandle().getId() + ":cache_table_id")), "filters=(($operator$modulus(\"[cache_column1]\", bigint '4') = bigint '0') OR ($operator$modulus(\"[cache_column2]\", bigint '2') = bigint '0'))"),
+                combine(scanFilterProjectKey(new CacheTableId(testTableHandle.catalogHandle().getId() + ":cache_table_id")), "filters=(($operator$modulus(\"[cache_column1]\", bigint '4') = bigint '0') OR ($operator$modulus(\"[cache_column2]\", bigint '2') = bigint '0'))"),
                 Optional.empty(),
                 cacheColumnIds,
                 cacheColumnsTypes),
@@ -1581,7 +1581,7 @@ public class TestCommonSubqueriesExtractor
         CommonPlanAdaptation subqueryA = planAdaptations.get(planA);
         CommonPlanAdaptation subqueryB = planAdaptations.get(planB);
         PlanMatchPattern commonTableScan = tableScan(TEST_TABLE, ImmutableMap.of("column2", "column2"))
-                .with(TableScanNode.class, tableScan -> ((MockConnectorTableHandle) tableScan.getTable().getConnectorHandle()).getConstraint().equals(CONSTRAINT_1));
+                .with(TableScanNode.class, tableScan -> ((MockConnectorTableHandle) tableScan.getTable().connectorHandle()).getConstraint().equals(CONSTRAINT_1));
 
         // check whether common predicates were pushed down to common table scan
         assertPlan(subqueryA.getCommonSubplan(), commonTableScan);
@@ -1639,7 +1639,7 @@ public class TestCommonSubqueriesExtractor
 
         // check whether common predicates were pushed down to common table scan
         PlanMatchPattern commonSubplan = tableScan(TEST_TABLE)
-                .with(TableScanNode.class, tableScan -> ((MockConnectorTableHandle) tableScan.getTable().getConnectorHandle()).getConstraint().equals(CONSTRAINT_1));
+                .with(TableScanNode.class, tableScan -> ((MockConnectorTableHandle) tableScan.getTable().connectorHandle()).getConstraint().equals(CONSTRAINT_1));
         assertPlan(subqueryA.getCommonSubplan(), commonSubplan);
         assertPlan(subqueryB.getCommonSubplan(), commonSubplan);
     }
@@ -1692,7 +1692,7 @@ public class TestCommonSubqueriesExtractor
                         new Comparison(LESS_THAN, new Reference(BIGINT, "column1"), new Constant(BIGINT, 30L)),
                         new Comparison(GREATER_THAN, new Reference(BIGINT, "column1"), new Constant(BIGINT, 70L)))),
                 tableScan(TEST_TABLE, ImmutableMap.of("column1", "column1"))
-                        .with(TableScanNode.class, tableScan -> ((MockConnectorTableHandle) tableScan.getTable().getConnectorHandle()).getConstraint().equals(CONSTRAINT_3)));
+                        .with(TableScanNode.class, tableScan -> ((MockConnectorTableHandle) tableScan.getTable().connectorHandle()).getConstraint().equals(CONSTRAINT_3)));
 
         assertPlan(subqueryA.getCommonSubplan(), commonSubplan);
         assertPlan(subqueryB.getCommonSubplan(), commonSubplan);
@@ -1744,7 +1744,7 @@ public class TestCommonSubqueriesExtractor
                         new Comparison(LESS_THAN, new Reference(BIGINT, "column1"), new Constant(BIGINT, 20L)),
                         new Comparison(GREATER_THAN, new Reference(BIGINT, "column1"), new Constant(BIGINT, 40L)))),
                 tableScan(TEST_TABLE, ImmutableMap.of("column1", "column1"))
-                        .with(TableScanNode.class, tableScan -> ((MockConnectorTableHandle) tableScan.getTable().getConnectorHandle()).getConstraint().equals(TupleDomain.all())));
+                        .with(TableScanNode.class, tableScan -> ((MockConnectorTableHandle) tableScan.getTable().connectorHandle()).getConstraint().equals(TupleDomain.all())));
 
         assertPlan(subqueryA.getCommonSubplan(), commonSubplan);
         assertPlan(subqueryB.getCommonSubplan(), commonSubplan);
@@ -1836,7 +1836,7 @@ public class TestCommonSubqueriesExtractor
         List<Type> cacheColumnsTypes = ImmutableList.of(BIGINT);
         assertThat(subqueryA.getCommonSubplanSignature()).isEqualTo(new PlanSignatureWithPredicate(
                 new PlanSignature(
-                        scanFilterProjectKey(new CacheTableId(testTableHandle.getCatalogHandle().getId() + ":cache_table_id")),
+                        scanFilterProjectKey(new CacheTableId(testTableHandle.catalogHandle().getId() + ":cache_table_id")),
                         Optional.empty(),
                         cacheColumnIds,
                         cacheColumnsTypes),
@@ -1927,7 +1927,7 @@ public class TestCommonSubqueriesExtractor
         List<Type> cacheColumnsTypes = ImmutableList.of(BIGINT, BIGINT);
         assertThat(subqueryA.getCommonSubplanSignature()).isEqualTo(new PlanSignatureWithPredicate(
                 new PlanSignature(
-                        scanFilterProjectKey(new CacheTableId(testTableHandle.getCatalogHandle().getId() + ":cache_table_id")),
+                        scanFilterProjectKey(new CacheTableId(testTableHandle.catalogHandle().getId() + ":cache_table_id")),
                         Optional.empty(),
                         cacheColumnIds,
                         cacheColumnsTypes),
@@ -2098,7 +2098,7 @@ public class TestCommonSubqueriesExtractor
         List<Type> cacheColumnsTypes = ImmutableList.of(BIGINT);
         assertThat(subqueryA.getCommonSubplanSignature()).isEqualTo(new PlanSignatureWithPredicate(
                 new PlanSignature(
-                        scanFilterProjectKey(new CacheTableId(testTableHandle.getCatalogHandle().getId() + ":cache_table_id")),
+                        scanFilterProjectKey(new CacheTableId(testTableHandle.catalogHandle().getId() + ":cache_table_id")),
                         Optional.empty(),
                         cacheColumnIds,
                         cacheColumnsTypes),

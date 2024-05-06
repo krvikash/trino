@@ -137,7 +137,7 @@ public class TestHiveDynamicRowFilteringWithPlanAlternatives
                         nodeToCheck = filterNode.getSource();
                     }
                     if (nodeToCheck instanceof TableScanNode tableScanNode) {
-                        return getSchemaTableName(tableScanNode.getTable().getConnectorHandle())
+                        return getSchemaTableName(tableScanNode.getTable().connectorHandle())
                                 .equals(new SchemaTableName("tpch", tableName));
                     }
                     return false;

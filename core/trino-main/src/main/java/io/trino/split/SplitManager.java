@@ -84,7 +84,7 @@ public class SplitManager
             boolean preferDeterministicSplits,
             Constraint constraint)
     {
-        CatalogHandle catalogHandle = table.getCatalogHandle();
+        CatalogHandle catalogHandle = table.catalogHandle();
         ConnectorSplitManager splitManager = splitManagerProvider.getService(catalogHandle);
         if (!isAllowPushdownIntoConnectors(session)) {
             dynamicFilter = DynamicFilter.EMPTY;
@@ -95,12 +95,12 @@ public class SplitManager
         ConnectorSplitSource source;
         try (var ignore = scopedSpan(tracer.spanBuilder("SplitManager.getSplits")
                 .setParent(Context.current().with(parentSpan))
-                .setAttribute(TrinoAttributes.TABLE, table.getConnectorHandle().toString())
+                .setAttribute(TrinoAttributes.TABLE, table.connectorHandle().toString())
                 .startSpan())) {
             source = splitManager.getSplits(
-                    table.getTransaction(),
+                    table.transaction(),
                     connectorSession,
-                    table.getConnectorHandle(),
+                    table.connectorHandle(),
                     dynamicFilter,
                     preferDeterministicSplits,
                     constraint);
@@ -146,7 +146,7 @@ public class SplitManager
 
     public ConnectorSplitManager getConnectorSplitManager(TableHandle tableHandle)
     {
-        return splitManagerProvider.getService(tableHandle.getCatalogHandle());
+        return splitManagerProvider.getService(tableHandle.catalogHandle());
     }
 
     private Span splitSourceSpan(Span parentSpan, CatalogHandle catalogHandle)
