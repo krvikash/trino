@@ -709,6 +709,11 @@ public class DispatcherPageSourceFactory
                     planSignature.getColumnsTypes().get(i)));
         }
         QueryContext queryContext = queryClassifier.classifyCache(columns.build(), queryStoreId, rowGroupData);
+        if (!queryContext.getRemainingCollectColumnByBlockIndex().isEmpty()) {
+            // might happen if there is not enough memory, see NativeCollectClassifier
+            logger.debug("RemainingCollectColumnByBlockIndex is not empty - exiting");
+            return Optional.empty();
+        }
         CustomStatsContext customStatsContext = new CustomStatsContext(metricsManager, List.of());
         initializeCustomStats(customStatsContext);
         String filePath = rowGroupData.getRowGroupKey().stringFileNameRepresentation(globalConfig.getLocalStorePath());
