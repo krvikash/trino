@@ -45,6 +45,7 @@ import io.trino.spi.predicate.TupleDomain;
 import io.varada.log.ShapingLogger;
 
 import java.util.Optional;
+import java.util.UUID;
 
 import static io.trino.plugin.varada.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
 import static java.util.Objects.requireNonNull;
@@ -117,10 +118,12 @@ public class WorkerCacheManager
             implements SplitCache
     {
         private final PlanSignature planSignature;
+        private final CommonStoreIdFinder commonStoreIdFinder;
 
         public WarpSplitCache(PlanSignature planSignature)
         {
             this.planSignature = planSignature;
+            commonStoreIdFinder = new CommonStoreIdFinder(rowGroupDataService, planSignature);
         }
 
         @Override
@@ -129,7 +132,8 @@ public class WorkerCacheManager
             Optional<ConnectorPageSource> result = Optional.empty();
             try {
                 RowGroupKey rowGroupKey = getRowGroupKey(splitId, predicate, unenforcedPredicate);
-                result = dispatcherPageSourceFactory.createConnectorPageSource(rowGroupKey, planSignature);
+                Optional<UUID> queryStoreId = commonStoreIdFinder.findAndCache(rowGroupKey);
+                result = dispatcherPageSourceFactory.createConnectorPageSource(rowGroupKey, planSignature, queryStoreId);
             }
             catch (Exception e) {
                 shapingLogger.error(e, "failed to load pages splitId=%s, planSignature=%s", splitId, planSignature);
@@ -141,14 +145,20 @@ public class WorkerCacheManager
         public Optional<ConnectorPageSink> storePages(CacheSplitId splitId, TupleDomain<CacheColumnId> predicate, TupleDomain<CacheColumnId> unenforcedPredicate)
         {
             Optional<ConnectorPageSink> res = Optional.empty();
-            boolean txMemoryReserved = storageWarmerService.tryAllocateNativeResourceForWarmup();
-            if (!txMemoryReserved) {
-                logger.info("nativeResourceForWarmup is not available");
-                return res;
-            }
             boolean releaseLoaderThread = false;
             try {
                 RowGroupKey rowGroupKey = getRowGroupKey(splitId, predicate, unenforcedPredicate);
+                Optional<UUID> storeId = commonStoreIdFinder.getFromCache(rowGroupKey);  // read directly from cache because we assume loadPages have already added it (if exists)
+                if (storeId.isPresent()) {
+                    logger.debug("Skipping pages as they are already warmed");
+                    return res;
+                }
+
+                boolean txMemoryReserved = storageWarmerService.tryAllocateNativeResourceForWarmup();
+                if (!txMemoryReserved) {
+                    logger.info("nativeResourceForWarmup is not available");
+                    return res;
+                }
 
                 Optional<WarmupElementWriteMetadata> elementToWarm = cacheWarmer.getWarmupElementWriteMetadata(
                         planSignature.getColumns(), planSignature.getColumnsTypes(), rowGroupKey);

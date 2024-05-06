@@ -61,7 +61,6 @@ import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
-import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.DynamicFilter;
@@ -79,9 +78,6 @@ import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -91,8 +87,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
-import java.util.stream.Stream;
 
 import static io.trino.plugin.varada.VaradaSessionProperties.ENABLE_MATCH_COLLECT;
 import static io.trino.plugin.varada.VaradaSessionProperties.PREDICATE_SIMPLIFY_THRESHOLD;
@@ -102,7 +96,6 @@ import static io.trino.spi.expression.StandardFunctions.LIKE_FUNCTION_NAME;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static java.util.Collections.emptySet;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -1547,58 +1540,6 @@ public class QueryClassifierTest
         assertThat(queryContext.getMatchData()).isEqualTo(Optional.of(expectedMatchData));
         assertThat(queryContext.getPrefilledQueryCollectDataByBlockIndex()).isEmpty();
         assertThat(queryContext.isCanBeTight()).isFalse();  // because of the dynamic filter
-    }
-
-    static Stream<Arguments> storeIdTest()
-    {
-        return Stream.of(
-                arguments(List.of(List.of("c1")),
-                        List.of("c1"), true),
-                arguments(List.of(List.of("c1"), List.of("c1", "c2")),
-                        List.of("c1"), true),
-                arguments(List.of(List.of("c1"), List.of("c1", "c2")),
-                        List.of("c1", "c3"), false),
-                arguments(List.of(List.of("c1"), List.of("c4")),
-                        List.of("c1", "c4", "c5"), false),
-                arguments(List.of(List.of("c1"), List.of("c4"), List.of("c1", "c4", "c5")),
-                        List.of("c1", "c4", "c5"), true),
-                arguments(List.of(List.of("c1")),
-                        List.of("c2"), false));
-    }
-
-    @ParameterizedTest
-    @MethodSource("storeIdTest")
-    public void testGetQueryStoreId(List<List<String>> warmedColumns, List<String> requiredColumns, boolean hasStoreId)
-    {
-        RowGroupData cacheRowGroupData = createCacheRowGroupData(warmedColumns);
-        List<CacheColumnId> planSignatureColumns = requiredColumns.stream().map(CacheColumnId::new).toList();
-        Optional<UUID> queryStoreId = queryClassifier.getQueryStoreId(cacheRowGroupData, planSignatureColumns);
-        assertThat(queryStoreId.isPresent()).isEqualTo(hasStoreId);
-    }
-
-    private List<WarmUpElement> createWeWithSameStoreId(List<String> columns)
-    {
-        UUID storeId = UUID.randomUUID();
-        List<WarmUpElement> warmUpElementList = new ArrayList<>();
-        for (String column : columns) {
-            WarmUpElement we = mock(WarmUpElement.class);
-            when(we.getStoreId()).thenReturn(storeId);
-            when(we.getVaradaColumn()).thenReturn(new RegularColumn(column));
-            warmUpElementList.add(we);
-        }
-        return warmUpElementList;
-    }
-
-    private RowGroupData createCacheRowGroupData(List<List<String>> warmedColumns)
-    {
-        RowGroupData cachedRowGroupData = mock(RowGroupData.class);
-        List<WarmUpElement> warmUpElementList = new ArrayList<>();
-        for (var warmedSession : warmedColumns) {
-            List<WarmUpElement> weWithSameStoreId = createWeWithSameStoreId(warmedSession);
-            warmUpElementList.addAll(weWithSameStoreId);
-        }
-        when(cachedRowGroupData.getValidWarmUpElements()).thenReturn(warmUpElementList);
-        return cachedRowGroupData;
     }
 
     private DispatcherTableHandle mockDispatcherTableHandle(SchemaTableName schemaTableName)

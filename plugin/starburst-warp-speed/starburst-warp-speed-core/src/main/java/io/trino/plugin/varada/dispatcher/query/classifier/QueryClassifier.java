@@ -23,7 +23,6 @@ import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.varada.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.varada.dispatcher.model.RegularColumn;
 import io.trino.plugin.varada.dispatcher.model.RowGroupData;
-import io.trino.plugin.varada.dispatcher.model.VaradaColumn;
 import io.trino.plugin.varada.dispatcher.model.WarmUpElement;
 import io.trino.plugin.varada.dispatcher.query.MatchCollectIdService;
 import io.trino.plugin.varada.dispatcher.query.QueryContext;
@@ -32,19 +31,13 @@ import io.trino.plugin.varada.expression.VaradaCall;
 import io.trino.plugin.varada.expression.VaradaExpression;
 import io.trino.plugin.varada.expression.VaradaPrimitiveConstant;
 import io.trino.plugin.varada.storage.engine.ConnectorSync;
-import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.DynamicFilter;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
-import java.util.Set;
 import java.util.UUID;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -265,28 +258,5 @@ public class QueryClassifier
         }
 
         return builder.build();
-    }
-
-    public Optional<UUID> getQueryStoreId(RowGroupData rowGroupData, List<CacheColumnId> requiredColumns)
-    {
-        if (rowGroupData.getValidWarmUpElements().size() < requiredColumns.size()) {
-            return Optional.empty();
-        }
-
-        Map<VaradaColumn, Set<UUID>> columnToWeStoreIds = new HashMap<>();
-        for (WarmUpElement warmUpElement : rowGroupData.getValidWarmUpElements()) {
-            columnToWeStoreIds
-                    .computeIfAbsent(warmUpElement.getVaradaColumn(), _ -> new HashSet<>())
-                    .add(warmUpElement.getStoreId());
-        }
-
-        RegularColumn pickedColumn = new RegularColumn(requiredColumns.getFirst().toString());
-        Set<UUID> storeIds = columnToWeStoreIds.getOrDefault(pickedColumn, Collections.emptySet());
-        for (int i = 1; i < requiredColumns.size() && !storeIds.isEmpty(); i++) {
-            pickedColumn = new RegularColumn(requiredColumns.get(i).toString());
-            Set<UUID> columnStoreIds = columnToWeStoreIds.getOrDefault(pickedColumn, Collections.emptySet());
-            storeIds.retainAll(columnStoreIds);
-        }
-        return storeIds.stream().findFirst();
     }
 }

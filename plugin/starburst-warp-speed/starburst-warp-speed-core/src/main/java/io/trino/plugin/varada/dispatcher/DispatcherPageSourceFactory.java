@@ -691,7 +691,7 @@ public class DispatcherPageSourceFactory
         dispatcherPageSourceStats.addvarada_match_columns(varadaMatchColumns.size());
     }
 
-    public Optional<ConnectorPageSource> createConnectorPageSource(RowGroupKey rowGroupKey, PlanSignature planSignature)
+    public Optional<ConnectorPageSource> createConnectorPageSource(RowGroupKey rowGroupKey, PlanSignature planSignature, Optional<UUID> queryStoreId)
     {
         RowGroupData rowGroupData = rowGroupDataService.get(rowGroupKey);
         if (rowGroupData == null) {
@@ -703,7 +703,6 @@ public class DispatcherPageSourceFactory
             return Optional.of(new EmptyPageSource());
         }
 
-        Optional<UUID> queryStoreId = queryClassifier.getQueryStoreId(rowGroupData, planSignature.getColumns());
         if (queryStoreId.isEmpty()) {
             statsDispatcherPageSource.incskip_warp_cache_manager();
             return Optional.empty();
