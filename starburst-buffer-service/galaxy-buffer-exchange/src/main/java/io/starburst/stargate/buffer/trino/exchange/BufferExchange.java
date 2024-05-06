@@ -209,12 +209,14 @@ public class BufferExchange
     @Override
     public synchronized void noMoreSinks()
     {
+        throwIfFailed();
         noMoreSinks = true;
     }
 
     @Override
     public void sinkFinished(ExchangeSinkHandle sinkHandle, int taskAttemptId)
     {
+        throwIfFailed();
         checkState(!closed.get(), "already closed");
     }
 
@@ -314,6 +316,7 @@ public class BufferExchange
     @Override
     public synchronized ExchangeSourceHandleSource getSourceHandles()
     {
+        throwIfFailed();
         BufferExchangeSourceHandleSource sourceHandleSource = new BufferExchangeSourceHandleSource();
         if (failure != null) {
             sourceHandleSource.markFailed(failure);
@@ -328,6 +331,7 @@ public class BufferExchange
     @Override
     public synchronized void setSourceHandlesDeliveryMode(SourceHandlesDeliveryMode sourceHandlesDeliveryMode)
     {
+        throwIfFailed();
         if (this.sourceHandlesDeliveryMode != sourceHandlesDeliveryMode) {
             this.sourceHandlesDeliveryMode = sourceHandlesDeliveryMode;
             // output chunk delivery mode for existing chunk pollers
