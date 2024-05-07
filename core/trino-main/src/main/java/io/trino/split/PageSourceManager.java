@@ -51,8 +51,8 @@ public class PageSourceManager
     public ConnectorPageSource createPageSource(Session session, Split split, TableHandle table, List<ColumnHandle> columns, DynamicFilter dynamicFilter)
     {
         requireNonNull(columns, "columns is null");
-        checkArgument(split.catalogHandle().equals(table.catalogHandle()), "mismatched split and table");
-        CatalogHandle catalogHandle = split.catalogHandle();
+        checkArgument(split.getCatalogHandle().equals(table.catalogHandle()), "mismatched split and table");
+        CatalogHandle catalogHandle = split.getCatalogHandle();
 
         ConnectorPageSourceProvider provider = pageSourceProvider.getService(catalogHandle);
         TupleDomain<ColumnHandle> constraint = dynamicFilter.getCurrentPredicate();
@@ -65,7 +65,7 @@ public class PageSourceManager
         ConnectorPageSource pageSource = provider.createPageSource(
                 table.transaction(),
                 session.toConnectorSession(catalogHandle),
-                split.connectorSplit(),
+                split.getConnectorSplit(),
                 table.connectorHandle(),
                 columns,
                 dynamicFilter,

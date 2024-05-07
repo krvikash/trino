@@ -713,7 +713,7 @@ public class TestArbitraryDistributionSplitAssigner
                     Optional<HostAddress> hostRequirement = Optional.empty();
                     if (!split.isRemotelyAccessible()) {
                         int splitCount = Integer.MAX_VALUE;
-                        for (HostAddress hostAddress : split.connectorSplit().getAddresses()) {
+                        for (HostAddress hostAddress : split.getConnectorSplit().getAddresses()) {
                             int currentSplitCount = addUpSplits(hostAddress, currentSplitAssignments);
                             if (currentSplitCount < splitCount) {
                                 splitCount = currentSplitCount;
