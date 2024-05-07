@@ -148,7 +148,7 @@ public class CacheDriverFactory
             cacheStats.recordMissingSplitId();
             return new DriverFactoryWithCacheContext(alternatives.get(ORIGINAL_PLAN_ALTERNATIVE), Optional.empty());
         }
-        if (split.getSplit().failoverHappened()) {
+        if (split.getSplit().getFailoverHappened()) {
             // failed to schedule split on the preferred node, fallback to original plan
             cacheStats.recordSplitFailoverHappened();
             return new DriverFactoryWithCacheContext(alternatives.get(ORIGINAL_PLAN_ALTERNATIVE), Optional.empty());

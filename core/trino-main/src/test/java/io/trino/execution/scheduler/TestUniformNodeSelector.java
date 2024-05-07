@@ -16,6 +16,7 @@ package io.trino.execution.scheduler;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMultimap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSetMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
@@ -333,7 +334,7 @@ public class TestUniformNodeSelector
         // Now the flexible split can fail over to node2, while the rigid split cannot.
         assertThatThrownBy(() -> nodeSelector.computeAssignments(splits, ImmutableList.copyOf(taskMap.values()))).hasMessage("No nodes available to run query");
         Multimap<InternalNode, Split> assignmentsNode1Dead =
-                nodeSelector.computeAssignments(ImmutableList.of(flexibleSplit), ImmutableList.copyOf(taskMap.values())).getAssignments();
+                nodeSelector.computeAssignments(ImmutableSet.of(flexibleSplit), ImmutableList.copyOf(taskMap.values())).getAssignments();
         expected = ArrayListMultimap.create();
         expected.put(node2, flexibleSplit);
         org.assertj.guava.api.Assertions.assertThat(assignmentsNode1Dead).hasSameEntriesAs(expected);

@@ -69,7 +69,7 @@ public class PageSourceManager
                 table.connectorHandle(),
                 columns,
                 dynamicFilter,
-                !split.failoverHappened());
+                !split.getFailoverHappened());
         if (!provider.shouldPerformDynamicRowFiltering()) {
             return pageSource;
         }
@@ -87,13 +87,13 @@ public class PageSourceManager
             TableHandle table,
             TupleDomain<ColumnHandle> dynamicFilter)
     {
-        CatalogHandle catalogHandle = split.catalogHandle();
+        CatalogHandle catalogHandle = split.getCatalogHandle();
         ConnectorPageSourceProvider provider = pageSourceProvider.getService(catalogHandle);
         ConnectorSession connectorSession = session.toConnectorSession(catalogHandle);
         if (!provider.shouldPerformDynamicRowFiltering()) {
-            return provider.getUnenforcedPredicate(connectorSession, split.connectorSplit(), table.connectorHandle(), dynamicFilter);
+            return provider.getUnenforcedPredicate(connectorSession, split.getConnectorSplit(), table.connectorHandle(), dynamicFilter);
         }
-        return dynamicRowFilteringPageSourceProvider.getUnenforcedPredicate(provider, session, connectorSession, split.connectorSplit(), table.connectorHandle(), dynamicFilter);
+        return dynamicRowFilteringPageSourceProvider.getUnenforcedPredicate(provider, session, connectorSession, split.getConnectorSplit(), table.connectorHandle(), dynamicFilter);
     }
 
     @Override
@@ -103,9 +103,9 @@ public class PageSourceManager
             TableHandle table,
             TupleDomain<ColumnHandle> predicate)
     {
-        CatalogHandle catalogHandle = split.catalogHandle();
+        CatalogHandle catalogHandle = split.getCatalogHandle();
         ConnectorPageSourceProvider provider = pageSourceProvider.getService(catalogHandle);
         ConnectorSession connectorSession = session.toConnectorSession(catalogHandle);
-        return provider.prunePredicate(connectorSession, split.connectorSplit(), table.connectorHandle(), predicate);
+        return provider.prunePredicate(connectorSession, split.getConnectorSplit(), table.connectorHandle(), predicate);
     }
 }
