@@ -29,7 +29,7 @@ public class TestOracleKeepAlive
         QueryRunner queryRunner = OracleQueryRunner.builder(oracleServer)
                 .withConnectorProperties(ImmutableMap.<String, String>builder()
                         .put("oracle.keep-alive.enabled", "true")
-                        .put("oracle.keep-alive.interval", "30s")
+                        .put("oracle.keep-alive.interval", "5s")
                         .buildOrThrow())
                 .build();
         queryRunner.installPlugin(new BlackHolePlugin());
