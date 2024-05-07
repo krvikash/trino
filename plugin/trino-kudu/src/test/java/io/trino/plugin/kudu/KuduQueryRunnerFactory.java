@@ -38,6 +38,7 @@ public final class KuduQueryRunnerFactory
 {
     private KuduQueryRunnerFactory() {}
 
+    // TODO convert to builder
     public static QueryRunner createKuduQueryRunner(TestingKuduServer kuduServer, Session session)
             throws Exception
     {
@@ -55,6 +56,7 @@ public final class KuduQueryRunnerFactory
         }
     }
 
+    // TODO convert to builder
     public static QueryRunner createKuduQueryRunner(TestingKuduServer kuduServer, String kuduSchema)
             throws Exception
     {
@@ -72,6 +74,7 @@ public final class KuduQueryRunnerFactory
         }
     }
 
+    // TODO convert to builder
     public static QueryRunner createKuduQueryRunner(String kuduSchema, Map<String, String> connectorProperties)
             throws Exception
     {
@@ -87,24 +90,28 @@ public final class KuduQueryRunnerFactory
         }
     }
 
+    // TODO convert to builder
     public static QueryRunner createKuduQueryRunnerTpch(TestingKuduServer kuduServer, Optional<String> kuduSchemaEmulationPrefix, TpchTable<?>... tables)
             throws Exception
     {
         return createKuduQueryRunnerTpch(kuduServer, kuduSchemaEmulationPrefix, ImmutableList.copyOf(tables));
     }
 
+    // TODO convert to builder
     public static QueryRunner createKuduQueryRunnerTpch(TestingKuduServer kuduServer, Optional<String> kuduSchemaEmulationPrefix, Iterable<TpchTable<?>> tables)
             throws Exception
     {
         return createKuduQueryRunnerTpch(kuduServer, kuduSchemaEmulationPrefix, ImmutableMap.of(), ImmutableMap.of(), tables);
     }
 
+    // TODO convert to builder
     public static QueryRunner createKuduQueryRunnerTpch(HostAndPort kuduServerMasterAddress, Optional<String> kuduSchemaEmulationPrefix, Iterable<TpchTable<?>> tables)
             throws Exception
     {
         return createKuduQueryRunnerTpch(kuduServerMasterAddress, kuduSchemaEmulationPrefix, ImmutableMap.of(), ImmutableMap.of(), ImmutableMap.of(), tables);
     }
 
+    // TODO convert to builder
     public static QueryRunner createKuduQueryRunnerTpch(
             TestingKuduServer kuduServer,
             Optional<String> kuduSchemaEmulationPrefix,
@@ -116,6 +123,7 @@ public final class KuduQueryRunnerFactory
         return createKuduQueryRunnerTpch(kuduServer.getMasterAddress(), kuduSchemaEmulationPrefix, kuduSessionProperties, ImmutableMap.of(), extraProperties, tables);
     }
 
+    // TODO convert to builder
     public static QueryRunner createKuduQueryRunnerTpch(
             HostAndPort masterAddress,
             Optional<String> kuduSchemaEmulationPrefix,

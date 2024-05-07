@@ -164,7 +164,6 @@ public abstract class BasePinotConnectorSmokeTest
         return createPinotQueryRunner(
                 kafka,
                 pinot,
-                ImmutableMap.of(),
                 pinotProperties(),
                 REQUIRED_TPCH_TABLES);
     }
