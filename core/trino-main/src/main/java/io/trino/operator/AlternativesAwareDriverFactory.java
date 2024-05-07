@@ -100,7 +100,7 @@ public class AlternativesAwareDriverFactory
         checkArgument(optionalSplit.isPresent());
         ScheduledSplit split = optionalSplit.get();
 
-        Optional<CacheSplitId> cacheSplitId = split.getSplit().getCacheSplitId();
+        Optional<CacheSplitId> cacheSplitId = split.getSplit().cacheSplitId();
         if (cacheDriverFactory.isPresent()) {
             return cacheDriverFactory.get().createDriver(driverContext, split, cacheSplitId);
         }

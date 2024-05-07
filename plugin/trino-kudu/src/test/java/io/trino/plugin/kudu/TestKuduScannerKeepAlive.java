@@ -238,7 +238,7 @@ public class TestKuduScannerKeepAlive
         return new KuduRecordSet(
                 session.toConnectorSession(),
                 kuduClientSession,
-                (KuduSplit) splits.get(0).getConnectorSplit(),
+                (KuduSplit) splits.get(0).connectorSplit(),
                 ImmutableList.of(
                         new KuduColumnHandle("key", 0, BIGINT),
                         new KuduColumnHandle("name", 1, VARCHAR)),

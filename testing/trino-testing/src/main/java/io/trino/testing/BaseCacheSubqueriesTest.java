@@ -527,7 +527,7 @@ public abstract class BaseCacheSubqueriesTest
                     ConnectorTableHandle connectorTableHandle = handle.connectorHandle();
 
                     SplitSource splitSource = coordinator.getSplitManager().getSplits(transactionSession, Span.current(), handle, DynamicFilter.EMPTY, alwaysTrue());
-                    ConnectorSplit split = getFutureValue(splitSource.getNextBatch(1000)).getSplits().get(0).getConnectorSplit();
+                    ConnectorSplit split = getFutureValue(splitSource.getNextBatch(1000)).getSplits().get(0).connectorSplit();
 
                     ColumnHandle partitionColumn = metadata.getColumnHandles(transactionSession, handle).get("orderpriority");
                     assertThat(partitionColumn).isNotNull();
@@ -600,7 +600,7 @@ public abstract class BaseCacheSubqueriesTest
                                         dataColumn,
                                         Domain.create(ValueSet.ofRanges(Range.lessThan(BIGINT, 1_000_000L)), false)))),
                                 alwaysTrue());
-                        ConnectorSplit splitWithDfOnDataColumn = getFutureValue(splitSourceWithDfOnDataColumn.getNextBatch(1000)).getSplits().get(0).getConnectorSplit();
+                        ConnectorSplit splitWithDfOnDataColumn = getFutureValue(splitSourceWithDfOnDataColumn.getNextBatch(1000)).getSplits().get(0).connectorSplit();
                         // getUnenforcedPredicate and prunePredicate should prune data column if there is dynamic filter on that column
                         Domain containingRange = Domain.create(ValueSet.ofRanges(Range.lessThanOrEqual(BIGINT, 60_000L)), false);
                         assertThat(pageSourceProvider.getUnenforcedPredicate(
@@ -681,10 +681,10 @@ public abstract class BaseCacheSubqueriesTest
 
                     // make sure effective predicate is propagated as part of split id
                     SplitSource splitSource = coordinator.getSplitManager().getSplits(transactionSession, Span.current(), handle, DynamicFilter.EMPTY, alwaysTrue());
-                    ConnectorSplit split = getFutureValue(splitSource.getNextBatch(1000)).getSplits().get(0).getConnectorSplit();
+                    ConnectorSplit split = getFutureValue(splitSource.getNextBatch(1000)).getSplits().get(0).connectorSplit();
 
                     SplitSource splitSourceWithFilter = coordinator.getSplitManager().getSplits(transactionSession, Span.current(), handleWithFilter, DynamicFilter.EMPTY, alwaysTrue());
-                    ConnectorSplit splitWithFilter = getFutureValue(splitSourceWithFilter.getNextBatch(1000)).getSplits().get(0).getConnectorSplit();
+                    ConnectorSplit splitWithFilter = getFutureValue(splitSourceWithFilter.getNextBatch(1000)).getSplits().get(0).connectorSplit();
 
                     ConnectorPageSourceProvider pageSourceProvider = getPageSourceProvider(worker.getConnector(coordinator.getCatalogHandle(catalog)));
                     ConnectorSession connectorSession = transactionSession.toConnectorSession(metadata.getCatalogHandle(transactionSession, catalog).orElseThrow());

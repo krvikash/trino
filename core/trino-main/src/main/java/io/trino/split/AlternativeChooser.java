@@ -42,19 +42,19 @@ public class AlternativeChooser
 
     public Choice chooseAlternative(Session session, Split split, Collection<TableHandle> alternatives)
     {
-        if (split.getConnectorSplit() instanceof EmptySplit) {
+        if (split.connectorSplit() instanceof EmptySplit) {
             return new Choice(alternatives.iterator().next(), (transaction, session1, columns, dynamicFilter, splitAddressEnforced) -> {
                 throw new UnsupportedOperationException("Cannot create page source for empty split");
             });
         }
-        CatalogHandle catalogHandle = split.getCatalogHandle();
+        CatalogHandle catalogHandle = split.catalogHandle();
         ConnectorAlternativeChooser alternativeChooser = alternativeChooserProvider.getService(catalogHandle);
 
         ConnectorSession connectorSession = session.toConnectorSession(catalogHandle);
         List<TableHandle> orderedAlternatives = ImmutableList.copyOf(alternatives);
         ConnectorAlternativeChooser.Choice choice = alternativeChooser.chooseAlternative(
                 connectorSession,
-                split.getConnectorSplit(),
+                split.connectorSplit(),
                 orderedAlternatives.stream().map(TableHandle::connectorHandle).collect(toImmutableList()));
         return new Choice(orderedAlternatives.get(choice.chosenTableHandleIndex()), choice.pageSourceProvider());
     }

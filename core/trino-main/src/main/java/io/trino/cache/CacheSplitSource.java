@@ -76,29 +76,29 @@ public class CacheSplitSource
     {
         ImmutableList.Builder<Split> newBatch = ImmutableList.builder();
         for (Split split : batch.getSplits()) {
-            Optional<CacheSplitId> splitId = splitManager.getCacheSplitId(split.getConnectorSplit());
+            Optional<CacheSplitId> splitId = splitManager.getCacheSplitId(split.connectorSplit());
             if (!split.isRemotelyAccessible() || splitId.isEmpty()) {
                 newBatch.add(
                         new Split(
-                                split.getCatalogHandle(),
-                                split.getConnectorSplit(),
+                                split.catalogHandle(),
+                                split.connectorSplit(),
                                 splitId,
                                 // do not override connector provided split addresses when split is not remotely accessible
                                 Optional.empty(),
                                 Optional.empty(),
-                                split.getFailoverHappened()));
+                                split.failoverHappened()));
             }
             else {
                 Optional<HostAddress> preferredAddress = addressProvider.getPreferredAddress(canonicalSignature + splitId);
                 if (preferredAddress.isPresent()) {
                     newBatch.add(
                             new Split(
-                                    split.getCatalogHandle(),
-                                    split.getConnectorSplit(),
+                                    split.catalogHandle(),
+                                    split.connectorSplit(),
                                     splitId,
                                     Optional.of(false),
                                     Optional.of(ImmutableList.of(preferredAddress.get())),
-                                    split.getFailoverHappened()));
+                                    split.failoverHappened()));
                 }
                 else {
                     // Skip caching if no preferred address could be located which could be due to no available nodes

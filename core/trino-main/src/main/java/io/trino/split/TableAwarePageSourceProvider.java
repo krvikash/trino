@@ -65,7 +65,7 @@ public class TableAwarePageSourceProvider
 
     public ConnectorPageSource createPageSource(Session session, Split split, List<ColumnHandle> columns, DynamicFilter dynamicFilter)
     {
-        if (split.getConnectorSplit() instanceof EmptySplit) {
+        if (split.connectorSplit() instanceof EmptySplit) {
             return new EmptyPageSource();
         }
         return connectorAlternativePageSourceProvider
@@ -75,7 +75,7 @@ public class TableAwarePageSourceProvider
                             session.toConnectorSession(tableHandle.catalogHandle()),
                             columns,
                             dynamicFilter,
-                            !split.getFailoverHappened());
+                            !split.failoverHappened());
                     return dynamicRowFilteringPageSourceProvider.createPageSource(pageSource, session, columns, dynamicFilter);
                 })
                 .orElseGet(() -> pageSourceProvider.createPageSource(session, split, tableHandle, columns, dynamicFilter));
