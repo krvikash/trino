@@ -81,6 +81,7 @@ public class StorageReader
     private boolean dictionariesLoaded;
     private RecordIndexListType storeRowListType;
     private int storeRowListSize;
+    private int lazyChunkIx;
 
     // time measures
     private long lastReportTime;
@@ -208,7 +209,7 @@ public class StorageReader
             dictionariesLoaded = true;
         }
 
-        CollectOpenResult collectOpenResult = collectTxService.collectOpen(rowsLimit, storageCollectorArgs, storeRowListSize, storeRowListType, storageCollectorCallBack);
+        CollectOpenResult collectOpenResult = collectTxService.collectOpenAndRestore(rowsLimit, storageCollectorArgs, storeRowListSize, storeRowListType, storageCollectorCallBack);
         collectTxId = collectOpenResult.collectTxId();
 
         if (queryParams.getNumMatchElements() > 0) {
@@ -317,6 +318,7 @@ public class StorageReader
             collectBufferState = collectFromStorageResult.collectBufferState();
             chunkPrepared = collectFromStorageResult.chunkPrepared();
             numCollectedRows = collectFromStorageResult.numCollectedRows();
+            lazyChunkIx = collectFromStorageResult.lazyChunkIx();
             matchExhausted = chunksQueueService.isChunkRangeCompleted(storageCollectorArgs.chunksQueue());
             matchIfNeeded();
         }
@@ -357,7 +359,7 @@ public class StorageReader
             return 0;
         }
 
-        CollectCloseResult collectCloseResult = collectTxService.collectClose(collectOpenResult,
+        CollectCloseResult collectCloseResult = collectTxService.collectStoreAndClose(collectOpenResult,
                 storageCollectorArgs,
                 chunkPrepared,
                 numCollectedRows,
@@ -394,6 +396,14 @@ public class StorageReader
 
     int fillBlocks(Block[] blocks, CollectOpenResult collectOpenResult)
     {
-        return storageCollectorService.fillBlocks(blocks, storageCollectorArgs, collectOpenResult, numCollectedRows);
+        int rowsToFill = Math.min(numCollectedRows, collectOpenResult.rowsLimit());
+
+        if (storageCollectorArgs.isLazyCollect()) {
+            storageCollectorService.fillBlocks(blocks, storageCollectorArgs, rowsToFill, lazyChunkIx, statsDispatcherPageSource);
+        }
+        else {
+            storageCollectorService.fillBlocks(blocks, storageCollectorArgs, collectOpenResult, rowsToFill);
+        }
+        return rowsToFill;
     }
 }

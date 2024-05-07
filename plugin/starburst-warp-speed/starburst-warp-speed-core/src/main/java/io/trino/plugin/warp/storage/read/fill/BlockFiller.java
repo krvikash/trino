@@ -17,7 +17,9 @@ import io.airlift.log.Logger;
 import io.trino.plugin.warp.dictionary.ReadDictionary;
 import io.trino.plugin.warp.gen.constants.QueryResultType;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
+import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
+import io.trino.plugin.warp.storage.read.WarmupElementCollectParams;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.RunLengthEncodedBlock;
@@ -55,6 +57,49 @@ public abstract class BlockFiller<V>
             }
         }
         return true;
+    }
+
+    public Block fillBlockWithRecords(WarmupElementCollectParams collectParams, ReadJuffersWarmUpElement readJuffersWarmUpElement,
+            int rowsToFill, QueryResultType queryResultType, DictionaryStats dictionaryStats)
+    {
+        Block block;
+        try {
+            if (collectParams.hasDictionary()) {
+                block = fillBlockWithDictionary(readJuffersWarmUpElement,
+                        queryResultType,
+                        rowsToFill,
+                        collectParams.getBlockRecTypeCode(),
+                        collectParams.getBlockRecTypeLength(),
+                        collectParams.isCollectNulls(),
+                        collectParams.getDictionary());
+                if (logger.isDebugEnabled() && block instanceof DictionaryBlock) {
+                    dictionaryStats.adddictionary_block_saved_bytes(block.getLogicalSizeInBytes() - block.getSizeInBytes());
+                }
+            }
+            else if (collectParams.mappedMatchCollect()) {
+                Block valuesDict = collectParams.getValuesDictBlock().get();
+                block = fillBlockWithMapping(readJuffersWarmUpElement,
+                        queryResultType,
+                        rowsToFill,
+                        collectParams.getBlockRecTypeCode(),
+                        collectParams.isCollectNulls(),
+                        valuesDict);
+            }
+            else {
+                block = fillBlock(readJuffersWarmUpElement,
+                        queryResultType,
+                        rowsToFill,
+                        collectParams.getBlockRecTypeCode(),
+                        collectParams.getBlockRecTypeLength(),
+                        collectParams.isCollectNulls());
+            }
+        }
+        catch (Exception e) {
+            logger.error(e, "fill block failed queryResultType=%s, rowsToFill=%d, blockFiller=%s, collectParams=%s",
+                    queryResultType, rowsToFill, this, collectParams);
+            throw new RuntimeException(e);
+        }
+        return block;
     }
 
     public Block fillBlock(ReadJuffersWarmUpElement juffersWE,

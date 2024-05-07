@@ -49,7 +49,8 @@ public class QueryParamsConverter
 
     public static QueryParams createQueryParams(QueryContext queryContext,
             String filePath,
-            long fileModTime)
+            long fileModTime,
+            boolean lazyCollectEnabled)
     {
         Optional<MatchData> matchData = queryContext.getMatchData();
         ImmutableList.Builder<PredicateCacheData> predicateCacheDataBuilder = ImmutableList.builder();
@@ -81,7 +82,8 @@ public class QueryParamsConverter
                 minOffsets[COLLECT],
                 filePath,
                 fileModTime,
-                predicateCacheDataBuilder.build());
+                predicateCacheDataBuilder.build(),
+                lazyCollectEnabled);
     }
 
     private static Optional<MatchNode> createRootMatchNode(List<MatchNode> matchNodes)

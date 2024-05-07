@@ -1782,388 +1782,506 @@
         "type": "tinyint"
       }
     ],
-    "warmup_rules": [
-      {
-        "colNameId": "int_1",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
-          "WARM_UP_TYPE_BASIC"
-        ]
-      },
-      {
-        "colNameId": "bigint_2",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
-          "WARM_UP_TYPE_BASIC"
-        ]
-      },
-      {
-        "colNameId": "smallint_3",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
-          "WARM_UP_TYPE_BASIC"
-        ]
-      },
-      {
-        "colNameId": "tinyint_4",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
-          "WARM_UP_TYPE_BASIC"
-        ]
-      }
-    ],
-    "warm_query": "select * from integer_more",
     "data": "resources/synthetic/integer_more.jsonl",
-    "expected_dictionary_counters": {
-      "dictionary_failed_elements_count": 0,
-      "dictionary_rejected_elements_count": 0,
-      "write_dictionaries_count": 2
-    },
-    "iceberg_expected_dictionary_counters": {
-      "dictionary_failed_elements_count": 0,
-      "dictionary_rejected_elements_count": 0,
-      "write_dictionaries_count": 4
-    },
-    "queries_data": [
+    "cases": [
       {
-        "query": "select count(*) from integer_more",
-        "expected_result": [
-          6
+        "case_name": "integer_more case 1",
+        "warmup_rules": [
+          {
+            "colNameId": "int_1",
+            "predicates": [],
+            "warmUpTypes": [
+              "WARM_UP_TYPE_DATA",
+              "WARM_UP_TYPE_BASIC"
+            ]
+          },
+          {
+            "colNameId": "bigint_2",
+            "predicates": [],
+            "warmUpTypes": [
+              "WARM_UP_TYPE_DATA",
+              "WARM_UP_TYPE_BASIC"
+            ]
+          },
+          {
+            "colNameId": "smallint_3",
+            "predicates": [],
+            "warmUpTypes": [
+              "WARM_UP_TYPE_DATA",
+              "WARM_UP_TYPE_BASIC"
+            ]
+          },
+          {
+            "colNameId": "tinyint_4",
+            "predicates": [],
+            "warmUpTypes": [
+              "WARM_UP_TYPE_DATA",
+              "WARM_UP_TYPE_BASIC"
+            ]
+          }
         ],
-        "query_id": "integer_more_1",
-        "expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 0,
-          "empty_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        }
-      },
-      {
-        "query": "select int_1 from integer_more where int_1=1000000001",
-        "expected_result": [
-          1000000001
-        ],
-        "query_id": "integer_more_2",
-        "expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 0,
-          "warp_prefilled_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        }
-      },
-      {
-        "query": "select bigint_2 from integer_more where bigint_2=100000000000000005",
-        "expected_result": [
-          100000000000000005
-        ],
-        "query_id": "integer_more_3",
-        "expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 0,
-          "warp_prefilled_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        }
-      },
-      {
-        "query": "select smallint_3 from integer_more where smallint_3=10000",
-        "expected_result": [
-          10000
-        ],
-        "query_id": "integer_more_4",
-        "expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 0,
-          "warp_prefilled_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        }
-      },
-      {
-        "query": "select tinyint_4 from integer_more where tinyint_4=103",
-        "expected_result": [
-          103
-        ],
-        "query_id": "integer_more_5",
-        "expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 0,
-          "warp_prefilled_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        }
-      },
-      {
-        "query": "select int_1 from integer_more where int_1!=1000000000 and int_1!=1000000001 and int_1!=1000000002 and int_1!=1000000003 and int_1!=1000000004",
-        "expected_result": [
-          1000000005
-        ],
-        "query_id": "integer_more_6",
-        "expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        }
-      },
-      {
-        "query": "select bigint_2 from integer_more where bigint_2!= 100000000000000000 and bigint_2!= 100000000000000001 and bigint_2!= 100000000000000002 and bigint_2!= 100000000000000003 and bigint_2!= 100000000000000004",
-        "expected_result": [
-          100000000000000005
-        ],
-        "query_id": "integer_more_7",
-        "expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        }
-      },
-      {
-        "query": "select smallint_3 from integer_more where smallint_3!=10000 and smallint_3!=10001 and smallint_3!=10002 and smallint_3!=10003 and smallint_3!=10004",
-        "expected_result": [
-          10005
-        ],
-        "query_id": "integer_more_8",
-        "expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        }
-      },
-      {
-        "query": "select tinyint_4  from integer_more where tinyint_4!=100 and tinyint_4!=101 and tinyint_4!=102 and tinyint_4!=103 and tinyint_4!=104",
-        "expected_result": [
-          105
-        ],
-        "query_id": "integer_more_9",
-        "expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        }
-      },
-      {
-        "query": "select count(*) from integer_more where cast(int_1 as varchar) = '1000000000' and cast(int_1 as varchar) > '1000000005'",
-        "expected_result": [
-          0
-        ],
-        "query_id": "integer_more_10",
-        "expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_match_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        }
-      },
-      {
-        "query": "select int_1 from integer_more where int_1 in (1000000001, 1000000003)",
-        "session_properties":
-        {
-          "enable_mapped_match_collect": true
+        "warm_query": "select * from integer_more",
+        "expected_dictionary_counters": {
+          "dictionary_failed_elements_count": 0,
+          "dictionary_rejected_elements_count": 0,
+          "write_dictionaries_count": 2
         },
-        "expected_result":
-        [
-          [1000000001],
-          [1000000003]
-        ],
-        "query_id": "integer_more_11",
-        "expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_prefilled_collect_columns": 0,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        }
+        "iceberg_expected_dictionary_counters": {
+          "dictionary_failed_elements_count": 0,
+          "dictionary_rejected_elements_count": 0,
+          "write_dictionaries_count": 4
+        },
+        "queries_data": [
+          {
+            "query": "select count(*) from integer_more",
+            "expected_result": [
+              6
+            ],
+            "query_id": "integer_more_1",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "empty_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select int_1 from integer_more where int_1=1000000001",
+            "expected_result": [
+              1000000001
+            ],
+            "query_id": "integer_more_2",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 0,
+              "warp_prefilled_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select bigint_2 from integer_more where bigint_2=100000000000000005",
+            "expected_result": [
+              100000000000000005
+            ],
+            "query_id": "integer_more_3",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 0,
+              "warp_prefilled_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select smallint_3 from integer_more where smallint_3=10000",
+            "expected_result": [
+              10000
+            ],
+            "query_id": "integer_more_4",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 0,
+              "warp_prefilled_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select tinyint_4 from integer_more where tinyint_4=103",
+            "expected_result": [
+              103
+            ],
+            "query_id": "integer_more_5",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 0,
+              "warp_prefilled_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select int_1 from integer_more where int_1!=1000000000 and int_1!=1000000001 and int_1!=1000000002 and int_1!=1000000003 and int_1!=1000000004",
+            "expected_result": [
+              1000000005
+            ],
+            "query_id": "integer_more_6",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select bigint_2 from integer_more where bigint_2!= 100000000000000000 and bigint_2!= 100000000000000001 and bigint_2!= 100000000000000002 and bigint_2!= 100000000000000003 and bigint_2!= 100000000000000004",
+            "expected_result": [
+              100000000000000005
+            ],
+            "query_id": "integer_more_7",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select smallint_3 from integer_more where smallint_3!=10000 and smallint_3!=10001 and smallint_3!=10002 and smallint_3!=10003 and smallint_3!=10004",
+            "expected_result": [
+              10005
+            ],
+            "query_id": "integer_more_8",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select tinyint_4  from integer_more where tinyint_4!=100 and tinyint_4!=101 and tinyint_4!=102 and tinyint_4!=103 and tinyint_4!=104",
+            "expected_result": [
+              105
+            ],
+            "query_id": "integer_more_9",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select count(*) from integer_more where cast(int_1 as varchar) = '1000000000' and cast(int_1 as varchar) > '1000000005'",
+            "expected_result": [
+              0
+            ],
+            "query_id": "integer_more_10",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_match_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select int_1 from integer_more where int_1 in (1000000001, 1000000003) order by int_1",
+            "session_properties":
+            {
+              "enable_mapped_match_collect": true
+            },
+            "expected_result":
+            [
+              [1000000001],
+              [1000000003]
+            ],
+            "query_id": "integer_more_11",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select bigint_2 from integer_more where bigint_2 in (100000000000000004, 100000000000000005) order by bigint_2",
+            "session_properties":
+            {
+              "enable_mapped_match_collect": true
+            },
+            "expected_result":
+            [
+              [100000000000000004],
+              [100000000000000005]
+            ],
+            "query_id": "integer_more_12",
+            "expected_counters":
+            {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 0,
+              "warp_mapped_match_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select smallint_3 from integer_more where smallint_3 in (10000, 10001) order by smallint_3",
+            "session_properties":
+            {
+              "enable_mapped_match_collect": true
+            },
+            "expected_result":
+            [
+              [10000],
+              [10001]
+            ],
+            "query_id": "integer_more_13",
+            "expected_counters":
+            {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 0,
+              "warp_mapped_match_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {  "query": "select tinyint_4 from integer_more where tinyint_4 in (103, 104) order by tinyint_4",
+            "session_properties":
+            {
+              "enable_mapped_match_collect": true
+            },
+            "expected_result":
+            [
+              [103],
+              [104]
+            ],
+            "query_id": "integer_more_14",
+            "expected_counters":
+            {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 0,
+              "warp_mapped_match_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            },
+            "iceberg_expected_counters":
+            {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 0,
+              "warp_mapped_match_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select int_1 from integer_more where int_1 in (1000000001, 1000000002) order by int_1",
+            "session_properties":
+            {
+              "enable_mapped_match_collect": true
+            },
+            "expected_result":
+            [
+              [1000000001],
+              [1000000002]
+            ],
+            "query_id": "integer_more_15",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 0,
+              "warp_mapped_match_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select bigint_2 from integer_more where bigint_2 in (100000000000000003, 100000000000000005) order by bigint_2",
+            "session_properties":
+            {
+              "enable_mapped_match_collect": true
+            },
+            "expected_result":
+            [
+              [100000000000000003],
+              [100000000000000005]
+            ],
+            "query_id": "integer_more_16",
+            "expected_counters":
+            {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select smallint_3 from integer_more where smallint_3 in (10000, 10002) order by smallint_3",
+            "session_properties":
+            {
+              "enable_mapped_match_collect": true
+            },
+            "expected_result":
+            [
+              [10000],
+              [10002]
+            ],
+            "query_id": "integer_more_17",
+            "expected_counters":
+            {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {  "query": "select tinyint_4 from integer_more where tinyint_4 in (103, 105) order by tinyint_4",
+            "session_properties":
+            {
+              "enable_mapped_match_collect": true
+            },
+            "expected_result":
+            [
+              [103],
+              [105]
+            ],
+            "query_id": "integer_more_18",
+            "expected_counters":
+            {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            },
+            "iceberg_expected_counters":
+            {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "warp_prefilled_collect_columns": 0,
+              "warp_match_collect_columns": 1,
+              "warp_mapped_match_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          }
+        ]
       },
       {
-        "query": "select bigint_2 from integer_more where bigint_2 in (100000000000000004, 100000000000000005)",
-        "session_properties":
-        {
-          "enable_mapped_match_collect": true
+        "case_name": "integer_more lazy collect",
+        "session_properties": {
+          "warp.enable_lazy_collect": true
         },
-        "expected_result":
-        [
-          [100000000000000004],
-          [100000000000000005]
+        "warmup_rules": [
+          {
+            "colNameId": "int_1",
+            "predicates": [],
+            "warmUpTypes": [
+              "WARM_UP_TYPE_DATA"
+            ]
+          },
+          {
+            "colNameId": "bigint_2",
+            "predicates": [],
+            "warmUpTypes": [
+              "WARM_UP_TYPE_DATA"
+            ]
+          },
+          {
+            "colNameId": "smallint_3",
+            "predicates": [],
+            "warmUpTypes": [
+              "WARM_UP_TYPE_DATA"
+            ]
+          }
         ],
-        "query_id": "integer_more_12",
-        "expected_counters":
-        {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_prefilled_collect_columns": 0,
-          "warp_match_collect_columns": 0,
-          "warp_mapped_match_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        }
-      },
-      {
-        "query": "select smallint_3 from integer_more where smallint_3 in (10000, 10001) order by smallint_3",
-        "session_properties":
-        {
-          "enable_mapped_match_collect": true
-        },
-        "expected_result":
-        [
-          [10000],
-          [10001]
-        ],
-        "query_id": "integer_more_13",
-        "expected_counters":
-        {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_prefilled_collect_columns": 0,
-          "warp_match_collect_columns": 0,
-          "warp_mapped_match_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        }
-      },
-      {  "query": "select tinyint_4 from integer_more where tinyint_4 in (103, 104) order by tinyint_4",
-        "session_properties":
-        {
-          "enable_mapped_match_collect": true
-        },
-        "expected_result":
-        [
-          [103],
-          [104]
-        ],
-        "query_id": "integer_more_14",
-        "expected_counters":
-        {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_prefilled_collect_columns": 0,
-          "warp_match_collect_columns": 0,
-          "warp_mapped_match_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "iceberg_expected_counters":
-        {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_prefilled_collect_columns": 0,
-          "warp_match_collect_columns": 0,
-          "warp_mapped_match_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        }
-      },
-      {
-        "query": "select int_1 from integer_more where int_1 in (1000000001, 1000000002) order by int_1",
-        "session_properties":
-        {
-          "enable_mapped_match_collect": true
-        },
-        "expected_result":
-        [
-          [1000000001],
-          [1000000002]
-        ],
-        "query_id": "integer_more_15",
-        "expected_counters": {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_prefilled_collect_columns": 0,
-          "warp_match_collect_columns": 0,
-          "warp_mapped_match_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        }
-      },
-      {
-        "query": "select bigint_2 from integer_more where bigint_2 in (100000000000000003, 100000000000000005) order by bigint_2",
-        "session_properties":
-        {
-          "enable_mapped_match_collect": true
-        },
-        "expected_result":
-        [
-          [100000000000000003],
-          [100000000000000005]
-        ],
-        "query_id": "integer_more_16",
-        "expected_counters":
-        {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_prefilled_collect_columns": 0,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        }
-      },
-      {
-        "query": "select smallint_3 from integer_more where smallint_3 in (10000, 10002) order by smallint_3",
-        "session_properties":
-        {
-          "enable_mapped_match_collect": true
-        },
-        "expected_result":
-        [
-          [10000],
-          [10002]
-        ],
-        "query_id": "integer_more_17",
-        "expected_counters":
-        {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_prefilled_collect_columns": 0,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        }
-      },
-      {  "query": "select tinyint_4 from integer_more where tinyint_4 in (103, 105) order by tinyint_4",
-        "session_properties":
-        {
-          "enable_mapped_match_collect": true
-        },
-        "expected_result":
-        [
-          [103],
-          [105]
-        ],
-        "query_id": "integer_more_14",
-        "expected_counters":
-        {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_prefilled_collect_columns": 0,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 0,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        },
-        "iceberg_expected_counters":
-        {
-          "warp_match_columns": 1,
-          "warp_collect_columns": 1,
-          "warp_prefilled_collect_columns": 0,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        }
+        "warm_query": "select * from integer_more",
+        "queries_data": [
+          {
+            "query": "select count(*) from integer_more",
+            "expected_result": [
+              6
+            ],
+            "query_id": "integer_more_case_2_1",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "empty_collect_columns": 1,
+              "lazy_collect_total_blocks": 0,
+              "lazy_collect_loaded_blocks": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select int_1 from integer_more where int_1=1000000001 or int_1 = 1000000004 order by int_1",
+            "expected_result": [
+              [
+                1000000001
+              ],
+              [
+                1000000004
+              ]
+            ],
+            "query_id": "integer_more_case_2_2",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "lazy_collect_total_blocks": 1,
+              "lazy_collect_loaded_blocks": 1,
+              "external_match_columns": 1,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select bigint_2 from integer_more where bigint_2=100000000000000005",
+            "expected_result": [
+              100000000000000005
+            ],
+            "query_id": "integer_more_case_2_3",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "lazy_collect_total_blocks": 1,
+              "lazy_collect_loaded_blocks": 1,
+              "external_match_columns": 1,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select bigint_2 from integer_more limit 1",
+            "expected_result": [
+              100000000000000000
+            ],
+            "query_id": "integer_more_case_2_4",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 1,
+              "lazy_collect_total_blocks": 1,
+              "lazy_collect_loaded_blocks": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select count(bigint_2) from integer_more where smallint_3 > int_1",
+            "expected_result": [
+              0
+            ],
+            "query_id": "integer_more_case_2_5",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 3,
+              "lazy_collect_total_blocks": 3,
+              "lazy_collect_loaded_blocks": 2,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          }
+        ]
       }
     ]
   },

@@ -28,9 +28,11 @@ public record StorageCollectorArgs(List<BlockFiller<?>> blockFillers,
                                    byte[] storeRowListBuff,
                                    byte[] collect2MatchParams,
                                    QueryParams queryParams,
+                                   List<WarmupElementCollectParams> collectParamsList,
                                    int chunkSize,
                                    int numChunks,
                                    long[] fileCookie,
-                                   ChunksQueue chunksQueue)
+                                   ChunksQueue chunksQueue,
+                                   boolean isLazyCollect)
 {
 }

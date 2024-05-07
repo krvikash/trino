@@ -84,10 +84,17 @@ public class NativeRangeFillerService
             }
             case RECORD_INDEX_LIST_TYPE_ALL -> {
                 if (rangesRequired) {
-                    // start row index lies in the first poition in the list
-                    rowsBuff.position(getFirstIndexPosition());
-                    // calculate the first row in  the all list is done in short and then transfer to int. its the diff between the last list reached (exclustive) and the size of the list collected
-                    int min = baseRow + Short.toUnsignedInt((short) (rowsBuff.get() - currentNumCollectedRows));
+                    int min;
+                    if (storageCollectorArgs.isLazyCollect()) {
+                        min = baseRow;
+                    }
+                    else {
+                        // start row index lies in the first position in the list
+                        rowsBuff.position(getFirstIndexPosition());
+                        // calculate the first row in the all list is done in short and then transfer to int. its the diff between the last list reached (exclustive) and the size of the list collected
+                        // in lazy collect the rowsBuff isn't full so rowsBuff.get() will be 0
+                        min = baseRow + Short.toUnsignedInt((short) (rowsBuff.get() - currentNumCollectedRows));
+                    }
                     long minValue = mergeRanges(min, rangeData);
                     rangeData.addLowerInclusive(minValue);
                     rangeData.addUpperExclusive(min + numRows);

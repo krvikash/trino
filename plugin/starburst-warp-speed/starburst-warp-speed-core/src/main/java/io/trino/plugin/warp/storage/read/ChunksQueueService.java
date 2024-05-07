@@ -15,20 +15,13 @@ package io.trino.plugin.warp.storage.read;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.airlift.log.Logger;
-import io.trino.plugin.warp.storage.engine.StorageEngine;
 
 @Singleton
 public class ChunksQueueService
 {
-    private static final Logger logger = Logger.get(ChunksQueueService.class);
-
-    private final StorageEngine storageEngine;
-
     @Inject
-    public ChunksQueueService(StorageEngine storageEngine)
+    public ChunksQueueService()
     {
-        this.storageEngine = storageEngine;
     }
 
     int getChunkIndexForMatch(ChunksQueue chunksQueue)
@@ -41,7 +34,7 @@ public class ChunksQueueService
         chunksQueue.add(endChunkIndex, numMatchedChunks, matchedChunksIndexes, matchBitmapResetPoints);
     }
 
-    // return true is completely finished, false otherwise
+    // return true if completely finished, false otherwise
     boolean updateChunkRangeFullScan(ChunksQueue chunksQueue, int numChunks, int numChunksInRange)
     {
         if (isCompletelyFinished(chunksQueue, numChunks)) {
@@ -65,28 +58,5 @@ public class ChunksQueueService
     boolean isCompletelyFinished(ChunksQueue chunksQueue, int numChunks)
     {
         return isChunkRangeCompleted(chunksQueue) && (chunksQueue.getTotalNumChunks() >= numChunks);
-    }
-
-    // returns > 0 if buffer is exhausted and we need to stop collecting, 0 if not, -1 for error
-    int prepareNextChunk(ChunksQueue chunksQueue,
-            boolean chunkPrepared,
-            int collectTxId,
-            int rowsLimit,
-            int numCollectedRows,
-            int[] outResultType)
-    {
-        int ret = 0;
-        if (!chunkPrepared) {
-            int chunkIndex = chunksQueue.getCurrent();
-            int bitmapResetPoint = chunksQueue.getCurrentResetPoint();
-            logger.debug("collectFromStorage process match chunkIndex %d bitmapResetPoint %d rowsLimit %d numCollectedRows %d",
-                    chunkIndex, bitmapResetPoint, rowsLimit, numCollectedRows);
-            ret = (int) storageEngine.processMatchResult(collectTxId,
-                    chunksQueue.getCurrent(),
-                    chunksQueue.getCurrentResetPoint(),
-                    rowsLimit - numCollectedRows,
-                    outResultType);
-        }
-        return ret;
     }
 }

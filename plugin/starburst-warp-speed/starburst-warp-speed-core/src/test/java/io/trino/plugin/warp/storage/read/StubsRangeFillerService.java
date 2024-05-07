@@ -40,6 +40,11 @@ public class StubsRangeFillerService
         return 0;
     }
 
+    public int add(int chunkIndex, int currentNumCollectedRows, StorageCollectorArgs storageCollectorArgs, boolean rangesRequired, RangeData rangeData, boolean isLazy)
+    {
+        return 0;
+    }
+
     @Override
     public WarpStoragePageSource.RowRanges reset(RangeData rangeData)
     {

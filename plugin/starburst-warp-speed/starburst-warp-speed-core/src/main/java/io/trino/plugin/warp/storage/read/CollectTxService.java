@@ -14,9 +14,8 @@
 package io.trino.plugin.warp.storage.read;
 
 import com.google.inject.Inject;
-import io.airlift.log.Logger;
+import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
-import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.RecordBufferState;
 import io.trino.plugin.warp.gen.constants.RecordIndexListType;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
@@ -35,15 +34,11 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.stream.IntStream;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static io.trino.plugin.warp.WarpErrorCode.WARP_TX_ALLOCATION_FAILED;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_COLLECT_FAILED;
 
 public class CollectTxService
+        extends BaseCollectTxService
 {
-    private static final Logger logger = Logger.get(CollectTxService.class);
-    private static final int INVALID_TX_ID = -1;
-
-    private final StorageEngine storageEngine;
     private final ChunksQueueService chunksQueueService;
     private final RangeFillerService rangeFillerService;
     private final ArrayBlockingQueue<MemorySegment> matchBitmapsQueue;
@@ -53,9 +48,10 @@ public class CollectTxService
             ChunksQueueService chunksQueueService,
             RangeFillerService rangeFillerService,
             StorageEngineConstants storageEngineConstants,
-            NativeConfig nativeConfig)
+            NativeConfig nativeConfig,
+            GlobalConfig globalConfig)
     {
-        this.storageEngine = storageEngine;
+        super(storageEngine, globalConfig);
         this.chunksQueueService = chunksQueueService;
         this.rangeFillerService = rangeFillerService;
 
@@ -88,17 +84,17 @@ public class CollectTxService
     /**
      * prepare buffers for filling
      */
-    CollectOpenResult collectOpen(int rowsLimit,
+    CollectOpenResult collectOpenAndRestore(int rowsLimit,
             StorageCollectorArgs storageCollectorArgs,
             int storeRowListSize,
             RecordIndexListType storeRowListType,
             StorageCollectorCallBack storageCollectorCallBack)
     {
-        long[] metadataBuffIds = new long[2];
-        metadataBuffIds[0] = -1;
-        metadataBuffIds[1] = -1;
+        int numCollectElements = storageCollectorArgs.collectParamsList().size();
         QueryParams queryParams = storageCollectorArgs.queryParams();
-        int[] outResultType = new int[storageCollectorArgs.queryParams().getNumCollectElements()];
+        long[] metadataBuffIds = new long[2];
+
+        int[] outResultType = new int[numCollectElements];
         long matchBmAddr = 0;
         MemorySegment bmSeg = null;
         boolean isFullScan = (queryParams.getNumMatchElements() == 0);
@@ -106,36 +102,11 @@ public class CollectTxService
             bmSeg = matchBitmapsQueue.remove();
             matchBmAddr = bmSeg.address();
         }
-        int collectTxId = (int) storageEngine.collectOpen(queryParams.getTotalNumRecords(),
-                storageCollectorArgs.fileCookie(),
-                storageCollectorArgs.collectStoreBuff(),
-                storageCollectorArgs.collect2MatchParams(),
-                queryParams.getNumCollectElements(),
-                storageCollectorArgs.weCollectParams(),
-                queryParams.getCatalogSequence(),
-                matchBmAddr,
-                queryParams.getMinCollectOffset(),
-                storageCollectorArgs.collectBuffIds(),
-                metadataBuffIds,
-                outResultType);
-        if (collectTxId < 0) {
-            throw new TrinoException(WARP_TX_ALLOCATION_FAILED, "failed to allocate tx for collect");
-        }
 
-        int collectIx = 0;
-        for (WarmupElementCollectParams collectParams : queryParams.getCollectElementsParamsList()) {
-            storageCollectorArgs.collectJuffersWE().get(collectIx).createBuffers(
-                    collectParams.mappedMatchCollect() ? RecTypeCode.REC_TYPE_TINYINT : collectParams.getRecTypeCode(),
-                    collectParams.mappedMatchCollect() ? 1 : collectParams.getRecTypeLength(),
-                    collectParams.hasDictionary(),
-                    storageCollectorArgs.collectBuffIds()[collectIx]);
-            collectIx++;
-        }
+        int collectTxId = collectOpen(storageCollectorArgs, matchBmAddr, metadataBuffIds, outResultType);
 
         RangeData rangeData = new RangeData(metadataBuffIds[0]);
         List<WarmupElementRecordBufferState> warmupElementRecordBufferStates = Collections.emptyList();
-
-        int numCollectElements = queryParams.getNumCollectElements();
         if (numCollectElements > 0) {
             warmupElementRecordBufferStates = IntStream.range(0, numCollectElements)
                     .mapToObj(weIx -> new WarmupElementRecordBufferState(weIx * RecordBufferState.RECORD_BUFFER_STATE_NUM_OF.ordinal(), metadataBuffIds))
@@ -159,7 +130,7 @@ public class CollectTxService
         return new CollectOpenResult(collectTxId, outResultType, rowsLimit, rangeData, warmupElementRecordBufferStates, bmSeg, restoredChunkIndex);
     }
 
-    CollectCloseResult collectClose(CollectOpenResult collectOpenResult,
+    CollectCloseResult collectStoreAndClose(CollectOpenResult collectOpenResult,
             StorageCollectorArgs storageCollectorArgs,
             boolean chunkPrepared,
             int numCollectedRows,
@@ -176,21 +147,14 @@ public class CollectTxService
         boolean bufferIsFull = false;
         Optional<int[]> chunksWithBitmapsToStoreOpt = Optional.empty();
         if (chunksQueueService.storeRestoreRequired(storageCollectorArgs.chunksQueue())) {
-            int ret = chunksQueueService.prepareNextChunk(storageCollectorArgs.chunksQueue(),
+            int ret = prepareNextChunk(storageCollectorArgs.chunksQueue().getCurrent(),
+                    storageCollectorArgs.chunksQueue().getCurrentResetPoint(),
                     chunkPrepared,
                     collectOpenResult.collectTxId(),
                     collectOpenResult.rowsLimit(),
                     numCollectedRows,
                     collectOpenResult.outResultType()); // will be done only if needed
-            if (ret == -1) {
-                throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED,
-                        String.format("prepareNextChunk failed unexpectedly collectTxId %d chunkIx %d resetPoint %d numCollectedRows %d rowsLimit %d",
-                        collectOpenResult.collectTxId(),
-                        storageCollectorArgs.chunksQueue().getCurrent(),
-                        storageCollectorArgs.chunksQueue().getCurrentResetPoint(),
-                        numCollectedRows,
-                        collectOpenResult.rowsLimit()));
-            }
+
             bufferIsFull = (ret > 0);
             chunksWithBitmapsToStoreOpt = storageCollectorArgs.chunksQueue().getChunkIndexesWithBitmap();
             storeRowListResult = rangeFillerService.storeRowList(storageCollectorArgs, collectOpenResult.rangeData());

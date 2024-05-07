@@ -19,6 +19,7 @@ import io.trino.plugin.warp.gen.constants.QueryResultType;
 import io.trino.plugin.warp.gen.constants.RecordBufferState;
 import io.trino.plugin.warp.gen.constants.RecordIndexListHeader;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
+import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
@@ -28,9 +29,8 @@ import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.read.fill.BlockFiller;
 import io.trino.plugin.warp.storage.read.fill.BlockFillersFactory;
 import io.trino.plugin.warp.util.StorageUtils;
-import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
-import io.trino.spi.block.DictionaryBlock;
+import io.trino.spi.block.LazyBlock;
 
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
@@ -38,7 +38,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_COLLECT_FAILED;
 import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_STAT_GROUP;
 import static io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService.INVALID_FILE_COOKIE_FD;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FD;
@@ -50,14 +49,19 @@ import static java.util.Objects.requireNonNull;
 public class StorageCollectorService
 {
     private static final Logger logger = Logger.get(StorageCollectorService.class);
+    public static final int INVALID_LAZY_COLLECT_IX = -1;
+
+    private final int lazyCollectMaxLenSupported;
     // services
     private final StorageEngine storageEngine;
+    private final CollectTxService collectTxService;
     private final BufferAllocator bufferAllocator;
     private final DictionaryStats dictionaryStats;
     private final RangeFillerService rangeFillerService;
     private final ChunksQueueService chunksQueueService;
     private final StorageEngineConstants storageEngineConstants;
     private final BlockFillersFactory blockFillersFactory;
+    private final LazyCollectTxService lazyCollectTxService;
 
     @Inject
     StorageCollectorService(
@@ -66,16 +70,21 @@ public class StorageCollectorService
             MetricsManager metricsManager,
             ChunksQueueService chunksQueueService,
             RangeFillerService rangeFillerService,
+            CollectTxService collectTxService,
+            LazyCollectTxService lazyCollectTxService,
             StorageEngineConstants storageEngineConstants,
             BlockFillersFactory blockFillersFactory)
     {
         this.storageEngine = requireNonNull(storageEngine);
+        this.collectTxService = requireNonNull(collectTxService);
+        this.lazyCollectTxService = requireNonNull(lazyCollectTxService);
         this.bufferAllocator = requireNonNull(bufferAllocator);
         this.dictionaryStats = requireNonNull(metricsManager).registerMetric(DictionaryStats.create(DICTIONARY_STAT_GROUP));
         this.rangeFillerService = requireNonNull(rangeFillerService);
         this.chunksQueueService = requireNonNull(chunksQueueService);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.blockFillersFactory = requireNonNull(blockFillersFactory);
+        this.lazyCollectMaxLenSupported = storageEngineConstants.getFixedLengthStringLimit();
     }
 
     // returns indication if anything is collected in the buffer and if the buffer is full
@@ -86,30 +95,22 @@ public class StorageCollectorService
             int numCollectedRows,
             StorageCollectorArgs storageCollectorArgs)
     {
+        int lazyChunkIndex = INVALID_LAZY_COLLECT_IX;
         if (chunksQueueService.isCompletelyFinished(storageCollectorArgs.chunksQueue(), storageCollectorArgs.numChunks())) {
-            return new CollectFromStorageResult(CollectBufferState.COLLECT_BUFFER_STATE_EMPTY, chunkPrepared, numCollectedRows);
+            return new CollectFromStorageResult(CollectBufferState.COLLECT_BUFFER_STATE_EMPTY, chunkPrepared, numCollectedRows, lazyChunkIndex);
         }
 
         int numToCollect = 1; // Not a real value, just making sure to enter the loop in the first iteration
         while (!chunksQueueService.isChunkRangeCompleted(storageCollectorArgs.chunksQueue()) && numToCollect > 0) {
             // get next chunk to collect and check if its already done on buffer
             int chunkIndex = storageCollectorArgs.chunksQueue().getCurrent();
-            boolean chunkWasPrepared = chunkPrepared;
-            int ret = chunksQueueService.prepareNextChunk(storageCollectorArgs.chunksQueue(),
+            int ret = collectTxService.prepareNextChunk(storageCollectorArgs.chunksQueue().getCurrent(),
+                    storageCollectorArgs.chunksQueue().getCurrentResetPoint(),
                     chunkPrepared,
                     collectOpenResult.collectTxId(),
                     collectOpenResult.rowsLimit(),
                     numCollectedRows,
                     collectOpenResult.outResultType());
-            if (ret == -1) {
-                throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED,
-                        String.format("prepareNextChunk failed unexpectedly collectTxId %d chunkIx %d resetPoint %d numCollectedRows %d rowsLimit %d",
-                                collectOpenResult.collectTxId(),
-                                storageCollectorArgs.chunksQueue().getCurrent(),
-                                storageCollectorArgs.chunksQueue().getCurrentResetPoint(),
-                                numCollectedRows,
-                                collectOpenResult.rowsLimit()));
-            }
             boolean bufferIsFull = (ret > 0);
             chunkPrepared = true;
             if (bufferIsFull) { // if returns true we need to stop for query result optimization
@@ -121,15 +122,11 @@ public class StorageCollectorService
             if (queryParams.getNumCollectElements() > 0) {
                 int numCollectedFromCurrentChunk = rangeFillerService.getNumCollectedFromCurrentChunk(chunkIndex, collectOpenResult.rangeData());
                 numToCollect = getNumToCollect(storageCollectorArgs, numCollectedFromCurrentChunk, collectOpenResult, numCollectedRows);
-                if (numToCollect > 0) {
-                    try {
-                        storageEngine.collect(collectOpenResult.collectTxId(), 0, queryParams.getNumCollectElements(), chunkIndex, numToCollect, collectOpenResult.outResultType());
-                    }
-                    catch (Exception e) {
-                        logger.error(e, "collect failed chunkIndex %d chunkWasPrepared %b rowsLimit %d numCollectedRows %d numToCollect %d numCollectedFromCurrentChunk %d restoredChunkIndex %d",
-                                chunkIndex, chunkWasPrepared, collectOpenResult.rowsLimit(), numCollectedRows, numToCollect, numCollectedFromCurrentChunk, collectOpenResult.restoredChunkIndex());
-                        throw e;
-                    }
+                if (numToCollect > 0 && !storageCollectorArgs.isLazyCollect()) {
+                    collectTxService.collect(collectOpenResult.collectTxId(), collectOpenResult.outResultType(), queryParams.getNumCollectElements(), chunkIndex, numToCollect);
+                }
+                else {
+                    lazyChunkIndex = storageCollectorArgs.chunksQueue().getCurrent();
                 }
                 numCollectedRows += rangeFillerService.add(chunkIndex, numToCollect, storageCollectorArgs, isMatchGetNumRanges, collectOpenResult.rangeData());
             }
@@ -162,60 +159,46 @@ public class StorageCollectorService
             collectBufferState = (numCollectedRows > 0) ? CollectBufferState.COLLECT_BUFFER_STATE_PARTIAL : CollectBufferState.COLLECT_BUFFER_STATE_EMPTY;
         }
 
-        return new CollectFromStorageResult(collectBufferState, chunkPrepared, numCollectedRows);
+        return new CollectFromStorageResult(collectBufferState, chunkPrepared, numCollectedRows, lazyChunkIndex);
     }
 
-    int fillBlocks(Block[] blocks, StorageCollectorArgs storageCollectorArgs, CollectOpenResult collectOpenResult, int numCollectedRows)
+    private boolean useLazyCollect(QueryParams queryParams)
     {
-        int rowsToFill = Math.min(numCollectedRows, collectOpenResult.rowsLimit());
-        int collectIx = 0;
-        for (WarmupElementCollectParams collectParams : storageCollectorArgs.queryParams().getCollectElementsParamsList()) {
-            QueryResultType queryResultType = QueryResultType.values()[collectOpenResult.outResultType()[collectIx]];
-
-            List<BlockFiller<?>> blockFillers = storageCollectorArgs.blockFillers();
-            try {
-                Block block;
-                List<ReadJuffersWarmUpElement> readJuffersWarmUpElements = storageCollectorArgs.collectJuffersWE();
-                if (collectParams.hasDictionary()) {
-                    block = blockFillers.get(collectIx).fillBlockWithDictionary(readJuffersWarmUpElements.get(collectIx),
-                            queryResultType,
-                            rowsToFill,
-                            collectParams.getBlockRecTypeCode(),
-                            collectParams.getBlockRecTypeLength(),
-                            collectParams.isCollectNulls(),
-                            collectParams.getDictionary());
-                    if (logger.isDebugEnabled() && block instanceof DictionaryBlock) {
-                        dictionaryStats.adddictionary_block_saved_bytes(block.getLogicalSizeInBytes() - block.getSizeInBytes());
-                    }
-                }
-                else if (collectParams.mappedMatchCollect()) {
-                    Block valuesDict = collectParams.getValuesDictBlock().get();
-                    block = blockFillers.get(collectIx).fillBlockWithMapping(readJuffersWarmUpElements.get(collectIx),
-                            queryResultType,
-                            rowsToFill,
-                            collectParams.getBlockRecTypeCode(),
-                            collectParams.isCollectNulls(),
-                            valuesDict);
-                }
-                else {
-                    block = blockFillers.get(collectIx).fillBlock(readJuffersWarmUpElements.get(collectIx),
-                            queryResultType,
-                            rowsToFill,
-                            collectParams.getBlockRecTypeCode(),
-                            collectParams.getBlockRecTypeLength(),
-                            collectParams.isCollectNulls());
-                }
-                blocks[collectParams.getBlockIndex()] = block;
-            }
-            catch (Exception e) {
-                logger.error(e, "fill block failed queryResultType=%s, collectIx=%d, rowsToFill=%d, blockFiller=%s, collectParams=%s",
-                        queryResultType, collectIx, rowsToFill, blockFillers.get(collectIx), collectParams);
-                throw new RuntimeException(e);
-            }
-
-            collectIx++;
+        if (queryParams.getNumMatchElements() != 0 || !queryParams.isLazyCollectEnabled()) {
+            return false;
         }
-        return rowsToFill;
+
+        return queryParams.getCollectElementsParamsList().stream().allMatch(collectParams -> collectParams.getBlockRecTypeLength() <= lazyCollectMaxLenSupported);
+    }
+
+    void fillBlocks(Block[] blocks, StorageCollectorArgs storageCollectorArgs, int rowsToFill, int lazyChunkIx, DispatcherPageSourceStats stats)
+    {
+        List<WarmupElementCollectParams> collectElementsParamsList = storageCollectorArgs.queryParams().getCollectElementsParamsList();
+
+        for (int weIx = 0; weIx < collectElementsParamsList.size(); weIx++) {
+            WarmupElementCollectParams collectParams = collectElementsParamsList.get(weIx);
+            StorageCollectorArgs lazyCollectorArgs = getLazyCollectorArgs(storageCollectorArgs, weIx, lazyChunkIx);
+            blocks[collectParams.getBlockIndex()] = new LazyBlock(rowsToFill, new LazyCollectorLoader(
+                    lazyCollectTxService,
+                    lazyCollectorArgs,
+                    rowsToFill,
+                    dictionaryStats,
+                    stats));
+        }
+        stats.addlazy_collect_total_blocks(collectElementsParamsList.size());
+    }
+
+    void fillBlocks(Block[] blocks, StorageCollectorArgs storageCollectorArgs, CollectOpenResult collectOpenResult, int rowsToFill)
+    {
+        List<WarmupElementCollectParams> collectElementsParamsList = storageCollectorArgs.queryParams().getCollectElementsParamsList();
+
+        for (int weIx = 0; weIx < collectElementsParamsList.size(); weIx++) {
+            WarmupElementCollectParams collectParams = collectElementsParamsList.get(weIx);
+            QueryResultType queryResultType = QueryResultType.values()[collectOpenResult.outResultType()[weIx]];
+            BlockFiller<?> blockFiller = storageCollectorArgs.blockFillers().get(weIx);
+            ReadJuffersWarmUpElement readJuffersWarmUpElement = storageCollectorArgs.collectJuffersWE().get(weIx);
+            blocks[collectParams.getBlockIndex()] = blockFiller.fillBlockWithRecords(collectParams, readJuffersWarmUpElement, rowsToFill, queryResultType, dictionaryStats);
+        }
     }
 
     int getNumToCollect(StorageCollectorArgs storageCollectorArgs,
@@ -313,6 +296,7 @@ public class StorageCollectorService
         fileCookieParams[FILE_COOKIE_PARAMS_FILE_HASH.ordinal()] = StorageUtils.fileHash64(queryParams.getFilePath());
         fileCookieParams[FILE_COOKIE_PARAMS_FILE_MOD_TIME.ordinal()] = queryParams.getFileModTime();
         ChunksQueue chunksQueue = new ChunksQueue(numChunksInRange, storageEngineConstants.getPageSize());
+        boolean isLazyCollect = useLazyCollect(queryParams);
         return new StorageCollectorArgs(
                 blockFillers,
                 numChunksInRange,
@@ -324,9 +308,60 @@ public class StorageCollectorService
                 storeRowListBuff,
                 collect2MatchParams,
                 queryParams,
+                queryParams.getCollectElementsParamsList(),
                 chunkSize,
                 numChunks,
                 fileCookieParams,
-                chunksQueue);
+                chunksQueue,
+                isLazyCollect);
+    }
+
+    StorageCollectorArgs getLazyCollectorArgs(StorageCollectorArgs storageCollectorArgs, int weIx, int chunkIndex)
+    {
+        QueryParams queryParams = storageCollectorArgs.queryParams();
+
+        ArrayList<WarmupElementCollectParams> singleCollectParamsList = new ArrayList<>();
+        WarmupElementCollectParams collectParams = queryParams.getCollectElementsParamsList().get(weIx);
+        singleCollectParamsList.add(collectParams);
+        ArrayList<BlockFiller<?>> blockFillers = new ArrayList<>();
+        blockFillers.add(storageCollectorArgs.blockFillers().get(weIx));
+
+        int numChunksInRange = 1;
+        int fixedLengthStringLimit = storageCollectorArgs.fixedLengthStringLimit();
+
+        int[] weCollectParams = queryParams.dumpSingleCollectParams(collectParams);
+        long[][] collectBuffIds = new long[1][];
+        collectBuffIds[0] = bufferAllocator.getQueryIdsArray(false);
+
+        List<ReadJuffersWarmUpElement> singleElementList = new ArrayList<>();
+        singleElementList.add(new ReadJuffersWarmUpElement(bufferAllocator, true, false));
+
+        int chunkSize = storageCollectorArgs.chunkSize();
+        byte[] collectStoreBuff = new byte[(int) storageEngine.queryGetCollectStateSize(0)];
+        byte[] storeRowListBuff = new byte[(chunkSize + RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal()) * Short.BYTES];
+        byte[] collect2MatchParams = new byte[storageEngine.queryGetCollect2MatchSize()];
+        int numChunks = 1;
+
+        long[] fileCookieParams = storageCollectorArgs.fileCookie();
+
+        ChunksQueue chunksQueue = new ChunksQueue(1, storageEngineConstants.getPageSize());
+        chunksQueue.add(chunkIndex, chunkIndex + 1);
+        return new StorageCollectorArgs(
+                blockFillers,
+                numChunksInRange,
+                fixedLengthStringLimit,
+                weCollectParams,
+                collectBuffIds,
+                singleElementList,
+                collectStoreBuff,
+                storeRowListBuff,
+                collect2MatchParams,
+                queryParams,
+                singleCollectParamsList,
+                chunkSize,
+                numChunks,
+                fileCookieParams,
+                chunksQueue,
+                false);
     }
 }

@@ -182,7 +182,7 @@ public class NativeStorageEngine
     public native long processMatchResult(int txId, int chunkIndex, int bitmapResetPoint, int rowsLimit, int[] resultTypes);
 
     @Override
-    public native void collect(int txId, int startWeIx, int endWeIx, int chunkIndex, int numToCollect, int[] outResultTypes);
+    public native void collect(int txId, int numWes, int chunkIndex, int numToCollect, int[] outResultTypes);
 
     @Override
     public native long collectClose(int txId, int[] chunksWithBitmapsToStore, int numChunksWithBitmaps, StorageCollectorCallBack obj);

@@ -195,7 +195,6 @@ public class RangeDataServiceTest
         RangeData rangeData = new RangeData(0L);
         StorageCollectorArgs storageCollectorArgs = mock(StorageCollectorArgs.class);
         when(storageCollectorArgs.queryParams()).thenReturn(queryParams);
-        when(storageCollectorArgs.chunkSize()).thenReturn(1);
         int pos = 5;
         rowsBuffer.put(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal(), (short) RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL.ordinal());
         rowsBuffer.position(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_NUM_OF.ordinal());

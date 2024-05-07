@@ -188,7 +188,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public void collect(int txId, int startWeIx, int endWeIx, int chunkIndex, int numToCollect, int[] outResultTypes)
+    public void collect(int txId, int numWes, int chunkIndex, int numToCollect, int[] outResultTypes)
     {
         if (!throwOnColletRuntimeExceptionList.isEmpty()) {
             throw throwOnColletRuntimeExceptionList.removeFirst();

@@ -138,7 +138,7 @@ public class WarpPageSource
     @Override
     public boolean isFinished()
     {
-        return closed;
+        return finished || closed;
     }
 
     @Override
@@ -191,7 +191,10 @@ public class WarpPageSource
 
     private boolean shouldClose()
     {
-        return finished || isRowsLimitReached();
+        if (isRowsLimitReached()) {
+            finished = true;
+        }
+        return finished && !storageCollectorArgs.isLazyCollect();
     }
 
     private int pipe(Block[] blocks)

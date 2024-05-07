@@ -55,6 +55,7 @@ public final class WarpSessionProperties
     public static final String ENABLE_MATCH_COLLECT = "enable_match_collect";
     public static final String ENABLE_MAPPED_MATCH_COLLECT = "enable_mapped_match_collect";
     public static final String ENABLE_VARCHAR_MAPPED_MATCH_COLLECT = "enable_varchar_mapped_match_collect";
+    public static final String ENABLE_LAZY_COLLECT = "enable_lazy_collect";
     public static final String ENABLE_INVERSE_WITH_NULLS = "enable_inverse_with_nulls";
     public static final String MIN_MAX_FILTER = "min_max_filter";
     public static final String DEBUG_NO_PREDICATE_BUFFER = "debug_no_predicate_buffer";
@@ -110,6 +111,11 @@ public final class WarpSessionProperties
                         ENABLE_VARCHAR_MAPPED_MATCH_COLLECT,
                         "mapped match collect for varchar enabled",
                         globalConfig.getEnableVarcharMappedMatchCollect(),
+                        true),
+                booleanProperty(
+                        ENABLE_LAZY_COLLECT,
+                        "lazy collect feature enabled",
+                        globalConfig.getEnableLazyCollect(),
                         true),
                 booleanProperty(
                         ENABLE_INVERSE_WITH_NULLS,
@@ -242,6 +248,12 @@ public final class WarpSessionProperties
     public static boolean getEnabledVarcharMappedMatchCollect(ConnectorSession session)
     {
         Boolean ret = getProperty(session, ENABLE_VARCHAR_MAPPED_MATCH_COLLECT, Boolean.class);
+        return ret != null ? ret : false;
+    }
+
+    public static boolean getEnableLazyCollect(ConnectorSession session)
+    {
+        Boolean ret = getProperty(session, ENABLE_LAZY_COLLECT, Boolean.class);
         return ret != null ? ret : false;
     }
 

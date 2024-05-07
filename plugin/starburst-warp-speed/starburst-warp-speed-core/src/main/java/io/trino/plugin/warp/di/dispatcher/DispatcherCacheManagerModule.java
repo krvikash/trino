@@ -71,6 +71,7 @@ import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
 import io.trino.plugin.warp.storage.read.ChunksQueueService;
 import io.trino.plugin.warp.storage.read.CollectTxService;
+import io.trino.plugin.warp.storage.read.LazyCollectTxService;
 import io.trino.plugin.warp.storage.read.StorageCollectorService;
 import io.trino.plugin.warp.storage.read.fill.BlockFillersFactory;
 import io.trino.plugin.warp.storage.write.StorageWriterService;
@@ -148,6 +149,7 @@ public class DispatcherCacheManagerModule
         binder.bind(ChunksQueueService.class);
         binder.bind(ClassifierFactory.class);
         binder.bind(CollectTxService.class);
+        binder.bind(LazyCollectTxService.class);
         binder.bind(DictionaryCacheService.class);
         binder.bind(DictionaryWriterFactory.class);
         binder.bind(DispatcherPageSourceFactory.class);

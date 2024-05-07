@@ -209,13 +209,12 @@ public interface StorageEngine
      * Collect from the provided chunk according to the processMatchResult result
      *
      * @param txId - identifies tx, passed from native to java during import_create
-     * @param startWeIx - we to start collect from - inclusive
-     * @param endWeIx - we to end collect - exclusive
+     * @param numWes - number of WEs to collect
      * @param chunkIndex - chunk to collect from
      * @param numToCollect - how many rows to collect
      * @param outResultTypes - array to hold updated result type for each collected WE for java to process the collect buffers
      */
-    default void collect(int txId, int startWeIx, int endWeIx, int chunkIndex, int numToCollect, int[] outResultTypes)
+    default void collect(int txId, int numWes, int chunkIndex, int numToCollect, int[] outResultTypes)
     {
         throw new UnsupportedOperationException();
     }
