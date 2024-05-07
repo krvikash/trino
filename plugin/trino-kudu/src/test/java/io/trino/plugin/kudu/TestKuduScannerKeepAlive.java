@@ -300,6 +300,7 @@ public class TestKuduScannerKeepAlive
                 ImmutableMap.of(),
                 kuduExtraProperties,
                 ImmutableMap.of(),
+                ImmutableMap.of(),
                 ImmutableList.of());
     }
 

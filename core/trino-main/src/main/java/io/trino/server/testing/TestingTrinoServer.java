@@ -135,6 +135,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.io.MoreFiles.deleteRecursively;
@@ -259,10 +260,7 @@ public class TestingTrinoServer
         this.preserveData = baseDataDir.isPresent();
 
         properties = new HashMap<>(properties);
-        String coordinatorPort = properties.remove("http-server.http.port");
-        if (coordinatorPort == null) {
-            coordinatorPort = "0";
-        }
+        int httpPort = parseInt(firstNonNull(properties.remove("http-server.http.port"), "0"));
 
         ImmutableMap.Builder<String, String> serverProperties = ImmutableMap.<String, String>builder()
                 .putAll(properties)
@@ -289,7 +287,7 @@ public class TestingTrinoServer
 
         ImmutableList.Builder<Module> modules = ImmutableList.<Module>builder()
                 .add(new TestingNodeModule(environment))
-                .add(new TestingHttpServerModule(parseInt(coordinator ? coordinatorPort : "0")))
+                .add(new TestingHttpServerModule(httpPort))
                 .add(new JsonModule())
                 .add(new JaxrsModule())
                 .add(new MBeanModule())
