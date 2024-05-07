@@ -75,7 +75,12 @@ public class QueryUtils
             if (query.skip()) {
                 logger.info("query %s was skipped", query);
             }
-            queryAndValidate(query, softAssert);
+            logger.debug("run the query with/without planAlternative");
+            onTrino().executeQuery("set session use_sub_plan_alternatives = true");
+            queryAndValidate(query, true, softAssert);
+            onTrino().executeQuery("set session use_sub_plan_alternatives = false");
+            //we assert on correctness without sub_plan_alternatives session, counters according to default config
+            queryAndValidate(query, false, softAssert);
         }
 
         softAssert.assertAll();
@@ -162,7 +167,7 @@ public class QueryUtils
         return queryResult;
     }
 
-    private void queryAndValidate(TestFormat.QueryData query, SoftAssert softAssert)
+    private void queryAndValidate(TestFormat.QueryData query, boolean assertOnCounters, SoftAssert softAssert)
     {
         String defaultWarmingSession = "warp.enable_default_warming";
         try {
@@ -179,7 +184,6 @@ public class QueryUtils
                 Map<String, Object> sessionPropertiesWithCatalog = query.session_properties().entrySet().stream().collect(Collectors.toMap(e -> "warp." + e.getKey(), Map.Entry::getValue));
                 warmUtils.setSessions(sessionPropertiesWithCatalog);
             }
-            onTrino().executeQuery("set session use_sub_plan_alternatives = true");
             logger.info("Going to execute query: %s", queryToExecute);
             QueryResult queryResult = onTrino().executeQuery(queryToExecute);
             if (queryResult.rows().size() < 10) {
@@ -187,7 +191,7 @@ public class QueryUtils
             }
             if (validateQueryResult(expectedResult)) {
                 verifyQueryResult(queryResult, expectedResult, queryId);
-                if (expectedCounters != null) {
+                if (assertOnCounters && expectedCounters != null) {
                     verifyQueryCounters(((TrinoResultSet) queryResult.getJdbcResultSet().orElseThrow()).getQueryId(), expectedCounters, cachingType, queryId, softAssert);
                 }
             }
