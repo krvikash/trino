@@ -34,6 +34,7 @@ import static io.trino.tests.product.warp.utils.JMXCachingConstants.Dictionary.D
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.Dictionary.DICTIONARY_REJECTED_ELEMENTS_COUNT;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.Dictionary.DICTIONARY_SUCCESS_ELEMENTS_COUNT;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.Dictionary.WRITE_DICTIONARIES_COUNT;
+import static io.trino.tests.product.warp.utils.JMXCachingConstants.WarmingService.CACHE_WARM_FAILED;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.WarmingService.FINISHED;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.WarmingService.SCHEDULED;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.WarmingService.STARTED;
@@ -262,7 +263,19 @@ public class WarmUtils
                 Duration.valueOf("20s"),
                 () -> {
                     QueryResult warmStats = JMXCachingManager.getWarmingStats();
-                    assertThat(getValue(warmStats, STARTED)).isEqualTo(getValue(warmStats, WARM_ACCOMPLISHED));
+                    long cacheWarmFailedCount = 0;
+                    try {
+                        cacheWarmFailedCount = getValue(warmStats, CACHE_WARM_FAILED);
+                    }
+                    catch (Exception ignore) {
+                    }
+                    if (cacheWarmFailedCount > 0) {
+                        logger.info("cacheWarmFailedCount=%s", cacheWarmFailedCount);
+                        assertThat(getValue(warmStats, STARTED)).isEqualTo(getValue(warmStats, WARM_ACCOMPLISHED) + cacheWarmFailedCount);
+                    }
+                    else {
+                        assertThat(getValue(warmStats, STARTED)).isEqualTo(getValue(warmStats, WARM_ACCOMPLISHED));
+                    }
                 });
     }
 

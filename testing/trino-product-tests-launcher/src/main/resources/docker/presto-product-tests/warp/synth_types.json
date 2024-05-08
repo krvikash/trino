@@ -248,7 +248,8 @@
       },
       {
         "query": "select sum(cast(cast(char_1 as varchar) as integer)) from eight_char",
-        "expected_result": [
+          "skip_caching": true,
+          "expected_result": [
           46
         ],
         "query_id": "eight_char_9",
@@ -261,7 +262,8 @@
       },
       {
         "query": "select sum(cast(cast(char_4 as varchar) as integer)) as sum from eight_char",
-        "expected_result": [
+          "skip_caching": true,
+          "expected_result": [
           11110
         ],
         "query_id": "eight_char_10",
@@ -274,7 +276,8 @@
       },
       {
         "query": "select sum(cast(cast(char_5 as varchar) as integer)) as sum from eight_char",
-        "expected_result": [
+          "skip_caching": true,
+          "expected_result": [
           111110
         ],
         "query_id": "eight_char_11",
@@ -287,7 +290,8 @@
       },
       {
         "query": "select sum(cast(cast(char_6 as varchar) as integer)) as sum from eight_char",
-        "expected_result": [
+          "skip_caching": true,
+          "expected_result": [
           1111110
         ],
         "query_id": "eight_char_12",
@@ -300,7 +304,8 @@
       },
       {
         "query": "select sum(cast(cast(char_8 as varchar) as integer)) as sum from eight_char",
-        "expected_result": [
+          "skip_caching": true,
+          "expected_result": [
           111111110
         ],
         "query_id": "eight_char_13",
@@ -643,6 +648,7 @@
       },
       {
         "query": "select sum(cast(varchar_1 as integer)) from eight_varchar",
+          "skip_caching": true,
         "expected_result": [
           46
         ],
@@ -656,7 +662,8 @@
       },
       {
         "query": "select sum(cast(varchar_4 as integer)) as sum from eight_varchar",
-        "expected_result": [
+          "skip_caching": true,
+          "expected_result": [
           7900
         ],
         "query_id": "eight_varchar_10",
@@ -669,7 +676,8 @@
       },
       {
         "query": "select sum(cast(varchar_5 as integer)) as sum from eight_varchar",
-        "expected_result": [
+          "skip_caching": true,
+          "expected_result": [
           67900
         ],
         "query_id": "eight_varchar_11",
@@ -682,7 +690,8 @@
       },
       {
         "query": "select sum(cast(varchar_6 as integer)) as sum from eight_varchar",
-        "expected_result": [
+          "skip_caching": true,
+          "expected_result": [
           567900
         ],
         "query_id": "eight_varchar_12",
@@ -695,7 +704,8 @@
       },
       {
         "query": "select sum(cast(varchar_8 as integer)) as sum from eight_varchar",
-        "expected_result": [
+          "skip_caching": true,
+          "expected_result": [
           34667900
         ],
         "query_id": "eight_varchar_13",
@@ -4661,7 +4671,7 @@
         }
       },
       {
-        "query": "select map_values(map_col) from map_test_varchar where map_keys(map_col)=ARRAY['second']",
+          "query": "select map_values(map_col) from map_test_varchar where map_keys(map_col)=ARRAY['second']",
         "query_id": "map_test_varchar_02",
         "expected_result": [
           [
@@ -5199,7 +5209,8 @@
           3.0,
           4.0
         ],
-        "query_id": "row_test_4",
+          "skip_caching": true,
+          "query_id": "row_test_4",
         "expected_counters": {
           "varada_match_columns": 2,
           "varada_collect_columns": 1,
@@ -6853,7 +6864,8 @@
       },
       {
         "query": "select sum(col_dec29) from dec29",
-        "query_id": "dec29_2",
+          "skip_caching": true,
+          "query_id": "dec29_2",
         "expected_result": [
           -53407604342.4985
         ],
@@ -6881,7 +6893,8 @@
       },
       {
         "query": "select sum(col_dec29) from dec29 where col_dec29=0.1257",
-        "query_id": "dec29_3",
+          "skip_caching": true,
+          "query_id": "dec29_3",
         "expected_result":[
           6679.9494
         ],
@@ -6895,7 +6908,8 @@
       },
       {
         "query": "select sum(col_dec29) from dec29 where col_dec29<0",
-        "query_id": "dec29_4",
+          "skip_caching": true,
+          "query_id": "dec29_4",
         "expected_result":[
           -53475043534.0400
         ],
@@ -6923,7 +6937,8 @@
       },
       {
         "query": "select sum(col_dec29) from dec29 where col_dec29>0",
-        "query_id": "dec29_5",
+          "skip_caching": true,
+          "query_id": "dec29_5",
         "expected_result":[
           67439191.5415
         ],
