@@ -271,12 +271,12 @@ public class CoordinatorModule
                     ByTaskProgressOutputStatsEstimator.Factory byTaskProgressOutputDataSizeEstimatorFactory,
                     BySmallStageOutputStatsEstimator.Factory bySmallStageOutputDataSizeEstimatorFactory,
                     ByStatsOutputStatsEstimator.Factory byStatsOutputDataSizeEstimatorFactory,
-                    ByEagerParentOutputStatsEstimator.Factory byEagerParentOutputDataSizeEstimatorFactoryy)
+                    ByEagerParentOutputStatsEstimator.Factory byEagerParentOutputDataSizeEstimatorFactory)
             {
                 return ImmutableList.of(
                         byTaskProgressOutputDataSizeEstimatorFactory,
                         bySmallStageOutputDataSizeEstimatorFactory,
-                        byEagerParentOutputDataSizeEstimatorFactoryy,
+                        byEagerParentOutputDataSizeEstimatorFactory,
                         byStatsOutputDataSizeEstimatorFactory);
             }
         });
