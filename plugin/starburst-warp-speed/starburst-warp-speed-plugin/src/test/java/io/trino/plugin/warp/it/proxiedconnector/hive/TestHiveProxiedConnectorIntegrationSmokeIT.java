@@ -141,7 +141,6 @@ import static io.trino.plugin.warp.extension.execution.dump.RowGroupDataDumpTask
 import static io.trino.plugin.warp.extension.execution.dump.RowGroupDataDumpTask.CACHED_SHARED_ROW_GROUP;
 import static io.trino.spi.expression.StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.LIKE_FUNCTION_NAME;
-import static io.varada.tools.config.MultiPrefixConfigWrapper.WARP_SPEED_PREFIX;
 import static java.lang.String.format;
 import static java.util.Map.entry;
 import static java.util.stream.Collectors.toList;
@@ -167,9 +166,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 Collections.emptyMap(),
                 Map.of("http-server.log.enabled", "false",
                         "hive.s3.aws-access-key", "this is a fake key",
-                        WARP_SPEED_PREFIX + USE_HTTP_SERVER_PORT, "false",
+                        USE_HTTP_SERVER_PORT, "false",
                         "node.environment", "varada",
-                        WARP_SPEED_PREFIX + PROXIED_CONNECTOR, HIVE_CONNECTOR_NAME),
+                        PROXIED_CONNECTOR, HIVE_CONNECTOR_NAME),
                 hiveDir,
                 DispatcherConnectorFactory.DISPATCHER_CONNECTOR_NAME,
                 catalog,

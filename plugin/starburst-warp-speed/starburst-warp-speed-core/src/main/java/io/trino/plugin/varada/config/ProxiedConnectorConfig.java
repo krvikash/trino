@@ -14,21 +14,18 @@
 package io.trino.plugin.varada.config;
 
 import io.airlift.configuration.Config;
-import io.airlift.configuration.LegacyConfig;
 
 import java.util.Arrays;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static io.varada.tools.config.MultiPrefixConfigWrapper.LOCAL_DATA_STORAGE_PREFIX;
-import static io.varada.tools.config.MultiPrefixConfigWrapper.WARP_SPEED_PREFIX;
 import static java.lang.String.format;
 
 public class ProxiedConnectorConfig
 {
-    public static final String PROXIED_CONNECTOR = "proxied-connector";
-    public static final String PASS_THROUGH_DISPATCHER = "enable.passthrough";
+    public static final String PROXIED_CONNECTOR = "warp-speed.proxied-connector";
+    public static final String PASS_THROUGH_DISPATCHER = "warp-speed.enable.passthrough";
 
     public static final String DELTA_LAKE_CONNECTOR_NAME = "delta-lake";
     public static final String HIVE_CONNECTOR_NAME = "hive";
@@ -45,8 +42,7 @@ public class ProxiedConnectorConfig
         return proxiedConnector;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + PROXIED_CONNECTOR)
-    @Config(WARP_SPEED_PREFIX + PROXIED_CONNECTOR)
+    @Config(PROXIED_CONNECTOR)
     public void setProxiedConnector(String proxiedConnector)
     {
         this.proxiedConnector = proxiedConnector;
@@ -57,8 +53,7 @@ public class ProxiedConnectorConfig
         return (passThroughDispatcherSet != null) ? passThroughDispatcherSet : Set.of();
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + PASS_THROUGH_DISPATCHER)
-    @Config(WARP_SPEED_PREFIX + PASS_THROUGH_DISPATCHER)
+    @Config(PASS_THROUGH_DISPATCHER)
     public void setPassThroughDispatcherSet(String passThroughDispatcherListStr)
     {
         this.passThroughDispatcherSet = Arrays.stream(passThroughDispatcherListStr.split(",", -1))

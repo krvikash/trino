@@ -14,22 +14,18 @@
 package io.trino.plugin.varada.dispatcher.warmup.fetcher;
 
 import io.airlift.configuration.Config;
-import io.airlift.configuration.LegacyConfig;
 import io.varada.cloudvendors.config.CloudVendorConfig;
 
 import java.time.Duration;
-
-import static io.varada.tools.config.MultiPrefixConfigWrapper.LOCAL_DATA_STORAGE_PREFIX;
-import static io.varada.tools.config.MultiPrefixConfigWrapper.WARP_SPEED_PREFIX;
 
 public class WarmupRuleCloudFetcherConfig
         extends CloudVendorConfig
 {
     public static final String PREFIX = "warp-speed.objectstore";
-    public static final String STORE_TYPE = "objectstore.store.type";
-    public static final String STORE_PATH = "objectstore.store.path";
-    public static final String REGION = "objectstore.store.region";
-    public static final String WARMUP_FETCH_DURATION = "objectstore.warmup.fetch.duration";
+    public static final String STORE_TYPE = "warp-speed.objectstore.store.type";
+    public static final String STORE_PATH = "warp-speed.objectstore.store.path";
+    public static final String REGION = "warp-speed.objectstore.store.region";
+    public static final String WARMUP_FETCH_DURATION = "warp-speed.objectstore.warmup.fetch.duration";
 
     private Duration fetchDuration = Duration.ofHours(1);
     private Duration fetchDelayDuration = Duration.ofMinutes(1);
@@ -43,8 +39,7 @@ public class WarmupRuleCloudFetcherConfig
         return fetchDuration;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + WARMUP_FETCH_DURATION)
-    @Config(WARP_SPEED_PREFIX + WARMUP_FETCH_DURATION)
+    @Config(WARMUP_FETCH_DURATION)
     public void setFetchDuration(io.airlift.units.Duration fetchDuration)
     {
         this.fetchDuration = fetchDuration.toJavaTime();
@@ -55,8 +50,7 @@ public class WarmupRuleCloudFetcherConfig
         return fetchDelayDuration;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "objectstore.warmup.fetch.delay.duration")
-    @Config(WARP_SPEED_PREFIX + "objectstore.warmup.fetch.delay.duration")
+    @Config("warp-speed.objectstore.warmup.fetch.delay.duration")
     public void setFetchDelayDuration(io.airlift.units.Duration fetchDelayDuration)
     {
         this.fetchDelayDuration = fetchDelayDuration.toJavaTime();
@@ -67,8 +61,7 @@ public class WarmupRuleCloudFetcherConfig
         return downloadRetries;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "objectstore.warmup.cloud.retries")
-    @Config(WARP_SPEED_PREFIX + "objectstore.warmup.cloud.retries")
+    @Config("warp-speed.objectstore.warmup.cloud.retries")
     public void setDownloadRetries(int downloadRetries)
     {
         this.downloadRetries = downloadRetries;
@@ -79,31 +72,27 @@ public class WarmupRuleCloudFetcherConfig
         return downloadDuration;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "objectstore.warmup.cloud.duration")
-    @Config(WARP_SPEED_PREFIX + "objectstore.warmup.cloud.duration")
+    @Config("warp-speed.objectstore.warmup.cloud.duration")
     public void setDownloadDuration(io.airlift.units.Duration downloadDuration)
     {
         this.downloadDuration = downloadDuration.toJavaTime();
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + STORE_TYPE)
-    @Config(WARP_SPEED_PREFIX + STORE_TYPE)
+    @Config(STORE_TYPE)
     @Override
     public void setStoreType(String storeType)
     {
         super.setStoreType(storeType);
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + STORE_PATH)
-    @Config(WARP_SPEED_PREFIX + STORE_PATH)
+    @Config(STORE_PATH)
     @Override
     public void setStorePath(String storePath)
     {
         super.setStorePath(storePath);
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + REGION)
-    @Config(WARP_SPEED_PREFIX + REGION)
+    @Config(REGION)
     @Override
     public void setRegion(String region)
     {

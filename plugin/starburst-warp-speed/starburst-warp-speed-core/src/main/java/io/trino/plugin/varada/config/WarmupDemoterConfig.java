@@ -14,12 +14,8 @@
 package io.trino.plugin.varada.config;
 
 import io.airlift.configuration.Config;
-import io.airlift.configuration.LegacyConfig;
 
 import java.time.Duration;
-
-import static io.varada.tools.config.MultiPrefixConfigWrapper.LOCAL_DATA_STORAGE_PREFIX;
-import static io.varada.tools.config.MultiPrefixConfigWrapper.WARP_SPEED_PREFIX;
 
 public class WarmupDemoterConfig
 {
@@ -43,8 +39,7 @@ public class WarmupDemoterConfig
         return maxUsageThresholdPercentage;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "warmup-demoter.max-usage-threshold-percentage")
-    @Config(WARP_SPEED_PREFIX + "warmup-demoter.max-usage-threshold-percentage")
+    @Config("warp-speed.warmup-demoter.max-usage-threshold-percentage")
     public void setMaxUsageThresholdPercentage(double maxUsageThresholdPercentage)
     {
         this.maxUsageThresholdPercentage = maxUsageThresholdPercentage;
@@ -55,8 +50,7 @@ public class WarmupDemoterConfig
         return cleanupUsageThresholdPercentage;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "warmup-demoter.max-cleanup-threshold-percentage")
-    @Config(WARP_SPEED_PREFIX + "warmup-demoter.max-cleanup-threshold-percentage")
+    @Config("warp-speed.warmup-demoter.max-cleanup-threshold-percentage")
     public void setCleanupUsageThresholdPercentage(double cleanupUsageThresholdPercentage)
     {
         this.cleanupUsageThresholdPercentage = cleanupUsageThresholdPercentage;
@@ -67,8 +61,7 @@ public class WarmupDemoterConfig
         return batchSize;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "warmup-demoter.batch-size")
-    @Config(WARP_SPEED_PREFIX + "warmup-demoter.batch-size")
+    @Config("warp-speed.warmup-demoter.batch-size")
     public void setBatchSize(int batchSize)
     {
         this.batchSize = batchSize;
@@ -79,8 +72,7 @@ public class WarmupDemoterConfig
         return warmingPriorityAllowThreshold;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "warmup-demoter.priority-allowed-threshold")
-    @Config(WARP_SPEED_PREFIX + "warmup-demoter.priority-allowed-threshold")
+    @Config("warp-speed.warmup-demoter.priority-allowed-threshold")
     public void setWarmingPriorityAllowThreshold(int warmingPriorityAllowThreshold)
     {
         this.warmingPriorityAllowThreshold = warmingPriorityAllowThreshold;
@@ -91,8 +83,7 @@ public class WarmupDemoterConfig
         return defaultRulePriority;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "warmup-demoter.default-rule-priority")
-    @Config(WARP_SPEED_PREFIX + "warmup-demoter.default-rule-priority")
+    @Config("warp-speed.warmup-demoter.default-rule-priority")
     public void setDefaultRulePriority(int defaultRulePriority)
     {
         this.defaultRulePriority = defaultRulePriority;
@@ -103,8 +94,7 @@ public class WarmupDemoterConfig
         return maxElementsToDemoteInIteration;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "warmup-demoter.max-elements-to-demote-in-iteration")
-    @Config(WARP_SPEED_PREFIX + "warmup-demoter.max-elements-to-demote-in-iteration")
+    @Config("warp-speed.warmup-demoter.max-elements-to-demote-in-iteration")
     public void setMaxElementsToDemoteInIteration(long maxElementsToDemoteInIteration)
     {
         this.maxElementsToDemoteInIteration = maxElementsToDemoteInIteration;
@@ -115,8 +105,7 @@ public class WarmupDemoterConfig
         return epsilon;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "warmup-demoter.epsilon")
-    @Config(WARP_SPEED_PREFIX + "warmup-demoter.epsilon")
+    @Config("warp-speed.warmup-demoter.epsilon")
     public void setEpsilon(double epsilon)
     {
         this.epsilon = epsilon;
@@ -127,8 +116,7 @@ public class WarmupDemoterConfig
         return delayAcquireThread;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "warmup-demoter.delay-duration-acquire-thread")
-    @Config(WARP_SPEED_PREFIX + "warmup-demoter.delay-duration-acquire-thread")
+    @Config("warp-speed.warmup-demoter.delay-duration-acquire-thread")
     public void setDelayAcquireThread(io.airlift.units.Duration delayAcquireThread)
     {
         this.delayAcquireThread = delayAcquireThread.toJavaTime();
@@ -139,8 +127,7 @@ public class WarmupDemoterConfig
         return maxDurationAcquireThread;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "warmup-demoter.max-duration-acquire-thread")
-    @Config(WARP_SPEED_PREFIX + "warmup-demoter.max-duration-acquire-thread")
+    @Config("warp-speed.warmup-demoter.max-duration-acquire-thread")
     public void setMaxDurationAcquireThread(io.airlift.units.Duration maxDurationAcquireThread)
     {
         this.maxDurationAcquireThread = maxDurationAcquireThread.toJavaTime();
@@ -151,8 +138,7 @@ public class WarmupDemoterConfig
         return maxRetriesAcquireThread;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "warmup-demoter.max-retries-acquire-thread")
-    @Config(WARP_SPEED_PREFIX + "warmup-demoter.max-retries-acquire-thread")
+    @Config("warp-speed.warmup-demoter.max-retries-acquire-thread")
     public void setMaxRetriesAcquireThread(int maxRetriesAcquireThread)
     {
         this.maxRetriesAcquireThread = maxRetriesAcquireThread;
@@ -163,8 +149,7 @@ public class WarmupDemoterConfig
         return tasksExecutorQueueSize;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "config.task.executor-queue-size")
-    @Config(WARP_SPEED_PREFIX + "config.task.executor-queue-size")
+    @Config("warp-speed.config.task.executor-queue-size")
     public void setTasksExecutorQueueSize(int tasksExecutorQueueSize)
     {
         this.tasksExecutorQueueSize = tasksExecutorQueueSize;
@@ -175,8 +160,7 @@ public class WarmupDemoterConfig
         return prioritizeExecutorPoolSize;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "config.task.prioritize-executor-pool-size")
-    @Config(WARP_SPEED_PREFIX + "config.task.prioritize-executor-pool-size")
+    @Config("warp-speed.config.task.prioritize-executor-pool-size")
     public void setPrioritizeExecutorPoolSize(int prioritizeExecutorPoolSize)
     {
         this.prioritizeExecutorPoolSize = prioritizeExecutorPoolSize;
@@ -187,8 +171,7 @@ public class WarmupDemoterConfig
         return cloudExecutorPoolSize;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "config.task.cloud-executor-pool-size")
-    @Config(WARP_SPEED_PREFIX + "config.task.cloud-executor-pool-size")
+    @Config("warp-speed.config.task.cloud-executor-pool-size")
     public void setCloudExecutorPoolSize(int cloudExecutorPoolSize)
     {
         this.cloudExecutorPoolSize = cloudExecutorPoolSize;
@@ -199,8 +182,7 @@ public class WarmupDemoterConfig
         return enableDemote;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "enable.demote")
-    @Config(WARP_SPEED_PREFIX + "enable.demote")
+    @Config("warp-speed.enable.demote")
     public void setEnableDemote(boolean enableDemote)
     {
         this.enableDemote = enableDemote;

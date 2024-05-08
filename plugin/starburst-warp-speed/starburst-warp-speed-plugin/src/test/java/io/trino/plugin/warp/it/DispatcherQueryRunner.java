@@ -29,7 +29,6 @@ import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingSession;
 import io.varada.cloudvendors.config.CloudVendorConfig;
-import io.varada.tools.config.MultiPrefixConfigWrapper;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -41,7 +40,6 @@ import static io.trino.plugin.varada.config.GlobalConfig.ENABLE_DEFAULT_WARMING;
 import static io.trino.plugin.varada.config.GlobalConfig.FAILURE_GENERATOR_ENABLED;
 import static io.trino.plugin.varada.config.GlobalConfig.STATS_COLLECTION_ENABLED;
 import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.CLUSTER_UUID;
-import static io.varada.tools.config.MultiPrefixConfigWrapper.WARP_SPEED_PREFIX;
 
 public class DispatcherQueryRunner
 {
@@ -67,27 +65,27 @@ public class DispatcherQueryRunner
                 // replace this config with the other 3 when you want to use a real thrift meta-store (E.g. local docker)
 //          .put("hive.metastore.uri", "thrift://localhost:9083").build();
 //                .put("testMode", "true")
-                .put(WARP_SPEED_PREFIX + CONFIG_IS_SINGLE, String.valueOf(numOfNodes < 2))
-                .put(WARP_SPEED_PREFIX + "config.bundle-size-mb", "128")
-                .put(WARP_SPEED_PREFIX + ENABLE_DEFAULT_WARMING, "false")
-                .put(WARP_SPEED_PREFIX + CloudVendorConfig.STORE_PATH, "file:/" + localStorePath.toAbsolutePath())
-                .put(WARP_SPEED_PREFIX + CLUSTER_UUID, "some-uuid")
-//                .put(WARP_SPEED_PREFIX + "metrics.enabled", (numOfNodes > 0) ? "false" : "true") // in case more than one node the jmx register fail on duplicate tables
+                .put(CONFIG_IS_SINGLE, String.valueOf(numOfNodes < 2))
+                .put("warp-speed.config.bundle-size-mb", "128")
+                .put(ENABLE_DEFAULT_WARMING, "false")
+                .put(CloudVendorConfig.STORE_PATH, "file:/" + localStorePath.toAbsolutePath())
+                .put(CLUSTER_UUID, "some-uuid")
+//                .put("warp-speed.metrics.enabled", (numOfNodes > 0) ? "false" : "true") // in case more than one node the jmx register fail on duplicate tables
                 .put("hive.metastore", "file")
 //                .put("hive.metastore.user", "presto")
                 .put("hive.metastore.disable-location-checks", "true")
                 .put("hive.metastore.catalog.dir", "file://" + hiveDir.toAbsolutePath())
 //                .put("hive.metastore", "glue")
-                .put(WARP_SPEED_PREFIX + DictionaryConfig.EXCEPTIONAL_LIST_DICTIONARY, "REC_TYPE_ARRAY_INT,REC_TYPE_ARRAY_BIGINT")
-                .put(WARP_SPEED_PREFIX + "config.dictionary.max-size", "3")
+                .put(DictionaryConfig.EXCEPTIONAL_LIST_DICTIONARY, "REC_TYPE_ARRAY_INT,REC_TYPE_ARRAY_BIGINT")
+                .put("warp-speed.config.dictionary.max-size", "3")
 //                .put(HTTP_REST_PORT, "" + restPort)
-                .put(WARP_SPEED_PREFIX + WarpExtensionConfig.ENABLED, Boolean.TRUE.toString())
-                .put(WARP_SPEED_PREFIX + WarpExtensionConfig.HTTP_REST_PORT_ENABLED, Boolean.FALSE.toString())
-                .put(WARP_SPEED_PREFIX + GlobalConfig.LOCAL_STORE_PATH, localStorePath.toAbsolutePath().toString())
-                .put(WARP_SPEED_PREFIX + STATS_COLLECTION_ENABLED, "true")
-                .put(WARP_SPEED_PREFIX + FAILURE_GENERATOR_ENABLED, "true")
-                .put(WARP_SPEED_PREFIX + "objectstore.warmup.cloud.retries", "0")
-                .put(WARP_SPEED_PREFIX + "objectstore.warmup.fetch.delay.duration", "1s")
+                .put(WarpExtensionConfig.ENABLED, Boolean.TRUE.toString())
+                .put(WarpExtensionConfig.HTTP_REST_PORT_ENABLED, Boolean.FALSE.toString())
+                .put(GlobalConfig.LOCAL_STORE_PATH, localStorePath.toAbsolutePath().toString())
+                .put(STATS_COLLECTION_ENABLED, "true")
+                .put(FAILURE_GENERATOR_ENABLED, "true")
+                .put("warp-speed.objectstore.warmup.cloud.retries", "0")
+                .put("warp-speed.objectstore.warmup.fetch.delay.duration", "1s")
                 .buildOrThrow();
         QueryRunner queryRunner;
         try {
@@ -153,7 +151,7 @@ public class DispatcherQueryRunner
 //                .put("debug.limitnumobjs", "0")
                 .put("warp-speed.config.task.max-worker-threads", "4")
                 .put("warp-speed.config.warm-retry-backoff-factor-in-millis", "250");
-        return new MultiPrefixConfigWrapper(configMapBuilder.buildOrThrow());
+        return configMapBuilder.buildOrThrow();
     }
 
     private static Session createSession(String catalogName)

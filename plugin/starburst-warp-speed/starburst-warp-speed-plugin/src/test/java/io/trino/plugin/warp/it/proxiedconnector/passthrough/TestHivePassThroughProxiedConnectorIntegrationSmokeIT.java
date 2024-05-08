@@ -40,7 +40,6 @@ import static io.trino.plugin.varada.config.ProxiedConnectorConfig.HIVE_CONNECTO
 import static io.trino.plugin.varada.config.ProxiedConnectorConfig.PASS_THROUGH_DISPATCHER;
 import static io.trino.plugin.varada.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
 import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP_SERVER_PORT;
-import static io.varada.tools.config.MultiPrefixConfigWrapper.WARP_SPEED_PREFIX;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -61,10 +60,10 @@ public class TestHivePassThroughProxiedConnectorIntegrationSmokeIT
                 numNodes,
                 Collections.emptyMap(),
                 Map.of("http-server.log.enabled", "false",
-                        WARP_SPEED_PREFIX + USE_HTTP_SERVER_PORT, "false",
+                        USE_HTTP_SERVER_PORT, "false",
                         "node.environment", "varada",
-                        WARP_SPEED_PREFIX + PROXIED_CONNECTOR, HIVE_CONNECTOR_NAME,
-                        WARP_SPEED_PREFIX + PASS_THROUGH_DISPATCHER, "hive,hudi"),
+                        PROXIED_CONNECTOR, HIVE_CONNECTOR_NAME,
+                        PASS_THROUGH_DISPATCHER, "hive,hudi"),
                 hiveDir,
                 DispatcherConnectorFactory.DISPATCHER_CONNECTOR_NAME,
                 catalog,

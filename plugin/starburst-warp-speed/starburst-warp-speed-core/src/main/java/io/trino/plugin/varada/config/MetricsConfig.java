@@ -15,15 +15,11 @@ package io.trino.plugin.varada.config;
 
 import com.google.common.base.Splitter;
 import io.airlift.configuration.Config;
-import io.airlift.configuration.LegacyConfig;
 
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
-
-import static io.varada.tools.config.MultiPrefixConfigWrapper.LOCAL_DATA_STORAGE_PREFIX;
-import static io.varada.tools.config.MultiPrefixConfigWrapper.WARP_SPEED_PREFIX;
 
 public class MetricsConfig
 {
@@ -48,8 +44,7 @@ public class MetricsConfig
         return limits;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "metrics.max-limits")
-    @Config(WARP_SPEED_PREFIX + "metrics.max-limits")
+    @Config("warp-speed.metrics.max-limits")
     public void setMaxLimits(String maxLimits)
     {
         limits.putAll(Splitter.on(",").withKeyValueSeparator("=").split(maxLimits).entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, (entry) -> Long.parseLong(entry.getValue()))));
@@ -65,8 +60,7 @@ public class MetricsConfig
         return enabled;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "metrics.enabled")
-    @Config(WARP_SPEED_PREFIX + "metrics.enabled")
+    @Config("warp-speed.metrics.enabled")
     public void setEnabled(boolean enabled)
     {
         this.enabled = enabled;
@@ -77,8 +71,7 @@ public class MetricsConfig
         return delayDuration;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "metrics.delay")
-    @Config(WARP_SPEED_PREFIX + "metrics.delay")
+    @Config("warp-speed.metrics.delay")
     public void setDelayDuration(Duration delayDuration)
     {
         this.delayDuration = delayDuration;
@@ -89,8 +82,7 @@ public class MetricsConfig
         return intervalClusterMetricsDuration;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "metrics.cluster.interval")
-    @Config(WARP_SPEED_PREFIX + "metrics.cluster.interval")
+    @Config("warp-speed.metrics.cluster.interval")
     public void setIntervalClusterMetricsDuration(Duration intervalClusterMetricsDuration)
     {
         this.intervalClusterMetricsDuration = intervalClusterMetricsDuration;
@@ -101,8 +93,7 @@ public class MetricsConfig
         return intervalCleanerDuration;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "metrics.cleaner.interval")
-    @Config(WARP_SPEED_PREFIX + "metrics.cleaner.interval")
+    @Config("warp-speed.metrics.cleaner.interval")
     public void setIntervalCleanerDuration(Duration intervalCleanerDuration)
     {
         this.intervalCleanerDuration = intervalCleanerDuration;
@@ -113,8 +104,7 @@ public class MetricsConfig
         return cleanerKeepDuration;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "metrics.cleaner.keep")
-    @Config(WARP_SPEED_PREFIX + "metrics.cleaner.keep")
+    @Config("warp-speed.metrics.cleaner.keep")
     public void setCleanerKeepDuration(Duration cleanerKeepDuration)
     {
         this.cleanerKeepDuration = cleanerKeepDuration;
@@ -125,8 +115,7 @@ public class MetricsConfig
         return printMetricsDuration;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "metrics.dump.interval")
-    @Config(WARP_SPEED_PREFIX + "metrics.dump.interval")
+    @Config("warp-speed.metrics.dump.interval")
     public void setPrintMetricsDuration(io.airlift.units.Duration printMetricsDuration)
     {
         this.printMetricsDuration = printMetricsDuration.toJavaTime();

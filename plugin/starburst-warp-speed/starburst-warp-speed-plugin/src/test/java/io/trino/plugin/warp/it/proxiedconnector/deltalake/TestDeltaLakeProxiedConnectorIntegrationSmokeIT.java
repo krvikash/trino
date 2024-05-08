@@ -28,7 +28,6 @@ import java.util.Optional;
 import static io.trino.plugin.varada.config.ProxiedConnectorConfig.DELTA_LAKE_CONNECTOR_NAME;
 import static io.trino.plugin.varada.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
 import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP_SERVER_PORT;
-import static io.varada.tools.config.MultiPrefixConfigWrapper.WARP_SPEED_PREFIX;
 
 public class TestDeltaLakeProxiedConnectorIntegrationSmokeIT
         extends DispatcherStubsIntegrationSmokeIT
@@ -46,9 +45,9 @@ public class TestDeltaLakeProxiedConnectorIntegrationSmokeIT
                 Optional.empty(), numNodes,
                 Collections.emptyMap(),
                 Map.of("http-server.log.enabled", "false",
-                        WARP_SPEED_PREFIX + USE_HTTP_SERVER_PORT, "false",
+                        USE_HTTP_SERVER_PORT, "false",
                         "node.environment", "varada",
-                        WARP_SPEED_PREFIX + PROXIED_CONNECTOR, DELTA_LAKE_CONNECTOR_NAME),
+                        PROXIED_CONNECTOR, DELTA_LAKE_CONNECTOR_NAME),
                 hiveDir,
                 DispatcherConnectorFactory.DISPATCHER_CONNECTOR_NAME,
                 catalog,

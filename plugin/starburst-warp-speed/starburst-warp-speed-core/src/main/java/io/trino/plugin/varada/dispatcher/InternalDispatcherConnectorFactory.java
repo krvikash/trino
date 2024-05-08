@@ -37,7 +37,6 @@ import io.trino.spi.connector.ConnectorPageSinkProvider;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.type.TypeManager;
-import io.varada.tools.config.MultiPrefixConfigWrapper;
 import io.varada.tools.util.Pair;
 import org.weakref.jmx.guice.MBeanModule;
 
@@ -82,20 +81,19 @@ public class InternalDispatcherConnectorFactory
                         e.getKey().equals("node.environment"))
                 .collect(Collectors.toMap(entry -> entry.getKey().startsWith(WARP_PREFIX) ? entry.getKey().substring(WARP_PREFIX.length()) : entry.getKey(), Entry::getValue));
 
-        MultiPrefixConfigWrapper configWrapper = new MultiPrefixConfigWrapper(warpConfig);
-        String proxiedConnectorName = configWrapper.get(ProxiedConnectorConfig.PROXIED_CONNECTOR);
+        String proxiedConnectorName = warpConfig.get(ProxiedConnectorConfig.PROXIED_CONNECTOR);
         ProxiedConnectorInitializer proxiedConnectorInitializer = getProxiedConnectorInitializer(proxiedConnectorName, proxiedConnectorInitializerMap);
         Connector proxiedConnector = proxiedConnectorInitializer.create(catalogName, config, context);
         List<Module> modules = new ArrayList<>();
         modules.addAll(asList(
-                new VaradaModules(catalogName, configWrapper, context)
+                new VaradaModules(catalogName, warpConfig, context)
                         .withStorageEngineModule(storageEngineModule)
                         .withCloudVendorModule(cloudVendorModule),
                 new EventModule(),
                 new MBeanServerModule(),
                 new MBeanModule(),
-                new DispatcherMainModule(catalogName, configWrapper, context),
-                new DispatcherCoordinatorModule(configWrapper, context),
+                new DispatcherMainModule(catalogName, warpConfig, context),
+                new DispatcherCoordinatorModule(warpConfig, context),
                 binder -> {
                     binder.bind(TypeManager.class).toInstance(context.getTypeManager());
                     binder.bind(NodeManager.class).toInstance(context.getNodeManager());

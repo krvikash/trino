@@ -33,7 +33,6 @@ import java.util.stream.Collectors;
 import static io.trino.plugin.varada.config.ProxiedConnectorConfig.HIVE_CONNECTOR_NAME;
 import static io.trino.plugin.varada.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
 import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP_SERVER_PORT;
-import static io.varada.tools.config.MultiPrefixConfigWrapper.WARP_SPEED_PREFIX;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestHiveDefaultCacheManager
@@ -54,9 +53,9 @@ public class TestHiveDefaultCacheManager
                 Collections.emptyMap(),
                 Map.of("http-server.log.enabled", "false",
                         "hive.s3.aws-access-key", "this is a fake key",
-                        WARP_SPEED_PREFIX + USE_HTTP_SERVER_PORT, Boolean.FALSE.toString(),
+                        USE_HTTP_SERVER_PORT, Boolean.FALSE.toString(),
                         "node.environment", "varada",
-                        WARP_SPEED_PREFIX + PROXIED_CONNECTOR, HIVE_CONNECTOR_NAME),
+                        PROXIED_CONNECTOR, HIVE_CONNECTOR_NAME),
                 hiveDir,
                 DispatcherConnectorFactory.DISPATCHER_CONNECTOR_NAME,
                 catalog,

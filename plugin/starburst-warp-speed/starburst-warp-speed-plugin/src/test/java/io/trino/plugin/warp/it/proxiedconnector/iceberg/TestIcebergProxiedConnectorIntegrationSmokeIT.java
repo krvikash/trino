@@ -52,7 +52,6 @@ import static io.trino.plugin.varada.VaradaSessionProperties.ENABLE_DEFAULT_WARM
 import static io.trino.plugin.varada.config.ProxiedConnectorConfig.ICEBERG_CONNECTOR_NAME;
 import static io.trino.plugin.varada.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
 import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP_SERVER_PORT;
-import static io.varada.tools.config.MultiPrefixConfigWrapper.WARP_SPEED_PREFIX;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -73,10 +72,10 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
                 numNodes,
                 Collections.emptyMap(),
                 Map.of("http-server.log.enabled", "false",
-                        WARP_SPEED_PREFIX + USE_HTTP_SERVER_PORT, "false",
+                        USE_HTTP_SERVER_PORT, "false",
                         "node.environment", "varada",
                         "iceberg.catalog.type", "TESTING_FILE_METASTORE",
-                        WARP_SPEED_PREFIX + PROXIED_CONNECTOR, ICEBERG_CONNECTOR_NAME),
+                        PROXIED_CONNECTOR, ICEBERG_CONNECTOR_NAME),
                 hiveDir,
                 DispatcherConnectorFactory.DISPATCHER_CONNECTOR_NAME,
                 catalog,

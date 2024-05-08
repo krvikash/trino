@@ -14,16 +14,12 @@
 package io.varada.cloudvendors.config;
 
 import io.airlift.configuration.Config;
-import io.airlift.configuration.LegacyConfig;
-
-import static io.varada.tools.config.MultiPrefixConfigWrapper.LOCAL_DATA_STORAGE_PREFIX;
-import static io.varada.tools.config.MultiPrefixConfigWrapper.WARP_SPEED_PREFIX;
 
 public class CloudVendorConfig
 {
-    public static final String STORE_TYPE = "config.store.type";
-    public static final String STORE_PATH = "store.path";
-    public static final String REGION = "config.region";
+    public static final String STORE_TYPE = "warp-speed.config.store.type";
+    public static final String STORE_PATH = "warp-speed.store.path";
+    public static final String REGION = "warp-speed.config.region";
 
     private StoreType storeType;
     private String storePath;
@@ -40,8 +36,7 @@ public class CloudVendorConfig
         return storeType;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + STORE_TYPE)
-    @Config(WARP_SPEED_PREFIX + STORE_TYPE)
+    @Config(STORE_TYPE)
     public void setStoreType(String storeType)
     {
         this.storeType = StoreType.ofConfigName(null, storeType);
@@ -52,8 +47,7 @@ public class CloudVendorConfig
         return storePath;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + STORE_PATH)
-    @Config(WARP_SPEED_PREFIX + STORE_PATH)
+    @Config(STORE_PATH)
     public void setStorePath(String storePath)
     {
         this.storePath = storePath;
@@ -64,8 +58,7 @@ public class CloudVendorConfig
         return region;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + REGION)
-    @Config(WARP_SPEED_PREFIX + REGION)
+    @Config(REGION)
     public void setRegion(String region)
     {
         this.region = region;

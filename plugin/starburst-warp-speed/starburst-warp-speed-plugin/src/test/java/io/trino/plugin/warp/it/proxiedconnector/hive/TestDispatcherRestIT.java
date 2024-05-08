@@ -73,7 +73,6 @@ import static io.trino.plugin.varada.config.ProxiedConnectorConfig.HIVE_CONNECTO
 import static io.trino.plugin.varada.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
 import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP_SERVER_PORT;
 import static io.trino.plugin.warp.extension.execution.health.HealthTask.HEALTH_PATH;
-import static io.varada.tools.config.MultiPrefixConfigWrapper.WARP_SPEED_PREFIX;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -112,9 +111,9 @@ public class TestDispatcherRestIT
                 Optional.empty(), 2,
                 Map.of(),
                 Map.of("http-server.log.enabled", "false",
-                        WARP_SPEED_PREFIX + USE_HTTP_SERVER_PORT, "false",
+                        USE_HTTP_SERVER_PORT, "false",
                         "node.environment", "varada",
-                        WARP_SPEED_PREFIX + PROXIED_CONNECTOR, HIVE_CONNECTOR_NAME),
+                        PROXIED_CONNECTOR, HIVE_CONNECTOR_NAME),
                 hiveDir,
                 DispatcherConnectorFactory.DISPATCHER_CONNECTOR_NAME,
                 CATALOG_NAME,

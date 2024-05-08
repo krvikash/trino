@@ -36,7 +36,6 @@ import io.trino.spi.cache.CacheManagerFactory;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
-import io.varada.tools.config.MultiPrefixConfigWrapper;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -73,14 +72,14 @@ public class StarburstWarpConnectorFactory
     public Connector create(String catalogName, Map<String, String> config, ConnectorContext context)
     {
         requireNonNull(licenseManager, "licenseManager is null");
-        Map<String, String> configMap = new MultiPrefixConfigWrapper(new HashMap<>(config));
+        Map<String, String> configMap = new HashMap<>(config);
 
         if (!Boolean.parseBoolean(configMap.getOrDefault(WarpExtensionConfig.USE_HTTP_SERVER_PORT, Boolean.TRUE.toString()))) {
             String httpRestPortStr = VaradaClient.getRestHttpPortStr(configMap,
                     UriUtils.getHttpUri(context.getNodeManager().getCurrentNode()).getPort());
 
             configMap.put("http-server.http.port", httpRestPortStr);
-            if (!config.containsKey(WarpExtensionConfig.HTTP_REST_PORT)) {
+            if (!configMap.containsKey(WarpExtensionConfig.HTTP_REST_PORT)) {
                 configMap.put(WarpExtensionConfig.HTTP_REST_PORT, httpRestPortStr);
             }
         }

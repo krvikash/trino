@@ -14,10 +14,6 @@
 package io.trino.plugin.warp.extension.config;
 
 import io.airlift.configuration.Config;
-import io.airlift.configuration.LegacyConfig;
-
-import static io.varada.tools.config.MultiPrefixConfigWrapper.LOCAL_DATA_STORAGE_PREFIX;
-import static io.varada.tools.config.MultiPrefixConfigWrapper.WARP_SPEED_PREFIX;
 
 public class CallHomeConfig
 {
@@ -31,8 +27,7 @@ public class CallHomeConfig
         return intervalInSeconds;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "call-home.interval.seconds")
-    @Config(WARP_SPEED_PREFIX + "call-home.interval.seconds")
+    @Config("warp-speed.call-home.interval.seconds")
     public void setIntervalInSeconds(int intervalInSeconds)
     {
         this.intervalInSeconds = intervalInSeconds;
@@ -43,8 +38,7 @@ public class CallHomeConfig
         return enable;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "call-home.enable")
-    @Config(WARP_SPEED_PREFIX + "call-home.enable")
+    @Config("warp-speed.call-home.enable")
     public void setEnable(boolean enable)
     {
         this.enable = enable;
@@ -55,8 +49,7 @@ public class CallHomeConfig
         return maxWaitTimeInSeconds;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "call-home.maxWaitTimeInSeconds")
-    @Config(WARP_SPEED_PREFIX + "call-home.maxWaitTimeInSeconds")
+    @Config("warp-speed.call-home.maxWaitTimeInSeconds")
     public void setMaxWaitTimeInSeconds(int maxWaitTimeInSeconds)
     {
         this.maxWaitTimeInSeconds = maxWaitTimeInSeconds;

@@ -14,7 +14,6 @@
 package io.trino.plugin.varada.config;
 
 import io.airlift.configuration.Config;
-import io.airlift.configuration.LegacyConfig;
 import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
 import io.trino.plugin.warp.gen.constants.CompressionUsers;
@@ -28,9 +27,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-
-import static io.varada.tools.config.MultiPrefixConfigWrapper.LOCAL_DATA_STORAGE_PREFIX;
-import static io.varada.tools.config.MultiPrefixConfigWrapper.WARP_SPEED_PREFIX;
 
 public class NativeConfig
 {
@@ -81,8 +77,7 @@ public class NativeConfig
         return predicateBundleSizeInMegaBytes;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "config.predicate-bundle-size-mb")
-    @Config(WARP_SPEED_PREFIX + "config.predicate-bundle-size-mb")
+    @Config("warp-speed.config.predicate-bundle-size-mb")
     public void setPredicateBundleSizeInMegaBytes(int predicateBundleSizeInMegaBytes)
     {
         this.predicateBundleSizeInMegaBytes = predicateBundleSizeInMegaBytes;
@@ -101,8 +96,7 @@ public class NativeConfig
         return generalReservedMemory.toBytes();
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "config.general-reserved-memory-in-gb")
-    @Config(WARP_SPEED_PREFIX + "config.general-reserved-memory-in-gb")
+    @Config("warp-speed.config.general-reserved-memory-in-gb")
     public void setGeneralReservedMemory(long generalReservedMemoryInGigaBytes)
     {
         this.generalReservedMemory = DataSize.of(generalReservedMemoryInGigaBytes, DataSize.Unit.GIGABYTE);
@@ -115,8 +109,7 @@ public class NativeConfig
         return (int) bundleSize.toBytes();
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "config.bundle-size-mb")
-    @Config(WARP_SPEED_PREFIX + "config.bundle-size-mb")
+    @Config("warp-speed.config.bundle-size-mb")
     public void setBundleSize(int bundleSizeInMegaBytes)
     {
         this.bundleSize = DataSize.of(bundleSizeInMegaBytes, DataSize.Unit.MEGABYTE);
@@ -129,8 +122,7 @@ public class NativeConfig
         return (int) maxRecJufferSize.toBytes();
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "config.max-rec-juffer-size-mb")
-    @Config(WARP_SPEED_PREFIX + "config.max-rec-juffer-size-mb")
+    @Config("warp-speed.config.max-rec-juffer-size-mb")
     public void setMaxRecJufferSize(int maxRecJufferSizeInMegaBytes)
     {
         this.maxRecJufferSize = DataSize.of(maxRecJufferSizeInMegaBytes, DataSize.Unit.MEGABYTE);
@@ -143,8 +135,7 @@ public class NativeConfig
         return lz4HcPercent;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "config.task.lz4-hc-percent")
-    @Config(WARP_SPEED_PREFIX + "config.task.lz4-hc-percent")
+    @Config("warp-speed.config.task.lz4-hc-percent")
     public void setCompressionLevel(int lz4HcPercent)
     {
         this.lz4HcPercent = lz4HcPercent;
@@ -157,8 +148,7 @@ public class NativeConfig
         return (int) collectTxSize.toBytes();
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "config.collect-tx-size-mb")
-    @Config(WARP_SPEED_PREFIX + "config.collect-tx-size-mb")
+    @Config("warp-speed.config.collect-tx-size-mb")
     public void setCollectTxSize(int collectTxSizeInMegaBytes)
     {
         this.collectTxSize = DataSize.of(collectTxSizeInMegaBytes, DataSize.Unit.MEGABYTE);
@@ -180,8 +170,7 @@ public class NativeConfig
         return storageCacheSizeInPages;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "config.storage-cache-size-in-pages")
-    @Config(WARP_SPEED_PREFIX + "config.storage-cache-size-in-pages")
+    @Config("warp-speed.config.storage-cache-size-in-pages")
     public void setStorageCacheSizeInPages(int storageCacheSizeInPages)
     {
         this.storageCacheSizeInPages = storageCacheSizeInPages;
@@ -196,8 +185,7 @@ public class NativeConfig
         return skipIndexPercent;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "config.skip-index-percent")
-    @Config(WARP_SPEED_PREFIX + "config.skip-index-percent")
+    @Config("warp-speed.config.skip-index-percent")
     public void setSkipIndexPercent(int skipIndexPercent)
     {
         this.skipIndexPercent = skipIndexPercent;
@@ -208,8 +196,7 @@ public class NativeConfig
         return enableSingleChunk;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "enable.single-chunk")
-    @Config(WARP_SPEED_PREFIX + "enable.single-chunk")
+    @Config("warp-speed.enable.single-chunk")
     public void setEnableSingleChunk(boolean enableSingleChunk)
     {
         this.enableSingleChunk = enableSingleChunk;
@@ -220,8 +207,7 @@ public class NativeConfig
         return enableQueryResultType;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "enable.query-result-type")
-    @Config(WARP_SPEED_PREFIX + "enable.query-result-type")
+    @Config("warp-speed.enable.query-result-type")
     public void setEnableQueryResultType(boolean enableQueryResultType)
     {
         this.enableQueryResultType = enableQueryResultType;
@@ -232,8 +218,7 @@ public class NativeConfig
         return enablePackedChunk;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "enable.packed-chunk")
-    @Config(WARP_SPEED_PREFIX + "enable.packed-chunk")
+    @Config("warp-speed.enable.packed-chunk")
     public void setEnablePackedChunk(boolean enablePackedChunk)
     {
         this.enablePackedChunk = enablePackedChunk;
@@ -244,8 +229,7 @@ public class NativeConfig
         return enableWarmingExtraLogs;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "enable.native-warming-extra-logs")
-    @Config(WARP_SPEED_PREFIX + "enable.native-warming-extra-logs")
+    @Config("warp-speed.enable.native-warming-extra-logs")
     public void setEnableWarmingExtraLogs(boolean enableWarmingExtraLogs)
     {
         this.enableWarmingExtraLogs = enableWarmingExtraLogs;
@@ -256,8 +240,7 @@ public class NativeConfig
         return enableCompression;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "enable.compression")
-    @Config(WARP_SPEED_PREFIX + "enable.compression")
+    @Config("warp-speed.enable.compression")
     public void setEnableCompression(boolean enableCompression)
     {
         this.enableCompression = enableCompression;
@@ -268,8 +251,7 @@ public class NativeConfig
         return taskMaxWorkerThreads;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + EXCEPTIONAL_LIST_COMPRESSION)
-    @Config(WARP_SPEED_PREFIX + EXCEPTIONAL_LIST_COMPRESSION)
+    @Config("warp-speed." + EXCEPTIONAL_LIST_COMPRESSION)
     public void setExceptionalListCompression(String exceptionalListCompression)
     {
         try {
@@ -285,8 +267,7 @@ public class NativeConfig
         return exceptionalListCompression;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "config.task.max-worker-threads")
-    @Config(WARP_SPEED_PREFIX + "config.task.max-worker-threads")
+    @Config("warp-speed.config.task.max-worker-threads")
     public void setTaskMaxWorkerThreads(int maxWorkerThreads)
     {
         this.taskMaxWorkerThreads = maxWorkerThreads;
@@ -297,8 +278,7 @@ public class NativeConfig
         return debugPanicHaltPolicy;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "debug.panic-halt-policy")
-    @Config(WARP_SPEED_PREFIX + "debug.panic-halt-policy")
+    @Config("warp-speed.debug.panic-halt-policy")
     public void setDebugPanicHaltPolicy(int debugPanicHaltPolicy)
     {
         this.debugPanicHaltPolicy = debugPanicHaltPolicy;
@@ -328,15 +308,13 @@ public class NativeConfig
         return clusterLevel;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "config.cluster-level")
-    @Config(WARP_SPEED_PREFIX + "config.cluster-level")
+    @Config("warp-speed.config.cluster-level")
     public void setClusterLevel(int clusterLevel)
     {
         this.clusterLevel = clusterLevel;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "config.max-page-sources-without-warming-limit")
-    @Config(WARP_SPEED_PREFIX + "config.max-page-sources-without-warming-limit")
+    @Config("warp-speed.config.max-page-sources-without-warming-limit")
     public void setMaxPageSourcesWithoutWarmingLimit(int maxPageSourcesWithoutWarmingLimit)
     {
         this.maxPageSourcesWithoutWarmingLimit = maxPageSourcesWithoutWarmingLimit;
@@ -353,8 +331,7 @@ public class NativeConfig
         return taskMinWarmingThreads == 0 ? Math.max((taskMaxWorkerThreads / READERS_WARMERS_RATIO), MIN_WARMING_THREADS) : taskMinWarmingThreads;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "config.task.min-warming-threads")
-    @Config(WARP_SPEED_PREFIX + "config.task.min-warming-threads")
+    @Config("warp-speed.config.task.min-warming-threads")
     public void setTaskMinWarmingThreads(int minWarmingThreads)
     {
         this.taskMinWarmingThreads = minWarmingThreads;
@@ -365,8 +342,7 @@ public class NativeConfig
         return unsupportedNativeFunctions;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "debug.unsupported-native-functions")
-    @Config(WARP_SPEED_PREFIX + "debug.unsupported-native-functions")
+    @Config("warp-speed.debug.unsupported-native-functions")
     public void setUnsupportedNativeFunctions(String unsupportedNativeFunctionsAsString)
     {
         try {
@@ -382,8 +358,7 @@ public class NativeConfig
         return storageTemporaryExceptionDuration;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "config.storage-temp-except.duration")
-    @Config(WARP_SPEED_PREFIX + "config.storage-temp-except.duration")
+    @Config("warp-speed.config.storage-temp-except.duration")
     public void setStorageTemporaryExceptionDuration(io.airlift.units.Duration duration)
     {
         this.storageTemporaryExceptionDuration = duration.toJavaTime();
@@ -394,8 +369,7 @@ public class NativeConfig
         return storageTemporaryExceptionNumTries;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "config.storage-temp-except.num-tries")
-    @Config(WARP_SPEED_PREFIX + "config.storage-temp-except.num-tries")
+    @Config("warp-speed.config.storage-temp-except.num-tries")
     public void setStorageTemporaryExceptionNumTries(int storageTemporaryExceptionNumTries)
     {
         this.storageTemporaryExceptionNumTries = storageTemporaryExceptionNumTries;
@@ -406,8 +380,7 @@ public class NativeConfig
         return storageTemporaryExceptionExpiryDuration;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "config.storage-temp-except.expiry.duration")
-    @Config(WARP_SPEED_PREFIX + "config.storage-temp-except.expiry.duration")
+    @Config("warp-speed.config.storage-temp-except.expiry.duration")
     public void setStorageTemporaryExceptionExpiryDuration(io.airlift.units.Duration duration)
     {
         this.storageTemporaryExceptionExpiryDuration = duration.toJavaTime();

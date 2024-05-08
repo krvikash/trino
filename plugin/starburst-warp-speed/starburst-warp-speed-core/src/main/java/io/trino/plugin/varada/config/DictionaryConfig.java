@@ -14,7 +14,6 @@
 package io.trino.plugin.varada.config;
 
 import io.airlift.configuration.Config;
-import io.airlift.configuration.LegacyConfig;
 import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
@@ -23,12 +22,9 @@ import java.util.Arrays;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static io.varada.tools.config.MultiPrefixConfigWrapper.LOCAL_DATA_STORAGE_PREFIX;
-import static io.varada.tools.config.MultiPrefixConfigWrapper.WARP_SPEED_PREFIX;
-
 public class DictionaryConfig
 {
-    public static final String EXCEPTIONAL_LIST_DICTIONARY = "enable.dictionary.exceptional-list";
+    public static final String EXCEPTIONAL_LIST_DICTIONARY = "warp-speed.enable.dictionary.exceptional-list";
     private int dictionaryMaxSize = 64 * 1024;
     private DataSize maxDictionaryTotalCacheWeight = DataSize.of(1024, DataSize.Unit.MEGABYTE);
     private DataSize maxDictionaryCacheWeight = DataSize.of(16, DataSize.Unit.MEGABYTE);
@@ -51,15 +47,13 @@ public class DictionaryConfig
         return dictionaryMaxSize;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "config.dictionary.max-size")
-    @Config(WARP_SPEED_PREFIX + "config.dictionary.max-size")
+    @Config("warp-speed.config.dictionary.max-size")
     public void setDictionaryMaxSize(int dictionaryMaxSize)
     {
         this.dictionaryMaxSize = dictionaryMaxSize;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "config.max-dictionary-total-cache-weight-mb")
-    @Config(WARP_SPEED_PREFIX + "config.max-dictionary-total-cache-weight-mb")
+    @Config("warp-speed.config.max-dictionary-total-cache-weight-mb")
     public void setMaxDictionaryTotalCacheWeight(DataSize maxDictionaryTotalCacheWeight)
     {
         this.maxDictionaryTotalCacheWeight = maxDictionaryTotalCacheWeight;
@@ -70,8 +64,7 @@ public class DictionaryConfig
         return maxDictionaryTotalCacheWeight.toBytes();
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "config.max-dictionary-cache-weight-mb")
-    @Config(WARP_SPEED_PREFIX + "config.max-dictionary-cache-weight-mb")
+    @Config("warp-speed.config.max-dictionary-cache-weight-mb")
     public void setMaxDictionaryCacheWeight(int maxDictionaryCacheWeight)
     {
         setMaxDictionaryCacheWeight(DataSize.of(maxDictionaryCacheWeight, DataSize.Unit.MEGABYTE));
@@ -92,15 +85,13 @@ public class DictionaryConfig
         return dictionaryCacheConcurrencyLevel;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "config.dictionary-cache-concurrency-level")
-    @Config(WARP_SPEED_PREFIX + "config.dictionary-cache-concurrency-level")
+    @Config("warp-speed.config.dictionary-cache-concurrency-level")
     public void setDictionaryCacheConcurrencyLevel(int cacheConcurrencyLevel)
     {
         this.dictionaryCacheConcurrencyLevel = cacheConcurrencyLevel;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + "enable.dictionary")
-    @Config(WARP_SPEED_PREFIX + "enable.dictionary")
+    @Config("warp-speed.enable.dictionary")
     public void setEnableDictionary(boolean enableDictionary)
     {
         this.enableDictionary = enableDictionary;
@@ -111,8 +102,7 @@ public class DictionaryConfig
         return enableDictionary;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + EXCEPTIONAL_LIST_DICTIONARY)
-    @Config(WARP_SPEED_PREFIX + EXCEPTIONAL_LIST_DICTIONARY)
+    @Config(EXCEPTIONAL_LIST_DICTIONARY)
     public void setExceptionalListDictionary(String exceptionalListDictionary)
     {
         try {

@@ -14,20 +14,16 @@
 package io.trino.plugin.warp.extension.config;
 
 import io.airlift.configuration.Config;
-import io.airlift.configuration.LegacyConfig;
-
-import static io.varada.tools.config.MultiPrefixConfigWrapper.LOCAL_DATA_STORAGE_PREFIX;
-import static io.varada.tools.config.MultiPrefixConfigWrapper.WARP_SPEED_PREFIX;
 
 public class WarpExtensionConfig
 {
-    public static final String CLUSTER_UUID = "cluster-uuid";
+    public static final String CLUSTER_UUID = "warp-speed.cluster-uuid";
     public static final String HTTP_REST_PORT = "http-rest-port";
     // true in case we leverage the trino http port
-    public static final String USE_HTTP_SERVER_PORT = "use-http-server-port";
-    public static final String HTTP_REST_PORT_ENABLED = "config.http-rest-port-enabled";
-    public static final String INTERNAL_COMMUNICATION_SHARED_SECRET = "config.internal-communication.shared-secret";
-    public static final String ENABLED = "config.extensions.enabled";
+    public static final String USE_HTTP_SERVER_PORT = "warp-speed.use-http-server-port";
+    public static final String HTTP_REST_PORT_ENABLED = "warp-speed.config.http-rest-port-enabled";
+    public static final String INTERNAL_COMMUNICATION_SHARED_SECRET = "warp-speed.config.internal-communication.shared-secret";
+    public static final String ENABLED = "warp-speed.config.extensions.enabled";
     public static final int HTTP_REST_DEFAULT_PORT = 8088;
 
     private String clusterUUID;
@@ -42,15 +38,13 @@ public class WarpExtensionConfig
         return clusterUUID;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + CLUSTER_UUID)
-    @Config(WARP_SPEED_PREFIX + CLUSTER_UUID)
+    @Config(CLUSTER_UUID)
     public void setClusterUUID(String clusterUUID)
     {
         this.clusterUUID = clusterUUID;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + USE_HTTP_SERVER_PORT)
-    @Config(WARP_SPEED_PREFIX + USE_HTTP_SERVER_PORT)
+    @Config(USE_HTTP_SERVER_PORT)
     public void setUseHttpServerPort(boolean useHttpServerPort)
     {
         this.useHttpServerPort = useHttpServerPort;
@@ -67,8 +61,7 @@ public class WarpExtensionConfig
         this.restHttpPort = restHttpPort;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + HTTP_REST_PORT_ENABLED)
-    @Config(WARP_SPEED_PREFIX + HTTP_REST_PORT_ENABLED)
+    @Config(HTTP_REST_PORT_ENABLED)
     public void setRestHttpDefaultPortEnabled(boolean restHttpDefaultPortEnabled)
     {
         this.restHttpDefaultPortEnabled = restHttpDefaultPortEnabled;
@@ -79,8 +72,7 @@ public class WarpExtensionConfig
         return internalCommunicationSharedSecret;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + INTERNAL_COMMUNICATION_SHARED_SECRET)
-    @Config(WARP_SPEED_PREFIX + INTERNAL_COMMUNICATION_SHARED_SECRET)
+    @Config(INTERNAL_COMMUNICATION_SHARED_SECRET)
     public void setInternalCommunicationSharedSecret(String internalCommunicationSharedSecret)
     {
         this.internalCommunicationSharedSecret = internalCommunicationSharedSecret;
@@ -91,8 +83,7 @@ public class WarpExtensionConfig
         return enabled;
     }
 
-    @LegacyConfig(LOCAL_DATA_STORAGE_PREFIX + ENABLED)
-    @Config(WARP_SPEED_PREFIX + ENABLED)
+    @Config(ENABLED)
     public void setEnabled(boolean enabled)
     {
         this.enabled = enabled;
