@@ -153,6 +153,7 @@ public final class Split
                 + sizeOf(addresses, value -> estimatedSizeOf(value, HostAddress::getRetainedSizeInBytes));
     }
 
+    @JsonProperty
     public boolean getFailoverHappened()
     {
         return failoverHappened;
