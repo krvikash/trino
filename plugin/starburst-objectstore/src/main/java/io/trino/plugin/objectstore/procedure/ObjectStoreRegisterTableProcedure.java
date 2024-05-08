@@ -149,9 +149,9 @@ public final class ObjectStoreRegisterTableProcedure
             throws Throwable
     {
         try (ThreadContextClassLoader ignored = new ThreadContextClassLoader(classLoader)) {
-            locationAccessControl.checkCanUseLocation(session.getIdentity(), location);
+            locationAccessControl.checkCanUseLocation(session.getIdentity(), location, session.getQueryId());
             if (metadataLocation != null) {
-                locationAccessControl.checkCanUseLocation(session.getIdentity(), metadataLocation);
+                locationAccessControl.checkCanUseLocation(session.getIdentity(), metadataLocation, session.getQueryId());
             }
 
             TrinoFileSystem fileSystem = fileSystemFactory.create(session);

@@ -143,7 +143,7 @@ public class RegisterPartitionProcedure
                 throw new TrinoException(ALREADY_EXISTS, format("Partition [%s] is already registered with location %s", partitionName, partition.get().getStorage().getLocation()));
             }
             if (location != null) {
-                locationAccessControl.checkCanUseLocation(session.getIdentity(), location);
+                locationAccessControl.checkCanUseLocation(session.getIdentity(), location, session.getQueryId());
             }
 
             Location partitionLocation = Optional.ofNullable(location)

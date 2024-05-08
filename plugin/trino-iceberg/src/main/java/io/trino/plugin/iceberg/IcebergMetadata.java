@@ -1618,7 +1618,7 @@ public class IcebergMetadata
     @Override
     public void createSchema(ConnectorSession session, String schemaName, Map<String, Object> properties, TrinoPrincipal owner)
     {
-        Optional.ofNullable(properties.get(LOCATION_PROPERTY)).ifPresent(location -> locationAccessControl.checkCanUseLocation(session.getIdentity(), (String) location));
+        Optional.ofNullable(properties.get(LOCATION_PROPERTY)).ifPresent(location -> locationAccessControl.checkCanUseLocation(session.getIdentity(), (String) location, session.getQueryId()));
         catalog.createNamespace(session, schemaName, properties, owner);
     }
 
@@ -1805,7 +1805,7 @@ public class IcebergMetadata
         if (tableLocation == null) {
             tableLocation = getTableLocation(tableMetadata.getProperties())
                     .map(location -> {
-                        locationAccessControl.checkCanUseLocation(session.getIdentity(), location);
+                        locationAccessControl.checkCanUseLocation(session.getIdentity(), location, session.getQueryId());
                         return location;
                     })
                     .orElseGet(() -> catalog.defaultTableLocation(session, tableMetadata.getTable()));
@@ -2346,7 +2346,7 @@ public class IcebergMetadata
         HiveStorageFormat format = (HiveStorageFormat) requireProcedureArgument(executeProperties, "format");
         RecursiveDirectory recursiveDirectory = (RecursiveDirectory) executeProperties.getOrDefault("recursive_directory", "fail");
 
-        locationAccessControl.checkCanUseLocation(session.getIdentity(), location);
+        locationAccessControl.checkCanUseLocation(session.getIdentity(), location, session.getQueryId());
 
         Table icebergTable = catalog.loadTable(session, tableHandle.getSchemaTableName());
 

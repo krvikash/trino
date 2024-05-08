@@ -65,7 +65,7 @@ public class SchemaDiscoverySystemTableProvider
         this.executor = requireNonNull(executor, "executor is null");
         this.objectMapper = requireNonNull(objectMapper, "objectMapper is null");
         requireNonNull(locationAccessControl, "locationAccessControl is null");
-        this.discoveryLocationAccessControlAdapter = (identity, location, _) -> locationAccessControl.checkCanUseLocation(identity, location);
+        this.discoveryLocationAccessControlAdapter = locationAccessControl::checkCanUseLocation;
         this.schemaDiscoveryIdentifierConstraint = requireNonNull(schemaDiscoveryIdentifierConstraint, "schemaDiscoveryIdentifierConstraint is null");
     }
 

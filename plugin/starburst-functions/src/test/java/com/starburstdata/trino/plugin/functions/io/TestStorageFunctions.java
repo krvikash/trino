@@ -630,7 +630,7 @@ final class TestStorageFunctions
             implements LocationAccessControl
     {
         @Override
-        public void checkCanUseLocation(ConnectorIdentity identity, String location)
+        public void checkCanUseLocation(ConnectorIdentity identity, String location, String queryId)
         {
             if (location.contains("denied")) {
                 throw new AccessDeniedException(location);

@@ -232,7 +232,7 @@ public class Unload
             ScalarArgument locationArgument = (ScalarArgument) arguments.get(LOCATION_ARGUMENT_NAME);
             checkFunctionArgument(locationArgument.getValue() != null, "location cannot be null");
             Location location = Location.of(((Slice) locationArgument.getValue()).toStringUtf8());
-            locationAccessControl.checkCanUseLocation(session.getIdentity(), location.toString());
+            locationAccessControl.checkCanUseLocation(session.getIdentity(), location.toString(), session.getQueryId());
 
             ScalarArgument formatArgument = (ScalarArgument) arguments.get(FORMAT_ARGUMENT_NAME);
             checkFunctionArgument(formatArgument.getValue() != null, "format cannot be null");

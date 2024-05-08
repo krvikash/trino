@@ -50,7 +50,7 @@ public class TestLocationAccessControl
                 .withLocationAccessControl(Optional.of(new LocationAccessControl()
                 {
                     @Override
-                    public void checkCanUseLocation(ConnectorIdentity identity, String location)
+                    public void checkCanUseLocation(ConnectorIdentity identity, String location, String queryI)
                     {
                         if (location.contains("invalid_path")) {
                             throw new IllegalArgumentException("Can't access this path: " + location);

@@ -1531,7 +1531,7 @@ public class DeltaLakeMetadata
     public void createSchema(ConnectorSession session, String schemaName, Map<String, Object> properties, TrinoPrincipal owner)
     {
         Optional<String> location = DeltaLakeSchemaProperties.getLocation(properties).map(locationUri -> {
-            locationAccessControl.checkCanUseLocation(session.getIdentity(), locationUri);
+            locationAccessControl.checkCanUseLocation(session.getIdentity(), locationUri, session.getQueryId());
             try {
                 fileSystemFactory.create(session, locationUri).directoryExists(Location.of(locationUri));
             }
@@ -1642,7 +1642,7 @@ public class DeltaLakeMetadata
             external = false;
         }
         else {
-            locationAccessControl.checkCanUseLocation(session.getIdentity(), location);
+            locationAccessControl.checkCanUseLocation(session.getIdentity(), location, session.getQueryId());
         }
         long commitVersion = 0;
         Location deltaLogDirectory = Location.of(getTransactionLogDir(location));
@@ -1950,7 +1950,7 @@ public class DeltaLakeMetadata
             external = false;
         }
         else {
-            locationAccessControl.checkCanUseLocation(session.getIdentity(), location);
+            locationAccessControl.checkCanUseLocation(session.getIdentity(), location, session.getQueryId());
         }
         ColumnMappingMode columnMappingMode = getColumnMappingMode(tableMetadata.getProperties());
         AtomicInteger fieldId = new AtomicInteger();

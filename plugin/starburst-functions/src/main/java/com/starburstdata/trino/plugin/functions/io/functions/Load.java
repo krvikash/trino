@@ -220,7 +220,7 @@ public class Load
             location = stripTrailingSlash(location);
 
             checkLocationArgument(location);
-            locationAccessControl.checkCanUseLocation(session.getIdentity(), location);
+            locationAccessControl.checkCanUseLocation(session.getIdentity(), location, session.getQueryId());
 
             TrinoFileSystem fileSystem = fileSystemFactory.create(session);
 

@@ -20,7 +20,7 @@ public interface LocationAccessControl
     String DEFAULT_NAME = "default";
     LocationAccessControl ALLOW_ALL = new LocationAccessControl() {};
 
-    default void checkCanUseLocation(ConnectorIdentity identity, String location) {}
+    default void checkCanUseLocation(ConnectorIdentity identity, String location, String queryId) {}
 
     class DefaultFactory
             implements LocationAccessControlFactory
