@@ -10,6 +10,7 @@
 package io.starburst.schema.discovery.formats.lakehouse;
 
 import io.starburst.schema.discovery.io.DiscoveryTrinoFileSystem;
+import io.starburst.schema.discovery.io.LocationUtils;
 import io.starburst.schema.discovery.models.TableFormat;
 import io.starburst.schema.discovery.models.TablePath;
 import io.starburst.schema.discovery.processor.Processor.ProcessorPath;
@@ -62,12 +63,10 @@ public class LakehouseUtil
 
     public static List<ProcessorPath> applyDeltaLakeFormatMatch(Location root, List<ProcessorPath> processorPaths)
     {
-        Map<Location, ProcessorPath> deltaLakePaths = processorPaths.stream()
-                .flatMap(processorPath -> {
-                    Optional<Location> maybeDeltaLakePath = deltaLakeParent(root, parentOf(processorPath.path()));
-                    return maybeDeltaLakePath.stream().map(path -> new ProcessorPath(path, Optional.of(new LakehouseFormat(TableFormat.DELTA_LAKE, path))));
-                })
-                .collect(toMap(ProcessorPath::path, Function.identity(), (p1, ignore) -> p1));  // ignore duplicates
+        Map<Location, ProcessorPath> deltaLakePaths = processorPaths.stream().flatMap(processorPath -> {
+            Optional<Location> maybeDeltaLakePath = deltaLakeParent(root, parentOf(processorPath.path()));
+            return maybeDeltaLakePath.stream().map(path -> new ProcessorPath(path, Optional.of(new LakehouseFormat(TableFormat.DELTA_LAKE, path))));
+        }).collect(toMap(ProcessorPath::path, Function.identity(), (p1, ignore) -> p1));  // ignore duplicates
 
         Stream<ProcessorPath> nonDeltaPaths = processorPaths.stream().filter(processorPath -> isNotInDeltaLakeSet(deltaLakePaths.keySet(), root, processorPath.path()));
 
@@ -87,9 +86,15 @@ public class LakehouseUtil
 
     public static Optional<ProcessorPath> maybeDeltaLakeTable(Set<Location> directories)
     {
-        return directories.stream().filter(directory -> directoryOrFileName(directory).equals(DELTA_LOG_DIRECTORY))
-                .findFirst()
-                .map(deltaLogDirectory -> new ProcessorPath(deltaLogDirectory, Optional.of(new LakehouseFormat(TableFormat.DELTA_LAKE, deltaLogDirectory))));
+        return directories.stream().filter(directory -> directoryOrFileName(directory).equals(DELTA_LOG_DIRECTORY)).findFirst().map(deltaLogDirectory -> new ProcessorPath(deltaLogDirectory, Optional.of(new LakehouseFormat(TableFormat.DELTA_LAKE, deltaLogDirectory))));
+    }
+
+    public static Optional<ProcessorPath> maybeIcebergTable(Set<Location> directories)
+    {
+        return directories.stream().filter(directory -> {
+            String directoryOrFileName = directoryOrFileName(directory);
+            return "data".equals(directoryOrFileName) || METADATA_FOLDER_NAME.equals(directoryOrFileName);
+        }).findFirst().map(LocationUtils::parentOf).map(icebergDataOrMetadataLocation -> new ProcessorPath(icebergDataOrMetadataLocation, Optional.of(new LakehouseFormat(TableFormat.ICEBERG, icebergDataOrMetadataLocation))));
     }
 
     private static boolean isNotInDeltaLakeSet(Set<Location> deltaLakePaths, Location root, Location path)

@@ -44,6 +44,7 @@ import static com.google.common.util.concurrent.Futures.submit;
 import static com.google.common.util.concurrent.Futures.submitAsync;
 import static io.starburst.schema.discovery.SchemaDiscoveryErrorCode.LOCATION_DOES_NOT_EXISTS;
 import static io.starburst.schema.discovery.formats.lakehouse.LakehouseUtil.maybeDeltaLakeTable;
+import static io.starburst.schema.discovery.formats.lakehouse.LakehouseUtil.maybeIcebergTable;
 import static io.starburst.schema.discovery.infer.InferPartitions.PARTITION_SEPARATOR;
 import static io.starburst.schema.discovery.io.LocationUtils.directoryOrFileName;
 import static java.util.Objects.requireNonNull;
@@ -119,14 +120,15 @@ public class SampleFilesCrawler
 
         Set<Location> childrenDirectories = fileSystem.listDirectories(directory);
         return maybeDeltaLakeTable(childrenDirectories)
-                .map(this::filterDeltaLakePath)
+                .or(() -> maybeIcebergTable(childrenDirectories))
+                .map(this::filterTablePath)
                 .orElseGet(() -> findNonDeltaLakeTablesInDirectory(directory, childrenDirectories));
     }
 
-    private ListenableFuture<List<ProcessorPath>> filterDeltaLakePath(ProcessorPath deltaLakeTablePath)
+    private ListenableFuture<List<ProcessorPath>> filterTablePath(ProcessorPath tablePath)
     {
-        return filter.test(deltaLakeTablePath.path()) ?
-                Futures.immediateFuture(ImmutableList.of(deltaLakeTablePath)) :
+        return filter.test(tablePath.path()) ?
+                Futures.immediateFuture(ImmutableList.of(tablePath)) :
                 Futures.immediateFuture(ImmutableList.of());
     }
 

@@ -83,6 +83,25 @@ public class TestIcebergSchemaDiscovery
     }
 
     @Test
+    public void testIcebergTablesParentWithExclude()
+    {
+        Location directory = Util.testFilePath("iceberg");
+        OptionsMap options = new OptionsMap(ImmutableMap.of(GeneralOptions.SAMPLE_FILES_PER_TABLE_MODULO, "1", GeneralOptions.EXCLUDE_PATTERNS, "**/{iceberg/table1/}*"));
+        Processor processor = new Processor(schemaDiscoveryInstances, Util.fileSystem(), directory, options, Executors.newCachedThreadPool());
+        processor.startRootProcessing();
+        assertThat(processor)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .matches(discovered -> discovered.rootPath().path().endsWith("iceberg/")
+                                       && discovered.tables().size() == 2)
+                .extracting(discoveredSchema -> discoveredSchema.tables().stream()
+                        .sorted(Comparator.comparing(DiscoveredTable::path))
+                        .collect(toImmutableList()))
+                .matches(tables ->
+                        !tables.get(0).valid() && !tables.get(0).errors().isEmpty() && tables.get(0).format() == TableFormat.ERROR &&
+                        tables.get(1).valid() && tables.get(1).path().path().equals("s3://starburst-benchmarks-data/iceberg-tpcds-sf10-orc-part/catalog_page") && tables.get(1).format() == TableFormat.ICEBERG);
+    }
+
+    @Test
     public void testModuloRecursiveIceberg()
     {
         OptionsMap optionsMap = new OptionsMap(ImmutableMap.of(GeneralOptions.SAMPLE_FILES_PER_TABLE_MODULO, "8", GeneralOptions.MAX_SAMPLE_FILES_PER_TABLE, "1", GeneralOptions.DISCOVERY_MODE, "recursive_directories"));
