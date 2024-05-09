@@ -20,6 +20,7 @@ import io.starburst.schema.discovery.TableChanges.BucketChanges;
 import io.starburst.schema.discovery.TableChanges.PartitionValueChanges;
 import io.starburst.schema.discovery.TableChanges.TableColumnChanges;
 import io.starburst.schema.discovery.TableChanges.TableName;
+import io.starburst.schema.discovery.TableChanges.TablePathName;
 import io.starburst.schema.discovery.infer.InferredPartitionProjection;
 import io.starburst.schema.discovery.internal.Column;
 import io.starburst.schema.discovery.internal.HiveType;
@@ -303,7 +304,7 @@ public class DiscoveredTablesDiffGenerator
 
     private static void buildUpdatedAndNotModifiedTablesDiff(List<DiscoveredTable> previousTables, List<DiscoveredTable> currentTables, TableChanges tableChanges, ImmutableList.Builder<DiffTable> results)
     {
-        Set<TableName> potentiallyModifiedTableNames = ImmutableSet.<TableName>builder()
+        Set<TablePathName> potentiallyModifiedTableNames = ImmutableSet.<TablePathName>builder()
                 .addAll(tableChanges.columnChanges().keySet())
                 .addAll(tableChanges.bucketChanges().keySet())
                 .addAll(tableChanges.partitionColumnChanges().keySet())
@@ -320,7 +321,7 @@ public class DiscoveredTablesDiffGenerator
             PartitionValueChanges partitionValueChanges = tableChanges.partitionValueChanges().getOrDefault(potentiallyModifiedTableName, new PartitionValueChanges(ImmutableList.of(), ImmutableList.of(), ImmutableList.of(), ImmutableList.of()));
 
             if (isUnchanged(columnChanges, partitionColumnChanges, bucketChanges, partitionValueChanges)) {
-                Optional<DiscoveredTable> unmodifiedTableMaybe = currentTables.stream().filter(currentTable -> currentTable.tableName().equals(potentiallyModifiedTableName)).findFirst();
+                Optional<DiscoveredTable> unmodifiedTableMaybe = currentTables.stream().filter(currentTable -> currentTable.extractTablePathName().equals(potentiallyModifiedTableName)).findFirst();
                 unmodifiedTableMaybe.ifPresent(unmodifiedTable -> results.add(new UnchangedTable(
                         unmodifiedTable.tableName(),
                         unmodifiedTable.path(),
@@ -332,8 +333,8 @@ public class DiscoveredTablesDiffGenerator
             }
             else {
                 // we know table has been modified somehow, add all details both modified & unmodified
-                Optional<DiscoveredTable> modifiedTableMaybe = currentTables.stream().filter(currentTable -> currentTable.tableName().equals(potentiallyModifiedTableName)).findFirst();
-                Optional<DiscoveredTable> previousTableMaybe = previousTables.stream().filter(prevTable -> prevTable.tableName().equals(potentiallyModifiedTableName)).findFirst();
+                Optional<DiscoveredTable> modifiedTableMaybe = currentTables.stream().filter(currentTable -> currentTable.extractTablePathName().equals(potentiallyModifiedTableName)).findFirst();
+                Optional<DiscoveredTable> previousTableMaybe = previousTables.stream().filter(prevTable -> prevTable.extractTablePathName().equals(potentiallyModifiedTableName)).findFirst();
 
                 if (modifiedTableMaybe.isPresent() && previousTableMaybe.isPresent()) {
                     DiscoveredTable modifiedTable = modifiedTableMaybe.get();

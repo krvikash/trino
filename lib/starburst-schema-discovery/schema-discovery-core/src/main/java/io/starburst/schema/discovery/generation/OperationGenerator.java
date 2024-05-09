@@ -75,10 +75,10 @@ public class OperationGenerator
         tableChanges.addedSchema().forEach(schemaName -> builder.add(new CreateSchema(mergeRootAndSchema(tableChanges.rootPath(), schemaName), schemaName)));
         addTableDrops(builder, tableChanges.droppedTables());
         addTableCreates(builder, tableChanges.addedTables());
-        tableChanges.columnChanges().forEach((tableName, tableColumnChanges) -> {
-            tableColumnChanges.droppedColumns().forEach(columnName -> builder.add(new DropColumn(tableName, columnName)));
-            tableColumnChanges.addedColumns().forEach(column -> builder.add(new AddColumn(tableName, column)));
-            tableColumnChanges.columnRenames().forEach(rename -> builder.add(new RenameColumn(tableName, rename.oldName(), rename.newName())));
+        tableChanges.columnChanges().forEach((tablePathName, tableColumnChanges) -> {
+            tableColumnChanges.droppedColumns().forEach(columnName -> builder.add(new DropColumn(tablePathName.tableName(), columnName)));
+            tableColumnChanges.addedColumns().forEach(column -> builder.add(new AddColumn(tablePathName.tableName(), column)));
+            tableColumnChanges.columnRenames().forEach(rename -> builder.add(new RenameColumn(tablePathName.tableName(), rename.oldName(), rename.newName())));
         });
         if (options.includePartitions()) {
             tableChanges.tablesToRecreateForProjectionChanges().forEach(tableToRecreate -> {
@@ -86,20 +86,20 @@ public class OperationGenerator
                 addTableCreates(builder, ImmutableList.of(tableToRecreate));
             });
 
-            tableChanges.bucketChanges().forEach((tableName, bucketChanges) -> {
-                bucketChanges.droppedBuckets().forEach(bucketName -> builder.add(new DropBucket(tableName, bucketName)));
-                bucketChanges.addedBuckets().forEach(bucketName -> builder.add(new AddBucket(tableName, bucketName)));
+            tableChanges.bucketChanges().forEach((tablePathName, bucketChanges) -> {
+                bucketChanges.droppedBuckets().forEach(bucketName -> builder.add(new DropBucket(tablePathName.tableName(), bucketName)));
+                bucketChanges.addedBuckets().forEach(bucketName -> builder.add(new AddBucket(tablePathName.tableName(), bucketName)));
             });
 
-            tableChanges.partitionColumnChanges().forEach((tableName, tableColumnChanges) -> {
-                tableColumnChanges.droppedColumns().forEach(columnName -> builder.add(new DropPartitionColumn(tableName, columnName)));
-                tableColumnChanges.addedColumns().forEach(column -> builder.add(new AddPartitionColumn(tableName, column)));
-                tableColumnChanges.columnRenames().forEach(rename -> builder.add(new RenamePartitionColumn(tableName, rename.oldName(), rename.newName())));
+            tableChanges.partitionColumnChanges().forEach((tablePathName, tableColumnChanges) -> {
+                tableColumnChanges.droppedColumns().forEach(columnName -> builder.add(new DropPartitionColumn(tablePathName.tableName(), columnName)));
+                tableColumnChanges.addedColumns().forEach(column -> builder.add(new AddPartitionColumn(tablePathName.tableName(), column)));
+                tableColumnChanges.columnRenames().forEach(rename -> builder.add(new RenamePartitionColumn(tablePathName.tableName(), rename.oldName(), rename.newName())));
             });
 
-            tableChanges.partitionValueChanges().forEach((tableName, partitionChanges) -> {
-                partitionChanges.droppedPartitionValues().forEach(partitionValues -> builder.add(new DropPartitionValue(tableName, partitionChanges.oldPartitionColumns(), partitionValues)));
-                partitionChanges.addedPartitionValues().forEach(partitionValues -> builder.add(new AddPartitionValue(tableName, partitionChanges.newPartitionColumns(), partitionValues)));
+            tableChanges.partitionValueChanges().forEach((tablePathName, partitionChanges) -> {
+                partitionChanges.droppedPartitionValues().forEach(partitionValues -> builder.add(new DropPartitionValue(tablePathName.tableName(), partitionChanges.oldPartitionColumns(), partitionValues)));
+                partitionChanges.addedPartitionValues().forEach(partitionValues -> builder.add(new AddPartitionValue(tablePathName.tableName(), partitionChanges.newPartitionColumns(), partitionValues)));
             });
         }
         else if (!tableChanges.bucketChanges().isEmpty() || !tableChanges.partitionColumnChanges().isEmpty() || !tableChanges.partitionValueChanges().isEmpty()) {

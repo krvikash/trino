@@ -13,6 +13,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.starburst.schema.discovery.TableChanges;
 import io.starburst.schema.discovery.TableChanges.TableName;
+import io.starburst.schema.discovery.TableChanges.TablePathName;
 import io.starburst.schema.discovery.models.DiscoveredColumns;
 import io.starburst.schema.discovery.models.DiscoveredPartitions;
 import io.starburst.schema.discovery.models.DiscoveredTable;
@@ -53,5 +54,54 @@ public class TableChangesBuilderTest
         TableChanges tableChanges = tableChangesBuilder.build();
         assertThat(tableChanges.droppedTables()).isEmpty();
         assertThat(tableChanges.addedTables()).hasSize(1);
+    }
+
+    @Test
+    public void testSameTablesNamesInDifferentLocations()
+    {
+        TableChangesBuilder tableChangesBuilder = new TableChangesBuilder(ensureEndsWithSlash("s3://dummy"));
+        tableChangesBuilder.addPreviousTable(new DiscoveredTable(
+                true,
+                ensureEndsWithSlash("s3://dummy/schema1/table123"),
+                new TableName(Optional.empty(), toLowerCase("table123")),
+                TableFormat.JSON,
+                ImmutableMap.of(),
+                DiscoveredColumns.EMPTY_DISCOVERED_COLUMNS,
+                DiscoveredPartitions.EMPTY_DISCOVERED_PARTITIONS,
+                ImmutableList.of()));
+        tableChangesBuilder.addPreviousTable(new DiscoveredTable(
+                true,
+                ensureEndsWithSlash("s3://dummy/schema2/table123"),
+                new TableName(Optional.empty(), toLowerCase("table123")),
+                TableFormat.JSON,
+                ImmutableMap.of(),
+                DiscoveredColumns.EMPTY_DISCOVERED_COLUMNS,
+                DiscoveredPartitions.EMPTY_DISCOVERED_PARTITIONS,
+                ImmutableList.of()));
+
+        tableChangesBuilder.addCurrentTable(new DiscoveredTable(
+                true,
+                ensureEndsWithSlash("s3://dummy/schema1/table123"),
+                new TableName(Optional.empty(), toLowerCase("table123")),
+                TableFormat.JSON,
+                ImmutableMap.of(),
+                new DiscoveredColumns(ImmutableList.of(new Column(toLowerCase("column123"), new HiveType(HiveTypes.STRING_TYPE))), ImmutableList.of()),
+                DiscoveredPartitions.EMPTY_DISCOVERED_PARTITIONS,
+                ImmutableList.of()));
+        tableChangesBuilder.addCurrentTable(new DiscoveredTable(
+                true,
+                ensureEndsWithSlash("s3://dummy/schema2/table123"),
+                new TableName(Optional.empty(), toLowerCase("table123")),
+                TableFormat.JSON,
+                ImmutableMap.of(),
+                new DiscoveredColumns(ImmutableList.of(new Column(toLowerCase("column1234"), new HiveType(HiveTypes.STRING_TYPE))), ImmutableList.of()),
+                DiscoveredPartitions.EMPTY_DISCOVERED_PARTITIONS,
+                ImmutableList.of()));
+
+        TableChanges tableChanges = tableChangesBuilder.build();
+        assertThat(tableChanges.droppedTables()).isEmpty();
+        assertThat(tableChanges.addedTables()).isEmpty();
+        assertThat(tableChanges.columnChanges().get(new TablePathName(ensureEndsWithSlash("s3://dummy/schema1/table123"), new TableName(Optional.empty(), toLowerCase("table123")))).addedColumns()).hasSize(1);
+        assertThat(tableChanges.columnChanges().get(new TablePathName(ensureEndsWithSlash("s3://dummy/schema2/table123"), new TableName(Optional.empty(), toLowerCase("table123")))).addedColumns()).hasSize(1);
     }
 }

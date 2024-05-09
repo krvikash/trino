@@ -17,6 +17,7 @@ import io.starburst.schema.discovery.models.DiscoveredPartitionValues;
 import io.starburst.schema.discovery.models.DiscoveredTable;
 import io.starburst.schema.discovery.models.LowerCaseString;
 import io.starburst.schema.discovery.models.SlashEndedPath;
+import io.starburst.schema.discovery.models.TablePath;
 
 import java.util.Collection;
 import java.util.List;
@@ -33,10 +34,10 @@ public record TableChanges(SlashEndedPath rootPath,
                            Collection<DiscoveredTable> droppedTables,
                            List<DiscoveredTable> addedTables,
                            List<DiscoveredTable> tablesToRecreateForProjectionChanges,
-                           Map<TableName, TableColumnChanges> columnChanges,
-                           Map<TableName, TableColumnChanges> partitionColumnChanges,
-                           Map<TableName, PartitionValueChanges> partitionValueChanges,
-                           Map<TableName, BucketChanges> bucketChanges,
+                           Map<TablePathName, TableColumnChanges> columnChanges,
+                           Map<TablePathName, TableColumnChanges> partitionColumnChanges,
+                           Map<TablePathName, PartitionValueChanges> partitionValueChanges,
+                           Map<TablePathName, BucketChanges> bucketChanges,
                            Map<String, List<String>> errorsPerPath)
 {
     public TableChanges
@@ -109,4 +110,13 @@ public record TableChanges(SlashEndedPath rootPath,
                                         List<Column> newPartitionColumns,
                                         List<DiscoveredPartitionValues> droppedPartitionValues,
                                         List<DiscoveredPartitionValues> addedPartitionValues) {}
+
+    public record TablePathName(TablePath tablePath, TableName tableName)
+    {
+        public TablePathName
+        {
+            requireNonNull(tablePath, "tablePath cannot be null");
+            requireNonNull(tableName, "tableName cannot be null");
+        }
+    }
 }

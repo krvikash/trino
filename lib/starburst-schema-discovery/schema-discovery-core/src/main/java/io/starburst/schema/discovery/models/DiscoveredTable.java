@@ -14,6 +14,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.starburst.schema.discovery.TableChanges.TableName;
+import io.starburst.schema.discovery.TableChanges.TablePathName;
 import io.starburst.schema.discovery.formats.csv.CsvOptions;
 
 import java.util.Collection;
@@ -123,5 +124,10 @@ public record DiscoveredTable(boolean valid, TablePath path, TableName tableName
                 EMPTY_DISCOVERED_TABLE.discoveredPartitions(),
                 EMPTY_DISCOVERED_TABLE.buckets(),
                 errors);
+    }
+
+    public TablePathName extractTablePathName()
+    {
+        return new TablePathName(path, tableName);
     }
 }

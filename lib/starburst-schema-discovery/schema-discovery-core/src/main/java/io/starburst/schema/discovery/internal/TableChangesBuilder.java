@@ -17,7 +17,7 @@ import io.starburst.schema.discovery.TableChanges;
 import io.starburst.schema.discovery.TableChanges.BucketChanges;
 import io.starburst.schema.discovery.TableChanges.PartitionValueChanges;
 import io.starburst.schema.discovery.TableChanges.TableColumnChanges;
-import io.starburst.schema.discovery.TableChanges.TableName;
+import io.starburst.schema.discovery.TableChanges.TablePathName;
 import io.starburst.schema.discovery.infer.InferredPartitionProjection;
 import io.starburst.schema.discovery.models.DiscoveredPartitionValues;
 import io.starburst.schema.discovery.models.DiscoveredPartitions;
@@ -49,8 +49,8 @@ import static java.util.function.Function.identity;
 public class TableChangesBuilder
 {
     private final Errors errors = new Errors();
-    private final Map<TableName, DiscoveredTable> previousTables = new HashMap<>();
-    private final Map<TableName, DiscoveredTable> currentTables = new HashMap<>();
+    private final Map<TablePathName, DiscoveredTable> previousTables = new HashMap<>();
+    private final Map<TablePathName, DiscoveredTable> currentTables = new HashMap<>();
     private final SlashEndedPath rootPath;
 
     public TableChangesBuilder(SlashEndedPath rootPath)
@@ -60,35 +60,35 @@ public class TableChangesBuilder
 
     public void addPreviousTable(DiscoveredTable table)
     {
-        TableName tableName = table.tableName();
-        checkArgument(!previousTables.containsKey(tableName), "Previous table has already been added: " + tableName);
-        previousTables.put(tableName, table);
+        TablePathName tablePathName = table.extractTablePathName();
+        checkArgument(!previousTables.containsKey(tablePathName), "Previous table has already been added: " + tablePathName);
+        previousTables.put(tablePathName, table);
     }
 
     public void addCurrentTable(DiscoveredTable table)
     {
-        TableName tableName = table.tableName();
-        checkArgument(!currentTables.containsKey(tableName), "Current table has already been added: " + tableName);
-        currentTables.put(tableName, table);
+        TablePathName tablePathName = table.extractTablePathName();
+        checkArgument(!currentTables.containsKey(tablePathName), "Current table has already been added: " + tablePathName);
+        currentTables.put(tablePathName, table);
     }
 
     public TableChanges build()
     {
         SetView<LowerCaseString> schemaToAdd = Sets.difference(schemaNames(currentTables), schemaNames(previousTables));
-        Map<TableName, DiscoveredTable> tablesToDrop = difference(previousTables, currentTables);
-        Map<TableName, DiscoveredTable> tablesToAdd = difference(currentTables, previousTables);
+        Map<TablePathName, DiscoveredTable> tablesToDrop = difference(previousTables, currentTables);
+        Map<TablePathName, DiscoveredTable> tablesToAdd = difference(currentTables, previousTables);
 
-        Set<TableName> remainingTables = new HashSet<>(previousTables.keySet());
+        Set<TablePathName> remainingTables = new HashSet<>(previousTables.keySet());
         remainingTables.retainAll(currentTables.keySet());
         remainingTables = filterConflicting(remainingTables);
 
-        Map<TableName, DiscoveredTable> tablesToRecreateForProjectionChanges = buildProjectedPartitionChanges(remainingTables);
+        Map<TablePathName, DiscoveredTable> tablesToRecreateForProjectionChanges = buildProjectedPartitionChanges(remainingTables);
         remainingTables = Sets.difference(remainingTables, tablesToRecreateForProjectionChanges.keySet());
 
-        Map<TableName, BucketChanges> bucketChanges = buildBucketChanges(remainingTables);
-        Map<TableName, TableColumnChanges> columnChanges = buildColumnChanges(remainingTables);
-        Map<TableName, TableColumnChanges> partitionColumnChanges = buildPartitionColumnChangesForNonProjected(remainingTables);
-        Map<TableName, PartitionValueChanges> partitionValueChanges = buildPartitionValueChangesForNonProjected(remainingTables);
+        Map<TablePathName, BucketChanges> bucketChanges = buildBucketChanges(remainingTables);
+        Map<TablePathName, TableColumnChanges> columnChanges = buildColumnChanges(remainingTables);
+        Map<TablePathName, TableColumnChanges> partitionColumnChanges = buildPartitionColumnChangesForNonProjected(remainingTables);
+        Map<TablePathName, PartitionValueChanges> partitionValueChanges = buildPartitionValueChangesForNonProjected(remainingTables);
 
         return new TableChanges(
                 rootPath,
@@ -103,59 +103,59 @@ public class TableChangesBuilder
                 errors.buildPathErrors());
     }
 
-    private Set<LowerCaseString> schemaNames(Map<TableName, DiscoveredTable> tables)
+    private Set<LowerCaseString> schemaNames(Map<TablePathName, DiscoveredTable> tables)
     {
         return tables.values().stream().flatMap(table -> table.tableName().schemaName().stream()).collect(toImmutableSet());
     }
 
-    private Map<TableName, PartitionValueChanges> buildPartitionValueChangesForNonProjected(Collection<TableName> remainingTables)
+    private Map<TablePathName, PartitionValueChanges> buildPartitionValueChangesForNonProjected(Collection<TablePathName> remainingTables)
     {
         return remainingTables.stream()
-                .filter(tableName -> !currentTables.get(tableName).hasAnyProjectedPartition())
-                .flatMap(tableName -> {
-                    DiscoveredPartitions previousPartitions = previousTables.get(tableName).discoveredPartitions();
-                    DiscoveredPartitions currentPartitions = currentTables.get(tableName).discoveredPartitions();
+                .filter(tablePath -> !currentTables.get(tablePath).hasAnyProjectedPartition())
+                .flatMap(tablePath -> {
+                    DiscoveredPartitions previousPartitions = previousTables.get(tablePath).discoveredPartitions();
+                    DiscoveredPartitions currentPartitions = currentTables.get(tablePath).discoveredPartitions();
                     ImmutableSet<DiscoveredPartitionValues> previousPartitionValues = ImmutableSet.copyOf(previousPartitions.values());
                     ImmutableSet<DiscoveredPartitionValues> currentPartitionValues = ImmutableSet.copyOf(currentPartitions.values());
                     Set<DiscoveredPartitionValues> droppedPartitionValues = Sets.difference(previousPartitionValues, currentPartitionValues);
                     Set<DiscoveredPartitionValues> addedPartitionValues = Sets.difference(currentPartitionValues, previousPartitionValues);
                     if (droppedPartitionValues.isEmpty() && addedPartitionValues.isEmpty()) {
-                        return Optional.<Entry<TableName, PartitionValueChanges>>empty().stream();
+                        return Optional.<Entry<TablePathName, PartitionValueChanges>>empty().stream();
                     }
-                    SimpleEntry<TableName, PartitionValueChanges> entry = new SimpleEntry<>(tableName, new PartitionValueChanges(previousPartitions.columns(), currentPartitions.columns(), ImmutableList.copyOf(droppedPartitionValues), ImmutableList.copyOf(addedPartitionValues)));
+                    SimpleEntry<TablePathName, PartitionValueChanges> entry = new SimpleEntry<>(tablePath, new PartitionValueChanges(previousPartitions.columns(), currentPartitions.columns(), ImmutableList.copyOf(droppedPartitionValues), ImmutableList.copyOf(addedPartitionValues)));
                     return Optional.of(entry).stream();
                 })
                 .collect(toImmutableMap(Entry::getKey, Entry::getValue));
     }
 
-    private Map<TableName, BucketChanges> buildBucketChanges(Collection<TableName> remainingTables)
+    private Map<TablePathName, BucketChanges> buildBucketChanges(Collection<TablePathName> remainingTables)
     {
         return remainingTables.stream()
-                .flatMap(tableName -> {
-                    ImmutableSet<LowerCaseString> previousBuckets = ImmutableSet.copyOf(previousTables.get(tableName).buckets());
-                    ImmutableSet<LowerCaseString> currentBuckets = ImmutableSet.copyOf(currentTables.get(tableName).buckets());
+                .flatMap(tablePath -> {
+                    ImmutableSet<LowerCaseString> previousBuckets = ImmutableSet.copyOf(previousTables.get(tablePath).buckets());
+                    ImmutableSet<LowerCaseString> currentBuckets = ImmutableSet.copyOf(currentTables.get(tablePath).buckets());
                     Sets.SetView<LowerCaseString> droppedBuckets = Sets.difference(previousBuckets, currentBuckets);
                     Sets.SetView<LowerCaseString> addedBuckets = Sets.difference(currentBuckets, previousBuckets);
                     if (droppedBuckets.isEmpty() && addedBuckets.isEmpty()) {
-                        return Optional.<Map.Entry<TableName, BucketChanges>>empty().stream();
+                        return Optional.<Map.Entry<TablePathName, BucketChanges>>empty().stream();
                     }
-                    AbstractMap.SimpleEntry<TableName, BucketChanges> entry = new AbstractMap.SimpleEntry<>(tableName, new BucketChanges(droppedBuckets, addedBuckets));
+                    AbstractMap.SimpleEntry<TablePathName, BucketChanges> entry = new AbstractMap.SimpleEntry<>(tablePath, new BucketChanges(droppedBuckets, addedBuckets));
                     return Optional.of(entry).stream();
                 })
                 .collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
-    private Map<TableName, DiscoveredTable> buildProjectedPartitionChanges(Collection<TableName> remainingTables)
+    private Map<TablePathName, DiscoveredTable> buildProjectedPartitionChanges(Collection<TablePathName> remainingTables)
     {
         return remainingTables.stream()
-                .filter(tableName -> currentTables.get(tableName).hasAnyProjectedPartition())
-                .flatMap(tableName -> {
-                    DiscoveredPartitions previousPartitions = previousTables.get(tableName).discoveredPartitions();
-                    DiscoveredPartitions currentPartitions = currentTables.get(tableName).discoveredPartitions();
+                .filter(tablePath -> currentTables.get(tablePath).hasAnyProjectedPartition())
+                .flatMap(tablePath -> {
+                    DiscoveredPartitions previousPartitions = previousTables.get(tablePath).discoveredPartitions();
+                    DiscoveredPartitions currentPartitions = currentTables.get(tablePath).discoveredPartitions();
 
                     if (!previousPartitions.columns().equals(currentPartitions.columns()) ||
                             !previousPartitions.columnProjections().equals(currentPartitions.columnProjections())) {
-                        return Optional.of(getTableAsEntry(tableName)).stream();
+                        return Optional.of(getTableAsEntry(tablePath)).stream();
                     }
 
                     boolean areAllProjectionsInMatch = currentPartitions.columns().stream()
@@ -181,56 +181,56 @@ public class TableChangesBuilder
                                 };
                             });
                     if (!areAllProjectionsInMatch) {
-                        return Optional.of(getTableAsEntry(tableName)).stream();
+                        return Optional.of(getTableAsEntry(tablePath)).stream();
                     }
 
-                    return Optional.<Map.Entry<TableName, DiscoveredTable>>empty().stream();
+                    return Optional.<Map.Entry<TablePathName, DiscoveredTable>>empty().stream();
                 })
                 .collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
-    private AbstractMap.SimpleEntry<TableName, DiscoveredTable> getTableAsEntry(TableName tableName)
+    private AbstractMap.SimpleEntry<TablePathName, DiscoveredTable> getTableAsEntry(TablePathName tablePathName)
     {
-        return new AbstractMap.SimpleEntry<>(tableName, currentTables.get(tableName));
+        return new AbstractMap.SimpleEntry<>(tablePathName, currentTables.get(tablePathName));
     }
 
     // even if table names are equal, we should consider validity, to be able to heal tables
     // which were errored previously, but now are fixed
-    private Map<TableName, DiscoveredTable> difference(Map<TableName, DiscoveredTable> t1, Map<TableName, DiscoveredTable> t2)
+    private Map<TablePathName, DiscoveredTable> difference(Map<TablePathName, DiscoveredTable> t1, Map<TablePathName, DiscoveredTable> t2)
     {
-        Map<TableNameAndValidity, DiscoveredTable> t1IdentifierMap = t1.entrySet()
+        Map<TablePathNameAndValidity, DiscoveredTable> t1IdentifierMap = t1.entrySet()
                 .stream()
-                .collect(toImmutableMap(e -> new TableNameAndValidity(e.getKey(), e.getValue().valid()), Entry::getValue));
-        Map<TableNameAndValidity, DiscoveredTable> t2IdentifierMap = t2.entrySet()
+                .collect(toImmutableMap(e -> new TablePathNameAndValidity(e.getKey(), e.getValue().valid()), Entry::getValue));
+        Map<TablePathNameAndValidity, DiscoveredTable> t2IdentifierMap = t2.entrySet()
                 .stream()
-                .collect(toImmutableMap(e -> new TableNameAndValidity(e.getKey(), e.getValue().valid()), Entry::getValue));
+                .collect(toImmutableMap(e -> new TablePathNameAndValidity(e.getKey(), e.getValue().valid()), Entry::getValue));
 
-        Map<TableNameAndValidity, DiscoveredTable> temp = new HashMap<>(t1IdentifierMap);
+        Map<TablePathNameAndValidity, DiscoveredTable> temp = new HashMap<>(t1IdentifierMap);
         temp.keySet().removeAll(t2IdentifierMap.keySet());
 
-        return temp.entrySet().stream().collect(toImmutableMap(e -> e.getKey().tableName(), Entry::getValue));
+        return temp.entrySet().stream().collect(toImmutableMap(e -> e.getKey().tablePathName(), Entry::getValue));
     }
 
-    private Map<TableName, TableColumnChanges> buildColumnChanges(Collection<TableName> remainingTables)
+    private Map<TablePathName, TableColumnChanges> buildColumnChanges(Collection<TablePathName> remainingTables)
     {
         return remainingTables.stream()
                 .collect(toImmutableMap(identity(), tableName -> columnChangesForTable(tableName, discoveredTable -> discoveredTable.columns().columns())));
     }
 
-    private Map<TableName, TableColumnChanges> buildPartitionColumnChangesForNonProjected(Collection<TableName> remainingTables)
+    private Map<TablePathName, TableColumnChanges> buildPartitionColumnChangesForNonProjected(Collection<TablePathName> remainingTables)
     {
         return remainingTables.stream()
                 .filter(tableName -> !currentTables.get(tableName).hasAnyProjectedPartition())
                 .collect(toImmutableMap(identity(), tableName -> columnChangesForTable(tableName, discoveredTable -> discoveredTable.discoveredPartitions().columns())));
     }
 
-    private TableColumnChanges columnChangesForTable(TableName tableName, Function<DiscoveredTable, List<Column>> accessor)
+    private TableColumnChanges columnChangesForTable(TablePathName tablePathName, Function<DiscoveredTable, List<Column>> accessor)
     {
         ImmutableList.Builder<Column> columnsToAdd = ImmutableList.builder();
         ImmutableSet.Builder<LowerCaseString> columnsToDrop = ImmutableSet.builder();
         ImmutableList.Builder<TableChanges.ColumnRename> columnRenames = ImmutableList.builder();
-        List<Column> previousColumns = accessor.apply(previousTables.get(tableName));
-        List<Column> currentColumns = accessor.apply(currentTables.get(tableName));
+        List<Column> previousColumns = accessor.apply(previousTables.get(tablePathName));
+        List<Column> currentColumns = accessor.apply(currentTables.get(tablePathName));
         for (int i = 0; i < Math.max(previousColumns.size(), currentColumns.size()); ++i) {
             Column previousColumn = (i < previousColumns.size()) ? previousColumns.get(i) : null;
             Column currentColumn = (i < currentColumns.size()) ? currentColumns.get(i) : null;
@@ -263,17 +263,17 @@ public class TableChangesBuilder
         return s.toLowerCase(Locale.getDefault());
     }
 
-    private Set<TableName> filterConflicting(Collection<TableName> remainingTables)
+    private Set<TablePathName> filterConflicting(Collection<TablePathName> remainingTables)
     {
         return remainingTables.stream()
                 .filter(this::hasNoConflicts)
                 .collect(toImmutableSet());
     }
 
-    private boolean hasNoConflicts(TableName tableName)
+    private boolean hasNoConflicts(TablePathName tablePathName)
     {
-        DiscoveredTable previousTable = previousTables.get(tableName);
-        DiscoveredTable currentTable = currentTables.get(tableName);
+        DiscoveredTable previousTable = previousTables.get(tablePathName);
+        DiscoveredTable currentTable = currentTables.get(tablePathName);
         boolean hasNoConflicts = true;
 
         if (!previousTable.valid()) {
@@ -285,22 +285,22 @@ public class TableChangesBuilder
             hasNoConflicts = false;
         }
         if (!previousTable.format().equals(currentTable.format())) {
-            errors.addTableError(currentTable.path(), "Format change in table [%s]. Previous: [%s] Current: [%s]. Table will be ignored.", tableName, previousTable.format(), currentTable.format());
+            errors.addTableError(currentTable.path(), "Format change in table [%s]. Previous: [%s] Current: [%s]. Table will be ignored.", tablePathName, previousTable.format(), currentTable.format());
             hasNoConflicts = false;
         }
         if (!previousTable.path().equals(currentTable.path())) {
-            errors.addTableError(currentTable.path(), "Path change in table [%s]. Previous: [%s] Current: [%s]. Table will be ignored.", tableName, previousTable.path(), currentTable.path());
+            errors.addTableError(currentTable.path(), "Path change in table [%s]. Previous: [%s] Current: [%s]. Table will be ignored.", tablePathName, previousTable.path(), currentTable.path());
             hasNoConflicts = false;
         }
 
         return hasNoConflicts;
     }
 
-    private record TableNameAndValidity(TableName tableName, boolean isValid)
+    private record TablePathNameAndValidity(TablePathName tablePathName, boolean isValid)
     {
-        public TableNameAndValidity
+        public TablePathNameAndValidity
         {
-            requireNonNull(tableName, "tableName is null");
+            requireNonNull(tablePathName, "tablePathName is null");
         }
     }
 }
