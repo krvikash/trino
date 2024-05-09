@@ -34,6 +34,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.util.Properties;
 
+import static com.starburstdata.trino.plugin.saphana.SapHanaAuthenticationConfig.PASSWORD;
+import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 
 public class SapHanaAuthenticationModule
@@ -42,7 +44,10 @@ public class SapHanaAuthenticationModule
     @Override
     protected void setup(Binder binder)
     {
-        install(new PasswordModule());
+        install(conditionalModule(
+                SapHanaAuthenticationConfig.class,
+                config -> PASSWORD.equalsIgnoreCase(config.getAuthenticationType()),
+                new PasswordModule()));
     }
 
     private static class PasswordModule
