@@ -119,8 +119,15 @@ public class SampleFilesCrawler
 
         Set<Location> childrenDirectories = fileSystem.listDirectories(directory);
         return maybeDeltaLakeTable(childrenDirectories)
-                .map(deltaLakeTablePath -> Futures.<List<ProcessorPath>>immediateFuture(ImmutableList.of(deltaLakeTablePath)))
+                .map(this::filterDeltaLakePath)
                 .orElseGet(() -> findNonDeltaLakeTablesInDirectory(directory, childrenDirectories));
+    }
+
+    private ListenableFuture<List<ProcessorPath>> filterDeltaLakePath(ProcessorPath deltaLakeTablePath)
+    {
+        return filter.test(deltaLakeTablePath.path()) ?
+                Futures.immediateFuture(ImmutableList.of(deltaLakeTablePath)) :
+                Futures.immediateFuture(ImmutableList.of());
     }
 
     private ListenableFuture<List<ProcessorPath>> findNonDeltaLakeTablesInDirectory(Location parent, Set<Location> childrenDirectories)

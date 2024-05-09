@@ -62,6 +62,24 @@ public class TestDeltaLakeSchemaDiscovery
     }
 
     @Test
+    public void testDeltaLakeTablesParentWithExclude()
+    {
+        Location directory = Util.testFilePath("deltalake");
+        OptionsMap options = new OptionsMap(ImmutableMap.of(GeneralOptions.SAMPLE_FILES_PER_TABLE_MODULO, "1", GeneralOptions.EXCLUDE_PATTERNS, "**/{deltalake/table3/}*"));
+        Processor processor = new Processor(schemaDiscoveryInstances, Util.fileSystem(), directory, options, Executors.newCachedThreadPool());
+        processor.startRootProcessing();
+        assertThat(processor)
+                .succeedsWithin(Duration.ofSeconds(5))
+                .matches(discovered -> discovered.rootPath().path().endsWith("deltalake/")
+                                       && discovered.errors().isEmpty()
+                                       && discovered.tables().size() == 2)
+                .extracting(DiscoveredSchema::tables)
+                .matches(tables ->
+                        tables.get(0).valid() && tables.get(0).path().path().endsWith("deltalake/table2/") && tables.get(0).format() == TableFormat.DELTA_LAKE &&
+                        tables.get(1).valid() && tables.get(1).path().path().endsWith("deltalake/table1/") && tables.get(1).format() == TableFormat.DELTA_LAKE);
+    }
+
+    @Test
     public void testModuloRecursiveDeltaLake()
     {
         OptionsMap optionsMap = new OptionsMap(ImmutableMap.of(GeneralOptions.SAMPLE_FILES_PER_TABLE_MODULO, "8", GeneralOptions.MAX_SAMPLE_FILES_PER_TABLE, "1", GeneralOptions.DISCOVERY_MODE, "recursive_directories"));
