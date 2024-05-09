@@ -355,7 +355,9 @@ public class DataResource
                 if (servingCompletionFlag.getAndSet(true)) {
                     return;
                 }
-                // try to cancel opportunistically to prevent from `Futures.addCallback` running if possible
+                // try to cancel opportunistically to prevent FutureCallback.onSuccess() from being executed.
+                // Call to `sliceLease.release`, which is still needed to ensure proper memory accounting in MemoryAllocator will still
+                // be called via finalizeAddDataPagesRequest called from FutureCallback.onFailure.
                 sliceLease.cancel();
             });
 
@@ -364,7 +366,9 @@ public class DataResource
                 if (servingCompletionFlag.getAndSet(true)) {
                     return;
                 }
-                // try to cancel opportunistically to prevent from `Futures.addCallback` running if possible
+                // try to cancel opportunistically to prevent FutureCallback.onSuccess() from being executed.
+                // Call to `sliceLease.release`, which is still needed to ensure proper memory accounting in MemoryAllocator will still
+                // be called via finalizeAddDataPagesRequest called from FutureCallback.onFailure.
                 sliceLease.cancel();
             });
         }
