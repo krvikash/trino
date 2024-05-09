@@ -420,7 +420,7 @@ public class TestLogicalPlanner
     public void testDistinctOverConstants()
     {
         assertPlan("SELECT count(*), count(distinct orderstatus) FROM (SELECT * FROM orders WHERE orderstatus = 'F')",
-                Session.builder(getPlanTester().getDefaultSession())
+                Session.builder(this.getPlanTester().getDefaultSession())
                         .setSystemProperty(DISTINCT_AGGREGATIONS_STRATEGY, "mark_distinct")
                         .build(),
                 anyTree(

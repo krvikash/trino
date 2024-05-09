@@ -632,6 +632,7 @@ public abstract class BaseJdbcConnectorTest
         Session withPreAggregate = Session.builder(getSession())
                 .setSystemProperty(DISTINCT_AGGREGATIONS_STRATEGY, "pre_aggregate")
                 .build();
+
         try (TestTable testTable = new TestTable(getQueryRunner()::execute, "distinct_strings", "(t_char CHAR(5), t_varchar VARCHAR(5))", rows)) {
             if (!(hasBehavior(SUPPORTS_AGGREGATION_PUSHDOWN) && hasBehavior(SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_INEQUALITY))) {
                 // disabling hash generation to prevent extra projections in the plan which make it hard to write matchers for isNotFullyPushedDown

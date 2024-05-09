@@ -2031,6 +2031,7 @@ public class TestPinotConnectorSmokeTest
         Session withPreAggregate = Session.builder(getSession())
                 .setSystemProperty(DISTINCT_AGGREGATIONS_STRATEGY, "pre_aggregate")
                 .build();
+
         // Aggregation is not pushed down for queries with count distinct and other aggregations
         countDistinctAndNonDistinctNotPushedDown(
                 withMarkDistinct,
