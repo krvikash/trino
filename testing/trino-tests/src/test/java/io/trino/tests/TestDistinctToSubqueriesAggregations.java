@@ -26,7 +26,7 @@ public class TestDistinctToSubqueriesAggregations
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        // using memory connector, because it supports efficient single column reads
+        // using memory connector, because it enables ConnectorMetadata#allowSplittingReadIntoMultipleSubQueries
         return MemoryQueryRunner.builder()
                 .setInitialTables(TpchTable.getTables())
                 .setCoordinatorProperties(ImmutableMap.of("optimizer.distinct-aggregations-strategy", "split_to_subqueries"))
