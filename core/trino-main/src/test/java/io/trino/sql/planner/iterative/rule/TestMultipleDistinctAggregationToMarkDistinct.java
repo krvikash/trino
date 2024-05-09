@@ -16,7 +16,6 @@ package io.trino.sql.planner.iterative.rule;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.cost.TaskCountEstimator;
-import io.trino.metadata.Metadata;
 import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Reference;
@@ -29,7 +28,6 @@ import org.junit.jupiter.api.Test;
 import java.util.Optional;
 
 import static io.trino.SystemSessionProperties.DISTINCT_AGGREGATIONS_STRATEGY;
-import static io.trino.metadata.MetadataManager.createTestMetadataManager;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.IntegerType.INTEGER;
@@ -47,7 +45,6 @@ public class TestMultipleDistinctAggregationToMarkDistinct
 {
     private static final int NODES_COUNT = 4;
     private static final TaskCountEstimator TASK_COUNT_ESTIMATOR = new TaskCountEstimator(() -> NODES_COUNT);
-    private static final Metadata METADATA = createTestMetadataManager();
 
     @Test
     public void testNoDistinct()
@@ -68,7 +65,7 @@ public class TestMultipleDistinctAggregationToMarkDistinct
     @Test
     public void testSingleDistinct()
     {
-        tester().assertThat(new MultipleDistinctAggregationToMarkDistinct(TASK_COUNT_ESTIMATOR, METADATA))
+        tester().assertThat(new MultipleDistinctAggregationToMarkDistinct(TASK_COUNT_ESTIMATOR))
                 .setSystemProperty(DISTINCT_AGGREGATIONS_STRATEGY, "mark_distinct")
                 .on(p -> p.aggregation(builder -> builder
                         .globalGrouping()
@@ -83,7 +80,7 @@ public class TestMultipleDistinctAggregationToMarkDistinct
     @Test
     public void testMultipleAggregations()
     {
-        tester().assertThat(new MultipleDistinctAggregationToMarkDistinct(TASK_COUNT_ESTIMATOR, METADATA))
+        tester().assertThat(new MultipleDistinctAggregationToMarkDistinct(TASK_COUNT_ESTIMATOR))
                 .setSystemProperty(DISTINCT_AGGREGATIONS_STRATEGY, "mark_distinct")
                 .on(p -> p.aggregation(builder -> builder
                         .globalGrouping()
@@ -97,7 +94,7 @@ public class TestMultipleDistinctAggregationToMarkDistinct
     @Test
     public void testDistinctWithFilter()
     {
-        tester().assertThat(new MultipleDistinctAggregationToMarkDistinct(TASK_COUNT_ESTIMATOR, METADATA))
+        tester().assertThat(new MultipleDistinctAggregationToMarkDistinct(TASK_COUNT_ESTIMATOR))
                 .setSystemProperty(DISTINCT_AGGREGATIONS_STRATEGY, "mark_distinct")
                 .on(p -> p.aggregation(builder -> builder
                         .globalGrouping()
@@ -120,7 +117,7 @@ public class TestMultipleDistinctAggregationToMarkDistinct
                                                 p.symbol("input2", BIGINT))))))
                 .doesNotFire();
 
-        tester().assertThat(new MultipleDistinctAggregationToMarkDistinct(TASK_COUNT_ESTIMATOR, METADATA))
+        tester().assertThat(new MultipleDistinctAggregationToMarkDistinct(TASK_COUNT_ESTIMATOR))
                 .setSystemProperty(DISTINCT_AGGREGATIONS_STRATEGY, "mark_distinct")
                 .on(p -> p.aggregation(builder -> builder
                         .globalGrouping()
@@ -143,7 +140,7 @@ public class TestMultipleDistinctAggregationToMarkDistinct
     @Test
     public void testGlobalAggregation()
     {
-        tester().assertThat(new MultipleDistinctAggregationToMarkDistinct(TASK_COUNT_ESTIMATOR, METADATA))
+        tester().assertThat(new MultipleDistinctAggregationToMarkDistinct(TASK_COUNT_ESTIMATOR))
                 .setSystemProperty(DISTINCT_AGGREGATIONS_STRATEGY, "mark_distinct")
                 .on(p -> p.aggregation(builder -> builder
                         .globalGrouping()
