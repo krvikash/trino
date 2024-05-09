@@ -315,6 +315,7 @@ public class Chunk
         {
             chunkSliceLeases.forEach(SliceLease::release);
             chunkSliceLeases.clear();
+            completedSlices.clear();
         }
 
         private class ChunkWriteFuture
