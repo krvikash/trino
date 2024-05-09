@@ -409,7 +409,6 @@ public class DataResource
                                         if (!asyncResponse.isDone()) {
                                             asyncResponse.resume(errorResponse(new TimeoutException("Exceeded deadline")));
                                         }
-                                        sliceLease.cancel();
                                         break;
                                     }
                                     if (bytesRead < contentLength) {
