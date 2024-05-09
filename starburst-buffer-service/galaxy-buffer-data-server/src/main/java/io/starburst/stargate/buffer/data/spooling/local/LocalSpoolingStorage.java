@@ -87,9 +87,9 @@ public class LocalSpoolingStorage
                 int length = chunkDataLease.serializedSizeInBytes();
                 spooledChunkMap.put(chunk.getChunkId(), new SpooledChunk(mergedFile.getPath(), offset, length));
                 offset += length;
-                sliceOutput.writeLong(chunkDataLease.checksum());
-                sliceOutput.writeInt(chunkDataLease.numDataPages());
-                chunkDataLease.chunkSlices().forEach(sliceOutput::writeBytes);
+                sliceOutput.writeLong(chunkDataLease.getChecksum());
+                sliceOutput.writeInt(chunkDataLease.getNumDataPages());
+                chunkDataLease.getChunkSlices().forEach(sliceOutput::writeBytes);
             }
         }
         catch (IOException e) {

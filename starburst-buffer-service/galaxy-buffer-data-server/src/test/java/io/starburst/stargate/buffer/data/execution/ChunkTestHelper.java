@@ -29,9 +29,9 @@ public final class ChunkTestHelper
 
     public static void verifyChunkData(ChunkDataLease chunkData, DataPage... values)
     {
-        List<Slice> chunkSlices = chunkData.chunkSlices();
-        long checksum = chunkData.checksum();
-        int numDataPages = chunkData.numDataPages();
+        List<Slice> chunkSlices = chunkData.getChunkSlices();
+        long checksum = chunkData.getChecksum();
+        int numDataPages = chunkData.getNumDataPages();
 
         SliceOutput sliceOutput = Slices.allocate(chunkSlices.stream().mapToInt(Slice::length).sum()).getOutput();
         chunkSlices.forEach(sliceOutput::writeBytes);

@@ -14,29 +14,49 @@ import io.airlift.slice.Slice;
 
 import java.util.List;
 
+import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 
-public record ChunkDataLease(
-        List<Slice> chunkSlices,
-        long checksum,
-        int numDataPages,
-        Runnable releaseCallback)
+public class ChunkDataLease
 {
+    private List<Slice> chunkSlices;
+    private final long checksum;
+    private final int numDataPages;
+    private final Runnable releaseCallback;
     public static final int CHUNK_SLICES_METADATA_SIZE = Long.BYTES + Integer.BYTES;
 
-    public ChunkDataLease
+    public ChunkDataLease(List<Slice> chunkSlices, long checksum, int numDataPages, Runnable releaseCallback)
     {
-        chunkSlices = ImmutableList.copyOf(requireNonNull(chunkSlices, "chunkSlices is null"));
-        requireNonNull(releaseCallback, "releaseCallback is null");
+        this.chunkSlices = ImmutableList.copyOf(requireNonNull(chunkSlices, "chunkSlices is null"));
+        this.checksum = checksum;
+        this.numDataPages = numDataPages;
+        this.releaseCallback = requireNonNull(releaseCallback, "releaseCallback is null");
+    }
+
+    public List<Slice> getChunkSlices()
+    {
+        checkState(chunkSlices != null, "already relesed");
+        return chunkSlices;
+    }
+
+    public long getChecksum()
+    {
+        return checksum;
+    }
+
+    public int getNumDataPages()
+    {
+        return numDataPages;
     }
 
     public int serializedSizeInBytes()
     {
-        return chunkSlices.stream().mapToInt(Slice::length).sum() + CHUNK_SLICES_METADATA_SIZE;
+        return getChunkSlices().stream().mapToInt(Slice::length).sum() + CHUNK_SLICES_METADATA_SIZE;
     }
 
     public void release()
     {
         releaseCallback.run();
+        chunkSlices = null; // ensure no dangling reference
     }
 }

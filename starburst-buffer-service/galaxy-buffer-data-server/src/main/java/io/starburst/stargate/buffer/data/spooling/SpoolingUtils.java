@@ -71,10 +71,10 @@ public final class SpoolingUtils
     public static void writeChunkDataLease(ChunkDataLease chunkDataLease, Consumer<ByteBuffer> consumer)
     {
         SliceOutput sliceOutput = Slices.allocate(CHUNK_FILE_HEADER_SIZE).getOutput();
-        sliceOutput.writeLong(chunkDataLease.checksum());
-        sliceOutput.writeInt(chunkDataLease.numDataPages());
+        sliceOutput.writeLong(chunkDataLease.getChecksum());
+        sliceOutput.writeInt(chunkDataLease.getNumDataPages());
         consumer.accept(ByteBuffer.wrap(sliceOutput.slice().byteArray()));
-        for (Slice chunkSlice : chunkDataLease.chunkSlices()) {
+        for (Slice chunkSlice : chunkDataLease.getChunkSlices()) {
             consumer.accept(ByteBuffer.wrap(chunkSlice.byteArray(), chunkSlice.byteArrayOffset(), chunkSlice.length()));
         }
     }

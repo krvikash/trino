@@ -669,12 +669,12 @@ public class DataResource
 
         Slice metaDataSlice = Slices.allocate(CHUNK_SLICES_METADATA_SIZE);
         SliceOutput sliceOutput = metaDataSlice.getOutput();
-        sliceOutput.writeLong(chunkDataLease.checksum());
-        sliceOutput.writeInt(chunkDataLease.numDataPages());
+        sliceOutput.writeLong(chunkDataLease.getChecksum());
+        sliceOutput.writeInt(chunkDataLease.getNumDataPages());
 
-        ArrayDeque<Slice> sliceQueue = new ArrayDeque<>(chunkDataLease.chunkSlices().size() + 1);
+        ArrayDeque<Slice> sliceQueue = new ArrayDeque<>(chunkDataLease.getChunkSlices().size() + 1);
         sliceQueue.add(metaDataSlice);
-        sliceQueue.addAll(chunkDataLease.chunkSlices());
+        sliceQueue.addAll(chunkDataLease.getChunkSlices());
 
         outputStream.setWriteListener(new WriteListener() {
             private boolean done;
