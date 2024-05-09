@@ -64,7 +64,7 @@ public class DiscoveryFilter
         try {
             GlobPattern globPattern = new GlobPattern(pattern);
 
-            return location -> globPattern.matches(location.path());
+            return location -> globPattern.matches(location.toString());
         }
         catch (IllegalArgumentException | UnsupportedOperationException e) {
             throw new TrinoException(BAD_FILTER, "Bad GLOB pattern: " + pattern, e);
