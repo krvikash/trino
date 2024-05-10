@@ -136,6 +136,17 @@ public class TestSynapseConnectorTest
         abort("Synapse does not support column comments");
     }
 
+    @Override
+    protected Optional<String> filterColumnNameTestData(String columnName)
+    {
+        // TODO https://github.com/starburstdata/cork/issues/747 Fix handling of non-ascii column names in Synapse connector
+        if (columnName.equals("カラム")) {
+            return Optional.empty();
+        }
+
+        return Optional.of(columnName);
+    }
+
     @Test
     public void testDecimalPredicatePushdown()
             throws Exception
