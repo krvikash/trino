@@ -111,7 +111,7 @@ public class BenchmarkColumnarFilter
             RowExpression getExpression(Type type)
             {
                 return call(
-                        FUNCTION_RESOLUTION.resolveFunction("not", fromTypes(BOOLEAN)),
+                        FUNCTION_RESOLUTION.resolveFunction("$not", fromTypes(BOOLEAN)),
                         new SpecialForm(
                                 SpecialForm.Form.IS_NULL,
                                 BOOLEAN,

@@ -609,7 +609,7 @@ public final class CommonSubqueriesExtractor
         TupleDomain<CacheColumnId> remainingTupleDomain = extractedTupleDomain
                 .filter((columnId, domain) -> !retainedColumnIds.contains(columnId));
         if (!remainingTupleDomain.isAll() || !extractionResult.getRemainingExpression().equals(TRUE)) {
-            Expression remainingDomainExpression = DomainTranslator.toPredicate(
+            Expression remainingDomainExpression = new DomainTranslator(plannerContext.getMetadata()).toPredicate(
                     remainingTupleDomain.transformKeys(id -> columnIdToSymbol(id, commonColumnIds.get(id).type())));
             signatureKey = combine(
                     signatureKey,

@@ -458,7 +458,7 @@ public class TestColumnarFilters
 
     private static RowExpression createNotExpression(RowExpression expression)
     {
-        return call(FUNCTION_RESOLUTION.resolveFunction("not", fromTypes(BOOLEAN)), expression);
+        return call(FUNCTION_RESOLUTION.resolveFunction("$not", fromTypes(BOOLEAN)), expression);
     }
 
     private static List<Page> processFilter(List<Page> inputPages, boolean columnarEvaluationEnabled, RowExpression filter)

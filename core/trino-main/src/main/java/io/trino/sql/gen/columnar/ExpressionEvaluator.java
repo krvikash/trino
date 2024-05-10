@@ -62,8 +62,8 @@ public interface ExpressionEvaluator
     {
         if (rowExpression instanceof CallExpression callExpression) {
             if (isNotExpression(callExpression)) {
-                // "not(is_null(input_reference))" is handled explicitly as it is easy.
-                // more generic cases like "not(equal(input_reference, constant))" are not handled yet
+                // "$not(is_null(input_reference))" is handled explicitly as it is easy.
+                // more generic cases like "$not(equal(input_reference, constant))" are not handled yet
                 if (callExpression.arguments().get(0) instanceof SpecialForm specialFormArg && specialFormArg.form() == IS_NULL) {
                     return createIsNotNullExpressionEvaluator(compiler, callExpression);
                 }
@@ -93,6 +93,6 @@ public interface ExpressionEvaluator
 
     static boolean isNotExpression(CallExpression callExpression)
     {
-        return callExpression.resolvedFunction().name().getFunctionName().equals("not");
+        return callExpression.resolvedFunction().name().getFunctionName().equals("$not");
     }
 }

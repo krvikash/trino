@@ -110,7 +110,6 @@ import io.trino.sql.ir.Cast;
 import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.IsNull;
-import io.trino.sql.ir.Not;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.PartitioningHandle;
 import io.trino.sql.planner.Symbol;
@@ -142,6 +141,8 @@ import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.ir.Booleans.TRUE;
 import static io.trino.sql.ir.Comparison.Operator.GREATER_THAN;
+import static io.trino.sql.ir.IrExpressions.not;
+import static io.trino.sql.planner.TestingPlannerContext.PLANNER_CONTEXT;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.aggregation;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.aggregationFunction;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.filter;
@@ -651,7 +652,7 @@ public class TestMultipleDistinctAggregationsToSubqueries
                             .source(
                                     p.filter(
                                             new PlanNodeId(filterId),
-                                            new Not(new IsNull(new Reference(VARCHAR, "filterInput"))),
+                                            not(PLANNER_CONTEXT.getMetadata(), new IsNull(new Reference(VARCHAR, "filterInput"))),
                                             p.tableScan(tableScan -> tableScan
                                                     .setNodeId(new PlanNodeId(aggregationSourceId))
                                                     .setTableHandle(testTableHandle(ruleTester))
@@ -687,7 +688,7 @@ public class TestMultipleDistinctAggregationsToSubqueries
                             .source(
                                     p.filter(
                                             new PlanNodeId(filterId),
-                                            new Not(new IsNull(new Reference(VARCHAR, "filterInput"))),
+                                            not(PLANNER_CONTEXT.getMetadata(), new IsNull(new Reference(VARCHAR, "filterInput"))),
                                             p.tableScan(tableScan -> tableScan
                                                     .setNodeId(new PlanNodeId(aggregationSourceId))
                                                     .setTableHandle(testTableHandle(ruleTester))
@@ -713,7 +714,7 @@ public class TestMultipleDistinctAggregationsToSubqueries
                                                 Optional.empty(),
                                                 SINGLE,
                                                 filter(
-                                                        new Not(new IsNull(new Reference(BIGINT, "left_filterInput"))),
+                                                        not(PLANNER_CONTEXT.getMetadata(), new IsNull(new Reference(BIGINT, "left_filterInput"))),
                                                         tableScan(
                                                                 TABLE_NAME,
                                                                 ImmutableMap.of(
@@ -726,7 +727,7 @@ public class TestMultipleDistinctAggregationsToSubqueries
                                                 Optional.empty(),
                                                 SINGLE,
                                                 filter(
-                                                        new Not(new IsNull(new Reference(BIGINT, "right_filterInput"))),
+                                                        not(PLANNER_CONTEXT.getMetadata(), new IsNull(new Reference(BIGINT, "right_filterInput"))),
                                                         tableScan(
                                                                 TABLE_NAME,
                                                                 ImmutableMap.of(
