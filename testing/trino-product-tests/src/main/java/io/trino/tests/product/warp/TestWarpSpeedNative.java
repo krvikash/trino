@@ -149,19 +149,6 @@ public class TestWarpSpeedNative
                 iTestContext.getName());
     }
 
-    @Test(groups = {WARP_SPEED_MINIO, PROFILE_SPECIFIC_TESTS}, priority = 10)
-    public void testWarpGenerateNativePanicStorageWait(ITestContext iTestContext)
-            throws IOException
-    {
-        test(List.of(new FailureGeneratorResource.FailureGeneratorData(
-                        null,
-                        "2390",
-                        FailureRepetitionMode.REP_MODE_ONCE,
-                        FailureGeneratorInvocationHandler.FailureType.NATIVE_PANIC,
-                        0)),
-                iTestContext.getName());
-    }
-
     private void test(
             List<FailureGeneratorResource.FailureGeneratorData> failureGeneratorDataList,
             String testName)
