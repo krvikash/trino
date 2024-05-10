@@ -20,6 +20,7 @@ import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.google.inject.Key;
 import com.google.inject.Module;
 import io.airlift.discovery.server.testing.TestingDiscoveryServer;
+import io.airlift.http.server.HttpServer;
 import io.airlift.log.Logger;
 import io.airlift.log.Logging;
 import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;
@@ -58,10 +59,13 @@ import io.trino.sql.planner.NodePartitioningManager;
 import io.trino.sql.planner.Plan;
 import io.trino.testing.containers.OpenTracingCollector;
 import io.trino.transaction.TransactionManager;
+import org.eclipse.jetty.server.Connector;
+import org.eclipse.jetty.server.Server;
 import org.intellij.lang.annotations.Language;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.lang.reflect.Field;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -80,6 +84,7 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Throwables.throwIfUnchecked;
 import static com.google.common.base.Verify.verify;
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.inject.util.Modules.EMPTY_MODULE;
 import static io.airlift.log.Level.DEBUG;
 import static io.airlift.log.Level.ERROR;
@@ -89,7 +94,9 @@ import static io.airlift.units.Duration.nanosSince;
 import static io.trino.execution.querystats.PlanOptimizersStatsCollector.createPlanOptimizersStatsCollector;
 import static java.lang.Boolean.parseBoolean;
 import static java.lang.System.getenv;
+import static java.util.Arrays.asList;
 import static java.util.Objects.requireNonNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class DistributedQueryRunner
         implements QueryRunner
@@ -101,7 +108,7 @@ public class DistributedQueryRunner
     private TestingDiscoveryServer discoveryServer;
     private TestingTrinoServer coordinator;
     private Optional<TestingTrinoServer> backupCoordinator;
-    private Runnable registerNewWorker;
+    private Consumer<Map<String, String>> registerNewWorker;
     private final InMemorySpanExporter spanExporter = InMemorySpanExporter.create();
     private final List<TestingTrinoServer> servers = new CopyOnWriteArrayList<>();
     private final List<FunctionBundle> functionBundles = new CopyOnWriteArrayList<>(ImmutableList.of(CustomFunctionBundle.CUSTOM_FUNCTIONS));
@@ -150,11 +157,14 @@ public class DistributedQueryRunner
             extraCloseables.forEach(closeable -> closer.register(() -> closeUnchecked(closeable)));
             log.debug("Created TestingDiscoveryServer in %s", nanosSince(discoveryStart));
 
-            registerNewWorker = () -> {
+            registerNewWorker = additionalWorkerProperties -> {
                 @SuppressWarnings("resource")
                 TestingTrinoServer ignored = createServer(
                         false,
-                        extraProperties,
+                        ImmutableMap.<String, String>builder()
+                                .putAll(extraProperties)
+                                .putAll(additionalWorkerProperties)
+                                .buildOrThrow(),
                         environment,
                         additionalModule,
                         baseDataDir,
@@ -164,7 +174,7 @@ public class DistributedQueryRunner
             };
 
             for (int i = 0; i < workerCount; i++) {
-                registerNewWorker.run();
+                registerNewWorker.accept(Map.of());
             }
 
             Map<String, String> extraCoordinatorProperties = new HashMap<>();
@@ -318,9 +328,35 @@ public class DistributedQueryRunner
     public void addServers(int nodeCount)
     {
         for (int i = 0; i < nodeCount; i++) {
-            registerNewWorker.run();
+            registerNewWorker.accept(Map.of());
         }
         ensureNodesGloballyVisible();
+    }
+
+    /**
+     * Simulate worker restart as e.g. in Kubernetes after a pod is killed.
+     */
+    public void restartWorker(TestingTrinoServer server)
+            throws Exception
+    {
+        URI baseUrl = server.getBaseUrl();
+        checkState(servers.remove(server), "Server not found: %s", server);
+        HttpServer workerHttpServer = server.getInstance(Key.get(HttpServer.class));
+        // Prevent any HTTP communication with the worker, as if the worker process was killed.
+        Field serverField = HttpServer.class.getDeclaredField("server");
+        serverField.setAccessible(true);
+        Connector httpConnector = getOnlyElement(asList(((Server) serverField.get(workerHttpServer)).getConnectors()));
+        httpConnector.stop();
+        server.close();
+
+        Map<String, String> reusePort = Map.of("http-server.http.port", Integer.toString(baseUrl.getPort()));
+        registerNewWorker.accept(reusePort);
+        // Verify the address was reused.
+        assertThat(servers.stream()
+                .map(TestingTrinoServer::getBaseUrl)
+                .filter(baseUrl::equals))
+                .hasSize(1);
+        // Do not wait for new server to be fully registered with other servers
     }
 
     private void ensureNodesGloballyVisible()
@@ -596,7 +632,7 @@ public class DistributedQueryRunner
         discoveryServer = null;
         coordinator = null;
         backupCoordinator = Optional.empty();
-        registerNewWorker = () -> {
+        registerNewWorker = _ -> {
             throw new IllegalStateException("Already closed");
         };
         servers.clear();
