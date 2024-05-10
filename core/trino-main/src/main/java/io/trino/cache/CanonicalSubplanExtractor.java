@@ -23,6 +23,7 @@ import io.trino.Session;
 import io.trino.cache.CanonicalSubplan.AggregationKey;
 import io.trino.cache.CanonicalSubplan.CanonicalSubplanBuilder;
 import io.trino.cache.CanonicalSubplan.FilterProjectKey;
+import io.trino.cache.CanonicalSubplan.Key;
 import io.trino.cache.CanonicalSubplan.ScanFilterProjectKey;
 import io.trino.cache.CanonicalSubplan.TopNKey;
 import io.trino.metadata.TableHandle;
@@ -31,6 +32,7 @@ import io.trino.spi.cache.CacheTableId;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.SortOrder;
 import io.trino.spi.type.Type;
+import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.ExpressionFormatter;
 import io.trino.sql.ir.Lambda;
@@ -58,6 +60,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Predicates.instanceOf;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -399,9 +402,16 @@ public final class CanonicalSubplanExtractor
                 }
             }
 
+            // Unsafe expressions that could throw an error should be evaluated only for the rows from
+            // original subquery. Therefore, common subplan predicate must match original subplan predicate.
+            // If common subplan predicate is wider, then unsafe expressions could fail even though
+            // evaluation of the original subplan would be successful.
+            boolean safeProjections = node.getAssignments().getExpressions().stream().allMatch(this::isSafeExpression);
+            Set<Expression> requiredConjuncts = !safeProjections ? subplan.getPullableConjuncts() : ImmutableSet.of();
+
             CanonicalSubplanBuilder builder = extendSubplan ?
-                    CanonicalSubplan.builderExtending(subplan) :
-                    CanonicalSubplan.builderForChildSubplan(new FilterProjectKey(), subplan);
+                    CanonicalSubplan.builderExtending(setRequiredConjuncts(subplan.getKey(), requiredConjuncts), subplan) :
+                    CanonicalSubplan.builderForChildSubplan(new FilterProjectKey(requiredConjuncts), subplan);
             return Optional.of(builder
                     .originalPlanNode(node)
                     .originalSymbolMapping(symbolMappingBuilder.buildOrThrow())
@@ -409,6 +419,29 @@ public final class CanonicalSubplanExtractor
                     // all symbols (and thus conjuncts) are pullable through projection
                     .pullableConjuncts(subplan.getPullableConjuncts())
                     .build());
+        }
+
+        private Key setRequiredConjuncts(Key key, Set<Expression> requiredConjuncts)
+        {
+            switch (key) {
+                case ScanFilterProjectKey scanFilterProjectKey -> {
+                    checkArgument(scanFilterProjectKey.requiredConjuncts().isEmpty());
+                    return new ScanFilterProjectKey(scanFilterProjectKey.tableId(), requiredConjuncts);
+                }
+                case FilterProjectKey filterProjectKey -> {
+                    checkArgument(filterProjectKey.requiredConjuncts().isEmpty());
+                    return new FilterProjectKey(requiredConjuncts);
+                }
+                default -> throw new IllegalStateException("Unsupported key type: " + key);
+            }
+        }
+
+        /**
+         * Returns true if evaluation of expression shouldn't throw an exception.
+         */
+        private boolean isSafeExpression(Expression expression)
+        {
+            return expression instanceof Reference || expression instanceof Constant;
         }
 
         @Override
@@ -460,7 +493,7 @@ public final class CanonicalSubplanExtractor
 
             CanonicalSubplanBuilder builder = extendSubplan ?
                     CanonicalSubplan.builderExtending(subplan) :
-                    CanonicalSubplan.builderForChildSubplan(new FilterProjectKey(), subplan);
+                    CanonicalSubplan.builderForChildSubplan(new FilterProjectKey(ImmutableSet.of()), subplan);
             return Optional.of(builder
                     .originalPlanNode(node)
                     .originalSymbolMapping(subplan.getOriginalSymbolMapping())
@@ -534,7 +567,7 @@ public final class CanonicalSubplanExtractor
                     id -> CacheExpression.ofProjection(columnIdToSymbol(id, symbolMapping.get(id).type()).toSymbolReference())));
 
             return Optional.of(CanonicalSubplan.builderForTableScan(
-                            new ScanFilterProjectKey(tableId.get()),
+                            new ScanFilterProjectKey(tableId.get(), ImmutableSet.of()),
                             columnHandles,
                             canonicalTableHandle,
                             tableId.get(),

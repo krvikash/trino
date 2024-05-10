@@ -284,8 +284,13 @@ public class CanonicalSubplan
 
     public static CanonicalSubplanBuilder builderExtending(CanonicalSubplan subplan)
     {
+        return builderExtending(subplan.getKey(), subplan);
+    }
+
+    public static CanonicalSubplanBuilder builderExtending(Key key, CanonicalSubplan subplan)
+    {
         requireNonNull(subplan, "subplan is null");
-        return new CanonicalSubplanBuilder(subplan.getKey(), subplan.getTableScanId(), subplan.getTableScan(), subplan.getChildSubplan())
+        return new CanonicalSubplanBuilder(key, subplan.getTableScanId(), subplan.getTableScan(), subplan.getChildSubplan())
                 .conjuncts(subplan.getConjuncts())
                 .dynamicConjuncts(subplan.getDynamicConjuncts());
     }
@@ -378,10 +383,10 @@ public class CanonicalSubplan
         }
     }
 
-    public record ScanFilterProjectKey(CacheTableId tableId)
+    public record ScanFilterProjectKey(CacheTableId tableId, Set<Expression> requiredConjuncts)
             implements CanonicalSubplan.Key {}
 
-    public record FilterProjectKey()
+    public record FilterProjectKey(Set<Expression> requiredConjuncts)
             implements CanonicalSubplan.Key {}
 
     public record AggregationKey(Set<CacheColumnId> groupByColumns, Set<Expression> nonPullableConjuncts)
@@ -398,5 +403,6 @@ public class CanonicalSubplan
             int maxRankingPerPartition,
             Set<Expression> nonPullableConjuncts)
             implements CanonicalSubplan.Key {}
+
     public interface Key {}
 }

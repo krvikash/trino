@@ -21,6 +21,7 @@ import com.google.common.collect.ImmutableSet;
 import io.trino.Session;
 import io.trino.cache.CanonicalSubplan.AggregationKey;
 import io.trino.cache.CanonicalSubplan.FilterProjectKey;
+import io.trino.cache.CanonicalSubplan.Key;
 import io.trino.cache.CanonicalSubplan.ScanFilterProjectKey;
 import io.trino.cache.CanonicalSubplan.TableScan;
 import io.trino.cache.CanonicalSubplan.TopNKey;
@@ -70,6 +71,7 @@ import java.util.Optional;
 import java.util.function.Function;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.Iterables.getLast;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.SystemSessionProperties.TASK_CONCURRENCY;
@@ -94,6 +96,7 @@ import static io.trino.testing.TestingSession.testSessionBuilder;
 import static java.util.Map.entry;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 public class TestCanonicalSubplanExtractor
         extends BasePlanTest
@@ -151,7 +154,8 @@ public class TestCanonicalSubplanExtractor
         Expression nonPullableConjunct = new Comparison(GREATER_THAN, REGIONKEY_REF, new Constant(BIGINT, 10L));
         Expression pullableConjunct = new Comparison(EQUAL, NAME_REF, new Constant(createVarcharType(25), utf8Slice("0123456789012345689012345")));
         CanonicalSubplan nonAggregatedSubplan = subplans.get(0);
-        assertThat(nonAggregatedSubplan.getKeyChain()).containsExactly(new ScanFilterProjectKey(tableId));
+        ScanFilterProjectKey scanFilterProjectKey = new ScanFilterProjectKey(tableId, ImmutableSet.of(nonPullableConjunct, pullableConjunct));
+        assertThat(nonAggregatedSubplan.getKeyChain()).containsExactly(scanFilterProjectKey);
         assertThat(nonAggregatedSubplan.getGroupByColumns()).isEmpty();
         assertThat(nonAggregatedSubplan.getConjuncts()).containsExactly(nonPullableConjunct, pullableConjunct);
         assertThat(nonAggregatedSubplan.getPullableConjuncts()).containsExactlyElementsOf(nonAggregatedSubplan.getConjuncts());
@@ -177,7 +181,7 @@ public class TestCanonicalSubplanExtractor
                 Optional.of(columnIdToSymbol(regionKeyGreaterThan10, BOOLEAN)),
                 List.of(NATIONKEY_REF));
         CanonicalSubplan aggregatedSubplan = subplans.get(1);
-        assertThat(aggregatedSubplan.getKeyChain()).containsExactly(new ScanFilterProjectKey(tableId), new AggregationKey(aggregatedSubplan.getGroupByColumns().get(), ImmutableSet.of(nonPullableConjunct)));
+        assertThat(aggregatedSubplan.getKeyChain()).containsExactly(scanFilterProjectKey, new AggregationKey(aggregatedSubplan.getGroupByColumns().get(), ImmutableSet.of(nonPullableConjunct)));
         assertThat(aggregatedSubplan.getConjuncts()).isEmpty();
         assertThat(aggregatedSubplan.getPullableConjuncts()).containsExactly(pullableConjunct);
         assertThat(aggregatedSubplan.getDynamicConjuncts()).isEmpty();
@@ -214,7 +218,7 @@ public class TestCanonicalSubplanExtractor
         CacheTableId tableId = new CacheTableId(tpchCatalogId + ":tiny:nation:0.01");
         CacheColumnId nationKeyPlusOne = canonicalExpressionToColumnId(new Call(ADD_BIGINT, ImmutableList.of(NATIONKEY_REF, new Constant(BIGINT, 1L))));
         CanonicalSubplan nonAggregatedSubplan = subplans.get(0);
-        assertThat(nonAggregatedSubplan.getKeyChain()).containsExactly(new ScanFilterProjectKey(tableId));
+        assertThat(nonAggregatedSubplan.getKeyChain()).containsExactly(new ScanFilterProjectKey(tableId, ImmutableSet.of()));
         assertThat(nonAggregatedSubplan.getGroupByColumns()).isEmpty();
         assertThat(nonAggregatedSubplan.getAssignments()).containsExactly(
                 entry(nationKeyPlusOne, CacheExpression.ofProjection(new Call(ADD_BIGINT, ImmutableList.of(NATIONKEY_REF, new Constant(BIGINT, 1L))))),
@@ -233,7 +237,7 @@ public class TestCanonicalSubplanExtractor
                 Optional.empty(),
                 List.of(columnIdToSymbol(nationKeyPlusOne, BIGINT).toSymbolReference()));
         CanonicalSubplan aggregatedSubplan = subplans.get(1);
-        assertThat(aggregatedSubplan.getKeyChain()).containsExactly(new ScanFilterProjectKey(tableId), new AggregationKey(aggregatedSubplan.getGroupByColumns().get(), ImmutableSet.of()));
+        assertThat(aggregatedSubplan.getKeyChain()).containsExactly(new ScanFilterProjectKey(tableId, ImmutableSet.of()), new AggregationKey(aggregatedSubplan.getGroupByColumns().get(), ImmutableSet.of()));
         assertThat(aggregatedSubplan.getOriginalPlanNode()).isInstanceOf(AggregationNode.class);
         assertThat(getGroupByExpressions(aggregatedSubplan)).contains(ImmutableList.of(NAME_REF, REGIONKEY_REF));
         assertThat(aggregatedSubplan.getOriginalSymbolMapping()).containsOnlyKeys(
@@ -266,7 +270,8 @@ public class TestCanonicalSubplanExtractor
         Expression regionKeyPredicate = new Comparison(GREATER_THAN, REGIONKEY_REF, new Constant(BIGINT, 10L));
         CacheTableId tableId = new CacheTableId(tpchCatalogId + ":tiny:nation:0.01");
         CanonicalSubplan nestedSubplan = subplans.get(0);
-        assertThat(nestedSubplan.getKeyChain()).containsExactly(new ScanFilterProjectKey(tableId));
+        ScanFilterProjectKey scanFilterProjectKey = new ScanFilterProjectKey(tableId, ImmutableSet.of(regionKeyPredicate));
+        assertThat(nestedSubplan.getKeyChain()).containsExactly(scanFilterProjectKey);
         assertThat(nestedSubplan.getGroupByColumns()).isEmpty();
         assertThat(nestedSubplan.getConjuncts()).containsExactly(regionKeyPredicate);
         assertThat(nestedSubplan.getPullableConjuncts()).containsExactly(regionKeyPredicate);
@@ -281,7 +286,7 @@ public class TestCanonicalSubplanExtractor
         Reference nationKeyMultiplyBy2Reference = columnIdToSymbol(canonicalExpressionToColumnId(nationKeyMultiplyBy2), BIGINT).toSymbolReference();
         Expression nationKeyPredicate = new Comparison(GREATER_THAN, new Call(ADD_BIGINT, ImmutableList.of(nationKeyMultiplyBy2Reference, nationKeyMultiplyBy2Reference)), new Constant(BIGINT, 10L));
         CanonicalSubplan topSubplan = subplans.get(1);
-        assertThat(topSubplan.getKeyChain()).containsExactly(new ScanFilterProjectKey(tableId), new FilterProjectKey());
+        assertThat(topSubplan.getKeyChain()).containsExactly(scanFilterProjectKey, new FilterProjectKey(ImmutableSet.of()));
         assertThat(topSubplan.getConjuncts()).containsExactly(nationKeyPredicate);
         assertThat(topSubplan.getPullableConjuncts()).containsExactly(regionKeyPredicate, nationKeyPredicate);
         assertThat(topSubplan.getDynamicConjuncts()).isEmpty();
@@ -289,6 +294,50 @@ public class TestCanonicalSubplanExtractor
         assertThat(topSubplan.getChildSubplan()).contains(nestedSubplan);
         assertThat(topSubplan.getAssignments()).containsExactly(
                 entry(REGIONKEY_ID, CacheExpression.ofProjection(REGIONKEY_REF)));
+    }
+
+    @Test
+    public void testUnsafeProjections()
+    {
+        // nationkey * 2 is unsafe expression
+        assertRequiredConjuncts(
+                "SELECT nationkey * 2 FROM nation WHERE regionkey > 10",
+                ScanFilterProjectKey.class,
+                new Comparison(GREATER_THAN, REGIONKEY_REF, new Constant(BIGINT, 10L)));
+        // nationkey is reference, therefore it's safe expression
+        assertRequiredConjuncts(
+                "SELECT nationkey FROM nation WHERE regionkey > 10",
+                ScanFilterProjectKey.class);
+        // nested projection; nationkey_mul is reference; "nationkey_mul * nationkey_mul > 10" is not pushed to table scan level
+        // therefore nationkey * nationkey (potentially unsafe) is evaluated for every input row
+        assertRequiredConjuncts(
+                "SELECT nationkey_mul FROM (SELECT nationkey * nationkey as nationkey_mul FROM nation) WHERE nationkey_mul * nationkey_mul > 10",
+                FilterProjectKey.class);
+        // nationkey * nationkey is unsafe expression
+        Symbol nationKeyMul = columnIdToSymbol(canonicalExpressionToColumnId(new Call(MULTIPLY_BIGINT, ImmutableList.of(NATIONKEY_REF, NATIONKEY_REF))), BIGINT);
+        Expression nationKeyMulMul = new Call(MULTIPLY_BIGINT, ImmutableList.of(nationKeyMul.toSymbolReference(), nationKeyMul.toSymbolReference()));
+        assertRequiredConjuncts(
+                "SELECT nationkey_mul * nationkey_mul FROM (SELECT nationkey * nationkey as nationkey_mul FROM nation) WHERE nationkey_mul * nationkey_mul > 10",
+                FilterProjectKey.class,
+                new Comparison(GREATER_THAN, nationKeyMulMul, new Constant(BIGINT, 10L)));
+    }
+
+    private void assertRequiredConjuncts(@Language("SQL") String query, Class<? extends Key> keyType, Expression... expectedConjuncts)
+    {
+        List<CanonicalSubplan> subplans = extractCanonicalSubplansForQuery(query);
+        assertThat(subplans).isNotEmpty();
+        CanonicalSubplan topLevelSubplan = getLast(subplans);
+        Key topLevelKey = topLevelSubplan.getKey();
+        assertThat(topLevelKey).isInstanceOf(keyType);
+        switch (topLevelKey) {
+            case ScanFilterProjectKey scanFilterProjectKey -> {
+                assertThat(scanFilterProjectKey.requiredConjuncts()).containsExactly(expectedConjuncts);
+            }
+            case FilterProjectKey filterProjectKey -> {
+                assertThat(filterProjectKey.requiredConjuncts()).containsExactly(expectedConjuncts);
+            }
+            default -> fail("Unexpected key type: " + topLevelKey.getClass());
+        }
     }
 
     @Test

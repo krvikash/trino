@@ -347,6 +347,79 @@ public class TestCommonSubqueriesExtractor
     }
 
     @Test
+    public void testUnsafeProjections()
+    {
+        // safe projections are matched when predicate is different
+        assertAdaptationCount(2, """
+                SELECT nationkey FROM nation WHERE regionkey > 20
+                UNION ALL
+                SELECT regionkey FROM nation WHERE regionkey > 10
+                """);
+        assertAdaptationCount(2, """
+                SELECT nationkey FROM nation WHERE regionkey > 20
+                UNION ALL
+                SELECT regionkey FROM nation
+                """);
+        // different unsafe projections are not matched when predicate is different
+        assertAdaptationCount(0, """
+                SELECT nationkey * 2 FROM nation WHERE regionkey > 20
+                UNION ALL
+                SELECT regionkey * 2 FROM nation WHERE regionkey > 10
+                """);
+        assertAdaptationCount(0, """
+                SELECT nationkey * 2 FROM nation WHERE regionkey > 20
+                UNION ALL
+                SELECT regionkey * 2 FROM nation
+                """);
+        // same unsafe projections are not matched when predicate is different
+        assertAdaptationCount(0, """
+                SELECT nationkey * 2 FROM nation WHERE regionkey > 20
+                UNION ALL
+                SELECT nationkey * 2 FROM nation WHERE regionkey > 10
+                """);
+        // common subquery for different unsafe projections with same predicate is extracted
+        assertAdaptationCount(2, """
+                SELECT nationkey * 2 FROM nation WHERE regionkey > 20
+                UNION ALL
+                SELECT nationkey * 2 FROM nation WHERE regionkey > 10
+                UNION ALL
+                SELECT regionkey * 2 FROM nation WHERE regionkey > 10
+                """);
+        // different unsafe projections with same predicate are matched
+        assertAdaptationCount(2, """
+                SELECT nationkey * 2 FROM nation WHERE regionkey > 20
+                UNION ALL
+                SELECT regionkey * 2 FROM nation WHERE regionkey > 20
+                """);
+        // unsafe projections are not matched with safe projections even if predicates are same
+        assertAdaptationCount(0, """
+                SELECT nationkey * 2 FROM nation WHERE regionkey > 20
+                UNION ALL
+                SELECT regionkey FROM nation WHERE regionkey > 20
+                """);
+        // common subquery for safe projections with different predicates is extracted
+        assertAdaptationCount(2, """
+                SELECT nationkey * 2 FROM nation WHERE regionkey > 20
+                UNION ALL
+                SELECT regionkey FROM nation WHERE regionkey > 20
+                UNION ALL
+                SELECT regionkey FROM nation WHERE regionkey > 10
+                """);
+        // unsafe projections are matched with safe projections if there is no predicate
+        assertAdaptationCount(2, """
+                SELECT nationkey * 2 FROM nation
+                UNION ALL
+                SELECT regionkey FROM nation
+                """);
+    }
+
+    private void assertAdaptationCount(int size, @Language("SQL") String query)
+    {
+        CommonSubqueries commonSubqueries = extractTpchCommonSubqueries(query);
+        assertThat(commonSubqueries.planAdaptations()).hasSize(size);
+    }
+
+    @Test
     public void testCacheTopNRankingRank()
     {
         CommonSubqueries commonSubqueries = extractTpchCommonSubqueries("""
@@ -1388,7 +1461,7 @@ public class TestCommonSubqueriesExtractor
                 new PlanNodeId("projectA"),
                 filterA,
                 Assignments.of(
-                        subqueryAProjection1, new Call(MULTIPLY_BIGINT, ImmutableList.of(new Reference(BIGINT, "subquery_a_column1"), new Constant(BIGINT, 10L))),
+                        subqueryAProjection1, new Constant(BIGINT, 10L),
                         subqueryAColumn1, new Reference(BIGINT, "subquery_a_column1")));
 
         Symbol subqueryBColumn1 = symbolAllocator.newSymbol("subquery_b_column1", BIGINT);
@@ -1419,7 +1492,7 @@ public class TestCommonSubqueriesExtractor
                 new PlanNodeId("projectB"),
                 filterB,
                 Assignments.of(
-                        subqueryBProjection1, new Call(MULTIPLY_BIGINT, ImmutableList.of(new Reference(BIGINT, "subquery_b_column1"), new Constant(BIGINT, 10L)))));
+                        subqueryBProjection1, new Constant(BIGINT, 10L)));
 
         PlanNodeIdAllocator idAllocator = new PlanNodeIdAllocator();
         Map<PlanNode, CommonPlanAdaptation> planAdaptations = extractCommonSubqueries(
@@ -1448,7 +1521,7 @@ public class TestCommonSubqueriesExtractor
         PlanMatchPattern commonSubplan = strictProject(
                 ImmutableMap.of(
                         "column1", PlanMatchPattern.expression(new Reference(BIGINT, "column1")),
-                        "projection", PlanMatchPattern.expression(new Call(MULTIPLY_BIGINT, ImmutableList.of(new Reference(BIGINT, "column1"), new Constant(BIGINT, 10L))))),
+                        "projection", PlanMatchPattern.expression(new Constant(BIGINT, 10L))),
                 filter(
                         new Logical(OR, ImmutableList.of(
                                 new Comparison(EQUAL, new Call(MODULUS_BIGINT, ImmutableList.of(new Reference(BIGINT, "column1"), new Constant(BIGINT, 4L))), new Constant(BIGINT, 0L)),
@@ -1523,7 +1596,7 @@ public class TestCommonSubqueriesExtractor
 
         // make sure plan signatures are same
         assertThat(subqueryA.getCommonSubplanSignature()).isEqualTo(subqueryB.getCommonSubplanSignature());
-        List<CacheColumnId> cacheColumnIds = ImmutableList.of(canonicalExpressionToColumnId(new Call(MULTIPLY_BIGINT, ImmutableList.of(new Reference(BIGINT, "[cache_column1]"), new Constant(BIGINT, 10L)))), column1);
+        List<CacheColumnId> cacheColumnIds = ImmutableList.of(canonicalExpressionToColumnId(new Constant(BIGINT, 10L)), column1);
         List<Type> cacheColumnsTypes = ImmutableList.of(BIGINT, BIGINT);
         assertThat(subqueryA.getCommonSubplanSignature()).isEqualTo(new PlanSignatureWithPredicate(new PlanSignature(
                 combine(scanFilterProjectKey(new CacheTableId(testTableHandle.catalogHandle().getId() + ":cache_table_id")), "filters=(($operator$modulus(\"[cache_column1]\", bigint '4') = bigint '0') OR ($operator$modulus(\"[cache_column2]\", bigint '2') = bigint '0'))"),

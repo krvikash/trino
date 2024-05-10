@@ -178,7 +178,7 @@ public class TestCacheController
     private static CanonicalSubplan createCanonicalTableScanSubplan()
     {
         return CanonicalSubplan.builderForTableScan(
-                        new ScanFilterProjectKey(TABLE_ID),
+                        new ScanFilterProjectKey(TABLE_ID, ImmutableSet.of()),
                         ImmutableMap.of(),
                         new TableHandle(createRootCatalogHandle(new CatalogName("catalog"), new CatalogVersion("version")), new ConnectorTableHandle() {}, new ConnectorTransactionHandle() {}),
                         TABLE_ID,

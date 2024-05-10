@@ -36,12 +36,13 @@ local exchange (GATHER, SINGLE, [])
                                             final aggregation over (ca_zip)
                                                 local exchange (REPARTITION, HASH, [ca_zip])
                                                     remote exchange (REPARTITION, HASH, [ca_zip_31])
-                                                        partial aggregation over (ca_zip_31)
-                                                            alternatives
+                                                        alternatives
+                                                            partial aggregation over (ca_zip_31)
                                                                 scan customer_address
-                                                                cache data
+                                                            cache data
+                                                                partial aggregation over (ca_zip_31)
                                                                     scan customer_address
-                                                                load from cache
+                                                            load from cache
                                                     remote exchange (REPARTITION, HASH, [ca_zip_34])
                                                         partial aggregation over (ca_zip_34)
                                                             final aggregation over (ca_zip_19)
