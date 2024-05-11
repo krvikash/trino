@@ -30,6 +30,7 @@ import io.trino.plugin.kafka.schema.ContentSchemaProvider;
 import io.trino.plugin.kafka.schema.MapBasedTableDescriptionSupplier;
 import io.trino.plugin.kafka.schema.TableDescriptionSupplier;
 import io.trino.plugin.kafka.schema.file.FileReadContentSchemaProvider;
+import io.trino.plugin.kafka.security.KafkaSecurityModule;
 import io.trino.plugin.kafka.util.CodecSupplier;
 import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.spi.connector.SchemaTableName;
@@ -49,6 +50,7 @@ import java.util.Optional;
 import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkState;
+import static io.airlift.configuration.ConfigurationAwareModule.combine;
 import static io.airlift.testing.Closeables.closeAllSuppress;
 import static io.airlift.units.Duration.nanosSince;
 import static io.trino.plugin.kafka.util.TestUtils.loadTpchTopicDescription;
@@ -99,6 +101,7 @@ public final class KafkaQueryRunner
         private List<TpchTable<?>> tables = ImmutableList.of();
         private Map<SchemaTableName, KafkaTopicDescription> extraTopicDescription = ImmutableMap.of();
         private final boolean schemaRegistryEnabled;
+        private Supplier<Module> additionalKafkaModule = () -> combine(new KafkaClientsModule(), new KafkaSecurityModule());
 
         private Builder(TestingKafka testingKafka, String schemaName, boolean schemaRegistryEnabled)
         {
@@ -131,6 +134,13 @@ public final class KafkaQueryRunner
             return this;
         }
 
+        @CanIgnoreReturnValue
+        public Builder setAdditionalKafkaModule(Supplier<Module> additionalKafkaModule)
+        {
+            this.additionalKafkaModule = requireNonNull(additionalKafkaModule, "additionalKafkaModule is null");
+            return this;
+        }
+
         @Override
         public DistributedQueryRunner build()
                 throws Exception
@@ -143,7 +153,7 @@ public final class KafkaQueryRunner
                 Supplier<Module> extensions;
                 if (schemaRegistryEnabled) {
                     checkState(extraTopicDescription.isEmpty(), "unsupported extraTopicDescription with schema registry enabled");
-                    extensions = () -> _ -> {};
+                    extensions = additionalKafkaModule;
                 }
                 else {
                     Map<SchemaTableName, KafkaTopicDescription> tpchTopicDescriptions = createTpchTopicDescriptions(queryRunner.getPlannerContext().getTypeManager(), tables);
@@ -181,6 +191,8 @@ public final class KafkaQueryRunner
                             binder.bind(ContentSchemaProvider.class).to(FileReadContentSchemaProvider.class).in(Scopes.SINGLETON);
                             install(new DecoderModule());
                             install(new EncoderModule());
+
+                            install(additionalKafkaModule.get());
                         }
                     };
                 }
