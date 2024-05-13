@@ -26,9 +26,9 @@ import static com.google.common.base.Verify.verify;
 import static com.starburstdata.trino.plugin.saphana.SapHanaClient.SAP_HANA_MAX_DECIMAL_PRECISION;
 import static io.trino.matching.Capture.newCapture;
 import static io.trino.plugin.base.aggregation.AggregateFunctionPatterns.basicAggregation;
-import static io.trino.plugin.base.aggregation.AggregateFunctionPatterns.expressionType;
 import static io.trino.plugin.base.aggregation.AggregateFunctionPatterns.functionName;
 import static io.trino.plugin.base.aggregation.AggregateFunctionPatterns.singleArgument;
+import static io.trino.plugin.base.expression.ConnectorExpressionPatterns.type;
 import static io.trino.plugin.base.expression.ConnectorExpressionPatterns.variable;
 import static java.lang.String.format;
 
@@ -44,7 +44,7 @@ public class ImplementAvgDecimal
                 .with(functionName().equalTo("avg"))
                 .with(singleArgument().matching(
                         variable()
-                                .with(expressionType().matching(DecimalType.class::isInstance))
+                                .with(type().matching(DecimalType.class::isInstance))
                                 .capturedAs(INPUT)));
     }
 
