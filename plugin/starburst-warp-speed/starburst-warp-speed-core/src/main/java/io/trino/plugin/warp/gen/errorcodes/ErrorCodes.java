@@ -32,7 +32,6 @@ public enum ErrorCodes {
     ENV_EXCEPTION_STORAGE_ERROR(13, "native storage engine: aborted tx called allocate or free storage page", false),
     ENV_EXCEPTION_LUCENE_ERROR(14, "native storage engine: lucene match error", false),
     ENV_EXCEPTION_INLINE_ERROR(15, "native storage engine: inline error", false),
-    ENV_EXCEPTION_BLOOM_ERROR(16, "native storage engine: bloom error", false),
     ENV_EXCEPTION_STORAGE_TEMPORARY_ERROR(17, "native storage engine: temporary error in storage layer", false),
     ENV_EXCEPTION_STORAGE_PERMANENT_ERROR(18, "native storage engine: permanent error in storage layer", false),
     ENV_EXCEPTION_STORAGE_TIMEOUT_ERROR(19, "native storage engine: timeout in storage layer", false),

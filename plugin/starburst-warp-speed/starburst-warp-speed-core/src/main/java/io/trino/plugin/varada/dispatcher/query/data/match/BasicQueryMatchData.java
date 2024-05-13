@@ -28,12 +28,12 @@ import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
-public class BasicBloomQueryMatchData
+public class BasicQueryMatchData
         extends QueryMatchData
 {
     protected final NativeExpression nativeExpression;
 
-    private BasicBloomQueryMatchData(WarmUpElement warmUpElement,
+    private BasicQueryMatchData(WarmUpElement warmUpElement,
             Type type,
             PredicateCacheData predicateCacheData,
             boolean collectNulls,
@@ -56,7 +56,7 @@ public class BasicBloomQueryMatchData
     @Override
     public boolean canMatchCollect(VaradaColumn varadaColumn)
     {
-        return this.varadaColumn.equals(varadaColumn) && !getWarmUpElement().getWarmUpType().bloom();
+        return this.varadaColumn.equals(varadaColumn);
     }
 
     @Override
@@ -76,7 +76,6 @@ public class BasicBloomQueryMatchData
     public boolean canBeTight()
     {
         return super.canBeTight() &&
-                !getWarmUpElement().getWarmUpType().bloom() &&
                 // in BASIC we support ranges on strings only via the min/max of each chunk, so only single-value ranges can be tight
                 (!TypeUtils.isStrType(type) || nativeExpression.allSingleValue());
     }
@@ -101,7 +100,7 @@ public class BasicBloomQueryMatchData
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        BasicBloomQueryMatchData that = (BasicBloomQueryMatchData) o;
+        BasicQueryMatchData that = (BasicQueryMatchData) o;
         return super.equals(that) &&
                 nativeExpression.equals(that.nativeExpression);
     }
@@ -115,7 +114,7 @@ public class BasicBloomQueryMatchData
     @Override
     public String toString()
     {
-        return "BasicBloomQueryMatchData{" +
+        return "BasicQueryMatchData{" +
                 "nativeExpression=" + nativeExpression +
                 '}' + super.toString();
     }
@@ -130,17 +129,17 @@ public class BasicBloomQueryMatchData
             super();
         }
 
-        public Builder(BasicBloomQueryMatchData basicBloomQueryMatchData)
+        public Builder(BasicQueryMatchData basicQueryMatchData)
         {
-            super(basicBloomQueryMatchData);
+            super(basicQueryMatchData);
 
-            this.nativeExpression = basicBloomQueryMatchData.nativeExpression;
+            this.nativeExpression = basicQueryMatchData.nativeExpression;
         }
 
         @Override
-        public BasicBloomQueryMatchData build()
+        public BasicQueryMatchData build()
         {
-            return new BasicBloomQueryMatchData(warmUpElementOptional.orElseThrow(),
+            return new BasicQueryMatchData(warmUpElementOptional.orElseThrow(),
                     type,
                     predicateCacheData,
                     collectNulls,

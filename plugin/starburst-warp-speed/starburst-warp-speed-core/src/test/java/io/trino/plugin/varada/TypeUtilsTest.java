@@ -111,11 +111,4 @@ public class TypeUtilsTest
     {
         assertThat(TypeUtils.isWarmLuceneSupported(type)).isEqualTo(expected);
     }
-
-    @ParameterizedTest
-    @MethodSource("warmBasicSupportedTypes")
-    public void testIsWarmBloomSupported(Type type, boolean expected)
-    {
-        assertThat(TypeUtils.isWarmBloomSupported(type)).isEqualTo(expected);
-    }
 }

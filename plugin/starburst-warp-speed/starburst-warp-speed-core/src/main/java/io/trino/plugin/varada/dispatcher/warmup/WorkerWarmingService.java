@@ -612,10 +612,7 @@ public class WorkerWarmingService
         warmupTypeValidators = Map.of(
                 WarmUpType.WARM_UP_TYPE_DATA, TypeUtils::isWarmDataSupported,
                 WarmUpType.WARM_UP_TYPE_BASIC, TypeUtils::isWarmBasicSupported,
-                WarmUpType.WARM_UP_TYPE_LUCENE, TypeUtils::isWarmLuceneSupported,
-                WarmUpType.WARM_UP_TYPE_BLOOM_HIGH, TypeUtils::isWarmBloomSupported,
-                WarmUpType.WARM_UP_TYPE_BLOOM_MEDIUM, TypeUtils::isWarmBloomSupported,
-                WarmUpType.WARM_UP_TYPE_BLOOM_LOW, TypeUtils::isWarmBloomSupported);
+                WarmUpType.WARM_UP_TYPE_LUCENE, TypeUtils::isWarmLuceneSupported);
     }
 
     WarmData updateWarmData(RowGroupData rowGroupData, WarmData warmData)

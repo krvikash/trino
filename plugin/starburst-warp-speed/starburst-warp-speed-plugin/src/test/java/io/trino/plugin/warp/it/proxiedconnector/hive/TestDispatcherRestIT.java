@@ -386,64 +386,6 @@ public class TestDispatcherRestIT
     }
 
     @Test
-    public void testWarmupApiValidations_BloomIllegalType()
-            throws IOException
-    {
-        List<WarmupColRuleData> result = getWarmupRules();
-        assertThat(result).isEmpty();
-        createSchemaAndTable("s4", "t1", format("(%s tinyint)", "col1"));
-
-        WarmupColRuleData warmupColRuleData = new WarmupColRuleData(0,
-                "s4",
-                "t1",
-                new RegularColumnData("col1"),
-                WarmUpType.WARM_UP_TYPE_BLOOM_HIGH,
-                5,
-                Duration.ofMillis(10),
-                ImmutableSet.of());
-
-        String restResult = executeRestCommand(WarmupRuleService.WARMUP_PATH, WarmupTask.TASK_NAME_SET, List.of(warmupColRuleData), HttpMethod.POST, HttpURLConnection.HTTP_OK);
-        RuleResultDTO ruleResultDTO = objectMapper.readerFor(RuleResultDTO.class).readValue(restResult);
-        assertThat(ruleResultDTO.appliedRules().isEmpty()).isTrue();
-        assertThat(ruleResultDTO.rejectedRules().isEmpty()).isFalse();
-        assertThat(ruleResultDTO.rejectedRules().getFirst().errors().stream().findFirst())
-                .contains("600: Bloom index can be applied only to types that use index length smaller than 4");
-    }
-
-    @Test
-    public void testWarmupApiValidations_2BloomIndexShouldFail()
-            throws IOException
-    {
-        List<WarmupColRuleData> result = getWarmupRules();
-        assertThat(result).isEmpty();
-        createSchemaAndTable("s1", "t1", format("(%s integer)", "col1"));
-
-        WarmupColRuleData warmupColRuleDataHigh = new WarmupColRuleData(0,
-                "s1",
-                "t1",
-                new RegularColumnData("col1"),
-                WarmUpType.WARM_UP_TYPE_BLOOM_HIGH,
-                5,
-                Duration.ofMinutes(10),
-                ImmutableSet.of());
-
-        WarmupColRuleData warmupColRuleDataLow = new WarmupColRuleData(0,
-                "s1",
-                "t1",
-                new RegularColumnData("col1"),
-                WarmUpType.WARM_UP_TYPE_BLOOM_LOW,
-                5,
-                Duration.ofMinutes(10),
-                ImmutableSet.of());
-
-        String restResult = executeRestCommand(WarmupRuleService.WARMUP_PATH, WarmupTask.TASK_NAME_SET, List.of(warmupColRuleDataHigh, warmupColRuleDataLow), HttpMethod.POST, HttpURLConnection.HTTP_OK);
-        RuleResultDTO ruleResultDTO = objectMapper.readerFor(RuleResultDTO.class).readValue(restResult);
-        assertThat(ruleResultDTO.rejectedRules().size()).isEqualTo(1);
-        assertThat(ruleResultDTO.rejectedRules().getFirst().errors().toString().contains("Only single bloom index allowed")).isTrue();
-        assertThat(ruleResultDTO.appliedRules().size()).isEqualTo(1);
-    }
-
-    @Test
     public void testWarmupApiDuplicateRuleShouldFail()
             throws IOException
     {

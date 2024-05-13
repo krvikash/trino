@@ -124,10 +124,9 @@ public class ClassifierFactory
         if (globalConfig.getEnableRangeFilter()) {
             matchers.add(new RangeMatcher(globalConfig));
         }
-        matchers.add(new BloomMatcher(),
+        matchers.add(
                 new LuceneElementsMatcher(dispatcherProxiedConnectorTransformer),
-                new BasicMatcher(),
-                new RemoveBloomFromRemainingMatcher());
+                new BasicMatcher());
         return new MatchClassifier(matchers.build(), globalConfig);
     }
 

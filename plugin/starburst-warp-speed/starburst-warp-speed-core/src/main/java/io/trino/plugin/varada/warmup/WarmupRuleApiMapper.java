@@ -110,9 +110,6 @@ public class WarmupRuleApiMapper
             case WARM_UP_TYPE_BASIC -> WarmUpType.WARM_UP_TYPE_BASIC;
             case WARM_UP_TYPE_DATA -> WarmUpType.WARM_UP_TYPE_DATA;
             case WARM_UP_TYPE_LUCENE -> WarmUpType.WARM_UP_TYPE_LUCENE;
-            case WARM_UP_TYPE_BLOOM_HIGH -> WarmUpType.WARM_UP_TYPE_BLOOM_HIGH;
-            case WARM_UP_TYPE_BLOOM_MEDIUM -> WarmUpType.WARM_UP_TYPE_BLOOM_MEDIUM;
-            case WARM_UP_TYPE_BLOOM_LOW -> WarmUpType.WARM_UP_TYPE_BLOOM_LOW;
         };
     }
 
@@ -246,9 +243,6 @@ public class WarmupRuleApiMapper
             case WARM_UP_TYPE_BASIC -> io.trino.plugin.varada.api.warmup.WarmUpType.WARM_UP_TYPE_BASIC;
             case WARM_UP_TYPE_DATA -> io.trino.plugin.varada.api.warmup.WarmUpType.WARM_UP_TYPE_DATA;
             case WARM_UP_TYPE_LUCENE -> io.trino.plugin.varada.api.warmup.WarmUpType.WARM_UP_TYPE_LUCENE;
-            case WARM_UP_TYPE_BLOOM_HIGH -> io.trino.plugin.varada.api.warmup.WarmUpType.WARM_UP_TYPE_BLOOM_HIGH;
-            case WARM_UP_TYPE_BLOOM_MEDIUM -> io.trino.plugin.varada.api.warmup.WarmUpType.WARM_UP_TYPE_BLOOM_MEDIUM;
-            case WARM_UP_TYPE_BLOOM_LOW -> io.trino.plugin.varada.api.warmup.WarmUpType.WARM_UP_TYPE_BLOOM_LOW;
             default -> throw new TrinoException(VaradaErrorCode.VARADA_ILLEGAL_PARAMETER, "Unknown modelWarmUpType " + modelWarmUpType);
         };
     }

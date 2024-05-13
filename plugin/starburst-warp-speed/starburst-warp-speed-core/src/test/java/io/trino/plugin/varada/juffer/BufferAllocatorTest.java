@@ -23,8 +23,6 @@ import io.trino.plugin.varada.storage.engine.StorageEngine;
 import io.trino.plugin.varada.storage.engine.StorageEngineConstants;
 import io.trino.plugin.varada.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
-import io.trino.spi.type.IntegerType;
-import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.VarcharType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,7 +32,6 @@ import java.util.Optional;
 import static io.trino.plugin.varada.WarmColumnDataTestUtil.generateRecordData;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -79,33 +76,6 @@ public class BufferAllocatorTest
         doReturn(REC_MAX_SIZE / 4).when(storageEngineConstants).getRecordBufferMaxSize();
         doReturn(8).when(storageEngineConstants).getFixedLengthStringLimit();
         doReturn(MAX_COLS).when(storageEngineConstants).getMaxMatchColumns();
-    }
-
-    @Test
-    public void testCalculateAllocationParamsBloom()
-    {
-        RecordData recordData = generateRecordData("col", IntegerType.INTEGER);
-        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(recordData, WarmUpType.WARM_UP_TYPE_BLOOM_HIGH);
-        WarmUpElementAllocationParams allocationParams = bufferAllocator.calculateAllocationParams(warmupElementWriteMetadata, null);
-        assertTrue(allocationParams.isCrcBufferNeeded());
-
-        warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(recordData, WarmUpType.WARM_UP_TYPE_BLOOM_MEDIUM);
-        allocationParams = bufferAllocator.calculateAllocationParams(warmupElementWriteMetadata, null);
-        assertTrue(allocationParams.isCrcBufferNeeded());
-
-        warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(recordData, WarmUpType.WARM_UP_TYPE_BLOOM_HIGH);
-        allocationParams = bufferAllocator.calculateAllocationParams(warmupElementWriteMetadata, null);
-        assertTrue(allocationParams.isCrcBufferNeeded());
-
-        recordData = generateRecordData("col", TimestampType.createTimestampType(1));
-        warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(recordData, WarmUpType.WARM_UP_TYPE_BLOOM_HIGH);
-        allocationParams = bufferAllocator.calculateAllocationParams(warmupElementWriteMetadata, null);
-        assertTrue(allocationParams.isCrcBufferNeeded());
-
-        recordData = generateRecordData("col", VarcharType.createVarcharType(30));
-        warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(recordData, WarmUpType.WARM_UP_TYPE_BLOOM_HIGH);
-        allocationParams = bufferAllocator.calculateAllocationParams(warmupElementWriteMetadata, null);
-        assertTrue(allocationParams.isCrcBufferNeeded());
     }
 
     @Test

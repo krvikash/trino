@@ -42,10 +42,8 @@ import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.CharType;
-import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.MapType;
 import io.trino.spi.type.RowType;
-import io.trino.spi.type.SmallintType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
 import io.trino.spi.type.VarcharType;
@@ -271,40 +269,11 @@ public class WarmupRuleServiceTest
     }
 
     @Test
-    public void testBloomWithIllegalIndexLengthShouldFail()
-    {
-        createColumn(SmallintType.SMALLINT);
-        assertRuleRejected(createRule(WarmUpType.WARM_UP_TYPE_BLOOM_MEDIUM),
-                "Bloom index can be applied only to types that use index length");
-    }
-
-    @Test
-    public void testUnknownTable()
-    {
-        tableHandle = null;
-        assertRuleRejected(createRule(WarmUpType.WARM_UP_TYPE_BLOOM_MEDIUM),
-                "Rule refer to a non-exist table");
-    }
-
-    @Test
     public void testUnknownColumn()
     {
         WarmupRule warmupRule = createRule(WarmUpType.WARM_UP_TYPE_LUCENE,
                 Set.of(new PartitionValueWarmupPredicateRule("col2", "2")));
         assertRuleRejected(warmupRule, "Rule refer to a non-exist column");
-    }
-
-    @Test
-    public void testMultipleBloomShouldFail()
-    {
-        createColumn(IntegerType.INTEGER);
-        WarmupRule warmupRule1 = createRule(WarmUpType.WARM_UP_TYPE_BLOOM_MEDIUM, Collections.emptySet());
-
-        WarmupRule warmupRule2 = WarmupRule.builder(warmupRule1).warmUpType(WarmUpType.WARM_UP_TYPE_BLOOM_HIGH).build();
-        WarmupRuleResult warmupRuleResult = warmupRuleService.save(List.of(warmupRule1, warmupRule2));
-        assertThat(warmupRuleResult.rejectedRules().size()).isEqualTo(1);
-        assertThat(warmupRuleResult.rejectedRules().entrySet().stream().findFirst().orElseThrow().getValue().stream().findAny().orElseThrow()
-                .contains("Only single bloom index allowed")).isTrue();
     }
 
     @Test

@@ -646,7 +646,7 @@ public class BufferAllocator
 
     private boolean isCrcBufferNeeded(WarmUpType columnWarmUpType, RecTypeCode recTypeCode)
     {
-        return (WarmUpType.WARM_UP_TYPE_BASIC.equals(columnWarmUpType) || columnWarmUpType.bloom()) && (recTypeCode != RecTypeCode.REC_TYPE_BOOLEAN);
+        return WarmUpType.WARM_UP_TYPE_BASIC.equals(columnWarmUpType) && (recTypeCode != RecTypeCode.REC_TYPE_BOOLEAN);
     }
 
     private int roundToPageSize(int size)

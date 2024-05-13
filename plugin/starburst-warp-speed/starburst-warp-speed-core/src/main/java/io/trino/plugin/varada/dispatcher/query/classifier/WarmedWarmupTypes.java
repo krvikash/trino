@@ -16,7 +16,6 @@ package io.trino.plugin.varada.dispatcher.query.classifier;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.TreeMultimap;
 import io.trino.plugin.varada.dispatcher.model.RegularColumn;
 import io.trino.plugin.varada.dispatcher.model.TransformedColumn;
 import io.trino.plugin.varada.dispatcher.model.VaradaColumn;
@@ -24,7 +23,6 @@ import io.trino.plugin.varada.dispatcher.model.WarmUpElement;
 import io.trino.plugin.varada.expression.TransformFunction;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -37,7 +35,6 @@ public final class WarmedWarmupTypes
 {
     private final ImmutableMap<VaradaColumn, WarmUpElement> dataWarmedElements;
     private final ImmutableMap<VaradaColumn, WarmUpElement> luceneWarmedElements;
-    private final TreeMultimap<VaradaColumn, WarmUpElement> bloomWarmedElements;
     private final ImmutableListMultimap<VaradaColumn, WarmUpElement> basicWarmedElements;
     private final ImmutableMap<VaradaColumn, Integer> varadaColumnToTotalRecords;
     private final ImmutableSet<VaradaColumn> warmedColumns;
@@ -45,14 +42,12 @@ public final class WarmedWarmupTypes
     private WarmedWarmupTypes(
             ImmutableMap<VaradaColumn, WarmUpElement> dataWarmedElements,
             ImmutableMap<VaradaColumn, WarmUpElement> luceneWarmedElements,
-            TreeMultimap<VaradaColumn, WarmUpElement> bloomWarmedElements,
             ImmutableListMultimap<VaradaColumn, WarmUpElement> basicWarmedElements,
             ImmutableMap<VaradaColumn, Integer> varadaColumnToTotalRecords,
             ImmutableSet<VaradaColumn> warmedColumns)
     {
         this.dataWarmedElements = dataWarmedElements;
         this.luceneWarmedElements = luceneWarmedElements;
-        this.bloomWarmedElements = bloomWarmedElements;
         this.basicWarmedElements = basicWarmedElements;
         this.varadaColumnToTotalRecords = varadaColumnToTotalRecords;
         this.warmedColumns = warmedColumns;
@@ -66,11 +61,6 @@ public final class WarmedWarmupTypes
     public ImmutableMap<VaradaColumn, WarmUpElement> luceneWarmedElements()
     {
         return luceneWarmedElements;
-    }
-
-    public TreeMultimap<VaradaColumn, WarmUpElement> bloomWarmedElements()
-    {
-        return bloomWarmedElements;
     }
 
     public ImmutableListMultimap<VaradaColumn, WarmUpElement> basicWarmedElements()
@@ -90,8 +80,6 @@ public final class WarmedWarmupTypes
                             (!x.getVaradaColumn().isTransformedColumn() &&
                                     Objects.equals(transformFunction, TransformFunction.NONE)))
                     .findFirst();
-            case WARM_UP_TYPE_BLOOM_HIGH, WARM_UP_TYPE_BLOOM_MEDIUM, WARM_UP_TYPE_BLOOM_LOW ->
-                    bloomWarmedElements.get(varadaColumn).isEmpty() ? Optional.empty() : Optional.ofNullable(bloomWarmedElements.get(varadaColumn).pollFirst());
             case WARM_UP_TYPE_NUM_OF -> throw new RuntimeException();
         };
     }
@@ -106,7 +94,6 @@ public final class WarmedWarmupTypes
                             Objects.equals(transformedColumn.getTransformFunction(), transformFunction)) ||
                             (!basicWarmedElements.get(varadaColumn).stream().findFirst().get().getVaradaColumn().isTransformedColumn() &&
                                     Objects.equals(transformFunction, TransformFunction.NONE)));
-            case WARM_UP_TYPE_BLOOM_HIGH, WARM_UP_TYPE_BLOOM_MEDIUM, WARM_UP_TYPE_BLOOM_LOW -> bloomWarmedElements.containsKey(varadaColumn);
             case WARM_UP_TYPE_NUM_OF -> throw new RuntimeException();
         };
     }
@@ -128,14 +115,13 @@ public final class WarmedWarmupTypes
         var that = (WarmedWarmupTypes) obj;
         return Objects.equals(this.dataWarmedElements, that.dataWarmedElements) &&
                 Objects.equals(this.luceneWarmedElements, that.luceneWarmedElements) &&
-                Objects.equals(this.bloomWarmedElements, that.bloomWarmedElements) &&
                 Objects.equals(this.basicWarmedElements, that.basicWarmedElements);
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hash(dataWarmedElements, luceneWarmedElements, bloomWarmedElements, basicWarmedElements);
+        return Objects.hash(dataWarmedElements, luceneWarmedElements, basicWarmedElements);
     }
 
     @Override
@@ -146,7 +132,6 @@ public final class WarmedWarmupTypes
                 "varadaColumnToTotalRecords=" + varadaColumnToTotalRecords + ", " +
                 "dataWarmedElements=" + dataWarmedElements + ", " +
                 "luceneWarmedElements=" + luceneWarmedElements + ", " +
-                "bloomWarmedElements=" + bloomWarmedElements + ", " +
                 "basicWarmedElements=" + basicWarmedElements + ']';
     }
 
@@ -168,7 +153,6 @@ public final class WarmedWarmupTypes
     {
         private final ImmutableMap.Builder<VaradaColumn, WarmUpElement> dataWarmedElements = ImmutableMap.builder();
         private final ImmutableMap.Builder<VaradaColumn, WarmUpElement> luceneWarmedElements = ImmutableMap.builder();
-        private final TreeMultimap<VaradaColumn, WarmUpElement> bloomWarmedElements = TreeMultimap.create(Comparator.comparing(VaradaColumn::toString), Comparator.comparing(WarmUpElement::getWarmUpType));
         private final ImmutableListMultimap.Builder<VaradaColumn, WarmUpElement> basicWarmedElements = ImmutableListMultimap.builder();
 
         private final Map<VaradaColumn, Integer> varadaColumnToTotalRecords = new HashMap<>();
@@ -181,7 +165,6 @@ public final class WarmedWarmupTypes
                 case WARM_UP_TYPE_DATA -> dataWarmedElements.put(we.getVaradaColumn(), we);
                 case WARM_UP_TYPE_LUCENE -> luceneWarmedElements.put(we.getVaradaColumn(), we);
                 case WARM_UP_TYPE_BASIC -> basicWarmedElements.put(we.getVaradaColumn(), we);
-                case WARM_UP_TYPE_BLOOM_HIGH, WARM_UP_TYPE_BLOOM_MEDIUM, WARM_UP_TYPE_BLOOM_LOW -> bloomWarmedElements.put(we.getVaradaColumn(), we);
                 case WARM_UP_TYPE_NUM_OF -> throw new RuntimeException();
             }
             warmedColumns.add(we.getVaradaColumn());
@@ -196,7 +179,6 @@ public final class WarmedWarmupTypes
             return new WarmedWarmupTypes(
                     dataWarmedElements.buildOrThrow(),
                     luceneWarmedElements.buildOrThrow(),
-                    bloomWarmedElements,
                     basicWarmedElements.build(),
                     ImmutableMap.copyOf(varadaColumnToTotalRecords),
                     warmedColumns.build());

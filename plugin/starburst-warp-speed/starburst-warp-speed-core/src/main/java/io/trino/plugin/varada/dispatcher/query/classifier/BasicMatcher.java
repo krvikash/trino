@@ -19,7 +19,7 @@ import io.trino.plugin.varada.dispatcher.model.TransformedColumn;
 import io.trino.plugin.varada.dispatcher.model.VaradaColumn;
 import io.trino.plugin.varada.dispatcher.model.WarmUpElement;
 import io.trino.plugin.varada.dispatcher.query.PredicateContext;
-import io.trino.plugin.varada.dispatcher.query.data.match.BasicBloomQueryMatchData;
+import io.trino.plugin.varada.dispatcher.query.data.match.BasicQueryMatchData;
 import io.trino.plugin.varada.dispatcher.query.data.match.QueryMatchData;
 import io.trino.plugin.varada.expression.NativeExpression;
 import io.trino.plugin.varada.expression.TransformFunction;
@@ -68,7 +68,7 @@ class BasicMatcher
                         .findFirst();
 
                 if (warmUpElement.isPresent() && canApplyPredicate(warmUpElement, predicateContext.getColumnType())) {
-                    matchDataList.add(BasicBloomQueryMatchData.builder()
+                    matchDataList.add(BasicQueryMatchData.builder()
                             .warmUpElement(warmUpElement.get())
                             .type(predicateContext.getColumnType())
                             .domain(Optional.of(domain))

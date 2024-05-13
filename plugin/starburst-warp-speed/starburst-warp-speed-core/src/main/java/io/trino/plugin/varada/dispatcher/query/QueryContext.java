@@ -130,8 +130,8 @@ public class QueryContext
 
         // TODO: It would be more accurate to check if there's at least one tight queryMatchData per predicate,
         //  but at this point, we don't know if 2 queryMatchDatas on the same column represent
-        //  the same predicate (for example BLOOM + BASIC) or not (for example domain + expression)
-        //  so until we improve this, a non-tight queryMatchData (BLOOM) causes the entire query to be marked as canBeTight=false
+        //  the same predicate or not (for example domain + expression)
+        //  so until we improve this, a non-tight queryMatchData causes the entire query to be marked as canBeTight=false
         this.canBeTight = isNone || (canBeTight && matchLeaves.stream().allMatch(QueryMatchData::canBeTight) && predicateContextData.getLeaves().isEmpty());
     }
 

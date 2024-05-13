@@ -15,7 +15,6 @@ package io.trino.plugin.varada.dispatcher.query.classifier;
 
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.TreeMultimap;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
@@ -23,7 +22,7 @@ import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.model.VaradaColumn;
 import io.trino.plugin.varada.dispatcher.model.WarmUpElement;
 import io.trino.plugin.varada.dispatcher.query.PredicateContext;
-import io.trino.plugin.varada.dispatcher.query.data.match.BasicBloomQueryMatchData;
+import io.trino.plugin.varada.dispatcher.query.data.match.BasicQueryMatchData;
 import io.trino.plugin.varada.dispatcher.query.data.match.QueryMatchData;
 import io.trino.plugin.varada.expression.NativeExpression;
 import io.trino.plugin.varada.expression.VaradaExpressionData;
@@ -106,7 +105,7 @@ public class RangeMatcher
                 if (!overlaps) {
                     List<QueryMatchData> matchDataList = new ArrayList<>();
                     Optional<NativeExpression> nativeExpression = context.getNativeExpression();
-                    nativeExpression.ifPresent(expression -> matchDataList.add(BasicBloomQueryMatchData.builder()
+                    nativeExpression.ifPresent(expression -> matchDataList.add(BasicQueryMatchData.builder()
                             .warmUpElement(warmUpElement.get())
                             .type(context.getColumnType())
                             .domain(Optional.of(domain))
@@ -134,7 +133,6 @@ public class RangeMatcher
     {
         ImmutableListMultimap<VaradaColumn, WarmUpElement> basicWarmupElements = allWarmupElements.basicWarmedElements();
         ImmutableMap<VaradaColumn, WarmUpElement> dataWarmupElements = allWarmupElements.dataWarmedElements();
-        TreeMultimap<VaradaColumn, WarmUpElement> bloomWarmupElements = allWarmupElements.bloomWarmedElements();
         ImmutableMap<VaradaColumn, WarmUpElement> luceneWarmupElements = allWarmupElements.luceneWarmedElements();
 
         Optional<WarmUpElement> element;
@@ -147,10 +145,6 @@ public class RangeMatcher
                     .findFirst();
             if (element.isEmpty()) {
                 element = Optional.ofNullable(dataWarmupElements.get(column));
-            }
-
-            if (element.isEmpty()) {
-                element = bloomWarmupElements.get(column).stream().filter(x -> !x.getVaradaColumn().isTransformedColumn()).findAny();
             }
         }
 

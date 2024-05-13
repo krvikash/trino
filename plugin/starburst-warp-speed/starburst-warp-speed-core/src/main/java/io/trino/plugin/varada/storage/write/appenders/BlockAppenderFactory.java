@@ -73,7 +73,7 @@ public class BlockAppenderFactory
     {
         BlockAppender blockAppender = switch (warmUpElement.getWarmUpType()) {
             case WARM_UP_TYPE_DATA -> createDataAppender(warmUpElement.getRecTypeCode(), juffersWE, warmUpElement, type);
-            case WARM_UP_TYPE_BASIC, WARM_UP_TYPE_BLOOM_HIGH, WARM_UP_TYPE_BLOOM_MEDIUM, WARM_UP_TYPE_BLOOM_LOW -> createBasicAppender(warmUpElement,
+            case WARM_UP_TYPE_BASIC -> createBasicAppender(warmUpElement,
                     type,
                     juffersWE);
             case WARM_UP_TYPE_LUCENE -> createLuceneAppender(warmUpElement.getRecTypeCode(), luceneIndexerOpt, juffersWE);

@@ -127,11 +127,6 @@ public class TypeUtils
         return (type instanceof TimeWithTimeZoneType timeWithTimeZoneType) && !timeWithTimeZoneType.isShort();
     }
 
-    public static boolean isWarmBloomSupported(Type type)
-    {
-        return isWarmBasicSupported(type);
-    }
-
     public static boolean isLongType(Type type)
     {
         return LONG_TYPES.contains(type);

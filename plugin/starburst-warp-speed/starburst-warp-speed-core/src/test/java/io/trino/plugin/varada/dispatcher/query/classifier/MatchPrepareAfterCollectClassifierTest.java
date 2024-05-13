@@ -90,12 +90,12 @@ public class MatchPrepareAfterCollectClassifierTest
         QueryMatchData data = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_DATA);
         QueryMatchData basicWithCollectLowestPriority = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC, true);
         QueryMatchData onlyMatch = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
-        QueryMatchData bloom = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BLOOM_LOW);
+        QueryMatchData lucene = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_LUCENE);
         List<NativeQueryCollectData> collectColumns = createCollectColumns(data, basicWithCollectLowestPriority);
         ImmutableMap<Integer, ColumnHandle> collectColumnsByBlockIndex = ImmutableMap.of(0, new TestingColumnHandle(data.getVaradaColumn().getName()),
                 1, new TestingColumnHandle(basicWithCollectLowestPriority.getVaradaColumn().getName()));
         LogicalMatchData matchData = new LogicalMatchData(LogicalMatchData.Operator.OR,
-                List.of(basicWithCollectLowestPriority, onlyMatch, data, bloom));
+                List.of(basicWithCollectLowestPriority, onlyMatch, data, lucene));
 
         matchPrepareAfterCollectClassifier = new MatchPrepareAfterCollectClassifier(matchCollectIdService, maxMatchColumns);
         DispatcherTableHandle dispatcherTableHandle = mock(DispatcherTableHandle.class);
@@ -128,14 +128,13 @@ public class MatchPrepareAfterCollectClassifierTest
         QueryMatchData data = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_DATA);
         QueryMatchData basicWithCollectLowestPriority = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC, true);
         QueryMatchData onlyMatch = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
-        QueryMatchData bloom = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BLOOM_LOW);
 
         List<NativeQueryCollectData> collectColumns = createCollectColumns(data, basicWithCollectLowestPriority);
         ImmutableMap<Integer, ColumnHandle> collectColumnsByBlockIndex = ImmutableMap.of(
                 0, new TestingColumnHandle(data.getVaradaColumn().getName()),
                 1, new TestingColumnHandle(basicWithCollectLowestPriority.getVaradaColumn().getName()));
         LogicalMatchData matchData = new LogicalMatchData(LogicalMatchData.Operator.AND,
-                List.of(basicWithCollectLowestPriority, onlyMatch, data, bloom));
+                List.of(basicWithCollectLowestPriority, onlyMatch, data));
 
         matchPrepareAfterCollectClassifier = new MatchPrepareAfterCollectClassifier(matchCollectIdService, maxMatchColumns);
         DispatcherTableHandle dispatcherTableHandle = mock(DispatcherTableHandle.class);
@@ -157,7 +156,7 @@ public class MatchPrepareAfterCollectClassifierTest
         assertThat(MatchCollectUtils.canBeMatchForMatchCollect(basicWithCollectLowestPriority, queryContext.getNativeQueryCollectDataList())).isTrue();
 
         QueryContext result = matchPrepareAfterCollectClassifier.classify(classifyArgs, queryContext);
-        LogicalMatchData expectedMatchData = new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(bloom, data, basicWithCollectLowestPriority));
+        LogicalMatchData expectedMatchData = new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(data, onlyMatch, basicWithCollectLowestPriority));
         assertThat(result.getMatchData()).isEqualTo(Optional.of(expectedMatchData));
         assertThat(result.getRemainingCollectColumns()).isEmpty();
         assertThat(result.isCanBeTight()).isFalse();
@@ -171,7 +170,6 @@ public class MatchPrepareAfterCollectClassifierTest
 
         QueryMatchData matchCollect1 = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC, true);
         QueryMatchData matchCollect2 = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC, true);
-        QueryMatchData bloom = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BLOOM_LOW);
 
         List<NativeQueryCollectData> collectColumns = createCollectColumns(matchCollect1, matchCollect2);
 
@@ -180,7 +178,7 @@ public class MatchPrepareAfterCollectClassifierTest
         ImmutableMap<Integer, ColumnHandle> collectColumnsByBlockIndex = ImmutableMap.of(
                 0, matchCollect1Handle,
                 1, matchCollect2Handle);
-        LogicalMatchData matchData = new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(matchCollect1, matchCollect2, bloom));
+        LogicalMatchData matchData = new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(matchCollect1, matchCollect2));
 
         matchPrepareAfterCollectClassifier = new MatchPrepareAfterCollectClassifier(matchCollectIdService, maxMatchColumns);
         DispatcherTableHandle dispatcherTableHandle = mock(DispatcherTableHandle.class);
@@ -213,13 +211,12 @@ public class MatchPrepareAfterCollectClassifierTest
     }
 
     /**
-     * BLOOM , BASIC , BASIC_COLLECT. LUCENE
+     * BASIC , BASIC_COLLECT. LUCENE
      */
     @Test
     public void testClassifier_ALLTypes()
     {
         DispatcherTableHandle dispatcherTableHandle = mock(DispatcherTableHandle.class);
-        QueryMatchData bloomMatchDataHigh = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BLOOM_HIGH);
         QueryMatchData basicMatchData = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
         QueryMatchData basicCollectIndexMatchData = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC, true);
         QueryMatchData luceneCollectIndexMatchData = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_LUCENE);
@@ -233,38 +230,13 @@ public class MatchPrepareAfterCollectClassifierTest
                 false,
                 true,
                 false);
-        MatchData matchData = new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(luceneCollectIndexMatchData, bloomMatchDataHigh, basicCollectIndexMatchData, basicMatchData));
+        MatchData matchData = new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(luceneCollectIndexMatchData, basicCollectIndexMatchData, basicMatchData));
         QueryContext queryContext = baseContext.asBuilder()
                 .matchData(Optional.of(matchData))
                 .nativeQueryCollectDataList(List.of(basicCollectIndexCollectData))
                 .build();
         QueryContext classify = matchPrepareAfterCollectClassifier.classify(classifyArgs, queryContext);
-        assertThat(((LogicalMatchData) classify.getMatchData().orElseThrow()).getTerms()).containsExactly(bloomMatchDataHigh, basicMatchData, luceneCollectIndexMatchData, basicCollectIndexMatchData);
-    }
-
-    /**
-     * all column are bloom with different priority
-     */
-    @Test
-    public void testClassifier_bloomPriority()
-    {
-        DispatcherTableHandle dispatcherTableHandle = mock(DispatcherTableHandle.class);
-        QueryMatchData bloomMatchDataHigh = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BLOOM_HIGH);
-        QueryMatchData bloomMatchDataMedium = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BLOOM_MEDIUM);
-        QueryMatchData bloomMatchDataLow = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BLOOM_LOW);
-        WarmedWarmupTypes.Builder warmedWarmupTypes = new WarmedWarmupTypes.Builder();
-        ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
-                rowGroupData,
-                mock(PredicateContextData.class),
-                ImmutableMap.of(),
-                warmedWarmupTypes.build(),
-                false,
-                true,
-                false);
-        MatchData matchData = new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(bloomMatchDataLow, bloomMatchDataHigh, bloomMatchDataMedium));
-        QueryContext queryContext = baseContext.asBuilder().matchData(Optional.of(matchData)).build();
-        QueryContext classify = matchPrepareAfterCollectClassifier.classify(classifyArgs, queryContext);
-        assertThat(((LogicalMatchData) classify.getMatchData().orElseThrow()).getTerms()).containsExactly(bloomMatchDataHigh, bloomMatchDataMedium, bloomMatchDataLow);
+        assertThat(((LogicalMatchData) classify.getMatchData().orElseThrow()).getTerms()).containsExactly(basicMatchData, luceneCollectIndexMatchData, basicCollectIndexMatchData);
     }
 
     /**

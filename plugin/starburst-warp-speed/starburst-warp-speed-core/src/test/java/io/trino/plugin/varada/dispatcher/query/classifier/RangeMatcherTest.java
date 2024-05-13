@@ -15,7 +15,6 @@ package io.trino.plugin.varada.dispatcher.query.classifier;
 
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.TreeMultimap;
 import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.model.RegularColumn;
 import io.trino.plugin.varada.dispatcher.model.TransformedColumn;
@@ -37,7 +36,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -214,8 +212,6 @@ class RangeMatcherTest
         when(warmupTypes.basicWarmedElements()).thenReturn(basicWarmUpElements);
         when(warmupTypes.dataWarmedElements()).thenReturn(ImmutableMap.of());
 
-        TreeMultimap<VaradaColumn, WarmUpElement> bloomMap = TreeMultimap.create(Comparator.comparing(VaradaColumn::toString), Comparator.comparing(WarmUpElement::getWarmUpType));
-        when(warmupTypes.bloomWarmedElements()).thenReturn(bloomMap);
         when(warmupTypes.luceneWarmedElements()).thenReturn(ImmutableMap.of());
         when(classifyArgs.getWarmedWarmupTypes()).thenReturn(warmupTypes);
 

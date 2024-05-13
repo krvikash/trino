@@ -22,7 +22,7 @@ import io.trino.plugin.varada.dispatcher.model.RowGroupData;
 import io.trino.plugin.varada.dispatcher.model.WarmUpElement;
 import io.trino.plugin.varada.dispatcher.query.QueryContext;
 import io.trino.plugin.varada.dispatcher.query.data.collect.PrefilledQueryCollectData;
-import io.trino.plugin.varada.dispatcher.query.data.match.BasicBloomQueryMatchData;
+import io.trino.plugin.varada.dispatcher.query.data.match.BasicQueryMatchData;
 import io.trino.plugin.varada.dispatcher.query.data.match.QueryMatchData;
 import io.trino.plugin.varada.expression.NativeExpression;
 import io.trino.plugin.varada.juffer.BufferAllocator;
@@ -101,7 +101,7 @@ class PredicateBufferClassifierTest
         PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
 
         QueryContext baseQueryContext = new QueryContext(predicateContextData, collectColumnsByBlockIndex);
-        QueryMatchData queryMatchData = BasicBloomQueryMatchData.builder()
+        QueryMatchData queryMatchData = BasicQueryMatchData.builder()
                 .varadaColumn(warmUpElement.getVaradaColumn())
                 .type(IntegerType.INTEGER)
                 .domain(Optional.of(domain))

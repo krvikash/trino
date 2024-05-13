@@ -18,7 +18,7 @@ import io.trino.plugin.varada.dispatcher.model.RegularColumn;
 import io.trino.plugin.varada.dispatcher.model.RowGroupData;
 import io.trino.plugin.varada.dispatcher.model.VaradaColumn;
 import io.trino.plugin.varada.dispatcher.query.PredicateContext;
-import io.trino.plugin.varada.dispatcher.query.data.match.BasicBloomQueryMatchData;
+import io.trino.plugin.varada.dispatcher.query.data.match.BasicQueryMatchData;
 import io.trino.plugin.varada.dispatcher.query.data.match.MatchData;
 import io.trino.plugin.varada.dispatcher.query.data.match.QueryMatchData;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
@@ -69,10 +69,10 @@ class BasicMatcherTest
         assertThat(result.matchDataList().size()).isEqualTo(1);
         assertThat(result.matchDataList().get(0)).isInstanceOf(QueryMatchData.class);
         MatchData queryMatchData = result.matchDataList().get(0);
-        assertThat(queryMatchData).isInstanceOf(BasicBloomQueryMatchData.class);
-        BasicBloomQueryMatchData basicBloomQueryMatchData = (BasicBloomQueryMatchData) queryMatchData;
-        assertThat(basicBloomQueryMatchData.getType()).isEqualTo(IntegerType.INTEGER);
-        assertThat(basicBloomQueryMatchData.getVaradaColumn()).isEqualTo(new RegularColumn(columnName));
+        assertThat(queryMatchData).isInstanceOf(BasicQueryMatchData.class);
+        BasicQueryMatchData basicQueryMatchData = (BasicQueryMatchData) queryMatchData;
+        assertThat(basicQueryMatchData.getType()).isEqualTo(IntegerType.INTEGER);
+        assertThat(basicQueryMatchData.getVaradaColumn()).isEqualTo(new RegularColumn(columnName));
         assertThat(result.remainingPredicateContext().isEmpty()).isTrue();
     }
 

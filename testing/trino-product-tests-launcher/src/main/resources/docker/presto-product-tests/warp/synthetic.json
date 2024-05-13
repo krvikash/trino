@@ -170,8 +170,7 @@
         "predicates": [],
         "warmUpTypes": [
           "WARM_UP_TYPE_DATA",
-          "WARM_UP_TYPE_BASIC",
-          "WARM_UP_TYPE_BLOOM_HIGH"
+          "WARM_UP_TYPE_BASIC"
         ]
       },
       {
@@ -911,8 +910,7 @@
         "predicates": [],
         "warmUpTypes": [
           "WARM_UP_TYPE_DATA",
-          "WARM_UP_TYPE_BASIC",
-          "WARM_UP_TYPE_BLOOM_HIGH"
+          "WARM_UP_TYPE_BASIC"
         ]
       },
       {
@@ -2525,8 +2523,7 @@
         "predicates": [],
         "warmUpTypes": [
           "WARM_UP_TYPE_DATA",
-          "WARM_UP_TYPE_BASIC",
-          "WARM_UP_TYPE_BLOOM_HIGH"
+          "WARM_UP_TYPE_BASIC"
         ]
       }
     ],
@@ -2710,8 +2707,7 @@
         "predicates": [],
         "warmUpTypes": [
           "WARM_UP_TYPE_DATA",
-          "WARM_UP_TYPE_BASIC",
-          "WARM_UP_TYPE_BLOOM_LOW"
+          "WARM_UP_TYPE_BASIC"
         ]
       },
       {
@@ -3025,10 +3021,10 @@
         "query_id": "tuples_40keys_21",
         "expected_counters": {
           "varada_match_columns": 2,
-          "varada_collect_columns": 1,
-          "varada_match_collect_columns": 1,
-          "varada_mapped_match_collect_columns": 1,
-          "prefilled_collect_columns": 1,
+          "varada_collect_columns": 0,
+          "varada_match_collect_columns": 0,
+          "varada_mapped_match_collect_columns": 0,
+          "prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3097,7 +3093,7 @@
         "expected_counters": {
           "varada_match_columns": 2,
           "varada_collect_columns": 0,
-          "prefilled_collect_columns": 2,
+          "prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }

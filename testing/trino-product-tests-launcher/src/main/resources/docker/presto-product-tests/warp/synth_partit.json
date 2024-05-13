@@ -1001,8 +1001,7 @@
         "predicates": [],
         "warmUpTypes": [
           "WARM_UP_TYPE_DATA",
-          "WARM_UP_TYPE_BASIC",
-          "WARM_UP_TYPE_BLOOM_LOW"
+          "WARM_UP_TYPE_BASIC"
         ]
       },
       {
@@ -1236,8 +1235,7 @@
         "warmUpTypes": [
           "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC",
-          "WARM_UP_TYPE_LUCENE",
-          "WARM_UP_TYPE_BLOOM_MEDIUM"
+          "WARM_UP_TYPE_LUCENE"
         ]
       },
       {
@@ -1355,8 +1353,7 @@
         "colNameId": "agent_version",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
-          "WARM_UP_TYPE_BLOOM_LOW"
+          "WARM_UP_TYPE_DATA"
         ]
       },
       {
@@ -1389,8 +1386,7 @@
         "warmUpTypes": [
           "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC",
-          "WARM_UP_TYPE_LUCENE",
-          "WARM_UP_TYPE_BLOOM_LOW"
+          "WARM_UP_TYPE_LUCENE"
         ]
       },
       {
@@ -1484,8 +1480,7 @@
         "colNameId": "decimal_field",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_BASIC",
-          "WARM_UP_TYPE_BLOOM_HIGH"
+          "WARM_UP_TYPE_BASIC"
         ]
       },
       {

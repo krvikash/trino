@@ -19,7 +19,7 @@ import io.trino.plugin.varada.dispatcher.query.PredicateData;
 import io.trino.plugin.varada.dispatcher.query.PredicateInfo;
 import io.trino.plugin.varada.dispatcher.query.QueryContext;
 import io.trino.plugin.varada.dispatcher.query.data.collect.PrefilledQueryCollectData;
-import io.trino.plugin.varada.dispatcher.query.data.match.BasicBloomQueryMatchData;
+import io.trino.plugin.varada.dispatcher.query.data.match.BasicQueryMatchData;
 import io.trino.plugin.varada.dispatcher.query.data.match.LogicalMatchData;
 import io.trino.plugin.varada.dispatcher.query.data.match.LuceneQueryMatchData;
 import io.trino.plugin.varada.dispatcher.query.data.match.MatchData;
@@ -110,7 +110,7 @@ class PredicateBufferClassifier
         Optional<Domain> optionalDomain;
         PredicateCacheData predicateCacheData;
         Domain domain = queryMatchData.getDomain().orElse(Domain.all(queryMatchData.getType()));
-        Optional<NativeExpression> nativeExpressionOptional = queryMatchData instanceof BasicBloomQueryMatchData ? Optional.of(((BasicBloomQueryMatchData) queryMatchData).getNativeExpression()) : Optional.empty();
+        Optional<NativeExpression> nativeExpressionOptional = queryMatchData instanceof BasicQueryMatchData ? Optional.of(((BasicQueryMatchData) queryMatchData).getNativeExpression()) : Optional.empty();
         if (queryMatchData instanceof LuceneQueryMatchData) {
             PredefinedPredicate predefinedPredicate = queryMatchData.isCollectNulls() ? luceneWithNulls : luceneWithoutNulls;
             predicateCacheData = predefinedPredicate.predicateCacheData;

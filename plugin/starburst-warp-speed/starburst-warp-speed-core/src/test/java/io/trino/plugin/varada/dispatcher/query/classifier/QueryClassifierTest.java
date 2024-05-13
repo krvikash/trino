@@ -37,7 +37,7 @@ import io.trino.plugin.varada.dispatcher.query.PredicateData;
 import io.trino.plugin.varada.dispatcher.query.QueryContext;
 import io.trino.plugin.varada.dispatcher.query.data.collect.NativeQueryCollectData;
 import io.trino.plugin.varada.dispatcher.query.data.collect.PrefilledQueryCollectData;
-import io.trino.plugin.varada.dispatcher.query.data.match.BasicBloomQueryMatchData;
+import io.trino.plugin.varada.dispatcher.query.data.match.BasicQueryMatchData;
 import io.trino.plugin.varada.dispatcher.query.data.match.LogicalMatchData;
 import io.trino.plugin.varada.dispatcher.query.data.match.LuceneQueryMatchData;
 import io.trino.plugin.varada.dispatcher.query.data.match.QueryMatchData;
@@ -222,8 +222,6 @@ public class QueryClassifierTest
         createWarmUpElements("v-double-basic", doubleType, WarmUpType.WARM_UP_TYPE_BASIC);
         createWarmUpElements("v-varchar-lucene", varcharType, WarmUpType.WARM_UP_TYPE_LUCENE);
         createWarmUpElements("v-varchar-basic", varcharType, WarmUpType.WARM_UP_TYPE_BASIC);
-        createWarmUpElements("v-int-data-bloom", intType, WarmUpType.WARM_UP_TYPE_DATA, WarmUpType.WARM_UP_TYPE_BLOOM_HIGH);
-        createWarmUpElements("v-int-bloom", intType, WarmUpType.WARM_UP_TYPE_BLOOM_HIGH);
         createWarmUpElements("v-varchar-data-lucene-failed", varcharType, WarmUpType.WARM_UP_TYPE_DATA);
         createWarmUpElements("v-varchar-data-lucene-failed", varcharType, WarmUpElementState.FAILED_PERMANENTLY, WarmUpType.WARM_UP_TYPE_LUCENE);
 
@@ -346,14 +344,14 @@ public class QueryClassifierTest
         QueryMatchData queryMatchData = (QueryMatchData) queryContext.getMatchData().orElseThrow();
 
         PredicateData predicateData = PredicateUtil.calcPredicateData(matchDomain, matchIntWarmUpElement.getRecTypeLength(), transformAllowed, matchCollectIntColumn.type());
-        BasicBloomQueryMatchData expectedBasicBloomQueryMatchData = BasicBloomQueryMatchData.builder()
+        BasicQueryMatchData expectedBasicQueryMatchData = BasicQueryMatchData.builder()
                 .warmUpElement(matchIntWarmUpElement)
                 .type(intType)
                 .domain(Optional.of(matchDomain))
                 .collectNulls(predicateData.isCollectNulls())
                 .nativeExpression(createExpectedNativeExpression(matchDomain))
                 .build();
-        assertThat(((BasicBloomQueryMatchData) queryMatchData)).isEqualTo(expectedBasicBloomQueryMatchData);
+        assertThat(((BasicQueryMatchData) queryMatchData)).isEqualTo(expectedBasicQueryMatchData);
         assertThat(queryContext.getPrefilledQueryCollectDataByBlockIndex()).isEmpty();
     }
 
@@ -398,14 +396,14 @@ public class QueryClassifierTest
         assertThat(queryContext.getMatchData().orElseThrow()).isInstanceOf(QueryMatchData.class);
         QueryMatchData queryMatchData = (QueryMatchData) queryContext.getMatchData().orElseThrow();
         PredicateData predicateData = PredicateUtil.calcPredicateData(matchDomain, matchIntWarmUpElement.getRecTypeLength(), transformAllowed, matchCollectIntColumn.type());
-        BasicBloomQueryMatchData expectedBasicBloomQueryMatchData = BasicBloomQueryMatchData.builder()
+        BasicQueryMatchData expectedBasicQueryMatchData = BasicQueryMatchData.builder()
                 .warmUpElement(matchIntWarmUpElement)
                 .type(intType)
                 .domain(Optional.of(matchDomain))
                 .collectNulls(predicateData.isCollectNulls())
                 .nativeExpression(createExpectedNativeExpression(matchDomain))
                 .build();
-        assertThat(((BasicBloomQueryMatchData) queryMatchData)).isEqualTo(expectedBasicBloomQueryMatchData);
+        assertThat(((BasicQueryMatchData) queryMatchData)).isEqualTo(expectedBasicQueryMatchData);
         assertThat(queryContext.getPrefilledQueryCollectDataByBlockIndex()).isEmpty();
     }
 
@@ -493,14 +491,14 @@ public class QueryClassifierTest
         QueryMatchData queryMatchData = (QueryMatchData) queryContext.getMatchData().orElseThrow();
 
         PredicateData predicateData = PredicateUtil.calcPredicateData(expectedDomain, matchIntWarmUpElement.getRecTypeLength(), transformAllowed, matchCollectIntColumn.type());
-        BasicBloomQueryMatchData expectedBasicBloomQueryMatchData = BasicBloomQueryMatchData.builder()
+        BasicQueryMatchData expectedBasicQueryMatchData = BasicQueryMatchData.builder()
                 .warmUpElement(matchIntWarmUpElement)
                 .type(intType)
                 .domain(Optional.of(expectedDomain))
                 .collectNulls(predicateData.isCollectNulls())
                 .nativeExpression(createExpectedNativeExpression(expectedDomain))
                 .build();
-        assertThat(((BasicBloomQueryMatchData) queryMatchData)).isEqualTo(expectedBasicBloomQueryMatchData);
+        assertThat(((BasicQueryMatchData) queryMatchData)).isEqualTo(expectedBasicQueryMatchData);
         assertThat(queryContext.getPrefilledQueryCollectDataByBlockIndex()).isEmpty();
     }
 
@@ -604,13 +602,13 @@ public class QueryClassifierTest
         assertThat(queryContext.getMatchData().orElseThrow()).isInstanceOf(QueryMatchData.class);
         QueryMatchData queryMatchData = (QueryMatchData) queryContext.getMatchData().orElseThrow();
 
-        BasicBloomQueryMatchData expectedBasicBloomQueryMatchData = BasicBloomQueryMatchData.builder()
+        BasicQueryMatchData expectedBasicQueryMatchData = BasicQueryMatchData.builder()
                 .warmUpElement(matchIntWarmUpElement)
                 .type(intType)
                 .domain(Optional.of(matchDomain))
                 .nativeExpression(createExpectedNativeExpression(matchDomain))
                 .build();
-        assertThat(((BasicBloomQueryMatchData) queryMatchData)).isEqualTo(expectedBasicBloomQueryMatchData);
+        assertThat(((BasicQueryMatchData) queryMatchData)).isEqualTo(expectedBasicQueryMatchData);
         assertThat(queryContext.getPrefilledQueryCollectDataByBlockIndex()).isEmpty();
     }
 
@@ -647,13 +645,13 @@ public class QueryClassifierTest
                 createNativeQueryCollectData(dataIntWarmUpElement, 0),
                 createNativeQueryCollectData(matchCollectIntWarmUpElement, 1, true));
         // Both columns have no cardinality statistics so the match-collect column should be last (See NativeMatchSorter)
-        BasicBloomQueryMatchData expectedBasicBloomQueryMatchData = BasicBloomQueryMatchData.builder()
+        BasicQueryMatchData expectedBasicQueryMatchData = BasicQueryMatchData.builder()
                 .warmUpElement(matchIntWarmUpElement)
                 .domain(Optional.of(matchDomain))
                 .type(intType)
                 .nativeExpression(createExpectedNativeExpression(matchDomain))
                 .build();
-        LogicalMatchData expectedResult = new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(expectedLuceneQueryMatchData, expectedBasicBloomQueryMatchData));
+        LogicalMatchData expectedResult = new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(expectedLuceneQueryMatchData, expectedBasicQueryMatchData));
         assertThat(queryContext.getMatchData().orElseThrow()).isEqualTo(expectedResult);
     }
 
@@ -771,14 +769,14 @@ public class QueryClassifierTest
         assertThat(queryContext.getMatchLeavesDFS().size()).isEqualTo(2);
         // matchCollectStrWithLuceneColumn has a basic index while matchOnlyLuceneColumn has only Lucene index
         PredicateData predicateData = PredicateUtil.calcPredicateData(domain, matchCollectWithLuceneBasicWarmUpElement.getRecTypeLength(), transformAllowed, matchCollectStrWithLuceneColumn.type());
-        BasicBloomQueryMatchData expectedBasicBloomQueryMatchData = BasicBloomQueryMatchData.builder()
+        BasicQueryMatchData expectedBasicQueryMatchData = BasicQueryMatchData.builder()
                 .warmUpElement(matchCollectWithLuceneBasicWarmUpElement)
                 .type(varcharType)
                 .domain(Optional.of(domain))
                 .collectNulls(predicateData.isCollectNulls())
                 .nativeExpression(createExpectedNativeExpression(domain, PredicateType.PREDICATE_TYPE_STRING_VALUES))
                 .build();
-        LogicalMatchData and = new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(expectedBasicBloomQueryMatchData, expectedLuceneQueryMatchData));
+        LogicalMatchData and = new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(expectedBasicQueryMatchData, expectedLuceneQueryMatchData));
         assertThat(queryContext.getMatchData()).contains(and);
         assertThat(queryContext.getPrefilledQueryCollectDataByBlockIndex()).isEmpty();
     }
@@ -938,13 +936,13 @@ public class QueryClassifierTest
         assertThat(queryContext.getMatchData().orElseThrow()).isInstanceOf(QueryMatchData.class);
         QueryMatchData queryMatchData = (QueryMatchData) queryContext.getMatchData().orElseThrow();
 
-        BasicBloomQueryMatchData expectedBasicBloomQueryMatchData = BasicBloomQueryMatchData.builder()
+        BasicQueryMatchData expectedBasicQueryMatchData = BasicQueryMatchData.builder()
                 .warmUpElement(matchIntWarmUpElement)
                 .type(intType)
                 .domain(Optional.of(matchDomain))
                 .nativeExpression(createExpectedNativeExpression(matchDomain))
                 .build();
-        assertThat(queryMatchData).isEqualTo(expectedBasicBloomQueryMatchData);
+        assertThat(queryMatchData).isEqualTo(expectedBasicQueryMatchData);
         assertThat(queryContext.getPrefilledQueryCollectDataByBlockIndex()).isEmpty();
     }
 
@@ -982,13 +980,13 @@ public class QueryClassifierTest
         assertThat(queryContext.getMatchData().orElseThrow()).isInstanceOf(QueryMatchData.class);
         QueryMatchData queryMatchData = (QueryMatchData) queryContext.getMatchData().orElseThrow();
 
-        BasicBloomQueryMatchData expectedBasicBloomQueryMatchData = BasicBloomQueryMatchData.builder()
+        BasicQueryMatchData expectedBasicQueryMatchData = BasicQueryMatchData.builder()
                 .warmUpElement(matchIntWarmUpElement)
                 .type(intType)
                 .domain(Optional.of(matchDomain))
                 .nativeExpression(createExpectedNativeExpression(matchDomain))
                 .build();
-        assertThat(queryMatchData).isEqualTo(expectedBasicBloomQueryMatchData);
+        assertThat(queryMatchData).isEqualTo(expectedBasicQueryMatchData);
         assertThat(queryContext.getPrefilledQueryCollectDataByBlockIndex()).isEmpty();
     }
 
@@ -1041,7 +1039,7 @@ public class QueryClassifierTest
         assertThat(queryContext.getPrefilledQueryCollectDataByBlockIndex().values()).containsExactly(
                 createPrefilledQueryCollectData(matchIntWarmUpElement, 0, domain),
                 createPrefilledQueryCollectData(matchIntWarmUpElement2, 1, domain2));
-        BasicBloomQueryMatchData expectedMatchData = BasicBloomQueryMatchData
+        BasicQueryMatchData expectedMatchData = BasicQueryMatchData
                 .builder()
                 .warmUpElement(matchIntWarmUpElement)
                 .type(matchCollectIntColumn.type())
@@ -1049,7 +1047,7 @@ public class QueryClassifierTest
                 .nativeExpression(createExpectedNativeExpression(domain))
                 .tightnessRequired(false)
                 .build();
-        BasicBloomQueryMatchData expectedMatchData2 = BasicBloomQueryMatchData
+        BasicQueryMatchData expectedMatchData2 = BasicQueryMatchData
                 .builder()
                 .warmUpElement(matchIntWarmUpElement2)
                 .type(matchCollectIntColumn2.type())
@@ -1080,14 +1078,14 @@ public class QueryClassifierTest
                 createPrefilledQueryCollectData(matchWarmUpElement, 0, matchDomain));
         assertThat(queryContext.getMatchData().orElseThrow()).isInstanceOf(QueryMatchData.class);
         QueryMatchData queryMatchData = (QueryMatchData) queryContext.getMatchData().orElseThrow();
-        BasicBloomQueryMatchData expectedBasicBloomQueryMatchData = BasicBloomQueryMatchData.builder()
+        BasicQueryMatchData expectedBasicQueryMatchData = BasicQueryMatchData.builder()
                 .warmUpElement(matchWarmUpElement)
                 .type(doubleType)
                 .domain(Optional.of(matchDomain))
                 .tightnessRequired(true)
                 .nativeExpression(createExpectedNativeExpression(matchDomain))
                 .build();
-        assertThat(queryMatchData).isEqualTo(expectedBasicBloomQueryMatchData);
+        assertThat(queryMatchData).isEqualTo(expectedBasicQueryMatchData);
     }
 
     /**
@@ -1164,7 +1162,7 @@ public class QueryClassifierTest
      * select v-varchar-data-basic from T where v-varchar-data-basic in ("str1", "str2")
      */
     @Test
-    public void testBasicAndBloomMatchColumns()
+    public void testBasicMatchColumns()
     {
         TestingConnectorColumnHandle columnHandle = varadaColumnHandles.get("v-varchar-data-basic");
         Domain matchDomain = Domain.multipleValues(columnHandle.type(), List.of(Slices.utf8Slice("str1"), Slices.utf8Slice("str2")));
@@ -1179,16 +1177,7 @@ public class QueryClassifierTest
                 .state(WarmUpElementState.VALID)
                 .warmupElementStats(new WarmupElementStats(0, Long.MIN_VALUE, Long.MAX_VALUE))
                 .build();
-        WarmUpElement bloomWarmupElement = WarmUpElement.builder()
-                .colName(columnName)
-                .warmUpType(WarmUpType.WARM_UP_TYPE_BLOOM_HIGH)
-                .recTypeCode(RecTypeCode.REC_TYPE_VARCHAR)
-                .recTypeLength(10)
-                .warmupElementStats(new WarmupElementStats(0, Long.MIN_VALUE, Long.MAX_VALUE))
-                .state(WarmUpElementState.VALID)
-                .build();
-
-        RowGroupData rowGroupData = RowGroupData.builder(this.rowGroupData).warmUpElements(ImmutableList.of(basicWarmupElement, bloomWarmupElement)).build();
+        RowGroupData rowGroupData = RowGroupData.builder(this.rowGroupData).warmUpElements(ImmutableList.of(basicWarmupElement)).build();
 
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(fullPredicate);
         PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
@@ -1198,26 +1187,16 @@ public class QueryClassifierTest
                 dispatcherTableHandle,
                 Optional.of(session));
 
-        assertThat(queryContext.getMatchLeavesDFS().size()).isEqualTo(2);
-        // Bloom should be before Basic (See NativeMatchSorter)
+        assertThat(queryContext.getMatchLeavesDFS().size()).isEqualTo(1);
         QueryMatchData queryMatchData = queryContext.getMatchLeavesDFS().get(0);
 
-        BasicBloomQueryMatchData expectedBasicBloomQueryMatchData1 = BasicBloomQueryMatchData.builder()
-                .warmUpElement(bloomWarmupElement)
-                .type(varcharType)
-                .domain(Optional.of(matchDomain))
-                .nativeExpression(createExpectedNativeExpression(matchDomain, PredicateType.PREDICATE_TYPE_STRING_VALUES))
-                .build();
-        assertThat(queryMatchData).isEqualTo(expectedBasicBloomQueryMatchData1);
-        QueryMatchData queryMatchData2 = queryContext.getMatchLeavesDFS().get(1);
-
-        BasicBloomQueryMatchData expectedBasicBloomQueryMatchData2 = BasicBloomQueryMatchData.builder()
+        BasicQueryMatchData expectedBasicQueryMatchData = BasicQueryMatchData.builder()
                 .warmUpElement(basicWarmupElement)
                 .type(varcharType)
                 .domain(Optional.of(matchDomain))
                 .nativeExpression(createExpectedNativeExpression(matchDomain, PredicateType.PREDICATE_TYPE_STRING_VALUES))
                 .build();
-        assertThat(queryMatchData2).isEqualTo(expectedBasicBloomQueryMatchData2);
+        assertThat(queryMatchData).isEqualTo(expectedBasicQueryMatchData);
         assertThat(queryContext.getPrefilledQueryCollectDataByBlockIndex()).isEmpty();
     }
 
@@ -1249,7 +1228,7 @@ public class QueryClassifierTest
                 createNativeQueryCollectData(matchWarmUpElement, 0, true));
         assertThat(queryContext.getMatchData().orElseThrow()).isInstanceOf(QueryMatchData.class);
         QueryMatchData queryMatchData = (QueryMatchData) queryContext.getMatchData().orElseThrow();
-        BasicBloomQueryMatchData expectedBasicBloomQueryMatchData = BasicBloomQueryMatchData.builder()
+        BasicQueryMatchData expectedBasicQueryMatchData = BasicQueryMatchData.builder()
                 .warmUpElement(matchWarmUpElement)
                 .type(doubleType)
                 .domain(Optional.of(matchDomain))
@@ -1262,7 +1241,7 @@ public class QueryClassifierTest
                         .domain(matchDomain)
                         .build())
                 .build();
-        assertThat(queryMatchData).isEqualTo(expectedBasicBloomQueryMatchData);
+        assertThat(queryMatchData).isEqualTo(expectedBasicQueryMatchData);
     }
 
     /**
@@ -1408,40 +1387,17 @@ public class QueryClassifierTest
         assertThat(queryContext.getNativeQueryCollectDataList()).isEmpty();
         assertThat(queryContext.getMatchData().orElseThrow()).isInstanceOf(QueryMatchData.class);
         QueryMatchData queryMatchData = (QueryMatchData) queryContext.getMatchData().orElseThrow();
-        BasicBloomQueryMatchData expectedBasicBloomQueryMatchData = BasicBloomQueryMatchData.builder()
+        BasicQueryMatchData expectedBasicQueryMatchData = BasicQueryMatchData.builder()
                 .warmUpElement(intNonPartitionBasicWarmUpElement)
                 .type(intType)
                 .domain(Optional.of(domain))
                 .nativeExpression(createExpectedNativeExpression(domain))
                 .build();
-        assertThat(queryMatchData).isEqualTo(expectedBasicBloomQueryMatchData);
-    }
-
-    @Test
-    public void testBloomUnsupportedPredicateTypes()
-    {
-        ColumnHandle dataBloomIntColumn = varadaColumnHandles.get("v-int-bloom");
-        List<Domain> unsupportedDomains = List.of(Domain.create(ValueSet.ofRanges(Range.greaterThan(IntegerType.INTEGER, 5L)), true),
-                Domain.notNull(IntegerType.INTEGER));
-        for (Domain unsupportedDomain : unsupportedDomains) {
-            TupleDomain<ColumnHandle> fullPredicate = TupleDomain.withColumnDomains(Map.of(dataBloomIntColumn, unsupportedDomain));
-            when(dispatcherTableHandle.getFullPredicate()).thenReturn(fullPredicate);
-            PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
-            QueryContext queryContext = queryClassifier.classify(new QueryContext(predicateContextData, ImmutableList.of(dataBloomIntColumn), 0, true),
-                    rowGroupData,
-                    dispatcherTableHandle,
-                    Optional.of(session));
-
-            assertThat(queryContext.getRemainingCollectColumnByBlockIndex()).isNotEmpty();
-            assertThat(queryContext.getPredicateContextData().getRemainingColumns().size()).isEqualTo(1);
-            assertThat(queryContext.getNativeQueryCollectDataList()).isEmpty();
-            assertThat(queryContext.getMatchData()).isEmpty();
-            assertThat(queryContext.getPrefilledQueryCollectDataByBlockIndex()).isEmpty();
-        }
+        assertThat(queryMatchData).isEqualTo(expectedBasicQueryMatchData);
     }
 
     /**
-     * select count(v-int-data), count(v-int-bloom) from T where [DynamicFilter="v-int-data = 2"]
+     * select count(v-int-data), count(v-int-data-basic) from T where [DynamicFilter="v-int-data = 2"]
      * [In addition: predicateThreshold = 1, v-int-data is marked as simplified on the table handle]
      */
     @Test
@@ -1450,7 +1406,7 @@ public class QueryClassifierTest
         int predicateThreshold = 1;
         when(session.getProperty(eq(PREDICATE_SIMPLIFY_THRESHOLD), eq(Integer.class))).thenReturn(predicateThreshold);
         TestingConnectorColumnHandle onlyDataColumnHandle = varadaColumnHandles.get("v-int-data");
-        TestingConnectorColumnHandle dataBloomIntColumn = varadaColumnHandles.get("v-int-bloom");
+        TestingConnectorColumnHandle dataBasicIntColumn = varadaColumnHandles.get("v-int-data-basic");
         DispatcherTableHandle dispatcherTableHandle = mockDispatcherTableHandle(schemaTableName);
         RegularColumn regularColumn = new RegularColumn(onlyDataColumnHandle.name());
         when(dispatcherTableHandle.getSimplifiedColumns()).thenReturn(new SimplifiedColumns(Set.of(regularColumn)));
@@ -1459,10 +1415,10 @@ public class QueryClassifierTest
                 domain));
         DynamicFilter dynamicFilter = new CompletedDynamicFilter(tupleDomain);
 
-        QueryContext basicQueryContext = queryClassifier.getBasicQueryContext(ImmutableList.of(onlyDataColumnHandle, dataBloomIntColumn), dispatcherTableHandle, dynamicFilter, session);
+        QueryContext basicQueryContext = queryClassifier.getBasicQueryContext(ImmutableList.of(onlyDataColumnHandle, dataBasicIntColumn), dispatcherTableHandle, dynamicFilter, session);
 
         assertThat(basicQueryContext.getRemainingCollectColumnByBlockIndex()).isEqualTo(ImmutableMap.of(0, onlyDataColumnHandle,
-                1, dataBloomIntColumn));
+                1, dataBasicIntColumn));
         assertThat(basicQueryContext.getPredicateContextData().getRemainingColumns().contains(regularColumn)).isTrue();
     }
 
@@ -1524,7 +1480,7 @@ public class QueryClassifierTest
         assertThat(queryContext.getRemainingCollectColumnByBlockIndex()).isEmpty();
         assertThat(queryContext.getPredicateContextData().getRemainingColumns()).containsExactly(dynamicFilterColumn);
         assertThat(queryContext.getNativeQueryCollectDataList()).isEmpty();
-        BasicBloomQueryMatchData expectedMatchData = BasicBloomQueryMatchData.builder()
+        BasicQueryMatchData expectedMatchData = BasicQueryMatchData.builder()
                 .warmUpElement(matchWarmUpElement)
                 .type(intType)
                 .domain(Optional.of(matchDomain))

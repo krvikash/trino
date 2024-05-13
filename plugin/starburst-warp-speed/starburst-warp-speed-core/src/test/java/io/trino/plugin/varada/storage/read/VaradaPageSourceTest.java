@@ -21,7 +21,7 @@ import io.trino.plugin.varada.dispatcher.model.RegularColumn;
 import io.trino.plugin.varada.dispatcher.model.SchemaTableColumn;
 import io.trino.plugin.varada.dispatcher.model.WarmUpElement;
 import io.trino.plugin.varada.dispatcher.query.data.collect.NativeQueryCollectData;
-import io.trino.plugin.varada.dispatcher.query.data.match.BasicBloomQueryMatchData;
+import io.trino.plugin.varada.dispatcher.query.data.match.BasicQueryMatchData;
 import io.trino.plugin.varada.expression.NativeExpression;
 import io.trino.plugin.varada.juffer.BufferAllocator;
 import io.trino.plugin.varada.juffer.PredicateBufferInfo;
@@ -131,7 +131,7 @@ public class VaradaPageSourceTest
                 .build();
 
         PredicatesCacheService predicatesCacheService = mock(PredicatesCacheService.class);
-        BasicBloomQueryMatchData.Builder queryMatchDataBuilder = new BasicBloomQueryMatchData.Builder();
+        BasicQueryMatchData.Builder queryMatchDataBuilder = new BasicQueryMatchData.Builder();
         queryMatchDataBuilder
                 .varadaColumn(warmUpElement.getVaradaColumn())
                 .type(IntegerType.INTEGER)
@@ -187,7 +187,7 @@ public class VaradaPageSourceTest
                 .build();
 
         PredicatesCacheService predicatesCacheService = mock(PredicatesCacheService.class);
-        BasicBloomQueryMatchData.Builder queryMatchDataBuilder = new BasicBloomQueryMatchData.Builder();
+        BasicQueryMatchData.Builder queryMatchDataBuilder = new BasicQueryMatchData.Builder();
         queryMatchDataBuilder
                 .varadaColumn(warmUpElement.getVaradaColumn())
                 .type(IntegerType.INTEGER)
@@ -286,7 +286,7 @@ public class VaradaPageSourceTest
 
         PredicatesCacheService predicatesCacheService = mock(PredicatesCacheService.class);
 
-        BasicBloomQueryMatchData.Builder queryMatchDataBuilder = new BasicBloomQueryMatchData.Builder();
+        BasicQueryMatchData.Builder queryMatchDataBuilder = new BasicQueryMatchData.Builder();
         queryMatchDataBuilder.varadaColumn(warmUpElementMatch.getVaradaColumn())
                 .type(IntegerType.INTEGER)
                 .warmUpElement(warmUpElementMatch)

@@ -237,7 +237,7 @@ public class WarmupRuleService
                 }
                 else {
                     String columnUniqueKey = getColumnUniqueKey(warmupRule);
-                    boolean valid = validateRule(rejectedRules, warmupRule, columnUniqueKey, existingRuleByColumn, columnType);
+                    boolean valid = validateRule(rejectedRules, warmupRule, columnType);
                     if (valid) {
                         List<WarmupRule> columnRules = existingRuleByColumn.computeIfAbsent(columnUniqueKey, rule -> new ArrayList<>());
                         columnRules.add(warmupRule); // adding to find failures in the list to be saved
@@ -251,8 +251,6 @@ public class WarmupRuleService
 
     private boolean validateRule(Map<WarmupRule, Set<String>> rejectedRules,
             WarmupRule warmupRule,
-            String columnUniqueKey,
-            Map<String, List<WarmupRule>> existingRuleByColumn,
             Optional<Type> optionalType)
     {
         Set<String> errors = new HashSet<>();
@@ -263,8 +261,6 @@ public class WarmupRuleService
                     validateTypeIsSupported(errors, warmupRule, type);
                     validateMaxCharLength(errors, warmupRule, type);
                 }
-                validateBloomIndexLength(errors, warmupRule, type);
-                validateSingleBloom(errors, warmupRule, columnUniqueKey, existingRuleByColumn);
                 validateDataOnly(errors, warmupRule);
             }
             else {
@@ -314,28 +310,6 @@ public class WarmupRuleService
                     VaradaErrorCode.VARADA_WARMUP_RULE_ILLEGAL_CHAR_LENGTH.getCode(),
                     storageEngineConstants.getMaxRecLen());
             errors.add(error);
-        }
-    }
-
-    private void validateBloomIndexLength(Set<String> errors, WarmupRule warmupRule, Type type)
-    {
-        if (warmupRule.getWarmUpType().bloom() &&
-                (TypeUtils.getIndexTypeLength(type, storageEngineConstants.getFixedLengthStringLimit()) < Integer.BYTES)) {
-            String error = String.format("%d: Bloom index can be applied only to types that use index length smaller than %d",
-                    VaradaErrorCode.VARADA_WARMUP_RULE_BLOOM_ILLEGAL_TYPE.getCode(), Integer.BYTES);
-            errors.add(error);
-        }
-    }
-
-    private void validateSingleBloom(Set<String> errors, WarmupRule warmupRule, String columnUniqueKey, Map<String, List<WarmupRule>> existingRuleByColumn)
-    {
-        if (warmupRule.getWarmUpType().bloom()) {
-            List<WarmupRule> columnRules = existingRuleByColumn.get(columnUniqueKey);
-            if (columnRules != null && columnRules.stream().anyMatch(rule -> rule.getWarmUpType().bloom())) {
-                String error = String.format("%d: Only single bloom index allowed",
-                        VaradaErrorCode.VARADA_WARMUP_RULE_BLOOM_TOO_MANY_BLOOM_WARMUPS.getCode());
-                errors.add(error);
-            }
         }
     }
 

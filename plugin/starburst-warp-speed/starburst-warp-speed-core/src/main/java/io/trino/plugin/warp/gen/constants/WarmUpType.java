@@ -17,22 +17,12 @@ package io.trino.plugin.warp.gen.constants;
 
 public enum WarmUpType
 {
-    WARM_UP_TYPE_BASIC(false),
-    WARM_UP_TYPE_LUCENE(false),
-    WARM_UP_TYPE_DATA(false),
-    WARM_UP_TYPE_BLOOM_HIGH(true),
-    WARM_UP_TYPE_BLOOM_MEDIUM(true),
-    WARM_UP_TYPE_BLOOM_LOW(true),
-    WARM_UP_TYPE_NUM_OF(false);
-    final boolean bloom;
+    WARM_UP_TYPE_BASIC,
+    WARM_UP_TYPE_LUCENE,
+    WARM_UP_TYPE_DATA,
+    WARM_UP_TYPE_NUM_OF;
 
-    WarmUpType(boolean bloom)
+    WarmUpType()
     {
-        this.bloom = bloom;
-    }
-
-    public boolean bloom()
-    {
-        return bloom;
     }
 }

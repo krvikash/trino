@@ -55,9 +55,7 @@ public class DemoterUtils
     public static final ObjectMapper objectMapper = new ObjectMapperProvider().get();
 
     private static final List<io.trino.plugin.warp.gen.constants.WarmUpType> allWarmUpTypes = List.of(WarmUpType.WARM_UP_TYPE_DATA, WarmUpType.WARM_UP_TYPE_BASIC,
-            WarmUpType.WARM_UP_TYPE_LUCENE,
-            WarmUpType.WARM_UP_TYPE_BLOOM_LOW, WarmUpType.WARM_UP_TYPE_BLOOM_MEDIUM,
-            WarmUpType.WARM_UP_TYPE_BLOOM_HIGH);
+            WarmUpType.WARM_UP_TYPE_LUCENE);
 
     public DemoterUtils()
     {

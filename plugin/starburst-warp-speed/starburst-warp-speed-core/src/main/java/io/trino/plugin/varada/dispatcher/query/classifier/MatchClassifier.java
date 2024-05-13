@@ -300,20 +300,14 @@ class MatchClassifier
                 VaradaColumn varadaColumn = predicateContext.getVaradaColumn();
                 MatchContext matchContext = runMatchers(classifyArgs, Map.of(varadaColumn, predicateContext));
 
+                checkArgument(matchContext.matchDataList().size() <= 1, "Too many matchData objects in the list");
                 if (matchContext.matchDataList().isEmpty()) {
                     terms = Collections.emptyList();
                     canBeTight = false;
                     break;
                 }
-                else if (matchContext.matchDataList().size() == 1) {
-                    terms.add(matchContext.matchDataList().get(0));
-                }
                 else {
-                    //in case of basic + bloom we will get 2 matchDatas, we need to set AND between them
-                    Optional<QueryMatchData> basicMatch = matchContext.matchDataList().stream().filter(x -> x.getWarmUpElement().getWarmUpType() == WarmUpType.WARM_UP_TYPE_BASIC).findFirst();
-                    if (basicMatch.isPresent()) {
-                        terms.add(basicMatch.get());
-                    }
+                    terms.add(matchContext.matchDataList().get(0));
                 }
             }
         }

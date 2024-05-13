@@ -22,7 +22,7 @@ import io.trino.plugin.varada.dispatcher.model.VaradaColumn;
 import io.trino.plugin.varada.dispatcher.model.WarmUpElement;
 import io.trino.plugin.varada.dispatcher.query.QueryContext;
 import io.trino.plugin.varada.dispatcher.query.data.collect.QueryCollectData;
-import io.trino.plugin.varada.dispatcher.query.data.match.BasicBloomQueryMatchData;
+import io.trino.plugin.varada.dispatcher.query.data.match.BasicQueryMatchData;
 import io.trino.plugin.varada.expression.NativeExpression;
 import io.trino.plugin.varada.expression.VaradaPrimitiveConstant;
 import io.trino.plugin.varada.juffer.BufferAllocator;
@@ -173,7 +173,7 @@ public class NativeCollectClassifierTest
         if (withMatchCollect) {
             ColumnHandle basicColumnHandle = collectColumnsByBlockIndex.values().stream().filter(h -> !(((TestingConnectorColumnHandle) h).type() instanceof VarcharType)).findFirst().orElseThrow();
             return baseQueryContext.asBuilder()
-                    .matchData(Optional.of(BasicBloomQueryMatchData.builder()
+                    .matchData(Optional.of(BasicQueryMatchData.builder()
                             .varadaColumn(new RegularColumn(((TestingConnectorColumnHandle) basicColumnHandle).name()))
                             .warmUpElement(createWarmUpElementFromColumnHandle(basicColumnHandle, WarmUpType.WARM_UP_TYPE_BASIC))
                             .nativeExpression(NativeExpression.builder()

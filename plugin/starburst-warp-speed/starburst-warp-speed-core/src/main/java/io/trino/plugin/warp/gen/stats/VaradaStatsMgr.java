@@ -37,7 +37,6 @@ public final class VaradaStatsMgr
 
     public VaradaStatsMgr(MetricsManager metricsManager)
     {
-        metricsManager.registerMetric(new VaradaStatsBloom());
         metricsManager.registerMetric(new VaradaStatsBtree());
         metricsManager.registerMetric(new VaradaStatsCollecttime());
         metricsManager.registerMetric(new VaradaStatsConnector());

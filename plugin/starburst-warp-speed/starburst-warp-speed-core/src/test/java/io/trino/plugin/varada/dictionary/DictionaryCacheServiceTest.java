@@ -118,10 +118,7 @@ public class DictionaryCacheServiceTest
     public void testIsDictionaryValidForColumn_testWarmUpType()
     {
         List<WarmUpElement> warmupElements = getWarmupElements(WarmUpType.WARM_UP_TYPE_BASIC,
-                WarmUpType.WARM_UP_TYPE_LUCENE,
-                WarmUpType.WARM_UP_TYPE_BLOOM_HIGH,
-                WarmUpType.WARM_UP_TYPE_BLOOM_LOW,
-                WarmUpType.WARM_UP_TYPE_BLOOM_MEDIUM);
+                WarmUpType.WARM_UP_TYPE_LUCENE);
         DictionaryCacheService dictionaryCacheService = new DictionaryCacheService(dictionaryConfig,
                 metricsManager,
                 attachDictionaryService);
