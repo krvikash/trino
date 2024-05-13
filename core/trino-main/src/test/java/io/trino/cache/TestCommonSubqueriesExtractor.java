@@ -403,7 +403,7 @@ public class TestCommonSubqueriesExtractor
                 UNION ALL
                 SELECT regionkey FROM nation WHERE regionkey > 20
                 UNION ALL
-                SELECT regionkey FROM nation WHERE regionkey > 10
+                SELECT nationkey FROM nation WHERE regionkey > 10
                 """);
         // unsafe projections are matched with safe projections if there is no predicate
         assertAdaptationCount(2, """

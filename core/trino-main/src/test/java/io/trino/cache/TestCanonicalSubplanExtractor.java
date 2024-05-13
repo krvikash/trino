@@ -304,9 +304,9 @@ public class TestCanonicalSubplanExtractor
                 "SELECT nationkey * 2 FROM nation WHERE regionkey > 10",
                 ScanFilterProjectKey.class,
                 new Comparison(GREATER_THAN, REGIONKEY_REF, new Constant(BIGINT, 10L)));
-        // nationkey is reference, therefore it's safe expression
+        // safe expressions
         assertRequiredConjuncts(
-                "SELECT nationkey FROM nation WHERE regionkey > 10",
+                "SELECT nationkey, 42 FROM nation WHERE regionkey > 10",
                 ScanFilterProjectKey.class);
         // nested projection; nationkey_mul is reference; "nationkey_mul * nationkey_mul > 10" is not pushed to table scan level
         // therefore nationkey * nationkey (potentially unsafe) is evaluated for every input row
