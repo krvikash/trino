@@ -69,6 +69,7 @@ public class WarmupElementBlocks
 
     public void dropProcessed(int blocksToDrop, int startOffsetInNextBlock)
     {
+        logger.debug("Dropping %d blocks. Setting startOffsetInNextBlock=%d", blocksToDrop, startOffsetInNextBlock);
         checkArgument(blocksToDrop >= 0 && startOffsetInNextBlock >= 0,
                 format("blocksToDrop and startOffsetInNextBlock can't be negative numbers. blocksToDrop=%d, startOffsetInNextBlock=%d",
                         blocksToDrop, startOffsetInNextBlock));
@@ -134,13 +135,14 @@ public class WarmupElementBlocks
             return;
         }
 
-        double newFactor = (double) notFlushedBytes / logicalSizeInBytes;
+        double newFactor = (0.99 * notFlushedBytes) / logicalSizeInBytes; // Remove 1% so non-flushing won't happen again with the exact same amount of bytes
         if (newFactor > logicalSizeFactor) {
             logger.warn("Expected new factor to be less than the existing one. newFactor=%f, notFlushedBytes=%d, logicalSizeInBytes=%d, logicalSizeFactor=%f",
                     newFactor, notFlushedBytes, logicalSizeInBytes, logicalSizeFactor);
             return;
         }
 
+        logger.debug("Updating logicalSizeFactor from %f to %f", logicalSizeFactor, newFactor);
         logicalSizeFactor = newFactor;
         factorRecentlyUpdated = true;
     }
