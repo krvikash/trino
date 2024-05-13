@@ -182,20 +182,30 @@ public class TestWarpCache
         List<String> excludeQueries = configuration.get(QUERY_ID);
 
         // These queries fail on "appendVarlenBlock found a string length %d longer than max %d" - so it's OK to skip them
+        // It doesn't happen without caching manager because caching manager doesn't support dictionary
         excludeQueries.add("wide_40k_3");
         excludeQueries.add("varchar_rectlength_1");
 
+        // Sometimes this query get stuck because of a deadlock that should be resolved once we move to the asynchronous approach
+        // (see https://starburstdata.atlassian.net/browse/SIC-2178?focusedCommentId=150236).
+        // Please note that we also used to get a PANIC for this query, but it doesn't seem to reproduce anymore (at least not on a local docker).
+        // PANIC chunk start_loc 343 or type 3 or nv 125 are invalid. read_min_offset 220 read_max_offset 2317 chunk_ix 0 nchunks 16 relative_start_loc 1973 chunks_map_start_loc 2316
+        // (Note: happened also before multi-column, see https://github.com/starburstdata/varada/actions/runs/8680131130/job/23800199602?pr=2762).
+        excludeQueries.add("tuples_40keys_6");
+
+        // This PR https://github.com/starburstdata/cork/pull/713 should have fixed the following query - need to validate on CI.
+        // For now, we keep skipping it because the warmup is too long.
+        // Before the PR we used to get an exception: WarpCacheColumnHandle cannot be cast to class io.trino.plugin.hive.HiveColumnHandle
+        excludeTests.add("denorm_table");
+
         // We need to check why these queries fail
-        excludeQueries.add("tuples_40keys_2"); // PANIC insufficient write buffer (on query time)
-        excludeQueries.add("tuples_40keys_3"); // PANIC insufficient write buffer (on query time)
+        excludeQueries.add("tuples_40keys_2"); // PANIC cmprs.c line 407 msg insufficient write buffer (on query time) [related to compression, see cmprs.c]. When compression is disabled -> [Inconsistent] wrong results
+        excludeQueries.add("tuples_40keys_3"); // PANIC cmprs.c line 407 msg insufficient write buffer (on query time) [related to compression, see cmprs.c]. When compression is disabled -> [Inconsistent] wrong results
         excludeQueries.add("tuples_40keys_4"); // PANIC illegal number of compressed pages 0 to write (max 64)
-        excludeQueries.add("tuples_40keys_5"); // PANIC caught sig 11, siginfo: signo 11 code 1 errno 0 \ page_ix 249 uncomp offset page 0 (on query time)
-        excludeQueries.add("tuples_40keys_6"); // PANIC chunk start_loc 343 or type 3 or nv 125 are invalid. read_min_offset 220 read_max_offset 2317 chunk_ix 0 nchunks 16 relative_start_loc 1973 chunks_map_start_loc 2316 (Note: happened also before multi-column, see https://github.com/starburstdata/varada/actions/runs/8680131130/job/23800199602?pr=2762). Query is getting stuck when trying to run locally.
+        excludeQueries.add("tuples_40keys_5"); // PANIC env.c line 103 msg caught sig 11, siginfo: signo 11 code 1 errno 0 \ page_ix 249 uncomp offset page 0 (on query time). When compression is disabled -> still PANIC (signo 11)
         excludeQueries.add("tuples_40keys_10"); // PANIC illegal number of compressed pages 0 to write (max 64)
         excludeQueries.add("tuples_40keys_11"); // PANIC illegal number of compressed pages 0 to write (max 64)
-
-        // This PR https://github.com/starburstdata/cork/pull/713 will fix the following
-        excludeTests.add("denorm_table"); // long warm + exception skip denorm_table on exception WarpCacheColumnHandle cannot be cast to class io.trino.plugin.hive.HiveColumnHandle
+        excludeQueries.add("nan_chunks_09"); // [Inconsistent] PANIC cmprs.c line 408 msg insufficient write buffer (probably on query time) [related to compression, see cmprs.c]. https://github.com/starburstdata/cork/actions/runs/8999435408/job/24722117202
 
         ExcludeStrategy excludeStrategy = new ExcludeStrategy();
         configuration.put(QUERY_ID, excludeQueries);
