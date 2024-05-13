@@ -643,7 +643,7 @@ public class TestDispatcherRestIT
     public void testNativeStorageState()
             throws IOException
     {
-        String str = executeRestCommand(
+        String str = executeWorkerRestCommand(
                 NativeStorageStateResource.PATH,
                 "",
                 null,
@@ -654,14 +654,14 @@ public class TestDispatcherRestIT
         assertThat(state.storagePermanentException()).isEqualTo(false);
         assertThat(state.storageTemporaryException()).isEqualTo(false);
 
-        executeRestCommand(
+        executeWorkerRestCommand(
                 NativeStorageStateResource.PATH,
                 "",
-                new NativeStorageStateResource.NativeStorageState(false, false),
+                new NativeStorageStateResource.NativeStorageState(0, 0, false, false),
                 HttpMethod.POST,
                 HttpURLConnection.HTTP_NO_CONTENT);
 
-        str = executeRestCommand(
+        str = executeWorkerRestCommand(
                 NativeStorageStateResource.PATH,
                 "",
                 null,
@@ -672,13 +672,13 @@ public class TestDispatcherRestIT
         assertThat(state.storagePermanentException()).isEqualTo(false);
         assertThat(state.storageTemporaryException()).isEqualTo(false);
 
-        executeRestCommand(
+        executeWorkerRestCommand(
                 NativeStorageStateResource.PATH,
                 "",
-                new NativeStorageStateResource.NativeStorageState(true, false),
+                new NativeStorageStateResource.NativeStorageState(0, 0, true, false),
                 HttpMethod.POST,
                 HttpURLConnection.HTTP_NO_CONTENT);
-        str = executeRestCommand(
+        str = executeWorkerRestCommand(
                 NativeStorageStateResource.PATH,
                 "",
                 null,
@@ -689,13 +689,13 @@ public class TestDispatcherRestIT
         assertThat(state.storagePermanentException()).isEqualTo(true);
         assertThat(state.storageTemporaryException()).isEqualTo(false);
 
-        executeRestCommand(
+        executeWorkerRestCommand(
                 NativeStorageStateResource.PATH,
                 "",
-                new NativeStorageStateResource.NativeStorageState(false, true),
+                new NativeStorageStateResource.NativeStorageState(0, 0, false, true),
                 HttpMethod.POST,
                 HttpURLConnection.HTTP_NO_CONTENT);
-        str = executeRestCommand(
+        str = executeWorkerRestCommand(
                 NativeStorageStateResource.PATH,
                 "",
                 null,
@@ -706,13 +706,13 @@ public class TestDispatcherRestIT
         assertThat(state.storagePermanentException()).isEqualTo(false);
         assertThat(state.storageTemporaryException()).isEqualTo(true);
 
-        executeRestCommand(
+        executeWorkerRestCommand(
                 NativeStorageStateResource.PATH,
                 "",
-                new NativeStorageStateResource.NativeStorageState(false, false),
+                new NativeStorageStateResource.NativeStorageState(0, 0, false, false),
                 HttpMethod.POST,
                 HttpURLConnection.HTTP_NO_CONTENT);
-        str = executeRestCommand(
+        str = executeWorkerRestCommand(
                 NativeStorageStateResource.PATH,
                 "",
                 null,

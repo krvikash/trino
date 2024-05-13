@@ -16,6 +16,7 @@ package io.trino.plugin.warp.extension.execution.debugtools;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
+import io.trino.plugin.varada.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.varada.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
@@ -32,7 +33,7 @@ import static java.util.Objects.requireNonNull;
 @Path(NativeStorageStateResource.PATH)
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
-@TaskResourceMarker
+@TaskResourceMarker(coordinator = false)
 public class NativeStorageStateResource
         implements TaskResource
 {
@@ -40,11 +41,14 @@ public class NativeStorageStateResource
 
     private static final Logger logger = Logger.get(NativeStorageStateResource.class);
 
+    private final WorkerCapacityManager workerCapacityManager;
     private final NativeStorageStateHandler handler;
 
     @Inject
-    public NativeStorageStateResource(NativeStorageStateHandler handler)
+    public NativeStorageStateResource(WorkerCapacityManager workerCapacityManager,
+                                      NativeStorageStateHandler handler)
     {
+        this.workerCapacityManager = requireNonNull(workerCapacityManager);
         this.handler = requireNonNull(handler);
     }
 
@@ -58,11 +62,13 @@ public class NativeStorageStateResource
     public NativeStorageState get()
     {
         NativeStorageState state = new NativeStorageState(
+                workerCapacityManager.getTotalCapacity(),
+                workerCapacityManager.getCurrentUsage(),
                 handler.isStorageDisabledPermanently(),
                 handler.isStorageDisabledTemporarily());
         logger.info("state=%s", state);
         return state;
     }
 
-    public record NativeStorageState(boolean storagePermanentException, boolean storageTemporaryException) {}
+    public record NativeStorageState(long totalCapacity, long currentUsage, boolean storagePermanentException, boolean storageTemporaryException) {}
 }

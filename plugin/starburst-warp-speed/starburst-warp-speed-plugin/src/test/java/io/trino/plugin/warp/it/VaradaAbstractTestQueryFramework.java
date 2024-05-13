@@ -200,13 +200,25 @@ public abstract class VaradaAbstractTestQueryFramework
     protected String executeRestCommand(String ext, Object inObj, int responseCode)
             throws IOException
     {
-        return executeRestCommand("/v1/ext/varada/", ext, inObj, HttpMethod.POST, responseCode);
+        return executeRestCommand("/v1/ext/varada/", ext, inObj, HttpMethod.POST, responseCode, false);
+    }
+
+    protected String executeWorkerRestCommand(String prefix, String ext, Object inObj, String httpMethod, int responseCode)
+            throws IOException
+    {
+        return executeRestCommand(prefix, ext, inObj, httpMethod, responseCode, true);
     }
 
     protected String executeRestCommand(String prefix, String ext, Object inObj, String httpMethod, int responseCode)
             throws IOException
     {
-        URI baseUrl = ((DistributedQueryRunner) this.getQueryRunner()).getCoordinator().getBaseUrl();
+        return executeRestCommand(prefix, ext, inObj, httpMethod, responseCode, false);
+    }
+
+    protected String executeRestCommand(String prefix, String ext, Object inObj, String httpMethod, int responseCode, boolean sendToWorker)
+            throws IOException
+    {
+        URI baseUrl = sendToWorker ? ((DistributedQueryRunner) this.getQueryRunner()).getServers().getFirst().getBaseUrl() : this.getQueryRunner().getCoordinator().getBaseUrl();
         prefix = prefix.endsWith("/") ? prefix : prefix + "/";
         prefix = prefix.startsWith("/") ? prefix : "/" + prefix;
 

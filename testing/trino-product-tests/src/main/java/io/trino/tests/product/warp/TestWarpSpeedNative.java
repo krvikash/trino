@@ -80,7 +80,7 @@ public class TestWarpSpeedNative
             restUtils.executeWorkerRestCommand(
                     NativeStorageStateResource.PATH,
                     "",
-                    new NativeStorageStateResource.NativeStorageState(false, false),
+                    new NativeStorageStateResource.NativeStorageState(0, 0, false, false),
                     HttpMethod.POST,
                     HttpURLConnection.HTTP_NO_CONTENT);
 
@@ -102,7 +102,7 @@ public class TestWarpSpeedNative
             restUtils.executeWorkerRestCommand(
                     NativeStorageStateResource.PATH,
                     "",
-                    new NativeStorageStateResource.NativeStorageState(false, false),
+                    new NativeStorageStateResource.NativeStorageState(0, 0, false, false),
                     HttpMethod.POST,
                     HttpURLConnection.HTTP_NO_CONTENT);
 
