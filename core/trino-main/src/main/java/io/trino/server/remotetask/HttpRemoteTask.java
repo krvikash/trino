@@ -178,8 +178,7 @@ public final class HttpRemoteTask
     @GuardedBy("this")
     private OptionalLong whenSplitQueueHasSpaceThreshold = OptionalLong.empty();
 
-    @VisibleForTesting
-    final AtomicInteger splitBatchSize;
+    @VisibleForTesting final AtomicInteger splitBatchSize;
 
     private final boolean summarizeTaskInfo;
 
