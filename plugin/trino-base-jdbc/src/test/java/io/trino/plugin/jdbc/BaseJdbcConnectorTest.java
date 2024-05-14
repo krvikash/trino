@@ -1263,12 +1263,11 @@ public abstract class BaseJdbcConnectorTest
                         .setSystemProperty("enable_dynamic_filtering", "false")
                         .build();
 
-                String notDistinctOperator = "IS NOT DISTINCT FROM";
                 List<String> nonEqualities = Stream.concat(
                                 Stream.of(JoinCondition.Operator.values())
                                         .filter(operator -> operator != JoinCondition.Operator.EQUAL && operator != JoinCondition.Operator.IDENTICAL)
                                         .map(JoinCondition.Operator::getValue),
-                                Stream.of(notDistinctOperator))
+                                Stream.of("IS DISTINCT FROM", "IS NOT DISTINCT FROM"))
                         .collect(toImmutableList());
 
                 // basic case
@@ -1460,7 +1459,7 @@ public abstract class BaseJdbcConnectorTest
 
     protected boolean expectJoinPushdown(String operator)
     {
-        if ("IS NOT DISTINCT FROM".equals(operator)) {
+        if ("IS DISTINCT FROM".equals(operator)) {
             return hasBehavior(SUPPORTS_JOIN_PUSHDOWN_WITH_DISTINCT_FROM);
         }
         return switch (toJoinConditionOperator(operator)) {
@@ -1477,7 +1476,7 @@ public abstract class BaseJdbcConnectorTest
 
     private boolean expectVarcharJoinPushdown(String operator)
     {
-        if ("IS NOT DISTINCT FROM".equals(operator)) {
+        if ("IS DISTINCT FROM".equals(operator)) {
             return hasBehavior(SUPPORTS_JOIN_PUSHDOWN_WITH_DISTINCT_FROM) && hasBehavior(SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_EQUALITY);
         }
         return switch (toJoinConditionOperator(operator)) {
@@ -1489,6 +1488,9 @@ public abstract class BaseJdbcConnectorTest
 
     private JoinCondition.Operator toJoinConditionOperator(String operator)
     {
+        if (operator.equals("IS NOT DISTINCT FROM")) {
+            return JoinCondition.Operator.IDENTICAL;
+        }
         return Stream.of(JoinCondition.Operator.values())
                 .filter(joinOperator -> joinOperator.getValue().equals(operator))
                 .collect(toOptional())
