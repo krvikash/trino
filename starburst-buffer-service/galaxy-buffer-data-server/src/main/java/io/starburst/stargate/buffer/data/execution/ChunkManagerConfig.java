@@ -43,7 +43,11 @@ public class ChunkManagerConfig
     private Duration exchangeStalenessThreshold = DEFAULT_EXCHANGE_STALENESS_THRESHOLD;
     private URI spoolingDirectory;
     private Duration chunkSpoolInterval = succinctDuration(50, MILLISECONDS);
-    private int chunkSpoolConcurrency = 32;
+    // It is important to keep number of spooling threads on lower end.
+    // With default chunks size and merging configuration single spooling request can have up to 16MB*10=160MB. It was
+    // observed that S3 client tends to allocate off-heap memory which is proportional to size of PUT requests in flight.
+    // If we have too many threads we may easily exceed memory available on node and worker is killed by operating system.
+    private int chunkSpoolConcurrency = 8;
     private int chunkSpoolMergeThreshold = 10;
 
     @NotNull
