@@ -1,4 +1,4 @@
-FROM centos:7
+FROM 843985043183.dkr.ecr.us-east-1.amazonaws.com/docker-hub/library/centos:7
 
 RUN yum install -y epel-release
 RUN yum -y install python36{,-pip,-devel} unixODBC{,-devel} gcc gcc-c++ make
