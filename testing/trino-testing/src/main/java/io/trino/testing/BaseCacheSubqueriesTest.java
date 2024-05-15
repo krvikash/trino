@@ -501,6 +501,34 @@ public abstract class BaseCacheSubqueriesTest
         assertUpdate("drop table orders_part");
     }
 
+    @Test
+    public void testCommonSubqueryCacheSplitByIntersectionOfEnforcedConstraint()
+    {
+        createPartitionedTableAsSelect("orders_part", ImmutableList.of("orderpriority"), "select orderkey, orderdate, orderpriority from orders");
+        @Language("SQL") String query = """
+                        select orderkey from orders_part where orderpriority = '3-MEDIUM'
+                        union all
+                        select orderkey from orders_part where orderpriority = '1-URGENT'
+                """;
+        // no caching because enforced constraint does not intersect between subplans
+        MaterializedResultWithPlan result = executeWithPlan(withCommonSubqueryCacheEnabled(), query);
+        assertThat(getScanOperatorInputPositions(result.queryId())).isPositive();
+        assertThat(getLoadCachedDataOperatorInputPositions(result.queryId())).isZero();
+        result = executeWithPlan(withCommonSubqueryCacheEnabled(), query);
+        assertThat(getScanOperatorInputPositions(result.queryId())).isPositive();
+        assertThat(getLoadCachedDataOperatorInputPositions(result.queryId())).isZero();
+        query = """
+                        select orderkey from orders_part where orderpriority = '1-URGENT'
+                        union all
+                        select orderkey from orders_part where orderpriority = '1-URGENT'
+                """;
+        executeWithPlan(withCommonSubqueryCacheEnabled(), query);
+        result = executeWithPlan(withCommonSubqueryCacheEnabled(), query);
+        assertThat(getScanOperatorInputPositions(result.queryId())).isZero();
+        assertThat(getLoadCachedDataOperatorInputPositions(result.queryId())).isPositive();
+        assertUpdate("drop table orders_part");
+    }
+
     @ParameterizedTest
     @MethodSource("isDynamicRowFilteringEnabled")
     public void testGetUnenforcedPredicateAndPrunePredicate(boolean isDynamicRowFilteringEnabled)
@@ -866,6 +894,17 @@ public abstract class BaseCacheSubqueriesTest
                 .setSystemProperty(CACHE_COMMON_SUBQUERIES_ENABLED, "true")
                 .setSystemProperty(CACHE_AGGREGATIONS_ENABLED, "true")
                 .setSystemProperty(CACHE_PROJECTIONS_ENABLED, "true")
+                .setSystemProperty(DYNAMIC_ROW_FILTERING_WAIT_TIMEOUT, "10s")
+                .build();
+    }
+
+    protected Session withCommonSubqueryCacheEnabled()
+    {
+        return Session.builder(getSession())
+                .setSystemProperty(ENABLE_LARGE_DYNAMIC_FILTERS, "false")
+                .setSystemProperty(CACHE_COMMON_SUBQUERIES_ENABLED, "true")
+                .setSystemProperty(CACHE_AGGREGATIONS_ENABLED, "false")
+                .setSystemProperty(CACHE_PROJECTIONS_ENABLED, "false")
                 .setSystemProperty(DYNAMIC_ROW_FILTERING_WAIT_TIMEOUT, "10s")
                 .build();
     }

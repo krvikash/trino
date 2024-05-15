@@ -24,6 +24,7 @@ import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.cache.CacheTableId;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.SortOrder;
+import io.trino.spi.predicate.TupleDomain;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.planner.Symbol;
 import io.trino.sql.planner.optimizations.SymbolMapper;
@@ -64,6 +65,10 @@ public class CanonicalSubplan
      * {@link PlanNodeId} of original table scan that can be used to identify subquery.
      */
     private final PlanNodeId tableScanId;
+    /**
+     * Mapped and propagated enforced constraint from original table scan node.
+     */
+    private final TupleDomain<CacheColumnId> enforcedConstraint;
     /**
      * Reference to {@link PlanNode} from which {@link CanonicalSubplan} was derived.
      */
@@ -107,6 +112,7 @@ public class CanonicalSubplan
     private CanonicalSubplan(
             Key key,
             PlanNodeId tableScanId,
+            TupleDomain<CacheColumnId> enforcedConstraint,
             PlanNode originalPlanNode,
             BiMap<CacheColumnId, Symbol> originalSymbolMapping,
             Optional<Set<CacheColumnId>> groupByColumns,
@@ -118,6 +124,7 @@ public class CanonicalSubplan
             Optional<CanonicalSubplan> childSubplan)
     {
         this.tableScanId = requireNonNull(tableScanId, "tableScanId is null");
+        this.enforcedConstraint = requireNonNull(enforcedConstraint, "enforcedConstraint is null");
         this.originalPlanNode = requireNonNull(originalPlanNode, "originalPlanNode is null");
         this.originalSymbolMapping = ImmutableBiMap.copyOf(requireNonNull(originalSymbolMapping, "originalSymbolMapping is null"));
         this.groupByColumns = requireNonNull(groupByColumns, "groupByColumns is null").map(ImmutableSet::copyOf);
@@ -158,6 +165,11 @@ public class CanonicalSubplan
     public PlanNodeId getTableScanId()
     {
         return tableScanId;
+    }
+
+    public TupleDomain<CacheColumnId> getEnforcedConstraint()
+    {
+        return enforcedConstraint;
     }
 
     public PlanNode getOriginalPlanNode()
@@ -260,6 +272,7 @@ public class CanonicalSubplan
     public static CanonicalSubplanBuilder builderForTableScan(
             Key key,
             Map<CacheColumnId, ColumnHandle> columnHandles,
+            TupleDomain<CacheColumnId> enforcedConstraint,
             TableHandle table,
             CacheTableId tableId,
             boolean useConnectorNodePartitioning,
@@ -268,6 +281,7 @@ public class CanonicalSubplan
         return new CanonicalSubplanBuilder(
                 key,
                 tableScanId,
+                enforcedConstraint,
                 Optional.of(new TableScan(columnHandles, table, tableId, useConnectorNodePartitioning)),
                 Optional.empty());
     }
@@ -278,6 +292,7 @@ public class CanonicalSubplan
         return new CanonicalSubplanBuilder(
                 key,
                 childSubplan.getTableScanId(),
+                childSubplan.getEnforcedConstraint(),
                 Optional.empty(),
                 Optional.of(childSubplan));
     }
@@ -290,7 +305,12 @@ public class CanonicalSubplan
     public static CanonicalSubplanBuilder builderExtending(Key key, CanonicalSubplan subplan)
     {
         requireNonNull(subplan, "subplan is null");
-        return new CanonicalSubplanBuilder(key, subplan.getTableScanId(), subplan.getTableScan(), subplan.getChildSubplan())
+        return new CanonicalSubplanBuilder(
+                key,
+                subplan.getTableScanId(),
+                subplan.getEnforcedConstraint(),
+                subplan.getTableScan(),
+                subplan.getChildSubplan())
                 .conjuncts(subplan.getConjuncts())
                 .dynamicConjuncts(subplan.getDynamicConjuncts());
     }
@@ -299,6 +319,7 @@ public class CanonicalSubplan
     {
         private final Key key;
         private final PlanNodeId tableScanId;
+        private final TupleDomain<CacheColumnId> enforcedConstraint;
         private final Optional<TableScan> tableScan;
         private final Optional<CanonicalSubplan> childSubplan;
         private PlanNode originalPlanNode;
@@ -309,10 +330,16 @@ public class CanonicalSubplan
         private Set<Expression> pullableConjuncts;
         private List<Expression> dynamicConjuncts = ImmutableList.of();
 
-        private CanonicalSubplanBuilder(Key key, PlanNodeId tableScanId, Optional<TableScan> tableScan, Optional<CanonicalSubplan> childSubplan)
+        private CanonicalSubplanBuilder(
+                Key key,
+                PlanNodeId tableScanId,
+                TupleDomain<CacheColumnId> enforcedConstraint,
+                Optional<TableScan> tableScan,
+                Optional<CanonicalSubplan> childSubplan)
         {
             this.key = requireNonNull(key, "key is null");
             this.tableScanId = requireNonNull(tableScanId, "tableScanId is null");
+            this.enforcedConstraint = requireNonNull(enforcedConstraint, "enforcedConstraint is null");
             this.tableScan = requireNonNull(tableScan, "tableScan is null");
             this.childSubplan = requireNonNull(childSubplan, "childSubplan is null");
         }
@@ -371,6 +398,7 @@ public class CanonicalSubplan
             return new CanonicalSubplan(
                     key,
                     tableScanId,
+                    enforcedConstraint,
                     originalPlanNode,
                     originalSymbolMapping,
                     groupByColumns,

@@ -26,11 +26,14 @@ import io.trino.cache.CanonicalSubplan.FilterProjectKey;
 import io.trino.cache.CanonicalSubplan.Key;
 import io.trino.cache.CanonicalSubplan.ScanFilterProjectKey;
 import io.trino.cache.CanonicalSubplan.TopNKey;
+import io.trino.metadata.Metadata;
 import io.trino.metadata.TableHandle;
 import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.cache.CacheTableId;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.SortOrder;
+import io.trino.spi.predicate.Domain;
+import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.Type;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
@@ -54,6 +57,7 @@ import io.trino.sql.planner.plan.TopNNode;
 import io.trino.sql.planner.plan.TopNRankingNode;
 
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +65,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Predicates.instanceOf;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -74,6 +79,7 @@ import static io.trino.sql.ir.IrUtils.extractConjuncts;
 import static io.trino.sql.planner.DeterminismEvaluator.isDeterministic;
 import static io.trino.sql.planner.ExpressionExtractor.extractExpressions;
 import static io.trino.sql.planner.plan.AggregationNode.Step.PARTIAL;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.joining;
@@ -86,10 +92,10 @@ public final class CanonicalSubplanExtractor
     /**
      * Extracts a list of {@link CanonicalSubplan} for a given plan.
      */
-    public static List<CanonicalSubplan> extractCanonicalSubplans(CacheMetadata cacheMetadata, Session session, PlanNode root)
+    public static List<CanonicalSubplan> extractCanonicalSubplans(Metadata metadata, CacheMetadata cacheMetadata, Session session, PlanNode root)
     {
         ImmutableList.Builder<CanonicalSubplan> canonicalSubplans = ImmutableList.builder();
-        root.accept(new Visitor(cacheMetadata, session, canonicalSubplans), null).ifPresent(canonicalSubplans::add);
+        root.accept(new Visitor(metadata, cacheMetadata, session, canonicalSubplans), null).ifPresent(canonicalSubplans::add);
         return canonicalSubplans.build();
     }
 
@@ -137,12 +143,14 @@ public final class CanonicalSubplanExtractor
     private static class Visitor
             extends PlanVisitor<Optional<CanonicalSubplan>, Void>
     {
+        private final Metadata metadata;
         private final CacheMetadata cacheMetadata;
         private final Session session;
         private final ImmutableList.Builder<CanonicalSubplan> canonicalSubplans;
 
-        public Visitor(CacheMetadata cacheMetadata, Session session, ImmutableList.Builder<CanonicalSubplan> canonicalSubplans)
+        public Visitor(Metadata metadata, CacheMetadata cacheMetadata, Session session, ImmutableList.Builder<CanonicalSubplan> canonicalSubplans)
         {
+            this.metadata = requireNonNull(metadata, "metadata is null");
             this.cacheMetadata = requireNonNull(cacheMetadata, "cacheMetadata is null");
             this.session = requireNonNull(session, "session is null");
             this.canonicalSubplans = requireNonNull(canonicalSubplans, "canonicalSubplans is null");
@@ -565,10 +573,12 @@ public final class CanonicalSubplanExtractor
             Map<CacheColumnId, CacheExpression> assignments = columnHandles.keySet().stream().collect(toImmutableMap(
                     identity(),
                     id -> CacheExpression.ofProjection(columnIdToSymbol(id, symbolMapping.get(id).type()).toSymbolReference())));
+            TupleDomain<CacheColumnId> enforcedConstraint = canonicalizeEnforcedConstraint(node);
 
             return Optional.of(CanonicalSubplan.builderForTableScan(
                             new ScanFilterProjectKey(tableId.get(), ImmutableSet.of()),
                             columnHandles,
+                            enforcedConstraint,
                             canonicalTableHandle,
                             tableId.get(),
                             node.isUseConnectorNodePartitioning(),
@@ -578,6 +588,32 @@ public final class CanonicalSubplanExtractor
                     .assignments(assignments)
                     .pullableConjuncts(ImmutableSet.of())
                     .build());
+        }
+
+        private TupleDomain<CacheColumnId> canonicalizeEnforcedConstraint(TableScanNode node)
+        {
+            // table predicate might contain all pushed down predicates to connector whereas TableScanNode#enforcedConstraints are pruned by visibility as output
+            TupleDomain<ColumnHandle> tablePredicate = metadata.getTableProperties(session, node.getTable()).getPredicate();
+            if (tablePredicate.isNone()) {
+                return TupleDomain.none();
+            }
+            if (tablePredicate.isAll()) {
+                return TupleDomain.all();
+            }
+
+            Map<ColumnHandle, Domain> domains = tablePredicate.getDomains().get();
+            HashMap<CacheColumnId, Domain> result = new LinkedHashMap<>(domains.size());
+            for (Map.Entry<ColumnHandle, Domain> entry : domains.entrySet()) {
+                Optional<CacheColumnId> columnId = cacheMetadata.getCacheColumnId(session, node.getTable(), entry.getKey());
+                if (columnId.isEmpty()) {
+                    return TupleDomain.all();
+                }
+
+                Domain domain = entry.getValue();
+                checkState(result.put(columnId.get(), domain) == null || result.get(columnId.get()).equals(domain),
+                        format("Columns with same ids should have same domains: %s maps to %s and %s", entry.getKey(), entry.getValue(), domain));
+            }
+            return TupleDomain.withColumnDomains(result);
         }
 
         private Optional<Map<CacheColumnId, SortOrder>> canonicalizeOrderingScheme(OrderingScheme orderingScheme, BiMap<CacheColumnId, Symbol> originalSymbolMapping)

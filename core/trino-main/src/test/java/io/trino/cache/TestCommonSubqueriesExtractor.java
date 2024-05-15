@@ -90,6 +90,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -257,7 +258,7 @@ public class TestCommonSubqueriesExtractor
                             if (handle.getConstraint().equals(CONSTRAINT_2)) {
                                 return new ConnectorTableProperties(TupleDomain.none(), Optional.empty(), Optional.empty(), emptyList());
                             }
-                            return new ConnectorTableProperties(TupleDomain.all(), Optional.empty(), Optional.empty(), emptyList());
+                            return new ConnectorTableProperties(handle.getConstraint(), Optional.empty(), Optional.empty(), emptyList());
                         })
                         .build(),
                 ImmutableMap.of());
@@ -429,6 +430,106 @@ public class TestCommonSubqueriesExtractor
     {
         CommonSubqueries commonSubqueries = extractTpchCommonSubqueries(query);
         assertThat(commonSubqueries.planAdaptations()).hasSize(size);
+    }
+
+    @Test
+    public void testCacheWithExcludingEnforcedConstraints()
+    {
+        SymbolAllocator symbolAllocator = new SymbolAllocator();
+        Symbol subqueryColumn = symbolAllocator.newSymbol("subquery_column", BIGINT);
+
+        BiFunction<Long, TupleDomain<ColumnHandle>, PlanNode> getPlan = (Long tableScanId, TupleDomain<ColumnHandle> enforcedConstraint) -> {
+            PlanNode scanA = new TableScanNode(
+                    new PlanNodeId(tableScanId.toString()),
+                    new TableHandle(
+                            getPlanTester().getCatalogHandle(TEST_CATALOG_NAME),
+                            new MockConnectorTableHandle(TABLE_NAME, enforcedConstraint, Optional.empty()),
+                            TestingTransactionHandle.create()),
+                    ImmutableList.of(subqueryColumn),
+                    ImmutableMap.of(subqueryColumn, HANDLE_1),
+                    enforcedConstraint,
+                    Optional.empty(),
+                    false,
+                    Optional.of(false));
+            return new FilterNode(
+                    new PlanNodeId("filter" + tableScanId),
+                    scanA,
+                    new Comparison(GREATER_THAN, new Reference(BIGINT, "subquery_column"), new Constant(BIGINT, tableScanId)));
+        };
+        PlanNode filter1 = getPlan.apply(1L, TupleDomain.all());
+        PlanNode filter2 = getPlan.apply(2L, TupleDomain.all());
+        PlanNodeIdAllocator idAllocator = new PlanNodeIdAllocator();
+        Map<PlanNode, CommonPlanAdaptation> planAdaptations = extractCommonSubqueries(
+                idAllocator,
+                symbolAllocator,
+                new UnionNode(
+                        new PlanNodeId("union"),
+                        ImmutableList.of(filter1,filter2),
+                        ImmutableListMultimap.of(),
+                        ImmutableList.of()));
+
+        assertThat(planAdaptations).hasSize(2);
+        assertThat(planAdaptations).containsKey(filter1);
+        assertThat(planAdaptations).containsKey(filter2);
+
+        // with enforced constraint intersection
+        filter1 = getPlan.apply(1L, TupleDomain.withColumnDomains(ImmutableMap.of(HANDLE_1, Domain.multipleValues(BIGINT, ImmutableList.of(1L, 2L, 3L)))));
+        filter2 = getPlan.apply(2L, TupleDomain.withColumnDomains(ImmutableMap.of(HANDLE_1, Domain.multipleValues(BIGINT, ImmutableList.of(3L, 4L, 5L)))));
+        planAdaptations = extractCommonSubqueries(
+                idAllocator,
+                symbolAllocator,
+                new UnionNode(
+                        new PlanNodeId("union"),
+                        ImmutableList.of(filter1,filter2),
+                        ImmutableListMultimap.of(),
+                        ImmutableList.of()));
+
+        assertThat(planAdaptations).hasSize(2);
+        assertThat(planAdaptations).containsKey(filter1);
+        assertThat(planAdaptations).containsKey(filter2);
+
+        // no common subplans with excluding enforced constraints
+        planAdaptations = extractCommonSubqueries(
+                idAllocator,
+                symbolAllocator,
+                new UnionNode(
+                        new PlanNodeId("union"),
+                        ImmutableList.of(
+                                getPlan.apply(1L, TupleDomain.withColumnDomains(ImmutableMap.of(HANDLE_1, Domain.singleValue(BIGINT, 1L)))),
+                                getPlan.apply(2L, TupleDomain.withColumnDomains(ImmutableMap.of(HANDLE_1, Domain.singleValue(BIGINT, 2L))))),
+                        ImmutableListMultimap.of(),
+                        ImmutableList.of()));
+        assertThat(planAdaptations).hasSize(0);
+
+        // 2 groups with intersecting enforced constraint
+        filter1 = getPlan.apply(1L, TupleDomain.withColumnDomains(ImmutableMap.of(HANDLE_1, Domain.multipleValues(BIGINT, ImmutableList.of(1L, 2L, 3L)))));
+        filter2 = getPlan.apply(2L, TupleDomain.withColumnDomains(ImmutableMap.of(HANDLE_1, Domain.multipleValues(BIGINT, ImmutableList.of(3L, 4L, 5L)))));
+        PlanNode filter3 = getPlan.apply(3L, TupleDomain.withColumnDomains(ImmutableMap.of(HANDLE_1, Domain.multipleValues(BIGINT, ImmutableList.of(6L, 7L, 8L)))));
+        PlanNode filter4 = getPlan.apply(4L, TupleDomain.withColumnDomains(ImmutableMap.of(HANDLE_1, Domain.multipleValues(BIGINT, ImmutableList.of(8L, 9L, 0L)))));
+        planAdaptations = extractCommonSubqueries(
+                idAllocator,
+                symbolAllocator,
+                new UnionNode(
+                        new PlanNodeId("union"),
+                        ImmutableList.of(filter1, filter4, filter3, filter2),
+                        ImmutableListMultimap.of(),
+                        ImmutableList.of()));
+        assertThat(planAdaptations).hasSize(4);
+        assertThat(planAdaptations).containsKeys(filter1, filter2, filter3, filter4);
+        PlanMatchPattern commonSubplan = filter(
+                new Logical(OR, ImmutableList.of(
+                        new Comparison(GREATER_THAN, new Reference(BIGINT, "subquery_column"), new Constant(BIGINT, 1L)),
+                        new Comparison(GREATER_THAN, new Reference(BIGINT, "subquery_column"), new Constant(BIGINT, 2L)))),
+                tableScan(TABLE_NAME.getTableName(), ImmutableMap.of("subquery_column", "column1")));
+        assertPlan(planAdaptations.get(filter1).getCommonSubplan(), commonSubplan);
+        assertPlan(planAdaptations.get(filter2).getCommonSubplan(), commonSubplan);
+        commonSubplan = filter(
+                new Logical(OR, ImmutableList.of(
+                        new Comparison(GREATER_THAN, new Reference(BIGINT, "subquery_column"), new Constant(BIGINT, 4L)),
+                        new Comparison(GREATER_THAN, new Reference(BIGINT, "subquery_column"), new Constant(BIGINT, 3L)))),
+                tableScan(TABLE_NAME.getTableName(), ImmutableMap.of("subquery_column", "column1")));
+        assertPlan(planAdaptations.get(filter3).getCommonSubplan(), commonSubplan);
+        assertPlan(planAdaptations.get(filter4).getCommonSubplan(), commonSubplan);
     }
 
     @Test

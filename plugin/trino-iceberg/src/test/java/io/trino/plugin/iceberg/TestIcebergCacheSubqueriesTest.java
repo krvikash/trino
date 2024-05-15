@@ -118,18 +118,24 @@ public class TestIcebergCacheSubqueriesTest
                 getQueryRunner()::execute,
                 "iceberg_do_not_cache",
                 "(year INT, name VARCHAR) with (partitioning = ARRAY['year'])",
-                ImmutableList.of("2000, 'value1'", "2001, 'value2'"))) {
-            @Language("SQL") String selectQuery = "select name from %s where year = 2001 and name ='value2' union all select name from %s where year = 2000 and name='value1'".formatted(testTable.getName(), testTable.getName());
-            executeWithPlan(withCacheEnabled(), selectQuery);
-            assertUpdate("insert into %s(year, name) values (2000, 'value3'), (2001, 'value4')".formatted(testTable.getName()), 2);
-            assertUpdate("ALTER TABLE %s SET PROPERTIES partitioning = ARRAY['name']".formatted(testTable.getName()));
-            MaterializedResultWithPlan result = executeWithPlan(withCacheEnabled(), "select name from %s where year=2000".formatted(testTable.getName()));
+                ImmutableList.of("2001, 'value1'", "2001, 'value2'"))) {
+            @Language("SQL") String selectQuery = """
+                    SELECT name FROM %s WHERE year = 2001 AND name = 'value2'
+                    UNION ALL
+                    SELECT name FROM %s WHERE year = 2001 AND name = 'value1'
+                    """.formatted(testTable.getName(), testTable.getName());
+            MaterializedResultWithPlan result = executeWithPlan(withCacheEnabled(), selectQuery);
             assertThat(result.result().getRowCount()).isEqualTo(2);
-            assertThat(getLoadCachedDataOperatorInputPositions(result.queryId())).isEqualTo(1);
+            assertUpdate("ALTER TABLE %s SET PROPERTIES partitioning = ARRAY['name']".formatted(testTable.getName()));
+            assertUpdate("INSERT INTO %s(year, name) VALUES (2000, 'value5'), (2001, 'value1')".formatted(testTable.getName()), 2);
+            result = executeWithPlan(withCacheEnabled(), "SELECT name FROM %S WHERE year = 2001".formatted(testTable.getName()));
+            assertThat(result.result().getRowCount()).isEqualTo(3);
+            assertThat(getLoadCachedDataOperatorInputPositions(result.queryId())).isEqualTo(0);
             assertThat(getScanOperatorInputPositions(result.queryId())).isPositive();
 
             result = executeWithPlan(withCacheEnabled(), selectQuery);
-            assertThat(getLoadCachedDataOperatorInputPositions(result.queryId())).isEqualTo(2);
+            assertThat(result.result().getRowCount()).isEqualTo(3);
+            assertThat(getLoadCachedDataOperatorInputPositions(result.queryId())).isPositive();
             assertThat(getScanOperatorInputPositions(result.queryId())).isEqualTo(0);
         }
     }

@@ -26,14 +26,18 @@ import io.trino.cache.CanonicalSubplan.ScanFilterProjectKey;
 import io.trino.cache.CanonicalSubplan.TableScan;
 import io.trino.cache.CanonicalSubplan.TopNKey;
 import io.trino.cache.CanonicalSubplan.TopNRankingKey;
+import io.trino.metadata.AbstractMockMetadata;
+import io.trino.metadata.Metadata;
 import io.trino.metadata.MetadataManager;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.metadata.TableHandle;
+import io.trino.metadata.TableProperties;
 import io.trino.metadata.TestingFunctionResolution;
 import io.trino.plugin.tpch.TpchColumnHandle;
 import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.cache.CacheTableId;
 import io.trino.spi.connector.ColumnHandle;
+import io.trino.spi.connector.ConnectorTableProperties;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.SortOrder;
 import io.trino.spi.connector.TestingColumnHandle;
@@ -118,6 +122,7 @@ public class TestCanonicalSubplanExtractor
     private static final Reference CACHE_COL1_REF = new Reference(BIGINT, "[cache_column1]");
     private static final Reference CACHE_COL2_REF = new Reference(BIGINT, "[cache_column2]");
 
+    private static final Metadata MOCK_METADATA = new MockMetadata();
     private static final TestingFunctionResolution FUNCTIONS = new TestingFunctionResolution();
     private static final ResolvedFunction MULTIPLY_BIGINT = FUNCTIONS.resolveOperator(OperatorType.MULTIPLY, ImmutableList.of(BIGINT, BIGINT));
     private static final ResolvedFunction ADD_BIGINT = FUNCTIONS.resolveOperator(OperatorType.ADD, ImmutableList.of(BIGINT, BIGINT));
@@ -578,6 +583,7 @@ public class TestCanonicalSubplanExtractor
     {
         ProjectNode projectNode = createScanAndProjectNode();
         List<CanonicalSubplan> subplans = extractCanonicalSubplans(
+                MOCK_METADATA,
                 TEST_CACHE_METADATA,
                 TEST_SESSION,
                 projectNode);
@@ -609,6 +615,7 @@ public class TestCanonicalSubplanExtractor
     {
         ProjectNode projectNode = createFilterAndProjectNode();
         List<CanonicalSubplan> subplans = extractCanonicalSubplans(
+                MOCK_METADATA,
                 TEST_CACHE_METADATA,
                 TEST_SESSION,
                 projectNode);
@@ -647,6 +654,7 @@ public class TestCanonicalSubplanExtractor
     {
         FilterNode filterNode = createFilterNode();
         List<CanonicalSubplan> subplans = extractCanonicalSubplans(
+                MOCK_METADATA,
                 TEST_CACHE_METADATA,
                 TEST_SESSION,
                 filterNode);
@@ -685,6 +693,7 @@ public class TestCanonicalSubplanExtractor
         // no cache id, therefore no canonical plan
         TableScanNode tableScanNode = createTableScan();
         assertThat(extractCanonicalSubplans(
+                MOCK_METADATA,
                 new TestCacheMetadata(Optional.empty(), handle -> Optional.of(new CacheColumnId(handle.getName()))),
                 TEST_SESSION,
                 tableScanNode))
@@ -692,12 +701,14 @@ public class TestCanonicalSubplanExtractor
 
         // no column id, therefore no canonical plan
         assertThat(extractCanonicalSubplans(
+                MOCK_METADATA,
                 new TestCacheMetadata(Optional.of(CACHE_TABLE_ID), handle -> Optional.empty()),
                 TEST_SESSION,
                 tableScanNode))
                 .isEmpty();
 
         List<CanonicalSubplan> subplans = extractCanonicalSubplans(
+                MOCK_METADATA,
                 TEST_CACHE_METADATA,
                 TEST_SESSION,
                 tableScanNode);
@@ -765,7 +776,7 @@ public class TestCanonicalSubplanExtractor
 
     private void assertThatCanonicalSubplanIsForTableScan(PlanNode root)
     {
-        List<CanonicalSubplan> subplans = extractCanonicalSubplans(TEST_CACHE_METADATA, TEST_SESSION, root);
+        List<CanonicalSubplan> subplans = extractCanonicalSubplans(MOCK_METADATA, TEST_CACHE_METADATA, TEST_SESSION, root);
         assertThat(subplans).hasSize(1);
         assertThat(getOnlyElement(subplans).getOriginalPlanNode()).isInstanceOf(TableScanNode.class);
     }
@@ -785,7 +796,7 @@ public class TestCanonicalSubplanExtractor
                 Optional.empty(),
                 false,
                 Optional.of(false));
-        assertThat(extractCanonicalSubplans(TEST_CACHE_METADATA, TEST_SESSION, tableScanNode)).isEmpty();
+        assertThat(extractCanonicalSubplans(MOCK_METADATA, TEST_CACHE_METADATA, TEST_SESSION, tableScanNode)).isEmpty();
     }
 
     @Test
@@ -801,6 +812,7 @@ public class TestCanonicalSubplanExtractor
         // TableHandles will be turned into common canonical version
         TableHandle canonicalTableHandle = TestingHandles.createTestTableHandle(SchemaTableName.schemaTableName("schema", "common"));
         List<TableScan> canonicalTableScans = extractCanonicalSubplans(
+                MOCK_METADATA,
                 new TestCacheMetadata(
                         handle -> Optional.of(new CacheColumnId(handle.getName())),
                         (tableHandle) -> canonicalTableHandle,
@@ -818,6 +830,7 @@ public class TestCanonicalSubplanExtractor
 
         // TableHandles will not be turned into common canonical version
         tableIds = extractCanonicalSubplans(
+                MOCK_METADATA,
                 new TestCacheMetadata(
                         handle -> Optional.of(new CacheColumnId(handle.getName())),
                         (tableHandle) -> {
@@ -851,7 +864,7 @@ public class TestCanonicalSubplanExtractor
         return planTester.inTransaction(session -> {
             // metadata.getCatalogHandle() registers the catalog for the transaction
             session.getCatalog().ifPresent(catalog -> planTester.getPlannerContext().getMetadata().getCatalogHandle(session, catalog));
-            return extractCanonicalSubplans(planTester.getCacheMetadata(), session, plan.getRoot());
+            return extractCanonicalSubplans(getPlanTester().getPlannerContext().getMetadata(), planTester.getCacheMetadata(), session, plan.getRoot());
         });
     }
 
@@ -971,6 +984,22 @@ public class TestCanonicalSubplanExtractor
         public TableHandle getCanonicalTableHandle(Session session, TableHandle tableHandle)
         {
             return canonicalizeTableHande.apply(tableHandle);
+        }
+    }
+
+    protected static class MockMetadata
+            extends AbstractMockMetadata
+    {
+        @Override
+        public TableProperties getTableProperties(Session session, TableHandle handle)
+        {
+            return new TableProperties(
+                    handle.catalogHandle(),
+                    handle.transaction(),
+                    new ConnectorTableProperties(
+                            TupleDomain.all(),
+                            Optional.empty(),
+                            Optional.empty(), ImmutableList.of()));
         }
     }
 }

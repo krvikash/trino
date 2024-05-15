@@ -163,7 +163,7 @@ public final class CommonSubqueriesExtractor
         ImmutableMap.Builder<PlanNode, CommonPlanAdaptation> planAdaptations = ImmutableMap.builder();
         List<CacheCandidate> cacheCandidates = cacheController.getCachingCandidates(
                 session,
-                extractCanonicalSubplans(plannerContext.getCacheMetadata(), session, root));
+                extractCanonicalSubplans(plannerContext.getMetadata(), plannerContext.getCacheMetadata(), session, root));
 
         // extract common subplan adaptations
         Set<PlanNodeId> processedSubplans = new HashSet<>();
