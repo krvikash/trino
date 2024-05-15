@@ -169,7 +169,7 @@ public class VariableLengthStringBlockAppender
                 int position = recordBuff.position();
 
                 juffersWE.commitAndResetWE(numRecs, addedNV, position, numExtBytes);
-                recordsCommitted = blockPos.getPos();
+                recordsCommitted = numRecs;
                 if (stopAfterOneFlush) {
                     return new AppendResult(nullsCount, recordsCommitted);
                 }

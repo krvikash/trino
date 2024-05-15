@@ -46,7 +46,7 @@ public class LongDecimalBlockAppender
             while (blockPos.inRange()) {
                 boolean committed = commitWEIfNeeded(blockPos, buff, jufferPos, nullsCount - nullsCountCommitted, recBuffSize);
                 if (committed) {
-                    recordsCommitted = blockPos.getPos();
+                    recordsCommitted = blockPos.getPos() + jufferPos;
                     if (stopAfterOneFlush) {
                         break;
                     }
@@ -69,7 +69,7 @@ public class LongDecimalBlockAppender
             while (blockPos.inRange()) {
                 boolean committed = commitWEIfNeeded(blockPos, buff, jufferPos, 0, recBuffSize);
                 if (committed) {
-                    recordsCommitted = blockPos.getPos();
+                    recordsCommitted = blockPos.getPos() + jufferPos;
                     if (stopAfterOneFlush) {
                         break;
                     }
