@@ -606,20 +606,11 @@ public class TestSynapseConnectorTest
         if ("IS DISTINCT FROM".equals(operator)) {
             return this.hasBehavior(TestingConnectorBehavior.SUPPORTS_JOIN_PUSHDOWN_WITH_DISTINCT_FROM) && this.hasBehavior(TestingConnectorBehavior.SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_EQUALITY);
         }
-        switch (this.toJoinConditionOperator(operator)) {
-            case EQUAL:
-            case NOT_EQUAL:
-                return this.hasBehavior(TestingConnectorBehavior.SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_EQUALITY);
-            case LESS_THAN:
-            case LESS_THAN_OR_EQUAL:
-            case GREATER_THAN:
-            case GREATER_THAN_OR_EQUAL:
-                return this.hasBehavior(TestingConnectorBehavior.SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_INEQUALITY);
-            case IDENTICAL:
-                return false;
-            default:
-                throw new AssertionError();
-        }
+        return switch (this.toJoinConditionOperator(operator)) {
+            case EQUAL, NOT_EQUAL -> this.hasBehavior(TestingConnectorBehavior.SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_EQUALITY);
+            case LESS_THAN, LESS_THAN_OR_EQUAL, GREATER_THAN, GREATER_THAN_OR_EQUAL -> this.hasBehavior(TestingConnectorBehavior.SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_INEQUALITY);
+            case IDENTICAL -> false;
+        };
     }
 
     @SuppressWarnings({"deprecation", "DeprecatedApi"})

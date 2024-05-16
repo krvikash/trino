@@ -3003,19 +3003,10 @@ public class TestSalesforceConnectorTest
             return hasBehavior(SUPPORTS_JOIN_PUSHDOWN_WITH_DISTINCT_FROM);
         }
 
-        switch (toJoinConditionOperator(operator)) {
-            case EQUAL:
-            case NOT_EQUAL:
-            case LESS_THAN:
-            case LESS_THAN_OR_EQUAL:
-            case GREATER_THAN:
-            case GREATER_THAN_OR_EQUAL:
-                return true;
-            case IDENTICAL:
-                // TODO (https://github.com/trinodb/trino/issues/6967) support join pushdown for IS NOT DISTINCT FROM
-                return false;
-        }
-        throw new AssertionError(); // unreachable
+        return switch (toJoinConditionOperator(operator)) {
+            case EQUAL, NOT_EQUAL, LESS_THAN, LESS_THAN_OR_EQUAL, GREATER_THAN, GREATER_THAN_OR_EQUAL -> true;
+            case IDENTICAL -> false; // TODO (https://github.com/trinodb/trino/issues/6967) support join pushdown for IS NOT DISTINCT FROM
+        };
     }
 
     @SuppressWarnings({"deprecation", "DeprecatedApi"})
@@ -3025,20 +3016,11 @@ public class TestSalesforceConnectorTest
             return hasBehavior(SUPPORTS_JOIN_PUSHDOWN_WITH_DISTINCT_FROM) && hasBehavior(SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_EQUALITY);
         }
 
-        switch (toJoinConditionOperator(operator)) {
-            case EQUAL:
-            case NOT_EQUAL:
-                return hasBehavior(SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_EQUALITY);
-            case LESS_THAN:
-            case LESS_THAN_OR_EQUAL:
-            case GREATER_THAN:
-            case GREATER_THAN_OR_EQUAL:
-                return hasBehavior(SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_INEQUALITY);
-            case IDENTICAL:
-                // TODO (https://github.com/trinodb/trino/issues/6967) support join pushdown for IS NOT DISTINCT FROM
-                return false;
-        }
-        throw new AssertionError(); // unreachable
+        return switch (toJoinConditionOperator(operator)) {
+            case EQUAL, NOT_EQUAL -> hasBehavior(SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_EQUALITY);
+            case LESS_THAN, LESS_THAN_OR_EQUAL, GREATER_THAN, GREATER_THAN_OR_EQUAL -> hasBehavior(SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_INEQUALITY);
+            case IDENTICAL -> false; // TODO (https://github.com/trinodb/trino/issues/6967) support join pushdown for IS NOT DISTINCT FROM
+        };
     }
 
     @SuppressWarnings({"deprecation", "DeprecatedApi"})
