@@ -40,7 +40,6 @@ public class GlobalConfig
     public static final String AZURE_CONNECTION_STRING = "warp-speed.config.azure.connection-string";
     public static final String STATS_COLLECTION_ENABLED = "warp-speed.config.stats-collection-enabled";
     public static final String FAILURE_GENERATOR_ENABLED = "warp-speed.config.failure-generator-enabled";
-    public static final String WARMING_SINGLE_THREADED = "warp-speed.debug.warming-single-threaded";
     public static final String DATA_ONLY_WARMING = "warp-speed.data-only-warming";
     public static final String CACHE_MANAGER_MAX_PARALLEL_WARMUP_ELEMENTS = "warp-speed.cache-manager.max-parallel-warmup-elements";
     public static final int MAX_NUMBER_OF_MAPPED_MATCH_COLLECT_ELEMENTS = 1 << Byte.SIZE; //256
@@ -68,9 +67,11 @@ public class GlobalConfig
     private String deviceIdentifier;
     private String azureConnectionString;
     private boolean allowVaradaStatsCollection;
-    private boolean warmingSingleThreaded;
     private boolean failureGeneratorEnabled;
     private SwaggerExposingLevel swaggerExposingLevel = SwaggerExposingLevel.DEBUG;
+
+    private boolean debugWarmingSingleThreaded;
+    private boolean debugWarming;
 
     private boolean enableImportExport;
     private boolean enableExportAppendOnCloud = true;
@@ -78,7 +79,6 @@ public class GlobalConfig
     private boolean enableMappedMatchCollect = true;
     private boolean enableOrPushdown = true;
     private boolean enableRangeFilter = true;
-    private boolean enableWarmingExtraLogs;
     private int shapingLoggerThreshold = 1000;
     private Duration shapingLoggerDuration = Duration.ofSeconds(60);
     private int shapingLoggerNumberOfSamples = 3;
@@ -384,26 +384,26 @@ public class GlobalConfig
         this.allowVaradaStatsCollection = allowVaradaStatsCollection;
     }
 
-    public boolean getEnableWarmingExtraLogs()
+    public boolean getDebugWarming()
     {
-        return enableWarmingExtraLogs;
+        return debugWarming;
     }
 
-    @Config("warp-speed.enable.warming-extra-logs")
-    public void setEnableWarmingExtraLogs(boolean enableWarmingExtraLogs)
+    @Config("warp-speed.debug.warming")
+    public void setDebugWarming(boolean debugWarming)
     {
-        this.enableWarmingExtraLogs = enableWarmingExtraLogs;
+        this.debugWarming = debugWarming;
     }
 
-    public boolean isWarmingSingleThreaded()
+    public boolean isDebugWarmingSingleThreaded()
     {
-        return warmingSingleThreaded;
+        return debugWarmingSingleThreaded;
     }
 
-    @Config(WARMING_SINGLE_THREADED)
-    public void setWarmingSingleThreaded(boolean warmingSingleThreaded)
+    @Config("warp-speed.debug.warming-single-threaded")
+    public void setDebugWarmingSingleThreaded(boolean debugWarmingSingleThreaded)
     {
-        this.warmingSingleThreaded = warmingSingleThreaded;
+        this.debugWarmingSingleThreaded = debugWarmingSingleThreaded;
     }
 
     public boolean isFailureGeneratorEnabled()
@@ -529,8 +529,8 @@ public class GlobalConfig
                 ", shapingLoggerDuration=" + shapingLoggerDuration +
                 ", shapingLoggerNumberOfSamplings=" + shapingLoggerNumberOfSamples +
                 ", dataOnlyWarming=" + dataOnlyWarming +
-                ", enableWarmingExtraLogs=" + enableWarmingExtraLogs +
-                ", warmingSingleThreaded=" + warmingSingleThreaded +
+                ", debugWarming=" + debugWarming +
+                ", debugWarmingSingleThreaded=" + debugWarmingSingleThreaded +
                 ", cacheManagerMaxParallelWarmupElements=" + cacheManagerMaxParallelWarmupElements +
                 '}';
     }

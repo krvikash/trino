@@ -85,8 +85,6 @@ public class StorageWarmerService
     public void createFile(RowGroupKey rowGroupKey)
             throws IOException
     {
-        rowGroupDataService.logRowGroup(rowGroupKey, "before createFile");
-
         String rowGroupFilePath = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
         File file = new File(rowGroupFilePath);
         if (!file.exists()) {

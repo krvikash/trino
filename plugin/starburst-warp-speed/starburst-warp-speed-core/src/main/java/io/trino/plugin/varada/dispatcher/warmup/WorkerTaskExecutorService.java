@@ -131,7 +131,7 @@ public class WorkerTaskExecutorService
 
     private int getPoolSize(int size)
     {
-        return globalConfig.isWarmingSingleThreaded() ? 1 : size;
+        return globalConfig.isDebugWarmingSingleThreaded() ? 1 : size;
     }
 
     public SubmissionResult submitTask(WorkerSubmittableTask task, boolean allowConflicts)

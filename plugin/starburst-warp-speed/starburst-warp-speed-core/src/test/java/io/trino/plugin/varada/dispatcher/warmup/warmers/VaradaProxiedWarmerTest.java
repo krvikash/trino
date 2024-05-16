@@ -352,6 +352,7 @@ public class VaradaProxiedWarmerTest
                 requiredWarmUpTypeMap,
                 true,
                 0,
+                false,
                 new ArrayList<>());
     }
 

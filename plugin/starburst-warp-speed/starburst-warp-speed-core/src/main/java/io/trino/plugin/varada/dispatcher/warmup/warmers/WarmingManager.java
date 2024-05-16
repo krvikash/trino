@@ -158,6 +158,7 @@ public class WarmingManager
                             requiredWarmUpTypeMap,
                             skipWait,
                             (rowGroupData != null) ? rowGroupData.getNextOffset() : 0,
+                            globalConfig.getDebugWarming(),
                             outDictionariesWarmInfos);
                     stopWatch.stop();
                     varadaStatsWarmupImportService.addhiveWarmTime(stopWatch.getNanoTime());

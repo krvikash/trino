@@ -105,11 +105,6 @@ public class RowGroupDataService
         rowGroupDataDao.flush(rowGroupKey);
     }
 
-    public void logRowGroup(RowGroupKey rowGroupKey, String msg)
-    {
-        rowGroupDataDao.logRowGroup(rowGroupKey, msg);
-    }
-
     public void updateEmptyRowGroup(RowGroupData rowGroupData,
             List<WarmUpElement> newWarmUpElements,
             List<WarmUpElement> warmUpElementsToDelete)

@@ -28,7 +28,6 @@ import io.trino.plugin.varada.config.GlobalConfig;
 import io.trino.plugin.varada.dispatcher.model.RowGroupData;
 import io.trino.plugin.varada.dispatcher.model.RowGroupKey;
 import io.trino.plugin.varada.dispatcher.model.VaradaColumn;
-import io.trino.plugin.varada.dispatcher.model.WarmUpElement;
 import io.trino.plugin.varada.storage.engine.StorageEngineConstants;
 import io.trino.plugin.varada.util.json.SliceSerializer;
 import io.trino.plugin.varada.util.json.VaradaColumnJsonKeyDeserializer;
@@ -40,11 +39,8 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 import static java.util.Objects.requireNonNull;
@@ -258,8 +254,6 @@ public class RowGroupDataDao
 
     private synchronized void flushInternal(RowGroupKey rowGroupKey)
     {
-        logRowGroup(rowGroupKey, "before flush");
-
         File rowGroupDataFile = getRowGroupDataFile(rowGroupKey);
 
         try (RandomAccessFile randomAccessFile = new RandomAccessFile(rowGroupDataFile, "rw")) {
@@ -284,23 +278,6 @@ public class RowGroupDataDao
             throw new RuntimeException(e);
         }
         logger.debug("flushed row group file [%s] for row group key [%s]", rowGroupDataFile.getAbsolutePath(), rowGroupKey);
-    }
-
-    public void logRowGroup(RowGroupKey rowGroupKey, String msg)
-    {
-        if (globalConfig.getEnableWarmingExtraLogs()) {
-            RowGroupData rowGroupData = get(rowGroupKey);
-            if ((rowGroupData != null) && rowGroupData.getValidWarmUpElements().stream().noneMatch(we -> we.getTotalRecords() > 20_000)) {
-                List<Integer> queryOffsets = rowGroupData.getWarmUpElements().stream().map(WarmUpElement::getQueryOffset).toList();
-                String fileName = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
-                logger.warn("%s: rowGroupKey %s fileName %s nextOffset %d, numOfElements %d, queryOffsets %s",
-                        msg, rowGroupKey, fileName, rowGroupData.getNextOffset(), rowGroupData.getWarmUpElements().size(), queryOffsets);
-                Set<Integer> distinctQueryOffsets = new HashSet<>(queryOffsets);
-                if (distinctQueryOffsets.size() != queryOffsets.size()) {
-                    logger.error("duplicate query offset before flush! rowGroup=%s", rowGroupData);
-                }
-            }
-        }
     }
 
     public void flush(RowGroupKey rowGroupKey)

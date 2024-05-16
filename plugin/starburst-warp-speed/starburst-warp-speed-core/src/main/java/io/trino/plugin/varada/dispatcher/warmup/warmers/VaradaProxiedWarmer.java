@@ -124,6 +124,7 @@ public class VaradaProxiedWarmer
             SetMultimap<VaradaColumn, WarmupProperties> requiredWarmUpTypeMap,
             boolean skipWait,
             int firstOffset,
+            boolean extraDebug,
             List<DictionaryWarmInfo> outDictionariesWarmInfos)
     {
         SetMultimap<VaradaColumn, WarmUpElement> proxiedWarmupElementsMultimap = proxiedWarmupElements.stream()
@@ -199,7 +200,7 @@ public class VaradaProxiedWarmer
                             txId = storageWarmerService.warmupOpen(txId);
                         }
                         else {
-                            fileOffset = warmSinkResult.offset() + 1; // @TODO should be removed. adding 1 more page as a safety zone
+                            fileOffset = warmSinkResult.offset();
                         }
                         rowGroupData = rowGroupDataService.updateRowGroupData(rowGroupData, warmSinkResult.warmUpElement(), fileOffset, rowCount);
                         warmIdToRowGroup.put(txId, rowGroupData); // saving row group data after the update (failed or succeeded)
@@ -240,7 +241,9 @@ public class VaradaProxiedWarmer
             storageWarmerService.fileClose(fileCookie, Optional.of(rowGroupData));
         }
 
-        storageWarmerService.verifyQueryOffsets(rowGroupKey, rowGroupData.getValidWarmUpElements(), warmIdToRowGroup);
+        if (extraDebug) {
+            storageWarmerService.verifyQueryOffsets(rowGroupKey, rowGroupData.getValidWarmUpElements(), warmIdToRowGroup);
+        }
         return rowGroupData;
     }
 
