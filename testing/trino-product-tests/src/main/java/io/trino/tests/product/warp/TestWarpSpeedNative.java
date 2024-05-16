@@ -41,7 +41,6 @@ import static io.trino.tempto.assertions.QueryAssert.assertQueryFailure;
 import static io.trino.tests.product.TestGroups.PROFILE_SPECIFIC_TESTS;
 import static io.trino.tests.product.TestGroups.WARP_SPEED_MINIO;
 import static io.trino.tests.product.utils.QueryExecutors.onTrino;
-import static io.trino.tests.product.warp.utils.DemoterUtils.objectMapper;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.EXTERNAL_COLLECT;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.EXTERNAL_MATCH;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.VARADA_COLLECT;
@@ -49,7 +48,6 @@ import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.VARA
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.WarmingService.ROW_GROUP_COUNT;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.WarmingService.WARM_ACCOMPLISHED;
 import static java.lang.String.format;
-import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestWarpSpeedNative
 {
@@ -123,38 +121,47 @@ public class TestWarpSpeedNative
     public void testWarpGenerateNativePanicStorageWrite(ITestContext iTestContext)
             throws IOException
     {
-        restUtils.executeWorkerRestCommand(
-                FailureGeneratorResource.TASK_NAME,
-                "",
-                List.of(new FailureGeneratorResource.FailureGeneratorData(
+        testWrite(List.of(new FailureGeneratorResource.FailureGeneratorData(
                         null,
-                        "2388",
-                        FailureRepetitionMode.REP_MODE_ONCE,
-                        FailureGeneratorInvocationHandler.FailureType.NATIVE_PANIC,
-                        0)),
-                HttpMethod.POST,
-                HttpURLConnection.HTTP_NO_CONTENT);
-    }
-
-    @Test(groups = {WARP_SPEED_MINIO, PROFILE_SPECIFIC_TESTS}, priority = 10)
-    public void testWarpGenerateNativePanicStorageRead(ITestContext iTestContext)
-            throws IOException
-    {
-        test(List.of(new FailureGeneratorResource.FailureGeneratorData(
-                        null,
-                        "2389",
+                        "2388", // generates panic id 2388 in function file_write_pages
                         FailureRepetitionMode.REP_MODE_ONCE,
                         FailureGeneratorInvocationHandler.FailureType.NATIVE_PANIC,
                         0)),
                 iTestContext.getName());
     }
 
-    private void test(
+    @Test(groups = {WARP_SPEED_MINIO, PROFILE_SPECIFIC_TESTS}, priority = 10)
+    public void testWarpGenerateNativePanicStorageRead(ITestContext iTestContext)
+            throws IOException
+    {
+        testRead(List.of(new FailureGeneratorResource.FailureGeneratorData(
+                        null,
+                        "2389", // generates panic id 2389 in function storage_internal_read_cache
+                        FailureRepetitionMode.REP_MODE_ONCE,
+                        FailureGeneratorInvocationHandler.FailureType.NATIVE_PANIC,
+                        0)),
+                iTestContext.getName());
+    }
+
+    @Test(groups = {WARP_SPEED_MINIO, PROFILE_SPECIFIC_TESTS}, priority = 10)
+    public void testWarpGenerateNativePanicStorageWait(ITestContext iTestContext)
+            throws IOException
+    {
+        testRead(List.of(new FailureGeneratorResource.FailureGeneratorData(
+                        null,
+                        "2390", // generates panic id 2390 in function storage_wait
+                        FailureRepetitionMode.REP_MODE_ONCE,
+                        FailureGeneratorInvocationHandler.FailureType.NATIVE_PANIC,
+                        0)),
+                iTestContext.getName());
+    }
+
+    private void testRead(
             List<FailureGeneratorResource.FailureGeneratorData> failureGeneratorDataList,
             String testName)
             throws IOException
     {
-        logger.info("test::before warmAndValidate");
+        logger.info("testRead::before warmAndValidate");
         //check that it works before setting failures
         warmUtils.warmAndValidate(
                 QUERY.formatted("name", tableName),
@@ -163,7 +170,7 @@ public class TestWarpSpeedNative
                         ROW_GROUP_COUNT, 1L),
                 Duration.valueOf("30s"));
 
-        logger.info("test::before queryAndValidate");
+        logger.info("testRead::before queryAndValidate");
         queryUtils.queryAndValidate(
                 QUERY.formatted("name", tableName),
                 Map.of(VARADA_COLLECT, 2L,
@@ -172,7 +179,7 @@ public class TestWarpSpeedNative
                         EXTERNAL_MATCH, 0L),
                 testName);
 
-        validateNativeState(false, false);
+        restUtils.validateNativeState(false, false);
 
         //now test failure
         restUtils.executeWorkerRestCommand(
@@ -182,13 +189,13 @@ public class TestWarpSpeedNative
                 HttpMethod.POST,
                 HttpURLConnection.HTTP_NO_CONTENT);
 
-        logger.info("test::before assertQueryFailure");
+        logger.info("testRead::before assertQueryFailure");
         //first query fails due to storage exception
         assertQueryFailure(() -> onTrino().executeQuery(QUERY.formatted("name", tableName)))
                 .isInstanceOf(SQLException.class)
                 .hasMessageContaining("native storage engine");
 
-        logger.info("test::before proxy queryAndValidate");
+        logger.info("testRead::before proxy queryAndValidate");
         //this one is served from proxy
         queryUtils.queryAndValidate(
                 QUERY.formatted("name", tableName),
@@ -198,26 +205,59 @@ public class TestWarpSpeedNative
                         EXTERNAL_MATCH, 1L),
                 testName);
 
-        validateNativeState(false, true);
+        restUtils.validateNativeState(false, true);
+        logger.info("testRead::before additional queryAndValidate");
+        //now we succeed since no more storage exceptions
+        queryUtils.queryAndValidate(
+                QUERY.formatted("name", tableName),
+                Map.of(VARADA_COLLECT, 2L,
+                        VARADA_MATCH, 1L,
+                        EXTERNAL_COLLECT, 0L,
+                        EXTERNAL_MATCH, 0L),
+                testName);
     }
 
-    private void validateNativeState(boolean storagePermanentException, boolean storageTemporaryException)
+    private void testWrite(
+            List<FailureGeneratorResource.FailureGeneratorData> failureGeneratorDataList,
+            String testName)
             throws IOException
     {
-        logger.info("test::before validateNativeState storagePermanentException=%b, storageTemporaryException=%b",
-                storagePermanentException, storageTemporaryException);
-        String result = restUtils.executeWorkerRestCommand(
-                NativeStorageStateResource.PATH,
+        //now test failure
+        restUtils.executeWorkerRestCommand(
+                FailureGeneratorResource.TASK_NAME,
                 "",
-                null,
-                HttpMethod.GET,
-                HttpURLConnection.HTTP_OK);
-        NativeStorageStateResource.NativeStorageState state =
-                objectMapper.readValue(
-                        result,
-                        NativeStorageStateResource.NativeStorageState.class);
+                failureGeneratorDataList,
+                HttpMethod.POST,
+                HttpURLConnection.HTTP_NO_CONTENT);
 
-        assertThat(state.storagePermanentException()).isEqualTo(storagePermanentException);
-        assertThat(state.storageTemporaryException()).isEqualTo(storageTemporaryException);
+        logger.info("testWrite::before proxy queryAndValidate");
+        //this one is served from proxy
+        queryUtils.queryAndValidate(
+                QUERY.formatted("name", tableName),
+                Map.of(VARADA_COLLECT, 0L,
+                        VARADA_MATCH, 0L,
+                        EXTERNAL_COLLECT, 2L,
+                        EXTERNAL_MATCH, 1L),
+                testName);
+
+        logger.info("testWrite::before second queryAndValidate");
+        //since warming failed, this one is served from proxy as well
+        queryUtils.queryAndValidate(
+                QUERY.formatted("name", tableName),
+                Map.of(VARADA_COLLECT, 0L,
+                        VARADA_MATCH, 0L,
+                        EXTERNAL_COLLECT, 2L,
+                        EXTERNAL_MATCH, 1L),
+                testName);
+
+        logger.info("testWrite::before third queryAndValidate");
+        //now we succeed since no more storage exceptions
+        queryUtils.queryAndValidate(
+                QUERY.formatted("name", tableName),
+                Map.of(VARADA_COLLECT, 2L,
+                        VARADA_MATCH, 1L,
+                        EXTERNAL_COLLECT, 0L,
+                        EXTERNAL_MATCH, 0L),
+                testName);
     }
 }

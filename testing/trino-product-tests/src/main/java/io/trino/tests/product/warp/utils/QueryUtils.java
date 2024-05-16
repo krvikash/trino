@@ -24,7 +24,6 @@ import io.trino.tempto.query.QueryResult;
 import org.intellij.lang.annotations.Language;
 import org.testng.asserts.SoftAssert;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.JDBCType;
@@ -128,22 +127,17 @@ public class QueryUtils
                     long invalidType = getDiffFromInitial(warmingStatsAfter, warmingStatsBefore, JMXCachingConstants.WarmingService.CACHE_INVALID_TYPE);
                     if (invalidType > 0) {
                         logger.error("invalid type %s", query);
-                      //  fail("invalid type");
+                        //  fail("invalid type");
                         return;
                     }
                     long cacheWarmFailed = getDiffFromInitial(warmingStatsAfter, warmingStatsBefore, JMXCachingConstants.WarmingService.CACHE_WARM_FAILED);
                     if (cacheWarmFailed > 0) {
                         logger.error("cacheWarmFailed %s", query);
-                   //     fail("cacheWarmFailed");
+                        //     fail("cacheWarmFailed");
                         return;
                     }
                     String queryId = ((TrinoResultSet) queryResult.getJdbcResultSet().orElseThrow()).getQueryId();
-                    try {
-                        ruleUtils.validateLoadByCacheDataOperator(queryId);
-                    }
-                    catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
+                    ruleUtils.validateLoadByCacheDataOperator(queryId);
                 });
         logger.info("validate no export occurred");
         QueryResult exportStatsAfter = JMXCachingManager.getExportStats();

@@ -40,6 +40,7 @@ import static io.trino.tests.product.warp.utils.WarmTypeForStrings.lucene_data_o
 import static io.trino.tests.product.warp.utils.WarmTypeForStrings.no_lucene;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.testng.Assert.fail;
 
 public class RuleUtils
 {
@@ -181,13 +182,31 @@ public class RuleUtils
     }
 
     public void validateLoadByCacheDataOperator(String queryId)
-            throws IOException
     {
-        String prefix = format("/v1/query/%s?", queryId);
-        String pretty = restUtils.executeTrinoCommand(prefix, "pretty", null, HttpMethod.GET, HttpURLConnection.HTTP_OK);
-        List<String> operatorTypes = objectMapper.readTree(pretty).get("queryStats").get("operatorSummaries").findValues("operatorType").stream().map(JsonNode::asText).toList();
-        assertThat(operatorTypes.contains("LoadCachedDataOperator")).isTrue().describedAs("validate that LoadCachedDataOperator stage was applied");
-        assertThat(operatorTypes.contains("ScanFilterAndProjectOperator")).isFalse().describedAs("validate that ScanFilterAndProjectOperator stage was not applied");
+        try {
+            String prefix = format("/v1/query/%s?", queryId);
+            String pretty = restUtils.executeTrinoCommand(prefix, "pretty", null, HttpMethod.GET, HttpURLConnection.HTTP_OK);
+            List<String> operatorTypes = objectMapper.readTree(pretty).get("queryStats").get("operatorSummaries").findValues("operatorType").stream().map(JsonNode::asText).toList();
+            assertThat(operatorTypes.contains("LoadCachedDataOperator")).isTrue().describedAs("validate that LoadCachedDataOperator stage was applied");
+            assertThat(operatorTypes.contains("ScanFilterAndProjectOperator")).isFalse().describedAs("validate that ScanFilterAndProjectOperator stage was not applied");
+        }
+        catch (Exception e) {
+            fail("failed %s", e);
+        }
+    }
+
+    public void validateNotLoadByCacheDataOperator(String queryId)
+    {
+        try {
+            String prefix = format("/v1/query/%s?", queryId);
+            String pretty = restUtils.executeTrinoCommand(prefix, "pretty", null, HttpMethod.GET, HttpURLConnection.HTTP_OK);
+            List<String> operatorTypes = objectMapper.readTree(pretty).get("queryStats").get("operatorSummaries").findValues("operatorType").stream().map(JsonNode::asText).toList();
+            assertThat(operatorTypes.contains("LoadCachedDataOperator")).isFalse().describedAs("validate that LoadCachedDataOperator stage was not applied");
+            assertThat(operatorTypes.contains("ScanFilterAndProjectOperator")).isTrue().describedAs("validate that ScanFilterAndProjectOperator stage was applied");
+        }
+        catch (Exception e) {
+            fail("failed %s", e);
+        }
     }
 
     public Set<WarmupColRuleData> createRulesFromStructure(String schema,

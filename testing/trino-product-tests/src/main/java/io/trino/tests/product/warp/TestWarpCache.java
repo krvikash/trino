@@ -17,20 +17,28 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
+import io.trino.jdbc.TrinoResultSet;
+import io.trino.plugin.varada.util.FailureGeneratorInvocationHandler;
+import io.trino.plugin.warp.extension.execution.debugtools.FailureGeneratorResource;
+import io.trino.plugin.warp.gen.constants.FailureRepetitionMode;
 import io.trino.tempto.AfterMethodWithContext;
 import io.trino.tempto.BeforeMethodWithContext;
+import io.trino.tempto.query.QueryResult;
 import io.trino.tests.product.warp.utils.DemoterUtils;
 import io.trino.tests.product.warp.utils.QueryUtils;
+import io.trino.tests.product.warp.utils.RestUtils;
 import io.trino.tests.product.warp.utils.RuleUtils;
 import io.trino.tests.product.warp.utils.TestFormat;
 import io.trino.tests.product.warp.utils.syntheticconfig.ExcludeStrategy;
 import io.trino.tests.product.warp.utils.syntheticconfig.TestConfiguration;
+import jakarta.ws.rs.HttpMethod;
 import org.testng.ITestContext;
 import org.testng.SkipException;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.net.URI;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -46,6 +54,7 @@ import static io.trino.tests.product.warp.utils.DemoterUtils.objectMapper;
 import static io.trino.tests.product.warp.utils.syntheticconfig.TestConfiguration.QUERY_ID;
 import static io.trino.tests.product.warp.utils.syntheticconfig.TestConfiguration.TEST_NAME;
 import static java.lang.String.format;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestWarpCache
 {
@@ -59,6 +68,9 @@ public class TestWarpCache
     RuleUtils ruleUtils;
     @Inject
     DemoterUtils demoterUtils;
+
+    @Inject
+    RestUtils restUtils;
 
     public TestWarpCache()
     {
@@ -215,6 +227,62 @@ public class TestWarpCache
     {
         onTrino().executeQuery("set session cache_aggregations_enabled = false");
         execute(testFormat, "synthetic");
+    }
+
+    @Test(groups = PROFILE_SPECIFIC_TESTS)
+    public void testPanicOnWrite()
+            throws IOException
+    {
+        try {
+            onTrino().executeQuery("USE warp.synthetic");
+            onTrino().executeQuery("set session cache_aggregations_enabled = false");
+            String query = "select id from mac_paramsj where id > 1";
+            demoterUtils.resetToDefaultDemoterConfiguration();
+            List<FailureGeneratorResource.FailureGeneratorData> failureGeneratorData = List.of(new FailureGeneratorResource.FailureGeneratorData(
+                    null,
+                    "2388",
+                    FailureRepetitionMode.REP_MODE_ONCE,
+                    FailureGeneratorInvocationHandler.FailureType.NATIVE_PANIC,
+                    0));
+            onTrino().executeQuery("set session warp.enable_default_warming = false");
+
+            //now test failure
+            restUtils.executeWorkerRestCommand(
+                    FailureGeneratorResource.TASK_NAME,
+                    "",
+                    failureGeneratorData,
+                    HttpMethod.POST,
+                    HttpURLConnection.HTTP_NO_CONTENT);
+
+            //first query fails due to storage exception
+            onTrino().executeQuery(query);
+
+            for (int i = 0; i < 2; i++) {
+                //query mark as failed so it will not read from cache
+                QueryResult queryResult = onTrino().executeQuery(query);
+                String queryId = ((TrinoResultSet) queryResult.getJdbcResultSet().orElseThrow()).getQueryId();
+                ruleUtils.validateNotLoadByCacheDataOperator(queryId);
+            }
+
+            String query2 = "select id from mac_paramsj where id > 2";
+            QueryResult queryResult = onTrino().executeQuery(query2);
+            String queryId = ((TrinoResultSet) queryResult.getJdbcResultSet().orElseThrow()).getQueryId();
+            ruleUtils.validateNotLoadByCacheDataOperator(queryId);
+
+            //now it is warm and read from cache
+            queryResult = onTrino().executeQuery(query2);
+            assertThat(queryResult.getRowsCount()).isEqualTo(2);
+            queryId = ((TrinoResultSet) queryResult.getJdbcResultSet().orElseThrow()).getQueryId();
+            ruleUtils.validateLoadByCacheDataOperator(queryId);
+        }
+        catch (Exception e) {
+            logger.error(e, "failed on testPanicOnWrite");
+            throw e;
+        }
+        finally {
+            demoterUtils.demoteAllByMaxUsage();
+            demoterUtils.resetToDefaultDemoterConfiguration();
+        }
     }
 
     private void execute(TestFormat testFormat, String schemaName)

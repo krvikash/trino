@@ -19,6 +19,7 @@ import io.airlift.http.client.Request;
 import io.airlift.http.client.StringResponseHandler;
 import io.airlift.http.client.jetty.JettyHttpClient;
 import io.airlift.log.Logger;
+import io.trino.plugin.warp.extension.execution.debugtools.NativeStorageStateResource;
 import jakarta.ws.rs.HttpMethod;
 
 import java.io.IOException;
@@ -126,5 +127,25 @@ public class RestUtils
         assertThat(response.getStatusCode()).describedAs(response.getBody()).isEqualTo(responseCode);
         client.close();
         return response.getBody();
+    }
+
+    public void validateNativeState(boolean storagePermanentException, boolean storageTemporaryException)
+            throws IOException
+    {
+        logger.info("test::before validateNativeState storagePermanentException=%b, storageTemporaryException=%b",
+                storagePermanentException, storageTemporaryException);
+        String result = executeWorkerRestCommand(
+                NativeStorageStateResource.PATH,
+                "",
+                null,
+                HttpMethod.GET,
+                HttpURLConnection.HTTP_OK);
+        NativeStorageStateResource.NativeStorageState state =
+                objectMapper.readValue(
+                        result,
+                        NativeStorageStateResource.NativeStorageState.class);
+
+        assertThat(state.storagePermanentException()).isEqualTo(storagePermanentException);
+        assertThat(state.storageTemporaryException()).isEqualTo(storageTemporaryException);
     }
 }
