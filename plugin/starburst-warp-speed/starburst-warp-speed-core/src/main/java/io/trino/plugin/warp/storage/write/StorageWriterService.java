@@ -56,6 +56,7 @@ import io.trino.spi.block.Block;
 import io.trino.spi.type.Type;
 
 import java.lang.foreign.MemorySegment;
+import java.lang.foreign.SegmentAllocator;
 import java.util.List;
 import java.util.Optional;
 
@@ -110,21 +111,21 @@ public class StorageWriterService
             String rowGroupFilePath,
             Boolean dictionaryEnabled)
     {
-        return new StorageWriterSplitConfig(nodeIdentifier,
-                rowGroupFilePath,
-                bufferAllocator.allocateLoadSegment(),
-                bufferAllocator.allocateLoadWriteBuffer(),
-                dictionaryEnabled);
+        MemorySegment buff = bufferAllocator.allocateLoadSegment();
+        MemorySegment writeBuff = bufferAllocator.allocateLoadWriteBuffer();
+        MemorySegment contextBuff = bufferAllocator.allocateLoadContextBuffer();
+        SegmentAllocator contextAllocator = SegmentAllocator.slicingAllocator(contextBuff);
+        return new StorageWriterSplitConfig(nodeIdentifier, rowGroupFilePath, buff, writeBuff, contextBuff, contextAllocator, dictionaryEnabled);
     }
 
     public void finishWarming(StorageWriterSplitConfig storageWriterSplitConfig)
     {
+        bufferAllocator.freeLoadContextBuffer(storageWriterSplitConfig.contextBuff());
         bufferAllocator.freeLoadWriteBuffer(storageWriterSplitConfig.writeBuff());
         bufferAllocator.freeLoadSegment(storageWriterSplitConfig.buff());
     }
 
-    StorageWriterContext open(int txId,
-            long[] fileCookie,
+    StorageWriterContext open(long[] fileCookie,
             int fileOffset,
             StorageWriterSplitConfig storageWriterSplitConfig,
             WarmupElementWriteMetadata warmupElementWriteMetadata,
@@ -146,14 +147,11 @@ public class StorageWriterService
         boolean hasDictionary = dictionaryState == DictionaryState.DICTIONARY_VALID;
         StorageOpenResult storageOpenResult = storageWeOpen(warmUpElement,
                 hasDictionary,
-                txId,
+                storageWriterSplitConfig.contextAllocator().allocate(warmUpElement.getWarmUpContextSize(), Integer.BYTES).address(),
                 fileCookie,
                 fileOffset,
                 storageWriterSplitConfig.writeBuff().address(),
                 allocParams);
-        if (storageOpenResult.weCookie() == 0) {
-            return null;
-        }
 
         // set up buffers
         WriteJuffersWarmUpElement writeJuffersWarmUpElement = getWriteJuffersWarmUpElement(storageOpenResult, hasDictionary, allocParams);
@@ -218,7 +216,7 @@ public class StorageWriterService
 
     private StorageOpenResult storageWeOpen(WarmUpElement warmUpElement,
             boolean hasDictionary,
-            int txId,
+            long context,
             long[] fileCookie,
             int fileOffset,
             long writeBuffAddress,
@@ -239,7 +237,7 @@ public class StorageWriterService
         }
 
         // open storage engine WE
-        long weCookie = storageEngine.warmupElementOpen(txId,
+        long weCookie = storageEngine.warmupElementOpen(context,
                 fileCookie,
                 fileOffset,
                 recTypeCode,
@@ -247,7 +245,6 @@ public class StorageWriterService
                 warmUpType,
                 writeBuffAddress,
                 buffAddresses);
-
         return new StorageOpenResult(buffs, weCookie);
     }
 

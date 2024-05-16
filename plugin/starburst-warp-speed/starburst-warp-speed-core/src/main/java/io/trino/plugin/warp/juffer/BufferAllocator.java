@@ -63,7 +63,6 @@ public class BufferAllocator
     private static final int PREDICATE_MEDIUM_NUM_BUFFERS = 32;
     private static final int PREDICATE_LARGE_BUF_SIZE = (int) DataSize.of(2300, DataSize.Unit.KILOBYTE).toBytes();
     private static final int PREDICATE_LARGE_NUM_BUFFERS = 0; // will be set according to memory available
-    private static final int WRITE_BUFFER_SIZE_SPARE_PAGES = 16;
 
     private final StorageEngine storageEngine;
     private final StorageEngineConstants storageEngineConstants;
@@ -71,6 +70,7 @@ public class BufferAllocator
     private final ByteBuffer[] bundles;         // pool of Buffers initialized at startup. native layer manages alloc/free
     private ArrayBlockingQueue<MemorySegment> loadSegmentsQueue; // loadSegment is the bundle, we use it to allocate juffers (record/null/etc)
     private ArrayBlockingQueue<MemorySegment> loadWriteBufferQueue; // loadWriteBuffer is storage engine buffer used to write to disk
+    private ArrayBlockingQueue<MemorySegment> loadContextQueue; // loadContextQueue is storage engine buffer used for keeping in memory context during warmup
     private final NativeConfig nativeConfig;
     private final int maxRecLenForVarlenRecordBuffer;
     private final int maxRecLenForFixedRecordBuffer;
@@ -82,6 +82,7 @@ public class BufferAllocator
     private int indexTempBufferSize;
     private int warmBundleSize;
     private int warmWriteBufferSize;
+    private int warmContextBufferSize;
     private final BufferAllocatorStats stats;
     private PredicateBufferPool[] predicateBufferPools;
     private int[] buffTypeSizes;
@@ -117,6 +118,7 @@ public class BufferAllocator
         initBufferTypeSizes();
         initWarmBundles();
         initWarmWriteBuffer();
+        initWarmContextBuffer();
         initPredicateBundle();
 
         // read bundles
@@ -128,8 +130,8 @@ public class BufferAllocator
             }
         }
 
-        logger.info("loadSegmentsSize %d warmBundleSize %d warmWriteBufferSize %d readNumBundles %d predicateBundleSize %dMB",
-                loadSegmentsQueue.size(), warmBundleSize, warmWriteBufferSize, bundles.length, nativeConfig.getPredicateBundleSizeInMegaBytes());
+        logger.info("loadSegmentsSize %d warmBundleSize %d warmWriteBufferSize %d warmContextBufferSize %d readNumBundles %d predicateBundleSize %dMB",
+                loadSegmentsQueue.size(), warmBundleSize, warmWriteBufferSize, warmContextBufferSize, bundles.length, nativeConfig.getPredicateBundleSizeInMegaBytes());
         this.stats = BufferAllocatorStats.create(BUFFER_ALLOCATOR_METRICS_GROUP);
     }
 
@@ -154,25 +156,39 @@ public class BufferAllocator
         // 3 for records, extended records and metadata (we take spare for metadata)
         int dataWriteBufferSize = storageEngineConstants.getRecordBufferMaxSize() * 3;
         int basicWriteBufferSize = storageEngineConstants.getIndexChunkMaxSize();
+        this.warmWriteBufferSize = Math.max(dataWriteBufferSize, basicWriteBufferSize);
 
         final long alignment = storageEngineConstants.getPageSize();
         final int numSegments = nativeConfig.getTaskMaxWorkerThreads();
         checkArgument(numSegments > 0, "no segments configured for warm write buffers");
 
-        // we take WRITE_BUFFER_SIZE_SPARE_PAGES from the start and from the end so we multiply by 2
-        this.warmWriteBufferSize = Math.max(dataWriteBufferSize, basicWriteBufferSize);
-        final long spareWriteBufferSize = WRITE_BUFFER_SIZE_SPARE_PAGES * alignment;
-        final long allocSize = (((long) warmWriteBufferSize) + spareWriteBufferSize * 2) * numSegments + alignment;
+        final long allocSize = (long) warmWriteBufferSize * numSegments + alignment;
 
         SegmentAllocator nativeAllocator = SegmentAllocator.slicingAllocator(Arena.global().allocate(allocSize, alignment));
         ArrayList<MemorySegment> segmentList = new ArrayList<>(numSegments);
         for (int i = 0; i < numSegments; i++) {
-            nativeAllocator.allocate(spareWriteBufferSize, alignment); // allocate spare from the beginning
             segmentList.add(nativeAllocator.allocate(warmWriteBufferSize, alignment));
-            nativeAllocator.allocate(spareWriteBufferSize, alignment); // allocate spare from the end
         }
 
         loadWriteBufferQueue = new ArrayBlockingQueue<>(segmentList.size(), true, segmentList);
+    }
+
+    private void initWarmContextBuffer()
+    {
+        // we take the maximal size limit and multiply by 1024, in practice since not all WEs are in maximal size we can warm at once more
+        this.warmContextBufferSize = storageEngineConstants.getMaxWeContextSize() * 1024;
+        final long alignment = Integer.BYTES;
+        final int numSegments = nativeConfig.getTaskMaxWorkerThreads();
+        checkArgument(numSegments > 0, "no segments configured for warm context buffers");
+        final long allocSize = ((long) warmContextBufferSize) * numSegments + alignment;
+
+        SegmentAllocator nativeAllocator = SegmentAllocator.slicingAllocator(Arena.global().allocate(allocSize, alignment));
+        ArrayList<MemorySegment> segmentList = new ArrayList<>(numSegments);
+        for (int i = 0; i < numSegments; i++) {
+            segmentList.add(nativeAllocator.allocate(warmContextBufferSize, alignment));
+        }
+
+        loadContextQueue = new ArrayBlockingQueue<>(segmentList.size(), true, segmentList);
     }
 
     private void initPredicateBundle()
@@ -532,6 +548,17 @@ public class BufferAllocator
     {
         checkArgument(loadWriteBuffer != null, "loadWriteBuffer must be set");
         loadWriteBufferQueue.add(loadWriteBuffer);
+    }
+
+    public MemorySegment allocateLoadContextBuffer()
+    {
+        return loadContextQueue.remove();
+    }
+
+    public void freeLoadContextBuffer(MemorySegment loadContext)
+    {
+        checkArgument(loadContext != null, "warmingCacheData must be set");
+        loadContextQueue.add(loadContext);
     }
 
     public WarmUpElementAllocationParams calculateAllocationParams(WarmupElementWriteMetadata warmupElementWriteMetadata, MemorySegment loadSegment)

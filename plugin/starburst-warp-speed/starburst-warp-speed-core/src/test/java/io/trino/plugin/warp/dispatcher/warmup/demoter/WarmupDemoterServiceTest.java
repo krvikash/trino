@@ -99,8 +99,6 @@ public class WarmupDemoterServiceTest
     private final double defaultCleanThreshold = 90;
     private final int defaultBatchSize = 2;
     private final long defaultMaxElementsToDemote = 100;
-    private final AcquireResult failResult = new AcquireResult(-1);
-    private final AcquireResult successResult = new AcquireResult(1);
 
     private final Set<WarmupPredicateRule> defaultPredicates = Set.of();
     private WorkerCapacityManager workerCapacityManager;
@@ -151,7 +149,6 @@ public class WarmupDemoterServiceTest
 
         FlowsSequencer flowsSequencer = spy(new FlowsSequencer(metricsManager));
         connectorSync = mock(ConnectorSync.class);
-        when(connectorSync.tryAcquireAllocation()).thenReturn(successResult);
         warmupDemoterConfig = new WarmupDemoterConfig();
         warmupDemoterConfig.setEnableDemote(true);
         catalogNameProvider = mock(CatalogNameProvider.class);
@@ -181,74 +178,6 @@ public class WarmupDemoterServiceTest
         });
         RowGroupData rowGroupData = buildRowGroupData(defaultSchemaName, defaultTableName, warmUpElements, Map.of(), 0, false);
         rowGroupDataMap.put(rowGroupData.getRowGroupKey(), rowGroupData);
-    }
-
-    @Test
-    public void testTryReserve()
-    {
-        WarmupDemoterStats warmupDemoterStats = (WarmupDemoterStats) metricsManager.get(WARMUP_DEMOTER_STAT_GROUP);
-        doAnswer(invocation -> {
-            Integer reservedTx = (Integer) invocation.getArguments()[0];
-            warmupDemoterStats.addreserved_tx(reservedTx);
-            return reservedTx;
-        }).when(workerCapacityManager).setExecutingTx(anyInt());
-        List<WarmupRule> warmupRules = new ArrayList<>();
-        List<WarmUpElement> warmUpElements = new ArrayList<>();
-        IntStream.range(0, 100).forEach(index -> {
-            warmupRules.add(buildWarmupRule(defaultSchemaName, defaultTableName, index, defaultWarmupType, defaultPriority, notEmptyTTL, defaultPredicates));
-            warmUpElements.add(buildWarmupElement(index, Instant.now().toEpochMilli()));
-        });
-        when(workerCapacityManager.getFractionCurrentUsageFromTotal()).thenReturn(0.98);
-        List<RowGroupData> rowGroupDataList = List.of(buildRowGroupData(defaultSchemaName,
-                defaultTableName,
-                warmUpElements,
-                Map.of(), 0, false));
-        when(rowGroupDataService.getAll()).thenReturn(rowGroupDataList);
-        when(rowGroupDataService.get(eq(rowGroupDataList.get(0).getRowGroupKey()))).thenReturn(rowGroupDataList.get(0));
-        when(workerWarmupRuleService.fetchRulesFromCoordinator()).thenReturn(warmupRules);
-        when(connectorSync.tryAcquireAllocation()).thenReturn(failResult, failResult, failResult, successResult);
-        setConfig(85, 80, 100, 100, List.of());
-        warmupDemoterService.connectorSyncStartDemote(warmupDemoterService.getCurrentRunSequence());
-        warmupDemoterService.connectorSyncStartDemoteCycle(10, true);
-        warmupDemoterService.connectorSyncDemoteEnd(warmupDemoterService.getCurrentRunSequence(), warmupDemoterService.getDemoterHighestPriority().get());
-        verify(connectorSync, times(1))
-                .syncDemoteCycleEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_NOT_COMPLETED));
-
-        assertThat(warmupDemoterStats.getnumber_fail_acquire()).isEqualTo(3);
-        assertThat(warmupDemoterStats.getreserved_tx()).isEqualTo(0);
-    }
-
-    @Test
-    public void testTryReserveFailure()
-    {
-        List<WarmupRule> warmupRules = new ArrayList<>();
-        List<WarmUpElement> warmUpElements = new ArrayList<>();
-        IntStream.range(0, 100).forEach(index -> {
-            warmupRules.add(buildWarmupRule(defaultSchemaName, defaultTableName, index, defaultWarmupType, defaultPriority, notEmptyTTL, defaultPredicates));
-            warmUpElements.add(buildWarmupElement(index, Instant.now().toEpochMilli()));
-        });
-        when(workerCapacityManager.getFractionCurrentUsageFromTotal()).thenReturn(0.98);
-        warmupDemoterConfig.setMaxRetriesAcquireThread(20);
-
-        RowGroupData rowGroupData = buildRowGroupData(defaultSchemaName,
-                defaultTableName,
-                warmUpElements,
-                Map.of(), 0, false);
-        when(rowGroupDataService.getAll()).thenReturn(List.of(rowGroupData));
-        when(rowGroupDataService.get(eq(rowGroupData.getRowGroupKey()))).thenReturn(rowGroupData);
-        when(workerWarmupRuleService.fetchRulesFromCoordinator()).thenReturn(warmupRules);
-
-        when(connectorSync.tryAcquireAllocation()).thenReturn(failResult);
-        setConfig(85, 80, 100, 100, List.of());
-        warmupDemoterService.connectorSyncStartDemote(warmupDemoterService.getCurrentRunSequence());
-        warmupDemoterService.connectorSyncStartDemoteCycle(10, true);
-        warmupDemoterService.connectorSyncDemoteEnd(warmupDemoterService.getCurrentRunSequence(), warmupDemoterService.getDemoterHighestPriority().get());
-        verify(connectorSync, times(1))
-                .syncDemoteCycleEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_REACHED_THRESHOLD));
-        WarmupDemoterStats warmupDemoterStats = (WarmupDemoterStats) metricsManager.get(WARMUP_DEMOTER_STAT_GROUP);
-        assertThat(warmupDemoterStats.getnumber_fail_acquire()).isEqualTo(21);
-        assertThat(warmupDemoterStats.getnumber_of_runs_fail()).isEqualTo(1);
-        assertThat(warmupDemoterStats.getreserved_tx()).isEqualTo(0);
     }
 
     @Test
@@ -784,22 +713,6 @@ public class WarmupDemoterServiceTest
         when(connectorSync.syncDemotePrepare(defaultEpsilon)).thenReturn(1);
         setConfig(defaultMaxThreshold, defaultCleanThreshold, defaultBatchSize, defaultMaxElementsToDemote, List.of());
         warmupDemoterService.initiateDemoteProcess();
-    }
-
-    @Test
-    public void testTryAllocateTx()
-    {
-        when(workerCapacityManager.getFractionCurrentUsageFromTotal()).thenReturn(0.99);
-        when(connectorSync.tryAcquireAllocation()).thenReturn(new AcquireResult(1));
-        AcquireWarmupStatus tryAllocateTxWithHighUsage = warmupDemoterService.tryAllocateNativeResourceForWarmup();
-        assertThat(tryAllocateTxWithHighUsage).isEqualTo(AcquireWarmupStatus.REACHED_THRESHOLD);
-        verify(workerCapacityManager, times(1)).setExecutingTx(eq(1));
-        verify(workerCapacityManager, times(1)).decreaseExecutingTx();
-        when(workerCapacityManager.getFractionCurrentUsageFromTotal()).thenReturn(0.5);
-        AcquireWarmupStatus tryAllocateTxWithLowUsage = warmupDemoterService.tryAllocateNativeResourceForWarmup();
-        assertThat(tryAllocateTxWithLowUsage).isEqualTo(AcquireWarmupStatus.SUCCESS);
-        verify(workerCapacityManager, times(2)).setExecutingTx(eq(1));
-        verify(workerCapacityManager, times(1)).decreaseExecutingTx();
     }
 
     @Test

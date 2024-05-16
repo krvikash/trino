@@ -27,7 +27,6 @@ import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.metrics.MetricsManager;
-import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.flows.FlowType;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
@@ -39,7 +38,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 
 import static io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
@@ -58,7 +56,6 @@ public class StorageWarmerService
     private final RowGroupDataService rowGroupDataService;
     private final StorageEngine storageEngine;
     private final GlobalConfig globalConfig;
-    private final ConnectorSync connectorSync;
     private final WarmupDemoterService warmupDemoterService;
     private final StorageEngineTxService storageEngineTxService;
     private final FlowsSequencer flowsSequencer;
@@ -68,7 +65,6 @@ public class StorageWarmerService
     public StorageWarmerService(RowGroupDataService rowGroupDataService,
             StorageEngine storageEngine,
             GlobalConfig globalConfig,
-            ConnectorSync connectorSync,
             WarmupDemoterService warmupDemoterService,
             StorageEngineTxService storageEngineTxService,
             FlowsSequencer flowsSequencer,
@@ -77,7 +73,6 @@ public class StorageWarmerService
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.storageEngine = requireNonNull(storageEngine);
         this.globalConfig = requireNonNull(globalConfig);
-        this.connectorSync = requireNonNull(connectorSync);
         this.warmupDemoterService = requireNonNull(warmupDemoterService);
         this.storageEngineTxService = requireNonNull(storageEngineTxService);
         this.flowsSequencer = requireNonNull(flowsSequencer);
@@ -100,26 +95,8 @@ public class StorageWarmerService
         String rowGroupFilePath = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
         long[] fileCookie = new long[FILE_COOKIE_PARAMS_NUM_OF.ordinal()];
         // fileCookie.fd was initialized to -1. In case fileOpen throws an exception we will not close it in the finally clause
-        storageEngine.fileOpen(rowGroupFilePath, true, fileCookie);
+        storageEngine.fileOpen(rowGroupFilePath, fileCookie);
         return fileCookie;
-    }
-
-    // in case we already have an open tx we close it and open a new one
-    public int warmupOpen(int txId)
-    {
-        warmupClose(txId);
-        txId = (int) storageEngine.warmupOpen(connectorSync.getCatalogSequence());
-        if (txId == INVALID_TX_ID) {
-            throw new RuntimeException("failed to allocate tx for write");
-        }
-        return txId;
-    }
-
-    public void warmupClose(int txId)
-    {
-        if (txId != INVALID_TX_ID) {
-            storageEngine.warmupClose(txId);
-        }
     }
 
     public void flushRecords(long[] fileCookie, RowGroupData rowGroupData)
@@ -189,7 +166,7 @@ public class StorageWarmerService
         }
     }
 
-    public void verifyQueryOffsets(RowGroupKey rowGroupKey, List<WarmUpElement> validWarmUpElements, ConcurrentHashMap<Integer, RowGroupData> warmIdToRowGroup)
+    public void verifyQueryOffsets(RowGroupKey rowGroupKey, List<WarmUpElement> validWarmUpElements)
     {
         long[] fileCookie = {INVALID_FILE_COOKIE_FD, 0};
         try {
@@ -205,8 +182,7 @@ public class StorageWarmerService
             }
         }
         catch (Exception e) {
-            logger.error(e, "failed to verify query offsets for %s warmIdToRowGroup %s",
-                    validWarmUpElements, warmIdToRowGroup);
+            logger.error(e, "failed to verify query offsets for %s", validWarmUpElements);
             throw new RuntimeException(e);
         }
         finally {

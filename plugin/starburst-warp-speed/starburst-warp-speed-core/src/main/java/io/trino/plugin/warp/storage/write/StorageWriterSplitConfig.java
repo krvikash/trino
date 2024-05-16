@@ -14,11 +14,14 @@
 package io.trino.plugin.warp.storage.write;
 
 import java.lang.foreign.MemorySegment;
+import java.lang.foreign.SegmentAllocator;
 
 public record StorageWriterSplitConfig(String nodeIdentifier,
                                               String rowGroupFilePath,
-                                              MemorySegment buff,
-                                              MemorySegment writeBuff,
+                                              MemorySegment buff,           /* segment buffer to allocate different juffers             */
+                                              MemorySegment writeBuff,      /* native buffer to use for compression and write to disk   */
+                                              MemorySegment contextBuff,    /* native buffer for holding warmup element context         */
+                                              SegmentAllocator contextAllocator, /* allocator for slicing the context buffer            */
                                               Boolean dictionaryEnabled)
 {
 }

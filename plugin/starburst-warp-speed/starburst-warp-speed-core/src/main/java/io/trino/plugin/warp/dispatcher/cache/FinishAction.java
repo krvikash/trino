@@ -88,7 +88,7 @@ public class FinishAction
     }
 
     @Override
-    public boolean close(List<WarmingCandidate> finishedWarmingCandidates, RowGroupKey permanentRowGroupKey, long flowId, StorageWriterSplitConfig storageWriterSplitConfig, int txId)
+    public boolean close(List<WarmingCandidate> finishedWarmingCandidates, RowGroupKey permanentRowGroupKey, long flowId, StorageWriterSplitConfig storageWriterSplitConfig)
     {
         List<RowGroupData> tmpRowGroupDataList = new ArrayList<>();
         try {

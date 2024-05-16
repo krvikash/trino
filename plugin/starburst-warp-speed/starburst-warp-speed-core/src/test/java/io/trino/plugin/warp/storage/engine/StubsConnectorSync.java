@@ -15,7 +15,6 @@ package io.trino.plugin.warp.storage.engine;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.trino.plugin.warp.dispatcher.warmup.demoter.AcquireResult;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.gen.constants.DemoteStatus;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
@@ -115,12 +114,6 @@ public class StubsConnectorSync
     public void setWarmupDemoterService(WarmupDemoterService warmupDemoterService)
     {
         this.warmupDemoterService = warmupDemoterService;
-    }
-
-    @Override
-    public AcquireResult tryAcquireAllocation()
-    {
-        return new AcquireResult(1);
     }
 
     @Override

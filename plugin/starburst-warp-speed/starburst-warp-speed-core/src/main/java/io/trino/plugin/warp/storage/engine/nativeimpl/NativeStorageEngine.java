@@ -107,7 +107,7 @@ public class NativeStorageEngine
     public native long initWarmupTxSizes(int[] fixedWarmupDataTxSizes, int[] varlenWarmupDataTxSizes);
 
     @Override
-    public native void fileOpen(String fileName, boolean isWrite, long[] outFileCookie);
+    public native void fileOpen(String fileName, long[] outFileCookie);
 
     @Override
     public native void fileClose(long[] fileCookie);
@@ -122,17 +122,11 @@ public class NativeStorageEngine
     public native void fileIsAboutToBeDeleted(String fileName, int fileSizeInPages);
 
     @Override
-    public native long warmupOpen(int connecterSequence);
-
-    @Override
-    public native long warmupElementOpen(int txId, long[] fileCookie, int offetInPages,
+    public native long warmupElementOpen(long context, long[] fileCookie, int offetInPages,
             int recTypeCode, int recTypeLength, int warmUpType, long writeBuffAddress, long[] buffAddresses);
 
     @Override
     public native long warmupElementClose(long weCookie, int[] outQueryFileParams);
-
-    @Override
-    public native void warmupClose(int txId);
 
     @Override
     public native void warmupVerifyQueryOffset(int queryOffset, long[] fileCookie);

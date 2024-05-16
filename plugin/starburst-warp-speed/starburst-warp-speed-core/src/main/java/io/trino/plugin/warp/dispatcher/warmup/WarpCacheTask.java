@@ -43,7 +43,6 @@ import java.util.stream.Collectors;
 
 import static io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService.INVALID_FILE_COOKIE_FD;
 import static io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService.INVALID_FLOW_ID;
-import static io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService.INVALID_TX_ID;
 import static java.util.Objects.requireNonNull;
 
 public class WarpCacheTask
@@ -74,7 +73,6 @@ public class WarpCacheTask
     private boolean aborted;
     private boolean finished;
     private long flowId = -1;
-    private int txId;
 
     public WarpCacheTask(
             GlobalConfig globalConfig,
@@ -103,7 +101,6 @@ public class WarpCacheTask
         this.blocksToProcess = new LinkedBlockingQueue<>();
         this.firstIteration = true;
         this.aborted = false;
-        this.txId = INVALID_TX_ID;
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
                 globalConfig.getShapingLoggerThreshold(),
@@ -155,7 +152,7 @@ public class WarpCacheTask
         finally {
             if (warmStarted) {
                 try {
-                    cacheWarmer.finishWarmingAndUnlock(txId, storageWriterSplitConfig, rowGroupKey);
+                    cacheWarmer.finishWarmingAndUnlock(storageWriterSplitConfig, rowGroupKey);
                 }
                 catch (Exception e) {
                     logger.error(e, "failed on finish cache warming %s. key=%s", storageWriterSplitConfig, rowGroupKey);
@@ -248,8 +245,7 @@ public class WarpCacheTask
                 boolean warmSucceeded = cacheAction.close(warmingCandidates,
                         rowGroupKey,
                         flowId,
-                        storageWriterSplitConfig,
-                        txId);
+                        storageWriterSplitConfig);
                 if (warmSucceeded) {
                     statsWarmingService.incwarm_accomplished();
                     statsWarmingService.incwarm_warp_cache_accomplished();
@@ -291,7 +287,6 @@ public class WarpCacheTask
         statsWarmingService.incwarm_warp_cache_started();
 
         try {
-            txId = storageWarmerService.warmupOpen(txId);
             flowId = FlowIdGenerator.generateFlowId();
             storageWarmerService.tryRunningWarmFlow(flowId, rowGroupKey);
         }
@@ -308,7 +303,7 @@ public class WarpCacheTask
         for (WarmupElementWriteMetadata warmUpElementToWarm : toWarm) {
             RowGroupKey tmpRowGroupKey = cacheWarmer.getTempRowGroupKey(warmUpElementToWarm, rowGroupKey);
             try {
-                WarmingCandidate warmingCandidate = cacheWarmer.initCandidate(txId, storageWriterSplitConfig, warmUpElementToWarm, tmpRowGroupKey);
+                WarmingCandidate warmingCandidate = cacheWarmer.initCandidate(storageWriterSplitConfig, warmUpElementToWarm, tmpRowGroupKey);
                 warmingCandidates.add(warmingCandidate);
             }
             catch (Exception e) {

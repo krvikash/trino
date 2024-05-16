@@ -198,6 +198,16 @@ public class WorkerWarmingService
         }
     }
 
+    protected void warmTaskStarted()
+    {
+        warmupDemoterService.incremenetActiveWarmingTasks();
+    }
+
+    protected void warmTaskFinished()
+    {
+        warmupDemoterService.decremenetActiveWarmingTasks();
+    }
+
     protected void removeRowGroupFromSubmittedRowGroup(RowGroupKey rowGroupKey)
     {
         workerTaskExecutorService.taskFinished(rowGroupKey);

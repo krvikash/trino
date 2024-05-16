@@ -201,7 +201,7 @@ public class WarmingManagerTest
                 storageWriterService,
                 new GlobalConfig());
         ConnectorSync connectorSync = mock(ConnectorSync.class);
-        StorageWarmerService storageWarmerService = new StorageWarmerService(rowGroupDataService, storageEngine, globalConfig, connectorSync, mock(WarmupDemoterService.class), storageEngineTxService, mock(FlowsSequencer.class), TestingTxService.createMetricsManager());
+        StorageWarmerService storageWarmerService = new StorageWarmerService(rowGroupDataService, storageEngine, globalConfig, mock(WarmupDemoterService.class), storageEngineTxService, mock(FlowsSequencer.class), TestingTxService.createMetricsManager());
         return new VaradaProxiedWarmer(varadaPageSinkFactory,
                 dispatcherProxiedConnectorTransformer,
                 nodeManager,

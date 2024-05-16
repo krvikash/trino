@@ -19,7 +19,6 @@ import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.AcquireWarmupStatus;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
-import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngine;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
 import org.junit.jupiter.api.Test;
@@ -40,7 +39,6 @@ class StorageWarmerServiceTest
         StorageWarmerService storageWarmerService = new StorageWarmerService(mock(RowGroupDataService.class),
                 new StubsStorageEngine(),
                 new GlobalConfig(),
-                mock(ConnectorSync.class),
                 warmupDemoterService,
                 mock(StorageEngineTxService.class),
                 mock(FlowsSequencer.class),

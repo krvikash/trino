@@ -304,7 +304,7 @@ public class StorageCollectorService
         }
         //  file
         long[] fileCookie = {INVALID_FILE_COOKIE_FD, 0};
-        storageEngine.fileOpen(queryParams.getFilePath(), false, fileCookie);
+        storageEngine.fileOpen(queryParams.getFilePath(), fileCookie);
         ChunksQueue chunksQueue = new ChunksQueue(numChunksInRange, storageEngineConstants.getPageSize());
         return new StorageCollectorArgs(
                 blockFillers,

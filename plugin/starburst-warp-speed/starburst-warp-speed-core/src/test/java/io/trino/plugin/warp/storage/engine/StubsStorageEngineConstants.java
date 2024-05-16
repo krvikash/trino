@@ -101,27 +101,9 @@ public class StubsStorageEngineConstants
     }
 
     @Override
-    public int getSectorOffsetMask()
+    public int getMaxWeContextSize()
     {
-        return 511;
-    }
-
-    @Override
-    public int getSectorSize()
-    {
-        return 512;
-    }
-
-    @Override
-    public int getSectorSizeMask()
-    {
-        return -512;
-    }
-
-    @Override
-    public int getSectorSizeShift()
-    {
-        return 9;
+        return 16 * 1024;
     }
 
     @Override

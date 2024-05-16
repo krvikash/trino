@@ -26,5 +26,5 @@ public interface CacheAction
     CacheWarmState act(List<WarmingCandidate> warmingCandidates, int totalRecord, RowGroupKey permanentRowGroupKey);
 
     // return true if warm was successful
-    boolean close(List<WarmingCandidate> warmingCandidates, RowGroupKey permanentRowGroupKey, long flowId, StorageWriterSplitConfig storageWriterSplitConfig, int txId);
+    boolean close(List<WarmingCandidate> warmingCandidates, RowGroupKey permanentRowGroupKey, long flowId, StorageWriterSplitConfig storageWriterSplitConfig);
 }

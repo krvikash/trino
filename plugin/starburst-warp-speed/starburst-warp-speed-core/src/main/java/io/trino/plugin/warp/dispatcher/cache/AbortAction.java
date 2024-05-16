@@ -79,7 +79,7 @@ public class AbortAction
     }
 
     @Override
-    public boolean close(List<WarmingCandidate> failedWarmingCandidates, RowGroupKey permanentRowGroupKey, long flowId, StorageWriterSplitConfig storageWriterSplitConfig, int txId)
+    public boolean close(List<WarmingCandidate> failedWarmingCandidates, RowGroupKey permanentRowGroupKey, long flowId, StorageWriterSplitConfig storageWriterSplitConfig)
     {
         List<RowGroupData> tmpRowGroupDataList = new ArrayList<>();
         try {

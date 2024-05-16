@@ -104,6 +104,7 @@ public class ProxyExecutionTask
     @Override
     protected void warm(WarmData dataToWarm)
     {
+        workerWarmingService.warmTaskStarted();
         SchemaTableName schemaTableName = new SchemaTableName(rowGroupKey.schema(), rowGroupKey.table());
         List<WarmUpElement> warmupElements;
         RowGroupData rowGroupData = rowGroupDataService.get(rowGroupKey);
@@ -118,12 +119,14 @@ public class ProxyExecutionTask
             statsWarmingService.incwarm_failed();
             boolean releaseTx = dataToWarm != null && dataToWarm.txMemoryReserved();
             storageWarmerService.finishWarm(releaseTx);
+            workerWarmingService.warmTaskFinished();
             return;
         }
 
         if (warmupElements.isEmpty()) {
             boolean releaseTx = dataToWarm.txMemoryReserved();
             storageWarmerService.finishWarm(releaseTx);
+            workerWarmingService.warmTaskFinished();
             return;
         }
         Map<VaradaColumn, String> partitionKeys = getPartitionKeys(dispatcherSplit);
@@ -150,6 +153,7 @@ public class ProxyExecutionTask
                     eventBus.post(new WarmingFinishedEvent(rowGroupKey, session));
                 }
                 statsWarmingService.incwarm_accomplished();
+                workerWarmingService.warmTaskFinished();
             }
             return;
         }
@@ -196,6 +200,7 @@ public class ProxyExecutionTask
             if (started) {
                 statsWarmingService.incwarm_accomplished();
             }
+            workerWarmingService.warmTaskFinished();
         }
 
         // Just a precaution - make sure we're not stuck on an infinite loop of warmups.

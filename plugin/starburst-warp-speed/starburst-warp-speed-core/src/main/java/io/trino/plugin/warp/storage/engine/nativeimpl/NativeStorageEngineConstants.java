@@ -30,11 +30,6 @@ public class NativeStorageEngineConstants
     private final int pageSize;                      // native layer page size
     private final int pageSizeMask;                  // mask for page alignment
     private final int pageOffsetMask;                // mask for in page offset
-    // sector
-    private final int sectorSizeShift;
-    private final int sectorSize;
-    private final int sectorSizeMask;
-    private final int sectorOffsetMask;
     // buffer
     private final int recordBufferMaxSize;
     private final int indexChunkMaxSize;
@@ -43,6 +38,7 @@ public class NativeStorageEngineConstants
     private final int chunkHeaderMaxSize;
     private final int warmupDataTempBufferSize;
     private final int warmupIndexTempBufferSize;
+    private final int maxWeContextSize;
     // varchar
     private final int maxRecLen;
     private final int fixedLengthStringLimit;
@@ -76,12 +72,6 @@ public class NativeStorageEngineConstants
         pageOffsetMask = pageSize - 1;
         pageSizeMask = ~pageOffsetMask;
 
-        // sector
-        sectorSizeShift = 9;
-        sectorSize = 1 << sectorSizeShift;
-        sectorOffsetMask = sectorSize - 1;
-        sectorSizeMask = ~sectorOffsetMask;
-
         // buffers
         recordBufferMaxSize = getRecordBufferMaxSizeImpl();
         indexChunkMaxSize = getIndexChunkMaxSizeImpl();
@@ -90,6 +80,7 @@ public class NativeStorageEngineConstants
         chunkHeaderMaxSize = getChunkHeaderMaxSizeImpl();
         warmupDataTempBufferSize = getWarmupDataTempBufferSizeImpl();
         warmupIndexTempBufferSize = getWarmupIndexTempBufferSizeImpl();
+        maxWeContextSize = getMaxWeContextSizeImpl();
 
         // varchar
         maxRecLen = getMaxRecLenImpl();
@@ -170,6 +161,8 @@ public class NativeStorageEngineConstants
 
     private native int getWarmupDataTempBufferSizeImpl();
 
+    private native int getMaxWeContextSizeImpl();
+
     private native int getWarmupIndexTempBufferSizeImpl();
 
     @Override
@@ -245,27 +238,9 @@ public class NativeStorageEngineConstants
     }
 
     @Override
-    public int getSectorOffsetMask()
+    public int getMaxWeContextSize()
     {
-        return sectorOffsetMask;
-    }
-
-    @Override
-    public int getSectorSize()
-    {
-        return sectorSize;
-    }
-
-    @Override
-    public int getSectorSizeMask()
-    {
-        return sectorSizeMask;
-    }
-
-    @Override
-    public int getSectorSizeShift()
-    {
-        return sectorSizeShift;
+        return maxWeContextSize;
     }
 
     @Override

@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.warp.storage.engine;
 
-import io.trino.plugin.warp.dispatcher.warmup.demoter.AcquireResult;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.gen.constants.DemoteStatus;
 
@@ -41,7 +40,7 @@ public interface ConnectorSync
         throw new UnsupportedOperationException();
     }
 
-    default AcquireResult tryAcquireAllocation()
+    default void tryAcquireAllocation()
     {
         throw new UnsupportedOperationException();
     }

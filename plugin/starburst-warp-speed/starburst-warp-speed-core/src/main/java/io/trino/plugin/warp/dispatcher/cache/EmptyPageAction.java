@@ -68,7 +68,7 @@ public class EmptyPageAction
     }
 
     @Override
-    public boolean close(List<WarmingCandidate> warmingCandidates, RowGroupKey permanentRowGroupKey, long flowId, StorageWriterSplitConfig storageWriterSplitConfig, int txId)
+    public boolean close(List<WarmingCandidate> warmingCandidates, RowGroupKey permanentRowGroupKey, long flowId, StorageWriterSplitConfig storageWriterSplitConfig)
     {
         statsWarmingService.incempty_row_group();
         return true;

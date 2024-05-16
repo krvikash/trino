@@ -54,21 +54,17 @@ public class VaradaPageSink
     }
 
     @Override
-    public boolean open(int txId, long[] fileCookie, int fileOffset, WarmupElementWriteMetadata warmupElementWriteMetadata, List<DictionaryWarmInfo> outDictionaryWarmInfos)
+    public void open(long[] fileCookie, int fileOffset, WarmupElementWriteMetadata warmupElementWriteMetadata, List<DictionaryWarmInfo> outDictionaryWarmInfos)
     {
         // now create the native tx
         try {
-            storageWriterContext = storageWriterService.open(txId, fileCookie, fileOffset, storageWriterSplitConfig, warmupElementWriteMetadata, outDictionaryWarmInfos);
-            if (storageWriterContext == null) {
-                return false;
-            }
+            storageWriterContext = storageWriterService.open(fileCookie, fileOffset, storageWriterSplitConfig, warmupElementWriteMetadata, outDictionaryWarmInfos);
             writerOpened = true;
         }
         catch (Exception e) {
             shapingLogger.error("we create failed %s", e.getMessage());
             throw e;
         }
-        return true;
     }
 
     @Override

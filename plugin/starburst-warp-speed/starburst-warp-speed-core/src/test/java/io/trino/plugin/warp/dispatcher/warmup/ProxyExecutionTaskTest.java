@@ -43,7 +43,6 @@ import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.metrics.MetricsManager;
-import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngine;
 import io.trino.plugin.warp.storage.flows.FlowType;
@@ -291,7 +290,7 @@ public class ProxyExecutionTaskTest
 
     private ProxyExecutionTask createWarmExecutionTask(WarmingServiceStats warmingServiceStats, EventBus eventBus)
     {
-        StorageWarmerService storageWarmerService = new StorageWarmerService(rowGroupDataService, new StubsStorageEngine(), globalConfig, mock(ConnectorSync.class), warmupDemoterService, storageEngineTxService, flowsSequencer, TestingTxService.createMetricsManager());
+        StorageWarmerService storageWarmerService = new StorageWarmerService(rowGroupDataService, new StubsStorageEngine(), globalConfig, warmupDemoterService, storageEngineTxService, flowsSequencer, TestingTxService.createMetricsManager());
         return new ProxyExecutionTask(mock(WarmExecutionTaskFactory.class),
                 eventBus,
                 dispatcherProxiedConnectorTransformer,

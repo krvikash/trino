@@ -70,7 +70,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public void fileOpen(String fileName, boolean isWrite, long[] outFileCookie)
+    public void fileOpen(String fileName, long[] outFileCookie)
     {
     }
 
@@ -95,13 +95,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public long warmupOpen(int connecterSequence)
-    {
-        return 0;
-    }
-
-    @Override
-    public long warmupElementOpen(int txId, long[] fileCookie, int offetInPages,
+    public long warmupElementOpen(long context, long[] fileCookie, int offetInPages,
             int recTypeCode, int recTypeLength, int warmUpType, long writeBuffAddress, long[] buffAddresses)
     {
         return 1;
@@ -113,11 +107,6 @@ public class StubsStorageEngine
         outQueryFileParams[0] = 0;
         outQueryFileParams[1] = 1;
         return 1;
-    }
-
-    @Override
-    public void warmupClose(int txId)
-    {
     }
 
     @Override

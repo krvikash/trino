@@ -42,13 +42,7 @@ public interface StorageEngineConstants
 
     int getWarmupIndexTempBufferSize();
 
-    int getSectorOffsetMask();
-
-    int getSectorSize();
-
-    int getSectorSizeMask();
-
-    int getSectorSizeShift();
+    int getMaxWeContextSize();
 
     int getFixedLengthStringLimit();
 

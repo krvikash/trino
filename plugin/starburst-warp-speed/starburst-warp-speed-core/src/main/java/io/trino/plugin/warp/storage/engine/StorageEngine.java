@@ -46,7 +46,7 @@ public interface StorageEngine
     }
 
     //----------------------- file ----------------------------------------
-    default void fileOpen(String fileName, boolean isWrite, long[] outFileCookie)
+    default void fileOpen(String fileName, long[] outFileCookie)
     {
         throw new UnsupportedOperationException();
     }
@@ -73,24 +73,13 @@ public interface StorageEngine
 
     //----------------------- warmup ----------------------------------------
 
-    default long warmupOpen(int connecterSequence)
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    default long warmupElementOpen(int txId, long[] fileCookie, int offetInPages,
+    default long warmupElementOpen(long context, long[] fileCookie, int offetInPages,
             int recTypeCode, int recTypeLength, int warmUpType, long writeBuffAddress, long[] buffAddresses)
     {
         throw new UnsupportedOperationException();
     }
 
     default long warmupElementClose(long weCookie, int[] outQueryFileParams)
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    // returns offset in pages
-    default void warmupClose(int txId)
     {
         throw new UnsupportedOperationException();
     }

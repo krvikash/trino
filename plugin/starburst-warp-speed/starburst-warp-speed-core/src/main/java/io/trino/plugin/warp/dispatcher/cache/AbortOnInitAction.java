@@ -49,7 +49,7 @@ public class AbortOnInitAction
     }
 
     @Override
-    public boolean close(List<WarmingCandidate> warmingCandidates, RowGroupKey permanentRowGroupKey, long flowId, StorageWriterSplitConfig storageWriterSplitConfig, int txId)
+    public boolean close(List<WarmingCandidate> warmingCandidates, RowGroupKey permanentRowGroupKey, long flowId, StorageWriterSplitConfig storageWriterSplitConfig)
     {
         warmingServiceStats.addwarm_failed(warmingCandidates.size());
         storageWarmerService.finishWarm(

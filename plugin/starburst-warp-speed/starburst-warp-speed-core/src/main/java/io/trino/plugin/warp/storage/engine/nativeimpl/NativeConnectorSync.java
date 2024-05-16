@@ -17,7 +17,6 @@ import com.google.common.eventbus.EventBus;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.dispatcher.warmup.demoter.AcquireResult;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.gen.constants.DemoteStatus;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
@@ -143,12 +142,6 @@ public class NativeConnectorSync
     private native void syncDemoteCycleEnd(int catalogSequence, int demoteSequence, double lowestPriorityExist, double highestPriorityDemoted, int demoteStatus);
 
     @Override
-    public AcquireResult tryAcquireAllocation()
-    {
-        return new AcquireResult(getNumActiveLoaders(catalogSequence));
-    }
-
-    @Override
     public int getCatalogSequence()
     {
         return catalogSequence;
@@ -159,6 +152,4 @@ public class NativeConnectorSync
     {
         return catalogName;
     }
-
-    private native int getNumActiveLoaders(int catalogSequence);
 }

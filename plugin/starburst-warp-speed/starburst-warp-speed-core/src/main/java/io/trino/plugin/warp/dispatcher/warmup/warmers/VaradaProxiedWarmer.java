@@ -68,13 +68,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 import static io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService.INVALID_FILE_COOKIE_FD;
-import static io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService.INVALID_TX_ID;
-import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FD;
-import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FILE_HASH;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -84,7 +80,6 @@ public class VaradaProxiedWarmer
 
     private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
     private final String nodeIdentifier;
-    private final ConcurrentHashMap<Integer, RowGroupData> warmIdToRowGroup;
     private final VaradaPageSinkFactory varadaPageSinkFactory;
     private final ConnectorSync connectorSync;
     private final GlobalConfig globalConfig;
@@ -110,8 +105,6 @@ public class VaradaProxiedWarmer
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.storageWarmerService = requireNonNull(storageWarmerService);
         this.storageWriterService = requireNonNull(storageWriterService);
-
-        this.warmIdToRowGroup = new ConcurrentHashMap<>();
     }
 
     RowGroupData warm(ConnectorPageSourceProvider connectorPageSourceProvider,
@@ -143,7 +136,6 @@ public class VaradaProxiedWarmer
         WarmupElementWriteMetadata currWarmUpElementWriteMetadata;
         String rowGroupFilePath = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
         long[] fileCookie = {INVALID_FILE_COOKIE_FD, 0};
-        int txId = INVALID_TX_ID;
         StorageWriterSplitConfig storageWriterSplitConfig = null;
         try {
             storageWarmerService.createFile(rowGroupKey);
@@ -156,7 +148,6 @@ public class VaradaProxiedWarmer
                 ConnectorSplit nonFilterSplit = dispatcherProxiedConnectorTransformer.createProxiedConnectorNonFilteredSplit(dispatcherSplit.getProxyConnectorSplit());
                 ConnectorTableHandle nonFilterTableHandle = dispatcherProxiedConnectorTransformer.createProxyTableHandleForWarming(dispatcherTableHandle);
 
-                txId = storageWarmerService.warmupOpen(txId);
                 for (Pair<WarmupElementWriteMetadata, ColumnHandle> pair : warmupElementsWriteMetadata) {
                     ConnectorPageSource connectorPageSource = connectorPageSourceProvider.createPageSource(transactionHandle,
                             session,
@@ -178,15 +169,7 @@ public class VaradaProxiedWarmer
                             int pagePositionCount = (nextPage != null) ? nextPage.getPositionCount() : 0;
                             if (pagePositionCount > 0) {
                                 if (rowCount == 0) { //first time
-                                    boolean openSuccess = pageSink.open(txId, fileCookie, fileOffset, currWarmUpElementWriteMetadata, outDictionariesWarmInfos);
-                                    if (!openSuccess) {
-                                        txId = storageWarmerService.warmupOpen(txId);
-                                        openSuccess = pageSink.open(txId, fileCookie, fileOffset, currWarmUpElementWriteMetadata, outDictionariesWarmInfos);
-                                        if (!openSuccess) {
-                                            throw new RuntimeException(String.format("failed twice to open warm up element for write txId %d fileCookie.file_fd %d fileCookie.file_hash %d fileOffset %d",
-                                                    txId, fileCookie[FILE_COOKIE_PARAMS_FD.ordinal()], fileCookie[FILE_COOKIE_PARAMS_FILE_HASH.ordinal()], fileOffset));
-                                        }
-                                    }
+                                    pageSink.open(fileCookie, fileOffset, currWarmUpElementWriteMetadata, outDictionariesWarmInfos);
                                 }
                                 isValidWE = pageSink.appendPage(nextPage, rowCount);
                                 rowCount += pagePositionCount;
@@ -198,14 +181,8 @@ public class VaradaProxiedWarmer
 
                         WarmSinkResult warmSinkResult = storageWarmerService.sinkClose(pageSink, currWarmUpElementWriteMetadata, rowCount, isValidWE, fileOffset, fileCookie);
                         pageSink = null;
-                        if (fileOffset == warmSinkResult.offset()) { // if we failed, we re-open the tx since we might had a native exception
-                            txId = storageWarmerService.warmupOpen(txId);
-                        }
-                        else {
-                            fileOffset = warmSinkResult.offset();
-                        }
+                        fileOffset = warmSinkResult.offset(); // if we failed it will set the same number again
                         rowGroupData = rowGroupDataService.updateRowGroupData(rowGroupData, warmSinkResult.warmUpElement(), fileOffset, rowCount);
-                        warmIdToRowGroup.put(txId, rowGroupData); // saving row group data after the update (failed or succeeded)
                     }
                     catch (Exception e) {
                         if (pageSink != null) {
@@ -224,7 +201,6 @@ public class VaradaProxiedWarmer
                 throw e;
             }
             finally {
-                storageWarmerService.warmupClose(txId);
                 storageWarmerService.flushRecords(fileCookie, rowGroupData); // a log will also be written here
             }
         }
@@ -244,7 +220,7 @@ public class VaradaProxiedWarmer
         }
 
         if (extraDebug) {
-            storageWarmerService.verifyQueryOffsets(rowGroupKey, rowGroupData.getValidWarmUpElements(), warmIdToRowGroup);
+            storageWarmerService.verifyQueryOffsets(rowGroupKey, rowGroupData.getValidWarmUpElements());
         }
         return rowGroupData;
     }

@@ -15,7 +15,6 @@ package io.trino.plugin.warp.dispatcher.warmup.warmers;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.trino.plugin.warp.VaradaErrorCode;
 import io.trino.plugin.warp.dictionary.DictionaryWarmInfo;
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
@@ -27,7 +26,6 @@ import io.trino.plugin.warp.storage.write.PageSink;
 import io.trino.plugin.warp.storage.write.StorageWriterService;
 import io.trino.plugin.warp.storage.write.StorageWriterSplitConfig;
 import io.trino.plugin.warp.storage.write.VaradaPageSinkFactory;
-import io.trino.spi.TrinoException;
 import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.type.Type;
@@ -129,7 +127,7 @@ public class CacheWarmer
                 permanentRowGroupKey.catalogName());
     }
 
-    public WarmingCandidate initCandidate(int txId, StorageWriterSplitConfig storageWriterSplitConfig, WarmupElementWriteMetadata warmUpElementToWarm, RowGroupKey tmpRowGroupKey)
+    public WarmingCandidate initCandidate(StorageWriterSplitConfig storageWriterSplitConfig, WarmupElementWriteMetadata warmUpElementToWarm, RowGroupKey tmpRowGroupKey)
             throws IOException
     {
         PageSink pageSink = varadaPageSinkFactory.create(storageWriterSplitConfig);
@@ -139,10 +137,7 @@ public class CacheWarmer
         int fileOffset = getFileOffset(tmpRowGroupKey);
         List<DictionaryWarmInfo> outDictionaryWarmInfos = new ArrayList<>();
 
-        boolean success = pageSink.open(txId, fileCookie, fileOffset, warmUpElementToWarm, outDictionaryWarmInfos);
-        if (!success) {
-            throw new TrinoException(VaradaErrorCode.VARADA_WARMUP_OPEN_ERROR, "failed to open warmup element for write");
-        }
+        pageSink.open(fileCookie, fileOffset, warmUpElementToWarm, outDictionaryWarmInfos);
         return new WarmingCandidate(fileCookie, pageSink, fileOffset, warmUpElementToWarm, tmpRowGroupKey);
     }
 
@@ -154,10 +149,9 @@ public class CacheWarmer
         return storageWriterService.startWarming("WarpCacheManager", permanentRowGroupKey.filePath(), false);
     }
 
-    public void finishWarmingAndUnlock(int txId, StorageWriterSplitConfig storageWriterSplitConfig, RowGroupKey permanentRowGroupKey)
+    public void finishWarmingAndUnlock(StorageWriterSplitConfig storageWriterSplitConfig, RowGroupKey permanentRowGroupKey)
     {
         try {
-            storageWarmerService.warmupClose(txId);
             if (storageWriterSplitConfig != null) {
                 storageWriterService.finishWarming(storageWriterSplitConfig);
             }

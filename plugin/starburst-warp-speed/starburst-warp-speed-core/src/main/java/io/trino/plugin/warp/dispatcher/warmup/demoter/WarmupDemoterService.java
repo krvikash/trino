@@ -27,7 +27,6 @@ import com.google.inject.Singleton;
 import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.VaradaErrorCode;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
@@ -79,6 +78,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -118,6 +118,7 @@ public class WarmupDemoterService
     private boolean enableDemote;
     private EventBus eventBus;
     private DemoteArguments demoteArguments;
+    private AtomicInteger numActiveWarmingTasks;
 
     @Inject
     public WarmupDemoterService(WorkerCapacityManager workerCapacityManager,
@@ -142,6 +143,7 @@ public class WarmupDemoterService
         this.eventBus = requireNonNull(eventBus);
         this.defaultWarmupProperties = new WarmupProperties(WarmUpType.WARM_UP_TYPE_DATA, warmupDemoterConfig.getDefaultRulePriority(), NA_TTL, TransformFunction.NONE);
         this.enableDemote = warmupDemoterConfig.isEnableDemote();
+        this.numActiveWarmingTasks = new AtomicInteger(0);
         int rowGroupPoolSize = nativeConfig.getTaskMaxWorkerThreads();
         int rowGroupQueueSize = warmupDemoterConfig.getTasksExecutorQueueSize();
         this.rowGroupExecutorService = new ThreadPoolExecutor(0, rowGroupPoolSize,
@@ -490,14 +492,20 @@ public class WarmupDemoterService
         return !reachedThreshold(warmupDemoterConfig.getMaxUsageThresholdPercentage());
     }
 
+    public void incremenetActiveWarmingTasks()
+    {
+        numActiveWarmingTasks.incrementAndGet();
+    }
+
+    public void decremenetActiveWarmingTasks()
+    {
+        numActiveWarmingTasks.decrementAndGet();
+    }
+
     public synchronized AcquireWarmupStatus tryAllocateNativeResourceForWarmup()
     {
-        AcquireResult res = connectorSync.tryAcquireAllocation();
-        if (!res.isSuccess()) {
-            return AcquireWarmupStatus.EXCEEDED_LOADERS;
-        }
         workerCapacityManager.setCurrentUsage();
-        workerCapacityManager.setExecutingTx((int) res.numberOfActiveThreads());
+        workerCapacityManager.setExecutingTx(numActiveWarmingTasks.get());
         if (!canAllowWarmup()) {
             releaseTx();
             if (workerCapacityManager.getExecutingTxCount() <= 0) {
@@ -510,12 +518,8 @@ public class WarmupDemoterService
 
     public synchronized void tryAllocateTx()
     {
-        AcquireResult res = connectorSync.tryAcquireAllocation();
-        if (!res.isSuccess()) {
-            throw new TrinoException(VaradaErrorCode.VARADA_EXCEEDED_LOADERS, "failed to Acquire loader");
-        }
         workerCapacityManager.setCurrentUsage();
-        workerCapacityManager.setExecutingTx((int) res.numberOfActiveThreads());
+        workerCapacityManager.setExecutingTx(numActiveWarmingTasks.get());
     }
 
     public void releaseTx()
