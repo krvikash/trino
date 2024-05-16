@@ -188,6 +188,8 @@
             -XX:G1HeapRegionSize=32M
             -XX:+UnlockDiagnosticVMOptions
             <!-- bump from default of 2 -->
+            <!-- workaround for JDK-8329528 -->
+            -XX:G1NumCollectionsKeepPinned=10000000
             ${extraJavaVectorArgs}
             <!-- # Allow loading dynamic agent used by JOL -->
             -XX:+EnableDynamicAgentLoading
