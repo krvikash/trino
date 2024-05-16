@@ -41,7 +41,6 @@ import java.util.List;
 import java.util.Locale;
 
 import static io.trino.tests.product.TestGroups.PROFILE_SPECIFIC_TESTS;
-import static io.trino.tests.product.TestGroups.WARP_SPEED_CACHE;
 import static io.trino.tests.product.utils.QueryExecutors.onTrino;
 import static io.trino.tests.product.warp.utils.DemoterUtils.objectMapper;
 import static io.trino.tests.product.warp.utils.syntheticconfig.TestConfiguration.QUERY_ID;
@@ -143,7 +142,7 @@ public class TestWarpCache
                 .iterator();
     }
 
-    @Test(groups = {WARP_SPEED_CACHE, PROFILE_SPECIFIC_TESTS}, dataProvider = "cache")
+    @Test(groups = PROFILE_SPECIFIC_TESTS, dataProvider = "cache")
     public void cache(TestFormat testFormat)
             throws IOException
     {
@@ -195,7 +194,7 @@ public class TestWarpCache
                 .iterator();
     }
 
-    @Test(groups = {WARP_SPEED_CACHE, PROFILE_SPECIFIC_TESTS}, dataProvider = "syntheticWithoutAggregations")
+    @Test(groups = PROFILE_SPECIFIC_TESTS, dataProvider = "syntheticWithoutAggregations")
     public void syntheticWithoutAggregations(TestFormat testFormat)
             throws IOException
     {
@@ -203,14 +202,14 @@ public class TestWarpCache
         execute(testFormat, "synthetic");
     }
 
-    @Test(groups = {WARP_SPEED_CACHE, PROFILE_SPECIFIC_TESTS}, dataProvider = "synthetic")
+    @Test(groups = PROFILE_SPECIFIC_TESTS, dataProvider = "synthetic")
     public void synthetic(TestFormat testFormat)
             throws IOException
     {
         execute(testFormat, "synthetic");
     }
 
-    @Test(groups = {WARP_SPEED_CACHE, PROFILE_SPECIFIC_TESTS}, dataProvider = "synthTypes")
+    @Test(groups = PROFILE_SPECIFIC_TESTS, dataProvider = "synthTypes")
     public void synthTypes(TestFormat testFormat)
             throws IOException
     {

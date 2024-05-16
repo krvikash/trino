@@ -108,7 +108,6 @@ public final class TestGroups
     public static final String WARP_SPEED_HIVE_2 = "warp-speed-hive-2";
     public static final String WARP_SPEED_DELTA_LAKE = "warp-speed-delta-lake";
     public static final String WARP_SPEED_ICEBERG = "warp-speed-iceberg";
-    public static final String WARP_SPEED_CACHE = "warp-speed-cache";
     public static final String WARP_SPEED_MINIO = "warp-speed-minio";
 
     private TestGroups() {}
