@@ -41,6 +41,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 
+import static io.trino.plugin.varada.dispatcher.warmup.warmers.StorageWarmerService.INVALID_FILE_COOKIE_FD;
 import static io.trino.plugin.varada.dispatcher.warmup.warmers.StorageWarmerService.INVALID_FLOW_ID;
 import static io.trino.plugin.varada.dispatcher.warmup.warmers.StorageWarmerService.INVALID_TX_ID;
 import static java.util.Objects.requireNonNull;
@@ -144,7 +145,7 @@ public class WarpCacheTask
             }
             finally {
                 if (isEmptyPageSource()) {
-                    warmingCandidates = toWarm.stream().map(x -> new WarmingCandidate(0, null, 0, x, null)).collect(Collectors.toList());
+                    warmingCandidates = toWarm.stream().map(x -> new WarmingCandidate(new long[] {INVALID_FILE_COOKIE_FD, 0}, null, 0, x, null)).collect(Collectors.toList());
                     cacheWarmState = CacheWarmState.EMPTY_PAGE;
                 }
                 closeAndSave(cacheWarmState);

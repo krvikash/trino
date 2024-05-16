@@ -71,8 +71,10 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
-import static io.trino.plugin.varada.dispatcher.warmup.warmers.StorageWarmerService.INVALID_FILE_COOKIE;
+import static io.trino.plugin.varada.dispatcher.warmup.warmers.StorageWarmerService.INVALID_FILE_COOKIE_FD;
 import static io.trino.plugin.varada.dispatcher.warmup.warmers.StorageWarmerService.INVALID_TX_ID;
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FD;
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FILE_HASH;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -140,7 +142,7 @@ public class VaradaProxiedWarmer
 
         WarmupElementWriteMetadata currWarmUpElementWriteMetadata;
         String rowGroupFilePath = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
-        long fileCookie = INVALID_FILE_COOKIE;
+        long[] fileCookie = {INVALID_FILE_COOKIE_FD, 0};
         int txId = INVALID_TX_ID;
         StorageWriterSplitConfig storageWriterSplitConfig = null;
         try {
@@ -181,8 +183,8 @@ public class VaradaProxiedWarmer
                                         txId = storageWarmerService.warmupOpen(txId);
                                         openSuccess = pageSink.open(txId, fileCookie, fileOffset, currWarmUpElementWriteMetadata, outDictionariesWarmInfos);
                                         if (!openSuccess) {
-                                            throw new RuntimeException(String.format("failed twice to open warm up element for write txId %d fileCookie %d fileOffset %d",
-                                                    txId, fileCookie, fileOffset));
+                                            throw new RuntimeException(String.format("failed twice to open warm up element for write txId %d fileCookie.file_fd %d fileCookie.file_hash %d fileOffset %d",
+                                                    txId, fileCookie[FILE_COOKIE_PARAMS_FD.ordinal()], fileCookie[FILE_COOKIE_PARAMS_FILE_HASH.ordinal()], fileOffset));
                                         }
                                     }
                                 }

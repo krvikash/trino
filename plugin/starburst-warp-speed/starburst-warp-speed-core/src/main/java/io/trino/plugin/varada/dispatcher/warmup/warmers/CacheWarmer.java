@@ -135,7 +135,7 @@ public class CacheWarmer
         PageSink pageSink = varadaPageSinkFactory.create(storageWriterSplitConfig);
         rowGroupDataService.getOrCreateTmpRowGroupData(tmpRowGroupKey);
         storageWarmerService.createFile(tmpRowGroupKey);
-        long fileCookie = storageWarmerService.fileOpen(tmpRowGroupKey);
+        long[] fileCookie = storageWarmerService.fileOpen(tmpRowGroupKey);
         int fileOffset = getFileOffset(tmpRowGroupKey);
         List<DictionaryWarmInfo> outDictionaryWarmInfos = new ArrayList<>();
 

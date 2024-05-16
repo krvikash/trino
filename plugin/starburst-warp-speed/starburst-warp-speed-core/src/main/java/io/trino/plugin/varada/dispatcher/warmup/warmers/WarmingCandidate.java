@@ -17,7 +17,7 @@ import io.trino.plugin.varada.dispatcher.WarmupElementWriteMetadata;
 import io.trino.plugin.varada.dispatcher.model.RowGroupKey;
 import io.trino.plugin.varada.storage.write.PageSink;
 
-public record WarmingCandidate(long fileCookie,
+public record WarmingCandidate(long[] fileCookie,
                                PageSink pageSink,
                                int fileOffset,
                                WarmupElementWriteMetadata warmupElementWriteMetadata,

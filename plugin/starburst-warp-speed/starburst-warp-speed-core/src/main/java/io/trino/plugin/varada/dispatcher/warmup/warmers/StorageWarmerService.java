@@ -43,13 +43,15 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 
 import static io.trino.plugin.varada.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FD;
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_NUM_OF;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
 public class StorageWarmerService
 {
     private static final Logger logger = Logger.get(StorageWarmerService.class);
-    public static final long INVALID_FILE_COOKIE = -1;
+    public static final long INVALID_FILE_COOKIE_FD = -1;
     public static final int INVALID_TX_ID = -1;
     public static final int INVALID_FLOW_ID = -1;
 
@@ -92,12 +94,14 @@ public class StorageWarmerService
         }
     }
 
-    public long fileOpen(RowGroupKey rowGroupKey)
+    public long[] fileOpen(RowGroupKey rowGroupKey)
             throws IOException
     {
         String rowGroupFilePath = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
-        // fileCookie was initialized to -1. In case fileOpen throws an exception we will not close it in the finally clause
-        return storageEngine.fileOpen(rowGroupFilePath, true);
+        long[] fileCookie = new long[FILE_COOKIE_PARAMS_NUM_OF.ordinal()];
+        // fileCookie.fd was initialized to -1. In case fileOpen throws an exception we will not close it in the finally clause
+        storageEngine.fileOpen(rowGroupFilePath, true, fileCookie);
+        return fileCookie;
     }
 
     // in case we already have an open tx we close it and open a new one
@@ -118,9 +122,9 @@ public class StorageWarmerService
         }
     }
 
-    public void flushRecords(long fileCookie, RowGroupData rowGroupData)
+    public void flushRecords(long[] fileCookie, RowGroupData rowGroupData)
     {
-        if (fileCookie != INVALID_FILE_COOKIE) {
+        if (fileCookie[FILE_COOKIE_PARAMS_FD.ordinal()] != INVALID_FILE_COOKIE_FD) {
             if (rowGroupData.getValidWarmUpElements().isEmpty()) {
                 rowGroupDataService.deleteData(rowGroupData, false);
                 logger.debug("all we failed for row group=%s", rowGroupData.getRowGroupKey());
@@ -136,7 +140,7 @@ public class StorageWarmerService
             int rowCount,
             boolean isValidWE,
             int currentOffset,
-            long fileCookie)
+            long[] fileCookie)
     {
         WarmUpElement updatedWarmupElement;
         int newOffset = currentOffset;
@@ -159,14 +163,14 @@ public class StorageWarmerService
         return new WarmSinkResult(updatedWarmupElement, newOffset);
     }
 
-    public void fileTruncate(long fileCookie, int currentOffset)
+    public void fileTruncate(long[] fileCookie, int currentOffset)
     {
         storageEngine.fileTruncate(fileCookie, currentOffset);
     }
 
-    public void fileClose(long fileCookie, Optional<RowGroupData> rowGroupData)
+    public void fileClose(long[] fileCookie, Optional<RowGroupData> rowGroupData)
     {
-        if (fileCookie != INVALID_FILE_COOKIE) {
+        if (fileCookie[FILE_COOKIE_PARAMS_FD.ordinal()] != INVALID_FILE_COOKIE_FD) {
             try {
                 storageEngine.fileClose(fileCookie);
             }
@@ -187,7 +191,7 @@ public class StorageWarmerService
 
     public void verifyQueryOffsets(RowGroupKey rowGroupKey, List<WarmUpElement> validWarmUpElements, ConcurrentHashMap<Integer, RowGroupData> warmIdToRowGroup)
     {
-        long fileCookie = INVALID_FILE_COOKIE;
+        long[] fileCookie = {INVALID_FILE_COOKIE_FD, 0};
         try {
             if ((validWarmUpElements.size() > 0) && (validWarmUpElements.get(0).getTotalRecords() < 32 * 1024)) {
                 fileCookie = fileOpen(rowGroupKey);
@@ -240,7 +244,7 @@ public class StorageWarmerService
             boolean runDemote)
     {
         releaseTx(releaseTx);
-        if (flowId != INVALID_FILE_COOKIE) {
+        if (flowId != INVALID_FILE_COOKIE_FD) {
             flowsSequencer.flowFinished(FlowType.WARMUP, flowId, force);
         }
         if (runDemote) {

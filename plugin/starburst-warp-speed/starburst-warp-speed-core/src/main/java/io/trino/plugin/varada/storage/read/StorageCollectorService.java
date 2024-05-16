@@ -39,6 +39,7 @@ import java.util.stream.Collectors;
 
 import static io.trino.plugin.varada.VaradaErrorCode.VARADA_UNRECOVERABLE_COLLECT_FAILED;
 import static io.trino.plugin.varada.dictionary.DictionaryCacheService.DICTIONARY_STAT_GROUP;
+import static io.trino.plugin.varada.dispatcher.warmup.warmers.StorageWarmerService.INVALID_FILE_COOKIE_FD;
 import static java.util.Objects.requireNonNull;
 
 public class StorageCollectorService
@@ -302,7 +303,8 @@ public class StorageCollectorService
             throw new RuntimeException("no chunks");
         }
         //  file
-        long fileCookie = storageEngine.fileOpen(queryParams.getFilePath(), false);
+        long[] fileCookie = {INVALID_FILE_COOKIE_FD, 0};
+        storageEngine.fileOpen(queryParams.getFilePath(), false, fileCookie);
         ChunksQueue chunksQueue = new ChunksQueue(numChunksInRange, storageEngineConstants.getPageSize());
         return new StorageCollectorArgs(
                 blockFillers,

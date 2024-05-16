@@ -107,13 +107,13 @@ public class NativeStorageEngine
     public native int initWarmupTxSizes(int[] fixedWarmupDataTxSizes, int[] varlenWarmupDataTxSizes);
 
     @Override
-    public native long fileOpen(String fileName, boolean isWrite);
+    public native void fileOpen(String fileName, boolean isWrite, long[] outFileCookie);
 
     @Override
-    public native void fileClose(long fileCookie);
+    public native void fileClose(long[] fileCookie);
 
     @Override
-    public native void fileTruncate(long fileCookie, int offset);
+    public native void fileTruncate(long[] fileCookie, int offset);
 
     @Override
     public native void filePunchHole(String fileName, int startOffset, int endOffset);
@@ -125,7 +125,7 @@ public class NativeStorageEngine
     public native int warmupOpen(int connecterSequence);
 
     @Override
-    public native long warmupElementOpen(int txId, long fileCookie, int offetInPages,
+    public native long warmupElementOpen(int txId, long[] fileCookie, int offetInPages,
             int recTypeCode, int recTypeLength, int warmUpType, long writeBuffAddress, long[] buffAddresses);
 
     @Override
@@ -135,7 +135,7 @@ public class NativeStorageEngine
     public native void warmupClose(int txId);
 
     @Override
-    public native void warmupVerifyQueryOffset(int queryOffset, long fileCookie);
+    public native void warmupVerifyQueryOffset(int queryOffset, long[] fileCookie);
 
     @Override
     public native void commitRecordBufferPrepare(long weCookie);
@@ -160,12 +160,12 @@ public class NativeStorageEngine
     public native int queryGetCollectStateSize(int numMatchCollect);
 
     @Override
-    public native int collectOpen(int totalNumRecords, long fileCookie, byte[] parsingBuff, byte[] collect2MatchParams, int numCollectWes,
+    public native int collectOpen(int totalNumRecords, long[] fileCookie, byte[] parsingBuff, byte[] collect2MatchParams, int numCollectWes,
             int[] weCollectParams, int connectorId, long matchBitmapAddress, int minOffset,
             long[][] outCollectColBuffIds, long[] outMetadataBuffIds, int[] outResultType);
 
     @Override
-    public native int matchOpen(int totalNumRecords, long fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams,
+    public native int matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams,
             int numMatchWes, int[] weMatchTree, int numLucenes, LuceneMatcher[] luceneMatchers, long matchBitmapAddress, int minOffset, long[][] outMatchColBuffIds);
 
     @Override

@@ -65,6 +65,7 @@ import java.util.List;
 import java.util.stream.IntStream;
 
 import static io.trino.plugin.varada.dispatcher.WarmupTestDataUtil.mockBufferAllocator;
+import static io.trino.plugin.varada.dispatcher.warmup.warmers.StorageWarmerService.INVALID_FILE_COOKIE_FD;
 import static io.trino.spi.block.ColumnarTestUtils.createTestDictionaryBlock;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -127,7 +128,7 @@ public class StorageWriterServiceTest
     private void initiate(StorageEngine storageEngineToSpy, StubsStorageEngineConstants storageEngineConstants)
     {
         storageEngine = spy(storageEngineToSpy);
-        when(storageEngine.warmupElementOpen(anyInt(), anyLong(), anyInt(), anyInt(), anyInt(), anyInt(), anyLong(), any())).thenReturn(1L);
+        when(storageEngine.warmupElementOpen(anyInt(), new long[] {anyLong(), anyLong()}, anyInt(), anyInt(), anyInt(), anyInt(), anyLong(), any())).thenReturn(1L);
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
 
         DictionaryConfig dictionaryConfig = new DictionaryConfig();
@@ -696,7 +697,7 @@ public class StorageWriterServiceTest
 
     private StorageWriterContext txCreate(StorageWriterSplitConfig storageWriterSplitConfig, WarmupElementWriteMetadata warmupElementWriteMetadata, List<DictionaryWarmInfo> outDictionaryWarmInfos)
     {
-        return storageWriterService.open(0, 0, 0, storageWriterSplitConfig, warmupElementWriteMetadata, outDictionaryWarmInfos);
+        return storageWriterService.open(0, new long[] {INVALID_FILE_COOKIE_FD, 0}, 0, storageWriterSplitConfig, warmupElementWriteMetadata, outDictionaryWarmInfos);
     }
 
     private StorageWriterContext runTest(Page page, WarmupElementWriteMetadata warmupElementWriteMetadata, List<DictionaryWarmInfo> outDictionaryWarmInfos)

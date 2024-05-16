@@ -70,18 +70,17 @@ public class StubsStorageEngine
     }
 
     @Override
-    public long fileOpen(String fileName, boolean isWrite)
-    {
-        return 0;
-    }
-
-    @Override
-    public void fileClose(long fileCookie)
+    public void fileOpen(String fileName, boolean isWrite, long[] outFileCookie)
     {
     }
 
     @Override
-    public void fileTruncate(long fileCookie, int offset)
+    public void fileClose(long[] fileCookie)
+    {
+    }
+
+    @Override
+    public void fileTruncate(long[] fileCookie, int offset)
     {
     }
 
@@ -102,7 +101,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public long warmupElementOpen(int txId, long fileCookie, int offetInPages,
+    public long warmupElementOpen(int txId, long[] fileCookie, int offetInPages,
             int recTypeCode, int recTypeLength, int warmUpType, long writeBuffAddress, long[] buffAddresses)
     {
         return 1;
@@ -122,7 +121,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public void warmupVerifyQueryOffset(int queryOffset, long fileCookie)
+    public void warmupVerifyQueryOffset(int queryOffset, long[] fileCookie)
     {
     }
 
@@ -155,7 +154,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public int collectOpen(int totalNumRecords, long fileCookie, byte[] parsingBuff, byte[] collect2MatchParams, int numCollectWes,
+    public int collectOpen(int totalNumRecords, long[] fileCookie, byte[] parsingBuff, byte[] collect2MatchParams, int numCollectWes,
             int[] weCollectParams, int connectorId, long matchBitmapAddress, int minOffset,
             long[][] outCollectColBuffIds, long[] outMetadataBuffIds, int[] outResultType)
     {
@@ -166,7 +165,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public int matchOpen(int totalNumRecords, long fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams,
+    public int matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams,
             int numMatchWes, int[] weMatchTree, int numLucenes, LuceneMatcher[] luceneMatchers, long matchBitmapAddress, int minOffset, long[][] outMatchColBuffIds)
     {
         luceneColumns.addAndGet(luceneMatchers.length);

@@ -46,17 +46,17 @@ public interface StorageEngine
     }
 
     //----------------------- file ----------------------------------------
-    default long fileOpen(String fileName, boolean isWrite)
+    default void fileOpen(String fileName, boolean isWrite, long[] outFileCookie)
     {
         throw new UnsupportedOperationException();
     }
 
-    default void fileClose(long fileCookie)
+    default void fileClose(long[] fileCookie)
     {
         throw new UnsupportedOperationException();
     }
 
-    default void fileTruncate(long fileCookie, int offset)
+    default void fileTruncate(long[] fileCookie, int offset)
     {
         throw new UnsupportedOperationException();
     }
@@ -78,7 +78,7 @@ public interface StorageEngine
         throw new UnsupportedOperationException();
     }
 
-    default long warmupElementOpen(int txId, long fileCookie, int offetInPages,
+    default long warmupElementOpen(int txId, long[] fileCookie, int offetInPages,
             int recTypeCode, int recTypeLength, int warmUpType, long writeBuffAddress, long[] buffAddresses)
     {
         throw new UnsupportedOperationException();
@@ -95,7 +95,7 @@ public interface StorageEngine
         throw new UnsupportedOperationException();
     }
 
-    default void warmupVerifyQueryOffset(int queryOffset, long fileCookie)
+    default void warmupVerifyQueryOffset(int queryOffset, long[] fileCookie)
     {
         throw new UnsupportedOperationException();
     }
@@ -152,14 +152,14 @@ public interface StorageEngine
      *
      * @return transaction id
      */
-    default int collectOpen(int totalNumRecords, long fileCookie, byte[] parsingBuff, byte[] collect2MatchParams, int numCollectWes,
+    default int collectOpen(int totalNumRecords, long[] fileCookie, byte[] parsingBuff, byte[] collect2MatchParams, int numCollectWes,
             int[] weCollectParams, int connectorId, long matchBitmapAddress, int minOffset,
             long[][] outCollectColBuffIds, long[] outMetadataBuffIds, int[] outResultType)
     {
         throw new UnsupportedOperationException();
     }
 
-    default int matchOpen(int totalNumRecords, long fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams,
+    default int matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams,
             int numMatchWes, int[] weMatchTree, int numLucenes, LuceneMatcher[] luceneMatchers, long matchBitmapAddress, int minOffset, long[][] outMatchColBuffIds)
     {
         throw new UnsupportedOperationException();

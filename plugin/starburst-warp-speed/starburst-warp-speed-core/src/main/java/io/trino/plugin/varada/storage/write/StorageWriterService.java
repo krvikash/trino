@@ -124,7 +124,7 @@ public class StorageWriterService
     }
 
     StorageWriterContext open(int txId,
-            long fileCookie,
+            long[] fileCookie,
             int fileOffset,
             StorageWriterSplitConfig storageWriterSplitConfig,
             WarmupElementWriteMetadata warmupElementWriteMetadata,
@@ -219,7 +219,7 @@ public class StorageWriterService
     private StorageOpenResult storageWeOpen(WarmUpElement warmUpElement,
             boolean hasDictionary,
             int txId,
-            long fileCookie,
+            long[] fileCookie,
             int fileOffset,
             long writeBuffAddress,
             WarmUpElementAllocationParams allocParams)

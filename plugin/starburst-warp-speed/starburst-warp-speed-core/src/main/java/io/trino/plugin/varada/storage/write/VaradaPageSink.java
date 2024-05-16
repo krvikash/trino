@@ -54,7 +54,7 @@ public class VaradaPageSink
     }
 
     @Override
-    public boolean open(int txId, long fileCookie, int fileOffset, WarmupElementWriteMetadata warmupElementWriteMetadata, List<DictionaryWarmInfo> outDictionaryWarmInfos)
+    public boolean open(int txId, long[] fileCookie, int fileOffset, WarmupElementWriteMetadata warmupElementWriteMetadata, List<DictionaryWarmInfo> outDictionaryWarmInfos)
     {
         // now create the native tx
         try {

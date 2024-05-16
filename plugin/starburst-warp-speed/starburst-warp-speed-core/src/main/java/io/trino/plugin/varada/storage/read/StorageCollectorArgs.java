@@ -30,7 +30,7 @@ public record StorageCollectorArgs(List<BlockFiller<?>> blockFillers,
                                    QueryParams queryParams,
                                    int chunkSize,
                                    int numChunks,
-                                   long fileCookie,
+                                   long[] fileCookie,
                                    ChunksQueue chunksQueue)
 {
 }
