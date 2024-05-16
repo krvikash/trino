@@ -379,12 +379,11 @@ public class StorageWriterService
         // it might actually contain enough data to fill the buffer.
         // In this case, we want to write all the data without stopping after one iteration
         boolean stopAfterOneChunk = warmupElementBlocks.isReady();
-
         int blockIndex = 0;
         boolean flushed = false;
         int currentRecordNumber = warmupElementBlocks.getStartOffsetInFirstBlock();
-        for (; blockIndex < warmupElementBlocks.getBlocks().size() && !(stopAfterOneChunk && flushed) && storageWriterContext.weSuccess(); blockIndex++) {
-            Block block = warmupElementBlocks.getBlocks().get(blockIndex);
+        for (; blockIndex < warmupElementBlocks.getSize() && !(stopAfterOneChunk && flushed) && storageWriterContext.weSuccess(); blockIndex++) {
+            Block block = warmupElementBlocks.get(blockIndex);
             if (blockIndex > 0) {
                 currentRecordNumber = 0;
             }
@@ -409,7 +408,7 @@ public class StorageWriterService
             flushAfterAppendingBlocks(warmupElementBlocks, storageWriterContext);
         }
 
-        if (currentRecordNumber == warmupElementBlocks.getBlocks().get(blockIndex - 1).getPositionCount()) {
+        if (currentRecordNumber == warmupElementBlocks.get(blockIndex - 1).getPositionCount()) {
             // If the block was already read in full - point on the next block
             currentRecordNumber = 0;
         }

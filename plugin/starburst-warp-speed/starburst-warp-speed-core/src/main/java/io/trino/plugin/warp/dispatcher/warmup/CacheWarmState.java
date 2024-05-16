@@ -15,5 +15,5 @@ package io.trino.plugin.warp.dispatcher.warmup;
 
 public enum CacheWarmState
 {
-    RUNNING, FINISHING, ABORTING, ABORT_ON_INIT_PROCESS, EMPTY_PAGE
+    RUNNING, FINISHING, ABORTING, ABORT_ON_INIT_PROCESS, EMPTY_PAGE, ABORT_FROM_ENGINE
 }

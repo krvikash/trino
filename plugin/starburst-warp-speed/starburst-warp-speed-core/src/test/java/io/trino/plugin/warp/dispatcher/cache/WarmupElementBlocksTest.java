@@ -58,19 +58,19 @@ class WarmupElementBlocksTest
         // add
         assertThat(warmupElementBlocks.add(bigEnoughBlock)).isTrue();
         assertThat(warmupElementBlocks.isReady()).isTrue();
-        assertThat(warmupElementBlocks.getBlocks().size()).isEqualTo(1);
+        assertThat(warmupElementBlocks.getSize()).isEqualTo(1);
         assertThat(warmupElementBlocks.add(anExtraBlock)).isTrue();
         assertThat(warmupElementBlocks.isReady()).isTrue();
-        assertThat(warmupElementBlocks.getBlocks().size()).isEqualTo(2);
+        assertThat(warmupElementBlocks.getSize()).isEqualTo(2);
 
         // drop
         warmupElementBlocks.dropProcessed(0, 1);
         assertThat(warmupElementBlocks.isReady()).isTrue();
-        assertThat(warmupElementBlocks.getBlocks().size()).isEqualTo(2);
+        assertThat(warmupElementBlocks.getSize()).isEqualTo(2);
         assertThat(warmupElementBlocks.getStartOffsetInFirstBlock()).isEqualTo(1);
         warmupElementBlocks.dropProcessed(1, 0);
         assertThat(warmupElementBlocks.isReady()).isTrue();
-        assertThat(warmupElementBlocks.getBlocks().size()).isEqualTo(1);
+        assertThat(warmupElementBlocks.getSize()).isEqualTo(1);
     }
 
     @Test
@@ -88,23 +88,23 @@ class WarmupElementBlocksTest
         // add
         for (int i = 0; i < numberOfBlocks; i++) {
             Block block = mockBlock(recordsPerBlock);
-            boolean expectedToBeReady = warmupElementBlocks.getBlocks().size() + 1 >= blockNeededToBeReady; // +1 because we haven't added the block yet
+            boolean expectedToBeReady = warmupElementBlocks.getSize() + 1 >= blockNeededToBeReady; // +1 because we haven't added the block yet
             assertThat(warmupElementBlocks.add(block)).isEqualTo(expectedToBeReady);
             assertThat(warmupElementBlocks.isReady()).isEqualTo(expectedToBeReady);
         }
-        assertThat(warmupElementBlocks.getBlocks().size()).isEqualTo(numberOfBlocks);
+        assertThat(warmupElementBlocks.getSize()).isEqualTo(numberOfBlocks);
         assertThat(warmupElementBlocks.getStartOffsetInFirstBlock()).isEqualTo(0);
 
         // drop
         int expectedBlocks = 10;
         int blocksToDropEachIteration = 2;
         int offset = 3;
-        while (warmupElementBlocks.getBlocks().size() > blocksToDropEachIteration + 1) {
+        while (warmupElementBlocks.getSize() > blocksToDropEachIteration + 1) {
             warmupElementBlocks.dropProcessed(blocksToDropEachIteration, offset);
             expectedBlocks -= blocksToDropEachIteration;
-            assertThat(warmupElementBlocks.getBlocks().size()).isEqualTo(expectedBlocks);
+            assertThat(warmupElementBlocks.getSize()).isEqualTo(expectedBlocks);
             assertThat(warmupElementBlocks.getStartOffsetInFirstBlock()).isEqualTo(offset);
-            boolean expectedToBeReady = warmupElementBlocks.getBlocks().size() >= blockNeededToBeReady + 1; // +1 because offset > 0 so an extra block will be counted on each drop
+            boolean expectedToBeReady = warmupElementBlocks.getSize() >= blockNeededToBeReady + 1; // +1 because offset > 0 so an extra block will be counted on each drop
             assertThat(warmupElementBlocks.isReady()).isEqualTo(expectedToBeReady);
         }
     }

@@ -699,13 +699,11 @@ public class DispatcherPageSourceFactory
             return Optional.empty();
         }
         if (rowGroupData.isEmpty()) {
-            statsDispatcherPageSource.incwarp_cache_manager();
             statsDispatcherPageSource.incempty_page_source();
             return Optional.of(new EmptyPageSource());
         }
 
         if (queryStoreId.isEmpty()) {
-            statsDispatcherPageSource.incskip_warp_cache_manager();
             return Optional.empty();
         }
         ImmutableList.Builder<ColumnHandle> columns = ImmutableList.builder();
@@ -754,7 +752,6 @@ public class DispatcherPageSourceFactory
                     readErrorHandler,
                     globalConfig);
             statsDispatcherPageSource.addwarp_collect_columns(planSignature.getColumns().size());
-            statsDispatcherPageSource.incwarp_cache_manager();
             return Optional.of(dispatcherPageSource);
         }
         catch (Exception e) {

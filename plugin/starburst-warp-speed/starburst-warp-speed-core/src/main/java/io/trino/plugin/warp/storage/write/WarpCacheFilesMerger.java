@@ -58,62 +58,74 @@ public class WarpCacheFilesMerger
         this.pageSizeShift = requireNonNull(storageEngineConstants).getPageSizeShift();
     }
 
-    public boolean mergeTmpFiles(List<RowGroupData> tmpRowGroupDataList, RowGroupKey permanentRowGroupKey, boolean success)
-            throws IOException
+    public boolean merge(List<RowGroupData> tmpRowGroupDataList, RowGroupKey permanentRowGroupKey)
     {
-        boolean mergeSucceeded = true;
+        boolean succes = true;
         try {
             RowGroupData permanentRowGroupData = rowGroupDataService.getOrCreateRowGroupData(permanentRowGroupKey, Collections.emptyMap());
             storageWarmerService.createFile(permanentRowGroupKey);
             int maxOffset = permanentRowGroupData.getNextOffset();
-            if (success && isAllElementsAreValid(tmpRowGroupDataList)) {
-                String permanentRowGroupPath = permanentRowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
-                try (RandomAccessFile mergedFile = new RandomAccessFile(permanentRowGroupPath, "rw")) {
-                    int offset = maxOffset << pageSizeShift;
-                    mergedFile.seek(offset);
-                    for (RowGroupData tmpRowGroupData : tmpRowGroupDataList) {
-                        try {
-                            List<WarmUpElement> validWarmUpElements = tmpRowGroupData.getValidWarmUpElements();
-                            checkArgument(validWarmUpElements.size() == 1, "only one WarmUpElement is supported");
-                            WarmUpElement warmUpElement = validWarmUpElements.get(0);
-                            checkArgument(warmUpElement.getStartOffset() == 0, "start offset must be zero but wasn't warmUpElement=%s", warmUpElement);
-                            int relativeStartOffset = maxOffset;
-                            int relativeEndOffset = maxOffset + (warmUpElement.getEndOffset() - warmUpElement.getStartOffset());
-                            int relativeQueryOffset = warmUpElement.getQueryOffset() + maxOffset;
-                            WarmUpElement newWarmupElement = WarmUpElement.builder(warmUpElement)
-                                    .startOffset(relativeStartOffset)
-                                    .endOffset(relativeEndOffset)
-                                    .queryOffset(relativeQueryOffset)
-                                    .build();
-                            copyFileContent(tmpRowGroupData.getRowGroupKey(), permanentRowGroupPath, mergedFile, tmpRowGroupData.getNextOffset() << pageSizeShift);
-                            maxOffset += tmpRowGroupData.getNextOffset();
-                            permanentRowGroupData = rowGroupDataService.updateRowGroupData(permanentRowGroupData,
-                                    newWarmupElement,
-                                    maxOffset,
-                                    newWarmupElement.getTotalRecords());
-                            maxOffset = permanentRowGroupData.getNextOffset();
-                        }
-                        catch (Exception e) {
-                            logger.error(e, "failed to merge tmpRowGroupData into permanentRowGroupData. tmpRowGroupData=%s, permanentRowGroupData=%s", tmpRowGroupData, permanentRowGroupData);
-                            setAllWeToFailedState(tmpRowGroupDataList, permanentRowGroupKey);
-                            mergeSucceeded = false;
-                            break;
-                        }
-                    }
-                    rowGroupDataService.flush(permanentRowGroupKey);
-                }
-            }
-            else {
-                //in case of failure, add all WE as failed to permanent RG
+            String permanentRowGroupPath = permanentRowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
+            try (RandomAccessFile mergedFile = new RandomAccessFile(permanentRowGroupPath, "rw")) {
+                int offset = maxOffset << pageSizeShift;
+                mergedFile.seek(offset);
                 for (RowGroupData tmpRowGroupData : tmpRowGroupDataList) {
-                    rowGroupDataService.markAsFailed(permanentRowGroupKey, tmpRowGroupData.getWarmUpElements(), Collections.emptyMap());
+                    try {
+                        List<WarmUpElement> validWarmUpElements = tmpRowGroupData.getValidWarmUpElements();
+                        checkArgument(validWarmUpElements.size() == 1, "only one WarmUpElement is supported");
+                        WarmUpElement warmUpElement = validWarmUpElements.get(0);
+                        checkArgument(warmUpElement.getStartOffset() == 0, "start offset must be zero but wasn't warmUpElement=%s", warmUpElement);
+                        int relativeStartOffset = maxOffset;
+                        int relativeEndOffset = maxOffset + (warmUpElement.getEndOffset() - warmUpElement.getStartOffset());
+                        int relativeQueryOffset = warmUpElement.getQueryOffset() + maxOffset;
+                        WarmUpElement newWarmupElement = WarmUpElement.builder(warmUpElement)
+                                .startOffset(relativeStartOffset)
+                                .endOffset(relativeEndOffset)
+                                .queryOffset(relativeQueryOffset)
+                                .build();
+                        copyFileContent(tmpRowGroupData.getRowGroupKey(), permanentRowGroupPath, mergedFile, tmpRowGroupData.getNextOffset() << pageSizeShift);
+                        maxOffset += tmpRowGroupData.getNextOffset();
+                        permanentRowGroupData = rowGroupDataService.updateRowGroupData(permanentRowGroupData,
+                                newWarmupElement,
+                                maxOffset,
+                                newWarmupElement.getTotalRecords());
+                        maxOffset = permanentRowGroupData.getNextOffset();
+                    }
+                    catch (Exception e) {
+                        logger.error(e, "failed to merge tmpRowGroupData into permanentRowGroupData. tmpRowGroupData=%s, permanentRowGroupData=%s", tmpRowGroupData, permanentRowGroupData);
+                        setAllWeToFailedState(tmpRowGroupDataList, permanentRowGroupKey);
+                        succes = false;
+                        break;
+                    }
                 }
+                rowGroupDataService.flush(permanentRowGroupKey);
             }
+        }
+        catch (Exception e) {
+            succes = false;
         }
         finally {
             deleteTmpRowGroups(tmpRowGroupDataList);
         }
-        return mergeSucceeded;
+        return succes;
+    }
+
+    public void handleWarmFailed(List<RowGroupData> tmpRowGroupDataList, RowGroupKey permanentRowGroupKey)
+    {
+        try {
+            setAllWeToFailedState(tmpRowGroupDataList, permanentRowGroupKey);
+        }
+        finally {
+            deleteTmpRowGroups(tmpRowGroupDataList);
+        }
+    }
+
+    private void setAllWeToFailedState(List<RowGroupData> tmpRowGroupDataList, RowGroupKey permanentRowGroupKey)
+    {
+        //in case of failure, add all WE as failed to permanent RG
+        for (RowGroupData tmpRowGroupData : tmpRowGroupDataList) {
+            rowGroupDataService.markAsFailed(permanentRowGroupKey, tmpRowGroupData.getWarmUpElements(), Collections.emptyMap());
+        }
     }
 
     private void copyFileContent(RowGroupKey tmpRowGroupKey, String permanentRowGroupPath, RandomAccessFile mergedFile, int length)
@@ -152,19 +164,6 @@ public class WarpCacheFilesMerger
         }
     }
 
-    private static boolean isAllElementsAreValid(List<RowGroupData> tmpRowGroupDataList)
-    {
-        return tmpRowGroupDataList.stream().flatMap(x -> x.getValidWarmUpElements().stream()).allMatch(WarmUpElement::isValid);
-    }
-
-    private void setAllWeToFailedState(List<RowGroupData> tmpRowGroupDataList, RowGroupKey expectedMergedKey)
-    {
-        //in case of failure, add all WE as failed to permanent RG
-        for (RowGroupData tmpRowGroupData : tmpRowGroupDataList) {
-            rowGroupDataService.markAsFailed(expectedMergedKey, tmpRowGroupData.getWarmUpElements(), Collections.emptyMap());
-        }
-    }
-
     private void validateLocation(String path)
     {
         requireNonNull(getLocation(path));
@@ -185,7 +184,7 @@ public class WarpCacheFilesMerger
         return Location.of(path);
     }
 
-    private void deleteTmpRowGroups(List<RowGroupData> tmpRowGroupDataList)
+    public void deleteTmpRowGroups(List<RowGroupData> tmpRowGroupDataList)
     {
         for (RowGroupData tmpRowGroupData : tmpRowGroupDataList) {
             rowGroupDataService.deleteFile(tmpRowGroupData);

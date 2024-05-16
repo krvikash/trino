@@ -23,10 +23,13 @@ import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static io.airlift.slice.SizeOf.instanceSize;
 import static java.lang.String.format;
 
 public class WarmupElementBlocks
 {
+    private static final int INSTANCE_SIZE = instanceSize(WarmupElementBlocks.class);
+
     private static final Logger logger = Logger.get(WarmupElementBlocks.class);
 
     private final WarmupElementWriteMetadata metadata;
@@ -44,7 +47,7 @@ public class WarmupElementBlocks
         this.blocks = new ArrayList<>();
     }
 
-    public boolean add(Block block)
+    public synchronized boolean add(Block block)
     {
         blocks.add(block);
         positionCount += block.getPositionCount();
@@ -52,17 +55,17 @@ public class WarmupElementBlocks
         return isReady();
     }
 
-    public boolean isReady()
+    public synchronized boolean isReady()
     {
         return positionCount >= chunkSize;
     }
 
-    public boolean isEmpty()
+    public synchronized boolean isEmpty()
     {
         return blocks.isEmpty();
     }
 
-    public void dropProcessed(int blocksToDrop, int startOffsetInNextBlock)
+    public synchronized void dropProcessed(int blocksToDrop, int startOffsetInNextBlock)
     {
         logger.debug("Dropping %d blocks. Setting startOffsetInNextBlock=%d", blocksToDrop, startOffsetInNextBlock);
         checkArgument(blocksToDrop >= 0 && startOffsetInNextBlock >= 0,
@@ -115,19 +118,24 @@ public class WarmupElementBlocks
         return metadata;
     }
 
-    public List<Block> getBlocks()
+    public long getRetainedSizeInBytes()
     {
-        return blocks;
-    }
-
-    public long getLogicalSizeInBytes()
-    {
-        return logicalSizeInBytes;
+        return INSTANCE_SIZE + logicalSizeInBytes;
     }
 
     public int getStartOffsetInFirstBlock()
     {
         return startOffsetInFirstBlock;
+    }
+
+    public synchronized int getSize()
+    {
+        return blocks.size();
+    }
+
+    public Block get(int index)
+    {
+        return blocks.get(index);
     }
 
     @Override

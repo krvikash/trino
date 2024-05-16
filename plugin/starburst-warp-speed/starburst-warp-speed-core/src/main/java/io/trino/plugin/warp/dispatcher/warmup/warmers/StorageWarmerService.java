@@ -288,9 +288,4 @@ public class StorageWarmerService
         }
         return result;
     }
-
-    public boolean tryToUseRunningPageSource()
-    {
-        return storageEngineTxService.tryToUsePageSource();
-    }
 }

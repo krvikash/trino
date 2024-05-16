@@ -1,0 +1,176 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package io.trino.plugin.warp.dispatcher.cache;
+
+import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.errorprone.annotations.concurrent.GuardedBy;
+import com.google.inject.Inject;
+import com.google.inject.Singleton;
+import io.airlift.log.Logger;
+import io.trino.memory.context.AggregatedMemoryContext;
+import io.trino.memory.context.LocalMemoryContext;
+import io.trino.memory.context.MemoryReservationHandler;
+import io.trino.plugin.warp.dispatcher.warmup.WarpCacheTask;
+import io.trino.spi.cache.CacheManagerContext;
+import io.trino.spi.cache.MemoryAllocator;
+
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.LinkedBlockingQueue;
+
+import static io.trino.memory.context.AggregatedMemoryContext.newRootAggregatedMemoryContext;
+
+@Singleton
+public class MemoryContextService
+{
+    private static final Logger logger = Logger.get(MemoryContextService.class);
+    private final LinkedBlockingQueue<LocalMemoryContext> localMemoryContexts;
+    private boolean isRunning;
+    private final MemoryAllocator revocableMemoryAllocator;
+    @GuardedBy("this")
+    private long allocatedMemory;
+
+    private static final int LOCAL_MEMORY_COUNT = 1000;
+    private final Set<WarpCacheTask> runningTasks;
+
+    @Inject
+    public MemoryContextService(CacheManagerContext cacheManagerContext)
+    {
+        this.localMemoryContexts = new LinkedBlockingQueue<>(LOCAL_MEMORY_COUNT);
+        this.runningTasks = Sets.newConcurrentHashSet();
+        this.isRunning = false;
+        AggregatedMemoryContext memoryContext = newRootAggregatedMemoryContext(new WarpCacheMemoryReservationHandler(), 0L);
+        this.revocableMemoryAllocator = cacheManagerContext.revocableMemoryAllocator();
+        for (int i = 0; i < LOCAL_MEMORY_COUNT; i++) {
+            LocalMemoryContext localMemoryContext = memoryContext.newLocalMemoryContext("ignored");
+            localMemoryContexts.add(localMemoryContext);
+        }
+    }
+
+    public LocalMemoryContext poll()
+    {
+        return localMemoryContexts.poll();
+    }
+
+    public void releaseMemory(LocalMemoryContext localMemoryContext)
+    {
+        try {
+            localMemoryContext.trySetBytes(0); //warming finished
+            localMemoryContexts.put(localMemoryContext);
+        }
+        catch (Exception e) {
+            logger.error("failed to put localMemoryContext localMemoryContextsSize=%s error=%s", localMemoryContexts.size(), e.getMessage());
+        }
+    }
+
+    public void remove(WarpCacheTask warpCacheTask)
+    {
+        try {
+            runningTasks.remove(warpCacheTask);
+        }
+        catch (Exception e) {
+            logger.error("failed to remove task from running tasks. runningTasksSize=%s error=%s", runningTasks.size(), e.getMessage());
+        }
+    }
+
+    public void add(WarpCacheTask warpCacheTask)
+    {
+        runningTasks.add(warpCacheTask);
+    }
+
+    public long revoke(long bytesToRevoke)
+    {
+        logger.info("revoke memory triggered bytesToRevoke=%s, allocatedMemory=%s, runningTasksSize=%s", bytesToRevoke, getAllocatedMemory(), runningTasks.size());
+        long revokedMemory = 0;
+        try {
+            isRunning = true;
+            while (revokedMemory < bytesToRevoke && !runningTasks.isEmpty()) {
+                Optional<WarpCacheTask> warpCacheTaskOpt = runningTasks.stream().findAny();
+                if (warpCacheTaskOpt.isEmpty()) {
+                    continue;
+                }
+                WarpCacheTask warpCacheTask = warpCacheTaskOpt.get();
+                revokedMemory += warpCacheTask.getUsedMemory();
+                if (warpCacheTask.isWarmStarted()) {
+                    warpCacheTask.setEngineAbort();
+                    runningTasks.remove(warpCacheTask);
+                }
+                else {
+                    logger.debug("warm not started yet, we set to abort and release the memory");
+                    warpCacheTask.revoke();
+                }
+                logger.info("revoked memory=%s of bytesToRevoke=%s, runningTasksSize=%s", revokedMemory, bytesToRevoke, runningTasks.size());
+            }
+        }
+        catch (Exception e) {
+            logger.error(e, "failed to revoke");
+        }
+        finally {
+            isRunning = false;
+        }
+        return revokedMemory;
+    }
+
+    private synchronized long getAllocatedMemory()
+    {
+        return allocatedMemory;
+    }
+
+    public boolean isRunning(WarpCacheTask warpCacheTask)
+    {
+        return runningTasks.contains(warpCacheTask);
+    }
+
+    public int getRunningSize()
+    {
+        return runningTasks.size();
+    }
+
+    public boolean revokeIsRunning()
+    {
+        return isRunning;
+    }
+
+    private class WarpCacheMemoryReservationHandler
+            implements MemoryReservationHandler
+    {
+        @Override
+        public ListenableFuture<Void> reserveMemory(String allocationTag, long delta)
+        {
+            throw new IllegalStateException();
+        }
+
+        @Override
+        public boolean tryReserveMemory(String allocationTag, long delta)
+        {
+            if (delta == 0) {
+                logger.info("delta is 0");
+                // noop
+                return true;
+            }
+
+            synchronized (MemoryContextService.this) {
+                if (!revocableMemoryAllocator.trySetBytes(allocatedMemory + delta)) {
+                    logger.info("failed to locate WarpCacheManager memory. delta=%s, allocatedMemory=%s", delta, allocatedMemory);
+                    return false;
+                }
+                allocatedMemory += delta;
+                logger.info("allocatedMemory=%s delta=%s", allocatedMemory, delta);
+                return true;
+            }
+        }
+    }
+}

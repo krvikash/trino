@@ -194,14 +194,6 @@ public class TestWarpCache
         // It doesn't happen without caching manager because caching manager doesn't support dictionary
         excludeQueries.add("wide_40k_3");
         excludeQueries.add("varchar_rectlength_1");
-
-        // Sometimes this query get stuck because of a deadlock that should be resolved once we move to the asynchronous approach
-        // (see https://starburstdata.atlassian.net/browse/SIC-2178?focusedCommentId=150236).
-        // Please note that we also used to get a PANIC for this query, but it doesn't seem to reproduce anymore (at least not on a local docker).
-        // PANIC chunk start_loc 343 or type 3 or nv 125 are invalid. read_min_offset 220 read_max_offset 2317 chunk_ix 0 nchunks 16 relative_start_loc 1973 chunks_map_start_loc 2316
-        // (Note: happened also before multi-column, see https://github.com/starburstdata/varada/actions/runs/8680131130/job/23800199602?pr=2762).
-        excludeQueries.add("tuples_40keys_6");
-
         ExcludeStrategy excludeStrategy = new ExcludeStrategy();
         configuration.put(QUERY_ID, excludeQueries);
         configuration.put(TEST_NAME, excludeTests);

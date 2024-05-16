@@ -31,12 +31,13 @@ import io.trino.plugin.warp.dispatcher.warmup.WarpCacheTask;
 import io.trino.plugin.warp.dispatcher.warmup.WorkerTaskExecutorService;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.CacheWarmer;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService;
+import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
-import io.trino.plugin.warp.storage.write.FakePageSink;
+import io.trino.plugin.warp.storage.write.WarmupCacheData;
 import io.trino.plugin.warp.storage.write.WarpCachePageSink;
 import io.trino.spi.NodeManager;
 import io.trino.spi.cache.CacheColumnId;
@@ -47,14 +48,13 @@ import io.trino.spi.connector.ConnectorPageSink;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.predicate.TupleDomain;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory.STATS_DISPATCHER_KEY;
 import static io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
 import static java.util.Objects.requireNonNull;
 
@@ -66,8 +66,8 @@ public class WorkerCacheManager
     private final ShapingLogger shapingLogger;
     private final GlobalConfig globalConfig;
     private final ConnectorSync connectorSync;
-    private final ParallelWarmUpLimiter parallelWarmUpLimiter;
     private final Map<CacheWarmState, CacheAction> cacheActions;
+    private final MemoryContextService memoryContextService;
     private final DispatcherPageSourceFactory dispatcherPageSourceFactory;
     private final WorkerTaskExecutorService workerTaskExecutorService;
     private final RowGroupDataService rowGroupDataService;
@@ -77,7 +77,7 @@ public class WorkerCacheManager
     private final ObjectMapper objectMapper;
     private final StorageWarmerService storageWarmerService;
     private final int chunkSize;
-    private final AtomicInteger counter;
+    private final DispatcherPageSourceStats statsPageSource;
 
     @Inject
     public WorkerCacheManager(DispatcherPageSourceFactory dispatcherPageSourceFactory,
@@ -90,13 +90,14 @@ public class WorkerCacheManager
             StorageEngineConstants storageEngineConstants,
             GlobalConfig globalConfig,
             ConnectorSync connectorSync,
-            ParallelWarmUpLimiter parallelWarmUpLimiter,
-            @Named("CacheActions") Map<CacheWarmState, CacheAction> cacheActions)
+            @Named("CacheActions") Map<CacheWarmState, CacheAction> cacheActions,
+            MemoryContextService memoryContextService)
     {
         this.dispatcherPageSourceFactory = requireNonNull(dispatcherPageSourceFactory);
         this.workerTaskExecutorService = requireNonNull(workerTaskExecutorService);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.statsWarmingService = metricsManager.registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
+        this.statsPageSource = metricsManager.registerMetric(DispatcherPageSourceStats.create(STATS_DISPATCHER_KEY));
         this.cacheWarmer = requireNonNull(cacheWarmer);
         this.objectMapper = objectMapper.get();
         this.storageWarmerService = requireNonNull(storageWarmerService);
@@ -108,9 +109,8 @@ public class WorkerCacheManager
                 globalConfig.getShapingLoggerDuration(),
                 globalConfig.getShapingLoggerNumberOfSamples());
         this.connectorSync = requireNonNull(connectorSync);
-        this.parallelWarmUpLimiter = requireNonNull(parallelWarmUpLimiter);
         this.cacheActions = requireNonNull(cacheActions);
-        this.counter = new AtomicInteger(0);
+        this.memoryContextService = requireNonNull(memoryContextService);
     }
 
     @Override
@@ -129,7 +129,9 @@ public class WorkerCacheManager
     @Override
     public long revokeMemory(long bytesToRevoke)
     {
-        return 0;
+        long revokedBytes = memoryContextService.revoke(bytesToRevoke);
+        shapingLogger.info("revoked %s bytesToRevoke=%s", revokedBytes, bytesToRevoke);
+        return revokedBytes;
     }
 
     private class WarpSplitCache
@@ -156,6 +158,12 @@ public class WorkerCacheManager
             catch (Exception e) {
                 shapingLogger.error(e, "failed to load pages splitId=%s, planSignature=%s", splitId, planSignature);
             }
+            if (result.isPresent()) {
+                statsPageSource.incwarp_cache_manager();
+            }
+            else {
+                statsPageSource.incskip_warp_cache_manager();
+            }
             return result;
         }
 
@@ -163,18 +171,17 @@ public class WorkerCacheManager
         public Optional<ConnectorPageSink> storePages(CacheSplitId splitId, TupleDomain<CacheColumnId> predicate, TupleDomain<CacheColumnId> unenforcedPredicate)
         {
             Optional<ConnectorPageSink> res = Optional.empty();
-            boolean releaseWarmUpElements = false;
-            boolean hasDedicatedLoader = false;
-            boolean allocatedWarmResource = false;
-            List<WarmupElementWriteMetadata> toWarm = Collections.emptyList();
+            List<WarmupElementWriteMetadata> toWarm;
             try {
+                if (memoryContextService.revokeIsRunning()) {
+                    return Optional.empty();
+                }
                 RowGroupKey rowGroupKey = getRowGroupKey(splitId, predicate, unenforcedPredicate);
                 Optional<UUID> storeId = commonStoreIdFinder.getFromCache(rowGroupKey);  // read directly from cache because we assume loadPages have already added it (if exists)
                 if (storeId.isPresent()) {
-                    logger.debug("Skipping pages as they are already warmed");
+                    shapingLogger.debug("Skipping warming as they are already warmed");
                     return res;
                 }
-
                 boolean txMemoryReserved = storageWarmerService.tryAllocateNativeResourceForWarmup();
                 if (!txMemoryReserved) {
                     logger.info("nativeResourceForWarmup is not available");
@@ -187,67 +194,29 @@ public class WorkerCacheManager
                     logger.debug("nothing to warm for %s", planSignature);
                     return res;
                 }
-
-                if (!parallelWarmUpLimiter.tryToUse(toWarm.size())) {
-                    return res;
-                }
-                releaseWarmUpElements = true;
-
-                allocatedWarmResource = storageWarmerService.isLoaderAvailable();
-                if (allocatedWarmResource) {
-                    hasDedicatedLoader = true;
-                }
-                else {
-                    if (storageWarmerService.tryToUseRunningPageSource()) {
-                        hasDedicatedLoader = true;
-                    }
-                }
-                if (!hasDedicatedLoader) {
-                    return Optional.of(new FakePageSink(rowGroupKey, counter));
-                }
-
-                Map<Integer, WarmupElementBlocks> warmupElementBlocksMap = toWarm.stream().collect(Collectors.toMap(
-                        WarmupElementWriteMetadata::connectorBlockIndex,
-                        x -> new WarmupElementBlocks(x, chunkSize)));
+                List<WarmupElementBlocks> warmupElementBlocksList = toWarm.stream().map(x -> new WarmupElementBlocks(x, chunkSize)).collect(toImmutableList());
                 WarpCacheTask warpCacheTask = new WarpCacheTask(
                         globalConfig,
                         cacheActions,
                         workerTaskExecutorService,
                         storageWarmerService,
-                        parallelWarmUpLimiter,
+                        new WarmupCacheData(warmupElementBlocksList),
                         cacheWarmer,
                         statsWarmingService,
                         toWarm,
-                        warmupElementBlocksMap,
                         rowGroupKey,
-                        allocatedWarmResource);
-                WorkerTaskExecutorService.SubmissionResult submissionResult = workerTaskExecutorService.submitTask(warpCacheTask, false);
-                switch (submissionResult) {
-                    case SCHEDULED:
-                        res = Optional.of(new WarpCachePageSink(warpCacheTask));
-                        releaseWarmUpElements = false;
-                        hasDedicatedLoader = false;
-                        break;
-                    case CONFLICT:
-                        statsWarmingService.incwarm_skipped_due_key_conflict();
-                        releaseLocks();
-                        break;
-                    case REJECTED:
-                        releaseLocks();
-                        break;
+                        memoryContextService);
+                if (memoryContextService.isRunning(warpCacheTask)) {
+                    shapingLogger.info("Skipping warming since a similar warming is already running. warpCacheTask =%s. runningSize()=%s", warpCacheTask, memoryContextService.getRunningSize());
+                }
+                else {
+                    memoryContextService.add(warpCacheTask);
+                    res = Optional.of(new WarpCachePageSink(warpCacheTask, workerTaskExecutorService));
                 }
             }
             catch (Exception e) {
                 shapingLogger.error(e, "failed to store data from WarpCacheManager splitId=%s, planSignature=%s", splitId, planSignature);
                 res = Optional.empty();
-            }
-            finally {
-                if (releaseWarmUpElements) {
-                    parallelWarmUpLimiter.release(toWarm.size());
-                }
-                if (hasDedicatedLoader && allocatedWarmResource) {
-                    storageWarmerService.releaseLoaderThread(true);
-                }
             }
             return res;
         }
@@ -280,10 +249,5 @@ public class WorkerCacheManager
                     "",
                     connectorSync.getCatalogName());
         }
-    }
-
-    private void releaseLocks()
-    {
-        storageWarmerService.releaseTx(true);
     }
 }

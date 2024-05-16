@@ -11,10 +11,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.trino.plugin.warp.storage.write;
 
+import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.trino.plugin.warp.dispatcher.warmup.WarpCacheTask;
+import io.trino.plugin.warp.dispatcher.warmup.WorkerTaskExecutorService;
 import io.trino.spi.Page;
 import io.trino.spi.connector.ConnectorPageSink;
 
@@ -22,35 +25,69 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
-import static java.util.Objects.requireNonNull;
-
 public class WarpCachePageSink
         implements ConnectorPageSink
 {
+    private static final Logger logger = Logger.get(WarpCachePageSink.class);
     private final WarpCacheTask warpCacheTask;
+    private final WorkerTaskExecutorService workerTaskExecutorService;
+    private long memoryUsage;
+    private boolean firstTime;
+    private boolean abort;
 
-    public WarpCachePageSink(WarpCacheTask warpCacheTask)
+    public WarpCachePageSink(WarpCacheTask warpCacheTask, WorkerTaskExecutorService workerTaskExecutorService)
     {
-        this.warpCacheTask = requireNonNull(warpCacheTask);
+        this.workerTaskExecutorService = workerTaskExecutorService;
+        this.warpCacheTask = warpCacheTask;
+        this.firstTime = true;
+        this.abort = false;
+    }
+
+    @Override
+    public long getMemoryUsage()
+    {
+        return memoryUsage;
     }
 
     @Override
     public CompletableFuture<?> appendPage(Page page)
     {
-        warpCacheTask.addPage(page);
+        if (abort) {
+            return NOT_BLOCKED;
+        }
+        memoryUsage = warpCacheTask.addPage(page);
+        if (firstTime) {
+            WorkerTaskExecutorService.SubmissionResult submissionResult = workerTaskExecutorService.submitTask(warpCacheTask, false);
+            if (submissionResult != WorkerTaskExecutorService.SubmissionResult.SCHEDULED) {
+                logger.info("submissionResult=%s. SHOULD NOT HAPPENED", submissionResult);
+                abort = true;
+            }
+            firstTime = false;
+        }
         return NOT_BLOCKED;
     }
 
     @Override
     public CompletableFuture<Collection<Slice>> finish()
     {
-        warpCacheTask.finish();
+        if (abort) {
+            return CompletableFuture.completedFuture(Collections.emptyList());
+        }
+        if (firstTime) {
+            warpCacheTask.warmAsEmptyPageSource();
+        }
+        else {
+            warpCacheTask.setFinished();
+        }
         return CompletableFuture.completedFuture(Collections.emptyList());
     }
 
     @Override
     public void abort()
     {
-        warpCacheTask.abort();
+        if (abort) {
+            return;
+        }
+        warpCacheTask.setEngineAbort();
     }
 }

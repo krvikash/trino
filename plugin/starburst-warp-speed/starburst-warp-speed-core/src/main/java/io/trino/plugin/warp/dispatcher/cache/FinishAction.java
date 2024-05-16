@@ -106,7 +106,7 @@ public class FinishAction
             boolean mergeSucceeded;
             try {
                 checkArgument(tmpRowGroupDataList.size() == finishedWarmingCandidates.size());
-                mergeSucceeded = warpCacheFilesMerger.mergeTmpFiles(tmpRowGroupDataList, permanentRowGroupKey, true);
+                mergeSucceeded = warpCacheFilesMerger.merge(tmpRowGroupDataList, permanentRowGroupKey);
             }
             catch (Exception e) {
                 logger.error(e, "failed on merge %s. key=%s", tmpRowGroupDataList, permanentRowGroupKey);

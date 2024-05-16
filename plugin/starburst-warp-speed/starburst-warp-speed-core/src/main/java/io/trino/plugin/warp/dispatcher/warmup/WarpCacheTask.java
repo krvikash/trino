@@ -14,10 +14,11 @@
 package io.trino.plugin.warp.dispatcher.warmup;
 
 import io.airlift.log.Logger;
+import io.trino.memory.context.LocalMemoryContext;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
 import io.trino.plugin.warp.dispatcher.cache.CacheAction;
-import io.trino.plugin.warp.dispatcher.cache.ParallelWarmUpLimiter;
+import io.trino.plugin.warp.dispatcher.cache.MemoryContextService;
 import io.trino.plugin.warp.dispatcher.cache.WarmupElementBlocks;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.CacheWarmer;
@@ -28,14 +29,14 @@ import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.storage.flows.FlowIdGenerator;
 import io.trino.plugin.warp.storage.write.StorageWriterSplitConfig;
 import io.trino.plugin.warp.storage.write.WarmResult;
-import io.trino.plugin.warp.warmup.exceptions.MaxRowsException;
+import io.trino.plugin.warp.storage.write.WarmupCacheData;
 import io.trino.spi.Page;
-import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -43,66 +44,61 @@ import java.util.stream.Collectors;
 
 import static io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService.INVALID_FILE_COOKIE_FD;
 import static io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService.INVALID_FLOW_ID;
-import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FD;
-import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_NUM_OF;
 import static java.util.Objects.requireNonNull;
 
 public class WarpCacheTask
         implements WorkerSubmittableTask
 {
     private static final Logger logger = Logger.get(WarpCacheTask.class);
-    private static final int STOP_TRIGGER = -1;
     private final ShapingLogger shapingLogger;
+    private static final int STOP_TRIGGER = -1;
     private final CacheWarmer cacheWarmer;
     private final WorkerTaskExecutorService workerTaskExecutorService;
     private final WarmingServiceStats statsWarmingService;
     private final StorageWarmerService storageWarmerService;
     private final List<WarmupElementWriteMetadata> toWarm;
-    private final Map<Integer, WarmupElementBlocks> warmupElementBlocksMap;
-    private final ParallelWarmUpLimiter parallelWarmUpLimiter;
-    private final boolean allocatedWarmResource;
     private final Map<CacheWarmState, CacheAction> cacheActions;
-
+    private final MemoryContextService memoryContextService;
+    private final WarmupCacheData warmupCacheData;
     private final RowGroupKey rowGroupKey;
     private final UUID id;
-    private final BlockingQueue<Integer> blocksToProcess;
     boolean warmStarted;
     private StorageWriterSplitConfig storageWriterSplitConfig;
     private List<WarmingCandidate> warmingCandidates;
-    private boolean firstIteration;
     private int totalRecords;
 
-    private boolean aborted;
-    private boolean finished;
+    private boolean warpAbort;
     private long flowId = -1;
+    private LocalMemoryContext localMemoryContext;
+    private final BlockingQueue<Integer> blocksToProcess;
+    private boolean engineAbort;
 
-    public WarpCacheTask(
-            GlobalConfig globalConfig,
+    private boolean finished;
+
+    public WarpCacheTask(GlobalConfig globalConfig,
             Map<CacheWarmState, CacheAction> cacheActions,
             WorkerTaskExecutorService workerTaskExecutorService,
             StorageWarmerService storageWarmerService,
-            ParallelWarmUpLimiter parallelWarmUpLimiter,
+            WarmupCacheData warmupCacheData,
             CacheWarmer cacheWarmer,
             WarmingServiceStats statsWarmingService,
             List<WarmupElementWriteMetadata> toWarm,
-            Map<Integer, WarmupElementBlocks> warmupElementBlocksMap,
             RowGroupKey rowGroupKey,
-            boolean allocatedWarmResource)
+            MemoryContextService memoryContextService)
     {
+        this.warmupCacheData = warmupCacheData;
         this.rowGroupKey = requireNonNull(rowGroupKey);
         this.cacheWarmer = requireNonNull(cacheWarmer);
         this.workerTaskExecutorService = requireNonNull(workerTaskExecutorService);
         this.statsWarmingService = requireNonNull(statsWarmingService);
         this.storageWarmerService = requireNonNull(storageWarmerService);
         this.toWarm = requireNonNull(toWarm);
-        this.warmupElementBlocksMap = requireNonNull(warmupElementBlocksMap);
-        this.parallelWarmUpLimiter = requireNonNull(parallelWarmUpLimiter);
-        this.allocatedWarmResource = allocatedWarmResource;
         this.cacheActions = requireNonNull(cacheActions);
+        this.memoryContextService = requireNonNull(memoryContextService);
         this.id = UUID.randomUUID();
+        this.warpAbort = false;
+        this.engineAbort = false;
         this.blocksToProcess = new LinkedBlockingQueue<>();
-        this.firstIteration = true;
-        this.aborted = false;
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
                 globalConfig.getShapingLoggerThreshold(),
@@ -137,41 +133,52 @@ public class WarpCacheTask
     @Override
     public void run()
     {
+        CacheWarmState cacheWarmState = CacheWarmState.ABORT_ON_INIT_PROCESS;
+        boolean loadFromWarmingThread = false;
+        if (isEngineAbort()) {
+            return;
+        }
         try {
-            statsWarmingService.incwarm_started();
-            CacheWarmState cacheWarmState = CacheWarmState.ABORT_ON_INIT_PROCESS;
             try {
-                cacheWarmState = processAll();
+                loadFromWarmingThread = storageWarmerService.isLoaderAvailable();
+                if (!loadFromWarmingThread) {
+                    storageWarmerService.waitForLoaders();
+                }
+                statsWarmingService.incwarm_started();
+                if (isEngineAbort()) {
+                    return;
+                }
+                cacheWarmState = init();
+                if (isEngineAbort()) {
+                    cacheWarmState = CacheWarmState.ABORT_FROM_ENGINE;
+                    return;
+                }
+                if (cacheWarmState == CacheWarmState.RUNNING) {
+                    cacheWarmState = processAll();
+                }
+            }
+            catch (InterruptedException e) {
+                setWarpAbort();
             }
             finally {
-                if (cacheWarmState == CacheWarmState.FINISHING && isEmptyPageSource()) {
-                    cacheWarmState = CacheWarmState.EMPTY_PAGE;
-                }
-                if (warmingCandidates == null) {
-                    if (aborted) {
-                        cacheWarmState = CacheWarmState.ABORT_ON_INIT_PROCESS;
-                    }
-                    long[] fileCookieParams = new long[FILE_COOKIE_PARAMS_NUM_OF.ordinal()];
-                    fileCookieParams[FILE_COOKIE_PARAMS_FD.ordinal()] = INVALID_FILE_COOKIE_FD;
-                    warmingCandidates = toWarm.stream().map(x -> new WarmingCandidate(fileCookieParams, null, 0, x, null)).collect(Collectors.toList());
-                }
                 closeAndSave(cacheWarmState);
             }
         }
         finally {
-            if (warmStarted) {
-                try {
-                    cacheWarmer.finishWarmingAndUnlock(storageWriterSplitConfig, rowGroupKey);
-                }
-                catch (Exception e) {
-                    logger.error(e, "failed on finish cache warming %s. key=%s", storageWriterSplitConfig, rowGroupKey);
-                }
+            try {
+                cacheWarmer.finishWarmingAndUnlock(storageWriterSplitConfig, rowGroupKey);
             }
-            parallelWarmUpLimiter.release(toWarm.size());
-            if (allocatedWarmResource) {
+            catch (Exception e) {
+                logger.error(e, "failed on finish cache warming %s. key=%s", storageWriterSplitConfig, rowGroupKey);
+            }
+            if (localMemoryContext != null) {
+                memoryContextService.releaseMemory(localMemoryContext);
+            }
+            if (loadFromWarmingThread) {
                 storageWarmerService.releaseLoaderThread(true);
             }
             workerTaskExecutorService.taskFinished(rowGroupKey);
+            memoryContextService.remove(this);
             statsWarmingService.incwarm_finished();
         }
     }
@@ -180,62 +187,72 @@ public class WarpCacheTask
     {
         CacheWarmState cacheWarmState = CacheWarmState.RUNNING;
 
-        while (!aborted) {
-            try {
+        try {
+            while (!isAborted()) {
                 int blockIndexToProcess = blocksToProcess.take();
-                if (aborted || blockIndexToProcess == STOP_TRIGGER) {
+                if (isAborted() || blockIndexToProcess == STOP_TRIGGER) {
                     break;
                 }
-
-                WarmupElementBlocks warmupElementBlocks = warmupElementBlocksMap.get(blockIndexToProcess);
+                WarmupElementBlocks warmupElementBlocks = warmupCacheData.getWarmupElementBlock(blockIndexToProcess);
                 if (warmupElementBlocks.isEmpty()) { // in case it was added to the queue and then finished() was called and caused it to be added again
                     continue;
                 }
-
-                if (firstIteration) {
-                    cacheWarmState = init(cacheWarmState);
-                    firstIteration = false;
-                    if (aborted) {
-                        break;
-                    }
-                }
-
                 if (finished || warmupElementBlocks.isReady()) {
-                    processBlock(blockIndexToProcess);
-                }
-            }
-            catch (Exception e) {
-                shapingLogger.error(e, "failed to warm cache elements");
-                cacheWarmState = CacheWarmState.ABORTING;
-                aborted = true;
-            }
-            finally {
-                if (blocksToProcess.isEmpty()) {
-                    synchronized (blocksToProcess) {
-                        blocksToProcess.notifyAll();
-                    }
+                    processBlock(warmupElementBlocks, blockIndexToProcess);
                 }
             }
         }
-
-        if (!blocksToProcess.isEmpty()) {
-            synchronized (blocksToProcess) {
-                blocksToProcess.clear();
-                blocksToProcess.notifyAll();
-            }
-        }
-
-        if (!aborted && !warmupElementBlocksMap.values().stream().allMatch(WarmupElementBlocks::isEmpty)) {
-            // This shouldn't happen. The check is for safety, so we won't get wrong results on query
-            shapingLogger.error("There's a bug - Not all blocks were fully written");
+        catch (Exception e) {
+            shapingLogger.error(e, "failed to warm cache elements");
             cacheWarmState = CacheWarmState.ABORTING;
-            aborted = true;
+            setWarpAbort();
         }
-
+        if (!isAborted() && warmupCacheData.notAllDataFlushed()) {
+            // This shouldn't happen. The check is for safety, so we won't get wrong results on query
+            logger.error("There's a bug - Not all blocks were fully written. blocksToProcessSize=%s, warmupCacheData=%s", blocksToProcess.size(), warmupCacheData);
+            cacheWarmState = CacheWarmState.ABORTING;
+            setWarpAbort();
+        }
         if (cacheWarmState == CacheWarmState.RUNNING) {
-            cacheWarmState = aborted ? CacheWarmState.ABORTING : CacheWarmState.FINISHING;
+            if (isEngineAbort()) {
+                cacheWarmState = CacheWarmState.ABORT_FROM_ENGINE;
+            }
+            else if (isWarpAbort()) {
+                cacheWarmState = CacheWarmState.ABORTING;
+            }
+            else {
+                cacheWarmState = CacheWarmState.FINISHING;
+            }
         }
         return cacheWarmState;
+    }
+
+    private void processBlock(WarmupElementBlocks warmupElementBlocks, int blockIndexToProcess)
+            throws InterruptedException
+    {
+        WarmingCandidate warmingCandidate = warmingCandidates.get(blockIndexToProcess);
+
+        WarmResult result = warmingCandidate.pageSink().appendWarmupElementBlocks(warmupElementBlocks);
+        if (result.success()) {
+            warmupElementBlocks.dropProcessed(result.columnBlockIndex(), result.offset());
+            if (warmupElementBlocks.isReady()) {
+                // there's still work to do
+                blocksToProcess.put(blockIndexToProcess);
+            }
+        }
+        else {
+            // failedElement = Optional.of(warmupElementBlocks.getMetadata()); // TODO: The one that failed should be marked as temporary failed
+            setWarpAbort();
+        }
+    }
+
+    public void warmAsEmptyPageSource()
+    {
+        statsWarmingService.incwarm_started();
+        warmingCandidates = toWarm.stream().map(x -> new WarmingCandidate(new long[] {INVALID_FILE_COOKIE_FD, 0}, null, 0, x, null)).collect(Collectors.toList());
+        CacheWarmState cacheWarmState = CacheWarmState.EMPTY_PAGE;
+        closeAndSave(cacheWarmState);
+        memoryContextService.remove(this);
     }
 
     private void closeAndSave(CacheWarmState cacheWarmState)
@@ -259,6 +276,9 @@ public class WarpCacheTask
                     statsWarmingService.incwarm_accomplished();
                     statsWarmingService.incwarm_warp_cache_accomplished();
                 }
+                else if (engineAbort) {
+                    statsWarmingService.incwarm_warp_cache_engine_aborted();
+                }
                 else {
                     // Note: warm_failed is per WarmUpElement and increased when necessary at CacheAction#cleanStorage
                     statsWarmingService.incwarm_warp_cache_failed();
@@ -270,44 +290,38 @@ public class WarpCacheTask
         }
     }
 
-    private CacheWarmState init(CacheWarmState state)
+    private CacheWarmState init()
             throws InterruptedException
     {
-        CacheWarmState newState = state;
-
-        initWarmUpProcess();
-        if (aborted) {
-            newState = CacheWarmState.ABORT_ON_INIT_PROCESS;
-        }
-        else {
-            storageWriterSplitConfig = cacheWarmer.lockAndStartWarming(rowGroupKey);
-            warmStarted = true;
-            initCandidates();
-            if (aborted) {
-                newState = CacheWarmState.ABORTING;
-            }
+        if (!initWarmUpProcess()) {
+            return CacheWarmState.ABORT_ON_INIT_PROCESS;
         }
 
-        return newState;
+        storageWriterSplitConfig = cacheWarmer.lockAndStartWarming(rowGroupKey);
+        warmStarted = true;
+
+        return initCandidates() ? CacheWarmState.RUNNING : CacheWarmState.ABORTING;
     }
 
-    private void initWarmUpProcess()
+    private boolean initWarmUpProcess()
     {
+        boolean success = false;
         statsWarmingService.incwarm_warp_cache_started();
-
         try {
             flowId = FlowIdGenerator.generateFlowId();
             storageWarmerService.tryRunningWarmFlow(flowId, rowGroupKey);
+            success = true;
         }
         catch (Exception e) {
             shapingLogger.error(e, "failed to init warm up process. key=%s", rowGroupKey);
             flowId = INVALID_FLOW_ID;
-            aborted = true;
         }
+        return success;
     }
 
-    private void initCandidates()
+    private boolean initCandidates()
     {
+        boolean success = true;
         warmingCandidates = new ArrayList<>(toWarm.size());
         for (WarmupElementWriteMetadata warmUpElementToWarm : toWarm) {
             RowGroupKey tmpRowGroupKey = cacheWarmer.getTempRowGroupKey(warmUpElementToWarm, rowGroupKey);
@@ -318,104 +332,144 @@ public class WarpCacheTask
             catch (Exception e) {
                 shapingLogger.error(e, "failed to init warm candidate key=%s. %s", tmpRowGroupKey, warmUpElementToWarm);
                 // failedElement = Optional.of(warmUpElementToWarm); // TODO: The one that failed should be marked as temporary failed
-                aborted = true;
+                setWarpAbort();
+                success = false;
                 break;
             }
         }
+        return success;
     }
 
-    private void processBlock(int blockIndexToProcess)
-            throws InterruptedException
+    public long addPage(Page page)
     {
-        WarmupElementBlocks warmupElementBlocks = warmupElementBlocksMap.get(blockIndexToProcess);
-        WarmingCandidate warmingCandidate = warmingCandidates.get(blockIndexToProcess);
-
-        WarmResult result = warmingCandidate.pageSink().appendWarmupElementBlocks(warmupElementBlocks);
-        if (result.success()) {
-            warmupElementBlocks.dropProcessed(result.columnBlockIndex(), result.offset());
-            if (warmupElementBlocks.isReady()) {
-                // there's still work to do
-                blocksToProcess.put(blockIndexToProcess);
-            }
-        }
-        else {
-            // failedElement = Optional.of(warmupElementBlocks.getMetadata()); // TODO: The one that failed should be marked as temporary failed
-            aborted = true;
-        }
-    }
-
-    public void addPage(Page page)
-    {
-        if (aborted) {
+        if (isAborted()) {
             logger.debug("add page in failed state, do nothing");
-            return;
+            return 0;
         }
         if (finished) {
             String error = String.format("Received a page while in finished state. rowGroupKey=%s", rowGroupKey);
             shapingLogger.error(error);
-            throw new RuntimeException(error);
+            setWarpAbort();
+            return 0;
         }
-
-        try {
-            if ((long) totalRecords + (long) page.getPositionCount() >= Integer.MAX_VALUE) {
-                throw new MaxRowsException();
-            }
-            totalRecords += page.getPositionCount();
-
-            for (int blockIndex = 0; blockIndex < page.getChannelCount(); blockIndex++) {
-                Block block = page.getBlock(blockIndex);
-                WarmupElementBlocks warmupElementBlocks = warmupElementBlocksMap.get(blockIndex);
-
-                boolean ready = warmupElementBlocks.add(block);
-                if (ready) {
-                    blocksToProcess.add(blockIndex);
-                }
-                synchronized (blocksToProcess) {
-                    while (!blocksToProcess.isEmpty()) {
-                        blocksToProcess.wait(); // to make it effectively synchronous
-                    }
-                }
+        if ((long) totalRecords + (long) page.getPositionCount() >= Integer.MAX_VALUE) {
+            logger.debug("total record is bigger than Integer.MAX_VALUE. not supported");
+            setWarpAbort();
+            return 0;
+        }
+        totalRecords += page.getPositionCount();
+        for (int blockIndex = 0; blockIndex < page.getChannelCount(); blockIndex++) {
+            Block block = page.getBlock(blockIndex);
+            boolean isReady = warmupCacheData.addBlock(block, blockIndex);
+            if (isReady) {
+                blocksToProcess.add(blockIndex);
             }
         }
-        catch (Exception e) {
-            logFailure(e, rowGroupKey);
-
-            // Trino should call abort() after catching the exception
-            throw new RuntimeException(e);
-        }
+        return warmupCacheData.getRetainedSizeInBytes();
     }
 
-    // this method will be called when there are no more pages to be appended
-    public void finish()
+    public boolean isWarmStarted()
     {
-        finished = true;
-        if (aborted) {
-            logger.info("Got finish while on abort state, do nothing. %s", this);
+        return warmStarted;
+    }
+
+    public void revoke()
+    {
+        setEngineAbort();
+        warmupCacheData.clear();
+        memoryContextService.releaseMemory(localMemoryContext);
+        localMemoryContext = null; //we set to null in case it started, so we won't release twice
+    }
+
+    public void setFinished()
+    {
+        if (isAborted()) {
             return;
         }
-        // the order of these commands is important. This will flush the remaining data.
-        blocksToProcess.addAll(warmupElementBlocksMap.keySet());
-        blocksToProcess.add(STOP_TRIGGER);
-    }
-
-    public void abort()
-    {
-        if (aborted) {
-            logger.info("Got abort while already on abort state, do nothing. %s", this);
+        this.localMemoryContext = memoryContextService.poll();
+        if (localMemoryContext == null) {
+            logger.error("failed to locate memory context");
+            setWarpAbort();
         }
-        aborted = true;
-        blocksToProcess.add(STOP_TRIGGER);
-    }
-
-    private void logFailure(Exception e, RowGroupKey rowGroupKey)
-    {
-        if (!(e instanceof TrinoException || e instanceof UnsupportedOperationException)) {
-            shapingLogger.error(e, "warm failed %s", rowGroupKey);
+        else if (localMemoryContext.trySetBytes(warmupCacheData.getRetainedSizeInBytes())) {
+            finished = true;
+            for (int i = 0; i < toWarm.size(); i++) {
+                blocksToProcess.add(i);
+            }
+            blocksToProcess.add(STOP_TRIGGER);
+        }
+        else {
+            logger.info("too much memory allocated in cache %s", memoryContextService);
+            setEngineAbort();
         }
     }
 
-    private boolean isEmptyPageSource()
+    private void setWarpAbort()
     {
-        return warmingCandidates == null && firstIteration;
+        if (isAborted()) {
+            return;
+        }
+        this.warpAbort = true;
+        blocksToProcess.add(STOP_TRIGGER);
+    }
+
+    public void setEngineAbort()
+    {
+        if (isAborted()) {
+            logger.info("already aborted");
+            return;
+        }
+        this.engineAbort = true;
+        blocksToProcess.add(STOP_TRIGGER);
+    }
+
+    private boolean isWarpAbort()
+    {
+        return warpAbort;
+    }
+
+    private boolean isEngineAbort()
+    {
+        return engineAbort;
+    }
+
+    private boolean isAborted()
+    {
+        return warpAbort || engineAbort;
+    }
+
+    public long getUsedMemory()
+    {
+        if (localMemoryContext == null) {
+            logger.info("localMemoryContext is null %s, %s", finished, isAborted());
+        }
+        return localMemoryContext != null ? localMemoryContext.getBytes() : 0;
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(rowGroupKey);
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        WarpCacheTask rowGroupData = (WarpCacheTask) o;
+        return Objects.equals(rowGroupKey, rowGroupData.rowGroupKey);
+    }
+
+    @Override
+    public String toString()
+    {
+        return "WarpCacheTask{" +
+                "rowGroupKey=" + rowGroupKey +
+                '}';
     }
 }

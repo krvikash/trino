@@ -54,7 +54,7 @@ public class InternalDispatcherCacheManagerFactory
                 new MBeanServerModule(),
                 new MBeanModule(),
                 new DispatcherCacheManagerModule(cacheManagerName, config, storageEngineModule, cloudVendorModule, context),
-                new CacheManagerModule()));
+                new CacheManagerModule(context)));
         optionalModules.ifPresent(modules::addAll);
 
         Bootstrap app = new Bootstrap(modules);

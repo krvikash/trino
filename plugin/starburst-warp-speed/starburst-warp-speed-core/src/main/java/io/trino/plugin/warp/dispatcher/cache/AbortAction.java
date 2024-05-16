@@ -96,7 +96,7 @@ public class AbortAction
             }
 
             try {
-                warpCacheFilesMerger.mergeTmpFiles(tmpRowGroupDataList, permanentRowGroupKey, false);
+                warpCacheFilesMerger.handleWarmFailed(tmpRowGroupDataList, permanentRowGroupKey);
             }
             catch (Exception e) {
                 logger.error(e, "failed on merge %s. key=%s", tmpRowGroupDataList, permanentRowGroupKey);

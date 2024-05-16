@@ -18,22 +18,27 @@ import com.google.inject.Module;
 import com.google.inject.multibindings.MapBinder;
 import com.google.inject.name.Names;
 import io.trino.plugin.warp.dispatcher.cache.AbortAction;
+import io.trino.plugin.warp.dispatcher.cache.AbortOnEngineAction;
 import io.trino.plugin.warp.dispatcher.cache.AbortOnInitAction;
 import io.trino.plugin.warp.dispatcher.cache.CacheAction;
 import io.trino.plugin.warp.dispatcher.cache.EmptyPageAction;
 import io.trino.plugin.warp.dispatcher.cache.FinishAction;
-import io.trino.plugin.warp.dispatcher.cache.ParallelWarmUpLimiter;
+import io.trino.plugin.warp.dispatcher.cache.MemoryContextService;
 import io.trino.plugin.warp.dispatcher.cache.WorkerCacheManager;
 import io.trino.plugin.warp.dispatcher.warmup.CacheWarmState;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.CacheWarmer;
 import io.trino.plugin.warp.storage.write.WarpCacheFilesMerger;
 import io.trino.spi.cache.CacheManager;
+import io.trino.spi.cache.CacheManagerContext;
 
 public class CacheManagerModule
         implements Module
 {
-    public CacheManagerModule()
+    private final CacheManagerContext context;
+
+    public CacheManagerModule(CacheManagerContext context)
     {
+        this.context = context;
     }
 
     @Override
@@ -42,8 +47,8 @@ public class CacheManagerModule
         binder.bind(CacheManager.class).to(WorkerCacheManager.class);
         binder.bind(CacheWarmer.class);
         binder.bind(WarpCacheFilesMerger.class);
-        binder.bind(ParallelWarmUpLimiter.class);
-
+        binder.bind(MemoryContextService.class);
+        binder.bind(CacheManagerContext.class).toInstance(context);
         MapBinder<CacheWarmState, CacheAction> mapBinder = MapBinder.newMapBinder(binder,
                 CacheWarmState.class, CacheAction.class, Names.named("CacheActions"));
 
@@ -51,5 +56,6 @@ public class CacheManagerModule
         mapBinder.addBinding(CacheWarmState.EMPTY_PAGE).to(EmptyPageAction.class);
         mapBinder.addBinding(CacheWarmState.ABORT_ON_INIT_PROCESS).to(AbortOnInitAction.class);
         mapBinder.addBinding(CacheWarmState.ABORTING).to(AbortAction.class);
+        mapBinder.addBinding(CacheWarmState.ABORT_FROM_ENGINE).to(AbortOnEngineAction.class);
     }
 }
