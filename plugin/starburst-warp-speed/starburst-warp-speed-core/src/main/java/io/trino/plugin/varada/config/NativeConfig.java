@@ -41,7 +41,7 @@ public class NativeConfig
     private DataSize generalReservedMemory = DataSize.of(0, DataSize.Unit.GIGABYTE);
     private DataSize bundleSize = DataSize.of(64, DataSize.Unit.MEGABYTE);
     private DataSize maxRecJufferSize = DataSize.of(16, DataSize.Unit.MEGABYTE);
-    private int lz4HcPercent;
+    private int lz4HcPercent = 10;
     private DataSize collectTxSize = DataSize.of(8, DataSize.Unit.MEGABYTE);
     private int storageCacheSizeInPages;
     private int skipIndexPercent = 80;
