@@ -1,5 +1,5 @@
 ARG JDK_VERSION=19
-FROM eclipse-temurin:${JDK_VERSION}-jdk
+FROM 179619298502.dkr.ecr.us-east-1.amazonaws.com/docker-hub/library/eclipse-temurin:${JDK_VERSION}-jdk
 
 ARG MODULE_NAME=galaxy-buffer-data-server
 ARG PROJECT_NAME=data-server
