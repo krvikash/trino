@@ -82,7 +82,7 @@ public class MongoSplitManager
             if (remainingTimeoutNanos > 0 && dynamicFilter.isAwaitable()) {
                 // wait for dynamic filter and yield
                 return blocked
-                        .thenApply(ignored -> EMPTY_BATCH)
+                        .thenApply(_ -> EMPTY_BATCH)
                         .completeOnTimeout(EMPTY_BATCH, remainingTimeoutNanos, NANOSECONDS);
             }
 

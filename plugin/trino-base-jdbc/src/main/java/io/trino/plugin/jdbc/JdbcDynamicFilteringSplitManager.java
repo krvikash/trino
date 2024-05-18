@@ -132,7 +132,7 @@ public class JdbcDynamicFilteringSplitManager
                         succinctNanos(remainingTimeoutNanos));
                 // wait for dynamic filter and yield
                 return blocked
-                        .thenApply(ignored -> EMPTY_BATCH)
+                        .thenApply(_ -> EMPTY_BATCH)
                         .completeOnTimeout(EMPTY_BATCH, remainingTimeoutNanos, NANOSECONDS);
             }
 

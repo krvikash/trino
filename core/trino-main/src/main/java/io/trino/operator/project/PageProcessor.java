@@ -382,7 +382,7 @@ public class PageProcessor
         @Override
         public DictionaryId apply(DictionaryBlock block)
         {
-            return dictionarySourceIds.computeIfAbsent(block.getDictionarySourceId(), ignored -> randomDictionaryId());
+            return dictionarySourceIds.computeIfAbsent(block.getDictionarySourceId(), _ -> randomDictionaryId());
         }
 
         public void reset()
