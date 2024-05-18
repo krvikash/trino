@@ -65,7 +65,7 @@ class OrcZstdDecompressor
             throws OrcCorruptionException
     {
         try {
-            long uncompressedLength = Zstd.decompressedSize(input, offset, length);
+            long uncompressedLength = Zstd.getFrameContentSize(input, offset, length);
             if (uncompressedLength > maxBufferSize) {
                 throw new OrcCorruptionException(orcDataSourceId, "Zstd requires buffer (%s) larger than max size (%s)", uncompressedLength, maxBufferSize);
             }
