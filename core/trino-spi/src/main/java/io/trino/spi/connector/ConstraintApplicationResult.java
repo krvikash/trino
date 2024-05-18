@@ -45,7 +45,6 @@ public class ConstraintApplicationResult<T>
      * @param remainingExpression the remaining expression, which will be AND-ed with {@code remainingFilter},
      * @param precalculateStatistics Indicates whether engine should consider calculating statistics based on the plan before pushdown,
      * as the connector may be unable to provide good table statistics for {@code handle}.
-     * deprecated use {@link #ConstraintApplicationResult(boolean, java.util.List)} (TODO: mark method as deprecated)
      */
     public ConstraintApplicationResult(T handle, TupleDomain<ColumnHandle> remainingFilter, ConnectorExpression remainingExpression, boolean precalculateStatistics)
     {
