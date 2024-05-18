@@ -228,15 +228,27 @@ public class TestCommonSubqueriesExtractor
                         .withApplyFilter((session, tableHandle, constraint) -> {
                             // predicate is fully subsumed
                             if (constraint.getSummary().equals(CONSTRAINT_1)) {
-                                return Optional.of(new ConstraintApplicationResult<>(new MockConnectorTableHandle(TABLE_NAME, CONSTRAINT_1, Optional.of(ImmutableList.of(HANDLE_1))), TupleDomain.all(), false));
+                                return Optional.of(new ConstraintApplicationResult<>(
+                                        new MockConnectorTableHandle(TABLE_NAME, CONSTRAINT_1, Optional.of(ImmutableList.of(HANDLE_1))),
+                                        TupleDomain.all(),
+                                        constraint.getExpression(),
+                                        false));
                             }
                             // predicate is rejected
                             else if (constraint.getSummary().equals(CONSTRAINT_2)) {
-                                return Optional.of(new ConstraintApplicationResult<>(new MockConnectorTableHandle(TABLE_NAME, TupleDomain.all(), Optional.empty()), CONSTRAINT_2, false));
+                                return Optional.of(new ConstraintApplicationResult<>(
+                                        new MockConnectorTableHandle(TABLE_NAME, TupleDomain.all(), Optional.empty()),
+                                        CONSTRAINT_2,
+                                        constraint.getExpression(),
+                                        false));
                             }
                             // predicate is subsumed opportunistically
                             else if (constraint.getSummary().equals(CONSTRAINT_3)) {
-                                return Optional.of(new ConstraintApplicationResult<>(new MockConnectorTableHandle(TABLE_NAME, CONSTRAINT_3, Optional.empty()), CONSTRAINT_3, false));
+                                return Optional.of(new ConstraintApplicationResult<>(
+                                        new MockConnectorTableHandle(TABLE_NAME, CONSTRAINT_3, Optional.empty()),
+                                        CONSTRAINT_3,
+                                        constraint.getExpression(),
+                                        false));
                             }
                             return Optional.empty();
                         })
