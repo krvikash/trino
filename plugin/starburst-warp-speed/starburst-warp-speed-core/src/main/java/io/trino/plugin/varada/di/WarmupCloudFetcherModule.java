@@ -14,6 +14,7 @@
 package io.trino.plugin.varada.di;
 
 import com.google.inject.Binder;
+import io.airlift.configuration.ConfigurationFactory;
 import io.trino.plugin.varada.annotations.ForWarmupRuleCloudFetcher;
 import io.trino.plugin.varada.dispatcher.warmup.fetcher.EmptyWarmupRuleFetcher;
 import io.trino.plugin.varada.dispatcher.warmup.fetcher.WarmupRuleCloudFetcher;
@@ -21,6 +22,7 @@ import io.trino.plugin.varada.dispatcher.warmup.fetcher.WarmupRuleCloudFetcherCo
 import io.trino.plugin.varada.dispatcher.warmup.fetcher.WarmupRuleFetcher;
 import io.trino.spi.connector.ConnectorContext;
 import io.varada.cloudvendors.CloudVendorModule;
+import io.varada.tools.util.StringUtils;
 
 import java.util.Map;
 
@@ -61,19 +63,22 @@ public class WarmupCloudFetcherModule
     @Override
     public void configure(Binder binder)
     {
-        configBinder(binder).bindConfig(WarmupRuleCloudFetcherConfig.class, ForWarmupRuleCloudFetcher.class);
-        binder.install(
-                CloudVendorModule.getModule(
-                        context,
-                        WarmupRuleCloudFetcherConfig.PREFIX,
-                        ForWarmupRuleCloudFetcher.class,
-                        catalogName,
-                        config,
-                        WarmupRuleCloudFetcherConfig.STORE_PATH,
-                        WarmupRuleCloudFetcherConfig.STORE_TYPE,
-                        WarmupRuleCloudFetcherConfig.class));
+        ConfigurationFactory configFactory = new ConfigurationFactory(config);
+        WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig = configFactory.build(WarmupRuleCloudFetcherConfig.class);
+        if (!StringUtils.isEmpty(warmupRuleCloudFetcherConfig.getStorePath()) &&
+                VaradaBaseModule.isWorker(context, config)) {
+            configBinder(binder).bindConfig(WarmupRuleCloudFetcherConfig.class, ForWarmupRuleCloudFetcher.class);
+            binder.install(
+                    CloudVendorModule.getModule(
+                            context,
+                            WarmupRuleCloudFetcherConfig.PREFIX,
+                            ForWarmupRuleCloudFetcher.class,
+                            catalogName,
+                            config,
+                            WarmupRuleCloudFetcherConfig.STORE_PATH,
+                            WarmupRuleCloudFetcherConfig.STORE_TYPE,
+                            WarmupRuleCloudFetcherConfig.class));
 
-        if (VaradaBaseModule.isWorker(context, config)) {
             binder.bind(WarmupRuleFetcher.class).to(WarmupRuleCloudFetcher.class);
         }
         else {

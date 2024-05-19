@@ -26,11 +26,13 @@ import io.trino.plugin.varada.dispatcher.model.WarmUpElement;
 import io.trino.plugin.varada.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.varada.dispatcher.warmup.WorkerWarmupRuleService;
 import io.trino.plugin.varada.dispatcher.warmup.demoter.WarmupDemoterService;
+import io.trino.plugin.varada.dispatcher.warmup.fetcher.WarmupRuleFetcher;
 import io.trino.plugin.varada.warmup.WarmupRuleApiMapper;
 import io.trino.plugin.varada.warmup.model.WarmupRule;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
 import io.trino.spi.connector.SchemaTableName;
+import io.varada.annotation.Audit;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
@@ -58,21 +60,25 @@ public class WorkerWarmupTask
 {
     public static final String WORKER_WARMUP_PATH = "worker-warmup";
     public static final String TASK_NAME_GET = "worker-warmup-rule-get-usage";
+    public static final String TASK_NAME_FETCH = "run-fetcher";
     public static final long KILOBYTE = 1024L;
     public static final long MEGABYTE = KILOBYTE * 1024L;
 
     private final RowGroupDataService rowGroupDataService;
     private final WarmupDemoterService warmupDemoterService;
     private final WorkerWarmupRuleService workerWarmupRuleService;
+    private final WarmupRuleFetcher warmupRuleFetcher;
 
     @Inject
     public WorkerWarmupTask(RowGroupDataService rowGroupDataService,
             WarmupDemoterService warmupDemoterService,
-            WorkerWarmupRuleService workerWarmupRuleService)
+            WorkerWarmupRuleService workerWarmupRuleService,
+            WarmupRuleFetcher warmupRuleFetcher)
     {
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.warmupDemoterService = requireNonNull(warmupDemoterService);
         this.workerWarmupRuleService = requireNonNull(workerWarmupRuleService);
+        this.warmupRuleFetcher = requireNonNull(warmupRuleFetcher);
     }
 
     @Path(TASK_NAME_GET)
@@ -105,6 +111,14 @@ public class WorkerWarmupTask
                 .map(e -> new WarmupDefaultRuleUsageData(e.getValue().get() / KILOBYTE, e.getKey()))
                 .collect(toImmutableList());
         return new WarmupRulesUsageData(colRuleUsageDataList, defaultRuleUsageDataList);
+    }
+
+    @Path(TASK_NAME_FETCH)
+    @GET
+    @Audit
+    public void fetch()
+    {
+        warmupRuleFetcher.getWarmupRules(true);
     }
 
     private void getRowGroupDataUsage(List<WarmupRule> warmupRules, Map<Integer, AtomicLong> warmupIdUsageMap, Map<WarmUpType, AtomicLong> defaultRulesMap)

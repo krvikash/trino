@@ -23,6 +23,7 @@ import io.trino.plugin.varada.dispatcher.model.WarmUpElement;
 import io.trino.plugin.varada.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.varada.dispatcher.warmup.WorkerWarmupRuleService;
 import io.trino.plugin.varada.dispatcher.warmup.demoter.WarmupDemoterService;
+import io.trino.plugin.varada.dispatcher.warmup.fetcher.WarmupRuleCloudFetcher;
 import io.trino.plugin.varada.storage.write.WarmupElementStats;
 import io.trino.plugin.varada.warmup.model.WarmupRule;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
@@ -62,7 +63,11 @@ public class WorkerWarmupTaskTest
         rowGroupDataService = mock(RowGroupDataService.class);
         warmupDemoterService = mock(WarmupDemoterService.class);
         workerWarmupRuleService = mock(WorkerWarmupRuleService.class);
-        task = new WorkerWarmupTask(rowGroupDataService, warmupDemoterService, workerWarmupRuleService);
+        task = new WorkerWarmupTask(
+                rowGroupDataService,
+                warmupDemoterService,
+                workerWarmupRuleService,
+                mock(WarmupRuleCloudFetcher.class));
     }
 
     @Test

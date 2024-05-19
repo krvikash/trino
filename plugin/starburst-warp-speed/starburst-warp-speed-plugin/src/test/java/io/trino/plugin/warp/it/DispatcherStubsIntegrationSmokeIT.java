@@ -681,6 +681,10 @@ public abstract class DispatcherStubsIntegrationSmokeIT
     public void testGoAllProxyOnlyWhenHavePushDowns()
             throws IOException
     {
+        if (!isWarpExtensionModule) {
+            return;
+        }
+
         String schema = "all_proxy_test";
         String table = "all_proxy_test_table";
         createSchemaAndTable(schema, table, "(int_1 integer, int_2 integer)");

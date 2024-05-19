@@ -127,7 +127,6 @@ public final class EnvMultinodeWarpSpeedMinio
                 "/docker/presto-init.d/setup-warp-speed.sh");
     }
 
-    @SuppressWarnings("resource")
     private DockerContainer createSparkContainer()
     {
         DockerContainer container = new DockerContainer("ghcr.io/trinodb/testing/spark3-hudi:" + hadoopImagesVersion, SPARK_CONTAINER_NAME)

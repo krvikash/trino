@@ -184,6 +184,6 @@ public class WarmupTaskTest
     public void testFetch()
     {
         task.fetch();
-        verify(warmupRuleFetcher, times(1)).getWarmupRules();
+        verify(warmupRuleFetcher, times(1)).getWarmupRules(eq(true));
     }
 }

@@ -149,7 +149,20 @@ public class WarmupTask
     @Audit
     public void fetch()
     {
-        warmupRuleFetcher.getWarmupRules();
+        warmupRuleFetcher.getWarmupRules(true);
+        List<Node> workers = coordinatorNodeManager.getWorkerNodes();
+        workers.stream()
+                .parallel()
+                .forEach(node -> {
+                    HttpUriBuilder uriBuilder = varadaClient.getRestEndpoint(UriUtils.getHttpUri(node));
+                    uriBuilder.appendPath(WorkerWarmupTask.WORKER_WARMUP_PATH).appendPath(WorkerWarmupTask.TASK_NAME_FETCH);
+
+                    Request request = prepareGet()
+                            .setUri(uriBuilder.build())
+                            .setHeader(CONTENT_TYPE, JSON_UTF_8.toString())
+                            .build();
+                    varadaClient.sendWithRetry(request, createFullJsonResponseHandler(VOID_RESULTS_CODEC));
+                });
     }
 
     @Path(TASK_NAME_DELETE)
@@ -161,7 +174,6 @@ public class WarmupTask
         warmupRuleService.delete(ids);
     }
 
-    @SuppressWarnings({"UnstableApiUsage", "deprecation"})
     @Path(TASK_NAME_GET_USAGE)
     @GET
     @Audit

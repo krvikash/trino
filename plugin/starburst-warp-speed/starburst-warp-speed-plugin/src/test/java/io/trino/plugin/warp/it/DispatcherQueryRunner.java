@@ -34,6 +34,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static io.trino.plugin.varada.config.GlobalConfig.CONFIG_IS_SINGLE;
 import static io.trino.plugin.varada.config.GlobalConfig.ENABLE_DEFAULT_WARMING;
@@ -59,8 +60,11 @@ public class DispatcherQueryRunner
             throws Exception
     {
         Path localStorePath = Files.createTempDirectory("local_store_");
+
+        boolean isExtensionsEnabled = Boolean.parseBoolean(varadaConfig.getOrDefault(WarpExtensionConfig.ENABLED, "true"));
+
         ImmutableMap<String, String> additionalCatalogConfig = ImmutableMap.<String, String>builder()
-                .putAll(varadaConfig)
+                .putAll(varadaConfig.entrySet().stream().filter(entry -> !entry.getKey().equals(WarpExtensionConfig.ENABLED)).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)))
                 // replace this config with the other 3 when you want to use a real thrift meta-store (E.g. local docker)
 //          .put("hive.metastore.uri", "thrift://localhost:9083").build();
 //                .put("testMode", "true")
@@ -78,7 +82,7 @@ public class DispatcherQueryRunner
                 .put(DictionaryConfig.EXCEPTIONAL_LIST_DICTIONARY, "REC_TYPE_ARRAY_INT,REC_TYPE_ARRAY_BIGINT")
                 .put("warp-speed.config.dictionary.max-size", "3")
 //                .put(HTTP_REST_PORT, "" + restPort)
-                .put(WarpExtensionConfig.ENABLED, Boolean.TRUE.toString())
+                .put(WarpExtensionConfig.ENABLED, Boolean.toString(isExtensionsEnabled))
                 .put(WarpExtensionConfig.HTTP_REST_PORT_ENABLED, Boolean.FALSE.toString())
                 .put(GlobalConfig.LOCAL_STORE_PATH, localStorePath.toAbsolutePath().toString())
                 .put(FAILURE_GENERATOR_ENABLED, "true")

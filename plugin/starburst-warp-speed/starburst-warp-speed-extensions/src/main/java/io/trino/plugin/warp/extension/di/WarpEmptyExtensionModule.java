@@ -15,15 +15,10 @@ package io.trino.plugin.warp.extension.di;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Module;
-import io.airlift.configuration.ConfigurationFactory;
 import io.trino.plugin.varada.di.InitializationModule;
 import io.trino.plugin.varada.di.WarmupCloudFetcherModule;
 import io.trino.plugin.varada.dispatcher.connectors.ConnectorTaskExecutor;
-import io.trino.plugin.varada.dispatcher.warmup.fetcher.EmptyWarmupRuleFetcher;
-import io.trino.plugin.varada.dispatcher.warmup.fetcher.WarmupRuleCloudFetcherConfig;
-import io.trino.plugin.varada.dispatcher.warmup.fetcher.WarmupRuleFetcher;
 import io.trino.spi.connector.ConnectorContext;
-import io.varada.tools.util.StringUtils;
 
 import java.util.Map;
 
@@ -56,14 +51,7 @@ public class WarpEmptyExtensionModule
     {
         binder().bind(ConnectorTaskExecutor.class).to(EmptyTaskExecutor.class);
 
-        ConfigurationFactory configFactory = new ConfigurationFactory(config);
-        WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig = configFactory.build(WarmupRuleCloudFetcherConfig.class);
-        if (StringUtils.isEmpty(warmupRuleCloudFetcherConfig.getStorePath())) {
-            binder().bind(WarmupRuleFetcher.class).to(EmptyWarmupRuleFetcher.class);
-        }
-        else {
-            binder().install(new WarmupCloudFetcherModule(config, connectorContext, catalogName));
-        }
+        binder().install(new WarmupCloudFetcherModule(config, connectorContext, catalogName));
     }
 
     @Override

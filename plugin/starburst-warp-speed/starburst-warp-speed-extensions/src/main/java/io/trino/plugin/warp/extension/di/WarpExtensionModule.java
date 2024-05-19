@@ -25,7 +25,6 @@ import io.trino.plugin.varada.di.InitializationModule;
 import io.trino.plugin.varada.di.VaradaBaseModule;
 import io.trino.plugin.varada.di.VaradaClientModule;
 import io.trino.plugin.varada.di.WarmupCloudFetcherModule;
-import io.trino.plugin.varada.dispatcher.warmup.fetcher.EmptyWarmupRuleFetcher;
 import io.trino.plugin.varada.dispatcher.warmup.fetcher.WarmupRuleCloudFetcherConfig;
 import io.trino.plugin.varada.dispatcher.warmup.fetcher.WarmupRuleFetcher;
 import io.trino.plugin.warp.extension.config.CallHomeConfig;
@@ -87,18 +86,13 @@ public class WarpExtensionModule
         configBinder(binder()).bindConfig(WarpExtensionConfig.class);
         configBinder(binder()).bindConfig(CallHomeConfig.class);
 
-        if (VaradaBaseModule.isWorker(connectorContext, config)) {
+        ConfigurationFactory configFactory = new ConfigurationFactory(config);
+        WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig = configFactory.build(WarmupRuleCloudFetcherConfig.class);
+        if (VaradaBaseModule.isWorker(connectorContext, config) && StringUtils.isEmpty(warmupRuleCloudFetcherConfig.getStorePath())) {
             binder().bind(WarmupRuleFetcher.class).to(WorkerWarmupRuleFetcher.class);
         }
         else {
-            ConfigurationFactory configFactory = new ConfigurationFactory(config);
-            WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig = configFactory.build(WarmupRuleCloudFetcherConfig.class);
-            if (StringUtils.isEmpty(warmupRuleCloudFetcherConfig.getStorePath())) {
-                binder().bind(WarmupRuleFetcher.class).to(EmptyWarmupRuleFetcher.class);
-            }
-            else {
-                binder().install(new WarmupCloudFetcherModule(config, connectorContext, catalogName));
-            }
+            binder().install(new WarmupCloudFetcherModule(config, connectorContext, catalogName));
         }
     }
 
