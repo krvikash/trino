@@ -27,7 +27,7 @@ public class ConfigFactoryWithPrefix
         super(properties.entrySet()
                         .stream()
                         .filter(entry -> prefix == null || entry.getKey().startsWith(prefix))
-                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)),
+                        .collect(Collectors.toMap(entry -> entry.getKey().substring((prefix == null) ? 0 : prefix.length() + 1), Map.Entry::getValue)),
                 warningsMonitor);
     }
 }

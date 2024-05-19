@@ -18,6 +18,7 @@ import com.google.inject.Module;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import io.airlift.configuration.ConfigurationFactory;
+import io.airlift.log.Logger;
 import io.opentelemetry.api.OpenTelemetry;
 import io.trino.filesystem.s3.S3FileSystemConfig;
 import io.trino.filesystem.s3.S3FileSystemFactory;
@@ -42,6 +43,8 @@ import static java.util.Objects.requireNonNull;
 public class S3CloudStorageModule
         implements Module
 {
+    private static final Logger logger = Logger.get(S3CloudStorageModule.class);
+
     private final ConnectorContext context;
     private final ConfigurationFactory configFactory;
     private final Class<? extends Annotation> annotation;
@@ -84,13 +87,23 @@ public class S3CloudStorageModule
 
         Optional<StaticCredentialsProvider> staticCredentialsProvider = getStaticCredentialsProvider(config);
         staticCredentialsProvider.ifPresent(s3::credentialsProvider);
+        if (staticCredentialsProvider.isPresent()) {
+            logger.info("annotation %s using StaticCredentialsProvider for S3 client", annotation.toString());
+        }
+        else {
+            logger.info("annotation %s no StaticCredentials provided for S3 client", annotation.toString());
+        }
 
         Optional.ofNullable(config.getRegion()).map(Region::of).ifPresent(s3::region);
         Optional.ofNullable(config.getEndpoint()).map(URI::create).ifPresent(s3::endpointOverride);
         s3.forcePathStyle(config.isPathStyleAccess());
 
         if (config.getIamRole() != null) {
-            s3.credentialsProvider(getStsAssumeRoleCredentialsProvider(config));
+            s3.credentialsProvider(getStsAssumeRoleCredentialsProvider(config, annotation));
+            logger.info("annotation %s using StsAssumeRoleCredentialsProvider for STS refresh", annotation.toString());
+        }
+        else {
+            logger.info("annotation %s no AssumeRoleCredentials provided for STS refresh", annotation.toString());
         }
 
         return s3.build();
@@ -105,7 +118,7 @@ public class S3CloudStorageModule
         return Optional.empty();
     }
 
-    private static StsAssumeRoleCredentialsProvider getStsAssumeRoleCredentialsProvider(S3FileSystemConfig config)
+    private static StsAssumeRoleCredentialsProvider getStsAssumeRoleCredentialsProvider(S3FileSystemConfig config, Class<? extends Annotation> annotation)
     {
         StsClientBuilder sts = StsClient.builder();
 
@@ -116,6 +129,12 @@ public class S3CloudStorageModule
 
         Optional<StaticCredentialsProvider> staticCredentialsProvider = getStaticCredentialsProvider(config);
         staticCredentialsProvider.ifPresent(sts::credentialsProvider);
+        if (staticCredentialsProvider.isPresent()) {
+            logger.info("annotation %s using StaticCredentialsProvider for STS client", annotation.toString());
+        }
+        else {
+            logger.info("annotation %s no StaticCredentials provided for STS client", annotation.toString());
+        }
 
         return StsAssumeRoleCredentialsProvider.builder()
                 .refreshRequest(request -> request

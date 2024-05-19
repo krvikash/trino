@@ -22,6 +22,7 @@ import io.trino.filesystem.TrinoInputFile;
 import io.trino.filesystem.TrinoOutputFile;
 import io.varada.cloudstorage.CloudStorage;
 import io.varada.cloudvendors.model.StorageObjectMetadata;
+import io.varada.log.ShapingLogger;
 import io.varada.tools.ByteBufferInputStream;
 import io.varada.tools.util.CompressionUtil;
 import io.varada.tools.util.StringUtils;
@@ -32,6 +33,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -45,6 +47,12 @@ public class CloudVendorStorageService
         extends CloudVendorService
 {
     private static final Logger logger = Logger.get(CloudVendorStorageService.class);
+    private static final ShapingLogger shapingLogger = ShapingLogger.getInstance(
+            logger,
+            10,
+            Duration.ZERO,
+            1,
+            ShapingLogger.MODE.FULL);
 
     private final CloudStorage cloudStorage;
 
@@ -273,6 +281,7 @@ public class CloudVendorStorageService
             logger.debug("getObjectMetadata location [%s] length %d lastModified %s", location, length, lastModified);
         }
         catch (IOException e) {
+            shapingLogger.error(e, "getObjectMetadata failed location [%s]".formatted(location));
             // do nothing
 //            throw new RuntimeException(e);
         }
@@ -291,6 +300,7 @@ public class CloudVendorStorageService
             return Optional.of(lastModified.toEpochMilli());
         }
         catch (IOException e) {
+            shapingLogger.error(e, "getLastModified failed location [%s]".formatted(location));
             // do nothing
 //            throw new RuntimeException(e);
         }

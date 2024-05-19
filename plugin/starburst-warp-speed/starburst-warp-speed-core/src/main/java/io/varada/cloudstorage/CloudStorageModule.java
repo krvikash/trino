@@ -22,6 +22,7 @@ import com.google.inject.Module;
 import com.google.inject.TypeLiteral;
 import com.google.inject.multibindings.MapBinder;
 import io.airlift.configuration.ConfigurationFactory;
+import io.airlift.log.Logger;
 import io.trino.filesystem.manager.FileSystemConfig;
 import io.trino.spi.connector.ConnectorContext;
 import io.varada.cloudstorage.azure.AzureCloudStorage;
@@ -44,6 +45,8 @@ import static java.util.Objects.requireNonNull;
 public class CloudStorageModule
         implements Module
 {
+    private static final Logger logger = Logger.get(CloudStorageModule.class);
+
     private final String catalogName;
     private final ConnectorContext context;
     private final ConfigurationFactory configFactory;
@@ -68,6 +71,7 @@ public class CloudStorageModule
         configBinder(binder).bindConfig(FileSystemConfig.class);
         FileSystemConfig config = configFactory.build(FileSystemConfig.class);
 
+        logger.info("annotation %s isHadoopEnabled %s isNativeS3Enabled %s", annotation.toString(), config.isHadoopEnabled(), config.isNativeS3Enabled());
         Injector injector = Guice.createInjector(
                 new HdfsCloudStorageModule(catalogName, context, configFactory, annotation, config.isHadoopEnabled()),
                 new Module()

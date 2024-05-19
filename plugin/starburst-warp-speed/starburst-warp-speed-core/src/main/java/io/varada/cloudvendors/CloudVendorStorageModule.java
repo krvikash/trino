@@ -55,6 +55,7 @@ public class CloudVendorStorageModule
         super.configure();
 
         ConfigurationFactory configFactory = new ConfigFactoryWithPrefix(config, prefix, logger::warn);
+        logger.debug("annotation %s configFactory %s", annotation.toString(), configFactory.getProperties());
         Injector injector = Guice.createInjector(new CloudStorageModule(catalogName, context, configFactory, annotation));
 
         CloudStorage cloudStorage = injector.getInstance(Key.get(CloudStorage.class, annotation));
