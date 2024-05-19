@@ -23,7 +23,7 @@ import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.PredicateType;
-import io.trino.plugin.warp.gen.stats.VaradaStatsCachePredicates;
+import io.trino.plugin.warp.gen.stats.CachePredicatesStats;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.SortedRangeSet;
@@ -48,7 +48,7 @@ class InverseValuesPredicateFillerTest
     ByteBuffer high;
     private BufferAllocator bufferAllocator;
     private StubsStorageEngineConstants storageEngineConstants;
-    private VaradaStatsCachePredicates varadaStatsCachePredicates;
+    private CachePredicatesStats cachePredicatesStats;
 
     @BeforeEach
     public void before()
@@ -59,7 +59,7 @@ class InverseValuesPredicateFillerTest
         when(bufferAllocator.memorySegment2PredicateBuff(any())).thenReturn(low);
         when(bufferAllocator.createBuffView(any())).thenReturn(high);
         storageEngineConstants = new StubsStorageEngineConstants();
-        varadaStatsCachePredicates = VaradaStatsCachePredicates.create(PredicatesCacheService.STATS_CACHE_PREDICATE_KEY);
+        cachePredicatesStats = CachePredicatesStats.create(PredicatesCacheService.STATS_CACHE_PREDICATE_KEY);
     }
 
     @AfterEach
@@ -73,7 +73,7 @@ class InverseValuesPredicateFillerTest
     public void testSimple()
     {
         MetricsManager metricsManager = mock(MetricsManager.class);
-        when(metricsManager.registerMetric(any())).thenReturn(varadaStatsCachePredicates);
+        when(metricsManager.registerMetric(any())).thenReturn(cachePredicatesStats);
         PredicatesCacheService predicatesCacheService = new PredicatesCacheService(bufferAllocator,
                 storageEngineConstants,
                 metricsManager);

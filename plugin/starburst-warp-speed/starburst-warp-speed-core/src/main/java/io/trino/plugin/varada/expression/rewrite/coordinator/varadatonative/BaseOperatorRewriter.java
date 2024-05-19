@@ -16,7 +16,7 @@ package io.trino.plugin.varada.expression.rewrite.coordinator.varadatonative;
 import io.trino.plugin.varada.expression.VaradaCall;
 import io.trino.plugin.varada.expression.VaradaConstant;
 import io.trino.plugin.varada.expression.VaradaExpression;
-import io.trino.plugin.warp.gen.stats.VaradaStatsPushdownPredicates;
+import io.trino.plugin.warp.gen.stats.PushdownPredicatesStats;
 import io.trino.spi.predicate.Range;
 import io.trino.spi.type.BooleanType;
 import io.trino.spi.type.Type;
@@ -32,13 +32,13 @@ abstract class BaseOperatorRewriter
     static final BiFunction<Type, Object, Range> LESS_THAN_FUNCTION = Range::lessThan;
     static final BiFunction<Type, Object, Range> LESS_THAN_OR_EQUAL_FUNCTION = Range::lessThanOrEqual;
     final NativeExpressionRulesHandler nativeExpressionRulesHandler;
-    final VaradaStatsPushdownPredicates varadaStatsPushdownPredicates;
+    final PushdownPredicatesStats pushdownPredicatesStats;
 
     BaseOperatorRewriter(NativeExpressionRulesHandler nativeExpressionRulesHandler,
-            VaradaStatsPushdownPredicates varadaStatsPushdownPredicates)
+            PushdownPredicatesStats pushdownPredicatesStats)
     {
         this.nativeExpressionRulesHandler = nativeExpressionRulesHandler;
-        this.varadaStatsPushdownPredicates = varadaStatsPushdownPredicates;
+        this.pushdownPredicatesStats = pushdownPredicatesStats;
     }
 
     boolean greaterThan(VaradaExpression varadaExpression, RewriteContext rewriteContext)
@@ -61,7 +61,7 @@ abstract class BaseOperatorRewriter
         Type constantType = varadaConstant.getType();
         if (constantType == BooleanType.BOOLEAN && varadaConstant.getValue() == Boolean.FALSE) {
             rewriteContext.customStats().compute("unsupported_functions_native", (key, value) -> value == null ? 1L : value + 1);
-            varadaStatsPushdownPredicates.incunsupported_functions_native();
+            pushdownPredicatesStats.incunsupported_functions_native();
             return false;
         }
         return convert(varadaExpression,

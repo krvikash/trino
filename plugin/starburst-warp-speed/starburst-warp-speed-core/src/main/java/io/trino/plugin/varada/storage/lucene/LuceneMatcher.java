@@ -19,7 +19,7 @@ import io.trino.plugin.varada.dispatcher.query.data.match.LuceneQueryMatchData;
 import io.trino.plugin.varada.storage.engine.StorageEngine;
 import io.trino.plugin.varada.storage.engine.StorageEngineConstants;
 import io.trino.plugin.varada.storage.juffers.ReadJuffersWarmUpElement;
-import io.trino.plugin.warp.gen.stats.VaradaStatsDispatcherPageSource;
+import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.varada.log.ShapingLogger;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
@@ -43,7 +43,7 @@ public class LuceneMatcher
     private static final int JAVA_NON_HACK_PREDICATE = -3; // predicate got from non-hack
     private final StorageEngine storageEngine;
     private final StorageEngineConstants storageEngineConstants;
-    private final VaradaStatsDispatcherPageSource statsDispatcherPageSource;
+    private final DispatcherPageSourceStats statsDispatcherPageSource;
     private final ReadJuffersWarmUpElement juffersWE;
     private final Optional<Query> query; // when query is empty it means that the predicate is from Domain
     private final ShapingLogger shapingLogger;
@@ -52,7 +52,7 @@ public class LuceneMatcher
             StorageEngineConstants storageEngineConstants,
             ReadJuffersWarmUpElement juffersWE,
             LuceneQueryMatchData luceneQueryMatchData,
-            VaradaStatsDispatcherPageSource statsDispatcherPageSource,
+            DispatcherPageSourceStats statsDispatcherPageSource,
             GlobalConfig globalConfig)
     {
         this.storageEngine = storageEngine;

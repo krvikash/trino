@@ -15,7 +15,7 @@ package io.trino.plugin.warp.extension.execution.debugtools;
 
 import com.google.inject.Inject;
 import io.trino.plugin.varada.metrics.MetricsManager;
-import io.trino.plugin.varada.metrics.VaradaStatsBase;
+import io.trino.plugin.varada.metrics.WarpStatsBase;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
 import jakarta.ws.rs.Consumes;
@@ -46,7 +46,7 @@ public class ResetStatsTask
     @Produces(MediaType.APPLICATION_JSON)
     public void resetStats(ResetStatsData resetStatsData)
     {
-        Map<String, VaradaStatsBase> all = metricsManager.getAll();
+        Map<String, WarpStatsBase> all = metricsManager.getAll();
         Pattern pattern = Pattern.compile(resetStatsData.getStatsKey());
         all.entrySet().stream().filter((entry) -> pattern.matcher(entry.getKey()).matches()).forEach((entry) -> entry.getValue().reset());
     }

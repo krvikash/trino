@@ -20,7 +20,7 @@ import io.trino.plugin.varada.expression.VaradaExpression;
 import io.trino.plugin.varada.expression.rewrite.ExpressionPatterns;
 import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.PredicateType;
-import io.trino.plugin.warp.gen.stats.VaradaStatsPushdownPredicates;
+import io.trino.plugin.warp.gen.stats.PushdownPredicatesStats;
 import io.trino.spi.predicate.Domain;
 
 import java.util.List;
@@ -33,12 +33,12 @@ class AndOrRewriter
     private static final Pattern<VaradaCall> PATTERN = ExpressionPatterns.call()
             .with(argumentCount().matching(x -> x >= 2));
     private final NativeExpressionRulesHandler nativeExpressionRulesHandler;
-    private final VaradaStatsPushdownPredicates varadaStatsPushdownPredicates;
+    private final PushdownPredicatesStats pushdownPredicatesStats;
 
-    AndOrRewriter(NativeExpressionRulesHandler nativeExpressionRulesHandler, VaradaStatsPushdownPredicates varadaStatsPushdownPredicates)
+    AndOrRewriter(NativeExpressionRulesHandler nativeExpressionRulesHandler, PushdownPredicatesStats pushdownPredicatesStats)
     {
         this.nativeExpressionRulesHandler = nativeExpressionRulesHandler;
-        this.varadaStatsPushdownPredicates = varadaStatsPushdownPredicates;
+        this.pushdownPredicatesStats = pushdownPredicatesStats;
     }
 
     @Override
@@ -120,7 +120,7 @@ class AndOrRewriter
             }
         }
         if (!isValid) {
-            varadaStatsPushdownPredicates.incunsupported_functions_native();
+            pushdownPredicatesStats.incunsupported_functions_native();
         }
         return isValid;
     }

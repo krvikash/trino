@@ -47,7 +47,7 @@ import io.trino.plugin.varada.storage.engine.StubsStorageEngine;
 import io.trino.plugin.varada.storage.flows.FlowType;
 import io.trino.plugin.varada.storage.flows.FlowsSequencer;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmingService;
+import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
@@ -147,7 +147,7 @@ public class ProxyExecutionTaskTest
     @Test
     public void testWarmExecutionTask_warmDataIsEmpty()
     {
-        VaradaStatsWarmingService varadaStatsWarmingService = VaradaStatsWarmingService.create(WARMING_SERVICE_STAT_GROUP);
+        WarmingServiceStats warmingServiceStats = WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP);
 
         when(workerWarmingService.getWarmData(eq(columnHandleList),
                 eq(rowGroupKey),
@@ -158,12 +158,12 @@ public class ProxyExecutionTaskTest
         )).thenReturn(new WarmData(columnHandleList, requiredWarmUpTypeMap, WarmExecutionState.EMPTY_ROW_GROUP, true, queryContext, null));
 
         EventBus eventBus = mock(EventBus.class);
-        ProxyExecutionTask proxyExecutionTask = createWarmExecutionTask(varadaStatsWarmingService, eventBus);
+        ProxyExecutionTask proxyExecutionTask = createWarmExecutionTask(warmingServiceStats, eventBus);
         when(queryClassifier.getBasicQueryContext(eq(columnHandleList), eq(dispatcherTableHandle), eq(DynamicFilter.EMPTY), eq(connectorSession))).thenReturn(queryContext);
         when(queryClassifier.classify(eq(queryContext), eq(rowGroupData), eq(dispatcherTableHandle), eq(Optional.of(connectorSession)), eq(Optional.empty()), eq(ClassificationType.QUERY))).thenReturn(queryContext);
         proxyExecutionTask.run();
 
-        assertThat(varadaStatsWarmingService.getwarm_finished()).isEqualTo(1);
+        assertThat(warmingServiceStats.getwarm_finished()).isEqualTo(1);
         verify(workerWarmingService, times(1)).removeRowGroupFromSubmittedRowGroup(eq(rowGroupKey));
         verify(eventBus, times(1)).post(isA(WarmingFinishedEvent.class));
         assertThat(storageEngineTxService.getRunningLoaders()).isZero();
@@ -172,7 +172,7 @@ public class ProxyExecutionTaskTest
     @Test
     public void testFailedTypeShouldReleaseAllocation()
     {
-        VaradaStatsWarmingService varadaStatsWarmingService = VaradaStatsWarmingService.create(WARMING_SERVICE_STAT_GROUP);
+        WarmingServiceStats warmingServiceStats = WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP);
         when(workerWarmingService.getWarmData(eq(columnHandleList),
                 eq(rowGroupKey),
                 eq(dispatcherSplit),
@@ -184,7 +184,7 @@ public class ProxyExecutionTaskTest
         when(flowsSequencer.tryRunningFlow(eq(FlowType.WARMUP), anyLong(), any())).thenReturn(java.util.concurrent.CompletableFuture.completedFuture(true));
 
         EventBus eventBus = mock(EventBus.class);
-        ProxyExecutionTask proxyExecutionTask = createWarmExecutionTask(varadaStatsWarmingService, eventBus);
+        ProxyExecutionTask proxyExecutionTask = createWarmExecutionTask(warmingServiceStats, eventBus);
         when(queryClassifier.getBasicQueryContext(eq(columnHandleList), eq(dispatcherTableHandle), eq(DynamicFilter.EMPTY), any())).thenReturn(queryContext);
         when(queryClassifier.classify(eq(queryContext), eq(rowGroupData), eq(dispatcherTableHandle), eq(Optional.of(connectorSession)), eq(Optional.empty()), eq(ClassificationType.QUERY))).thenReturn(queryContext);
         proxyExecutionTask.run();
@@ -198,7 +198,7 @@ public class ProxyExecutionTaskTest
     @Test
     public void testWarmExecutionTask_SingleIteration_nothingToWarm()
     {
-        VaradaStatsWarmingService varadaStatsWarmingService = VaradaStatsWarmingService.create(WARMING_SERVICE_STAT_GROUP);
+        WarmingServiceStats warmingServiceStats = WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP);
 
         WarmData warmData = new WarmData(columnHandleList, requiredWarmUpTypeMap, WarmExecutionState.WARM, true, queryContext, null);
         WarmData nothingToWarm = new WarmData(columnHandleList, requiredWarmUpTypeMap, WarmExecutionState.NOTHING_TO_WARM, false, queryContext, null);
@@ -210,7 +210,7 @@ public class ProxyExecutionTaskTest
                 anyBoolean()
         )).thenReturn(warmData).thenReturn(nothingToWarm);
 
-        testAndAssert2Iterations(varadaStatsWarmingService);
+        testAndAssert2Iterations(warmingServiceStats);
     }
 
     /**
@@ -219,7 +219,7 @@ public class ProxyExecutionTaskTest
     @Test
     public void testWarmExecutionTask_SingleIteration_emptyRowGroup()
     {
-        VaradaStatsWarmingService varadaStatsWarmingService = VaradaStatsWarmingService.create(WARMING_SERVICE_STAT_GROUP);
+        WarmingServiceStats warmingServiceStats = WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP);
 
         WarmData emptyRowGroup = new WarmData(columnHandleList, requiredWarmUpTypeMap, WarmExecutionState.EMPTY_ROW_GROUP, false, queryContext, null);
         when(workerWarmingService.getWarmData(any(),
@@ -229,13 +229,13 @@ public class ProxyExecutionTaskTest
                 any(),
                 anyBoolean()
         )).thenReturn(emptyRowGroup);
-        testAndAssertNoIterations(varadaStatsWarmingService);
+        testAndAssertNoIterations(warmingServiceStats);
     }
 
     @Test
     public void testWarmExecutionTask_max_warmup_iterations()
     {
-        VaradaStatsWarmingService varadaStatsWarmingService = VaradaStatsWarmingService.create(WARMING_SERVICE_STAT_GROUP);
+        WarmingServiceStats warmingServiceStats = WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP);
         globalConfig.setMaxWarmupIterationsPerQuery(1);
         WarmData warmData = new WarmData(columnHandleList, requiredWarmUpTypeMap, WarmExecutionState.WARM, true, queryContext, null);
         when(workerWarmingService.getWarmData(any(),
@@ -245,7 +245,7 @@ public class ProxyExecutionTaskTest
                 any(),
                 anyBoolean()
         )).thenReturn(warmData);
-        testAndAssert2Iterations(varadaStatsWarmingService);
+        testAndAssert2Iterations(warmingServiceStats);
         verify(workerWarmingService, times(1))
                 .getWarmData(any(),
                         any(),
@@ -255,16 +255,16 @@ public class ProxyExecutionTaskTest
                         anyBoolean());
     }
 
-    private void testAndAssertNoIterations(VaradaStatsWarmingService varadaStatsWarmingService)
+    private void testAndAssertNoIterations(WarmingServiceStats warmingServiceStats)
     {
         when(flowsSequencer.tryRunningFlow(eq(FlowType.WARMUP), anyLong(), any())).thenReturn(java.util.concurrent.CompletableFuture.completedFuture(true));
         EventBus eventBus = mock(EventBus.class);
-        ProxyExecutionTask proxyExecutionTask = createWarmExecutionTask(varadaStatsWarmingService, eventBus);
+        ProxyExecutionTask proxyExecutionTask = createWarmExecutionTask(warmingServiceStats, eventBus);
 
         proxyExecutionTask.run();
         verify(eventBus, times(1)).post(isA(WarmingFinishedEvent.class));
-        assertThat(varadaStatsWarmingService.getwarm_finished()).isEqualTo(1);
-        assertThat(varadaStatsWarmingService.getwarm_started()).isEqualTo(1);
+        assertThat(warmingServiceStats.getwarm_finished()).isEqualTo(1);
+        assertThat(warmingServiceStats.getwarm_started()).isEqualTo(1);
         verify(warmingManager, times(1)).warmEmptyRowGroup(eq(rowGroupKey), anyList());
         verify(flowsSequencer, never()).flowFinished(eq(FlowType.WARMUP), anyLong(), eq(true));
         verify(warmupDemoterService, never()).tryDemoteStart();
@@ -272,31 +272,31 @@ public class ProxyExecutionTaskTest
         assertThat(storageEngineTxService.getRunningLoaders()).isZero();
     }
 
-    private void testAndAssert2Iterations(VaradaStatsWarmingService varadaStatsWarmingService)
+    private void testAndAssert2Iterations(WarmingServiceStats warmingServiceStats)
     {
         when(flowsSequencer.tryRunningFlow(eq(FlowType.WARMUP), anyLong(), any())).thenReturn(java.util.concurrent.CompletableFuture.completedFuture(true));
         EventBus eventBus = mock(EventBus.class);
-        ProxyExecutionTask proxyExecutionTask = createWarmExecutionTask(varadaStatsWarmingService, eventBus);
+        ProxyExecutionTask proxyExecutionTask = createWarmExecutionTask(warmingServiceStats, eventBus);
 
         proxyExecutionTask.run();
         verify(eventBus, times(1)).post(isA(WarmingFinishedEvent.class));
         verify(warmupDemoterService, times(1)).releaseTx();
-        assertThat(varadaStatsWarmingService.getwarm_finished()).isEqualTo(1);
-        assertThat(varadaStatsWarmingService.getwarm_started()).isEqualTo(1);
+        assertThat(warmingServiceStats.getwarm_finished()).isEqualTo(1);
+        assertThat(warmingServiceStats.getwarm_started()).isEqualTo(1);
         verify(flowsSequencer, times(1)).flowFinished(eq(FlowType.WARMUP), anyLong(), eq(true));
         verify(warmupDemoterService, times(1)).tryDemoteStart();
         verify(workerWarmingService, times(1)).removeRowGroupFromSubmittedRowGroup(eq(rowGroupKey));
         assertThat(storageEngineTxService.getRunningLoaders()).isZero();
     }
 
-    private ProxyExecutionTask createWarmExecutionTask(VaradaStatsWarmingService varadaStatsWarmingService, EventBus eventBus)
+    private ProxyExecutionTask createWarmExecutionTask(WarmingServiceStats warmingServiceStats, EventBus eventBus)
     {
         StorageWarmerService storageWarmerService = new StorageWarmerService(rowGroupDataService, new StubsStorageEngine(), globalConfig, mock(ConnectorSync.class), warmupDemoterService, storageEngineTxService, flowsSequencer, TestingTxService.createMetricsManager());
         return new ProxyExecutionTask(mock(WarmExecutionTaskFactory.class),
                 eventBus,
                 dispatcherProxiedConnectorTransformer,
                 warmingManager,
-                varadaStatsWarmingService,
+                warmingServiceStats,
                 workerWarmingService,
                 connectorPageSourceProvider,
                 connectorTransactionHandle,

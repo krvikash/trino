@@ -40,8 +40,8 @@ import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.RecordIndexListHeader;
 import io.trino.plugin.warp.gen.constants.RecordIndexListType;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
-import io.trino.plugin.warp.gen.stats.VaradaStatsDictionary;
-import io.trino.plugin.warp.gen.stats.VaradaStatsDispatcherPageSource;
+import io.trino.plugin.warp.gen.stats.DictionaryStats;
+import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.spi.Page;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.predicate.Domain;
@@ -82,8 +82,8 @@ public class VaradaPageSourceTest
         this.bufferAllocator = mock(BufferAllocator.class);
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
         this.customStatsContext = new CustomStatsContext(metricsManager, Collections.emptyList());
-        customStatsContext.getOrRegister(new VaradaStatsDispatcherPageSource(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY));
-        customStatsContext.getOrRegister(new VaradaStatsDictionary(DictionaryCacheService.DICTIONARY_STAT_GROUP));
+        customStatsContext.getOrRegister(new DispatcherPageSourceStats(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY));
+        customStatsContext.getOrRegister(new DictionaryStats(DictionaryCacheService.DICTIONARY_STAT_GROUP));
         globalConfig = new GlobalConfig();
         dictionaryCacheService = mock(DictionaryCacheService.class);
     }

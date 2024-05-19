@@ -16,7 +16,7 @@ package io.trino.plugin.varada.metrics.persistent;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.trino.plugin.varada.execution.TaskData;
-import io.trino.plugin.varada.metrics.VaradaStatsBase;
+import io.trino.plugin.varada.metrics.WarpStatsBase;
 
 import java.util.Collection;
 
@@ -26,16 +26,16 @@ public class PersistentMetricData
     // copy from CoordinatorPersistentMetricUpdater
     public static final String TASK_NAME = "update-persistent-metrics";
 
-    private final Collection<VaradaStatsBase> persistentMetricsData;
+    private final Collection<WarpStatsBase> persistentMetricsData;
 
     @JsonCreator
-    public PersistentMetricData(@JsonProperty("metricsData") Collection<VaradaStatsBase> persistentMetricsData)
+    public PersistentMetricData(@JsonProperty("metricsData") Collection<WarpStatsBase> persistentMetricsData)
     {
         this.persistentMetricsData = persistentMetricsData;
     }
 
     @JsonProperty
-    public Collection<VaradaStatsBase> getPersistentMetricsData()
+    public Collection<WarpStatsBase> getPersistentMetricsData()
     {
         return persistentMetricsData;
     }

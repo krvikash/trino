@@ -58,7 +58,7 @@ import io.trino.plugin.varada.storage.read.StubsRangeFillerService;
 import io.trino.plugin.varada.storage.write.WarmupElementStats;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
-import io.trino.plugin.warp.gen.stats.VaradaStatsDispatcherPageSource;
+import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.spi.HostAddress;
 import io.trino.spi.NodeManager;
 import io.trino.spi.connector.ColumnHandle;
@@ -261,7 +261,7 @@ public class DispatcherPageSourceFactoryTest
                         anyList(),
                         any(DynamicFilter.class));
         assertThat(pageSource).isNull(); //not mocked but not DispatcherPageSource
-        VaradaStatsDispatcherPageSource stats = (VaradaStatsDispatcherPageSource) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
+        DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
 
         assertThat(stats.getcached_proxied_files()).isEqualTo(1);
         assertThat(stats.getlocked_row_group()).isZero();
@@ -317,7 +317,7 @@ public class DispatcherPageSourceFactoryTest
                         anyList(),
                         any(DynamicFilter.class));
         assertThat(pageSource).isInstanceOf(EmptyPageSource.class);
-        VaradaStatsDispatcherPageSource stats = (VaradaStatsDispatcherPageSource) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
+        DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
         assertThat(stats.getcached_proxied_files()).isZero();
         assertThat(stats.getlocked_row_group()).isZero();
         assertThat(stats.getlocked_row_group()).isZero();
@@ -378,7 +378,7 @@ public class DispatcherPageSourceFactoryTest
                         eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
                         anyList(),
                         any(DynamicFilter.class));
-        VaradaStatsDispatcherPageSource stats = (VaradaStatsDispatcherPageSource) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
+        DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
         assertThat(stats.getlocked_row_group()).isEqualTo(1);
     }
 
@@ -415,7 +415,7 @@ public class DispatcherPageSourceFactoryTest
                         eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
                         anyList(),
                         any(DynamicFilter.class));
-        VaradaStatsDispatcherPageSource stats = (VaradaStatsDispatcherPageSource) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
+        DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
         assertThat(stats.getexternal_collect_columns()).isEqualTo(columnHandleList.size());
         assertThat(stats.getexternal_match_columns()).isZero();
     }
@@ -460,7 +460,7 @@ public class DispatcherPageSourceFactoryTest
                 dispatcherTableHandle);
 
         assertThat(pageSource).isInstanceOf(DispatcherPageSource.class);
-        VaradaStatsDispatcherPageSource stats = (VaradaStatsDispatcherPageSource) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
+        DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
         assertThat(stats.getexternal_collect_columns()).isEqualTo(columnHandleList.size());
         assertThat(stats.getexternal_match_columns()).isZero();
         assertThat(stats.getvarada_collect_columns()).isEqualTo(warmedColumnHandleList.size());
@@ -507,7 +507,7 @@ public class DispatcherPageSourceFactoryTest
                 columnHandles,
                 dynamicFilter,
                 customStatsContext);
-        VaradaStatsDispatcherPageSource stats = (VaradaStatsDispatcherPageSource) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
+        DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
         assertThat(stats.getexternal_collect_columns()).isEqualTo(columnHandles.size()); // should be uncomment when committing to develop
 
         verify(connectorPageSourceProvider, times(1))
@@ -548,7 +548,7 @@ public class DispatcherPageSourceFactoryTest
                 dynamicFilter,
                 customStatsContext);
         assertThat(pageSource).isInstanceOf(PrefilledPageSource.class);
-        VaradaStatsDispatcherPageSource stats = (VaradaStatsDispatcherPageSource) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
+        DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
         assertThat(stats.getexternal_collect_columns()).isEqualTo(0);
         assertThat(stats.getvarada_collect_columns()).isEqualTo(0);
         assertThat(stats.getempty_collect_columns()).isEqualTo(1);
@@ -584,7 +584,7 @@ public class DispatcherPageSourceFactoryTest
                 dynamicFilter,
                 customStatsContext);
         assertThat(pageSource).isInstanceOf(PrefilledPageSource.class);
-        VaradaStatsDispatcherPageSource stats = (VaradaStatsDispatcherPageSource) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
+        DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
         assertThat(stats.getprefilled_collect_columns()).isEqualTo(1);
         assertThat(stats.getexternal_collect_columns()).isEqualTo(0);
         assertThat(stats.getvarada_collect_columns()).isEqualTo(0);

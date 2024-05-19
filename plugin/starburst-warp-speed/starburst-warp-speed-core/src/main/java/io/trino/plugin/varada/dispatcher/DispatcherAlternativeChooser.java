@@ -30,7 +30,7 @@ import io.trino.plugin.varada.juffer.StorageEngineTxService;
 import io.trino.plugin.varada.metrics.CustomStatsContext;
 import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.storage.engine.nativeimpl.NativeStorageStateHandler;
-import io.trino.plugin.warp.gen.stats.VaradaStatsDispatcherPageSource;
+import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorAlternativeChooser;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
@@ -107,7 +107,7 @@ public class DispatcherAlternativeChooser
         DispatcherTableHandle trivialAlternative = (DispatcherTableHandle) alternatives.get(trivialAlternativeIndex);
 
         CustomStatsContext customStatsContext = new CustomStatsContext(metricsManager, trivialAlternative.getCustomStats());
-        customStatsContext.getOrRegister(new VaradaStatsDispatcherPageSource(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY));
+        customStatsContext.getOrRegister(new DispatcherPageSourceStats(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY));
 
         Optional<RowGroupCloseHandler> closeHandler = Optional.empty();
         QueryContext queryContext = null;
@@ -142,7 +142,7 @@ public class DispatcherAlternativeChooser
                             queryContext = null;
                         }
                         else {
-                            VaradaStatsDispatcherPageSource dispatcherPageSourceStats = (VaradaStatsDispatcherPageSource) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
+                            DispatcherPageSourceStats dispatcherPageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
                             dispatcherPageSourceStats.incnon_trivial_alternative_chosen();
                         }
                     }

@@ -21,7 +21,7 @@ import io.trino.plugin.varada.dispatcher.warmup.warmers.StorageWarmerService;
 import io.trino.plugin.varada.dispatcher.warmup.warmers.WarmingCandidate;
 import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.storage.write.StorageWriterSplitConfig;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmingService;
+import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 
 import java.util.List;
 
@@ -33,13 +33,13 @@ public class AbortOnInitAction
         implements CacheAction
 {
     private final StorageWarmerService storageWarmerService;
-    private final VaradaStatsWarmingService varadaStatsWarmingService;
+    private final WarmingServiceStats warmingServiceStats;
 
     @Inject
     public AbortOnInitAction(StorageWarmerService storageWarmerService, MetricsManager metricsManager)
     {
         this.storageWarmerService = requireNonNull(storageWarmerService);
-        this.varadaStatsWarmingService = metricsManager.registerMetric(VaradaStatsWarmingService.create(WARMING_SERVICE_STAT_GROUP));
+        this.warmingServiceStats = metricsManager.registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
     }
 
     @Override
@@ -51,7 +51,7 @@ public class AbortOnInitAction
     @Override
     public boolean close(List<WarmingCandidate> warmingCandidates, RowGroupKey permanentRowGroupKey, long flowId, StorageWriterSplitConfig storageWriterSplitConfig, int txId)
     {
-        varadaStatsWarmingService.addwarm_failed(warmingCandidates.size());
+        warmingServiceStats.addwarm_failed(warmingCandidates.size());
         storageWarmerService.finishWarm(
                 flowId,
                 false,

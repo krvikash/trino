@@ -31,8 +31,8 @@ import io.trino.plugin.varada.dispatcher.model.WarmUpElement;
 import io.trino.plugin.varada.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.varada.dispatcher.warmup.WarmupProperties;
 import io.trino.plugin.varada.metrics.MetricsManager;
-import io.trino.plugin.warp.gen.stats.VaradaStatsDictionary;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmupImportService;
+import io.trino.plugin.warp.gen.stats.DictionaryStats;
+import io.trino.plugin.warp.gen.stats.WarmupImportServiceStats;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
@@ -56,13 +56,13 @@ public class WarmingManager
 {
     private static final Logger logger = Logger.get(WarmingManager.class);
 
-    private final VaradaStatsDictionary varadaStatsDictionary;
+    private final DictionaryStats dictionaryStats;
     private final VaradaProxiedWarmer varadaProxiedWarmer;
     private final EmptyRowGroupWarmer emptyRowGroupWarmer;
     private final GlobalConfig globalConfig;
     private final CloudVendorConfig cloudVendorConfig;
     private final RowGroupDataService rowGroupDataService;
-    private final VaradaStatsWarmupImportService varadaStatsWarmupImportService;
+    private final WarmupImportServiceStats warmupImportServiceStats;
     private final DictionaryCacheService dictionaryCacheService;
     private final WeGroupWarmer weGroupWarmer;
     private final StorageWarmerService storageWarmerService;
@@ -85,8 +85,8 @@ public class WarmingManager
         this.globalConfig = requireNonNull(globalConfig);
         this.cloudVendorConfig = requireNonNull(cloudVendorConfig);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
-        this.varadaStatsWarmupImportService = requireNonNull(metricsManager).registerMetric(new VaradaStatsWarmupImportService(WARMUP_IMPORTER_STAT_GROUP));
-        this.varadaStatsDictionary = requireNonNull(metricsManager).registerMetric(VaradaStatsDictionary.create(DICTIONARY_STAT_GROUP));
+        this.warmupImportServiceStats = requireNonNull(metricsManager).registerMetric(new WarmupImportServiceStats(WARMUP_IMPORTER_STAT_GROUP));
+        this.dictionaryStats = requireNonNull(metricsManager).registerMetric(DictionaryStats.create(DICTIONARY_STAT_GROUP));
         this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
         this.weGroupWarmer = requireNonNull(weGroupWarmer);
         this.storageWarmerService = requireNonNull(storageWarmerService);
@@ -161,7 +161,7 @@ public class WarmingManager
                             globalConfig.getDebugWarming(),
                             outDictionariesWarmInfos);
                     stopWatch.stop();
-                    varadaStatsWarmupImportService.addhiveWarmTime(stopWatch.getNanoTime());
+                    warmupImportServiceStats.addhiveWarmTime(stopWatch.getNanoTime());
                 }
             }
             catch (Exception e) {
@@ -195,11 +195,11 @@ public class WarmingManager
     {
         for (DictionaryWarmInfo dictionaryWarmInfo : dictionariesWarmInfos) {
             if (dictionaryWarmInfo.dictionaryState() == DictionaryState.DICTIONARY_REJECTED) {
-                varadaStatsDictionary.incdictionary_rejected_elements_count();
+                dictionaryStats.incdictionary_rejected_elements_count();
             }
             else if (dictionaryWarmInfo.dictionaryState() == DictionaryState.DICTIONARY_VALID) {
                 dictionaryCacheService.releaseActiveDictionary(dictionaryWarmInfo.dictionaryKey());
-                varadaStatsDictionary.incdictionary_success_elements_count();
+                dictionaryStats.incdictionary_success_elements_count();
             }
         }
     }

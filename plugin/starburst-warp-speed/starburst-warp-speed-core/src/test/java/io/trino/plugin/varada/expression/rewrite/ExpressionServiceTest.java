@@ -39,7 +39,7 @@ import io.trino.plugin.varada.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
-import io.trino.plugin.warp.gen.stats.VaradaStatsPushdownPredicates;
+import io.trino.plugin.warp.gen.stats.PushdownPredicatesStats;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.expression.Call;
@@ -215,7 +215,7 @@ public class ExpressionServiceTest
         Optional<WarpExpression> actual = expressionService.convertToWarpExpression(connectorSession, call, assignments, customStats);
         assertThat(actual).isEmpty();
         assertPushdownStatsSum(1);
-        VaradaStatsPushdownPredicates pushdownPredicatesStats = (VaradaStatsPushdownPredicates) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
         assertThat(pushdownPredicatesStats.getunsupported_functions()).isEqualTo(1);
     }
 
@@ -238,7 +238,7 @@ public class ExpressionServiceTest
         List<VaradaExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, isNanExpression.getKey(), assignments, customStats).orElseThrow().varadaExpressionDataLeaves();
         assertThat(actual).isEqualTo(expectedResult);
         assertPushdownStatsSum(1);
-        VaradaStatsPushdownPredicates pushdownPredicatesStats = (VaradaStatsPushdownPredicates) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
         assertThat(pushdownPredicatesStats.getunsupported_functions_native()).isEqualTo(1);
     }
 
@@ -347,7 +347,7 @@ public class ExpressionServiceTest
         Optional<WarpExpression> actual = expressionService.convertToWarpExpression(connectorSession, call, assignments, customStats);
         assertThat(actual).isEmpty();
         assertPushdownStatsSum(1);
-        VaradaStatsPushdownPredicates pushdownPredicatesStats = (VaradaStatsPushdownPredicates) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
         assertThat(pushdownPredicatesStats.getunsupported_functions()).isEqualTo(1);
     }
 
@@ -377,7 +377,7 @@ public class ExpressionServiceTest
         Optional<WarpExpression> actual = expressionService.convertToWarpExpression(connectorSession, connectorExpression, assignments, customStats);
         assertThat(actual).isEmpty();
         assertPushdownStatsSum(1);
-        VaradaStatsPushdownPredicates pushdownPredicatesStats = (VaradaStatsPushdownPredicates) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
         assertThat(pushdownPredicatesStats.getunsupported_functions()).isEqualTo(1);
     }
 
@@ -420,7 +420,7 @@ public class ExpressionServiceTest
         List<VaradaExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().varadaExpressionDataLeaves();
         assertThat(actual).isEqualTo(expectedResult);
         assertPushdownStatsSum(1);
-        VaradaStatsPushdownPredicates pushdownPredicatesStats = (VaradaStatsPushdownPredicates) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
         assertThat(pushdownPredicatesStats.getunsupported_functions()).isEqualTo(1);
     }
 
@@ -477,7 +477,7 @@ public class ExpressionServiceTest
         Optional<WarpExpression> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats);
         assertThat(actual).isEmpty();
         assertPushdownStatsSum(1);
-        VaradaStatsPushdownPredicates pushdownPredicatesStats = (VaradaStatsPushdownPredicates) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
         assertThat(pushdownPredicatesStats.getunsupported_functions()).isEqualTo(1);
     }
 
@@ -948,7 +948,7 @@ public class ExpressionServiceTest
 
         Optional<WarpExpression> result = expressionService.convertToWarpExpression(connectorSession, l1Expression, assignments, customStats);
         assertThat(result).isNotEmpty();
-        VaradaStatsPushdownPredicates pushdownPredicatesStats = (VaradaStatsPushdownPredicates) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
         assertThat(pushdownPredicatesStats.getunsupported_expression_depth()).isEqualTo(0);
 
         result = expressionService.convertToWarpExpression(connectorSession, l0Expression, assignments, customStats);
@@ -1086,7 +1086,7 @@ public class ExpressionServiceTest
         Optional<WarpExpression> result = expressionService.convertToWarpExpression(connectorSession, expression, invalidAssignment, customStats);
         assertThat(result).isEmpty();
         assertPushdownStatsSum(1);
-        VaradaStatsPushdownPredicates pushdownPredicatesStats = (VaradaStatsPushdownPredicates) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
         assertThat(pushdownPredicatesStats.getfailed_rewrite_expression()).isEqualTo(1);
     }
 
@@ -1268,7 +1268,7 @@ public class ExpressionServiceTest
 
     private void assertPushdownStatsSum(int expectedCount)
     {
-        VaradaStatsPushdownPredicates pushdownPredicatesStats = (VaradaStatsPushdownPredicates) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
         assertThat(pushdownPredicatesStats.getCounters().values().stream().mapToLong(LongAdder::longValue).sum()).isEqualTo(expectedCount);
     }
 }

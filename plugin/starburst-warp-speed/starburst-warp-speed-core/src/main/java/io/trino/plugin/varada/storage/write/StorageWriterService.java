@@ -48,7 +48,7 @@ import io.trino.plugin.varada.type.TypeUtils;
 import io.trino.plugin.varada.warmup.exceptions.WarmupException;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
-import io.trino.plugin.warp.gen.stats.VaradaStatsLuceneIndexer;
+import io.trino.plugin.warp.gen.stats.LuceneIndexerStats;
 import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
@@ -76,7 +76,7 @@ public class StorageWriterService
     private final DictionaryCacheService dictionaryCacheService;
     private final BlockAppenderFactory blockAppenderFactory;
     private final PrintMetricsTimerTask metricsTimerTask;
-    private final VaradaStatsLuceneIndexer statsLuceneIndexer;
+    private final LuceneIndexerStats statsLuceneIndexer;
 
     enum WeProperties
     {
@@ -101,8 +101,8 @@ public class StorageWriterService
         this.bufferAllocator = requireNonNull(bufferAllocator);
         this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
         this.blockAppenderFactory = requireNonNull(blockAppenderFactory);
-        VaradaStatsLuceneIndexer varadaStatsLuceneIndexer = new VaradaStatsLuceneIndexer(LUCENE_STATS_GROUP_NAME, "0");
-        this.statsLuceneIndexer = metricsManager.registerMetric(varadaStatsLuceneIndexer);
+        LuceneIndexerStats luceneIndexerStats = new LuceneIndexerStats(LUCENE_STATS_GROUP_NAME, "0");
+        this.statsLuceneIndexer = metricsManager.registerMetric(luceneIndexerStats);
         this.metricsTimerTask = requireNonNull(metricsTimerTask);
     }
 

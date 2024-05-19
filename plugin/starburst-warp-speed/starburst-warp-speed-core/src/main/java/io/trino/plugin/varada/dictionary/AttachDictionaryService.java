@@ -25,7 +25,7 @@ import io.trino.plugin.varada.storage.write.dictionary.DictionaryWriter;
 import io.trino.plugin.varada.storage.write.dictionary.DictionaryWriterFactory;
 import io.trino.plugin.varada.type.TypeUtils;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
-import io.trino.plugin.warp.gen.stats.VaradaStatsDictionary;
+import io.trino.plugin.warp.gen.stats.DictionaryStats;
 
 import java.io.File;
 import java.io.IOException;
@@ -44,7 +44,7 @@ public class AttachDictionaryService
     private final StorageEngineConstants storageEngineConstants;
     private final WorkerCapacityManager workerCapacityManager;
     private final DictionaryConfig dictionaryConfig;
-    private final VaradaStatsDictionary varadaStatsDictionary;
+    private final DictionaryStats dictionaryStats;
     private final DictionaryWriterFactory dictionaryWriterFactory;
 
     @Inject
@@ -57,7 +57,7 @@ public class AttachDictionaryService
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.workerCapacityManager = requireNonNull(workerCapacityManager);
         this.dictionaryConfig = requireNonNull(dictionaryConfig);
-        this.varadaStatsDictionary = metricsManager.registerMetric(VaradaStatsDictionary.create(DICTIONARY_STAT_GROUP));
+        this.dictionaryStats = metricsManager.registerMetric(DictionaryStats.create(DICTIONARY_STAT_GROUP));
         this.dictionaryWriterFactory = requireNonNull(dictionaryWriterFactory);
     }
 
@@ -120,7 +120,7 @@ public class AttachDictionaryService
                 dictionaryKey,
                 fixedRecTypeLength,
                 recTypeLength,
-                varadaStatsDictionary);
+                dictionaryStats);
 
         File rowGroupDataFile = new File(rowGroupFilePath);
 

@@ -34,7 +34,7 @@ import io.trino.plugin.varada.storage.read.VaradaStoragePageSource;
 import io.trino.plugin.varada.storage.write.WarmupElementStats;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
-import io.trino.plugin.warp.gen.stats.VaradaStatsDispatcherPageSource;
+import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
 import io.trino.spi.TrinoException;
@@ -76,7 +76,7 @@ public class DispatcherPageSourceTest
     protected VaradaStoragePageSource varadaPageSource;
     protected ConnectorPageSource proxiedConnectorPageSource;
     protected RowGroupData rowGroupData;
-    protected final VaradaStatsDispatcherPageSource stats = new VaradaStatsDispatcherPageSource("test");
+    protected final DispatcherPageSourceStats stats = new DispatcherPageSourceStats("test");
     protected final Map<Integer, Type> proxiedCollectTypeByBlockIndex = Map.of(1, BIGINT);
     private DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
 

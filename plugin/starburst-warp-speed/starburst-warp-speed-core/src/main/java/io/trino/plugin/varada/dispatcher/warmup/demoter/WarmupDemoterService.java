@@ -53,7 +53,7 @@ import io.trino.plugin.varada.storage.flows.FlowsSequencer;
 import io.trino.plugin.varada.warmup.model.WarmupRule;
 import io.trino.plugin.warp.gen.constants.DemoteStatus;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmupDemoter;
+import io.trino.plugin.warp.gen.stats.WarmupDemoterStats;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.SchemaTableName;
 import io.varada.tools.CatalogNameProvider;
@@ -101,7 +101,7 @@ public class WarmupDemoterService
     private final RowGroupDataService rowGroupDataService;
     private final ConnectorSync connectorSync;
     private final WarmupDemoterConfig warmupDemoterConfig;
-    private final VaradaStatsWarmupDemoter globalStatsDemoter;
+    private final WarmupDemoterStats globalStatsDemoter;
     private final ExecutorService rowGroupExecutorService;
     private final FlowsSequencer flowsSequencer;
     private final WorkerWarmupRuleService workerWarmupRuleService;
@@ -135,7 +135,7 @@ public class WarmupDemoterService
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.workerWarmupRuleService = requireNonNull(workerWarmupRuleService);
         this.warmupDemoterConfig = requireNonNull(warmupDemoterConfig);
-        this.globalStatsDemoter = (VaradaStatsWarmupDemoter) metricsManager.registerMetric(VaradaStatsWarmupDemoter.create(WARMUP_DEMOTER_STAT_GROUP));
+        this.globalStatsDemoter = (WarmupDemoterStats) metricsManager.registerMetric(WarmupDemoterStats.create(WARMUP_DEMOTER_STAT_GROUP));
         this.flowsSequencer = requireNonNull(flowsSequencer);
         this.connectorSync = requireNonNull(connectorSync);
         this.catalogNameProvider = requireNonNull(catalogNameProvider);
@@ -633,7 +633,7 @@ public class WarmupDemoterService
                                         .plus(tupleRank.warmupProperties().ttl(), ChronoUnit.SECONDS))));
     }
 
-    private void deleteImmediateObjects(List<TupleRank> tupleRanks, VaradaStatsWarmupDemoter statsWarmupDemoter)
+    private void deleteImmediateObjects(List<TupleRank> tupleRanks, WarmupDemoterStats statsWarmupDemoter)
             throws ExecutionException, InterruptedException
     {
         logger.debug("start deleting %d immediate objects", tupleRanks.size());
@@ -641,7 +641,7 @@ public class WarmupDemoterService
         statsWarmupDemoter.adddead_objects_deleted(deletedObjectsCount);
     }
 
-    private void deleteFailedObjects(List<TupleRank> failedObjects, VaradaStatsWarmupDemoter statsWarmupDemoter)
+    private void deleteFailedObjects(List<TupleRank> failedObjects, WarmupDemoterStats statsWarmupDemoter)
             throws ExecutionException, InterruptedException
     {
         logger.debug("start deleting %d failed objects", failedObjects.size());
@@ -868,7 +868,7 @@ public class WarmupDemoterService
         return lastExecutionTime;
     }
 
-    public VaradaStatsWarmupDemoter getCurrentRunStats()
+    public WarmupDemoterStats getCurrentRunStats()
     {
         return demoteArguments == null ? null : demoteArguments.statsWarmupDemoter;
     }
@@ -911,7 +911,7 @@ public class WarmupDemoterService
         double maxUsageThresholdPercentage = -1;
         double cleanupUsageThresholdPercentage = -1;
         int batchSize = 1;
-        VaradaStatsWarmupDemoter statsWarmupDemoter;
+        WarmupDemoterStats statsWarmupDemoter;
         long flowId = -1;
         long maxElementsToDemote = 1000;
         double epsilon = -1;
@@ -935,7 +935,7 @@ public class WarmupDemoterService
             this.maxElementsToDemote = maxElementsToDemote;
             this.epsilon = epsilon;
             this.deleteEmptyRowGroups = deleteEmptyRowGroups;
-            this.statsWarmupDemoter = VaradaStatsWarmupDemoter.create(WARMUP_DEMOTER_STAT_GROUP);
+            this.statsWarmupDemoter = WarmupDemoterStats.create(WARMUP_DEMOTER_STAT_GROUP);
             stopWatch = new StopWatch();
             stopWatch.start();
         }

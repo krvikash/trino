@@ -24,7 +24,7 @@ import io.trino.plugin.varada.dispatcher.warmup.warmers.WarmingCandidate;
 import io.trino.plugin.varada.dispatcher.warmup.warmers.WarmingManager;
 import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.storage.write.StorageWriterSplitConfig;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmingService;
+import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 
 import java.util.Collections;
 import java.util.List;
@@ -36,7 +36,7 @@ import static java.util.Objects.requireNonNull;
 public class EmptyPageAction
         implements CacheAction
 {
-    private final VaradaStatsWarmingService statsWarmingService;
+    private final WarmingServiceStats statsWarmingService;
     private final WarmingManager warmingManager;
     private final RowGroupDataService rowGroupDataService;
 
@@ -45,7 +45,7 @@ public class EmptyPageAction
             WarmingManager warmingManager,
             RowGroupDataService rowGroupDataService)
     {
-        this.statsWarmingService = requireNonNull(metricsManager).registerMetric(VaradaStatsWarmingService.create(WARMING_SERVICE_STAT_GROUP));
+        this.statsWarmingService = requireNonNull(metricsManager).registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
         this.warmingManager = requireNonNull(warmingManager);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
     }

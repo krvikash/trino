@@ -15,7 +15,7 @@ package io.trino.plugin.varada.juffer;
 
 import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.metrics.MetricsManager;
-import io.trino.plugin.warp.gen.stats.VaradaStatsTxService;
+import io.trino.plugin.warp.gen.stats.TxServiceStats;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -39,7 +39,7 @@ public class StorageEngineTxServiceTest
     {
         nativeConfig = new NativeConfig();
         metricsManager = mock(MetricsManager.class);
-        when(metricsManager.registerMetric(any())).thenReturn(VaradaStatsTxService.create(STATS_GROUP_NAME));
+        when(metricsManager.registerMetric(any())).thenReturn(TxServiceStats.create(STATS_GROUP_NAME));
         this.storageEngineTxService = new StorageEngineTxService(nativeConfig, metricsManager);
     }
 

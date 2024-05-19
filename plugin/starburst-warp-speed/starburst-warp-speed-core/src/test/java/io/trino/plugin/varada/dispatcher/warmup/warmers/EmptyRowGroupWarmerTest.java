@@ -29,7 +29,7 @@ import io.trino.plugin.varada.juffer.BufferAllocator;
 import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmingService;
+import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.type.IntegerType;
@@ -61,9 +61,9 @@ public class EmptyRowGroupWarmerTest
     public void before()
     {
         metricsManager = mock(MetricsManager.class);
-        VaradaStatsWarmingService varadaStatsWarmingService = VaradaStatsWarmingService.create(WARMING_SERVICE_STAT_GROUP);
-        when(metricsManager.registerMetric(any())).thenReturn(varadaStatsWarmingService);
-        when(metricsManager.get(any())).thenReturn(varadaStatsWarmingService);
+        WarmingServiceStats warmingServiceStats = WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP);
+        when(metricsManager.registerMetric(any())).thenReturn(warmingServiceStats);
+        when(metricsManager.get(any())).thenReturn(warmingServiceStats);
         schemaTableName = new SchemaTableName("schema", "table");
     }
 

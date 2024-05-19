@@ -35,14 +35,14 @@ public class MetricsRegistryTest
                 mBeanExporter,
                 new MetricsConfig());
 
-        VaradaTestStats stats = new VaradaTestStats("11111");
+        WarpTestStats stats = new WarpTestStats("11111");
         String key = stats.getJmxKey() + ".catalog-name";
 
         metricsRegistry.registerMetric(stats);
         verify(mBeanExporter, times(1))
                 .exportWithGeneratedName(stats, stats.getClass(), key);
 
-        VaradaTestStats statResult = (VaradaTestStats) metricsRegistry.get(stats.getJmxKey());
+        WarpTestStats statResult = (WarpTestStats) metricsRegistry.get(stats.getJmxKey());
         assertThat(statResult).isEqualTo(stats);
 
         assertThat(metricsRegistry.getRegisteredInstances()).containsExactly(stats);
@@ -51,7 +51,7 @@ public class MetricsRegistryTest
         verify(mBeanExporter, times(1))
                 .unexportWithGeneratedName(stats.getClass(), key);
 
-        statResult = (VaradaTestStats) metricsRegistry.get(stats.getJmxKey());
+        statResult = (WarpTestStats) metricsRegistry.get(stats.getJmxKey());
         assertThat(statResult).isNull();
     }
 
@@ -67,14 +67,14 @@ public class MetricsRegistryTest
                 mBeanExporter,
                 metricsConfig);
 
-        VaradaTestStats stats = new VaradaTestStats("11111");
+        WarpTestStats stats = new WarpTestStats("11111");
         String key = stats.getJmxKey() + ".catalog-name";
 
         metricsRegistry.registerMetric(stats);
         verify(mBeanExporter, never())
                 .exportWithGeneratedName(stats, stats.getClass(), key);
 
-        VaradaTestStats statsResult = (VaradaTestStats) metricsRegistry.get(stats.getJmxKey());
+        WarpTestStats statsResult = (WarpTestStats) metricsRegistry.get(stats.getJmxKey());
         assertThat(statsResult).isEqualTo(stats);
 
         assertThat(metricsRegistry.getRegisteredInstances()).containsExactly(stats);
@@ -83,16 +83,16 @@ public class MetricsRegistryTest
         verify(mBeanExporter, never())
                 .unexportWithGeneratedName(stats.getClass(), key);
 
-        statsResult = (VaradaTestStats) metricsRegistry.get(stats.getJmxKey());
+        statsResult = (WarpTestStats) metricsRegistry.get(stats.getJmxKey());
         assertThat(statsResult).isNull();
     }
 
-    static class VaradaTestStats
-            extends VaradaStatsBase
+    static class WarpTestStats
+            extends WarpStatsBase
     {
-        VaradaTestStats(String jmxKey)
+        WarpTestStats(String jmxKey)
         {
-            super(jmxKey, VaradaStatType.Worker);
+            super(jmxKey, WarpStatType.Worker);
         }
     }
 }

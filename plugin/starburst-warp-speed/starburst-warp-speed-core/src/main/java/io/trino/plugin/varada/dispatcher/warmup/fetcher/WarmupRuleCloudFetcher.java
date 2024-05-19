@@ -31,7 +31,7 @@ import io.trino.plugin.varada.warmup.WarmupRuleApiMapper;
 import io.trino.plugin.varada.warmup.WarmupRuleService;
 import io.trino.plugin.varada.warmup.model.WarmupRule;
 import io.trino.plugin.varada.warmup.model.WarmupRuleResult;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmupRuleFetcher;
+import io.trino.plugin.warp.gen.stats.WarmupRuleFetcherStats;
 import io.varada.cloudvendors.CloudVendorService;
 import io.varada.cloudvendors.model.StorageObjectMetadata;
 import io.varada.log.ShapingLogger;
@@ -69,7 +69,7 @@ public class WarmupRuleCloudFetcher
     private final ObjectMapperProvider objectMapperProvider;
     @SuppressWarnings("FieldCanBeLocal")
     private final Timer timer;
-    private final VaradaStatsWarmupRuleFetcher varadaStatsWarmupRuleFetcher;
+    private final WarmupRuleFetcherStats warmupRuleFetcherStats;
     private StorageObjectMetadata currentStorageObjectMetadata;
     private final Lock readLock;
 
@@ -127,7 +127,7 @@ public class WarmupRuleCloudFetcher
                 warmupRuleCloudFetcherConfig.getFetchDelayDuration().toMillis(),
                 warmupRuleCloudFetcherConfig.getFetchDuration().toMillis());
 
-        this.varadaStatsWarmupRuleFetcher = requireNonNull(metricsManager).registerMetric(VaradaStatsWarmupRuleFetcher.create(WARM_FETCHER_STAT_GROUP));
+        this.warmupRuleFetcherStats = requireNonNull(metricsManager).registerMetric(WarmupRuleFetcherStats.create(WARM_FETCHER_STAT_GROUP));
     }
 
     @Override
@@ -205,12 +205,12 @@ public class WarmupRuleCloudFetcher
                         shapingLogger.info("%d warmup rules were applied", warmupRuleResult.appliedRules().size());
                     }
 
-                    varadaStatsWarmupRuleFetcher.incsuccess();
+                    warmupRuleFetcherStats.incsuccess();
                     eventBus.post(new WarmRulesChangedEvent());
                 }
             }
             catch (Throwable e) {
-                varadaStatsWarmupRuleFetcher.incfail();
+                warmupRuleFetcherStats.incfail();
                 shapingLogger.error(e, "failed fetching rules from %s", path);
             }
             finally {

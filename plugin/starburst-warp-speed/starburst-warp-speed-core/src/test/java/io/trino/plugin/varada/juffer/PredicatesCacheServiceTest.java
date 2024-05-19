@@ -19,7 +19,7 @@ import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.PredicateType;
-import io.trino.plugin.warp.gen.stats.VaradaStatsCachePredicates;
+import io.trino.plugin.warp.gen.stats.CachePredicatesStats;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.type.IntegerType;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,7 +47,7 @@ import static org.mockito.Mockito.when;
 public class PredicatesCacheServiceTest
 {
     StubsStorageEngineConstants storageEngineConstants;
-    VaradaStatsCachePredicates varadaStatsCachePredicates;
+    CachePredicatesStats cachePredicatesStats;
     BufferAllocator bufferAllocator;
     PredicatesCacheService predicatesCacheService;
 
@@ -62,7 +62,7 @@ public class PredicatesCacheServiceTest
     public void before()
     {
         storageEngineConstants = new StubsStorageEngineConstants();
-        varadaStatsCachePredicates = VaradaStatsCachePredicates.create(PredicatesCacheService.STATS_CACHE_PREDICATE_KEY);
+        cachePredicatesStats = CachePredicatesStats.create(PredicatesCacheService.STATS_CACHE_PREDICATE_KEY);
         bufferAllocator = mock(BufferAllocator.class);
         ByteBuffer byteBuffer = ByteBuffer.allocate(1024);
         when(bufferAllocator.memorySegment2PredicateBuff(any())).thenReturn(byteBuffer);
@@ -70,7 +70,7 @@ public class PredicatesCacheServiceTest
         when(bufferAllocator.getBufferSize(isA(PredicateBufferPoolType.class))).thenReturn(5);
         when(bufferAllocator.getPoolSize(isA(PredicateBufferPoolType.class))).thenReturn(2);
         MetricsManager metricsManager = mock(MetricsManager.class);
-        when(metricsManager.registerMetric(any())).thenReturn(varadaStatsCachePredicates);
+        when(metricsManager.registerMetric(any())).thenReturn(cachePredicatesStats);
         predicatesCacheService = new PredicatesCacheService(bufferAllocator,
                 storageEngineConstants,
                 metricsManager);

@@ -76,7 +76,7 @@ import io.trino.plugin.warp.extension.execution.health.ClusterHealthTask;
 import io.trino.plugin.warp.extension.execution.health.HealthTask;
 import io.trino.plugin.warp.extension.execution.warmup.WarmupTask;
 import io.trino.plugin.warp.gen.constants.FailureRepetitionMode;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmupDemoter;
+import io.trino.plugin.warp.gen.stats.WarmupDemoterStats;
 import io.trino.plugin.warp.it.DispatcherQueryRunner;
 import io.trino.plugin.warp.it.DispatcherStubsIntegrationSmokeIT;
 import io.trino.spi.connector.SchemaTableName;
@@ -3224,8 +3224,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         MaterializedResult jmx0 = computeActual(
                 jmxSession,
                 "select sum(currentUsage), sum(totalUsage) from \"%s*%s\"".formatted(
-                        VaradaStatsWarmupDemoter.class.getPackageName(),
-                        VaradaStatsWarmupDemoter.class.getSimpleName().toLowerCase(Locale.ROOT)));
+                        WarmupDemoterStats.class.getPackageName(),
+                        WarmupDemoterStats.class.getSimpleName().toLowerCase(Locale.ROOT)));
         long jmxUsageStart = (long) jmx0.getMaterializedRows().getFirst().getField(0);
         long jmxTotalUsage = (long) jmx0.getMaterializedRows().getFirst().getField(1);
         assertThat(jmxTotalUsage).isEqualTo(totalUsage);
@@ -3240,8 +3240,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         MaterializedResult jmx1 = computeActual(
                 jmxSession,
                 "select sum(currentUsage) from \"%s*%s\"".formatted(
-                        VaradaStatsWarmupDemoter.class.getPackageName(),
-                        VaradaStatsWarmupDemoter.class.getSimpleName().toLowerCase(Locale.ROOT)));
+                        WarmupDemoterStats.class.getPackageName(),
+                        WarmupDemoterStats.class.getSimpleName().toLowerCase(Locale.ROOT)));
         long jmxUsageEnd = (long) jmx1.getMaterializedRows().getFirst().getField(0);
         assertThat(jmxUsageEnd).isLessThan(jmxUsageStart);
         Integer deadObjectsDeletedCount = (Integer) res.entrySet()
@@ -3291,8 +3291,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         MaterializedResult jmx0 = computeActual(
                 jmxSession,
                 "select sum(number_of_runs), sum(deleted_by_low_priority) from \"%s*%s\"".formatted(
-                        VaradaStatsWarmupDemoter.class.getPackageName(),
-                        VaradaStatsWarmupDemoter.class.getSimpleName().toLowerCase(Locale.ROOT)));
+                        WarmupDemoterStats.class.getPackageName(),
+                        WarmupDemoterStats.class.getSimpleName().toLowerCase(Locale.ROOT)));
         long numOfRuns0 = (long) jmx0.getMaterializedRows().getFirst().getField(0);
         long numberOfDeletedByLowPrio0 = (long) jmx0.getMaterializedRows().getFirst().getField(1);
         buildAndWarmWideTable(10, true, 30, Optional.empty());
@@ -3307,8 +3307,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         MaterializedResult jmx1 = computeActual(
                 jmxSession,
                 "select sum(number_of_runs), sum(deleted_by_low_priority), sum(number_of_calls), sum(number_of_runs_fail) from \"%s*%s\"".formatted(
-                        VaradaStatsWarmupDemoter.class.getPackageName(),
-                        VaradaStatsWarmupDemoter.class.getSimpleName().toLowerCase(Locale.ROOT)));
+                        WarmupDemoterStats.class.getPackageName(),
+                        WarmupDemoterStats.class.getSimpleName().toLowerCase(Locale.ROOT)));
         long numOfRuns1 = (long) jmx1.getMaterializedRows().getFirst().getField(0);
         long numberOfDeletedByLowPrio1 = (long) jmx1.getMaterializedRows().getFirst().getField(1);
         long numberOfCalls = (long) jmx1.getMaterializedRows().getFirst().getField(2);
@@ -3321,8 +3321,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
             MaterializedResult jmx2 = computeActual(
                     jmxSession,
                     "select sum(number_of_runs), sum(deleted_by_low_priority), sum(number_of_calls), sum(number_of_runs_fail) from \"%s*%s\"".formatted(
-                            VaradaStatsWarmupDemoter.class.getPackageName(),
-                            VaradaStatsWarmupDemoter.class.getSimpleName().toLowerCase(Locale.ROOT)));
+                            WarmupDemoterStats.class.getPackageName(),
+                            WarmupDemoterStats.class.getSimpleName().toLowerCase(Locale.ROOT)));
             long numOfRuns2 = (long) jmx2.getMaterializedRows().getFirst().getField(0);
             long numberOfCalls2 = (long) jmx2.getMaterializedRows().getFirst().getField(2);
             long numberOfFails2 = (long) jmx2.getMaterializedRows().getFirst().getField(3);

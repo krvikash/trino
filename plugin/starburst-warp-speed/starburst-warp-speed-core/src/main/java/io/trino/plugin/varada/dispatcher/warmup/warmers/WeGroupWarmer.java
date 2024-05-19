@@ -29,7 +29,7 @@ import io.trino.plugin.varada.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.varada.dispatcher.warmup.WarmUtils;
 import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.storage.engine.StorageEngineConstants;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmupImportService;
+import io.trino.plugin.warp.gen.stats.WarmupImportServiceStats;
 import io.trino.spi.connector.ConnectorSession;
 import io.varada.cloudvendors.CloudVendorService;
 import io.varada.cloudvendors.config.CloudVendorConfig;
@@ -63,7 +63,7 @@ public class WeGroupWarmer
     private final StorageEngineConstants storageEngineConstants;
     private final RowGroupDataService rowGroupDataService;
     private final CloudVendorService cloudVendorService;
-    private final VaradaStatsWarmupImportService varadaStatsWarmupImportService;
+    private final WarmupImportServiceStats warmupImportServiceStats;
 
     @Inject
     public WeGroupWarmer(
@@ -79,7 +79,7 @@ public class WeGroupWarmer
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.cloudVendorService = requireNonNull(cloudVendorService);
-        this.varadaStatsWarmupImportService = metricsManager.registerMetric(new VaradaStatsWarmupImportService(WARMUP_IMPORTER_STAT_GROUP));
+        this.warmupImportServiceStats = metricsManager.registerMetric(new WarmupImportServiceStats(WARMUP_IMPORTER_STAT_GROUP));
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
                 globalConfig.getShapingLoggerThreshold(),
@@ -106,7 +106,7 @@ public class WeGroupWarmer
                     // footer validation
                     isNeedDownload = !rowGroupData.getDataValidation().equals(dataValidation);
                     if (isNeedDownload) {
-                        varadaStatsWarmupImportService.incimport_we_group_footer_validation();
+                        warmupImportServiceStats.incimport_we_group_footer_validation();
                         logger.debug("isNeedDownload rowGroupKey %s cloudPath '%s' local %s cloud %s",
                                 rowGroupKey, cloudPath, rowGroupData.getDataValidation(), dataValidation);
                     }
@@ -124,7 +124,7 @@ public class WeGroupWarmer
     private boolean download(RowGroupKey rowGroupKey, String cloudPath, String localFileName)
     {
         try {
-            varadaStatsWarmupImportService.incimport_we_group_download_started();
+            warmupImportServiceStats.incimport_we_group_download_started();
 
             FileUtils.createParentDirectories(new File(localFileName));
             cloudVendorService.downloadFileFromCloud(cloudPath, new File(localFileName));
@@ -132,12 +132,12 @@ public class WeGroupWarmer
             return true;
         }
         catch (Exception e) {
-            varadaStatsWarmupImportService.incimport_we_group_download_failed();
+            warmupImportServiceStats.incimport_we_group_download_failed();
             shapingLogger.error("failed to download weGroupFile rowGroupKey %s cloudPath '%s' message: %s", rowGroupKey, cloudPath, e.getMessage());
             return false;
         }
         finally {
-            varadaStatsWarmupImportService.incimport_we_group_download_accomplished();
+            warmupImportServiceStats.incimport_we_group_download_accomplished();
         }
     }
 
@@ -238,7 +238,7 @@ public class WeGroupWarmer
         logger.debug("importWeGroup rowGroupKey %s cloudPath '%s'", rowGroupKey, cloudPath);
         try {
             stopWatch.start();
-            varadaStatsWarmupImportService.incimport_row_group_count_started();
+            warmupImportServiceStats.incimport_row_group_count_started();
 
             isNeedDownloadResults = isNeedDownload(rowGroupKey, cloudPath);
             if (!isNeedDownloadResults.isNeedDownload) {
@@ -248,22 +248,22 @@ public class WeGroupWarmer
             String localFileName = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
             String localTmpFileName = localFileName + ".tmp";
             if (!download(rowGroupKey, cloudPath, localTmpFileName)) {
-                varadaStatsWarmupImportService.incimport_row_group_count_failed();
+                warmupImportServiceStats.incimport_row_group_count_failed();
                 return Optional.empty();
             }
 
             // at this point lastModified must be present, if it's not it's a bug
             RowGroupData rowGroupData = refreshRowGroupDataAfterImport(rowGroupKey, localTmpFileName, localFileName, isNeedDownloadResults.dataValidation);
             if (rowGroupData == null) {
-                varadaStatsWarmupImportService.incimport_row_group_count_failed();
+                warmupImportServiceStats.incimport_row_group_count_failed();
                 return Optional.empty();
             }
             return Optional.of(rowGroupData);
         }
         finally {
             stopWatch.stop();
-            varadaStatsWarmupImportService.addimport_row_group_total_time(stopWatch.getNanoTime());
-            varadaStatsWarmupImportService.incimport_row_group_count_accomplished();
+            warmupImportServiceStats.addimport_row_group_total_time(stopWatch.getNanoTime());
+            warmupImportServiceStats.incimport_row_group_count_accomplished();
         }
     }
 
@@ -284,7 +284,7 @@ public class WeGroupWarmer
             long startOffset = (long) warmUpElement.getStartOffset() * storageEngineConstants.getPageSize();
             int totalLength = (warmUpElement.getEndOffset() - warmUpElement.getStartOffset()) * storageEngineConstants.getPageSize();
 
-            varadaStatsWarmupImportService.incimport_elements_started();
+            warmupImportServiceStats.incimport_elements_started();
             try (InputStream inputStream = cloudVendorService.downloadRangeFromCloud(cloudPath, startOffset, totalLength);
                     RandomAccessFile outputRandomAccessFile = new RandomAccessFile(localFileName, "rw")) {
                 byte[] buffer = new byte[Math.min(totalLength, 8192 * 100)]; // PageSize * 100
@@ -301,23 +301,23 @@ public class WeGroupWarmer
                 isValidationOk = rowGroupData.getDataValidation().equals(dataValidation);
 
                 if (!isValidationOk) {
-                    varadaStatsWarmupImportService.incimport_elements_failed();
-                    varadaStatsWarmupImportService.incimport_element_2nd_footer_validation();
+                    warmupImportServiceStats.incimport_elements_failed();
+                    warmupImportServiceStats.incimport_element_2nd_footer_validation();
                     logger.debug("download (2nd footer validation) rowGroupKey %s cloudPath '%s' local %s cloud %s",
                             rowGroupData.getRowGroupKey(), cloudPath, rowGroupData.getDataValidation(), dataValidation);
                 }
             }
             catch (Exception e) {
-                varadaStatsWarmupImportService.incimport_elements_failed();
+                warmupImportServiceStats.incimport_elements_failed();
                 logger.error("failed to download warmUpElement rowGroupKey %s cloudPath '%s' message: %s",
                         rowGroupData.getRowGroupKey(), cloudPath, e.getMessage());
             }
             finally {
-                varadaStatsWarmupImportService.incimport_elements_accomplished();
+                warmupImportServiceStats.incimport_elements_accomplished();
             }
         }
         else {
-            varadaStatsWarmupImportService.incimport_element_1st_footer_validation();
+            warmupImportServiceStats.incimport_element_1st_footer_validation();
             logger.debug("download (1st footer validation) rowGroupKey %s cloudPath '%s' local %s cloud %s",
                     rowGroupData.getRowGroupKey(), cloudPath, rowGroupData.getDataValidation(), dataValidation);
         }

@@ -16,7 +16,7 @@ package io.trino.plugin.varada.storage.engine.nativeimpl;
 import com.google.inject.Singleton;
 import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.storage.engine.StorageEngine;
-import io.trino.plugin.warp.gen.stats.VaradaStatsMgr;
+import io.trino.plugin.warp.gen.stats.WarpStatsMgr;
 
 @Singleton
 public class DelegateStorageEngine
@@ -24,6 +24,6 @@ public class DelegateStorageEngine
 {
     public DelegateStorageEngine(MetricsManager metricsManager)
     {
-        new VaradaStatsMgr(metricsManager);
+        new WarpStatsMgr(metricsManager);
     }
 }

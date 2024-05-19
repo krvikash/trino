@@ -17,7 +17,7 @@ import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.varada.dispatcher.RowGroupCloseHandler;
 import io.trino.plugin.varada.dispatcher.model.RowGroupData;
 import io.trino.plugin.varada.dispatcher.query.data.collect.PrefilledQueryCollectData;
-import io.trino.plugin.warp.gen.stats.VaradaStatsDispatcherPageSource;
+import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
 import io.trino.spi.block.Block;
@@ -34,7 +34,7 @@ public class PrefilledPageSource
         implements ConnectorPageSource
 {
     private final ImmutableMap<Integer, PrefilledQueryCollectData> prefilledQueryCollectDataByBlockIndex;
-    private final VaradaStatsDispatcherPageSource stats;
+    private final DispatcherPageSourceStats stats;
 
     private final long startTime;
     private final RowGroupData rowGroupData;
@@ -44,7 +44,7 @@ public class PrefilledPageSource
     private boolean finished;
 
     public PrefilledPageSource(Map<Integer, PrefilledQueryCollectData> prefilledQueryCollectDataByBlockIndex,
-            VaradaStatsDispatcherPageSource stats,
+            DispatcherPageSourceStats stats,
             RowGroupData rowGroupData,
             int totalRecords,
             Optional<RowGroupCloseHandler> closeHandler)

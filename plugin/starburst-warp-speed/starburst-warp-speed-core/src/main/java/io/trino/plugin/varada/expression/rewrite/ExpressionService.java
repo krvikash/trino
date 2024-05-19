@@ -43,7 +43,7 @@ import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.type.TypeUtils;
 import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.PredicateType;
-import io.trino.plugin.warp.gen.stats.VaradaStatsPushdownPredicates;
+import io.trino.plugin.warp.gen.stats.PushdownPredicatesStats;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.expression.Call;
@@ -89,7 +89,7 @@ public class ExpressionService
     private final NativeExpressionRulesHandler nativeExpressionRulesHandler;
     private final GlobalConfig globalConfig;
     private final NativeConfig nativeConfig;
-    private final VaradaStatsPushdownPredicates varadaStatsPushdownPredicates;
+    private final PushdownPredicatesStats pushdownPredicatesStats;
 
     @Inject
     public ExpressionService(
@@ -104,7 +104,7 @@ public class ExpressionService
         this.nativeConfig = requireNonNull(nativeConfig);
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
         this.supportedFunctions = requireNonNull(supportedFunctions);
-        this.varadaStatsPushdownPredicates = metricsManager.registerMetric(VaradaStatsPushdownPredicates.create(PUSHDOWN_PREDICATES_STAT_GROUP));
+        this.pushdownPredicatesStats = metricsManager.registerMetric(PushdownPredicatesStats.create(PUSHDOWN_PREDICATES_STAT_GROUP));
         this.nativeExpressionRulesHandler = requireNonNull(nativeExpressionRulesHandler);
     }
 
@@ -149,7 +149,7 @@ public class ExpressionService
         }
         catch (Exception e) {
             logger.warn("failed to convert expression to warpExpression. expression=%s, error=%s", expression, e.getMessage());
-            varadaStatsPushdownPredicates.incfailed_rewrite_expression();
+            pushdownPredicatesStats.incfailed_rewrite_expression();
             res = Optional.empty();
         }
         return res;
@@ -165,7 +165,7 @@ public class ExpressionService
             if (varadaCall.getFunctionName().equals(OR_FUNCTION_NAME.getName()) ||
                     varadaCall.getFunctionName().equals(AND_FUNCTION_NAME.getName())) {
                 if (treeLevel == MAX_TREE_LEVEL) {
-                    varadaStatsPushdownPredicates.incunsupported_expression_depth();
+                    pushdownPredicatesStats.incunsupported_expression_depth();
                     return false;
                 }
                 treeLevel++;
@@ -242,7 +242,7 @@ public class ExpressionService
                 Set<ConnectorExpressionRule<Call, VaradaExpression>> rule = supportedFunctions.getRule(functionName);
                 if (rule.isEmpty()) {
                     res = Optional.empty();
-                    varadaStatsPushdownPredicates.incunsupported_functions();
+                    pushdownPredicatesStats.incunsupported_functions();
                     customStats.compute("unsupported_functions", (key, value) -> value == null ? 1L : value + 1);
                 }
                 else {
@@ -327,7 +327,7 @@ public class ExpressionService
         }
         if (!anyMatch) {
             customStats.compute("unsupported_functions", (key, value) -> value == null ? 1L : value + 1);
-            varadaStatsPushdownPredicates.incunsupported_functions();
+            pushdownPredicatesStats.incunsupported_functions();
         }
         return res;
     }

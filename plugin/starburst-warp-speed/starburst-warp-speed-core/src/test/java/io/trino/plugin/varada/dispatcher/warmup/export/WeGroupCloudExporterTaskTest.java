@@ -27,7 +27,7 @@ import io.trino.plugin.varada.dispatcher.model.WarmUpElement;
 import io.trino.plugin.varada.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.varada.dispatcher.warmup.WorkerTaskExecutorService;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmupExportService;
+import io.trino.plugin.warp.gen.stats.WarmupExportServiceStats;
 import io.varada.cloudvendors.CloudVendorService;
 import io.varada.cloudvendors.config.CloudVendorConfig;
 import org.junit.jupiter.api.Assertions;
@@ -61,7 +61,7 @@ public class WeGroupCloudExporterTaskTest
     private RowGroupDataService rowGroupDataService;
     private WarmupElementsCloudExporter warmupElementsCloudExporter;
     private GlobalConfig globalConfig;
-    private VaradaStatsWarmupExportService varadaStatsWarmupExportService;
+    private WarmupExportServiceStats warmupExportServiceStats;
 
     @BeforeEach
     void setUp()
@@ -90,7 +90,7 @@ public class WeGroupCloudExporterTaskTest
         cloudVendorConfig.setStoreType("s3");
         cloudVendorConfig.setStorePath("s3://bucket/");
 
-        varadaStatsWarmupExportService = new VaradaStatsWarmupExportService(WARMUP_EXPORTER_STAT_GROUP);
+        warmupExportServiceStats = new WarmupExportServiceStats(WARMUP_EXPORTER_STAT_GROUP);
 
         CloudVendorService cloudVendorService = mock(CloudVendorService.class);
         when(cloudVendorService.getLocation(anyString())).thenCallRealMethod();
@@ -112,14 +112,14 @@ public class WeGroupCloudExporterTaskTest
                 rowGroupDataService,
                 warmupElementsCloudExporter,
                 globalConfig,
-                varadaStatsWarmupExportService);
+                warmupExportServiceStats);
         task.run();
 
         verify(warmupElementsCloudExporter, times(1)).exportFile(any(RowGroupData.class), eq(cloudImportExportPath));
 
-        assertThat(varadaStatsWarmupExportService.getexport_row_group_accomplished()).isEqualTo(1);
-        assertThat(varadaStatsWarmupExportService.getexport_row_group_finished()).isEqualTo(1);
-        assertThat(varadaStatsWarmupExportService.getexport_skipped_due_key_demoted_row_group()).isZero();
+        assertThat(warmupExportServiceStats.getexport_row_group_accomplished()).isEqualTo(1);
+        assertThat(warmupExportServiceStats.getexport_row_group_finished()).isEqualTo(1);
+        assertThat(warmupExportServiceStats.getexport_skipped_due_key_demoted_row_group()).isZero();
 
         verify(workerTaskExecutorService, times(1)).taskFinished(eq(rowGroupKey));
         verify(rowGroupDataService, times(1)).save(rowGroupDataCaptor.capture());
@@ -140,16 +140,16 @@ public class WeGroupCloudExporterTaskTest
                 rowGroupDataService,
                 warmupElementsCloudExporter,
                 globalConfig,
-                varadaStatsWarmupExportService);
+                warmupExportServiceStats);
         task.run();
 
         verify(warmupElementsCloudExporter, times(1))
                 .exportFile(any(RowGroupData.class), eq(cloudImportExportPath));
 
-        assertThat(varadaStatsWarmupExportService.getexport_row_group_accomplished()).isEqualTo(0);
-        assertThat(varadaStatsWarmupExportService.getexport_row_group_failed()).isEqualTo(1);
-        assertThat(varadaStatsWarmupExportService.getexport_row_group_finished()).isEqualTo(1);
-        assertThat(varadaStatsWarmupExportService.getexport_skipped_due_key_demoted_row_group()).isZero();
+        assertThat(warmupExportServiceStats.getexport_row_group_accomplished()).isEqualTo(0);
+        assertThat(warmupExportServiceStats.getexport_row_group_failed()).isEqualTo(1);
+        assertThat(warmupExportServiceStats.getexport_row_group_finished()).isEqualTo(1);
+        assertThat(warmupExportServiceStats.getexport_skipped_due_key_demoted_row_group()).isZero();
 
         verify(workerTaskExecutorService, times(1)).taskFinished(eq(rowGroupKey));
     }

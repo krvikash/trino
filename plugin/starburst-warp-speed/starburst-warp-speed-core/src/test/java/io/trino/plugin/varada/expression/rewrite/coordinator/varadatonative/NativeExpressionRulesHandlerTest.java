@@ -31,7 +31,7 @@ import io.trino.plugin.varada.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
-import io.trino.plugin.warp.gen.stats.VaradaStatsPushdownPredicates;
+import io.trino.plugin.warp.gen.stats.PushdownPredicatesStats;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.expression.FunctionName;
 import io.trino.spi.expression.StandardFunctions;
@@ -169,7 +169,7 @@ class NativeExpressionRulesHandlerTest
         Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(invalidVaradaExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
         assertThat(result).isEqualTo(Optional.empty());
         assertPushdownStatsSum(1);
-        VaradaStatsPushdownPredicates pushdownPredicatesStats = (VaradaStatsPushdownPredicates) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
         assertThat(pushdownPredicatesStats.getfailed_rewrite_to_native_expression()).isEqualTo(1);
     }
 
@@ -186,7 +186,7 @@ class NativeExpressionRulesHandlerTest
         Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(varadaExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
         assertThat(result).isEqualTo(Optional.empty());
         assertPushdownStatsSum(1);
-        VaradaStatsPushdownPredicates pushdownPredicatesStats = (VaradaStatsPushdownPredicates) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
         assertThat(pushdownPredicatesStats.getunsupported_functions_native()).isEqualTo(1);
     }
 
@@ -278,7 +278,7 @@ class NativeExpressionRulesHandlerTest
         Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(varadaExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
         assertThat(result).isEmpty();
         assertPushdownStatsSum(1);
-        VaradaStatsPushdownPredicates pushdownPredicatesStats = (VaradaStatsPushdownPredicates) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
         assertThat(pushdownPredicatesStats.getunsupported_functions_native()).isEqualTo(1);
     }
 
@@ -320,7 +320,7 @@ class NativeExpressionRulesHandlerTest
                         new VaradaPrimitiveConstant(false, BOOLEAN)), BOOLEAN);
         Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(varadaExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
         assertThat(result).isEmpty();
-        VaradaStatsPushdownPredicates pushdownPredicatesStats = (VaradaStatsPushdownPredicates) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
         assertPushdownStatsSum(1);
         assertThat(pushdownPredicatesStats.getunsupported_functions_native()).isEqualTo(1);
     }
@@ -346,7 +346,7 @@ class NativeExpressionRulesHandlerTest
         Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(varadaExpression, columnType.getType(), Collections.emptySet(), customStats);
         assertThat(result).isEmpty();
         assertPushdownStatsSum(1);
-        VaradaStatsPushdownPredicates pushdownPredicatesStats = (VaradaStatsPushdownPredicates) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
         assertThat(pushdownPredicatesStats.getunsupported_functions_native()).isEqualTo(1);
     }
 
@@ -423,7 +423,7 @@ class NativeExpressionRulesHandlerTest
 
     private void assertPushdownStatsSum(int expectedCount)
     {
-        VaradaStatsPushdownPredicates pushdownPredicatesStats = (VaradaStatsPushdownPredicates) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
         assertThat(pushdownPredicatesStats.getCounters().values().stream().mapToLong(LongAdder::longValue).sum()).isEqualTo(expectedCount);
     }
 }

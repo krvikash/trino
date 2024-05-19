@@ -18,7 +18,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.metrics.MetricsManager;
-import io.trino.plugin.warp.gen.stats.VaradaStatsTxService;
+import io.trino.plugin.warp.gen.stats.TxServiceStats;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -36,7 +36,7 @@ public class StorageEngineTxService
     static final String STATS_GROUP_NAME = "txService";
 
     private final NativeConfig nativeConfig;
-    private final VaradaStatsTxService statsTxService;
+    private final TxServiceStats statsTxService;
     private final ConcurrentLinkedQueue<CompletableFuture<Boolean>> warmingBlockingFutures;
     private final AtomicInteger runningPageSources = new AtomicInteger();
     private final AtomicInteger runningLoaders = new AtomicInteger();
@@ -49,7 +49,7 @@ public class StorageEngineTxService
         this.nativeConfig = requireNonNull(nativeConfig);
         this.warmingBlockingFutures = new ConcurrentLinkedQueue<>();
 
-        statsTxService = metricsManager.registerMetric(VaradaStatsTxService.create(STATS_GROUP_NAME));
+        statsTxService = metricsManager.registerMetric(TxServiceStats.create(STATS_GROUP_NAME));
     }
 
     public boolean isLoaderAvailable()

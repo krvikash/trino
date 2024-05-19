@@ -30,7 +30,7 @@ import io.trino.plugin.varada.dispatcher.warmup.WorkerTaskExecutorService;
 import io.trino.plugin.varada.dispatcher.warmup.events.WarmingFinishedEvent;
 import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.util.VaradaInitializedServiceMarker;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmupExportService;
+import io.trino.plugin.warp.gen.stats.WarmupExportServiceStats;
 import io.varada.cloudvendors.CloudVendorService;
 import io.varada.cloudvendors.config.CloudVendorConfig;
 import io.varada.tools.util.StringUtils;
@@ -49,7 +49,7 @@ public class WarmupExportingService
     private final GlobalConfig globalConfig;
     private final CloudVendorConfig cloudVendorConfig;
     private final WorkerTaskExecutorService workerTaskExecutorService;
-    private final VaradaStatsWarmupExportService statsWarmupExportService;
+    private final WarmupExportServiceStats statsWarmupExportService;
     private final CloudVendorService cloudVendorService;
 
     @Inject
@@ -71,7 +71,7 @@ public class WarmupExportingService
         this.cloudVendorConfig = requireNonNull(cloudVendorConfig);
         this.cloudVendorService = requireNonNull(cloudVendorService);
         requireNonNull(eventBus).register(this);
-        this.statsWarmupExportService = requireNonNull(metricsManager).registerMetric(new VaradaStatsWarmupExportService(WARMUP_EXPORTER_STAT_GROUP));
+        this.statsWarmupExportService = requireNonNull(metricsManager).registerMetric(new WarmupExportServiceStats(WARMUP_EXPORTER_STAT_GROUP));
         if (isImportExportEnabled(globalConfig, cloudVendorConfig, null)) {
             varadaInitializedServiceRegistry.addService(this);
             validateS3ImportExportPath();

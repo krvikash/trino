@@ -24,7 +24,7 @@ import io.trino.plugin.varada.dispatcher.query.classifier.QueryClassifier;
 import io.trino.plugin.varada.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.varada.dispatcher.warmup.warmers.WarmingManager;
 import io.trino.plugin.varada.dispatcher.warmup.warmers.WarmupElementsCreator;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmingService;
+import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
@@ -53,7 +53,7 @@ public abstract class WorkerWarmerBaseTask
     protected final List<ColumnHandle> columns;
     protected final DispatcherSplit dispatcherSplit;
     protected final WorkerWarmingService workerWarmingService;
-    protected final VaradaStatsWarmingService statsWarmingService;
+    protected final WarmingServiceStats statsWarmingService;
     protected final DynamicFilter dynamicFilter;
     protected final RowGroupDataService rowGroupDataService;
     protected final QueryClassifier queryClassifier;
@@ -65,7 +65,7 @@ public abstract class WorkerWarmerBaseTask
 
     public WorkerWarmerBaseTask(WarmExecutionTaskFactory warmExecutionTaskFactory,
             WorkerTaskExecutorService workerTaskExecutorService,
-            VaradaStatsWarmingService statsWarmingService,
+            WarmingServiceStats statsWarmingService,
             WarmingManager warmingManager,
             WorkerWarmingService workerWarmingService,
             ConnectorPageSourceProvider connectorPageSourceProvider,

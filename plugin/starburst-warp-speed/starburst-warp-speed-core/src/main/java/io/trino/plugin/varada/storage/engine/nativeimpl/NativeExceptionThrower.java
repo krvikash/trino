@@ -20,7 +20,7 @@ import io.trino.plugin.varada.VaradaErrorCode;
 import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.gen.errorcodes.ErrorCodes;
-import io.trino.plugin.warp.gen.stats.VaradaStatsExceptionThrower;
+import io.trino.plugin.warp.gen.stats.ExceptionThrowerStats;
 import io.trino.spi.TrinoException;
 
 import java.util.ArrayList;
@@ -39,7 +39,7 @@ public class NativeExceptionThrower
         implements ExceptionThrower
 {
     private static final Logger logger = Logger.get(NativeExceptionThrower.class);
-    private final VaradaStatsExceptionThrower varadaStatsExceptionThrower;
+    private final ExceptionThrowerStats exceptionThrowerStats;
     private final Map<Integer, ErrorCodes> errorCodesMap = new HashMap<>();
     private final List<Consumer<ErrorCodes>> errorCodesConsumers = new ArrayList<>();
 
@@ -49,8 +49,8 @@ public class NativeExceptionThrower
         for (ErrorCodes errorCode : ErrorCodes.values()) {
             errorCodesMap.put(errorCode.getCode(), errorCode);
         }
-        varadaStatsExceptionThrower = VaradaStatsExceptionThrower.create("exception-thrower");
-        metricsManager.registerMetric(this.varadaStatsExceptionThrower);
+        exceptionThrowerStats = ExceptionThrowerStats.create("exception-thrower");
+        metricsManager.registerMetric(this.exceptionThrowerStats);
         nativeInit();
     }
 
@@ -59,10 +59,10 @@ public class NativeExceptionThrower
     {
         ErrorCodes errorCode = errorCodesMap.get(code);
         if (errorCode.getUnrecoverable()) {
-            varadaStatsExceptionThrower.incnonRecoverable();
+            exceptionThrowerStats.incnonRecoverable();
         }
         else {
-            varadaStatsExceptionThrower.increcoverable();
+            exceptionThrowerStats.increcoverable();
         }
 
         logger.debug("calling errorCodesConsumers[%d] with %s", errorCodesConsumers.size(), errorCode);

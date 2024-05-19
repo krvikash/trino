@@ -50,7 +50,7 @@ import io.trino.plugin.varada.type.TypeUtils;
 import io.trino.plugin.varada.util.FailureGeneratorInvocationHandler;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmingService;
+import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.spi.NodeManager;
 import io.trino.spi.Page;
 import io.trino.spi.block.IntArrayBlock;
@@ -102,7 +102,7 @@ public class WarmingManagerTest
     private List<RecordData> recordDataList;
     private GlobalConfig globalConfig;
     private CloudVendorConfig cloudVendorConfig;
-    private VaradaStatsWarmingService varadaStatsWarmingService;
+    private WarmingServiceStats warmingServiceStats;
     private StorageEngine storageEngine;
     private ConnectorSession connectorSession;
     private DispatcherTableHandle dispatcherTableHandle;
@@ -125,7 +125,7 @@ public class WarmingManagerTest
         globalConfig.setLocalStorePath(
                 Files.createTempDirectory(this.getClass().getName()).toFile().getAbsolutePath());
         cloudVendorConfig = new CloudVendorConfig();
-        varadaStatsWarmingService = VaradaStatsWarmingService.create(WARMING_SERVICE_STAT_GROUP);
+        warmingServiceStats = WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP);
         storageEngine = new StubsStorageEngine();
         connectorSession = mock(ConnectorSession.class);
         when(connectorSession.getProperty(eq("warm_data_varchar_max_length"), any())).thenReturn(1000);
@@ -150,7 +150,7 @@ public class WarmingManagerTest
                 metricsManager,
                 nodeManager,
                 mock(ConnectorSync.class)));
-        //Whitebox.setInternalState(rowGroupDataService, "varadaStatsWarmingService", varadaStatsWarmingService);
+        //Whitebox.setInternalState(rowGroupDataService, "warmingServiceStats", warmingServiceStats);
 
         // Mock get(rowGroupKey) to return the last saved RowGroupData
         ArgumentCaptor<RowGroupData> savedRowGroupData = ArgumentCaptor.forClass(RowGroupData.class);
@@ -165,10 +165,10 @@ public class WarmingManagerTest
     private MetricsManager mockMetricsManager()
     {
         MetricsManager metricsManager = mock(MetricsManager.class);
-        when(metricsManager.registerMetric(any())).thenAnswer(invocation -> invocation.getArguments()[0] instanceof VaradaStatsWarmingService
-                ? varadaStatsWarmingService
+        when(metricsManager.registerMetric(any())).thenAnswer(invocation -> invocation.getArguments()[0] instanceof WarmingServiceStats
+                ? warmingServiceStats
                 : invocation.getArguments()[0]);
-        when(metricsManager.get(VaradaStatsWarmingService.createKey(WARMING_SERVICE_STAT_GROUP))).thenReturn(varadaStatsWarmingService);
+        when(metricsManager.get(WarmingServiceStats.createKey(WARMING_SERVICE_STAT_GROUP))).thenReturn(warmingServiceStats);
         return metricsManager;
     }
 
@@ -428,7 +428,7 @@ public class WarmingManagerTest
         RowGroupData rowGroupData = rowGroupDataService.get(rowGroupKey);
         int alreadyExistWarmUpElements = rowGroupData == null ? 0 : rowGroupData.getWarmUpElements().size();
         int alreadyValidWarmUpElements = rowGroupData == null ? 0 : rowGroupData.getValidWarmUpElements().size();
-        long alreadySuccessRetryCount = varadaStatsWarmingService.getwarm_success_retry_warmup_element();
+        long alreadySuccessRetryCount = warmingServiceStats.getwarm_success_retry_warmup_element();
         long expectedNewWarmUpElements = countNewWarmUpElements(dataToWarm, rowGroupData);
         long expectedRetriedSuccessfully = countRetryWarmUpElements(dataToWarm, rowGroupData);
 
@@ -437,7 +437,7 @@ public class WarmingManagerTest
         assertThat(newRowGroupData.getRowGroupKey()).isEqualTo(rowGroupKey);
         assertThat(newRowGroupData.getWarmUpElements().size()).isEqualTo(alreadyExistWarmUpElements + expectedNewWarmUpElements);
         assertThat(newRowGroupData.getValidWarmUpElements().size()).isEqualTo(alreadyValidWarmUpElements + expectedNewWarmUpElements + expectedRetriedSuccessfully);
-        assertThat(varadaStatsWarmingService.getwarm_success_retry_warmup_element()).isEqualTo(alreadySuccessRetryCount + expectedRetriedSuccessfully);
+        assertThat(warmingServiceStats.getwarm_success_retry_warmup_element()).isEqualTo(alreadySuccessRetryCount + expectedRetriedSuccessfully);
     }
 
     private RowGroupData executeWarmAndFail(WarmData dataToWarm)

@@ -20,7 +20,7 @@ import io.trino.plugin.varada.config.NativeConfig;
 import io.trino.plugin.varada.config.WarmupDemoterConfig;
 import io.trino.plugin.varada.dispatcher.model.RowGroupKey;
 import io.trino.plugin.varada.metrics.MetricsManager;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWorkerTaskExecutorService;
+import io.trino.plugin.warp.gen.stats.WorkerTaskExecutorServiceStats;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.opentest4j.AssertionFailedError;
@@ -37,12 +37,12 @@ import static org.mockito.Mockito.when;
 public class WorkerTaskExecutorServiceTest
 {
     private WorkerTaskExecutorService taskExecutorService;
-    private VaradaStatsWorkerTaskExecutorService statsWorkerTaskExecutorService;
+    private WorkerTaskExecutorServiceStats statsWorkerTaskExecutorService;
 
     @BeforeEach
     public void before()
     {
-        this.statsWorkerTaskExecutorService = new VaradaStatsWorkerTaskExecutorService(WORKER_TASK_EXECUTOR_STAT_GROUP);
+        this.statsWorkerTaskExecutorService = new WorkerTaskExecutorServiceStats(WORKER_TASK_EXECUTOR_STAT_GROUP);
         MetricsManager metricManager = mock(MetricsManager.class);
         when(metricManager.registerMetric(any())).thenReturn(statsWorkerTaskExecutorService);
         this.taskExecutorService = new WorkerTaskExecutorService(

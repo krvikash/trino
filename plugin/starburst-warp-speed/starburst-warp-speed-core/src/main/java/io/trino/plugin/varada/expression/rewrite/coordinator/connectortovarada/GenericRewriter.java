@@ -23,7 +23,7 @@ import io.trino.plugin.jdbc.expression.MatchContext;
 import io.trino.plugin.varada.expression.VaradaCall;
 import io.trino.plugin.varada.expression.VaradaExpression;
 import io.trino.plugin.varada.expression.VaradaVariable;
-import io.trino.plugin.warp.gen.stats.VaradaStatsPushdownPredicates;
+import io.trino.plugin.warp.gen.stats.PushdownPredicatesStats;
 import io.trino.spi.expression.Call;
 import io.trino.spi.expression.ConnectorExpression;
 import io.trino.spi.expression.Constant;
@@ -47,15 +47,15 @@ class GenericRewriter
     private final ExpressionPattern expressionPattern;
     private final String originalExpression;
     private final boolean allowCompositeExpression;
-    private final VaradaStatsPushdownPredicates varadaStatsPushdownPredicates;
+    private final PushdownPredicatesStats pushdownPredicatesStats;
 
     GenericRewriter(Map<String, Set<String>> typeClasses,
             String expressionPattern,
             boolean allowCompositeExpression,
-            VaradaStatsPushdownPredicates varadaStatsPushdownPredicates)
+            PushdownPredicatesStats pushdownPredicatesStats)
     {
         this.allowCompositeExpression = allowCompositeExpression;
-        this.varadaStatsPushdownPredicates = varadaStatsPushdownPredicates;
+        this.pushdownPredicatesStats = pushdownPredicatesStats;
         ExpressionMappingParser parser = new ExpressionMappingParser(typeClasses);
         this.expressionPattern = parser.createExpressionPattern(expressionPattern);
         this.originalExpression = expressionPattern;
@@ -98,7 +98,7 @@ class GenericRewriter
                         return Optional.empty();
                     }
                     else if (rewrittenExpression.get() instanceof VaradaCall && !allowCompositeExpression) {
-                        varadaStatsPushdownPredicates.incunsupported_functions_composite();
+                        pushdownPredicatesStats.incunsupported_functions_composite();
                         return Optional.empty();
                     }
                     if (rewrittenExpression.get() instanceof VaradaVariable variable) {
@@ -107,7 +107,7 @@ class GenericRewriter
                             arguments.add(rewrittenExpression.get());
                         }
                         else {
-                            varadaStatsPushdownPredicates.incunsupported_functions();
+                            pushdownPredicatesStats.incunsupported_functions();
                             return Optional.empty();
                         }
                     }
@@ -116,7 +116,7 @@ class GenericRewriter
                     }
                 }
                 else {
-                    varadaStatsPushdownPredicates.incunsupported_functions();
+                    pushdownPredicatesStats.incunsupported_functions();
                     logger.error("Unsupported expression value: %s (%s)", value, value.getClass());
                     return Optional.empty();
                 }

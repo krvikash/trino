@@ -21,7 +21,7 @@ import io.trino.plugin.varada.dispatcher.model.RowGroupKey;
 import io.trino.plugin.varada.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.varada.dispatcher.warmup.WorkerSubmittableTask;
 import io.trino.plugin.varada.dispatcher.warmup.WorkerTaskExecutorService;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmupExportService;
+import io.trino.plugin.warp.gen.stats.WarmupExportServiceStats;
 import io.varada.tools.util.StopWatch;
 
 import java.util.UUID;
@@ -40,7 +40,7 @@ public class WeGroupCloudExporterTask
     private final RowGroupDataService rowGroupDataService;
     private final WarmupElementsCloudExporter warmupElementsCloudExporter;
     private final GlobalConfig globalConfig;
-    private final VaradaStatsWarmupExportService statsWarmupExportService;
+    private final WarmupExportServiceStats statsWarmupExportService;
 
     public WeGroupCloudExporterTask(RowGroupKey rowGroupKey,
             String cloudImportExportPath,
@@ -48,7 +48,7 @@ public class WeGroupCloudExporterTask
             RowGroupDataService rowGroupDataService,
             WarmupElementsCloudExporter warmupElementsCloudExporter,
             GlobalConfig globalConfig,
-            VaradaStatsWarmupExportService statsWarmupExportService)
+            WarmupExportServiceStats statsWarmupExportService)
     {
         this.rowGroupKey = requireNonNull(rowGroupKey);
         this.cloudImportExportPath = requireNonNull(cloudImportExportPath);

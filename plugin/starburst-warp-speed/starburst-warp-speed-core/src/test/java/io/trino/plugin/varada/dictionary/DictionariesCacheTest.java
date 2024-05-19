@@ -24,7 +24,7 @@ import io.trino.plugin.varada.dispatcher.model.DictionaryKey;
 import io.trino.plugin.varada.dispatcher.model.SchemaTableColumn;
 import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
-import io.trino.plugin.warp.gen.stats.VaradaStatsDictionary;
+import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.spi.connector.SchemaTableName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,7 +44,7 @@ import static org.mockito.Mockito.when;
 class DictionariesCacheTest
 {
     private DictionariesCache dictionariesCache;
-    private VaradaStatsDictionary varadaStatsDictionary;
+    private DictionaryStats dictionaryStats;
     private AttachDictionaryService attachDictionaryService;
 
     @BeforeEach
@@ -60,7 +60,7 @@ class DictionariesCacheTest
                 dictionaryConfig,
                 metricsManager,
                 attachDictionaryService);
-        varadaStatsDictionary = (VaradaStatsDictionary) metricsManager.get(VaradaStatsDictionary.createKey(DICTIONARY_STAT_GROUP));
+        dictionaryStats = (DictionaryStats) metricsManager.get(DictionaryStats.createKey(DICTIONARY_STAT_GROUP));
     }
 
     @Test
@@ -71,8 +71,8 @@ class DictionariesCacheTest
                 RecTypeCode.REC_TYPE_VARCHAR);
         writeDictionary1.get(Slices.wrappedBuffer(("number=" + 1).getBytes(Charset.defaultCharset())));
 
-        assertThat(varadaStatsDictionary.getwrite_dictionaries_count()).isEqualTo(1);
-        assertThat(varadaStatsDictionary.getdictionary_active_size()).isEqualTo(1);
+        assertThat(dictionaryStats.getwrite_dictionaries_count()).isEqualTo(1);
+        assertThat(dictionaryStats.getdictionary_active_size()).isEqualTo(1);
 
         WriteDictionary writeDictionary2 = dictionariesCache.getWriteDictionary(
                 buildDictionaryKey("2"),
@@ -83,25 +83,25 @@ class DictionariesCacheTest
         });
         writeDictionary2.get(Slices.wrappedBuffer(("number=" + 1).getBytes(Charset.defaultCharset())));
 
-        assertThat(varadaStatsDictionary.getwrite_dictionaries_count()).isEqualTo(2);
-        assertThat(varadaStatsDictionary.getdictionary_active_size()).isEqualTo(2);
+        assertThat(dictionaryStats.getwrite_dictionaries_count()).isEqualTo(2);
+        assertThat(dictionaryStats.getdictionary_active_size()).isEqualTo(2);
 
         WriteDictionary writeDictionary3 = dictionariesCache.getWriteDictionary(
                 buildDictionaryKey("3"),
                 RecTypeCode.REC_TYPE_VARCHAR);
         writeDictionary3.get(Slices.wrappedBuffer(("number=" + 1).getBytes(Charset.defaultCharset())));
 
-        assertThat(varadaStatsDictionary.getwrite_dictionaries_count()).isEqualTo(3);
-        assertThat(varadaStatsDictionary.getdictionary_active_size()).isEqualTo(3);
-        assertThat(varadaStatsDictionary.getdictionary_entries()).isEqualTo(3);
+        assertThat(dictionaryStats.getwrite_dictionaries_count()).isEqualTo(3);
+        assertThat(dictionaryStats.getdictionary_active_size()).isEqualTo(3);
+        assertThat(dictionaryStats.getdictionary_entries()).isEqualTo(3);
 
         dictionariesCache.releaseDictionary(writeDictionary1.getDictionaryKey());
         dictionariesCache.releaseDictionary(writeDictionary2.getDictionaryKey());
         dictionariesCache.releaseDictionary(writeDictionary3.getDictionaryKey());
 
-        assertThat(varadaStatsDictionary.getdictionary_entries()).isEqualTo(2);
-        assertThat(varadaStatsDictionary.getdictionary_active_size()).isEqualTo(0);
-        assertThat(varadaStatsDictionary.getdictionary_evicted_entries()).isEqualTo(1);
+        assertThat(dictionaryStats.getdictionary_entries()).isEqualTo(2);
+        assertThat(dictionaryStats.getdictionary_active_size()).isEqualTo(0);
+        assertThat(dictionaryStats.getdictionary_evicted_entries()).isEqualTo(1);
 
         assertThatThrownBy(() -> dictionariesCache.getActiveDataValueDictionary(writeDictionary1.getDictionaryKey()))
                 .isInstanceOf(RuntimeException.class)
@@ -130,9 +130,9 @@ class DictionariesCacheTest
                 anyInt(),
                 anyString())).thenReturn((DataValueDictionary) writeDictionary2);
 
-        long loadedToCache = varadaStatsDictionary.getdictionary_loaded_elements_count();
+        long loadedToCache = dictionaryStats.getdictionary_loaded_elements_count();
 
-        assertThat(loadedToCache).isEqualTo(varadaStatsDictionary.getdictionary_loaded_elements_count());
+        assertThat(loadedToCache).isEqualTo(dictionaryStats.getdictionary_loaded_elements_count());
 
         dictionariesCache.getReadDictionary(
                 writeDictionary2.getDictionaryKey(),
@@ -142,7 +142,7 @@ class DictionariesCacheTest
                 0,
                 "rowGroupFilePath2");
 
-        assertThat(loadedToCache + 1).isEqualTo(varadaStatsDictionary.getdictionary_loaded_elements_count());
+        assertThat(loadedToCache + 1).isEqualTo(dictionaryStats.getdictionary_loaded_elements_count());
     }
 
     @Test
@@ -153,8 +153,8 @@ class DictionariesCacheTest
                 RecTypeCode.REC_TYPE_VARCHAR);
         writeDictionary1.get(Slices.wrappedBuffer(("number=" + 1).getBytes(Charset.defaultCharset())));
 
-        assertThat(varadaStatsDictionary.getwrite_dictionaries_count()).isEqualTo(1);
-        assertThat(varadaStatsDictionary.getdictionary_active_size()).isEqualTo(1);
+        assertThat(dictionaryStats.getwrite_dictionaries_count()).isEqualTo(1);
+        assertThat(dictionaryStats.getdictionary_active_size()).isEqualTo(1);
 
         WriteDictionary writeDictionary2 = dictionariesCache.getWriteDictionary(
                 buildDictionaryKey("2"),
@@ -168,8 +168,8 @@ class DictionariesCacheTest
                 .forEach(i -> writeDictionary2.get(Slices.wrappedBuffer(("number=" + i).getBytes(Charset.defaultCharset()))));
         writeDictionary2.get(Slices.wrappedBuffer(("number=" + 1).getBytes(Charset.defaultCharset())));
 
-        assertThat(varadaStatsDictionary.getwrite_dictionaries_count()).isEqualTo(2);
-        assertThat(varadaStatsDictionary.getdictionary_active_size()).isEqualTo(2);
+        assertThat(dictionaryStats.getwrite_dictionaries_count()).isEqualTo(2);
+        assertThat(dictionaryStats.getdictionary_active_size()).isEqualTo(2);
 
         WriteDictionary writeDictionary3 = dictionariesCache.getWriteDictionary(
                 buildDictionaryKey("3"),
@@ -181,9 +181,9 @@ class DictionariesCacheTest
         dictionariesCache.releaseDictionary(writeDictionary2.getDictionaryKey());
         dictionariesCache.releaseDictionary(writeDictionary3.getDictionaryKey());
 
-        assertThat(varadaStatsDictionary.getwrite_dictionaries_count()).isEqualTo(3);
-        assertThat(varadaStatsDictionary.getdictionary_active_size()).isEqualTo(1);
-        assertThat(varadaStatsDictionary.getdictionary_entries()).isEqualTo(3);
+        assertThat(dictionaryStats.getwrite_dictionaries_count()).isEqualTo(3);
+        assertThat(dictionaryStats.getdictionary_active_size()).isEqualTo(1);
+        assertThat(dictionaryStats.getdictionary_entries()).isEqualTo(3);
 
         assertThat(dictionariesCache.getActiveDataValueDictionary(writeDictionary2.getDictionaryKey()))
                 .isEqualTo(writeDictionary2);
@@ -202,9 +202,9 @@ class DictionariesCacheTest
                         .withMaxRetries(100)
                         .build())
                 .run(() -> {
-                    assertThat(varadaStatsDictionary.getdictionary_entries()).isEqualTo(1);
-                    assertThat(varadaStatsDictionary.getdictionary_evicted_entries()).isEqualTo(2);
-                    assertThat(varadaStatsDictionary.getdictionary_active_size()).isEqualTo(0);
+                    assertThat(dictionaryStats.getdictionary_entries()).isEqualTo(1);
+                    assertThat(dictionaryStats.getdictionary_evicted_entries()).isEqualTo(2);
+                    assertThat(dictionaryStats.getdictionary_active_size()).isEqualTo(0);
                 });
 
         assertThat(dictionariesCache.getReadDictionary(

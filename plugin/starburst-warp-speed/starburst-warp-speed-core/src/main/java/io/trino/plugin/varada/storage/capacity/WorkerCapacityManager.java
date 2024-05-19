@@ -25,7 +25,7 @@ import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.storage.engine.StorageEngineConstants;
 import io.trino.plugin.varada.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.varada.util.VaradaInitializedServiceMarker;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmupDemoter;
+import io.trino.plugin.warp.gen.stats.WarmupDemoterStats;
 import io.trino.spi.TrinoException;
 import io.varada.tools.util.PathUtils;
 import io.varada.tools.util.StopWatch;
@@ -50,7 +50,7 @@ public class WorkerCapacityManager
     private final GlobalConfig globalConfig;
     private final WarmupDemoterConfig warmupDemoterConfig;
     private final StorageEngineConstants storageEngineConstants;
-    private final VaradaStatsWarmupDemoter statsWarmupDemoter;
+    private final WarmupDemoterStats statsWarmupDemoter;
     private final NativeStorageStateHandler nativeStorageStateHandler;
     private final AtomicBoolean workerInitialized = new AtomicBoolean();
     private final AtomicInteger executingTxCount = new AtomicInteger();
@@ -71,7 +71,7 @@ public class WorkerCapacityManager
         this.warmupDemoterConfig = requireNonNull(warmupDemoterConfig);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
-        statsWarmupDemoter = metricsManager.registerMetric(VaradaStatsWarmupDemoter.create(WarmupDemoterService.WARMUP_DEMOTER_STAT_GROUP));
+        statsWarmupDemoter = metricsManager.registerMetric(WarmupDemoterStats.create(WarmupDemoterService.WARMUP_DEMOTER_STAT_GROUP));
         varadaInitializedServiceRegistry.addService(this);
     }
 

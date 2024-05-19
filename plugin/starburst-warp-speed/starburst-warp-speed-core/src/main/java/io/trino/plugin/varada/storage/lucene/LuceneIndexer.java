@@ -21,7 +21,7 @@ import io.trino.plugin.varada.VaradaErrorCode;
 import io.trino.plugin.varada.storage.engine.StorageEngine;
 import io.trino.plugin.varada.storage.engine.StorageEngineConstants;
 import io.trino.plugin.varada.storage.juffers.WriteJuffersWarmUpElement;
-import io.trino.plugin.warp.gen.stats.VaradaStatsLuceneIndexer;
+import io.trino.plugin.warp.gen.stats.LuceneIndexerStats;
 import io.trino.spi.TrinoException;
 import io.varada.tools.util.StopWatch;
 import org.apache.lucene.analysis.Analyzer;
@@ -59,7 +59,7 @@ public class LuceneIndexer
     private final StorageEngineConstants storageEngineConstants;
     private final WriteJuffersWarmUpElement juffersWE;
     private IndexWriter indexWriter;
-    private final VaradaStatsLuceneIndexer stats;
+    private final LuceneIndexerStats stats;
     private final StopWatch stopWatch;
     private final Document doc = new Document();
     private boolean failedCommit;
@@ -68,7 +68,7 @@ public class LuceneIndexer
     public LuceneIndexer(StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
             WriteJuffersWarmUpElement juffersWE,
-            VaradaStatsLuceneIndexer luceneStats)
+            LuceneIndexerStats luceneStats)
     {
         this.storageEngine = storageEngine;
         this.storageEngineConstants = storageEngineConstants;

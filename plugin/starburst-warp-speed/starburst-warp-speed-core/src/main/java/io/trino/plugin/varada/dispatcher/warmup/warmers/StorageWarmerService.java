@@ -31,7 +31,7 @@ import io.trino.plugin.varada.storage.engine.StorageEngine;
 import io.trino.plugin.varada.storage.flows.FlowType;
 import io.trino.plugin.varada.storage.flows.FlowsSequencer;
 import io.trino.plugin.varada.storage.write.PageSink;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmingService;
+import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import org.apache.commons.io.FileUtils;
 
 import java.io.File;
@@ -60,7 +60,7 @@ public class StorageWarmerService
     private final WarmupDemoterService warmupDemoterService;
     private final StorageEngineTxService storageEngineTxService;
     private final FlowsSequencer flowsSequencer;
-    private final VaradaStatsWarmingService statsWarmingService;
+    private final WarmingServiceStats statsWarmingService;
 
     @Inject
     public StorageWarmerService(RowGroupDataService rowGroupDataService,
@@ -79,7 +79,7 @@ public class StorageWarmerService
         this.warmupDemoterService = requireNonNull(warmupDemoterService);
         this.storageEngineTxService = requireNonNull(storageEngineTxService);
         this.flowsSequencer = requireNonNull(flowsSequencer);
-        this.statsWarmingService = metricsManager.registerMetric(VaradaStatsWarmingService.create(WARMING_SERVICE_STAT_GROUP));
+        this.statsWarmingService = metricsManager.registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
     }
 
     public void createFile(RowGroupKey rowGroupKey)

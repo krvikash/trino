@@ -23,7 +23,7 @@ import io.trino.plugin.varada.expression.VaradaVariable;
 import io.trino.plugin.varada.expression.rewrite.ExpressionPatterns;
 import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.PredicateType;
-import io.trino.plugin.warp.gen.stats.VaradaStatsPushdownPredicates;
+import io.trino.plugin.warp.gen.stats.PushdownPredicatesStats;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.SortedRangeSet;
@@ -56,12 +56,12 @@ class InNativeRewriter
             .with(ExpressionPatterns.argumentCount().equalTo(2))
             .with(ExpressionPatterns.argument(1).matching(ExpressionPatterns.call().with(ExpressionPatterns.functionName().equalTo(ARRAY_CONSTRUCTOR_FUNCTION_NAME.getName()))));
     private final NativeExpressionRulesHandler nativeExpressionRulesHandler;
-    private final VaradaStatsPushdownPredicates varadaStatsPushdownPredicates;
+    private final PushdownPredicatesStats pushdownPredicatesStats;
 
-    InNativeRewriter(NativeExpressionRulesHandler nativeExpressionRulesHandler, VaradaStatsPushdownPredicates varadaStatsPushdownPredicates)
+    InNativeRewriter(NativeExpressionRulesHandler nativeExpressionRulesHandler, PushdownPredicatesStats pushdownPredicatesStats)
     {
         this.nativeExpressionRulesHandler = requireNonNull(nativeExpressionRulesHandler);
-        this.varadaStatsPushdownPredicates = requireNonNull(varadaStatsPushdownPredicates);
+        this.pushdownPredicatesStats = requireNonNull(pushdownPredicatesStats);
     }
 
     @Override
@@ -152,7 +152,7 @@ class InNativeRewriter
         }
         catch (Exception e) {
             logger.debug("failed to convertInFunction. error=%s, varadaExpression=%s", e, varadaExpression);
-            varadaStatsPushdownPredicates.incunsupported_functions_native();
+            pushdownPredicatesStats.incunsupported_functions_native();
             valid = false;
         }
         return valid;

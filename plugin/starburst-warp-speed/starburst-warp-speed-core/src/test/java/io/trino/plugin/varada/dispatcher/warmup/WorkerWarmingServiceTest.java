@@ -41,7 +41,7 @@ import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.warmup.model.PartitionValueWarmupPredicateRule;
 import io.trino.plugin.varada.warmup.model.WarmupRule;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmingService;
+import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SchemaTableName;
@@ -98,7 +98,7 @@ public class WorkerWarmingServiceTest
     private static final VaradaColumn COLUMN2 = new RegularColumn("c2");
     private final SchemaTableName defaultSchemaTableName = new SchemaTableName("database", "table");
     private MetricsManager metricsManager;
-    private VaradaStatsWarmingService varadaStatsWarmingService;
+    private WarmingServiceStats warmingServiceStats;
     private WorkerTaskExecutorService workerTaskExecutorService;
     private WarmExecutionTaskFactory warmExecutionTaskFactory;
     private WarmupDemoterConfig warmupDemoterConfig;
@@ -110,9 +110,9 @@ public class WorkerWarmingServiceTest
     public void before()
     {
         metricsManager = mock(MetricsManager.class);
-        varadaStatsWarmingService = VaradaStatsWarmingService.create(WARMING_SERVICE_STAT_GROUP);
-        when(metricsManager.registerMetric(any())).thenReturn(varadaStatsWarmingService);
-        when(metricsManager.get(any())).thenReturn(varadaStatsWarmingService);
+        warmingServiceStats = WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP);
+        when(metricsManager.registerMetric(any())).thenReturn(warmingServiceStats);
+        when(metricsManager.get(any())).thenReturn(warmingServiceStats);
         workerTaskExecutorService = mock(WorkerTaskExecutorService.class);
         warmExecutionTaskFactory = mock(WarmExecutionTaskFactory.class);
         ProxyExecutionTask proxyExecutionTask = mock(ProxyExecutionTask.class);
@@ -421,7 +421,7 @@ public class WorkerWarmingServiceTest
                 DefaultWarmingTestState.WITHOUT_DEFAULT_WARMING,
                 warmupRules);
         assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.NOTHING_TO_WARM);
-        assertThat(varadaStatsWarmingService.getall_elements_warmed_or_skipped()).isEqualTo(1);
+        assertThat(warmingServiceStats.getall_elements_warmed_or_skipped()).isEqualTo(1);
     }
 
     /**
@@ -525,7 +525,7 @@ public class WorkerWarmingServiceTest
                 DefaultWarmingTestState.WITH_DEFAULT_WARMING,
                 Collections.emptyList());
         assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.NOTHING_TO_WARM);
-        assertThat(varadaStatsWarmingService.getempty_column_list()).isEqualTo(1);
+        assertThat(warmingServiceStats.getempty_column_list()).isEqualTo(1);
     }
 
     @Test
@@ -710,7 +710,7 @@ public class WorkerWarmingServiceTest
                 DefaultWarmingTestState.WITHOUT_DEFAULT_WARMING,
                 warmupRules);
         assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.NOTHING_TO_WARM);
-        assertThat(varadaStatsWarmingService.getwarm_skip_temporary_failed_warmup_element()).isEqualTo(1);
+        assertThat(warmingServiceStats.getwarm_skip_temporary_failed_warmup_element()).isEqualTo(1);
     }
 
     /**
@@ -775,7 +775,7 @@ public class WorkerWarmingServiceTest
                 DefaultWarmingTestState.WITHOUT_DEFAULT_WARMING,
                 warmupRules);
         assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.NOTHING_TO_WARM);
-        assertThat(varadaStatsWarmingService.getwarm_skip_permanent_failed_warmup_element()).isEqualTo(1);
+        assertThat(warmingServiceStats.getwarm_skip_permanent_failed_warmup_element()).isEqualTo(1);
     }
 
     @Test

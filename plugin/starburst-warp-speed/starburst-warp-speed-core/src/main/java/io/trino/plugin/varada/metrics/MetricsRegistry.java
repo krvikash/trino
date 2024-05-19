@@ -34,7 +34,7 @@ public class MetricsRegistry
     private final CatalogNameProvider catalogNameProvider;
     private final MBeanExporter exporter;
     private final MetricsConfig metricsConfig;
-    private final Map<String, VaradaStatsBase> metricsRegistry;
+    private final Map<String, WarpStatsBase> metricsRegistry;
 
     @Inject
     MetricsRegistry(
@@ -58,7 +58,7 @@ public class MetricsRegistry
         return objectKey + "." + catalogNameProvider.get();
     }
 
-    public synchronized boolean registerMetric(VaradaStatsBase statObject)
+    public synchronized boolean registerMetric(WarpStatsBase statObject)
     {
         String jmxKey = getKey(statObject.getJmxKey());
         if (!metricsRegistry.containsKey(jmxKey)) {
@@ -77,7 +77,7 @@ public class MetricsRegistry
     {
         String jmxKey = getKey(key);
         logger.debug(" unregisterMetric: %s (%s)", key, jmxKey);
-        VaradaStatsBase removedObject = metricsRegistry.remove(jmxKey);
+        WarpStatsBase removedObject = metricsRegistry.remove(jmxKey);
         if (removedObject != null) {
             if (metricsConfig.isEnabled()) {
                 exporter.unexportWithGeneratedName(removedObject.getClass(), jmxKey);
@@ -87,22 +87,22 @@ public class MetricsRegistry
     }
 
     @SuppressWarnings("unchecked")
-    public VaradaStatsBase get(String key)
+    public WarpStatsBase get(String key)
     {
         return metricsRegistry.get(getKey(key));
     }
 
-    public Map<String, VaradaStatsBase> getAll()
+    public Map<String, WarpStatsBase> getAll()
     {
         return new HashMap<>(metricsRegistry);
     }
 
-    public Collection<VaradaStatsBase> getRegisteredInstances()
+    public Collection<WarpStatsBase> getRegisteredInstances()
     {
         return metricsRegistry.values();
     }
 
-    public void mergeMetrics(Collection<VaradaStatsBase> persistDataList)
+    public void mergeMetrics(Collection<WarpStatsBase> persistDataList)
     {
         logger.debug("merge new persist metrics. current metrics size %d, new persistent metrics from db of size: %d",
                 metricsRegistry.size(),
@@ -111,7 +111,7 @@ public class MetricsRegistry
     }
 
     @SuppressWarnings("unchecked")
-    private <T extends VaradaStatsBase> void mergeMetric(T persistData)
+    private <T extends WarpStatsBase> void mergeMetric(T persistData)
     {
         boolean newMetric = registerMetric(persistData);
 

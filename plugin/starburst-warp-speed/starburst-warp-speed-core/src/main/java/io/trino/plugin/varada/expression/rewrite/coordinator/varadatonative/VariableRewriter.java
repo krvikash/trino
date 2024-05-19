@@ -30,7 +30,7 @@ import io.trino.plugin.varada.type.cast.VarcharToTimestamp;
 import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
-import io.trino.plugin.warp.gen.stats.VaradaStatsPushdownPredicates;
+import io.trino.plugin.warp.gen.stats.PushdownPredicatesStats;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.ValueSet;
@@ -83,12 +83,12 @@ class VariableRewriter
             .with(argument(0).matching(x -> x instanceof VaradaVariable));
 
     private final StorageEngineConstants storageEngineConstants;
-    private final VaradaStatsPushdownPredicates varadaStatsPushdownPredicates;
+    private final PushdownPredicatesStats pushdownPredicatesStats;
 
-    VariableRewriter(StorageEngineConstants storageEngineConstants, VaradaStatsPushdownPredicates varadaStatsPushdownPredicates)
+    VariableRewriter(StorageEngineConstants storageEngineConstants, PushdownPredicatesStats pushdownPredicatesStats)
     {
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
-        this.varadaStatsPushdownPredicates = varadaStatsPushdownPredicates;
+        this.pushdownPredicatesStats = pushdownPredicatesStats;
     }
 
     static Domain convertSingleValueToDomain(Slice slice, Type columnType, Optional<Integer> castToTypeLengthOptional)
@@ -339,7 +339,7 @@ class VariableRewriter
         if (isArrayType(columnType) ||
                 isRowType(columnType) ||
                 isMapType(columnType)) {
-            varadaStatsPushdownPredicates.incunsupported_functions_native();
+            pushdownPredicatesStats.incunsupported_functions_native();
             return false;
         }
         Type castToType = varadaExpression.getType();
@@ -384,7 +384,7 @@ class VariableRewriter
             supported = true;
         }
         if (!supported) {
-            varadaStatsPushdownPredicates.incunsupported_functions_native();
+            pushdownPredicatesStats.incunsupported_functions_native();
         }
         return supported;
     }

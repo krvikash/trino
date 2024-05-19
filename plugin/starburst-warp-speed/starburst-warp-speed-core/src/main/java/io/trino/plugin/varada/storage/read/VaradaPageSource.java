@@ -22,8 +22,8 @@ import io.trino.plugin.varada.juffer.PredicatesCacheService;
 import io.trino.plugin.varada.metrics.CustomStatsContext;
 import io.trino.plugin.varada.storage.engine.StorageEngine;
 import io.trino.plugin.varada.storage.engine.StorageEngineConstants;
-import io.trino.plugin.warp.gen.stats.VaradaStatsDictionary;
-import io.trino.plugin.warp.gen.stats.VaradaStatsDispatcherPageSource;
+import io.trino.plugin.warp.gen.stats.DictionaryStats;
+import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.connector.ConnectorPageSource;
@@ -44,8 +44,8 @@ public class VaradaPageSource
     private final ShapingLogger shapingLogger;
 
     private final DictionaryCacheService dictionaryCacheService;
-    private final VaradaStatsDispatcherPageSource stats;
-    private final VaradaStatsDictionary varadaStatsDictionary;
+    private final DispatcherPageSourceStats stats;
+    private final DictionaryStats dictionaryStats;
     private final CollectTxService collectTxService;
     private final ChunksQueueService chunksQueueService;
     private final StorageCollectorService storageCollectorService;
@@ -89,8 +89,8 @@ public class VaradaPageSource
         this.predicatesCacheService = predicatesCacheService;
         this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
         this.globalConfig = requireNonNull(globalConfig);
-        this.stats = (VaradaStatsDispatcherPageSource) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
-        this.varadaStatsDictionary = (VaradaStatsDictionary) customStatsContext.getStat(DictionaryCacheService.DICTIONARY_STAT_GROUP);
+        this.stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
+        this.dictionaryStats = (DictionaryStats) customStatsContext.getStat(DictionaryCacheService.DICTIONARY_STAT_GROUP);
         this.collectTxService = collectTxService;
         this.chunksQueueService = chunksQueueService;
         this.storageCollectorService = storageCollectorService;
@@ -169,7 +169,7 @@ public class VaradaPageSource
                             bufferAllocator,
                             dictionaryCacheService,
                             queryParams,
-                            varadaStatsDictionary,
+                            dictionaryStats,
                             stats,
                             storageCollectorArgs,
                             collectTxService,

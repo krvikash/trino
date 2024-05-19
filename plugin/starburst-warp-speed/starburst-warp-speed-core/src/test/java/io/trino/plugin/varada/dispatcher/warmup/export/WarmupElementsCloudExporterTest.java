@@ -20,7 +20,7 @@ import io.trino.plugin.varada.dispatcher.model.RowGroupKey;
 import io.trino.plugin.varada.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.storage.engine.StorageEngineConstants;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmupExportService;
+import io.trino.plugin.warp.gen.stats.WarmupExportServiceStats;
 import io.varada.cloudvendors.CloudVendorService;
 import io.varada.cloudvendors.model.StorageObjectMetadata;
 import org.junit.jupiter.api.Assertions;
@@ -39,7 +39,7 @@ import static org.mockito.Mockito.when;
 public class WarmupElementsCloudExporterTest
 {
     private CloudVendorService cloudVendorService;
-    private VaradaStatsWarmupExportService varadaStatsWarmupExportService;
+    private WarmupExportServiceStats warmupExportServiceStats;
     private WarmupElementsCloudExporter warmupElementsCloudExporter;
 
     @BeforeEach
@@ -56,9 +56,9 @@ public class WarmupElementsCloudExporterTest
         cloudVendorService = mock(CloudVendorService.class);
         when(cloudVendorService.getLocation(anyString())).thenCallRealMethod();
 
-        varadaStatsWarmupExportService = new VaradaStatsWarmupExportService(WARMUP_EXPORTER_STAT_GROUP);
+        warmupExportServiceStats = new WarmupExportServiceStats(WARMUP_EXPORTER_STAT_GROUP);
         MetricsManager metricsManager = mock(MetricsManager.class);
-        when(metricsManager.registerMetric(any(VaradaStatsWarmupExportService.class))).thenReturn(varadaStatsWarmupExportService);
+        when(metricsManager.registerMetric(any(WarmupExportServiceStats.class))).thenReturn(warmupExportServiceStats);
 
         warmupElementsCloudExporter = new WarmupElementsCloudExporter(globalConfig,
                 storageEngineConstants,
@@ -154,7 +154,7 @@ public class WarmupElementsCloudExporterTest
                 warmupElementsCloudExporter.exportFile(rowGroupData, cloudImportExportPath);
 
         Assertions.assertFalse(exportFileResults.isExportDone());
-        Assertions.assertEquals(1, varadaStatsWarmupExportService.getexport_row_group_1st_footer_validation());
+        Assertions.assertEquals(1, warmupExportServiceStats.getexport_row_group_1st_footer_validation());
     }
 
     @Test
@@ -180,6 +180,6 @@ public class WarmupElementsCloudExporterTest
                 warmupElementsCloudExporter.exportFile(rowGroupData, cloudImportExportPath);
 
         Assertions.assertFalse(exportFileResults.isExportDone());
-        Assertions.assertEquals(1, varadaStatsWarmupExportService.getexport_row_group_2nd_footer_validation());
+        Assertions.assertEquals(1, warmupExportServiceStats.getexport_row_group_2nd_footer_validation());
     }
 }

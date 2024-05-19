@@ -31,7 +31,7 @@ import io.trino.plugin.varada.dispatcher.warmup.warmers.StorageWarmerService;
 import io.trino.plugin.varada.dispatcher.warmup.warmers.WarmingManager;
 import io.trino.plugin.varada.dispatcher.warmup.warmers.WarmupElementsCreator;
 import io.trino.plugin.varada.storage.flows.FlowIdGenerator;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmingService;
+import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
@@ -62,7 +62,7 @@ public class ProxyExecutionTask
             EventBus eventBus,
             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
             WarmingManager warmingManager,
-            VaradaStatsWarmingService varadaStatsWarmingService,
+            WarmingServiceStats warmingServiceStats,
             WorkerWarmingService workerWarmingService,
             ConnectorPageSourceProvider connectorPageSourceProvider,
             ConnectorTransactionHandle transactionHandle,
@@ -81,7 +81,7 @@ public class ProxyExecutionTask
             WorkerTaskExecutorService workerTaskExecutorService,
             StorageWarmerService storageWarmerService)
     {
-        super(warmExecutionTaskFactory, workerTaskExecutorService, varadaStatsWarmingService, warmingManager, workerWarmingService, connectorPageSourceProvider, transactionHandle, session, dispatcherTableHandle, rowGroupKey, columns, dispatcherSplit, dynamicFilter, rowGroupDataService, queryClassifier, warmupElementsCreator, iterationCount);
+        super(warmExecutionTaskFactory, workerTaskExecutorService, warmingServiceStats, warmingManager, workerWarmingService, connectorPageSourceProvider, transactionHandle, session, dispatcherTableHandle, rowGroupKey, columns, dispatcherSplit, dynamicFilter, rowGroupDataService, queryClassifier, warmupElementsCreator, iterationCount);
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
         this.eventBus = requireNonNull(eventBus);
         this.globalConfig = requireNonNull(globalConfig);

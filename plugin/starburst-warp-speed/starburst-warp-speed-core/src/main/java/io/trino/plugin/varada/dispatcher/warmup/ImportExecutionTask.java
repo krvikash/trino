@@ -21,7 +21,7 @@ import io.trino.plugin.varada.dispatcher.query.classifier.QueryClassifier;
 import io.trino.plugin.varada.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.varada.dispatcher.warmup.warmers.WarmingManager;
 import io.trino.plugin.varada.dispatcher.warmup.warmers.WarmupElementsCreator;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmingService;
+import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
@@ -37,7 +37,7 @@ public class ImportExecutionTask
     private final int executionTaskPriority;
 
     public ImportExecutionTask(WarmExecutionTaskFactory warmExecutionTaskFactory,
-            VaradaStatsWarmingService statsWarmingService,
+            WarmingServiceStats statsWarmingService,
             WorkerWarmingService workerWarmingService,
             ConnectorPageSourceProvider connectorPageSourceProvider,
             ConnectorTransactionHandle transactionHandle,

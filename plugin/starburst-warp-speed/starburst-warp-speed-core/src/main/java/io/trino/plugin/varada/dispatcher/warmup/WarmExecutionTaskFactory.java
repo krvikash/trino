@@ -28,7 +28,7 @@ import io.trino.plugin.varada.dispatcher.warmup.warmers.StorageWarmerService;
 import io.trino.plugin.varada.dispatcher.warmup.warmers.WarmingManager;
 import io.trino.plugin.varada.dispatcher.warmup.warmers.WarmupElementsCreator;
 import io.trino.plugin.varada.metrics.MetricsManager;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmingService;
+import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
@@ -47,7 +47,7 @@ public class WarmExecutionTaskFactory
     private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
     private final EventBus eventBus;
     private final WarmingManager warmingManager;
-    private final VaradaStatsWarmingService statsWarmingService;
+    private final WarmingServiceStats statsWarmingService;
     private final QueryClassifier queryClassifier;
     private final RowGroupDataService rowGroupDataService;
     private final GlobalConfig globalConfig;
@@ -74,7 +74,7 @@ public class WarmExecutionTaskFactory
         this.warmingManager = requireNonNull(warmingManager);
         this.queryClassifier = requireNonNull(queryClassifier);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
-        this.statsWarmingService = metricsManager.registerMetric(VaradaStatsWarmingService.create(WARMING_SERVICE_STAT_GROUP));
+        this.statsWarmingService = metricsManager.registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
         this.globalConfig = requireNonNull(globalConfig);
         this.warmupElementsCreator = requireNonNull(warmupElementsCreator);
         this.workerTaskExecutorService = requireNonNull(workerTaskExecutorService);

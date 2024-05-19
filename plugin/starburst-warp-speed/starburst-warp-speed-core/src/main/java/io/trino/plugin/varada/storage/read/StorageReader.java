@@ -24,8 +24,8 @@ import io.trino.plugin.varada.storage.engine.nativeimpl.NativeInterrupt;
 import io.trino.plugin.varada.storage.juffers.ReadJuffersWarmUpElement;
 import io.trino.plugin.varada.storage.lucene.LuceneMatcher;
 import io.trino.plugin.warp.gen.constants.RecordIndexListType;
-import io.trino.plugin.warp.gen.stats.VaradaStatsDictionary;
-import io.trino.plugin.warp.gen.stats.VaradaStatsDispatcherPageSource;
+import io.trino.plugin.warp.gen.stats.DictionaryStats;
+import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.varada.log.ShapingLogger;
@@ -51,8 +51,8 @@ public class StorageReader
     // services
     private final StorageEngine storageEngine;
     private final StorageEngineConstants storageEngineConstants;
-    private final VaradaStatsDictionary varadaStatsDictionary;
-    private final VaradaStatsDispatcherPageSource statsDispatcherPageSource;
+    private final DictionaryStats dictionaryStats;
+    private final DispatcherPageSourceStats statsDispatcherPageSource;
     private final DictionaryCacheService dictionaryCacheService;
 
     // parameters
@@ -85,8 +85,8 @@ public class StorageReader
             BufferAllocator bufferAllocator,
             DictionaryCacheService dictionaryCacheService,
             QueryParams queryParams,
-            VaradaStatsDictionary varadaStatsDictionary,
-            VaradaStatsDispatcherPageSource statsDispatcherPageSource,
+            DictionaryStats dictionaryStats,
+            DispatcherPageSourceStats statsDispatcherPageSource,
             StorageCollectorArgs storageCollectorArgs,
             CollectTxService collectTxService,
             ChunksQueueService chunksQueueService,
@@ -95,7 +95,7 @@ public class StorageReader
     {
         this.storageEngine = requireNonNull(storageEngine);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
-        this.varadaStatsDictionary = varadaStatsDictionary;
+        this.dictionaryStats = dictionaryStats;
         this.statsDispatcherPageSource = statsDispatcherPageSource;
         this.storageCollectorService = requireNonNull(storageCollectorService);
         this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
@@ -176,7 +176,7 @@ public class StorageReader
                             collectParams.getRecTypeLength(),
                             collectParams.getDictionaryOffset(),
                             queryParams.getFilePath()));
-                    varadaStatsDictionary.incdictionary_read_elements_count();
+                    dictionaryStats.incdictionary_read_elements_count();
                 }
             }
         }

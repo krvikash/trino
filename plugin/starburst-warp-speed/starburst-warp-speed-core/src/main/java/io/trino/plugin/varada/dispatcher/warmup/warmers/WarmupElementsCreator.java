@@ -39,7 +39,7 @@ import io.trino.plugin.varada.storage.write.WarmupElementStats;
 import io.trino.plugin.varada.type.TypeUtils;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmingService;
+import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.type.DateType;
@@ -67,7 +67,7 @@ public class WarmupElementsCreator
     private final RowGroupDataService rowGroupDataService;
     private final StorageEngineConstants storageEngineConstants;
     private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
-    private final VaradaStatsWarmingService statsWarmingService;
+    private final WarmingServiceStats statsWarmingService;
     private final BufferAllocator bufferAllocator;
 
     @Inject
@@ -83,7 +83,7 @@ public class WarmupElementsCreator
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.bufferAllocator = requireNonNull(bufferAllocator);
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
-        this.statsWarmingService = (VaradaStatsWarmingService) metricsManager.get(VaradaStatsWarmingService.createKey(WARMING_SERVICE_STAT_GROUP));
+        this.statsWarmingService = (WarmingServiceStats) metricsManager.get(WarmingServiceStats.createKey(WARMING_SERVICE_STAT_GROUP));
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
                 globalConfig.getShapingLoggerThreshold(),

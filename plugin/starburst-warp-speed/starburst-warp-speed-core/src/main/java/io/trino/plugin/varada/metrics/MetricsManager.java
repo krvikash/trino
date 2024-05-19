@@ -38,15 +38,15 @@ public class MetricsManager
     /**
      * Register a metric
      *
-     * @param varadaStatsBase -
-     * @return the registered instance of the key provided by {varadaStatsBase}
+     * @param warpStatsBase -
+     * @return the registered instance of the key provided by {warpStatsBase}
      */
-    public <T extends VaradaStatsBase> T registerMetric(T varadaStatsBase)
+    public <T extends WarpStatsBase> T registerMetric(T warpStatsBase)
     {
-        T ret = varadaStatsBase;
-        String jmxKey = varadaStatsBase.getJmxKey();
+        T ret = warpStatsBase;
+        String jmxKey = warpStatsBase.getJmxKey();
         logger.debug("exporting metric key %s", metricsRegistry.getKey(jmxKey));
-        if (!metricsRegistry.registerMetric(varadaStatsBase)) {
+        if (!metricsRegistry.registerMetric(warpStatsBase)) {
             ret = (T) metricsRegistry.get(jmxKey);
         }
         return ret;
@@ -58,12 +58,12 @@ public class MetricsManager
         metricsRegistry.unregisterMetric(key);
     }
 
-    public VaradaStatsBase get(String key)
+    public WarpStatsBase get(String key)
     {
         return metricsRegistry.get(key);
     }
 
-    public Map<String, VaradaStatsBase> getAll()
+    public Map<String, WarpStatsBase> getAll()
     {
         return metricsRegistry.getAll();
     }

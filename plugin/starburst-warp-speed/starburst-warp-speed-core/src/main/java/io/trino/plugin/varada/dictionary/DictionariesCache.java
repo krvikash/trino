@@ -28,7 +28,7 @@ import io.trino.plugin.varada.dispatcher.model.SchemaTableColumn;
 import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.util.SliceUtils;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
-import io.trino.plugin.warp.gen.stats.VaradaStatsDictionary;
+import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.IntArrayBlock;
 import io.trino.spi.block.LongArrayBlock;
@@ -57,7 +57,7 @@ public class DictionariesCache
 
     private final DictionaryConfig dictionaryConfig;
     private final AttachDictionaryService attachDictionaryService;
-    private final VaradaStatsDictionary globalVaradaStatsDictionary;
+    private final DictionaryStats globalDictionaryStats;
     private final Lock readLock;
     private final Lock writeLock;
     private final ExecutorService executorService;
@@ -74,7 +74,7 @@ public class DictionariesCache
     {
         this.dictionaryConfig = requireNonNull(dictionaryConfig);
         this.attachDictionaryService = requireNonNull(attachDictionaryService);
-        this.globalVaradaStatsDictionary = requireNonNull(metricsManager).registerMetric(VaradaStatsDictionary.create(DICTIONARY_STAT_GROUP));
+        this.globalDictionaryStats = requireNonNull(metricsManager).registerMetric(DictionaryStats.create(DICTIONARY_STAT_GROUP));
         ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
         this.readLock = readWriteLock.readLock();
         this.writeLock = readWriteLock.writeLock();
@@ -109,11 +109,11 @@ public class DictionariesCache
                 });
             }
             else {
-                globalVaradaStatsDictionary.adddictionary_entries(-1);
-                globalVaradaStatsDictionary.adddictionaries_weight(dataValueDictionary.getDictionaryWeight() * -1L);
-                globalVaradaStatsDictionary.incdictionary_evicted_entries();
+                globalDictionaryStats.adddictionary_entries(-1);
+                globalDictionaryStats.adddictionaries_weight(dataValueDictionary.getDictionaryWeight() * -1L);
+                globalDictionaryStats.incdictionary_evicted_entries();
                 if (removalNotification.getValue().isVarlen()) {
-                    globalVaradaStatsDictionary.adddictionaries_varlen_str_weight(dataValueDictionary.getDictionaryWeight() * -1L);
+                    globalDictionaryStats.adddictionaries_varlen_str_weight(dataValueDictionary.getDictionaryWeight() * -1L);
                 }
             }
         };
@@ -159,7 +159,7 @@ public class DictionariesCache
         //    dictionaryMetadata = dictionaryMetadataMap.get(dictionaryId);
         //}
         dictionaryMetadata.incFailedWriteCount();
-        globalVaradaStatsDictionary.incdictionary_max_exception_count();
+        globalDictionaryStats.incdictionary_max_exception_count();
     }
 
     /**
@@ -187,10 +187,10 @@ public class DictionariesCache
             if ((dataValueDictionary == null) || (dataValueDictionary.getReadAvailableSize() < usedDictionarySize)) {
                 dataValueDictionary = attachDictionaryService.load(dictionaryKey, recTypeCode, recTypeLength, dictionaryOffset, rowGroupFilePath);
                 loadPreBlock(recTypeCode, dataValueDictionary);
-                globalVaradaStatsDictionary.incdictionary_loaded_elements_count();
+                globalDictionaryStats.incdictionary_loaded_elements_count();
 
                 cache.put(dictionaryKey, dataValueDictionary);
-                globalVaradaStatsDictionary.incdictionary_entries();
+                globalDictionaryStats.incdictionary_entries();
             }
         }
 
@@ -271,16 +271,16 @@ public class DictionariesCache
                             createdDictionaryKey,
                             fixedRecTypeLength,
                             fixedRecTypeLength,
-                            globalVaradaStatsDictionary);
-                    globalVaradaStatsDictionary.incwrite_dictionaries_count();
+                            globalDictionaryStats);
+                    globalDictionaryStats.incwrite_dictionaries_count();
 
                     cache.put(createdDictionaryKey, dataValueDictionary);
                     setLastCreatedTimestamp(dictionaryId, createdTimestamp);
-                    globalVaradaStatsDictionary.incdictionary_entries();
+                    globalDictionaryStats.incdictionary_entries();
                 }
                 activeDictionary = dataValueDictionary;
                 activeDataValuesDictionaries.put(dictionaryId, activeDictionary);
-                globalVaradaStatsDictionary.incdictionary_active_size();
+                globalDictionaryStats.incdictionary_active_size();
             }
             activeDictionary.incUsingTransactions();
         }
@@ -339,7 +339,7 @@ public class DictionariesCache
             try {
                 if (value.getUsingTransactions() == 0) {
                     activeDataValuesDictionaries.remove(dictionaryId);
-                    globalVaradaStatsDictionary.adddictionary_active_size(-1);
+                    globalDictionaryStats.adddictionary_active_size(-1);
                 }
             }
             finally {
@@ -377,10 +377,10 @@ public class DictionariesCache
 
     private void resetCacheStats()
     {
-        globalVaradaStatsDictionary.setdictionary_entries(0);
-        globalVaradaStatsDictionary.setdictionaries_weight(0);
-        globalVaradaStatsDictionary.setdictionaries_varlen_str_weight(0);
-        globalVaradaStatsDictionary.setdictionary_active_size(0);
+        globalDictionaryStats.setdictionary_entries(0);
+        globalDictionaryStats.setdictionaries_weight(0);
+        globalDictionaryStats.setdictionaries_varlen_str_weight(0);
+        globalDictionaryStats.setdictionary_active_size(0);
     }
 
     int resetMemoryDictionaries(long dictionaryCacheTotalWeight, int concurrency)

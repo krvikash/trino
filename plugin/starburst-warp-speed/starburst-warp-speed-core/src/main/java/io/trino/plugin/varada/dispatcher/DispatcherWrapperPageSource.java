@@ -17,8 +17,8 @@ import io.trino.plugin.base.metrics.LongCount;
 import io.trino.plugin.varada.dictionary.DictionaryCacheService;
 import io.trino.plugin.varada.juffer.StorageEngineTxService;
 import io.trino.plugin.varada.metrics.CustomStatsContext;
-import io.trino.plugin.warp.gen.stats.VaradaStatsDictionary;
-import io.trino.plugin.warp.gen.stats.VaradaStatsDispatcherPageSource;
+import io.trino.plugin.warp.gen.stats.DictionaryStats;
+import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.spi.Page;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
@@ -87,8 +87,8 @@ public class DispatcherWrapperPageSource
 
     private ConnectorPageSource buildDelegatePageSource()
     {
-        customStatsContext.getOrRegister(new VaradaStatsDispatcherPageSource(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY));
-        customStatsContext.getOrRegister(new VaradaStatsDictionary(DictionaryCacheService.DICTIONARY_STAT_GROUP));
+        customStatsContext.getOrRegister(new DispatcherPageSourceStats(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY));
+        customStatsContext.getOrRegister(new DictionaryStats(DictionaryCacheService.DICTIONARY_STAT_GROUP));
         return pageSourceFactory.createConnectorPageSource(connectorPageSourceProvider,
                 transactionHandle,
                 session,

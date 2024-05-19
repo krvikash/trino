@@ -28,7 +28,7 @@ import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmupDemoter;
+import io.trino.plugin.warp.gen.stats.WarmupDemoterStats;
 import io.varada.annotation.Audit;
 import io.varada.tools.CatalogNameProvider;
 import jakarta.ws.rs.Consumes;
@@ -78,7 +78,7 @@ public class WorkerWarmupDemoterTask
     private final WarmupDemoterConfig warmupDemoterConfig;
     private final WorkerCapacityManager workerCapacityManager;
     private final CatalogNameProvider catalogNameProvider;
-    private final VaradaStatsWarmupDemoter globalStatsDemoter;
+    private final WarmupDemoterStats globalStatsDemoter;
     private final Map<Integer, CompletableFuture<WarmupDemoterFinishEvent>> demoteFutures = new ConcurrentHashMap<>();
 
     @Inject
@@ -94,7 +94,7 @@ public class WorkerWarmupDemoterTask
         this.workerCapacityManager = workerCapacityManager;
         this.catalogNameProvider = catalogNameProvider;
         eventBus.register(this);
-        this.globalStatsDemoter = metricsManager.registerMetric(VaradaStatsWarmupDemoter.create(WARMUP_DEMOTER_STAT_GROUP));
+        this.globalStatsDemoter = metricsManager.registerMetric(WarmupDemoterStats.create(WARMUP_DEMOTER_STAT_GROUP));
     }
 
     @POST

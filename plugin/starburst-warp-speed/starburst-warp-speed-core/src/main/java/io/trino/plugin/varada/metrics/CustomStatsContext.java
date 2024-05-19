@@ -21,7 +21,7 @@ import java.util.Map;
 
 public class CustomStatsContext
 {
-    private final Map<String, VaradaStatsBase> registeredStats = new HashMap<>();
+    private final Map<String, WarpStatsBase> registeredStats = new HashMap<>();
     private final Map<String, Long> fixedStats = new HashMap<>();
     private final MetricsManager metricsManager;
 
@@ -31,21 +31,21 @@ public class CustomStatsContext
         customStats.forEach(customStat -> fixedStats.put(customStat.statName(), customStat.statValue()));
     }
 
-    public VaradaStatsBase getStat(String statKey)
+    public WarpStatsBase getStat(String statKey)
     {
         return registeredStats.get(statKey);
     }
 
-    public VaradaStatsBase getOrRegister(VaradaStatsBase varadaStatsBase)
+    public WarpStatsBase getOrRegister(WarpStatsBase warpStatsBase)
     {
-        if (registeredStats.containsKey(varadaStatsBase.getJmxKey())) {
-            return registeredStats.get(varadaStatsBase.getJmxKey());
+        if (registeredStats.containsKey(warpStatsBase.getJmxKey())) {
+            return registeredStats.get(warpStatsBase.getJmxKey());
         }
-        registeredStats.put(varadaStatsBase.getJmxKey(), varadaStatsBase);
-        return varadaStatsBase;
+        registeredStats.put(warpStatsBase.getJmxKey(), warpStatsBase);
+        return warpStatsBase;
     }
 
-    public Map<String, VaradaStatsBase> getRegisteredStats()
+    public Map<String, WarpStatsBase> getRegisteredStats()
     {
         return new HashMap<>(registeredStats);
     }
@@ -63,9 +63,9 @@ public class CustomStatsContext
     public void copyStatsToGlobalMetricsManager()
     {
         registeredStats.forEach((key, value) -> {
-            VaradaStatsBase varadaStatsBase = metricsManager.get(key);
-            if (varadaStatsBase != null) {
-                varadaStatsBase.mergeStats(value);
+            WarpStatsBase warpStatsBase = metricsManager.get(key);
+            if (warpStatsBase != null) {
+                warpStatsBase.mergeStats(value);
             }
         });
     }

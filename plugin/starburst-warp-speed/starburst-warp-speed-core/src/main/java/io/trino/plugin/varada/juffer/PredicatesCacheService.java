@@ -35,7 +35,7 @@ import io.trino.plugin.varada.storage.read.predicates.StringValuesPredicateFille
 import io.trino.plugin.varada.storage.read.predicates.ValuesPredicateFiller;
 import io.trino.plugin.varada.util.DomainUtils;
 import io.trino.plugin.warp.gen.constants.PredicateType;
-import io.trino.plugin.warp.gen.stats.VaradaStatsCachePredicates;
+import io.trino.plugin.warp.gen.stats.CachePredicatesStats;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.predicate.Domain;
@@ -60,7 +60,7 @@ public class PredicatesCacheService
     private final Map<PredicateType, PredicateFiller> predicateTypeToFiller;
     private final BufferAllocator bufferAllocator;
     private final StorageEngineConstants storageEngineConstants;
-    private final VaradaStatsCachePredicates varadaStatsCachePredicates;
+    private final CachePredicatesStats cachePredicatesStats;
     private final Lock readLock;
     private final Lock writeLock;
 
@@ -78,7 +78,7 @@ public class PredicatesCacheService
         this.predicateTypeToFiller = new HashMap<>();
         initPredicateCachePoll();
         initPredicateFillerMap();
-        this.varadaStatsCachePredicates = metricsManager.registerMetric(VaradaStatsCachePredicates.create(STATS_CACHE_PREDICATE_KEY));
+        this.cachePredicatesStats = metricsManager.registerMetric(CachePredicatesStats.create(STATS_CACHE_PREDICATE_KEY));
     }
 
     private void initPredicateCachePoll()
@@ -202,17 +202,17 @@ public class PredicatesCacheService
     {
         if (increase) {
             switch (predicateBufferPoolType) {
-                case SMALL -> varadaStatsCachePredicates.incin_use_small();
-                case MEDIUM -> varadaStatsCachePredicates.incin_use_medium();
-                case LARGE -> varadaStatsCachePredicates.incin_use_large();
+                case SMALL -> cachePredicatesStats.incin_use_small();
+                case MEDIUM -> cachePredicatesStats.incin_use_medium();
+                case LARGE -> cachePredicatesStats.incin_use_large();
                 default -> throw new TrinoException(VaradaErrorCode.VARADA_ILLEGAL_PARAMETER, "Uknown predicateBufferPoolType " + predicateBufferPoolType);
             }
         }
         else {
             switch (predicateBufferPoolType) {
-                case SMALL -> varadaStatsCachePredicates.addin_use_small(-1);
-                case MEDIUM -> varadaStatsCachePredicates.addin_use_medium(-1);
-                case LARGE -> varadaStatsCachePredicates.addin_use_large(-1);
+                case SMALL -> cachePredicatesStats.addin_use_small(-1);
+                case MEDIUM -> cachePredicatesStats.addin_use_medium(-1);
+                case LARGE -> cachePredicatesStats.addin_use_large(-1);
                 default -> throw new TrinoException(VaradaErrorCode.VARADA_ILLEGAL_PARAMETER, "Uknown predicateBufferPoolType " + predicateBufferPoolType);
             }
         }

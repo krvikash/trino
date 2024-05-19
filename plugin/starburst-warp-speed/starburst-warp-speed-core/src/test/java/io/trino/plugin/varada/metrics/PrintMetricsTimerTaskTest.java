@@ -14,11 +14,11 @@
 package io.trino.plugin.varada.metrics;
 
 import io.trino.plugin.varada.config.MetricsConfig;
-import io.trino.plugin.warp.gen.stats.VaradaStatsDispatcherPageSource;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmingService;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmupDemoter;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmupExportService;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmupImportService;
+import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
+import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
+import io.trino.plugin.warp.gen.stats.WarmupDemoterStats;
+import io.trino.plugin.warp.gen.stats.WarmupExportServiceStats;
+import io.trino.plugin.warp.gen.stats.WarmupImportServiceStats;
 import io.varada.tools.CatalogNameProvider;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,11 +60,11 @@ public class PrintMetricsTimerTaskTest
     @Test
     public void testDumpStats()
     {
-        metricsManager.registerMetric(VaradaStatsWarmupDemoter.create(WARMUP_DEMOTER_STAT_GROUP));
-        VaradaStatsWarmingService warmingService = metricsManager.registerMetric(VaradaStatsWarmingService.create(WARMING_SERVICE_STAT_GROUP));
-        metricsManager.registerMetric(VaradaStatsDispatcherPageSource.create(STATS_DISPATCHER_KEY));
-        metricsManager.registerMetric(VaradaStatsWarmupExportService.create(WARMUP_EXPORTER_STAT_GROUP));
-        metricsManager.registerMetric(VaradaStatsWarmupImportService.create(WARMUP_IMPORTER_STAT_GROUP));
+        metricsManager.registerMetric(WarmupDemoterStats.create(WARMUP_DEMOTER_STAT_GROUP));
+        WarmingServiceStats warmingService = metricsManager.registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
+        metricsManager.registerMetric(DispatcherPageSourceStats.create(STATS_DISPATCHER_KEY));
+        metricsManager.registerMetric(WarmupExportServiceStats.create(WARMUP_EXPORTER_STAT_GROUP));
+        metricsManager.registerMetric(WarmupImportServiceStats.create(WARMUP_IMPORTER_STAT_GROUP));
         warmingService.incdeleted_row_group_count();
         Map<String, Object> fullJson = printMetricsTimerTask.buildJsonDump();
         Map<String, Object> metrics = (Map<String, Object>) fullJson.get(PrintMetricsTimerTask.STATS);

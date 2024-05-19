@@ -38,7 +38,6 @@ import java.util.Optional;
 import static io.trino.plugin.varada.config.GlobalConfig.CONFIG_IS_SINGLE;
 import static io.trino.plugin.varada.config.GlobalConfig.ENABLE_DEFAULT_WARMING;
 import static io.trino.plugin.varada.config.GlobalConfig.FAILURE_GENERATOR_ENABLED;
-import static io.trino.plugin.varada.config.GlobalConfig.STATS_COLLECTION_ENABLED;
 import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.CLUSTER_UUID;
 
 public class DispatcherQueryRunner
@@ -82,7 +81,6 @@ public class DispatcherQueryRunner
                 .put(WarpExtensionConfig.ENABLED, Boolean.TRUE.toString())
                 .put(WarpExtensionConfig.HTTP_REST_PORT_ENABLED, Boolean.FALSE.toString())
                 .put(GlobalConfig.LOCAL_STORE_PATH, localStorePath.toAbsolutePath().toString())
-                .put(STATS_COLLECTION_ENABLED, "true")
                 .put(FAILURE_GENERATOR_ENABLED, "true")
                 .put("warp-speed.objectstore.warmup.cloud.retries", "0")
                 .put("warp-speed.objectstore.warmup.fetch.delay.duration", "1s")

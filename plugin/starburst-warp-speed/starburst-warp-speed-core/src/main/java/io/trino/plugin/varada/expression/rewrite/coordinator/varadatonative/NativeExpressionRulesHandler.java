@@ -24,7 +24,7 @@ import io.trino.plugin.varada.expression.VaradaCall;
 import io.trino.plugin.varada.expression.VaradaExpression;
 import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.storage.engine.StorageEngineConstants;
-import io.trino.plugin.warp.gen.stats.VaradaStatsPushdownPredicates;
+import io.trino.plugin.warp.gen.stats.PushdownPredicatesStats;
 import io.trino.spi.type.Type;
 
 import java.util.Map;
@@ -63,20 +63,20 @@ import static io.trino.spi.expression.StandardFunctions.OR_FUNCTION_NAME;
 public class NativeExpressionRulesHandler
 {
     private static final Logger logger = Logger.get(NativeExpressionRulesHandler.class);
-    private final VaradaStatsPushdownPredicates varadaStatsPushdownPredicates;
+    private final PushdownPredicatesStats pushdownPredicatesStats;
 
     private final SetMultimap<String, RewriteRule> functionToRewriteRules;
 
     @Inject
     public NativeExpressionRulesHandler(StorageEngineConstants storageEngineConstants, MetricsManager metricsManager)
     {
-        this.varadaStatsPushdownPredicates = metricsManager.registerMetric(VaradaStatsPushdownPredicates.create(PUSHDOWN_PREDICATES_STAT_GROUP));
+        this.pushdownPredicatesStats = metricsManager.registerMetric(PushdownPredicatesStats.create(PUSHDOWN_PREDICATES_STAT_GROUP));
 
-        VariableRewriter variableRewriter = new VariableRewriter(storageEngineConstants, varadaStatsPushdownPredicates);
-        InNativeRewriter inNativeRewriter = new InNativeRewriter(this, varadaStatsPushdownPredicates);
-        CallAndConstantRewriter callAndConstantRewriter = new CallAndConstantRewriter(this, varadaStatsPushdownPredicates);
-        VariableAndConstantRewriter variableAndConstantRewriter = new VariableAndConstantRewriter(this, varadaStatsPushdownPredicates);
-        AndOrRewriter andOrRewriter = new AndOrRewriter(this, varadaStatsPushdownPredicates);
+        VariableRewriter variableRewriter = new VariableRewriter(storageEngineConstants, pushdownPredicatesStats);
+        InNativeRewriter inNativeRewriter = new InNativeRewriter(this, pushdownPredicatesStats);
+        CallAndConstantRewriter callAndConstantRewriter = new CallAndConstantRewriter(this, pushdownPredicatesStats);
+        VariableAndConstantRewriter variableAndConstantRewriter = new VariableAndConstantRewriter(this, pushdownPredicatesStats);
+        AndOrRewriter andOrRewriter = new AndOrRewriter(this, pushdownPredicatesStats);
         FunctionsWithCastRewriter functionsWithCastRewriter = new FunctionsWithCastRewriter(this);
 
         functionToRewriteRules = HashMultimap.create();
@@ -140,7 +140,7 @@ public class NativeExpressionRulesHandler
         }
         catch (Exception e) {
             logger.error(e, "failed to convert varadaExpression to domain pattern. %s", varadaExpression);
-            varadaStatsPushdownPredicates.incfailed_rewrite_to_native_expression();
+            pushdownPredicatesStats.incfailed_rewrite_to_native_expression();
         }
         return res;
     }
@@ -150,20 +150,20 @@ public class NativeExpressionRulesHandler
     {
         if (!(varadaExpression instanceof VaradaCall)) {
             context.customStats().compute("unsupported_functions_native", (key, value) -> value == null ? 1L : value + 1);
-            varadaStatsPushdownPredicates.incunsupported_functions_native();
+            pushdownPredicatesStats.incunsupported_functions_native();
             return false;
         }
         boolean isValid = false;
         String functionName = ((VaradaCall) varadaExpression).getFunctionName();
         if (context.unsupportedNativeFunctions().contains(functionName)) {
             context.customStats().compute("unsupported_functions_native", (key, value) -> value == null ? 1L : value + 1);
-            varadaStatsPushdownPredicates.incunsupported_functions_native();
+            pushdownPredicatesStats.incunsupported_functions_native();
             return false;
         }
         Set<RewriteRule> rewriteRules = functionToRewriteRules.get(functionName);
         if (rewriteRules.isEmpty()) {
             context.customStats().compute("unsupported_functions_native", (key, value) -> value == null ? 1L : value + 1);
-            varadaStatsPushdownPredicates.incunsupported_functions_native();
+            pushdownPredicatesStats.incunsupported_functions_native();
         }
         for (RewriteRule rule : rewriteRules) {
             if (rule.pattern.matches(varadaExpression, null)) {

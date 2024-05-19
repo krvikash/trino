@@ -18,7 +18,7 @@ import io.airlift.slice.Slice;
 import io.trino.plugin.varada.config.DictionaryConfig;
 import io.trino.plugin.varada.dispatcher.model.DictionaryKey;
 import io.trino.plugin.varada.dispatcher.model.WarmUpElementState;
-import io.trino.plugin.warp.gen.stats.VaradaStatsDictionary;
+import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.spi.block.Block;
 
 import java.util.concurrent.ConcurrentHashMap;
@@ -36,7 +36,7 @@ public class DataValueDictionary
     private final Lock addKeyLock;
     private final ConcurrentHashMap<Object, Short> writeDictionary;
     private final int fixedRecTypeLength;
-    private final VaradaStatsDictionary varadaStatsDictionary;
+    private final DictionaryStats dictionaryStats;
     private final AtomicInteger usingTransactions = new AtomicInteger();
     private final int maxDictionaryCacheWeight;
 
@@ -57,7 +57,7 @@ public class DataValueDictionary
             DictionaryKey dictionaryKey,
             int fixedRecTypeLength,
             int maxRecTypeLength,
-            VaradaStatsDictionary varadaStatsDictionary)
+            DictionaryStats dictionaryStats)
     {
         this.dictionaryKey = dictionaryKey;
         this.addKeyLock = new ReentrantLock();
@@ -72,7 +72,7 @@ public class DataValueDictionary
         //   new varlen dictionaries: zero (and will be updated on each new key)
         //   loaded varlen dictionaries: the loaded record type length
         this.maxRecTypeLength = maxRecTypeLength;
-        this.varadaStatsDictionary = varadaStatsDictionary;
+        this.dictionaryStats = dictionaryStats;
     }
 
     @Override
@@ -231,13 +231,13 @@ public class DataValueDictionary
     private void increaseDictionaryWeight(int incDictionaryWeight)
     {
         if (isVarlen()) {
-            varadaStatsDictionary.adddictionaries_varlen_str_weight(incDictionaryWeight);
+            dictionaryStats.adddictionaries_varlen_str_weight(incDictionaryWeight);
         }
         else {
             incDictionaryWeight = fixedRecTypeLength; //for preDictionary
         }
         dictionaryWeight += incDictionaryWeight;
-        varadaStatsDictionary.adddictionaries_weight(incDictionaryWeight);
+        dictionaryStats.adddictionaries_weight(incDictionaryWeight);
     }
 
     private int addedWeight(Object key)

@@ -35,7 +35,7 @@ import io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterTask;
 import io.trino.plugin.warp.extension.execution.debugtools.WorkerWarmupDemoterTask;
 import io.trino.plugin.warp.extension.execution.debugtools.dictionary.DictionaryTask;
 import io.trino.plugin.warp.extension.execution.warmup.WarmupTask;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmingService;
+import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.spi.QueryId;
 import io.trino.spi.metrics.Count;
 import io.trino.spi.metrics.Metrics;
@@ -443,11 +443,11 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                 "warm_failed",
                 "warm_started");
         String warmStatsTableName = "%s:catalog=%s,name=%s.%s,type=%s".formatted(
-                VaradaStatsWarmingService.class.getPackageName(),
+                WarmingServiceStats.class.getPackageName(),
                 catalog,
                 WARMING_SERVICE_STAT_GROUP,
                 catalog,
-                VaradaStatsWarmingService.class.getSimpleName().toLowerCase(Locale.ROOT));
+                WarmingServiceStats.class.getSimpleName().toLowerCase(Locale.ROOT));
         Session jmxSession = createJmxSession();
         MaterializedRow materializedRow = null;
         try {
@@ -632,11 +632,11 @@ public abstract class DispatcherStubsIntegrationSmokeIT
     protected int getWarmingServiceStats(Session jmxSession, String statColName)
     {
         String warmStatsTableName = "%s:catalog=%s,name=%s.%s,type=%s".formatted(
-                VaradaStatsWarmingService.class.getPackageName(),
+                WarmingServiceStats.class.getPackageName(),
                 catalog,
                 WARMING_SERVICE_STAT_GROUP,
                 catalog,
-                VaradaStatsWarmingService.class.getSimpleName().toLowerCase(Locale.ROOT));
+                WarmingServiceStats.class.getSimpleName().toLowerCase(Locale.ROOT));
 
         long result = (long) getServiceStats(jmxSession,
                 warmStatsTableName,

@@ -44,7 +44,7 @@ import io.trino.plugin.varada.warmup.model.WarmupRule;
 import io.trino.plugin.warp.gen.constants.DemoteStatus;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmupDemoter;
+import io.trino.plugin.warp.gen.stats.WarmupDemoterStats;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.SchemaTableName;
 import io.varada.tools.CatalogNameProvider;
@@ -186,10 +186,10 @@ public class WarmupDemoterServiceTest
     @Test
     public void testTryReserve()
     {
-        VaradaStatsWarmupDemoter varadaStatsWarmupDemoter = (VaradaStatsWarmupDemoter) metricsManager.get(WARMUP_DEMOTER_STAT_GROUP);
+        WarmupDemoterStats warmupDemoterStats = (WarmupDemoterStats) metricsManager.get(WARMUP_DEMOTER_STAT_GROUP);
         doAnswer(invocation -> {
             Integer reservedTx = (Integer) invocation.getArguments()[0];
-            varadaStatsWarmupDemoter.addreserved_tx(reservedTx);
+            warmupDemoterStats.addreserved_tx(reservedTx);
             return reservedTx;
         }).when(workerCapacityManager).setExecutingTx(anyInt());
         List<WarmupRule> warmupRules = new ArrayList<>();
@@ -214,8 +214,8 @@ public class WarmupDemoterServiceTest
         verify(connectorSync, times(1))
                 .syncDemoteCycleEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_NOT_COMPLETED));
 
-        assertThat(varadaStatsWarmupDemoter.getnumber_fail_acquire()).isEqualTo(3);
-        assertThat(varadaStatsWarmupDemoter.getreserved_tx()).isEqualTo(0);
+        assertThat(warmupDemoterStats.getnumber_fail_acquire()).isEqualTo(3);
+        assertThat(warmupDemoterStats.getreserved_tx()).isEqualTo(0);
     }
 
     @Test
@@ -245,10 +245,10 @@ public class WarmupDemoterServiceTest
         warmupDemoterService.connectorSyncDemoteEnd(warmupDemoterService.getCurrentRunSequence(), warmupDemoterService.getDemoterHighestPriority().get());
         verify(connectorSync, times(1))
                 .syncDemoteCycleEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_REACHED_THRESHOLD));
-        VaradaStatsWarmupDemoter varadaStatsWarmupDemoter = (VaradaStatsWarmupDemoter) metricsManager.get(WARMUP_DEMOTER_STAT_GROUP);
-        assertThat(varadaStatsWarmupDemoter.getnumber_fail_acquire()).isEqualTo(21);
-        assertThat(varadaStatsWarmupDemoter.getnumber_of_runs_fail()).isEqualTo(1);
-        assertThat(varadaStatsWarmupDemoter.getreserved_tx()).isEqualTo(0);
+        WarmupDemoterStats warmupDemoterStats = (WarmupDemoterStats) metricsManager.get(WARMUP_DEMOTER_STAT_GROUP);
+        assertThat(warmupDemoterStats.getnumber_fail_acquire()).isEqualTo(21);
+        assertThat(warmupDemoterStats.getnumber_of_runs_fail()).isEqualTo(1);
+        assertThat(warmupDemoterStats.getreserved_tx()).isEqualTo(0);
     }
 
     @Test
@@ -291,24 +291,24 @@ public class WarmupDemoterServiceTest
     {
         assertThat(warmupDemoterService.trySetIsExecutingToTrue()).isTrue();
         warmupDemoterService.tryDemoteStart();
-        VaradaStatsWarmupDemoter varadaStatsWarmupDemoter = (VaradaStatsWarmupDemoter) metricsManager.get(WARMUP_DEMOTER_STAT_GROUP);
-        assertThat(varadaStatsWarmupDemoter.getnumber_of_runs()).isEqualTo(0);
-        assertThat(varadaStatsWarmupDemoter.getnot_executed_due_is_already_executing()).isEqualTo(1);
+        WarmupDemoterStats warmupDemoterStats = (WarmupDemoterStats) metricsManager.get(WARMUP_DEMOTER_STAT_GROUP);
+        assertThat(warmupDemoterStats.getnumber_of_runs()).isEqualTo(0);
+        assertThat(warmupDemoterStats.getnot_executed_due_is_already_executing()).isEqualTo(1);
     }
 
     @Test
     public void testRunFail()
     {
-        VaradaStatsWarmupDemoter varadaStatsWarmupDemoter = (VaradaStatsWarmupDemoter) metricsManager.get(WARMUP_DEMOTER_STAT_GROUP);
-        varadaStatsWarmupDemoter.setcurrentUsage(1000);
+        WarmupDemoterStats warmupDemoterStats = (WarmupDemoterStats) metricsManager.get(WARMUP_DEMOTER_STAT_GROUP);
+        warmupDemoterStats.setcurrentUsage(1000);
         setConfig(defaultMaxThreshold, defaultCleanThreshold, 0, 1, List.of());
-        assertThat(varadaStatsWarmupDemoter.getnumber_of_runs()).isEqualTo(0);
-        assertThat(varadaStatsWarmupDemoter.getcurrentUsage()).isEqualTo(1000);
-        assertThat(varadaStatsWarmupDemoter.getnumber_of_runs_fail()).isEqualTo(0);
+        assertThat(warmupDemoterStats.getnumber_of_runs()).isEqualTo(0);
+        assertThat(warmupDemoterStats.getcurrentUsage()).isEqualTo(1000);
+        assertThat(warmupDemoterStats.getnumber_of_runs_fail()).isEqualTo(0);
         warmupDemoterService.tryDemoteStart();
-        assertThat(varadaStatsWarmupDemoter.getnumber_of_runs_fail()).isEqualTo(1);
-        assertThat(varadaStatsWarmupDemoter.getnumber_of_runs_fail()).isEqualTo(1);
-        assertThat(varadaStatsWarmupDemoter.getnumber_of_runs()).isEqualTo(0);
+        assertThat(warmupDemoterStats.getnumber_of_runs_fail()).isEqualTo(1);
+        assertThat(warmupDemoterStats.getnumber_of_runs_fail()).isEqualTo(1);
+        assertThat(warmupDemoterStats.getnumber_of_runs()).isEqualTo(0);
     }
 
     @Test
@@ -761,8 +761,8 @@ public class WarmupDemoterServiceTest
         when(workerCapacityManager.getFractionCurrentUsageFromTotal()).thenReturn(0.98);
         setConfig(defaultMaxThreshold, defaultCleanThreshold, defaultBatchSize, defaultMaxElementsToDemote, List.of());
         warmupDemoterService.initiateDemoteProcess();
-        VaradaStatsWarmupDemoter varadaStatsWarmupDemoter = (VaradaStatsWarmupDemoter) metricsManager.get(WARMUP_DEMOTER_STAT_GROUP);
-        assertThat(varadaStatsWarmupDemoter.getnot_executed_due_sync_demote_start_rejected()).isEqualTo(1);
+        WarmupDemoterStats warmupDemoterStats = (WarmupDemoterStats) metricsManager.get(WARMUP_DEMOTER_STAT_GROUP);
+        assertThat(warmupDemoterStats.getnot_executed_due_sync_demote_start_rejected()).isEqualTo(1);
     }
 
     @Test
@@ -774,8 +774,8 @@ public class WarmupDemoterServiceTest
         int demoteProcess = warmupDemoterService.initiateDemoteProcess();
         warmupDemoterService.initDemoteArguments(demoteProcess);
         warmupDemoterService.initiateDemoteProcess();
-        VaradaStatsWarmupDemoter varadaStatsWarmupDemoter = (VaradaStatsWarmupDemoter) metricsManager.get(WARMUP_DEMOTER_STAT_GROUP);
-        assertThat(varadaStatsWarmupDemoter.getnot_executed_due_is_already_executing()).isEqualTo(1);
+        WarmupDemoterStats warmupDemoterStats = (WarmupDemoterStats) metricsManager.get(WARMUP_DEMOTER_STAT_GROUP);
+        assertThat(warmupDemoterStats.getnot_executed_due_is_already_executing()).isEqualTo(1);
     }
 
     @Test

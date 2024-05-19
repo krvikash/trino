@@ -20,7 +20,7 @@ import io.trino.plugin.varada.expression.VaradaConstant;
 import io.trino.plugin.varada.expression.VaradaExpression;
 import io.trino.plugin.varada.expression.rewrite.ExpressionPatterns;
 import io.trino.plugin.warp.gen.constants.PredicateType;
-import io.trino.plugin.warp.gen.stats.VaradaStatsPushdownPredicates;
+import io.trino.plugin.warp.gen.stats.PushdownPredicatesStats;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Range;
 import io.trino.spi.type.Type;
@@ -40,9 +40,9 @@ class CallAndConstantRewriter
             .with(argument(1).matching(x -> x instanceof VaradaConstant));
 
     CallAndConstantRewriter(NativeExpressionRulesHandler nativeExpressionRulesHandler,
-            VaradaStatsPushdownPredicates varadaStatsPushdownPredicates)
+            PushdownPredicatesStats pushdownPredicatesStats)
     {
-        super(nativeExpressionRulesHandler, varadaStatsPushdownPredicates);
+        super(nativeExpressionRulesHandler, pushdownPredicatesStats);
     }
 
     @Override
@@ -57,7 +57,7 @@ class CallAndConstantRewriter
             BiFunction<Type, Object, Range> rangeBiFunction)
     {
         if (rewriteContext.nativeExpressionBuilder().getDomain() != null) {
-            varadaStatsPushdownPredicates.incunsupported_functions_composite();
+            pushdownPredicatesStats.incunsupported_functions_composite();
             //currently, not supported complex expression. etc: where (ceil(c1) > 5) = false
             return false;
         }

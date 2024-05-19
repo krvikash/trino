@@ -18,7 +18,7 @@ import com.google.inject.Singleton;
 import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmingService;
+import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
@@ -51,7 +51,7 @@ public class WorkerWarmingResource
     //@ApiOperation(value = "worker warming status", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public WorkerWarmingStatusData getStatus()
     {
-        VaradaStatsWarmingService varadaStatsWarmingService = (VaradaStatsWarmingService) metricsManager.get(VaradaStatsWarmingService.createKey(WARMING_SERVICE_STAT_GROUP));
-        return new WorkerWarmingStatusData(varadaStatsWarmingService.getwarm_started(), varadaStatsWarmingService.getwarm_accomplished());
+        WarmingServiceStats warmingServiceStats = (WarmingServiceStats) metricsManager.get(WarmingServiceStats.createKey(WARMING_SERVICE_STAT_GROUP));
+        return new WorkerWarmingStatusData(warmingServiceStats.getwarm_started(), warmingServiceStats.getwarm_accomplished());
     }
 }

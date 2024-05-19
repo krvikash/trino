@@ -49,8 +49,8 @@ import io.trino.plugin.varada.storage.read.RangeFillerService;
 import io.trino.plugin.varada.storage.read.StorageCollectorService;
 import io.trino.plugin.varada.storage.read.VaradaPageSource;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
-import io.trino.plugin.warp.gen.stats.VaradaStatsDictionary;
-import io.trino.plugin.warp.gen.stats.VaradaStatsDispatcherPageSource;
+import io.trino.plugin.warp.gen.stats.DictionaryStats;
+import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.spi.TrinoException;
 import io.trino.spi.cache.PlanSignature;
 import io.trino.spi.connector.ColumnHandle;
@@ -113,7 +113,7 @@ public class DispatcherPageSourceFactory
 
     private final GlobalConfig globalConfig;
     private final NativeStorageStateHandler nativeStorageStateHandler;
-    private final VaradaStatsDispatcherPageSource statsDispatcherPageSource;
+    private final DispatcherPageSourceStats statsDispatcherPageSource;
 
     @Inject
     public DispatcherPageSourceFactory(StorageEngine storageEngine,
@@ -156,8 +156,8 @@ public class DispatcherPageSourceFactory
         this.chunksQueueService = chunksQueueService;
         this.storageCollectorService = storageCollectorService;
         this.rangeFillerService = rangeFillerService;
-        metricsManager.registerMetric(VaradaStatsDispatcherPageSource.create(STATS_DISPATCHER_KEY));
-        this.statsDispatcherPageSource = metricsManager.registerMetric(VaradaStatsDispatcherPageSource.create(STATS_DISPATCHER_KEY));
+        metricsManager.registerMetric(DispatcherPageSourceStats.create(STATS_DISPATCHER_KEY));
+        this.statsDispatcherPageSource = metricsManager.registerMetric(DispatcherPageSourceStats.create(STATS_DISPATCHER_KEY));
     }
 
     public static String createFixedStatKey(Object... parts)
@@ -234,7 +234,7 @@ public class DispatcherPageSourceFactory
             return new EmptyPageSource();
         }
 
-        VaradaStatsDispatcherPageSource dispatcherPageSourceStats = (VaradaStatsDispatcherPageSource) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
+        DispatcherPageSourceStats dispatcherPageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
 
         RowGroupKey rowGroupKey = rowGroupDataService.createRowGroupKey(dispatcherSplit.getSchemaName(),
                 dispatcherSplit.getTableName(),
@@ -491,7 +491,7 @@ public class DispatcherPageSourceFactory
                 storageCollectorService,
                 rangeFillerService);
 
-        VaradaStatsDispatcherPageSource pageSourceStats = (VaradaStatsDispatcherPageSource) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
+        DispatcherPageSourceStats pageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
         List<Type> varadaWithoutPrefilledAndProxiedCollectTypes = Stream.concat(
                         queryContext.getRemainingCollectColumns().stream().map(dispatcherProxiedConnectorTransformer::getColumnType),
                         queryContext.getNativeQueryCollectDataList().stream().map(QueryColumn::getType))
@@ -516,7 +516,7 @@ public class DispatcherPageSourceFactory
             DispatcherTableHandle dispatcherTableHandle,
             List<ColumnHandle> columns,
             DynamicFilter dynamicFilter,
-            VaradaStatsDispatcherPageSource dispatcherPageSourceStats)
+            DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         if (Objects.isNull(rowGroupData) ||
                 rowGroupData.getValidWarmUpElements().isEmpty()) {
@@ -590,7 +590,7 @@ public class DispatcherPageSourceFactory
         return pageSourceDecision;
     }
 
-    private void increaseMixedCounters(VaradaStatsDispatcherPageSource stats,
+    private void increaseMixedCounters(DispatcherPageSourceStats stats,
             QueryContext queryContext)
     {
         stats.addexternal_collect_columns(queryContext.getRemainingCollectColumnByBlockIndex().size());
@@ -644,7 +644,7 @@ public class DispatcherPageSourceFactory
                 .forEach(columnName -> customStatsContext.addFixedStat(createFixedStatKey(EXTERNAL_MATCH, columnName), 1));
     }
 
-    private void addProxiedColumnStats(VaradaStatsDispatcherPageSource globalPageSourceStats,
+    private void addProxiedColumnStats(DispatcherPageSourceStats globalPageSourceStats,
             CustomStatsContext customStatsContext,
             List<ColumnHandle> columns,
             QueryContext queryContext)
@@ -675,14 +675,14 @@ public class DispatcherPageSourceFactory
 
     private void initializeCustomStats(CustomStatsContext customStatsContext)
     {
-        customStatsContext.getOrRegister(new VaradaStatsDispatcherPageSource(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY));
-        customStatsContext.getOrRegister(new VaradaStatsDictionary(DictionaryCacheService.DICTIONARY_STAT_GROUP));
+        customStatsContext.getOrRegister(new DispatcherPageSourceStats(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY));
+        customStatsContext.getOrRegister(new DictionaryStats(DictionaryCacheService.DICTIONARY_STAT_GROUP));
     }
 
     /**
      * case we return emptyPageSource due to predicate filter we mark all collect and match columns as varada
      */
-    private void addStatsOnFilteredByPredicate(List<ColumnHandle> columns, CustomStatsContext customStatsContext, VaradaStatsDispatcherPageSource dispatcherPageSourceStats, QueryContext basicQueryContext)
+    private void addStatsOnFilteredByPredicate(List<ColumnHandle> columns, CustomStatsContext customStatsContext, DispatcherPageSourceStats dispatcherPageSourceStats, QueryContext basicQueryContext)
     {
         dispatcherPageSourceStats.incfiltered_by_predicate();
         columns.forEach((columnHandle) -> customStatsContext.addFixedStat(createFixedStatKey(VARADA_COLLECT, dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(columnHandle).getName(), WarmUpType.WARM_UP_TYPE_DATA), 1));

@@ -22,14 +22,14 @@ import io.trino.plugin.varada.di.VaradaInitializedServiceRegistry;
 import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.node.CoordinatorInitializedEvent;
 import io.trino.plugin.varada.util.VaradaInitializedServiceMarker;
-import io.trino.plugin.warp.gen.stats.VaradaStatsCachePredicates;
-import io.trino.plugin.warp.gen.stats.VaradaStatsDictionary;
-import io.trino.plugin.warp.gen.stats.VaradaStatsDispatcherPageSource;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmingService;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmupDemoter;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmupExportService;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmupImportService;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWorkerTaskExecutorService;
+import io.trino.plugin.warp.gen.stats.CachePredicatesStats;
+import io.trino.plugin.warp.gen.stats.DictionaryStats;
+import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
+import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
+import io.trino.plugin.warp.gen.stats.WarmupDemoterStats;
+import io.trino.plugin.warp.gen.stats.WarmupExportServiceStats;
+import io.trino.plugin.warp.gen.stats.WarmupImportServiceStats;
+import io.trino.plugin.warp.gen.stats.WorkerTaskExecutorServiceStats;
 import io.trino.spi.Node;
 import io.trino.spi.NodeManager;
 
@@ -82,14 +82,14 @@ public class CoordinatorNodeManager
         logger.debug("coordinator node [%s] is initialising", getCoordinatorNode().getNodeIdentifier());
 
         coordinatorInitialized = true;
-        metricsManager.registerMetric(VaradaStatsDispatcherPageSource.create(STATS_DISPATCHER_KEY));
-        metricsManager.registerMetric(VaradaStatsWarmingService.create(WARMING_SERVICE_STAT_GROUP));
-        metricsManager.registerMetric(VaradaStatsWarmupDemoter.create(WARMUP_DEMOTER_STAT_GROUP));
-        metricsManager.registerMetric(VaradaStatsWarmupImportService.create(WARMUP_IMPORTER_STAT_GROUP));
-        metricsManager.registerMetric(VaradaStatsWarmupExportService.create(WARMUP_EXPORTER_STAT_GROUP));
-        metricsManager.registerMetric(VaradaStatsWorkerTaskExecutorService.create(WORKER_TASK_EXECUTOR_STAT_GROUP));
-        metricsManager.registerMetric(VaradaStatsDictionary.create(DICTIONARY_STAT_GROUP));
-        metricsManager.registerMetric(VaradaStatsCachePredicates.create(STATS_CACHE_PREDICATE_KEY));
+        metricsManager.registerMetric(DispatcherPageSourceStats.create(STATS_DISPATCHER_KEY));
+        metricsManager.registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
+        metricsManager.registerMetric(WarmupDemoterStats.create(WARMUP_DEMOTER_STAT_GROUP));
+        metricsManager.registerMetric(WarmupImportServiceStats.create(WARMUP_IMPORTER_STAT_GROUP));
+        metricsManager.registerMetric(WarmupExportServiceStats.create(WARMUP_EXPORTER_STAT_GROUP));
+        metricsManager.registerMetric(WorkerTaskExecutorServiceStats.create(WORKER_TASK_EXECUTOR_STAT_GROUP));
+        metricsManager.registerMetric(DictionaryStats.create(DICTIONARY_STAT_GROUP));
+        metricsManager.registerMetric(CachePredicatesStats.create(STATS_CACHE_PREDICATE_KEY));
         eventBus.post(new CoordinatorInitializedEvent(getCoordinatorNode()));
     }
 

@@ -27,7 +27,7 @@ import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.warmup.WarmupRuleApiMapper;
 import io.trino.plugin.varada.warmup.WarmupRuleService;
 import io.trino.plugin.varada.warmup.model.WarmupRule;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmingService;
+import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 
 import java.net.URI;
 import java.util.List;
@@ -77,7 +77,7 @@ public class WorkerWarmupRuleFetcher
             res = varadaClient.sendWithRetry(request, createFullJsonResponseHandler(WARMUP_RULES_CODEC));
         }
         catch (Exception e) {
-            VaradaStatsWarmingService warmingStats = (VaradaStatsWarmingService) metricsManager.get(VaradaStatsWarmingService.createKey(WARMING_SERVICE_STAT_GROUP));
+            WarmingServiceStats warmingStats = (WarmingServiceStats) metricsManager.get(WarmingServiceStats.createKey(WARMING_SERVICE_STAT_GROUP));
             warmingStats.incfailed_fetching_rules();
             warmingStats.incwarm_skipped_due_key_conflict(); // HACK HACK HACk until test will support the previous counter
             logger.warn("failed getting rules from coordinator");

@@ -25,7 +25,7 @@ import io.trino.plugin.varada.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterData;
 import io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterThreshold;
 import io.trino.plugin.warp.extension.execution.debugtools.WorkerWarmupDemoterTask;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmupDemoter;
+import io.trino.plugin.warp.gen.stats.WarmupDemoterStats;
 import io.varada.tools.CatalogNameProvider;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -57,9 +57,9 @@ public class WorkerWarmupDemoterTaskTest
         workerCapacityManager = Mockito.mock(WorkerCapacityManager.class);
         warmupDemoterService = Mockito.mock(WarmupDemoterService.class);
         eventBus = new EventBus();
-        VaradaStatsWarmupDemoter varadaStatsWarmupDemoter = VaradaStatsWarmupDemoter.create(WARMUP_DEMOTER_STAT_GROUP);
+        WarmupDemoterStats warmupDemoterStats = WarmupDemoterStats.create(WARMUP_DEMOTER_STAT_GROUP);
         MetricsManager metricsManager = Mockito.mock(MetricsManager.class);
-        Mockito.when(metricsManager.registerMetric(ArgumentMatchers.any())).thenReturn(varadaStatsWarmupDemoter);
+        Mockito.when(metricsManager.registerMetric(ArgumentMatchers.any())).thenReturn(warmupDemoterStats);
         workerWarmupDemoterTask = new WorkerWarmupDemoterTask(warmupDemoterService,
                 warmupDemoterConfig,
                 workerCapacityManager,

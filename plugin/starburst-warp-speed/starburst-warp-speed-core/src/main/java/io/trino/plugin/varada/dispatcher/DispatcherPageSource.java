@@ -23,7 +23,7 @@ import io.trino.plugin.varada.dispatcher.query.QueryContext;
 import io.trino.plugin.varada.dispatcher.query.classifier.QueryClassifier;
 import io.trino.plugin.varada.storage.read.PrefilledPageSource;
 import io.trino.plugin.varada.storage.read.VaradaStoragePageSource;
-import io.trino.plugin.warp.gen.stats.VaradaStatsDispatcherPageSource;
+import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
 import io.trino.spi.TrinoException;
@@ -62,7 +62,7 @@ public class DispatcherPageSource
     private final QueryContext queryContext;
     private final RowGroupData rowGroupData;
     private final PageSourceDecision pageSourceDecision;
-    private final VaradaStatsDispatcherPageSource stats;
+    private final DispatcherPageSourceStats stats;
     private final QueryClassifier queryClassifier;
     private final Provider<ConnectorPageSource> proxiedConnectorPageSourceProvider;
     private final ReadErrorHandler readErrorHandler;
@@ -87,7 +87,7 @@ public class DispatcherPageSource
             QueryContext queryContext,
             RowGroupData rowGroupData,
             PageSourceDecision pageSourceDecision,
-            VaradaStatsDispatcherPageSource stats,
+            DispatcherPageSourceStats stats,
             RowGroupCloseHandler closeHandler,
             ReadErrorHandler readErrorHandler,
             GlobalConfig globalConfig)

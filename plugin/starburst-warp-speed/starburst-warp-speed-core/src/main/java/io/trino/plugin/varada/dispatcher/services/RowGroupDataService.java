@@ -29,7 +29,7 @@ import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.storage.engine.ConnectorSync;
 import io.trino.plugin.varada.storage.engine.StorageEngine;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmingService;
+import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.spi.NodeManager;
 import io.trino.spi.TrinoException;
 import io.varada.tools.util.Pair;
@@ -57,7 +57,7 @@ public class RowGroupDataService
     private final StorageEngine storageEngine;
     private final GlobalConfig globalConfig;
     private final RowGroupDataDao rowGroupDataDao;
-    private final VaradaStatsWarmingService varadaStatsWarmingService;
+    private final WarmingServiceStats warmingServiceStats;
     private final ConnectorSync connectorSync;
     private final String nodeIdentifier;
 
@@ -72,7 +72,7 @@ public class RowGroupDataService
         this.rowGroupDataDao = requireNonNull(rowGroupDataDao);
         this.storageEngine = requireNonNull(storageEngine);
         this.globalConfig = requireNonNull(globalConfig);
-        this.varadaStatsWarmingService = metricsManager.registerMetric(VaradaStatsWarmingService.create(WARMING_SERVICE_STAT_GROUP));
+        this.warmingServiceStats = metricsManager.registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
         this.nodeIdentifier = requireNonNull(nodeManager).getCurrentNode().getNodeIdentifier();
         this.connectorSync = requireNonNull(connectorSync);
     }
@@ -120,7 +120,7 @@ public class RowGroupDataService
                 .warmUpElements(updatedWarmupElements)
                 .build();
         save(updatedRowGroupData);
-        varadaStatsWarmingService.addwarmup_elements_count(newWarmUpElements.size() - warmUpElementsToDelete.size());
+        warmingServiceStats.addwarmup_elements_count(newWarmUpElements.size() - warmUpElementsToDelete.size());
     }
 
     public RowGroupData get(RowGroupKey rowGroupKey)
@@ -177,7 +177,7 @@ public class RowGroupDataService
         rowGroupDataDao.delete(rowGroupKey, deleteFromCache);
         logger.debug("deleted rowGroupKey %s offset %d next-export-offset %d",
                 rowGroupKey, rowGroupData.getNextOffset(), rowGroupData.getNextExportOffset());
-        varadaStatsWarmingService.incdeleted_row_group_count();
+        warmingServiceStats.incdeleted_row_group_count();
     }
 
     private void invalidateData(RowGroupData rowGroupData)
@@ -198,7 +198,7 @@ public class RowGroupDataService
                     .warmUpElements(Collections.emptyList())
                     .build();
             save(rowGroupData);
-            varadaStatsWarmingService.incrow_group_count();
+            warmingServiceStats.incrow_group_count();
         }
         return rowGroupData;
     }
@@ -289,19 +289,19 @@ public class RowGroupDataService
         save(updatedRowGroupData);
 
         if (warmUpElement.isValid()) {
-            varadaStatsWarmingService.incwarmup_elements_count();
+            warmingServiceStats.incwarmup_elements_count();
         }
         else {
             logger.debug("updateRowGroupData failure, row groupKey = %s, warmupElement=%s", rowGroupData.getRowGroupKey().stringFileNameRepresentation(globalConfig.getLocalStorePath()), warmUpElement);
-            varadaStatsWarmingService.incwarm_failed();
+            warmingServiceStats.incwarm_failed();
         }
 
         if (weToOverride.isPresent()) {
-            varadaStatsWarmingService.addwarm_success_retry_warmup_element(warmUpElement.isValid() && !weToOverride.get().isValid() ? 1 : 0);
+            warmingServiceStats.addwarm_success_retry_warmup_element(warmUpElement.isValid() && !weToOverride.get().isValid() ? 1 : 0);
         }
 
         if (warmUpElement.isValid() && totalRecords == 0) {
-            varadaStatsWarmingService.incempty_row_group();
+            warmingServiceStats.incempty_row_group();
         }
         return updatedRowGroupData;
     }
@@ -333,7 +333,7 @@ public class RowGroupDataService
                     .nodeIdentifier(nodeIdentifier)
                     .warmUpElements(failedElementByColNameAndWarmUpType.values())
                     .partitionKeys(partitionKeys);
-            varadaStatsWarmingService.incrow_group_count();
+            warmingServiceStats.incrow_group_count();
         }
         else {
             builder = RowGroupData.builder(rowGroupData);
@@ -348,7 +348,7 @@ public class RowGroupDataService
         }
 
         save(builder.build());
-        varadaStatsWarmingService.addwarm_failed(failedElementByColNameAndWarmUpType.size());
+        warmingServiceStats.addwarm_failed(failedElementByColNameAndWarmUpType.size());
 
         flush(rowGroupKey);
     }
@@ -422,7 +422,7 @@ public class RowGroupDataService
 
         toDeleteWarmUpElements.forEach(toDeleteWarmUpElement -> storageEngine.filePunchHole(fileName, toDeleteWarmUpElement.getStartOffset(), toDeleteWarmUpElement.getEndOffset()));
 
-        varadaStatsWarmingService.adddeleted_warmup_elements_count(deletedWarmUpElements.size());
+        warmingServiceStats.adddeleted_warmup_elements_count(deletedWarmUpElements.size());
     }
 
     public synchronized void removeElements(RowGroupData rowGroupData)
@@ -467,6 +467,6 @@ public class RowGroupDataService
 
         storageEngine.filePunchHole(fileName, 0, rowGroupData.getNextOffset());
 
-        varadaStatsWarmingService.adddeleted_warmup_elements_count(updatedWarmUpElements.size());
+        warmingServiceStats.adddeleted_warmup_elements_count(updatedWarmUpElements.size());
     }
 }

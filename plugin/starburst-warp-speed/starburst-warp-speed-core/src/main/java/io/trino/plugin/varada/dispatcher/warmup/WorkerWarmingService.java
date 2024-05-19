@@ -50,7 +50,7 @@ import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.type.TypeUtils;
 import io.trino.plugin.varada.warmup.model.WarmupRule;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmingService;
+import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
@@ -91,7 +91,7 @@ public class WorkerWarmingService
     private static final Logger logger = Logger.get(WorkerWarmingService.class);
 
     private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
-    private final VaradaStatsWarmingService statsWarmingService;
+    private final WarmingServiceStats statsWarmingService;
     private final WarmExecutionTaskFactory warmExecutionTaskFactory;
     private final WorkerTaskExecutorService workerTaskExecutorService;
     private final WarmupDemoterService warmupDemoterService;
@@ -144,7 +144,7 @@ public class WorkerWarmingService
     {
         this.warmExecutionTaskFactory = warmExecutionTaskFactory;
         this.dispatcherProxiedConnectorTransformer = dispatcherProxiedConnectorTransformer;
-        this.statsWarmingService = metricsManager.registerMetric(VaradaStatsWarmingService.create(WARMING_SERVICE_STAT_GROUP));
+        this.statsWarmingService = metricsManager.registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
         this.workerTaskExecutorService = requireNonNull(workerTaskExecutorService);
         this.warmupDemoterService = requireNonNull(warmupDemoterService);
         this.workerWarmupRuleService = requireNonNull(workerWarmupRuleService);

@@ -24,7 +24,7 @@ import io.trino.plugin.varada.dispatcher.model.WarmUpElement;
 import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
-import io.trino.plugin.warp.gen.stats.VaradaStatsDictionary;
+import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.spi.NodeManager;
 import io.trino.spi.connector.SchemaTableName;
 import org.junit.jupiter.api.Assertions;
@@ -66,7 +66,7 @@ public class DataValueDictionaryTest
 {
     private DictionaryConfig dictionaryConfig;
     private DictionaryCacheService dictionaryCacheService;
-    private VaradaStatsDictionary varadaStatsDictionary;
+    private DictionaryStats dictionaryStats;
     private NodeManager nodeManager;
 
     static Stream<Arguments> testParamsNumberType()
@@ -92,7 +92,7 @@ public class DataValueDictionaryTest
         dictionaryCacheService = spy(new DictionaryCacheService(dictionaryConfig,
                 metricsManager,
                 mock(AttachDictionaryService.class)));
-        varadaStatsDictionary = (VaradaStatsDictionary) metricsManager.get(VaradaStatsDictionary.createKey(DICTIONARY_STAT_GROUP));
+        dictionaryStats = (DictionaryStats) metricsManager.get(DictionaryStats.createKey(DICTIONARY_STAT_GROUP));
     }
 
     @RepeatedTest(10)
@@ -128,7 +128,7 @@ public class DataValueDictionaryTest
         DictionaryState dictionaryState = dictionaryCacheService.calculateDictionaryStateForWrite(warmUpElement, null);
         assertThat(dictionaryState).isEqualTo(DictionaryState.DICTIONARY_VALID);
 
-        DataValueDictionary dataValueDictionary = new DataValueDictionary(dictionaryConfig, writeDictionaryKey, 0, 0, varadaStatsDictionary);
+        DataValueDictionary dataValueDictionary = new DataValueDictionary(dictionaryConfig, writeDictionaryKey, 0, 0, dictionaryStats);
         Map<Slice, Short> validateDictionary = new HashMap<>();
 
         List<Future<?>> futures = new ArrayList<>(numberOfThreads);
@@ -162,7 +162,7 @@ public class DataValueDictionaryTest
             distinctValues.add(value);
         }
         assertThat(distinctValues.size()).isEqualTo(dictionaryToWrite.getSize());
-        assertThat(varadaStatsDictionary.getwrite_dictionaries_count()).isEqualTo(1);
+        assertThat(dictionaryStats.getwrite_dictionaries_count()).isEqualTo(1);
     }
 
     @RepeatedTest(10)
@@ -207,7 +207,7 @@ public class DataValueDictionaryTest
             future.get();
         }
 
-        assertThat(varadaStatsDictionary.getwrite_dictionaries_count()).isEqualTo(numberOfThreads);
+        assertThat(dictionaryStats.getwrite_dictionaries_count()).isEqualTo(numberOfThreads);
     }
 
     @Test

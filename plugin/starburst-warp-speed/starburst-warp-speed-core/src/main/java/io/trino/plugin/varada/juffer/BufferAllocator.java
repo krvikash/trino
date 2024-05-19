@@ -31,7 +31,7 @@ import io.trino.plugin.varada.util.VaradaInitializedServiceMarker;
 import io.trino.plugin.warp.gen.constants.JbufType;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
-import io.trino.plugin.warp.gen.stats.VaradaStatsBufferAllocator;
+import io.trino.plugin.warp.gen.stats.BufferAllocatorStats;
 import io.trino.spi.type.TinyintType;
 
 import java.lang.foreign.Arena;
@@ -82,7 +82,7 @@ public class BufferAllocator
     private int indexTempBufferSize;
     private int warmBundleSize;
     private int warmWriteBufferSize;
-    private final VaradaStatsBufferAllocator stats;
+    private final BufferAllocatorStats stats;
     private PredicateBufferPool[] predicateBufferPools;
     private int[] buffTypeSizes;
     private int[] fixedRecordBufferSizes;
@@ -130,7 +130,7 @@ public class BufferAllocator
 
         logger.info("loadSegmentsSize %d warmBundleSize %d warmWriteBufferSize %d readNumBundles %d predicateBundleSize %dMB",
                 loadSegmentsQueue.size(), warmBundleSize, warmWriteBufferSize, bundles.length, nativeConfig.getPredicateBundleSizeInMegaBytes());
-        this.stats = VaradaStatsBufferAllocator.create(BUFFER_ALLOCATOR_METRICS_GROUP);
+        this.stats = BufferAllocatorStats.create(BUFFER_ALLOCATOR_METRICS_GROUP);
     }
 
     private void initWarmBundles()

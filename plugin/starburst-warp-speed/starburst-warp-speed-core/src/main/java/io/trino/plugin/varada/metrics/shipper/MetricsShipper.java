@@ -13,11 +13,11 @@
  */
 package io.trino.plugin.varada.metrics.shipper;
 
-import io.trino.plugin.varada.metrics.VaradaStatsBase;
+import io.trino.plugin.varada.metrics.WarpStatsBase;
 
 public interface MetricsShipper
 {
     void certificateChanged();
 
-    <T extends VaradaStatsBase> void registerMetric(T varadaStatsBase);
+    <T extends WarpStatsBase> void registerMetric(T warpStatsBase);
 }

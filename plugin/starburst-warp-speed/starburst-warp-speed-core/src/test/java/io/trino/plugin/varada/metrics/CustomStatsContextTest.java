@@ -39,12 +39,12 @@ public class CustomStatsContextTest
     public void getOrRegisterTest()
     {
         String jmxKey = "test";
-        VaradaStatsBase stats = new VaradaTestStats(jmxKey);
+        WarpStatsBase stats = new WarpTestStats(jmxKey);
         assertThat(customStatsContext.getStat(jmxKey)).isNull();
         customStatsContext.getOrRegister(stats);
         assertThat(customStatsContext.getStat(jmxKey)).isNotNull();
 
-        VaradaStatsBase statsNew = new VaradaTestStats(jmxKey);
+        WarpStatsBase statsNew = new WarpTestStats(jmxKey);
         //does not create new instance
         assertThat(customStatsContext.getOrRegister(statsNew)).isEqualTo(stats);
     }
@@ -53,30 +53,30 @@ public class CustomStatsContextTest
     public void copyStatsToGlobalMetricsManagerTest()
     {
         final String jmxKey = "test";
-        VaradaTestStats testStatsContext = new VaradaTestStats(jmxKey);
+        WarpTestStats testStatsContext = new WarpTestStats(jmxKey);
         customStatsContext.getOrRegister(testStatsContext);
-        VaradaTestStats testStatsGlobal = new VaradaTestStats(jmxKey);
+        WarpTestStats testStatsGlobal = new WarpTestStats(jmxKey);
         metricsManager.registerMetric(testStatsGlobal);
         testStatsContext.incCounter();
         customStatsContext.copyStatsToGlobalMetricsManager();
-        assertThat(((VaradaTestStats) metricsManager.get(jmxKey)).getCounter()).isEqualTo(((VaradaTestStats) customStatsContext.getStat(jmxKey)).getCounter());
+        assertThat(((WarpTestStats) metricsManager.get(jmxKey)).getCounter()).isEqualTo(((WarpTestStats) customStatsContext.getStat(jmxKey)).getCounter());
 
         CustomStatsContext customStatsContext2 = new CustomStatsContext(metricsManager, Collections.emptyList());
-        VaradaTestStats testStatsContext2 = new VaradaTestStats(jmxKey);
+        WarpTestStats testStatsContext2 = new WarpTestStats(jmxKey);
         customStatsContext2.getOrRegister(testStatsContext2);
         testStatsContext2.incCounter();
         customStatsContext2.copyStatsToGlobalMetricsManager();
-        assertThat(((VaradaTestStats) metricsManager.get(jmxKey)).getCounter()).isGreaterThan(((VaradaTestStats) customStatsContext2.getStat(jmxKey)).getCounter());
+        assertThat(((WarpTestStats) metricsManager.get(jmxKey)).getCounter()).isGreaterThan(((WarpTestStats) customStatsContext2.getStat(jmxKey)).getCounter());
     }
 
-    static class VaradaTestStats
-            extends VaradaStatsBase
+    static class WarpTestStats
+            extends WarpStatsBase
     {
         final LongAdder counter = new LongAdder();
 
-        VaradaTestStats(String jmxKey)
+        WarpTestStats(String jmxKey)
         {
-            super(jmxKey, VaradaStatType.Worker);
+            super(jmxKey, WarpStatType.Worker);
         }
 
         public void incCounter()
@@ -90,12 +90,12 @@ public class CustomStatsContextTest
         }
 
         @Override
-        public void mergeStats(VaradaStatsBase varadaStatsBase)
+        public void mergeStats(WarpStatsBase warpStatsBase)
         {
-            if (varadaStatsBase == null) {
+            if (warpStatsBase == null) {
                 return;
             }
-            VaradaTestStats other = (VaradaTestStats) varadaStatsBase;
+            WarpTestStats other = (WarpTestStats) warpStatsBase;
             this.counter.add(other.counter.longValue());
         }
     }

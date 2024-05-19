@@ -26,7 +26,7 @@ import io.trino.plugin.varada.storage.read.fill.BlockFillersFactory;
 import io.trino.plugin.warp.gen.constants.QueryResultType;
 import io.trino.plugin.warp.gen.constants.RecordBufferState;
 import io.trino.plugin.warp.gen.constants.RecordIndexListHeader;
-import io.trino.plugin.warp.gen.stats.VaradaStatsDictionary;
+import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.DictionaryBlock;
@@ -47,7 +47,7 @@ public class StorageCollectorService
     // services
     private final StorageEngine storageEngine;
     private final BufferAllocator bufferAllocator;
-    private final VaradaStatsDictionary varadaStatsDictionary;
+    private final DictionaryStats dictionaryStats;
     private final RangeFillerService rangeFillerService;
     private final ChunksQueueService chunksQueueService;
     private final StorageEngineConstants storageEngineConstants;
@@ -65,7 +65,7 @@ public class StorageCollectorService
     {
         this.storageEngine = requireNonNull(storageEngine);
         this.bufferAllocator = requireNonNull(bufferAllocator);
-        this.varadaStatsDictionary = requireNonNull(metricsManager).registerMetric(VaradaStatsDictionary.create(DICTIONARY_STAT_GROUP));
+        this.dictionaryStats = requireNonNull(metricsManager).registerMetric(DictionaryStats.create(DICTIONARY_STAT_GROUP));
         this.rangeFillerService = requireNonNull(rangeFillerService);
         this.chunksQueueService = requireNonNull(chunksQueueService);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
@@ -179,7 +179,7 @@ public class StorageCollectorService
                             collectParams.isCollectNulls(),
                             collectParams.getDictionary());
                     if (logger.isDebugEnabled() && block instanceof DictionaryBlock) {
-                        varadaStatsDictionary.adddictionary_block_saved_bytes(block.getLogicalSizeInBytes() - block.getSizeInBytes());
+                        dictionaryStats.adddictionary_block_saved_bytes(block.getLogicalSizeInBytes() - block.getSizeInBytes());
                     }
                 }
                 else if (collectParams.mappedMatchCollect()) {

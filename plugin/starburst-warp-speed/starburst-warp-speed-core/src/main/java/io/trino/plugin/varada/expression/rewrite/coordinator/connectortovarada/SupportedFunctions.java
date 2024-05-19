@@ -21,7 +21,7 @@ import com.google.inject.Singleton;
 import io.trino.plugin.base.expression.ConnectorExpressionRule;
 import io.trino.plugin.varada.expression.VaradaExpression;
 import io.trino.plugin.varada.metrics.MetricsManager;
-import io.trino.plugin.warp.gen.stats.VaradaStatsPushdownPredicates;
+import io.trino.plugin.warp.gen.stats.PushdownPredicatesStats;
 import io.trino.spi.expression.Call;
 import io.trino.spi.expression.FunctionName;
 import io.trino.spi.type.StandardTypes;
@@ -84,7 +84,7 @@ public class SupportedFunctions
     public static final FunctionName JSON_EXTRACT_SCALAR = new FunctionName("json_extract_scalar");
 
     private final SetMultimap<FunctionName, ConnectorExpressionRule<Call, VaradaExpression>> supportedFunctionsRules = HashMultimap.create();
-    private final VaradaStatsPushdownPredicates varadaStatsPushdownPredicates;
+    private final PushdownPredicatesStats pushdownPredicatesStats;
 
     public static final Set<FunctionName> DATE_FUNCTIONS = Set.of(SupportedFunctions.DOW,
             SupportedFunctions.DAY_OF_MONTH,
@@ -105,7 +105,7 @@ public class SupportedFunctions
     @Inject
     public SupportedFunctions(MetricsManager metricsManager)
     {
-        this.varadaStatsPushdownPredicates = metricsManager.registerMetric(VaradaStatsPushdownPredicates.create(PUSHDOWN_PREDICATES_STAT_GROUP));
+        this.pushdownPredicatesStats = metricsManager.registerMetric(PushdownPredicatesStats.create(PUSHDOWN_PREDICATES_STAT_GROUP));
 
         Map<String, Set<String>> typeClasses = new HashMap<>();
         typeClasses.put("valid_types", Set.of(StandardTypes.REAL, StandardTypes.DOUBLE));
@@ -164,7 +164,7 @@ public class SupportedFunctions
 
     private GenericRewriter createGenericRewriter(String expressionPattern, boolean allowCompositeExpression, Map<String, Set<String>> typeClasses)
     {
-        return new GenericRewriter(typeClasses, expressionPattern, allowCompositeExpression, varadaStatsPushdownPredicates);
+        return new GenericRewriter(typeClasses, expressionPattern, allowCompositeExpression, pushdownPredicatesStats);
     }
 
     @VisibleForTesting

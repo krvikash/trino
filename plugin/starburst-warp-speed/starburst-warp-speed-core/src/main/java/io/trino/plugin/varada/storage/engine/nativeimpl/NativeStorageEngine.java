@@ -23,7 +23,7 @@ import io.trino.plugin.varada.storage.engine.ExceptionThrower;
 import io.trino.plugin.varada.storage.engine.StorageEngine;
 import io.trino.plugin.varada.storage.lucene.LuceneMatcher;
 import io.trino.plugin.varada.storage.read.StorageCollectorCallBack;
-import io.trino.plugin.warp.gen.stats.VaradaStatsMgr;
+import io.trino.plugin.warp.gen.stats.WarpStatsMgr;
 
 import java.nio.ByteBuffer;
 
@@ -74,7 +74,7 @@ public class NativeStorageEngine
             logger.error(t, "failed loading storage engine");
             throw t;
         }
-        new VaradaStatsMgr(metricsManager);
+        new WarpStatsMgr(metricsManager);
         logger.debug("finish initializing storage engine");
     }
 

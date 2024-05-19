@@ -25,7 +25,7 @@ import io.trino.plugin.varada.config.WarmupDemoterConfig;
 import io.trino.plugin.varada.dispatcher.model.RowGroupKey;
 import io.trino.plugin.varada.dispatcher.warmup.export.WeGroupCloudExporterTask;
 import io.trino.plugin.varada.metrics.MetricsManager;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWorkerTaskExecutorService;
+import io.trino.plugin.warp.gen.stats.WorkerTaskExecutorServiceStats;
 
 import java.util.Comparator;
 import java.util.Iterator;
@@ -57,7 +57,7 @@ public class WorkerTaskExecutorService
     private static final Logger logger = Logger.get(WorkerTaskExecutorService.class);
     private final WarmupDemoterConfig warmupDemoterConfig;
     private final NativeConfig nativeConfig;
-    private final VaradaStatsWorkerTaskExecutorService statsWorkerTaskExecutorService;
+    private final WorkerTaskExecutorServiceStats statsWorkerTaskExecutorService;
     private final Map<RowGroupKey, UUID> submittedRowGroups = new ConcurrentHashMap<>();
     private final SetMultimap<RowGroupKey, WorkerSubmittableTask> pendingTasks = Multimaps.newSetMultimap(new ConcurrentHashMap<>(), () -> {
         Comparator<WorkerSubmittableTask> c = Comparator.comparing(o -> (o.getPriority() + "." + o.getId()));
@@ -80,7 +80,7 @@ public class WorkerTaskExecutorService
     {
         this.warmupDemoterConfig = requireNonNull(warmupDemoterConfig);
         this.nativeConfig = requireNonNull(nativeConfig);
-        this.statsWorkerTaskExecutorService = metricsManager.registerMetric(new VaradaStatsWorkerTaskExecutorService(WORKER_TASK_EXECUTOR_STAT_GROUP));
+        this.statsWorkerTaskExecutorService = metricsManager.registerMetric(new WorkerTaskExecutorServiceStats(WORKER_TASK_EXECUTOR_STAT_GROUP));
         this.queueSize = warmupDemoterConfig.getTasksExecutorQueueSize();
         this.globalConfig = requireNonNull(globalConfig);
         prioritizeExecutorService = getPrioritizeExecutorService();

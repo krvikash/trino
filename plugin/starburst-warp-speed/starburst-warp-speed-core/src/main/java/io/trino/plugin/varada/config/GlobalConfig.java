@@ -66,7 +66,6 @@ public class GlobalConfig
     private String certLocalLocalLocation;
     private String deviceIdentifier;
     private String azureConnectionString;
-    private boolean allowVaradaStatsCollection;
     private boolean failureGeneratorEnabled;
     private SwaggerExposingLevel swaggerExposingLevel = SwaggerExposingLevel.DEBUG;
 
@@ -373,17 +372,6 @@ public class GlobalConfig
         this.azureConnectionString = azureConnectionString;
     }
 
-    public boolean isAllowVaradaStatsCollection()
-    {
-        return allowVaradaStatsCollection;
-    }
-
-    @Config(STATS_COLLECTION_ENABLED)
-    public void setAllowVaradaStatsCollection(boolean allowVaradaStatsCollection)
-    {
-        this.allowVaradaStatsCollection = allowVaradaStatsCollection;
-    }
-
     public boolean getDebugWarming()
     {
         return debugWarming;
@@ -521,7 +509,6 @@ public class GlobalConfig
                 ", certLocalLocalLocation='" + certLocalLocalLocation + '\'' +
                 ", deviceIdentifier='" + deviceIdentifier + '\'' +
                 ", azureConnectionString='" + azureConnectionString + '\'' +
-                ", allowVaradaStatsCollection=" + allowVaradaStatsCollection +
                 ", failureGeneratorEnabled=" + failureGeneratorEnabled +
                 ", swaggerExposingLevel=" + swaggerExposingLevel +
                 ", enableRangeFilter=" + enableRangeFilter +

@@ -24,7 +24,7 @@ import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.storage.engine.StorageEngineConstants;
 import io.trino.plugin.varada.storage.write.WarmupElementStats;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmupImportService;
+import io.trino.plugin.warp.gen.stats.WarmupImportServiceStats;
 import io.varada.cloudvendors.CloudVendorService;
 import io.varada.cloudvendors.config.CloudVendorConfig;
 import io.varada.cloudvendors.model.StorageObjectMetadata;
@@ -68,7 +68,7 @@ public class WeGroupWarmerTest
     private GlobalConfig globalConfig;
     private RowGroupDataService rowGroupDataService;
     private CloudVendorService cloudVendorService;
-    private VaradaStatsWarmupImportService varadaStatsWarmupImportService;
+    private WarmupImportServiceStats warmupImportServiceStats;
     private WeGroupWarmer weGroupWarmer;
 
     @BeforeAll
@@ -112,8 +112,8 @@ public class WeGroupWarmerTest
         when(cloudVendorService.getLocation(anyString())).thenCallRealMethod();
 
         MetricsManager metricsManager = mock(MetricsManager.class);
-        varadaStatsWarmupImportService = VaradaStatsWarmupImportService.create(WARMUP_IMPORTER_STAT_GROUP);
-        when(metricsManager.registerMetric(any())).thenReturn(varadaStatsWarmupImportService);
+        warmupImportServiceStats = WarmupImportServiceStats.create(WARMUP_IMPORTER_STAT_GROUP);
+        when(metricsManager.registerMetric(any())).thenReturn(warmupImportServiceStats);
 
         weGroupWarmer = new WeGroupWarmer(globalConfig,
                 cloudVendorConfig,
@@ -208,9 +208,9 @@ public class WeGroupWarmerTest
         Optional<RowGroupData> optionalRowGroupData = weGroupWarmer.importWeGroup(null, rowGroupKey);
 
         Assertions.assertTrue(optionalRowGroupData.isEmpty());
-        Assertions.assertEquals(1, varadaStatsWarmupImportService.getimport_we_group_download_started());
-        Assertions.assertEquals(1, varadaStatsWarmupImportService.getimport_we_group_download_failed());
-        Assertions.assertEquals(1, varadaStatsWarmupImportService.getimport_we_group_download_accomplished());
+        Assertions.assertEquals(1, warmupImportServiceStats.getimport_we_group_download_started());
+        Assertions.assertEquals(1, warmupImportServiceStats.getimport_we_group_download_failed());
+        Assertions.assertEquals(1, warmupImportServiceStats.getimport_we_group_download_accomplished());
     }
 
     @Test
@@ -241,9 +241,9 @@ public class WeGroupWarmerTest
         Optional<RowGroupData> optionalRowGroupData = weGroupWarmer.importWeGroup(null, rowGroupKey);
 
         Assertions.assertTrue(optionalRowGroupData.isPresent());
-        Assertions.assertEquals(1, varadaStatsWarmupImportService.getimport_we_group_download_started());
-        Assertions.assertEquals(0, varadaStatsWarmupImportService.getimport_we_group_download_failed());
-        Assertions.assertEquals(1, varadaStatsWarmupImportService.getimport_we_group_download_accomplished());
+        Assertions.assertEquals(1, warmupImportServiceStats.getimport_we_group_download_started());
+        Assertions.assertEquals(0, warmupImportServiceStats.getimport_we_group_download_failed());
+        Assertions.assertEquals(1, warmupImportServiceStats.getimport_we_group_download_accomplished());
 
         localFile.delete();
         localTmpFile.delete();
@@ -280,9 +280,9 @@ public class WeGroupWarmerTest
         Optional<RowGroupData> optionalRowGroupData = weGroupWarmer.importWeGroup(null, rowGroupKey);
 
         Assertions.assertTrue(optionalRowGroupData.isPresent());
-        Assertions.assertEquals(1, varadaStatsWarmupImportService.getimport_we_group_download_started());
-        Assertions.assertEquals(0, varadaStatsWarmupImportService.getimport_we_group_download_failed());
-        Assertions.assertEquals(1, varadaStatsWarmupImportService.getimport_we_group_download_accomplished());
+        Assertions.assertEquals(1, warmupImportServiceStats.getimport_we_group_download_started());
+        Assertions.assertEquals(0, warmupImportServiceStats.getimport_we_group_download_failed());
+        Assertions.assertEquals(1, warmupImportServiceStats.getimport_we_group_download_accomplished());
 
         localFile.delete();
         localTmpFile.delete();
@@ -341,9 +341,9 @@ public class WeGroupWarmerTest
         Assertions.assertEquals(4, returnedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.HOT.equals(warmUpElement.getWarmState())).count());
         Assertions.assertEquals(0, returnedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.WARM.equals(warmUpElement.getWarmState())).count());
 
-        Assertions.assertEquals(2, varadaStatsWarmupImportService.getimport_elements_started());
-        Assertions.assertEquals(0, varadaStatsWarmupImportService.getimport_elements_failed());
-        Assertions.assertEquals(2, varadaStatsWarmupImportService.getimport_elements_accomplished());
+        Assertions.assertEquals(2, warmupImportServiceStats.getimport_elements_started());
+        Assertions.assertEquals(0, warmupImportServiceStats.getimport_elements_failed());
+        Assertions.assertEquals(2, warmupImportServiceStats.getimport_elements_accomplished());
 
         verify(rowGroupDataService, times(1)).flush(argumentCaptor1.capture());
         verify(rowGroupDataService, times(1)).save(argumentCaptor2.capture());
@@ -402,9 +402,9 @@ public class WeGroupWarmerTest
         Assertions.assertEquals(2, returnedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.HOT.equals(warmUpElement.getWarmState())).count());
         Assertions.assertEquals(2, returnedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.WARM.equals(warmUpElement.getWarmState())).count());
 
-        Assertions.assertEquals(2, varadaStatsWarmupImportService.getimport_elements_started());
-        Assertions.assertEquals(2, varadaStatsWarmupImportService.getimport_elements_failed());
-        Assertions.assertEquals(2, varadaStatsWarmupImportService.getimport_elements_accomplished());
+        Assertions.assertEquals(2, warmupImportServiceStats.getimport_elements_started());
+        Assertions.assertEquals(2, warmupImportServiceStats.getimport_elements_failed());
+        Assertions.assertEquals(2, warmupImportServiceStats.getimport_elements_accomplished());
 
         verify(rowGroupDataService, times(0)).flush(argumentCaptor1.capture());
         verify(rowGroupDataService, times(0)).save(argumentCaptor2.capture());
@@ -465,9 +465,9 @@ public class WeGroupWarmerTest
         Assertions.assertEquals(3, returnedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.HOT.equals(warmUpElement.getWarmState())).count());
         Assertions.assertEquals(1, returnedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.WARM.equals(warmUpElement.getWarmState())).count());
 
-        Assertions.assertEquals(2, varadaStatsWarmupImportService.getimport_elements_started());
-        Assertions.assertEquals(1, varadaStatsWarmupImportService.getimport_elements_failed());
-        Assertions.assertEquals(2, varadaStatsWarmupImportService.getimport_elements_accomplished());
+        Assertions.assertEquals(2, warmupImportServiceStats.getimport_elements_started());
+        Assertions.assertEquals(1, warmupImportServiceStats.getimport_elements_failed());
+        Assertions.assertEquals(2, warmupImportServiceStats.getimport_elements_accomplished());
 
         verify(rowGroupDataService, times(1)).flush(argumentCaptor1.capture());
         verify(rowGroupDataService, times(1)).save(argumentCaptor2.capture());
@@ -517,7 +517,7 @@ public class WeGroupWarmerTest
         Optional<RowGroupData> optionalRowGroupData = weGroupWarmer.importWarmUpElements(null, rowGroupKey, warmWarmUpElements);
 
         Assertions.assertTrue(optionalRowGroupData.isEmpty());
-        Assertions.assertEquals(0, varadaStatsWarmupImportService.getimport_elements_started());
+        Assertions.assertEquals(0, warmupImportServiceStats.getimport_elements_started());
     }
 
     @Test
@@ -574,9 +574,9 @@ public class WeGroupWarmerTest
         Optional<RowGroupData> optionalRowGroupData = weGroupWarmer.importWarmUpElements(null, rowGroupKey, warmWarmUpElements);
 
         Assertions.assertTrue(optionalRowGroupData.isEmpty());
-        Assertions.assertEquals(1, varadaStatsWarmupImportService.getimport_elements_started());
-        Assertions.assertEquals(1, varadaStatsWarmupImportService.getimport_elements_failed());
-        Assertions.assertEquals(1, varadaStatsWarmupImportService.getimport_elements_accomplished());
+        Assertions.assertEquals(1, warmupImportServiceStats.getimport_elements_started());
+        Assertions.assertEquals(1, warmupImportServiceStats.getimport_elements_failed());
+        Assertions.assertEquals(1, warmupImportServiceStats.getimport_elements_accomplished());
 
         localFile.delete();
     }

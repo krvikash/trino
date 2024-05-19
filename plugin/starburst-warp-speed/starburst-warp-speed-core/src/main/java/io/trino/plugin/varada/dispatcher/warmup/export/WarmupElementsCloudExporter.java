@@ -24,7 +24,7 @@ import io.trino.plugin.varada.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.varada.dispatcher.warmup.WarmUtils;
 import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.varada.storage.engine.StorageEngineConstants;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmupExportService;
+import io.trino.plugin.warp.gen.stats.WarmupExportServiceStats;
 import io.varada.cloudvendors.CloudVendorService;
 import io.varada.cloudvendors.model.StorageObjectMetadata;
 
@@ -43,7 +43,7 @@ public class WarmupElementsCloudExporter
     private final StorageEngineConstants storageEngineConstants;
     private final RowGroupDataService rowGroupDataService;
     private final CloudVendorService cloudVendorService;
-    private final VaradaStatsWarmupExportService statsWarmupExportService;
+    private final WarmupExportServiceStats statsWarmupExportService;
 
     @Inject
     public WarmupElementsCloudExporter(GlobalConfig globalConfig,
@@ -56,7 +56,7 @@ public class WarmupElementsCloudExporter
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.cloudVendorService = cloudVendorService;
-        this.statsWarmupExportService = metricsManager.registerMetric(new VaradaStatsWarmupExportService(WARMUP_EXPORTER_STAT_GROUP));
+        this.statsWarmupExportService = metricsManager.registerMetric(new WarmupExportServiceStats(WARMUP_EXPORTER_STAT_GROUP));
     }
 
     private RowGroupDataValidation getRowGroupDataValidation(String cloudPath)

@@ -36,7 +36,7 @@ import io.trino.plugin.varada.storage.engine.ConnectorSync;
 import io.trino.plugin.varada.storage.engine.StorageEngineConstants;
 import io.trino.plugin.varada.storage.write.FakePageSink;
 import io.trino.plugin.varada.storage.write.WarpCachePageSink;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmingService;
+import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.spi.NodeManager;
 import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.cache.CacheManager;
@@ -71,7 +71,7 @@ public class WorkerCacheManager
     private final DispatcherPageSourceFactory dispatcherPageSourceFactory;
     private final WorkerTaskExecutorService workerTaskExecutorService;
     private final RowGroupDataService rowGroupDataService;
-    private final VaradaStatsWarmingService statsWarmingService;
+    private final WarmingServiceStats statsWarmingService;
 
     private final CacheWarmer cacheWarmer;
     private final ObjectMapper objectMapper;
@@ -97,7 +97,7 @@ public class WorkerCacheManager
         this.dispatcherPageSourceFactory = requireNonNull(dispatcherPageSourceFactory);
         this.workerTaskExecutorService = requireNonNull(workerTaskExecutorService);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
-        this.statsWarmingService = metricsManager.registerMetric(VaradaStatsWarmingService.create(WARMING_SERVICE_STAT_GROUP));
+        this.statsWarmingService = metricsManager.registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
         this.cacheWarmer = requireNonNull(cacheWarmer);
         this.objectMapper = objectMapper.get();
         this.storageWarmerService = requireNonNull(storageWarmerService);

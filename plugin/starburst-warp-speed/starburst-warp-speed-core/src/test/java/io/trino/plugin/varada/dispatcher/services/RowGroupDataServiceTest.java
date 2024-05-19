@@ -31,7 +31,7 @@ import io.trino.plugin.varada.storage.engine.StubsStorageEngine;
 import io.trino.plugin.varada.storage.write.WarmupElementStats;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmingService;
+import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.spi.NodeManager;
 import io.varada.tools.util.VaradaReadWriteLock;
 import org.junit.jupiter.api.BeforeEach;
@@ -96,8 +96,8 @@ public class RowGroupDataServiceTest
         assertThat(savedRowGroupData.getPartitionKeys()).isEqualTo(partitionKeys);
         assertThat(savedRowGroupData.getWarmUpElements()).isEmpty();
 
-        VaradaStatsWarmingService varadaStatsWarmingService = (VaradaStatsWarmingService) metricsManager.get(WARMING_SERVICE_STAT_GROUP);
-        assertThat(varadaStatsWarmingService.getrow_group_count()).isEqualTo(1);
+        WarmingServiceStats warmingServiceStats = (WarmingServiceStats) metricsManager.get(WARMING_SERVICE_STAT_GROUP);
+        assertThat(warmingServiceStats.getrow_group_count()).isEqualTo(1);
     }
 
     @Test
@@ -121,12 +121,12 @@ public class RowGroupDataServiceTest
         assertThat(savedRowGroupData.getWarmUpElements()).contains(existingValidWarmupElement);
         assertThat(savedRowGroupData.getWarmUpElements()).contains(updatedWarmupElement);
 
-        VaradaStatsWarmingService varadaStatsWarmingService = (VaradaStatsWarmingService) metricsManager.get(WARMING_SERVICE_STAT_GROUP);
-        assertThat(varadaStatsWarmingService.getwarm_success_retry_warmup_element()).isEqualTo(1);
-        assertThat(varadaStatsWarmingService.getrow_group_count()).isZero();
-        assertThat(varadaStatsWarmingService.getwarmup_elements_count()).isEqualTo(1);
-        assertThat(varadaStatsWarmingService.getdeleted_row_group_count()).isZero();
-        assertThat(varadaStatsWarmingService.getdeleted_warmup_elements_count()).isZero();
+        WarmingServiceStats warmingServiceStats = (WarmingServiceStats) metricsManager.get(WARMING_SERVICE_STAT_GROUP);
+        assertThat(warmingServiceStats.getwarm_success_retry_warmup_element()).isEqualTo(1);
+        assertThat(warmingServiceStats.getrow_group_count()).isZero();
+        assertThat(warmingServiceStats.getwarmup_elements_count()).isEqualTo(1);
+        assertThat(warmingServiceStats.getdeleted_row_group_count()).isZero();
+        assertThat(warmingServiceStats.getdeleted_warmup_elements_count()).isZero();
     }
 
     @Test
@@ -261,8 +261,8 @@ public class RowGroupDataServiceTest
         assertThat(outWarmUpElements.get(1).getWarmState()).isEqualTo(WarmState.WARM);
         assertThat(outWarmUpElements.get(3).getWarmState()).isEqualTo(WarmState.WARM);
 
-        VaradaStatsWarmingService varadaStatsWarmingService = (VaradaStatsWarmingService) metricsManager.get(WARMING_SERVICE_STAT_GROUP);
-        assertThat(varadaStatsWarmingService.getdeleted_warmup_elements_count()).isEqualTo(2);
+        WarmingServiceStats warmingServiceStats = (WarmingServiceStats) metricsManager.get(WARMING_SERVICE_STAT_GROUP);
+        assertThat(warmingServiceStats.getdeleted_warmup_elements_count()).isEqualTo(2);
     }
 
     @Test
@@ -298,8 +298,8 @@ public class RowGroupDataServiceTest
         assertThat(outWarmUpElements.stream().filter(warmUpElement -> WarmState.WARM.equals(warmUpElement.getWarmState())).count())
                 .isEqualTo(outWarmUpElements.size());
 
-        VaradaStatsWarmingService varadaStatsWarmingService = (VaradaStatsWarmingService) metricsManager.get(WARMING_SERVICE_STAT_GROUP);
-        assertThat(varadaStatsWarmingService.getdeleted_warmup_elements_count()).isEqualTo(outWarmUpElements.size());
+        WarmingServiceStats warmingServiceStats = (WarmingServiceStats) metricsManager.get(WARMING_SERVICE_STAT_GROUP);
+        assertThat(warmingServiceStats.getdeleted_warmup_elements_count()).isEqualTo(outWarmUpElements.size());
     }
 
     private WarmUpElement createWarmUpElement(String colName, boolean isValid)

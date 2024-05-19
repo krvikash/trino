@@ -27,7 +27,7 @@ import io.trino.plugin.varada.storage.flows.FlowIdGenerator;
 import io.trino.plugin.varada.storage.write.StorageWriterSplitConfig;
 import io.trino.plugin.varada.storage.write.WarmResult;
 import io.trino.plugin.varada.warmup.exceptions.MaxRowsException;
-import io.trino.plugin.warp.gen.stats.VaradaStatsWarmingService;
+import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
@@ -53,7 +53,7 @@ public class WarpCacheTask
     private final ShapingLogger shapingLogger;
     private final CacheWarmer cacheWarmer;
     private final WorkerTaskExecutorService workerTaskExecutorService;
-    private final VaradaStatsWarmingService statsWarmingService;
+    private final WarmingServiceStats statsWarmingService;
     private final StorageWarmerService storageWarmerService;
     private final List<WarmupElementWriteMetadata> toWarm;
     private final Map<Integer, WarmupElementBlocks> warmupElementBlocksMap;
@@ -81,7 +81,7 @@ public class WarpCacheTask
             StorageWarmerService storageWarmerService,
             ParallelWarmUpLimiter parallelWarmUpLimiter,
             CacheWarmer cacheWarmer,
-            VaradaStatsWarmingService statsWarmingService,
+            WarmingServiceStats statsWarmingService,
             List<WarmupElementWriteMetadata> toWarm,
             Map<Integer, WarmupElementBlocks> warmupElementBlocksMap,
             RowGroupKey rowGroupKey,
