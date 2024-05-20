@@ -190,7 +190,7 @@ public class LuceneIndexer
             try {
                 if (!failedCommit) {
                     logger.debug("weCookie %x, committing lucene buffer: fileLengths %s", weCookie, Arrays.toString(filesLength));
-                    int rc = storageEngine.luceneCommitBuffers(weCookie, juffersWE.getSingleAndResetLuceneWE(), filesLength);
+                    int rc = (int) storageEngine.luceneCommitBuffers(weCookie, juffersWE.getSingleAndResetLuceneWE(), filesLength);
                     if (rc < 0) {
                         throw new TrinoException(VARADA_LUCENE_WRITER_ERROR, "lucene commit failed, file too big");
                     }

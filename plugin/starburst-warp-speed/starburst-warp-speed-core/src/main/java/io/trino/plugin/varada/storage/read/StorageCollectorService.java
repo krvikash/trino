@@ -294,7 +294,7 @@ public class StorageCollectorService
                 .map(we -> new ReadJuffersWarmUpElement(bufferAllocator, true, false))
                 .collect(Collectors.toList());
         int chunkSize = 1 << storageEngineConstants.getChunkSizeShift();
-        byte[] collectStoreBuff = new byte[storageEngine.queryGetCollectStateSize(queryParams.getNumMatchCollect())];
+        byte[] collectStoreBuff = new byte[(int) storageEngine.queryGetCollectStateSize(queryParams.getNumMatchCollect())];
         byte[] storeRowListBuff = new byte[(chunkSize + RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal()) * Short.BYTES];
         byte[] collect2MatchParams = new byte[storageEngine.queryGetCollect2MatchSize()];
         // number of chunks is number of records divided by the chunk size which is fixed. we round it up in case the last chunk is not full.

@@ -106,7 +106,7 @@ public class CollectTxService
             bmSeg = matchBitmapsQueue.remove();
             matchBmAddr = bmSeg.address();
         }
-        int collectTxId = storageEngine.collectOpen(queryParams.getTotalNumRecords(),
+        int collectTxId = (int) storageEngine.collectOpen(queryParams.getTotalNumRecords(),
                 storageCollectorArgs.fileCookie(),
                 storageCollectorArgs.collectStoreBuff(),
                 storageCollectorArgs.collect2MatchParams(),

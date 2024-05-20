@@ -35,7 +35,7 @@ public interface StorageEngine
     }
 
     // returns the warm up tx size for index
-    default int initWarmupTxSizes(int[] fixedWarmupDataTxSizes, int[] varlenWarmupDataTxSizes)
+    default long initWarmupTxSizes(int[] fixedWarmupDataTxSizes, int[] varlenWarmupDataTxSizes)
     {
         throw new UnsupportedOperationException();
     }
@@ -73,7 +73,7 @@ public interface StorageEngine
 
     //----------------------- warmup ----------------------------------------
 
-    default int warmupOpen(int connecterSequence)
+    default long warmupOpen(int connecterSequence)
     {
         throw new UnsupportedOperationException();
     }
@@ -84,7 +84,7 @@ public interface StorageEngine
         throw new UnsupportedOperationException();
     }
 
-    default int warmupElementClose(long weCookie, int[] outQueryFileParams)
+    default long warmupElementClose(long weCookie, int[] outQueryFileParams)
     {
         throw new UnsupportedOperationException();
     }
@@ -120,7 +120,7 @@ public interface StorageEngine
     {
     }
 
-    default int luceneCommitBuffers(long weCookie, boolean singleVal, int[] fileLengths)
+    default long luceneCommitBuffers(long weCookie, boolean singleVal, int[] fileLengths)
     {
         return 0;
     }
@@ -131,7 +131,7 @@ public interface StorageEngine
         throw new UnsupportedOperationException();
     }
 
-    default int queryGetCollectStateSize(int numMatchCollect)
+    default long queryGetCollectStateSize(int numMatchCollect)
     {
         throw new UnsupportedOperationException();
     }
@@ -152,14 +152,14 @@ public interface StorageEngine
      *
      * @return transaction id
      */
-    default int collectOpen(int totalNumRecords, long[] fileCookie, byte[] parsingBuff, byte[] collect2MatchParams, int numCollectWes,
+    default long collectOpen(int totalNumRecords, long[] fileCookie, byte[] parsingBuff, byte[] collect2MatchParams, int numCollectWes,
             int[] weCollectParams, int connectorId, long matchBitmapAddress, int minOffset,
             long[][] outCollectColBuffIds, long[] outMetadataBuffIds, int[] outResultType)
     {
         throw new UnsupportedOperationException();
     }
 
-    default int matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams,
+    default long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams,
             int numMatchWes, int[] weMatchTree, int numLucenes, LuceneMatcher[] luceneMatchers, long matchBitmapAddress, int minOffset, long[][] outMatchColBuffIds)
     {
         throw new UnsupportedOperationException();
@@ -174,7 +174,7 @@ public interface StorageEngine
      *
      * @return 0 for success, -1 for failure
      */
-    default int collectRestoreState(int txId, int chunkIndex, StorageCollectorCallBack collectStateObj)
+    default long collectRestoreState(int txId, int chunkIndex, StorageCollectorCallBack collectStateObj)
     {
         throw new UnsupportedOperationException();
     }
@@ -206,7 +206,7 @@ public interface StorageEngine
      *
      * @return > 0 if buffer is full and we need to close collect, 0 if not, -1 for error
      */
-    default int processMatchResult(int txId, int chunkIndex, int bitmapResetPoint, int rowsLimit, int[] resultTypes)
+    default long processMatchResult(int txId, int chunkIndex, int bitmapResetPoint, int rowsLimit, int[] resultTypes)
     {
         throw new UnsupportedOperationException();
     }

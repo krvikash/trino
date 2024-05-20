@@ -224,7 +224,7 @@ public class BufferAllocator
         storageEngine.initCollectTxSizes(fixedCollectTxSizes, varlenCollectTxSizes);
         this.fixedWarmupDataTxSizes = new int[maxRecLenForFixedTxSize + 1]; // largest case is long decimal
         this.varlenWarmupDataTxSizes = new int[maxRecLenForVarlenTxSize + 1];
-        warmupIndexTxSize = storageEngine.initWarmupTxSizes(fixedWarmupDataTxSizes, varlenWarmupDataTxSizes);
+        warmupIndexTxSize = (int) storageEngine.initWarmupTxSizes(fixedWarmupDataTxSizes, varlenWarmupDataTxSizes);
 
         int warmBufferSize = buffTypeSizes[JbufType.JBUF_TYPE_NULL.ordinal()] +
                 buffTypeSizes[JbufType.JBUF_TYPE_CHUNKS_MAP.ordinal()] +

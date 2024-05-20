@@ -202,7 +202,7 @@ public class StorageReader
 
         if (queryParams.getNumMatchElements() > 0) {
             try {
-                matchTxId = storageEngine.matchOpen(queryParams.getTotalNumRecords(),
+                matchTxId = (int) storageEngine.matchOpen(queryParams.getTotalNumRecords(),
                         storageCollectorArgs.fileCookie(),
                         collectOpenResult.collectTxId(),
                         storageCollectorArgs.collectStoreBuff(),

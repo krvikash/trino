@@ -81,7 +81,7 @@ public class ChunksQueueService
             int bitmapResetPoint = chunksQueue.getCurrentResetPoint();
             logger.debug("collectFromStorage process match chunkIndex %d bitmapResetPoint %d rowsLimit %d numCollectedRows %d",
                     chunkIndex, bitmapResetPoint, rowsLimit, numCollectedRows);
-            ret = storageEngine.processMatchResult(collectTxId,
+            ret = (int) storageEngine.processMatchResult(collectTxId,
                     chunksQueue.getCurrent(),
                     chunksQueue.getCurrentResetPoint(),
                     rowsLimit - numCollectedRows,

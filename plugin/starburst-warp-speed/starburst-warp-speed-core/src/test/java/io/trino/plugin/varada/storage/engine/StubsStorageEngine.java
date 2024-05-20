@@ -58,7 +58,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public int initWarmupTxSizes(int[] fixedWarmupDataTxSizes, int[] varlenWarmupDataTxSizes)
+    public long initWarmupTxSizes(int[] fixedWarmupDataTxSizes, int[] varlenWarmupDataTxSizes)
     {
         for (int i = 0; i < fixedWarmupDataTxSizes.length; i++) {
             fixedWarmupDataTxSizes[i] = 1024 * i;
@@ -95,7 +95,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public int warmupOpen(int connecterSequence)
+    public long warmupOpen(int connecterSequence)
     {
         return 0;
     }
@@ -108,7 +108,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public int warmupElementClose(long weCookie, int[] outQueryFileParams)
+    public long warmupElementClose(long weCookie, int[] outQueryFileParams)
     {
         outQueryFileParams[0] = 0;
         outQueryFileParams[1] = 1;
@@ -148,13 +148,13 @@ public class StubsStorageEngine
     }
 
     @Override
-    public int queryGetCollectStateSize(int numMatchCollect)
+    public long queryGetCollectStateSize(int numMatchCollect)
     {
         return 0;
     }
 
     @Override
-    public int collectOpen(int totalNumRecords, long[] fileCookie, byte[] parsingBuff, byte[] collect2MatchParams, int numCollectWes,
+    public long collectOpen(int totalNumRecords, long[] fileCookie, byte[] parsingBuff, byte[] collect2MatchParams, int numCollectWes,
             int[] weCollectParams, int connectorId, long matchBitmapAddress, int minOffset,
             long[][] outCollectColBuffIds, long[] outMetadataBuffIds, int[] outResultType)
     {
@@ -165,7 +165,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public int matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams,
+    public long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams,
             int numMatchWes, int[] weMatchTree, int numLucenes, LuceneMatcher[] luceneMatchers, long matchBitmapAddress, int minOffset, long[][] outMatchColBuffIds)
     {
         luceneColumns.addAndGet(luceneMatchers.length);
@@ -173,7 +173,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public int collectRestoreState(int txId, int chunkIndex, StorageCollectorCallBack collectStateObj)
+    public long collectRestoreState(int txId, int chunkIndex, StorageCollectorCallBack collectStateObj)
     {
         return 0;
     }
@@ -188,7 +188,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public int processMatchResult(int txId, int chunkIndex, int bitmapResetPoint, int rowsLimit, int[] resultTypes)
+    public long processMatchResult(int txId, int chunkIndex, int bitmapResetPoint, int rowsLimit, int[] resultTypes)
     {
         return 0;
     }

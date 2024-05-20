@@ -104,7 +104,7 @@ public class NativeStorageEngine
     public native void initCollectTxSizes(int[] fixedCollectTxSizes, int[] varlenCollectTxSizes);
 
     @Override
-    public native int initWarmupTxSizes(int[] fixedWarmupDataTxSizes, int[] varlenWarmupDataTxSizes);
+    public native long initWarmupTxSizes(int[] fixedWarmupDataTxSizes, int[] varlenWarmupDataTxSizes);
 
     @Override
     public native void fileOpen(String fileName, boolean isWrite, long[] outFileCookie);
@@ -122,14 +122,14 @@ public class NativeStorageEngine
     public native void fileIsAboutToBeDeleted(String fileName, int fileSizeInPages);
 
     @Override
-    public native int warmupOpen(int connecterSequence);
+    public native long warmupOpen(int connecterSequence);
 
     @Override
     public native long warmupElementOpen(int txId, long[] fileCookie, int offetInPages,
             int recTypeCode, int recTypeLength, int warmUpType, long writeBuffAddress, long[] buffAddresses);
 
     @Override
-    public native int warmupElementClose(long weCookie, int[] outQueryFileParams);
+    public native long warmupElementClose(long weCookie, int[] outQueryFileParams);
 
     @Override
     public native void warmupClose(int txId);
@@ -151,31 +151,31 @@ public class NativeStorageEngine
     public native void luceneWriteBuffer(long weCookie, int fileId, int offset, int len);
 
     @Override
-    public native int luceneCommitBuffers(long weCookie, boolean singleVal, int[] fileLengths);
+    public native long luceneCommitBuffers(long weCookie, boolean singleVal, int[] fileLengths);
 
     @Override
     public native int queryGetCollect2MatchSize();
 
     @Override
-    public native int queryGetCollectStateSize(int numMatchCollect);
+    public native long queryGetCollectStateSize(int numMatchCollect);
 
     @Override
-    public native int collectOpen(int totalNumRecords, long[] fileCookie, byte[] parsingBuff, byte[] collect2MatchParams, int numCollectWes,
+    public native long collectOpen(int totalNumRecords, long[] fileCookie, byte[] parsingBuff, byte[] collect2MatchParams, int numCollectWes,
             int[] weCollectParams, int connectorId, long matchBitmapAddress, int minOffset,
             long[][] outCollectColBuffIds, long[] outMetadataBuffIds, int[] outResultType);
 
     @Override
-    public native int matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams,
+    public native long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams,
             int numMatchWes, int[] weMatchTree, int numLucenes, LuceneMatcher[] luceneMatchers, long matchBitmapAddress, int minOffset, long[][] outMatchColBuffIds);
 
     @Override
-    public native int collectRestoreState(int txId, int chunkIndex, StorageCollectorCallBack collectStateObj);
+    public native long collectRestoreState(int txId, int chunkIndex, StorageCollectorCallBack collectStateObj);
 
     @Override
     public native long match(int txId, int nextState, short[] outMatchedChunksIndexes, int[] outMatchBitmapResetPoints);
 
     @Override
-    public native int processMatchResult(int txId, int chunkIndex, int bitmapResetPoint, int rowsLimit, int[] resultTypes);
+    public native long processMatchResult(int txId, int chunkIndex, int bitmapResetPoint, int rowsLimit, int[] resultTypes);
 
     @Override
     public native void collect(int txId, int startWeIx, int endWeIx, int chunkIndex, int numToCollect, int[] outResultTypes);

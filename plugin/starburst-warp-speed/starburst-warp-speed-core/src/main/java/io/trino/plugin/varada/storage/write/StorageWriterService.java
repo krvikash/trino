@@ -534,7 +534,7 @@ public class StorageWriterService
         int[] outFileParams = new int[WeProperties.values().length];
         if (!storageWriterContext.isWeClosed()) {
             storageWriterContext.getBlockAppender().writeChunkMapValuesIntoChunkMapJuffer(storageWriterContext.getWriteJuffersWarmUpElement().getChunkMapList());
-            outFileParams[WeProperties.WE_PROPERTIES_END_OFFSET.ordinal()] = storageEngine.warmupElementClose(storageWriterContext.getWeCookie(), outFileParams);
+            outFileParams[WeProperties.WE_PROPERTIES_END_OFFSET.ordinal()] = (int) storageEngine.warmupElementClose(storageWriterContext.getWeCookie(), outFileParams);
             storageWriterContext.setWeClosed();
         }
         return outFileParams;

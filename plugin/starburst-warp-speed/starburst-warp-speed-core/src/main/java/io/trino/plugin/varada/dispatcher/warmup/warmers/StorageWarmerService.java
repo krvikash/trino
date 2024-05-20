@@ -108,7 +108,7 @@ public class StorageWarmerService
     public int warmupOpen(int txId)
     {
         warmupClose(txId);
-        txId = storageEngine.warmupOpen(connectorSync.getCatalogSequence());
+        txId = (int) storageEngine.warmupOpen(connectorSync.getCatalogSequence());
         if (txId == INVALID_TX_ID) {
             throw new RuntimeException("failed to allocate tx for write");
         }
