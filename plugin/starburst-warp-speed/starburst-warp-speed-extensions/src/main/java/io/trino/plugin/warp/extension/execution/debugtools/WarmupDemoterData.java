@@ -15,8 +15,8 @@ package io.trino.plugin.warp.extension.execution.debugtools;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.trino.plugin.varada.execution.TaskData;
-import io.trino.plugin.varada.execution.debugtools.WarmupDemoterWarmupElementData;
+import io.trino.plugin.warp.execution.TaskData;
+import io.trino.plugin.warp.execution.debugtools.WarmupDemoterWarmupElementData;
 import io.trino.spi.connector.SchemaTableName;
 
 import java.util.Collections;

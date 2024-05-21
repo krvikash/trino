@@ -15,18 +15,18 @@ package io.trino.plugin.warp.di;
 
 import com.google.inject.Binder;
 import com.google.inject.Module;
-import io.trino.plugin.varada.config.GlobalConfig;
-import io.trino.plugin.varada.config.NativeConfig;
-import io.trino.plugin.varada.storage.engine.ConnectorSync;
-import io.trino.plugin.varada.storage.engine.StorageEngine;
-import io.trino.plugin.varada.storage.engine.StorageEngineConstants;
-import io.trino.plugin.varada.storage.engine.StubExceptionThrower;
-import io.trino.plugin.varada.storage.engine.StubsConnectorSync;
-import io.trino.plugin.varada.storage.engine.StubsStorageEngine;
-import io.trino.plugin.varada.storage.engine.StubsStorageEngineConstants;
-import io.trino.plugin.varada.storage.engine.nativeimpl.NativeStorageStateHandler;
-import io.trino.plugin.varada.storage.read.RangeFillerService;
-import io.trino.plugin.varada.storage.read.StubsRangeFillerService;
+import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.NativeConfig;
+import io.trino.plugin.warp.storage.engine.ConnectorSync;
+import io.trino.plugin.warp.storage.engine.StorageEngine;
+import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+import io.trino.plugin.warp.storage.engine.StubExceptionThrower;
+import io.trino.plugin.warp.storage.engine.StubsConnectorSync;
+import io.trino.plugin.warp.storage.engine.StubsStorageEngine;
+import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
+import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
+import io.trino.plugin.warp.storage.read.RangeFillerService;
+import io.trino.plugin.warp.storage.read.StubsRangeFillerService;
 
 /**
  * Module for binding

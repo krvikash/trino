@@ -16,12 +16,12 @@ package io.trino.plugin.warp.extension.execution.metrics;
 import com.google.inject.Inject;
 import io.airlift.http.client.Request;
 import io.airlift.json.JsonCodec;
-import io.trino.plugin.varada.WorkerNodeManager;
-import io.trino.plugin.varada.api.metrics.ClusterMetricsResult;
-import io.trino.plugin.varada.execution.VaradaClient;
-import io.trino.plugin.varada.storage.capacity.WorkerCapacityManager;
+import io.trino.plugin.warp.WorkerNodeManager;
+import io.trino.plugin.warp.api.metrics.ClusterMetricsResult;
+import io.trino.plugin.warp.execution.VaradaClient;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
+import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 

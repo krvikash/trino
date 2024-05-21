@@ -20,7 +20,7 @@ import com.google.inject.Inject;
 import io.airlift.json.ObjectMapperProvider;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
-import io.trino.plugin.varada.execution.debugtools.WarmupDemoterWarmupElementData;
+import io.trino.plugin.warp.execution.debugtools.WarmupDemoterWarmupElementData;
 import io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterData;
 import io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterTask;
 import io.trino.plugin.warp.gen.constants.WarmUpType;

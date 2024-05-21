@@ -17,8 +17,8 @@ package io.trino.plugin.warp.gen.stats;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.trino.plugin.varada.metrics.WarpStatType;
-import io.trino.plugin.varada.metrics.WarpStatsBase;
+import io.trino.plugin.warp.metrics.WarpStatType;
+import io.trino.plugin.warp.metrics.WarpStatsBase;
 import org.weakref.jmx.Managed;
 
 import java.nio.ByteBuffer;

@@ -20,15 +20,15 @@ import io.trino.Session;
 import io.trino.SystemSessionProperties;
 import io.trino.plugin.geospatial.GeoPlugin;
 import io.trino.plugin.jmx.JmxPlugin;
-import io.trino.plugin.varada.config.DictionaryConfig;
-import io.trino.plugin.varada.config.GlobalConfig;
-import io.trino.plugin.varada.dispatcher.CachingPlugin;
+import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
+import io.trino.plugin.warp.config.DictionaryConfig;
+import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.dispatcher.CachingPlugin;
 import io.trino.plugin.warp.extension.config.WarpExtensionConfig;
 import io.trino.spi.Plugin;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingSession;
-import io.varada.cloudvendors.config.CloudVendorConfig;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -36,9 +36,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static io.trino.plugin.varada.config.GlobalConfig.CONFIG_IS_SINGLE;
-import static io.trino.plugin.varada.config.GlobalConfig.ENABLE_DEFAULT_WARMING;
-import static io.trino.plugin.varada.config.GlobalConfig.FAILURE_GENERATOR_ENABLED;
+import static io.trino.plugin.warp.config.GlobalConfig.CONFIG_IS_SINGLE;
+import static io.trino.plugin.warp.config.GlobalConfig.ENABLE_DEFAULT_WARMING;
+import static io.trino.plugin.warp.config.GlobalConfig.FAILURE_GENERATOR_ENABLED;
 import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.CLUSTER_UUID;
 
 public class DispatcherQueryRunner

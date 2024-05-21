@@ -16,8 +16,8 @@ package io.trino.plugin.warp.proxiedconnector.deltalake;
 import com.google.inject.Module;
 import io.trino.plugin.base.jmx.ConnectorObjectNameGeneratorModule;
 import io.trino.plugin.deltalake.DeltaLakeConnectorFactory;
-import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
-import io.trino.plugin.varada.dispatcher.ProxiedConnectorInitializer;
+import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
+import io.trino.plugin.warp.dispatcher.ProxiedConnectorInitializer;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 

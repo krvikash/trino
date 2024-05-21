@@ -16,7 +16,7 @@ package io.trino.plugin.warp.extension.execution.initworker;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.airlift.json.ObjectMapperProvider;
-import io.trino.plugin.varada.config.NativeConfig;
+import io.trino.plugin.warp.config.NativeConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

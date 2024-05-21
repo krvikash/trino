@@ -14,12 +14,12 @@
 package io.trino.plugin.warp.extension.execution.health;
 
 import com.google.inject.Inject;
-import io.trino.plugin.varada.WorkerNodeManager;
-import io.trino.plugin.varada.api.health.HealthResult;
-import io.trino.plugin.varada.storage.capacity.WorkerCapacityManager;
-import io.trino.plugin.varada.storage.engine.StorageEngineConstants;
+import io.trino.plugin.warp.WorkerNodeManager;
+import io.trino.plugin.warp.api.health.HealthResult;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
+import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
+import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;

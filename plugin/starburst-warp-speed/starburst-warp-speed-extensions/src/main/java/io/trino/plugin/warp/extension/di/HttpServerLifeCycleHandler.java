@@ -17,8 +17,8 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.bootstrap.LifeCycleManager;
 import io.airlift.http.server.HttpServer;
-import io.trino.plugin.varada.di.VaradaInitializedServiceRegistry;
-import io.trino.plugin.varada.util.VaradaInitializedServiceMarker;
+import io.trino.plugin.warp.di.VaradaInitializedServiceRegistry;
+import io.trino.plugin.warp.util.VaradaInitializedServiceMarker;
 
 import static java.util.Objects.requireNonNull;
 

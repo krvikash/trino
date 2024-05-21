@@ -15,11 +15,11 @@ package io.trino.plugin.warp.extension.execution.metrics;
 
 import io.airlift.http.client.HttpUriBuilder;
 import io.airlift.http.client.Request;
-import io.trino.plugin.varada.CoordinatorNodeManager;
-import io.trino.plugin.varada.api.metrics.ClusterMetricsResult;
-import io.trino.plugin.varada.execution.VaradaClient;
-import io.trino.plugin.varada.util.NodeUtils;
-import io.trino.plugin.varada.util.UriUtils;
+import io.trino.plugin.warp.CoordinatorNodeManager;
+import io.trino.plugin.warp.api.metrics.ClusterMetricsResult;
+import io.trino.plugin.warp.execution.VaradaClient;
+import io.trino.plugin.warp.util.NodeUtils;
+import io.trino.plugin.warp.util.UriUtils;
 import io.trino.spi.Node;
 
 import java.util.List;

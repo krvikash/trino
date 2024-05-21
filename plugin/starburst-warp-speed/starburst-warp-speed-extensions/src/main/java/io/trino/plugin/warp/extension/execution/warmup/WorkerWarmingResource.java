@@ -15,17 +15,17 @@ package io.trino.plugin.warp.extension.execution.warmup;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.trino.plugin.varada.metrics.MetricsManager;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
+import io.trino.plugin.warp.metrics.MetricsManager;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 
-import static io.trino.plugin.varada.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
+import static io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
 import static java.util.Objects.requireNonNull;
 
 @Singleton

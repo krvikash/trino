@@ -15,9 +15,9 @@ package io.trino.plugin.warp.extension.execution.debugtools;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.trino.plugin.varada.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
+import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 

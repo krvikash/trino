@@ -16,10 +16,10 @@ package io.trino.plugin.warp.it.proxiedconnector.passthrough;
 
 import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
-import io.trino.plugin.varada.api.warmup.WarmUpType;
-import io.trino.plugin.varada.api.warmup.WarmupPropertiesData;
-import io.trino.plugin.varada.dispatcher.DispatcherConnectorFactory;
 import io.trino.plugin.warp.WarpPlugin;
+import io.trino.plugin.warp.api.warmup.WarmUpType;
+import io.trino.plugin.warp.api.warmup.WarmupPropertiesData;
+import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
 import io.trino.plugin.warp.it.DispatcherQueryRunner;
 import io.trino.plugin.warp.it.DispatcherStubsIntegrationSmokeIT;
 import io.trino.testing.MaterializedResult;
@@ -36,9 +36,9 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
-import static io.trino.plugin.varada.config.ProxiedConnectorConfig.HIVE_CONNECTOR_NAME;
-import static io.trino.plugin.varada.config.ProxiedConnectorConfig.PASS_THROUGH_DISPATCHER;
-import static io.trino.plugin.varada.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
+import static io.trino.plugin.warp.config.ProxiedConnectorConfig.HIVE_CONNECTOR_NAME;
+import static io.trino.plugin.warp.config.ProxiedConnectorConfig.PASS_THROUGH_DISPATCHER;
+import static io.trino.plugin.warp.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
 import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP_SERVER_PORT;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;

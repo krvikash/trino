@@ -14,14 +14,14 @@
 package io.trino.plugin.warp.extension.execution.callhome;
 
 import com.google.common.eventbus.EventBus;
-import io.trino.plugin.varada.storage.engine.ConnectorSync;
-import io.trino.plugin.varada.util.NodeUtils;
+import io.trino.plugin.warp.cloudvendors.CloudVendorService;
+import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
 import io.trino.plugin.warp.extension.config.CallHomeConfig;
 import io.trino.plugin.warp.extension.config.WarpExtensionConfig;
+import io.trino.plugin.warp.storage.engine.ConnectorSync;
+import io.trino.plugin.warp.tools.CatalogNameProvider;
+import io.trino.plugin.warp.util.NodeUtils;
 import io.trino.spi.NodeManager;
-import io.varada.cloudvendors.CloudVendorService;
-import io.varada.cloudvendors.config.CloudVendorConfig;
-import io.varada.tools.CatalogNameProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

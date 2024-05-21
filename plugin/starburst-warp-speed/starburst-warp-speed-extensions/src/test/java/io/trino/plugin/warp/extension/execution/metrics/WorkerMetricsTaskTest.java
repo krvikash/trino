@@ -15,10 +15,10 @@ package io.trino.plugin.warp.extension.execution.metrics;
 
 import io.airlift.http.client.FullJsonResponseHandler;
 import io.airlift.http.client.Request;
-import io.trino.plugin.varada.WorkerNodeManager;
-import io.trino.plugin.varada.api.metrics.ClusterMetricsResult;
-import io.trino.plugin.varada.execution.VaradaClient;
-import io.trino.plugin.varada.storage.capacity.WorkerCapacityManager;
+import io.trino.plugin.warp.WorkerNodeManager;
+import io.trino.plugin.warp.api.metrics.ClusterMetricsResult;
+import io.trino.plugin.warp.execution.VaradaClient;
+import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;

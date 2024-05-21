@@ -15,7 +15,7 @@
 package io.trino.plugin.warp;
 
 import com.starburstdata.trino.plugin.license.LicenseManager;
-import io.trino.plugin.varada.dispatcher.CachingPlugin;
+import io.trino.plugin.warp.dispatcher.CachingPlugin;
 import io.trino.spi.Plugin;
 import io.trino.spi.cache.CacheManagerFactory;
 import io.trino.spi.connector.ConnectorFactory;

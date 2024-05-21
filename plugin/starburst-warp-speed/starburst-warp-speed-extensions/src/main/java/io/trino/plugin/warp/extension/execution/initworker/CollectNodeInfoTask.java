@@ -15,7 +15,7 @@ package io.trino.plugin.warp.extension.execution.initworker;
 
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
-import io.trino.plugin.varada.config.NativeConfig;
+import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
 import jakarta.ws.rs.Consumes;

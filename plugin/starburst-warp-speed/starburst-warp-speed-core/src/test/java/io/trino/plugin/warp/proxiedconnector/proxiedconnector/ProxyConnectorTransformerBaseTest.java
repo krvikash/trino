@@ -13,12 +13,12 @@
  */
 package io.trino.plugin.warp.proxiedconnector.proxiedconnector;
 
-import io.trino.plugin.varada.dispatcher.DispatcherProxiedConnectorTransformer;
-import io.trino.plugin.varada.dispatcher.DispatcherSplit;
-import io.trino.plugin.varada.dispatcher.DispatcherStatisticsProvider;
-import io.trino.plugin.varada.dispatcher.DispatcherTableHandle;
-import io.trino.plugin.varada.storage.splits.ConnectorSplitNodeDistributor;
-import io.trino.plugin.varada.util.NodeUtils;
+import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
+import io.trino.plugin.warp.dispatcher.DispatcherSplit;
+import io.trino.plugin.warp.dispatcher.DispatcherStatisticsProvider;
+import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
+import io.trino.plugin.warp.storage.splits.ConnectorSplitNodeDistributor;
+import io.trino.plugin.warp.util.NodeUtils;
 import io.trino.spi.Node;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;

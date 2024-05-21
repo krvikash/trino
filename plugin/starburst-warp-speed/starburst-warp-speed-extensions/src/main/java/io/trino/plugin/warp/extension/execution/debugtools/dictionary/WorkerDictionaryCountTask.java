@@ -15,12 +15,12 @@ package io.trino.plugin.warp.extension.execution.debugtools.dictionary;
 
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
-import io.trino.plugin.varada.VaradaErrorCode;
-import io.trino.plugin.varada.WorkerNodeManager;
-import io.trino.plugin.varada.dictionary.DebugDictionaryKey;
-import io.trino.plugin.varada.dictionary.DebugDictionaryMetadata;
-import io.trino.plugin.varada.dictionary.DictionaryCacheService;
-import io.trino.plugin.varada.dictionary.DictionaryCacheService.DictionaryCacheConfig;
+import io.trino.plugin.warp.VaradaErrorCode;
+import io.trino.plugin.warp.WorkerNodeManager;
+import io.trino.plugin.warp.dictionary.DebugDictionaryKey;
+import io.trino.plugin.warp.dictionary.DebugDictionaryMetadata;
+import io.trino.plugin.warp.dictionary.DictionaryCacheService;
+import io.trino.plugin.warp.dictionary.DictionaryCacheService.DictionaryCacheConfig;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
 import io.trino.spi.TrinoException;

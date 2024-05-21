@@ -16,7 +16,7 @@ package io.trino.plugin.warp.extension.execution.debugtools.dictionary;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.trino.plugin.varada.dictionary.DebugDictionaryMetadata;
+import io.trino.plugin.warp.dictionary.DebugDictionaryMetadata;
 
 import java.util.List;
 

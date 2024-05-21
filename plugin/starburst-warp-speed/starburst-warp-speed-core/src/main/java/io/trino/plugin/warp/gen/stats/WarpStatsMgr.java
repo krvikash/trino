@@ -28,7 +28,7 @@
  */
 package io.trino.plugin.warp.gen.stats;
 
-import io.trino.plugin.varada.metrics.MetricsManager;
+import io.trino.plugin.warp.metrics.MetricsManager;
 
 @SuppressWarnings({"checkstyle:MemberName", "checkstyle:ParameterName"})
 public final class WarpStatsMgr

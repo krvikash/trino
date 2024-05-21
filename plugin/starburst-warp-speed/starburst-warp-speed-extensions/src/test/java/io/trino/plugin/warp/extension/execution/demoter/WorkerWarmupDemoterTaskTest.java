@@ -17,16 +17,16 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.eventbus.EventBus;
 import io.airlift.json.ObjectMapperProvider;
-import io.trino.plugin.varada.config.WarmupDemoterConfig;
-import io.trino.plugin.varada.dispatcher.warmup.demoter.WarmupDemoterService;
-import io.trino.plugin.varada.dispatcher.warmup.demoter.events.WarmupDemoterFinishEvent;
-import io.trino.plugin.varada.metrics.MetricsManager;
-import io.trino.plugin.varada.storage.capacity.WorkerCapacityManager;
+import io.trino.plugin.warp.config.WarmupDemoterConfig;
+import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
+import io.trino.plugin.warp.dispatcher.warmup.demoter.events.WarmupDemoterFinishEvent;
 import io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterData;
 import io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterThreshold;
 import io.trino.plugin.warp.extension.execution.debugtools.WorkerWarmupDemoterTask;
 import io.trino.plugin.warp.gen.stats.WarmupDemoterStats;
-import io.varada.tools.CatalogNameProvider;
+import io.trino.plugin.warp.metrics.MetricsManager;
+import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
+import io.trino.plugin.warp.tools.CatalogNameProvider;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,7 +38,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import static io.trino.plugin.varada.dispatcher.warmup.demoter.WarmupDemoterService.WARMUP_DEMOTER_STAT_GROUP;
+import static io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService.WARMUP_DEMOTER_STAT_GROUP;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class WorkerWarmupDemoterTaskTest

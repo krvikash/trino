@@ -13,7 +13,7 @@
  */
 package io.trino.tests.product.warp.utils;
 
-import io.trino.plugin.varada.api.warmup.WarmUpType;
+import io.trino.plugin.warp.api.warmup.WarmUpType;
 import io.trino.tests.product.warp.utils.syntheticconfig.TableType;
 
 import java.util.ArrayList;

@@ -13,8 +13,8 @@
  */
 package io.trino.plugin.warp.extension.execution.callhome;
 
+import io.trino.plugin.warp.cloudvendors.CloudVendorService;
 import io.trino.spi.HostAddress;
-import io.varada.cloudvendors.CloudVendorService;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;

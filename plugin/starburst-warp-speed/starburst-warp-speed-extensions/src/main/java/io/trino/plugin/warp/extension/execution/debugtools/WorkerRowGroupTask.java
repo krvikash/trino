@@ -14,13 +14,13 @@
 package io.trino.plugin.warp.extension.execution.debugtools;
 
 import com.google.inject.Inject;
-import io.trino.plugin.varada.dictionary.DictionaryCacheService;
-import io.trino.plugin.varada.dispatcher.model.RowGroupKey;
-import io.trino.plugin.varada.dispatcher.model.TransformedColumn;
-import io.trino.plugin.varada.dispatcher.model.VaradaColumn;
-import io.trino.plugin.varada.dispatcher.model.WarmUpElement;
-import io.trino.plugin.varada.dispatcher.services.RowGroupDataService;
-import io.trino.plugin.varada.execution.debugtools.DebugToolResult;
+import io.trino.plugin.warp.dictionary.DictionaryCacheService;
+import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
+import io.trino.plugin.warp.dispatcher.model.TransformedColumn;
+import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
+import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
+import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
+import io.trino.plugin.warp.execution.debugtools.DebugToolResult;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
 import jakarta.ws.rs.Consumes;

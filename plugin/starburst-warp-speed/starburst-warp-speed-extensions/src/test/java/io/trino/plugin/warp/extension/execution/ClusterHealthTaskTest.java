@@ -17,8 +17,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import io.airlift.json.ObjectMapperProvider;
-import io.trino.plugin.varada.api.health.HealthNode;
-import io.trino.plugin.varada.api.health.HealthResult;
+import io.trino.plugin.warp.api.health.HealthNode;
+import io.trino.plugin.warp.api.health.HealthResult;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;

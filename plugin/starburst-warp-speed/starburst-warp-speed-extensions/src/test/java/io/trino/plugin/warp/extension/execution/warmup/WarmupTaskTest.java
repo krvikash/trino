@@ -19,21 +19,21 @@ import com.google.common.eventbus.EventBus;
 import io.airlift.http.client.FullJsonResponseHandler;
 import io.airlift.http.client.HttpUriBuilder;
 import io.airlift.http.client.Request;
-import io.trino.plugin.varada.CoordinatorNodeManager;
-import io.trino.plugin.varada.api.warmup.WarmUpType;
-import io.trino.plugin.varada.api.warmup.WarmupColRuleData;
-import io.trino.plugin.varada.api.warmup.WarmupColRuleRejectionData;
-import io.trino.plugin.varada.api.warmup.WarmupColRuleUsageData;
-import io.trino.plugin.varada.api.warmup.WarmupDefaultRuleUsageData;
-import io.trino.plugin.varada.api.warmup.WarmupRulesUsageData;
-import io.trino.plugin.varada.dispatcher.model.RegularColumn;
-import io.trino.plugin.varada.dispatcher.warmup.fetcher.WarmupRuleFetcher;
-import io.trino.plugin.varada.execution.VaradaClient;
-import io.trino.plugin.varada.util.NodeUtils;
-import io.trino.plugin.varada.warmup.WarmupRuleApiMapper;
-import io.trino.plugin.varada.warmup.WarmupRuleService;
-import io.trino.plugin.varada.warmup.model.WarmupRule;
-import io.trino.plugin.varada.warmup.model.WarmupRuleResult;
+import io.trino.plugin.warp.CoordinatorNodeManager;
+import io.trino.plugin.warp.api.warmup.WarmUpType;
+import io.trino.plugin.warp.api.warmup.WarmupColRuleData;
+import io.trino.plugin.warp.api.warmup.WarmupColRuleRejectionData;
+import io.trino.plugin.warp.api.warmup.WarmupColRuleUsageData;
+import io.trino.plugin.warp.api.warmup.WarmupDefaultRuleUsageData;
+import io.trino.plugin.warp.api.warmup.WarmupRulesUsageData;
+import io.trino.plugin.warp.dispatcher.model.RegularColumn;
+import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleFetcher;
+import io.trino.plugin.warp.execution.VaradaClient;
+import io.trino.plugin.warp.util.NodeUtils;
+import io.trino.plugin.warp.warmup.WarmupRuleApiMapper;
+import io.trino.plugin.warp.warmup.WarmupRuleService;
+import io.trino.plugin.warp.warmup.model.WarmupRule;
+import io.trino.plugin.warp.warmup.model.WarmupRuleResult;
 import io.trino.spi.Node;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -91,7 +91,7 @@ public class WarmupTaskTest
                 .warmUpType(io.trino.plugin.warp.gen.constants.WarmUpType.WARM_UP_TYPE_LUCENE)
                 .priority(5)
                 .ttl(10)
-                .predicates(Set.of(new io.trino.plugin.varada.warmup.model.PartitionValueWarmupPredicateRule("col2", "2")))
+                .predicates(Set.of(new io.trino.plugin.warp.warmup.model.PartitionValueWarmupPredicateRule("col2", "2")))
                 .build();
 
         when(warmupRuleService.getAll()).thenReturn(List.of(warmupRule));
@@ -115,7 +115,7 @@ public class WarmupTaskTest
                 .warmUpType(io.trino.plugin.warp.gen.constants.WarmUpType.WARM_UP_TYPE_LUCENE)
                 .priority(5)
                 .ttl(10)
-                .predicates(Set.of(new io.trino.plugin.varada.warmup.model.PartitionValueWarmupPredicateRule("col2", "2")))
+                .predicates(Set.of(new io.trino.plugin.warp.warmup.model.PartitionValueWarmupPredicateRule("col2", "2")))
                 .build());
 
         List<Node> workers = IntStream.range(1, 10)
@@ -169,7 +169,7 @@ public class WarmupTaskTest
                 .warmUpType(io.trino.plugin.warp.gen.constants.WarmUpType.WARM_UP_TYPE_LUCENE)
                 .priority(5)
                 .ttl(10)
-                .predicates(Set.of(new io.trino.plugin.varada.warmup.model.PartitionValueWarmupPredicateRule("col2", "2")))
+                .predicates(Set.of(new io.trino.plugin.warp.warmup.model.PartitionValueWarmupPredicateRule("col2", "2")))
                 .build();
 
         when(warmupRuleService.validate(eq(ImmutableList.of()), eq(List.of(warmupRule))))

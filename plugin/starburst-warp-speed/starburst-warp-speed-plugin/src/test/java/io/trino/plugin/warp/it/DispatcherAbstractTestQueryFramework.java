@@ -15,17 +15,17 @@ package io.trino.plugin.warp.it;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.ImmutableSet;
-import io.trino.plugin.varada.api.warmup.WarmupColRuleData;
-import io.trino.plugin.varada.api.warmup.WarmupPredicateRule;
-import io.trino.plugin.varada.api.warmup.WarmupPropertiesData;
-import io.trino.plugin.varada.api.warmup.column.RegularColumnData;
-import io.trino.plugin.varada.api.warmup.column.TransformedColumnData;
-import io.trino.plugin.varada.api.warmup.column.VaradaColumnData;
-import io.trino.plugin.varada.api.warmup.expression.TransformFunctionData;
-import io.trino.plugin.varada.warmup.WarmupRuleService;
+import io.trino.plugin.warp.api.warmup.WarmupColRuleData;
+import io.trino.plugin.warp.api.warmup.WarmupPredicateRule;
+import io.trino.plugin.warp.api.warmup.WarmupPropertiesData;
+import io.trino.plugin.warp.api.warmup.column.RegularColumnData;
+import io.trino.plugin.warp.api.warmup.column.TransformedColumnData;
+import io.trino.plugin.warp.api.warmup.column.VaradaColumnData;
+import io.trino.plugin.warp.api.warmup.expression.TransformFunctionData;
 import io.trino.plugin.warp.extension.execution.debugtools.RowGroupCountResult;
 import io.trino.plugin.warp.extension.execution.debugtools.RowGroupTask;
 import io.trino.plugin.warp.extension.execution.warmup.WarmupTask;
+import io.trino.plugin.warp.warmup.WarmupRuleService;
 import jakarta.ws.rs.HttpMethod;
 
 import java.io.IOException;

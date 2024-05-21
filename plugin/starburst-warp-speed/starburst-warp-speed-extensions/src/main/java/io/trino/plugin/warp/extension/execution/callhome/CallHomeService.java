@@ -19,17 +19,17 @@ import com.google.common.eventbus.Subscribe;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.varada.annotations.ForWarp;
-import io.trino.plugin.varada.storage.engine.ConnectorSync;
-import io.trino.plugin.varada.storage.engine.ConnectorSyncInitializedEvent;
+import io.trino.plugin.warp.annotation.ForWarp;
+import io.trino.plugin.warp.cloudvendors.CloudVendorService;
+import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
+import io.trino.plugin.warp.cloudvendors.config.StoreType;
 import io.trino.plugin.warp.extension.config.CallHomeConfig;
+import io.trino.plugin.warp.storage.engine.ConnectorSync;
+import io.trino.plugin.warp.storage.engine.ConnectorSyncInitializedEvent;
+import io.trino.plugin.warp.tools.CatalogNameProvider;
+import io.trino.plugin.warp.tools.util.Version;
 import io.trino.spi.HostAddress;
 import io.trino.spi.NodeManager;
-import io.varada.cloudvendors.CloudVendorService;
-import io.varada.cloudvendors.config.CloudVendorConfig;
-import io.varada.cloudvendors.config.StoreType;
-import io.varada.tools.CatalogNameProvider;
-import io.varada.tools.util.Version;
 import jakarta.ws.rs.core.UriBuilder;
 
 import java.lang.management.ManagementFactory;
@@ -42,7 +42,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-import static io.trino.plugin.varada.storage.engine.ConnectorSync.DEFAULT_CATALOG;
+import static io.trino.plugin.warp.storage.engine.ConnectorSync.DEFAULT_CATALOG;
 import static java.util.Objects.requireNonNull;
 
 @Singleton

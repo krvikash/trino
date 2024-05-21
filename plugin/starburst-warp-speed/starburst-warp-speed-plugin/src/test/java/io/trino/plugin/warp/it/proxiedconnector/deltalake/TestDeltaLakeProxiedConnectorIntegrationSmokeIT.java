@@ -13,9 +13,9 @@
  */
 package io.trino.plugin.warp.it.proxiedconnector.deltalake;
 
-import io.trino.plugin.varada.dispatcher.DispatcherConnectorFactory;
 import io.trino.plugin.warp.WarpPlugin;
 import io.trino.plugin.warp.di.VaradaStubsStorageEngineModule;
+import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
 import io.trino.plugin.warp.it.DispatcherQueryRunner;
 import io.trino.plugin.warp.it.DispatcherStubsIntegrationSmokeIT;
 import io.trino.testing.QueryRunner;
@@ -25,8 +25,8 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 
-import static io.trino.plugin.varada.config.ProxiedConnectorConfig.DELTA_LAKE_CONNECTOR_NAME;
-import static io.trino.plugin.varada.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
+import static io.trino.plugin.warp.config.ProxiedConnectorConfig.DELTA_LAKE_CONNECTOR_NAME;
+import static io.trino.plugin.warp.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
 import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP_SERVER_PORT;
 
 public class TestDeltaLakeProxiedConnectorIntegrationSmokeIT

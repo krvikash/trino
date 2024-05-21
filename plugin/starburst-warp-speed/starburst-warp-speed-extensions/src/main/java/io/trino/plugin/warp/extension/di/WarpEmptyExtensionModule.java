@@ -15,9 +15,9 @@ package io.trino.plugin.warp.extension.di;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Module;
-import io.trino.plugin.varada.di.InitializationModule;
-import io.trino.plugin.varada.di.WarmupCloudFetcherModule;
-import io.trino.plugin.varada.dispatcher.connectors.ConnectorTaskExecutor;
+import io.trino.plugin.warp.di.InitializationModule;
+import io.trino.plugin.warp.di.WarmupCloudFetcherModule;
+import io.trino.plugin.warp.dispatcher.connectors.ConnectorTaskExecutor;
 import io.trino.spi.connector.ConnectorContext;
 
 import java.util.Map;

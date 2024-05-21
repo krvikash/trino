@@ -15,11 +15,11 @@ package io.trino.plugin.warp.extension.execution.warmup;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.trino.plugin.varada.dispatcher.warmup.WorkerWarmupRuleService;
-import io.trino.plugin.varada.warmup.WarmupRuleService;
+import io.trino.plugin.warp.annotation.Audit;
+import io.trino.plugin.warp.dispatcher.warmup.WorkerWarmupRuleService;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
-import io.varada.annotation.Audit;
+import io.trino.plugin.warp.warmup.WarmupRuleService;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;

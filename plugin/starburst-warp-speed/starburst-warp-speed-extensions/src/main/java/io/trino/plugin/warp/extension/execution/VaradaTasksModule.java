@@ -17,7 +17,7 @@ import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.multibindings.Multibinder;
 import com.google.inject.name.Names;
-import io.trino.plugin.varada.dispatcher.connectors.ConnectorTaskExecutor;
+import io.trino.plugin.warp.dispatcher.connectors.ConnectorTaskExecutor;
 import org.reflections.Reflections;
 
 import java.util.Set;

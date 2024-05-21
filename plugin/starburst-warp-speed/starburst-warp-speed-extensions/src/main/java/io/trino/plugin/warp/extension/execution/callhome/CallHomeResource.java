@@ -15,9 +15,9 @@ package io.trino.plugin.warp.extension.execution.callhome;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import io.trino.plugin.warp.annotation.Audit;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
-import io.varada.annotation.Audit;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;

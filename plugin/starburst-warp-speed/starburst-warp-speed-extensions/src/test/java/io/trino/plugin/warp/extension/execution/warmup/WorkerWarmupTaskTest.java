@@ -13,23 +13,23 @@
  */
 package io.trino.plugin.warp.extension.execution.warmup;
 
-import io.trino.plugin.varada.api.warmup.WarmupDefaultRuleUsageData;
-import io.trino.plugin.varada.api.warmup.WarmupRulesUsageData;
-import io.trino.plugin.varada.dispatcher.model.RegularColumn;
-import io.trino.plugin.varada.dispatcher.model.RowGroupData;
-import io.trino.plugin.varada.dispatcher.model.RowGroupKey;
-import io.trino.plugin.varada.dispatcher.model.SchemaTableColumn;
-import io.trino.plugin.varada.dispatcher.model.WarmUpElement;
-import io.trino.plugin.varada.dispatcher.services.RowGroupDataService;
-import io.trino.plugin.varada.dispatcher.warmup.WorkerWarmupRuleService;
-import io.trino.plugin.varada.dispatcher.warmup.demoter.WarmupDemoterService;
-import io.trino.plugin.varada.dispatcher.warmup.fetcher.WarmupRuleCloudFetcher;
-import io.trino.plugin.varada.storage.write.WarmupElementStats;
-import io.trino.plugin.varada.warmup.model.WarmupRule;
+import io.trino.plugin.warp.api.warmup.WarmupDefaultRuleUsageData;
+import io.trino.plugin.warp.api.warmup.WarmupRulesUsageData;
+import io.trino.plugin.warp.dispatcher.model.RegularColumn;
+import io.trino.plugin.warp.dispatcher.model.RowGroupData;
+import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
+import io.trino.plugin.warp.dispatcher.model.SchemaTableColumn;
+import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
+import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
+import io.trino.plugin.warp.dispatcher.warmup.WorkerWarmupRuleService;
+import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
+import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleCloudFetcher;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
+import io.trino.plugin.warp.storage.write.WarmupElementStats;
+import io.trino.plugin.warp.tools.util.Pair;
+import io.trino.plugin.warp.warmup.model.WarmupRule;
 import io.trino.spi.connector.SchemaTableName;
-import io.varada.tools.util.Pair;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -138,6 +138,6 @@ public class WorkerWarmupTaskTest
 
         Collection<WarmupDefaultRuleUsageData> defaultRules = warmupRulesUsageData.warmupDefaultRuleUsageDataList();
         assertThat(defaultRules.size()).isEqualTo(1);
-        assertThat(defaultRules.stream().findFirst().orElseThrow().warmUpType()).isEqualTo(io.trino.plugin.varada.api.warmup.WarmUpType.WARM_UP_TYPE_DATA);
+        assertThat(defaultRules.stream().findFirst().orElseThrow().warmUpType()).isEqualTo(io.trino.plugin.warp.api.warmup.WarmUpType.WARM_UP_TYPE_DATA);
     }
 }

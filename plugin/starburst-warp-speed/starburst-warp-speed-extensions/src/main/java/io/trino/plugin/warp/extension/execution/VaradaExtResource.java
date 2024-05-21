@@ -16,7 +16,7 @@ package io.trino.plugin.warp.extension.execution;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.varada.dispatcher.connectors.ConnectorTaskExecutor;
+import io.trino.plugin.warp.dispatcher.connectors.ConnectorTaskExecutor;
 import io.trino.spi.TrinoException;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.HttpMethod;

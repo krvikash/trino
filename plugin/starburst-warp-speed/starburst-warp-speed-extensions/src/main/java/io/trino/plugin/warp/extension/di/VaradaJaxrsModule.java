@@ -36,11 +36,11 @@ import io.airlift.jaxrs.JsonMapper;
 import io.airlift.jaxrs.ParsingExceptionMapper;
 import io.airlift.jaxrs.SmileMapper;
 import io.swagger.v3.jaxrs2.integration.resources.OpenApiResource;
-import io.trino.plugin.varada.util.Auditer;
-import io.trino.plugin.varada.util.TrinoExceptionMapper;
+import io.trino.plugin.warp.annotation.Audit;
 import io.trino.plugin.warp.extension.execution.CorsFilter;
 import io.trino.plugin.warp.extension.execution.VaradaExtResource;
-import io.varada.annotation.Audit;
+import io.trino.plugin.warp.util.Auditer;
+import io.trino.plugin.warp.util.TrinoExceptionMapper;
 import jakarta.servlet.Servlet;
 import org.glassfish.jersey.servlet.ServletContainer;
 

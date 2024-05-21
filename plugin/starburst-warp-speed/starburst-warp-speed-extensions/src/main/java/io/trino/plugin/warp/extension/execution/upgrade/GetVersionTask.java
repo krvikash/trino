@@ -14,12 +14,12 @@
 package io.trino.plugin.warp.extension.execution.upgrade;
 
 import com.google.inject.Inject;
-import io.trino.plugin.varada.api.ClusterVersion;
-import io.trino.plugin.varada.dispatcher.warmup.WarmUtils;
+import io.trino.plugin.warp.api.ClusterVersion;
+import io.trino.plugin.warp.dispatcher.warmup.WarmUtils;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
+import io.trino.plugin.warp.tools.util.Version;
 import io.trino.spi.NodeManager;
-import io.varada.tools.util.Version;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;

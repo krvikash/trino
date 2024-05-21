@@ -14,10 +14,10 @@
 package io.trino.plugin.warp.extension.execution.debugtools;
 
 import com.google.inject.Inject;
-import io.trino.plugin.varada.metrics.MetricsManager;
-import io.trino.plugin.varada.metrics.WarpStatsBase;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
+import io.trino.plugin.warp.metrics.MetricsManager;
+import io.trino.plugin.warp.metrics.WarpStatsBase;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;

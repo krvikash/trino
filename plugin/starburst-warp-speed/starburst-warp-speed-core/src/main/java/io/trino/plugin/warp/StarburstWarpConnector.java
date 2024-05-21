@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.warp;
 
-import io.trino.plugin.varada.dispatcher.connectors.DispatcherConnectorBase;
+import io.trino.plugin.warp.dispatcher.connectors.DispatcherConnectorBase;
 import io.trino.spi.cache.ConnectorCacheMetadata;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorAccessControl;

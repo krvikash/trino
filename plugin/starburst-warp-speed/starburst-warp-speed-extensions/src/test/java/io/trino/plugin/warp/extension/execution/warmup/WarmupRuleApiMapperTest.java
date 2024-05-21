@@ -13,13 +13,13 @@
  */
 package io.trino.plugin.warp.extension.execution.warmup;
 
-import io.trino.plugin.varada.api.warmup.WarmupColRuleData;
-import io.trino.plugin.varada.dispatcher.model.RegularColumn;
-import io.trino.plugin.varada.warmup.WarmupRuleApiMapper;
-import io.trino.plugin.varada.warmup.model.DateSlidingWindowWarmupPredicateRule;
-import io.trino.plugin.varada.warmup.model.PartitionValueWarmupPredicateRule;
-import io.trino.plugin.varada.warmup.model.WarmupRule;
+import io.trino.plugin.warp.api.warmup.WarmupColRuleData;
+import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
+import io.trino.plugin.warp.warmup.WarmupRuleApiMapper;
+import io.trino.plugin.warp.warmup.model.DateSlidingWindowWarmupPredicateRule;
+import io.trino.plugin.warp.warmup.model.PartitionValueWarmupPredicateRule;
+import io.trino.plugin.warp.warmup.model.WarmupRule;
 import org.junit.jupiter.api.Test;
 
 import java.util.Set;

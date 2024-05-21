@@ -19,10 +19,10 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.SetMultimap;
 import io.airlift.log.Logger;
-import io.trino.plugin.varada.api.warmup.RuleResultDTO;
-import io.trino.plugin.varada.api.warmup.WarmUpType;
-import io.trino.plugin.varada.api.warmup.WarmupColRuleData;
-import io.trino.plugin.varada.api.warmup.column.RegularColumnData;
+import io.trino.plugin.warp.api.warmup.RuleResultDTO;
+import io.trino.plugin.warp.api.warmup.WarmUpType;
+import io.trino.plugin.warp.api.warmup.WarmupColRuleData;
+import io.trino.plugin.warp.api.warmup.column.RegularColumnData;
 import jakarta.ws.rs.HttpMethod;
 
 import java.io.IOException;
