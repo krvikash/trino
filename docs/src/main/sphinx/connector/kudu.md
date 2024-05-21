@@ -154,7 +154,6 @@ E.g. To query a Kudu table named `special.table!` use `SELECT * FROM example.def
   ```
 
 (behavior-with-schema-emulation)=
-
 ### Behavior with schema emulation
 
 If schema emulation has been enabled in the connector properties, i.e.
@@ -188,7 +187,6 @@ some conventions.
   `presto::$schemas` is created for managing the schemas.
 
 (kudu-type-mapping)=
-
 ## Type mapping
 
 Because Trino and Kudu each support types that the other does not, this
@@ -287,7 +285,6 @@ this table:
 No other types are supported.
 
 (kudu-sql-support)=
-
 ## SQL support
 
 The connector provides read and write access to data and metadata in
@@ -306,7 +303,6 @@ statements, the connector supports the following features:
 - {doc}`/sql/drop-schema`, see also {ref}`kudu-drop-schema`
 
 (kudu-insert)=
-
 ### Inserting into tables
 
 `INSERT INTO ... values` and `INSERT INTO ... select` behave like
@@ -316,21 +312,18 @@ statements, the connector supports the following features:
 ```
 
 (kudu-create-schema)=
-
 ### Creating schemas
 
 `CREATE SCHEMA` is only allowed if schema emulation is enabled. See the
 {ref}`behavior-with-schema-emulation` section.
 
 (kudu-drop-schema)=
-
 ### Dropping schemas
 
 `DROP SCHEMA` is only allowed if schema emulation is enabled. See the
 {ref}`behavior-with-schema-emulation` section.
 
 (kudu-create-table)=
-
 ### Creating a table
 
 On creating a Kudu table, you need to provide the columns and their types, of
@@ -397,7 +390,6 @@ CREATE TABLE example_table (
 ```
 
 (kudu-alter-table)=
-
 ### Changing tables
 
 Adding a column to an existing table uses the SQL statement `ALTER TABLE ... ADD COLUMN ...`.
@@ -549,7 +541,6 @@ This means any attempt to add rows with `event_time` of year 2018 or greater fai
 The next section shows how to define a new range partition for an existing table.
 
 (managing-range-partitions)=
-
 #### Managing range partitions
 
 For existing tables, there are procedures to add and drop a range
