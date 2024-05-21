@@ -35,7 +35,7 @@ public class ChunkDataLease
 
     public List<Slice> getChunkSlices()
     {
-        checkState(chunkSlices != null, "already relesed");
+        checkState(chunkSlices != null, "already released");
         return chunkSlices;
     }
 
