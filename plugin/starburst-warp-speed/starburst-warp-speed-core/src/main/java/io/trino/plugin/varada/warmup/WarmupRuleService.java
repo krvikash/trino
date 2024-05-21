@@ -255,17 +255,14 @@ public class WarmupRuleService
     {
         Set<String> errors = new HashSet<>();
         if (!(warmupRule.getVaradaColumn() instanceof WildcardColumn)) {
-            if (optionalType.isPresent()) {
-                Type type = optionalType.get();
+            optionalType.ifPresentOrElse(type -> {
                 if (warmupRule.getPriority() >= warmupDemoterConfig.getDefaultRulePriority()) {
                     validateTypeIsSupported(errors, warmupRule, type);
                     validateMaxCharLength(errors, warmupRule, type);
                 }
                 validateDataOnly(errors, warmupRule);
-            }
-            else {
-                errors.add("WarmUpType is null");
-            }
+            },
+                    () -> errors.add("WarmUpType is null"));
             if (!errors.isEmpty()) {
                 rejectedRules.put(warmupRule, errors);
                 return false;

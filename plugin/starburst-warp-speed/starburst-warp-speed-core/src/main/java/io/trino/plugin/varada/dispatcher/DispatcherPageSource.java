@@ -478,14 +478,14 @@ public class DispatcherPageSource
             Optional<ConnectorPageSource.RowRanges> rowRanges = proxiedConnectorPageSource.getNextFilteredRowRanges();
             if (rowRanges.isEmpty()) {
                 // Filtering is not supported by this connector page source (e.g. TEXT, CSV, AVRO etc.)
-                checkState(proxiedConnectorProvidesRowRanges.isEmpty() || !proxiedConnectorProvidesRowRanges.get(), "proxied connector was expected to provide row ranges");
+                checkState(!proxiedConnectorProvidesRowRanges.orElse(false), "proxied connector was expected to provide row ranges");
                 proxiedConnectorProvidesRowRanges = Optional.of(false);
                 if (currentProxiedPage != null && currentProxiedPage.getPositionCount() > 0) {
                     proxiedPageRanges.add(new RowRange(proxiedPagePositionsRead, proxiedPagePositionsRead + currentProxiedPage.getPositionCount()));
                 }
             }
             else {
-                checkState(proxiedConnectorProvidesRowRanges.isEmpty() || proxiedConnectorProvidesRowRanges.get(), "proxied connector was not expected to provide row ranges");
+                checkState(proxiedConnectorProvidesRowRanges.orElse(true), "proxied connector was not expected to provide row ranges");
                 proxiedConnectorProvidesRowRanges = Optional.of(true);
                 int positionsCount = currentProxiedPage == null ? 0 : currentProxiedPage.getPositionCount();
                 validateRanges(

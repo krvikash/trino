@@ -462,7 +462,7 @@ public class StorageWriterServiceTest
         storageWriterService.appendPage(page, storageWriterContext);
         WriteJuffersWarmUpElement dataRecordJuffer = storageWriterContext.getWriteJuffersWarmUpElement();
 
-        LuceneIndexer luceneIndexer = storageWriterContext.getLuceneIndexer().get();
+        LuceneIndexer luceneIndexer = storageWriterContext.getLuceneIndexer().orElseThrow();
         ByteBuffersDirectory directory = (ByteBuffersDirectory) luceneIndexer.getLuceneDirectory();
         assertThat(directory).isNotNull();
         storageWriterService.close(page.getPositionCount(), storageWriterSplitConfig, storageWriterContext);
@@ -497,7 +497,7 @@ public class StorageWriterServiceTest
         storageWriterService.abort(false, storageWriterContext, storageWriterSplitConfig);
         WriteJuffersWarmUpElement juffersWE = storageWriterContext.getWriteJuffersWarmUpElement();
 
-        LuceneIndexer luceneIndexer = storageWriterContext.getLuceneIndexer().get();
+        LuceneIndexer luceneIndexer = storageWriterContext.getLuceneIndexer().orElseThrow();
         ByteBuffersDirectory directory = (ByteBuffersDirectory) luceneIndexer.getLuceneDirectory();
         assertThat(directory).isNotNull();
         storageWriterService.abort(false, storageWriterContext, storageWriterSplitConfig);

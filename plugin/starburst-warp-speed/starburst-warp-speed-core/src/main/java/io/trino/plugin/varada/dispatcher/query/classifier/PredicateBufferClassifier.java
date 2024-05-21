@@ -79,16 +79,13 @@ class PredicateBufferClassifier
         Map<Integer, PrefilledQueryCollectData> newPrefilledQueryCollectDataByBlockIndex = new HashMap<>(queryContext.getPrefilledQueryCollectDataByBlockIndex());
         Map<Integer, ColumnHandle> newRemainingCollectColumnByBlockIndex = new HashMap<>(queryContext.getRemainingCollectColumnByBlockIndex());
         int columnIx = 0;
-        Optional<MatchData> matchDataWithPredicateBuffers = Optional.empty();
-        if (queryContext.getMatchData().isPresent()) {
-            MatchData newMatchData = calcMatchDataWithLogical(classifyArgs,
-                    queryContext.getMatchData().get(),
-                    queryContext,
-                    columnIx,
-                    newRemainingCollectColumnByBlockIndex,
-                    newPrefilledQueryCollectDataByBlockIndex);
-            matchDataWithPredicateBuffers = Optional.of(newMatchData);
-        }
+
+        Optional<MatchData> matchDataWithPredicateBuffers = queryContext.getMatchData().map(matchData -> calcMatchDataWithLogical(classifyArgs,
+                matchData,
+                queryContext,
+                columnIx,
+                newRemainingCollectColumnByBlockIndex,
+                newPrefilledQueryCollectDataByBlockIndex));
 
         return queryContext.asBuilder()
                 .matchData(matchDataWithPredicateBuffers)

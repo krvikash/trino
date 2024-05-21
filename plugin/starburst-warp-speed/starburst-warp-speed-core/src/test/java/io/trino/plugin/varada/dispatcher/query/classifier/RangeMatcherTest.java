@@ -120,7 +120,7 @@ class RangeMatcherTest
         when(context.getColumnType()).thenReturn(type);
 
         Optional<NativeExpression> nativeExpression = Optional.of(mock(NativeExpression.class));
-        when(nativeExpression.get().functionType()).thenReturn(FunctionType.FUNCTION_TYPE_NONE);
+        when(nativeExpression.orElseThrow().functionType()).thenReturn(FunctionType.FUNCTION_TYPE_NONE);
         VaradaExpressionData expressionData = mock(VaradaExpressionData.class);
         when(expressionData.getNativeExpressionOptional()).thenReturn(nativeExpression);
         when(context.getVaradaExpressionData()).thenReturn(expressionData);
@@ -166,7 +166,7 @@ class RangeMatcherTest
         when(context.getColumnType()).thenReturn(type);
 
         Optional<NativeExpression> nativeExpression = Optional.of(mock(NativeExpression.class));
-        when(nativeExpression.get().functionType()).thenReturn(FunctionType.FUNCTION_TYPE_NONE);
+        when(nativeExpression.orElseThrow().functionType()).thenReturn(FunctionType.FUNCTION_TYPE_NONE);
         VaradaExpressionData expressionData = mock(VaradaExpressionData.class);
         when(expressionData.getNativeExpressionOptional()).thenReturn(nativeExpression);
         when(context.getVaradaExpressionData()).thenReturn(expressionData);
