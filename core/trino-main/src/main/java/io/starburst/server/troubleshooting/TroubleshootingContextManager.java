@@ -339,7 +339,7 @@ public class TroubleshootingContextManager
                 .collect(toImmutableList());
 
         return tasks.stream()
-                .map(TaskInfo::getTaskStatus)
+                .map(TaskInfo::taskStatus)
                 .map(TaskStatus::getNodeId)
                 .collect(toImmutableSet());
     }

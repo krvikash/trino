@@ -71,7 +71,7 @@ public class TestLimitedWorkersCollected
                         "insights.authorized-users", AUTHORIZED_USER,
                         "troubleshooting.jfr.max-collected-workers", String.valueOf(maxCollectedWorkers),
                         "troubleshooting.trace.max-collected-workers", String.valueOf(maxCollectedWorkers)))
-                .setNodeCount(WORKER_COUNT + 1)
+                .setWorkerCount(WORKER_COUNT)
                 .build();
 
         queryRunner.installPlugin(new TpchPlugin());

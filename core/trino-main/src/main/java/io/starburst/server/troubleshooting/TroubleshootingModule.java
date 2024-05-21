@@ -10,6 +10,7 @@
 package io.starburst.server.troubleshooting;
 
 import com.google.inject.Binder;
+import com.google.inject.Key;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import io.starburst.server.troubleshooting.jfr.FlightRecorderConfig;
@@ -87,6 +88,6 @@ public class TroubleshootingModule
         setBinder.addBinding().to(OpenTelemetryTraceProvider.class);
 
         closingBinder(binder)
-                .registerExecutor(ScheduledExecutorService.class, ForTroubleshooting.class);
+                .registerExecutor(Key.get(ScheduledExecutorService.class, ForTroubleshooting.class));
     }
 }

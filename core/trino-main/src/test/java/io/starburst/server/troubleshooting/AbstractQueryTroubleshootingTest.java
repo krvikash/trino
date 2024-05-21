@@ -386,7 +386,7 @@ public abstract class AbstractQueryTroubleshootingTest
         List<TaskInfo> tasks = gatherAllTasks(outputStage);
 
         return tasks.stream()
-                .map(TaskInfo::getTaskStatus)
+                .map(TaskInfo::taskStatus)
                 .map(TaskStatus::getNodeId)
                 .filter(this::isNotCoordinator)
                 .collect(toImmutableSet());
