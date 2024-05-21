@@ -56,6 +56,7 @@ public class ChunkDataLease
 
     public void release()
     {
+        checkState(chunkSlices != null, "already released");
         releaseCallback.run();
         chunkSlices = null; // ensure no dangling reference
     }
