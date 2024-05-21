@@ -681,22 +681,27 @@ public class DataResource
         sliceQueue.addAll(chunkDataLease.getChunkSlices());
 
         outputStream.setWriteListener(new WriteListener() {
-            private boolean done;
+            private final AtomicBoolean done = new AtomicBoolean();
 
             @Override
             public void onWritePossible()
                     throws IOException
             {
-                if (done) {
+                if (done.get()) {
                     logger.warn("onWritePossible when already done on GET /%s/%s/pages/%s/%s", bufferNodeId, exchangeId, partitionId, chunkId);
                     return;
                 }
                 while (outputStream.isReady()) {
                     if (sliceQueue.isEmpty()) {
-                        done = true;
-                        chunkDataLease.release();
-                        context.complete();
-                        return;
+                        if (done.compareAndSet(false, true)) {
+                            chunkDataLease.release();
+                            context.complete();
+                            return;
+                        }
+                        else {
+                            logger.warn("onWritePossible done in the meantime on GET /%s/%s/pages/%s/%s", bufferNodeId, exchangeId, partitionId, chunkId);
+                            return;
+                        }
                     }
 
                     Slice slice = sliceQueue.poll();
@@ -709,8 +714,7 @@ public class DataResource
             {
                 try {
                     logger.warn(throwable, "error on GET /%s/%s/pages/%s/%s; alreadyDone=%s", bufferNodeId, exchangeId, partitionId, chunkId, done);
-                    if (!done) {
-                        done = true;
+                    if (done.compareAndSet(false, true)) {
                         chunkDataLease.release();
                     }
                 }
