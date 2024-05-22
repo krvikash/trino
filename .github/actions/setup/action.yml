@@ -47,23 +47,33 @@ runs:
       - name: Cache and Restore local Maven repo
         id: cache
         if: ${{ format('{0}', inputs.cache) == 'true' }}
-        uses: actions/cache@v4
+        uses: starburstdata/actions-cache@v1.0.0
+        env:
+          AWS_REGION: "us-east-1"
         with:
+          endpoint: s3.us-east-1.amazonaws.com
+          bucket: gha-fleet-cicd-cache-us-east-1
+          use-fallback: false
           # Note: must be same set of paths as for cache:restore mode
           path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          key: ${{ github.repository }}/${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
-            ${{ runner.os }}-maven-
+            ${{ github.repository }}/${{ runner.os }}-maven-
       - name: Restore local Maven repo
         id: cache_restore
         if: ${{ format('{0}', inputs.cache) == 'restore' }}
-        uses: actions/cache/restore@v4
+        uses: starburstdata/actions-cache/restore@v1.0.0
+        env:
+          AWS_REGION: "us-east-1"
         with:
+          endpoint: s3.us-east-1.amazonaws.com
+          bucket: gha-fleet-cicd-cache-us-east-1
+          use-fallback: false
           # Note: must be same set of paths as for cache:true mode
           path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          key: ${{ github.repository }}/${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
-            ${{ runner.os }}-maven-
+            ${{ github.repository }}/${{ runner.os }}-maven-
       - name: Install starburst-testing-auto-configuration
         # starburst-testing-auto-configuration is used by all tests and not implicitly built
         # This module has very little dependencies, so no need to cache it, or build conditionally

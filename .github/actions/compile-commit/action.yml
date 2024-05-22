@@ -15,11 +15,16 @@ runs:
         echo "tree-hash=${TREE_HASH}" >> $GITHUB_OUTPUT
     - name: Cache compile-commit action success
       id: check-compile-commit-success
-      uses: actions/cache@v4
+      uses: starburstdata/actions-cache@v1.0.0
+      env:
+        AWS_REGION: "us-east-1"
       with:
+        endpoint: s3.us-east-1.amazonaws.com
+        bucket: gha-fleet-cicd-cache-us-east-1
+        use-fallback: false
         path: compile-commit-success.txt
         # use tree hashes instead of commit hashes to reuse cache when changes in commits are reorganized without changing the workspace
-        key: compile-commit-success-${{ github.event.pull_request.head.repo.full_name }}-${{ steps.repo-hash.outputs.tree-hash }}
+        key: ${{ github.repository }}/compile-commit-success-${{ github.event.pull_request.head.repo.full_name }}-${{ steps.repo-hash.outputs.tree-hash }}
     - uses: ./.github/actions/setup
       with:
         cleanup-node: true
