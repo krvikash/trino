@@ -53,7 +53,7 @@ public class KuduRecordSet
     public List<Type> getColumnTypes()
     {
         return columns.stream()
-                .map(column -> ((KuduColumnHandle) column).getType())
+                .map(column -> ((KuduColumnHandle) column).type())
                 .collect(toImmutableList());
     }
 
@@ -70,7 +70,7 @@ public class KuduRecordSet
                 builder.put(i, ROW_ID_POSITION);
             }
             else {
-                builder.put(i, projectedSchema.getColumnIndex(handle.getName()));
+                builder.put(i, projectedSchema.getColumnIndex(handle.name()));
             }
         }
 
