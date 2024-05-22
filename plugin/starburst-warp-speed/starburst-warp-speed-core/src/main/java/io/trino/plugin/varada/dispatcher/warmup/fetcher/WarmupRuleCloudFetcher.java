@@ -162,7 +162,8 @@ public class WarmupRuleCloudFetcher
 
         if (readLock.tryLock()) {
             try {
-                if (path == null || !cloudVendorService.directoryExists(path)) {
+                if (path == null) {
+                    logger.debug("rules path is null, storePath %s connectorName %s", warmupRuleCloudFetcherConfig.getStorePath(), catalogNameProvider.get());
                     return;
                 }
                 StorageObjectMetadata storageObjectMetadata = Failsafe.with(RetryPolicy.builder()
@@ -207,6 +208,9 @@ public class WarmupRuleCloudFetcher
 
                     warmupRuleFetcherStats.incsuccess();
                     eventBus.post(new WarmRulesChangedEvent());
+                }
+                else {
+                    logger.debug("rules file does not exist %s", path);
                 }
             }
             catch (Throwable e) {
