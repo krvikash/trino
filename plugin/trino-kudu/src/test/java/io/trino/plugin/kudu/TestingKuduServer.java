@@ -82,6 +82,7 @@ public class TestingKuduServer
         toxiProxy.start();
 
         String instanceName = "kudu-tserver";
+        @SuppressWarnings("deprecation")
         ToxiproxyContainer.ContainerProxy proxy = toxiProxy.getProxy(instanceName, KUDU_TSERVER_PORT);
         String tServerArgs = "--fs_wal_dir=/var/lib/kudu/tserver --logtostderr --use_hybrid_clock=false --unlock_unsafe_flags --rpc_bind_addresses=%s:%s --rpc_advertised_addresses=%s:%s %s"
                 .formatted(instanceName, KUDU_TSERVER_PORT, TOXIPROXY_NETWORK_ALIAS, proxy.getOriginalProxyPort(), String.join(" ", extraTServerArgs));
