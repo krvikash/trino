@@ -24,7 +24,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Optional;
 
-import static com.google.api.client.util.Preconditions.checkState;
+import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 
 public class GcsCloudStorage

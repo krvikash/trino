@@ -19,7 +19,7 @@ import com.google.cloud.storage.Storage;
 
 import java.util.Optional;
 
-import static com.google.api.client.util.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkArgument;
 
 public class GcsUtils
 {
