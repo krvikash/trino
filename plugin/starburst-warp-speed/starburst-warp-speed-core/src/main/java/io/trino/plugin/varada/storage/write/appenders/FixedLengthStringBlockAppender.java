@@ -49,7 +49,7 @@ public class FixedLengthStringBlockAppender
     }
 
     @Override
-    public AppendResult appendWithDictionary(BlockPosHolder blockPos, boolean stopAfterOneFlush, WriteDictionary writeDictionary, WarmupElementStatsBuilder warmupElementStatsBuilder)
+    public AppendResult appendWithDictionary(BlockPosHolder blockPos, WriteDictionary writeDictionary, WarmupElementStatsBuilder warmupElementStatsBuilder)
     {
         ShortBuffer buff = (ShortBuffer) juffersWE.getRecordBuffer();
         int stringLength = weRecTypeLength;
@@ -91,7 +91,7 @@ public class FixedLengthStringBlockAppender
     }
 
     @Override
-    public AppendResult appendWithoutDictionary(int jufferPos, BlockPosHolder blockPos, boolean stopAfterOneFlush, WarmUpElement warmUpElement, WarmupElementStatsBuilder warmupElementStatsBuilder)
+    public AppendResult appendWithoutDictionary(int jufferPos, BlockPosHolder blockPos, WarmUpElement warmUpElement, WarmupElementStatsBuilder warmupElementStatsBuilder)
     {
         int nullsCount = 0;
         int recBuffSize = juffersWE.getRecBuffSize();
@@ -101,17 +101,12 @@ public class FixedLengthStringBlockAppender
                 stringLength,
                 true,
                 true);
-        int recordsCommitted = 0;
         if (blockPos.mayHaveNull()) {
             int nullsCountCommitted = 0;
             while (blockPos.inRange()) {
                 paddPageEnd(buff, stringLength);
                 boolean committed = commitWEIfNeeded(blockPos, buff, jufferPos, nullsCount - nullsCountCommitted, recBuffSize);
                 if (committed) {
-                    recordsCommitted = blockPos.getPos() + jufferPos;
-                    if (stopAfterOneFlush) {
-                        break;
-                    }
                     nullsCountCommitted = nullsCount;
                 }
                 if (blockPos.isNull()) {
@@ -130,20 +125,14 @@ public class FixedLengthStringBlockAppender
         else {
             while (blockPos.inRange()) {
                 paddPageEnd(buff, stringLength);
-                boolean committed = commitWEIfNeeded(blockPos, buff, jufferPos, 0, recBuffSize);
-                if (committed) {
-                    recordsCommitted = blockPos.getPos() + jufferPos;
-                    if (stopAfterOneFlush) {
-                        break;
-                    }
-                }
+                commitWEIfNeeded(blockPos, buff, jufferPos, 0, recBuffSize);
                 Slice slice = blockPos.getSlice();
                 warmupElementStatsBuilder.updateMinMax(slice);
                 writeValue(buff, stringLength, sliceConverter.apply(slice));
                 blockPos.advance();
             }
         }
-        return new AppendResult(nullsCount, recordsCommitted);
+        return new AppendResult(nullsCount);
     }
 
     private void writeValue(ByteBuffer buff, int stringLength, Slice value)

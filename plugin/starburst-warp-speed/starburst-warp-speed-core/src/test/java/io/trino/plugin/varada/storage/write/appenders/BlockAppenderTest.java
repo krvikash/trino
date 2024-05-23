@@ -127,7 +127,7 @@ public abstract class BlockAppenderTest
     {
         BlockPosHolder blockPosHolder = new BlockPosHolder(block, blockType, 0, block.getPositionCount());
         WarmupElementStatsBuilder warmupElementStatsBuilder = new WarmupElementStatsBuilder();
-        blockAppender.append(jufferPos, blockPosHolder, false, writeDictionary, null, warmupElementStatsBuilder);
+        blockAppender.append(jufferPos, blockPosHolder, writeDictionary, null, warmupElementStatsBuilder);
         assertThat(warmupElementStatsBuilder.build()).isEqualTo(expectedResult);
     }
 

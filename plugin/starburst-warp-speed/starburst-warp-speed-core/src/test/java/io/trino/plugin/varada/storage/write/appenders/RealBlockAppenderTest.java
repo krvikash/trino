@@ -88,7 +88,7 @@ class RealBlockAppenderTest
                 when(writeJuffersWarmUpElement.getRecordBuffer()).thenReturn(ShortBuffer.allocate(100));
                 BlockPosHolder blockPosHolder = new BlockPosHolder(block, blockType, 0, block.getPositionCount());
                 WarmupElementStatsBuilder warmupElementStatsBuilder = new WarmupElementStatsBuilder();
-                blockAppender.appendWithDictionary(blockPosHolder, false, getWriteDictionary(recTypeCode).orElseThrow(), warmupElementStatsBuilder);
+                blockAppender.appendWithDictionary(blockPosHolder, getWriteDictionary(recTypeCode).orElseThrow(), warmupElementStatsBuilder);
             });
         }
     }

@@ -33,7 +33,7 @@ public class CrcMapBlockAppender
     }
 
     @Override
-    AppendResult appendWithoutDictionary(int jufferPos, BlockPosHolder blockPos, boolean stopAfterOneFlush, WarmUpElement warmUpElement, WarmupElementStatsBuilder warmupElementStatsBuilder)
+    AppendResult appendWithoutDictionary(int jufferPos, BlockPosHolder blockPos, WarmUpElement warmUpElement, WarmupElementStatsBuilder warmupElementStatsBuilder)
     {
         TransformedColumn transformedColumn = (TransformedColumn) warmUpElement.getVaradaColumn();
         VaradaConstant key = transformedColumn.getTransformFunction().transformParams().get(0);

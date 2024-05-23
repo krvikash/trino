@@ -13,10 +13,6 @@
  */
 package io.trino.plugin.varada.storage.write.appenders;
 
-public record AppendResult(int nullsCount, int recordsCommitted)
+public record AppendResult(int nullsCount)
 {
-    public AppendResult(int nullsCount)
-    {
-        this(nullsCount, 0);
-    }
 }

@@ -49,23 +49,22 @@ public abstract class BlockAppender
     public final AppendResult append(
             int jufferPos,
             BlockPosHolder blockPos,
-            boolean stopAfterOneFlush,
             Optional<WriteDictionary> writeDictionary,
             WarmUpElement warmUpElement,
             WarmupElementStatsBuilder warmupElementStatsBuilder)
     {
         AppendResult result;
         if (writeDictionary.isEmpty()) {
-            result = appendWithoutDictionary(jufferPos, blockPos, stopAfterOneFlush, warmUpElement, warmupElementStatsBuilder);
+            result = appendWithoutDictionary(jufferPos, blockPos, warmUpElement, warmupElementStatsBuilder);
         }
         else {
-            result = appendWithDictionary(blockPos, stopAfterOneFlush, writeDictionary.get(), warmupElementStatsBuilder);
+            result = appendWithDictionary(blockPos, writeDictionary.get(), warmupElementStatsBuilder);
         }
         warmupElementStatsBuilder.incNullCount(result.nullsCount());
         return result;
     }
 
-    abstract AppendResult appendWithoutDictionary(int jufferPos, BlockPosHolder blockPos, boolean stopAfterOneFlush, WarmUpElement warmUpElement, WarmupElementStatsBuilder warmupElementStatsBuilder);
+    abstract AppendResult appendWithoutDictionary(int jufferPos, BlockPosHolder blockPos, WarmUpElement warmUpElement, WarmupElementStatsBuilder warmupElementStatsBuilder);
 
     public void writeChunkMapValuesIntoChunkMapJuffer(List<ChunkMap> chunkMapList)
     {
@@ -95,7 +94,7 @@ public abstract class BlockAppender
         }
     }
 
-    AppendResult appendWithDictionary(BlockPosHolder blockPos, boolean stopAfterOneFlush, WriteDictionary writeDictionary, WarmupElementStatsBuilder warmupElementStatsBuilder)
+    AppendResult appendWithDictionary(BlockPosHolder blockPos, WriteDictionary writeDictionary, WarmupElementStatsBuilder warmupElementStatsBuilder)
     {
         throw new UnsupportedOperationException();
     }

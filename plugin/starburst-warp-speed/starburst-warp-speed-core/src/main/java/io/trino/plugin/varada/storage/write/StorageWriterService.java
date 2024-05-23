@@ -359,12 +359,12 @@ public class StorageWriterService
 
         int currentRecordNumber = 0;
         while (storageWriterContext.weSuccess() && currentRecordNumber < totalRecords) {
-            recycleBuffers(storageWriterContext, true);
+            recycleBuffers(storageWriterContext);
 
             int maxRecordsToAdd = Math.min(storageWriterContext.getRemainingBufferSize(), totalRecords - currentRecordNumber);
             BlockPosHolder blockPosHolder = new BlockPosHolder(block, warmupElementWriteMetadata.type(), currentRecordNumber, maxRecordsToAdd);
 
-            appendToBuffer(storageWriterContext, blockPosHolder, false);
+            appendToBuffer(storageWriterContext, blockPosHolder);
             storageWriterContext.incRecordBufferPos(blockPosHolder.getPos());
             currentRecordNumber += blockPosHolder.getPos();
         }
@@ -377,87 +377,62 @@ public class StorageWriterService
         // But the calculation is heuristic, and even when warmupElementBlocks is considered not ready,
         // it might actually contain enough data to fill the buffer.
         // In this case, we want to write all the data without stopping after one iteration
-        boolean stopAfterOneFlush = warmupElementBlocks.isReady();
-
-        // If the factor was recently updated, it means that the previous iteration didn't flush.
-        // In this case, shouldPrepare would be false, so commitRecordBufferPrepare won't be called twice without flushing in between.
-        boolean shouldPrepare = !warmupElementBlocks.isFactorRecentlyUpdated();
+        boolean stopAfterOneChunk = warmupElementBlocks.isReady();
 
         int blockIndex = 0;
         boolean flushed = false;
         int currentRecordNumber = warmupElementBlocks.getStartOffsetInFirstBlock();
-        for (; blockIndex < warmupElementBlocks.getBlocks().size() && !(stopAfterOneFlush && flushed) && storageWriterContext.weSuccess(); blockIndex++) {
+        for (; blockIndex < warmupElementBlocks.getBlocks().size() && !flushed && storageWriterContext.weSuccess(); blockIndex++) {
             Block block = warmupElementBlocks.getBlocks().get(blockIndex);
             if (blockIndex > 0) {
                 currentRecordNumber = 0;
             }
             int blockRows = block.getPositionCount();
-            while (storageWriterContext.weSuccess() && currentRecordNumber < blockRows && !(stopAfterOneFlush && flushed)) {
-                flushed = recycleBuffers(storageWriterContext, shouldPrepare);
-                shouldPrepare = true;
-                if (stopAfterOneFlush && flushed) {
+            while (storageWriterContext.weSuccess() && currentRecordNumber < blockRows) {
+                flushed = recycleBuffers(storageWriterContext);
+                if (stopAfterOneChunk && flushed) {
                     break;
                 }
                 int maxRecordsToAdd = Math.min(storageWriterContext.getRemainingBufferSize(), block.getPositionCount() - currentRecordNumber);
                 Type type = storageWriterContext.getWarmupElementWriteMetadata().type();
                 BlockPosHolder blockPosHolder = new BlockPosHolder(block, type, currentRecordNumber, maxRecordsToAdd);
 
-                flushed = appendToBuffer(storageWriterContext, blockPosHolder, stopAfterOneFlush);
+                appendToBuffer(storageWriterContext, blockPosHolder);
                 storageWriterContext.incRecordBufferPos(blockPosHolder.getPos());
                 currentRecordNumber += blockPosHolder.getPos();
             }
         }
 
-        int notFlushedBytes = 0;
-        if (storageWriterContext.weSuccess() && !(stopAfterOneFlush && flushed)) {
-            notFlushedBytes = flushOrResetAfterAppendingBlocks(warmupElementBlocks, storageWriterContext);
+        if (storageWriterContext.weSuccess() && !flushed) {
+            flushAfterAppendingBlocks(warmupElementBlocks, storageWriterContext);
         }
 
-        if (notFlushedBytes == 0) {
-            if (currentRecordNumber == warmupElementBlocks.getBlocks().get(blockIndex - 1).getPositionCount()) {
-                // If the block was already read in full - point on the next block
-                currentRecordNumber = 0;
-            }
-            else {
-                // the for loop increased blockIndex and then existed, this is to point on the current block
-                blockIndex--;
-            }
+        if (currentRecordNumber == warmupElementBlocks.getBlocks().get(blockIndex - 1).getPositionCount()) {
+            // If the block was already read in full - point on the next block
+            currentRecordNumber = 0;
         }
         else {
-            blockIndex = 0;
-            currentRecordNumber = warmupElementBlocks.getStartOffsetInFirstBlock();
+            // the for loop increased blockIndex and then existed, this is to point on the current block
+            blockIndex--;
         }
 
-        return new WarmResult(storageWriterContext.weSuccess(), blockIndex, currentRecordNumber, notFlushedBytes);
+        return new WarmResult(storageWriterContext.weSuccess(), blockIndex, currentRecordNumber);
     }
 
-    // Returns how many bytes weren't flushed (would be >0 if reset has occurred)
-    private int flushOrResetAfterAppendingBlocks(WarmupElementBlocks warmupElementBlocks, StorageWriterContext storageWriterContext)
+    private void flushAfterAppendingBlocks(WarmupElementBlocks warmupElementBlocks, StorageWriterContext storageWriterContext)
     {
         if (storageWriterContext.getRecordBufferPos() == 0) {
-            // no data was written - return 0
-            return 0;
+            // no data was written
+            return;
         }
 
-        int notFlushedBytes = 0;
-        if (storageWriterContext.isRecordBufferFull()) {
-            // for the case that we filled the buffer on the last iteration and exited because recycling
+        if (storageWriterContext.isRecordBufferFull() ||  // for the case that we filled the buffer on the last iteration and exited because recycling
+                !warmupElementBlocks.isReady()) { // When isReady() == false, we know that we should flush, so we already do it here without counting on cleanup() to do the job
             flushRecordBuffer(storageWriterContext);
+            return;
         }
-        else {
-            if (warmupElementBlocks.isReady()) {
-                // CacheManager expected to flush, but it didn't happen - report the number of bytes that weren't flushed and reset
-                notFlushedBytes = storageWriterContext.getWriteJuffersWarmUpElement().getRecordBuffer().position();
-                storageWriterContext.resetRecords();
-                storageWriterContext.getWriteJuffersWarmUpElement().resetAllBuffers();
-                // TODO: reset Lucene (Lucene (and indexing in general) is currently not supported in CachingManager)
-            }
-            else {
-                // Since isReady() == false, we know that we should flush, so we already do it here without counting on cleanup() to do the job
-                flushRecordBuffer(storageWriterContext);
-            }
-        }
-        return notFlushedBytes;
+
+        throw new RuntimeException("CacheManager expected to flush, but it didn't happen");
     }
 
     private int[] cleanup(boolean aborted, boolean nativeThrowed, StorageWriterContext storageWriterContext)
@@ -589,7 +564,7 @@ public class StorageWriterService
      *
      * @return true if flush occurred
      */
-    private boolean recycleBuffers(StorageWriterContext storageWriterContext, boolean shouldPrepare)
+    private boolean recycleBuffers(StorageWriterContext storageWriterContext)
     {
         boolean flushed = false;
         if (storageWriterContext.isRecordBufferFull()) {
@@ -600,9 +575,7 @@ public class StorageWriterService
             return false;
         }
 
-        if (shouldPrepare) {
-            storageEngine.commitRecordBufferPrepare(storageWriterContext.getWeCookie());
-        }
+        storageEngine.commitRecordBufferPrepare(storageWriterContext.getWeCookie());
 
         storageWriterContext.resetRecordBufferPos();
         storageWriterContext.setRecordBufferSize(1 << storageEngineConstants.getChunkSizeShift());
@@ -618,23 +591,18 @@ public class StorageWriterService
      * Should be called sequentially with each col and its block
      * Returns if at least one buffer flush has occurred
      */
-    private boolean appendToBuffer(
-            StorageWriterContext storageWriterContext, BlockPosHolder blockPos,
-            boolean stopAfterOneFlush)
+    private void appendToBuffer(StorageWriterContext storageWriterContext, BlockPosHolder blockPos)
     {
         WarmupElementWriteMetadata warmupElementWriteMetadata = storageWriterContext.getWarmupElementWriteMetadata();
         WarmUpElement warmUpElement = warmupElementWriteMetadata.warmUpElement();
-        boolean flushed = false;
         try {
             AppendResult appendResult = storageWriterContext.getBlockAppender().append(
                     storageWriterContext.getRecordBufferPos(),
                     blockPos,
-                    stopAfterOneFlush,
                     storageWriterContext.getWriteDictionary(),
                     warmUpElement,
                     storageWriterContext.getWarmupElementStatsBuilder());
             storageWriterContext.getWriteJuffersWarmUpElement().increaseNullsCount(appendResult.nullsCount());
-            flushed = appendResult.recordsCommitted() > 0;
         }
         catch (WarmupException e) {
             storageWriterContext.setFailed();
@@ -658,7 +626,6 @@ public class StorageWriterService
             updateToFailedState(storageWriterContext.getWarmupElementBuilder(), warmupElementWriteMetadata);
             throw e;
         }
-        return flushed;
     }
 
     void resetLucene(LuceneIndexer luceneIndexer)

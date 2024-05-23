@@ -29,10 +29,9 @@ class WarmupElementBlocksTest
     public void testReadyOnChunkSize()
     {
         WarmupElementWriteMetadata metadata = mock(WarmupElementWriteMetadata.class);
-        int recordBufferSize = 100;
         int chunkSize = 10;
-        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(metadata, recordBufferSize, chunkSize);
-        Block block = mockBlock(chunkSize, recordBufferSize - 1);
+        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(metadata, chunkSize);
+        Block block = mockBlock(chunkSize);
 
         assertThat(warmupElementBlocks.add(block)).isTrue();
         assertThat(warmupElementBlocks.isReady()).isTrue();
@@ -48,37 +47,13 @@ class WarmupElementBlocksTest
     }
 
     @Test
-    public void testReadyOnRecordBufferSize()
-    {
-        WarmupElementWriteMetadata metadata = mock(WarmupElementWriteMetadata.class);
-        int recordBufferSize = 100;
-        int chunkSize = 10;
-        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(metadata, recordBufferSize, chunkSize);
-        Block block = mockBlock(chunkSize - 1, recordBufferSize);
-
-        warmupElementBlocks.add(block);
-        assertThat(warmupElementBlocks.isReady()).isTrue();
-        assertThat(warmupElementBlocks.isEmpty()).isFalse();
-
-        // when removing a single record - should count the whole block as removed
-        warmupElementBlocks.dropProcessed(0, 1);
-        assertThat(warmupElementBlocks.isReady()).isFalse();
-        assertThat(warmupElementBlocks.isEmpty()).isFalse();
-
-        warmupElementBlocks.dropProcessed(1, 0);
-        assertThat(warmupElementBlocks.isReady()).isFalse();
-        assertThat(warmupElementBlocks.isEmpty()).isTrue();
-    }
-
-    @Test
     public void testExtraBlockAfterReady()
     {
         WarmupElementWriteMetadata metadata = mock(WarmupElementWriteMetadata.class);
-        int recordBufferSize = 100;
         int chunkSize = 10;
-        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(metadata, recordBufferSize, chunkSize);
-        Block bigEnoughBlock = mockBlock(chunkSize - 1, recordBufferSize);
-        Block anExtraBlock = mockBlock(chunkSize - 1, recordBufferSize);
+        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(metadata, chunkSize);
+        Block bigEnoughBlock = mockBlock(chunkSize);
+        Block anExtraBlock = mockBlock(chunkSize);
 
         // add
         assertThat(warmupElementBlocks.add(bigEnoughBlock)).isTrue();
@@ -104,16 +79,15 @@ class WarmupElementBlocksTest
         int numberOfBlocks = 10;
 
         WarmupElementWriteMetadata metadata = mock(WarmupElementWriteMetadata.class);
-        int recordBufferSize = 100;
         int chunkSize = 10;
         int recordsPerBlock = 4;
         int blockNeededToBeReady = (chunkSize / recordsPerBlock) + 1;
 
-        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(metadata, recordBufferSize, chunkSize);
+        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(metadata, chunkSize);
 
         // add
         for (int i = 0; i < numberOfBlocks; i++) {
-            Block block = mockBlock(recordsPerBlock, 30);
+            Block block = mockBlock(recordsPerBlock);
             boolean expectedToBeReady = warmupElementBlocks.getBlocks().size() + 1 >= blockNeededToBeReady; // +1 because we haven't added the block yet
             assertThat(warmupElementBlocks.add(block)).isEqualTo(expectedToBeReady);
             assertThat(warmupElementBlocks.isReady()).isEqualTo(expectedToBeReady);
@@ -139,11 +113,10 @@ class WarmupElementBlocksTest
     public void testAdvanceOffsets()
     {
         WarmupElementWriteMetadata metadata = mock(WarmupElementWriteMetadata.class);
-        int recordBufferSize = 100;
         int chunkSize = 10;
 
-        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(metadata, recordBufferSize, chunkSize);
-        Block block = mockBlock(chunkSize, recordBufferSize);
+        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(metadata, chunkSize);
+        Block block = mockBlock(chunkSize);
         assertThat(warmupElementBlocks.add(block)).isTrue();
         assertThat(warmupElementBlocks.isReady()).isTrue();
 
@@ -158,10 +131,9 @@ class WarmupElementBlocksTest
     public void testInvalidInputOnDrop()
     {
         WarmupElementWriteMetadata metadata = mock(WarmupElementWriteMetadata.class);
-        int recordBufferSize = 100;
         int chunkSize = 10;
-        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(metadata, recordBufferSize, chunkSize);
-        Block block = mockBlock(5, 50);
+        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(metadata, chunkSize);
+        Block block = mockBlock(5);
         assertThat(warmupElementBlocks.add(block)).isFalse();
 
         // negative input
@@ -179,87 +151,11 @@ class WarmupElementBlocksTest
         assertThrows(RuntimeException.class, () -> warmupElementBlocks.dropProcessed(0, 1));
     }
 
-    @Test
-    public void testReadinessWithFactor()
-    {
-        WarmupElementWriteMetadata metadata = mock(WarmupElementWriteMetadata.class);
-        int recordBufferSize = 100;
-        int chunkSize = 10;
-        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(metadata, recordBufferSize, chunkSize);
-        Block block = mockBlock(chunkSize - 1, recordBufferSize);
-
-        warmupElementBlocks.add(block);
-        assertThat(warmupElementBlocks.isReady()).isTrue();
-
-        warmupElementBlocks.updateFactor(recordBufferSize - 1);
-        assertThat(warmupElementBlocks.isReady()).isFalse();
-    }
-
-    @Test
-    public void testInvalidInputOnUpdateFactor()
-    {
-        WarmupElementWriteMetadata metadata = mock(WarmupElementWriteMetadata.class);
-        int recordBufferSize = 100;
-        int chunkSize = 10;
-
-        // Factor can't be larger than 1
-        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(metadata, recordBufferSize, chunkSize);
-        warmupElementBlocks.add(mockBlock(1, recordBufferSize));
-        warmupElementBlocks.updateFactor(recordBufferSize + 1);
-        warmupElementBlocks.dropProcessed(1, 0); // remove the first block
-        warmupElementBlocks.add(mockBlock(1, recordBufferSize));
-        assertThat(warmupElementBlocks.isReady()).isTrue(); // the second block should make it ready because factor should remain 1
-
-        // Can't enlarge the factor
-        warmupElementBlocks = new WarmupElementBlocks(metadata, recordBufferSize, chunkSize);
-        warmupElementBlocks.add(mockBlock(1, recordBufferSize));
-        warmupElementBlocks.updateFactor(recordBufferSize / 2);
-        warmupElementBlocks.updateFactor(recordBufferSize - 2);
-        warmupElementBlocks.dropProcessed(1, 0); // remove the first block
-        warmupElementBlocks.add(mockBlock(1, recordBufferSize * 2 - 1));
-        assertThat(warmupElementBlocks.isReady()).isFalse(); // the second block should not make it ready because the factor should remain 0.5*recordBufferSize
-
-        // 0 should be ignored
-        warmupElementBlocks = new WarmupElementBlocks(metadata, recordBufferSize, chunkSize);
-        warmupElementBlocks.add(mockBlock(1, recordBufferSize));
-        warmupElementBlocks.updateFactor(0);
-        warmupElementBlocks.dropProcessed(1, 0); // remove the first block
-        warmupElementBlocks.add(mockBlock(1, recordBufferSize));
-        assertThat(warmupElementBlocks.isReady()).isTrue();  // if the factor is 0 then ready will return false
-
-        // Update factor before adding any block should be ignored (recordBufferSize is 0)
-        warmupElementBlocks = new WarmupElementBlocks(metadata, recordBufferSize, chunkSize);
-        warmupElementBlocks.updateFactor(1);
-        warmupElementBlocks.add(mockBlock(1, recordBufferSize));
-        assertThat(warmupElementBlocks.isReady()).isTrue();
-        warmupElementBlocks.dropProcessed(1, 0);
-        warmupElementBlocks.add(mockBlock(1, recordBufferSize - 1));
-        assertThat(warmupElementBlocks.isReady()).isFalse();
-    }
-
-    @Test
-    public void testFactorRecentlyUpdated()
-    {
-        WarmupElementWriteMetadata metadata = mock(WarmupElementWriteMetadata.class);
-        int recordBufferSize = 100;
-        int chunkSize = 10;
-
-        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(metadata, recordBufferSize, chunkSize);
-        warmupElementBlocks.add(mockBlock(chunkSize, recordBufferSize));
-
-        assertThat(warmupElementBlocks.isFactorRecentlyUpdated()).isFalse();
-        warmupElementBlocks.updateFactor(recordBufferSize / 2);
-        assertThat(warmupElementBlocks.isFactorRecentlyUpdated()).isTrue();
-        warmupElementBlocks.dropProcessed(0, chunkSize / 2);
-        assertThat(warmupElementBlocks.isFactorRecentlyUpdated()).isFalse();
-    }
-
-    private Block mockBlock(int positionCount, long logicalSizeInBytes)
+    private Block mockBlock(int positionCount)
     {
         Block block = mock(IntArrayBlock.class);
         when(block.getLoadedBlock()).thenReturn(block);
         when(block.getPositionCount()).thenReturn(positionCount);
-        when(block.getLogicalSizeInBytes()).thenReturn(logicalSizeInBytes);
         return block;
     }
 }

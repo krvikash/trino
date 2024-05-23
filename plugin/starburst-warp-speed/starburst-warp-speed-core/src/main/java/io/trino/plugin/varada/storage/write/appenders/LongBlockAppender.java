@@ -31,7 +31,7 @@ public class LongBlockAppender
     }
 
     @Override
-    public AppendResult appendWithoutDictionary(int jufferPos, BlockPosHolder blockPos, boolean stopAfterOneFlush, WarmUpElement warmUpElement, WarmupElementStatsBuilder warmupElementStatsBuilder)
+    public AppendResult appendWithoutDictionary(int jufferPos, BlockPosHolder blockPos, WarmUpElement warmUpElement, WarmupElementStatsBuilder warmupElementStatsBuilder)
     {
         LongBuffer longBuffer = (LongBuffer) juffersWE.getRecordBuffer();
         int nullsCount = 0;
@@ -67,8 +67,7 @@ public class LongBlockAppender
     }
 
     @Override
-    public AppendResult appendWithDictionary(BlockPosHolder blockPos,
-            boolean stopAfterOneFlush, WriteDictionary writeDictionary, WarmupElementStatsBuilder warmupElementStatsBuilder)
+    public AppendResult appendWithDictionary(BlockPosHolder blockPos, WriteDictionary writeDictionary, WarmupElementStatsBuilder warmupElementStatsBuilder)
     {
         ShortBuffer buff = (ShortBuffer) juffersWE.getRecordBuffer();
         int nullsCount = 0;

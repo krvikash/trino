@@ -34,22 +34,17 @@ public class LongDecimalBlockAppender
     }
 
     @Override
-    public AppendResult appendWithoutDictionary(int jufferPos, BlockPosHolder blockPos, boolean stopAfterOneFlush, WarmUpElement warmUpElement, WarmupElementStatsBuilder warmupElementStatsBuilder)
+    public AppendResult appendWithoutDictionary(int jufferPos, BlockPosHolder blockPos, WarmUpElement warmUpElement, WarmupElementStatsBuilder warmupElementStatsBuilder)
     {
         ByteBuffer buff = (ByteBuffer) juffersWE.getRecordBuffer();
 
         int nullsCount = 0;
         int recBuffSize = juffersWE.getRecBuffSize();
-        int recordsCommitted = 0;
         if (blockPos.mayHaveNull()) {
             int nullsCountCommitted = 0;
             while (blockPos.inRange()) {
                 boolean committed = commitWEIfNeeded(blockPos, buff, jufferPos, nullsCount - nullsCountCommitted, recBuffSize);
                 if (committed) {
-                    recordsCommitted = blockPos.getPos() + jufferPos;
-                    if (stopAfterOneFlush) {
-                        break;
-                    }
                     nullsCountCommitted = nullsCount;
                 }
                 if (blockPos.isNull()) {
@@ -67,23 +62,17 @@ public class LongDecimalBlockAppender
         }
         else {
             while (blockPos.inRange()) {
-                boolean committed = commitWEIfNeeded(blockPos, buff, jufferPos, 0, recBuffSize);
-                if (committed) {
-                    recordsCommitted = blockPos.getPos() + jufferPos;
-                    if (stopAfterOneFlush) {
-                        break;
-                    }
-                }
+                commitWEIfNeeded(blockPos, buff, jufferPos, 0, recBuffSize);
                 Int128 value = (Int128) blockPos.getObject();
                 writeValue(value, buff);
                 blockPos.advance();
             }
         }
-        return new AppendResult(nullsCount, recordsCommitted);
+        return new AppendResult(nullsCount);
     }
 
     @Override
-    public AppendResult appendWithDictionary(BlockPosHolder blockPos, boolean stopAfterOneFlush, WriteDictionary writeDictionary, WarmupElementStatsBuilder warmupElementStatsBuilder)
+    public AppendResult appendWithDictionary(BlockPosHolder blockPos, WriteDictionary writeDictionary, WarmupElementStatsBuilder warmupElementStatsBuilder)
     {
         ShortBuffer buff = (ShortBuffer) juffersWE.getRecordBuffer();
         int nullsCount = 0;

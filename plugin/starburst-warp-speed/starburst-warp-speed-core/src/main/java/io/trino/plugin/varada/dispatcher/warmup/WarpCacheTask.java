@@ -325,15 +325,10 @@ public class WarpCacheTask
 
         WarmResult result = warmingCandidate.pageSink().appendWarmupElementBlocks(warmupElementBlocks);
         if (result.success()) {
-            if (result.notFlushedBytes() > 0) {
-                warmupElementBlocks.updateFactor(result.notFlushedBytes());
-            }
-            else {
-                warmupElementBlocks.dropProcessed(result.columnBlockIndex(), result.offset());
-                if (warmupElementBlocks.isReady()) {
-                    // there's still work to do
-                    blocksToProcess.put(blockIndexToProcess);
-                }
+            warmupElementBlocks.dropProcessed(result.columnBlockIndex(), result.offset());
+            if (warmupElementBlocks.isReady()) {
+                // there's still work to do
+                blocksToProcess.put(blockIndexToProcess);
             }
         }
         else {

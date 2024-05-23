@@ -14,4 +14,4 @@
 
 package io.trino.plugin.varada.storage.write;
 
-public record WarmResult(boolean success, int columnBlockIndex, int offset, int notFlushedBytes) {}
+public record WarmResult(boolean success, int columnBlockIndex, int offset) {}

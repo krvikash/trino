@@ -30,20 +30,16 @@ public class WarmupElementBlocks
     private static final Logger logger = Logger.get(WarmupElementBlocks.class);
 
     private final WarmupElementWriteMetadata metadata;
-    private final int recordBufferSize;
     private final int chunkSize;
 
     private List<Block> blocks; // from different pages
     private int startOffsetInFirstBlock;
     private int positionCount; // accumulative
     private long logicalSizeInBytes; // accumulative
-    private double logicalSizeFactor = 1;
-    private boolean factorRecentlyUpdated;
 
-    public WarmupElementBlocks(WarmupElementWriteMetadata metadata, int recordBufferSize, int chunkSize)
+    public WarmupElementBlocks(WarmupElementWriteMetadata metadata, int chunkSize)
     {
         this.metadata = metadata;
-        this.recordBufferSize = recordBufferSize;
         this.chunkSize = chunkSize;
         this.blocks = new ArrayList<>();
     }
@@ -58,8 +54,7 @@ public class WarmupElementBlocks
 
     public boolean isReady()
     {
-        return positionCount >= chunkSize ||
-                logicalSizeFactor * logicalSizeInBytes >= recordBufferSize;
+        return positionCount >= chunkSize;
     }
 
     public boolean isEmpty()
@@ -104,7 +99,6 @@ public class WarmupElementBlocks
         blocks = blocks.stream().skip(blocksToDrop)
                 .collect(Collectors.toCollection(ArrayList::new));
         startOffsetInFirstBlock = startOffsetInNextBlock;
-        factorRecentlyUpdated = false;
 
         if (blocks.isEmpty()) {
             checkState(logicalSizeInBytes == 0, "logicalSizeInBytes is non-zero although there are 0 blocks after drop");
@@ -114,37 +108,6 @@ public class WarmupElementBlocks
             checkState(logicalSizeInBytes >= 0, "logicalSizeInBytes became negative after drop");
             checkState(positionCount >= 0, "positionCount became negative after drop");
         }
-    }
-
-    // This method is called in case we tried to write the blocks because the threshold was reached,
-    // but in practice, the blocks were not enough to fill the buffer.
-    // For example, at VariableWidthBlock, 5 bytes are added to each value's size (((Integer.BYTES + Byte.BYTES) * (long) positionCount))
-    // while at VariableLengthStringBlockAppender, we add only 1 extra byte (att.recLen).
-    // Since we want a generic solution, instead of calculating the actual size of each block type separately, we maintain a general factor
-    // that will decrease the chances for it to happen again in the next iterations.
-    // The factor's value is > 0 and <= 1.
-    public void updateFactor(int notFlushedBytes)
-    {
-        if (notFlushedBytes == 0) {
-            return; // the factor can't be 0
-        }
-
-        if (notFlushedBytes >= logicalSizeInBytes) {
-            logger.warn("Expected notFlushedBytes to be less than logicalSizeInBytes. notFlushedBytes=%d, logicalSizeInBytes=%d",
-                    notFlushedBytes, logicalSizeInBytes);
-            return;
-        }
-
-        double newFactor = (0.99 * notFlushedBytes) / logicalSizeInBytes; // Remove 1% so non-flushing won't happen again with the exact same amount of bytes
-        if (newFactor > logicalSizeFactor) {
-            logger.warn("Expected new factor to be less than the existing one. newFactor=%f, notFlushedBytes=%d, logicalSizeInBytes=%d, logicalSizeFactor=%f",
-                    newFactor, notFlushedBytes, logicalSizeInBytes, logicalSizeFactor);
-            return;
-        }
-
-        logger.debug("Updating logicalSizeFactor from %f to %f", logicalSizeFactor, newFactor);
-        logicalSizeFactor = newFactor;
-        factorRecentlyUpdated = true;
     }
 
     public WarmupElementWriteMetadata getMetadata()
@@ -157,14 +120,14 @@ public class WarmupElementBlocks
         return blocks;
     }
 
+    public long getLogicalSizeInBytes()
+    {
+        return logicalSizeInBytes;
+    }
+
     public int getStartOffsetInFirstBlock()
     {
         return startOffsetInFirstBlock;
-    }
-
-    public boolean isFactorRecentlyUpdated()
-    {
-        return factorRecentlyUpdated;
     }
 
     @Override
@@ -176,7 +139,6 @@ public class WarmupElementBlocks
                 ", startOffsetInFirstBlock=" + startOffsetInFirstBlock +
                 ", positionCount=" + positionCount +
                 ", logicalSizeInBytes=" + logicalSizeInBytes +
-                ", factorRecentlyUpdated=" + factorRecentlyUpdated +
                 '}';
     }
 }

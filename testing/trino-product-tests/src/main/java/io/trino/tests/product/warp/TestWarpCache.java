@@ -198,13 +198,27 @@ public class TestWarpCache
         // Before the PR we used to get an exception: WarpCacheColumnHandle cannot be cast to class io.trino.plugin.hive.HiveColumnHandle
         excludeTests.add("denorm_table");
 
+        ////////////////////////////
+        // These queries used to failed before committing full chunks, because mdBuffer is not flushed with record buffer (see https://github.com/starburstdata/cork/pull/785)
+        // and because of other bugs that we didn't finish investigating. Now they fail on another panic on query time. the comments still mention the original panics.
+        ///////////// BEGIN ///////////////
+        excludeQueries.add("tuples_40keys_4"); // PANIC rec_cmprs.c line 179 msg page_ix 64 uncomp offset page 380928 (on query time) [related to compression, see rec_cmprs.c]. When compression is disabled -> [Inconsistent] wrong results
+
+        // On 2nd run failed on read flow (Kobi said that we can ignore this for now)
+        // ERROR id 1413 pid 64 tid 272 worker 3 file /root/src/varada/trino-varada-native/src/main/c/chunk/data_chunk/rec_cmprs.c line 179 msg page_ix 64 uncomp offset page 0
+        // read tx completed with a cache leak of 1 pages
+        // handleErrorCode:: ENV_EXCEPTION_READ_FLOW_ERROR
+        // collect failed chunkIndex 14 chunkWasPrepared false rowsLimit 2147483647 numCollectedRows 0 numToCollect 65536 numCollectedFromCurrentChunk 0 restoredChunkIndex 14
+        // io.trino.spi.TrinoException: native storage engine: failure in data read flow (3)
+        excludeQueries.add("tuples_40keys_5"); // PANIC env.c line 103 msg caught sig 11, siginfo: signo 11 code 1 errno 0 \ page_ix 249 uncomp offset page 0 (on query time). When compression is disabled -> still PANIC (signo 11)
+
+        excludeQueries.add("tuples_40keys_10"); // PANIC cmprs.c line 407 msg insufficient write buffer (on query time) [related to compression, see cmprs.c]. When compression is disabled -> [Inconsistent] PANIC rec_pages.c line 320 msg last offset 67 exceeds current 0 is_cmprs 0 stolen 0 page_ix 68 nraw_pages 128 rec code 13 rec length 16
+        excludeQueries.add("tuples_40keys_11"); // PANIC cmprs.c line 407 msg insufficient write buffer (on query time) [related to compression, see cmprs.c]. When compression is disabled -> no issues (but probably inconsistent as this query is very similar to tuples_40keys_10)
+        ///////////// END ///////////////
+
         // We need to check why these queries fail
         excludeQueries.add("tuples_40keys_2"); // PANIC cmprs.c line 407 msg insufficient write buffer (on query time) [related to compression, see cmprs.c]. When compression is disabled -> [Inconsistent] wrong results
         excludeQueries.add("tuples_40keys_3"); // PANIC cmprs.c line 407 msg insufficient write buffer (on query time) [related to compression, see cmprs.c]. When compression is disabled -> [Inconsistent] wrong results
-        excludeQueries.add("tuples_40keys_4"); // PANIC rec_cmprs.c line 179 msg page_ix 64 uncomp offset page 380928 (on query time) [related to compression, see rec_cmprs.c]. When compression is disabled -> [Inconsistent] wrong results
-        excludeQueries.add("tuples_40keys_5"); // PANIC env.c line 103 msg caught sig 11, siginfo: signo 11 code 1 errno 0 \ page_ix 249 uncomp offset page 0 (on query time). When compression is disabled -> still PANIC (signo 11)
-        excludeQueries.add("tuples_40keys_10"); // PANIC cmprs.c line 407 msg insufficient write buffer (on query time) [related to compression, see cmprs.c]. When compression is disabled -> [Inconsistent] PANIC rec_pages.c line 320 msg last offset 67 exceeds current 0 is_cmprs 0 stolen 0 page_ix 68 nraw_pages 128 rec code 13 rec length 16
-        excludeQueries.add("tuples_40keys_11"); // PANIC cmprs.c line 407 msg insufficient write buffer (on query time) [related to compression, see cmprs.c]. When compression is disabled -> no issues (but probably inconsistent as this query is very similar to tuples_40keys_10)
         excludeQueries.add("nan_chunks_09"); // [Inconsistent] PANIC cmprs.c line 408 msg insufficient write buffer (probably on query time) [related to compression, see cmprs.c]. https://github.com/starburstdata/cork/actions/runs/8999435408/job/24722117202
 
         ExcludeStrategy excludeStrategy = new ExcludeStrategy();

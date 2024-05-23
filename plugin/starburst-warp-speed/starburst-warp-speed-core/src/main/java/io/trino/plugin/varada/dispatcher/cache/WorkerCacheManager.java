@@ -76,7 +76,6 @@ public class WorkerCacheManager
     private final CacheWarmer cacheWarmer;
     private final ObjectMapper objectMapper;
     private final StorageWarmerService storageWarmerService;
-    private final int recordBufferSize;
     private final int chunkSize;
     private final AtomicInteger counter;
 
@@ -101,7 +100,6 @@ public class WorkerCacheManager
         this.cacheWarmer = requireNonNull(cacheWarmer);
         this.objectMapper = objectMapper.get();
         this.storageWarmerService = requireNonNull(storageWarmerService);
-        this.recordBufferSize = requireNonNull(storageEngineConstants).getRecordBufferMaxSize();
         this.chunkSize = 1 << requireNonNull(storageEngineConstants).getChunkSizeShift();
         this.globalConfig = requireNonNull(globalConfig);
         this.shapingLogger = ShapingLogger.getInstance(
@@ -210,7 +208,7 @@ public class WorkerCacheManager
 
                 Map<Integer, WarmupElementBlocks> warmupElementBlocksMap = toWarm.stream().collect(Collectors.toMap(
                         WarmupElementWriteMetadata::connectorBlockIndex,
-                        x -> new WarmupElementBlocks(x, recordBufferSize, chunkSize)));
+                        x -> new WarmupElementBlocks(x, chunkSize)));
                 WarpCacheTask warpCacheTask = new WarpCacheTask(
                         globalConfig,
                         cacheActions,

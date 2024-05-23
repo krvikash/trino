@@ -45,18 +45,18 @@ public class ArrayBlockAppender
     }
 
     @Override
-    public AppendResult appendWithoutDictionary(int jufferPos, BlockPosHolder blockPos, boolean stopAfterOneFlush, WarmUpElement warmUpElement, WarmupElementStatsBuilder warmupElementStatsBuilder)
+    public AppendResult appendWithoutDictionary(int jufferPos, BlockPosHolder blockPos, WarmUpElement warmUpElement, WarmupElementStatsBuilder warmupElementStatsBuilder)
     {
         Optional<BlockTransformer> blockTransformer = blockTransformerFactory.getBlockTransformer(warmUpElement.getWarmUpType(), warmUpElement.getRecTypeCode());
         checkArgument(blockTransformer.isPresent());
         BlockPosHolder blockAsVarchar = blockTransformer.get().transformBlock(blockPos, filterType);
-        AppendResult result = varcharBlockAppender.appendWithoutDictionary(jufferPos, blockAsVarchar, stopAfterOneFlush, warmUpElement, warmupElementStatsBuilder);
+        AppendResult result = varcharBlockAppender.appendWithoutDictionary(jufferPos, blockAsVarchar, warmUpElement, warmupElementStatsBuilder);
         blockPos.seek(blockAsVarchar.getPos());
         return result;
     }
 
     @Override
-    public AppendResult appendWithDictionary(BlockPosHolder blockPos, boolean stopAfterOneFlush, WriteDictionary writeDictionary, WarmupElementStatsBuilder warmupElementStatsBuilder)
+    public AppendResult appendWithDictionary(BlockPosHolder blockPos, WriteDictionary writeDictionary, WarmupElementStatsBuilder warmupElementStatsBuilder)
     {
         throw new UnsupportedOperationException("Dictionary is not supported for arrays, Should not happen");
     }

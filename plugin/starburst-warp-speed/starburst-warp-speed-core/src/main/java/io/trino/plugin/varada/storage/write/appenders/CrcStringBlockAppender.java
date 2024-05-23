@@ -55,7 +55,6 @@ public class CrcStringBlockAppender
     public AppendResult appendWithoutDictionary(
             int jufferPos,
             BlockPosHolder blockPos,
-            boolean stopAfterOneFlush,
             WarmUpElement warmUpElement,
             WarmupElementStatsBuilder warmupElementStatsBuilder)
     {

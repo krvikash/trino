@@ -60,7 +60,7 @@ public class VariableLengthStringBlockAppender
     }
 
     @Override
-    public AppendResult appendWithDictionary(BlockPosHolder blockPos, boolean stopAfterOneFlush, WriteDictionary writeDictionary, WarmupElementStatsBuilder warmupElementStatsBuilder)
+    public AppendResult appendWithDictionary(BlockPosHolder blockPos, WriteDictionary writeDictionary, WarmupElementStatsBuilder warmupElementStatsBuilder)
     {
         ShortBuffer buff = (ShortBuffer) juffersWE.getRecordBuffer();
         Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(filterType, weRecTypeLength, false, true);
@@ -110,7 +110,7 @@ public class VariableLengthStringBlockAppender
     }
 
     @Override
-    public AppendResult appendWithoutDictionary(int jufferPos, BlockPosHolder blockPos, boolean stopAfterOneFlush, WarmUpElement warmUpElement, WarmupElementStatsBuilder warmupElementStatsBuilder)
+    public AppendResult appendWithoutDictionary(int jufferPos, BlockPosHolder blockPos, WarmUpElement warmUpElement, WarmupElementStatsBuilder warmupElementStatsBuilder)
     {
         ByteBuffer recordBuff = (ByteBuffer) juffersWE.getRecordBuffer();
         int recBuffSize = juffersWE.getRecBuffSize();
@@ -129,7 +129,6 @@ public class VariableLengthStringBlockAppender
         Slice value;
         Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(filterType, weRecTypeLength, false, true);
 
-        int recordsCommitted = 0;
         while (blockPos.inRange()) {
             isNull = blockPos.isNull();
 
@@ -169,10 +168,6 @@ public class VariableLengthStringBlockAppender
                 int position = recordBuff.position();
 
                 juffersWE.commitAndResetWE(numRecs, addedNV, position, numExtBytes);
-                recordsCommitted = numRecs;
-                if (stopAfterOneFlush) {
-                    return new AppendResult(nullsCount, recordsCommitted);
-                }
                 nullsCountCommitted = nullsCount;
             }
 
@@ -241,7 +236,7 @@ public class VariableLengthStringBlockAppender
 
         // Intentionally not advancing the varlenMdAddress, so this last one will be overwritten by following calls
         varlenMdBuff.put(varlenMdBuff.position(), varlenMdBaseOffset + recordBuff.position());
-        return new AppendResult(nullsCount, recordsCommitted);
+        return new AppendResult(nullsCount);
     }
 
     private void paddVarlenPageEnd(ByteBuffer recordBuff, StringAtt att)
