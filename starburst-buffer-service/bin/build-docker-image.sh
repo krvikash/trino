@@ -7,7 +7,8 @@ cd ${BASH_SOURCE%/*}
 projectName=""
 imageRepositories=()
 projectVersion="1-SNAPSHOT"
-jdkVersion=19
+jdkVersion=21
+mainBuild=true
 archTypes=""
 pushImages=0
 
@@ -18,12 +19,14 @@ function printUsage(){
     echo "        -h    Help"
     echo "        -p    Project to build (data-server|discovery-server)"
     echo "        -r    Docker repository"
-    echo "        -v    Project version; also serves as a tag"
+    echo "        -v    Project version; also serves as a tag combined with JDK version"
+    echo "        -j    JDK version to install in the Docker image (also appended to image tag)"
+    echo "        -m    Whether this is main build and image should be additionally tagged without the JDK version"
     echo "        -a    Platform types for multi-arch build"
     echo "        -P    Push images to remote repository (only used when -a is provided)"
 }
 
-while getopts "hp:r:v:t:j:a:P" opt; do
+while getopts "hp:r:v:t:j:m:a:P" opt; do
     case ${opt} in
     h )
         printUsage;
@@ -40,6 +43,9 @@ while getopts "hp:r:v:t:j:a:P" opt; do
         ;;
     j )
         jdkVersion="${OPTARG}"
+        ;;
+    m )
+        [[ "${OPTARG}" == "true" ]] && mainBuild="true" || mainBuild="false"
         ;;
     a )
         archTypes="${OPTARG}"
@@ -75,7 +81,10 @@ for imageRepository in ${imageRepositories[@]}; do
     if [[ "${imageRepository}" != "" && "${imageRepository}" != */ ]]; then
         imageRepository="${imageRepository}/"
     fi
-    buildArguments+=(--tag "${imageRepository}trino-buffer-service/${projectName}:${projectVersion}")
+    buildArguments+=(--tag "${imageRepository}trino-buffer-service/${projectName}:${projectVersion}-jdk${jdkVersion}")
+    if "${mainBuild}"; then
+        buildArguments+=(--tag "${imageRepository}trino-buffer-service/${projectName}:${projectVersion}")
+    fi
 done
 
 if [[ "${archTypes}" == "" ]]; then
