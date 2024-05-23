@@ -166,8 +166,8 @@ public abstract class BaseCacheSubqueriesTest
         // fallback within single query
         // Table scan from lineitem with predicate on shipdate populates cache and table scan with DF on orderkey use it as a fallback
         @Language("SQL") String selectQuery = """
-                    SELECT l.partkey FROM lineitem l, lineitem r
-                    WHERE l.orderkey = r.orderkey AND r.shipdate = DATE('1992-01-04')""";
+                SELECT l.partkey FROM lineitem l, lineitem r
+                WHERE l.orderkey = r.orderkey AND r.shipdate = DATE('1992-01-04')""";
         MaterializedResultWithPlan queryResult = executeWithPlan(withCacheEnabled(), selectQuery);
         assertThat(getLoadCachedDataOperatorInputPositions(queryResult.queryId())).isPositive();
         assertThat(getScanSplitsWithDynamicFiltersApplied(queryResult.queryId())).isZero();
@@ -850,7 +850,6 @@ public abstract class BaseCacheSubqueriesTest
                 .mapToLong(Long::valueOf)
                 .sum();
     }
-
 
     protected Long getScanOperatorInputPositions(QueryId queryId)
     {
