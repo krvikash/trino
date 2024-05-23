@@ -70,36 +70,29 @@ case ${projectName} in
     ;;
 esac
 
-imageTags=()
-
+buildArguments=()
 for imageRepository in ${imageRepositories[@]}; do
     if [[ "${imageRepository}" != "" && "${imageRepository}" != */ ]]; then
         imageRepository="${imageRepository}/"
     fi
-    imageTags+=("${imageRepository}trino-buffer-service/${projectName}:${projectVersion}")
-done
-
-buildArguments=""
-
-for imageTag in ${imageTags[@]}; do
-    buildArguments="${buildArguments} --tag ${imageTag}"
+    buildArguments+=(--tag "${imageRepository}trino-buffer-service/${projectName}:${projectVersion}")
 done
 
 if [[ "${archTypes}" == "" ]]; then
-    buildArguments="${buildArguments} --tag trino-buffer-service/${projectName}:${projectVersion}"
+    buildArguments+=(--tag "trino-buffer-service/${projectName}:${projectVersion}")
     docker build "../${moduleName}" \
         --build-arg "PROJECT_VERSION=${projectVersion}" \
         --build-arg "JDK_VERSION=${jdkVersion}" \
-        -f "../${moduleName}/Dockerfile" ${buildArguments}
+        -f "../${moduleName}/Dockerfile" "${buildArguments[@]}"
 else
     if [[ ${pushImages} -eq 1 ]]; then
-        buildArguments="${buildArguments} --push"
+        buildArguments+=(--push)
     else
-        buildArguments="${buildArguments} -o type=docker"
+        buildArguments+=(-o type=docker)
     fi
     docker buildx build "../${moduleName}" \
         -f "../${moduleName}/Dockerfile" \
         --build-arg "PROJECT_VERSION=${projectVersion}" \
         --build-arg "JDK_VERSION=${jdkVersion}" \
-        --platform "${archTypes}" ${buildArguments}
+        --platform "${archTypes}" "${buildArguments[@]}"
 fi
