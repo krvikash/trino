@@ -57,6 +57,7 @@ import io.trino.split.SplitSource;
 import io.trino.sql.planner.Plan;
 import io.trino.sql.planner.assertions.PlanAssert;
 import io.trino.sql.planner.assertions.PlanMatchPattern;
+import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.LoadCachedDataPlanNode;
 import io.trino.testing.QueryRunner.MaterializedResultWithPlan;
 import io.trino.tpch.TpchTable;
@@ -85,17 +86,24 @@ import static io.trino.SystemSessionProperties.CACHE_PROJECTIONS_ENABLED;
 import static io.trino.SystemSessionProperties.DYNAMIC_ROW_FILTERING_ENABLED;
 import static io.trino.SystemSessionProperties.DYNAMIC_ROW_FILTERING_WAIT_TIMEOUT;
 import static io.trino.SystemSessionProperties.ENABLE_LARGE_DYNAMIC_FILTERS;
+import static io.trino.SystemSessionProperties.JOIN_DISTRIBUTION_TYPE;
+import static io.trino.SystemSessionProperties.JOIN_REORDERING_STRATEGY;
 import static io.trino.cache.CommonSubqueriesExtractor.scanFilterProjectKey;
 import static io.trino.cost.StatsCalculator.noopStatsCalculator;
 import static io.trino.metadata.FunctionManager.createTestingFunctionManager;
 import static io.trino.spi.connector.Constraint.alwaysTrue;
 import static io.trino.spi.predicate.Range.range;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.sql.planner.OptimizerConfig.JoinDistributionType.BROADCAST;
+import static io.trino.sql.planner.OptimizerConfig.JoinReorderingStrategy.NONE;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.anyTree;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.cacheDataPlanNode;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.chooseAlternativeNode;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.node;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.tableScan;
+import static io.trino.sql.planner.optimizations.PlanNodeSearcher.searchFrom;
+import static io.trino.sql.planner.plan.ExchangeNode.Scope.REMOTE;
+import static io.trino.sql.planner.plan.ExchangeNode.Type.REPLICATE;
 import static io.trino.testing.QueryAssertions.assertEqualsIgnoreOrder;
 import static io.trino.testing.TransactionBuilder.transaction;
 import static io.trino.tpch.TpchTable.CUSTOMER;
@@ -139,6 +147,34 @@ public abstract class BaseCacheSubqueriesTest
                         "('regionkey', 5e0, 0e0, null)," +
                         "('comment', 25e0, 0e0, null)," +
                         "(null, null, null, 25e0)");
+    }
+
+    @Test
+    public void testUnionWithJoinQuery()
+    {
+        @Language("SQL") String selectQuery = """
+                select c.custkey from (
+                  select custkey, nationkey from (select c.custkey, c.nationkey from customer c, nation n where c.nationkey = n.nationkey)
+                  union all
+                  select custkey, nationkey from (select c.custkey, c.nationkey from customer c, nation n where c.nationkey = n.nationkey)) c
+                join nation n on c.nationkey = n.nationkey
+                """;
+        MaterializedResultWithPlan resultWithCache = executeWithPlan(withBroadcastJoin(withCacheEnabled()), selectQuery);
+        MaterializedResultWithPlan resultWithoutCache = executeWithPlan(withBroadcastJoin(withCacheDisabled()), selectQuery);
+        assertEqualsIgnoreOrder(resultWithCache.result(), resultWithoutCache.result());
+        // make sure data was cached and query succeeds
+        assertThat(getCacheDataOperatorInputPositions(resultWithCache.queryId())).isPositive();
+
+        // make sure plan runs local UNION ALL source stage (no repartition remote exchanges)
+        Plan plan = getDistributedQueryRunner().getQueryPlan(resultWithCache.queryId());
+        int actualRemoteExchangesCount = searchFrom(plan.getRoot())
+                .where(node -> node instanceof ExchangeNode exchangeNode
+                        && exchangeNode.getScope() == REMOTE
+                        // exchanges for distributing nation build tables
+                        && exchangeNode.getType() != REPLICATE)
+                .findAll()
+                .size();
+        assertThat(actualRemoteExchangesCount).isEqualTo(0);
     }
 
     @Test
@@ -922,6 +958,14 @@ public abstract class BaseCacheSubqueriesTest
     {
         return Session.builder(baseSession)
                 .setSystemProperty(DYNAMIC_ROW_FILTERING_ENABLED, String.valueOf(enabled))
+                .build();
+    }
+
+    protected Session withBroadcastJoin(Session baseSession)
+    {
+        return Session.builder(baseSession)
+                .setSystemProperty(JOIN_DISTRIBUTION_TYPE, BROADCAST.name())
+                .setSystemProperty(JOIN_REORDERING_STRATEGY, NONE.name())
                 .build();
     }
 
