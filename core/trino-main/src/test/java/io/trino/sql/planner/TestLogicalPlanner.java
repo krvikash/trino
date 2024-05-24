@@ -796,7 +796,7 @@ public class TestLogicalPlanner
                 anyTree(
                         node(AggregationNode.class,
                                 project(ImmutableMap.of("subquerytrue", expression(TRUE)),
-                                tableScan("orders")))));
+                                        tableScan("orders")))));
     }
 
     @Test
@@ -2081,11 +2081,9 @@ public class TestLogicalPlanner
                                                         ImmutableMap.of("ORDER_STATUS", "orderstatus", "ORDER_KEY", "orderkey"),
                                                         ImmutableMap.of("orderstatus", multipleValues(createVarcharType(1), ImmutableList.of(utf8Slice("F"), utf8Slice("O")))))))
                                 .right(
-                                        filter(
-                                                new In(new Reference(createVarcharType(1), "expr"), ImmutableList.of(new Constant(createVarcharType(1), utf8Slice("F")), new Constant(createVarcharType(1), utf8Slice("O")))),
-                                                values(
-                                                        ImmutableList.of("expr"),
-                                                        ImmutableList.of(ImmutableList.of(new Constant(createVarcharType(1), utf8Slice("O"))), ImmutableList.of(new Constant(createVarcharType(1), utf8Slice("F"))))))))));
+                                        values(
+                                                ImmutableList.of("expr"),
+                                                ImmutableList.of(ImmutableList.of(new Constant(createVarcharType(1), utf8Slice("O"))), ImmutableList.of(new Constant(createVarcharType(1), utf8Slice("F")))))))));
     }
 
     @Test
@@ -2184,9 +2182,7 @@ public class TestLogicalPlanner
                                                         ImmutableMap.of("ORDER_STATUS", "orderstatus", "ORDER_KEY", "orderkey"),
                                                         ImmutableMap.of("orderstatus", multipleValues(createVarcharType(1), ImmutableList.of(utf8Slice("F"), utf8Slice("O")))))))
                                 .right(
-                                        filter(
-                                                new In(new Reference(createVarcharType(1), "expr"), ImmutableList.of(new Constant(createVarcharType(1), utf8Slice("F")), new Constant(createVarcharType(1), utf8Slice("O")))),
-                                                values(ImmutableList.of("expr"), ImmutableList.of(ImmutableList.of(new Constant(createVarcharType(1), utf8Slice("O"))), ImmutableList.of(new Constant(createVarcharType(1), utf8Slice("F"))))))))));
+                                        values(ImmutableList.of("expr"), ImmutableList.of(ImmutableList.of(new Constant(createVarcharType(1), utf8Slice("O"))), ImmutableList.of(new Constant(createVarcharType(1), utf8Slice("F")))))))));
 
         // Constraint for the table is derived, based on constant values in the other branch of the join.
         // It is not accepted by the connector, and remains in form of a filter over TableScan.
@@ -2206,9 +2202,7 @@ public class TestLogicalPlanner
                                                         ImmutableMap.of("ORDER_STATUS", "orderstatus", "ORDER_KEY", "orderkey"),
                                                         ImmutableMap.of())))
                                 .right(
-                                        filter(
-                                                new In(new Reference(BIGINT, "expr"), ImmutableList.of(new Constant(BIGINT, 1L), new Constant(BIGINT, 2L))),
-                                                values(ImmutableList.of("expr"), ImmutableList.of(ImmutableList.of(new Constant(BIGINT, 1L)), ImmutableList.of(new Constant(BIGINT, 2L)))))))));
+                                        values(ImmutableList.of("expr"), ImmutableList.of(ImmutableList.of(new Constant(BIGINT, 1L)), ImmutableList.of(new Constant(BIGINT, 2L))))))));
     }
 
     @Test

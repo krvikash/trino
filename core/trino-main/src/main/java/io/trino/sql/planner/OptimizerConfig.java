@@ -88,6 +88,7 @@ public class OptimizerConfig
     private boolean useExactPartitioning;
     private boolean useCostBasedPartitioning = true;
     private boolean useSubPlanAlternatives;
+    private int pushFilterIntoValuesMaxRowCount = 100;
     // adaptive partial aggregation
     private boolean adaptivePartialAggregationEnabled = true;
     private double adaptivePartialAggregationUniqueRowsRatioThreshold = 0.8;
@@ -814,6 +815,20 @@ public class OptimizerConfig
     public OptimizerConfig setUseSubPlanAlternatives(boolean useSubPlanAlternatives)
     {
         this.useSubPlanAlternatives = useSubPlanAlternatives;
+        return this;
+    }
+
+    @Min(0)
+    public int getPushFilterIntoValuesMaxRowCount()
+    {
+        return pushFilterIntoValuesMaxRowCount;
+    }
+
+    @Config("optimizer.push-filter-into-values-max-row-count")
+    @ConfigDescription("Maximum number of rows in values for which filter is pushed down into values")
+    public OptimizerConfig setPushFilterIntoValuesMaxRowCount(int pushFilterIntoValuesMaxRowCount)
+    {
+        this.pushFilterIntoValuesMaxRowCount = pushFilterIntoValuesMaxRowCount;
         return this;
     }
 }

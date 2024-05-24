@@ -93,7 +93,9 @@ public class TestOptimizerConfig
                 .setMinInputRowsPerTask(10_000_000L)
                 .setUseExactPartitioning(false)
                 .setUseCostBasedPartitioning(true)
-                .setUseSubPlanAlternatives(false));
+                .setUseSubPlanAlternatives(false)
+                .setUseCostBasedPartitioning(true)
+                .setPushFilterIntoValuesMaxRowCount(100));
     }
 
     @Test
@@ -154,6 +156,7 @@ public class TestOptimizerConfig
                 .put("optimizer.use-exact-partitioning", "true")
                 .put("optimizer.use-cost-based-partitioning", "false")
                 .put("optimizer.use-sub-plan-alternatives", "true")
+                .put("optimizer.push-filter-into-values-max-row-count", "5")
                 .buildOrThrow();
 
         OptimizerConfig expected = new OptimizerConfig()
@@ -210,7 +213,9 @@ public class TestOptimizerConfig
                 .setMinInputRowsPerTask(1_000_000L)
                 .setUseExactPartitioning(true)
                 .setUseCostBasedPartitioning(false)
-                .setUseSubPlanAlternatives(true);
+                .setUseSubPlanAlternatives(true)
+                .setUseCostBasedPartitioning(false)
+                .setPushFilterIntoValuesMaxRowCount(5);
         assertFullMapping(properties, expected);
     }
 }
