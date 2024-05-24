@@ -358,7 +358,7 @@ public class HttpDataClient
                 .setHeader(MAX_WAIT, httpIdleTimeout.toString())
                 .build();
 
-        ListenableFuture<ChunkDataResponse> responseFuture = catchAndDecorateExceptions(request, httpClient.executeAsync(request, new ChunkDataResponseHandler(dataIntegrityVerificationEnabled)));
+        ListenableFuture<ChunkDataResponse> responseFuture = catchAndDecorateExceptions(request, httpClient.executeAsync(request, new ChunkDataResponseHandler(dataIntegrityVerificationEnabled, bufferNodeId, exchangeId, partitionId, chunkId)));
 
         return transformAsync(responseFuture, chunkDataResponse -> {
             if (chunkDataResponse.getPages().isPresent()) {
@@ -373,10 +373,18 @@ public class HttpDataClient
             implements ResponseHandler<ChunkDataResponse, RuntimeException>
     {
         private final boolean dataIntegrityVerificationEnabled;
+        private final long bufferNodeId;
+        private final String exchangeId;
+        private final int partitionId;
+        private final long chunkId;
 
-        private ChunkDataResponseHandler(boolean dataIntegrityVerificationEnabled)
+        private ChunkDataResponseHandler(boolean dataIntegrityVerificationEnabled, long bufferNodeId, String exchangeId, int partitionId, long chunkId)
         {
             this.dataIntegrityVerificationEnabled = dataIntegrityVerificationEnabled;
+            this.bufferNodeId = bufferNodeId;
+            this.exchangeId = exchangeId;
+            this.partitionId = partitionId;
+            this.chunkId = chunkId;
         }
 
         @Override
@@ -434,8 +442,11 @@ public class HttpDataClient
             try (LittleEndianDataInputStream input = new LittleEndianDataInputStream(response.getInputStream())) {
                 return ChunkDataResponse.createPagesResponse(toDataPages(input, dataIntegrityVerificationEnabled));
             }
-            catch (IOException e) {
-                throw new DataApiException(INTERNAL_ERROR, requestErrorMessage(request, "IOException"), e);
+            catch (DataApiException dataApiException) {
+                throw new DataApiException(dataApiException.getErrorCode(), dataApiException.getMessage() + String.format("; reading chunk %s/%s/%s/%s", bufferNodeId, exchangeId, partitionId, chunkId), dataApiException, dataApiException.getRateLimitInfo());
+            }
+            catch (Exception e) {
+                throw new DataApiException(INTERNAL_ERROR, requestErrorMessage(request, String.format("unexpected exception reading chunk %s/%s/%s/%s", bufferNodeId, exchangeId, partitionId, chunkId)), e);
             }
         }
     }

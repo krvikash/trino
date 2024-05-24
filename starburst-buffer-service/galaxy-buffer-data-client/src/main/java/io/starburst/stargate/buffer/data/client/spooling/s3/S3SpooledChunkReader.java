@@ -76,7 +76,7 @@ public class S3SpooledChunkReader
                     if (e.getCause() instanceof NoSuchKeyException) {
                         throw new SpooledChunkNotFoundException(e);
                     }
-                    throw new SpooledChunkReaderException(e);
+                    throw new SpooledChunkReaderException(String.format("unexpected exception reading spooled chunk %s/%s/%s", spooledChunk.location(), spooledChunk.offset(), spooledChunk.length()), e);
                 }, directExecutor());
     }
 
