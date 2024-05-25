@@ -79,7 +79,6 @@ import static com.google.common.io.MoreFiles.deleteRecursively;
 import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
 import static io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG;
 import static io.trino.SystemSessionProperties.DISTINCT_AGGREGATIONS_STRATEGY;
-import static io.trino.plugin.pinot.PinotQueryRunner.createPinotQueryRunner;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.RealType.REAL;
 import static java.lang.String.format;
@@ -155,11 +154,12 @@ public abstract class BasePinotConnectorSmokeTest
         createAndPopulateHavingQuotesInColumnNames(kafka, pinot);
         createAndPopulateHavingMultipleColumnsWithDuplicateValues(kafka, pinot);
 
-        return createPinotQueryRunner(
-                kafka,
-                pinot,
-                pinotProperties(),
-                REQUIRED_TPCH_TABLES);
+        return PinotQueryRunner.builder()
+                .setKafka(kafka)
+                .setPinot(pinot)
+                .addPinotProperties(pinotProperties())
+                .setInitialTables(REQUIRED_TPCH_TABLES)
+                .build();
     }
 
     private void createAndPopulateAllTypesTopic(TestingKafka kafka, TestingPinotCluster pinot)
