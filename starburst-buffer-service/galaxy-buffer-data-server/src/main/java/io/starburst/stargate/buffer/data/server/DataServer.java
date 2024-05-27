@@ -23,6 +23,7 @@ import io.airlift.node.NodeModule;
 import io.airlift.openmetrics.JmxOpenMetricsModule;
 import io.airlift.tracetoken.TraceTokenModule;
 import io.airlift.tracing.TracingModule;
+import io.starburst.stargate.buffer.BufferServiceSystemRequirements;
 import io.starburst.stargate.buffer.status.StatusModule;
 import org.weakref.jmx.guice.MBeanModule;
 
@@ -38,6 +39,7 @@ public final class DataServer
 
     public static void main(String[] args)
     {
+        BufferServiceSystemRequirements.verifySystemRequirements();
         String injectedVersion = System.getenv("BUFFER_DATA_SERVER_DOCKER_VERSION");
         checkState(injectedVersion == null || !injectedVersion.isEmpty(), "BUFFER_DATA_SERVER_DOCKER_VERSION is set but empty");
         String version = firstNonNull(injectedVersion, DataServer.class.getPackage().getImplementationVersion());
