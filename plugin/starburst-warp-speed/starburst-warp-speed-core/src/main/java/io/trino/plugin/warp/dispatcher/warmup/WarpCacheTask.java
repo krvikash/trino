@@ -72,6 +72,7 @@ public class WarpCacheTask
     private int totalRecords;
 
     private boolean aborted;
+    private boolean finished;
     private long flowId = -1;
     private int txId;
 
@@ -193,7 +194,9 @@ public class WarpCacheTask
                     }
                 }
 
-                processBlock(blockIndexToProcess);
+                if (finished || warmupElementBlocks.isReady()) {
+                    processBlock(blockIndexToProcess);
+                }
             }
             catch (Exception e) {
                 shapingLogger.error(e, "failed to warm cache elements");
@@ -376,6 +379,7 @@ public class WarpCacheTask
     // this method will be called when there are no more pages to be appended
     public void finish()
     {
+        finished = true;
         if (aborted) {
             logger.info("Got finish while on abort state, do nothing. %s", this);
             return;
