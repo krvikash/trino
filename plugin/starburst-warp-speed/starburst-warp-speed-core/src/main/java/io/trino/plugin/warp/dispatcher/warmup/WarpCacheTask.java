@@ -342,12 +342,17 @@ public class WarpCacheTask
 
     public void addPage(Page page)
     {
-        try {
-            if (aborted) {
-                logger.debug("add page in failed state, do nothing");
-                return;
-            }
+        if (aborted) {
+            logger.debug("add page in failed state, do nothing");
+            return;
+        }
+        if (finished) {
+            String error = String.format("Received a page while in finished state. rowGroupKey=%s", rowGroupKey);
+            shapingLogger.error(error);
+            throw new RuntimeException(error);
+        }
 
+        try {
             if ((long) totalRecords + (long) page.getPositionCount() >= Integer.MAX_VALUE) {
                 throw new MaxRowsException();
             }
