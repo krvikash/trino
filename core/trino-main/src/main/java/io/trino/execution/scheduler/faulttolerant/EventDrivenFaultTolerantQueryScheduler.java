@@ -2981,9 +2981,9 @@ public class EventDrivenFaultTolerantQueryScheduler
         public SpoolingOutputStats.Snapshot taskFinished(TaskId taskId)
         {
             RemoteTask remoteTask = tasks.get(taskId);
+            checkState(runningTasks.remove(taskId), "task %s already marked as finished", taskId);
             checkArgument(remoteTask != null, "task not found: %s", taskId);
             SpoolingOutputStats.Snapshot outputStats = remoteTask.retrieveAndDropSpoolingOutputStats();
-            runningTasks.remove(taskId);
             tasks.values().forEach(RemoteTask::abort);
             finished = true;
             // task descriptor has been created
@@ -2995,7 +2995,7 @@ public class EventDrivenFaultTolerantQueryScheduler
 
         public void taskFailed(TaskId taskId)
         {
-            runningTasks.remove(taskId);
+            checkState(runningTasks.remove(taskId), "task %s already marked as finished", taskId);
             failureObserved = true;
             remainingAttempts--;
         }
