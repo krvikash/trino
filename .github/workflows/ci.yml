@@ -1296,6 +1296,12 @@ jobs:
             - config: default
               suite: suite-warp-speed2
               runners: [ self-hosted, gha-fleet-ec2-8cpu-64gb-5000nvme-amd64, latest ]
+            - config: default
+              suite: suite-warp-speed-iceberg
+              runners: [ self-hosted, gha-fleet-ec2-8cpu-64gb-5000nvme-amd64, latest ]
+            - config: default
+              suite: suite-warp-speed-delta-lake
+              runners: [ self-hosted, gha-fleet-ec2-8cpu-64gb-5000nvme-amd64, latest ]
 
           EOF
       - name: Build PT matrix (all)

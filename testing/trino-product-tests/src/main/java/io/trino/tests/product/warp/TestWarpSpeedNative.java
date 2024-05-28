@@ -24,6 +24,7 @@ import io.trino.tempto.AfterMethodWithContext;
 import io.trino.tempto.BeforeMethodWithContext;
 import io.trino.tempto.query.QueryExecutor;
 import io.trino.testing.minio.MinioClient;
+import io.trino.tests.product.warp.utils.DemoterUtils;
 import io.trino.tests.product.warp.utils.QueryUtils;
 import io.trino.tests.product.warp.utils.RestUtils;
 import io.trino.tests.product.warp.utils.WarmUtils;
@@ -58,13 +59,14 @@ public class TestWarpSpeedNative
     private static final String SCHEMA_NAME = "warp_product_tests";
 
     @Inject
-    WarpSpeedTests warpSpeedTests;
+    DemoterUtils demoterUtils;
     @Inject
     WarmUtils warmUtils;
     @Inject
     QueryUtils queryUtils;
     @Inject
     RestUtils restUtils;
+
     private final String tableName = "nation_native";
     private MinioClient client;
 
@@ -104,8 +106,16 @@ public class TestWarpSpeedNative
                     HttpMethod.POST,
                     HttpURLConnection.HTTP_NO_CONTENT);
 
-            String[] columnNames = new String[] {"name", "nationkey", "regionkey", "comment"};
-            warpSpeedTests.testCleanup(SCHEMA_NAME, tableName, columnNames);
+            demoterUtils.demote(
+                    SCHEMA_NAME,
+                    tableName,
+                    List.of("name", "nationkey", "regionkey", "comment"),
+                    -0.99,
+                    0,
+                    true,
+                    true,
+                    false);
+            demoterUtils.resetToDefaultDemoterConfiguration();
 
             if (client != null) {
                 client.close();

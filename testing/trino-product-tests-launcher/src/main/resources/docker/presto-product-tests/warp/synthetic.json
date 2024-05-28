@@ -45,6 +45,10 @@
     "session_properties": {
       "enable_import_export": false
     },
+    "skip_type": [
+      "warp_iceberg",
+      "warp_delta_lake"
+    ],
     "warm_query": "select * from check_limit where col1_val_0_1=1 and col2_val_0_2=2 and col3_val_0_2=1",
     "data": "resources/synthetic/check_limit.jsonl",
     "pt_enable": true,
@@ -1122,6 +1126,10 @@
     "session_properties": {
       "enable_import_export": false
     },
+    "skip_type": [
+      "warp_iceberg",
+      "warp_delta_lake"
+    ],
     "warm_query": "select * from onem_lines",
     "queries_data": [
       {
@@ -1444,6 +1452,10 @@
         "type": "real"
       }
     ],
+    "skip_type": [
+      "warp_iceberg",
+      "warp_delta_lake"
+    ],
     "warmup_rules": [
       {
         "colNameId": "bigint_1",
@@ -1644,6 +1656,10 @@
           100
         ]
       }
+    ],
+    "skip_type": [
+      "warp_iceberg",
+      "warp_delta_lake"
     ],
     "warmup_rules": [
       {
@@ -2007,6 +2023,10 @@
         ]
       }
     ],
+    "skip_type": [
+      "warp_iceberg",
+      "warp_delta_lake"
+    ],
     "pt_enable": true,
     "bucket": "s3a://varadaio-us-east1-systemtests/synthetic/similar_num",
     "warm_query": "select count(int_1), count(smallint_3) from similar_num_basic_warm",
@@ -2042,6 +2062,10 @@
           20
         ]
       }
+    ],
+    "skip_type": [
+      "warp_iceberg",
+      "warp_delta_lake"
     ],
     "warmup_rules": [
       {
@@ -2341,16 +2365,20 @@
         ]
       }
     ],
+    "skip_type": [
+      "warp_iceberg",
+      "warp_delta_lake"
+    ],
     "warmup_rules": [
-      {
-        "colNameId": "char_1",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
-          "WARM_UP_TYPE_LUCENE",
-          "WARM_UP_TYPE_BASIC"
-        ]
-      }
+    {
+    "colNameId": "char_1",
+    "predicates": [],
+    "warmUpTypes": [
+      "WARM_UP_TYPE_DATA",
+      "WARM_UP_TYPE_LUCENE",
+      "WARM_UP_TYPE_BASIC"
+    ]
+    }
     ],
     "warm_query": "select * from similarc_one_other",
     "data": "resources/synthetic/similarc_one_other.jsonl",
@@ -2429,6 +2457,10 @@
           20
         ]
       }
+    ],
+    "skip_type": [
+      "warp_iceberg",
+      "warp_delta_lake"
     ],
     "warmup_rules": [
       {
@@ -3611,6 +3643,10 @@
         ]
       }
     ],
+    "skip_type": [
+      "warp_iceberg",
+      "warp_delta_lake"
+    ],
     "warmup_rules": [
       {
         "colNameId": "ss_item_sk",
@@ -4532,6 +4568,10 @@
         "type": "timestamp"
       }
     ],
+    "skip_type": [
+      "warp_iceberg",
+      "warp_delta_lake"
+    ],
     "queries_data": [
       {
         "query_id": "collect_optim_1",
@@ -4762,6 +4802,10 @@
           "bigint"
         ]
       }
+    ],
+    "skip_type": [
+      "warp_iceberg",
+      "warp_delta_lake"
     ],
     "warmup_rules": [
       {
@@ -5077,6 +5121,10 @@
           "boolean"
         ]
       }
+    ],
+    "skip_type": [
+      "warp_iceberg",
+      "warp_delta_lake"
     ],
     "warmup_rules": [
       {
@@ -5443,6 +5491,10 @@
         "name": "varchar_col",
         "type": "varchar"
       }
+    ],
+    "skip_type": [
+      "warp_iceberg",
+      "warp_delta_lake"
     ],
     "warmup_rules": [
       {
@@ -7276,7 +7328,11 @@
         ]
       }
     ],
-    "queries_data": [
+    "skip_type": [
+      "warp_iceberg",
+      "warp_delta_lake"
+    ],
+      "queries_data": [
       {
         "query": "select count(*) from trim_slices",
         "query_id": "trim_slices_1",
@@ -7441,6 +7497,10 @@
           "varchar"
         ]
       }
+    ],
+    "skip_type": [
+      "warp_iceberg",
+      "warp_delta_lake"
     ],
     "warmup_rules": [
       {
@@ -7766,7 +7826,10 @@
       }
     ],
     "skip_type_comment": "issue with warming on DL - under investigation",
-    "skip_type": ["warp_delta_lake"],
+    "skip_type": [
+      "warp_iceberg",
+      "warp_delta_lake"
+    ],
     "queries_data": [
       {
         "query": "select count(d_date), count(c_description60)  from storesales_with_null_dates where day(d_date) = 9",
@@ -8077,6 +8140,10 @@
         "name": "pd_prod_lifecycle_status_chg_date",
         "type": "timestamp"
       }
+    ],
+    "skip_type": [
+      "warp_iceberg",
+      "warp_delta_lake"
     ],
     "warmup_rules": [
       {
@@ -8430,6 +8497,10 @@
         "type": "timestamp"
       }
     ],
+    "skip_type": [
+      "warp_iceberg",
+      "warp_delta_lake"
+    ],
     "warm_query": "select * from bucketed_by",
     "queries_data": [
       {
@@ -8533,6 +8604,7 @@
     ],
     "comment_type_skip": "The counters on DL return external collect",
     "skip_type": [
+      "warp_iceberg",
       "warp_delta_lake"
     ],
     "queries_data": [
@@ -10506,6 +10578,10 @@
         "type": "double"
       }
     ],
+    "skip_type": [
+      "warp_iceberg",
+      "warp_delta_lake"
+    ],
     "session_properties": {
       "enable_import_export": false,
       "enable_default_warming": true
@@ -10826,6 +10902,10 @@
       {"name": "downgrade_opp_name", "type": "varchar"},
       {"name": "downgrade_opp_close_date", "type": "timestamp"},
       {"name": "arr_today", "type": "double"}
+    ],
+    "skip_type": [
+      "warp_iceberg",
+      "warp_delta_lake"
     ],
     "session_properties": {
       "enable_dictionary": false,

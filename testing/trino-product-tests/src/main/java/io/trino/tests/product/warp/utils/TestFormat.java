@@ -19,12 +19,15 @@ import io.trino.tests.product.warp.utils.syntheticconfig.TableType;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
 public record TestFormat(String name, int lines, String table_name, List<Column> structure, String data_format, List<WarmupRule> warmup_rules,
                          Map<String, Object> session_properties, String warm_query, boolean skip, boolean pt_enable, boolean skip_caching,
                          List<QueryData> queries_data, WarmTypeForStrings warm_type_for_strings, String description,
-                         int expected_warm_failures, Map<String, Long> expected_dictionary_counters, List<TableType> skip_type,
-                         Map<String, Long> iceberg_expected_dictionary_counters, Map<String, Long> dl_expected_dictionary_counters, int split_count, List<Object> bucketed_by, int bucket_count)
+                         int expected_warm_failures, Map<String, Long> expected_dictionary_counters, Set<TableType> skip_type,
+                         Map<String, Long> iceberg_expected_dictionary_counters, Map<String, Long> dl_expected_dictionary_counters, int split_count,
+                         List<Object> partition_by, List<Object> bucketed_by, int bucket_count, Optional<String> orig_table_name)
 {
     public record Column(String name, String type, List<Object> args) {}
 
@@ -63,33 +66,32 @@ public record TestFormat(String name, int lines, String table_name, List<Column>
                 .warmTypeForStrings(testFormat.warm_type_for_strings())
                 .description(testFormat.description())
                 .splitCount(testFormat.split_count())
+                .partitionBy(testFormat.partition_by())
                 .bucketCount(testFormat.bucket_count())
                 .bucketedBy(testFormat.bucketed_by())
                 .expectedWarmFailures(testFormat.expected_warm_failures())
                 .expectedDictionaryCounters(testFormat.expected_dictionary_counters())
                 .skipType(testFormat.skip_type())
                 .expectedIcebergDictionaryCounters(testFormat.iceberg_expected_dictionary_counters())
-                .expectedDLDictionaryCounters(testFormat.dl_expected_dictionary_counters());
+                .expectedDLDictionaryCounters(testFormat.dl_expected_dictionary_counters())
+                .origTableName(testFormat.orig_table_name());
     }
 
     //The test format that we got from the json, should be changed in case table type other than warp (DL or Iceberg)
     //was provided in the test command line
     //The table name, expected results and expected counters sometimes are affect by table type
-    public TestFormat withTableType(String updatedName, TableType tableType)
+    public TestFormat withTableType(String newTableName, TableType tableType)
     {
         List<QueryData> updatedQueriesData = new ArrayList<>();
         Map<String, Long> updatedDictionaryCounters = expected_dictionary_counters;
 
         for (QueryData queryData : queries_data()) {
-            updatedQueriesData.add(getUpdatedQueryData(tableType, queryData, updatedName));
+            updatedQueriesData.add(getUpdatedQueryData(tableType, queryData, newTableName));
         }
+
         String updatedWarmQuery = null;
         if (warm_query != null) {
-            updatedWarmQuery = warm_query.replace(getTableName(), updatedName);
-        }
-        String updatedTableName = null;
-        if (table_name != null) {
-            updatedTableName = updatedName;
+            updatedWarmQuery = warm_query.replace(getTableName(), newTableName);
         }
 
         if (tableType == TableType.warp_delta_lake && dl_expected_dictionary_counters != null) {
@@ -100,8 +102,9 @@ public record TestFormat(String name, int lines, String table_name, List<Column>
         }
 
         return builder(this)
-                .name(updatedName)
-                .tableName(updatedTableName)
+                .name(newTableName)
+                .tableName(newTableName)
+                .origTableName(Optional.ofNullable(getTableName()))
                 .warmQuery(updatedWarmQuery)
                 .queriesData(updatedQueriesData)
                 .expectedDictionaryCounters(updatedDictionaryCounters)
@@ -157,17 +160,16 @@ public record TestFormat(String name, int lines, String table_name, List<Column>
         private String description;
         private int expectedWarmFailures;
         private Map<String, Long> expectedDictionaryCounters;
-        private List<TableType> skipType;
+        private Set<TableType> skipType;
         private Map<String, Long> expectedIcebergDictionaryCounters;
         private Map<String, Long> expectedDLDictionaryCounters;
         private int splitCount;
-
+        private List<Object> partitionBy;
         private List<Object> bucketedBy;
         private int bucketCount;
+        private Optional<String> origTableName = Optional.empty();
 
-        private Builder()
-        {
-        }
+        private Builder() {}
 
         public Builder name(String name)
         {
@@ -265,7 +267,7 @@ public record TestFormat(String name, int lines, String table_name, List<Column>
             return this;
         }
 
-        public Builder skipType(List<TableType> skipType)
+        public Builder skipType(Set<TableType> skipType)
         {
             this.skipType = skipType;
             return this;
@@ -289,6 +291,12 @@ public record TestFormat(String name, int lines, String table_name, List<Column>
             return this;
         }
 
+        public Builder partitionBy(List<Object> partitionBy)
+        {
+            this.partitionBy = partitionBy;
+            return this;
+        }
+
         public Builder bucketedBy(List<Object> bucketedBy)
         {
             this.bucketedBy = bucketedBy;
@@ -301,12 +309,18 @@ public record TestFormat(String name, int lines, String table_name, List<Column>
             return this;
         }
 
+        public Builder origTableName(Optional<String> origTableName)
+        {
+            this.origTableName = origTableName;
+            return this;
+        }
+
         public TestFormat build()
         {
             return new TestFormat(name, lines, tableName, structure, dataFormat, warmupRules, sessionProperties, warmQuery,
                     skip, ptEnable, skipCaching, queriesData, warmTypeForStrings, description,
                     expectedWarmFailures, expectedDictionaryCounters, skipType, expectedIcebergDictionaryCounters,
-                    expectedDLDictionaryCounters, splitCount, bucketedBy, bucketCount);
+                    expectedDLDictionaryCounters, splitCount, partitionBy, bucketedBy, bucketCount, origTableName);
         }
     }
 }

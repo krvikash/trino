@@ -376,6 +376,22 @@ public class QueryUtils
         return values;
     }
 
+    public boolean isTableExists(String schema, String table)
+    {
+        QueryResult queryResult = onTrino().executeQuery("show tables from " + schema);
+        if (queryResult.getRowsCount() == 0) {
+            return false;
+        }
+
+        for (int rowNumber = 0; rowNumber < queryResult.getRowsCount(); rowNumber++) {
+            String name = (String) queryResult.column(1).get(rowNumber);
+            if (name.equals(table)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private enum CachingType
     {
         VARADA_ONLY,

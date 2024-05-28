@@ -30,7 +30,6 @@ import io.trino.tests.product.warp.utils.RestUtils;
 import io.trino.tests.product.warp.utils.RuleUtils;
 import io.trino.tests.product.warp.utils.TestFormat;
 import io.trino.tests.product.warp.utils.syntheticconfig.ExcludeStrategy;
-import io.trino.tests.product.warp.utils.syntheticconfig.TestConfiguration;
 import jakarta.ws.rs.HttpMethod;
 import org.testng.ITestContext;
 import org.testng.SkipException;
@@ -105,16 +104,7 @@ public class TestWarpCache
         JsonNode jsonNodeTests = objectMapper.readTree(new URI(filePath).toURL());
         List<TestFormat> tests = objectMapper.readerFor(new TypeReference<List<TestFormat>>() {})
                 .readValue(jsonNodeTests);
-        List<TestFormat> testsToExecute = new ArrayList<>(tests);
-        if (TestConfiguration.hasRunConfiguration()) {
-            if (TestConfiguration.hasTestFilter()) {
-                testsToExecute = TestConfiguration.filterTests(tests);
-            }
-            testsToExecute = TestConfiguration.updateTableType(testsToExecute);
-            logger.info("Suite run on table type %s", TestConfiguration.getTableType().name());
-        }
-        return testsToExecute
-                .stream()
+        return tests.stream()
                 .filter(TestFormat::pt_enable)
                 .map(x -> new Object[] {x})
                 .iterator();

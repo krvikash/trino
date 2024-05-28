@@ -22,7 +22,6 @@ import io.trino.tests.product.launcher.testcontainers.PortBinder;
 
 import static io.trino.tests.product.launcher.env.EnvironmentContainers.COORDINATOR;
 import static io.trino.tests.product.launcher.env.EnvironmentContainers.WORKER;
-import static org.testcontainers.containers.BindMode.READ_ONLY;
 
 public abstract class MultinodeWarpGlueBase
         extends MultinodeWarpBase
@@ -44,25 +43,17 @@ public abstract class MultinodeWarpGlueBase
 
         builder.configureContainer(COORDINATOR, MultinodeWarpGlueBase::configureEnv);
         builder.configureContainer(WORKER, MultinodeWarpGlueBase::configureEnv);
+        builder.addConnector("hive");
     }
 
     public static void configureEnv(DockerContainer container)
     {
-        String profile = System.getenv("PT_AWS_PROFILE");
-
-        if (profile != null) {
-            logger.info("Using AWS credentials from AWS_PROFILE %s", profile);
-            container.withFileSystemBind(System.getProperty("user.home") + "/.aws", "/root/.aws", READ_ONLY)
-                    .withEnv("AWS_PROFILE", profile);
-        }
-        else {
-            logger.info("Using AWS credentials from environment");
-            container.withEnv("AWS_ACCESS_KEY_ID", requireEnv("AWS_ACCESS_KEY_ID"))
-                    .withEnv("AWS_REGION", "us-east-1")
-                    .withEnv("AWS_SECRET_ACCESS_KEY", requireEnv("AWS_SECRET_ACCESS_KEY"));
-            if (System.getenv("AWS_SESSION_TOKEN") != null) {
-                container.withEnv("AWS_SESSION_TOKEN", requireEnv("AWS_SESSION_TOKEN"));
-            }
+        logger.info("Using AWS credentials from environment");
+        container.withEnv("AWS_ACCESS_KEY_ID", requireEnv("AWS_ACCESS_KEY_ID"))
+                .withEnv("AWS_REGION", "us-east-1")
+                .withEnv("AWS_SECRET_ACCESS_KEY", requireEnv("AWS_SECRET_ACCESS_KEY"));
+        if (System.getenv("AWS_SESSION_TOKEN") != null) {
+            container.withEnv("AWS_SESSION_TOKEN", requireEnv("AWS_SESSION_TOKEN"));
         }
     }
 }

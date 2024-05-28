@@ -14,7 +14,6 @@
 
 package io.trino.tests.product.warp.utils;
 
-import com.google.common.annotations.VisibleForTesting;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
 import io.trino.tempto.query.QueryExecutor;
@@ -277,107 +276,5 @@ public class WarmUtils
                         assertThat(getValue(warmStats, STARTED)).isEqualTo(getValue(warmStats, WARM_ACCOMPLISHED));
                     }
                 });
-    }
-
-    @VisibleForTesting
-    String createTableQuery(TestFormat testFormat)
-    {
-        String name = testFormat.name();
-        List<TestFormat.Column> structure = testFormat.structure();
-        StringBuilder tableDefinition = new StringBuilder();
-
-        for (int i = 0; i < structure.size(); i++) {
-            TestFormat.Column column = structure.get(i);
-            String fieldName = column.name();
-            String fieldType = column.type();
-            List<Object> args = column.args();
-            String fieldDefinition = fieldName + " " + createFieldDefinition(fieldType, args);
-            if (i != 0) {
-                tableDefinition.append(", ");
-            }
-            tableDefinition.append(fieldDefinition);
-        }
-
-        String dataFormat = testFormat.data_format();
-
-        if (dataFormat == null || dataFormat.isEmpty()) {
-            dataFormat = "PARQUET";
-        }
-
-        List<Object> bucketedBy = testFormat.bucketed_by();
-        String bucketedByStr = "ARRAY[]";
-
-        if (bucketedBy != null && !bucketedBy.isEmpty()) {
-            StringBuilder bucketedByBuilder = new StringBuilder("ARRAY[");
-            for (int i = 0; i < bucketedBy.size(); i++) {
-                bucketedByBuilder.append("'" + bucketedBy.get(i) + "'");
-                if (i < bucketedBy.size() - 1) {
-                    bucketedByBuilder.append(",");
-                }
-            }
-            bucketedByBuilder.append("]");
-            bucketedByStr = bucketedByBuilder.toString();
-        }
-
-        int bucketCount = testFormat.bucket_count();
-
-        return String.format("CREATE TABLE IF NOT EXISTS warp.synthetic.%s (%s) " +
-                        "WITH (external_location='s3://warp-speed-us-east1-systemtests/synthetic/%s'," +
-                        "format='%s',partitioned_by=ARRAY[],bucketed_by=%s,bucket_count=%d)",
-                name, tableDefinition.toString(), name, dataFormat, bucketedByStr, bucketCount);
-    }
-
-    public void createTable(TestFormat testFormat)
-    {
-        String query = createTableQuery(testFormat);
-        onTrino().executeQuery(query);
-    }
-
-    private String createFieldDefinition(String fieldType, List<Object> args)
-    {
-        String fieldDef;
-        if (fieldType == null) {
-            fieldDef = "integer";
-        }
-        else if (args == null) {
-            fieldDef = fieldType;
-        }
-        else if ("varchar".equals(fieldType)) {
-            fieldDef = "varchar(%s)".formatted(args.getFirst());
-        }
-        else if ("array".equals(fieldType)) {
-            if (args.size() == 1) {
-                fieldDef = "array(%s)".formatted(args.getFirst());
-            }
-            else if (args.size() == 2 && "char".equals(args.get(0))) {
-                fieldDef = "array(%s(%s))".formatted(args.get(0), args.get(1));
-            }
-            else {
-                throw new RuntimeException("unknown field type %s, args %s".formatted(fieldType, args));
-            }
-        }
-        else if ("map".equals(fieldType)) {
-            fieldDef = "map(%s, %s)".formatted(args.get(0), args.get(1));
-        }
-        else if ("row".equals(fieldType)) {
-            StringJoiner rowColumnDef = new StringJoiner(",", "(", ")");
-            args.forEach(arg -> rowColumnDef.add(arg.toString()));
-            fieldDef = "ROW" + rowColumnDef;
-        }
-        else if (fieldType.equals("char") || fieldType.equals("decimal")) {
-            if (args.size() == 3) {
-                args = args.subList(0, args.size() - 1);
-            }
-            else if (args.size() > 3) {
-                throw new RuntimeException();
-            }
-            StringJoiner rowColumnDef = new StringJoiner(",", "(", ")");
-            args.forEach(arg -> rowColumnDef.add(arg.toString()));
-            fieldDef = fieldType + rowColumnDef;
-        }
-        else {
-            fieldDef = fieldType;
-        }
-        return fieldDef;
     }
 }
