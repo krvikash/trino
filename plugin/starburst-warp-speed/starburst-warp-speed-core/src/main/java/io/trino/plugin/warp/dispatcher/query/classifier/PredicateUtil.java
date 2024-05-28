@@ -355,7 +355,7 @@ public class PredicateUtil
     public static boolean canMapMatchCollect(Type type, PredicateType predicateType, FunctionType functionType, int numValues)
     {
         return TypeUtils.isMappedMatchCollectSupportedTypes(type) &&
-                (predicateType == PredicateType.PREDICATE_TYPE_VALUES) &&
+                ((predicateType == PredicateType.PREDICATE_TYPE_VALUES) || (predicateType == PredicateType.PREDICATE_TYPE_STRING_VALUES)) &&
                 (functionType == FunctionType.FUNCTION_TYPE_NONE) &&
                 (numValues <= GlobalConfig.MAX_NUMBER_OF_MAPPED_MATCH_COLLECT_ELEMENTS);
     }

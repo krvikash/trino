@@ -146,11 +146,10 @@ class NativeCollectClassifier
             NativeCollectState state,
             QueryMatchData queryMatchData)
     {
-        if (!state.isMatchCollectMemoryAvailable() || TypeUtils.isStrType(state.getCurrentColumnType())) {
+        boolean canMapMatchCollect = classifyArgs.isMappedMatchCollect() && queryMatchData.canMapMatchCollect();
+        if (!state.isMatchCollectMemoryAvailable() || (!canMapMatchCollect && TypeUtils.isStrType(state.getCurrentColumnType()))) {
             return Optional.empty();
         }
-
-        boolean canMapMatchCollect = classifyArgs.isMappedMatchCollect() && queryMatchData.canMapMatchCollect();
 
         // we prefer to take the data element for the match collect if exists for better storage engine performance
         WarmUpElement warmUpElement = state.getCurrentColumnDataWarmUpElement();

@@ -3755,6 +3755,7 @@
         "predicates": [],
         "warmUpTypes": [
           "WARM_UP_TYPE_DATA",
+          "WARM_UP_TYPE_BASIC",
           "WARM_UP_TYPE_LUCENE"
         ]
       },
@@ -3802,7 +3803,7 @@
       },
       {
         "query": "select count(*) from varchar_100_64k where some_varchar like '%mATTHEW%'",
-        "query_id": "varchar_100_64k_04",
+        "query_id": "varchar_100_64k_03",
         "expected_result": [
           [
             0
@@ -3811,6 +3812,55 @@
         "expected_counters": {
           "varada_match_columns": 1,
           "varada_collect_columns": 1,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
+      },
+      {
+        "query": "select count(some_char) from varchar_100_64k where some_char = 'Kathleen '",
+        "query_id": "varchar_100_64k_04",
+        "expected_result": [
+          [
+            149
+          ]
+        ],
+        "expected_counters": {
+          "varada_match_columns": 1,
+          "varada_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
+      },
+      {
+        "query": "select count(some_varchar) from varchar_100_64k where some_varchar = 'Jennifer C' or some_varchar = 'Christopher W'",
+        "query_id": "varchar_100_64k_05",
+        "expected_result": [
+          [
+            10
+          ]
+        ],
+        "expected_counters": {
+          "varada_match_columns": 1,
+          "varada_collect_columns": 1,
+          "varada_match_collect_columns": 1,
+          "varada_mapped_match_collect_columns": 1,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
+      },
+      {
+        "query": "select count(some_char) from varchar_100_64k where some_char = 'Randall S' or some_char = 'Kathleen '",
+        "query_id": "varchar_100_64k_06",
+        "expected_result": [
+          [
+            154
+          ]
+        ],
+        "expected_counters": {
+          "varada_match_columns": 1,
+          "varada_collect_columns": 1,
+          "varada_match_collect_columns": 1,
+          "varada_mapped_match_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -4661,7 +4711,7 @@
         }
       },
       {
-          "query": "select map_values(map_col) from map_test_varchar where map_keys(map_col)=ARRAY['second']",
+        "query": "select map_values(map_col) from map_test_varchar where map_keys(map_col)=ARRAY['second']",
         "query_id": "map_test_varchar_02",
         "expected_result": [
           [

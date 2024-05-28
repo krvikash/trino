@@ -15,27 +15,39 @@ package io.trino.plugin.warp.juffer;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import io.airlift.slice.Slice;
+import io.airlift.slice.Slices;
+import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.plugin.warp.type.TypeUtils;
+import io.trino.plugin.warp.util.SliceUtils;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.Int128ArrayBlock;
 import io.trino.spi.block.IntArrayBlock;
 import io.trino.spi.block.LongArrayBlock;
 import io.trino.spi.block.ShortArrayBlock;
+import io.trino.spi.block.VariableWidthBlock;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.SortedRangeSet;
 import io.trino.spi.type.Type;
 
+import java.util.List;
 import java.util.Optional;
 
+import static io.trino.plugin.warp.util.SliceUtils.allocateOffsetsArray;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.SmallintType.SMALLINT;
+import static java.util.Objects.requireNonNull;
 
 @Singleton
 public class DomainToMapBlockConvertor
 {
+    private final StorageEngineConstants storageEngineConstants;
+
     @Inject
-    public DomainToMapBlockConvertor()
+    public DomainToMapBlockConvertor(StorageEngineConstants storageEngineConstants)
     {
+        this.storageEngineConstants = requireNonNull(storageEngineConstants);
     }
 
     Optional<Block> convert(Domain values)
@@ -55,7 +67,12 @@ public class DomainToMapBlockConvertor
             nulls[numValues - 1] = true;
         }
 
-        if (TypeUtils.isSmallIntType(type)) {
+        if (TypeUtils.isStrType(type)) {
+            List<Slice> slices = SliceUtils.getOrderedStringPredicateValues(sortedRangeSet, sortedRangeSet.getRangeCount(), storageEngineConstants);
+            Pair<Slice, int[]> slicePair = combineSlices(slices, numValues, values.isNullAllowed());
+            ret = Optional.of(new VariableWidthBlock(numValues, slicePair.getLeft(), slicePair.getRight(), Optional.ofNullable(nulls)));
+        }
+        else if (TypeUtils.isSmallIntType(type)) {
             short[] shortValues = new short[numValues];
 
             for (arrIx = 0, buffIx = 0; buffIx < sortedRangesBlock.getPositionCount(); arrIx += 1, buffIx += 2) {
@@ -94,5 +111,22 @@ public class DomainToMapBlockConvertor
         }
 
         return ret;
+    }
+
+    private Pair<Slice, int[]> combineSlices(List<Slice> slices, int numValues, boolean collectNulls)
+    {
+        int sliceLen = slices.stream().mapToInt(Slice::length).sum();
+        byte[] values = new byte[sliceLen];
+        Slice outputSlice = Slices.wrappedBuffer(values);
+        int[] offsets = allocateOffsetsArray(numValues);
+        for (int i = 0; i < slices.size(); i++) {
+            Slice slice = slices.get(i);
+            offsets[i + 1] = offsets[i] + slice.length();
+            outputSlice.setBytes(offsets[i], slice);
+        }
+        if (collectNulls) {
+            offsets[numValues] = offsets[numValues - 1];
+        }
+        return Pair.of(outputSlice, offsets);
     }
 }

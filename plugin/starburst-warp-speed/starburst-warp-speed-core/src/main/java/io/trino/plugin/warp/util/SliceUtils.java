@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -277,5 +278,17 @@ public class SliceUtils
         }
         Collections.sort(strDataList);
         return strDataList;
+    }
+
+    public static List<Slice> getOrderedStringPredicateValues(SortedRangeSet sortedRangeSet, int numValues,
+            StorageEngineConstants storageEngineConstants)
+    {
+        List<StringPredicateData> strDataList = getOrderedStringData(sortedRangeSet, numValues, storageEngineConstants);
+        return strDataList.stream().map(StringPredicateData::orgVal).collect(Collectors.toList());
+    }
+
+    public static int[] allocateOffsetsArray(int rowsToFill)
+    {
+        return new int[rowsToFill + 1]; // +1 contains the total size
     }
 }

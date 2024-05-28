@@ -78,7 +78,8 @@ public class LongBlockFiller
     }
 
     @Override
-    protected Block createSingleBlockWithMapping(ReadJuffersWarmUpElement juffersWE, int mapKey, int rowsToFill, Block mapBlock, boolean collectNulls)
+    protected Block createSingleBlockWithMapping(ReadJuffersWarmUpElement juffersWE, int mapKey, int rowsToFill,
+            Block mapBlock, RecTypeCode recTypeCode, boolean collectNulls)
     {
         long singleVal = ((LongArrayBlock) mapBlock).getLong(mapKey);
         Block retBlock;

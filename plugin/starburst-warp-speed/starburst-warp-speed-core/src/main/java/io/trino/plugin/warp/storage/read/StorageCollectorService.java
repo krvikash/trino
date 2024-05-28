@@ -184,12 +184,11 @@ public class StorageCollectorService
                     }
                 }
                 else if (collectParams.mappedMatchCollect()) {
-                    // The presence of collectParams.getValuesDictBlock() doesn't guarantee a map-match-collect,
-                    // as the map is pre-created (and cached) based on the predicate data without knowing if it will meet the match-collect conditions.                    Block valuesDict = collectParams.getValuesDictBlock().get();
                     Block valuesDict = collectParams.getValuesDictBlock().get();
                     block = blockFillers.get(collectIx).fillBlockWithMapping(readJuffersWarmUpElements.get(collectIx),
                             queryResultType,
                             rowsToFill,
+                            collectParams.getBlockRecTypeCode(),
                             collectParams.isCollectNulls(),
                             valuesDict);
                 }

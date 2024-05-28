@@ -24,7 +24,6 @@ import io.trino.Session;
 import io.trino.plugin.hive.HiveColumnHandle;
 import io.trino.plugin.hive.HiveTableHandle;
 import io.trino.plugin.warp.WarpPlugin;
-import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.api.health.HealthResult;
 import io.trino.plugin.warp.api.warmup.DateSlidingWindowWarmupPredicateRule;
 import io.trino.plugin.warp.api.warmup.PartitionValueWarmupPredicateRule;
@@ -4153,36 +4152,62 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         String table = "mapped_match_collect_test";
         createTable(DEFAULT_SCHEMA,
                 table,
-                "(double_1 double, varchar_1 varchar, short_decimal decimal(2,1))");
-        computeActual("INSERT INTO %s (double_1, varchar_1, short_decimal) values (1, '1', 1.0), (2, '2', 2.0), (3, '3', 3.0)".formatted(table));
-        String warmQuery = "select double_1, short_decimal, varchar_1 from %s".formatted(table);
+                "(double_1 double," +
+                        "varchar_1 varchar," +
+                        "short_decimal decimal(2,1)," +
+                        "long_dec decimal(30, 2)," +
+                        "char_5 char(5)," +
+                        "tiny tinyint," +
+                        "boolean_1 boolean)");
+        computeActual(("INSERT INTO %s (double_1, varchar_1, short_decimal, long_dec, char_5, tiny, boolean_1)" +
+                "values (1, '1', 1.0, 1.1, 'one', 1, true), (2, '2', 2.0, 2.2, 'tow', 2, false)," +
+                "(3, '3', 3.0, 3.3, 'three', 3, true), (NULL, NULL, NULL, NULL, NULL, NULL, NULL)").formatted(table));
+        String warmQuery = "select double_1, short_decimal, varchar_1, long_dec, char_5, tiny, boolean_1 from %s".formatted(table);
 
         Session session = Session.builder(getSession())
-                .setSystemProperty(catalog + "." + ENABLE_MAPPED_MATCH_COLLECT, "false")
+                .setSystemProperty(catalog + "." + ENABLE_MAPPED_MATCH_COLLECT, "true")
                 .build();
         createWarmupRules(DEFAULT_SCHEMA,
                 table,
                 Map.of("double_1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL)),
                         "short_decimal", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL)),
-                        "varchar_1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_LUCENE, DEFAULT_PRIORITY, DEFAULT_TTL))));
+                        "varchar_1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL)),
+                        "long_dec", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL)),
+                        "char_5", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL)),
+                        "tiny", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL)),
+                        "boolean_1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))));
 
-        warmAndValidate(warmQuery, session, 3, 1, 0);
+        warmAndValidate(warmQuery, session, 7, 1, 0);
 
         // ================== Mapped match collect supported ================== //
         List<String> mapSupportedQueries = List.of(
                 "select double_1 from %s where double_1=1 or double_1=3".formatted(table),
-                "select double_1 from %s where double_1 in(1, 3)".formatted(table),
-                "select short_decimal from %s where short_decimal=1 or short_decimal=3".formatted(table));
+                "select varchar_1 from %s where varchar_1 in('1', '3')".formatted(table),
+                "select varchar_1 from %s where varchar_1='1' or varchar_1='3'".formatted(table),
+                "select varchar_1 from %s where varchar_1='1' or varchar_1='3' or varchar_1 is NULL".formatted(table),
+                "select short_decimal from %s where short_decimal=1 or short_decimal=3 or short_decimal is NULL".formatted(table),
+                "select long_dec from %s where long_dec=1.1 or long_dec=3.3 or long_dec is NULL".formatted(table),
+                "select char_5 from %s where char_5='three' or char_5='bla'".formatted(table));
 
         Map<String, Long> expectedStatsMapSupported = Map.of(
                 "varada_match_collect_columns", 1L,
                 "varada_mapped_match_collect_columns", 1L);
 
+        List<String> multiMapSupportedQueries = List.of(
+                "select * from mapped_match_collect_test where double_1 in (1, 4) and (varchar_1='1' or varchar_1='kjhfj') and " +
+                        "(short_decimal=1 or short_decimal is NULL) and (long_dec=1.1 or long_dec=3.3)");
+
+        Map<String, Long> expectedStatsMultiMapSupported = Map.of(
+                "varada_match_collect_columns", 4L,
+                "varada_mapped_match_collect_columns", 4L);
+
         // ================== Mapped match collect unsupported ================== //
 
         List<String> mapUnsupportedQueries = List.of(
                 "select double_1 from %s where double_1<3".formatted(table),
-                "select double_1 from %s where ceil(double_1)=1 or ceil(double_1)=3".formatted(table));
+                "select double_1 from %s where ceil(double_1)=1 or ceil(double_1)=3".formatted(table),
+                "select tiny from %s where tiny in (1, 3) or tiny is null".formatted(table),
+                "select boolean_1 from %s where boolean_1=true or boolean_1 is NULL".formatted(table));
 
         Map<String, Long> expectedStatsMapUnsupported = Map.of(
                 "varada_match_collect_columns", 1L,
@@ -4191,22 +4216,21 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         // ================== Match collect unsupported ================== //
 
         List<String> matchCollectUnsupportedQueries = List.of(
-                "select varchar_1 from %s where varchar_1 in('1', '3')".formatted(table));
+                "select varchar_1 from mapped_match_collect_test where varchar_1 like '1%' or varchar_1 like '3%'",
+                "select double_1 from %s where double_1<>3".formatted(table),
+                "select double_1 from %s where double_1!=3".formatted(table),
+                "select double_1 from %s where (double_1=1 or double_1=3) or short_decimal is NULL".formatted(table));
 
         Map<String, Long> expectedStatsMatchCollectUnsupported = Map.of(
                 "varada_match_collect_columns", 0L,
                 "varada_mapped_match_collect_columns", 0L);
 
         for (@Language("SQL") String query : mapSupportedQueries) {
-            validateQueryStats(query, session, expectedStatsMapUnsupported);
+            validateQueryStats(query, session, expectedStatsMapSupported);
         }
 
-        session = Session.builder(getSession())
-                .setSystemProperty(catalog + "." + WarpSessionProperties.ENABLE_MAPPED_MATCH_COLLECT, "true")
-                .build();
-
-        for (@Language("SQL") String query : mapSupportedQueries) {
-            validateQueryStats(query, session, expectedStatsMapSupported);
+        for (@Language("SQL") String query : multiMapSupportedQueries) {
+            validateQueryStats(query, session, expectedStatsMultiMapSupported);
         }
 
         for (@Language("SQL") String query : mapUnsupportedQueries) {

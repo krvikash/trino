@@ -396,6 +396,7 @@ public class TypeUtils
         }
 
         return isIntegerType(type) || isBigIntegerType(type) || isSmallIntType(type) || isRealType(type) ||
-                isDoubleType(type) || isLongType(type) || isShortDecimalType(type) || isLongDecimalType(type);
+                isDoubleType(type) || isLongType(type) || isShortDecimalType(type) || isLongDecimalType(type) ||
+                isVarcharType(type) || isCharType(type);
     }
 }

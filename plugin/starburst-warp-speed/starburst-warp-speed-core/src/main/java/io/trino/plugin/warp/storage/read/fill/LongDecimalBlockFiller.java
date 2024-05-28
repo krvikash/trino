@@ -88,7 +88,8 @@ public class LongDecimalBlockFiller
     }
 
     @Override
-    protected Block createSingleBlockWithMapping(ReadJuffersWarmUpElement juffersWE, int mapKey, int rowsToFill, Block mapBlock, boolean collectNulls)
+    protected Block createSingleBlockWithMapping(ReadJuffersWarmUpElement juffersWE, int mapKey, int rowsToFill,
+            Block mapBlock, RecTypeCode recTypeCode, boolean collectNulls)
     {
         if (!collectNulls) {
             Int128 value = ((Int128ArrayBlock) mapBlock).getInt128(0);

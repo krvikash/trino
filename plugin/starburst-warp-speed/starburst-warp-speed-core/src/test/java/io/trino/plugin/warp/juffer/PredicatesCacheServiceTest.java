@@ -65,7 +65,7 @@ public class PredicatesCacheServiceTest
         storageEngineConstants = new StubsStorageEngineConstants();
         cachePredicatesStats = CachePredicatesStats.create(PredicatesCacheService.STATS_CACHE_PREDICATE_KEY);
         bufferAllocator = mock(BufferAllocator.class);
-        domainToMapBlockConvertor = new DomainToMapBlockConvertor();
+        domainToMapBlockConvertor = new DomainToMapBlockConvertor(storageEngineConstants);
         ByteBuffer byteBuffer = ByteBuffer.allocate(1024);
         when(bufferAllocator.memorySegment2PredicateBuff(any())).thenReturn(byteBuffer);
         when(bufferAllocator.createBuffView(byteBuffer)).thenReturn(byteBuffer);

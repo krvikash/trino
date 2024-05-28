@@ -79,7 +79,8 @@ public class ShortBlockFiller
     }
 
     @Override
-    protected Block createSingleBlockWithMapping(ReadJuffersWarmUpElement juffersWE, int mapKey, int rowsToFill, Block mapBlock, boolean collectNulls)
+    protected Block createSingleBlockWithMapping(ReadJuffersWarmUpElement juffersWE, int mapKey, int rowsToFill,
+            Block mapBlock, RecTypeCode recTypeCode, boolean collectNulls)
     {
         short singleVal = ((ShortArrayBlock) mapBlock).getShort(mapKey);
         Block retBlock;

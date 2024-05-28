@@ -21,6 +21,7 @@ import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
 import io.trino.plugin.warp.type.TypeUtils;
+import io.trino.plugin.warp.util.SliceUtils;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.VariableWidthBlock;
@@ -117,7 +118,7 @@ public abstract class SliceBlockFiller
         ShortBuffer lenBuff = nullBuff.asShortBuffer();
         // block parameters
         int jufferOffset = 0;
-        int[] offsets = allocateOffsetsArray(rowsToFill);
+        int[] offsets = SliceUtils.allocateOffsetsArray(rowsToFill);
         byte[] values = allocateValuesByteArray(rowsToFill, recLength);
         Slice outputSlice = Slices.wrappedBuffer(values);
 
@@ -209,7 +210,7 @@ public abstract class SliceBlockFiller
             resultBlock = DictionaryBlock.create(ids.length, dictionaryAsBlock, ids);
         }
         else {
-            int[] offsets = allocateOffsetsArray(rowsToFill);
+            int[] offsets = SliceUtils.allocateOffsetsArray(rowsToFill);
             byte[] values = allocateValuesByteArray(rowsToFill, recTypeLength);
             Slice outputSlice = Slices.wrappedBuffer(values);
             Optional<boolean[]> valueIsNullOptional;
@@ -271,11 +272,6 @@ public abstract class SliceBlockFiller
         return new VariableWidthBlock(2, mappingValues[0], offsets, Optional.of(nulls));
     }
 
-    private int[] allocateOffsetsArray(int rowsToFill)
-    {
-        return new int[rowsToFill + 1]; // +1 contains the total size
-    }
-
     private byte[] allocateValuesByteArray(int rowsToFill, int recTypeLength)
     {
         final int maxValuesArraySize = nativeConfig.getMaxRecJufferSize();
@@ -285,5 +281,48 @@ public abstract class SliceBlockFiller
             maxNeededBuff = maxValuesArraySize;
         }
         return new byte[Math.min(maxNeededBuff, maxValuesArraySize)];
+    }
+
+    @Override
+    protected Block createSingleBlockWithMapping(ReadJuffersWarmUpElement juffersWE, int mapKey, int rowsToFill, Block mapBlock,
+            RecTypeCode recTypeCode, boolean collectNulls)
+    {
+        Slice singleVal = ((VariableWidthBlock) mapBlock).getSlice(mapKey);
+        Block retBlock;
+        if (!collectNulls) {
+            retBlock = createSingleValueBlock(spiBuilderType, singleVal, rowsToFill);
+        }
+        else {
+            int nullValueSize = TypeUtils.isVarlenStr(recTypeCode) ? queryStringNullValueSize : 1;
+            Block singleMapBlock = createSingleMappingBlock(singleVal);
+            retBlock = wrapSingleWithNulls(juffersWE, rowsToFill, singleMapBlock, nullValueSize);
+        }
+        return retBlock;
+    }
+
+    @Override
+    protected Block fillRawBlockWithMapping(ReadJuffersWarmUpElement juffersWE, int rowsToFill, RecTypeCode recTypeCode, boolean collectNulls, Block mapBlock)
+    {
+        ByteBuffer buff = (ByteBuffer) juffersWE.getRecordBuffer();
+        int[] ids = new int[rowsToFill];
+        if (collectNulls) {
+            int nullValueSize = TypeUtils.isVarlenStr(recTypeCode) ? queryStringNullValueSize : 1;
+            int nullPosition = mapBlock.getPositionCount() - 1;
+            ByteBuffer nullBuff = juffersWE.getNullBuffer();
+            for (int currRow = 0; currRow < rowsToFill; currRow++) {
+                if (isNull(nullBuff, nullValueSize, currRow)) {
+                    ids[currRow] = nullPosition;
+                }
+                else {
+                    ids[currRow] = Byte.toUnsignedInt(buff.get(currRow));
+                }
+            }
+        }
+        else {
+            for (int currRow = 0; currRow < rowsToFill; currRow++) {
+                ids[currRow] = Byte.toUnsignedInt(buff.get(currRow));
+            }
+        }
+        return DictionaryBlock.create(ids.length, mapBlock, ids);
     }
 }

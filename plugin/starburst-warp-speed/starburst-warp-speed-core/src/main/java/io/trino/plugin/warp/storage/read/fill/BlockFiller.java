@@ -120,6 +120,7 @@ public abstract class BlockFiller<V>
     public Block fillBlockWithMapping(ReadJuffersWarmUpElement juffersWE,
                                       QueryResultType queryResultType,
                                       int rowsToFill,
+                                      RecTypeCode recTypeCode,
                                       boolean collectNulls,
                                       Block mapBlock)
     {
@@ -127,30 +128,32 @@ public abstract class BlockFiller<V>
         int mapKey;
 
         return switch (queryResultType) {
-            case QUERY_RESULT_TYPE_RAW -> fillRawBlockWithMapping(juffersWE, rowsToFill, collectNulls, mapBlock);
-            case QUERY_RESULT_TYPE_RAW_NO_NULL -> fillRawBlockWithMapping(juffersWE, rowsToFill, false, mapBlock);
+            case QUERY_RESULT_TYPE_RAW -> fillRawBlockWithMapping(juffersWE, rowsToFill, recTypeCode, collectNulls, mapBlock);
+            case QUERY_RESULT_TYPE_RAW_NO_NULL -> fillRawBlockWithMapping(juffersWE, rowsToFill, recTypeCode, false, mapBlock);
             case QUERY_RESULT_TYPE_ALL_NULL -> createSingleValueBlock(spiBuilderType, null, rowsToFill);
             case QUERY_RESULT_TYPE_SINGLE -> {
                 byteBuff = (ByteBuffer) juffersWE.getRecordBuffer();
                 mapKey = Short.toUnsignedInt(byteBuff.get());
-                yield createSingleBlockWithMapping(juffersWE, mapKey, rowsToFill, mapBlock, collectNulls);
+                yield createSingleBlockWithMapping(juffersWE, mapKey, rowsToFill, mapBlock, recTypeCode, collectNulls);
             }
             case QUERY_RESULT_TYPE_SINGLE_NO_NULL -> {
                 byteBuff = (ByteBuffer) juffersWE.getRecordBuffer();
                 mapKey = Short.toUnsignedInt(byteBuff.get());
-                yield createSingleBlockWithMapping(juffersWE, mapKey, rowsToFill, mapBlock, false);
+                yield createSingleBlockWithMapping(juffersWE, mapKey, rowsToFill, mapBlock, recTypeCode, false);
             }
             default -> throw new UnsupportedOperationException();
         };
     }
 
-    protected Block createSingleBlockWithMapping(ReadJuffersWarmUpElement juffersWE, int mapKey, int rowsToFill, Block mapBlock, boolean collectNulls)
+    protected Block createSingleBlockWithMapping(ReadJuffersWarmUpElement juffersWE, int mapKey, int rowsToFill,
+            Block mapBlock, RecTypeCode recTypeCode, boolean collectNulls)
     {
         throw new UnsupportedOperationException();
     }
 
     protected Block fillRawBlockWithMapping(ReadJuffersWarmUpElement juffersWE,
                                             int rowsToFill,
+                                            RecTypeCode recTypeCode,
                                             boolean collectNulls,
                                             Block mapBlock)
     {

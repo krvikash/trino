@@ -76,7 +76,8 @@ public class IntBlockFiller
     }
 
     @Override
-    protected Block createSingleBlockWithMapping(ReadJuffersWarmUpElement juffersWE, int mapKey, int rowsToFill, Block mapBlock, boolean collectNulls)
+    protected Block createSingleBlockWithMapping(ReadJuffersWarmUpElement juffersWE, int mapKey, int rowsToFill, Block mapBlock,
+            RecTypeCode recTypeCode, boolean collectNulls)
     {
         int singleVal = ((IntArrayBlock) mapBlock).getInt(mapKey);
         Block retBlock;

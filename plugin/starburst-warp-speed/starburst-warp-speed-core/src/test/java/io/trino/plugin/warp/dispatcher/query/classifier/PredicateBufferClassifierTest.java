@@ -71,7 +71,7 @@ class PredicateBufferClassifierTest
         BufferAllocator bufferAllocator = mock(BufferAllocator.class);
         when(bufferAllocator.allocPredicateBuffer(anyInt())).thenReturn(null);
         StorageEngineConstants storageEngineConstants = new StubsStorageEngineConstants();
-        DomainToMapBlockConvertor domainToMapBlockConvertor = new DomainToMapBlockConvertor();
+        DomainToMapBlockConvertor domainToMapBlockConvertor = new DomainToMapBlockConvertor(storageEngineConstants);
         MetricsManager metricsManager = mock(MetricsManager.class);
         predicatesCacheService = spy(new PredicatesCacheService(bufferAllocator,
                 storageEngineConstants,
