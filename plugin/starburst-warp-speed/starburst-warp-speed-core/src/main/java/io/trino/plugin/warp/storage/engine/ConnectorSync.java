@@ -54,4 +54,9 @@ public interface ConnectorSync
     {
         return "";
     }
+
+    default boolean isCatalogReducedResources()
+    {
+        return false;
+    }
 }

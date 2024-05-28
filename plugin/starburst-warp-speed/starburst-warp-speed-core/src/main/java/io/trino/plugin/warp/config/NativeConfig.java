@@ -46,10 +46,11 @@ public class NativeConfig
     private int storageCacheSizeInPages;
     private int skipIndexPercent = 80;
     private int taskMaxWorkerThreads = Runtime.getRuntime().availableProcessors() * 2;
+    private int taskMinWorkerThreads = 8; // used for configuring reduced resources catalogs
+    private int taskMinWarmingThreads; // used for limiting number of warming threads running in paralle to query
     private int debugPanicHaltPolicy;
     private int clusterLevel = -1;
     private int maxPageSourcesWithoutWarmingLimit = 8;
-    private int taskMinWarmingThreads;
 
     //////////////////////////// Enable flags and lists ///////////////////////////////
     // Exceptional Lists of record types is optional and not used for all features
@@ -249,6 +250,11 @@ public class NativeConfig
     public int getTaskMaxWorkerThreads()
     {
         return taskMaxWorkerThreads;
+    }
+
+    public int getTaskMinWorkerThreads()
+    {
+        return Math.min(taskMinWorkerThreads, taskMaxWorkerThreads);
     }
 
     @Config("warp-speed." + EXCEPTIONAL_LIST_COMPRESSION)

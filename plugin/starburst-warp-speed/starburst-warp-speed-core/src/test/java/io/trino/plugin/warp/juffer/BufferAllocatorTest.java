@@ -20,6 +20,7 @@ import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
 import io.trino.plugin.warp.dispatcher.model.RecordData;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.metrics.MetricsManager;
+import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
@@ -63,6 +64,7 @@ public class BufferAllocatorTest
         bufferAllocator = new BufferAllocator(storageEngine,
                 storageEngineConstants,
                 nativeConfig,
+                mock(ConnectorSync.class),
                 mock(MetricsManager.class),
                 new WarpInitializedServiceRegistry());
     }
@@ -94,6 +96,7 @@ public class BufferAllocatorTest
         BufferAllocator bufferAllocator = new BufferAllocator(storageEngine,
                 storageEngineConstants,
                 nativeConfig,
+                mock(ConnectorSync.class),
                 mock(MetricsManager.class),
                 new WarpInitializedServiceRegistry());
         // pre-alloc

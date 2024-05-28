@@ -18,9 +18,11 @@ import dev.failsafe.RetryPolicy;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
+import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.gen.stats.WorkerTaskExecutorServiceStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
+import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.opentest4j.AssertionFailedError;
@@ -48,8 +50,11 @@ public class WorkerTaskExecutorServiceTest
         this.taskExecutorService = new WorkerTaskExecutorService(
                 new WarmupDemoterConfig(),
                 new NativeConfig(),
+                mock(ConnectorSync.class),
                 metricManager,
-                new GlobalConfig());
+                new GlobalConfig(),
+                mock(WarpInitializedServiceRegistry.class));
+        this.taskExecutorService.init();
     }
 
     @Test

@@ -27,6 +27,7 @@ import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.BufferAllocatorStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
+import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.lucene.LuceneFileType;
@@ -66,8 +67,9 @@ public class BufferAllocator
 
     private final StorageEngine storageEngine;
     private final StorageEngineConstants storageEngineConstants;
+    private final ConnectorSync connectorSync;
     private final MetricsManager metricsManager;
-    private final ByteBuffer[] bundles;         // pool of Buffers initialized at startup. native layer manages alloc/free
+    private ByteBuffer[] bundles;         // pool of Buffers initialized at startup. native layer manages alloc/free
     private ArrayBlockingQueue<MemorySegment> loadSegmentsQueue; // loadSegment is the bundle, we use it to allocate juffers (record/null/etc)
     private ArrayBlockingQueue<MemorySegment> loadWriteBufferQueue; // loadWriteBuffer is storage engine buffer used to write to disk
     private ArrayBlockingQueue<MemorySegment> loadContextQueue; // loadContextQueue is storage engine buffer used for keeping in memory context during warmup
@@ -98,12 +100,14 @@ public class BufferAllocator
     public BufferAllocator(StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
             NativeConfig nativeConfig,
+            ConnectorSync connectorSync,
             MetricsManager metricsManager,
             WarpInitializedServiceRegistry warpInitializedServiceRegistry)
     {
         // services
         this.storageEngine = requireNonNull(storageEngine);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
+        this.connectorSync = requireNonNull(connectorSync);
         this.metricsManager = requireNonNull(metricsManager);
         this.nativeConfig = requireNonNull(nativeConfig);
         warpInitializedServiceRegistry.addService(this);
@@ -116,30 +120,12 @@ public class BufferAllocator
         this.queryStringNullValueSize = storageEngineConstants.getQueryStringNullValueSize();
 
         initBufferTypeSizes();
-        initWarmBundles();
-        initWarmWriteBuffer();
-        initWarmContextBuffer();
-        initPredicateBundle();
-
-        // read bundles
-        bundles = new ByteBuffer[storageEngineConstants.getNumBundles()];
-        for (int bufIx = 0; bufIx < bundles.length; bufIx++) {
-            bundles[bufIx] = storageEngine.getBundleFromPool(bufIx);
-            if (bundles[bufIx] != null) {
-                bundles[bufIx].order(ByteOrder.LITTLE_ENDIAN);
-            }
-        }
-
-        logger.info("loadSegmentsSize %d warmBundleSize %d warmWriteBufferSize %d warmContextBufferSize %d readNumBundles %d predicateBundleSize %dMB",
-                loadSegmentsQueue.size(), warmBundleSize, warmWriteBufferSize, warmContextBufferSize, bundles.length, nativeConfig.getPredicateBundleSizeInMegaBytes());
         this.stats = BufferAllocatorStats.create(BUFFER_ALLOCATOR_METRICS_GROUP);
     }
 
-    private void initWarmBundles()
+    private void initWarmBundles(int numSegments)
     {
         final long alignment = storageEngineConstants.getPageSize();
-        final int numSegments = nativeConfig.getTaskMaxWorkerThreads();
-        checkArgument(numSegments > 0, "no segments configured for warm bundles");
         final long allocSize = (long) warmBundleSize * numSegments + alignment;
 
         SegmentAllocator nativeAllocator = SegmentAllocator.slicingAllocator(Arena.global().allocate(allocSize, alignment));
@@ -151,7 +137,7 @@ public class BufferAllocator
         loadSegmentsQueue = new ArrayBlockingQueue<>(segmentList.size(), true, segmentList);
     }
 
-    private void initWarmWriteBuffer()
+    private void initWarmWriteBuffer(int numSegments)
     {
         // 3 for records, extended records and metadata (we take spare for metadata)
         int dataWriteBufferSize = storageEngineConstants.getRecordBufferMaxSize() * 3;
@@ -159,9 +145,6 @@ public class BufferAllocator
         this.warmWriteBufferSize = Math.max(dataWriteBufferSize, basicWriteBufferSize);
 
         final long alignment = storageEngineConstants.getPageSize();
-        final int numSegments = nativeConfig.getTaskMaxWorkerThreads();
-        checkArgument(numSegments > 0, "no segments configured for warm write buffers");
-
         final long allocSize = (long) warmWriteBufferSize * numSegments + alignment;
 
         SegmentAllocator nativeAllocator = SegmentAllocator.slicingAllocator(Arena.global().allocate(allocSize, alignment));
@@ -173,13 +156,11 @@ public class BufferAllocator
         loadWriteBufferQueue = new ArrayBlockingQueue<>(segmentList.size(), true, segmentList);
     }
 
-    private void initWarmContextBuffer()
+    private void initWarmContextBuffer(int numSegments)
     {
         // we take the maximal size limit and multiply by 1024, in practice since not all WEs are in maximal size we can warm at once more
         this.warmContextBufferSize = storageEngineConstants.getMaxWeContextSize() * 1024;
         final long alignment = Integer.BYTES;
-        final int numSegments = nativeConfig.getTaskMaxWorkerThreads();
-        checkArgument(numSegments > 0, "no segments configured for warm context buffers");
         final long allocSize = ((long) warmContextBufferSize) * numSegments + alignment;
 
         SegmentAllocator nativeAllocator = SegmentAllocator.slicingAllocator(Arena.global().allocate(allocSize, alignment));
@@ -191,12 +172,16 @@ public class BufferAllocator
         loadContextQueue = new ArrayBlockingQueue<>(segmentList.size(), true, segmentList);
     }
 
-    private void initPredicateBundle()
+    private long initPredicateBundle(boolean isReducedSize)
     {
         this.predicateBufferPools = new PredicateBufferPool[PredicateBufferPoolType.values().length];
 
         final long alignment = storageEngineConstants.getPageSize();
-        final long predicateBundleSize = (long) (nativeConfig.getPredicateBundleSizeInMegaBytes() << 20) + alignment;
+
+        long predicateBundleSize = (long) (nativeConfig.getPredicateBundleSizeInMegaBytes() << 20) + alignment;
+        if (isReducedSize) {
+            predicateBundleSize = (predicateBundleSize >> 2) + alignment;
+        }
 
         SegmentAllocator poolSlicer = SegmentAllocator.slicingAllocator(Arena.global().allocate(predicateBundleSize, alignment));
         predicateBufferPools[PredicateBufferPoolType.SMALL.ordinal()] = new PredicateBufferPool(PredicateBufferPoolType.SMALL,
@@ -211,6 +196,8 @@ public class BufferAllocator
                 PREDICATE_LARGE_BUF_SIZE,
                 PREDICATE_LARGE_NUM_BUFFERS,
                 poolSlicer);
+
+        return predicateBundleSize;
     }
 
     private void initBufferTypeSizes()
@@ -253,6 +240,31 @@ public class BufferAllocator
     @Override
     public void init()
     {
+        final int numSegments = connectorSync.isCatalogReducedResources() ? nativeConfig.getTaskMinWorkerThreads() : nativeConfig.getTaskMaxWorkerThreads();
+        checkArgument(numSegments > 0, "no segments configured for warming resources");
+        initWarmBundles(numSegments);
+        initWarmWriteBuffer(numSegments);
+        initWarmContextBuffer(numSegments);
+        final long predicateBundleSize = initPredicateBundle(connectorSync.isCatalogReducedResources());
+
+        // read bundles
+        bundles = new ByteBuffer[storageEngineConstants.getNumBundles()];
+        for (int bufIx = 0; bufIx < bundles.length; bufIx++) {
+            bundles[bufIx] = storageEngine.getBundleFromPool(bufIx);
+            if (bundles[bufIx] != null) {
+                bundles[bufIx].order(ByteOrder.LITTLE_ENDIAN);
+            }
+        }
+
+        logger.info("catalog %d loadSegmentsSize %d warmBundleSize %d warmWriteBufferSize %d warmContextBufferSize %d readNumBundles %d predicateBundleSize %dMB",
+                connectorSync.getCatalogSequence(),
+                loadSegmentsQueue.size(),
+                warmBundleSize,
+                warmWriteBufferSize,
+                warmContextBufferSize,
+                bundles.length,
+                predicateBundleSize >> 20);
+
         metricsManager.registerMetric(this.stats);
         updateStats(loadSegmentsQueue.size());
         stats.addallowed_loaders(loadSegmentsQueue.size());

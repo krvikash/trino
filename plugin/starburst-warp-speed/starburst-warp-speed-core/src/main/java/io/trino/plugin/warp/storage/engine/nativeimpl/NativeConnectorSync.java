@@ -152,4 +152,10 @@ public class NativeConnectorSync
     {
         return catalogName;
     }
+
+    @Override
+    public boolean isCatalogReducedResources()
+    {
+        return catalogSequence >= 4;
+    }
 }

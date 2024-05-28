@@ -22,10 +22,13 @@ import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
+import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.warmup.export.WeGroupCloudExporterTask;
 import io.trino.plugin.warp.gen.stats.WorkerTaskExecutorServiceStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
+import io.trino.plugin.warp.storage.engine.ConnectorSync;
+import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
 
 import java.util.Comparator;
 import java.util.Iterator;
@@ -52,11 +55,13 @@ import static java.util.Objects.requireNonNull;
 
 @Singleton
 public class WorkerTaskExecutorService
+        implements WarpInitializedServiceMarker
 {
     public static final String WORKER_TASK_EXECUTOR_STAT_GROUP = "worker-task-executor";
     private static final Logger logger = Logger.get(WorkerTaskExecutorService.class);
     private final WarmupDemoterConfig warmupDemoterConfig;
     private final NativeConfig nativeConfig;
+    private final ConnectorSync connectorSync;
     private final WorkerTaskExecutorServiceStats statsWorkerTaskExecutorService;
     private final Map<RowGroupKey, UUID> submittedRowGroups = new ConcurrentHashMap<>();
     private final SetMultimap<RowGroupKey, WorkerSubmittableTask> pendingTasks = Multimaps.newSetMultimap(new ConcurrentHashMap<>(), () -> {
@@ -64,10 +69,10 @@ public class WorkerTaskExecutorService
         return new TreeSet<>(c.reversed());
     });
     private final ReentrantLock lock = new ReentrantLock();
-    private final ExecutorService prioritizeExecutorService;
-    private final ExecutorService cloudExecutorService;
-    private final ExecutorService proxyExecutorService;
-    private final ScheduledExecutorService scheduledCloudExecutorService;
+    private ExecutorService prioritizeExecutorService;
+    private ExecutorService cloudExecutorService;
+    private ExecutorService proxyExecutorService;
+    private ScheduledExecutorService scheduledCloudExecutorService;
     private final int queueSize;
     private final GlobalConfig globalConfig;
 
@@ -75,18 +80,27 @@ public class WorkerTaskExecutorService
     public WorkerTaskExecutorService(
             WarmupDemoterConfig warmupDemoterConfig,
             NativeConfig nativeConfig,
+            ConnectorSync connectorSync,
             MetricsManager metricsManager,
-            GlobalConfig globalConfig)
+            GlobalConfig globalConfig,
+            WarpInitializedServiceRegistry warpInitializedServiceRegistry)
     {
         this.warmupDemoterConfig = requireNonNull(warmupDemoterConfig);
         this.nativeConfig = requireNonNull(nativeConfig);
+        this.connectorSync = requireNonNull(connectorSync);
         this.statsWorkerTaskExecutorService = metricsManager.registerMetric(new WorkerTaskExecutorServiceStats(WORKER_TASK_EXECUTOR_STAT_GROUP));
         this.queueSize = warmupDemoterConfig.getTasksExecutorQueueSize();
         this.globalConfig = requireNonNull(globalConfig);
+        warpInitializedServiceRegistry.addService(this);
+    }
+
+    @Override
+    public void init()
+    {
         prioritizeExecutorService = getPrioritizeExecutorService();
         cloudExecutorService = getCloudExecutorService();
         scheduledCloudExecutorService = getScheduledCloudExecutorService();
-        proxyExecutorService = getProxyExecutorService();
+        proxyExecutorService = getProxyExecutorService(connectorSync.isCatalogReducedResources() ? nativeConfig.getTaskMinWorkerThreads() : nativeConfig.getTaskMaxWorkerThreads());
     }
 
     private ExecutorService getPrioritizeExecutorService()
@@ -116,9 +130,9 @@ public class WorkerTaskExecutorService
         return new ScheduledThreadPoolExecutor(poolSize, daemonThreadsNamed("warp-speed-worker-task-executor-%s"));
     }
 
-    private ExecutorService getProxyExecutorService()
+    private ExecutorService getProxyExecutorService(int numWorkerThreads)
     {
-        int poolSize = getPoolSize(nativeConfig.getTaskMaxWorkerThreads());
+        int poolSize = getPoolSize(numWorkerThreads);
         BlockingQueue<Runnable> blockingQueue = new PriorityBlockingQueue<>(
                 queueSize,
                 Comparator.comparingDouble(x -> ((WorkerSubmittableTask) x).getPriority()).reversed());

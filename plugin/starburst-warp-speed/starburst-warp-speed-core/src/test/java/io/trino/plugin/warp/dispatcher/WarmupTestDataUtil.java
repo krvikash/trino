@@ -40,6 +40,7 @@ import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.metrics.MetricsManager;
+import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.lucene.LuceneFileType;
@@ -328,8 +329,10 @@ public class WarmupTestDataUtil
                 storageEngine,
                 storageEngineConstants,
                 nativeConfig,
+                mock(ConnectorSync.class),
                 metricsManager,
                 new WarpInitializedServiceRegistry()));
+        bufferAllocator.init();
 
         int numSegments = JbufType.JBUF_TYPE_NUM_OF.ordinal();
         MemorySegment[] segments = new MemorySegment[numSegments];
