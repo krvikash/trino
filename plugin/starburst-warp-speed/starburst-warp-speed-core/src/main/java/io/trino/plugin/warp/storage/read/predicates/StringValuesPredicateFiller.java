@@ -14,29 +14,23 @@
 package io.trino.plugin.warp.storage.read.predicates;
 
 import io.airlift.log.Logger;
-import io.airlift.slice.Slice;
 import io.trino.plugin.warp.dispatcher.query.PredicateData;
 import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
-import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.plugin.warp.util.SliceUtils;
 import io.trino.plugin.warp.util.StringPredicateData;
-import io.trino.spi.block.Block;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.SortedRangeSet;
-import io.trino.spi.type.Type;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Function;
 
 public class StringValuesPredicateFiller
         extends PredicateFiller<Domain>
 {
     private static final Logger logger = Logger.get(StringValuesPredicateFiller.class);
-    private final StorageEngineConstants storageEngineConstants;
+    final StorageEngineConstants storageEngineConstants;
 
     public StringValuesPredicateFiller(StorageEngineConstants storageEngineConstants, BufferAllocator bufferAllocator)
     {
@@ -56,15 +50,8 @@ public class StringValuesPredicateFiller
     {
         ByteBuffer predicateBufferLow = bufferAllocator.createBuffView(predicateBuffer);
         ByteBuffer predicateBufferHigh = bufferAllocator.createBuffView(predicateBuffer);
-        Type type = value.getType();
-        int typeLength = TypeUtils.getTypeLength(type, storageEngineConstants.getVarcharMaxLen());
-        Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(type,
-                typeLength,
-                typeLength <= storageEngineConstants.getFixedLengthStringLimit(),
-                // isValidateSize is false to allow too long strings (like utf8
-                false);
         // this predicate order MUST be kept !!!
-        convertString(value, predicateBufferLow, predicateBufferHigh, typeLength, sliceConverter);
+        convertString(value, predicateBufferLow, predicateBufferHigh);
     }
 
     @Override
@@ -73,7 +60,7 @@ public class StringValuesPredicateFiller
         return PredicateType.PREDICATE_TYPE_STRING_VALUES;
     }
 
-    void convertString(Domain domain, ByteBuffer lowBuf, ByteBuffer highBuf, int recLength, Function<Slice, Slice> sliceConverter)
+    void convertString(Domain domain, ByteBuffer lowBuf, ByteBuffer highBuf)
     {
         SortedRangeSet sortedRangeSet = (SortedRangeSet) domain.getValues();
         try {
@@ -85,13 +72,7 @@ public class StringValuesPredicateFiller
             lowBuf.position(0);
             highBuf.position(highBufStartPos);
 
-            List<Slice> slices = new ArrayList<>(sortedRangeSet.getRangeCount());
-            Block sortedRangesBlock = sortedRangeSet.getSortedRanges();
-            Type type = domain.getType();
-            for (int i = 0; i < sortedRangesBlock.getPositionCount(); i += 2) {
-                slices.add(type.getSlice(sortedRangesBlock, i));
-            }
-            List<StringPredicateData> strList = SliceUtils.orderRanges(slices, recLength, sliceConverter);
+            List<StringPredicateData> strList = SliceUtils.getOrderedStringData(sortedRangeSet, rangesCount, storageEngineConstants);
             for (StringPredicateData str : strList) {
                 lowBuf.putLong(str.comperationValue());
                 long val = SliceUtils.str2int(str.value(), str.length(), true);

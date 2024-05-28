@@ -176,9 +176,6 @@ class NativeCollectClassifier
         // if we decided to use the match element, we take it
         if (useMatchElement) {
             warmUpElement = queryMatchData.getWarmUpElement();
-            if (warmUpElement.isDictionaryUsed()) {
-                canMapMatchCollect = false;
-            }
         }
 
         // check feasibility in terms of memory

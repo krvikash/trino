@@ -29,6 +29,7 @@ import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.juffer.BufferAllocator;
+import io.trino.plugin.warp.juffer.DomainToMapBlockConvertor;
 import io.trino.plugin.warp.juffer.PredicateCacheData;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.metrics.MetricsManager;
@@ -70,10 +71,12 @@ class PredicateBufferClassifierTest
         BufferAllocator bufferAllocator = mock(BufferAllocator.class);
         when(bufferAllocator.allocPredicateBuffer(anyInt())).thenReturn(null);
         StorageEngineConstants storageEngineConstants = new StubsStorageEngineConstants();
+        DomainToMapBlockConvertor domainToMapBlockConvertor = new DomainToMapBlockConvertor();
         MetricsManager metricsManager = mock(MetricsManager.class);
         predicatesCacheService = spy(new PredicatesCacheService(bufferAllocator,
                 storageEngineConstants,
-                metricsManager));
+                metricsManager,
+                domainToMapBlockConvertor));
         doReturn(Optional.of(mock(PredicateCacheData.class))).when(predicatesCacheService).predicateDataToBuffer(any(), any());
         predicateBufferClassifier = new PredicateBufferClassifier(predicatesCacheService);
 

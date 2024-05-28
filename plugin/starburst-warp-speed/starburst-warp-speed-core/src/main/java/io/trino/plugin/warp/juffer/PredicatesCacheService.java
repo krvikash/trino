@@ -35,7 +35,6 @@ import io.trino.plugin.warp.storage.read.predicates.RangesPredicateFiller;
 import io.trino.plugin.warp.storage.read.predicates.StringRangesPredicateFiller;
 import io.trino.plugin.warp.storage.read.predicates.StringValuesPredicateFiller;
 import io.trino.plugin.warp.storage.read.predicates.ValuesPredicateFiller;
-import io.trino.plugin.warp.util.DomainUtils;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.predicate.Domain;
@@ -61,16 +60,19 @@ public class PredicatesCacheService
     private final BufferAllocator bufferAllocator;
     private final StorageEngineConstants storageEngineConstants;
     private final CachePredicatesStats cachePredicatesStats;
+    private final DomainToMapBlockConvertor domainToMapBlockConvertor;
     private final Lock readLock;
     private final Lock writeLock;
 
     @Inject
     public PredicatesCacheService(BufferAllocator bufferAllocator,
             StorageEngineConstants storageEngineConstants,
-            MetricsManager metricsManager)
+            MetricsManager metricsManager,
+            DomainToMapBlockConvertor domainToMapBlockConvertor)
     {
         this.bufferAllocator = requireNonNull(bufferAllocator);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
+        this.domainToMapBlockConvertor = domainToMapBlockConvertor;
         ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
         this.readLock = readWriteLock.readLock();
         this.writeLock = readWriteLock.writeLock();
@@ -116,7 +118,7 @@ public class PredicatesCacheService
             return false;
         }
 
-        return PredicateUtil.canMapMatchCollect(predicateData.getColumnType(),
+        return PredicateUtil.canMapMatchCollect(values.getType(),
                 predicateData.getPredicateInfo().predicateType(),
                 predicateData.getPredicateInfo().functionType(),
                 values.getValues().getRanges().getRangeCount());
@@ -128,7 +130,7 @@ public class PredicatesCacheService
         PredicateBufferInfo predicateBufferInfo = bufferAllocator.allocPredicateBuffer(predicateData.getPredicateSize());
         if (predicateBufferInfo != null) {
             // The dictionary is generated for each predicate and cached with other predicate data, but its utilization is decided per split in createMatchCollect().
-            Optional<Block> valuesDict = canMapMatchCollect(predicateData, values) ? DomainUtils.convertDomainToMapBlock(values) : Optional.empty();
+            Optional<Block> valuesDict = canMapMatchCollect(predicateData, values) ? domainToMapBlockConvertor.convert(values) : Optional.empty();
             ret = Optional.of(new PredicateCacheData(predicateBufferInfo, valuesDict));
         }
         return ret;

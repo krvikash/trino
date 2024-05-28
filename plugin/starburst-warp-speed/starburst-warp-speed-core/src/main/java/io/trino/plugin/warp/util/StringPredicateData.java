@@ -13,13 +13,16 @@
  */
 package io.trino.plugin.warp.util;
 
+import io.airlift.slice.Slice;
+
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 public record StringPredicateData(
         ByteBuffer value,
         int length,
-        long comperationValue)
+        long comperationValue,
+        Slice orgVal)
         implements Comparable<StringPredicateData>
 {
     @Override

@@ -48,6 +48,7 @@ import io.trino.plugin.warp.dispatcher.warmup.warmers.VaradaProxiedWarmer;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmingManager;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmupElementsCreator;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WeGroupWarmer;
+import io.trino.plugin.warp.juffer.DomainToMapBlockConvertor;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.storage.read.ChunksQueueService;
 import io.trino.plugin.warp.storage.read.CollectTxService;
@@ -120,6 +121,7 @@ public class DispatcherMainModule
             binder.bind(StorageWriterService.class);
             binder.bind(BlockAppenderFactory.class);
             binder.bind(BlockTransformerFactory.class);
+            binder.bind(DomainToMapBlockConvertor.class);
         }
         if (VaradaBaseModule.isSingle(config)) {
             binder.bind(DispatcherConnectorBase.class).to(SingleDispatcherConnector.class);

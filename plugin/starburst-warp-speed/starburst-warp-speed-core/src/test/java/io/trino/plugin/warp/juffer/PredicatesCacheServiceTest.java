@@ -50,6 +50,7 @@ public class PredicatesCacheServiceTest
     CachePredicatesStats cachePredicatesStats;
     BufferAllocator bufferAllocator;
     PredicatesCacheService predicatesCacheService;
+    DomainToMapBlockConvertor domainToMapBlockConvertor;
 
     static Stream<Arguments> poolTypes()
     {
@@ -64,6 +65,7 @@ public class PredicatesCacheServiceTest
         storageEngineConstants = new StubsStorageEngineConstants();
         cachePredicatesStats = CachePredicatesStats.create(PredicatesCacheService.STATS_CACHE_PREDICATE_KEY);
         bufferAllocator = mock(BufferAllocator.class);
+        domainToMapBlockConvertor = new DomainToMapBlockConvertor();
         ByteBuffer byteBuffer = ByteBuffer.allocate(1024);
         when(bufferAllocator.memorySegment2PredicateBuff(any())).thenReturn(byteBuffer);
         when(bufferAllocator.createBuffView(byteBuffer)).thenReturn(byteBuffer);
@@ -73,7 +75,8 @@ public class PredicatesCacheServiceTest
         when(metricsManager.registerMetric(any())).thenReturn(cachePredicatesStats);
         predicatesCacheService = new PredicatesCacheService(bufferAllocator,
                 storageEngineConstants,
-                metricsManager);
+                metricsManager,
+                domainToMapBlockConvertor);
     }
 
     @ParameterizedTest

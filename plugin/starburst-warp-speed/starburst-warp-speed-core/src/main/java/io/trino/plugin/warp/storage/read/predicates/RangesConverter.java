@@ -319,8 +319,9 @@ class RangesConverter
             lowBuf.put(INCLUSIVE); // inclusive
             posIx++;
 
-            Slice highSlice = sliceConverter.apply(type.getSlice(sortedRangesBlock, posIx));
-            stringPredicateData = stringPredicateDataFactory.create(highSlice, recLength, false);
+            Slice highSlice = type.getSlice(sortedRangesBlock, posIx);
+            Slice convertedHighSlice = sliceConverter.apply(highSlice);
+            stringPredicateData = stringPredicateDataFactory.create(convertedHighSlice, recLength, false, highSlice);
             highBuf.putLong(stringPredicateData.comperationValue());
             highBuf.put(inclusive[posIx] ? INCLUSIVE : EXCLUSIVE); // BELOW is the '0' case
             posIx++;
@@ -328,28 +329,30 @@ class RangesConverter
 
         final int endPosIx = isUnbounded(sortedRangesBlock, positionCount - 1) ? positionCount - 2 : positionCount;
         while (posIx < endPosIx) {
-            Slice lowSlice = sliceConverter.apply(type.getSlice(sortedRangesBlock, posIx));
-            stringPredicateData = stringPredicateDataFactory.create(lowSlice, recLength, false);
+            Slice lowSlice = type.getSlice(sortedRangesBlock, posIx);
+            Slice convertedLowSlice = sliceConverter.apply(lowSlice);
+            stringPredicateData = stringPredicateDataFactory.create(convertedLowSlice, recLength, false, lowSlice);
             lowBuf.putLong(stringPredicateData.comperationValue());
             lowBuf.put(inclusive[posIx] ? INCLUSIVE : EXCLUSIVE);
             posIx++;
 
-            Slice highSlice = sliceConverter.apply(type.getSlice(sortedRangesBlock, posIx));
-            stringPredicateData = stringPredicateDataFactory.create(highSlice, recLength, false);
+            Slice highSlice = type.getSlice(sortedRangesBlock, posIx);
+            Slice convertedHighSlice = sliceConverter.apply(highSlice);
+            stringPredicateData = stringPredicateDataFactory.create(convertedHighSlice, recLength, false, highSlice);
             highBuf.putLong(stringPredicateData.comperationValue());
             highBuf.put(inclusive[posIx] ? INCLUSIVE : EXCLUSIVE);
             posIx++;
         }
 
         if (posIx < positionCount) {
-            Slice lowSlice = sliceConverter.apply(type.getSlice(sortedRangesBlock, posIx));
-            stringPredicateData = stringPredicateDataFactory.create(lowSlice, recLength, false);
+            Slice lowSlice = type.getSlice(sortedRangesBlock, posIx);
+            Slice convertedLowSlice = sliceConverter.apply(lowSlice);
+            stringPredicateData = stringPredicateDataFactory.create(convertedLowSlice, recLength, false, lowSlice);
             lowBuf.putLong(stringPredicateData.comperationValue());
             lowBuf.put(inclusive[posIx] ? INCLUSIVE : EXCLUSIVE); // ABOVE is the '0' case
             posIx++;
             highBuf.putLong(LONG_UPPER_UNBOUNDED);
             highBuf.put(INCLUSIVE); // inclusive
-            posIx++;
         }
     }
 

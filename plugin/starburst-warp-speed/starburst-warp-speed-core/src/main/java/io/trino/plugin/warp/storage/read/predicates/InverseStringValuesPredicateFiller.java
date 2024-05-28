@@ -14,21 +14,16 @@
 package io.trino.plugin.warp.storage.read.predicates;
 
 import io.airlift.log.Logger;
-import io.airlift.slice.Slice;
 import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.util.SliceUtils;
 import io.trino.plugin.warp.util.StringPredicateData;
-import io.trino.spi.block.Block;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.SortedRangeSet;
-import io.trino.spi.type.Type;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Function;
 
 public class InverseStringValuesPredicateFiller
         extends StringValuesPredicateFiller
@@ -48,7 +43,7 @@ public class InverseStringValuesPredicateFiller
     }
 
     @Override
-    void convertString(Domain domain, ByteBuffer lowBuf, ByteBuffer highBuf, int recLength, Function<Slice, Slice> sliceConverter)
+    void convertString(Domain domain, ByteBuffer lowBuf, ByteBuffer highBuf)
     {
         try {
             int numValues = ((SortedRangeSet) domain.getValues()).getRangeCount() - 1;
@@ -56,15 +51,8 @@ public class InverseStringValuesPredicateFiller
             highBuf.position(Long.BYTES * numValues);
 
             SortedRangeSet sortedRangeSet = (SortedRangeSet) domain.getValues();
-            List<Slice> slices = new ArrayList<>(sortedRangeSet.getRangeCount());
-            Block sortedRangesBlock = sortedRangeSet.getSortedRanges();
-            Type type = domain.getType();
             // each value has low, high. upper bound of one range equals the lower bound of the next range. Starts with MIN and ends with MAX
-            for (int i = 1; i < numValues * 2; i += 2) {
-                slices.add(type.getSlice(sortedRangesBlock, i));
-            }
-
-            List<StringPredicateData> strList = SliceUtils.orderRanges(slices, recLength, sliceConverter);
+            List<StringPredicateData> strList = SliceUtils.getOrderedStringData(sortedRangeSet, numValues, storageEngineConstants);
 
             for (StringPredicateData str : strList) {
                 lowBuf.putLong(str.comperationValue());

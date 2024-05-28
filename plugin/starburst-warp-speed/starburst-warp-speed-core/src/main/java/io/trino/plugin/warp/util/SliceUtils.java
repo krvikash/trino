@@ -17,8 +17,11 @@ import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.trino.plugin.warp.VaradaErrorCode;
+import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.spi.TrinoException;
+import io.trino.spi.block.Block;
+import io.trino.spi.predicate.SortedRangeSet;
 import io.trino.spi.type.CharType;
 import io.trino.spi.type.MapType;
 import io.trino.spi.type.Type;
@@ -245,30 +248,34 @@ public class SliceUtils
 
     public static class StringPredicateDataFactory
     {
-        public StringPredicateData create(Slice value, int weRecLength, boolean crc)
+        public StringPredicateData create(Slice value, int weRecLength, boolean crc, Slice orgVal)
         {
             ByteBuffer byteBuffer = value.toByteBuffer();
             /* is case of special char len, we use values instead of crc since crc is not used in C layer */
             return new StringPredicateData(byteBuffer, value.length(),
-                    calcStringValue(byteBuffer, value.length(), weRecLength, crc));
+                    calcStringValue(byteBuffer, value.length(), weRecLength, crc), orgVal);
         }
     }
 
-    public static List<StringPredicateData> orderRanges(List<Slice> slices, int recLength, Function<Slice, Slice> sliceConverter)
+    public static List<StringPredicateData> getOrderedStringData(SortedRangeSet sortedRangeSet, int numValues,
+            StorageEngineConstants storageEngineConstants)
     {
-        List<StringPredicateData> strList = new ArrayList<>(slices.size());
-
+        Type type = sortedRangeSet.getType();
+        int recLength = TypeUtils.getTypeLength(type, storageEngineConstants.getVarcharMaxLen());
+        boolean isFixedLength = recLength <= storageEngineConstants.getFixedLengthStringLimit();
+        Function<Slice, Slice> sliceConverter = getSliceConverter(type, recLength, isFixedLength, false);
+        List<StringPredicateData> strDataList = new ArrayList<>(numValues);
         SliceUtils.StringPredicateDataFactory stringPredicateDataFactory = new SliceUtils.StringPredicateDataFactory();
+        // Starting from 1 since inverse values are represented as ranges and starts with MIN and ends with MAX
+        Block sortedRangesBlock = sortedRangeSet.getSortedRanges();
 
-        for (Slice slice : slices) {
-            Slice value = sliceConverter.apply(slice);
+        for (int i = 1; i < numValues * 2; i += 2) {
+            Slice orgVal = type.getSlice(sortedRangesBlock, i);
+            Slice value = sliceConverter.apply(orgVal);
             // crc is calculated on the string without the length byte in native as well
-            strList.add(stringPredicateDataFactory.create(value, recLength, true));
+            strDataList.add(stringPredicateDataFactory.create(value, recLength, true, orgVal));
         }
-
-        // sort the crc array and put it in the low buf
-        Collections.sort(strList);
-
-        return strList;
+        Collections.sort(strDataList);
+        return strDataList;
     }
 }

@@ -20,6 +20,7 @@ import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.gen.stats.CachePredicatesStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
+import io.trino.plugin.warp.juffer.DomainToMapBlockConvertor;
 import io.trino.plugin.warp.juffer.PredicateBufferInfo;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.metrics.MetricsManager;
@@ -49,6 +50,7 @@ class InverseValuesPredicateFillerTest
     private BufferAllocator bufferAllocator;
     private StubsStorageEngineConstants storageEngineConstants;
     private CachePredicatesStats cachePredicatesStats;
+    private DomainToMapBlockConvertor domainToMapBlockConvertor;
 
     @BeforeEach
     public void before()
@@ -60,6 +62,7 @@ class InverseValuesPredicateFillerTest
         when(bufferAllocator.createBuffView(any())).thenReturn(high);
         storageEngineConstants = new StubsStorageEngineConstants();
         cachePredicatesStats = CachePredicatesStats.create(PredicatesCacheService.STATS_CACHE_PREDICATE_KEY);
+        domainToMapBlockConvertor = new DomainToMapBlockConvertor();
     }
 
     @AfterEach
@@ -76,7 +79,8 @@ class InverseValuesPredicateFillerTest
         when(metricsManager.registerMetric(any())).thenReturn(cachePredicatesStats);
         PredicatesCacheService predicatesCacheService = new PredicatesCacheService(bufferAllocator,
                 storageEngineConstants,
-                metricsManager);
+                metricsManager,
+                domainToMapBlockConvertor);
 
         Range range1 = Range.range(IntegerType.INTEGER, (long) Integer.MIN_VALUE, false, 8L, false);
         Range range2 = Range.range(IntegerType.INTEGER, 8L, false, (long) Integer.MAX_VALUE, false);
