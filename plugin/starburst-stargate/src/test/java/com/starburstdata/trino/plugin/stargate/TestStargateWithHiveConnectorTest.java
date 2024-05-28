@@ -137,6 +137,15 @@ public class TestStargateWithHiveConnectorTest
     }
 
     @Test
+    @Override
+    public void testBulkColumnListingOptions()
+    {
+        assertThatThrownBy(super::testBulkColumnListingOptions)
+                .hasMessageMatching("This connector does not support creating tables");
+        abort("this is tested with another test class: " + TestStargateWithMemoryWritesEnabledConnectorTest.class);
+    }
+
+    @Test
     public void testReadFromRemoteHiveView()
     {
         onRemoteDatabase().execute("CREATE OR REPLACE VIEW hive.tiny.nation_count AS SELECT COUNT(*) cnt FROM tpch.tiny.nation");
