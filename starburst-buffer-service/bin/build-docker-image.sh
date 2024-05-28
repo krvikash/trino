@@ -6,7 +6,7 @@ cd ${BASH_SOURCE%/*}
 
 projectName=""
 imageRepositories=()
-projectVersion="1-SNAPSHOT"
+projectVersion=""
 jdkVersion=21
 mainBuild=true
 archTypes=""
@@ -75,6 +75,13 @@ case ${projectName} in
     exit 1;
     ;;
 esac
+
+if [[ "${projectVersion}" == "" ]]; then
+  # Move to the root directory to run maven for current version.
+  pushd ../..
+  projectVersion="$(./mvnw --quiet help:evaluate -Dexpression=project.version -DforceStdout)"
+  popd
+fi
 
 buildArguments=()
 for imageRepository in ${imageRepositories[@]}; do
