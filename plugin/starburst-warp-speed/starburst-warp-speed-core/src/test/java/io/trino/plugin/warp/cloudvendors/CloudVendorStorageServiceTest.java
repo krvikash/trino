@@ -23,8 +23,11 @@ import io.trino.plugin.warp.tools.util.CompressionUtil;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mockito;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -34,6 +37,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -190,5 +194,25 @@ public class CloudVendorStorageServiceTest
         {
             return iterator.next();
         }
+    }
+
+    @ParameterizedTest
+    @MethodSource("exceptions")
+    void test_getObjectMetadata(Exception exception)
+            throws IOException
+    {
+        TrinoInputFile trinoInputFile = Mockito.mock(TrinoInputFile.class);
+        Mockito.when(cloudStorage.newInputFile(any(Location.class))).thenReturn(trinoInputFile);
+        Mockito.when(trinoInputFile.length()).thenThrow(exception);
+
+        cloudVendorStorageService.getObjectMetadata("s3://bucketName/objectName");
+    }
+
+    private static Stream<Exception> exceptions()
+    {
+        return Stream.of(
+                new IOException("test"),
+                new FileNotFoundException("test"),
+                new IOException("test 1", new FileNotFoundException("test 2")));
     }
 }

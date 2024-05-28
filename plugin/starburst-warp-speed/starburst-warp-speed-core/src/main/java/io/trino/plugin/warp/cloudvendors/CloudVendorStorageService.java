@@ -28,6 +28,7 @@ import io.trino.plugin.warp.tools.util.CompressionUtil;
 import io.trino.plugin.warp.tools.util.StringUtils;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -281,7 +282,12 @@ public class CloudVendorStorageService
             logger.debug("getObjectMetadata location [%s] length %d lastModified %s", location, length, lastModified);
         }
         catch (IOException e) {
-            shapingLogger.error(e, "getObjectMetadata failed location [%s]".formatted(location));
+            if ((e instanceof FileNotFoundException) || (e.getCause() instanceof FileNotFoundException)) {
+                shapingLogger.debug(e, "getObjectMetadata failed location [%s]".formatted(location));
+            }
+            else {
+                shapingLogger.error(e, "getObjectMetadata failed location [%s]".formatted(location));
+            }
             // do nothing
 //            throw new RuntimeException(e);
         }
