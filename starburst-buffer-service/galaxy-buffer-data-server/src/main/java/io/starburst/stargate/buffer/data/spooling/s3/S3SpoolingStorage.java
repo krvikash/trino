@@ -39,6 +39,7 @@ import jakarta.annotation.PreDestroy;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.core.async.AsyncResponseTransformer;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.services.s3.model.ChecksumAlgorithm;
 import software.amazon.awssdk.services.s3.model.Delete;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
@@ -137,6 +138,7 @@ public class S3SpoolingStorage
         PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                 .bucket(bucketName)
                 .key(fileName)
+                .checksumAlgorithm(ChecksumAlgorithm.CRC32_C)
                 .build();
         ImmutableMap.Builder<Long, SpooledChunk> spooledChunkMap = ImmutableMap.builder();
         return Futures.transform(
