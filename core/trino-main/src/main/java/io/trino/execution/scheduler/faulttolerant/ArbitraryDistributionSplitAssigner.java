@@ -28,6 +28,7 @@ import io.trino.split.RemoteSplit;
 import io.trino.sql.planner.plan.PlanNodeId;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -153,7 +154,7 @@ class ArbitraryDistributionSplitAssigner
             if (allAssignments.isEmpty()) {
                 // at least a single partition is expected to be created
                 allAssignments.add(new PartitionAssignment(0));
-                assignment.addPartition(new Partition(0, new NodeRequirements(catalogRequirement, ImmutableSet.of())));
+                assignment.addPartition(new Partition(0, new NodeRequirements(catalogRequirement, ImmutableSet.of(), true)));
                 for (PlanNodeId replicatedSourceId : replicatedSources) {
                     assignment.updatePartition(new PartitionUpdate(
                             0,
@@ -271,7 +272,7 @@ class ArbitraryDistributionSplitAssigner
             if (allAssignments.isEmpty()) {
                 // at least a single partition is expected to be created
                 allAssignments.add(new PartitionAssignment(0));
-                assignment.addPartition(new Partition(0, new NodeRequirements(catalogRequirement, ImmutableSet.of())));
+                assignment.addPartition(new Partition(0, new NodeRequirements(catalogRequirement, ImmutableSet.of(), true)));
                 for (PlanNodeId replicatedSourceId : replicatedSources) {
                     assignment.updatePartition(new PartitionUpdate(
                             0,
@@ -346,7 +347,7 @@ class ArbitraryDistributionSplitAssigner
      */
     private long rank(HostAddress address)
     {
-        // The node-to-split map can have two entries for this address: one for failover-allowed splits and one for failover-forbidden splits.
+        // The node-to-split map can have two entries for this address: one for remotely accessible splits and one for non remotely accessible splits.
         PartitionAssignment flexEntry = openAssignments.get(new NodeRequirements(catalogRequirement, ImmutableSet.of(address), true));
         PartitionAssignment rigidEntry = openAssignments.get(new NodeRequirements(catalogRequirement, ImmutableSet.of(address), false));
         if (flexEntry == null && rigidEntry == null) {
@@ -364,22 +365,14 @@ class ArbitraryDistributionSplitAssigner
 
     private NodeRequirements getNodeRequirements(Split split)
     {
-        if (split.isRemotelyAccessible()) {
-            return new NodeRequirements(catalogRequirement, ImmutableSet.of(), false);
+        if (split.getAddresses().isEmpty()) {
+            checkArgument(split.isRemotelyAccessible(), "split is not remotely accessible but the list of hosts is empty: %s", split);
+            return new NodeRequirements(catalogRequirement, ImmutableSet.of(), true);
         }
-        List<HostAddress> addresses = split.getAddresses();
-        checkArgument(!addresses.isEmpty(), "split is not remotely accessible but the list of hosts is empty: %s", split);
-        HostAddress selectedAddress = null;
-        long selectedAssignmentRank = Long.MAX_VALUE;
-        for (HostAddress address : addresses) {
-            long rank = rank(address);
-            if (rank < selectedAssignmentRank) {
-                selectedAddress = address;
-                selectedAssignmentRank = rank;
-            }
-        }
-        verify(selectedAddress != null, "selectedAddress is null");
-        return new NodeRequirements(catalogRequirement, ImmutableSet.of(selectedAddress), split.isRemotelyAccessibleIfNodeMissing());
+        HostAddress selectedAddress = split.getAddresses().stream()
+                .min(Comparator.comparing(this::rank))
+                .orElseThrow();
+        return new NodeRequirements(catalogRequirement, ImmutableSet.of(selectedAddress), split.isRemotelyAccessible());
     }
 
     private long getSplitSizeInBytes(Split split)

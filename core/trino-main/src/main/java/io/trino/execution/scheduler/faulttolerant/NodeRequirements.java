@@ -22,6 +22,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
+import static com.google.common.base.Preconditions.checkArgument;
 import static io.airlift.slice.SizeOf.estimatedSizeOf;
 import static io.airlift.slice.SizeOf.instanceSize;
 import static io.airlift.slice.SizeOf.sizeOf;
@@ -33,27 +34,14 @@ public class NodeRequirements
 
     private final Optional<CatalogHandle> catalogHandle;
     private final Set<HostAddress> addresses;
+    private final boolean remotelyAccessible;
 
-    /**
-     * When true, the scheduler is allowed to use a random node if all {@link #addresses} hosts go down.
-     */
-    private final boolean allowsNodeFailover;
-
-    public NodeRequirements(Optional<CatalogHandle> catalogHandle, Set<HostAddress> addresses)
+    public NodeRequirements(Optional<CatalogHandle> catalogHandle, Set<HostAddress> addresses, boolean remotelyAccessible)
     {
-        this(catalogHandle, addresses, false);
-    }
-
-    public NodeRequirements(Optional<CatalogHandle> catalogHandle, Set<HostAddress> addresses, boolean allowNodeFailover)
-    {
+        checkArgument(remotelyAccessible || !addresses.isEmpty(), "addresses is empty and node is not remotely accessible");
         this.catalogHandle = requireNonNull(catalogHandle, "catalogHandle is null");
         this.addresses = ImmutableSet.copyOf(requireNonNull(addresses, "addresses is null"));
-        this.allowsNodeFailover = allowNodeFailover;
-    }
-
-    public boolean allowsNodeFailover()
-    {
-        return allowsNodeFailover;
+        this.remotelyAccessible = remotelyAccessible;
     }
 
     /*
@@ -72,6 +60,11 @@ public class NodeRequirements
         return addresses;
     }
 
+    public boolean isRemotelyAccessible()
+    {
+        return remotelyAccessible;
+    }
+
     @Override
     public boolean equals(Object o)
     {
@@ -82,13 +75,15 @@ public class NodeRequirements
             return false;
         }
         NodeRequirements that = (NodeRequirements) o;
-        return Objects.equals(catalogHandle, that.catalogHandle) && Objects.equals(addresses, that.addresses) && this.allowsNodeFailover == that.allowsNodeFailover;
+        return Objects.equals(catalogHandle, that.catalogHandle)
+                && Objects.equals(addresses, that.addresses)
+                && remotelyAccessible == that.remotelyAccessible;
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hash(catalogHandle, addresses, allowsNodeFailover);
+        return Objects.hash(catalogHandle, addresses, remotelyAccessible);
     }
 
     @Override
@@ -97,7 +92,7 @@ public class NodeRequirements
         return toStringHelper(this)
                 .add("catalogHandle", catalogHandle)
                 .add("addresses", addresses)
-                .add("allowsNodeFailover", allowsNodeFailover)
+                .add("remotelyAccessible", remotelyAccessible)
                 .toString();
     }
 

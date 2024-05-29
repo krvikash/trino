@@ -85,8 +85,7 @@ public class CacheSplitSource
                                 splitId,
                                 // do not override connector provided split addresses when split is not remotely accessible
                                 Optional.empty(),
-                                Optional.empty(),
-                                split.getFailoverHappened()));
+                                split.isSplitAddressEnforced()));
             }
             else {
                 Optional<HostAddress> preferredAddress = addressProvider.getPreferredAddress(canonicalSignature + splitId);
@@ -96,9 +95,8 @@ public class CacheSplitSource
                                     split.getCatalogHandle(),
                                     split.getConnectorSplit(),
                                     splitId,
-                                    Optional.of(false),
                                     Optional.of(ImmutableList.of(preferredAddress.get())),
-                                    split.getFailoverHappened()));
+                                    split.isSplitAddressEnforced()));
                 }
                 else {
                     // Skip caching if no preferred address could be located which could be due to no available nodes

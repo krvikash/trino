@@ -292,7 +292,7 @@ public class TestArbitraryDistributionSplitAssigner
                 return true;
             }
         };
-        Split split = new Split(TEST_CATALOG_HANDLE, connectorSplit, Optional.of(new CacheSplitId(String.valueOf(1))), Optional.of(false), Optional.of(ImmutableList.of(HOST_2)), false);
+        Split split = new Split(TEST_CATALOG_HANDLE, connectorSplit, Optional.of(new CacheSplitId(String.valueOf(1))), Optional.of(ImmutableList.of(HOST_2)), false);
 
         SplitAssigner splitAssigner = createSplitAssigner(ImmutableSet.of(PARTITIONED_1), ImmutableSet.of(), 1, true);
         SplitAssigner.AssignmentResult result = splitAssigner.assign(PARTITIONED_1, ImmutableListMultimap.of(0, split), true);
@@ -386,8 +386,8 @@ public class TestArbitraryDistributionSplitAssigner
                 ImmutableSet.of(),
                 ImmutableList.of(
                         new SplitBatch(PARTITIONED_2, ImmutableList.of(createSplit(1, ImmutableList.of(HOST_1, HOST_2))), true),
-                        new SplitBatch(PARTITIONED_1, ImmutableList.of(createSplit(2), createSplitWithFailoverAllowed(3, ImmutableList.of(HOST_3))), false),
-                        new SplitBatch(PARTITIONED_1, ImmutableList.of(createSplitWithFailoverAllowed(4, ImmutableList.of(HOST_1, HOST_2))), false),
+                        new SplitBatch(PARTITIONED_1, ImmutableList.of(createSplit(2), createRemoteAccessibleSplit(3, ImmutableList.of(HOST_3))), false),
+                        new SplitBatch(PARTITIONED_1, ImmutableList.of(createRemoteAccessibleSplit(4, ImmutableList.of(HOST_1, HOST_2))), false),
                         new SplitBatch(PARTITIONED_1, ImmutableList.of(createSplit(5, ImmutableList.of(HOST_3))), false),
                         new SplitBatch(PARTITIONED_1, ImmutableList.of(createSplit(6, ImmutableList.of(HOST_1, HOST_2))), true)),
                 2,
@@ -709,9 +709,9 @@ public class TestArbitraryDistributionSplitAssigner
             }
             else {
                 for (Split split : splits) {
-                    boolean allowsFailover = split.isRemotelyAccessibleIfNodeMissing();
+                    boolean remotelyAccessible = split.isRemotelyAccessible();
                     Optional<HostAddress> hostRequirement = Optional.empty();
-                    if (!split.isRemotelyAccessible()) {
+                    if (!split.getAddresses().isEmpty()) {
                         int splitCount = Integer.MAX_VALUE;
                         for (HostAddress hostAddress : split.getConnectorSplit().getAddresses()) {
                             int currentSplitCount = addUpSplits(hostAddress, currentSplitAssignments);
@@ -721,13 +721,13 @@ public class TestArbitraryDistributionSplitAssigner
                             }
                         }
                     }
-                    PartitionAssignment currentAssignment = currentSplitAssignments.get(Map.entry(hostRequirement, allowsFailover));
+                    PartitionAssignment currentAssignment = currentSplitAssignments.get(Map.entry(hostRequirement, remotelyAccessible));
                     if (currentAssignment != null && currentAssignment.getSplits().size() + 1 > partitionedSplitsPerPartition) {
                         expectedPartitionedSplits.computeIfAbsent(currentAssignment.getPartitionId(), key -> ArrayListMultimap.create()).putAll(currentAssignment.getSplits());
-                        currentSplitAssignments.remove(Map.entry(hostRequirement, allowsFailover));
+                        currentSplitAssignments.remove(Map.entry(hostRequirement, remotelyAccessible));
                     }
                     currentSplitAssignments
-                            .computeIfAbsent(Map.entry(hostRequirement, allowsFailover), key -> new PartitionAssignment(nextPartitionId.getAndIncrement()))
+                            .computeIfAbsent(Map.entry(hostRequirement, remotelyAccessible), key -> new PartitionAssignment(nextPartitionId.getAndIncrement()))
                             .getSplits()
                             .put(planNodeId, split);
                 }
@@ -792,12 +792,12 @@ public class TestArbitraryDistributionSplitAssigner
         return new Split(TEST_CATALOG_HANDLE, new TestingConnectorSplit(id, OptionalInt.empty(), Optional.of(addresses)));
     }
 
-    private static Split createSplitWithFailoverAllowed(int id, List<HostAddress> addresses)
+    private static Split createRemoteAccessibleSplit(int id, List<HostAddress> addresses)
     {
         return new Split(TEST_CATALOG_HANDLE, new TestingConnectorSplit(id, OptionalInt.empty(), Optional.of(addresses))
         {
             @Override
-            public boolean isRemotelyAccessibleIfNodeMissing()
+            public boolean isRemotelyAccessible()
             {
                 return true;
             }
@@ -828,15 +828,15 @@ public class TestArbitraryDistributionSplitAssigner
         NodeRequirements taskNodeRequirements = taskDescriptor.getNodeRequirements();
         Set<HostAddress> hostRequirement = null;
         for (Split split : taskDescriptor.getSplits().getSplitsFlat().values()) {
-            if (!split.isRemotelyAccessible()) {
+            if (!split.getAddresses().isEmpty()) {
                 if (hostRequirement == null) {
                     hostRequirement = ImmutableSet.copyOf(split.getAddresses());
                 }
                 else {
                     hostRequirement = Sets.intersection(hostRequirement, ImmutableSet.copyOf(split.getAddresses()));
                 }
-                // The split's failover preference should be recorded in NodeRequirements, and we don't mix failover-allowing and failover-forbidding splits in the same task.
-                assertThat(taskNodeRequirements.allowsNodeFailover()).as("%s", split).isEqualTo(split.isRemotelyAccessibleIfNodeMissing());
+                // The split's remote-accessible flag should be recorded in NodeRequirements, and we don't mix remote accessible and non-remote accessible splits in the same task.
+                assertThat(taskNodeRequirements.isRemotelyAccessible()).as("%s", split).isEqualTo(split.isRemotelyAccessible());
             }
         }
         assertThat(taskNodeRequirements.getCatalogHandle()).isEqualTo(Optional.of(TEST_CATALOG_HANDLE));

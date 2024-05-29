@@ -314,14 +314,7 @@ public class TestUniformNodeSelector
 
         Split rigidSplit = new Split(TEST_CATALOG_HANDLE, new TestingSplit(false, ImmutableList.of(node1.getHostAndPort())));
         splits.add(rigidSplit);
-        Split flexibleSplit = new Split(TEST_CATALOG_HANDLE, new TestingSplit(false, ImmutableList.of(node1.getHostAndPort()))
-        {
-            @Override
-            public boolean isRemotelyAccessibleIfNodeMissing()
-            {
-                return true;
-            }
-        });
+        Split flexibleSplit = new Split(TEST_CATALOG_HANDLE, new TestingSplit(true, ImmutableList.of(node1.getHostAndPort())));
         splits.add(flexibleSplit);
 
         // Both nodes alive, but both splits prefer node 1.

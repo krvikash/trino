@@ -17,7 +17,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
-import io.airlift.slice.SizeOf;
 import io.trino.spi.HostAddress;
 import io.trino.spi.SplitWeight;
 import io.trino.spi.cache.CacheSplitId;
@@ -42,43 +41,39 @@ public final class Split
     private final CatalogHandle catalogHandle;
     private final ConnectorSplit connectorSplit;
     private final Optional<CacheSplitId> cacheSplitId;
-    private final Optional<Boolean> remotelyAccessible;
     private final Optional<List<HostAddress>> addresses;
-
     /**
-     * Whether a node failover happened due to {@link #isRemotelyAccessibleIfNodeMissing()}.
+     * true if the split is executed on its preferred node (from its {@link ConnectorSplit#getAddresses()}.
      */
-    private final boolean failoverHappened;
+    private final boolean splitAddressEnforced;
 
     public Split(CatalogHandle catalogHandle, ConnectorSplit connectorSplit)
     {
-        this(catalogHandle, connectorSplit, Optional.empty(), Optional.empty(), Optional.empty(), false);
+        this(catalogHandle, connectorSplit, Optional.empty(), Optional.empty(), false);
     }
 
     @JsonCreator
     public Split(
             @JsonProperty("catalogHandle") CatalogHandle catalogHandle,
             @JsonProperty("connectorSplit") ConnectorSplit connectorSplit,
-            @JsonProperty("failoverHappened") boolean failoverHappened,
-            @JsonProperty("cacheSplitId") Optional<CacheSplitId> cacheSplitId)
+            @JsonProperty("cacheSplitId") Optional<CacheSplitId> cacheSplitId,
+            @JsonProperty("splitAddressEnforced") boolean splitAddressEnforced)
     {
-        this(catalogHandle, connectorSplit, cacheSplitId, Optional.empty(), Optional.empty(), failoverHappened);
+        this(catalogHandle, connectorSplit, cacheSplitId, Optional.empty(), splitAddressEnforced);
     }
 
     public Split(
             CatalogHandle catalogHandle,
             ConnectorSplit connectorSplit,
             Optional<CacheSplitId> cacheSplitId,
-            Optional<Boolean> remotelyAccessible,
             Optional<List<HostAddress>> addresses,
-            boolean failoverHappened)
+            boolean splitAddressEnforced)
     {
         this.catalogHandle = requireNonNull(catalogHandle, "catalogHandle is null");
         this.connectorSplit = requireNonNull(connectorSplit, "connectorSplit is null");
         this.cacheSplitId = requireNonNull(cacheSplitId, "cacheSplitId is null");
-        this.remotelyAccessible = requireNonNull(remotelyAccessible, "remotelyAccessible is null");
         this.addresses = requireNonNull(addresses, "addresses is null");
-        this.failoverHappened = failoverHappened;
+        this.splitAddressEnforced = splitAddressEnforced;
     }
 
     @JsonProperty
@@ -116,17 +111,23 @@ public final class Split
     @JsonIgnore
     public boolean isRemotelyAccessible()
     {
-        return remotelyAccessible.orElse(connectorSplit.isRemotelyAccessible());
+        return connectorSplit.isRemotelyAccessible();
     }
 
-    public boolean isRemotelyAccessibleIfNodeMissing()
+    @JsonProperty
+    public boolean isSplitAddressEnforced()
     {
-        return connectorSplit.isRemotelyAccessibleIfNodeMissing();
+        return splitAddressEnforced;
     }
 
     public SplitWeight getSplitWeight()
     {
         return connectorSplit.getSplitWeight();
+    }
+
+    public Split withSplitAddressEnforced(boolean splitAddressEnforced)
+    {
+        return new Split(this.catalogHandle, this.connectorSplit, this.cacheSplitId, this.addresses, splitAddressEnforced);
     }
 
     @Override
@@ -136,9 +137,8 @@ public final class Split
                 .add("catalogHandle", catalogHandle)
                 .add("connectorSplit", connectorSplit)
                 .add("cacheSplitId", cacheSplitId)
-                .add("remotelyAccessible", remotelyAccessible)
                 .add("addresses", addresses)
-                .add("failoverHappened", failoverHappened)
+                .add("splitAddressEnforced", splitAddressEnforced)
                 .toString();
     }
 
@@ -148,18 +148,7 @@ public final class Split
                 + catalogHandle.getRetainedSizeInBytes()
                 + connectorSplit.getRetainedSizeInBytes()
                 + sizeOf(cacheSplitId, CacheSplitId::getRetainedSizeInBytes)
-                + sizeOf(remotelyAccessible, value -> SizeOf.BOOLEAN_INSTANCE_SIZE)
-                + sizeOf(failoverHappened)
-                + sizeOf(addresses, value -> estimatedSizeOf(value, HostAddress::getRetainedSizeInBytes));
-    }
-
-    public boolean getFailoverHappened()
-    {
-        return failoverHappened;
-    }
-
-    public Split withFailoverHappened(boolean failoverHappened)
-    {
-        return new Split(this.catalogHandle, this.connectorSplit, this.cacheSplitId, this.remotelyAccessible, this.addresses, failoverHappened);
+                + sizeOf(addresses, value -> estimatedSizeOf(value, HostAddress::getRetainedSizeInBytes))
+                + sizeOf(splitAddressEnforced);
     }
 }

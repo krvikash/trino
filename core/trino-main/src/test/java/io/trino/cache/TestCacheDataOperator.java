@@ -166,7 +166,7 @@ public class TestCacheDataOperator
         PlanSignature signature = createPlanSignature("sig");
         Page bigPage = createPage(ImmutableList.of(BIGINT), 1, Optional.empty(), ImmutableList.of(createLongSequenceBlock(0, 128)));
         Page smallPage = createPage(ImmutableList.of(BIGINT), 1, Optional.empty(), ImmutableList.of(createLongSequenceBlock(0, 16)));
-        Split split = new Split(TEST_CATALOG_HANDLE, createRemoteSplit());
+        Split split = new Split(TEST_CATALOG_HANDLE, createRemoteSplit(), Optional.empty(), true);
         AtomicInteger operatorIdAllocator = new AtomicInteger();
         CacheDataOperator.CacheDataOperatorFactory cacheDataOperatorFactory = new CacheDataOperator.CacheDataOperatorFactory(
                 operatorIdAllocator.incrementAndGet(),
@@ -238,7 +238,7 @@ public class TestCacheDataOperator
 
     private void createAndRunDriver(int start, int end, CacheDriverFactory cacheDriverFactory)
     {
-        Split split = new Split(TEST_CATALOG_HANDLE, createRemoteSplit());
+        Split split = new Split(TEST_CATALOG_HANDLE, createRemoteSplit(), Optional.empty(), true);
         for (int i = start; i < end; i++) {
             CacheSplitId splitId = new CacheSplitId(String.format("split_%d", i));
             DriverContext driverContext = createTaskContext(Executors.newSingleThreadExecutor(), Executors.newScheduledThreadPool(1), TEST_SESSION)

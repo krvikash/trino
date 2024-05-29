@@ -75,7 +75,7 @@ public class TableAwarePageSourceProvider
                             session.toConnectorSession(tableHandle.catalogHandle()),
                             columns,
                             dynamicFilter,
-                            !split.getFailoverHappened());
+                            split.isSplitAddressEnforced());
                     return dynamicRowFilteringPageSourceProvider.createPageSource(pageSource, session, columns, dynamicFilter);
                 })
                 .orElseGet(() -> pageSourceProvider.createPageSource(session, split, tableHandle, columns, dynamicFilter));

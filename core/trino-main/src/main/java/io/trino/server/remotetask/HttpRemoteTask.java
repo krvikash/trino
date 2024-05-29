@@ -282,9 +282,7 @@ public final class HttpRemoteTask
 
             for (Entry<PlanNodeId, Split> entry : initialSplits.entries()) {
                 Split split = entry.getValue();
-                if (!split.getAddresses().contains(nodeAddress)) {
-                    split = split.withFailoverHappened(true);
-                }
+                split = split.withSplitAddressEnforced(split.getAddresses().contains(nodeAddress));
                 ScheduledSplit scheduledSplit = new ScheduledSplit(nextSplitId.getAndIncrement(), entry.getKey(), split);
                 pendingSplits.put(entry.getKey(), scheduledSplit);
             }
@@ -456,9 +454,7 @@ public final class HttpRemoteTask
             int added = 0;
             long addedWeight = 0;
             for (Split split : splits) {
-                if (!split.getAddresses().contains(nodeAddress)) {
-                    split = split.withFailoverHappened(true);
-                }
+                split = split.withSplitAddressEnforced(split.getAddresses().contains(nodeAddress));
                 if (pendingSplits.put(sourceId, new ScheduledSplit(nextSplitId.getAndIncrement(), sourceId, split))) {
                     if (isPartitionedSource) {
                         added++;

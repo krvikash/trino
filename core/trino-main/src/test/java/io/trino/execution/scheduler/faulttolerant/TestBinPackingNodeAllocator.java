@@ -74,10 +74,10 @@ public class TestBinPackingNodeAllocator
 
     private static final CatalogHandle CATALOG_1 = createTestCatalogHandle("catalog1");
 
-    private static final NodeRequirements REQ_NONE = new NodeRequirements(Optional.empty(), Set.of());
-    private static final NodeRequirements REQ_NODE_1 = new NodeRequirements(Optional.empty(), Set.of(NODE_1_ADDRESS));
-    private static final NodeRequirements REQ_NODE_2 = new NodeRequirements(Optional.empty(), Set.of(NODE_2_ADDRESS));
-    private static final NodeRequirements REQ_CATALOG_1 = new NodeRequirements(Optional.of(CATALOG_1), Set.of());
+    private static final NodeRequirements REQ_NONE = new NodeRequirements(Optional.empty(), Set.of(), true);
+    private static final NodeRequirements REQ_NODE_1 = new NodeRequirements(Optional.empty(), Set.of(NODE_1_ADDRESS), true);
+    private static final NodeRequirements REQ_NODE_2 = new NodeRequirements(Optional.empty(), Set.of(NODE_2_ADDRESS), true);
+    private static final NodeRequirements REQ_CATALOG_1 = new NodeRequirements(Optional.of(CATALOG_1), Set.of(), true);
 
     // none of the tests should require periodic execution of routine which processes pending acquisitions
     private static final long TEST_TIMEOUT = BinPackingNodeAllocatorService.PROCESS_PENDING_ACQUIRES_DELAY_SECONDS * 1000 / 2;
@@ -107,6 +107,7 @@ public class TestBinPackingNodeAllocator
                 () -> workerMemoryInfos,
                 false,
                 Duration.of(1, MINUTES),
+                true,
                 taskRuntimeMemoryEstimationOverhead,
                 DataSize.of(10, GIGABYTE), // allow overcommit of 10GB for EAGER_SPECULATIVE tasks
                 ticker);
@@ -838,7 +839,7 @@ public class TestBinPackingNodeAllocator
         InMemoryNodeManager nodeManager = new InMemoryNodeManager(NODE_1, NODE_2);
         setupNodeAllocatorService(nodeManager);
         NodeRequirements node2Flexible = new NodeRequirements(Optional.empty(), Set.of(NODE_2_ADDRESS), true);
-        NodeRequirements node2Rigid = new NodeRequirements(Optional.empty(), Set.of(NODE_2_ADDRESS));
+        NodeRequirements node2Rigid = new NodeRequirements(Optional.empty(), Set.of(NODE_2_ADDRESS), false);
 
         try (NodeAllocator nodeAllocator = nodeAllocatorService.getNodeAllocator(SESSION)) {
             final DataSize oneGig = DataSize.of(1, GIGABYTE);

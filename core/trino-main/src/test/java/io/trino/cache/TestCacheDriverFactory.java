@@ -112,7 +112,7 @@ public class TestCacheDriverFactory
     private static final Session TEST_SESSION = testSessionBuilder().build();
     private static final SignatureKey SIGNATURE_KEY = new SignatureKey("key");
     private static final CacheSplitId SPLIT_ID = new CacheSplitId("split");
-    private static final ScheduledSplit SPLIT = new ScheduledSplit(0, new PlanNodeId("id"), new Split(TEST_CATALOG_HANDLE, createRemoteSplit()));
+    private static final ScheduledSplit SPLIT = new ScheduledSplit(0, new PlanNodeId("id"), new Split(TEST_CATALOG_HANDLE, createRemoteSplit(), Optional.empty(), true));
     private final PlanNodeIdAllocator planNodeIdAllocator = new PlanNodeIdAllocator();
     private TestSplitCache splitCache;
     private CacheManagerRegistry registry;
@@ -159,7 +159,7 @@ public class TestCacheDriverFactory
         cacheDriverFactory = createCacheDriverFactory(new TestPageSourceProviderFactory(), signature, operatorIdAllocator);
         driver = cacheDriverFactory.createDriver(
                 createDriverContext(),
-                new ScheduledSplit(0, planNodeIdAllocator.getNextId(), new Split(TEST_CATALOG_HANDLE, createRemoteSplit()).withFailoverHappened(true)),
+                new ScheduledSplit(0, planNodeIdAllocator.getNextId(), new Split(TEST_CATALOG_HANDLE, createRemoteSplit()).withSplitAddressEnforced(false)),
                 Optional.of(new CacheSplitId("split")));
         assertThat(driver.getDriverContext().getCacheDriverContext()).isEmpty();
 

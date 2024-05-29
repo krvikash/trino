@@ -136,12 +136,6 @@ public class DispatcherSplit
     @Override
     public boolean isRemotelyAccessible()
     {
-        return false;
-    }
-
-    @Override
-    public boolean isRemotelyAccessibleIfNodeMissing()
-    {
         return true;
     }
 

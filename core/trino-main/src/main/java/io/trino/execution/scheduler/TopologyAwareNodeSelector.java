@@ -130,22 +130,20 @@ public class TopologyAwareNodeSelector
             SplitWeight splitWeight = split.getSplitWeight();
             if (!split.isRemotelyAccessible()) {
                 List<InternalNode> candidateNodes = selectExactNodes(nodeMap, split.getAddresses(), includeCoordinator);
-                if (!candidateNodes.isEmpty()) {
-                    InternalNode chosenNode = bestNodeSplitCount(splitWeight, candidateNodes.iterator(), minCandidates, maxPendingSplitsWeightPerTask, assignmentStats);
-                    if (chosenNode != null) {
-                        assignment.put(chosenNode, split);
-                        assignmentStats.addAssignedSplit(chosenNode, splitWeight);
-                    }
-                    // Exact node set won't matter, if a split is waiting for any node
-                    else if (!splitWaitingForAnyNode) {
-                        blockedExactNodes.addAll(candidateNodes);
-                    }
-                    continue;
-                }
-                else if (!split.isRemotelyAccessibleIfNodeMissing()) {
+                if (candidateNodes.isEmpty()) {
                     log.debug("No nodes available to schedule %s. Available nodes %s", split, nodeMap.getNodesByHost().keys());
                     throw new TrinoException(NO_NODES_AVAILABLE, "No nodes available to run query");
                 }
+                InternalNode chosenNode = bestNodeSplitCount(splitWeight, candidateNodes.iterator(), minCandidates, maxPendingSplitsWeightPerTask, assignmentStats);
+                if (chosenNode != null) {
+                    assignment.put(chosenNode, split);
+                    assignmentStats.addAssignedSplit(chosenNode, splitWeight);
+                }
+                // Exact node set won't matter, if a split is waiting for any node
+                else if (!splitWaitingForAnyNode) {
+                    blockedExactNodes.addAll(candidateNodes);
+                }
+                continue;
             }
 
             InternalNode chosenNode = null;
