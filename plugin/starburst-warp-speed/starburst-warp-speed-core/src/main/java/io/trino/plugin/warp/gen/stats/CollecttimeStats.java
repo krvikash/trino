@@ -135,11 +135,6 @@ public final class CollecttimeStats
     }
 
     @Override
-    public void merge(WarpStatsBase warpStatsBase)
-    {
-    }
-
-    @Override
     protected Map<String, Object> deltaPrintFields()
     {
         return new HashMap<>();

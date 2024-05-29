@@ -86,11 +86,6 @@ public class WarpStatsBase
         return warpStatType;
     }
 
-    public boolean hasPersistentMetric()
-    {
-        return false;
-    }
-
     public <K, V> Map<K, V> printStatsMap()
     {
         Map newAuditMap = deltaPrintFields();

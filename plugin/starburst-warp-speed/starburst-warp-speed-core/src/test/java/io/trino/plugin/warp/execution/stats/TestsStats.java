@@ -17,11 +17,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.airlift.json.ObjectMapperProvider;
-import io.trino.plugin.warp.config.MetricsConfig;
 import io.trino.plugin.warp.gen.stats.TestStats;
-import io.trino.plugin.warp.metrics.MetricsRegistry;
-import io.trino.plugin.warp.tools.CatalogNameProvider;
-import org.assertj.core.util.Lists;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -44,31 +40,13 @@ public class TestsStats
             throws JsonProcessingException
     {
         TestStats dummyNotInNode = new TestStats("group2");
-        dummyNotInNode.addparam1(9); //persist
+        dummyNotInNode.addparam1(9); //not persist
         dummyNotInNode.addparam3(9); //not persist
         JsonNode jsonNode = objectMapper.readerFor(List.class).readTree(objectMapper.writeValueAsString(dummyNotInNode));
         String res = objectMapper.writeValueAsString(dummyNotInNode);
-        assertThat(jsonNode.get("param1").asLong()).isEqualTo(9);
+        assertThat(jsonNode.get("param1")).isEqualTo(null);
         TestStats deserializeObject = objectMapper.readerFor(TestStats.class).readValue(res);
-        assertThat(deserializeObject.getparam1()).isEqualTo(9);
+        assertThat(deserializeObject.getparam1()).isEqualTo(0);
         assertThat(deserializeObject.getparam3()).isEqualTo(0);
-    }
-
-    @Test
-    public void testMergePersistentStat()
-    {
-        MetricsRegistry metricRegistry = new MetricsRegistry(new CatalogNameProvider("catalog-name"), new MetricsConfig());
-        long hotQueryVal = 50;
-        long expectedResultAfterMerge = hotQueryVal * 2;
-        TestStats stat = new TestStats("group2");
-        stat.addparam1(hotQueryVal); //persist
-        stat.addparam3(20); //persist
-        metricRegistry.registerMetric(stat);
-
-        metricRegistry.mergeMetrics(Lists.newArrayList(stat));
-
-        TestStats materializedView = (TestStats) metricRegistry.get(stat.getJmxKey());
-        assertThat(materializedView.getparam1()).isEqualTo(expectedResultAfterMerge);
-        assertThat(materializedView.getparam3()).isEqualTo(20);
     }
 }

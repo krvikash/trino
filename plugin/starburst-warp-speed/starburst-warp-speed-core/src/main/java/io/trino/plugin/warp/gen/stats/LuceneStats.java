@@ -305,11 +305,6 @@ public final class LuceneStats
     }
 
     @Override
-    public void merge(WarpStatsBase warpStatsBase)
-    {
-    }
-
-    @Override
     protected Map<String, Object> deltaPrintFields()
     {
         return new HashMap<>();

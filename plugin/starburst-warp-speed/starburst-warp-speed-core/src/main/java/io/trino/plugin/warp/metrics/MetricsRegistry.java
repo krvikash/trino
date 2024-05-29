@@ -100,28 +100,4 @@ public class MetricsRegistry
     {
         return metricsRegistry.values();
     }
-
-    public void mergeMetrics(Collection<WarpStatsBase> persistDataList)
-    {
-        logger.debug("merge new persist metrics. current metrics size %d, new persistent metrics from db of size: %d",
-                metricsRegistry.size(),
-                persistDataList.size());
-        persistDataList.forEach(this::mergeMetric);
-    }
-
-    @SuppressWarnings("unchecked")
-    private <T extends WarpStatsBase> void mergeMetric(T persistData)
-    {
-        boolean newMetric = registerMetric(persistData);
-
-        if (newMetric) {
-            logger.debug("new metric %s registered", getKey(persistData.getJmxKey()));
-            persistData.merge(null);
-        }
-        else {
-            logger.debug("merge metric: %s with persistent metric data", getKey(persistData.getJmxKey()));
-            T currentStat = (T) metricsRegistry.get(getKey(persistData.getJmxKey()));
-            currentStat.merge(persistData);
-        }
-    }
 }

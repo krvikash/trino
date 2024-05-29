@@ -54,6 +54,7 @@ public final class TestStats
         return group;
     }
 
+    @JsonIgnore
     @Managed
     public long getparam1()
     {
@@ -76,6 +77,7 @@ public final class TestStats
         addparam1(val);
     }
 
+    @JsonIgnore
     @Managed
     public long getparam2()
     {
@@ -132,16 +134,6 @@ public final class TestStats
     }
 
     @Override
-    public void merge(WarpStatsBase warpStatsBase)
-    {
-        if (warpStatsBase != null) {
-            TestStats other = (TestStats) warpStatsBase;
-            addparam1(other.getparam1());
-            addparam2(other.getparam2());
-        }
-    }
-
-    @Override
     public Map<String, LongAdder> getCounters()
     {
         Map<String, LongAdder> ret = new HashMap<>();
@@ -170,12 +162,6 @@ public final class TestStats
         param1.reset();
         param2.reset();
         param3.reset();
-    }
-
-    @Override
-    public boolean hasPersistentMetric()
-    {
-        return true;
     }
 
     @Override

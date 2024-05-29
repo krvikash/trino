@@ -230,11 +230,6 @@ public final class TxServiceStats
     }
 
     @Override
-    public void merge(WarpStatsBase warpStatsBase)
-    {
-    }
-
-    @Override
     public Map<String, LongAdder> getCounters()
     {
         Map<String, LongAdder> ret = new HashMap<>();

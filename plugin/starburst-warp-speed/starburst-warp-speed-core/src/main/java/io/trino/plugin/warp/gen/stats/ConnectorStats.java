@@ -85,11 +85,6 @@ public final class ConnectorStats
     }
 
     @Override
-    public void merge(WarpStatsBase warpStatsBase)
-    {
-    }
-
-    @Override
     protected Map<String, Object> deltaPrintFields()
     {
         Map<String, Object> res = new HashMap<>();

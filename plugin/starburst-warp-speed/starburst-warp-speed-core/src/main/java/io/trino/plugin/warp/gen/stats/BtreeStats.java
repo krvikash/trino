@@ -132,11 +132,6 @@ public final class BtreeStats
     }
 
     @Override
-    public void merge(WarpStatsBase warpStatsBase)
-    {
-    }
-
-    @Override
     protected Map<String, Object> deltaPrintFields()
     {
         return new HashMap<>();

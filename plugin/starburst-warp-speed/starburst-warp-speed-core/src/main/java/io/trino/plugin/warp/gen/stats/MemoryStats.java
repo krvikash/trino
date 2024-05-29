@@ -95,11 +95,6 @@ public final class MemoryStats
     }
 
     @Override
-    public void merge(WarpStatsBase warpStatsBase)
-    {
-    }
-
-    @Override
     protected Map<String, Object> deltaPrintFields()
     {
         return new HashMap<>();
