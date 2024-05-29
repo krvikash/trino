@@ -979,24 +979,26 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                         "tiny_int_col TINYINT, " +
                         "varchar_col varchar, " +
                         "varchar_10_col varchar(10), " +
-                        "char_8_col char(8), " +
+                        "char_8_col char(50), " +
                         "not_warm_double double) WITH (format='PARQUET', partitioned_by = ARRAY[])");
 
         computeActual(getSession(),
-                "INSERT INTO %s.%s (int_1, tiny_int_col, small_int_col, varchar_col) VALUES(1 ,2, 3, '2'), (NULL, NULL, NULL, NULL)".formatted(schema, table));
+                "INSERT INTO %s.%s (int_1, tiny_int_col, small_int_col, varchar_col, char_8_col) VALUES(1 ,2, 3, '2', 'aaa              aaa'), (NULL, NULL, NULL, NULL, 'bbbbb')".formatted(schema, table));
         createWarmupRules(schema,
                 table,
                 Map.ofEntries(
                         entry("int_1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL),
+                                new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL))),
+                        entry("char_8_col", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL),
                                 new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL))),
                         entry("tiny_int_col", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL),
                                 new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL))),
                         entry("small_int_col", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL))),
                         entry("varchar_col", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL)))));
         warmAndValidate(
-                "select int_1, tiny_int_col, small_int_col, varchar_col from %s.%s where int_1 = 1 and tiny_int_col = 2".formatted(schema, table),
+                "select int_1, tiny_int_col, small_int_col, varchar_col, char_8_col from %s.%s where int_1 = 1 and tiny_int_col = 2".formatted(schema, table),
                 false,
-                6,
+                8,
                 1);
         Session session = Session.builder(getSession())
                 .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "false")
@@ -1065,6 +1067,30 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "filtered_by_predicate", 1L,
                 "varada_match_columns", 1L,
                 "varada_collect_columns", 2L,
+                "external_collect_columns", 0L);
+        validateQueryStats(query, session, expectedQueryStats, true);
+
+        query = "select char_8_col from %s.%s where char_8_col > 'bbbbb'".formatted(schema, table);
+        expectedQueryStats = Map.of(
+                "filtered_by_predicate", 1L,
+                "varada_match_columns", 1L,
+                "varada_collect_columns", 1L,
+                "external_collect_columns", 0L);
+        validateQueryStats(query, session, expectedQueryStats, true);
+
+        query = "select char_8_col from %s.%s where char_8_col < 'aaa     '".formatted(schema, table);
+        expectedQueryStats = Map.of(
+                "filtered_by_predicate", 0L,
+                "varada_match_columns", 1L,
+                "varada_collect_columns", 1L,
+                "external_collect_columns", 0L);
+        validateQueryStats(query, session, expectedQueryStats, true);
+
+        query = "select char_8_col from %s.%s where char_8_col < 'aaaA'".formatted(schema, table);
+        expectedQueryStats = Map.of(
+                "filtered_by_predicate", 0L,
+                "varada_match_columns", 1L,
+                "varada_collect_columns", 1L,
                 "external_collect_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats, true);
     }

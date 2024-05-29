@@ -62,6 +62,8 @@ import java.util.Optional;
 
 import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_CODE_NUM;
 import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_LENGTH;
+import static io.trino.plugin.warp.type.TypeUtils.isCharType;
+import static io.trino.plugin.warp.type.TypeUtils.isVarcharType;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -260,7 +262,9 @@ public class StorageWriterService
         WarmupElementStats closedStats;
         WarmupElementWriteMetadata warmupElementWriteMetadata = storageWriterContext.getWarmupElementWriteMetadata();
         try {
-            closedStats = getFinalStats(storageWriterContext.getWarmupElementStatsBuilder().build(), warmupElementWriteMetadata);
+            closedStats = getFinalStats(storageWriterContext.getWarmupElementWriteMetadata().type(),
+                    storageWriterContext.getWarmupElementStatsBuilder().build(),
+                    warmupElementWriteMetadata);
         }
         catch (Exception e) {
             logger.warn(e, "failed to get range on write");
@@ -512,46 +516,52 @@ public class StorageWriterService
         return outFileParams;
     }
 
-    private WarmupElementStats getFinalStats(WarmupElementStats warmupElementStats, WarmupElementWriteMetadata warmupElementWriteMetadata)
+    private WarmupElementStats getFinalStats(Type type,
+            WarmupElementStats warmupElementStats,
+            WarmupElementWriteMetadata warmupElementWriteMetadata)
     {
         WarmUpElement warmUpElement = warmupElementWriteMetadata.warmUpElement();
         if (warmupElementStats.isInitialized() &&
                 warmUpElement.getRecTypeCode().isSupportedFiltering() &&
-                warmUpElement.getWarmUpType() != WarmUpType.WARM_UP_TYPE_LUCENE) {
-            if (warmUpElement.getRecTypeCode() == RecTypeCode.REC_TYPE_VARCHAR ||
-                    warmUpElement.getRecTypeCode() == RecTypeCode.REC_TYPE_CHAR) {
-                Slice maxSlice = (Slice) warmupElementStats.getMaxValue();
-                String maxValue;
-                String minValue;
-                Slice minSlice = (Slice) warmupElementStats.getMinValue();
-                //if type is Slice we want to save the first 8 bytes for min/max values, for max value we add 1 to last position
-                //need to convert them to byte array in order to preserve the original values
-                byte[] maxSliceValue;
-                if (maxSlice.length() > STAT_MAX_SLICE_LENGTH) {
-                    maxSliceValue = maxSlice.getBytes(0, STAT_MAX_SLICE_LENGTH);
-                    if (maxSliceValue[STAT_MAX_SLICE_LENGTH - 1] == Byte.MAX_VALUE) {
-                        //protect from overflow
-                        maxValue = null;
-                    }
-                    else {
-                        //need to increase value by 1 in order to make sure ranges will overlaps (see @RangeMatcher.java)
-                        maxSliceValue[STAT_MAX_SLICE_LENGTH - 1]++;
-                        maxValue = Slices.wrappedBuffer(maxSliceValue).toStringUtf8();
-                    }
+                warmUpElement.getWarmUpType() != WarmUpType.WARM_UP_TYPE_LUCENE &&
+                (warmUpElement.getRecTypeCode() == RecTypeCode.REC_TYPE_VARCHAR ||
+                        warmUpElement.getRecTypeCode() == RecTypeCode.REC_TYPE_CHAR) &&
+                (isCharType(type) || isVarcharType(type))) {
+            Slice maxSlice = (Slice) warmupElementStats.getMaxValue();
+            String maxValue;
+            String minValue;
+            Slice minSlice = (Slice) warmupElementStats.getMinValue();
+            //if type is Slice we want to save the first 8 bytes for min/max values, for max value we add 1 to last position
+            //need to convert them to byte array in order to preserve the original values
+            byte[] maxSliceValue;
+            if (maxSlice.length() > STAT_MAX_SLICE_LENGTH) {
+                maxSliceValue = maxSlice.getBytes(0, STAT_MAX_SLICE_LENGTH);
+                if (maxSliceValue[STAT_MAX_SLICE_LENGTH - 1] == Byte.MAX_VALUE) {
+                    //protect from overflow
+                    maxValue = null;
                 }
                 else {
-                    maxValue = maxSlice.toStringUtf8();
+                    //need to increase value by 1 in order to make sure ranges will overlaps (see @RangeMatcher.java)
+                    maxSliceValue[STAT_MAX_SLICE_LENGTH - 1]++;
+                    maxValue = Slices.wrappedBuffer(maxSliceValue).toStringUtf8();
                 }
-
-                if (minSlice.length() > STAT_MAX_SLICE_LENGTH) {
-                    byte[] minSliceValue = minSlice.getBytes(0, STAT_MAX_SLICE_LENGTH);
-                    minValue = Slices.wrappedBuffer(minSliceValue).toStringUtf8();
-                }
-                else {
-                    minValue = minSlice.toStringUtf8();
-                }
-                warmupElementStats = new WarmupElementStats(warmupElementStats.getNullsCount(), minValue, maxValue);
             }
+            else {
+                maxValue = maxSlice.toStringUtf8();
+            }
+
+            if (minSlice.length() > STAT_MAX_SLICE_LENGTH) {
+                byte[] minSliceValue = minSlice.getBytes(0, STAT_MAX_SLICE_LENGTH);
+                if (isCharType(type) && minSliceValue[minSliceValue.length - 1] == 32) {
+                    //last value in charType can't be a space ' ' [32] value . see CharType::writeSlice
+                    minSliceValue[minSliceValue.length - 1] = 31;
+                }
+                minValue = Slices.wrappedBuffer(minSliceValue).toStringUtf8();
+            }
+            else {
+                minValue = minSlice.toStringUtf8();
+            }
+            warmupElementStats = new WarmupElementStats(warmupElementStats.getNullsCount(), minValue, maxValue);
         }
         return warmupElementStats;
     }
