@@ -14,7 +14,6 @@
 package io.trino.plugin.kudu;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.base.mapping.TableMappingRule;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
@@ -31,8 +30,6 @@ import static com.google.common.collect.MoreCollectors.onlyElement;
 import static io.trino.plugin.base.mapping.RuleBasedIdentifierMappingUtils.REFRESH_PERIOD_DURATION;
 import static io.trino.plugin.base.mapping.RuleBasedIdentifierMappingUtils.createRuleBasedIdentifierMappingFile;
 import static io.trino.plugin.base.mapping.RuleBasedIdentifierMappingUtils.updateRuleBasedIdentifierMappingFile;
-import static io.trino.plugin.kudu.KuduQueryRunnerFactory.createKuduClient;
-import static io.trino.plugin.kudu.KuduQueryRunnerFactory.createKuduQueryRunner;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.testing.TestingNames.randomNameSuffix;
@@ -47,7 +44,6 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 public class TestKuduCaseInsensitiveMapping
         extends AbstractTestQueryFramework
 {
-    private static final String DEFAULT_SCHEMA = "default";
     private KuduClient kuduClient;
     private TestingKuduServer kuduServer;
     private Path mappingFile;
@@ -58,18 +54,18 @@ public class TestKuduCaseInsensitiveMapping
     {
         mappingFile = createRuleBasedIdentifierMappingFile();
         kuduServer = new TestingKuduServer();
-        kuduClient = createKuduClient(kuduServer);
-        return createKuduQueryRunner(DEFAULT_SCHEMA, ImmutableMap.<String, String>builder()
-                .put("kudu.schema-emulation.enabled", "false")
-                .put("kudu.client.master-addresses", kuduServer.getMasterAddress().toString())
-                .put("case-insensitive-name-matching", "true")
+        kuduClient = new KuduClient.KuduClientBuilder(kuduServer.getMasterAddress().toString()).build();
+        return KuduQueryRunnerFactory.builder(kuduServer)
+                .addConnectorProperty("kudu.schema-emulation.enabled", "false")
+                .addConnectorProperty("kudu.client.master-addresses", kuduServer.getMasterAddress().toString())
+                .addConnectorProperty("case-insensitive-name-matching", "true")
                 // disable remote identifiers cache,
                 // to prevent failures in case of clash names in cache,
                 // during tests runs
-                .put("case-insensitive-name-matching.cache-ttl", "0ms")
-                .put("case-insensitive-name-matching.config-file", mappingFile.toFile().getAbsolutePath())
-                .put("case-insensitive-name-matching.config-file.refresh-period", REFRESH_PERIOD_DURATION.toString())
-                .buildOrThrow());
+                .addConnectorProperty("case-insensitive-name-matching.cache-ttl", "0ms")
+                .addConnectorProperty("case-insensitive-name-matching.config-file", mappingFile.toFile().getAbsolutePath())
+                .addConnectorProperty("case-insensitive-name-matching.config-file.refresh-period", REFRESH_PERIOD_DURATION.toString())
+                .build();
     }
 
     @AfterAll

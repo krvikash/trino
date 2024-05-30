@@ -14,7 +14,6 @@
 package io.trino.plugin.kudu;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.net.HostAndPort;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
@@ -49,7 +48,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
-import static io.trino.plugin.kudu.KuduQueryRunnerFactory.createKuduQueryRunnerTpch;
 import static io.trino.plugin.kudu.TestingKuduServer.LATEST_TAG;
 import static io.trino.spi.connector.Constraint.alwaysTrue;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -61,17 +59,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class TestKuduScannerKeepAlive
         extends AbstractTestQueryFramework
 {
+    private TestingKuduServer kuduServer;
     private HostAndPort masterAddress;
 
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        TestingKuduServer kuduServer = closeAfterClass(new TestingKuduServer(LATEST_TAG, ImmutableList.of("--scanner_ttl_ms=10000", "--scanner_gc_check_interval_us=1000000")));
+        kuduServer = closeAfterClass(new TestingKuduServer(LATEST_TAG, ImmutableList.of("--scanner_ttl_ms=10000", "--scanner_gc_check_interval_us=1000000")));
         this.masterAddress = kuduServer.getMasterAddress();
-        QueryRunner queryRunner = createQueryRunner(ImmutableMap.of(
-                "kudu.scanner.batch-size", "128kB",
-                "kudu.scanner.keepalive-interval", "5s"));
+        QueryRunner queryRunner = KuduQueryRunnerFactory.builder(kuduServer)
+                .addConnectorProperty("kudu.scanner.batch-size", "128kB")
+                .addConnectorProperty("kudu.scanner.keepalive-interval", "5s")
+                .build();
 
         queryRunner.execute("DROP TABLE IF EXISTS test_scanner_keep_alive");
         queryRunner.execute("CREATE TABLE test_scanner_keep_alive " + getCreateTableDefaultDefinition());
@@ -106,9 +106,10 @@ public class TestKuduScannerKeepAlive
     public void testScannerKeepAliveGreaterThanScannerTtlMs()
             throws Exception
     {
-        QueryRunner queryRunner = createQueryRunner(ImmutableMap.of(
-                "kudu.scanner.batch-size", "128kB",
-                "kudu.scanner.keepalive-interval", "15s"));
+        QueryRunner queryRunner = KuduQueryRunnerFactory.builder(kuduServer)
+                .addConnectorProperty("kudu.scanner.batch-size", "128kB")
+                .addConnectorProperty("kudu.scanner.keepalive-interval", "15s")
+                .build();
 
         // Sleep < scanner_ttl_ms < scannerKeepAliveInterval
         assertScannerKeepAliveSuccess(queryRunner, Duration.valueOf("15s"), 7);
@@ -169,9 +170,10 @@ public class TestKuduScannerKeepAlive
     public void testScannerKeepAliveGreaterThanScannerTtlMsConcurrentlyWithSameKuduSession()
             throws Exception
     {
-        QueryRunner queryRunner = createQueryRunner(ImmutableMap.of(
-                "kudu.scanner.batch-size", "128kB",
-                "kudu.scanner.keepalive-interval", "15s"));
+        QueryRunner queryRunner = KuduQueryRunnerFactory.builder(kuduServer)
+                .addConnectorProperty("kudu.scanner.batch-size", "128kB")
+                .addConnectorProperty("kudu.scanner.keepalive-interval", "15s")
+                .build();
         Duration scannerKeepAliveInterval = Duration.valueOf("15s");
         KuduClientSession kuduClientSession = createKuduClientSession(Duration.valueOf("15s"));
 
@@ -289,19 +291,6 @@ public class TestKuduScannerKeepAlive
     {
         return "(key BIGINT WITH (primary_key=true), name VARCHAR) " +
                 "WITH (partition_by_hash_columns = ARRAY['key'], partition_by_hash_buckets = 2, number_of_replicas = 1)";
-    }
-
-    private QueryRunner createQueryRunner(ImmutableMap<String, String> kuduExtraProperties)
-            throws Exception
-    {
-        return createKuduQueryRunnerTpch(
-                masterAddress,
-                Optional.empty(),
-                ImmutableMap.of(),
-                kuduExtraProperties,
-                ImmutableMap.of(),
-                ImmutableMap.of(),
-                ImmutableList.of());
     }
 
     private KuduClientSession createKuduClientSession(Duration scannerKeepAliveInterval)
