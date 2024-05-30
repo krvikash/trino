@@ -15,8 +15,6 @@ package io.trino.plugin.warp.dispatcher;
 
 import com.google.inject.Module;
 import io.trino.plugin.warp.di.InitializationModule;
-import io.trino.plugin.warp.tools.util.Pair;
-import io.trino.spi.cache.CacheManager;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 
@@ -34,7 +32,6 @@ public class DispatcherConnectorFactory
     public static final String DISPATCHER_CONNECTOR_NAME = "warp_speed";
     private final Module storageEngineModule;
     private final Module amazonModule;
-    private CacheManager cacheManager;
 
     public DispatcherConnectorFactory(Module storageEngineModule, Module amazonModule)
     {
@@ -69,8 +66,7 @@ public class DispatcherConnectorFactory
                                 }
                             }).toList());
 
-            @SuppressWarnings("unchecked")
-            Pair<Connector, CacheManager> result = (Pair<Connector, CacheManager>) classLoader.loadClass(InternalDispatcherConnectorFactory.class.getName())
+            return (Connector) classLoader.loadClass(InternalDispatcherConnectorFactory.class.getName())
                     .getMethod("createConnector",
                             String.class,
                             Map.class,
@@ -96,9 +92,6 @@ public class DispatcherConnectorFactory
                             storageEngineModule,
                             amazonModule,
                             context);
-
-            this.cacheManager = result.getRight();
-            return result.getKey();
         }
         catch (InvocationTargetException e) {
             Throwable targetException = e.getTargetException();
@@ -108,10 +101,5 @@ public class DispatcherConnectorFactory
         catch (ReflectiveOperationException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    public CacheManager getCacheManager()
-    {
-        return cacheManager;
     }
 }

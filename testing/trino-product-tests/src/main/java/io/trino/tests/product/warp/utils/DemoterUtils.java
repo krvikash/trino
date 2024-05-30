@@ -23,11 +23,14 @@ import io.airlift.units.Duration;
 import io.trino.plugin.warp.execution.debugtools.WarmupDemoterWarmupElementData;
 import io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterData;
 import io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterTask;
+import io.trino.plugin.warp.extension.execution.debugtools.WorkerWarmupDemoterTask;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.tempto.query.QueryResult;
+import jakarta.ws.rs.HttpMethod;
 
 import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -116,10 +119,10 @@ public class DemoterUtils
                 warmupDemoterDataBuilder.warmupElementsData(warmupElementsData);
             }
         }
-        demote(warmupDemoterDataBuilder.build());
+        demote(warmupDemoterDataBuilder.build(), false);
     }
 
-    Map<String, Object> demote(WarmupDemoterData warmupDemoterData)
+    private Map<String, Object> demote(WarmupDemoterData warmupDemoterData, boolean isCache)
     {
         Map<String, Object> res = new HashMap<>();
         try {
@@ -128,7 +131,13 @@ public class DemoterUtils
             QueryResult demoterStatsBefore = JMXCachingManager.getDemoterStats();
             logger.info("execute demote: %s", warmupDemoterData.getSchemaTableName());
             logger.debug("demote: warmupDemoterData %s", warmupDemoterData);
-            String result = restUtils.executePostCommandWithReturnValue(WarmupDemoterTask.WARMUP_DEMOTER_PATH, WarmupDemoterTask.WARMUP_DEMOTER_START_TASK_NAME, warmupDemoterData);
+            String result;
+            if (isCache) {
+                result = restUtils.executeCacheRestCommand(WarmupDemoterTask.WARMUP_DEMOTER_PATH, WorkerWarmupDemoterTask.WARMUP_DEMOTER_START_TASK_NAME, warmupDemoterData, HttpMethod.POST, HttpURLConnection.HTTP_OK);
+            }
+            else {
+                result = restUtils.executePostCommandWithReturnValue(WarmupDemoterTask.WARMUP_DEMOTER_PATH, WarmupDemoterTask.WARMUP_DEMOTER_START_TASK_NAME, warmupDemoterData);
+            }
             res = objectMapper.readerFor(new TypeReference<Map<String, Object>>() {}).readValue(result);
             logger.debug(res.toString());
             QueryResult demoterStatsAfter = JMXCachingManager.getDemoterStats();
@@ -167,6 +176,12 @@ public class DemoterUtils
     public void resetToDefaultDemoterConfiguration()
             throws IOException
     {
+        resetToDefaultDemoterConfiguration(false);
+    }
+
+    public void resetToDefaultDemoterConfiguration(boolean isCache)
+            throws IOException
+    {
         WarmupDemoterData warmupDemoterData = WarmupDemoterData.builder()
                 .executeDemoter(false)
                 .batchSize(DEFAULT_DEMOTER_BATCH_SIZE)
@@ -178,12 +193,20 @@ public class DemoterUtils
                 .forceDeleteFailedObjects(false)
                 .build();
         logger.info("resetToDefaultDemoterConfiguration");
-        String result = restUtils.executePostCommandWithReturnValue(WarmupDemoterTask.WARMUP_DEMOTER_PATH, WarmupDemoterTask.WARMUP_DEMOTER_START_TASK_NAME, warmupDemoterData);
+        String result;
+        if (isCache) {
+            result = restUtils.executeCacheRestCommand(WarmupDemoterTask.WARMUP_DEMOTER_PATH, WorkerWarmupDemoterTask.WARMUP_DEMOTER_START_TASK_NAME, warmupDemoterData, HttpMethod.POST, HttpURLConnection.HTTP_OK);
+        }
+        else {
+            result = restUtils.executePostCommandWithReturnValue(WarmupDemoterTask.WARMUP_DEMOTER_PATH, WarmupDemoterTask.WARMUP_DEMOTER_START_TASK_NAME, warmupDemoterData);
+        }
         logger.debug("result demoter configuration: %s", result);
     }
 
     public void demoteAllByMaxUsage()
     {
+        QueryResult demoterStatsBefore = JMXCachingManager.getDemoterStats();
+
         WarmupDemoterData warmupDemoterData = WarmupDemoterData.builder()
                 .executeDemoter(true)
                 .batchSize(DEFAULT_DEMOTER_BATCH_SIZE)
@@ -194,11 +217,12 @@ public class DemoterUtils
                 .forceExecuteDeadObjects(true)
                 .forceDeleteFailedObjects(true)
                 .build();
-        QueryResult demoterStatsBefore = JMXCachingManager.getDemoterStats();
-        Map<String, Object> demoteResultStats = demote(warmupDemoterData);
-        long deletedByLowPriority = (long) (Integer) demoteResultStats.get("presto-worker:warmupDemoter:" + JMXCachingConstants.WarmupDemoter.DELETED_BY_LOW_PRIORITY);
+        Map<String, Object> demoteResultStats = demote(warmupDemoterData, true);
+
+        long deletedByLowPriority = (long) (Integer) demoteResultStats.get("warmupDemoter:" + JMXCachingConstants.WarmupDemoter.DELETED_BY_LOW_PRIORITY);
         logger.info("demote according to max usage: deletedByLowPriority=%s", deletedByLowPriority);
         assertThat(deletedByLowPriority).isPositive();
+
         QueryResult demoterStatsAfter = JMXCachingManager.getDemoterStats();
         deletedByLowPriority = getDiffFromInitial(demoterStatsAfter, demoterStatsBefore, JMXCachingConstants.WarmupDemoter.DELETED_BY_LOW_PRIORITY);
         assertThat(deletedByLowPriority).isPositive();

@@ -89,6 +89,13 @@ public class RestUtils
         return executeCommand(baseUrl, prefix, ext, inObj, httpMethod, responseCode);
     }
 
+    public String executeCacheRestCommand(String prefix, String ext, Object inObj, String httpMethod, int responseCode)
+            throws IOException
+    {
+        URI baseUrl = URI.create("http://presto-worker:8098");
+        return executeCommand(baseUrl, prefix, ext, inObj, httpMethod, responseCode);
+    }
+
     public String executeCommand(URI baseUrl, String prefix, String ext, Object inObj, String httpMethod, int responseCode)
             throws JsonProcessingException
     {

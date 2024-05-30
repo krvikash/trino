@@ -13,26 +13,16 @@
  */
 package io.trino.plugin.warp;
 
-import com.google.inject.Binder;
-import com.google.inject.Module;
 import com.starburstdata.trino.plugin.license.LicenseManager;
-import io.airlift.configuration.ConfigurationFactory;
 import io.trino.plugin.warp.config.ProxiedConnectorConfig;
-import io.trino.plugin.warp.di.DefaultFakeConnectorSessionProvider;
-import io.trino.plugin.warp.di.FakeConnectorSessionProvider;
 import io.trino.plugin.warp.di.InitializationModule;
 import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
 import io.trino.plugin.warp.execution.WarpClient;
 import io.trino.plugin.warp.extension.config.WarpExtensionConfig;
-import io.trino.plugin.warp.extension.di.WarpEmptyExtensionModule;
-import io.trino.plugin.warp.extension.di.WarpExtensionModule;
 import io.trino.plugin.warp.proxiedconnector.deltalake.DeltaLakeProxiedConnectorInitializer;
 import io.trino.plugin.warp.proxiedconnector.hive.HiveProxiedConnectorInitializer;
 import io.trino.plugin.warp.proxiedconnector.iceberg.IcebergProxiedConnectorInitializer;
 import io.trino.plugin.warp.util.UriUtils;
-import io.trino.spi.cache.CacheManager;
-import io.trino.spi.cache.CacheManagerContext;
-import io.trino.spi.cache.CacheManagerFactory;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
@@ -45,14 +35,14 @@ import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
-public class StarburstWarpConnectorFactory
-        implements ConnectorFactory, CacheManagerFactory
+public class WarpConnectorFactory
+        implements ConnectorFactory
 {
     private final DispatcherConnectorFactory dispatcherConnectorFactory;
     private final LicenseManager licenseManager;
     private final List<Class<? extends InitializationModule>> extraModules;
 
-    public StarburstWarpConnectorFactory(
+    public WarpConnectorFactory(
             DispatcherConnectorFactory dispatcherConnectorFactory,
             LicenseManager licenseManager,
             List<Class<? extends InitializationModule>> extraModules)
@@ -86,7 +76,7 @@ public class StarburstWarpConnectorFactory
 
         List<Class<? extends InitializationModule>> extraModules = !this.extraModules.isEmpty() ?
                 new ArrayList<>(this.extraModules) :
-                new ArrayList<>(List.of(WarpCorkModule.class));
+                new ArrayList<>(List.of(WarpModule.class));
         return new StarburstWarpConnector(dispatcherConnectorFactory.create(
                 catalogName,
                 configMap,
@@ -95,50 +85,5 @@ public class StarburstWarpConnectorFactory
                 Map.of(ProxiedConnectorConfig.DELTA_LAKE_CONNECTOR_NAME, DeltaLakeProxiedConnectorInitializer.class.getName(),
                         ProxiedConnectorConfig.HIVE_CONNECTOR_NAME, HiveProxiedConnectorInitializer.class.getName(),
                         ProxiedConnectorConfig.ICEBERG_CONNECTOR_NAME, IcebergProxiedConnectorInitializer.class.getName())));
-    }
-
-    @Override
-    public CacheManager create(Map<String, String> config, CacheManagerContext context)
-    {
-        return dispatcherConnectorFactory.getCacheManager();
-    }
-
-    public static class WarpCorkModule
-            implements InitializationModule
-    {
-        private Map<String, String> config;
-        private ConnectorContext connectorContext;
-        private String catalogName;
-
-        @SuppressWarnings("unused")
-        public WarpCorkModule() {}
-
-        public WarpCorkModule(Map<String, String> config, ConnectorContext connectorContext, String catalogName)
-        {
-            this.config = requireNonNull(config);
-            this.connectorContext = requireNonNull(connectorContext);
-            this.catalogName = requireNonNull(catalogName);
-        }
-
-        @Override
-        public Module createModule(Map<String, String> config, ConnectorContext connectorContext, String catalogName)
-        {
-            return new WarpCorkModule(config, connectorContext, catalogName);
-        }
-
-        @Override
-        public void configure(Binder binder)
-        {
-            ConfigurationFactory configFactory = new ConfigurationFactory(config);
-            WarpExtensionConfig warpExtensionConfig = configFactory.build(WarpExtensionConfig.class);
-            if (warpExtensionConfig.isEnabled()) {
-                binder.install(new WarpExtensionModule(config, connectorContext, catalogName));
-            }
-            else {
-                binder.install(new WarpEmptyExtensionModule(config, connectorContext, catalogName));
-            }
-
-            binder.bind(FakeConnectorSessionProvider.class).to(DefaultFakeConnectorSessionProvider.class);
-        }
     }
 }

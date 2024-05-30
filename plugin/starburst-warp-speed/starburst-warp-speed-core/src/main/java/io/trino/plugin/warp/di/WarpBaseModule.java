@@ -18,6 +18,7 @@ import io.trino.spi.connector.ConnectorContext;
 
 import java.util.Map;
 
+import static io.trino.plugin.warp.config.GlobalConfig.CONFIG_IS_CACHE;
 import static io.trino.plugin.warp.config.GlobalConfig.CONFIG_IS_SINGLE;
 
 public interface WarpBaseModule
@@ -46,6 +47,11 @@ public interface WarpBaseModule
     static boolean isSingle(Map<String, String> config)
     {
         return Boolean.parseBoolean(config.getOrDefault(CONFIG_IS_SINGLE, Boolean.FALSE.toString()));
+    }
+
+    static boolean isCache(Map<String, String> config)
+    {
+        return Boolean.parseBoolean(config.getOrDefault(CONFIG_IS_CACHE, Boolean.FALSE.toString()));
     }
 
     default boolean shouldInstall()

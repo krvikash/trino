@@ -24,23 +24,20 @@ import io.trino.plugin.warp.util.FailureGeneratorInvocationHandler;
 import io.trino.tempto.AfterMethodWithContext;
 import io.trino.tempto.BeforeMethodWithContext;
 import io.trino.tempto.query.QueryResult;
+import io.trino.tests.product.warp.utils.CacheUtils;
 import io.trino.tests.product.warp.utils.DemoterUtils;
-import io.trino.tests.product.warp.utils.QueryUtils;
 import io.trino.tests.product.warp.utils.RestUtils;
 import io.trino.tests.product.warp.utils.RuleUtils;
 import io.trino.tests.product.warp.utils.TestFormat;
 import io.trino.tests.product.warp.utils.syntheticconfig.ExcludeStrategy;
 import jakarta.ws.rs.HttpMethod;
 import org.testng.ITestContext;
-import org.testng.SkipException;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URI;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -59,25 +56,23 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestWarpCache
 {
-    private static final Logger logger = Logger.get(TestSynthetic.class);
-    private final String formattedDateTime;
+    private static final Logger logger = Logger.get(TestWarpCache.class);
+    private static final String CATALOG_NAME = "warp";
+    private static final String SCHEMA_NAME = "synthetic";
+
     private boolean initialized;
 
-    @Inject
-    QueryUtils queryUtils;
     @Inject
     RuleUtils ruleUtils;
     @Inject
     DemoterUtils demoterUtils;
-
     @Inject
     RestUtils restUtils;
+    @Inject
+    CacheUtils cacheUtils;
 
     public TestWarpCache()
     {
-        LocalDateTime now = LocalDateTime.now();
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyMMdd_HHmmss");
-        formattedDateTime = now.format(formatter);
     }
 
     @BeforeMethodWithContext
@@ -86,8 +81,8 @@ public class TestWarpCache
     {
         synchronized (this) {
             if (!initialized) {
-                onTrino().executeQuery("CREATE SCHEMA IF NOT EXISTS warp.synthetic");
-                onTrino().executeQuery("USE warp.synthetic");
+                onTrino().executeQuery(format("CREATE SCHEMA IF NOT EXISTS %s.%s", CATALOG_NAME, SCHEMA_NAME));
+                onTrino().executeQuery(format("USE %s.%s", CATALOG_NAME, SCHEMA_NAME));
                 initialized = true;
             }
         }
@@ -99,24 +94,18 @@ public class TestWarpCache
     {
     }
 
-    public static Iterator<Object[]> executeDataProvider(String filePath)
-            throws Exception
-    {
-        logger.info("running %s", filePath);
-        JsonNode jsonNodeTests = objectMapper.readTree(new URI(filePath).toURL());
-        List<TestFormat> tests = objectMapper.readerFor(new TypeReference<List<TestFormat>>() {})
-                .readValue(jsonNodeTests);
-        return tests.stream()
-                .filter(TestFormat::pt_enable)
-                .map(x -> new Object[] {x})
-                .iterator();
-    }
-
     @DataProvider
     public Iterator<Object[]> cache(ITestContext context)
             throws Exception
     {
-        return executeDataProvider("file:///docker/presto-product-tests/warp/cache.json");
+        return CacheUtils.executeDataProvider("file:///docker/presto-product-tests/warp/cache.json");
+    }
+
+    @Test(groups = {WARP_SPEED_CACHE, PROFILE_SPECIFIC_TESTS}, dataProvider = "cache")
+    public void cache(TestFormat testFormat)
+            throws IOException
+    {
+        cacheUtils.execute(testFormat, true, SCHEMA_NAME);
     }
 
     @DataProvider
@@ -148,11 +137,12 @@ public class TestWarpCache
                 .iterator();
     }
 
-    @Test(groups = {WARP_SPEED_CACHE, PROFILE_SPECIFIC_TESTS}, dataProvider = "cache")
-    public void cache(TestFormat testFormat)
+    @Test(groups = {WARP_SPEED_CACHE, PROFILE_SPECIFIC_TESTS}, dataProvider = "synthTypes")
+    public void synthTypes(TestFormat testFormat)
             throws IOException
     {
-        execute(testFormat, "synthetic");
+        onTrino().executeQuery("set session cache_aggregations_enabled = false");
+        cacheUtils.execute(testFormat, true, SCHEMA_NAME);
     }
 
     @DataProvider
@@ -176,6 +166,13 @@ public class TestWarpCache
                 .filter(TestFormat::pt_enable)
                 .map(x -> new Object[] {x})
                 .iterator();
+    }
+
+    @Test(groups = {WARP_SPEED_CACHE, PROFILE_SPECIFIC_TESTS}, dataProvider = "synthetic")
+    public void synthetic(TestFormat testFormat)
+            throws IOException
+    {
+        cacheUtils.execute(testFormat, true, SCHEMA_NAME);
     }
 
     @DataProvider
@@ -220,22 +217,7 @@ public class TestWarpCache
             throws IOException
     {
         onTrino().executeQuery("set session cache_aggregations_enabled = false");
-        execute(testFormat, "synthetic");
-    }
-
-    @Test(groups = {WARP_SPEED_CACHE, PROFILE_SPECIFIC_TESTS}, dataProvider = "synthetic")
-    public void synthetic(TestFormat testFormat)
-            throws IOException
-    {
-        execute(testFormat, "synthetic");
-    }
-
-    @Test(groups = {WARP_SPEED_CACHE, PROFILE_SPECIFIC_TESTS}, dataProvider = "synthTypes")
-    public void synthTypes(TestFormat testFormat)
-            throws IOException
-    {
-        onTrino().executeQuery("set session cache_aggregations_enabled = false");
-        execute(testFormat, "synthetic");
+        cacheUtils.execute(testFormat, true, SCHEMA_NAME);
     }
 
     @Test(groups = PROFILE_SPECIFIC_TESTS)
@@ -246,7 +228,7 @@ public class TestWarpCache
             onTrino().executeQuery("USE warp.synthetic");
             onTrino().executeQuery("set session cache_aggregations_enabled = false");
             String query = "select id from mac_paramsj where id > 1";
-            demoterUtils.resetToDefaultDemoterConfiguration();
+            demoterUtils.resetToDefaultDemoterConfiguration(true);
             List<FailureGeneratorResource.FailureGeneratorData> failureGeneratorData = List.of(new FailureGeneratorResource.FailureGeneratorData(
                     null,
                     "2388",
@@ -290,38 +272,7 @@ public class TestWarpCache
         }
         finally {
             demoterUtils.demoteAllByMaxUsage();
-            demoterUtils.resetToDefaultDemoterConfiguration();
-        }
-    }
-
-    private void execute(TestFormat testFormat, String schemaName)
-            throws IOException
-    {
-        if (testFormat.skip() || testFormat.skip_caching()) {
-            logger.info("test %s is skipped. description=%s", testFormat.name(), testFormat.description());
-            throw new SkipException("Skipping this test");
-        }
-        demoterUtils.resetToDefaultDemoterConfiguration();
-        int ranQueries = 0;
-        try {
-            logger.info("starting run test %s", testFormat.name());
-            onTrino().executeQuery("set session warp.enable_default_warming = false");
-            onTrino().executeQuery(format("set session warp.import_export_s3_path = 's3://systemtest-export-import/test_export_import/pt/%s'", formattedDateTime));
-            onTrino().executeQuery("set session warp.enable_import_export = true");
-            onTrino().executeQuery(format("USE warp.%s", schemaName));
-            ranQueries = queryUtils.runCacheQueries(testFormat);
-            logger.info("successfully finish run test %s", testFormat.name());
-        }
-        catch (Exception e) {
-            logger.error(e, "failed on test=%s", testFormat.name());
-            throw e;
-        }
-        finally {
-            if (ranQueries > 0) {
-                logger.info("run demoter after running %s queries on test %s", ranQueries, testFormat.name());
-                demoterUtils.demoteAllByMaxUsage();
-                demoterUtils.resetToDefaultDemoterConfiguration();
-            }
+            demoterUtils.resetToDefaultDemoterConfiguration(true);
         }
     }
 

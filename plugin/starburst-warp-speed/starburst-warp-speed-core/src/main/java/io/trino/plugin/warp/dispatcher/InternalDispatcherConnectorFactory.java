@@ -22,15 +22,12 @@ import io.airlift.log.Logger;
 import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.config.ProxiedConnectorConfig;
-import io.trino.plugin.warp.di.CacheManagerModule;
 import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.di.WarpModules;
 import io.trino.plugin.warp.di.dispatcher.DispatcherCoordinatorModule;
 import io.trino.plugin.warp.di.dispatcher.DispatcherMainModule;
 import io.trino.plugin.warp.dispatcher.connectors.DispatcherConnectorBase;
-import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.spi.NodeManager;
-import io.trino.spi.cache.CacheManager;
 import io.trino.spi.cache.ConnectorCacheMetadata;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
@@ -59,7 +56,7 @@ public class InternalDispatcherConnectorFactory
     private InternalDispatcherConnectorFactory() {}
 
     @SuppressWarnings({"unused", "OptionalUsedAsFieldOrParameterType"})
-    public static Pair<Connector, CacheManager> createConnector(
+    public static Connector createConnector(
             String catalogName,
             Map<String, String> config,
             Optional<List<Module>> optionalModules,
@@ -95,7 +92,6 @@ public class InternalDispatcherConnectorFactory
                 new MBeanModule(),
                 new DispatcherMainModule(catalogName, warpConfig, context),
                 new DispatcherCoordinatorModule(warpConfig, context),
-                new CacheManagerModule(warpConfig, context),
                 binder -> {
                     binder.bind(TypeManager.class).toInstance(context.getTypeManager());
                     binder.bind(NodeManager.class).toInstance(context.getNodeManager());
@@ -113,8 +109,7 @@ public class InternalDispatcherConnectorFactory
                 .initialize();
 
         initializeSystemServices(injector);
-        return Pair.of(injector.getInstance(DispatcherConnectorBase.class),
-                injector.getInstance(CacheManager.class));
+        return injector.getInstance(DispatcherConnectorBase.class);
     }
 
     private static void initializeSystemServices(Injector injector)

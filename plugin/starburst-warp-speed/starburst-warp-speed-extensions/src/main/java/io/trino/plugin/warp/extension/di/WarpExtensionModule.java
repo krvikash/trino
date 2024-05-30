@@ -88,7 +88,7 @@ public class WarpExtensionModule
 
         ConfigurationFactory configFactory = new ConfigurationFactory(config);
         WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig = configFactory.build(WarmupRuleCloudFetcherConfig.class);
-        if (WarpBaseModule.isWorker(connectorContext, config) && StringUtils.isEmpty(warmupRuleCloudFetcherConfig.getStorePath())) {
+        if (!WarpBaseModule.isCache(config) && WarpBaseModule.isWorker(connectorContext, config) && StringUtils.isEmpty(warmupRuleCloudFetcherConfig.getStorePath())) {
             binder().bind(WarmupRuleFetcher.class).to(WorkerWarmupRuleFetcher.class);
         }
         else {

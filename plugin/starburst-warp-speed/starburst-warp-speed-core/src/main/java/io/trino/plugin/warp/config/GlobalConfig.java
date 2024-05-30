@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 public class GlobalConfig
 {
     public static final String CONFIG_IS_SINGLE = "warp-speed.config.is-single";
+    public static final String CONFIG_IS_CACHE = "warp-speed.config.is-cache";
     public static final String CLUSTER_UP_TIME = "warp-speed.cluster_up_time";
     public static final String ENABLE_DEFAULT_WARMING = "warp-speed.enable-default-warming";
     public static final String DEFAULT_WARMING_INDEX = "warp-speed.default-warming-index";
@@ -49,6 +50,7 @@ public class GlobalConfig
     private int stripeSize = 32;
     private String cardinalityBuckets = "1000,1000000"; // allows applying most selective predicate first when using predicate push-down
     private boolean isSingle;
+    private boolean isCache;
     private Set<String> unsupportedFunctions = Collections.emptySet();
     private long clusterUpTime;
     private boolean enableDefaultWarming = true;
@@ -106,6 +108,17 @@ public class GlobalConfig
     public void setIsSingle(boolean isSingle)
     {
         this.isSingle = isSingle;
+    }
+
+    public boolean getIsCache()
+    {
+        return isCache;
+    }
+
+    @Config(CONFIG_IS_CACHE)
+    public void setIsCache(boolean isCache)
+    {
+        this.isCache = isCache;
     }
 
     public String getCardinalityBuckets()
@@ -502,6 +515,7 @@ public class GlobalConfig
                 ", stripeSize=" + stripeSize +
                 ", cardinalityBuckets='" + cardinalityBuckets + '\'' +
                 ", isSingle=" + isSingle +
+                ", isCache=" + isCache +
                 ", unsupportedFunctions=" + unsupportedFunctions +
                 ", clusterUpTime=" + clusterUpTime +
                 ", enableDefaultWarming=" + enableDefaultWarming +

@@ -14,6 +14,7 @@
 package io.trino.plugin.warp.di;
 
 import com.google.inject.Binder;
+import com.google.inject.Module;
 import com.google.inject.multibindings.MapBinder;
 import com.google.inject.name.Names;
 import io.trino.plugin.warp.dispatcher.cache.AbortAction;
@@ -27,50 +28,28 @@ import io.trino.plugin.warp.dispatcher.warmup.CacheWarmState;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.CacheWarmer;
 import io.trino.plugin.warp.storage.write.WarpCacheFilesMerger;
 import io.trino.spi.cache.CacheManager;
-import io.trino.spi.connector.ConnectorContext;
-
-import java.util.Map;
 
 public class CacheManagerModule
-        implements WarpBaseModule
+        implements Module
 {
-    private ConnectorContext context;
-    private Map<String, String> config;
-
-    public CacheManagerModule(Map<String, String> config, ConnectorContext context)
+    public CacheManagerModule()
     {
-        this.config = config;
-        this.context = context;
     }
 
     @Override
     public void configure(Binder binder)
     {
-        if (WarpBaseModule.isWorker(context, config)) {
-            binder.bind(CacheManager.class).to(WorkerCacheManager.class);
-            binder.bind(CacheWarmer.class);
-            binder.bind(WarpCacheFilesMerger.class);
-            binder.bind(ParallelWarmUpLimiter.class);
-            MapBinder<CacheWarmState, CacheAction> mapBinder = MapBinder.newMapBinder(binder,
-                    CacheWarmState.class, CacheAction.class, Names.named("CacheActions"));
-            mapBinder.addBinding(CacheWarmState.FINISHING).to(FinishAction.class);
-            mapBinder.addBinding(CacheWarmState.EMPTY_PAGE).to(EmptyPageAction.class);
-            mapBinder.addBinding(CacheWarmState.ABORT_ON_INIT_PROCESS).to(AbortOnInitAction.class);
-            mapBinder.addBinding(CacheWarmState.ABORTING).to(AbortAction.class);
-        }
-    }
+        binder.bind(CacheManager.class).to(WorkerCacheManager.class);
+        binder.bind(CacheWarmer.class);
+        binder.bind(WarpCacheFilesMerger.class);
+        binder.bind(ParallelWarmUpLimiter.class);
 
-    @Override
-    public CacheManagerModule withConfig(Map<String, String> config)
-    {
-        this.config = config;
-        return this;
-    }
+        MapBinder<CacheWarmState, CacheAction> mapBinder = MapBinder.newMapBinder(binder,
+                CacheWarmState.class, CacheAction.class, Names.named("CacheActions"));
 
-    @Override
-    public CacheManagerModule withContext(ConnectorContext context)
-    {
-        this.context = context;
-        return this;
+        mapBinder.addBinding(CacheWarmState.FINISHING).to(FinishAction.class);
+        mapBinder.addBinding(CacheWarmState.EMPTY_PAGE).to(EmptyPageAction.class);
+        mapBinder.addBinding(CacheWarmState.ABORT_ON_INIT_PROCESS).to(AbortOnInitAction.class);
+        mapBinder.addBinding(CacheWarmState.ABORTING).to(AbortAction.class);
     }
 }

@@ -23,7 +23,6 @@ import io.trino.plugin.warp.dispatcher.DispatcherPageSinkProvider;
 import io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandleBuilderProvider;
 import io.trino.plugin.warp.dispatcher.ReadErrorHandler;
-import io.trino.plugin.warp.dispatcher.cache.CoordinatorCacheManager;
 import io.trino.plugin.warp.dispatcher.connectors.CoordinatorDispatcherConnector;
 import io.trino.plugin.warp.dispatcher.connectors.DispatcherConnectorBase;
 import io.trino.plugin.warp.dispatcher.connectors.SingleDispatcherConnector;
@@ -61,7 +60,6 @@ import io.trino.plugin.warp.storage.write.appenders.BlockAppenderFactory;
 import io.trino.plugin.warp.storage.write.dictionary.DictionaryWriterFactory;
 import io.trino.plugin.warp.util.FailureGeneratorInvocationHandler;
 import io.trino.plugin.warp.warmup.dal.WarmupRuleDao;
-import io.trino.spi.cache.CacheManager;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ConnectorContext;
 
@@ -131,7 +129,6 @@ public class DispatcherMainModule
             binder.bind(WorkerDispatcherConnector.class);
         }
         else if (WarpBaseModule.isCoordinator(context)) {
-            binder.bind(CacheManager.class).to(CoordinatorCacheManager.class);
             binder.bind(DispatcherConnectorBase.class).to(CoordinatorDispatcherConnector.class);
         }
         else {

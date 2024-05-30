@@ -86,7 +86,7 @@ public class QueryUtils
         softAssert.assertAll();
     }
 
-    public int runCacheQueries(TestFormat test)
+    public int runCacheQueries(TestFormat test, boolean isWarp)
     {
         List<TestFormat.QueryData> queriesData = test.queries_data();
         if (queriesData == null) {
@@ -99,16 +99,20 @@ public class QueryUtils
                 logger.info("skipping query: %s", query);
                 continue;
             }
-            warmAndQueryCache(query, test.split_count());
+            warmAndQueryCache(query, test.split_count(), isWarp);
             ranQueries++;
         }
         return ranQueries;
     }
 
-    private void warmAndQueryCache(TestFormat.QueryData queryData, int splitCount)
+    private void warmAndQueryCache(TestFormat.QueryData queryData, int splitCount, boolean isWarp)
     {
         QueryResult warmingStatsBefore = JMXCachingManager.getWarmingStats();
-        QueryResult exportRowBefore = JMXCachingManager.getExportStats();
+        QueryResult exportRowBefore = null;
+
+        if (isWarp) {
+            exportRowBefore = JMXCachingManager.getExportStats();
+        }
 
         AtomicInteger iterationNUmber = new AtomicInteger();
         @Language("SQL") String query = queryData.query();
@@ -139,11 +143,14 @@ public class QueryUtils
                     String queryId = ((TrinoResultSet) queryResult.getJdbcResultSet().orElseThrow()).getQueryId();
                     ruleUtils.validateLoadByCacheDataOperator(queryId);
                 });
-        logger.info("validate no export occurred");
-        QueryResult exportStatsAfter = JMXCachingManager.getExportStats();
-        assertThat(getDiffFromInitial(exportStatsAfter, exportRowBefore, EXPORT_ROW_GROUP_SCHEDULED))
-                .as("validate no export for cachingManager. queryId=%s", queryData.query_id())
-                .isEqualTo(getDiffFromInitial(exportStatsAfter, exportRowBefore, EXPORT_ROW_GROUP_FINISHED));
+
+        if (isWarp) {
+            logger.info("validate no export occurred");
+            QueryResult exportStatsAfter = JMXCachingManager.getExportStats();
+            assertThat(getDiffFromInitial(exportStatsAfter, exportRowBefore, EXPORT_ROW_GROUP_SCHEDULED))
+                    .as("validate no export for cachingManager. queryId=%s", queryData.query_id())
+                    .isEqualTo(getDiffFromInitial(exportStatsAfter, exportRowBefore, EXPORT_ROW_GROUP_FINISHED));
+        }
     }
 
     public QueryResult queryAndValidate(@Language("SQL") String query, Map<String, Long> expectedResults, String testName)

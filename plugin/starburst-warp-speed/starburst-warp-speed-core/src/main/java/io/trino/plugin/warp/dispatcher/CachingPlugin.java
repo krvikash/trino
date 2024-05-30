@@ -69,6 +69,11 @@ public class CachingPlugin
         return new DispatcherConnectorFactory(storageEngineModule, cloudVendorModule);
     }
 
+    public DispatcherCacheManagerFactory getCacheManagerFactory()
+    {
+        return new DispatcherCacheManagerFactory(storageEngineModule, cloudVendorModule);
+    }
+
     @VisibleForTesting
     public CachingPlugin withStorageEngineModule(Module module)
     {

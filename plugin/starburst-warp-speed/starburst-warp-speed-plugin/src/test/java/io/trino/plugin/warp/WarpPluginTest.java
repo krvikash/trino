@@ -23,6 +23,7 @@ public class WarpPluginTest
     public void testPlugin()
     {
         WarpPlugin warpPlugin = new WarpPlugin();
-        assertThat(warpPlugin.getConnectorFactories()).hasOnlyElementsOfType(StarburstWarpConnectorFactory.class);
+        assertThat(warpPlugin.getConnectorFactories()).hasOnlyElementsOfType(WarpConnectorFactory.class);
+        assertThat(warpPlugin.getCacheManagerFactories()).hasOnlyElementsOfType(WarpCacheManagerFactory.class);
     }
 }

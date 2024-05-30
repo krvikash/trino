@@ -43,7 +43,6 @@ import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
 import io.trino.plugin.warp.type.WarpTypeDeserializer;
 import io.trino.plugin.warp.warmup.WarmupRuleService;
-import io.trino.spi.VersionEmbedder;
 import io.trino.spi.block.Block;
 import io.trino.spi.connector.ConnectorContext;
 
@@ -109,7 +108,6 @@ public class WarpMainModule
 
         binder.bind(WarpTypeDeserializer.class).asEagerSingleton();
 
-        binder.bind(VersionEmbedder.class).toInstance(context.getVersionEmbedder());
         binder.bind(FlowsSequencer.class);
 
         binder.bind(WarmupRuleService.class);

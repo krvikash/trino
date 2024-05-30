@@ -11,7 +11,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.trino.plugin.warp;
 
 import com.starburstdata.trino.plugin.license.LicenseManager;
@@ -30,7 +29,6 @@ public class WarpPlugin
         implements Plugin
 {
     private final LicenseManager licenseManager;
-    private StarburstWarpConnectorFactory starburstWarpConnectorFactory;
 
     public WarpPlugin()
     {
@@ -45,13 +43,14 @@ public class WarpPlugin
     @Override
     public Iterable<ConnectorFactory> getConnectorFactories()
     {
-        starburstWarpConnectorFactory = new StarburstWarpConnectorFactory(super.getConnectorFactory(), licenseManager, Collections.emptyList());
-        return List.of(starburstWarpConnectorFactory);
+        WarpConnectorFactory warpConnectorFactory = new WarpConnectorFactory(super.getConnectorFactory(), licenseManager, Collections.emptyList());
+        return List.of(warpConnectorFactory);
     }
 
     @Override
     public Iterable<CacheManagerFactory> getCacheManagerFactories()
     {
-        return List.of(starburstWarpConnectorFactory);
+        WarpCacheManagerFactory warpCacheManagerFactory = new WarpCacheManagerFactory(super.getCacheManagerFactory());
+        return List.of(warpCacheManagerFactory);
     }
 }

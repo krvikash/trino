@@ -15,6 +15,7 @@ package io.trino.tests.product.launcher.env.environment;
 
 import com.google.inject.Inject;
 import io.trino.tests.product.launcher.docker.DockerFiles;
+import io.trino.tests.product.launcher.env.DockerContainer;
 import io.trino.tests.product.launcher.env.Environment;
 import io.trino.tests.product.launcher.env.common.Standard;
 import io.trino.tests.product.launcher.env.common.StandardMultinode;
@@ -41,11 +42,20 @@ public final class EnvMultinodeWarpHiveCache
     @Override
     public void extendEnvironment(Environment.Builder builder)
     {
-        String containerTrinoConfigProperties = Standard.CONTAINER_TRINO_CONFIG_PROPERTIES;
         super.extendEnvironment(builder);
+
+        builder.configureContainer(WORKER, this::configureCacheResource);
+
+        String containerTrinoConfigProperties = Standard.CONTAINER_TRINO_CONFIG_PROPERTIES;
+
         builder.configureContainer(COORDINATOR, container -> container
                 .withCopyFileToContainer(forHostPath(configDir.getPath("master-config.properties")), containerTrinoConfigProperties));
         builder.configureContainer(WORKER, container -> container
                 .withCopyFileToContainer(forHostPath(configDir.getPath("worker-config.properties")), containerTrinoConfigProperties));
+    }
+
+    private void configureCacheResource(DockerContainer container)
+    {
+        portBinder.exposePort(container, 8098);
     }
 }
