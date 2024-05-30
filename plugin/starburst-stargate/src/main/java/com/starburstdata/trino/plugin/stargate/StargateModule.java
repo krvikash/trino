@@ -79,6 +79,8 @@ public class StargateModule
                 .setDefault()
                 .to(Key.get(ConnectionFactory.class, DefaultStargateBinding.class))
                 .in(Scopes.SINGLETON);
+
+        configBinder(binder).bindConfigDefaults(JdbcMetadataConfig.class, config -> config.setBulkListColumns(true));
     }
 
     @Provides
