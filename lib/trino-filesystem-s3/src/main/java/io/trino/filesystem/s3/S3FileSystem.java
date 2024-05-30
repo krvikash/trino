@@ -41,6 +41,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
@@ -52,12 +53,14 @@ import static java.util.Objects.requireNonNull;
 public final class S3FileSystem
         implements TrinoFileSystem
 {
+    private final ExecutorService uploadExecutor;
     private final S3Client client;
     private final S3Context context;
     private final RequestPayer requestPayer;
 
-    public S3FileSystem(S3Client client, S3Context context)
+    public S3FileSystem(ExecutorService uploadExecutor, S3Client client, S3Context context)
     {
+        this.uploadExecutor = requireNonNull(uploadExecutor, "uploadExecutor is null");
         this.client = requireNonNull(client, "client is null");
         this.context = requireNonNull(context, "context is null");
         this.requestPayer = context.requestPayer();
@@ -78,7 +81,7 @@ public final class S3FileSystem
     @Override
     public TrinoOutputFile newOutputFile(Location location)
     {
-        return new S3OutputFile(client, context, new S3Location(location));
+        return new S3OutputFile(uploadExecutor, client, context, new S3Location(location));
     }
 
     @Override
