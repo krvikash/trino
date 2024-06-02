@@ -467,7 +467,7 @@ public abstract class BaseSnowflakeConnectorTest
     @Test
     public void testPredicatePushdown()
     {
-        try (TestTable testTable = new TestTable(snowflakeExecutor::execute, getSession().getSchema().orElseThrow() + ".test_aggregation_pushdown",
+        try (TestTable testTable = new TestTable(snowflakeExecutor, getSession().getSchema().orElseThrow() + ".test_aggregation_pushdown",
                 "(" +
                         "bigint_column bigint, " +
                         "short_decimal decimal(9, 3), " +
@@ -524,7 +524,7 @@ public abstract class BaseSnowflakeConnectorTest
     @Test
     public void testSnowflakeTimestampWithPrecision()
     {
-        try (TestTable testTable = new TestTable(snowflakeExecutor::execute, getSession().getSchema().orElseThrow() + ".test_timestamp_with_precision",
+        try (TestTable testTable = new TestTable(snowflakeExecutor, getSession().getSchema().orElseThrow() + ".test_timestamp_with_precision",
                 "(" +
                         "timestamp0 timestamp(0)," +
                         "timestamp1 timestamp(1)," +
@@ -579,7 +579,7 @@ public abstract class BaseSnowflakeConnectorTest
     @Test
     public void testSnowflakeTimestampWithTimeZoneWithPrecision()
     {
-        try (TestTable testTable = new TestTable(snowflakeExecutor::execute, getSession().getSchema().orElseThrow() + ".test_timestamptz_with_precision",
+        try (TestTable testTable = new TestTable(snowflakeExecutor, getSession().getSchema().orElseThrow() + ".test_timestamptz_with_precision",
                 "(" +
                         "timestamptz0 timestamp_tz(0)," +
                         "timestamptz1 timestamp_tz(1)," +
@@ -634,7 +634,7 @@ public abstract class BaseSnowflakeConnectorTest
     @Test
     public void testSnowflakeTimeWithPrecision()
     {
-        try (TestTable testTable = new TestTable(snowflakeExecutor::execute, getSession().getSchema().orElseThrow() + ".test_time_with_precision",
+        try (TestTable testTable = new TestTable(snowflakeExecutor, getSession().getSchema().orElseThrow() + ".test_time_with_precision",
                 "(" +
                         "time0 time(0)," +
                         "time1 time(1)," +
@@ -689,7 +689,7 @@ public abstract class BaseSnowflakeConnectorTest
     @Test
     public void testSnowflakeTimestampRounding()
     {
-        try (TestTable testTable = new TestTable(snowflakeExecutor::execute, getSession().getSchema().orElseThrow() + ".test_timestamp_rounding",
+        try (TestTable testTable = new TestTable(snowflakeExecutor, getSession().getSchema().orElseThrow() + ".test_timestamp_rounding",
                 "(t timestamp(9))",
                 ImmutableList.of(
                         "TIMESTAMP '1901-02-03 04:05:06.123499999'",
@@ -710,7 +710,7 @@ public abstract class BaseSnowflakeConnectorTest
     @Test
     public void testSnowflakeTimestampWithTimeZoneRounding()
     {
-        try (TestTable testTable = new TestTable(snowflakeExecutor::execute, getSession().getSchema().orElseThrow() + ".test_timestamptz_rounding",
+        try (TestTable testTable = new TestTable(snowflakeExecutor, getSession().getSchema().orElseThrow() + ".test_timestamptz_rounding",
                 "(t timestamp_tz(9))",
                 ImmutableList.of(
                         "'1901-02-03 04:05:06.123499999 +02:00'",
@@ -729,7 +729,7 @@ public abstract class BaseSnowflakeConnectorTest
     @Test
     public void testSnowflakeTimeRounding()
     {
-        try (TestTable testTable = new TestTable(snowflakeExecutor::execute, getSession().getSchema().orElseThrow() + ".test_time_rounding",
+        try (TestTable testTable = new TestTable(snowflakeExecutor, getSession().getSchema().orElseThrow() + ".test_time_rounding",
                 "(t time(9))",
                 ImmutableList.of(
                         "TIME '04:05:06.123499999'",
