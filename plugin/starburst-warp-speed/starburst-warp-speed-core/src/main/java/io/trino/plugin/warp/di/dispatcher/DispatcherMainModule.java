@@ -56,6 +56,7 @@ import io.trino.plugin.warp.storage.read.StorageCollectorService;
 import io.trino.plugin.warp.storage.read.fill.BlockFillersFactory;
 import io.trino.plugin.warp.storage.write.StorageWriterService;
 import io.trino.plugin.warp.storage.write.VaradaPageSinkFactory;
+import io.trino.plugin.warp.storage.write.WarmupElementStatsService;
 import io.trino.plugin.warp.storage.write.appenders.BlockAppenderFactory;
 import io.trino.plugin.warp.storage.write.dictionary.DictionaryWriterFactory;
 import io.trino.plugin.warp.util.FailureGeneratorInvocationHandler;
@@ -119,6 +120,7 @@ public class DispatcherMainModule
             binder.bind(ChunksQueueService.class);
             binder.bind(StorageCollectorService.class);
             binder.bind(StorageWriterService.class);
+            binder.bind(WarmupElementStatsService.class);
             binder.bind(BlockAppenderFactory.class);
             binder.bind(BlockTransformerFactory.class);
             binder.bind(DomainToMapBlockConvertor.class);

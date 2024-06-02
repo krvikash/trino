@@ -16,8 +16,6 @@ package io.trino.plugin.warp.storage.write;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.airlift.slice.Slice;
-import io.airlift.slice.Slices;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dictionary.DictionaryMaxException;
 import io.trino.plugin.warp.dictionary.DictionaryWarmInfo;
@@ -31,7 +29,6 @@ import io.trino.plugin.warp.dispatcher.model.WarmState;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmSinkResult;
-import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.LuceneIndexerStats;
 import io.trino.plugin.warp.juffer.BlockPosHolder;
@@ -62,8 +59,6 @@ import java.util.Optional;
 
 import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_CODE_NUM;
 import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_LENGTH;
-import static io.trino.plugin.warp.type.TypeUtils.isCharType;
-import static io.trino.plugin.warp.type.TypeUtils.isVarcharType;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -71,13 +66,13 @@ public class StorageWriterService
 {
     private static final Logger logger = Logger.get(StorageWriterService.class);
     private static final String LUCENE_STATS_GROUP_NAME = "lucene-index";
-    private static final int STAT_MAX_SLICE_LENGTH = 8;
 
     private final StorageEngine storageEngine;
     private final StorageEngineConstants storageEngineConstants;
     private final BufferAllocator bufferAllocator;
     private final DictionaryCacheService dictionaryCacheService;
     private final BlockAppenderFactory blockAppenderFactory;
+    private final WarmupElementStatsService warmupElementStatsService;
     private final PrintMetricsTimerTask metricsTimerTask;
     private final LuceneIndexerStats statsLuceneIndexer;
 
@@ -97,13 +92,15 @@ public class StorageWriterService
             DictionaryCacheService dictionaryCacheService,
             MetricsManager metricsManager,
             PrintMetricsTimerTask metricsTimerTask,
-            BlockAppenderFactory blockAppenderFactory)
+            BlockAppenderFactory blockAppenderFactory,
+            WarmupElementStatsService warmupElementStatsService)
     {
         this.storageEngine = requireNonNull(storageEngine);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.bufferAllocator = requireNonNull(bufferAllocator);
         this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
         this.blockAppenderFactory = requireNonNull(blockAppenderFactory);
+        this.warmupElementStatsService = requireNonNull(warmupElementStatsService);
         LuceneIndexerStats luceneIndexerStats = new LuceneIndexerStats(LUCENE_STATS_GROUP_NAME, "0");
         this.statsLuceneIndexer = metricsManager.registerMetric(luceneIndexerStats);
         this.metricsTimerTask = requireNonNull(metricsTimerTask);
@@ -259,17 +256,12 @@ public class StorageWriterService
             return new WarmSinkResult(warmupElementBuilder.build(), 0);
         }
 
-        WarmupElementStats closedStats;
         WarmupElementWriteMetadata warmupElementWriteMetadata = storageWriterContext.getWarmupElementWriteMetadata();
-        try {
-            closedStats = getFinalStats(storageWriterContext.getWarmupElementWriteMetadata().type(),
-                    storageWriterContext.getWarmupElementStatsBuilder().build(),
-                    warmupElementWriteMetadata);
-        }
-        catch (Exception e) {
-            logger.warn(e, "failed to get range on write");
-            throw new IllegalArgumentException();
-        }
+        WarmupElementStats closedStats = warmupElementStatsService.getFinalStats(
+                warmupElementWriteMetadata.type(),
+                storageWriterContext.getWarmupElementStatsBuilder().build(),
+                warmupElementWriteMetadata.warmUpElement().getRecTypeCode(),
+                warmupElementWriteMetadata.warmUpElement().getWarmUpType());
 
         warmupElementBuilder.state(WarmUpElementState.VALID)
                 .warmState(WarmState.HOT)
@@ -293,7 +285,7 @@ public class StorageWriterService
         if (offset == 0) {
             logger.error("offset 0 warmupElementWriteMetadata=%s, storageWriterSplitConfig=%s", warmupElementWriteMetadata, storageWriterSplitConfig);
             // Native failed to write
-            updateToFailedState(warmupElementBuilder, storageWriterContext.getWarmupElementWriteMetadata());
+            updateToFailedState(warmupElementBuilder, warmupElementWriteMetadata);
             storageWriterContext.setFailed();
         }
         // attach dictionary if needed
@@ -310,7 +302,7 @@ public class StorageWriterService
             }
             catch (Exception e) {
                 storageWriterContext.setFailed();
-                updateToFailedState(warmupElementBuilder, storageWriterContext.getWarmupElementWriteMetadata());
+                updateToFailedState(warmupElementBuilder, warmupElementWriteMetadata);
             }
             logger.debug("close fileOffsetsEnd (= dictionaryOffset) %d dictionarySize %d",
                     offset, dictionarySize);
@@ -329,7 +321,7 @@ public class StorageWriterService
             warmupElementBuilder.endOffset(offset);
         }
         if (offset == 0 && storageWriterContext.weSuccess()) {
-            updateToFailedState(storageWriterContext.getWarmupElementBuilder(), storageWriterContext.getWarmupElementWriteMetadata());
+            updateToFailedState(storageWriterContext.getWarmupElementBuilder(), warmupElementWriteMetadata);
         }
         return new WarmSinkResult(warmupElementBuilder.build(), offset);
     }
@@ -514,56 +506,6 @@ public class StorageWriterService
             storageWriterContext.setWeClosed();
         }
         return outFileParams;
-    }
-
-    private WarmupElementStats getFinalStats(Type type,
-            WarmupElementStats warmupElementStats,
-            WarmupElementWriteMetadata warmupElementWriteMetadata)
-    {
-        WarmUpElement warmUpElement = warmupElementWriteMetadata.warmUpElement();
-        if (warmupElementStats.isInitialized() &&
-                warmUpElement.getRecTypeCode().isSupportedFiltering() &&
-                warmUpElement.getWarmUpType() != WarmUpType.WARM_UP_TYPE_LUCENE &&
-                (warmUpElement.getRecTypeCode() == RecTypeCode.REC_TYPE_VARCHAR ||
-                        warmUpElement.getRecTypeCode() == RecTypeCode.REC_TYPE_CHAR) &&
-                (isCharType(type) || isVarcharType(type))) {
-            Slice maxSlice = (Slice) warmupElementStats.getMaxValue();
-            String maxValue;
-            String minValue;
-            Slice minSlice = (Slice) warmupElementStats.getMinValue();
-            //if type is Slice we want to save the first 8 bytes for min/max values, for max value we add 1 to last position
-            //need to convert them to byte array in order to preserve the original values
-            byte[] maxSliceValue;
-            if (maxSlice.length() > STAT_MAX_SLICE_LENGTH) {
-                maxSliceValue = maxSlice.getBytes(0, STAT_MAX_SLICE_LENGTH);
-                if (maxSliceValue[STAT_MAX_SLICE_LENGTH - 1] == Byte.MAX_VALUE) {
-                    //protect from overflow
-                    maxValue = null;
-                }
-                else {
-                    //need to increase value by 1 in order to make sure ranges will overlaps (see @RangeMatcher.java)
-                    maxSliceValue[STAT_MAX_SLICE_LENGTH - 1]++;
-                    maxValue = Slices.wrappedBuffer(maxSliceValue).toStringUtf8();
-                }
-            }
-            else {
-                maxValue = maxSlice.toStringUtf8();
-            }
-
-            if (minSlice.length() > STAT_MAX_SLICE_LENGTH) {
-                byte[] minSliceValue = minSlice.getBytes(0, STAT_MAX_SLICE_LENGTH);
-                if (isCharType(type) && minSliceValue[minSliceValue.length - 1] == 32) {
-                    //last value in charType can't be a space ' ' [32] value . see CharType::writeSlice
-                    minSliceValue[minSliceValue.length - 1] = 31;
-                }
-                minValue = Slices.wrappedBuffer(minSliceValue).toStringUtf8();
-            }
-            else {
-                minValue = minSlice.toStringUtf8();
-            }
-            warmupElementStats = new WarmupElementStats(warmupElementStats.getNullsCount(), minValue, maxValue);
-        }
-        return warmupElementStats;
     }
 
     /**

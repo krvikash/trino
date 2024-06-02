@@ -141,13 +141,15 @@ public class StorageWriterServiceTest
         dictionaryCacheService = mock(DictionaryCacheService.class);
         BlockTransformerFactory blockTransformerFactory = new BlockTransformerFactory();
         BlockAppenderFactory blockAppenderFactory = new BlockAppenderFactory(storageEngineConstants, bufferAllocator, new GlobalConfig(), blockTransformerFactory);
+        WarmupElementStatsService warmupElementStatsService = new WarmupElementStatsService(new GlobalConfig());
         storageWriterService = new StorageWriterService(storageEngine,
                 storageEngineConstants,
                 bufferAllocator,
                 dictionaryCacheService,
                 metricsManager,
                 mock(PrintMetricsTimerTask.class),
-                blockAppenderFactory);
+                blockAppenderFactory,
+                warmupElementStatsService);
     }
 
     @Disabled
