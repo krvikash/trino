@@ -142,9 +142,11 @@ public class WarpCacheTask
                 cacheWarmState = processAll();
             }
             finally {
-                if (isEmptyPageSource()) {
-                    warmingCandidates = toWarm.stream().map(x -> new WarmingCandidate(new long[] {INVALID_FILE_COOKIE_FD, 0}, null, 0, x, null)).collect(Collectors.toList());
+                if (cacheWarmState == CacheWarmState.FINISHING && isEmptyPageSource()) {
                     cacheWarmState = CacheWarmState.EMPTY_PAGE;
+                }
+                if (warmingCandidates == null) {
+                    warmingCandidates = toWarm.stream().map(x -> new WarmingCandidate(new long[] {INVALID_FILE_COOKIE_FD, 0}, null, 0, x, null)).collect(Collectors.toList());
                 }
                 closeAndSave(cacheWarmState);
             }
