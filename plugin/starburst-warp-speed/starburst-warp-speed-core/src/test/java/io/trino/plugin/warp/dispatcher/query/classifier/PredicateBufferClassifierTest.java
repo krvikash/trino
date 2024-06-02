@@ -129,6 +129,7 @@ class PredicateBufferClassifierTest
                 warmedWarmupTypes,
                 false,
                 true,
+                true,
                 false);
         QueryContext currentQueryContext = baseQueryContext.asBuilder()
                 .matchData(Optional.of(queryMatchData))

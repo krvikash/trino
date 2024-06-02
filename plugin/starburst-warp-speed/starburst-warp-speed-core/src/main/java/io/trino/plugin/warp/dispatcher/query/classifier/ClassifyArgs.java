@@ -33,6 +33,7 @@ class ClassifyArgs
     private final WarmedWarmupTypes warmedWarmupTypes;
     private final boolean minMaxFilter;
     private final boolean mappedMatchCollect;
+    private final boolean varcharMappedMatchCollect;
     private final boolean enableInverseWithNulls;
 
     private final Map<Domain, PredicateType> predicateTypeCache = new HashMap<>();
@@ -44,6 +45,7 @@ class ClassifyArgs
                  WarmedWarmupTypes warmedWarmupTypes,
                  boolean minMaxFilter,
                  boolean mappedMatchCollect,
+                 boolean varcharMappedMatchCollect,
                  boolean enableInverseWithNulls)
     {
         this.dispatcherTableHandle = dispatcherTableHandle;
@@ -53,6 +55,7 @@ class ClassifyArgs
         this.warmedWarmupTypes = warmedWarmupTypes;
         this.minMaxFilter = minMaxFilter;
         this.mappedMatchCollect = mappedMatchCollect;
+        this.varcharMappedMatchCollect = varcharMappedMatchCollect;
         this.enableInverseWithNulls = enableInverseWithNulls;
     }
 
@@ -101,6 +104,11 @@ class ClassifyArgs
     public boolean isMappedMatchCollect()
     {
         return mappedMatchCollect;
+    }
+
+    public boolean isVarcharMappedMatchCollectEnabled()
+    {
+        return varcharMappedMatchCollect;
     }
 
     public boolean isEnableInverseWithNulls()

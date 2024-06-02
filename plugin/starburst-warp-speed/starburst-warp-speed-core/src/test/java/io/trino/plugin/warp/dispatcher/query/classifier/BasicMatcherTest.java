@@ -127,6 +127,7 @@ class BasicMatcherTest
                 warmedWarmupTypes,
                 false,
                 true,
+                true,
                 false);
 
         Map<WarpColumn, PredicateContext> remainingPredicateContext = predicateContext.getLeaves()

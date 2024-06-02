@@ -107,6 +107,7 @@ public class MatchPrepareAfterCollectClassifierTest
                 warmedWarmupTypes.build(),
                 false,
                 true,
+                true,
                 false);
         QueryContext queryContext = baseContext.asBuilder()
                 .matchData(Optional.of(matchData))
@@ -145,6 +146,7 @@ public class MatchPrepareAfterCollectClassifierTest
                 collectColumnsByBlockIndex,
                 warmedWarmupTypes.build(),
                 false,
+                true,
                 true,
                 false);
         QueryContext queryContext = baseContext.asBuilder()
@@ -190,6 +192,7 @@ public class MatchPrepareAfterCollectClassifierTest
                 warmedWarmupTypes.build(),
                 false,
                 true,
+                true,
                 false);
         QueryContext queryContext = baseContext.asBuilder()
                 .matchData(Optional.of(matchData))
@@ -229,6 +232,7 @@ public class MatchPrepareAfterCollectClassifierTest
                 warmedWarmupTypes.build(),
                 false,
                 true,
+                true,
                 false);
         MatchData matchData = new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(luceneCollectIndexMatchData, basicCollectIndexMatchData, basicMatchData));
         QueryContext queryContext = baseContext.asBuilder()
@@ -256,6 +260,7 @@ public class MatchPrepareAfterCollectClassifierTest
                 ImmutableMap.of(),
                 warmedWarmupTypes.build(),
                 false,
+                true,
                 true,
                 false);
         LogicalMatchData matchData = new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(
@@ -289,6 +294,7 @@ public class MatchPrepareAfterCollectClassifierTest
                 warmedWarmupTypes.build(),
                 false,
                 true,
+                true,
                 false);
         LogicalMatchData matchData = new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(
                 new LogicalMatchData(LogicalMatchData.Operator.OR, List.of(dataColumn, basicMatchCollectColumn)),
@@ -316,6 +322,7 @@ public class MatchPrepareAfterCollectClassifierTest
                 ImmutableMap.of(),
                 warmedWarmupTypes.build(),
                 false,
+                true,
                 true,
                 false);
         LogicalMatchData matchData = new LogicalMatchData(LogicalMatchData.Operator.OR, List.of(
@@ -350,6 +357,7 @@ public class MatchPrepareAfterCollectClassifierTest
                 ImmutableMap.of(0, collectColumnHandle1, 1, collectColumnHandle2),
                 warmedWarmupTypes.build(),
                 false,
+                true,
                 true,
                 false);
         LogicalMatchData matchData = new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(basicMatchData1, basicMatchData2));

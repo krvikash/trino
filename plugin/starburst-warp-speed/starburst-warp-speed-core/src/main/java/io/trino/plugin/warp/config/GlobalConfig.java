@@ -76,6 +76,7 @@ public class GlobalConfig
     private boolean enableExportAppendOnCloud = true;
     private boolean enableMatchCollect = true;
     private boolean enableMappedMatchCollect = true;
+    private boolean enableVarcharMappedMatchCollect = true;
     private boolean enableOrPushdown = true;
     private boolean enableRangeFilter = true;
     private int shapingLoggerThreshold = 1000;
@@ -150,6 +151,11 @@ public class GlobalConfig
         return enableMappedMatchCollect;
     }
 
+    public boolean getEnableVarcharMappedMatchCollect()
+    {
+        return enableVarcharMappedMatchCollect;
+    }
+
     public boolean getEnableInverseWithNulls()
     {
         return enableInverseWithNulls;
@@ -165,6 +171,12 @@ public class GlobalConfig
     public void setEnableMappedMatchCollect(boolean enableMappedMatchCollect)
     {
         this.enableMappedMatchCollect = enableMappedMatchCollect;
+    }
+
+    @Config("warp-speed.enable.varchar-mapped-match-collect")
+    public void setEnableVarcharMappedMatchCollect(boolean enableVarcharMappedMatchCollect)
+    {
+        this.enableVarcharMappedMatchCollect = enableVarcharMappedMatchCollect;
     }
 
     @Config("warp-speed.enable.inverse-with-nulls")

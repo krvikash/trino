@@ -107,11 +107,13 @@ public class QueryClassifier
             List<Classifier> classifiers = classifierFactory.getClassifiers(classificationType);
             boolean minMaxFilter = false;
             boolean mappedMatchCollect = false;
+            boolean varcharMappedMatchCollect = false;
             boolean enableInverseWithNulls = false;
             if (session.isPresent()) {
                 //in cacheManager we don't have session
                 minMaxFilter = WarpSessionProperties.isMinMaxFilter(session.get());
                 mappedMatchCollect = WarpSessionProperties.getEnabledMappedMatchCollect(session.get());
+                varcharMappedMatchCollect = WarpSessionProperties.getEnabledVarcharMappedMatchCollect(session.get());
                 enableInverseWithNulls = WarpSessionProperties.getEnabledInverseWithNulls(session.get());
             }
             WarmedWarmupTypes warmedWarmupTypes = createColumnToWarmUpElementPerType(rowGroupData, storeIdOpt);
@@ -122,6 +124,7 @@ public class QueryClassifier
                     warmedWarmupTypes,
                     minMaxFilter,
                     mappedMatchCollect,
+                    varcharMappedMatchCollect,
                     enableInverseWithNulls);
             queryContext = baseQueryContext;
             if (classificationType == ClassificationType.QUERY ||

@@ -147,7 +147,8 @@ class NativeCollectClassifier
             QueryMatchData queryMatchData)
     {
         boolean canMapMatchCollect = classifyArgs.isMappedMatchCollect() && queryMatchData.canMapMatchCollect();
-        if (!state.isMatchCollectMemoryAvailable() || (!canMapMatchCollect && TypeUtils.isStrType(state.getCurrentColumnType()))) {
+        boolean canMapMatchCollectVarchar = canMapMatchCollect && classifyArgs.isVarcharMappedMatchCollectEnabled();
+        if (!state.isMatchCollectMemoryAvailable() || (!canMapMatchCollectVarchar && TypeUtils.isStrType(state.getCurrentColumnType()))) {
             return Optional.empty();
         }
 

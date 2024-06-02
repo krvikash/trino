@@ -137,6 +137,7 @@ public class LuceneMatcherTest
                 warmUpElementByType,
                 false,
                 true,
+                true,
                 false);
 
         MatchContext matchContext = new MatchContext(Collections.emptyList(), remainingPredicateContext, true);
@@ -177,6 +178,7 @@ public class LuceneMatcherTest
                 ImmutableMap.of(),
                 warmUpElementByType,
                 false,
+                true,
                 true,
                 false);
         MatchContext matchContext = new MatchContext(Collections.emptyList(), remainingPredicateContext, true);
@@ -219,6 +221,7 @@ public class LuceneMatcherTest
                 warmUpElementByType,
                 false,
                 true,
+                true,
                 false);
         MatchContext matchContext = new MatchContext(Collections.emptyList(), remainingPredicateContext, true);
 
@@ -259,6 +262,7 @@ public class LuceneMatcherTest
                 ImmutableMap.of(),
                 warmUpElementByType,
                 false,
+                true,
                 true,
                 false);
         MatchContext matchContext = new MatchContext(Collections.emptyList(), remainingPredicateContext, true);
@@ -468,6 +472,7 @@ public class LuceneMatcherTest
                 builder.build(),
                 false,
                 true,
+                true,
                 false);
 
         MatchContext matchContext = new MatchContext(Collections.emptyList(), remainingPredicateContext, true);
@@ -570,6 +575,7 @@ public class LuceneMatcherTest
                 ImmutableMap.of(),
                 warmUpElementByType,
                 false,
+                true,
                 true,
                 false);
         MatchContext matchContext = new MatchContext(Collections.emptyList(), remainingPredicateContext, true);

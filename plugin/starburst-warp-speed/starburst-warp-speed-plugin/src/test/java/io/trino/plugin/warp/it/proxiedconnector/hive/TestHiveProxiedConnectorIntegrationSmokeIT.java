@@ -126,6 +126,7 @@ import java.util.stream.Stream;
 import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_DEFAULT_WARMING;
 import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_DEFAULT_WARMING_INDEX;
 import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_MAPPED_MATCH_COLLECT;
+import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_VARCHAR_MAPPED_MATCH_COLLECT;
 import static io.trino.plugin.warp.WarpSessionProperties.PREDICATE_SIMPLIFY_THRESHOLD;
 import static io.trino.plugin.warp.WarpSessionProperties.UNSUPPORTED_FUNCTIONS;
 import static io.trino.plugin.warp.WarpSessionProperties.UNSUPPORTED_NATIVE_FUNCTIONS;
@@ -4166,6 +4167,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         Session session = Session.builder(getSession())
                 .setSystemProperty(catalog + "." + ENABLE_MAPPED_MATCH_COLLECT, "true")
+                .setSystemProperty(catalog + "." + ENABLE_VARCHAR_MAPPED_MATCH_COLLECT, "true")
                 .build();
         createWarmupRules(DEFAULT_SCHEMA,
                 table,
