@@ -42,6 +42,7 @@ import java.net.URI;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -125,8 +126,10 @@ public class TestWarpCache
         JsonNode jsonNodeTests = objectMapper.readTree(new URI(filePath).toURL());
         List<TestFormat> tests = objectMapper.readerFor(new TypeReference<List<TestFormat>>() {})
                 .readValue(jsonNodeTests);
-        String excludeString = "select count(*) from";
-        HashMap<String, List<String>> configuration = excludeQueriesByPattern(excludeString, tests);
+        List<String> excludePatterns = List.of(
+                "select count(*) from", // not supported yet
+                "limit "); // limit queries get aborted
+        HashMap<String, List<String>> configuration = excludeQueriesByPatterns(excludePatterns, tests);
         List<String> excludeQueries = configuration.get(QUERY_ID);
         List<String> excludeTests = configuration.get(TEST_NAME);
         excludeQueries.add("char_128_2"); //failed query
@@ -155,7 +158,23 @@ public class TestWarpCache
     public Iterator<Object[]> synthetic(ITestContext context)
             throws Exception
     {
-        return executeDataProvider("file:///docker/presto-product-tests/warp/synthetic.json");
+        String filePath = "file:///docker/presto-product-tests/warp/synthetic.json";
+        JsonNode jsonNodeTests = objectMapper.readTree(new URI(filePath).toURL());
+        List<TestFormat> tests = objectMapper.readerFor(new TypeReference<List<TestFormat>>() {})
+                .readValue(jsonNodeTests);
+        List<String> excludePatterns = List.of("limit "); // limit queries get aborted
+        HashMap<String, List<String>> configuration = excludeQueriesByPatterns(excludePatterns, tests);
+        List<String> excludeTests = configuration.get(TEST_NAME);
+        List<String> excludeQueries = configuration.get(QUERY_ID);
+
+        ExcludeStrategy excludeStrategy = new ExcludeStrategy();
+        configuration.put(QUERY_ID, excludeQueries);
+        configuration.put(TEST_NAME, excludeTests);
+        List<TestFormat> parsedTests = excludeStrategy.parse(configuration, tests);
+        return parsedTests.stream()
+                .filter(TestFormat::pt_enable)
+                .map(x -> new Object[] {x})
+                .iterator();
     }
 
     @DataProvider
@@ -166,8 +185,10 @@ public class TestWarpCache
         JsonNode jsonNodeTests = objectMapper.readTree(new URI(filePath).toURL());
         List<TestFormat> tests = objectMapper.readerFor(new TypeReference<List<TestFormat>>() {})
                 .readValue(jsonNodeTests);
-        String excludeString = "select count(*) from";
-        HashMap<String, List<String>> configuration = excludeQueriesByPattern(excludeString, tests);
+        List<String> excludePatterns = List.of(
+                "select count(*) from", // not supported yet
+                "limit "); // limit queries get aborted
+        HashMap<String, List<String>> configuration = excludeQueriesByPatterns(excludePatterns, tests);
         List<String> excludeTests = configuration.get(TEST_NAME);
         List<String> excludeQueries = configuration.get(QUERY_ID);
 
@@ -307,7 +328,7 @@ public class TestWarpCache
         }
     }
 
-    private HashMap<String, List<String>> excludeQueriesByPattern(String pattern, List<TestFormat> tests)
+    private HashMap<String, List<String>> excludeQueriesByPatterns(Collection<String> patterns, List<TestFormat> tests)
     {
         List<String> excludeQueries = new ArrayList<>();
         List<String> excludeTests = new ArrayList<>();
@@ -317,7 +338,7 @@ public class TestWarpCache
                 continue;
             }
             for (TestFormat.QueryData query : test.queries_data()) {
-                if (query.query().toLowerCase(Locale.ROOT).contains(pattern) || query.skip_caching()) {
+                if (patterns.stream().anyMatch(pattern -> query.query().toLowerCase(Locale.ROOT).contains(pattern)) || query.skip_caching()) {
                     excludeQueries.add(query.query_id());
                     logger.info("exclude query %s, id=%s", query.query(), query.query_id());
                 }

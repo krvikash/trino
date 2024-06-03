@@ -54,7 +54,6 @@ public class EmptyPageAction
     public CacheWarmState act(List<WarmingCandidate> warmingCandidates, int totalRecords, RowGroupKey permanentRowGroupKey)
     {
         statsWarmingService.incwarm_warp_cache_started();
-        // note that on empty page, warmingCandidates is null because it was never initiated
         List<WarmUpElement> warmUpElementList = warmingCandidates.stream().map(x -> x.warmupElementWriteMetadata().warmUpElement()).toList();
 
         RowGroupData rowGroupData = rowGroupDataService.getIfPresent(permanentRowGroupKey);

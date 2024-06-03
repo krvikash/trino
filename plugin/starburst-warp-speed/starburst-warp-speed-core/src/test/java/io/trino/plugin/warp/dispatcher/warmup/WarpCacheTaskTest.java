@@ -87,7 +87,7 @@ class WarpCacheTaskTest
         thread.join();
 
         for (CacheAction cacheAction : cacheActions.values()) {
-            int expectedTimes = cacheAction instanceof AbortAction ? 1 : 0;
+            int expectedTimes = cacheAction instanceof AbortOnInitAction ? 1 : 0;
             verify(cacheAction, times(expectedTimes)).act(any(), anyInt(), eq(rowGroupKey));
             verify(cacheAction, times(expectedTimes)).close(anyList(), eq(rowGroupKey), anyLong(), any());
         }

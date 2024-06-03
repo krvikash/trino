@@ -137,7 +137,7 @@ public class WarpCacheTask
     {
         try {
             statsWarmingService.incwarm_started();
-            CacheWarmState cacheWarmState = CacheWarmState.ABORTING;
+            CacheWarmState cacheWarmState = CacheWarmState.ABORT_ON_INIT_PROCESS;
             try {
                 cacheWarmState = processAll();
             }
@@ -146,6 +146,9 @@ public class WarpCacheTask
                     cacheWarmState = CacheWarmState.EMPTY_PAGE;
                 }
                 if (warmingCandidates == null) {
+                    if (aborted) {
+                        cacheWarmState = CacheWarmState.ABORT_ON_INIT_PROCESS;
+                    }
                     warmingCandidates = toWarm.stream().map(x -> new WarmingCandidate(new long[] {INVALID_FILE_COOKIE_FD, 0}, null, 0, x, null)).collect(Collectors.toList());
                 }
                 closeAndSave(cacheWarmState);
