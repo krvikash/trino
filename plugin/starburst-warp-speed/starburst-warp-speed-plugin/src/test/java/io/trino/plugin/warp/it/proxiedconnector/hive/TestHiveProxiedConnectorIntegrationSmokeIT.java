@@ -57,7 +57,7 @@ import io.trino.plugin.warp.expression.VaradaExpressionData;
 import io.trino.plugin.warp.expression.VaradaSliceConstant;
 import io.trino.plugin.warp.expression.VaradaVariable;
 import io.trino.plugin.warp.expression.rewrite.WarpExpression;
-import io.trino.plugin.warp.expression.rewrite.coordinator.connectortovarada.SupportedFunctions;
+import io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions;
 import io.trino.plugin.warp.extension.execution.debugtools.FailureGeneratorResource;
 import io.trino.plugin.warp.extension.execution.debugtools.PredicateCacheTask;
 import io.trino.plugin.warp.extension.execution.debugtools.RowGroupCountResult;

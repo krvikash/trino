@@ -62,7 +62,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static io.trino.plugin.warp.expression.rewrite.coordinator.connectortovarada.SupportedFunctions.CONTAINS;
+import static io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions.CONTAINS;
 import static io.trino.plugin.warp.storage.lucene.LuceneQueryUtils.createContainsQuery;
 import static io.trino.plugin.warp.storage.lucene.LuceneQueryUtils.createLikeQuery;
 import static io.trino.plugin.warp.storage.lucene.LuceneQueryUtils.createPrefixQuery;
