@@ -205,16 +205,12 @@ public class TestWarpCache
         // (Note: happened also before multi-column, see https://github.com/starburstdata/varada/actions/runs/8680131130/job/23800199602?pr=2762).
         excludeQueries.add("tuples_40keys_6");
 
-        // This PR https://github.com/starburstdata/cork/pull/713 should have fixed the following query - need to validate on CI.
-        // For now, we keep skipping it because the warmup is too long.
-        // Before the PR we used to get an exception: WarpCacheColumnHandle cannot be cast to class io.trino.plugin.hive.HiveColumnHandle
-        excludeTests.add("denorm_table");
-
         ExcludeStrategy excludeStrategy = new ExcludeStrategy();
         configuration.put(QUERY_ID, excludeQueries);
         configuration.put(TEST_NAME, excludeTests);
         List<TestFormat> parsedTests = excludeStrategy.parse(configuration, tests);
         return parsedTests.stream()
+                .filter(TestFormat::pt_enable)
                 .map(x -> new Object[] {x})
                 .iterator();
     }
