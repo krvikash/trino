@@ -29,9 +29,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-import static io.trino.plugin.warp.WarpErrorCode.VARADA_NATIVE_ERROR;
-import static io.trino.plugin.warp.WarpErrorCode.VARADA_NATIVE_READ_OUT_OF_BOUNDS;
-import static io.trino.plugin.warp.WarpErrorCode.VARADA_NATIVE_UNRECOVERABLE_ERROR;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_ERROR;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_READ_OUT_OF_BOUNDS;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_ERROR;
 import static java.lang.String.format;
 
 @Singleton
@@ -70,12 +70,12 @@ public class NativeExceptionThrower
 
         String errorMessage = (params == null) ? errorCode.getMessage() : format(errorCode.getMessage(), params);
         String formatMessage = errorMessage + " (" + code + ")";
-        WarpErrorCode trinoExceptionErrorCode = VARADA_NATIVE_ERROR;
+        WarpErrorCode trinoExceptionErrorCode = WARP_NATIVE_ERROR;
         if (errorCode.getUnrecoverable()) {
-            trinoExceptionErrorCode = VARADA_NATIVE_UNRECOVERABLE_ERROR;
+            trinoExceptionErrorCode = WARP_NATIVE_UNRECOVERABLE_ERROR;
         }
         else if (errorCode.equals(ErrorCodes.ENV_EXCEPTION_STORAGE_READ_OUT_OF_BOUNDS)) {
-            trinoExceptionErrorCode = VARADA_NATIVE_READ_OUT_OF_BOUNDS;
+            trinoExceptionErrorCode = WARP_NATIVE_READ_OUT_OF_BOUNDS;
         }
         throw new TrinoException(trinoExceptionErrorCode, formatMessage);
     }

@@ -168,7 +168,7 @@ public class WorkerCapacityManager
         }
         catch (Exception e) {
             logger.error(e);
-            throw new TrinoException(WarpErrorCode.VARADA_CONTROL, "could not open local store directory");
+            throw new TrinoException(WarpErrorCode.WARP_CONTROL, "could not open local store directory");
         }
     }
 

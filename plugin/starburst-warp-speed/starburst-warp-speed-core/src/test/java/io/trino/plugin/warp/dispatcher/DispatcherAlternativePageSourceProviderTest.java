@@ -349,7 +349,7 @@ public class DispatcherAlternativePageSourceProviderTest
         pageSource = ((DispatcherWrapperPageSource) pageSource).getConnectorPageSource();
         assertThat(pageSource).isInstanceOf(DispatcherPageSource.class);
         assertThat(((DispatcherPageSource) pageSource).getPageSourceDecision())
-                .isEqualTo(PageSourceDecision.VARADA);
+                .isEqualTo(PageSourceDecision.WARP);
     }
 
     @Test

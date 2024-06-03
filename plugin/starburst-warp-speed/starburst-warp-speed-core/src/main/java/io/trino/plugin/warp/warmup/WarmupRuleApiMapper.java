@@ -121,7 +121,7 @@ public class WarmupRuleApiMapper
             case DATE -> TransformFunction.TransformType.DATE;
             case ELEMENT_AT -> TransformFunction.TransformType.ELEMENT_AT;
             case JSON_EXTRACT_SCALAR -> TransformFunction.TransformType.JSON_EXTRACT_SCALAR;
-            default -> throw new TrinoException(WarpErrorCode.VARADA_ILLEGAL_PARAMETER, "Unknown apiTransformType " + apiTransformType);
+            default -> throw new TrinoException(WarpErrorCode.WARP_ILLEGAL_PARAMETER, "Unknown apiTransformType " + apiTransformType);
         };
     }
 
@@ -183,7 +183,7 @@ public class WarmupRuleApiMapper
                 }
             }
         }
-        throw new TrinoException(WarpErrorCode.VARADA_ILLEGAL_PARAMETER, "Could not convert " + value + " to " + type);
+        throw new TrinoException(WarpErrorCode.WARP_ILLEGAL_PARAMETER, "Could not convert " + value + " to " + type);
     }
 
     private static TransformFunction convertApiTransformFunction(TransformFunctionData apiTransformFunction)
@@ -243,7 +243,7 @@ public class WarmupRuleApiMapper
             case WARM_UP_TYPE_BASIC -> io.trino.plugin.warp.api.warmup.WarmUpType.WARM_UP_TYPE_BASIC;
             case WARM_UP_TYPE_DATA -> io.trino.plugin.warp.api.warmup.WarmUpType.WARM_UP_TYPE_DATA;
             case WARM_UP_TYPE_LUCENE -> io.trino.plugin.warp.api.warmup.WarmUpType.WARM_UP_TYPE_LUCENE;
-            default -> throw new TrinoException(WarpErrorCode.VARADA_ILLEGAL_PARAMETER, "Unknown modelWarmUpType " + modelWarmUpType);
+            default -> throw new TrinoException(WarpErrorCode.WARP_ILLEGAL_PARAMETER, "Unknown modelWarmUpType " + modelWarmUpType);
         };
     }
 
@@ -255,7 +255,7 @@ public class WarmupRuleApiMapper
             case DATE -> TransformFunctionData.TransformType.DATE;
             case ELEMENT_AT -> TransformFunctionData.TransformType.ELEMENT_AT;
             case JSON_EXTRACT_SCALAR -> TransformFunctionData.TransformType.JSON_EXTRACT_SCALAR;
-            default -> throw new TrinoException(WarpErrorCode.VARADA_ILLEGAL_PARAMETER, "Unknown modelTransformType " + modelTransformType);
+            default -> throw new TrinoException(WarpErrorCode.WARP_ILLEGAL_PARAMETER, "Unknown modelTransformType " + modelTransformType);
         };
     }
 
@@ -279,7 +279,7 @@ public class WarmupRuleApiMapper
         if (modelType instanceof RealType) {
             return WarpExpressionData.Type.REAL;
         }
-        throw new TrinoException(WarpErrorCode.VARADA_ILLEGAL_PARAMETER, "Unknown modelType " + modelType);
+        throw new TrinoException(WarpErrorCode.WARP_ILLEGAL_PARAMETER, "Unknown modelType " + modelType);
     }
 
     private static WarpPrimitiveConstantData convertModelVaradaPrimitiveConstant(WarpPrimitiveConstant modelVaradaPrimitiveConstant)

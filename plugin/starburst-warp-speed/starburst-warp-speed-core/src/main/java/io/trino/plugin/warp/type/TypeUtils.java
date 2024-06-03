@@ -32,7 +32,7 @@ import io.trino.spi.type.VarcharType;
 
 import java.util.Set;
 
-import static io.trino.plugin.warp.WarpErrorCode.VARADA_CONTROL;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_CONTROL;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DateType.DATE;
@@ -286,7 +286,7 @@ public class TypeUtils
             return getTypeLength(mapType.getValueType(), maxVarlenLength);
         }
         else {
-            throw new TrinoException(VARADA_CONTROL, "Unsupported record type " + type.toString());
+            throw new TrinoException(WARP_CONTROL, "Unsupported record type " + type.toString());
         }
         return ret != 0 ? ret : maxVarlenLength;
     }

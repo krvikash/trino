@@ -45,8 +45,8 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 import static com.google.common.io.BaseEncoding.base64;
-import static io.trino.plugin.warp.WarpErrorCode.VARADA_LUCENE_FAILURE;
-import static io.trino.plugin.warp.WarpErrorCode.VARADA_LUCENE_WRITER_ERROR;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_LUCENE_FAILURE;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_LUCENE_WRITER_ERROR;
 import static io.trino.plugin.warp.util.SliceUtils.serializeSlice;
 
 public class LuceneIndexer
@@ -124,7 +124,7 @@ public class LuceneIndexer
         catch (Exception e) {
             logger.warn("Got exception when creating the indexWriter - %s", e);
             stats.incfailedReset();
-            throw new TrinoException(WarpErrorCode.VARADA_LUCENE_WRITER_ERROR, "failed creating index writer of col", e);
+            throw new TrinoException(WarpErrorCode.WARP_LUCENE_WRITER_ERROR, "failed creating index writer of col", e);
         }
     }
 
@@ -158,10 +158,10 @@ public class LuceneIndexer
 
             if (failedCommit) {
                 if (failedDocumentError != null) {
-                    throw new TrinoException(VARADA_LUCENE_FAILURE, "lucene index failed on at least one document " + failedDocumentError);
+                    throw new TrinoException(WARP_LUCENE_FAILURE, "lucene index failed on at least one document " + failedDocumentError);
                 }
                 else {
-                    throw new TrinoException(VARADA_LUCENE_FAILURE, "lucene index failed before closing");
+                    throw new TrinoException(WARP_LUCENE_FAILURE, "lucene index failed before closing");
                 }
             }
 
@@ -184,7 +184,7 @@ public class LuceneIndexer
         catch (Exception e) {
             filesLength = new int[0]; //zero size -  in order to mark it as failed in native
             String error = String.format("weCookie %x, Got exception when creating the indexWriter", weCookie);
-            throw new TrinoException(VARADA_LUCENE_WRITER_ERROR, error, e);
+            throw new TrinoException(WARP_LUCENE_WRITER_ERROR, error, e);
         }
         finally {
             try {
@@ -192,7 +192,7 @@ public class LuceneIndexer
                     logger.debug("weCookie %x, committing lucene buffer: fileLengths %s", weCookie, Arrays.toString(filesLength));
                     int rc = (int) storageEngine.luceneCommitBuffers(weCookie, juffersWE.getSingleAndResetLuceneWE(), filesLength);
                     if (rc < 0) {
-                        throw new TrinoException(VARADA_LUCENE_WRITER_ERROR, "lucene commit failed, file too big");
+                        throw new TrinoException(WARP_LUCENE_WRITER_ERROR, "lucene commit failed, file too big");
                     }
                 }
             }

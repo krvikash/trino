@@ -17,7 +17,7 @@ public enum PageSourceDecision
 {
     UNKNOWN,
     EMPTY,
-    VARADA,
+    WARP,
     PROXY,
     MIXED,
     PREFILL

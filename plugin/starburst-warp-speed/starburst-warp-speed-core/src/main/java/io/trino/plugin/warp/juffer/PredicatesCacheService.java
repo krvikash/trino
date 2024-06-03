@@ -47,7 +47,7 @@ import java.util.Optional;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import static io.trino.plugin.warp.WarpErrorCode.VARADA_PREDICATE_CACHE_ERROR;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_PREDICATE_CACHE_ERROR;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -207,7 +207,7 @@ public class PredicatesCacheService
                 case SMALL -> cachePredicatesStats.incin_use_small();
                 case MEDIUM -> cachePredicatesStats.incin_use_medium();
                 case LARGE -> cachePredicatesStats.incin_use_large();
-                default -> throw new TrinoException(WarpErrorCode.VARADA_ILLEGAL_PARAMETER, "Uknown predicateBufferPoolType " + predicateBufferPoolType);
+                default -> throw new TrinoException(WarpErrorCode.WARP_ILLEGAL_PARAMETER, "Uknown predicateBufferPoolType " + predicateBufferPoolType);
             }
         }
         else {
@@ -215,7 +215,7 @@ public class PredicatesCacheService
                 case SMALL -> cachePredicatesStats.addin_use_small(-1);
                 case MEDIUM -> cachePredicatesStats.addin_use_medium(-1);
                 case LARGE -> cachePredicatesStats.addin_use_large(-1);
-                default -> throw new TrinoException(WarpErrorCode.VARADA_ILLEGAL_PARAMETER, "Uknown predicateBufferPoolType " + predicateBufferPoolType);
+                default -> throw new TrinoException(WarpErrorCode.WARP_ILLEGAL_PARAMETER, "Uknown predicateBufferPoolType " + predicateBufferPoolType);
             }
         }
     }
@@ -275,7 +275,7 @@ public class PredicatesCacheService
                 .limit(removeCount)
                 .map(Map.Entry::getKey).toList();
         if (toRemove.isEmpty()) {
-            throw new TrinoException(VARADA_PREDICATE_CACHE_ERROR, String.format("all predicates for type=%s are in use, SHOULD NOT HAPPEN", predicateBufferPoolType));
+            throw new TrinoException(WARP_PREDICATE_CACHE_ERROR, String.format("all predicates for type=%s are in use, SHOULD NOT HAPPEN", predicateBufferPoolType));
         }
         toRemove.forEach(key -> {
             PredicateCacheData removed = integerPredicateBufferMap.remove(key);

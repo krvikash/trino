@@ -18,16 +18,16 @@ import io.trino.spi.TrinoException;
 
 import java.util.function.Consumer;
 
-import static io.trino.plugin.warp.WarpErrorCode.VARADA_NATIVE_ERROR;
-import static io.trino.plugin.warp.WarpErrorCode.VARADA_NATIVE_READ_OUT_OF_BOUNDS;
-import static io.trino.plugin.warp.WarpErrorCode.VARADA_NATIVE_UNRECOVERABLE_ERROR;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_ERROR;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_READ_OUT_OF_BOUNDS;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_ERROR;
 
 public interface ExceptionThrower
 {
     static boolean isNativeException(TrinoException te)
     {
         int code = te.getErrorCode().getCode();
-        return code == VARADA_NATIVE_ERROR.toErrorCode().getCode() || code == VARADA_NATIVE_UNRECOVERABLE_ERROR.toErrorCode().getCode() || code == VARADA_NATIVE_READ_OUT_OF_BOUNDS.toErrorCode().getCode();
+        return code == WARP_NATIVE_ERROR.toErrorCode().getCode() || code == WARP_NATIVE_UNRECOVERABLE_ERROR.toErrorCode().getCode() || code == WARP_NATIVE_READ_OUT_OF_BOUNDS.toErrorCode().getCode();
     }
 
     void throwException(int code, Object[] params);

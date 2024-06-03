@@ -82,8 +82,8 @@ public class TestHiveNoExtensionsProxiedConnectorIntegrationSmokeIT
                 getSession(),
                 Map.of(
                         CACHED_TOTAL_ROWS, 3L,
-                        VARADA_MATCH_COLUMNS_STAT, 0L,
-                        VARADA_COLLECT_COLUMNS_STAT, 15L,
+                        WARP_MATCH_COLUMNS_STAT, 0L,
+                        WARP_COLLECT_COLUMNS_STAT, 15L,
                         EXTERNAL_MATCH_STAT, 0L,
                         EXTERNAL_COLLECT_STAT, 0L));
 
@@ -92,8 +92,8 @@ public class TestHiveNoExtensionsProxiedConnectorIntegrationSmokeIT
                 getSession(),
                 Map.of(
                         CACHED_TOTAL_ROWS, 1L,
-                        VARADA_MATCH_COLUMNS_STAT, 0L,
-                        VARADA_COLLECT_COLUMNS_STAT, 5L,
+                        WARP_MATCH_COLUMNS_STAT, 0L,
+                        WARP_COLLECT_COLUMNS_STAT, 5L,
                         PREFILLED_COLUMNS_STAT, 0L,
                         EXTERNAL_MATCH_STAT, 1L,
                         EXTERNAL_COLLECT_STAT, 0L));
@@ -120,8 +120,8 @@ public class TestHiveNoExtensionsProxiedConnectorIntegrationSmokeIT
                 getSession(),
                 Map.of(
                         CACHED_TOTAL_ROWS, 3L,
-                        VARADA_MATCH_COLUMNS_STAT, 0L,
-                        VARADA_COLLECT_COLUMNS_STAT, 12L,
+                        WARP_MATCH_COLUMNS_STAT, 0L,
+                        WARP_COLLECT_COLUMNS_STAT, 12L,
                         EXTERNAL_MATCH_STAT, 0L,
                         EXTERNAL_COLLECT_STAT, 0L));
 
@@ -130,8 +130,8 @@ public class TestHiveNoExtensionsProxiedConnectorIntegrationSmokeIT
                 getSession(),
                 Map.of(
                         CACHED_TOTAL_ROWS, 1L,
-                        VARADA_MATCH_COLUMNS_STAT, 0L,
-                        VARADA_COLLECT_COLUMNS_STAT, 4L,
+                        WARP_MATCH_COLUMNS_STAT, 0L,
+                        WARP_COLLECT_COLUMNS_STAT, 4L,
                         PREFILLED_COLUMNS_STAT, 1L,
                         EXTERNAL_MATCH_STAT, 0L,
                         EXTERNAL_COLLECT_STAT, 0L));

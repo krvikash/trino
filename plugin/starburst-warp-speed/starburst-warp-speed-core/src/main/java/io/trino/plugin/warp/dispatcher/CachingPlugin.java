@@ -17,7 +17,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Module;
 import io.trino.spi.TrinoException;
 
-import static io.trino.plugin.warp.WarpErrorCode.VARADA_SETUP;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_SETUP;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DateType.DATE;
@@ -36,31 +36,31 @@ public class CachingPlugin
     private static void verifyTypeSizes()
     {
         if (BIGINT.getFixedSize() != Long.BYTES) {
-            throw new TrinoException(VARADA_SETUP, "BIGINT size is not equal to Long size");
+            throw new TrinoException(WARP_SETUP, "BIGINT size is not equal to Long size");
         }
         if (BOOLEAN.getFixedSize() != Byte.BYTES) {
-            throw new TrinoException(VARADA_SETUP, "BOOLEAN size is not equal to Byte size");
+            throw new TrinoException(WARP_SETUP, "BOOLEAN size is not equal to Byte size");
         }
         if (DATE.getFixedSize() != Integer.BYTES) {
-            throw new TrinoException(VARADA_SETUP, "DATE size is not equal to Integer size");
+            throw new TrinoException(WARP_SETUP, "DATE size is not equal to Integer size");
         }
         if (REAL.getFixedSize() != Integer.BYTES) {
-            throw new TrinoException(VARADA_SETUP, "REAL size is not equal to Integer size");
+            throw new TrinoException(WARP_SETUP, "REAL size is not equal to Integer size");
         }
         if (DOUBLE.getFixedSize() != Double.BYTES) {
-            throw new TrinoException(VARADA_SETUP, "DOUBLE size is not equal to Double size");
+            throw new TrinoException(WARP_SETUP, "DOUBLE size is not equal to Double size");
         }
         if (INTEGER.getFixedSize() != Integer.BYTES) {
-            throw new TrinoException(VARADA_SETUP, "INTEGER size is not equal to Integer size");
+            throw new TrinoException(WARP_SETUP, "INTEGER size is not equal to Integer size");
         }
         if (TIMESTAMP_MILLIS.getFixedSize() != Long.BYTES) {
-            throw new TrinoException(VARADA_SETUP, "TIMESTAMP size is not equal to Long size");
+            throw new TrinoException(WARP_SETUP, "TIMESTAMP size is not equal to Long size");
         }
         if (TIMESTAMP_TZ_MILLIS.getFixedSize() != Long.BYTES) {
-            throw new TrinoException(VARADA_SETUP, "TIMESTAMP_WITH_TIME_ZONE size is not equal to Long size");
+            throw new TrinoException(WARP_SETUP, "TIMESTAMP_WITH_TIME_ZONE size is not equal to Long size");
         }
         if (TIME_MILLIS.getFixedSize() != Long.BYTES) {
-            throw new TrinoException(VARADA_SETUP, "TIME size is not equal to Long size");
+            throw new TrinoException(WARP_SETUP, "TIME size is not equal to Long size");
         }
     }
 

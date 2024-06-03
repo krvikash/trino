@@ -87,8 +87,8 @@ import static java.util.Objects.requireNonNull;
 @Singleton
 public class DispatcherPageSourceFactory
 {
-    public static final String VARADA_COLLECT = "varada-collect";
-    public static final String VARADA_MATCH = "varada-match";
+    public static final String WARP_COLLECT = "varada-collect";
+    public static final String WARP_MATCH = "varada-match";
     public static final String EXTERNAL_COLLECT = "external-collect";
     public static final String EXTERNAL_MATCH = "external-match";
     public static final String PREFILLED = "prefilled";
@@ -180,7 +180,7 @@ public class DispatcherPageSourceFactory
             CustomStatsContext customStatsContext)
     {
         if ((!nativeStorageStateHandler.isStorageAvailable() && dispatcherTableHandle.isSubsumedPredicates())) {
-            throw new TrinoException(WarpErrorCode.VARADA_NATIVE_ERROR,
+            throw new TrinoException(WarpErrorCode.WARP_NATIVE_ERROR,
                     "storage is not available");
         }
 
@@ -348,7 +348,7 @@ public class DispatcherPageSourceFactory
             }
 
             if (PageSourceDecision.MIXED.equals(pageSourceDecision) ||
-                    PageSourceDecision.VARADA.equals(pageSourceDecision)) {
+                    PageSourceDecision.WARP.equals(pageSourceDecision)) {
                 try {
                     increaseMixedCounters(dispatcherPageSourceStats, queryContext);
 
@@ -368,7 +368,7 @@ public class DispatcherPageSourceFactory
                     if (Thread.interrupted()) {
                         closeHandler.accept(afterLockRowGroupData);
                         Thread.currentThread().interrupt();
-                        throw new TrinoException(WarpErrorCode.VARADA_TX_ALLOCATION_INTERRUPTED,
+                        throw new TrinoException(WarpErrorCode.WARP_TX_ALLOCATION_INTERRUPTED,
                                 "interrupted while trying to create page source");
                     }
                     shapingLogger.warn(e, "failed createMixedPageSource, returning proxied connector page source");
@@ -455,7 +455,7 @@ public class DispatcherPageSourceFactory
     {
         Provider<ConnectorPageSource> proxiedConnectorPageSourceProvider = null;
 
-        if (PageSourceDecision.VARADA.equals(pageSourceDecision)) {
+        if (PageSourceDecision.WARP.equals(pageSourceDecision)) {
             proxiedConnectorPageSourceProvider = EmptyPageSource::new;
         }
         else if (PageSourceDecision.MIXED.equals(pageSourceDecision)) {
@@ -583,7 +583,7 @@ public class DispatcherPageSourceFactory
         }
         else if (queryContext.isVaradaOnly()) {
             logger.debug("all columns are warmed -> only varada. %s", queryContext);
-            pageSourceDecision = PageSourceDecision.VARADA;
+            pageSourceDecision = PageSourceDecision.WARP;
         }
 
         logger.debug("pageSourceDecision=%s for queryContext=%s", pageSourceDecision, queryContext);
@@ -632,9 +632,9 @@ public class DispatcherPageSourceFactory
 
     private void addColumnStats(CustomStatsContext customStatsContext, QueryContext queryContext)
     {
-        queryContext.getNativeQueryCollectDataList().forEach((collectData) -> customStatsContext.addFixedStat(createFixedStatKey(VARADA_COLLECT, collectData.getWarpColumn().getName(), collectData.getWarmUpElement().getWarmUpType()), 1));
+        queryContext.getNativeQueryCollectDataList().forEach((collectData) -> customStatsContext.addFixedStat(createFixedStatKey(WARP_COLLECT, collectData.getWarpColumn().getName(), collectData.getWarmUpElement().getWarmUpType()), 1));
         queryContext.getPrefilledQueryCollectDataByBlockIndex().values().forEach((prefilledData) -> customStatsContext.addFixedStat(createFixedStatKey(PREFILLED, prefilledData.getWarpColumn().getName()), 1));
-        queryContext.getMatchLeavesDFS().forEach((matchData) -> customStatsContext.addFixedStat(createFixedStatKey(VARADA_MATCH, matchData.getWarpColumn().getName(), matchData.getWarmUpElement().getWarmUpType()), 1));
+        queryContext.getMatchLeavesDFS().forEach((matchData) -> customStatsContext.addFixedStat(createFixedStatKey(WARP_MATCH, matchData.getWarpColumn().getName(), matchData.getWarmUpElement().getWarmUpType()), 1));
         queryContext.getRemainingCollectColumnByBlockIndex().values().forEach((collectColumnHandle) -> customStatsContext.addFixedStat(createFixedStatKey(EXTERNAL_COLLECT, dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(collectColumnHandle).getName()), 1));
         queryContext.getPredicateContextData()
                 .getRemainingColumns()
@@ -685,9 +685,9 @@ public class DispatcherPageSourceFactory
     private void addStatsOnFilteredByPredicate(List<ColumnHandle> columns, CustomStatsContext customStatsContext, DispatcherPageSourceStats dispatcherPageSourceStats, QueryContext basicQueryContext)
     {
         dispatcherPageSourceStats.incfiltered_by_predicate();
-        columns.forEach((columnHandle) -> customStatsContext.addFixedStat(createFixedStatKey(VARADA_COLLECT, dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(columnHandle).getName(), WarmUpType.WARM_UP_TYPE_DATA), 1));
+        columns.forEach((columnHandle) -> customStatsContext.addFixedStat(createFixedStatKey(WARP_COLLECT, dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(columnHandle).getName(), WarmUpType.WARM_UP_TYPE_DATA), 1));
         Set<RegularColumn> varadaMatchColumns = basicQueryContext.getPredicateContextData().getRemainingColumns();
-        varadaMatchColumns.forEach(regularColumn -> customStatsContext.addFixedStat(createFixedStatKey(VARADA_MATCH, regularColumn.getName(), WarmUpType.WARM_UP_TYPE_BASIC), 1));
+        varadaMatchColumns.forEach(regularColumn -> customStatsContext.addFixedStat(createFixedStatKey(WARP_MATCH, regularColumn.getName(), WarmUpType.WARM_UP_TYPE_BASIC), 1));
         dispatcherPageSourceStats.addvarada_collect_columns(columns.size());
         dispatcherPageSourceStats.addvarada_match_columns(varadaMatchColumns.size());
     }
@@ -740,7 +740,7 @@ public class DispatcherPageSourceFactory
                 rangeFillerService);
         RowGroupCloseHandler closeHandler = new RowGroupCloseHandler();
         try {
-            PageSourceDecision pageSourceDecision = PageSourceDecision.VARADA;
+            PageSourceDecision pageSourceDecision = PageSourceDecision.WARP;
             DispatcherPageSource dispatcherPageSource = new DispatcherPageSource(EmptyPageSource::new,
                     queryClassifier,
                     Collections.emptyList(), // no proxied in case of cache

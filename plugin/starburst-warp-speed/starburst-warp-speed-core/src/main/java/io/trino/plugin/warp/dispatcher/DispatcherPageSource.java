@@ -123,7 +123,7 @@ public class DispatcherPageSource
     public Page getNextPage()
     {
         try {
-            if (PageSourceDecision.VARADA.equals(pageSourceDecision)) {
+            if (PageSourceDecision.WARP.equals(pageSourceDecision)) {
                 Page result = varadaPageSource.getNextPage();
                 return mergeVaradaPrefilled(result, prefilledPageSource);
             }
@@ -272,7 +272,7 @@ public class DispatcherPageSource
     private Page buildFullResultPage(int overlapRowCount)
     {
         if (queryContext.getTotalCollectCount() != (currentProxiedPage.getChannelCount() + currentVaradaPage.getChannelCount() + prefilledPageSource.getChannelCount())) {
-            throw new TrinoException(WarpErrorCode.VARADA_FAILED_TO_BUILD_MIXED_PAGE, "wrong number of columns");
+            throw new TrinoException(WarpErrorCode.WARP_FAILED_TO_BUILD_MIXED_PAGE, "wrong number of columns");
         }
         Block[] orderedBlocks = new Block[queryContext.getTotalCollectCount()];
         int startPointVarada = 0;
@@ -516,7 +516,7 @@ public class DispatcherPageSource
         int blocksCount = queryContext.getTotalCollectCount();
 
         if (blocksCount != resultPage.getChannelCount() + prefilledPageSource.getChannelCount()) {
-            throw new TrinoException(WarpErrorCode.VARADA_FAILED_TO_BUILD_MIXED_PAGE, "wrong number of columns");
+            throw new TrinoException(WarpErrorCode.WARP_FAILED_TO_BUILD_MIXED_PAGE, "wrong number of columns");
         }
         Block[] orderedBlocks = new Block[blocksCount];
         final int varadaStartIndex = queryContext.getRemainingCollectColumnByBlockIndex().size();
@@ -597,7 +597,7 @@ public class DispatcherPageSource
     private static void validateRanges(boolean condition, String formatString, Object... args)
     {
         if (!condition) {
-            throw new TrinoException(WarpErrorCode.VARADA_MATCH_RANGES_ERROR, format(formatString, args));
+            throw new TrinoException(WarpErrorCode.WARP_MATCH_RANGES_ERROR, format(formatString, args));
         }
     }
 }

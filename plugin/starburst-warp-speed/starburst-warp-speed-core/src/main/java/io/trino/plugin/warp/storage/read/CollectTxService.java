@@ -35,8 +35,8 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.stream.IntStream;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static io.trino.plugin.warp.WarpErrorCode.VARADA_TX_ALLOCATION_FAILED;
-import static io.trino.plugin.warp.WarpErrorCode.VARADA_UNRECOVERABLE_COLLECT_FAILED;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_TX_ALLOCATION_FAILED;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_COLLECT_FAILED;
 
 public class CollectTxService
 {
@@ -119,7 +119,7 @@ public class CollectTxService
                 metadataBuffIds,
                 outResultType);
         if (collectTxId < 0) {
-            throw new TrinoException(VARADA_TX_ALLOCATION_FAILED, "failed to allocate tx for collect");
+            throw new TrinoException(WARP_TX_ALLOCATION_FAILED, "failed to allocate tx for collect");
         }
 
         int collectIx = 0;
@@ -147,7 +147,7 @@ public class CollectTxService
             rangeFillerService.restoreRowList(rangeData, storeRowListSize, storeRowListType, storageCollectorArgs.storeRowListBuff());
             restoredChunkIndex = storageCollectorArgs.chunksQueue().getCurrent();
             if (storageEngine.collectRestoreState(collectTxId, restoredChunkIndex, storageCollectorCallBack) < 0) {
-                throw new TrinoException(VARADA_UNRECOVERABLE_COLLECT_FAILED,
+                throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED,
                         String.format("failed to restore collect state restoredChunkIndex %d numChunks %d",
                         restoredChunkIndex,
                         storageCollectorArgs.numChunks()));
@@ -183,7 +183,7 @@ public class CollectTxService
                     numCollectedRows,
                     collectOpenResult.outResultType()); // will be done only if needed
             if (ret == -1) {
-                throw new TrinoException(VARADA_UNRECOVERABLE_COLLECT_FAILED,
+                throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED,
                         String.format("prepareNextChunk failed unexpectedly collectTxId %d chunkIx %d resetPoint %d numCollectedRows %d rowsLimit %d",
                         collectOpenResult.collectTxId(),
                         storageCollectorArgs.chunksQueue().getCurrent(),

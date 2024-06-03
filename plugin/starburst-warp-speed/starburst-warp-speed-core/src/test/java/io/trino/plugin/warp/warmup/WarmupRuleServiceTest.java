@@ -147,7 +147,7 @@ public class WarmupRuleServiceTest
         WarmupRuleResult warmupRuleResult = warmupRuleService.save(List.of(warmupRule1, warmupRule2));
         assertThat(warmupRuleResult.rejectedRules().size()).isEqualTo(1);
         assertThat(warmupRuleResult.rejectedRules().entrySet().stream().findFirst().orElseThrow().getValue().stream().findAny().orElseThrow()
-                .contains(Integer.toString(WarpErrorCode.VARADA_DUPLICATE_RECORD.getCode()))).isTrue();
+                .contains(Integer.toString(WarpErrorCode.WARP_DUPLICATE_RECORD.getCode()))).isTrue();
     }
 
     @Test
@@ -173,7 +173,7 @@ public class WarmupRuleServiceTest
         assertThat(warmupRuleResult.appliedRules().size()).isEqualTo(0);
         assertThat(warmupRuleResult.rejectedRules().size()).isEqualTo(1);
         assertThat(warmupRuleResult.rejectedRules().keySet().stream().findAny().orElseThrow().getWarmUpType()).isEqualTo(WarmUpType.WARM_UP_TYPE_BASIC);
-        assertThat(warmupRuleResult.rejectedRules().entrySet().stream().findFirst().orElseThrow().getValue().stream().findAny().orElseThrow().contains(Integer.toString(WarpErrorCode.VARADA_WARMUP_RULE_ID_NOT_VALID.getCode()))).isTrue();
+        assertThat(warmupRuleResult.rejectedRules().entrySet().stream().findFirst().orElseThrow().getValue().stream().findAny().orElseThrow().contains(Integer.toString(WarpErrorCode.WARP_WARMUP_RULE_ID_NOT_VALID.getCode()))).isTrue();
     }
 
     @Test
@@ -191,7 +191,7 @@ public class WarmupRuleServiceTest
             WarmupRuleResult warmupRuleResult = warmupRuleService.save(List.of(warmupRule));
             assertThat(warmupRuleResult.rejectedRules().size()).isEqualTo(1);
             assertThat(warmupRuleResult.rejectedRules().entrySet().stream().findFirst().orElseThrow().getValue().stream().findAny().orElseThrow()
-                    .contains(Integer.toString(WarpErrorCode.VARADA_WARMUP_RULE_WARMUP_TYPE_DOESNT_SUPPORT_COL_TYPE.getCode()))).isTrue();
+                    .contains(Integer.toString(WarpErrorCode.WARP_WARMUP_RULE_WARMUP_TYPE_DOESNT_SUPPORT_COL_TYPE.getCode()))).isTrue();
             assertThat(warmupRuleResult.rejectedRules().entrySet().stream().findFirst().orElseThrow().getValue().stream().findAny().orElseThrow()
                     .contains(typeToMessage.getValue())).isTrue();
         }
@@ -211,7 +211,7 @@ public class WarmupRuleServiceTest
             WarmupRuleResult warmupRuleResult = warmupRuleService.save(List.of(warmupRule));
             assertThat(warmupRuleResult.rejectedRules().size()).isEqualTo(1);
             assertThat(warmupRuleResult.rejectedRules().entrySet().stream().findFirst().orElseThrow().getValue().stream().findAny().orElseThrow()
-                    .contains(Integer.toString(WarpErrorCode.VARADA_WARMUP_RULE_WARMUP_TYPE_DOESNT_SUPPORT_COL_TYPE.getCode()))).isTrue();
+                    .contains(Integer.toString(WarpErrorCode.WARP_WARMUP_RULE_WARMUP_TYPE_DOESNT_SUPPORT_COL_TYPE.getCode()))).isTrue();
             assertThat(warmupRuleResult.rejectedRules().entrySet().stream().findFirst().orElseThrow().getValue().stream().findAny().orElseThrow()
                     .contains(typeToMessage.getValue())).isTrue();
         }
@@ -243,7 +243,7 @@ public class WarmupRuleServiceTest
             WarmupRuleResult warmupRuleResult = warmupRuleService.save(List.of(warmupRule));
             assertThat(warmupRuleResult.rejectedRules().size()).isEqualTo(1);
             assertThat(warmupRuleResult.rejectedRules().entrySet().stream().findFirst().orElseThrow().getValue().stream().findAny().orElseThrow()
-                    .contains(Integer.toString(WarpErrorCode.VARADA_WARMUP_RULE_WARMUP_TYPE_DOESNT_SUPPORT_COL_TYPE.getCode()))).isTrue();
+                    .contains(Integer.toString(WarpErrorCode.WARP_WARMUP_RULE_WARMUP_TYPE_DOESNT_SUPPORT_COL_TYPE.getCode()))).isTrue();
             assertThat(warmupRuleResult.rejectedRules().entrySet().stream().findFirst().orElseThrow().getValue().stream().findAny().orElseThrow()
                     .contains(typeToMessage.getValue())).isTrue();
         }
@@ -315,7 +315,7 @@ public class WarmupRuleServiceTest
             warmupRuleService.save(List.of(warmupRule1));
         }
         catch (TrinoException e) {
-            assertThat(e.getErrorCode()).isEqualTo(WarpErrorCode.VARADA_DUPLICATE_RECORD.toErrorCode());
+            assertThat(e.getErrorCode()).isEqualTo(WarpErrorCode.WARP_DUPLICATE_RECORD.toErrorCode());
         }
     }
 

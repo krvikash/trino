@@ -21,7 +21,7 @@ import io.trino.spi.TrinoException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static io.trino.plugin.warp.WarpErrorCode.VARADA_PREDICATE_CACHE_ERROR;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_PREDICATE_CACHE_ERROR;
 
 public class MatchDataSorter
 {
@@ -52,7 +52,7 @@ public class MatchDataSorter
                 case WARM_UP_TYPE_BASIC -> MatchCollectUtils.canBeMatchForMatchCollect(queryMatchData, queryContext.getNativeQueryCollectDataList()) ?
                         IndexPriority.BASIC_WITH_COLLECT.ordinal() : IndexPriority.BASIC_WITHOUT_COLLECT.ordinal();
                 case WARM_UP_TYPE_LUCENE -> IndexPriority.LUCENE.ordinal();
-                default -> throw new TrinoException(VARADA_PREDICATE_CACHE_ERROR, "got invalid warmUpType=" + warmUpType);
+                default -> throw new TrinoException(WARP_PREDICATE_CACHE_ERROR, "got invalid warmUpType=" + warmUpType);
             };
         }
         else {

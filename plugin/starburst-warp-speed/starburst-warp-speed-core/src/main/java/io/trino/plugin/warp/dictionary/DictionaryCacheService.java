@@ -124,13 +124,13 @@ public class DictionaryCacheService
                     dictionariesCache.loadPreBlock(recTypeCode, dataValueDictionary);
                 }
                 catch (Exception e) {
-                    throw new TrinoException(WarpErrorCode.VARADA_DICTIONARY_ERROR, e);
+                    throw new TrinoException(WarpErrorCode.WARP_DICTIONARY_ERROR, e);
                 }
                 dataValueDictionary.dictionaryAttached();
                 return dictionarySize;
             }
             catch (Exception e) {
-                throw new TrinoException(WarpErrorCode.VARADA_DICTIONARY_ERROR, e);
+                throw new TrinoException(WarpErrorCode.WARP_DICTIONARY_ERROR, e);
             }
         }
     }

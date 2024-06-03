@@ -31,7 +31,7 @@ public class WarmupRule
     public static final String ID = "id";
     public static final String SCHEMA_NAME = "schema_name";
     public static final String TABLE_NAME = "table_name";
-    public static final String VARADA_COLUMN = "varada_column";
+    public static final String WARP_COLUMN = "varada_column";
     public static final String TTL = "ttl";
     public static final String PRIORITY = "priority";
     public static final String COLUMN_WARMUP_TYPE = "column_warmup_type";
@@ -46,7 +46,7 @@ public class WarmupRule
     @JsonProperty(TABLE_NAME)
     private String table;
 
-    @JsonProperty(VARADA_COLUMN)
+    @JsonProperty(WARP_COLUMN)
     private WarpColumn warpColumn;
 
     @JsonProperty(TTL)
@@ -199,7 +199,7 @@ public class WarmupRule
             return this;
         }
 
-        @JsonProperty(VARADA_COLUMN)
+        @JsonProperty(WARP_COLUMN)
         public Builder warpColumn(WarpColumn warpColumn)
         {
             this.warpColumn = requireNonNull(warpColumn);

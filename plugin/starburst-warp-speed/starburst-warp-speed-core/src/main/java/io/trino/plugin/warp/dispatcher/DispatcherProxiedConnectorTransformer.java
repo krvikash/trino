@@ -60,7 +60,7 @@ public interface DispatcherProxiedConnectorTransformer
     {
         Node node = connectorSplitNodeDistributor.getNode(splitKey);
         if (Objects.isNull(node)) {
-            throw new TrinoException(WarpErrorCode.VARADA_CLUSTER_NOT_READY, "no worker nodes available");
+            throw new TrinoException(WarpErrorCode.WARP_CLUSTER_NOT_READY, "no worker nodes available");
         }
         return Collections.singletonList(node.getHostAndPort());
     }

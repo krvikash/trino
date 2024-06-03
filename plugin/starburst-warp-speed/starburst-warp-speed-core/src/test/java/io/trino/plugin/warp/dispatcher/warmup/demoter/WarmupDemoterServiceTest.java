@@ -201,7 +201,7 @@ public class WarmupDemoterServiceTest
         when(rowGroupDataService.getAll()).thenReturn(new ArrayList<>(rowGroupDataMapTest.values()));
         when(rowGroupDataService.get(any())).thenAnswer(i -> rowGroupDataMapTest.get(i.getArguments()[0]));
         setConfig(0, 0, 1, 1, List.of());
-        doThrow(new TrinoException(WarpErrorCode.VARADA_NATIVE_ERROR, "test"))
+        doThrow(new TrinoException(WarpErrorCode.WARP_NATIVE_ERROR, "test"))
                 .doNothing()
                 .when(rowGroupDataService).removeElements(eq(rowGroupData1), any(Collection.class));
 

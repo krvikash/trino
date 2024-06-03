@@ -26,7 +26,7 @@ import io.trino.spi.type.Type;
 
 import java.nio.ByteBuffer;
 
-import static io.trino.plugin.warp.WarpErrorCode.VARADA_CONTROL;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_CONTROL;
 
 public class RangesPredicateFiller
         extends PredicateFiller<Domain>
@@ -101,7 +101,7 @@ public class RangesPredicateFiller
                 rangesConverter.setLongDecimalRanges(lowBuf, highBuf, sortedRangeSet);
             }
             else {
-                throw new TrinoException(VARADA_CONTROL, "unexpected ValType " + type);
+                throw new TrinoException(WARP_CONTROL, "unexpected ValType " + type);
             }
         }
         catch (Exception e) {

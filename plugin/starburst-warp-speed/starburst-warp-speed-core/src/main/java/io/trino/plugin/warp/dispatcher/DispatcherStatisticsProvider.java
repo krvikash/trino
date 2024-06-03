@@ -58,7 +58,7 @@ public class DispatcherStatisticsProvider
         for (String bucket : buckets) {
             int currentBucket = Integer.parseInt(bucket);
             if (currentBucket <= previousBucket) {
-                throw new TrinoException(WarpErrorCode.VARADA_ILLEGAL_BUCKET_CONFIGURATION, "invalid bucket config");
+                throw new TrinoException(WarpErrorCode.WARP_ILLEGAL_BUCKET_CONFIGURATION, "invalid bucket config");
             }
             cardinalityMap.put(currentBucket, bucketPriority);
             bucketPriority++;

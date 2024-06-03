@@ -76,8 +76,8 @@ import static org.assertj.core.api.Assertions.fail;
 public abstract class DispatcherStubsIntegrationSmokeIT
         extends DispatcherAbstractTestQueryFramework
 {
-    protected static final String VARADA_MATCH_COLUMNS_STAT = "varada_match_columns";
-    protected static final String VARADA_COLLECT_COLUMNS_STAT = "varada_collect_columns";
+    protected static final String WARP_MATCH_COLUMNS_STAT = "varada_match_columns";
+    protected static final String WARP_COLLECT_COLUMNS_STAT = "varada_collect_columns";
     protected static final String PREFILLED_COLUMNS_STAT = "prefilled_collect_columns";
     protected static final String EXTERNAL_MATCH_STAT = "external_match_columns";
     protected static final String EXTERNAL_COLLECT_STAT = "external_collect_columns";

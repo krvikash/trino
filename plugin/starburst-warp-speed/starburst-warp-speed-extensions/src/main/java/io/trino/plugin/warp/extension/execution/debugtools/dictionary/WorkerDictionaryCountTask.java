@@ -71,10 +71,10 @@ public class WorkerDictionaryCountTask
     private void validateConfig(DictionaryConfigRequest conf)
     {
         if (conf.getMaxDictionaryTotalCacheWeight() < 0) {
-            throw new TrinoException(WarpErrorCode.VARADA_ILLEGAL_PARAMETER, "maxDictionaryWeight should be greater then -1");
+            throw new TrinoException(WarpErrorCode.WARP_ILLEGAL_PARAMETER, "maxDictionaryWeight should be greater then -1");
         }
         if (conf.getConcurrency() < 0) {
-            throw new TrinoException(WarpErrorCode.VARADA_ILLEGAL_PARAMETER, "Concurrency should be greater then -1");
+            throw new TrinoException(WarpErrorCode.WARP_ILLEGAL_PARAMETER, "Concurrency should be greater then -1");
         }
     }
 

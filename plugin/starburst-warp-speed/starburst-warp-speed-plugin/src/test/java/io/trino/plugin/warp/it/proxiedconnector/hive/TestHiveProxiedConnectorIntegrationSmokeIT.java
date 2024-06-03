@@ -201,16 +201,16 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         Map<String, Long> expectedQueryStats = Map.of(
                 CACHED_TOTAL_ROWS, 3L,
-                VARADA_MATCH_COLUMNS_STAT, 0L,
-                VARADA_COLLECT_COLUMNS_STAT, 6L /* 2 cols * 3 rows */,
+                WARP_MATCH_COLUMNS_STAT, 0L,
+                WARP_COLLECT_COLUMNS_STAT, 6L /* 2 cols * 3 rows */,
                 EXTERNAL_MATCH_STAT, 0L,
                 EXTERNAL_COLLECT_STAT, 9L /* 3 cols * 3 rows */);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
         expectedQueryStats = Map.of(
                 CACHED_TOTAL_ROWS, 1L,
-                VARADA_MATCH_COLUMNS_STAT, 1L,
-                VARADA_COLLECT_COLUMNS_STAT, 1L,
+                WARP_MATCH_COLUMNS_STAT, 1L,
+                WARP_COLLECT_COLUMNS_STAT, 1L,
                 PREFILLED_COLUMNS_STAT, 1L,
                 EXTERNAL_MATCH_STAT, 0L,
                 EXTERNAL_COLLECT_STAT, 3L);
@@ -276,8 +276,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 aCol, dateIntCol, table, dateIntCol, aCol);
         Map<String, Long> expectedQueryStats = Map.of(
                 CACHED_TOTAL_ROWS, 2L,
-                VARADA_MATCH_COLUMNS_STAT, 2L,
-                VARADA_COLLECT_COLUMNS_STAT, 0L,
+                WARP_MATCH_COLUMNS_STAT, 2L,
+                WARP_COLLECT_COLUMNS_STAT, 0L,
                 PREFILLED_COLUMNS_STAT, 4L,
                 EXTERNAL_MATCH_STAT, 0L,
                 EXTERNAL_COLLECT_STAT, 0L);
@@ -288,8 +288,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 aCol, dateIntCol, table, dateIntCol, dateDateCol, aCol);
         expectedQueryStats = Map.of(
                 CACHED_TOTAL_ROWS, 1L,
-                VARADA_MATCH_COLUMNS_STAT, 1L,
-                VARADA_COLLECT_COLUMNS_STAT, 0L,
+                WARP_MATCH_COLUMNS_STAT, 1L,
+                WARP_COLLECT_COLUMNS_STAT, 0L,
                 PREFILLED_COLUMNS_STAT, 2L,
                 EXTERNAL_MATCH_STAT, 0L,
                 EXTERNAL_COLLECT_STAT, 0L);
@@ -2494,7 +2494,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         @Language("SQL") String query = "select * from varchar_max_table";
         Map<String, Long> expectedQueryStats = Map.of(
-                VARADA_COLLECT_COLUMNS_STAT, 1L,
+                WARP_COLLECT_COLUMNS_STAT, 1L,
                 EXTERNAL_COLLECT_STAT, 1L);
         validateQueryStats(query, getSession(), expectedQueryStats, OptionalInt.empty(), OptionalInt.of(1));
     }
@@ -2579,25 +2579,25 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         // in range
         @Language("SQL") String query = "select count(v1) from t where v1 > 'sh' AND v1 < 'zz'";
         Map<String, Long> expectedQueryStats = Map.of(
-                VARADA_MATCH_COLUMNS_STAT, 1L);
+                WARP_MATCH_COLUMNS_STAT, 1L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
         // smaller then
         query = "select count(v1) from t where v1 < 'T'";
         expectedQueryStats = Map.of(
-                VARADA_MATCH_COLUMNS_STAT, 1L);
+                WARP_MATCH_COLUMNS_STAT, 1L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
         // greater then
         query = "select count(v1) from t where v1 > 'T'";
         expectedQueryStats = Map.of(
-                VARADA_MATCH_COLUMNS_STAT, 1L);
+                WARP_MATCH_COLUMNS_STAT, 1L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
         // prefilled
         query = "select count(int1) from t where v1 >= 'T'";
         expectedQueryStats = Map.of(
-                VARADA_MATCH_COLUMNS_STAT, 1L,
+                WARP_MATCH_COLUMNS_STAT, 1L,
                 PREFILLED_COLUMNS_STAT, 0L);
         validateQueryStats(query, getSession(), expectedQueryStats);
     }
@@ -3015,7 +3015,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         warmAndValidate("select * from t", false, 2, 1);
         // Query
         @Language("SQL") String query = "SELECT v1 FROM t WHERE v1 = 'singleValue'";
-        Map<String, Long> expectedQueryStats = Map.of(VARADA_MATCH_COLUMNS_STAT, 1L);
+        Map<String, Long> expectedQueryStats = Map.of(WARP_MATCH_COLUMNS_STAT, 1L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
         // Replace lucene rule with a basic rule
@@ -3032,7 +3032,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         // Query again, expect the same counters
         query = "SELECT v1 FROM t WHERE v1 = 'singleValue'";
         // (Lucene index may or may not be deleted - either way we should match from Varada since we query for a single value)
-        expectedQueryStats = Map.of(VARADA_MATCH_COLUMNS_STAT, 1L);
+        expectedQueryStats = Map.of(WARP_MATCH_COLUMNS_STAT, 1L);
         validateQueryStats(query, getSession(), expectedQueryStats);
     }
 
@@ -3050,7 +3050,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         warmAndValidate("select int1 from t", false, 2, 1);
 
         @Language("SQL") String query = "SELECT int1 FROM t WHERE int1 != 3";
-        Map<String, Long> expectedQueryStats = Map.of(VARADA_MATCH_COLUMNS_STAT, 1L);
+        Map<String, Long> expectedQueryStats = Map.of(WARP_MATCH_COLUMNS_STAT, 1L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
         createWarmupRules(DEFAULT_SCHEMA,
@@ -3061,11 +3061,11 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         warmAndValidate(format("select %s from t", C2), false, 2, 1);
 
         query = format("SELECT %s FROM t WHERE %s NOT IN ('shlomi', 'alfasi', 'aaa')", C2, C2);
-        expectedQueryStats = Map.of(VARADA_MATCH_COLUMNS_STAT, 1L);
+        expectedQueryStats = Map.of(WARP_MATCH_COLUMNS_STAT, 1L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
         query = format("SELECT %s FROM t WHERE %s <> 'shlomi'", C2, C2);
-        expectedQueryStats = Map.of(VARADA_MATCH_COLUMNS_STAT, 1L);
+        expectedQueryStats = Map.of(WARP_MATCH_COLUMNS_STAT, 1L);
         validateQueryStats(query, getSession(), expectedQueryStats);
     }
 
@@ -3161,13 +3161,13 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         // Lucene is not warmed
         @Language("SQL") String query = "select v1 from t where v1 = 'shlomishlomishlomi'";
-        Map<String, Long> expectedQueryStats = Map.of(VARADA_MATCH_COLUMNS_STAT, 1L);
+        Map<String, Long> expectedQueryStats = Map.of(WARP_MATCH_COLUMNS_STAT, 1L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
         query = "select v1 from t where v1 like '%mishlomi%'";
         expectedQueryStats = Map.of(
-                VARADA_MATCH_COLUMNS_STAT, 0L,
-                VARADA_COLLECT_COLUMNS_STAT, 1L);
+                WARP_MATCH_COLUMNS_STAT, 0L,
+                WARP_COLLECT_COLUMNS_STAT, 1L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
         // Add a lucene rule
@@ -3185,12 +3185,12 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         // Lucene is warmed
         query = "select v1 from t where v1 = 'shlomishlomishlomi'";
         expectedQueryStats = Map.of(
-                VARADA_MATCH_COLUMNS_STAT, 1L);
+                WARP_MATCH_COLUMNS_STAT, 1L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
         query = "select v1 from t where v1 like '%mishlomi%'";
         expectedQueryStats = Map.of(
-                VARADA_MATCH_COLUMNS_STAT, 1L);
+                WARP_MATCH_COLUMNS_STAT, 1L);
         validateQueryStats(query, getSession(), expectedQueryStats);
     }
 
@@ -4138,8 +4138,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         Map<String, Long> expectedQueryStats = Map.of(
                 CACHED_TOTAL_ROWS, 1L, // table1's row
-                VARADA_MATCH_COLUMNS_STAT, 1L, // id1 > 5
-                VARADA_COLLECT_COLUMNS_STAT, 0L, // predicate is fully pushed down - no need to collect
+                WARP_MATCH_COLUMNS_STAT, 1L, // id1 > 5
+                WARP_COLLECT_COLUMNS_STAT, 0L, // predicate is fully pushed down - no need to collect
                 PREFILLED_COLUMNS_STAT, 0L,
                 EXTERNAL_MATCH_STAT, 0L,
                 EXTERNAL_COLLECT_STAT, 0L);

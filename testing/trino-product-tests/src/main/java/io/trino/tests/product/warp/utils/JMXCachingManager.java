@@ -85,15 +85,15 @@ public class JMXCachingManager
 
         ImmutableMap.Builder<String, String> mapBuilder = ImmutableMap.builder();
 
-        mapBuilder.put(JMXCachingConstants.Columns.VARADA_MATCH, "incorrect match - expected to match varada columns")
-                .put(JMXCachingConstants.Columns.VARADA_MATCH_ON_SIMPLIFIED_DOMAIN, "incorrect match - expected to match on simplified domain")
-                .put(JMXCachingConstants.Columns.VARADA_COLLECT, "incorrect collect - expected to collect varada columns")
-                .put(JMXCachingConstants.Columns.VARADA_MATCH_COLLECT, "incorrect collect - expected to match-collect varada columns")
+        mapBuilder.put(JMXCachingConstants.Columns.WARP_MATCH, "incorrect match - expected to match varada columns")
+                .put(JMXCachingConstants.Columns.WARP_MATCH_ON_SIMPLIFIED_DOMAIN, "incorrect match - expected to match on simplified domain")
+                .put(JMXCachingConstants.Columns.WARP_COLLECT, "incorrect collect - expected to collect varada columns")
+                .put(JMXCachingConstants.Columns.WARP_MATCH_COLLECT, "incorrect collect - expected to match-collect varada columns")
                 .put(JMXCachingConstants.Columns.PREFILLED_COLLECT, "incorrect collect - expected to prefilled collect columns")
                 .put(JMXCachingConstants.Columns.EXTERNAL_MATCH, "incorrect match - expected to match hive columns")
                 .put(JMXCachingConstants.Columns.EXTERNAL_COLLECT, "incorrect collect - expected to collect hive columns")
                 .put(JMXCachingConstants.DispatcherPageSource.HIVE, "incorrect cached hive files - expected to go hive only")
-                .put(JMXCachingConstants.DispatcherPageSource.VARADA_SUCCESS, "incorrect cached varada success files - expected to go varada only")
+                .put(JMXCachingConstants.DispatcherPageSource.WARP_SUCCESS, "incorrect cached varada success files - expected to go varada only")
                 .put(JMXCachingConstants.DispatcherPageSource.EMPTY_COLLECT_COLUMNS, "Incorrect partition collect")
                 .put(JMXCachingConstants.DispatcherPageSource.FILTERED_BY_PREDICATE, "Incorrect filter by predicate")
                 .put(JMXCachingConstants.DispatcherPageSource.NON_TRIVIAL_ALTERNATIVE_CHOSEN, "Incorrect non trivial alternative chosen");

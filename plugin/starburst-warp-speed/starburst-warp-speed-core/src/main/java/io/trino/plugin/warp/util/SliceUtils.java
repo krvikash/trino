@@ -163,7 +163,7 @@ public class SliceUtils
             // Then we need to trim the zeroes from the suffix
             return value -> {
                 if (isValidateSize && (weLength < value.length())) {
-                    throw new TrinoException(WarpErrorCode.VARADA_DATA_WARMUP_RULE_ILLEGAL_CHAR_LENGTH,
+                    throw new TrinoException(WarpErrorCode.WARP_DATA_WARMUP_RULE_ILLEGAL_CHAR_LENGTH,
                             format("Mismatch in slice length[%d] and expected col length[%d], col type[%s]",
                                     value.length(), weLength, type));
                 }
@@ -191,7 +191,7 @@ public class SliceUtils
             return value -> {
                 // fail if slice bytes are longer than expected
                 if (isValidateSize && (weLength < value.length())) {
-                    throw new TrinoException(WarpErrorCode.VARADA_DATA_WARMUP_RULE_ILLEGAL_CHAR_LENGTH,
+                    throw new TrinoException(WarpErrorCode.WARP_DATA_WARMUP_RULE_ILLEGAL_CHAR_LENGTH,
                             format("Mismatch in slice length[%d] and expected col length[%d], col type[%s]",
                                     value.length(), weLength, type));
                 }

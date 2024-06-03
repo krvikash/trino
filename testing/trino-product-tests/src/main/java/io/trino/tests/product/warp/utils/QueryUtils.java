@@ -394,10 +394,10 @@ public class QueryUtils
 
     private enum CachingType
     {
-        VARADA_ONLY,
+        WARP_ONLY,
         EXTERNAL_ONLY,
         ACCORDING_TO_COUNTERS,
-        MIXED_VARADA_AND_EXTERNAL_NO_COUNTERS,
+        MIXED_WARP_AND_EXTERNAL_NO_COUNTERS,
         CUSTOM_METRICS_COUNTERS
     }
 }

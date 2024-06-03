@@ -23,9 +23,9 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-import static io.trino.plugin.warp.WarpErrorCode.VARADA_NATIVE_ERROR;
-import static io.trino.plugin.warp.WarpErrorCode.VARADA_NATIVE_READ_OUT_OF_BOUNDS;
-import static io.trino.plugin.warp.WarpErrorCode.VARADA_NATIVE_UNRECOVERABLE_ERROR;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_ERROR;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_READ_OUT_OF_BOUNDS;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_ERROR;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class NativeExceptionThrowerTest
@@ -43,11 +43,11 @@ public class NativeExceptionThrowerTest
     @Test
     public void testIsNativeException()
     {
-        assertThat(ExceptionThrower.isNativeException(new TrinoException(VARADA_NATIVE_UNRECOVERABLE_ERROR, "msg"))).isTrue();
-        assertThat(ExceptionThrower.isNativeException(new TrinoException(VARADA_NATIVE_ERROR, "msg"))).isTrue();
-        assertThat(ExceptionThrower.isNativeException(new TrinoException(VARADA_NATIVE_READ_OUT_OF_BOUNDS, "msg"))).isTrue();
+        assertThat(ExceptionThrower.isNativeException(new TrinoException(WARP_NATIVE_UNRECOVERABLE_ERROR, "msg"))).isTrue();
+        assertThat(ExceptionThrower.isNativeException(new TrinoException(WARP_NATIVE_ERROR, "msg"))).isTrue();
+        assertThat(ExceptionThrower.isNativeException(new TrinoException(WARP_NATIVE_READ_OUT_OF_BOUNDS, "msg"))).isTrue();
         Arrays.stream(WarpErrorCode.values())
-                .filter(varadaErrorCode -> !(VARADA_NATIVE_UNRECOVERABLE_ERROR.equals(varadaErrorCode) || VARADA_NATIVE_ERROR.equals(varadaErrorCode) || VARADA_NATIVE_READ_OUT_OF_BOUNDS.equals(varadaErrorCode)))
+                .filter(varadaErrorCode -> !(WARP_NATIVE_UNRECOVERABLE_ERROR.equals(varadaErrorCode) || WARP_NATIVE_ERROR.equals(varadaErrorCode) || WARP_NATIVE_READ_OUT_OF_BOUNDS.equals(varadaErrorCode)))
                 .forEach(varadaErrorCode -> assertThat(ExceptionThrower.isNativeException(new TrinoException(varadaErrorCode, "msg"))).isFalse());
     }
 }

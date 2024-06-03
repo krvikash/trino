@@ -83,7 +83,7 @@ class ReadErrorHandlerTest
     @Test
     public void testHandle_UnrecoverableError()
     {
-        TrinoException trinoException = new TrinoException(WarpErrorCode.VARADA_NATIVE_UNRECOVERABLE_ERROR, "error message");
+        TrinoException trinoException = new TrinoException(WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_ERROR, "error message");
         WarmUpElement failedElement = mock(WarmUpElement.class);
         RowGroupKey rowGroupKey = mock(RowGroupKey.class);
         List<ColumnHandle> warmedColumnHandleList = mockColumns(List.of(Pair.of("c1", VarcharType.VARCHAR)));
@@ -105,7 +105,7 @@ class ReadErrorHandlerTest
     @Test
     public void testHandle_ReadOutOfBoundsError()
     {
-        TrinoException trinoException = new TrinoException(WarpErrorCode.VARADA_NATIVE_READ_OUT_OF_BOUNDS, "error message");
+        TrinoException trinoException = new TrinoException(WarpErrorCode.WARP_NATIVE_READ_OUT_OF_BOUNDS, "error message");
         WarmUpElement failedElement = createWarmupElement(new RegularColumn("c1"));
         RowGroupKey rowGroupKey = mock(RowGroupKey.class);
         List<ColumnHandle> warmedColumnHandleList = mockColumns(List.of(Pair.of("c1", IntegerType.INTEGER)));

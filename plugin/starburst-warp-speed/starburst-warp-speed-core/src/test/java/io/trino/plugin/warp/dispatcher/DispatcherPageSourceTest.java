@@ -118,7 +118,7 @@ public class DispatcherPageSourceTest
     {
         varadaPageSource = mock(WarpPageSource.class);
         when(varadaPageSource.getNextPage())
-                .thenThrow(new TrinoException(WarpErrorCode.VARADA_NATIVE_UNRECOVERABLE_ERROR, "message"));
+                .thenThrow(new TrinoException(WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_ERROR, "message"));
 
         DispatcherPageSource mixQueryWithPredicate = getDispatcherPageSource(2, Map.of(0, IntegerType.INTEGER));
 
@@ -770,7 +770,7 @@ public class DispatcherPageSourceTest
                 varadaPageSource,
                 queryContext,
                 rowGroupData,
-                proxiedCollectTypeByBlockIndex.isEmpty() ? PageSourceDecision.VARADA : PageSourceDecision.MIXED,
+                proxiedCollectTypeByBlockIndex.isEmpty() ? PageSourceDecision.WARP : PageSourceDecision.MIXED,
                 stats,
                 closeHandler,
                 readErrorHandler,

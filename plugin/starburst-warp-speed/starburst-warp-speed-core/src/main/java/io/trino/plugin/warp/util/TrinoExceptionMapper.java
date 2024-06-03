@@ -27,7 +27,7 @@ import static jakarta.ws.rs.core.MediaType.TEXT_PLAIN;
 public class TrinoExceptionMapper
         implements ExceptionMapper<Throwable>
 {
-    public static final int VARADA_ERROR_CODE_OFFSET = 0xdb0000;
+    public static final int WARP_ERROR_CODE_OFFSET = 0xdb0000;
     private static final int MAX_DEPTH = 10;
 
     @Override
@@ -38,7 +38,7 @@ public class TrinoExceptionMapper
         if (trinoExceptionOpt.isPresent()) {
             Optional<WarpErrorCode> varadaErrorCodeOpt = getFromCode(trinoExceptionOpt.get().getErrorCode().getCode());
             if (varadaErrorCodeOpt.isPresent()) {
-                message = String.format("%s (code %d)", trinoExceptionOpt.get().getMessage(), trinoExceptionOpt.get().getErrorCode().getCode() - VARADA_ERROR_CODE_OFFSET);
+                message = String.format("%s (code %d)", trinoExceptionOpt.get().getMessage(), trinoExceptionOpt.get().getErrorCode().getCode() - WARP_ERROR_CODE_OFFSET);
             }
         }
 

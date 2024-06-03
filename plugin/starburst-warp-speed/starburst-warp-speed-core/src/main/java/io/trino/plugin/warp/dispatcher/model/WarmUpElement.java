@@ -30,7 +30,7 @@ import static java.util.Objects.requireNonNull;
 @JsonDeserialize(builder = WarmUpElement.Builder.class)
 public class WarmUpElement
 {
-    public static final String VARADA_COLUMN = "warpColumn";
+    public static final String WARP_COLUMN = "warpColumn";
     public static final String WARM_UP_TYPE = "warmUpType";
     public static final String STORE_ID = "storeId";
 
@@ -165,7 +165,7 @@ public class WarmUpElement
         return new Builder();
     }
 
-    @JsonProperty(VARADA_COLUMN)
+    @JsonProperty(WARP_COLUMN)
     public WarpColumn getWarpColumn()
     {
         return warpColumn;
@@ -472,7 +472,7 @@ public class WarmUpElement
             return warpColumn(new RegularColumn(colName));
         }
 
-        @JsonProperty(VARADA_COLUMN)
+        @JsonProperty(WARP_COLUMN)
         public Builder warpColumn(WarpColumn warpColumn)
         {
             this.warpColumn = warpColumn;

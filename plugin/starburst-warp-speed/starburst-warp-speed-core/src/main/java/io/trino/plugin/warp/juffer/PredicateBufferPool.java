@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.concurrent.ArrayBlockingQueue;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static io.trino.plugin.warp.WarpErrorCode.VARADA_PREDICATE_BUFFER_ALLOCATION;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_PREDICATE_BUFFER_ALLOCATION;
 
 class PredicateBufferPool
 {
@@ -88,7 +88,7 @@ class PredicateBufferPool
     void free(MemorySegment buff)
     {
         if (!queue.offer(buff)) {
-            throw new TrinoException(VARADA_PREDICATE_BUFFER_ALLOCATION, String.format("failed to release predicate buffer to queue %s", this));
+            throw new TrinoException(WARP_PREDICATE_BUFFER_ALLOCATION, String.format("failed to release predicate buffer to queue %s", this));
         }
     }
 

@@ -44,8 +44,8 @@ import static io.trino.tests.product.TestGroups.WARP_SPEED_MINIO;
 import static io.trino.tests.product.utils.QueryExecutors.onTrino;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.EXTERNAL_COLLECT;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.EXTERNAL_MATCH;
-import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.VARADA_COLLECT;
-import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.VARADA_MATCH;
+import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.WARP_COLLECT;
+import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.WARP_MATCH;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.WarmingService.ROW_GROUP_COUNT;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.WarmingService.WARM_ACCOMPLISHED;
 import static java.lang.String.format;
@@ -183,8 +183,8 @@ public class TestWarpSpeedNative
         logger.info("testRead::before queryAndValidate");
         queryUtils.queryAndValidate(
                 QUERY.formatted("name", tableName),
-                Map.of(VARADA_COLLECT, 2L,
-                        VARADA_MATCH, 1L,
+                Map.of(WARP_COLLECT, 2L,
+                        WARP_MATCH, 1L,
                         EXTERNAL_COLLECT, 0L,
                         EXTERNAL_MATCH, 0L),
                 testName);
@@ -209,8 +209,8 @@ public class TestWarpSpeedNative
         //this one is served from proxy
         queryUtils.queryAndValidate(
                 QUERY.formatted("name", tableName),
-                Map.of(VARADA_COLLECT, 0L,
-                        VARADA_MATCH, 0L,
+                Map.of(WARP_COLLECT, 0L,
+                        WARP_MATCH, 0L,
                         EXTERNAL_COLLECT, 1L,
                         EXTERNAL_MATCH, 1L),
                 testName);
@@ -220,8 +220,8 @@ public class TestWarpSpeedNative
         //now we succeed since no more storage exceptions
         queryUtils.queryAndValidate(
                 QUERY.formatted("name", tableName),
-                Map.of(VARADA_COLLECT, 2L,
-                        VARADA_MATCH, 1L,
+                Map.of(WARP_COLLECT, 2L,
+                        WARP_MATCH, 1L,
                         EXTERNAL_COLLECT, 0L,
                         EXTERNAL_MATCH, 0L),
                 testName);
@@ -244,8 +244,8 @@ public class TestWarpSpeedNative
         //this one is served from proxy
         queryUtils.queryAndValidate(
                 QUERY.formatted("name", tableName),
-                Map.of(VARADA_COLLECT, 0L,
-                        VARADA_MATCH, 0L,
+                Map.of(WARP_COLLECT, 0L,
+                        WARP_MATCH, 0L,
                         EXTERNAL_COLLECT, 2L,
                         EXTERNAL_MATCH, 1L),
                 testName);
@@ -254,8 +254,8 @@ public class TestWarpSpeedNative
         //since warming failed, this one is served from proxy as well
         queryUtils.queryAndValidate(
                 QUERY.formatted("name", tableName),
-                Map.of(VARADA_COLLECT, 0L,
-                        VARADA_MATCH, 0L,
+                Map.of(WARP_COLLECT, 0L,
+                        WARP_MATCH, 0L,
                         EXTERNAL_COLLECT, 2L,
                         EXTERNAL_MATCH, 1L),
                 testName);
@@ -264,8 +264,8 @@ public class TestWarpSpeedNative
         //now we succeed since no more storage exceptions
         queryUtils.queryAndValidate(
                 QUERY.formatted("name", tableName),
-                Map.of(VARADA_COLLECT, 2L,
-                        VARADA_MATCH, 1L,
+                Map.of(WARP_COLLECT, 2L,
+                        WARP_MATCH, 1L,
                         EXTERNAL_COLLECT, 0L,
                         EXTERNAL_MATCH, 0L),
                 testName);

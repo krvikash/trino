@@ -119,9 +119,9 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
         @Language("SQL") String query = "SELECT * FROM %s WHERE timestamp_col=CAST('2024-02-13 10:15:30' AS TIMESTAMP)".formatted(table);
         warmAndValidate(query, warmSession, 3, 1, 0);
         Map<String, Long> expectedQueryStats = Map.of(
-                VARADA_MATCH_COLUMNS_STAT, 0L,
+                WARP_MATCH_COLUMNS_STAT, 0L,
                 "prefilled_collect_columns", 1L,
-                VARADA_COLLECT_COLUMNS_STAT, 2L);
+                WARP_COLLECT_COLUMNS_STAT, 2L);
         validateQueryStats(query, getSession(), expectedQueryStats);
     }
 
@@ -150,15 +150,15 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
 
         @Language("SQL") String query = "select * from %s.%s where c1 > 0 and c2 > 0".formatted(schema, table);
         Map<String, Long> expectedQueryStats = Map.of(
-                VARADA_MATCH_COLUMNS_STAT, 2L,
-                VARADA_COLLECT_COLUMNS_STAT, 2L);
+                WARP_MATCH_COLUMNS_STAT, 2L,
+                WARP_COLLECT_COLUMNS_STAT, 2L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
         computeActual("ALTER TABLE %s.%s RENAME COLUMN c1 TO tmpColumn".formatted(schema, table));
         query = "select * from %s.%s where tmpColumn > 0 and c2 > 0".formatted(schema, table);
         expectedQueryStats = Map.of(
-                VARADA_MATCH_COLUMNS_STAT, 2L,
-                VARADA_COLLECT_COLUMNS_STAT, 2L);
+                WARP_MATCH_COLUMNS_STAT, 2L,
+                WARP_COLLECT_COLUMNS_STAT, 2L);
         validateQueryStats(query, getSession(), expectedQueryStats);
         int expectedDeadObjects = 4;
         validateDemoter(expectedDeadObjects);
@@ -186,13 +186,13 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
                 0);
 
         @Language("SQL") String query = "select * from %s.%s".formatted(schema, table);
-        Map<String, Long> expectedQueryStats = Map.of(VARADA_COLLECT_COLUMNS_STAT, 2L);
+        Map<String, Long> expectedQueryStats = Map.of(WARP_COLLECT_COLUMNS_STAT, 2L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
         computeActual("ALTER TABLE %s.%s RENAME COLUMN c1 TO tmpColumn".formatted(schema, table));
 
         query = "select tmpColumn from %s.%s".formatted(schema, table);
-        expectedQueryStats = Map.of(VARADA_COLLECT_COLUMNS_STAT, 1L);
+        expectedQueryStats = Map.of(WARP_COLLECT_COLUMNS_STAT, 1L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
         //now create new split
@@ -205,7 +205,7 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
                 0);
 
         query = "select * from %s.%s".formatted(schema, table);
-        expectedQueryStats = Map.of(VARADA_COLLECT_COLUMNS_STAT, 2L);
+        expectedQueryStats = Map.of(WARP_COLLECT_COLUMNS_STAT, 2L);
         validateQueryStats(query, getSession(), expectedQueryStats);
         warmSession = Session.builder(getSession())
                 .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "true")
@@ -241,7 +241,7 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
                 1,
                 0);
         @Language("SQL") String query = "select * from %s.%s".formatted(schema, table);
-        Map<String, Long> expectedQueryStats = Map.of(VARADA_COLLECT_COLUMNS_STAT, 2L);
+        Map<String, Long> expectedQueryStats = Map.of(WARP_COLLECT_COLUMNS_STAT, 2L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
         computeActual("ALTER TABLE %s.%s RENAME COLUMN int1 TO tmpColumn".formatted(schema, table));
@@ -249,7 +249,7 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
         computeActual("ALTER TABLE %s.%s RENAME COLUMN tmpColumn TO v1".formatted(schema, table));
 
         query = "select * from %s.%s".formatted(schema, table);
-        expectedQueryStats = Map.of(VARADA_COLLECT_COLUMNS_STAT, 2L);
+        expectedQueryStats = Map.of(WARP_COLLECT_COLUMNS_STAT, 2L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
         //now create new split
@@ -262,7 +262,7 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
                 0);
 
         query = "select * from %s.%s".formatted(schema, table);
-        expectedQueryStats = Map.of(VARADA_COLLECT_COLUMNS_STAT, 4L);
+        expectedQueryStats = Map.of(WARP_COLLECT_COLUMNS_STAT, 4L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
         validateDemoter(6);
@@ -425,7 +425,7 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
         warmAndValidate(query, warmSession, 1, 1, 0);
 
         Map<String, Long> expectedQueryStats = Map.of(
-                VARADA_COLLECT_COLUMNS_STAT, 1L,
+                WARP_COLLECT_COLUMNS_STAT, 1L,
                 PREFILLED_COLUMNS_STAT, 1L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
@@ -441,7 +441,7 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
         warmAndValidate(query, warmSession, 1, 1, 0);
 
         expectedQueryStats = Map.of(
-                VARADA_COLLECT_COLUMNS_STAT, 2L,
+                WARP_COLLECT_COLUMNS_STAT, 2L,
                 PREFILLED_COLUMNS_STAT, 1L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
@@ -449,7 +449,7 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
         computeActual(format("ALTER TABLE %s.%s RENAME COLUMN %s TO %s", DEFAULT_SCHEMA, table, dateIntCol, newColumnName));
         query = query.replace(dateIntCol, newColumnName);
         expectedQueryStats = Map.of(
-                VARADA_COLLECT_COLUMNS_STAT, 2L,
+                WARP_COLLECT_COLUMNS_STAT, 2L,
                 PREFILLED_COLUMNS_STAT, 1L);
         validateQueryStats(query, getSession(), expectedQueryStats);
     }
@@ -498,8 +498,8 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
                 aCol, dateIntCol, table, dateIntCol, aCol);
         Map<String, Long> expectedQueryStats = Map.of(
                 CACHED_TOTAL_ROWS, 1L,
-                VARADA_MATCH_COLUMNS_STAT, 1L,
-                VARADA_COLLECT_COLUMNS_STAT, 0L,
+                WARP_MATCH_COLUMNS_STAT, 1L,
+                WARP_COLLECT_COLUMNS_STAT, 0L,
                 PREFILLED_COLUMNS_STAT, 2L,
                 EXTERNAL_MATCH_STAT, 0L,
                 EXTERNAL_COLLECT_STAT, 0L);
@@ -509,8 +509,8 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
                 aCol, dateIntCol, table, dateIntCol, dateDateCol, aCol);
         expectedQueryStats = Map.of(
                 CACHED_TOTAL_ROWS, 1L,
-                VARADA_MATCH_COLUMNS_STAT, 1L,
-                VARADA_COLLECT_COLUMNS_STAT, 0L,
+                WARP_MATCH_COLUMNS_STAT, 1L,
+                WARP_COLLECT_COLUMNS_STAT, 0L,
                 PREFILLED_COLUMNS_STAT, 2L,
                 EXTERNAL_MATCH_STAT, 0L,
                 EXTERNAL_COLLECT_STAT, 0L);

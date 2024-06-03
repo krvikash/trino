@@ -23,7 +23,7 @@ import io.trino.spi.TrinoException;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import static io.trino.plugin.warp.WarpErrorCode.VARADA_MATCH_COLLECT_ID_ALLOCATION;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_MATCH_COLLECT_ID_ALLOCATION;
 
 @Singleton
 public class MatchCollectIdService
@@ -62,7 +62,7 @@ public class MatchCollectIdService
 
         if (!matchCollectIdsQueue.offer(id)) {
             logger.error("failed to release match collect id %d", id);
-            throw new TrinoException(VARADA_MATCH_COLLECT_ID_ALLOCATION, String.format("failed to release match collect id %d", id));
+            throw new TrinoException(WARP_MATCH_COLLECT_ID_ALLOCATION, String.format("failed to release match collect id %d", id));
         }
     }
 

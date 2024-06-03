@@ -22,7 +22,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 
-import static io.trino.plugin.warp.WarpErrorCode.VARADA_UNRECOVERABLE_MATCH_FAILED;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_MATCH_FAILED;
 
 class ChunksQueue
 {
@@ -41,7 +41,7 @@ class ChunksQueue
     {
         for (int i = 0; i < numMatchedChunks; i++) {
             if (matchBitmapResetPoints[i] < 0) {
-                throw new TrinoException(VARADA_UNRECOVERABLE_MATCH_FAILED, "match got to error state at chunk " + matchedChunksIndexes[i]);
+                throw new TrinoException(WARP_UNRECOVERABLE_MATCH_FAILED, "match got to error state at chunk " + matchedChunksIndexes[i]);
             }
             chunksToCollect.add(new MatchChunkResult((int) matchedChunksIndexes[i], matchBitmapResetPoints[i]));
         }

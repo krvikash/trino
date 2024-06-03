@@ -34,11 +34,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static io.trino.plugin.warp.WarpErrorCode.VARADA_MATCH_FAILED;
-import static io.trino.plugin.warp.WarpErrorCode.VARADA_NATIVE_UNRECOVERABLE_ERROR;
-import static io.trino.plugin.warp.WarpErrorCode.VARADA_TX_ALLOCATION_FAILED;
-import static io.trino.plugin.warp.WarpErrorCode.VARADA_UNRECOVERABLE_COLLECT_FAILED;
-import static io.trino.plugin.warp.WarpErrorCode.VARADA_UNRECOVERABLE_MATCH_FAILED;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_MATCH_FAILED;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_ERROR;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_TX_ALLOCATION_FAILED;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_COLLECT_FAILED;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_MATCH_FAILED;
 import static java.util.Objects.requireNonNull;
 
 public class StorageReader
@@ -220,7 +220,7 @@ public class StorageReader
             }
             if (matchTxId < 0) {
                 collectTxService.freeCollectOpenResources(collectOpenResult);
-                TrinoException te = new TrinoException(VARADA_TX_ALLOCATION_FAILED, "failed to allocate tx for match");
+                TrinoException te = new TrinoException(WARP_TX_ALLOCATION_FAILED, "failed to allocate tx for match");
                 throw te;
             }
             matchedChunksIndexes = new short[storageEngineConstants.getMaxChunksInRange()];
@@ -261,17 +261,17 @@ public class StorageReader
                     // We can't throw the original exception cause it will skip closing the collect TX.
                     // But we do need to preserve the recoverable notion from native.
                     if (e instanceof TrinoException trinoException &&
-                            trinoException.getErrorCode().equals(VARADA_NATIVE_UNRECOVERABLE_ERROR.toErrorCode())) {
-                        throw new TrinoException(VARADA_UNRECOVERABLE_MATCH_FAILED, "failed to match: " + e.getMessage());
+                            trinoException.getErrorCode().equals(WARP_NATIVE_UNRECOVERABLE_ERROR.toErrorCode())) {
+                        throw new TrinoException(WARP_UNRECOVERABLE_MATCH_FAILED, "failed to match: " + e.getMessage());
                     }
                     else {
-                        throw new TrinoException(VARADA_MATCH_FAILED, "failed to match: " + e.getMessage());
+                        throw new TrinoException(WARP_MATCH_FAILED, "failed to match: " + e.getMessage());
                     }
                 }
                 finally {
                     if (matchResult == -1) {
                         abortMatch(Optional.empty()); // will close only the match tx here. the caller will close the collect tx
-                        throw new TrinoException(VARADA_UNRECOVERABLE_MATCH_FAILED, "storage engine failed to match. chunkIndex " + chunkIndex);
+                        throw new TrinoException(WARP_UNRECOVERABLE_MATCH_FAILED, "storage engine failed to match. chunkIndex " + chunkIndex);
                     }
                 }
 
@@ -293,7 +293,7 @@ public class StorageReader
     boolean matchAndCollect(StorageCollectorArgs storageCollectorArgs, CollectOpenResult collectOpenResult, boolean isMatchGetNumRanges)
     {
         if (collectOpenResult.collectTxId() == INVALID_TX_ID) {
-            throw new TrinoException(VARADA_UNRECOVERABLE_COLLECT_FAILED, "no collect tx available, probably a secondary error");
+            throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED, "no collect tx available, probably a secondary error");
         }
         CollectBufferState collectBufferState = CollectBufferState.COLLECT_BUFFER_STATE_EMPTY;
         matchIfNeeded();

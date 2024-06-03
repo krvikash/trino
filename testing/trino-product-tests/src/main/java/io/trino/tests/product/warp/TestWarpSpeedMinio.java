@@ -36,8 +36,8 @@ import static io.trino.tests.product.TestGroups.WARP_SPEED_MINIO;
 import static io.trino.tests.product.utils.QueryExecutors.onTrino;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.EXTERNAL_COLLECT;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.EXTERNAL_MATCH;
-import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.VARADA_COLLECT;
-import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.VARADA_MATCH;
+import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.WARP_COLLECT;
+import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.WARP_MATCH;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.WarmingService.ROW_GROUP_COUNT;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.WarmingService.WARMUP_ELEMENTS_COUNT;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.WarmingService.WARM_ACCOMPLISHED;
@@ -114,8 +114,8 @@ public class TestWarpSpeedMinio
                     WARM_FAILED, 0L);
             warmUtils.warmAndValidate(query, expectedWarmResults);
             Map<String, Long> expectedQueryResults = Map.of(
-                    VARADA_COLLECT, 4L,
-                    VARADA_MATCH, 1L,
+                    WARP_COLLECT, 4L,
+                    WARP_MATCH, 1L,
                     EXTERNAL_COLLECT, 0L,
                     EXTERNAL_MATCH, 0L);
             queryUtils.queryAndValidate(query, expectedQueryResults, testName);
@@ -165,8 +165,8 @@ public class TestWarpSpeedMinio
                     .isEqualTo(10);
 
             Map<String, Long> expectedQueryResults = Map.of(
-                    VARADA_COLLECT, 90L,
-                    VARADA_MATCH, 10L,
+                    WARP_COLLECT, 90L,
+                    WARP_MATCH, 10L,
                     EXTERNAL_COLLECT, 0L,
                     EXTERNAL_MATCH, 0L);
             queryResult = queryUtils.queryAndValidate(query, expectedQueryResults, testName);
