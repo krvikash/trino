@@ -48,6 +48,9 @@ Follow instructions in [Maintaining cork (Common Starburst Trino Fork)](cork-oss
   <a href="https://trino.io/download.html">
     <img src="https://img.shields.io/maven-central/v/io.trino/trino-server.svg?label=Trino" alt="Trino download" />
   </a>
+  <a href="https://github.com/jvm-repo-rebuild/reproducible-central/blob/master/content/io/trino/README.md">
+    <img src="https://img.shields.io/badge/Reproducible_Builds-ok-success?logoColor=959DA5&labelColor=333a41" alt="Reproducible builds supported" />
+  </a>
   <a href="https://trino.io/slack.html">
     <img src="https://img.shields.io/static/v1?logo=slack&logoColor=959DA5&label=Slack&labelColor=333a41&message=join%20conversation&color=3AC358" alt="Trino Slack" />
   </a>
@@ -67,6 +70,8 @@ See [CONTRIBUTING](.github/CONTRIBUTING.md) for contribution requirements.
 
 See the project [security policy](.github/SECURITY.md) for
 information about reporting vulnerabilities.
+
+Trino supports [reproducible builds](https://reproducible-builds.org) as of version 449.
 
 ## Build requirements
 
