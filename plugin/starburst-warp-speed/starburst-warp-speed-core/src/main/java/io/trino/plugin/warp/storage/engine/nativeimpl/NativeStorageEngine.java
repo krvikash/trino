@@ -15,6 +15,7 @@ package io.trino.plugin.warp.storage.engine.nativeimpl;
 
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
+import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.di.WarpNativeStorageEngineModule;
 import io.trino.plugin.warp.dispatcher.query.classifier.PredicateUtil;
@@ -40,7 +41,8 @@ public class NativeStorageEngine
     public NativeStorageEngine(
             NativeConfig nativeConfig,
             MetricsManager metricsManager,
-            ExceptionThrower exceptionThrower)
+            ExceptionThrower exceptionThrower,
+            GlobalConfig globalConfig)
     {
         this.exceptionThrower = requireNonNull(exceptionThrower);
 
@@ -68,7 +70,8 @@ public class NativeStorageEngine
                     nativeConfig.getEnablePackedChunk(),
                     nativeConfig.getEnableWarmingExtraLogs(),
                     nativeConfig.getEnableCompression(),
-                    nativeConfig.getExceptionalListCompression());
+                    nativeConfig.getExceptionalListCompression(),
+                    globalConfig.getDebugWarming());
         }
         catch (Throwable t) {
             logger.error(t, "failed loading storage engine");
@@ -95,7 +98,8 @@ public class NativeStorageEngine
             boolean enablePackedChunk,
             boolean enableWarmingExtraLogs,
             boolean enableCompression,
-            int exceptionalListCompression);
+            int exceptionalListCompression,
+            boolean validateWarmId);
 
     @Override
     public native void initRecordBufferSizes(int[] fixedRecordBufferSizes, int[] varlenRecordBufferSizes);

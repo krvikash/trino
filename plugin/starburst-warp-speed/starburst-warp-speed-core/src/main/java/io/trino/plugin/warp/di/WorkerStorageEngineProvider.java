@@ -61,7 +61,8 @@ public class WorkerStorageEngineProvider
             storageEngine = new NativeStorageEngine(
                     nativeConfig,
                     metricsManager,
-                    exceptionThrower);
+                    exceptionThrower,
+                    globalConfig);
 
             if (globalConfig.isFailureGeneratorEnabled()) {
                 storageEngine = (StorageEngine) Proxy.newProxyInstance(storageEngine.getClass().getClassLoader(),
