@@ -17,7 +17,7 @@ import io.airlift.configuration.ConfigurationFactory;
 import io.trino.filesystem.gcs.GcsFileSystemConfig;
 import io.trino.filesystem.gcs.GcsFileSystemFactory;
 import io.trino.filesystem.gcs.GcsStorageFactory;
-import io.trino.plugin.warp.annotation.Default;
+import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.cloudstorage.CloudStorageAbstractTest;
 import io.trino.spi.connector.ConnectorContext;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,7 +44,7 @@ public class GcsCloudStorageTest
 
         GcsFileSystemFactory fileSystemFactory = new GcsFileSystemFactory(config, storageFactory);
 
-        GcsCloudStorageModule module = new GcsCloudStorageModule(new TestingConnectorContext(), new ConfigurationFactory(Map.of()), Default.class);
+        GcsCloudStorageModule module = new GcsCloudStorageModule(new TestingConnectorContext(), new ConfigurationFactory(Map.of()), ForWarp.class);
 
         cloudStorage = module.provideGcsCloudStorage(fileSystemFactory, storageFactory);
     }

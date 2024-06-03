@@ -16,7 +16,6 @@ package io.trino.plugin.warp.warmup.model;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.annotation.Default;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 
 import java.text.SimpleDateFormat;
@@ -45,7 +44,6 @@ public class DateRangeSlidingWindowWarmupPredicateRule
     private final int endRangeDaysBefore;
     private final String windowDateFormat;
 
-    @Default
     @JsonCreator
     public DateRangeSlidingWindowWarmupPredicateRule(@JsonProperty(COLUMN_ID) String columnId,
             @JsonProperty(START_RANGE_DAYS_BEFORE) int startRangeDaysBefore,

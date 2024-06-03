@@ -19,7 +19,7 @@ import io.trino.filesystem.azure.AzureAuth;
 import io.trino.filesystem.azure.AzureAuthAccessKey;
 import io.trino.filesystem.azure.AzureFileSystemConfig;
 import io.trino.filesystem.azure.AzureFileSystemFactory;
-import io.trino.plugin.warp.annotation.Default;
+import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.cloudstorage.CloudStorageAbstractTest;
 import io.trino.spi.connector.ConnectorContext;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,7 +49,7 @@ public class AzureCloudStorageTest
                 azureFileSystemConfig);
 
         ConfigurationFactory configFactory = new ConfigurationFactory(Map.of("azure.auth-type", "ACCESS_KEY"));
-        AzureCloudStorageModule module = new AzureCloudStorageModule(new TestingConnectorContext(), configFactory, Default.class);
+        AzureCloudStorageModule module = new AzureCloudStorageModule(new TestingConnectorContext(), configFactory, ForWarp.class);
 
         cloudStorage = module.provideAzureCloudStorage(fileSystemFactory, openTelemetry, azureAuth);
     }

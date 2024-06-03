@@ -18,7 +18,7 @@ import io.airlift.units.DataSize;
 import io.opentelemetry.api.OpenTelemetry;
 import io.trino.filesystem.s3.S3FileSystemConfig;
 import io.trino.filesystem.s3.S3FileSystemFactory;
-import io.trino.plugin.warp.annotation.Default;
+import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.cloudstorage.CloudStorageAbstractTest;
 import io.trino.spi.connector.ConnectorContext;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,7 +54,7 @@ public class S3CloudStorageTest
 
         S3FileSystemFactory fileSystemFactory = new S3FileSystemFactory(OpenTelemetry.noop(), config);
 
-        S3CloudStorageModule module = new S3CloudStorageModule(new TestingConnectorContext(), new ConfigurationFactory(Map.of()), Default.class);
+        S3CloudStorageModule module = new S3CloudStorageModule(new TestingConnectorContext(), new ConfigurationFactory(Map.of()), ForWarp.class);
 
         cloudStorage = module.provideS3CloudStorage(fileSystemFactory, config);
     }
