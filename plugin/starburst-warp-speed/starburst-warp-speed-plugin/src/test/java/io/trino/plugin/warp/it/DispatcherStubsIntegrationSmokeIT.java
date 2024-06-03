@@ -21,10 +21,10 @@ import io.trino.Session;
 import io.trino.execution.QueryInfo;
 import io.trino.operator.OperatorStats;
 import io.trino.plugin.base.metrics.LongCount;
-import io.trino.plugin.warp.VaradaSessionProperties;
+import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.api.warmup.WarmUpType;
 import io.trino.plugin.warp.api.warmup.WarmupPropertiesData;
-import io.trino.plugin.warp.di.VaradaStubsStorageEngineModule;
+import io.trino.plugin.warp.di.WarpStubsStorageEngineModule;
 import io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory;
 import io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService;
 import io.trino.plugin.warp.extension.execution.debugtools.RowGroupTask;
@@ -94,7 +94,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
     public static final List<String> DEMOTE_JMX_NAMES = List.of("number_of_runs", "number_of_runs_fail", "not_executed_due_threshold", "not_executed_due_is_already_executing");
     protected final int numNodes;
     protected final StubsStorageEngine stubsStorageEngine;
-    protected final VaradaStubsStorageEngineModule storageEngineModule;
+    protected final WarpStubsStorageEngineModule storageEngineModule;
     protected final String catalog;
     protected final boolean isWarpExtensionModule;
 
@@ -108,7 +108,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
         this.numNodes = numNodes;
         this.catalog = catalog;
         this.isWarpExtensionModule = isWarpExtensionModule;
-        storageEngineModule = new VaradaStubsStorageEngineModule();
+        storageEngineModule = new WarpStubsStorageEngineModule();
         stubsStorageEngine = (StubsStorageEngine) storageEngineModule.getStorageEngine();
     }
 
@@ -332,7 +332,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
 
         if (!filerRange) {
             session = Session.builder(session)
-                    .setSystemProperty(catalog + "." + VaradaSessionProperties.MIN_MAX_FILTER, "false")
+                    .setSystemProperty(catalog + "." + WarpSessionProperties.MIN_MAX_FILTER, "false")
                     .build();
         }
         QueryRunner.MaterializedResultWithPlan resultWithQueryId = getQueryRunner().executeWithPlan(
@@ -412,7 +412,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
     protected void warmAndValidate(String query, boolean defaultWarmup, String warmValidationStat)
     {
         Session session = Session.builder(getSession())
-                .setSystemProperty(catalog + "." + VaradaSessionProperties.ENABLE_DEFAULT_WARMING, Boolean.toString(defaultWarmup))
+                .setSystemProperty(catalog + "." + WarpSessionProperties.ENABLE_DEFAULT_WARMING, Boolean.toString(defaultWarmup))
                 .build();
         warmAndValidate(query, session, warmValidationStat);
     }
@@ -513,9 +513,9 @@ public abstract class DispatcherStubsIntegrationSmokeIT
             int expectedWarmFinished)
     {
         Session session = Session.builder(getSession())
-                .setSystemProperty(catalog + "." + VaradaSessionProperties.ENABLE_DEFAULT_WARMING_INDEX, "false")
-                .setSystemProperty(catalog + "." + VaradaSessionProperties.ENABLE_DEFAULT_WARMING, Boolean.toString(defaultWarmup))
-                .setSystemProperty(catalog + "." + VaradaSessionProperties.EMPTY_QUERY, "true")
+                .setSystemProperty(catalog + "." + WarpSessionProperties.ENABLE_DEFAULT_WARMING_INDEX, "false")
+                .setSystemProperty(catalog + "." + WarpSessionProperties.ENABLE_DEFAULT_WARMING, Boolean.toString(defaultWarmup))
+                .setSystemProperty(catalog + "." + WarpSessionProperties.EMPTY_QUERY, "true")
                 .build();
         warmAndValidate(query,
                 session,
@@ -669,9 +669,9 @@ public abstract class DispatcherStubsIntegrationSmokeIT
     {
         Session.SessionBuilder sessionBuilder = Session.builder(getSession());
         if (defaultWarm) {
-            sessionBuilder.setSystemProperty(catalog + "." + VaradaSessionProperties.ENABLE_DEFAULT_WARMING, "true");
+            sessionBuilder.setSystemProperty(catalog + "." + WarpSessionProperties.ENABLE_DEFAULT_WARMING, "true");
             if (enableDefaultWarmIndex) {
-                sessionBuilder.setSystemProperty(catalog + "." + VaradaSessionProperties.ENABLE_DEFAULT_WARMING_INDEX, "true");
+                sessionBuilder.setSystemProperty(catalog + "." + WarpSessionProperties.ENABLE_DEFAULT_WARMING_INDEX, "true");
             }
         }
         return sessionBuilder.build();

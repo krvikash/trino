@@ -37,7 +37,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static io.trino.plugin.warp.VaradaErrorCode.VARADA_UNRECOVERABLE_COLLECT_FAILED;
+import static io.trino.plugin.warp.WarpErrorCode.VARADA_UNRECOVERABLE_COLLECT_FAILED;
 import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_STAT_GROUP;
 import static io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService.INVALID_FILE_COOKIE_FD;
 import static java.util.Objects.requireNonNull;

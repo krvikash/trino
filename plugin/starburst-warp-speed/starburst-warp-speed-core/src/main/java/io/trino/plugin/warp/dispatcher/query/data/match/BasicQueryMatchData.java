@@ -13,8 +13,8 @@
  */
 package io.trino.plugin.warp.dispatcher.query.data.match;
 
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.classifier.PredicateUtil;
 import io.trino.plugin.warp.expression.NativeExpression;
 import io.trino.plugin.warp.gen.constants.FunctionType;
@@ -54,9 +54,9 @@ public class BasicQueryMatchData
     }
 
     @Override
-    public boolean canMatchCollect(VaradaColumn varadaColumn)
+    public boolean canMatchCollect(WarpColumn warpColumn)
     {
-        return this.varadaColumn.equals(varadaColumn);
+        return this.warpColumn.equals(warpColumn);
     }
 
     @Override
@@ -185,9 +185,9 @@ public class BasicQueryMatchData
         }
 
         @Override
-        public Builder varadaColumn(VaradaColumn varadaColumn)
+        public Builder warpColumn(WarpColumn warpColumn)
         {
-            super.varadaColumn(varadaColumn);
+            super.warpColumn(warpColumn);
             return this;
         }
 

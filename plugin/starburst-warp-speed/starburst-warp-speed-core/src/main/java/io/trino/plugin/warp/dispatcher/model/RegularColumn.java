@@ -22,7 +22,7 @@ import java.util.Objects;
 import static java.util.Objects.requireNonNull;
 
 public class RegularColumn
-        implements VaradaColumn
+        implements WarpColumn
 {
     private final String columnName;
     private final String columnId;

@@ -21,13 +21,13 @@ import io.airlift.slice.Slice;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.connector.TestingConnectorColumnHandle;
 import io.trino.plugin.warp.connector.TestingConnectorTableHandle;
-import io.trino.plugin.warp.di.VaradaInitializedServiceRegistry;
+import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.PredicateData;
 import io.trino.plugin.warp.dispatcher.query.PredicateInfo;
 import io.trino.plugin.warp.dispatcher.query.data.match.LuceneQueryMatchData;
@@ -110,7 +110,7 @@ public class WarmupTestDataUtil
                 .collect(Collectors.toList());
     }
 
-    public static List<VaradaColumn> createRegularColumns(List<ColumnHandle> columnHandles, DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer)
+    public static List<WarpColumn> createRegularColumns(List<ColumnHandle> columnHandles, DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer)
     {
         return columnHandles.stream()
                 .map(dispatcherProxiedConnectorTransformer::getVaradaRegularColumn)
@@ -216,9 +216,9 @@ public class WarmupTestDataUtil
                 false);
     }
 
-    public static SetMultimap<VaradaColumn, WarmupProperties> createRequiredWarmUpTypes(List<ColumnHandle> columns, List<WarmUpType> warmUpTypeList)
+    public static SetMultimap<WarpColumn, WarmupProperties> createRequiredWarmUpTypes(List<ColumnHandle> columns, List<WarmUpType> warmUpTypeList)
     {
-        SetMultimap<VaradaColumn, WarmupProperties> warmUpTypeMap = HashMultimap.create();
+        SetMultimap<WarpColumn, WarmupProperties> warmUpTypeMap = HashMultimap.create();
         columns.forEach(column -> warmUpTypeList.forEach(type -> warmUpTypeMap.put(new RegularColumn(((TestingConnectorColumnHandle) column).name()),
                 new WarmupProperties(type, 1, 0, TransformFunction.NONE))));
         return warmUpTypeMap;
@@ -231,36 +231,36 @@ public class WarmupTestDataUtil
         return columnHandle;
     }
 
-    public static List<WarmUpElement> createRegularWarmupElements(Multimap<VaradaColumn, WarmUpType> columnNameToWarmUpType)
+    public static List<WarmUpElement> createRegularWarmupElements(Multimap<WarpColumn, WarmUpType> columnNameToWarmUpType)
     {
-        Multimap<VaradaColumn, WarmUpType> columnToWarmUpType = ArrayListMultimap.create();
-        for (Map.Entry<VaradaColumn, WarmUpType> entry : columnNameToWarmUpType.entries()) {
+        Multimap<WarpColumn, WarmUpType> columnToWarmUpType = ArrayListMultimap.create();
+        for (Map.Entry<WarpColumn, WarmUpType> entry : columnNameToWarmUpType.entries()) {
             columnToWarmUpType.put(entry.getKey(), entry.getValue());
         }
         return createWarmupElements(columnToWarmUpType);
     }
 
-    public static List<WarmUpElement> createWarmupElements(Multimap<VaradaColumn, WarmUpType> columnToWarmUpType)
+    public static List<WarmUpElement> createWarmupElements(Multimap<WarpColumn, WarmUpType> columnToWarmUpType)
     {
         return columnToWarmUpType.entries().stream()
                 .map(entry -> createWarmupElement(entry.getKey(), entry.getValue()))
                 .collect(Collectors.toList());
     }
 
-    public static WarmUpElement createWarmupElement(VaradaColumn varadaColumn, WarmUpType warmUpType)
+    public static WarmUpElement createWarmupElement(WarpColumn warpColumn, WarmUpType warmUpType)
     {
         return WarmUpElement.builder()
                 .warmUpType(warmUpType)
                 .recTypeCode(RecTypeCode.REC_TYPE_VARCHAR)
                 .recTypeLength(4)
                 .totalRecords(10)
-                .varadaColumn(varadaColumn)
+                .warpColumn(warpColumn)
                 .state(WarmUpElementState.VALID)
                 .warmupElementStats(new WarmupElementStats(0, Long.MIN_VALUE, Long.MAX_VALUE))
                 .build();
     }
 
-    public static List<WarmupRule> createWarmupRules(SetMultimap<VaradaColumn, WarmUpType> columnNameToWarmUpType,
+    public static List<WarmupRule> createWarmupRules(SetMultimap<WarpColumn, WarmUpType> columnNameToWarmUpType,
             SchemaTableName schemaTableName)
     {
         return columnNameToWarmUpType.entries()
@@ -268,7 +268,7 @@ public class WarmupTestDataUtil
                 .map(entry -> WarmupRule.builder()
                         .schema(schemaTableName.getSchemaName())
                         .table(schemaTableName.getTableName())
-                        .varadaColumn(entry.getKey())
+                        .warpColumn(entry.getKey())
                         .warmUpType(entry.getValue())
                         .priority(2)
                         .ttl(2)
@@ -329,7 +329,7 @@ public class WarmupTestDataUtil
                 storageEngineConstants,
                 nativeConfig,
                 metricsManager,
-                new VaradaInitializedServiceRegistry()));
+                new WarpInitializedServiceRegistry()));
 
         int numSegments = JbufType.JBUF_TYPE_NUM_OF.ordinal();
         MemorySegment[] segments = new MemorySegment[numSegments];

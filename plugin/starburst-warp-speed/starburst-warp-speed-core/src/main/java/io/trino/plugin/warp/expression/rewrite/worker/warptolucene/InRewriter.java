@@ -16,9 +16,9 @@ package io.trino.plugin.warp.expression.rewrite.worker.warptolucene;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.trino.matching.Pattern;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaExpression;
-import io.trino.plugin.warp.expression.VaradaSliceConstant;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpExpression;
+import io.trino.plugin.warp.expression.WarpSliceConstant;
 import io.trino.plugin.warp.expression.rewrite.ExpressionPatterns;
 import io.trino.plugin.warp.util.SliceUtils;
 import org.apache.lucene.search.Query;
@@ -39,38 +39,38 @@ import static io.trino.spi.expression.StandardFunctions.IN_PREDICATE_FUNCTION_NA
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 
 public class InRewriter
-        implements ExpressionRewriter<VaradaCall>
+        implements ExpressionRewriter<WarpCall>
 
 {
-    private static final Pattern<VaradaCall> PATTERN = ExpressionPatterns.call()
+    private static final Pattern<WarpCall> PATTERN = ExpressionPatterns.call()
             .with(ExpressionPatterns.functionName().equalTo(IN_PREDICATE_FUNCTION_NAME.getName()))
             .with(ExpressionPatterns.type().equalTo(BOOLEAN))
-            .with(argument(0).matching(x -> x instanceof VaradaCall varadaCall &&
-                    (varadaCall.getFunctionName().equals(SUBSTRING.getName()) ||
-                            varadaCall.getFunctionName().equals(SPLIT_PART.getName()) ||
-                            varadaCall.getFunctionName().equals(TRIM.getName()) ||
-                            varadaCall.getFunctionName().equals(LTRIM.getName()) ||
-                            varadaCall.getFunctionName().equals(RTRIM.getName()) ||
-                            varadaCall.getFunctionName().equals(SUBSTR.getName()))))
+            .with(argument(0).matching(x -> x instanceof WarpCall warpCall &&
+                    (warpCall.getFunctionName().equals(SUBSTRING.getName()) ||
+                            warpCall.getFunctionName().equals(SPLIT_PART.getName()) ||
+                            warpCall.getFunctionName().equals(TRIM.getName()) ||
+                            warpCall.getFunctionName().equals(LTRIM.getName()) ||
+                            warpCall.getFunctionName().equals(RTRIM.getName()) ||
+                            warpCall.getFunctionName().equals(SUBSTR.getName()))))
             .with(ExpressionPatterns.argumentCount().equalTo(2))
             .with(ExpressionPatterns.argument(1).matching(ExpressionPatterns.call().with(ExpressionPatterns.functionName().equalTo(ARRAY_CONSTRUCTOR_FUNCTION_NAME.getName()))));
 
     @Override
-    public Pattern<VaradaCall> getPattern()
+    public Pattern<WarpCall> getPattern()
     {
         return PATTERN;
     }
 
-    boolean handleIn(VaradaExpression expression, LuceneRewriteContext context)
+    boolean handleIn(WarpExpression expression, LuceneRewriteContext context)
     {
         boolean res = false;
         List<Slice> likeValues = new ArrayList<>();
-        for (VaradaExpression valueExpression : expression.getChildren().get(1).getChildren()) {
-            if (!(valueExpression instanceof VaradaSliceConstant)) {
+        for (WarpExpression valueExpression : expression.getChildren().get(1).getChildren()) {
+            if (!(valueExpression instanceof WarpSliceConstant)) {
                 likeValues.clear();
                 break;
             }
-            Slice sliceValue = ((VaradaSliceConstant) valueExpression).getValue();
+            Slice sliceValue = ((WarpSliceConstant) valueExpression).getValue();
             String val = SliceUtils.serializeSlice(sliceValue);
             likeValues.add(Slices.utf8Slice("%" + val + "%"));
         }

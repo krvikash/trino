@@ -22,7 +22,7 @@ import io.airlift.log.Logger;
 import io.trino.plugin.warp.WorkerNodeManager;
 import io.trino.plugin.warp.api.warmup.WarmupColRuleData;
 import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleFetcher;
-import io.trino.plugin.warp.execution.VaradaClient;
+import io.trino.plugin.warp.execution.WarpClient;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.warmup.WarmupRuleApiMapper;
@@ -49,17 +49,17 @@ public class WorkerWarmupRuleFetcher
     private static final JsonCodec<List<WarmupColRuleData>> WARMUP_RULES_CODEC = JsonCodec.listJsonCodec(WarmupColRuleData.class);
 
     private final WorkerNodeManager workerNodeManager;
-    private final VaradaClient varadaClient;
+    private final WarpClient warpClient;
     private final MetricsManager metricsManager;
 
     @Inject
     public WorkerWarmupRuleFetcher(
             WorkerNodeManager workerNodeManager,
-            VaradaClient varadaClient,
+            WarpClient warpClient,
             MetricsManager metricsManager)
     {
         this.workerNodeManager = requireNonNull(workerNodeManager);
-        this.varadaClient = requireNonNull(varadaClient);
+        this.warpClient = requireNonNull(warpClient);
         this.metricsManager = requireNonNull(metricsManager);
     }
 
@@ -68,13 +68,13 @@ public class WorkerWarmupRuleFetcher
     {
         List<WarmupColRuleData> res = List.of();
         try {
-            HttpUriBuilder restEndpointBuilder = varadaClient.getRestEndpoint(workerNodeManager.getCoordinatorNodeHttpUri());
+            HttpUriBuilder restEndpointBuilder = warpClient.getRestEndpoint(workerNodeManager.getCoordinatorNodeHttpUri());
             URI uri = restEndpointBuilder.appendPath(WarmupRuleService.WARMUP_PATH).appendPath(WarmupRuleService.TASK_NAME_GET).build();
             Request request = prepareGet()
                     .setUri(uri)
                     .setHeader(CONTENT_TYPE, JSON_UTF_8.toString())
                     .build();
-            res = varadaClient.sendWithRetry(request, createFullJsonResponseHandler(WARMUP_RULES_CODEC));
+            res = warpClient.sendWithRetry(request, createFullJsonResponseHandler(WARMUP_RULES_CODEC));
         }
         catch (Exception e) {
             WarmingServiceStats warmingStats = (WarmingServiceStats) metricsManager.get(WarmingServiceStats.createKey(WARMING_SERVICE_STAT_GROUP));

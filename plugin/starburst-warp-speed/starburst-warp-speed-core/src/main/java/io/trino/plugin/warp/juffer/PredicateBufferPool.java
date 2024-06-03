@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.concurrent.ArrayBlockingQueue;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static io.trino.plugin.warp.VaradaErrorCode.VARADA_PREDICATE_BUFFER_ALLOCATION;
+import static io.trino.plugin.warp.WarpErrorCode.VARADA_PREDICATE_BUFFER_ALLOCATION;
 
 class PredicateBufferPool
 {

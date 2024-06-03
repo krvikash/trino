@@ -23,7 +23,7 @@ import io.airlift.http.client.Request;
 import io.airlift.json.JsonCodec;
 import io.trino.plugin.warp.CoordinatorNodeManager;
 import io.trino.plugin.warp.annotation.Audit;
-import io.trino.plugin.warp.execution.VaradaClient;
+import io.trino.plugin.warp.execution.WarpClient;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
 import io.trino.plugin.warp.util.UriUtils;
@@ -60,14 +60,14 @@ public class WarmupDemoterTask
     private static final JsonCodec<Map<String, Object>> workerWarmupDemoterResult = JsonCodec.mapJsonCodec(String.class, Object.class);
     private static final JsonCodec<DemoterStatus> workerWarmupDemoterStatusResult = JsonCodec.jsonCodec(DemoterStatus.class);
     private final CoordinatorNodeManager coordinatorNodeManager;
-    private final VaradaClient varadaClient;
+    private final WarpClient warpClient;
 
     @Inject
     public WarmupDemoterTask(CoordinatorNodeManager coordinatorNodeManager,
-            VaradaClient varadaClient)
+            WarpClient warpClient)
     {
         this.coordinatorNodeManager = requireNonNull(coordinatorNodeManager);
-        this.varadaClient = requireNonNull(varadaClient);
+        this.warpClient = requireNonNull(warpClient);
     }
 
     @POST
@@ -79,7 +79,7 @@ public class WarmupDemoterTask
         Map<String, HttpClient.HttpResponseFuture<FullJsonResponseHandler.JsonResponse<Map<String, Object>>>> allFutures = new HashMap<>();
         coordinatorNodeManager.getWorkerNodes()
                 .forEach(node -> {
-                    HttpUriBuilder uriBuilder = varadaClient.getRestEndpoint(UriUtils.getHttpUri(node));
+                    HttpUriBuilder uriBuilder = warpClient.getRestEndpoint(UriUtils.getHttpUri(node));
                     uriBuilder.appendPath(WarmupDemoterTask.WARMUP_DEMOTER_PATH).appendPath(WorkerWarmupDemoterTask.WARMUP_DEMOTER_START_TASK_NAME);
 
                     Request request = preparePost()
@@ -87,7 +87,7 @@ public class WarmupDemoterTask
                             .setBodyGenerator(jsonBodyGenerator(startWarmupDemoterJsonCodec, warmupDemoterData))
                             .setHeader("Content-Type", "application/json")
                             .build();
-                    allFutures.put(node.getNodeIdentifier(), varadaClient.executeAsync(request, createFullJsonResponseHandler(workerWarmupDemoterResult)));
+                    allFutures.put(node.getNodeIdentifier(), warpClient.executeAsync(request, createFullJsonResponseHandler(workerWarmupDemoterResult)));
                 });
 
         ListenableFuture<List<FullJsonResponseHandler.JsonResponse<Map<String, Object>>>> waitingFuture = Futures.allAsList(allFutures.values());
@@ -111,14 +111,14 @@ public class WarmupDemoterTask
         Map<String, HttpClient.HttpResponseFuture<FullJsonResponseHandler.JsonResponse<DemoterStatus>>> allFutures = new HashMap<>();
         coordinatorNodeManager.getWorkerNodes()
                 .forEach(node -> {
-                    HttpUriBuilder uriBuilder = varadaClient.getRestEndpoint(UriUtils.getHttpUri(node));
+                    HttpUriBuilder uriBuilder = warpClient.getRestEndpoint(UriUtils.getHttpUri(node));
                     uriBuilder.appendPath(WarmupDemoterTask.WARMUP_DEMOTER_PATH).appendPath(WorkerWarmupDemoterTask.WARMUP_DEMOTER_STATUS_TASK_NAME);
 
                     Request request = prepareGet()
                             .setUri(uriBuilder.build())
                             .setHeader("Content-Type", "application/json")
                             .build();
-                    allFutures.put(node.getNodeIdentifier(), varadaClient.executeAsync(request, createFullJsonResponseHandler(workerWarmupDemoterStatusResult)));
+                    allFutures.put(node.getNodeIdentifier(), warpClient.executeAsync(request, createFullJsonResponseHandler(workerWarmupDemoterStatusResult)));
                 });
 
         ListenableFuture<List<FullJsonResponseHandler.JsonResponse<DemoterStatus>>> waitingFuture = Futures.allAsList(allFutures.values());

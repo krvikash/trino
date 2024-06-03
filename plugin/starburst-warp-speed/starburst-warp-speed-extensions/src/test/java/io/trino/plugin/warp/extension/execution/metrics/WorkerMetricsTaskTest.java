@@ -17,7 +17,7 @@ import io.airlift.http.client.FullJsonResponseHandler;
 import io.airlift.http.client.Request;
 import io.trino.plugin.warp.WorkerNodeManager;
 import io.trino.plugin.warp.api.metrics.ClusterMetricsResult;
-import io.trino.plugin.warp.execution.VaradaClient;
+import io.trino.plugin.warp.execution.WarpClient;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import org.junit.jupiter.api.Test;
 
@@ -45,19 +45,19 @@ public class WorkerMetricsTaskTest
         when(workerCapacityManager.getTotalCapacity()).thenReturn(storageCapacity);
         when(workerCapacityManager.getCurrentUsage()).thenReturn(storageAllocated);
 
-        VaradaClient varadaClient = mockNodeStatus(cpuUsage, memoryCapacity, memoryAllocated);
+        WarpClient warpClient = mockNodeStatus(cpuUsage, memoryCapacity, memoryAllocated);
 
         WorkerNodeManager workerNodeManager = mock(WorkerNodeManager.class);
         when(workerNodeManager.getCurrentNodeOrigHttpUri()).thenReturn(URI.create("http://localhost"));
 
-        WorkerMetricsTask task = new WorkerMetricsTask(workerCapacityManager, varadaClient, workerNodeManager);
+        WorkerMetricsTask task = new WorkerMetricsTask(workerCapacityManager, warpClient, workerNodeManager);
 
         assertThat(task.workerMetricsGet())
                 .isEqualTo(new ClusterMetricsResult(cpuUsage, memoryAllocated, memoryCapacity, storageAllocated, storageCapacity));
     }
 
     @SuppressWarnings("unchecked")
-    private VaradaClient mockNodeStatus(double cpuUsage, long memoryCapacity, long memoryAllocated)
+    private WarpClient mockNodeStatus(double cpuUsage, long memoryCapacity, long memoryAllocated)
     {
         Map<String, Object> memoryPoolInfo = new HashMap<>();
         memoryPoolInfo.put("maxBytes", memoryCapacity);
@@ -70,9 +70,9 @@ public class WorkerMetricsTaskTest
         nodeStatus.put("memoryInfo", memoryInfo);
         nodeStatus.put("systemCpuLoad", cpuUsage);
 
-        VaradaClient varadaClient = mock(VaradaClient.class);
-        when(varadaClient.sendWithRetry(any(Request.class), any(FullJsonResponseHandler.class)))
+        WarpClient warpClient = mock(WarpClient.class);
+        when(warpClient.sendWithRetry(any(Request.class), any(FullJsonResponseHandler.class)))
                 .thenReturn(nodeStatus);
-        return varadaClient;
+        return warpClient;
     }
 }

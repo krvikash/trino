@@ -32,11 +32,11 @@ import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandleBuilderProvider;
 import io.trino.plugin.warp.dispatcher.SimplifiedColumns;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaExpression;
-import io.trino.plugin.warp.expression.VaradaExpressionData;
-import io.trino.plugin.warp.expression.VaradaSliceConstant;
-import io.trino.plugin.warp.expression.VaradaVariable;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpExpression;
+import io.trino.plugin.warp.expression.WarpExpressionData;
+import io.trino.plugin.warp.expression.WarpSliceConstant;
+import io.trino.plugin.warp.expression.WarpVariable;
 import io.trino.plugin.warp.expression.rewrite.ExpressionService;
 import io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.ExperimentSupportedFunction;
 import io.trino.plugin.warp.expression.rewrite.coordinator.warptonative.NativeExpressionRulesHandler;
@@ -80,8 +80,8 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
 
-import static io.trino.plugin.warp.VaradaSessionProperties.ENABLE_OR_PUSHDOWN;
-import static io.trino.plugin.warp.VaradaSessionProperties.PREDICATE_SIMPLIFY_THRESHOLD;
+import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_OR_PUSHDOWN;
+import static io.trino.plugin.warp.WarpSessionProperties.PREDICATE_SIMPLIFY_THRESHOLD;
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.mockColumnHandle;
 import static io.trino.spi.expression.StandardFunctions.LIKE_FUNCTION_NAME;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -216,10 +216,10 @@ public class DispatcherMetadataTest
         // Test a VaradaExpression
         TupleDomain<ColumnHandle> predicate = TupleDomain.all();
         ConnectorExpression connectorExpression = createLikeCall(columnHandleCol1, pattern);
-        VaradaExpression expectedVaradaExpression = createLikeVaradaCall(columnHandleCol1, pattern);
-        RegularColumn varadaColumn1 = new RegularColumn(columnName1);
+        WarpExpression expectedWarpExpression = createLikeVaradaCall(columnHandleCol1, pattern);
+        RegularColumn warpColumn1 = new RegularColumn(columnName1);
 
-        List<VaradaExpressionData> expectedVaradaExpressions = List.of(new VaradaExpressionData(expectedVaradaExpression, VarcharType.VARCHAR, false, Optional.empty(), varadaColumn1));
+        List<WarpExpressionData> expectedVaradaExpressions = List.of(new WarpExpressionData(expectedWarpExpression, VarcharType.VARCHAR, false, Optional.empty(), warpColumn1));
         runApplyFilterVaradaExpressionTestCase(predicate, connectorExpression, assignments, predicate, expectedVaradaExpressions);
 
         // Test a single value
@@ -240,8 +240,8 @@ public class DispatcherMetadataTest
         domain = Domain.singleValue(VarcharType.VARCHAR, Slices.utf8Slice("aa"));
         predicate = TupleDomain.withColumnDomains(Map.of(columnHandleCol2, domain));
         connectorExpression = createLikeCall(columnHandleCol1, pattern);
-        expectedVaradaExpression = createLikeVaradaCall(columnHandleCol1, pattern);
-        expectedVaradaExpressions = List.of(new VaradaExpressionData(expectedVaradaExpression, VarcharType.VARCHAR, false, Optional.empty(), varadaColumn1));
+        expectedWarpExpression = createLikeVaradaCall(columnHandleCol1, pattern);
+        expectedVaradaExpressions = List.of(new WarpExpressionData(expectedWarpExpression, VarcharType.VARCHAR, false, Optional.empty(), warpColumn1));
         runApplyFilterVaradaExpressionTestCase(predicate, connectorExpression, assignments, predicate, expectedVaradaExpressions);
     }
 
@@ -258,12 +258,12 @@ public class DispatcherMetadataTest
         ConnectorExpression connectorExpressionCol1 = createLikeCall(columnHandleCol1, pattern);
         ConnectorExpression connectorExpressionCol2 = createLikeCall(columnHandleCol2, pattern);
         ConnectorExpression connectorExpression = ConnectorExpressions.and(connectorExpressionCol1, connectorExpressionCol2);
-        VaradaExpression expectedVaradaExpressionCol1 = createLikeVaradaCall(columnHandleCol1, pattern);
-        VaradaExpression expectedVaradaExpressionCol2 = createLikeVaradaCall(columnHandleCol2, pattern);
+        WarpExpression expectedWarpExpressionCol1 = createLikeVaradaCall(columnHandleCol1, pattern);
+        WarpExpression expectedWarpExpressionCol2 = createLikeVaradaCall(columnHandleCol2, pattern);
         RegularColumn regularColumn1 = new RegularColumn(columnHandleCol1.name());
         RegularColumn regularColumn2 = new RegularColumn(columnHandleCol2.name());
-        List<VaradaExpressionData> expectedVaradaExpressions = List.of(new VaradaExpressionData(expectedVaradaExpressionCol1, VarcharType.VARCHAR, false, Optional.empty(), regularColumn1),
-                new VaradaExpressionData(expectedVaradaExpressionCol2, VarcharType.VARCHAR, false, Optional.empty(), regularColumn2));
+        List<WarpExpressionData> expectedVaradaExpressions = List.of(new WarpExpressionData(expectedWarpExpressionCol1, VarcharType.VARCHAR, false, Optional.empty(), regularColumn1),
+                new WarpExpressionData(expectedWarpExpressionCol2, VarcharType.VARCHAR, false, Optional.empty(), regularColumn2));
         Domain domain = Domain.singleValue(VarcharType.VARCHAR, Slices.utf8Slice("aa"));
         TupleDomain<ColumnHandle> predicateCol3 = TupleDomain.withColumnDomains(Map.of(columnHandleCol3, domain));
 
@@ -287,10 +287,10 @@ public class DispatcherMetadataTest
         ConnectorExpression connectorExpressionCol1 = createLikeCall(columnHandleCol1, pattern);
         ConnectorExpression connectorExpressionCol2 = createLikeCall(columnHandleCol2, pattern);
         ConnectorExpression connectorExpression = ConnectorExpressions.and(connectorExpressionCol1, connectorExpressionCol2);
-        VaradaExpression expectedVaradaExpressionCol1 = createLikeVaradaCall(columnHandleCol1, pattern);
-        VaradaExpression expectedVaradaExpressionCol2 = createLikeVaradaCall(columnHandleCol2, pattern);
-        List<VaradaExpressionData> expectedVaradaExpressions = List.of(new VaradaExpressionData(expectedVaradaExpressionCol1, VarcharType.VARCHAR, false, Optional.empty(), new RegularColumn(columnHandleCol1.name())),
-                new VaradaExpressionData(expectedVaradaExpressionCol2, VarcharType.VARCHAR, false, Optional.empty(), new RegularColumn(columnHandleCol2.name())));
+        WarpExpression expectedWarpExpressionCol1 = createLikeVaradaCall(columnHandleCol1, pattern);
+        WarpExpression expectedWarpExpressionCol2 = createLikeVaradaCall(columnHandleCol2, pattern);
+        List<WarpExpressionData> expectedVaradaExpressions = List.of(new WarpExpressionData(expectedWarpExpressionCol1, VarcharType.VARCHAR, false, Optional.empty(), new RegularColumn(columnHandleCol1.name())),
+                new WarpExpressionData(expectedWarpExpressionCol2, VarcharType.VARCHAR, false, Optional.empty(), new RegularColumn(columnHandleCol2.name())));
         Range range = Range.range(columnHandleCol2.type(), Slices.utf8Slice("aa"), false, Slices.utf8Slice("ad"), false);
         Domain domain = Domain.create(ValueSet.ofRanges(range), false);
         TupleDomain<ColumnHandle> predicateCol3 = TupleDomain.withColumnDomains(Map.of(columnHandleCol3, domain));
@@ -321,9 +321,9 @@ public class DispatcherMetadataTest
         ValueSet sortedRangeSet1 = ValueSet.ofRanges(Range.greaterThan(VarcharType.VARCHAR, Slices.utf8Slice("a")));
         Map<ColumnHandle, Domain> columnDomains1 = Map.of(columnHandleCol1, Domain.create(sortedRangeSet1, true));
         TupleDomain<ColumnHandle> predicate1 = TupleDomain.withColumnDomains(columnDomains1);
-        VaradaExpression expectedVaradaExpressionCol1 = createLikeVaradaCall(columnHandleCol1, pattern1);
+        WarpExpression expectedWarpExpressionCol1 = createLikeVaradaCall(columnHandleCol1, pattern1);
         TupleDomain<ColumnHandle> expectedPredicate = predicate1;
-        List<VaradaExpressionData> expectedVaradaExpressions = List.of(new VaradaExpressionData(expectedVaradaExpressionCol1, VarcharType.VARCHAR, false, Optional.empty(), regularColumn1));
+        List<WarpExpressionData> expectedVaradaExpressions = List.of(new WarpExpressionData(expectedWarpExpressionCol1, VarcharType.VARCHAR, false, Optional.empty(), regularColumn1));
         constraintApplicationResult = runApplyFilterVaradaExpressionTestCase(predicate1,
                 connectorExpression1,
                 assignments,
@@ -336,9 +336,9 @@ public class DispatcherMetadataTest
         Map<ColumnHandle, Domain> columnDomains2 = Map.of(columnHandleCol1, Domain.create(sortedRangeSet2, false));
         TupleDomain<ColumnHandle> predicate2 = TupleDomain.withColumnDomains(columnDomains2);
         expectedPredicate = expectedPredicate.intersect(predicate2);
-        expectedVaradaExpressionCol1 = andVaradaExpressions(expectedVaradaExpressionCol1,
+        expectedWarpExpressionCol1 = andVaradaExpressions(expectedWarpExpressionCol1,
                 createLikeVaradaCall(columnHandleCol1, pattern2));
-        expectedVaradaExpressions = List.of(new VaradaExpressionData(expectedVaradaExpressionCol1, VarcharType.VARCHAR, false, Optional.empty(), regularColumn1));
+        expectedVaradaExpressions = List.of(new WarpExpressionData(expectedWarpExpressionCol1, VarcharType.VARCHAR, false, Optional.empty(), regularColumn1));
         DispatcherTableHandle tableHandle = (DispatcherTableHandle) constraintApplicationResult.orElseThrow().getAlternatives().get(0).handle();
         constraintApplicationResult = runApplyFilterVaradaExpressionTestCase(predicate2,
                 connectorExpression2,
@@ -353,18 +353,18 @@ public class DispatcherMetadataTest
         Map<ColumnHandle, Domain> columnDomains3 = Map.of(columnHandleCol2, Domain.create(sortedRangeSet3, false));
         TupleDomain<ColumnHandle> predicate3 = TupleDomain.withColumnDomains(columnDomains3);
         expectedPredicate = expectedPredicate.intersect(predicate3);
-        VaradaExpression expectedVaradaExpressionCol2 = createLikeVaradaCall(columnHandleCol2, pattern1);
+        WarpExpression expectedWarpExpressionCol2 = createLikeVaradaCall(columnHandleCol2, pattern1);
         RegularColumn regularColumn2 = new RegularColumn(columnHandleCol2.name());
-        expectedVaradaExpressions = List.of(new VaradaExpressionData(expectedVaradaExpressionCol1, VarcharType.VARCHAR, false, Optional.empty(), regularColumn1),
-                new VaradaExpressionData(expectedVaradaExpressionCol2, VarcharType.VARCHAR, false, Optional.empty(), regularColumn2));
+        expectedVaradaExpressions = List.of(new WarpExpressionData(expectedWarpExpressionCol1, VarcharType.VARCHAR, false, Optional.empty(), regularColumn1),
+                new WarpExpressionData(expectedWarpExpressionCol2, VarcharType.VARCHAR, false, Optional.empty(), regularColumn2));
         tableHandle = (DispatcherTableHandle) constraintApplicationResult.orElseThrow().getAlternatives().get(0).handle();
         runApplyFilterVaradaExpressionTestCase(predicate3, connectorExpression3, assignments, expectedPredicate, expectedVaradaExpressions, tableHandle);
     }
 
-    private VaradaCall andVaradaExpressions(VaradaExpression expression1, VaradaExpression expression2)
+    private WarpCall andVaradaExpressions(WarpExpression expression1, WarpExpression expression2)
     {
-        ImmutableList<VaradaExpression> varadaExpressions = ImmutableList.of(expression1, expression2);
-        return new VaradaCall(StandardFunctions.AND_FUNCTION_NAME.getName(), varadaExpressions, BOOLEAN);
+        ImmutableList<WarpExpression> warpExpressions = ImmutableList.of(expression1, expression2);
+        return new WarpCall(StandardFunctions.AND_FUNCTION_NAME.getName(), warpExpressions, BOOLEAN);
     }
 
     private Call createLikeCall(TestingConnectorColumnHandle columnHandleCol, Slice pattern)
@@ -375,11 +375,11 @@ public class DispatcherMetadataTest
                         new Constant(pattern, VarcharType.VARCHAR)));
     }
 
-    private VaradaCall createLikeVaradaCall(TestingConnectorColumnHandle columnHandleCol, Slice pattern)
+    private WarpCall createLikeVaradaCall(TestingConnectorColumnHandle columnHandleCol, Slice pattern)
     {
-        return new VaradaCall(LIKE_FUNCTION_NAME.getName(),
-                ImmutableList.of(new VaradaVariable(columnHandleCol, columnHandleCol.type()),
-                        new VaradaSliceConstant(pattern, VarcharType.VARCHAR)),
+        return new WarpCall(LIKE_FUNCTION_NAME.getName(),
+                ImmutableList.of(new WarpVariable(columnHandleCol, columnHandleCol.type()),
+                        new WarpSliceConstant(pattern, VarcharType.VARCHAR)),
                 BOOLEAN);
     }
 
@@ -388,7 +388,7 @@ public class DispatcherMetadataTest
             ConnectorExpression connectorExpression,
             Map<String, ColumnHandle> assignments,
             TupleDomain<ColumnHandle> expectedPredicate,
-            List<VaradaExpressionData> expectedVaradaExpressions)
+            List<WarpExpressionData> expectedVaradaExpressions)
     {
         DispatcherTableHandle dispatcherTableHandle = createDispatcherTableHandle();
         return runApplyFilterVaradaExpressionTestCase(predicate, connectorExpression, assignments, expectedPredicate, expectedVaradaExpressions, dispatcherTableHandle);
@@ -399,7 +399,7 @@ public class DispatcherMetadataTest
             ConnectorExpression connectorExpression,
             Map<String, ColumnHandle> assignments,
             TupleDomain<ColumnHandle> expectedPredicate,
-            List<VaradaExpressionData> expectedVaradaExpressions,
+            List<WarpExpressionData> expectedVaradaExpressions,
             DispatcherTableHandle dispatcherTableHandle)
     {
         Constraint constraint = new Constraint(predicate, connectorExpression, assignments);
@@ -423,7 +423,7 @@ public class DispatcherMetadataTest
             assertThat(((DispatcherTableHandle) result.orElseThrow().getAlternatives().get(0).handle()).getWarpExpression()).isEmpty();
         }
         else {
-            assertThat(((DispatcherTableHandle) result.orElseThrow().getAlternatives().get(0).handle()).getWarpExpression().orElseThrow().varadaExpressionDataLeaves()).containsExactlyInAnyOrderElementsOf(expectedVaradaExpressions);
+            assertThat(((DispatcherTableHandle) result.orElseThrow().getAlternatives().get(0).handle()).getWarpExpression().orElseThrow().warpExpressionDataLeaves()).containsExactlyInAnyOrderElementsOf(expectedVaradaExpressions);
         }
         return result;
     }

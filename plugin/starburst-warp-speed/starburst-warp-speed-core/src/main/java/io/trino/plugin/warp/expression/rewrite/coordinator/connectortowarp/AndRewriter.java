@@ -17,8 +17,8 @@ import io.trino.matching.Captures;
 import io.trino.matching.Pattern;
 import io.trino.plugin.base.expression.ConnectorExpressionPatterns;
 import io.trino.plugin.base.expression.ConnectorExpressionRule;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaExpression;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpExpression;
 import io.trino.spi.expression.Call;
 import io.trino.spi.expression.ConnectorExpression;
 
@@ -32,7 +32,7 @@ import static io.trino.spi.expression.StandardFunctions.AND_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.OR_FUNCTION_NAME;
 
 public class AndRewriter
-        implements ConnectorExpressionRule<Call, VaradaExpression>
+        implements ConnectorExpressionRule<Call, WarpExpression>
 {
     private static final Pattern<Call> PATTERN = ConnectorExpressionPatterns.call()
             .with(ConnectorExpressionPatterns.functionName().equalTo(AND_FUNCTION_NAME));
@@ -48,26 +48,26 @@ public class AndRewriter
     }
 
     @Override
-    public Optional<VaradaExpression> rewrite(Call expression, Captures captures, RewriteContext<VaradaExpression> context)
+    public Optional<WarpExpression> rewrite(Call expression, Captures captures, RewriteContext<WarpExpression> context)
     {
-        List<VaradaExpression> children = new ArrayList<>();
+        List<WarpExpression> children = new ArrayList<>();
         for (ConnectorExpression connectorExpression : expression.getArguments()) {
-            Optional<VaradaExpression> varadaExpression = context.defaultRewrite(connectorExpression);
+            Optional<WarpExpression> varadaExpression = context.defaultRewrite(connectorExpression);
             varadaExpression.ifPresent(children::add);
         }
-        Optional<VaradaExpression> res;
+        Optional<WarpExpression> res;
         if (children.isEmpty()) {
             return Optional.empty();
         }
         children = children.stream().filter(child -> getColumnHandle(child).isPresent() ||
-                        (child instanceof VaradaCall varadaCall &&
-                                varadaCall.getFunctionName().equals(OR_FUNCTION_NAME.getName())))
+                        (child instanceof WarpCall warpCall &&
+                                warpCall.getFunctionName().equals(OR_FUNCTION_NAME.getName())))
                 .collect(Collectors.toList());
         if (children.size() == 1) {
             res = Optional.of(children.get(0));
         }
         else {
-            res = Optional.of(new VaradaCall(AND_FUNCTION_NAME.getName(), children, expression.getType()));
+            res = Optional.of(new WarpCall(AND_FUNCTION_NAME.getName(), children, expression.getType()));
         }
         return res;
     }

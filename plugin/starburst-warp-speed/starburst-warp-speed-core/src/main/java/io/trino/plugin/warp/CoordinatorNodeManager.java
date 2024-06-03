@@ -18,7 +18,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
-import io.trino.plugin.warp.di.VaradaInitializedServiceRegistry;
+import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.gen.stats.CachePredicatesStats;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
@@ -29,7 +29,7 @@ import io.trino.plugin.warp.gen.stats.WarmupImportServiceStats;
 import io.trino.plugin.warp.gen.stats.WorkerTaskExecutorServiceStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.node.CoordinatorInitializedEvent;
-import io.trino.plugin.warp.util.VaradaInitializedServiceMarker;
+import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
 import io.trino.spi.Node;
 import io.trino.spi.NodeManager;
 
@@ -50,7 +50,7 @@ import static java.util.Objects.requireNonNull;
 
 @Singleton
 public class CoordinatorNodeManager
-        implements VaradaInitializedServiceMarker
+        implements WarpInitializedServiceMarker
 {
     private static final Logger logger = Logger.get(CoordinatorNodeManager.class);
 
@@ -67,13 +67,13 @@ public class CoordinatorNodeManager
             GlobalConfig globalConfig,
             EventBus eventBus,
             MetricsManager metricsManager,
-            VaradaInitializedServiceRegistry varadaInitializedServiceRegistry)
+            WarpInitializedServiceRegistry warpInitializedServiceRegistry)
     {
         this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
         this.globalConfig = requireNonNull(globalConfig, "globalConfig is null");
         this.eventBus = requireNonNull(eventBus, "EventBus is null");
         this.metricsManager = requireNonNull(metricsManager);
-        varadaInitializedServiceRegistry.addService(this);
+        warpInitializedServiceRegistry.addService(this);
     }
 
     @Override

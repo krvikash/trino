@@ -31,17 +31,17 @@ import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupDataValidation;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.model.SchemaTableColumn;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmState;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.model.WildcardColumn;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.plugin.warp.tools.util.StringUtils;
-import io.trino.plugin.warp.util.json.VaradaColumnJsonKeyDeserializer;
+import io.trino.plugin.warp.util.json.WarpColumnJsonKeyDeserializer;
 import io.trino.spi.connector.SchemaTableName;
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.AfterAll;
@@ -143,7 +143,7 @@ public class RowGroupDataDaoTest
                 .warmUpType(WarmUpType.WARM_UP_TYPE_BASIC)
                 .recTypeCode(RecTypeCode.REC_TYPE_INTEGER)
                 .recTypeLength(4)
-                .varadaColumn(new RegularColumn("aaa"))
+                .warpColumn(new RegularColumn("aaa"))
                 .warmupElementStats(new WarmupElementStats(0, Long.MIN_VALUE, Long.MAX_VALUE))
                 .build();
 
@@ -191,7 +191,7 @@ public class RowGroupDataDaoTest
                 .warmUpType(WarmUpType.WARM_UP_TYPE_BASIC)
                 .recTypeCode(RecTypeCode.REC_TYPE_INTEGER)
                 .recTypeLength(4)
-                .varadaColumn(new RegularColumn("aaa"))
+                .warpColumn(new RegularColumn("aaa"))
                 .warmupElementStats(new WarmupElementStats(0, Long.MIN_VALUE, Long.MAX_VALUE))
                 .build();
 
@@ -240,10 +240,10 @@ public class RowGroupDataDaoTest
     @Test
     public void testSerialization()
     {
-        VaradaColumn varadaColumn = new RegularColumn("aaa");
+        WarpColumn warpColumn = new RegularColumn("aaa");
         String nodeIdentifier = "node1";
         WarmUpElement warmUpElement = WarmUpElement.builder()
-                .varadaColumn(varadaColumn)
+                .warpColumn(warpColumn)
                 .warmUpType(WarmUpType.WARM_UP_TYPE_BASIC)
                 .recTypeCode(RecTypeCode.REC_TYPE_INTEGER)
                 .recTypeLength(4)
@@ -252,7 +252,7 @@ public class RowGroupDataDaoTest
                 .dictionaryInfo(new DictionaryInfo(
                         new DictionaryKey(
                                 new SchemaTableColumn(
-                                        new SchemaTableName("schema", "table"), varadaColumn),
+                                        new SchemaTableName("schema", "table"), warpColumn),
                                 nodeIdentifier,
                                 54321),
                         DictionaryState.DICTIONARY_IMPORTED,
@@ -310,7 +310,7 @@ public class RowGroupDataDaoTest
     {
         ObjectMapper objectMapper = new ObjectMapperProvider().get();
         SimpleModule simpleModule = new SimpleModule();
-        simpleModule.addKeyDeserializer(VaradaColumn.class, new VaradaColumnJsonKeyDeserializer());
+        simpleModule.addKeyDeserializer(WarpColumn.class, new WarpColumnJsonKeyDeserializer());
         objectMapper.registerModules(simpleModule);
 
         //DictionaryKey
@@ -324,16 +324,16 @@ public class RowGroupDataDaoTest
         assertThat(dictionaryKey)
                 .isEqualTo(objectMapper.readValue(str, dictionaryKey.getClass()));
 
-        //VaradaColumn
-        List<VaradaColumn> varadaColumns = List.of(
+        //WarpColumn
+        List<WarpColumn> warpColumns = List.of(
                 new RegularColumn("aaa"),
                 new WildcardColumn());
-        str = objectMapper.writerFor(new TypeReference<List<VaradaColumn>>() {}).writeValueAsString(varadaColumns);
-        assertThat(varadaColumns).isEqualTo(objectMapper.readValue(str, new TypeReference<List<VaradaColumn>>() {}));
+        str = objectMapper.writerFor(new TypeReference<List<WarpColumn>>() {}).writeValueAsString(warpColumns);
+        assertThat(warpColumns).isEqualTo(objectMapper.readValue(str, new TypeReference<List<WarpColumn>>() {}));
 
         // WarmUpElement
         WarmUpElement warmUpElement = WarmUpElement.builder()
-                .varadaColumn(new RegularColumn("aaa"))
+                .warpColumn(new RegularColumn("aaa"))
                 .warmUpType(WarmUpType.WARM_UP_TYPE_BASIC)
                 .recTypeCode(RecTypeCode.REC_TYPE_INTEGER)
                 .recTypeLength(4)
@@ -403,7 +403,7 @@ public class RowGroupDataDaoTest
                 .recTypeCode(RecTypeCode.REC_TYPE_INTEGER)
                 .recTypeLength(4)
                 .warmupElementStats(new WarmupElementStats(0, Long.MIN_VALUE, Long.MAX_VALUE))
-                .varadaColumn(new RegularColumn("aaa"))
+                .warpColumn(new RegularColumn("aaa"))
                 .build());
 
         IntStream.range(0, 10).forEach(i -> service.execute(() -> {

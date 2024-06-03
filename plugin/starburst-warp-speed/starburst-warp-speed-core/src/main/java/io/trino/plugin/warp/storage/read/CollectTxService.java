@@ -35,8 +35,8 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.stream.IntStream;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static io.trino.plugin.warp.VaradaErrorCode.VARADA_TX_ALLOCATION_FAILED;
-import static io.trino.plugin.warp.VaradaErrorCode.VARADA_UNRECOVERABLE_COLLECT_FAILED;
+import static io.trino.plugin.warp.WarpErrorCode.VARADA_TX_ALLOCATION_FAILED;
+import static io.trino.plugin.warp.WarpErrorCode.VARADA_UNRECOVERABLE_COLLECT_FAILED;
 
 public class CollectTxService
 {

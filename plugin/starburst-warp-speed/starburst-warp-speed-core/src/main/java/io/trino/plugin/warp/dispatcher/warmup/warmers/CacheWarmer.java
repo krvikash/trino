@@ -25,7 +25,7 @@ import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.storage.write.PageSink;
 import io.trino.plugin.warp.storage.write.StorageWriterService;
 import io.trino.plugin.warp.storage.write.StorageWriterSplitConfig;
-import io.trino.plugin.warp.storage.write.VaradaPageSinkFactory;
+import io.trino.plugin.warp.storage.write.WarpPageSinkFactory;
 import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.type.Type;
@@ -48,7 +48,7 @@ public class CacheWarmer
 {
     private final RowGroupDataService rowGroupDataService;
     private final WarmupElementsCreator warmupElementsCreator;
-    private final VaradaPageSinkFactory varadaPageSinkFactory;
+    private final WarpPageSinkFactory warpPageSinkFactory;
     private final StorageWarmerService storageWarmerService;
     private final StorageWriterService storageWriterService;
     private final AtomicInteger tmpUniqueKeyMarker;
@@ -56,13 +56,13 @@ public class CacheWarmer
     @Inject
     public CacheWarmer(RowGroupDataService rowGroupDataService,
             WarmupElementsCreator warmupElementsCreator,
-            VaradaPageSinkFactory varadaPageSinkFactory,
+            WarpPageSinkFactory warpPageSinkFactory,
             StorageWarmerService storageWarmerService,
             StorageWriterService storageWriterService)
     {
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.warmupElementsCreator = requireNonNull(warmupElementsCreator);
-        this.varadaPageSinkFactory = requireNonNull(varadaPageSinkFactory);
+        this.warpPageSinkFactory = requireNonNull(warpPageSinkFactory);
         this.storageWarmerService = requireNonNull(storageWarmerService);
         this.storageWriterService = requireNonNull(storageWriterService);
         this.tmpUniqueKeyMarker = new AtomicInteger(0);
@@ -76,7 +76,7 @@ public class CacheWarmer
         Set<String> failedWarmupElements = Collections.emptySet();
         if (rowGroupData != null) {
             //currently, all failed warmup elements are handled the same, do not try to re-warm
-            failedWarmupElements = rowGroupData.getWarmUpElements().stream().filter(x -> !x.isValid()).map(x -> x.getVaradaColumn().getName()).collect(Collectors.toSet());
+            failedWarmupElements = rowGroupData.getWarmUpElements().stream().filter(x -> !x.isValid()).map(x -> x.getWarpColumn().getName()).collect(Collectors.toSet());
         }
         UUID storeId = UUID.randomUUID();
         List<WarmupElementWriteMetadata> result = new ArrayList<>();
@@ -107,7 +107,7 @@ public class CacheWarmer
                     .warmUpElement(warmupElement.get())
                     .connectorBlockIndex(connectorBlockIndex)
                     .type(type)
-                    .schemaTableColumn(new SchemaTableColumn(schemaTableColumn, warmupElement.get().getVaradaColumn()))
+                    .schemaTableColumn(new SchemaTableColumn(schemaTableColumn, warmupElement.get().getWarpColumn()))
                     .build());
         }
         return res;
@@ -130,7 +130,7 @@ public class CacheWarmer
     public WarmingCandidate initCandidate(StorageWriterSplitConfig storageWriterSplitConfig, WarmupElementWriteMetadata warmUpElementToWarm, RowGroupKey tmpRowGroupKey)
             throws IOException
     {
-        PageSink pageSink = varadaPageSinkFactory.create(storageWriterSplitConfig);
+        PageSink pageSink = warpPageSinkFactory.create(storageWriterSplitConfig);
         rowGroupDataService.getOrCreateTmpRowGroupData(tmpRowGroupKey);
         storageWarmerService.createFile(tmpRowGroupKey);
         long[] fileCookie = storageWarmerService.fileOpen(tmpRowGroupKey);

@@ -17,8 +17,8 @@ import io.trino.matching.Captures;
 import io.trino.matching.Pattern;
 import io.trino.plugin.base.expression.ConnectorExpressionPatterns;
 import io.trino.plugin.base.expression.ConnectorExpressionRule;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaExpression;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpExpression;
 import io.trino.spi.expression.Call;
 import io.trino.spi.expression.Constant;
 import io.trino.spi.expression.Variable;
@@ -34,7 +34,7 @@ import static io.trino.plugin.warp.expression.rewrite.coordinator.connectortowar
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 
 class ContainsArrayRewriter
-        implements ConnectorExpressionRule<Call, VaradaExpression>
+        implements ConnectorExpressionRule<Call, WarpExpression>
 
 {
     public ContainsArrayRewriter()
@@ -57,13 +57,13 @@ class ContainsArrayRewriter
     }
 
     @Override
-    public Optional<VaradaExpression> rewrite(Call expression, Captures captures, RewriteContext<VaradaExpression> context)
+    public Optional<WarpExpression> rewrite(Call expression, Captures captures, RewriteContext<WarpExpression> context)
     {
-        Optional<VaradaExpression> variable = context.defaultRewrite(expression.getChildren().get(0));
-        Optional<VaradaExpression> constant = context.defaultRewrite(expression.getChildren().get(1));
-        Optional<VaradaExpression> res = Optional.empty();
+        Optional<WarpExpression> variable = context.defaultRewrite(expression.getChildren().get(0));
+        Optional<WarpExpression> constant = context.defaultRewrite(expression.getChildren().get(1));
+        Optional<WarpExpression> res = Optional.empty();
         if (variable.isPresent() && constant.isPresent()) {
-            res = Optional.of(new VaradaCall(expression.getFunctionName().getName(), List.of(variable.get(), constant.get()), BOOLEAN));
+            res = Optional.of(new WarpCall(expression.getFunctionName().getName(), List.of(variable.get(), constant.get()), BOOLEAN));
         }
         return res;
     }

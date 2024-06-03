@@ -17,7 +17,7 @@ import io.airlift.http.client.HttpUriBuilder;
 import io.airlift.http.client.Request;
 import io.trino.plugin.warp.CoordinatorNodeManager;
 import io.trino.plugin.warp.api.metrics.ClusterMetricsResult;
-import io.trino.plugin.warp.execution.VaradaClient;
+import io.trino.plugin.warp.execution.WarpClient;
 import io.trino.plugin.warp.util.NodeUtils;
 import io.trino.plugin.warp.util.UriUtils;
 import io.trino.spi.Node;
@@ -43,12 +43,12 @@ public class ClusterMetricsTaskTest
         long workerStorageAllocated = 4L;
 
         CoordinatorNodeManager coordinatorNodeManager = mock(CoordinatorNodeManager.class);
-        VaradaClient varadaClient = mock(VaradaClient.class);
+        WarpClient warpClient = mock(WarpClient.class);
 
         List<Node> workers = IntStream.range(0, 4)
                 .mapToObj(i -> NodeUtils.node(Integer.toString(i), true))
                 .collect(Collectors.toList());
-        workers.forEach(node -> when(varadaClient.getRestEndpoint(eq(UriUtils.getHttpUri(node)))).thenReturn(HttpUriBuilder.uriBuilderFrom(UriUtils.getHttpUri(node))));
+        workers.forEach(node -> when(warpClient.getRestEndpoint(eq(UriUtils.getHttpUri(node)))).thenReturn(HttpUriBuilder.uriBuilderFrom(UriUtils.getHttpUri(node))));
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(workers);
 
         List<ClusterMetricsResult> clusterMetricsResults = workers.stream()
@@ -58,7 +58,7 @@ public class ClusterMetricsTaskTest
                         workerStorageAllocated,
                         workerStorageCapacity)).toList();
 
-        when(varadaClient.sendWithRetry(any(Request.class), any()))
+        when(warpClient.sendWithRetry(any(Request.class), any()))
                 .thenReturn(clusterMetricsResults.get(0), clusterMetricsResults.get(1), clusterMetricsResults.get(2), clusterMetricsResults.get(3));
 
         int workersCount = workers.size();
@@ -68,7 +68,7 @@ public class ClusterMetricsTaskTest
                 workerStorageAllocated * workersCount,
                 workerStorageCapacity * workersCount);
 
-        ClusterMetricsTask task = new ClusterMetricsTask(coordinatorNodeManager, varadaClient);
+        ClusterMetricsTask task = new ClusterMetricsTask(coordinatorNodeManager, warpClient);
         assertThat(task.get()).isEqualTo(expected);
     }
 }

@@ -23,12 +23,11 @@ import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.query.QueryContext;
 import io.trino.plugin.warp.expression.NativeExpression;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaExpression;
-import io.trino.plugin.warp.expression.VaradaExpressionData;
-import io.trino.plugin.warp.expression.VaradaPrimitiveConstant;
-import io.trino.plugin.warp.expression.VaradaVariable;
-import io.trino.plugin.warp.expression.rewrite.WarpExpression;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpExpression;
+import io.trino.plugin.warp.expression.WarpExpressionData;
+import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
+import io.trino.plugin.warp.expression.WarpVariable;
 import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
@@ -109,7 +108,7 @@ class MatchClassifierTest
     @MethodSource("config")
     public void testExpression(List<String> matchColumnNames, List<String> expectedMatchColumns)
     {
-        WarpExpression warpExpression = createWrapExpression();
+        io.trino.plugin.warp.expression.rewrite.WarpExpression warpExpression = createWrapExpression();
         ClassifyArgs classifyArgs = mock(ClassifyArgs.class);
         when(classifyArgs.getDispatcherTableHandle()).thenReturn(dispatcherTableHandle);
         WarmedWarmupTypes.Builder builder = new WarmedWarmupTypes.Builder();
@@ -118,7 +117,7 @@ class MatchClassifierTest
                 .forEach(columnName -> {
                     WarmUpElement warmUpElement = mock(WarmUpElement.class);
                     when(warmUpElement.getWarmUpType()).thenReturn(WarmUpType.WARM_UP_TYPE_BASIC);
-                    when(warmUpElement.getVaradaColumn()).thenReturn(new RegularColumn(columnName));
+                    when(warmUpElement.getWarpColumn()).thenReturn(new RegularColumn(columnName));
                     builder.add(warmUpElement);
                 });
         WarmedWarmupTypes warmedWarmupTypes = builder.build();
@@ -135,30 +134,30 @@ class MatchClassifierTest
             actualMatchColumns = Collections.emptyList();
         }
         else {
-            actualMatchColumns = result.getMatchData().orElseThrow().getLeavesDFS().stream().map(x -> x.getVaradaColumn().getName()).toList();
+            actualMatchColumns = result.getMatchData().orElseThrow().getLeavesDFS().stream().map(x -> x.getWarpColumn().getName()).toList();
         }
         assertThat(actualMatchColumns).isEqualTo(expectedMatchColumns);
     }
 
-    private WarpExpression createWrapExpression()
+    private io.trino.plugin.warp.expression.rewrite.WarpExpression createWrapExpression()
     {
-        Map<String, VaradaVariable> columnNameToVaradaVariable = columns
+        Map<String, WarpVariable> columnNameToVaradaVariable = columns
                 .entrySet()
                 .stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, x -> new VaradaVariable(x.getValue(), IntegerType.INTEGER)));
-        Map<String, VaradaExpression> leaves = Map.of(
+                .collect(Collectors.toMap(Map.Entry::getKey, x -> new WarpVariable(x.getValue(), IntegerType.INTEGER)));
+        Map<String, WarpExpression> leaves = Map.of(
                 "a", createLeafExpression("a", 5L, columnNameToVaradaVariable),
                 "b", createLeafExpression("b", 6L, columnNameToVaradaVariable),
                 "c", createLeafExpression("c", 7L, columnNameToVaradaVariable),
                 "d", createLeafExpression("d", 8L, columnNameToVaradaVariable));
 
-        VaradaCall rootExpression = new VaradaCall(AND_FUNCTION_NAME.getName(),
+        WarpCall rootExpression = new WarpCall(AND_FUNCTION_NAME.getName(),
                 List.of(leaves.get("a"),
-                        new VaradaCall(AND_FUNCTION_NAME.getName(),
+                        new WarpCall(AND_FUNCTION_NAME.getName(),
                                 List.of(leaves.get("b"), leaves.get("c")),
                                 BOOLEAN),
-                        new VaradaCall(OR_FUNCTION_NAME.getName(),
-                                List.of(leaves.get("a"), leaves.get("b"), new VaradaCall(OR_FUNCTION_NAME.getName(),
+                        new WarpCall(OR_FUNCTION_NAME.getName(),
+                                List.of(leaves.get("a"), leaves.get("b"), new WarpCall(OR_FUNCTION_NAME.getName(),
                                         List.of(leaves.get("c"), leaves.get("d")),
                                         BOOLEAN)),
                                 BOOLEAN)),
@@ -170,19 +169,19 @@ class MatchClassifierTest
                 .functionType(FunctionType.FUNCTION_TYPE_NONE)
                 .predicateType(PredicateType.PREDICATE_TYPE_VALUES)
                 .build();
-        List<VaradaExpressionData> varadaExpressionDataLeaves = columns.keySet().stream().map(columnName -> new VaradaExpressionData(leaves.get(columnName),
+        List<WarpExpressionData> warpExpressionDataLeaves = columns.keySet().stream().map(columnName -> new WarpExpressionData(leaves.get(columnName),
                         IntegerType.INTEGER,
                         false,
                         Optional.of(nativeExpression),
                         new RegularColumn(columnName)))
                 .toList();
-        return new WarpExpression(rootExpression, varadaExpressionDataLeaves);
+        return new io.trino.plugin.warp.expression.rewrite.WarpExpression(rootExpression, warpExpressionDataLeaves);
     }
 
-    private VaradaCall createLeafExpression(String columnName, long value, Map<String, VaradaVariable> columnNameToVaradaVariable)
+    private WarpCall createLeafExpression(String columnName, long value, Map<String, WarpVariable> columnNameToVaradaVariable)
     {
-        return new VaradaCall(EQUAL_OPERATOR_FUNCTION_NAME.getName(),
-                List.of(columnNameToVaradaVariable.get(columnName), new VaradaPrimitiveConstant(value, IntegerType.INTEGER)),
+        return new WarpCall(EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(columnNameToVaradaVariable.get(columnName), new WarpPrimitiveConstant(value, IntegerType.INTEGER)),
                 BOOLEAN);
     }
 }

@@ -18,9 +18,9 @@ import io.trino.spi.TrinoException;
 
 import java.util.function.Consumer;
 
-import static io.trino.plugin.warp.VaradaErrorCode.VARADA_NATIVE_ERROR;
-import static io.trino.plugin.warp.VaradaErrorCode.VARADA_NATIVE_READ_OUT_OF_BOUNDS;
-import static io.trino.plugin.warp.VaradaErrorCode.VARADA_NATIVE_UNRECOVERABLE_ERROR;
+import static io.trino.plugin.warp.WarpErrorCode.VARADA_NATIVE_ERROR;
+import static io.trino.plugin.warp.WarpErrorCode.VARADA_NATIVE_READ_OUT_OF_BOUNDS;
+import static io.trino.plugin.warp.WarpErrorCode.VARADA_NATIVE_UNRECOVERABLE_ERROR;
 
 public interface ExceptionThrower
 {

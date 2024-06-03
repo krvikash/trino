@@ -28,7 +28,7 @@ import io.trino.plugin.warp.api.warmup.WarmupDefaultRuleUsageData;
 import io.trino.plugin.warp.api.warmup.WarmupRulesUsageData;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleFetcher;
-import io.trino.plugin.warp.execution.VaradaClient;
+import io.trino.plugin.warp.execution.WarpClient;
 import io.trino.plugin.warp.util.NodeUtils;
 import io.trino.plugin.warp.warmup.WarmupRuleApiMapper;
 import io.trino.plugin.warp.warmup.WarmupRuleService;
@@ -61,7 +61,7 @@ public class WarmupTaskTest
     private WarmupRuleService warmupRuleService;
     private WarmupRuleFetcher warmupRuleFetcher;
     private CoordinatorNodeManager coordinatorNodeManager;
-    private VaradaClient varadaClient;
+    private WarpClient warpClient;
     private WarmupTask task;
 
     @BeforeEach
@@ -70,12 +70,12 @@ public class WarmupTaskTest
         warmupRuleService = mock(WarmupRuleService.class);
         warmupRuleFetcher = mock(WarmupRuleFetcher.class);
         coordinatorNodeManager = mock(CoordinatorNodeManager.class);
-        varadaClient = mock(VaradaClient.class);
+        warpClient = mock(WarpClient.class);
 
         task = new WarmupTask(warmupRuleService,
                 warmupRuleFetcher,
                 coordinatorNodeManager,
-                varadaClient,
+                warpClient,
                 mock(EventBus.class));
     }
 
@@ -85,7 +85,7 @@ public class WarmupTaskTest
         assertThat(task.warmupRuleGet()).isEmpty();
 
         WarmupRule warmupRule = WarmupRule.builder()
-                .varadaColumn(new RegularColumn("col1"))
+                .warpColumn(new RegularColumn("col1"))
                 .schema("schema")
                 .table("table")
                 .warmUpType(io.trino.plugin.warp.gen.constants.WarmUpType.WARM_UP_TYPE_LUCENE)
@@ -109,7 +109,7 @@ public class WarmupTaskTest
         assertThat(task.getWithUsage().warmupColRuleUsageDataList()).isEmpty();
 
         List<WarmupRule> warmupRules = List.of(WarmupRule.builder()
-                .varadaColumn(new RegularColumn("col1"))
+                .warpColumn(new RegularColumn("col1"))
                 .schema("schema")
                 .table("table")
                 .warmUpType(io.trino.plugin.warp.gen.constants.WarmUpType.WARM_UP_TYPE_LUCENE)
@@ -138,8 +138,8 @@ public class WarmupTaskTest
         ImmutableList<WarmupDefaultRuleUsageData> defaultRuleUsageData = ImmutableList.of(new WarmupDefaultRuleUsageData(8 * WorkerWarmupTask.MEGABYTE, WarmUpType.WARM_UP_TYPE_DATA),
                 new WarmupDefaultRuleUsageData(4 * WorkerWarmupTask.MEGABYTE, WarmUpType.WARM_UP_TYPE_BASIC));
         WarmupRulesUsageData warmupRulesUsageData = new WarmupRulesUsageData(workerWarmupColRuleDataList, defaultRuleUsageData);
-        when(varadaClient.getRestEndpoint(any())).thenReturn(HttpUriBuilder.uriBuilderFrom(URI.create("http://aaa.com")));
-        when(varadaClient.sendWithRetry(any(Request.class), any(FullJsonResponseHandler.class))).thenReturn(warmupRulesUsageData);
+        when(warpClient.getRestEndpoint(any())).thenReturn(HttpUriBuilder.uriBuilderFrom(URI.create("http://aaa.com")));
+        when(warpClient.sendWithRetry(any(Request.class), any(FullJsonResponseHandler.class))).thenReturn(warmupRulesUsageData);
 
         WarmupRulesUsageData result = task.getWithUsage();
 
@@ -163,7 +163,7 @@ public class WarmupTaskTest
     public void testValidate()
     {
         WarmupRule warmupRule = WarmupRule.builder()
-                .varadaColumn(new RegularColumn("col1"))
+                .warpColumn(new RegularColumn("col1"))
                 .schema("schema")
                 .table("table")
                 .warmUpType(io.trino.plugin.warp.gen.constants.WarmUpType.WARM_UP_TYPE_LUCENE)

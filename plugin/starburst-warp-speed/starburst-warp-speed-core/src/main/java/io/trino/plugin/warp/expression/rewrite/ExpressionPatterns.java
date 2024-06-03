@@ -15,8 +15,8 @@ package io.trino.plugin.warp.expression.rewrite;
 
 import io.trino.matching.Pattern;
 import io.trino.matching.Property;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaExpression;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpExpression;
 import io.trino.spi.type.Type;
 
 import java.util.Optional;
@@ -28,22 +28,22 @@ public final class ExpressionPatterns
 {
     private ExpressionPatterns() {}
 
-    public static Pattern<VaradaCall> call()
+    public static Pattern<WarpCall> call()
     {
-        return Pattern.typeOf(VaradaCall.class);
+        return Pattern.typeOf(WarpCall.class);
     }
 
-    public static Property<VaradaCall, ?, Integer> argumentCount()
+    public static Property<WarpCall, ?, Integer> argumentCount()
     {
         return Property.property("argumentCount", (varadaCall) -> varadaCall.getArguments().size());
     }
 
-    public static Property<VaradaCall, ?, String> functionName()
+    public static Property<WarpCall, ?, String> functionName()
     {
-        return Property.property("functionName", VaradaCall::getFunctionName);
+        return Property.property("functionName", WarpCall::getFunctionName);
     }
 
-    public static Property<VaradaCall, ?, VaradaExpression> argument(int argument)
+    public static Property<WarpCall, ?, WarpExpression> argument(int argument)
     {
         checkArgument(0 <= argument, "Invalid argument index: %s", argument);
         return Property.optionalProperty(format("argument(%s)", argument), call -> {
@@ -54,8 +54,8 @@ public final class ExpressionPatterns
         });
     }
 
-    public static Property<VaradaExpression, ?, Type> type()
+    public static Property<WarpExpression, ?, Type> type()
     {
-        return Property.property("type", VaradaExpression::getType);
+        return Property.property("type", WarpExpression::getType);
     }
 }

@@ -16,7 +16,7 @@ package io.trino.plugin.warp.storage.engine.nativeimpl;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.NativeConfig;
-import io.trino.plugin.warp.di.VaradaNativeStorageEngineModule;
+import io.trino.plugin.warp.di.WarpNativeStorageEngineModule;
 import io.trino.plugin.warp.dispatcher.query.classifier.PredicateUtil;
 import io.trino.plugin.warp.gen.stats.WarpStatsMgr;
 import io.trino.plugin.warp.metrics.MetricsManager;
@@ -62,7 +62,7 @@ public class NativeStorageEngine
                     nativeConfig.getStorageCacheSizeInPages(),
                     PredicateUtil.PREDICATE_HEADER_SIZE,
                     nativeConfig.getSkipIndexPercent(),
-                    VaradaNativeStorageEngineModule.getNativeLibrariesDirectory().toString(),
+                    WarpNativeStorageEngineModule.getNativeLibrariesDirectory().toString(),
                     nativeConfig.getEnableSingleChunk(),
                     nativeConfig.getEnableQueryResultType(),
                     nativeConfig.getEnablePackedChunk(),

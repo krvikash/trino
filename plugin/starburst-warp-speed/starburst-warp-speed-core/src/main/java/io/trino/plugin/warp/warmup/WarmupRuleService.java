@@ -18,12 +18,12 @@ import com.google.common.hash.Hashing;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.VaradaErrorCode;
+import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.di.FakeConnectorSessionProvider;
-import io.trino.plugin.warp.di.VaradaInitializedServiceRegistry;
+import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.model.WildcardColumn;
 import io.trino.plugin.warp.dispatcher.warmup.events.WarmRulesChangedEvent;
@@ -31,7 +31,7 @@ import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.plugin.warp.type.TypeUtils;
-import io.trino.plugin.warp.util.VaradaInitializedServiceMarker;
+import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
 import io.trino.plugin.warp.warmup.dal.WarmupRuleDao;
 import io.trino.plugin.warp.warmup.model.WarmupPredicateRule;
 import io.trino.plugin.warp.warmup.model.WarmupRule;
@@ -71,7 +71,7 @@ import static java.util.stream.Collectors.groupingBy;
 
 @Singleton
 public class WarmupRuleService
-        implements VaradaInitializedServiceMarker
+        implements WarpInitializedServiceMarker
 {
     private static final Logger logger = Logger.get(WarmupRuleService.class);
 
@@ -97,7 +97,7 @@ public class WarmupRuleService
                              FakeConnectorSessionProvider fakeConnectorSessionProvider,
                              WarmupRuleDao warmupRuleDao,
                              EventBus eventBus,
-                             VaradaInitializedServiceRegistry varadaInitializedServiceRegistry,
+                             WarpInitializedServiceRegistry warpInitializedServiceRegistry,
                              GlobalConfig globalConfig)
     {
         this.proxiedConnector = requireNonNull(proxiedConnector);
@@ -108,7 +108,7 @@ public class WarmupRuleService
         this.warmupRuleDao = requireNonNull(warmupRuleDao);
         this.eventBus = requireNonNull(eventBus);
         this.globalConfig = requireNonNull(globalConfig);
-        varadaInitializedServiceRegistry.addService(this);
+        warpInitializedServiceRegistry.addService(this);
 
         this.readWriteLock = new ReentrantReadWriteLock();
     }
@@ -147,7 +147,7 @@ public class WarmupRuleService
         }
         catch (Exception e) {
             logger.error(e, "failed to save new warmupRules=%s", newWarmupRules);
-            throw new TrinoException(VaradaErrorCode.VARADA_RULE_CONFIGURATION_ERROR,
+            throw new TrinoException(WarpErrorCode.VARADA_RULE_CONFIGURATION_ERROR,
                     "failed to save new warmupRules",
                     e);
         }
@@ -169,7 +169,7 @@ public class WarmupRuleService
         }
         catch (Exception e) {
             String error = String.format("failed to replace existing rules with new rules=%s", newWarmupRules);
-            throw new TrinoException(VaradaErrorCode.VARADA_RULE_CONFIGURATION_ERROR, error, e);
+            throw new TrinoException(WarpErrorCode.VARADA_RULE_CONFIGURATION_ERROR, error, e);
         }
         finally {
             readWriteLock.writeLock().unlock();
@@ -206,7 +206,7 @@ public class WarmupRuleService
             long uniqueRuleId = getUniqueRuleId(warmupRule);
             if (uniqueIds.contains(uniqueRuleId) || (warmupRule.getId() == 0 && existingUniqueRuleIds.contains(uniqueRuleId))) {
                 String error = String.format("%d: can't add 2 rules with the same key. rules=%s",
-                        VaradaErrorCode.VARADA_DUPLICATE_RECORD.getCode(),
+                        WarpErrorCode.VARADA_DUPLICATE_RECORD.getCode(),
                         warmupRule);
                 rejectedRules.computeIfAbsent(warmupRule, e -> new HashSet<>()).add(error);
                 continue;
@@ -216,23 +216,23 @@ public class WarmupRuleService
             }
             if (warmupRule.getId() != 0 && !existingRuleIds.contains(warmupRule.getId())) {
                 String error = String.format("%d: New Rule id must be 0, or override an existing rule id",
-                        VaradaErrorCode.VARADA_WARMUP_RULE_ID_NOT_VALID.getCode());
+                        WarpErrorCode.VARADA_WARMUP_RULE_ID_NOT_VALID.getCode());
                 rejectedRules.computeIfAbsent(warmupRule, e -> new HashSet<>()).add(error);
                 continue;
             }
             Map<String, ColumnMetadata> tableColumnsMetadata = getTableColumnsMetadata(tablesColumnsMetadata, warmupRule);
             if (tableColumnsMetadata == null) {
                 String error = String.format("%d: Rule refer to a non-exist table (%s)",
-                        VaradaErrorCode.VARADA_WARMUP_RULE_UNKNOWN_TABLE.getCode(),
+                        WarpErrorCode.VARADA_WARMUP_RULE_UNKNOWN_TABLE.getCode(),
                         getSchemaTableName(warmupRule));
                 rejectedRules.computeIfAbsent(warmupRule, e -> new HashSet<>()).add(error);
             }
             else {
                 Optional<Type> columnType = getColumnType(tableColumnsMetadata, warmupRule);
-                if (columnType.isEmpty() && !(warmupRule.getVaradaColumn() instanceof WildcardColumn)) {
+                if (columnType.isEmpty() && !(warmupRule.getWarpColumn() instanceof WildcardColumn)) {
                     String error = String.format("%d: Rule refer to a non-exist column (%s)",
-                            VaradaErrorCode.VARADA_WARMUP_RULE_UNKNOWN_COLUMN.getCode(),
-                            warmupRule.getVaradaColumn().getName());
+                            WarpErrorCode.VARADA_WARMUP_RULE_UNKNOWN_COLUMN.getCode(),
+                            warmupRule.getWarpColumn().getName());
                     rejectedRules.computeIfAbsent(warmupRule, e -> new HashSet<>()).add(error);
                 }
                 else {
@@ -254,7 +254,7 @@ public class WarmupRuleService
             Optional<Type> optionalType)
     {
         Set<String> errors = new HashSet<>();
-        if (!(warmupRule.getVaradaColumn() instanceof WildcardColumn)) {
+        if (!(warmupRule.getWarpColumn() instanceof WildcardColumn)) {
             optionalType.ifPresentOrElse(type -> {
                 if (warmupRule.getPriority() >= warmupDemoterConfig.getDefaultRulePriority()) {
                     validateTypeIsSupported(errors, warmupRule, type);
@@ -292,7 +292,7 @@ public class WarmupRuleService
 
         if (fail) {
             String error = String.format("%d: Warmup type %s doesn't support column type %s",
-                    VaradaErrorCode.VARADA_WARMUP_RULE_WARMUP_TYPE_DOESNT_SUPPORT_COL_TYPE.getCode(),
+                    WarpErrorCode.VARADA_WARMUP_RULE_WARMUP_TYPE_DOESNT_SUPPORT_COL_TYPE.getCode(),
                     warmupRule.getWarmUpType(),
                     type);
             errors.add(error);
@@ -304,7 +304,7 @@ public class WarmupRuleService
         if (warmupRule.getWarmUpType() == WarmUpType.WARM_UP_TYPE_DATA &&
                 TypeUtils.isCharType(type) && ((CharType) type).getLength() > storageEngineConstants.getMaxRecLen()) {
             String error = String.format("%d: Can't warm long Char columns. maximum of %d is allowed",
-                    VaradaErrorCode.VARADA_WARMUP_RULE_ILLEGAL_CHAR_LENGTH.getCode(),
+                    WarpErrorCode.VARADA_WARMUP_RULE_ILLEGAL_CHAR_LENGTH.getCode(),
                     storageEngineConstants.getMaxRecLen());
             errors.add(error);
         }
@@ -314,7 +314,7 @@ public class WarmupRuleService
     {
         if (globalConfig.isDataOnlyWarming() && !warmupRule.getWarmUpType().equals(WarmUpType.WARM_UP_TYPE_DATA)) {
             errors.add(String.format("%d: creation of %s warmUpType is not supported with Local Data Storage connector",
-                    VaradaErrorCode.VARADA_INDEX_WARMUP_RULE_IS_NOT_ALLOWED.getCode(),
+                    WarpErrorCode.VARADA_INDEX_WARMUP_RULE_IS_NOT_ALLOWED.getCode(),
                     warmupRule.getWarmUpType()));
         }
     }
@@ -333,7 +333,7 @@ public class WarmupRuleService
         }
         catch (Exception e) {
             logger.error("failed to delete new rules ids=%s.", ids);
-            throw new TrinoException(VaradaErrorCode.VARADA_RULE_CONFIGURATION_ERROR,
+            throw new TrinoException(WarpErrorCode.VARADA_RULE_CONFIGURATION_ERROR,
                     "failed to save new rules config",
                     e);
         }
@@ -374,11 +374,11 @@ public class WarmupRuleService
 
     private Optional<Type> getColumnType(Map<String, ColumnMetadata> columnsMetadata, WarmupRule warmupRule)
     {
-        ColumnMetadata columnMetadata = columnsMetadata.get(warmupRule.getVaradaColumn().getName());
+        ColumnMetadata columnMetadata = columnsMetadata.get(warmupRule.getWarpColumn().getName());
         if (columnMetadata != null) {
             return Optional.of(columnMetadata.getType());
         }
-        String[] parts = warmupRule.getVaradaColumn().getName().split("#", -1);
+        String[] parts = warmupRule.getWarpColumn().getName().split("#", -1);
         if (parts.length == 2) {
             columnMetadata = columnsMetadata.get(parts[0]);
             if (columnMetadata != null) {
@@ -404,7 +404,7 @@ public class WarmupRuleService
     {
         long ret = (2851L * warmupRule.getSchema().hashCode());
         ret += (2917L * warmupRule.getTable().hashCode());
-        ret += (2999L * warmupRule.getVaradaColumn().hashCode());
+        ret += (2999L * warmupRule.getWarpColumn().hashCode());
         ret += (3061L * warmupRule.getWarmUpType().name().hashCode());
         if (warmupRule.getPredicates() != null) {
             long predicatesHash = warmupRule.getPredicates().stream()
@@ -418,7 +418,7 @@ public class WarmupRuleService
     private String getColumnUniqueKey(WarmupRule warmupRule)
     {
         int predicateHash = warmupRule.getPredicates().stream().mapToInt(WarmupPredicateRule::hashCode).sum();
-        return String.format("%s:%s:%s:%s", warmupRule.getSchema(), warmupRule.getTable(), warmupRule.getVaradaColumn().getName(), predicateHash);
+        return String.format("%s:%s:%s:%s", warmupRule.getSchema(), warmupRule.getTable(), warmupRule.getWarpColumn().getName(), predicateHash);
     }
 
     private void notifyWarmRulesChangedEvent()

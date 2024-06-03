@@ -14,7 +14,7 @@
 package io.trino.plugin.warp.it.proxiedconnector.deltalake;
 
 import io.trino.plugin.warp.WarpPlugin;
-import io.trino.plugin.warp.di.VaradaStubsStorageEngineModule;
+import io.trino.plugin.warp.di.WarpStubsStorageEngineModule;
 import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
 import io.trino.plugin.warp.it.DispatcherQueryRunner;
 import io.trino.plugin.warp.it.DispatcherStubsIntegrationSmokeIT;
@@ -41,7 +41,7 @@ public class TestDeltaLakeProxiedConnectorIntegrationSmokeIT
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        return DispatcherQueryRunner.createQueryRunner(new VaradaStubsStorageEngineModule(),
+        return DispatcherQueryRunner.createQueryRunner(new WarpStubsStorageEngineModule(),
                 Optional.empty(), numNodes,
                 Collections.emptyMap(),
                 Map.of("http-server.log.enabled", "false",

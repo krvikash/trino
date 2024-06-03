@@ -33,9 +33,9 @@ import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.model.SchemaTableColumn;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmState;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.model.WildcardColumn;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WarmupProperties;
@@ -540,7 +540,7 @@ public class WarmupDemoterService
                 .collect(groupingBy(warmupRule -> new SchemaTableColumn(
                         new SchemaTableName(warmupRule.getSchema(),
                                 warmupRule.getTable()),
-                        warmupRule.getVaradaColumn())));
+                        warmupRule.getWarpColumn())));
         Instant now = Instant.now();
         // all tupleRanks of the same shared rowGroup should be gathered together to reduce the nunmber of saved
         // the key of this map make sure that all rg+WarmupType will be hanndled in a single batch
@@ -566,13 +566,13 @@ public class WarmupDemoterService
                                         new WildcardColumn()),
                                 List.of())
                         .stream()
-                        .map(warmupRule -> WarmupRule.builder(warmupRule).varadaColumn(warmUpElement.getVaradaColumn()).build());
+                        .map(warmupRule -> WarmupRule.builder(warmupRule).warpColumn(warmUpElement.getWarpColumn()).build());
 
                 WarmupProperties warmupProperties = findMostRelevantRulePropertiesForWarmupElement(rowGroupData,
                         warmUpElement,
                         Stream.concat(warmupRuleList.stream(), wildcardWarmupRules).toList());
 
-                String warmupElementKey = rowGroupKey + "_" + warmUpElement.getVaradaColumn().getColumnId() + "_" + warmUpElement.getWarmUpType();
+                String warmupElementKey = rowGroupKey + "_" + warmUpElement.getWarpColumn().getColumnId() + "_" + warmUpElement.getWarmUpType();
                 tupleRanksByKey.put(warmupElementKey, new TupleRank(warmupProperties, warmUpElement, rowGroupKey));
             }
         }
@@ -582,16 +582,16 @@ public class WarmupDemoterService
             WarmupProperties warmupProperties = tupleRank.warmupProperties();
 
             if (forceDeleteFailedObjects && !warmUpElement.isValid()) {
-                logger.debug("add failed warmupElement to failedObjects: varadaColumn = %s, warmupType = %s", warmUpElement.getVaradaColumn(), warmupProperties.warmUpType().name());
+                logger.debug("add failed warmupElement to failedObjects: warpColumn = %s, warmupType = %s", warmUpElement.getWarpColumn(), warmupProperties.warmUpType().name());
                 failedObjects.add(tupleRank);
             }
             else if (isDeleteImmediatelyObject(tupleRank, now, tupleFilters)) {
-                logger.debug("add warmupElement to ImmediateObject: varadaColumn = %s, warmupType = %s, ttl = %s", warmUpElement.getVaradaColumn(), warmupProperties.warmUpType().name(), warmupProperties.ttl());
+                logger.debug("add warmupElement to ImmediateObject: warpColumn = %s, warmupType = %s, ttl = %s", warmUpElement.getWarpColumn(), warmupProperties.warmUpType().name(), warmupProperties.ttl());
                 immediateObjects.add(tupleRank);
             }
             else {
                 tupleRankList.add(tupleRank);
-                logger.debug("add warmupElement to tupleRank: varadaColumn = %s, warmupType = %s, priority = %s", warmUpElement.getVaradaColumn(), warmupProperties.warmUpType().name(), warmupProperties.priority());
+                logger.debug("add warmupElement to tupleRank: warpColumn = %s, warmupType = %s, priority = %s", warmUpElement.getWarpColumn(), warmupProperties.warmUpType().name(), warmupProperties.priority());
             }
         }
         logger.debug("buildTupleRank allRules.size %d rowGroupDataList.size %d tupleFilters.size %d failedObjects.size %d, immediateObjects.size %d, tupleRankList.size %d",
@@ -765,19 +765,19 @@ public class WarmupDemoterService
             Map<SchemaTableColumn, List<WarmupRule>> schemaTableColumnToRulesMap,
             WarmUpElement warmUpElement)
     {
-        VaradaColumn varadaColumn = warmUpElement.getVaradaColumn();
-        VaradaColumn newVaradaColumn;
-        if (varadaColumn instanceof RegularColumn regularColumn) {
-            newVaradaColumn = new RegularColumn(regularColumn.getName());
+        WarpColumn warpColumn = warmUpElement.getWarpColumn();
+        WarpColumn newWarpColumn;
+        if (warpColumn instanceof RegularColumn regularColumn) {
+            newWarpColumn = new RegularColumn(regularColumn.getName());
         }
         else {
-            newVaradaColumn = varadaColumn;
+            newWarpColumn = warpColumn;
         }
 
         SchemaTableColumn schemaTableColumn = new SchemaTableColumn(
                 new SchemaTableName(rowGroupKey.schema(),
                         rowGroupKey.table()),
-                newVaradaColumn);
+                newWarpColumn);
         return schemaTableColumnToRulesMap.getOrDefault(schemaTableColumn, List.of());
     }
 

@@ -23,8 +23,8 @@ import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.config.ProxiedConnectorConfig;
 import io.trino.plugin.warp.di.CacheManagerModule;
-import io.trino.plugin.warp.di.VaradaInitializedServiceRegistry;
-import io.trino.plugin.warp.di.VaradaModules;
+import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
+import io.trino.plugin.warp.di.WarpModules;
 import io.trino.plugin.warp.di.dispatcher.DispatcherCoordinatorModule;
 import io.trino.plugin.warp.di.dispatcher.DispatcherMainModule;
 import io.trino.plugin.warp.dispatcher.connectors.DispatcherConnectorBase;
@@ -87,7 +87,7 @@ public class InternalDispatcherConnectorFactory
         Connector proxiedConnector = proxiedConnectorInitializer.create(catalogName, config, context);
         List<Module> modules = new ArrayList<>();
         modules.addAll(asList(
-                new VaradaModules(catalogName, warpConfig, context)
+                new WarpModules(catalogName, warpConfig, context)
                         .withStorageEngineModule(storageEngineModule)
                         .withCloudVendorModule(cloudVendorModule),
                 new EventModule(),
@@ -120,7 +120,7 @@ public class InternalDispatcherConnectorFactory
     private static void initializeSystemServices(Injector injector)
     {
         logger.debug("begin initialize system services");
-        injector.getInstance(VaradaInitializedServiceRegistry.class).init();
+        injector.getInstance(WarpInitializedServiceRegistry.class).init();
         logger.debug("finish initialize system services");
     }
 

@@ -16,7 +16,7 @@ package io.trino.plugin.warp.api.warmup;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableSet;
-import io.trino.plugin.warp.api.warmup.column.VaradaColumnData;
+import io.trino.plugin.warp.api.warmup.column.WarpColumnData;
 
 import java.time.Duration;
 import java.util.Objects;
@@ -28,7 +28,7 @@ public class WarmupColRuleData
     private final int id;
     private final String schema;
     private final String table;
-    private final VaradaColumnData column;
+    private final WarpColumnData column;
     private final ImmutableSet<WarmupPredicateRule> predicates;
     private final WarmUpType warmUpType;
     private final double priority;
@@ -38,7 +38,7 @@ public class WarmupColRuleData
     public WarmupColRuleData(@JsonProperty("id") int id,
             @JsonProperty("schema") String schema,
             @JsonProperty("table") String table,
-            @JsonProperty("column") VaradaColumnData column,
+            @JsonProperty("column") WarpColumnData column,
             @JsonProperty("warmUpType") WarmUpType warmUpType,
             @JsonProperty("priority") double priority,
             @JsonProperty("ttl") Duration ttl,
@@ -61,7 +61,7 @@ public class WarmupColRuleData
     }
 
     @JsonProperty
-    public VaradaColumnData getColumn()
+    public WarpColumnData getColumn()
     {
         return column;
     }

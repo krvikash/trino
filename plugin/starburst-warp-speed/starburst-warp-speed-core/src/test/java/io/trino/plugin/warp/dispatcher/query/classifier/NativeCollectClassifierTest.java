@@ -18,13 +18,13 @@ import io.trino.plugin.warp.connector.TestingConnectorColumnHandle;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.QueryContext;
 import io.trino.plugin.warp.dispatcher.query.data.collect.QueryCollectData;
 import io.trino.plugin.warp.dispatcher.query.data.match.BasicQueryMatchData;
 import io.trino.plugin.warp.expression.NativeExpression;
-import io.trino.plugin.warp.expression.VaradaPrimitiveConstant;
+import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
 import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
@@ -66,7 +66,7 @@ public class NativeCollectClassifierTest
         when(bufferAllocator.getCollectRecordBufferSize(any(), eq(STR_SIZE))).thenReturn(STR_SIZE * COLLECT_REC_SIZE_PER_BYTE);
         when(bufferAllocator.getMatchCollectRecordBufferSize(eq(INT_SIZE))).thenReturn(INT_SIZE * COLLECT_REC_SIZE_PER_BYTE);
         when(bufferAllocator.getQueryNullBufferSize(any())).thenReturn(COLLECT_NULLS_SIZE);
-        this.baseQueryContext = new QueryContext(new PredicateContextData(ImmutableMap.of(), VaradaPrimitiveConstant.TRUE), ImmutableMap.of());
+        this.baseQueryContext = new QueryContext(new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE), ImmutableMap.of());
     }
 
     @Test
@@ -150,17 +150,17 @@ public class NativeCollectClassifierTest
     {
         ColumnHandle basicColumnHandle = columnHandles.stream().filter(h -> !(((TestingConnectorColumnHandle) h).type() instanceof VarcharType)).findFirst().orElseThrow();
 
-        ImmutableMap<WarmUpType, ImmutableMap<VaradaColumn, WarmUpElement>> res = ImmutableMap.of(WarmUpType.WARM_UP_TYPE_DATA,
+        ImmutableMap<WarmUpType, ImmutableMap<WarpColumn, WarmUpElement>> res = ImmutableMap.of(WarmUpType.WARM_UP_TYPE_DATA,
                 ImmutableMap.copyOf(columnHandles
                         .stream()
                         .filter(h -> !((TestingConnectorColumnHandle) h).name().equals(((TestingConnectorColumnHandle) basicColumnHandle).name()))
-                        .collect(Collectors.toMap((columnHandle) -> (VaradaColumn) new RegularColumn(((TestingConnectorColumnHandle) columnHandle).name()), h -> createWarmUpElementFromColumnHandle(h, WarmUpType.WARM_UP_TYPE_DATA)))),
+                        .collect(Collectors.toMap((columnHandle) -> (WarpColumn) new RegularColumn(((TestingConnectorColumnHandle) columnHandle).name()), h -> createWarmUpElementFromColumnHandle(h, WarmUpType.WARM_UP_TYPE_DATA)))),
                 WarmUpType.WARM_UP_TYPE_BASIC,
                 ImmutableMap.of(new RegularColumn(((TestingConnectorColumnHandle) basicColumnHandle).name()),
                         createWarmUpElementFromColumnHandle(basicColumnHandle, WarmUpType.WARM_UP_TYPE_BASIC)));
         WarmedWarmupTypes.Builder warmedWarmupTypes = new WarmedWarmupTypes.Builder();
-        for (Map.Entry<WarmUpType, ImmutableMap<VaradaColumn, WarmUpElement>> v : res.entrySet()) {
-            for (Map.Entry<VaradaColumn, WarmUpElement> column : v.getValue().entrySet()) {
+        for (Map.Entry<WarmUpType, ImmutableMap<WarpColumn, WarmUpElement>> v : res.entrySet()) {
+            for (Map.Entry<WarpColumn, WarmUpElement> column : v.getValue().entrySet()) {
                 warmedWarmupTypes.add(column.getValue());
             }
         }
@@ -174,7 +174,7 @@ public class NativeCollectClassifierTest
             ColumnHandle basicColumnHandle = collectColumnsByBlockIndex.values().stream().filter(h -> !(((TestingConnectorColumnHandle) h).type() instanceof VarcharType)).findFirst().orElseThrow();
             return baseQueryContext.asBuilder()
                     .matchData(Optional.of(BasicQueryMatchData.builder()
-                            .varadaColumn(new RegularColumn(((TestingConnectorColumnHandle) basicColumnHandle).name()))
+                            .warpColumn(new RegularColumn(((TestingConnectorColumnHandle) basicColumnHandle).name()))
                             .warmUpElement(createWarmUpElementFromColumnHandle(basicColumnHandle, WarmUpType.WARM_UP_TYPE_BASIC))
                             .nativeExpression(NativeExpression.builder()
                                     .predicateType(PredicateType.PREDICATE_TYPE_NONE)
@@ -195,9 +195,9 @@ public class NativeCollectClassifierTest
         NativeCollectClassifier nativeCollectClassifier = createNativeCollectClassifier(numVaradaIntCols, numVaradaStrCols);
         ImmutableMap<Integer, ColumnHandle> collectColumnsByBlockIndex = createCollectColumnsByBlockIndexMap(numIntCols, numStrCols);
         for (ColumnHandle ch : collectColumnsByBlockIndex.values()) {
-            RegularColumn varadaColumn = new RegularColumn(((TestingConnectorColumnHandle) ch).name());
+            RegularColumn warpColumn = new RegularColumn(((TestingConnectorColumnHandle) ch).name());
             Type warmUpType = ((TestingConnectorColumnHandle) ch).type();
-            when(dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(eq(ch))).thenReturn(varadaColumn);
+            when(dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(eq(ch))).thenReturn(warpColumn);
             when(dispatcherProxiedConnectorTransformer.getColumnType(eq(ch))).thenReturn(warmUpType);
         }
         WarmedWarmupTypes warmedWarmupTypes;

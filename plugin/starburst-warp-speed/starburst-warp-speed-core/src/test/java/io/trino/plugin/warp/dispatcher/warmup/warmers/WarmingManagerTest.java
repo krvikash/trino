@@ -29,9 +29,9 @@ import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.model.SchemaTableColumn;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.QueryContext;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WarmData;
@@ -48,8 +48,8 @@ import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngine;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
 import io.trino.plugin.warp.storage.write.StorageWriterService;
-import io.trino.plugin.warp.storage.write.VaradaPageSinkFactory;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
+import io.trino.plugin.warp.storage.write.WarpPageSinkFactory;
 import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.plugin.warp.util.FailureGeneratorInvocationHandler;
@@ -174,11 +174,11 @@ public class WarmingManagerTest
 
     private WarmingManager createWarmingManager()
     {
-        VaradaProxiedWarmer varadaProxiedWarmer = createVaradaProxiedWarmer(metricsManager, globalConfig, new NativeConfig());
+        WarpProxiedWarmer warpProxiedWarmer = createVaradaProxiedWarmer(metricsManager, globalConfig, new NativeConfig());
         EmptyRowGroupWarmer emptyRowGroupWarmer = new EmptyRowGroupWarmer(rowGroupDataService);
         WeGroupWarmer weGroupWarmer = mock(WeGroupWarmer.class);
         return new WarmingManager(
-                varadaProxiedWarmer,
+                warpProxiedWarmer,
                 emptyRowGroupWarmer,
                 globalConfig,
                 cloudVendorConfig,
@@ -189,20 +189,20 @@ public class WarmingManagerTest
                 mock(StorageWarmerService.class));
     }
 
-    private VaradaProxiedWarmer createVaradaProxiedWarmer(
+    private WarpProxiedWarmer createVaradaProxiedWarmer(
             MetricsManager metricsManager,
             GlobalConfig globalConfig,
             NativeConfig nativeConfig)
     {
         StorageEngineTxService storageEngineTxService = new StorageEngineTxService(nativeConfig, metricsManager);
         StorageWriterService storageWriterService = mock(StorageWriterService.class);
-        VaradaPageSinkFactory varadaPageSinkFactory = new VaradaPageSinkFactory(
+        WarpPageSinkFactory warpPageSinkFactory = new WarpPageSinkFactory(
                 mock(FailureGeneratorInvocationHandler.class),
                 storageWriterService,
                 new GlobalConfig());
         ConnectorSync connectorSync = mock(ConnectorSync.class);
         StorageWarmerService storageWarmerService = new StorageWarmerService(rowGroupDataService, storageEngine, globalConfig, mock(WarmupDemoterService.class), storageEngineTxService, mock(FlowsSequencer.class), TestingTxService.createMetricsManager());
-        return new VaradaProxiedWarmer(varadaPageSinkFactory,
+        return new WarpProxiedWarmer(warpPageSinkFactory,
                 dispatcherProxiedConnectorTransformer,
                 nodeManager,
                 connectorSync,
@@ -361,7 +361,7 @@ public class WarmingManagerTest
             index++;
         }
 
-        SetMultimap<VaradaColumn, WarmupProperties> requiredWarmUpTypes = createRequiredWarmUpTypes(columns, warmUpTypeList);
+        SetMultimap<WarpColumn, WarmupProperties> requiredWarmUpTypes = createRequiredWarmUpTypes(columns, warmUpTypeList);
         return new WarmData(columns, requiredWarmUpTypes, WarmExecutionState.WARM, true, mock(QueryContext.class), null);
     }
 
@@ -475,17 +475,17 @@ public class WarmingManagerTest
 
         List<WarmUpElement> warmupElements = recordDataList.stream()
                 .flatMap(recordData -> {
-                    List<Map.Entry<VaradaColumn, WarmupProperties>> list = dataToWarm.requiredWarmUpTypeMap()
+                    List<Map.Entry<WarpColumn, WarmupProperties>> list = dataToWarm.requiredWarmUpTypeMap()
                             .entries()
                             .stream()
-                            .filter(entry -> entry.getKey().equals(recordData.schemaTableColumn().varadaColumn()))
+                            .filter(entry -> entry.getKey().equals(recordData.schemaTableColumn().warpColumn()))
                             .toList();
                     return list.stream()
                             .map(entry -> WarmUpElement.builder()
                                     .warmUpType(entry.getValue().warmUpType())
                                     .recTypeCode(recordData.recTypeCode())
                                     .recTypeLength(recordData.recTypeLength())
-                                    .varadaColumn(entry.getKey())
+                                    .warpColumn(entry.getKey())
                                     .warmupElementStats(new WarmupElementStats(0, Long.MIN_VALUE, Long.MAX_VALUE))
                                     .build());
                 }).toList();
@@ -511,7 +511,7 @@ public class WarmingManagerTest
 
         return dataToWarm.requiredWarmUpTypeMap().entries().stream()
                 .filter(entry -> rowGroupData.getWarmUpElements().stream()
-                        .noneMatch(we -> entry.getKey().equals(we.getVaradaColumn()) &&
+                        .noneMatch(we -> entry.getKey().equals(we.getWarpColumn()) &&
                                 entry.getValue().warmUpType().equals(we.getWarmUpType())))
                 .count();
     }
@@ -538,7 +538,7 @@ public class WarmingManagerTest
     private boolean isRequired(WarmData dataToWarm, WarmUpElement warmUpElement)
     {
         return dataToWarm.requiredWarmUpTypeMap().entries().stream()
-                .anyMatch(entry -> entry.getKey().equals(warmUpElement.getVaradaColumn()) &&
+                .anyMatch(entry -> entry.getKey().equals(warmUpElement.getWarpColumn()) &&
                         entry.getValue().warmUpType().equals(warmUpElement.getWarmUpType()));
     }
 }

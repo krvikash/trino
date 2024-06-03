@@ -28,9 +28,9 @@ import io.trino.plugin.warp.api.warmup.WarmupColRuleData;
 import io.trino.plugin.warp.api.warmup.column.RegularColumnData;
 import io.trino.plugin.warp.api.warmup.column.TransformedColumnData;
 import io.trino.plugin.warp.api.warmup.expression.TransformFunctionData;
-import io.trino.plugin.warp.api.warmup.expression.VaradaExpressionData;
-import io.trino.plugin.warp.api.warmup.expression.VaradaPrimitiveConstantData;
-import io.trino.plugin.warp.di.VaradaStubsStorageEngineModule;
+import io.trino.plugin.warp.api.warmup.expression.WarpExpressionData;
+import io.trino.plugin.warp.api.warmup.expression.WarpPrimitiveConstantData;
+import io.trino.plugin.warp.di.WarpStubsStorageEngineModule;
 import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
 import io.trino.plugin.warp.extension.execution.callhome.CallAllHomesResource;
 import io.trino.plugin.warp.extension.execution.callhome.CallHomeData;
@@ -107,7 +107,7 @@ public class TestDispatcherRestIT
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        return DispatcherQueryRunner.createQueryRunner(new VaradaStubsStorageEngineModule(),
+        return DispatcherQueryRunner.createQueryRunner(new WarpStubsStorageEngineModule(),
                 Optional.empty(), 2,
                 Map.of(),
                 Map.of("http-server.log.enabled", "false",
@@ -210,52 +210,52 @@ public class TestDispatcherRestIT
                         new TransformFunctionData(TransformFunctionData.TransformType.DATE))),
                 Arguments.arguments(new TransformedColumnData("col2",
                         new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
-                                ImmutableList.of(new VaradaPrimitiveConstantData("index", VaradaExpressionData.Type.VARCHAR))))),
+                                ImmutableList.of(new WarpPrimitiveConstantData("index", WarpExpressionData.Type.VARCHAR))))),
                 Arguments.arguments(new TransformedColumnData("col2",
                         new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
-                                ImmutableList.of(new VaradaPrimitiveConstantData(7, VaradaExpressionData.Type.INTEGER))))),
+                                ImmutableList.of(new WarpPrimitiveConstantData(7, WarpExpressionData.Type.INTEGER))))),
                 Arguments.arguments(new TransformedColumnData("col2",
                         new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
-                                ImmutableList.of(new VaradaPrimitiveConstantData("7", VaradaExpressionData.Type.INTEGER))))),
+                                ImmutableList.of(new WarpPrimitiveConstantData("7", WarpExpressionData.Type.INTEGER))))),
                 Arguments.arguments(new TransformedColumnData("col2",
                         new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
-                                ImmutableList.of(new VaradaPrimitiveConstantData(7L, VaradaExpressionData.Type.BIGINT))))),
+                                ImmutableList.of(new WarpPrimitiveConstantData(7L, WarpExpressionData.Type.BIGINT))))),
                 Arguments.arguments(new TransformedColumnData("col2",
                         new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
-                                ImmutableList.of(new VaradaPrimitiveConstantData(7, VaradaExpressionData.Type.BIGINT))))),
+                                ImmutableList.of(new WarpPrimitiveConstantData(7, WarpExpressionData.Type.BIGINT))))),
                 Arguments.arguments(new TransformedColumnData("col2",
                         new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
-                                ImmutableList.of(new VaradaPrimitiveConstantData("7", VaradaExpressionData.Type.BIGINT))))),
+                                ImmutableList.of(new WarpPrimitiveConstantData("7", WarpExpressionData.Type.BIGINT))))),
                 Arguments.arguments(new TransformedColumnData("col2",
                         new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
-                                ImmutableList.of(new VaradaPrimitiveConstantData((short) 7, VaradaExpressionData.Type.SMALLINT))))),
+                                ImmutableList.of(new WarpPrimitiveConstantData((short) 7, WarpExpressionData.Type.SMALLINT))))),
                 Arguments.arguments(new TransformedColumnData("col2",
                         new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
-                                ImmutableList.of(new VaradaPrimitiveConstantData(7, VaradaExpressionData.Type.SMALLINT))))),
+                                ImmutableList.of(new WarpPrimitiveConstantData(7, WarpExpressionData.Type.SMALLINT))))),
                 Arguments.arguments(new TransformedColumnData("col2",
                         new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
-                                ImmutableList.of(new VaradaPrimitiveConstantData("7", VaradaExpressionData.Type.SMALLINT))))),
+                                ImmutableList.of(new WarpPrimitiveConstantData("7", WarpExpressionData.Type.SMALLINT))))),
                 Arguments.arguments(new TransformedColumnData("col2",
                         new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
-                                ImmutableList.of(new VaradaPrimitiveConstantData(7.0, VaradaExpressionData.Type.DOUBLE))))),
+                                ImmutableList.of(new WarpPrimitiveConstantData(7.0, WarpExpressionData.Type.DOUBLE))))),
                 Arguments.arguments(new TransformedColumnData("col2",
                         new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
-                                ImmutableList.of(new VaradaPrimitiveConstantData(7F, VaradaExpressionData.Type.DOUBLE))))),
+                                ImmutableList.of(new WarpPrimitiveConstantData(7F, WarpExpressionData.Type.DOUBLE))))),
                 Arguments.arguments(new TransformedColumnData("col2",
                         new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
-                                ImmutableList.of(new VaradaPrimitiveConstantData("7.0", VaradaExpressionData.Type.DOUBLE))))),
+                                ImmutableList.of(new WarpPrimitiveConstantData("7.0", WarpExpressionData.Type.DOUBLE))))),
                 Arguments.arguments(new TransformedColumnData("col2",
                         new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
-                                ImmutableList.of(new VaradaPrimitiveConstantData(7F, VaradaExpressionData.Type.REAL))))),
+                                ImmutableList.of(new WarpPrimitiveConstantData(7F, WarpExpressionData.Type.REAL))))),
                 Arguments.arguments(new TransformedColumnData("col2",
                         new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
-                                ImmutableList.of(new VaradaPrimitiveConstantData(7.0, VaradaExpressionData.Type.REAL))))),
+                                ImmutableList.of(new WarpPrimitiveConstantData(7.0, WarpExpressionData.Type.REAL))))),
                 Arguments.arguments(new TransformedColumnData("col2",
                         new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
-                                ImmutableList.of(new VaradaPrimitiveConstantData("7.0", VaradaExpressionData.Type.REAL))))),
+                                ImmutableList.of(new WarpPrimitiveConstantData("7.0", WarpExpressionData.Type.REAL))))),
                 Arguments.arguments(new TransformedColumnData("col2",
                         new TransformFunctionData(TransformFunctionData.TransformType.JSON_EXTRACT_SCALAR,
-                                ImmutableList.of(new VaradaPrimitiveConstantData("$.field", VaradaExpressionData.Type.VARCHAR))))));
+                                ImmutableList.of(new WarpPrimitiveConstantData("$.field", WarpExpressionData.Type.VARCHAR))))));
     }
 
     @ParameterizedTest
@@ -332,7 +332,7 @@ public class TestDispatcherRestIT
                 "s1",
                 "t1",
                 new TransformedColumnData("col2", new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
-                        ImmutableList.of(new VaradaPrimitiveConstantData(7, VaradaExpressionData.Type.VARCHAR)))),
+                        ImmutableList.of(new WarpPrimitiveConstantData(7, WarpExpressionData.Type.VARCHAR)))),
                 WarmUpType.WARM_UP_TYPE_BASIC,
                 5,
                 Duration.ofMillis(10),

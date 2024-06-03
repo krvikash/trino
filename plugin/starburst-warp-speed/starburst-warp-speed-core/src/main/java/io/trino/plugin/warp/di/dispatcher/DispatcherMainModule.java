@@ -15,7 +15,7 @@ package io.trino.plugin.warp.di.dispatcher;
 
 import com.google.inject.Binder;
 import io.trino.plugin.warp.di.ExtraModule;
-import io.trino.plugin.warp.di.VaradaBaseModule;
+import io.trino.plugin.warp.di.WarpBaseModule;
 import io.trino.plugin.warp.dictionary.AttachDictionaryService;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.DispatcherAlternativeChooser;
@@ -44,9 +44,9 @@ import io.trino.plugin.warp.dispatcher.warmup.export.WarmupExportingService;
 import io.trino.plugin.warp.dispatcher.warmup.transform.BlockTransformerFactory;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.EmptyRowGroupWarmer;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService;
-import io.trino.plugin.warp.dispatcher.warmup.warmers.VaradaProxiedWarmer;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmingManager;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmupElementsCreator;
+import io.trino.plugin.warp.dispatcher.warmup.warmers.WarpProxiedWarmer;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WeGroupWarmer;
 import io.trino.plugin.warp.juffer.DomainToMapBlockConvertor;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
@@ -55,8 +55,8 @@ import io.trino.plugin.warp.storage.read.CollectTxService;
 import io.trino.plugin.warp.storage.read.StorageCollectorService;
 import io.trino.plugin.warp.storage.read.fill.BlockFillersFactory;
 import io.trino.plugin.warp.storage.write.StorageWriterService;
-import io.trino.plugin.warp.storage.write.VaradaPageSinkFactory;
 import io.trino.plugin.warp.storage.write.WarmupElementStatsService;
+import io.trino.plugin.warp.storage.write.WarpPageSinkFactory;
 import io.trino.plugin.warp.storage.write.appenders.BlockAppenderFactory;
 import io.trino.plugin.warp.storage.write.dictionary.DictionaryWriterFactory;
 import io.trino.plugin.warp.util.FailureGeneratorInvocationHandler;
@@ -85,7 +85,7 @@ public class DispatcherMainModule
     public void configure(Binder binder)
     {
         binder.bind(FailureGeneratorInvocationHandler.class);
-        if (VaradaBaseModule.isWorker(context, config)) {
+        if (WarpBaseModule.isWorker(context, config)) {
             binder.bind(EmptyRowGroupWarmer.class);
             binder.bind(RowGroupDataService.class);
             binder.bind(BlockFillersFactory.class);
@@ -104,7 +104,7 @@ public class DispatcherMainModule
             binder.bind(MatchCollectIdService.class);
             binder.bind(WarmupExportingService.class);
             binder.bind(WorkerTaskExecutorService.class);
-            binder.bind(VaradaProxiedWarmer.class);
+            binder.bind(WarpProxiedWarmer.class);
             binder.bind(WarmupElementsCreator.class);
             binder.bind(WarmExecutionTaskFactory.class);
             binder.bind(WarmingManager.class);
@@ -112,7 +112,7 @@ public class DispatcherMainModule
             binder.bind(WarmupElementsCloudExporter.class);
             binder.bind(DictionaryCacheService.class);
             binder.bind(AttachDictionaryService.class);
-            binder.bind(VaradaPageSinkFactory.class);
+            binder.bind(WarpPageSinkFactory.class);
             binder.bind(DispatcherPageSourceFactory.class);
             binder.bind(ReadErrorHandler.class);
             binder.bind(RowGroupDataDao.class);
@@ -125,12 +125,12 @@ public class DispatcherMainModule
             binder.bind(BlockTransformerFactory.class);
             binder.bind(DomainToMapBlockConvertor.class);
         }
-        if (VaradaBaseModule.isSingle(config)) {
+        if (WarpBaseModule.isSingle(config)) {
             binder.bind(DispatcherConnectorBase.class).to(SingleDispatcherConnector.class);
             binder.bind(CoordinatorDispatcherConnector.class);
             binder.bind(WorkerDispatcherConnector.class);
         }
-        else if (VaradaBaseModule.isCoordinator(context)) {
+        else if (WarpBaseModule.isCoordinator(context)) {
             binder.bind(CacheManager.class).to(CoordinatorCacheManager.class);
             binder.bind(DispatcherConnectorBase.class).to(CoordinatorDispatcherConnector.class);
         }

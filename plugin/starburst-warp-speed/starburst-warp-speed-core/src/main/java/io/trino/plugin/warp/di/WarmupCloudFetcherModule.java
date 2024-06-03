@@ -66,7 +66,7 @@ public class WarmupCloudFetcherModule
         ConfigurationFactory configFactory = new ConfigurationFactory(config);
         WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig = configFactory.build(WarmupRuleCloudFetcherConfig.class);
         if (!StringUtils.isEmpty(warmupRuleCloudFetcherConfig.getStorePath()) &&
-                VaradaBaseModule.isWorker(context, config)) {
+                WarpBaseModule.isWorker(context, config)) {
             configBinder(binder).bindConfig(WarmupRuleCloudFetcherConfig.class, ForWarmupRuleCloudFetcher.class);
             binder.install(
                     CloudVendorModule.getModule(

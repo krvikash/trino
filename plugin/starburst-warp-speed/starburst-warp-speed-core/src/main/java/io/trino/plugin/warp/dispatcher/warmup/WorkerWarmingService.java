@@ -23,7 +23,7 @@ import com.google.common.collect.SetMultimap;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.VaradaSessionProperties;
+import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
@@ -34,9 +34,9 @@ import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.model.TransformedColumn;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.model.WildcardColumn;
 import io.trino.plugin.warp.dispatcher.query.PredicateContext;
 import io.trino.plugin.warp.dispatcher.query.QueryContext;
@@ -86,7 +86,7 @@ public class WorkerWarmingService
     private static final int MAX_BATCH_SIZE = 1024;
 
     public static final Comparator<WarmupRule> warmupRuleComparator =
-            Comparator.comparingInt((WarmupRule o) -> o.getVaradaColumn().getOrder())
+            Comparator.comparingInt((WarmupRule o) -> o.getWarpColumn().getOrder())
                     .thenComparingInt(o -> o.getPredicates().size());
     private static final Logger logger = Logger.get(WorkerWarmingService.class);
 
@@ -226,13 +226,13 @@ public class WorkerWarmingService
         Map<RegularColumn, ColumnHandle> columnNameHandleMap = columns.stream()
                 .collect(Collectors.toMap(dispatcherProxiedConnectorTransformer::getVaradaRegularColumn, Function.identity()));
 
-        Map<VaradaColumn, Map<WarmUpType, WarmupProperties>> requiredWarmupMap = getMatchingRules(dispatcherSplit, columnNameHandleMap);
+        Map<WarpColumn, Map<WarmUpType, WarmupProperties>> requiredWarmupMap = getMatchingRules(dispatcherSplit, columnNameHandleMap);
 
         RowGroupData rowGroupData = rowGroupDataService.get(rowGroupKey);
         WarmDataState warmDataState = getWarmDataState(rowGroupData, requiredWarmupMap);
 
         if (warmDataState.newRequiredWarmUpTypeMap().isEmpty() && canAddDefaultRules(session, queryContext)) {
-            Map<VaradaColumn, Set<WarmupProperties>> colNameToDefaultRules = getDefaultPropertiesRules(columns, queryContext, session);
+            Map<WarpColumn, Set<WarmupProperties>> colNameToDefaultRules = getDefaultPropertiesRules(columns, queryContext, session);
 
             addDefaultRulesToRequiredColumns(requiredWarmupMap, colNameToDefaultRules);
             warmDataState = getWarmDataState(rowGroupData, requiredWarmupMap);
@@ -249,24 +249,24 @@ public class WorkerWarmingService
             }
         }
         WarmExecutionState warmExecutionState = rowGroupData != null && rowGroupData.isEmpty() ? WarmExecutionState.EMPTY_ROW_GROUP : WarmExecutionState.WARM;
-        SetMultimap<VaradaColumn, WarmupProperties> requiredWarmUpTypeMap = warmDataState.newRequiredWarmUpTypeMap();
+        SetMultimap<WarpColumn, WarmupProperties> requiredWarmUpTypeMap = warmDataState.newRequiredWarmUpTypeMap();
         if (warmExecutionState == WarmExecutionState.WARM) {
             // No need to warm in batches in case of empty row group
             requiredWarmUpTypeMap = warmInBatches(warmDataState.newRequiredWarmUpTypeMap(), warmDataState.existingWarmupMap());
         }
         List<ColumnHandle> dispatcherColumnsToWarm = new ArrayList<>();
-        requiredWarmUpTypeMap.keySet().forEach(varadaColumn -> {
-            if (varadaColumn instanceof TransformedColumn transformedColumn) {
-                varadaColumn = new RegularColumn(transformedColumn.getName(), transformedColumn.getColumnId());
+        requiredWarmUpTypeMap.keySet().forEach(warpColumn -> {
+            if (warpColumn instanceof TransformedColumn transformedColumn) {
+                warpColumn = new RegularColumn(transformedColumn.getName(), transformedColumn.getColumnId());
             }
-            if (varadaColumn instanceof RegularColumn regularColumn) {
+            if (warpColumn instanceof RegularColumn regularColumn) {
                 ColumnHandle columnHandle = columnNameHandleMap.get(regularColumn);
                 if (columnHandle != null && !dispatcherColumnsToWarm.contains(columnHandle)) {
                     dispatcherColumnsToWarm.add(columnHandle);
                 }
             }
             else {
-                logger.warn("varadaColumn is not instance of RegularColumn -> %s", varadaColumn);
+                logger.warn("warpColumn is not instance of RegularColumn -> %s", warpColumn);
             }
         });
 
@@ -274,53 +274,53 @@ public class WorkerWarmingService
     }
 
     private WarmDataState getWarmDataState(RowGroupData rowGroupData,
-            Map<VaradaColumn, Map<WarmUpType, WarmupProperties>> requiredlWarmupMap)
+            Map<WarpColumn, Map<WarmUpType, WarmupProperties>> requiredlWarmupMap)
     {
-        SetMultimap<VaradaColumn, WarmupProperties> newRequiredWarmUpTypeMap = HashMultimap.create();
+        SetMultimap<WarpColumn, WarmupProperties> newRequiredWarmUpTypeMap = HashMultimap.create();
         List<WarmUpElement> warmWarmUpElements = new ArrayList<>();
 
         WarmedWarmupTypes warmedWarmupTypes = createExistingWarmupMap(rowGroupData);
 
-        for (VaradaColumn varadaColumn : requiredlWarmupMap.keySet()) {
-            Map<WarmUpType, WarmupProperties> requiredWarmUpTypeToProperties = filterRequiredWarmupByPriority(requiredlWarmupMap.get(varadaColumn));
+        for (WarpColumn warpColumn : requiredlWarmupMap.keySet()) {
+            Map<WarmUpType, WarmupProperties> requiredWarmUpTypeToProperties = filterRequiredWarmupByPriority(requiredlWarmupMap.get(warpColumn));
 
             if (!requiredWarmUpTypeToProperties.isEmpty()) {
-                // Map<WarmUpType, WarmUpElement> existingWarmUpTypeToElement = warmedWarmupTypes.is(varadaColumn, Map.of());
+                // Map<WarmUpType, WarmUpElement> existingWarmUpTypeToElement = warmedWarmupTypes.is(warpColumn, Map.of());
 
-                if (warmedWarmupTypes.isNewColumn(varadaColumn)) {
+                if (warmedWarmupTypes.isNewColumn(warpColumn)) {
                     logger.debug("new column to warm%s. newColumn=%s, warmUpTypes=%s",
                             warmedWarmupTypes.getWarmedColumns().isEmpty() ? "" : " in an existing row group",
-                            varadaColumn,
+                            warpColumn,
                             requiredWarmUpTypeToProperties.keySet());
-                    newRequiredWarmUpTypeMap.putAll(varadaColumn, requiredWarmUpTypeToProperties.values());
+                    newRequiredWarmUpTypeMap.putAll(warpColumn, requiredWarmUpTypeToProperties.values());
                 }
                 else {
                     for (WarmUpType warmUpType : requiredWarmUpTypeToProperties.keySet()) {
                         WarmupProperties warmupProperties = requiredWarmUpTypeToProperties.get(warmUpType);
-                        Optional<WarmUpElement> warmUpElements = warmedWarmupTypes.getByTypeAndColumn(warmUpType, varadaColumn, warmupProperties.transformFunction());
+                        Optional<WarmUpElement> warmUpElements = warmedWarmupTypes.getByTypeAndColumn(warmUpType, warpColumn, warmupProperties.transformFunction());
 
                         if (warmUpElements.isEmpty()) {
-                            logger.debug("new type to warm. varadaColumn=%s, warmUpType=%s", varadaColumn, warmUpType);
-                            newRequiredWarmUpTypeMap.put(varadaColumn, warmupProperties);
+                            logger.debug("new type to warm. warpColumn=%s, warmUpType=%s", warpColumn, warmUpType);
+                            newRequiredWarmUpTypeMap.put(warpColumn, warmupProperties);
                         }
                         warmUpElements.ifPresent(warmUpElement -> {
                             if (warmUpElement.isValid()) {
                                 switch (warmUpElement.getWarmState()) {
-                                    case HOT -> logger.debug("column is already warmed locally - nothing to do. columnName=%s, warmUpType=%s", varadaColumn, warmUpType);
+                                    case HOT -> logger.debug("column is already warmed locally - nothing to do. columnName=%s, warmUpType=%s", warpColumn, warmUpType);
                                     case WARM -> {
-                                        logger.debug("column is warmed on cloud - import. columnName=%s, warmUpType=%s", varadaColumn, warmUpType);
-                                        newRequiredWarmUpTypeMap.put(varadaColumn, warmupProperties);
+                                        logger.debug("column is warmed on cloud - import. columnName=%s, warmUpType=%s", warpColumn, warmUpType);
+                                        newRequiredWarmUpTypeMap.put(warpColumn, warmupProperties);
                                         warmWarmUpElements.add(warmUpElement);
                                     }
                                     default -> logger.warn("unexpected - skip warming. warmUpElement %s", warmUpElement);
                                 }
                             }
                             else if (shouldAllowWarm(warmUpElement)) {
-                                logger.debug("allow warming for varadaColumn=%s, warmUpType=%s", varadaColumn, warmUpType);
-                                newRequiredWarmUpTypeMap.put(varadaColumn, warmupProperties);
+                                logger.debug("allow warming for warpColumn=%s, warmUpType=%s", warpColumn, warmUpType);
+                                newRequiredWarmUpTypeMap.put(warpColumn, warmupProperties);
                             }
                             else {
-                                logger.debug("skip warming for varadaColumn=%s, warmUpType=%s", varadaColumn, warmUpType);
+                                logger.debug("skip warming for warpColumn=%s, warmUpType=%s", warpColumn, warmUpType);
                             }
                         });
                     }
@@ -332,7 +332,7 @@ public class WorkerWarmingService
 
     // Limit the amount of WarmupProperties to warm in a single time.
     // In addition - retry to warm failed warmup elements one by one and only after warming all new warmup elements.
-    private SetMultimap<VaradaColumn, WarmupProperties> warmInBatches(SetMultimap<VaradaColumn, WarmupProperties> newRequiredWarmUpTypeMap,
+    private SetMultimap<WarpColumn, WarmupProperties> warmInBatches(SetMultimap<WarpColumn, WarmupProperties> newRequiredWarmUpTypeMap,
             WarmedWarmupTypes existingWarmupMap)
     {
         int originalSize = newRequiredWarmUpTypeMap.size();
@@ -341,15 +341,15 @@ public class WorkerWarmingService
         if (newRequiredWarmUpTypeMap.size() > batchSize) {
             AtomicInteger elementsToRemove = new AtomicInteger(newRequiredWarmUpTypeMap.size() - batchSize);
             while (elementsToRemove.get() > 0) {
-                VaradaColumn varadaColumn = newRequiredWarmUpTypeMap.keys().stream().findAny().orElseThrow();
-                Set<WarmupProperties> warmupProperties = newRequiredWarmUpTypeMap.get(varadaColumn);
+                WarpColumn warpColumn = newRequiredWarmUpTypeMap.keys().stream().findAny().orElseThrow();
+                Set<WarmupProperties> warmupProperties = newRequiredWarmUpTypeMap.get(warpColumn);
                 warmupProperties.removeIf(x -> elementsToRemove.getAndDecrement() > 0);
             }
         }
 
         // WarmedWarmupTypes warmedWarmupTypes = null;
         // retry to warm failed warmup elements one by one and only after warming all new warmup elements
-        SetMultimap<VaradaColumn, WarmupProperties> actualProxiedElementsToWarm = newRequiredWarmUpTypeMap.entries().stream()
+        SetMultimap<WarpColumn, WarmupProperties> actualProxiedElementsToWarm = newRequiredWarmUpTypeMap.entries().stream()
                 .filter(entry -> !existingWarmupMap.contains(entry.getKey(), entry.getValue().warmUpType(), entry.getValue().transformFunction()))
                 .collect(Multimaps.toMultimap(Map.Entry::getKey, Map.Entry::getValue, HashMultimap::create));
         if (actualProxiedElementsToWarm.isEmpty()) {
@@ -363,7 +363,7 @@ public class WorkerWarmingService
         }
 
         if (logger.isDebugEnabled() && originalSize != actualProxiedElementsToWarm.size()) {
-            SetMultimap<VaradaColumn, WarmupProperties> finalActualProxiedElementsToWarm = actualProxiedElementsToWarm;
+            SetMultimap<WarpColumn, WarmupProperties> finalActualProxiedElementsToWarm = actualProxiedElementsToWarm;
             logger.debug("Splitting warmup into batches. Current batch: %s. Remaining: %s",
                     actualProxiedElementsToWarm.entries().stream()
                             .map(entry -> entry.getKey() + ":" + entry.getValue().warmUpType())
@@ -395,7 +395,7 @@ public class WorkerWarmingService
             return !warmUpElement.isHot();
         }
         if (WarmUpElementState.State.FAILED_PERMANENTLY.equals(state)) {
-            logger.debug("won't retry to warm a permanent failed warmUpElement. columnKey=%s, warmUpType=%s", warmUpElement.getVaradaColumn().getName(), warmUpElement.getWarmUpType());
+            logger.debug("won't retry to warm a permanent failed warmUpElement. columnKey=%s, warmUpType=%s", warmUpElement.getWarpColumn().getName(), warmUpElement.getWarmUpType());
             statsWarmingService.incwarm_skip_permanent_failed_warmup_element();
             return false;
         }
@@ -414,11 +414,11 @@ public class WorkerWarmingService
 
         if (backoffElapsed) {
             logger.debug("will retry to warm a failed warmUpElement (failed %d / %d times). columnKey=%s, warmUpType=%s",
-                    temporaryFailureCount, globalConfig.getMaxWarmRetries(), warmUpElement.getVaradaColumn().getName(), warmUpElement.getWarmUpType());
+                    temporaryFailureCount, globalConfig.getMaxWarmRetries(), warmUpElement.getWarpColumn().getName(), warmUpElement.getWarmUpType());
         }
         else {
             logger.debug("won't retry to warm a temporary failed warmUpElement, backoff is until timestamp %f. columnKey=%s, warmUpType=%s",
-                    nextAttemptTime, warmUpElement.getVaradaColumn().getName(), warmUpElement.getWarmUpType());
+                    nextAttemptTime, warmUpElement.getWarpColumn().getName(), warmUpElement.getWarmUpType());
             statsWarmingService.incwarm_skip_temporary_failed_warmup_element();
         }
 
@@ -443,7 +443,7 @@ public class WorkerWarmingService
 
     private boolean isDefaultWarmingEnabled(ConnectorSession session, int collectColumnsCount)
     {
-        Boolean sessionEnabled = VaradaSessionProperties.isDefaultWarmingEnabled(session);
+        Boolean sessionEnabled = WarpSessionProperties.isDefaultWarmingEnabled(session);
         boolean defaultWarmingEnabled = sessionEnabled != null ? sessionEnabled : globalConfig.isEnableDefaultWarming();
         if (defaultWarmingEnabled) {
             int maxElementsToCollect = globalConfig.getMaxCollectColumnsSkipDefaultWarming();
@@ -452,32 +452,32 @@ public class WorkerWarmingService
         return false;
     }
 
-    private Map<VaradaColumn, Set<WarmupProperties>> getDefaultPropertiesRules(List<ColumnHandle> columns,
+    private Map<WarpColumn, Set<WarmupProperties>> getDefaultPropertiesRules(List<ColumnHandle> columns,
             QueryContext queryContext,
             ConnectorSession session)
     {
-        Map<VaradaColumn, Type> columnNameToColumnType = columns
+        Map<WarpColumn, Type> columnNameToColumnType = columns
                 .stream()
                 .filter(c -> !(dispatcherProxiedConnectorTransformer.getColumnType(c) instanceof MapType))
                 .collect(Collectors.toMap(
                         dispatcherProxiedConnectorTransformer::getVaradaRegularColumn,
                         dispatcherProxiedConnectorTransformer::getColumnType));
-        Map<VaradaColumn, Set<WarmupProperties>> result = new HashMap<>();
-        Set<VaradaColumn> varadaColumns = new HashSet<>(queryContext.getPredicateContextData().getRemainingColumns());
-        if (VaradaSessionProperties.isDefaultWarmingIndex(session)) {
-            varadaColumns.addAll(columnNameToColumnType.keySet());
+        Map<WarpColumn, Set<WarmupProperties>> result = new HashMap<>();
+        Set<WarpColumn> warpColumns = new HashSet<>(queryContext.getPredicateContextData().getRemainingColumns());
+        if (WarpSessionProperties.isDefaultWarmingIndex(session)) {
+            warpColumns.addAll(columnNameToColumnType.keySet());
         }
 
         if (!globalConfig.isDataOnlyWarming()) {
-            varadaColumns.forEach(varadaColumn -> {
+            warpColumns.forEach(warpColumn -> {
                 Set<WarmupProperties> properties = new HashSet<>();
                 PredicateContextData predicateContextData = queryContext.getPredicateContextData();
-                Type type = columnNameToColumnType.get(varadaColumn);
+                Type type = columnNameToColumnType.get(warpColumn);
                 if (TypeUtils.isWarmLuceneSupported(type) &&
-                        predicateContextData.isLuceneColumn(varadaColumn)) {
+                        predicateContextData.isLuceneColumn(warpColumn)) {
                     properties.add(defaultRules.get(WarmUpType.WARM_UP_TYPE_LUCENE));
                 }
-                else if (varadaColumn instanceof TransformedColumn transformedColumn) {
+                else if (warpColumn instanceof TransformedColumn transformedColumn) {
                     // we already validated that TransformedColumn isWarmBasicSupported at Coordinator.
                     WarmupProperties warmingProperty = new WarmupProperties(WarmUpType.WARM_UP_TYPE_BASIC,
                             warmupDemoterConfig.getDefaultRulePriority(),
@@ -487,7 +487,7 @@ public class WorkerWarmingService
                 }
                 else {
                     if (isWarmBasicSupported(type)) {
-                        List<PredicateContext> remainingPredicatesByColumn = queryContext.getPredicateContextData().getRemainingPredicatesByColumn((RegularColumn) varadaColumn);
+                        List<PredicateContext> remainingPredicatesByColumn = queryContext.getPredicateContextData().getRemainingPredicatesByColumn((RegularColumn) warpColumn);
                         if (remainingPredicatesByColumn.isEmpty()) {
                             //in case of default warming + default index, we will warm default column with basic
                             properties.add(defaultRules.get(WarmUpType.WARM_UP_TYPE_BASIC));
@@ -501,7 +501,7 @@ public class WorkerWarmingService
                     }
                 }
                 if (!properties.isEmpty()) {
-                    result.put(varadaColumn, properties);
+                    result.put(warpColumn, properties);
                 }
             });
         }
@@ -509,24 +509,24 @@ public class WorkerWarmingService
                 .stream()
                 .filter(column -> TypeUtils.isWarmDataSupported(columnNameToColumnType.get(dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(column))))
                 .forEach(column -> {
-                    RegularColumn varadaColumn = dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(column);
-                    Set<WarmupProperties> properties = result.computeIfAbsent(varadaColumn, v -> new HashSet<>());
+                    RegularColumn warpColumn = dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(column);
+                    Set<WarmupProperties> properties = result.computeIfAbsent(warpColumn, v -> new HashSet<>());
                     properties.add(defaultRules.get(WarmUpType.WARM_UP_TYPE_DATA));
                 });
         return result;
     }
 
-    private Map<VaradaColumn, Map<WarmUpType, WarmupProperties>> getMatchingRules(DispatcherSplit dispatcherSplit,
-            Map<RegularColumn, ColumnHandle> varadaColumnToColumnHandle)
+    private Map<WarpColumn, Map<WarmUpType, WarmupProperties>> getMatchingRules(DispatcherSplit dispatcherSplit,
+            Map<RegularColumn, ColumnHandle> warpColumnToColumnHandle)
     {
         Map<RegularColumn, String> partitionKeysMap = dispatcherSplit.getPartitionKeys().stream().collect(Collectors.toMap(PartitionKey::regularColumn, PartitionKey::partitionValue));
         List<WarmupRule> schemaAndTableRules = workerWarmupRuleService.getWarmupRules(new SchemaTableName(dispatcherSplit.getSchemaName(), dispatcherSplit.getTableName()));
-        Map<VaradaColumn, Map<WarmUpType, WarmupProperties>> matchingRules = new HashMap<>();
-        Map<String, ColumnHandle> columnNameToColumnHandle = varadaColumnToColumnHandle.entrySet().stream().collect(Collectors.toMap(x -> x.getKey().getName(), Map.Entry::getValue));
+        Map<WarpColumn, Map<WarmUpType, WarmupProperties>> matchingRules = new HashMap<>();
+        Map<String, ColumnHandle> columnNameToColumnHandle = warpColumnToColumnHandle.entrySet().stream().collect(Collectors.toMap(x -> x.getKey().getName(), Map.Entry::getValue));
 
         for (WarmupRule warmupRule : schemaAndTableRules.stream().sorted(warmupRuleComparator).toList()) {
-            if (!(warmupRule.getVaradaColumn() instanceof WildcardColumn) &&
-                    !columnNameToColumnHandle.containsKey(warmupRule.getVaradaColumn().getName())) {
+            if (!(warmupRule.getWarpColumn() instanceof WildcardColumn) &&
+                    !columnNameToColumnHandle.containsKey(warmupRule.getWarpColumn().getName())) {
                 continue;
             }
             if (!(partitionKeysMap.isEmpty() ||
@@ -535,37 +535,37 @@ public class WorkerWarmingService
                 continue;
             }
 
-            List<VaradaColumn> varadaColumns;
-            if (warmupRule.getVaradaColumn() instanceof WildcardColumn) {
-                varadaColumns = columnNameToColumnHandle.values()
+            List<WarpColumn> warpColumns;
+            if (warmupRule.getWarpColumn() instanceof WildcardColumn) {
+                warpColumns = columnNameToColumnHandle.values()
                         .stream()
                         .map(dispatcherProxiedConnectorTransformer::getVaradaRegularColumn)
                         .collect(Collectors.toList());
             }
             else {
-                ColumnHandle columnHandle = columnNameToColumnHandle.get(warmupRule.getVaradaColumn().getName());
+                ColumnHandle columnHandle = columnNameToColumnHandle.get(warmupRule.getWarpColumn().getName());
                 RegularColumn regularColumn = dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(columnHandle);
 
-                if (warmupRule.getVaradaColumn() instanceof TransformedColumn warmupRuleColumn) {
+                if (warmupRule.getWarpColumn() instanceof TransformedColumn warmupRuleColumn) {
                     TransformedColumn transformedColumn =
                             new TransformedColumn(regularColumn.getName(), regularColumn.getColumnId(), warmupRuleColumn.getTransformFunction());
-                    varadaColumns = List.of(transformedColumn);
+                    warpColumns = List.of(transformedColumn);
                 }
                 else {
-                    varadaColumns = List.of(regularColumn);
+                    warpColumns = List.of(regularColumn);
                 }
             }
 
-            varadaColumns.stream()
-                    .filter(varadaColumn -> {
-                        List<ColumnHandle> columnHandles = List.of(columnNameToColumnHandle.get(varadaColumn.getName()));
+            warpColumns.stream()
+                    .filter(warpColumn -> {
+                        List<ColumnHandle> columnHandles = List.of(columnNameToColumnHandle.get(warpColumn.getName()));
                         return columnHandles.stream()
                                 .allMatch(columnHandle -> warmupTypeValidators.getOrDefault(warmupRule.getWarmUpType(), x -> false)
                                         .test(dispatcherProxiedConnectorTransformer.getColumnType(columnHandle)));
                     })
-                    .forEach(varadaColumn -> {
-                        Map<WarmUpType, WarmupProperties> warmUpTypeToProperties = matchingRules.computeIfAbsent(varadaColumn, c -> new HashMap<>());
-                        TransformFunction transformFunction = (varadaColumn instanceof TransformedColumn transformedColumn) ?
+                    .forEach(warpColumn -> {
+                        Map<WarmUpType, WarmupProperties> warmUpTypeToProperties = matchingRules.computeIfAbsent(warpColumn, c -> new HashMap<>());
+                        TransformFunction transformFunction = (warpColumn instanceof TransformedColumn transformedColumn) ?
                                 transformedColumn.getTransformFunction() : TransformFunction.NONE;
                         warmUpTypeToProperties.put(warmupRule.getWarmUpType(),
                                 new WarmupProperties(warmupRule.getWarmUpType(), warmupRule.getPriority(), warmupRule.getTtl(), transformFunction));
@@ -575,9 +575,9 @@ public class WorkerWarmingService
         return matchingRules;
     }
 
-    private void addDefaultRulesToRequiredColumns(Map<VaradaColumn, Map<WarmUpType, WarmupProperties>> requiredWarmUpTypeMap, Map<VaradaColumn, Set<WarmupProperties>> colNameToDefaultRules)
+    private void addDefaultRulesToRequiredColumns(Map<WarpColumn, Map<WarmUpType, WarmupProperties>> requiredWarmUpTypeMap, Map<WarpColumn, Set<WarmupProperties>> colNameToDefaultRules)
     {
-        for (Map.Entry<VaradaColumn, Set<WarmupProperties>> defaultRules : colNameToDefaultRules.entrySet()) {
+        for (Map.Entry<WarpColumn, Set<WarmupProperties>> defaultRules : colNameToDefaultRules.entrySet()) {
             if (requiredWarmUpTypeMap.containsKey(defaultRules.getKey())) {
                 Map<WarmUpType, WarmupProperties> requiredWarmUpTypeToProperties = requiredWarmUpTypeMap.get(defaultRules.getKey());
                 defaultRules.getValue().forEach(defaultRuleWarmupProperties -> {
@@ -626,7 +626,7 @@ public class WorkerWarmingService
 
     WarmData updateWarmData(RowGroupData rowGroupData, WarmData warmData)
     {
-        SetMultimap<VaradaColumn, WarmupProperties> newRequiredWarmUpTypeMap =
+        SetMultimap<WarpColumn, WarmupProperties> newRequiredWarmUpTypeMap =
                 getRequiredWarmUpTypeMap(warmData.requiredWarmUpTypeMap(), rowGroupData.getWarmUpElements());
 
         return new WarmData(getColumnHandleList(warmData.columnHandleList(), newRequiredWarmUpTypeMap.keySet()),
@@ -637,31 +637,31 @@ public class WorkerWarmingService
                 null);
     }
 
-    private SetMultimap<VaradaColumn, WarmupProperties> getRequiredWarmUpTypeMap(SetMultimap<VaradaColumn, WarmupProperties> requiredWarmUpTypeMap,
+    private SetMultimap<WarpColumn, WarmupProperties> getRequiredWarmUpTypeMap(SetMultimap<WarpColumn, WarmupProperties> requiredWarmUpTypeMap,
             Collection<WarmUpElement> warmUpElements)
     {
-        Map<VaradaColumn, Map<WarmUpType, WarmupProperties>> requiredWarmupMap = new HashMap<>();
-        for (Map.Entry<VaradaColumn, WarmupProperties> entry : requiredWarmUpTypeMap.entries()) {
+        Map<WarpColumn, Map<WarmUpType, WarmupProperties>> requiredWarmupMap = new HashMap<>();
+        for (Map.Entry<WarpColumn, WarmupProperties> entry : requiredWarmUpTypeMap.entries()) {
             Map<WarmUpType, WarmupProperties> existingWarmUpTypeToProperties = requiredWarmupMap.computeIfAbsent(entry.getKey(), c -> new HashMap<>());
             existingWarmUpTypeToProperties.put(entry.getValue().warmUpType(), entry.getValue());
         }
 
-        Map<VaradaColumn, Map<WarmUpType, WarmUpElement>> existingWarmupMap = new HashMap<>();
+        Map<WarpColumn, Map<WarmUpType, WarmUpElement>> existingWarmupMap = new HashMap<>();
         for (WarmUpElement warmUpElement : warmUpElements) {
-            Map<WarmUpType, WarmUpElement> existingWarmUpTypeToElement = existingWarmupMap.computeIfAbsent(warmUpElement.getVaradaColumn(), c -> new HashMap<>());
+            Map<WarmUpType, WarmUpElement> existingWarmUpTypeToElement = existingWarmupMap.computeIfAbsent(warmUpElement.getWarpColumn(), c -> new HashMap<>());
             existingWarmUpTypeToElement.put(warmUpElement.getWarmUpType(), warmUpElement);
         }
 
-        SetMultimap<VaradaColumn, WarmupProperties> newRequiredWarmUpTypeMap = HashMultimap.create();
-        for (Map.Entry<VaradaColumn, Map<WarmUpType, WarmupProperties>> requiredlWarmupEntry : requiredWarmupMap.entrySet()) {
-            VaradaColumn varadaColumn = requiredlWarmupEntry.getKey();
+        SetMultimap<WarpColumn, WarmupProperties> newRequiredWarmUpTypeMap = HashMultimap.create();
+        for (Map.Entry<WarpColumn, Map<WarmUpType, WarmupProperties>> requiredlWarmupEntry : requiredWarmupMap.entrySet()) {
+            WarpColumn warpColumn = requiredlWarmupEntry.getKey();
             Map<WarmUpType, WarmupProperties> warmupPropertiesMap = requiredlWarmupEntry.getValue();
 
-            Map<WarmUpType, WarmUpElement> warmUpElementMap = existingWarmupMap.get(varadaColumn);
+            Map<WarmUpType, WarmUpElement> warmUpElementMap = existingWarmupMap.get(warpColumn);
 
             if (warmUpElementMap == null) {
                 for (WarmupProperties warmupProperties : warmupPropertiesMap.values()) {
-                    newRequiredWarmUpTypeMap.put(varadaColumn, warmupProperties);
+                    newRequiredWarmUpTypeMap.put(warpColumn, warmupProperties);
                 }
                 continue;
             }
@@ -670,22 +670,22 @@ public class WorkerWarmingService
                 WarmUpElement warmUpElement = warmUpElementMap.get(warmupPropertiesEntry.getKey());
 
                 if ((warmUpElement == null) || shouldAllowWarm(warmUpElement)) {
-                    newRequiredWarmUpTypeMap.put(varadaColumn, warmupPropertiesEntry.getValue());
+                    newRequiredWarmUpTypeMap.put(warpColumn, warmupPropertiesEntry.getValue());
                 }
             }
         }
         return newRequiredWarmUpTypeMap;
     }
 
-    private List<ColumnHandle> getColumnHandleList(List<ColumnHandle> columnHandleList, Set<VaradaColumn> columnSet)
+    private List<ColumnHandle> getColumnHandleList(List<ColumnHandle> columnHandleList, Set<WarpColumn> columnSet)
     {
         Map<RegularColumn, ColumnHandle> columnNameHandleMap = columnHandleList.stream()
                 .collect(Collectors.toMap(dispatcherProxiedConnectorTransformer::getVaradaRegularColumn, Function.identity()));
 
         List<ColumnHandle> dispatcherColumnsToWarm = new ArrayList<>();
 
-        columnSet.forEach(varadaColumn -> {
-            ColumnHandle columnHandle = columnNameHandleMap.get(varadaColumn);
+        columnSet.forEach(warpColumn -> {
+            ColumnHandle columnHandle = columnNameHandleMap.get(warpColumn);
 
             if (columnHandle != null) {
                 dispatcherColumnsToWarm.add(columnHandle);
@@ -695,7 +695,7 @@ public class WorkerWarmingService
     }
 
     private record WarmDataState(
-            @SuppressWarnings("unused") SetMultimap<VaradaColumn, WarmupProperties> newRequiredWarmUpTypeMap,
+            @SuppressWarnings("unused") SetMultimap<WarpColumn, WarmupProperties> newRequiredWarmUpTypeMap,
             @SuppressWarnings("unused") List<WarmUpElement> warmWarmUpElements,
             @SuppressWarnings("unused") WarmedWarmupTypes existingWarmupMap) {}
 }

@@ -16,7 +16,7 @@ package io.trino.plugin.warp.metrics;
 import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
 import io.trino.plugin.warp.config.MetricsConfig;
-import io.trino.plugin.warp.di.VaradaInitializedServiceRegistry;
+import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -54,7 +54,7 @@ public class ScheduledMetricsHandlerTest
             }
         });
 
-        ScheduledMetricsHandler scheduledMetricsHandler = new ScheduledMetricsHandler(metricsTimerTasks, new VaradaInitializedServiceRegistry());
+        ScheduledMetricsHandler scheduledMetricsHandler = new ScheduledMetricsHandler(metricsTimerTasks, new WarpInitializedServiceRegistry());
         scheduledMetricsHandler.init();
         Failsafe.with(RetryPolicy.builder()
                         .handle(AssertionError.class)

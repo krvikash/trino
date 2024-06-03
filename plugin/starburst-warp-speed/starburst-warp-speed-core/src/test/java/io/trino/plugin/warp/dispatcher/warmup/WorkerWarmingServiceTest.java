@@ -26,8 +26,8 @@ import io.trino.plugin.warp.dispatcher.DispatcherSplit;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.model.WildcardColumn;
 import io.trino.plugin.warp.dispatcher.query.QueryContext;
 import io.trino.plugin.warp.dispatcher.query.classifier.PredicateContextData;
@@ -36,7 +36,7 @@ import io.trino.plugin.warp.dispatcher.warmup.demoter.AcquireWarmupStatus;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService;
 import io.trino.plugin.warp.expression.TransformFunction;
-import io.trino.plugin.warp.expression.VaradaPrimitiveConstant;
+import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
@@ -73,8 +73,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static io.trino.plugin.warp.VaradaSessionProperties.ENABLE_DEFAULT_WARMING;
-import static io.trino.plugin.warp.VaradaSessionProperties.ENABLE_DEFAULT_WARMING_INDEX;
+import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_DEFAULT_WARMING;
+import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_DEFAULT_WARMING_INDEX;
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.createWarmupRules;
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.generateRowGroupData;
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.mockColumns;
@@ -94,8 +94,8 @@ import static org.mockito.Mockito.when;
 public class WorkerWarmingServiceTest
 {
     private static final RowGroupData ROW_GROUP_NOT_EXIST = null;
-    private static final VaradaColumn COLUMN1 = new RegularColumn("c1");
-    private static final VaradaColumn COLUMN2 = new RegularColumn("c2");
+    private static final WarpColumn COLUMN1 = new RegularColumn("c1");
+    private static final WarpColumn COLUMN2 = new RegularColumn("c2");
     private final SchemaTableName defaultSchemaTableName = new SchemaTableName("database", "table");
     private MetricsManager metricsManager;
     private WarmingServiceStats warmingServiceStats;
@@ -133,7 +133,7 @@ public class WorkerWarmingServiceTest
     {
         WarmupDemoterService warmupDemoterService = mockWarmupDemoterService(false, AcquireWarmupStatus.SUCCESS);
         List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer, List.of(Pair.of(COLUMN1.getName(), VarcharType.VARCHAR)));
-        SetMultimap<VaradaColumn, WarmUpType> columnNameToWarmUpType = HashMultimap.create();
+        SetMultimap<WarpColumn, WarmUpType> columnNameToWarmUpType = HashMultimap.create();
         columnNameToWarmUpType.putAll(COLUMN1, List.of(WARM_UP_TYPE_BASIC, WARM_UP_TYPE_DATA));
 
         List<WarmupRule> warmupRules = createWarmupRules(columnNameToWarmUpType, defaultSchemaTableName);
@@ -163,7 +163,7 @@ public class WorkerWarmingServiceTest
         WarmupDemoterService warmupDemoterService = mockWarmupDemoterService(false, AcquireWarmupStatus.SUCCESS);
 
         List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer, List.of(Pair.of(COLUMN1.getName(), VarcharType.VARCHAR)));
-        SetMultimap<VaradaColumn, WarmUpType> columnNameToWarmUpType = HashMultimap.create();
+        SetMultimap<WarpColumn, WarmUpType> columnNameToWarmUpType = HashMultimap.create();
         columnNameToWarmUpType.putAll(COLUMN1, List.of(WARM_UP_TYPE_BASIC, WARM_UP_TYPE_DATA));
 
         List<WarmupRule> warmupRules = createWarmupRules(columnNameToWarmUpType, defaultSchemaTableName);
@@ -189,7 +189,7 @@ public class WorkerWarmingServiceTest
     {
         WarmupDemoterService warmupDemoterService = mockWarmupDemoterService(false, AcquireWarmupStatus.SUCCESS);
 
-        VaradaColumn expectedNotToWarmColumn = new RegularColumn("c3");
+        WarpColumn expectedNotToWarmColumn = new RegularColumn("c3");
         List<ColumnHandle> allColumns = mockColumns(dispatcherProxiedConnectorTransformer,
                 List.of(Pair.of(COLUMN1.getName(), VarcharType.VARCHAR),
                         Pair.of(COLUMN2.getName(), IntegerType.INTEGER),
@@ -203,7 +203,7 @@ public class WorkerWarmingServiceTest
                 .schema(defaultSchemaTableName.getSchemaName())
                 .table(defaultSchemaTableName.getTableName())
                 .warmUpType(WARM_UP_TYPE_BASIC)
-                .varadaColumn(new WildcardColumn())
+                .warpColumn(new WildcardColumn())
                 .priority(2)
                 .ttl(2)
                 .predicates(Set.of())
@@ -243,7 +243,7 @@ public class WorkerWarmingServiceTest
         WarmupDemoterService warmupDemoterService = mockWarmupDemoterService(false, AcquireWarmupStatus.SUCCESS);
         List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer, List.of(Pair.of(COLUMN1.getName(), VarcharType.VARCHAR),
                 Pair.of(COLUMN2.getName(), VarcharType.VARCHAR)));
-        SetMultimap<VaradaColumn, WarmUpType> columnNameToWarmUpType = HashMultimap.create();
+        SetMultimap<WarpColumn, WarmUpType> columnNameToWarmUpType = HashMultimap.create();
         columnNameToWarmUpType.putAll(COLUMN1, List.of(WarmUpType.WARM_UP_TYPE_BASIC));
 
         List<WarmupRule> warmupRules = createWarmupRules(columnNameToWarmUpType, defaultSchemaTableName);
@@ -284,7 +284,7 @@ public class WorkerWarmingServiceTest
         WarmupDemoterService warmupDemoterService = mockWarmupDemoterService(false, AcquireWarmupStatus.SUCCESS);
         List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer, List.of(Pair.of(COLUMN1.getName(), VarcharType.VARCHAR),
                 Pair.of(COLUMN2.getName(), VarcharType.VARCHAR)));
-        SetMultimap<VaradaColumn, WarmUpType> columnNameToWarmUpType = HashMultimap.create();
+        SetMultimap<WarpColumn, WarmUpType> columnNameToWarmUpType = HashMultimap.create();
         columnNameToWarmUpType.putAll(COLUMN1, List.of(WARM_UP_TYPE_BASIC));
 
         List<WarmupRule> warmupRules = createWarmupRules(columnNameToWarmUpType, defaultSchemaTableName);
@@ -336,7 +336,7 @@ public class WorkerWarmingServiceTest
                 rowGroupKey,
                 false);
 
-        QueryContext queryContext = new QueryContext(new PredicateContextData(ImmutableMap.of(), VaradaPrimitiveConstant.TRUE), ImmutableList.of(), 0, true);
+        QueryContext queryContext = new QueryContext(new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE), ImmutableList.of(), 0, true);
         queryContext = queryContext.asBuilder().matchData(Optional.empty()).build();
         WarmData warmData = act(columns,
                 rowGroupData,
@@ -404,7 +404,7 @@ public class WorkerWarmingServiceTest
         WarmupDemoterService warmupDemoterService = mockWarmupDemoterService(false, AcquireWarmupStatus.SUCCESS);
         List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer,
                 List.of(Pair.of(COLUMN1.getName(), VarcharType.VARCHAR)));
-        SetMultimap<VaradaColumn, WarmUpType> columnNameToWarmUpType = HashMultimap.create();
+        SetMultimap<WarpColumn, WarmUpType> columnNameToWarmUpType = HashMultimap.create();
         columnNameToWarmUpType.putAll(COLUMN1, List.of(WARM_UP_TYPE_BASIC,
                 WARM_UP_TYPE_DATA));
 
@@ -437,7 +437,7 @@ public class WorkerWarmingServiceTest
                 List.of(Pair.of(COLUMN1.getName(), VarcharType.VARCHAR),
                         Pair.of(COLUMN2.getName(), VarcharType.VARCHAR)));
 
-        SetMultimap<VaradaColumn, WarmUpType> columnNameToWarmUpType = HashMultimap.create();
+        SetMultimap<WarpColumn, WarmUpType> columnNameToWarmUpType = HashMultimap.create();
         columnNameToWarmUpType.putAll(COLUMN1, List.of(WARM_UP_TYPE_DATA,
                 WARM_UP_TYPE_BASIC));
         columnNameToWarmUpType.putAll(COLUMN2, List.of(WARM_UP_TYPE_BASIC,
@@ -474,7 +474,7 @@ public class WorkerWarmingServiceTest
         WarmupDemoterService warmupDemoterService = mockWarmupDemoterService(false, AcquireWarmupStatus.SUCCESS);
         List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer,
                 List.of(Pair.of(COLUMN1.getName(), VarcharType.VARCHAR)));
-        SetMultimap<VaradaColumn, WarmUpType> columnNameToWarmUpType = HashMultimap.create();
+        SetMultimap<WarpColumn, WarmUpType> columnNameToWarmUpType = HashMultimap.create();
         columnNameToWarmUpType.putAll(COLUMN1, List.of(WARM_UP_TYPE_BASIC,
                 WARM_UP_TYPE_DATA,
                 WarmUpType.WARM_UP_TYPE_LUCENE));
@@ -503,7 +503,7 @@ public class WorkerWarmingServiceTest
         WarmupDemoterService warmupDemoterService = mockWarmupDemoterService(false, AcquireWarmupStatus.SUCCESS);
         List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer,
                 List.of(Pair.of(COLUMN2.getName(), VarcharType.VARCHAR)));
-        SetMultimap<VaradaColumn, WarmUpType> columnNameToWarmUpType = HashMultimap.create();
+        SetMultimap<WarpColumn, WarmUpType> columnNameToWarmUpType = HashMultimap.create();
         columnNameToWarmUpType.putAll(COLUMN1, List.of(WARM_UP_TYPE_BASIC));
 
         List<WarmupRule> warmupRules = createWarmupRules(columnNameToWarmUpType, defaultSchemaTableName);
@@ -814,7 +814,7 @@ public class WorkerWarmingServiceTest
                 List.of(Pair.of(COLUMN1.getName(), VarcharType.VARCHAR),
                         Pair.of(COLUMN2.getName(), VarcharType.VARCHAR)));
 
-        SetMultimap<VaradaColumn, WarmUpType> columnNameToWarmUpType = HashMultimap.create();
+        SetMultimap<WarpColumn, WarmUpType> columnNameToWarmUpType = HashMultimap.create();
         columnNameToWarmUpType.putAll(COLUMN1, List.of(WARM_UP_TYPE_DATA));
         columnNameToWarmUpType.putAll(COLUMN2, List.of(WARM_UP_TYPE_BASIC));
 
@@ -838,7 +838,7 @@ public class WorkerWarmingServiceTest
         List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer,
                 List.of(Pair.of(COLUMN1.getName(), VarcharType.VARCHAR)));
 
-        SetMultimap<VaradaColumn, WarmUpType> columnNameToWarmUpType = HashMultimap.create();
+        SetMultimap<WarpColumn, WarmUpType> columnNameToWarmUpType = HashMultimap.create();
         columnNameToWarmUpType.putAll(COLUMN1, List.of(WARM_UP_TYPE_DATA,
                 WarmUpType.WARM_UP_TYPE_LUCENE,
                 WARM_UP_TYPE_BASIC));
@@ -861,7 +861,7 @@ public class WorkerWarmingServiceTest
         WarmupRule warmupRuleRegularColumn = WarmupRule.builder()
                 .schema(defaultSchemaTableName.getSchemaName())
                 .table(defaultSchemaTableName.getTableName())
-                .varadaColumn(new RegularColumn("1"))
+                .warpColumn(new RegularColumn("1"))
                 .warmUpType(WARM_UP_TYPE_DATA)
                 .priority(1)
                 .ttl(0)
@@ -871,7 +871,7 @@ public class WorkerWarmingServiceTest
                 .predicates(Set.of(new PartitionValueWarmupPredicateRule("c1", "val1")))
                 .build();
         WarmupRule warmupRuleWildcardColumn = WarmupRule.builder(warmupRuleRegularColumn)
-                .varadaColumn(new WildcardColumn())
+                .warpColumn(new WildcardColumn())
                 .build();
         WarmupRule warmupRuleWildcardColumnWithPredicates = WarmupRule.builder(warmupRuleWildcardColumn)
                 .predicates(Set.of(new PartitionValueWarmupPredicateRule("c1", "val1")))
@@ -906,7 +906,7 @@ public class WorkerWarmingServiceTest
             List<WarmupRule> warmupRules,
             int batchSize)
     {
-        QueryContext queryContext = new QueryContext(new PredicateContextData(ImmutableMap.of(), VaradaPrimitiveConstant.TRUE), ImmutableList.copyOf(columns), 0, true);
+        QueryContext queryContext = new QueryContext(new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE), ImmutableList.copyOf(columns), 0, true);
         return act(columns, rowGroupData, warmupDemoterService, defaultWarmingTestState, warmupRules, queryContext, batchSize);
     }
 
@@ -951,12 +951,12 @@ public class WorkerWarmingServiceTest
                 false);
     }
 
-    private WarmupRule createRule(VaradaColumn varadaColumn, WarmupProperties validProperties)
+    private WarmupRule createRule(WarpColumn warpColumn, WarmupProperties validProperties)
     {
         return WarmupRule.builder()
                 .schema(defaultSchemaTableName.getSchemaName())
                 .table(defaultSchemaTableName.getTableName())
-                .varadaColumn(varadaColumn)
+                .warpColumn(warpColumn)
                 .warmUpType(validProperties.warmUpType())
                 .priority(validProperties.priority())
                 .ttl(validProperties.ttl())
@@ -964,8 +964,8 @@ public class WorkerWarmingServiceTest
                 .build();
     }
 
-    private Set<WarmUpType> getActualColTypesToWarm(VaradaColumn columnName,
-            SetMultimap<VaradaColumn, WarmupProperties> result)
+    private Set<WarmUpType> getActualColTypesToWarm(WarpColumn columnName,
+            SetMultimap<WarpColumn, WarmupProperties> result)
     {
         if (!result.containsKey(columnName)) {
             return Set.of();

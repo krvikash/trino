@@ -17,14 +17,14 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.bootstrap.LifeCycleManager;
 import io.airlift.http.server.HttpServer;
-import io.trino.plugin.warp.di.VaradaInitializedServiceRegistry;
-import io.trino.plugin.warp.util.VaradaInitializedServiceMarker;
+import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
+import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
 
 import static java.util.Objects.requireNonNull;
 
 @Singleton
 public class HttpServerLifeCycleHandler
-        implements VaradaInitializedServiceMarker
+        implements WarpInitializedServiceMarker
 {
     private final HttpServer httpServer;
     private final LifeCycleManager lifeCycleManager;
@@ -33,11 +33,11 @@ public class HttpServerLifeCycleHandler
     public HttpServerLifeCycleHandler(
             HttpServer httpServer,
             LifeCycleManager lifeCycleManager,
-            VaradaInitializedServiceRegistry varadaInitializedServiceRegistry)
+            WarpInitializedServiceRegistry warpInitializedServiceRegistry)
     {
         this.httpServer = requireNonNull(httpServer);
         this.lifeCycleManager = requireNonNull(lifeCycleManager);
-        varadaInitializedServiceRegistry.addService(this);
+        warpInitializedServiceRegistry.addService(this);
     }
 
     @Override

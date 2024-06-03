@@ -14,9 +14,9 @@
 package io.trino.plugin.warp.expression.rewrite.worker.warptolucene;
 
 import io.trino.matching.Pattern;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaConstant;
-import io.trino.plugin.warp.expression.VaradaExpression;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpConstant;
+import io.trino.plugin.warp.expression.WarpExpression;
 import io.trino.plugin.warp.expression.rewrite.ExpressionPatterns;
 import io.trino.spi.type.BooleanType;
 import org.apache.lucene.search.BooleanClause;
@@ -30,13 +30,13 @@ import static io.trino.spi.expression.StandardFunctions.EQUAL_OPERATOR_FUNCTION_
 import static io.trino.spi.expression.StandardFunctions.NOT_EQUAL_OPERATOR_FUNCTION_NAME;
 
 class EqualityRewriter
-        implements ExpressionRewriter<VaradaCall>
+        implements ExpressionRewriter<WarpCall>
 
 {
-    private static final Pattern<VaradaCall> PATTERN = ExpressionPatterns.call()
+    private static final Pattern<WarpCall> PATTERN = ExpressionPatterns.call()
             .with(argumentCount().equalTo(2))
-            .with(argument(0).matching(x -> x instanceof VaradaCall))
-            .with(argument(1).matching(x -> x instanceof VaradaConstant && x.getType().equals(BooleanType.BOOLEAN)))
+            .with(argument(0).matching(x -> x instanceof WarpCall))
+            .with(argument(1).matching(x -> x instanceof WarpConstant && x.getType().equals(BooleanType.BOOLEAN)))
             .with(functionName().matching(x -> x.equals(NOT_EQUAL_OPERATOR_FUNCTION_NAME.getName()) ||
                     x.equals(EQUAL_OPERATOR_FUNCTION_NAME.getName())));
     private final LuceneRulesHandler luceneRulesHandler;
@@ -47,24 +47,24 @@ class EqualityRewriter
     }
 
     @Override
-    public Pattern<VaradaCall> getPattern()
+    public Pattern<WarpCall> getPattern()
     {
         return PATTERN;
     }
 
-    boolean handleNotEqual(VaradaExpression expression, LuceneRewriteContext context)
+    boolean handleNotEqual(WarpExpression expression, LuceneRewriteContext context)
     {
         return rewrite(expression, context, false);
     }
 
-    boolean handleEqual(VaradaExpression expression, LuceneRewriteContext context)
+    boolean handleEqual(WarpExpression expression, LuceneRewriteContext context)
     {
         return rewrite(expression, context, true);
     }
 
-    private boolean rewrite(VaradaExpression expression, LuceneRewriteContext context, boolean isEqual)
+    private boolean rewrite(WarpExpression expression, LuceneRewriteContext context, boolean isEqual)
     {
-        boolean value = (boolean) ((VaradaConstant) expression.getChildren().get(1)).getValue();
+        boolean value = (boolean) ((WarpConstant) expression.getChildren().get(1)).getValue();
         BooleanQuery.Builder queryBuilder = context.queryBuilder();
         BooleanClause.Occur res;
         if (isEqual != value) { //=false->false, =true->true, !=true->false, !=false->true
@@ -75,7 +75,7 @@ class EqualityRewriter
         else {
             res = context.occur();
         }
-        VaradaCall innerCall = (VaradaCall) expression.getChildren().get(0);
+        WarpCall innerCall = (WarpCall) expression.getChildren().get(0);
         LuceneRewriteContext insideContext = createContext(context, res);
         return luceneRulesHandler.rewrite(innerCall, insideContext);
     }

@@ -15,7 +15,7 @@ package io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp;
 
 import com.google.common.collect.SetMultimap;
 import io.trino.plugin.base.expression.ConnectorExpressionRule;
-import io.trino.plugin.warp.expression.VaradaExpression;
+import io.trino.plugin.warp.expression.WarpExpression;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.spi.expression.Call;
 import io.trino.spi.expression.FunctionName;
@@ -25,7 +25,7 @@ import java.util.Set;
 public class ExperimentSupportedFunction
         extends SupportedFunctions
 {
-    private final SetMultimap<FunctionName, ConnectorExpressionRule<Call, VaradaExpression>> supportedFunctionsRules;
+    private final SetMultimap<FunctionName, ConnectorExpressionRule<Call, WarpExpression>> supportedFunctionsRules;
 
     public ExperimentSupportedFunction(MetricsManager metricsManager)
     {
@@ -36,7 +36,7 @@ public class ExperimentSupportedFunction
     }
 
     @Override
-    public Set<ConnectorExpressionRule<Call, VaradaExpression>> getRule(FunctionName functionName)
+    public Set<ConnectorExpressionRule<Call, WarpExpression>> getRule(FunctionName functionName)
     {
         return supportedFunctionsRules.get(functionName);
     }

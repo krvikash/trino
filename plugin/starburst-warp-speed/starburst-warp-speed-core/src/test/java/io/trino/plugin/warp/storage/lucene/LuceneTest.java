@@ -85,8 +85,8 @@ public class LuceneTest
         query = queryBuilder.build();
 
         ByteBuffer buffer = ByteBuffer.allocate(10);
-        VaradaCollector varadaCollector = new VaradaCollector(buffer, 0, 10);
-        indexSearcher.search(query, varadaCollector);
+        WarpCollector warpCollector = new WarpCollector(buffer, 0, 10);
+        indexSearcher.search(query, warpCollector);
         BitSet bitSet = BitSet.valueOf(buffer);
         assertThat(bitSet.get(0)).isTrue();
         assertThat(bitSet.get(1)).isFalse();

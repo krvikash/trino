@@ -17,7 +17,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
-import io.trino.plugin.warp.VaradaErrorCode;
+import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.gen.stats.LuceneIndexerStats;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
@@ -45,8 +45,8 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 import static com.google.common.io.BaseEncoding.base64;
-import static io.trino.plugin.warp.VaradaErrorCode.VARADA_LUCENE_FAILURE;
-import static io.trino.plugin.warp.VaradaErrorCode.VARADA_LUCENE_WRITER_ERROR;
+import static io.trino.plugin.warp.WarpErrorCode.VARADA_LUCENE_FAILURE;
+import static io.trino.plugin.warp.WarpErrorCode.VARADA_LUCENE_WRITER_ERROR;
 import static io.trino.plugin.warp.util.SliceUtils.serializeSlice;
 
 public class LuceneIndexer
@@ -124,7 +124,7 @@ public class LuceneIndexer
         catch (Exception e) {
             logger.warn("Got exception when creating the indexWriter - %s", e);
             stats.incfailedReset();
-            throw new TrinoException(VaradaErrorCode.VARADA_LUCENE_WRITER_ERROR, "failed creating index writer of col", e);
+            throw new TrinoException(WarpErrorCode.VARADA_LUCENE_WRITER_ERROR, "failed creating index writer of col", e);
         }
     }
 
@@ -146,7 +146,7 @@ public class LuceneIndexer
         }
         logger.debug("weCookie %x, close index", weCookie);
         Directory tempDirectory = weIndexWriter.getDirectory();
-        VaradaOutputDirectory finalDirectory = new VaradaOutputDirectory(storageEngine, storageEngineConstants, juffersWE, weCookie);
+        WarpOutputDirectory finalDirectory = new WarpOutputDirectory(storageEngine, storageEngineConstants, juffersWE, weCookie);
         int[] filesLength = new int[LuceneFileType.values().length - 1];
         try {
             stopWatch.reset();

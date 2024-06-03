@@ -25,10 +25,10 @@ import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.model.SchemaTableColumn;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmState;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WarmupProperties;
 import io.trino.plugin.warp.expression.TransformFunction;
@@ -93,7 +93,7 @@ public class WarmupElementsCreator
 
     public List<WarmUpElement> createWarmupElements(
             RowGroupKey rowGroupKey,
-            SetMultimap<VaradaColumn, WarmupProperties> requiredWarmUpTypeMap,
+            SetMultimap<WarpColumn, WarmupProperties> requiredWarmUpTypeMap,
             SchemaTableName schemaTableName,
             List<ColumnHandle> columnsToWarm)
     {
@@ -109,15 +109,15 @@ public class WarmupElementsCreator
             if (recordData.recTypeCode() == RecTypeCode.REC_TYPE_INVALID) {
                 continue;
             }
-            VaradaColumn varadaColumn = recordData.schemaTableColumn().varadaColumn();
+            WarpColumn warpColumn = recordData.schemaTableColumn().warpColumn();
 
-            for (WarmupProperties warmUpProperty : requiredWarmUpTypeMap.get(varadaColumn)) {
+            for (WarmupProperties warmUpProperty : requiredWarmUpTypeMap.get(warpColumn)) {
                 // There might be a failed or demoted warmup element which we need to try to warm again
                 Optional<WarmUpElement> existingWarmUpElement = rowGroupData == null ?
                         Optional.empty() :
                         rowGroupData.getWarmUpElements().stream()
                                 .filter(we -> we.getWarmUpType().equals(warmUpProperty.warmUpType()) &&
-                                        we.getVaradaColumn().equals(varadaColumn))
+                                        we.getWarpColumn().equals(warpColumn))
                                 .findFirst();
 
                 if (existingWarmUpElement.isPresent()) {
@@ -126,7 +126,7 @@ public class WarmupElementsCreator
                                 .warmUpType(existingWarmUpElement.get().getWarmUpType())
                                 .recTypeCode(existingWarmUpElement.get().getRecTypeCode())
                                 .recTypeLength(existingWarmUpElement.get().getRecTypeLength())
-                                .varadaColumn(varadaColumn)
+                                .warpColumn(warpColumn)
                                 .warmupElementStats(WarmupElementStats.UNINITIALIZED)
                                 .warmUpContextSize(existingWarmUpElement.get().getWarmUpContextSize())
                                 .build());
@@ -163,7 +163,7 @@ public class WarmupElementsCreator
                             .warmUpType(warmUpType)
                             .recTypeCode(recTypeCode)
                             .recTypeLength(recTypeLength)
-                            .varadaColumn(varadaColumn)
+                            .warpColumn(warpColumn)
                             .warmupElementStats(WarmupElementStats.UNINITIALIZED)
                             .warmUpContextSize(warmUpContextSize)
                             .build());
@@ -175,25 +175,25 @@ public class WarmupElementsCreator
 
     List<RecordData> getRecordData(SchemaTableName schemaTableName,
             List<ColumnHandle> columnHandles,
-            Set<VaradaColumn> actualColumnsToWarm)
+            Set<WarpColumn> actualColumnsToWarm)
     {
         Map<String, Type> columnNameToType = columnHandles.stream()
                 .collect(Collectors.toMap(
                         columnHandle -> dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(columnHandle).getName(),
                         dispatcherProxiedConnectorTransformer::getColumnType));
         return actualColumnsToWarm.stream()
-                .map(varadaColumn -> createColumn(schemaTableName, varadaColumn, columnNameToType))
+                .map(warpColumn -> createColumn(schemaTableName, warpColumn, columnNameToType))
                 .toList();
     }
 
-    private RecordData createColumn(SchemaTableName schemaTableName, VaradaColumn varadaColumn, Map<String, Type> columnNameToType)
+    private RecordData createColumn(SchemaTableName schemaTableName, WarpColumn warpColumn, Map<String, Type> columnNameToType)
     {
         Type type = null;
         int recTypeLength = -1;
         RecTypeCode recTypeCode = RecTypeCode.REC_TYPE_INVALID;
         try {
-            if (varadaColumn instanceof RegularColumn) {
-                type = columnNameToType.get(varadaColumn.getName());
+            if (warpColumn instanceof RegularColumn) {
+                type = columnNameToType.get(warpColumn.getName());
                 recTypeLength = TypeUtils.getTypeLength(type, storageEngineConstants.getVarcharMaxLen());
                 recTypeCode = TypeUtils.convertToRecTypeCode(type, recTypeLength, storageEngineConstants.getFixedLengthStringLimit());
             }
@@ -203,7 +203,7 @@ public class WarmupElementsCreator
         }
 
         return new RecordData(
-                new SchemaTableColumn(schemaTableName, varadaColumn),
+                new SchemaTableColumn(schemaTableName, warpColumn),
                 type,
                 recTypeCode,
                 recTypeLength);
@@ -213,13 +213,13 @@ public class WarmupElementsCreator
     {
         Optional<WarmUpElement> res = Optional.empty();
         try {
-            VaradaColumn cachedColumn = new RegularColumn(cacheColumnId);
+            WarpColumn cachedColumn = new RegularColumn(cacheColumnId);
             int recTypeLength = TypeUtils.getTypeLength(columnType, storageEngineConstants.getVarcharMaxLen());
             RecTypeCode recTypeCode = TypeUtils.convertToRecTypeCode(columnType, recTypeLength, storageEngineConstants.getFixedLengthStringLimit());
             res = Optional.of(WarmUpElement
                     .builder()
                     .creationTime(System.currentTimeMillis())
-                    .varadaColumn(cachedColumn)
+                    .warpColumn(cachedColumn)
                     .warmUpType(WarmUpType.WARM_UP_TYPE_DATA)
                     .recTypeCode(recTypeCode)
                     .recTypeLength(recTypeLength)

@@ -16,8 +16,8 @@ package io.trino.plugin.warp.dispatcher.query.classifier;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.MatchCollectUtils.MatchCollectType;
 import io.trino.plugin.warp.dispatcher.query.QueryContext;
 import io.trino.plugin.warp.dispatcher.query.data.collect.NativeQueryCollectData;
@@ -271,7 +271,7 @@ class NativeCollectClassifier
 
     private class NativeCollectState
     {
-        private final Map<VaradaColumn, WarmUpElement> collectColumnToWarmElement;
+        private final Map<WarpColumn, WarmUpElement> collectColumnToWarmElement;
         private final int collectTxMaxMemory;
         private final EnumMap<CollectCategory, Integer> collectRecordBufferMemoryPerCategory;
         private final EnumMap<CollectCategory, Integer> collectTxMemoryPerCategory;

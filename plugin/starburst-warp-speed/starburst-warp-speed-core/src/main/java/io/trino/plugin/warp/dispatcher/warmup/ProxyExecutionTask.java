@@ -22,8 +22,8 @@ import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.PartitionKey;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.classifier.QueryClassifier;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.events.WarmingFinishedEvent;
@@ -129,7 +129,7 @@ public class ProxyExecutionTask
             workerWarmingService.warmTaskFinished();
             return;
         }
-        Map<VaradaColumn, String> partitionKeys = getPartitionKeys(dispatcherSplit);
+        Map<WarpColumn, String> partitionKeys = getPartitionKeys(dispatcherSplit);
         if (dataToWarm.warmExecutionState() == WarmExecutionState.EMPTY_ROW_GROUP) {
             boolean warmSuccess = true;
             try {
@@ -205,7 +205,7 @@ public class ProxyExecutionTask
 
         // Just a precaution - make sure we're not stuck on an infinite loop of warmups.
         if (iterationCount >= globalConfig.getMaxWarmupIterationsPerQuery()) {
-            logger.error("Max iteration count has reached (%d), won't try to warm again. rowGroupKey=%s, varadaColumns=%s, dataToWarm=%s",
+            logger.error("Max iteration count has reached (%d), won't try to warm again. rowGroupKey=%s, warpColumns=%s, dataToWarm=%s",
                     globalConfig.getMaxWarmupIterationsPerQuery(),
                     rowGroupKey,
                     columns.stream().map(dispatcherProxiedConnectorTransformer::getVaradaRegularColumn).collect(Collectors.toList()),
@@ -234,7 +234,7 @@ public class ProxyExecutionTask
         }
     }
 
-    private Map<VaradaColumn, String> getPartitionKeys(DispatcherSplit dispatcherSplit)
+    private Map<WarpColumn, String> getPartitionKeys(DispatcherSplit dispatcherSplit)
     {
         return dispatcherSplit.getPartitionKeys().stream().collect(Collectors.toMap(PartitionKey::regularColumn, PartitionKey::partitionValue));
     }

@@ -19,7 +19,7 @@ import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
 import io.trino.plugin.warp.config.NativeConfig;
-import io.trino.plugin.warp.di.VaradaInitializedServiceRegistry;
+import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.gen.constants.JbufType;
@@ -31,7 +31,7 @@ import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.lucene.LuceneFileType;
 import io.trino.plugin.warp.type.TypeUtils;
-import io.trino.plugin.warp.util.VaradaInitializedServiceMarker;
+import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
 import io.trino.spi.type.TinyintType;
 
 import java.lang.foreign.Arena;
@@ -49,7 +49,7 @@ import static java.util.Objects.requireNonNull;
 
 @Singleton
 public class BufferAllocator
-        implements VaradaInitializedServiceMarker
+        implements WarpInitializedServiceMarker
 {
     private static final Logger logger = Logger.get(BufferAllocator.class);
     private static final long BUF_ID_OFFSET_MASK = 0x00000000ffffffffL;
@@ -99,14 +99,14 @@ public class BufferAllocator
             StorageEngineConstants storageEngineConstants,
             NativeConfig nativeConfig,
             MetricsManager metricsManager,
-            VaradaInitializedServiceRegistry varadaInitializedServiceRegistry)
+            WarpInitializedServiceRegistry warpInitializedServiceRegistry)
     {
         // services
         this.storageEngine = requireNonNull(storageEngine);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.metricsManager = requireNonNull(metricsManager);
         this.nativeConfig = requireNonNull(nativeConfig);
-        varadaInitializedServiceRegistry.addService(this);
+        warpInitializedServiceRegistry.addService(this);
 
         // constants
         this.maxRecLenForVarlenRecordBuffer = storageEngineConstants.getFixedLengthStringLimit();

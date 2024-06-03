@@ -20,9 +20,9 @@ import io.trino.plugin.base.expression.ConnectorExpressionRule;
 import io.trino.plugin.jdbc.expression.ExpressionMappingParser;
 import io.trino.plugin.jdbc.expression.ExpressionPattern;
 import io.trino.plugin.jdbc.expression.MatchContext;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaExpression;
-import io.trino.plugin.warp.expression.VaradaVariable;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpExpression;
+import io.trino.plugin.warp.expression.WarpVariable;
 import io.trino.plugin.warp.gen.stats.PushdownPredicatesStats;
 import io.trino.spi.expression.Call;
 import io.trino.spi.expression.ConnectorExpression;
@@ -38,7 +38,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 
 class GenericRewriter
-        implements ConnectorExpressionRule<Call, VaradaExpression>
+        implements ConnectorExpressionRule<Call, WarpExpression>
 {
     private static final Logger logger = Logger.get(GenericRewriter.class);
 
@@ -68,7 +68,7 @@ class GenericRewriter
     }
 
     @Override
-    public Optional<VaradaExpression> rewrite(Call call, Captures captures, RewriteContext<VaradaExpression> context)
+    public Optional<WarpExpression> rewrite(Call call, Captures captures, RewriteContext<WarpExpression> context)
     {
         if (call.getArguments().size() == 2 &&
                 isArrayType(call.getArguments().get(0)) &&
@@ -84,24 +84,24 @@ class GenericRewriter
         }
         MatchContext matchContext = new MatchContext();
         expressionPattern.resolve(captures, matchContext);
-        List<VaradaExpression> arguments = new ArrayList<>();
+        List<WarpExpression> arguments = new ArrayList<>();
         Matcher matcher = REWRITE_TOKENS.matcher(originalExpression);
-        VaradaVariable varadaVariable = null;
+        WarpVariable varadaVariable = null;
         while (matcher.find()) {
             String identifier = matcher.group(0);
             Optional<Object> capture = matchContext.getIfPresent(identifier);
             if (capture.isPresent()) {
                 Object value = capture.get();
                 if (value instanceof ConnectorExpression) {
-                    Optional<VaradaExpression> rewrittenExpression = context.defaultRewrite((ConnectorExpression) value);
+                    Optional<WarpExpression> rewrittenExpression = context.defaultRewrite((ConnectorExpression) value);
                     if (rewrittenExpression.isEmpty()) {
                         return Optional.empty();
                     }
-                    else if (rewrittenExpression.get() instanceof VaradaCall && !allowCompositeExpression) {
+                    else if (rewrittenExpression.get() instanceof WarpCall && !allowCompositeExpression) {
                         pushdownPredicatesStats.incunsupported_functions_composite();
                         return Optional.empty();
                     }
-                    if (rewrittenExpression.get() instanceof VaradaVariable variable) {
+                    if (rewrittenExpression.get() instanceof WarpVariable variable) {
                         if (varadaVariable == null || varadaVariable.equals(variable)) {
                             varadaVariable = variable;
                             arguments.add(rewrittenExpression.get());
@@ -122,7 +122,7 @@ class GenericRewriter
                 }
             }
         }
-        VaradaExpression value = new VaradaCall(call.getFunctionName().getName(), arguments, call.getType());
+        WarpExpression value = new WarpCall(call.getFunctionName().getName(), arguments, call.getType());
         return Optional.of(value);
     }
 

@@ -16,7 +16,7 @@ package io.trino.plugin.warp.dispatcher.query.classifier;
 import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.PredicateContext;
 import io.trino.plugin.warp.dispatcher.query.data.match.BasicQueryMatchData;
 import io.trino.plugin.warp.dispatcher.query.data.match.MatchData;
@@ -72,7 +72,7 @@ class BasicMatcherTest
         assertThat(queryMatchData).isInstanceOf(BasicQueryMatchData.class);
         BasicQueryMatchData basicQueryMatchData = (BasicQueryMatchData) queryMatchData;
         assertThat(basicQueryMatchData.getType()).isEqualTo(IntegerType.INTEGER);
-        assertThat(basicQueryMatchData.getVaradaColumn()).isEqualTo(new RegularColumn(columnName));
+        assertThat(basicQueryMatchData.getWarpColumn()).isEqualTo(new RegularColumn(columnName));
         assertThat(result.remainingPredicateContext().isEmpty()).isTrue();
     }
 
@@ -129,8 +129,8 @@ class BasicMatcherTest
                 true,
                 false);
 
-        Map<VaradaColumn, PredicateContext> remainingPredicateContext = predicateContext.getLeaves()
-                .entrySet().stream().collect(Collectors.toMap(x -> x.getValue().getVaradaColumn(), Map.Entry::getValue));
+        Map<WarpColumn, PredicateContext> remainingPredicateContext = predicateContext.getLeaves()
+                .entrySet().stream().collect(Collectors.toMap(x -> x.getValue().getWarpColumn(), Map.Entry::getValue));
         MatchContext matchContext = new MatchContext(Collections.emptyList(), remainingPredicateContext, true);
 
         return basicMatcher.match(classifyArgs, matchContext);

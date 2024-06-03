@@ -20,8 +20,8 @@ import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.trino.matching.Pattern;
 import io.trino.plugin.warp.expression.NativeExpression;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaExpression;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpExpression;
 import io.trino.plugin.warp.gen.stats.PushdownPredicatesStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
@@ -122,7 +122,7 @@ public class NativeExpressionRulesHandler
         functionToRewriteRules.put(JSON_EXTRACT_SCALAR.getName(), new RewriteRule(variableAndConstantRewriter.getPattern(), variableAndConstantRewriter::jsonExtractScalar));
     }
 
-    public Optional<NativeExpression> rewrite(VaradaExpression varadaExpression,
+    public Optional<NativeExpression> rewrite(WarpExpression warpExpression,
             Type columnType,
             Set<String> unsupportedNativeFunctions,
             Map<String, Long> customStats)
@@ -133,28 +133,28 @@ public class NativeExpressionRulesHandler
                     columnType,
                     unsupportedNativeFunctions,
                     customStats);
-            boolean isValid = rewrite(varadaExpression, context);
+            boolean isValid = rewrite(warpExpression, context);
             if (isValid) {
                 res = Optional.of(context.nativeExpressionBuilder().build());
             }
         }
         catch (Exception e) {
-            logger.error(e, "failed to convert varadaExpression to domain pattern. %s", varadaExpression);
+            logger.error(e, "failed to convert varadaExpression to domain pattern. %s", warpExpression);
             pushdownPredicatesStats.incfailed_rewrite_to_native_expression();
         }
         return res;
     }
 
-    boolean rewrite(VaradaExpression varadaExpression,
+    boolean rewrite(WarpExpression warpExpression,
             RewriteContext context)
     {
-        if (!(varadaExpression instanceof VaradaCall)) {
+        if (!(warpExpression instanceof WarpCall)) {
             context.customStats().compute("unsupported_functions_native", (key, value) -> value == null ? 1L : value + 1);
             pushdownPredicatesStats.incunsupported_functions_native();
             return false;
         }
         boolean isValid = false;
-        String functionName = ((VaradaCall) varadaExpression).getFunctionName();
+        String functionName = ((WarpCall) warpExpression).getFunctionName();
         if (context.unsupportedNativeFunctions().contains(functionName)) {
             context.customStats().compute("unsupported_functions_native", (key, value) -> value == null ? 1L : value + 1);
             pushdownPredicatesStats.incunsupported_functions_native();
@@ -166,8 +166,8 @@ public class NativeExpressionRulesHandler
             pushdownPredicatesStats.incunsupported_functions_native();
         }
         for (RewriteRule rule : rewriteRules) {
-            if (rule.pattern.matches(varadaExpression, null)) {
-                isValid = rule.rewriteCallback.apply(varadaExpression, context);
+            if (rule.pattern.matches(warpExpression, null)) {
+                isValid = rule.rewriteCallback.apply(warpExpression, context);
                 break;
             }
         }
@@ -176,6 +176,6 @@ public class NativeExpressionRulesHandler
     }
 
     private record RewriteRule(
-            @SuppressWarnings("unused") Pattern<VaradaCall> pattern,
-            @SuppressWarnings("unused") BiFunction<VaradaExpression, RewriteContext, Boolean> rewriteCallback) {}
+            @SuppressWarnings("unused") Pattern<WarpCall> pattern,
+            @SuppressWarnings("unused") BiFunction<WarpExpression, RewriteContext, Boolean> rewriteCallback) {}
 }

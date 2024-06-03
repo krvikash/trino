@@ -15,7 +15,7 @@ package io.trino.plugin.warp.dispatcher;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import io.trino.plugin.warp.VaradaErrorCode;
+import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.connector.TestingConnectorColumnHandle;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
@@ -28,12 +28,12 @@ import io.trino.plugin.warp.dispatcher.query.classifier.QueryClassifier;
 import io.trino.plugin.warp.dispatcher.query.data.QueryColumn;
 import io.trino.plugin.warp.dispatcher.query.data.collect.NativeQueryCollectData;
 import io.trino.plugin.warp.dispatcher.query.data.collect.PrefilledQueryCollectData;
-import io.trino.plugin.warp.expression.VaradaPrimitiveConstant;
+import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
-import io.trino.plugin.warp.storage.read.VaradaPageSource;
-import io.trino.plugin.warp.storage.read.VaradaStoragePageSource;
+import io.trino.plugin.warp.storage.read.WarpPageSource;
+import io.trino.plugin.warp.storage.read.WarpStoragePageSource;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
@@ -73,7 +73,7 @@ import static org.mockito.Mockito.when;
 
 public class DispatcherPageSourceTest
 {
-    protected VaradaStoragePageSource varadaPageSource;
+    protected WarpStoragePageSource varadaPageSource;
     protected ConnectorPageSource proxiedConnectorPageSource;
     protected RowGroupData rowGroupData;
     protected final DispatcherPageSourceStats stats = new DispatcherPageSourceStats("test");
@@ -109,16 +109,16 @@ public class DispatcherPageSourceTest
             List<Page> proxiedPages,
             Optional<long[]> rowRanges)
     {
-        varadaPageSource = new TestingVaradaPageSource(testPages);
+        varadaPageSource = new TestingWarpPageSource(testPages);
         proxiedConnectorPageSource = new FixedPageSourceWithRowRanges(proxiedPages, rowRanges);
     }
 
     @Test
     public void testRowGroupRemovalOnNativeException()
     {
-        varadaPageSource = mock(VaradaPageSource.class);
+        varadaPageSource = mock(WarpPageSource.class);
         when(varadaPageSource.getNextPage())
-                .thenThrow(new TrinoException(VaradaErrorCode.VARADA_NATIVE_UNRECOVERABLE_ERROR, "message"));
+                .thenThrow(new TrinoException(WarpErrorCode.VARADA_NATIVE_UNRECOVERABLE_ERROR, "message"));
 
         DispatcherPageSource mixQueryWithPredicate = getDispatcherPageSource(2, Map.of(0, IntegerType.INTEGER));
 
@@ -686,7 +686,7 @@ public class DispatcherPageSourceTest
     private PrefilledQueryCollectData createPrefilledQueryCollectData(long singleValue)
     {
         return PrefilledQueryCollectData.builder()
-                .varadaColumn(new RegularColumn("col1"))
+                .warpColumn(new RegularColumn("col1"))
                 .type(BIGINT)
                 .blockIndex(0)
                 .singleValue(SingleValue.create(BIGINT, singleValue))
@@ -752,7 +752,7 @@ public class DispatcherPageSourceTest
             }
         }
 
-        QueryContext queryContext = new QueryContext(new PredicateContextData(ImmutableMap.of(), VaradaPrimitiveConstant.TRUE),
+        QueryContext queryContext = new QueryContext(new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE),
                 ImmutableMap.copyOf(remainingCollectColumnByBlockIndex))
                 .asBuilder()
                 .nativeQueryCollectDataList(nativeQueryCollectDataList)

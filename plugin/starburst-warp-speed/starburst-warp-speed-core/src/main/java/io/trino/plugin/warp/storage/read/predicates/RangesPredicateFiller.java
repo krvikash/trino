@@ -26,7 +26,7 @@ import io.trino.spi.type.Type;
 
 import java.nio.ByteBuffer;
 
-import static io.trino.plugin.warp.VaradaErrorCode.VARADA_CONTROL;
+import static io.trino.plugin.warp.WarpErrorCode.VARADA_CONTROL;
 
 public class RangesPredicateFiller
         extends PredicateFiller<Domain>

@@ -32,7 +32,7 @@ import io.trino.spi.type.VarcharType;
 
 import java.util.Set;
 
-import static io.trino.plugin.warp.VaradaErrorCode.VARADA_CONTROL;
+import static io.trino.plugin.warp.WarpErrorCode.VARADA_CONTROL;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DateType.DATE;

@@ -125,11 +125,11 @@ public class WorkerWarmupTask
     {
         List<RowGroupData> rowGroupDataList = rowGroupDataService.getAll();
         Map<SchemaTableColumn, List<WarmupRule>> schemaTableColumnToRulesMap = warmupRules.stream()
-                .collect(groupingBy(warmupRule -> new SchemaTableColumn(new SchemaTableName(warmupRule.getSchema(), warmupRule.getTable()), warmupRule.getVaradaColumn())));
+                .collect(groupingBy(warmupRule -> new SchemaTableColumn(new SchemaTableName(warmupRule.getSchema(), warmupRule.getTable()), warmupRule.getWarpColumn())));
         for (RowGroupData rowGroupData : rowGroupDataList) {
             for (WarmUpElement warmUpElement : rowGroupData.getWarmUpElements()) {
                 SchemaTableColumn schemaTableColumn = new SchemaTableColumn(
-                        new SchemaTableName(rowGroupData.getRowGroupKey().schema(), rowGroupData.getRowGroupKey().table()), warmUpElement.getVaradaColumn());
+                        new SchemaTableName(rowGroupData.getRowGroupKey().schema(), rowGroupData.getRowGroupKey().table()), warmUpElement.getWarpColumn());
 
                 Optional<WarmupRule> optionalWarmupRule = warmupDemoterService.findMostRelevantRuleForWarmupElement(rowGroupData,
                         warmUpElement, schemaTableColumnToRulesMap.get(schemaTableColumn));

@@ -18,8 +18,8 @@ import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.VaradaErrorCode;
-import io.trino.plugin.warp.VaradaSessionProperties;
+import io.trino.plugin.warp.WarpErrorCode;
+import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
@@ -51,7 +51,7 @@ import io.trino.plugin.warp.storage.read.PrefilledPageSource;
 import io.trino.plugin.warp.storage.read.QueryParams;
 import io.trino.plugin.warp.storage.read.RangeFillerService;
 import io.trino.plugin.warp.storage.read.StorageCollectorService;
-import io.trino.plugin.warp.storage.read.VaradaPageSource;
+import io.trino.plugin.warp.storage.read.WarpPageSource;
 import io.trino.spi.TrinoException;
 import io.trino.spi.cache.PlanSignature;
 import io.trino.spi.connector.ColumnHandle;
@@ -180,7 +180,7 @@ public class DispatcherPageSourceFactory
             CustomStatsContext customStatsContext)
     {
         if ((!nativeStorageStateHandler.isStorageAvailable() && dispatcherTableHandle.isSubsumedPredicates())) {
-            throw new TrinoException(VaradaErrorCode.VARADA_NATIVE_ERROR,
+            throw new TrinoException(WarpErrorCode.VARADA_NATIVE_ERROR,
                     "storage is not available");
         }
 
@@ -230,7 +230,7 @@ public class DispatcherPageSourceFactory
             CustomStatsContext customStatsContext)
     {
         // HACK HACK HACK  - to make load a bit faster in POCs and tests
-        if (VaradaSessionProperties.isEmptyQuery(session)) {
+        if (WarpSessionProperties.isEmptyQuery(session)) {
             return new EmptyPageSource();
         }
 
@@ -368,7 +368,7 @@ public class DispatcherPageSourceFactory
                     if (Thread.interrupted()) {
                         closeHandler.accept(afterLockRowGroupData);
                         Thread.currentThread().interrupt();
-                        throw new TrinoException(VaradaErrorCode.VARADA_TX_ALLOCATION_INTERRUPTED,
+                        throw new TrinoException(WarpErrorCode.VARADA_TX_ALLOCATION_INTERRUPTED,
                                 "interrupted while trying to create page source");
                     }
                     shapingLogger.warn(e, "failed createMixedPageSource, returning proxied connector page source");
@@ -476,7 +476,7 @@ public class DispatcherPageSourceFactory
         boolean isMixedQuery = PageSourceDecision.MIXED.equals(pageSourceDecision);
         String filePath = rowGroupData.getRowGroupKey().stringFileNameRepresentation(globalConfig.getLocalStorePath());
         QueryParams queryParams = createQueryParams(queryContext, filePath);
-        VaradaPageSource varadaPageSource = new VaradaPageSource(storageEngine,
+        WarpPageSource varadaPageSource = new WarpPageSource(storageEngine,
                 storageEngineConstants,
                 dispatcherTableHandle.getLimit().orElse(Long.MAX_VALUE),
                 bufferAllocator,
@@ -547,7 +547,7 @@ public class DispatcherPageSourceFactory
 
         if (columns.isEmpty() &&
                 dispatcherTableHandle.getFullPredicate().isAll() &&
-                dispatcherTableHandle.getWarpExpression().map(expression -> expression.varadaExpressionDataLeaves().isEmpty()).orElse(true) &&
+                dispatcherTableHandle.getWarpExpression().map(expression -> expression.warpExpressionDataLeaves().isEmpty()).orElse(true) &&
                 dynamicFilter.getCurrentPredicate().isAll()) {
             // covers the case of 'SELECT count(*) FROM t'
             return PageSourceDecision.PREFILL;
@@ -597,7 +597,7 @@ public class DispatcherPageSourceFactory
         Set<String> varadaMatchColumns = queryContext
                 .getMatchLeavesDFS()
                 .stream()
-                .flatMap(x -> Stream.of(x.getVaradaColumn().getName()))
+                .flatMap(x -> Stream.of(x.getWarpColumn().getName()))
                 .collect(Collectors.toSet());
         Set<String> externalMatchColumns = queryContext
                 .getPredicateContextData()
@@ -608,7 +608,7 @@ public class DispatcherPageSourceFactory
                 .collect(Collectors.toSet());
         long externalMatchColumnsCount = externalMatchColumns.size();
         stats.addexternal_match_columns(externalMatchColumnsCount);
-        long transformedColumns = queryContext.getMatchLeavesDFS().stream().filter(x -> x.getWarmUpElement().getVaradaColumn().isTransformedColumn()).map(QueryColumn::getVaradaColumn).distinct().count();
+        long transformedColumns = queryContext.getMatchLeavesDFS().stream().filter(x -> x.getWarmUpElement().getWarpColumn().isTransformedColumn()).map(QueryColumn::getWarpColumn).distinct().count();
         stats.addtransformed_column(transformedColumns);
         stats.addvarada_collect_columns(queryContext.getNativeQueryCollectDataList().size());
         stats.addvarada_match_collect_columns(queryContext.getNativeQueryCollectDataList().stream()
@@ -632,9 +632,9 @@ public class DispatcherPageSourceFactory
 
     private void addColumnStats(CustomStatsContext customStatsContext, QueryContext queryContext)
     {
-        queryContext.getNativeQueryCollectDataList().forEach((collectData) -> customStatsContext.addFixedStat(createFixedStatKey(VARADA_COLLECT, collectData.getVaradaColumn().getName(), collectData.getWarmUpElement().getWarmUpType()), 1));
-        queryContext.getPrefilledQueryCollectDataByBlockIndex().values().forEach((prefilledData) -> customStatsContext.addFixedStat(createFixedStatKey(PREFILLED, prefilledData.getVaradaColumn().getName()), 1));
-        queryContext.getMatchLeavesDFS().forEach((matchData) -> customStatsContext.addFixedStat(createFixedStatKey(VARADA_MATCH, matchData.getVaradaColumn().getName(), matchData.getWarmUpElement().getWarmUpType()), 1));
+        queryContext.getNativeQueryCollectDataList().forEach((collectData) -> customStatsContext.addFixedStat(createFixedStatKey(VARADA_COLLECT, collectData.getWarpColumn().getName(), collectData.getWarmUpElement().getWarmUpType()), 1));
+        queryContext.getPrefilledQueryCollectDataByBlockIndex().values().forEach((prefilledData) -> customStatsContext.addFixedStat(createFixedStatKey(PREFILLED, prefilledData.getWarpColumn().getName()), 1));
+        queryContext.getMatchLeavesDFS().forEach((matchData) -> customStatsContext.addFixedStat(createFixedStatKey(VARADA_MATCH, matchData.getWarpColumn().getName(), matchData.getWarmUpElement().getWarmUpType()), 1));
         queryContext.getRemainingCollectColumnByBlockIndex().values().forEach((collectColumnHandle) -> customStatsContext.addFixedStat(createFixedStatKey(EXTERNAL_COLLECT, dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(collectColumnHandle).getName()), 1));
         queryContext.getPredicateContextData()
                 .getRemainingColumns()
@@ -665,7 +665,7 @@ public class DispatcherPageSourceFactory
         customStatsContext.addFixedStat(EXTERNAL_MATCH, externalMatchSize);
         queryContext.getPredicateContextData()
                 .getRemainingColumns()
-                .forEach(varadaColumn -> customStatsContext.addFixedStat(createFixedStatKey(EXTERNAL_MATCH, varadaColumn.getName()), 1));
+                .forEach(warpColumn -> customStatsContext.addFixedStat(createFixedStatKey(EXTERNAL_MATCH, warpColumn.getName()), 1));
         ImmutableList<ColumnHandle> remainingCollectColumns = queryContext.getRemainingCollectColumns();
         if (remainingCollectColumns != null) {
             remainingCollectColumns.forEach(columnHandle ->
@@ -724,7 +724,7 @@ public class DispatcherPageSourceFactory
         initializeCustomStats(customStatsContext);
         String filePath = rowGroupData.getRowGroupKey().stringFileNameRepresentation(globalConfig.getLocalStorePath());
         QueryParams queryParams = createQueryParams(queryContext, filePath);
-        VaradaPageSource varadaPageSource = new VaradaPageSource(storageEngine,
+        WarpPageSource varadaPageSource = new WarpPageSource(storageEngine,
                 storageEngineConstants,
                 Long.MAX_VALUE,
                 bufferAllocator,

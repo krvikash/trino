@@ -16,8 +16,8 @@ package io.trino.plugin.warp.dispatcher.cache;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.cache.PlanSignature;
@@ -69,10 +69,10 @@ public class CommonStoreIdFinder
             return Optional.empty();
         }
 
-        Map<VaradaColumn, Set<UUID>> columnToWeStoreIds = new HashMap<>();
+        Map<WarpColumn, Set<UUID>> columnToWeStoreIds = new HashMap<>();
         for (WarmUpElement warmUpElement : rowGroupData.getValidWarmUpElements()) {
             columnToWeStoreIds
-                    .computeIfAbsent(warmUpElement.getVaradaColumn(), _ -> new HashSet<>())
+                    .computeIfAbsent(warmUpElement.getWarpColumn(), _ -> new HashSet<>())
                     .add(warmUpElement.getStoreId());
         }
 

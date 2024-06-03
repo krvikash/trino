@@ -35,7 +35,7 @@ import io.trino.plugin.warp.api.warmup.WarmupDefaultRuleUsageData;
 import io.trino.plugin.warp.api.warmup.WarmupRulesUsageData;
 import io.trino.plugin.warp.dispatcher.warmup.events.WarmRulesChangedEvent;
 import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleFetcher;
-import io.trino.plugin.warp.execution.VaradaClient;
+import io.trino.plugin.warp.execution.WarpClient;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
 import io.trino.plugin.warp.util.UriUtils;
@@ -64,7 +64,7 @@ import static com.google.common.net.MediaType.JSON_UTF_8;
 import static io.airlift.http.client.FullJsonResponseHandler.createFullJsonResponseHandler;
 import static io.airlift.http.client.Request.Builder.prepareGet;
 import static io.airlift.http.client.Request.Builder.preparePost;
-import static io.trino.plugin.warp.execution.VaradaClient.VOID_RESULTS_CODEC;
+import static io.trino.plugin.warp.execution.WarpClient.VOID_RESULTS_CODEC;
 import static jakarta.ws.rs.core.HttpHeaders.CONTENT_TYPE;
 import static java.util.Objects.requireNonNull;
 
@@ -90,19 +90,19 @@ public class WarmupTask
     private final WarmupRuleService warmupRuleService;
     private final WarmupRuleFetcher warmupRuleFetcher;
     private final CoordinatorNodeManager coordinatorNodeManager;
-    private final VaradaClient varadaClient;
+    private final WarpClient warpClient;
 
     @Inject
     public WarmupTask(WarmupRuleService warmupRuleService,
             WarmupRuleFetcher warmupRuleFetcher,
             CoordinatorNodeManager coordinatorNodeManager,
-            VaradaClient varadaClient,
+            WarpClient warpClient,
             EventBus eventBus)
     {
         this.warmupRuleService = requireNonNull(warmupRuleService);
         this.warmupRuleFetcher = requireNonNull(warmupRuleFetcher);
         this.coordinatorNodeManager = requireNonNull(coordinatorNodeManager);
-        this.varadaClient = requireNonNull(varadaClient);
+        this.warpClient = requireNonNull(warpClient);
         requireNonNull(eventBus).register(this);
     }
 
@@ -154,14 +154,14 @@ public class WarmupTask
         workers.stream()
                 .parallel()
                 .forEach(node -> {
-                    HttpUriBuilder uriBuilder = varadaClient.getRestEndpoint(UriUtils.getHttpUri(node));
+                    HttpUriBuilder uriBuilder = warpClient.getRestEndpoint(UriUtils.getHttpUri(node));
                     uriBuilder.appendPath(WorkerWarmupTask.WORKER_WARMUP_PATH).appendPath(WorkerWarmupTask.TASK_NAME_FETCH);
 
                     Request request = prepareGet()
                             .setUri(uriBuilder.build())
                             .setHeader(CONTENT_TYPE, JSON_UTF_8.toString())
                             .build();
-                    varadaClient.sendWithRetry(request, createFullJsonResponseHandler(VOID_RESULTS_CODEC));
+                    warpClient.sendWithRetry(request, createFullJsonResponseHandler(VOID_RESULTS_CODEC));
                 });
     }
 
@@ -196,14 +196,14 @@ public class WarmupTask
 
     private WarmupRulesUsageData getWorkersWarmupRulesUsageData(Node node)
     {
-        HttpUriBuilder uriBuilder = varadaClient.getRestEndpoint(UriUtils.getHttpUri(node));
+        HttpUriBuilder uriBuilder = warpClient.getRestEndpoint(UriUtils.getHttpUri(node));
         uriBuilder.appendPath(WorkerWarmupTask.WORKER_WARMUP_PATH).appendPath(WorkerWarmupTask.TASK_NAME_GET);
 
         Request request = prepareGet()
                 .setUri(uriBuilder.build())
                 .setHeader(CONTENT_TYPE, JSON_UTF_8.toString())
                 .build();
-        return varadaClient.sendWithRetry(request, createFullJsonResponseHandler(USAGE_RESULT_CODEC));
+        return warpClient.sendWithRetry(request, createFullJsonResponseHandler(USAGE_RESULT_CODEC));
     }
 
     private void updateWarmupColRuleUsageData(WarmupRulesUsageData warmupRulesUsageData, Map<Integer, WarmupColRuleUsageData.Builder> hashToWarmupColRuleUsageDataMapBuilder)
@@ -263,14 +263,14 @@ public class WarmupTask
     private void handleWarmRulesChangedEvent(WarmRulesChangedEvent warmRulesChangedEvent)
     {
         coordinatorNodeManager.getWorkerNodes().forEach(workerNode -> {
-            HttpUriBuilder uriBuilder = varadaClient.getRestEndpoint(UriUtils.getHttpUri(workerNode));
+            HttpUriBuilder uriBuilder = warpClient.getRestEndpoint(UriUtils.getHttpUri(workerNode));
             uriBuilder.appendPath(WarmupRuleService.WARMUP_PATH).appendPath(WorkerWarmupRulesChangedTask.TASK_NAME);
             Request request = preparePost()
                     .setUri(uriBuilder.build())
                     .setHeader("Content-Type", "application/json")
                     .build();
             try {
-                varadaClient.sendWithRetry(request, createFullJsonResponseHandler(VOID_RESULTS_CODEC));
+                warpClient.sendWithRetry(request, createFullJsonResponseHandler(VOID_RESULTS_CODEC));
             }
             catch (Exception e) {
                 logger.warn("failed sending rule change notification to node %s", workerNode.getHost());

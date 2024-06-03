@@ -20,17 +20,16 @@ import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.connector.TestingConnectorProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.PredicateContext;
 import io.trino.plugin.warp.dispatcher.query.data.match.LuceneQueryMatchData;
 import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaExpression;
-import io.trino.plugin.warp.expression.VaradaExpressionData;
-import io.trino.plugin.warp.expression.VaradaPrimitiveConstant;
-import io.trino.plugin.warp.expression.VaradaSliceConstant;
-import io.trino.plugin.warp.expression.VaradaVariable;
-import io.trino.plugin.warp.expression.rewrite.WarpExpression;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpExpression;
+import io.trino.plugin.warp.expression.WarpExpressionData;
+import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
+import io.trino.plugin.warp.expression.WarpSliceConstant;
+import io.trino.plugin.warp.expression.WarpVariable;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.DynamicFilter;
@@ -129,8 +128,8 @@ public class LuceneMatcherTest
         TupleDomain<ColumnHandle> tupleDomain = TupleDomain.withColumnDomains(columnDomains);
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(tupleDomain);
         PredicateContextData predicateContext = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
-        Map<VaradaColumn, PredicateContext> remainingPredicateContext = predicateContext.getLeaves()
-                .entrySet().stream().collect(Collectors.toMap(x -> x.getValue().getVaradaColumn(), Map.Entry::getValue));
+        Map<WarpColumn, PredicateContext> remainingPredicateContext = predicateContext.getLeaves()
+                .entrySet().stream().collect(Collectors.toMap(x -> x.getValue().getWarpColumn(), Map.Entry::getValue));
         ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
                 rowGroupData,
                 mock(PredicateContextData.class),
@@ -170,8 +169,8 @@ public class LuceneMatcherTest
         TupleDomain<ColumnHandle> tupleDomain = TupleDomain.withColumnDomains(columnDomains);
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(tupleDomain);
         PredicateContextData predicateContext = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
-        Map<VaradaColumn, PredicateContext> remainingPredicateContext = predicateContext.getLeaves()
-                .entrySet().stream().collect(Collectors.toMap(x -> x.getValue().getVaradaColumn(), Map.Entry::getValue));
+        Map<WarpColumn, PredicateContext> remainingPredicateContext = predicateContext.getLeaves()
+                .entrySet().stream().collect(Collectors.toMap(x -> x.getValue().getWarpColumn(), Map.Entry::getValue));
         ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
                 rowGroupData,
                 mock(PredicateContextData.class),
@@ -211,8 +210,8 @@ public class LuceneMatcherTest
 
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(tupleDomain);
         PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
-        Map<VaradaColumn, PredicateContext> remainingPredicateContext = predicateContextData.getLeaves()
-                .entrySet().stream().collect(Collectors.toMap(x -> x.getValue().getVaradaColumn(), Map.Entry::getValue));
+        Map<WarpColumn, PredicateContext> remainingPredicateContext = predicateContextData.getLeaves()
+                .entrySet().stream().collect(Collectors.toMap(x -> x.getValue().getWarpColumn(), Map.Entry::getValue));
         ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
                 rowGroupData,
                 mock(PredicateContextData.class),
@@ -252,8 +251,8 @@ public class LuceneMatcherTest
         TupleDomain<ColumnHandle> tupleDomain = TupleDomain.withColumnDomains(columnDomains);
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(tupleDomain);
         PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
-        Map<VaradaColumn, PredicateContext> remainingPredicateContext = predicateContextData.getLeaves()
-                .entrySet().stream().collect(Collectors.toMap(x -> x.getValue().getVaradaColumn(), Map.Entry::getValue));
+        Map<WarpColumn, PredicateContext> remainingPredicateContext = predicateContextData.getLeaves()
+                .entrySet().stream().collect(Collectors.toMap(x -> x.getValue().getWarpColumn(), Map.Entry::getValue));
         ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
                 rowGroupData,
                 mock(PredicateContextData.class),
@@ -277,15 +276,15 @@ public class LuceneMatcherTest
         String columnName = "col1";
         ColumnHandle columnHandle = mockColumnHandle(columnName, varcharType, dispatcherProxiedConnectorTransformer);
         Type type = varcharType;
-        VaradaVariable varadaVariable = new VaradaVariable(columnHandle, type);
+        WarpVariable varadaVariable = new WarpVariable(columnHandle, type);
 
         // col1 LIKE '%aa%' = TRUE
         Slice likePattern = Slices.utf8Slice("%aa%");
-        VaradaCall likeEqualsTrueCall = new VaradaCall(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
-                List.of(new VaradaCall(LIKE_FUNCTION_NAME.getName(),
+        WarpCall likeEqualsTrueCall = new WarpCall(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(new WarpCall(LIKE_FUNCTION_NAME.getName(),
                                 List.of(varadaVariable,
-                                        new VaradaSliceConstant(likePattern, type)), type),
-                        VaradaPrimitiveConstant.TRUE), type);
+                                        new WarpSliceConstant(likePattern, type)), type),
+                        WarpPrimitiveConstant.TRUE), type);
         Query likeQuery = createLikeQuery(likePattern);
         BooleanQuery mustLikeQuery = new BooleanQuery.Builder()
                 .add(likeQuery, BooleanClause.Occur.MUST)
@@ -293,18 +292,18 @@ public class LuceneMatcherTest
 
         // STARTS_WITH(col1, 'b')
         Slice prefix = Slices.utf8Slice("b");
-        VaradaCall startsWithCall = new VaradaCall("starts_with",
+        WarpCall startsWithCall = new WarpCall("starts_with",
                 List.of(varadaVariable,
-                        new VaradaSliceConstant(prefix, type)), type);
+                        new WarpSliceConstant(prefix, type)), type);
         Query startsWithQuery = createPrefixQuery(prefix);
 
         // col1 =, !=, >, >=, <, <= 'str'
-        VaradaCall comparisonFunctionCall = new VaradaCall(comparisonFunctionName,
+        WarpCall comparisonFunctionCall = new WarpCall(comparisonFunctionName,
                 List.of(varadaVariable,
-                        new VaradaSliceConstant(comparisonValue, type)), type);
+                        new WarpSliceConstant(comparisonValue, type)), type);
 
         // <expression> AND <expression> AND <expression>
-        VaradaCall andCall = new VaradaCall(StandardFunctions.AND_FUNCTION_NAME.getName(),
+        WarpCall andCall = new WarpCall(StandardFunctions.AND_FUNCTION_NAME.getName(),
                 List.of(likeEqualsTrueCall,
                         startsWithCall,
                         comparisonFunctionCall), type);
@@ -315,7 +314,7 @@ public class LuceneMatcherTest
                 .build();
 
         // <expression> OR <expression> OR <expression> OR <expression>
-        VaradaCall orCallWithExpressions = new VaradaCall(StandardFunctions.OR_FUNCTION_NAME.getName(),
+        WarpCall orCallWithExpressions = new WarpCall(StandardFunctions.OR_FUNCTION_NAME.getName(),
                 List.of(likeEqualsTrueCall,
                         startsWithCall,
                         comparisonFunctionCall), type);
@@ -348,24 +347,24 @@ public class LuceneMatcherTest
         String columnName = "col1";
         ColumnHandle columnHandle = mockColumnHandle(columnName, varcharType, dispatcherProxiedConnectorTransformer);
         Type type = VarcharType.createVarcharType(5);
-        VaradaVariable varadaVariable = new VaradaVariable(columnHandle, type);
+        WarpVariable varadaVariable = new WarpVariable(columnHandle, type);
 
         Slice likePattern = Slices.utf8Slice("%aa%");
-        VaradaCall likeCall = new VaradaCall(LIKE_FUNCTION_NAME.getName(),
+        WarpCall likeCall = new WarpCall(LIKE_FUNCTION_NAME.getName(),
                 List.of(varadaVariable,
-                        new VaradaSliceConstant(likePattern, type)), type);
-        VaradaCall equalsTrue = new VaradaCall(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                        new WarpSliceConstant(likePattern, type)), type);
+        WarpCall equalsTrue = new WarpCall(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
                 List.of(likeCall,
-                        VaradaPrimitiveConstant.TRUE), type);
-        VaradaCall equalsFalse = new VaradaCall(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                        WarpPrimitiveConstant.TRUE), type);
+        WarpCall equalsFalse = new WarpCall(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
                 List.of(likeCall,
-                        VaradaPrimitiveConstant.FALSE), type);
-        VaradaCall notEqualsTrue = new VaradaCall(StandardFunctions.NOT_EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                        WarpPrimitiveConstant.FALSE), type);
+        WarpCall notEqualsTrue = new WarpCall(StandardFunctions.NOT_EQUAL_OPERATOR_FUNCTION_NAME.getName(),
                 List.of(likeCall,
-                        VaradaPrimitiveConstant.TRUE), type);
-        VaradaCall notEqualsFalse = new VaradaCall(StandardFunctions.NOT_EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                        WarpPrimitiveConstant.TRUE), type);
+        WarpCall notEqualsFalse = new WarpCall(StandardFunctions.NOT_EQUAL_OPERATOR_FUNCTION_NAME.getName(),
                 List.of(likeCall,
-                        VaradaPrimitiveConstant.FALSE), type);
+                        WarpPrimitiveConstant.FALSE), type);
 
         Query likeQuery = createLikeQuery(likePattern);
 
@@ -390,24 +389,24 @@ public class LuceneMatcherTest
         String columnName = "col1";
         ColumnHandle columnHandle = mockColumnHandle(columnName, varcharType, dispatcherProxiedConnectorTransformer);
         Type type = VarcharType.createVarcharType(5);
-        VaradaVariable varadaVariable = new VaradaVariable(columnHandle, type);
+        WarpVariable varadaVariable = new WarpVariable(columnHandle, type);
         Slice likePattern = Slices.utf8Slice("%aa%");
 
-        VaradaCall likeCall = new VaradaCall(LIKE_FUNCTION_NAME.getName(),
+        WarpCall likeCall = new WarpCall(LIKE_FUNCTION_NAME.getName(),
                 List.of(varadaVariable,
-                        new VaradaSliceConstant(likePattern, type)), type);
-        VaradaCall untranslatableCall = new VaradaCall("$unfamiliar_call",
+                        new WarpSliceConstant(likePattern, type)), type);
+        WarpCall untranslatableCall = new WarpCall("$unfamiliar_call",
                 List.of(varadaVariable), type);
-        VaradaCall orCall = new VaradaCall(StandardFunctions.OR_FUNCTION_NAME.getName(),
+        WarpCall orCall = new WarpCall(StandardFunctions.OR_FUNCTION_NAME.getName(),
                 List.of(likeCall,
                         untranslatableCall), type);
-        VaradaCall andCall = new VaradaCall(StandardFunctions.AND_FUNCTION_NAME.getName(),
+        WarpCall andCall = new WarpCall(StandardFunctions.AND_FUNCTION_NAME.getName(),
                 List.of(likeCall,
                         untranslatableCall), type);
-        VaradaCall andCallWithInvalidArgument = new VaradaCall(StandardFunctions.AND_FUNCTION_NAME.getName(),
+        WarpCall andCallWithInvalidArgument = new WarpCall(StandardFunctions.AND_FUNCTION_NAME.getName(),
                 List.of(likeCall,
                         varadaVariable), type);
-        VaradaCall andCallWhichCantBeConverted = new VaradaCall(StandardFunctions.AND_FUNCTION_NAME.getName(),
+        WarpCall andCallWhichCantBeConverted = new WarpCall(StandardFunctions.AND_FUNCTION_NAME.getName(),
                 List.of(untranslatableCall,
                         varadaVariable), type);
 
@@ -428,7 +427,7 @@ public class LuceneMatcherTest
     {
         String columnName = "col1";
         ColumnHandle columnHandle = mockColumnHandle(columnName, varcharType, dispatcherProxiedConnectorTransformer);
-        assertExpressionNotConverted(columnName, columnHandle, Optional.of(VaradaPrimitiveConstant.TRUE), Optional.of(Domain.all(varcharType)));
+        assertExpressionNotConverted(columnName, columnHandle, Optional.of(WarpPrimitiveConstant.TRUE), Optional.of(Domain.all(varcharType)));
     }
 
     @Test
@@ -439,14 +438,14 @@ public class LuceneMatcherTest
 
         BooleanQuery emptyQuery = new BooleanQuery.Builder().build();
 
-        assertExpressionConversion(columnName, columnHandle, Optional.of(VaradaPrimitiveConstant.FALSE), Optional.empty(), emptyQuery, true, true);
+        assertExpressionConversion(columnName, columnHandle, Optional.of(WarpPrimitiveConstant.FALSE), Optional.empty(), emptyQuery, true, true);
     }
 
     @Test
     public void testPreferBasicIndex()
     {
         String columnName = "col1";
-        VaradaColumn varadaColumn = new RegularColumn(columnName);
+        WarpColumn warpColumn = new RegularColumn(columnName);
         ColumnHandle columnHandle = mockColumnHandle(columnName, varcharType, dispatcherProxiedConnectorTransformer);
         Type type = VarcharType.createVarcharType(5);
         Domain domain = Domain.singleValue(type, Slices.utf8Slice("AAA"));
@@ -455,8 +454,8 @@ public class LuceneMatcherTest
 
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(tupleDomain);
         PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
-        Map<VaradaColumn, PredicateContext> remainingPredicateContext = predicateContextData.getLeaves()
-                .entrySet().stream().collect(Collectors.toMap(x -> x.getValue().getVaradaColumn(), Map.Entry::getValue));
+        Map<WarpColumn, PredicateContext> remainingPredicateContext = predicateContextData.getLeaves()
+                .entrySet().stream().collect(Collectors.toMap(x -> x.getValue().getWarpColumn(), Map.Entry::getValue));
         WarmedWarmupTypes.Builder builder = new WarmedWarmupTypes.Builder();
         builder.add(createWarmUpElementFromColumnHandle(columnHandle, WarmUpType.WARM_UP_TYPE_LUCENE));
         builder.add(createWarmUpElementFromColumnHandle(columnHandle, WarmUpType.WARM_UP_TYPE_BASIC));
@@ -475,12 +474,12 @@ public class LuceneMatcherTest
         MatchContext result = luceneElementsMatcher.match(classifyArgs, matchContext);
 
         assertThat(result.matchDataList()).isEmpty();
-        assertThat(result.remainingPredicateContext().get(varadaColumn).getDomain()).isEqualTo(domain);
+        assertThat(result.remainingPredicateContext().get(warpColumn).getDomain()).isEqualTo(domain);
     }
 
     private void assertExpressionConversion(String columnName,
             ColumnHandle columnHandle,
-            Optional<VaradaExpression> expression,
+            Optional<WarpExpression> expression,
             Optional<Domain> domain,
             BooleanQuery expectedQuery,
             boolean expressionWithCollectNulls,
@@ -492,13 +491,13 @@ public class LuceneMatcherTest
             Map<ColumnHandle, Domain> columnDomains = Map.of(columnHandle, domain.orElseThrow());
             tupleDomain = TupleDomain.withColumnDomains(columnDomains);
         }
-        VaradaExpressionData varadaExpressionData = null;
+        WarpExpressionData warpExpressionData = null;
         if (expression.isPresent()) {
             RegularColumn regularColumn = new RegularColumn(columnName);
-            varadaExpressionData = new VaradaExpressionData(expression.orElseThrow(), varcharType, expressionWithCollectNulls, Optional.empty(), regularColumn);
+            warpExpressionData = new WarpExpressionData(expression.orElseThrow(), varcharType, expressionWithCollectNulls, Optional.empty(), regularColumn);
         }
 
-        MatchContext result = executeMatch(columnHandle, tupleDomain, varadaExpressionData);
+        MatchContext result = executeMatch(columnHandle, tupleDomain, warpExpressionData);
 
         assertExpressionConversion(result, expectedQuery, nullAllowed);
     }
@@ -517,7 +516,7 @@ public class LuceneMatcherTest
 
     private void assertExpressionNotConverted(String columnName,
             ColumnHandle columnHandle,
-            Optional<VaradaExpression> expression,
+            Optional<WarpExpression> expression,
             Optional<Domain> domain)
     {
         RegularColumn regularColumn = new RegularColumn(columnName);
@@ -526,12 +525,12 @@ public class LuceneMatcherTest
             Map<ColumnHandle, Domain> columnDomains = Map.of(columnHandle, domain.orElseThrow());
             tupleDomain = TupleDomain.withColumnDomains(columnDomains);
         }
-        VaradaExpressionData varadaExpressionData = null;
+        WarpExpressionData warpExpressionData = null;
         if (expression.isPresent()) {
-            varadaExpressionData = new VaradaExpressionData(expression.orElseThrow(), varcharType, false, Optional.empty(), regularColumn);
+            warpExpressionData = new WarpExpressionData(expression.orElseThrow(), varcharType, false, Optional.empty(), regularColumn);
         }
 
-        MatchContext result = executeMatch(columnHandle, tupleDomain, varadaExpressionData);
+        MatchContext result = executeMatch(columnHandle, tupleDomain, warpExpressionData);
 
         assertThat(result.matchDataList()).isEmpty();
         if (domain.isEmpty() && expression.isEmpty()) {
@@ -553,18 +552,18 @@ public class LuceneMatcherTest
 
     private MatchContext executeMatch(ColumnHandle columnHandle,
             TupleDomain<ColumnHandle> tupleDomain,
-            VaradaExpressionData varadaExpressionData)
+            WarpExpressionData warpExpressionData)
     {
         WarmedWarmupTypes warmUpElementByType = createColumnToWarmUpElementByType(List.of(columnHandle), WarmUpType.WARM_UP_TYPE_LUCENE);
-        Optional<WarpExpression> warpExpression = Optional.empty();
-        if (varadaExpressionData != null) {
-            warpExpression = Optional.of(new WarpExpression(varadaExpressionData.getExpression(), List.of(varadaExpressionData)));
+        Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> warpExpression = Optional.empty();
+        if (warpExpressionData != null) {
+            warpExpression = Optional.of(new io.trino.plugin.warp.expression.rewrite.WarpExpression(warpExpressionData.getExpression(), List.of(warpExpressionData)));
         }
         when(dispatcherTableHandle.getWarpExpression()).thenReturn(warpExpression);
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(tupleDomain);
         PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
-        Map<VaradaColumn, PredicateContext> remainingPredicateContext = predicateContextData.getLeaves()
-                .entrySet().stream().collect(Collectors.toMap(x -> x.getValue().getVaradaColumn(), Map.Entry::getValue));
+        Map<WarpColumn, PredicateContext> remainingPredicateContext = predicateContextData.getLeaves()
+                .entrySet().stream().collect(Collectors.toMap(x -> x.getValue().getWarpColumn(), Map.Entry::getValue));
         ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
                 rowGroupData,
                 mock(PredicateContextData.class),

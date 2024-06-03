@@ -79,7 +79,7 @@ public class BlockAppenderFactory
             case WARM_UP_TYPE_LUCENE -> createLuceneAppender(warmUpElement.getRecTypeCode(), luceneIndexerOpt, juffersWE);
             default -> throw new RuntimeException("unknown warmup element type");
         };
-        logger.debug("create appender of type=%s, warmUpType=%s, varadaColumn=%s", blockAppender.getClass().getName(), warmUpElement.getWarmUpType(), warmUpElement.getVaradaColumn());
+        logger.debug("create appender of type=%s, warmUpType=%s, warpColumn=%s", blockAppender.getClass().getName(), warmUpElement.getWarmUpType(), warmUpElement.getWarpColumn());
         return blockAppender;
     }
 
@@ -107,7 +107,7 @@ public class BlockAppenderFactory
     {
         BlockAppender res;
 
-        if (warmUpElement.getVaradaColumn() instanceof TransformedColumn transformedColumn) {
+        if (warmUpElement.getWarpColumn() instanceof TransformedColumn transformedColumn) {
             TransformFunction transformFunction = transformedColumn.getTransformFunction();
 
             if (Objects.equals(transformFunction, TransformFunction.LOWER) && warmUpElement.getRecTypeCode() == RecTypeCode.REC_TYPE_VARCHAR) {

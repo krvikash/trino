@@ -17,8 +17,8 @@ import io.trino.matching.Captures;
 import io.trino.matching.Pattern;
 import io.trino.plugin.base.expression.ConnectorExpressionPatterns;
 import io.trino.plugin.base.expression.ConnectorExpressionRule;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaExpression;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpExpression;
 import io.trino.spi.expression.Call;
 import io.trino.spi.expression.Variable;
 import io.trino.spi.type.DateType;
@@ -33,7 +33,7 @@ import java.util.Set;
 import static io.trino.spi.expression.StandardFunctions.CAST_FUNCTION_NAME;
 
 class CastRewriter
-        implements ConnectorExpressionRule<Call, VaradaExpression>
+        implements ConnectorExpressionRule<Call, WarpExpression>
 {
     private static final Set<Class<? extends Type>> supportedCastTypes = Set.of(VarcharType.class, RealType.class, DateType.class);
     private static final Pattern<Call> PATTERN = ConnectorExpressionPatterns.call()
@@ -55,9 +55,9 @@ class CastRewriter
     }
 
     @Override
-    public Optional<VaradaExpression> rewrite(Call expression, Captures captures, RewriteContext<VaradaExpression> context)
+    public Optional<WarpExpression> rewrite(Call expression, Captures captures, RewriteContext<WarpExpression> context)
     {
-        Optional<VaradaExpression> varadaExpression = context.defaultRewrite(expression.getChildren().get(0));
-        return varadaExpression.map(value -> new VaradaCall(CAST_FUNCTION_NAME.getName(), List.of(value), expression.getType()));
+        Optional<WarpExpression> varadaExpression = context.defaultRewrite(expression.getChildren().get(0));
+        return varadaExpression.map(value -> new WarpCall(CAST_FUNCTION_NAME.getName(), List.of(value), expression.getType()));
     }
 }

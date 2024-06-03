@@ -16,7 +16,7 @@ package io.trino.plugin.warp.dispatcher;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Provider;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.VaradaErrorCode;
+import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.query.QueryContext;
@@ -24,7 +24,7 @@ import io.trino.plugin.warp.dispatcher.query.classifier.QueryClassifier;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.storage.read.PrefilledPageSource;
-import io.trino.plugin.warp.storage.read.VaradaStoragePageSource;
+import io.trino.plugin.warp.storage.read.WarpStoragePageSource;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
 import io.trino.spi.TrinoException;
@@ -57,7 +57,7 @@ public class DispatcherPageSource
     private static final int pageSizeInBytes = PageBuilderStatus.DEFAULT_MAX_PAGE_SIZE_IN_BYTES;
 
     private final ShapingLogger shapingLogger;
-    protected final VaradaStoragePageSource varadaPageSource;
+    protected final WarpStoragePageSource varadaPageSource;
     private final PrefilledPageSource prefilledPageSource;
     private final QueryContext queryContext;
     private final RowGroupData rowGroupData;
@@ -83,7 +83,7 @@ public class DispatcherPageSource
     public DispatcherPageSource(Provider<ConnectorPageSource> proxiedConnectorPageSourceProvider,
             QueryClassifier queryClassifier,
             List<Type> varadaWithoutPrefilledAndProxiedCollectTypes,
-            VaradaStoragePageSource varadaPageSource,
+            WarpStoragePageSource varadaPageSource,
             QueryContext queryContext,
             RowGroupData rowGroupData,
             PageSourceDecision pageSourceDecision,
@@ -272,7 +272,7 @@ public class DispatcherPageSource
     private Page buildFullResultPage(int overlapRowCount)
     {
         if (queryContext.getTotalCollectCount() != (currentProxiedPage.getChannelCount() + currentVaradaPage.getChannelCount() + prefilledPageSource.getChannelCount())) {
-            throw new TrinoException(VaradaErrorCode.VARADA_FAILED_TO_BUILD_MIXED_PAGE, "wrong number of columns");
+            throw new TrinoException(WarpErrorCode.VARADA_FAILED_TO_BUILD_MIXED_PAGE, "wrong number of columns");
         }
         Block[] orderedBlocks = new Block[queryContext.getTotalCollectCount()];
         int startPointVarada = 0;
@@ -516,11 +516,11 @@ public class DispatcherPageSource
         int blocksCount = queryContext.getTotalCollectCount();
 
         if (blocksCount != resultPage.getChannelCount() + prefilledPageSource.getChannelCount()) {
-            throw new TrinoException(VaradaErrorCode.VARADA_FAILED_TO_BUILD_MIXED_PAGE, "wrong number of columns");
+            throw new TrinoException(WarpErrorCode.VARADA_FAILED_TO_BUILD_MIXED_PAGE, "wrong number of columns");
         }
         Block[] orderedBlocks = new Block[blocksCount];
         final int varadaStartIndex = queryContext.getRemainingCollectColumnByBlockIndex().size();
-        int varadaColumnIndex = varadaStartIndex;
+        int warpColumnIndex = varadaStartIndex;
         int proxiedConnectorColumnIndex = START_INDEX_OF_PROXIED_CONNECTOR_COLUMNS;
         for (int i = 0; i < queryContext.getTotalCollectCount(); i++) {
             if (queryContext.getRemainingCollectColumnByBlockIndex().containsKey(i)) {
@@ -532,9 +532,9 @@ public class DispatcherPageSource
                     orderedBlocks[i] = prefilledPageSource.createBlock(i, resultPage.getPositionCount());
                 }
                 else {
-                    final int varadaBlockIndex = queryContext.getNativeQueryCollectDataList().get(varadaColumnIndex - varadaStartIndex).getBlockIndex();
-                    orderedBlocks[varadaBlockIndex] = resultPage.getBlock(varadaColumnIndex);
-                    varadaColumnIndex++;
+                    final int varadaBlockIndex = queryContext.getNativeQueryCollectDataList().get(warpColumnIndex - varadaStartIndex).getBlockIndex();
+                    orderedBlocks[varadaBlockIndex] = resultPage.getBlock(warpColumnIndex);
+                    warpColumnIndex++;
                 }
             }
         }
@@ -597,7 +597,7 @@ public class DispatcherPageSource
     private static void validateRanges(boolean condition, String formatString, Object... args)
     {
         if (!condition) {
-            throw new TrinoException(VaradaErrorCode.VARADA_MATCH_RANGES_ERROR, format(formatString, args));
+            throw new TrinoException(WarpErrorCode.VARADA_MATCH_RANGES_ERROR, format(formatString, args));
         }
     }
 }

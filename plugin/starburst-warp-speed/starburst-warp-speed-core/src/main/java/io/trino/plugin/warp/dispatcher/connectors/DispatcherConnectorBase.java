@@ -16,7 +16,7 @@ package io.trino.plugin.warp.dispatcher.connectors;
 import com.google.common.collect.ImmutableList;
 import io.airlift.bootstrap.LifeCycleManager;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.VaradaSessionProperties;
+import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.dispatcher.DispatcherIndexProvider;
 import io.trino.plugin.warp.dispatcher.DispatcherPageSinkProvider;
@@ -56,12 +56,12 @@ public abstract class DispatcherConnectorBase
 
     public DispatcherConnectorBase(
             @ForWarp Connector proxiedConnector,
-            VaradaSessionProperties varadaSessionProperties,
+            WarpSessionProperties warpSessionProperties,
             LifeCycleManager lifeCycleManager,
             ConnectorTaskExecutor connectorTaskExecutor)
     {
         this.proxiedConnector = requireNonNull(proxiedConnector);
-        this.sessionProperties = ImmutableList.copyOf(requireNonNull(varadaSessionProperties.getSessionProperties()));
+        this.sessionProperties = ImmutableList.copyOf(requireNonNull(warpSessionProperties.getSessionProperties()));
         this.lifeCycleManager = requireNonNull(lifeCycleManager);
         this.connectorTaskExecutor = requireNonNull(connectorTaskExecutor);
     }

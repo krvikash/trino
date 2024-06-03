@@ -93,7 +93,7 @@ class CommonStoreIdFinderTest
         for (String column : columns) {
             WarmUpElement we = mock(WarmUpElement.class);
             when(we.getStoreId()).thenReturn(storeId);
-            when(we.getVaradaColumn()).thenReturn(new RegularColumn(column));
+            when(we.getWarpColumn()).thenReturn(new RegularColumn(column));
             warmUpElementList.add(we);
         }
         return warmUpElementList;

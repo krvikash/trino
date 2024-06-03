@@ -27,8 +27,8 @@ import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.model.DictionaryState;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WarmupProperties;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
@@ -57,7 +57,7 @@ public class WarmingManager
     private static final Logger logger = Logger.get(WarmingManager.class);
 
     private final DictionaryStats dictionaryStats;
-    private final VaradaProxiedWarmer varadaProxiedWarmer;
+    private final WarpProxiedWarmer warpProxiedWarmer;
     private final EmptyRowGroupWarmer emptyRowGroupWarmer;
     private final GlobalConfig globalConfig;
     private final CloudVendorConfig cloudVendorConfig;
@@ -70,7 +70,7 @@ public class WarmingManager
 
     @Inject
     public WarmingManager(
-            VaradaProxiedWarmer varadaProxiedWarmer,
+            WarpProxiedWarmer warpProxiedWarmer,
             EmptyRowGroupWarmer emptyRowGroupWarmer,
             GlobalConfig globalConfig,
             @ForWarp CloudVendorConfig cloudVendorConfig,
@@ -80,7 +80,7 @@ public class WarmingManager
             WeGroupWarmer weGroupWarmer,
             StorageWarmerService storageWarmerService)
     {
-        this.varadaProxiedWarmer = requireNonNull(varadaProxiedWarmer);
+        this.warpProxiedWarmer = requireNonNull(warpProxiedWarmer);
         this.emptyRowGroupWarmer = requireNonNull(emptyRowGroupWarmer);
         this.globalConfig = requireNonNull(globalConfig);
         this.cloudVendorConfig = requireNonNull(cloudVendorConfig);
@@ -119,9 +119,9 @@ public class WarmingManager
             DispatcherTableHandle dispatcherTableHandle,
             DispatcherSplit dispatcherSplit,
             List<ColumnHandle> columnsToWarm,
-            SetMultimap<VaradaColumn, WarmupProperties> requiredWarmUpTypeMap,
+            SetMultimap<WarpColumn, WarmupProperties> requiredWarmUpTypeMap,
             List<WarmUpElement> newWarmupElements,
-            Map<VaradaColumn, String> partitionKeys,
+            Map<WarpColumn, String> partitionKeys,
             boolean skipWait)
             throws InterruptedException
     {
@@ -146,7 +146,7 @@ public class WarmingManager
                 if (!newWarmupElements.isEmpty()) {
                     StopWatch stopWatch = new StopWatch();
                     stopWatch.start();
-                    rowGroupData = varadaProxiedWarmer.warm(connectorPageSourceProvider,
+                    rowGroupData = warpProxiedWarmer.warm(connectorPageSourceProvider,
                             transactionHandle,
                             session,
                             dispatcherTableHandle,
@@ -186,7 +186,7 @@ public class WarmingManager
         emptyRowGroupWarmer.warm(rowGroupKey, newWarmUpElements);
     }
 
-    public void saveEmptyRowGroup(RowGroupKey rowGroupKey, List<WarmUpElement> newWarmUpElements, Map<VaradaColumn, String> partitionKeys)
+    public void saveEmptyRowGroup(RowGroupKey rowGroupKey, List<WarmUpElement> newWarmUpElements, Map<WarpColumn, String> partitionKeys)
     {
         emptyRowGroupWarmer.saveImportedEmptyRowGroup(newWarmUpElements, rowGroupKey, partitionKeys);
     }

@@ -13,8 +13,8 @@
  */
 package io.trino.plugin.warp.dispatcher.query.data.collect;
 
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.MatchCollectIdService;
 import io.trino.plugin.warp.dispatcher.query.MatchCollectUtils.MatchCollectType;
 import io.trino.spi.type.Type;
@@ -151,9 +151,9 @@ public class NativeQueryCollectData
         }
 
         @Override
-        public Builder varadaColumn(VaradaColumn varadaColumn)
+        public Builder warpColumn(WarpColumn warpColumn)
         {
-            super.varadaColumn(varadaColumn);
+            super.warpColumn(warpColumn);
             return this;
         }
 

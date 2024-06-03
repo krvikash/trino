@@ -14,7 +14,7 @@
 package io.trino.plugin.warp.dispatcher;
 
 import com.google.inject.Inject;
-import io.trino.plugin.warp.VaradaSessionProperties;
+import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.storage.splits.ConnectorSplitNodeDistributor;
 import io.trino.plugin.warp.storage.splits.ConnectorSplitSessionNodeDistributor;
@@ -62,7 +62,7 @@ public class DispatcherSplitManager
             Constraint constraint)
     {
         ConnectorSplitNodeDistributor splitNodeDistributor;
-        String nodeDistributorSessionKey = VaradaSessionProperties.getNodeByBySession(session);
+        String nodeDistributorSessionKey = WarpSessionProperties.getNodeByBySession(session);
         if (nodeDistributorSessionKey != null) {
             splitNodeDistributor = new ConnectorSplitSessionNodeDistributor(nodeManager, nodeDistributorSessionKey);
         }

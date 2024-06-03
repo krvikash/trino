@@ -71,7 +71,7 @@ import java.util.OptionalLong;
 import java.util.stream.LongStream;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static io.trino.plugin.warp.VaradaSessionProperties.ENABLE_MATCH_COLLECT;
+import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_MATCH_COLLECT;
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.generateRowGroupData;
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.mockColumnHandle;
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.mockColumns;

@@ -20,10 +20,10 @@ import io.trino.plugin.warp.dispatcher.dal.RowGroupDataDao;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmState;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
@@ -32,7 +32,7 @@ import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngine;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
-import io.trino.plugin.warp.tools.util.VaradaReadWriteLock;
+import io.trino.plugin.warp.tools.util.WarpReadWriteLock;
 import io.trino.spi.NodeManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -86,7 +86,7 @@ public class RowGroupDataServiceTest
     @Test
     public void testCreateRowGroupData()
     {
-        Map<VaradaColumn, String> partitionKeys = Map.of(new RegularColumn("a"), "b");
+        Map<WarpColumn, String> partitionKeys = Map.of(new RegularColumn("a"), "b");
 
         rowGroupDataService.getOrCreateRowGroupData(rowGroupKey, partitionKeys);
 
@@ -132,7 +132,7 @@ public class RowGroupDataServiceTest
     @Test
     public void testMarkAsFailedNewRowGroup()
     {
-        Map<VaradaColumn, String> partitionKeys = Map.of(new RegularColumn("1"), "2");
+        Map<WarpColumn, String> partitionKeys = Map.of(new RegularColumn("1"), "2");
         List<WarmUpElement> newWarmUpElements = IntStream.range(0, 5)
                 .mapToObj(i -> createWarmUpElement("col" + i, true))
                 .collect(Collectors.toList());
@@ -317,12 +317,12 @@ public class RowGroupDataServiceTest
 
     private RowGroupData createRowGroupData(Collection<WarmUpElement> warmUpElements)
     {
-        Map<VaradaColumn, String> partitionKeys = Map.of(new RegularColumn("1"), "2");
+        Map<WarpColumn, String> partitionKeys = Map.of(new RegularColumn("1"), "2");
         int totalRecords = 7;
         warmUpElements = warmUpElements.stream().map(x -> WarmUpElement.builder(x).totalRecords(totalRecords).build()).collect(Collectors.toList());
         return RowGroupData.builder()
                 .rowGroupKey(rowGroupKey)
-                .lock(new VaradaReadWriteLock())
+                .lock(new WarpReadWriteLock())
                 .warmUpElements(warmUpElements)
                 .partitionKeys(partitionKeys)
                 .build();

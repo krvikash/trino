@@ -22,7 +22,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 
-import static io.trino.plugin.warp.VaradaErrorCode.VARADA_UNRECOVERABLE_MATCH_FAILED;
+import static io.trino.plugin.warp.WarpErrorCode.VARADA_UNRECOVERABLE_MATCH_FAILED;
 
 class ChunksQueue
 {

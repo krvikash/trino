@@ -110,7 +110,7 @@ class MatchPrepareAfterCollectClassifier
                 // Remove from prefilled (we might have decided to prefill based on tightness which doesn't exist anymore)
                 removedMatchedData.forEach(queryMatchData ->
                         prefilledQueryCollectDataByBlockIndex.values().stream()
-                                .filter(prefilled -> queryMatchData.getVaradaColumn().equals(prefilled.getVaradaColumn()))
+                                .filter(prefilled -> queryMatchData.getWarpColumn().equals(prefilled.getWarpColumn()))
                                 .map(QueryCollectData::getBlockIndex)
                                 .toList()
                                 .forEach(blockIndex -> {

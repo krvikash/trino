@@ -17,8 +17,8 @@ import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.MatchCollectIdService;
 import io.trino.plugin.warp.dispatcher.query.MatchCollectUtils;
 import io.trino.plugin.warp.dispatcher.query.MatchCollectUtils.MatchCollectType;
@@ -27,7 +27,7 @@ import io.trino.plugin.warp.dispatcher.query.data.collect.NativeQueryCollectData
 import io.trino.plugin.warp.dispatcher.query.data.match.LogicalMatchData;
 import io.trino.plugin.warp.dispatcher.query.data.match.MatchData;
 import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
-import io.trino.plugin.warp.expression.VaradaPrimitiveConstant;
+import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.TestingColumnHandle;
@@ -63,7 +63,7 @@ public class MatchPrepareAfterCollectClassifierTest
     {
         matchCollectIdService = mock(MatchCollectIdService.class);
         matchPrepareAfterCollectClassifier = new MatchPrepareAfterCollectClassifier(matchCollectIdService, MAX_MATCH_COLUMNS);
-        baseContext = new QueryContext(new PredicateContextData(ImmutableMap.of(), VaradaPrimitiveConstant.TRUE), ImmutableMap.of());
+        baseContext = new QueryContext(new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE), ImmutableMap.of());
         rowGroupData = mock(RowGroupData.class);
     }
 
@@ -92,8 +92,8 @@ public class MatchPrepareAfterCollectClassifierTest
         QueryMatchData onlyMatch = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
         QueryMatchData lucene = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_LUCENE);
         List<NativeQueryCollectData> collectColumns = createCollectColumns(data, basicWithCollectLowestPriority);
-        ImmutableMap<Integer, ColumnHandle> collectColumnsByBlockIndex = ImmutableMap.of(0, new TestingColumnHandle(data.getVaradaColumn().getName()),
-                1, new TestingColumnHandle(basicWithCollectLowestPriority.getVaradaColumn().getName()));
+        ImmutableMap<Integer, ColumnHandle> collectColumnsByBlockIndex = ImmutableMap.of(0, new TestingColumnHandle(data.getWarpColumn().getName()),
+                1, new TestingColumnHandle(basicWithCollectLowestPriority.getWarpColumn().getName()));
         LogicalMatchData matchData = new LogicalMatchData(LogicalMatchData.Operator.OR,
                 List.of(basicWithCollectLowestPriority, onlyMatch, data, lucene));
 
@@ -102,7 +102,7 @@ public class MatchPrepareAfterCollectClassifierTest
         WarmedWarmupTypes.Builder warmedWarmupTypes = new WarmedWarmupTypes.Builder();
         ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
                 rowGroupData,
-                new PredicateContextData(ImmutableMap.of(), VaradaPrimitiveConstant.TRUE),
+                new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE),
                 collectColumnsByBlockIndex,
                 warmedWarmupTypes.build(),
                 false,
@@ -131,8 +131,8 @@ public class MatchPrepareAfterCollectClassifierTest
 
         List<NativeQueryCollectData> collectColumns = createCollectColumns(data, basicWithCollectLowestPriority);
         ImmutableMap<Integer, ColumnHandle> collectColumnsByBlockIndex = ImmutableMap.of(
-                0, new TestingColumnHandle(data.getVaradaColumn().getName()),
-                1, new TestingColumnHandle(basicWithCollectLowestPriority.getVaradaColumn().getName()));
+                0, new TestingColumnHandle(data.getWarpColumn().getName()),
+                1, new TestingColumnHandle(basicWithCollectLowestPriority.getWarpColumn().getName()));
         LogicalMatchData matchData = new LogicalMatchData(LogicalMatchData.Operator.AND,
                 List.of(basicWithCollectLowestPriority, onlyMatch, data));
 
@@ -141,7 +141,7 @@ public class MatchPrepareAfterCollectClassifierTest
         WarmedWarmupTypes.Builder warmedWarmupTypes = new WarmedWarmupTypes.Builder();
         ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
                 rowGroupData,
-                new PredicateContextData(ImmutableMap.of(), VaradaPrimitiveConstant.TRUE),
+                new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE),
                 collectColumnsByBlockIndex,
                 warmedWarmupTypes.build(),
                 false,
@@ -173,8 +173,8 @@ public class MatchPrepareAfterCollectClassifierTest
 
         List<NativeQueryCollectData> collectColumns = createCollectColumns(matchCollect1, matchCollect2);
 
-        TestingColumnHandle matchCollect1Handle = new TestingColumnHandle(matchCollect1.getVaradaColumn().getName());
-        TestingColumnHandle matchCollect2Handle = new TestingColumnHandle(matchCollect2.getVaradaColumn().getName());
+        TestingColumnHandle matchCollect1Handle = new TestingColumnHandle(matchCollect1.getWarpColumn().getName());
+        TestingColumnHandle matchCollect2Handle = new TestingColumnHandle(matchCollect2.getWarpColumn().getName());
         ImmutableMap<Integer, ColumnHandle> collectColumnsByBlockIndex = ImmutableMap.of(
                 0, matchCollect1Handle,
                 1, matchCollect2Handle);
@@ -185,7 +185,7 @@ public class MatchPrepareAfterCollectClassifierTest
         WarmedWarmupTypes.Builder warmedWarmupTypes = new WarmedWarmupTypes.Builder();
         ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
                 rowGroupData,
-                new PredicateContextData(ImmutableMap.of(), VaradaPrimitiveConstant.TRUE),
+                new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE),
                 collectColumnsByBlockIndex,
                 warmedWarmupTypes.build(),
                 false,
@@ -220,7 +220,7 @@ public class MatchPrepareAfterCollectClassifierTest
         QueryMatchData basicMatchData = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
         QueryMatchData basicCollectIndexMatchData = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC, true);
         QueryMatchData luceneCollectIndexMatchData = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_LUCENE);
-        NativeQueryCollectData basicCollectIndexCollectData = generateNativeQueryCollectData(true, 0, basicCollectIndexMatchData.getVaradaColumn());
+        NativeQueryCollectData basicCollectIndexCollectData = generateNativeQueryCollectData(true, 0, basicCollectIndexMatchData.getWarpColumn());
         WarmedWarmupTypes.Builder warmedWarmupTypes = new WarmedWarmupTypes.Builder();
         ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
                 rowGroupData,
@@ -374,23 +374,23 @@ public class MatchPrepareAfterCollectClassifierTest
     {
         RegularColumn columnName = new RegularColumn("mock" + random.nextInt());
         WarmUpElement mockElement = mock(WarmUpElement.class, columnName.getName());
-        when(mockElement.getVaradaColumn()).thenReturn(columnName);
+        when(mockElement.getWarpColumn()).thenReturn(columnName);
         when(mockElement.getWarmUpType()).thenReturn(warmUpType);
 
         QueryMatchData mockQueryMatchData = mock(QueryMatchData.class, warmUpType.name() + " collect:" + collect + ", columnName: " + columnName);
         when(mockQueryMatchData.getType()).thenReturn(IntegerType.INTEGER);
         when(mockQueryMatchData.getWarmUpElement()).thenReturn(mockElement);
         when(mockQueryMatchData.getWarmUpElementOptional()).thenReturn(Optional.of(mockElement));
-        when(mockQueryMatchData.getVaradaColumn()).thenReturn(columnName);
+        when(mockQueryMatchData.getWarpColumn()).thenReturn(columnName);
         when(mockQueryMatchData.getLeavesDFS()).thenReturn(List.of(mockQueryMatchData));
         when(mockQueryMatchData.canMatchCollect(eq(columnName))).thenReturn(true);
         return mockQueryMatchData;
     }
 
-    private NativeQueryCollectData generateNativeQueryCollectData(boolean isMatchCollect, int blockIndex, VaradaColumn varadaColumn)
+    private NativeQueryCollectData generateNativeQueryCollectData(boolean isMatchCollect, int blockIndex, WarpColumn warpColumn)
     {
         WarmUpElement collectWarmUpElement = mock(WarmUpElement.class);
-        when(collectWarmUpElement.getVaradaColumn()).thenReturn(varadaColumn);
+        when(collectWarmUpElement.getWarpColumn()).thenReturn(warpColumn);
         return NativeQueryCollectData.builder()
                 .warmUpElement(collectWarmUpElement)
                 .matchCollectType(isMatchCollect ? MatchCollectType.ORDINARY : MatchCollectType.DISABLED)

@@ -16,7 +16,7 @@ package io.trino.plugin.warp.util;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.VaradaErrorCode;
+import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.gen.constants.FailureRepetitionMode;
 import io.trino.spi.TrinoException;
 
@@ -48,10 +48,10 @@ public class FailureGeneratorInvocationHandler
                 logger.debug("invoking proxy of %s - %s", key, failureAction);
                 switch (failureAction.getFailureType()) {
                     case RETURN_NULL -> { /* do nothing */ }
-                    case JAVA_EXCEPTION -> throw new TrinoException(VaradaErrorCode.VARADA_GENERIC, "this is a fake java error");
-                    case NATIVE_EXCEPTION -> throw new TrinoException(VaradaErrorCode.VARADA_NATIVE_ERROR, "this is a fake native error");
-                    case NATIVE_UNRECOVERABLE_EXCEPTION -> throw new TrinoException(VaradaErrorCode.VARADA_NATIVE_UNRECOVERABLE_ERROR, "this is a fake unrecoverable native error");
-                    case NATIVE_PANIC -> throw new TrinoException(VaradaErrorCode.VARADA_ILLEGAL_PARAMETER, "NATIVE_PANIC should not get here");
+                    case JAVA_EXCEPTION -> throw new TrinoException(WarpErrorCode.VARADA_GENERIC, "this is a fake java error");
+                    case NATIVE_EXCEPTION -> throw new TrinoException(WarpErrorCode.VARADA_NATIVE_ERROR, "this is a fake native error");
+                    case NATIVE_UNRECOVERABLE_EXCEPTION -> throw new TrinoException(WarpErrorCode.VARADA_NATIVE_UNRECOVERABLE_ERROR, "this is a fake unrecoverable native error");
+                    case NATIVE_PANIC -> throw new TrinoException(WarpErrorCode.VARADA_ILLEGAL_PARAMETER, "NATIVE_PANIC should not get here");
                 }
                 return null;
             }

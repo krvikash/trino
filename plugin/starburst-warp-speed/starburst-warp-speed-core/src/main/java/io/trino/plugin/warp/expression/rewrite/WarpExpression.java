@@ -14,14 +14,13 @@
 package io.trino.plugin.warp.expression.rewrite;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.trino.plugin.warp.expression.VaradaExpression;
-import io.trino.plugin.warp.expression.VaradaExpressionData;
+import io.trino.plugin.warp.expression.WarpExpressionData;
 
 import java.io.Serializable;
 import java.util.List;
 
-public record WarpExpression(@JsonProperty("rootExpression") VaradaExpression rootExpression,
-                             @JsonProperty("varadaExpressionDataLeaves") List<VaradaExpressionData> varadaExpressionDataLeaves)
+public record WarpExpression(@JsonProperty("rootExpression") io.trino.plugin.warp.expression.WarpExpression rootExpression,
+                             @JsonProperty("varadaExpressionDataLeaves") List<WarpExpressionData> warpExpressionDataLeaves)
         implements Serializable
 {
 }

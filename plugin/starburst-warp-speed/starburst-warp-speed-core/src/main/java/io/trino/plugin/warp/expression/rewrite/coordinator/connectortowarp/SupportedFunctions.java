@@ -19,7 +19,7 @@ import com.google.common.collect.SetMultimap;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.trino.plugin.base.expression.ConnectorExpressionRule;
-import io.trino.plugin.warp.expression.VaradaExpression;
+import io.trino.plugin.warp.expression.WarpExpression;
 import io.trino.plugin.warp.gen.stats.PushdownPredicatesStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.spi.expression.Call;
@@ -83,7 +83,7 @@ public class SupportedFunctions
 
     public static final FunctionName JSON_EXTRACT_SCALAR = new FunctionName("json_extract_scalar");
 
-    private final SetMultimap<FunctionName, ConnectorExpressionRule<Call, VaradaExpression>> supportedFunctionsRules = HashMultimap.create();
+    private final SetMultimap<FunctionName, ConnectorExpressionRule<Call, WarpExpression>> supportedFunctionsRules = HashMultimap.create();
     private final PushdownPredicatesStats pushdownPredicatesStats;
 
     public static final Set<FunctionName> DATE_FUNCTIONS = Set.of(SupportedFunctions.DOW,
@@ -152,7 +152,7 @@ public class SupportedFunctions
         }
     }
 
-    public Set<ConnectorExpressionRule<Call, VaradaExpression>> getRule(FunctionName functionName)
+    public Set<ConnectorExpressionRule<Call, WarpExpression>> getRule(FunctionName functionName)
     {
         return supportedFunctionsRules.get(functionName);
     }
@@ -168,7 +168,7 @@ public class SupportedFunctions
     }
 
     @VisibleForTesting
-    SetMultimap<FunctionName, ConnectorExpressionRule<Call, VaradaExpression>> getSupportedFunctionsRules()
+    SetMultimap<FunctionName, ConnectorExpressionRule<Call, WarpExpression>> getSupportedFunctionsRules()
     {
         return supportedFunctionsRules;
     }

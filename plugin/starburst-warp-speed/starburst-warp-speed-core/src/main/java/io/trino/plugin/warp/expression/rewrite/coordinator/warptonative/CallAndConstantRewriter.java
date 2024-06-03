@@ -15,9 +15,9 @@ package io.trino.plugin.warp.expression.rewrite.coordinator.warptonative;
 
 import io.trino.matching.Pattern;
 import io.trino.plugin.warp.expression.NativeExpression;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaConstant;
-import io.trino.plugin.warp.expression.VaradaExpression;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpConstant;
+import io.trino.plugin.warp.expression.WarpExpression;
 import io.trino.plugin.warp.expression.rewrite.ExpressionPatterns;
 import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.gen.stats.PushdownPredicatesStats;
@@ -34,10 +34,10 @@ import static io.trino.plugin.warp.expression.rewrite.coordinator.warptonative.V
 class CallAndConstantRewriter
         extends BaseOperatorRewriter
 {
-    private static final Pattern<VaradaCall> PATTERN = ExpressionPatterns.call()
+    private static final Pattern<WarpCall> PATTERN = ExpressionPatterns.call()
             .with(argumentCount().equalTo(2))
-            .with(argument(0).matching(x -> x instanceof VaradaCall))
-            .with(argument(1).matching(x -> x instanceof VaradaConstant));
+            .with(argument(0).matching(x -> x instanceof WarpCall))
+            .with(argument(1).matching(x -> x instanceof WarpConstant));
 
     CallAndConstantRewriter(NativeExpressionRulesHandler nativeExpressionRulesHandler,
             PushdownPredicatesStats pushdownPredicatesStats)
@@ -46,13 +46,13 @@ class CallAndConstantRewriter
     }
 
     @Override
-    public Pattern<VaradaCall> getPattern()
+    public Pattern<WarpCall> getPattern()
     {
         return PATTERN;
     }
 
     @Override
-    boolean convert(VaradaExpression varadaExpression,
+    boolean convert(WarpExpression warpExpression,
             RewriteContext rewriteContext,
             BiFunction<Type, Object, Range> rangeBiFunction)
     {
@@ -61,9 +61,9 @@ class CallAndConstantRewriter
             //currently, not supported complex expression. etc: where (ceil(c1) > 5) = false
             return false;
         }
-        VaradaConstant varadaConstant = ((VaradaConstant) varadaExpression.getChildren().get(1));
+        WarpConstant varadaConstant = ((WarpConstant) warpExpression.getChildren().get(1));
         Type constantType = varadaConstant.getType();
-        String functionName = ((VaradaCall) varadaExpression).getFunctionName();
+        String functionName = ((WarpCall) warpExpression).getFunctionName();
         PredicateType predicateType = calcPredicateType(constantType, functionName);
 
         Domain domain = convertConstantToDomain(varadaConstant, rangeBiFunction);
@@ -71,6 +71,6 @@ class CallAndConstantRewriter
         nativeExpressionBuilder.domain(domain)
                 .predicateType(predicateType)
                 .collectNulls(domain.isNullAllowed());
-        return nativeExpressionRulesHandler.rewrite(varadaExpression.getChildren().get(0), rewriteContext);
+        return nativeExpressionRulesHandler.rewrite(warpExpression.getChildren().get(0), rewriteContext);
     }
 }

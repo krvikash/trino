@@ -15,8 +15,8 @@ package io.trino.plugin.warp.expression.rewrite.coordinator.warptonative;
 
 import io.trino.matching.Pattern;
 import io.trino.plugin.warp.expression.NativeExpression;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaExpression;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpExpression;
 import io.trino.plugin.warp.expression.rewrite.ExpressionPatterns;
 import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.PredicateType;
@@ -28,9 +28,9 @@ import java.util.List;
 import static io.trino.plugin.warp.expression.rewrite.ExpressionPatterns.argumentCount;
 
 class AndOrRewriter
-        implements ExpressionRewriter<VaradaCall>
+        implements ExpressionRewriter<WarpCall>
 {
-    private static final Pattern<VaradaCall> PATTERN = ExpressionPatterns.call()
+    private static final Pattern<WarpCall> PATTERN = ExpressionPatterns.call()
             .with(argumentCount().matching(x -> x >= 2));
     private final NativeExpressionRulesHandler nativeExpressionRulesHandler;
     private final PushdownPredicatesStats pushdownPredicatesStats;
@@ -42,16 +42,16 @@ class AndOrRewriter
     }
 
     @Override
-    public Pattern<VaradaCall> getPattern()
+    public Pattern<WarpCall> getPattern()
     {
         return PATTERN;
     }
 
-    boolean or(VaradaExpression varadaExpression, RewriteContext parentContext)
+    boolean or(WarpExpression warpExpression, RewriteContext parentContext)
     {
         boolean isValid = true;
         NativeExpression.Builder parentNativeBuilder = parentContext.nativeExpressionBuilder();
-        for (VaradaExpression child : varadaExpression.getChildren()) {
+        for (WarpExpression child : warpExpression.getChildren()) {
             RewriteContext childContext = new RewriteContext(NativeExpression.builder(),
                     parentContext.columnType(),
                     parentContext.unsupportedNativeFunctions(),
@@ -83,11 +83,11 @@ class AndOrRewriter
         return isValid;
     }
 
-    boolean and(VaradaExpression varadaExpression, RewriteContext parentContext)
+    boolean and(WarpExpression warpExpression, RewriteContext parentContext)
     {
         boolean isValid = false;
         NativeExpression.Builder parentNativeBuilder = parentContext.nativeExpressionBuilder();
-        for (VaradaExpression child : varadaExpression.getChildren()) {
+        for (WarpExpression child : warpExpression.getChildren()) {
             RewriteContext childContext = new RewriteContext(NativeExpression.builder(),
                     parentContext.columnType(),
                     parentContext.unsupportedNativeFunctions(),

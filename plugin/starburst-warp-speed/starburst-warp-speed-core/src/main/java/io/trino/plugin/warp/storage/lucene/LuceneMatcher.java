@@ -105,16 +105,16 @@ public class LuceneMatcher
             logger.debug("nativeCookie=%d, filesLength=%s", nativeCookie, Arrays.toString(filesLength));
         }
         try {
-            VaradaInputDirectory varadaInputDirectory = new VaradaInputDirectory(storageEngine, storageEngineConstants,
+            WarpInputDirectory warpInputDirectory = new WarpInputDirectory(storageEngine, storageEngineConstants,
                     juffersWE,
                     nativeCookie, FILE_PREFIX, filesLength);
-            IndexReader reader = DirectoryReader.open(varadaInputDirectory);
+            IndexReader reader = DirectoryReader.open(warpInputDirectory);
             IndexSearcher indexSearcher = new IndexSearcher(reader);
             ByteBuffer luceneBMResultBuffer = juffersWE.getLuceneBMResultBuffer();
-            VaradaCollector varadaCollector = new VaradaCollector(luceneBMResultBuffer, resultBufferOffset, maxDocsToFind);
-            indexSearcher.search(query.get(), varadaCollector);
+            WarpCollector warpCollector = new WarpCollector(luceneBMResultBuffer, resultBufferOffset, maxDocsToFind);
+            indexSearcher.search(query.get(), warpCollector);
 
-            result = varadaCollector.getCount();
+            result = warpCollector.getCount();
             logger.debug("nativeCookie=%d - found %d match results", nativeCookie, result);
         }
         catch (IOException e) {

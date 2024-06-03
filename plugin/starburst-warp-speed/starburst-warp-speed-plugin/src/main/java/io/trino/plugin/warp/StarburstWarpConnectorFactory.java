@@ -22,7 +22,7 @@ import io.trino.plugin.warp.di.DefaultFakeConnectorSessionProvider;
 import io.trino.plugin.warp.di.FakeConnectorSessionProvider;
 import io.trino.plugin.warp.di.InitializationModule;
 import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
-import io.trino.plugin.warp.execution.VaradaClient;
+import io.trino.plugin.warp.execution.WarpClient;
 import io.trino.plugin.warp.extension.config.WarpExtensionConfig;
 import io.trino.plugin.warp.extension.di.WarpEmptyExtensionModule;
 import io.trino.plugin.warp.extension.di.WarpExtensionModule;
@@ -75,7 +75,7 @@ public class StarburstWarpConnectorFactory
         Map<String, String> configMap = new HashMap<>(config);
 
         if (!Boolean.parseBoolean(configMap.getOrDefault(WarpExtensionConfig.USE_HTTP_SERVER_PORT, Boolean.TRUE.toString()))) {
-            String httpRestPortStr = VaradaClient.getRestHttpPortStr(configMap,
+            String httpRestPortStr = WarpClient.getRestHttpPortStr(configMap,
                     UriUtils.getHttpUri(context.getNodeManager().getCurrentNode()).getPort());
 
             configMap.put("http-server.http.port", httpRestPortStr);

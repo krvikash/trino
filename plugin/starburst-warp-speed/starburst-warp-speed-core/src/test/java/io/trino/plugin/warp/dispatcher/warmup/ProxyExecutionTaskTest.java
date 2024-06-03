@@ -27,7 +27,7 @@ import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.QueryContext;
 import io.trino.plugin.warp.dispatcher.query.classifier.ClassificationType;
 import io.trino.plugin.warp.dispatcher.query.classifier.QueryClassifier;
@@ -60,7 +60,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Optional;
 
-import static io.trino.plugin.warp.VaradaSessionProperties.PREDICATE_SIMPLIFY_THRESHOLD;
+import static io.trino.plugin.warp.WarpSessionProperties.PREDICATE_SIMPLIFY_THRESHOLD;
 import static io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -96,7 +96,7 @@ public class ProxyExecutionTaskTest
     private QueryClassifier queryClassifier;
     private RowGroupDataService rowGroupDataService;
     private WarmupElementsCreator warmupElementsCreator;
-    private SetMultimap<VaradaColumn, WarmupProperties> requiredWarmUpTypeMap;
+    private SetMultimap<WarpColumn, WarmupProperties> requiredWarmUpTypeMap;
 
     @BeforeEach
     public void before()

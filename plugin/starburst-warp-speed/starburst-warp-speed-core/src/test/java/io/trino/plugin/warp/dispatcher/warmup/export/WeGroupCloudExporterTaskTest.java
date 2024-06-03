@@ -15,7 +15,7 @@ package io.trino.plugin.warp.dispatcher.warmup.export;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
-import io.trino.plugin.warp.VaradaSessionProperties;
+import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.cloudvendors.CloudVendorService;
 import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
 import io.trino.plugin.warp.config.GlobalConfig;
@@ -24,8 +24,8 @@ import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupDataValidation;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WorkerTaskExecutorService;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
@@ -70,7 +70,7 @@ public class WeGroupCloudExporterTaskTest
 
         workerTaskExecutorService = mock(WorkerTaskExecutorService.class);
 
-        Multimap<VaradaColumn, WarmUpType> columnNameToWarmUpType = ArrayListMultimap.create();
+        Multimap<WarpColumn, WarmUpType> columnNameToWarmUpType = ArrayListMultimap.create();
         columnNameToWarmUpType.put(column1, WarmUpType.WARM_UP_TYPE_BASIC);
         columnNameToWarmUpType.put(column2, WarmUpType.WARM_UP_TYPE_BASIC);
         columnNameToWarmUpType.put(column3, WarmUpType.WARM_UP_TYPE_BASIC);
@@ -95,7 +95,7 @@ public class WeGroupCloudExporterTaskTest
         CloudVendorService cloudVendorService = mock(CloudVendorService.class);
         when(cloudVendorService.getLocation(anyString())).thenCallRealMethod();
 
-        cloudImportExportPath = VaradaSessionProperties.getS3ImportExportPath(null, cloudVendorConfig, cloudVendorService);
+        cloudImportExportPath = WarpSessionProperties.getS3ImportExportPath(null, cloudVendorConfig, cloudVendorService);
     }
 
     @Test

@@ -18,8 +18,8 @@ import io.trino.matching.Capture;
 import io.trino.matching.Captures;
 import io.trino.matching.Pattern;
 import io.trino.plugin.base.expression.ConnectorExpressionRule;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaExpression;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpExpression;
 import io.trino.spi.expression.Call;
 import io.trino.spi.expression.ConnectorExpression;
 import io.trino.spi.expression.Constant;
@@ -42,7 +42,7 @@ import static io.trino.spi.expression.StandardFunctions.IN_PREDICATE_FUNCTION_NA
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 
 class InRewriter
-        implements ConnectorExpressionRule<Call, VaradaExpression>
+        implements ConnectorExpressionRule<Call, WarpExpression>
 {
     private static final Capture<ConnectorExpression> VALUE = newCapture();
     private static final Capture<List<ConnectorExpression>> EXPRESSIONS = newCapture();
@@ -62,19 +62,19 @@ class InRewriter
     }
 
     @Override
-    public Optional<VaradaExpression> rewrite(Call expression, Captures captures, RewriteContext<VaradaExpression> context)
+    public Optional<WarpExpression> rewrite(Call expression, Captures captures, RewriteContext<WarpExpression> context)
     {
         ConnectorExpression expression1 = captures.get(VALUE);
-        Optional<VaradaExpression> valueExpression = context.defaultRewrite(expression1);
+        Optional<WarpExpression> valueExpression = context.defaultRewrite(expression1);
         if (valueExpression.isEmpty()) {
             return Optional.empty();
         }
 
-        List<VaradaExpression> inValues = new ArrayList<>();
+        List<WarpExpression> inValues = new ArrayList<>();
         List<ConnectorExpression> expressions = captures.get(EXPRESSIONS);
         for (ConnectorExpression constantValue : expressions) {
             if (constantValue instanceof Constant) {
-                Optional<VaradaExpression> constant = context.defaultRewrite(constantValue);
+                Optional<WarpExpression> constant = context.defaultRewrite(constantValue);
                 if (constant.isPresent()) {
                     inValues.add(constant.get());
                 }
@@ -89,8 +89,8 @@ class InRewriter
             }
         }
 
-        VaradaExpression valuesExpression = new VaradaCall(ARRAY_CONSTRUCTOR_FUNCTION_NAME.getName(), inValues, new ArrayType(inValues.get(0).getType()));
+        WarpExpression valuesExpression = new WarpCall(ARRAY_CONSTRUCTOR_FUNCTION_NAME.getName(), inValues, new ArrayType(inValues.get(0).getType()));
 
-        return Optional.of(new VaradaCall(IN_PREDICATE_FUNCTION_NAME.getName(), List.of(valueExpression.get(), valuesExpression), expression.getType()));
+        return Optional.of(new WarpCall(IN_PREDICATE_FUNCTION_NAME.getName(), List.of(valueExpression.get(), valuesExpression), expression.getType()));
     }
 }

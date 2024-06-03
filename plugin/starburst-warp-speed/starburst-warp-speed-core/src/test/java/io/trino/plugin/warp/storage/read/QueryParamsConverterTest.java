@@ -106,7 +106,7 @@ public class QueryParamsConverterTest
                         .warmUpType(WarmUpType.WARM_UP_TYPE_LUCENE)
                         .recTypeCode(RecTypeCode.REC_TYPE_VARCHAR)
                         .recTypeLength(100 + weId)
-                        .varadaColumn(new RegularColumn(columnName))
+                        .warpColumn(new RegularColumn(columnName))
                         .warmupElementStats(new WarmupElementStats(1000 + weId, Long.MIN_VALUE, Long.MAX_VALUE))
                         .build())
                 .predicateCacheData(predicateCacheData)

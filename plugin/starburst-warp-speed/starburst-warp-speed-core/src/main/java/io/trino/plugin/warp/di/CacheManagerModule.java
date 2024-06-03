@@ -32,7 +32,7 @@ import io.trino.spi.connector.ConnectorContext;
 import java.util.Map;
 
 public class CacheManagerModule
-        implements VaradaBaseModule
+        implements WarpBaseModule
 {
     private ConnectorContext context;
     private Map<String, String> config;
@@ -46,7 +46,7 @@ public class CacheManagerModule
     @Override
     public void configure(Binder binder)
     {
-        if (VaradaBaseModule.isWorker(context, config)) {
+        if (WarpBaseModule.isWorker(context, config)) {
             binder.bind(CacheManager.class).to(WorkerCacheManager.class);
             binder.bind(CacheWarmer.class);
             binder.bind(WarpCacheFilesMerger.class);

@@ -20,8 +20,8 @@ import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.SimplifiedColumns;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
@@ -87,11 +87,11 @@ public abstract class ClassifierTest
                 warmUpType);
     }
 
-    protected WarmUpElement createWarmUpElement(VaradaColumn varadaColumn, Type type, WarmUpType warmUpType)
+    protected WarmUpElement createWarmUpElement(WarpColumn warpColumn, Type type, WarmUpType warmUpType)
     {
         final boolean isStr = type instanceof VarcharType;
         return WarmUpElement.builder()
-                .varadaColumn(varadaColumn)
+                .warpColumn(warpColumn)
                 .warmUpType(warmUpType)
                 .recTypeCode(isStr ? RecTypeCode.REC_TYPE_VARCHAR : RecTypeCode.REC_TYPE_INTEGER)
                 .recTypeLength(isStr ? STR_SIZE : INT_SIZE)

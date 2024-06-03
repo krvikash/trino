@@ -17,7 +17,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.VaradaSessionProperties;
+import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.cloudvendors.CloudVendorService;
 import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
@@ -230,7 +230,7 @@ public class WeGroupWarmer
 
     public Optional<RowGroupData> importWeGroup(ConnectorSession session, RowGroupKey rowGroupKey)
     {
-        String cloudImportExportPath = VaradaSessionProperties.getS3ImportExportPath(session, cloudVendorConfig, cloudVendorService);
+        String cloudImportExportPath = WarpSessionProperties.getS3ImportExportPath(session, cloudVendorConfig, cloudVendorService);
         String cloudPath = WarmUtils.getCloudPath(rowGroupKey, cloudImportExportPath);
         IsNeedDownloadResults isNeedDownloadResults;
         StopWatch stopWatch = new StopWatch();
@@ -326,7 +326,7 @@ public class WeGroupWarmer
 
     public Optional<RowGroupData> importWarmUpElements(ConnectorSession session, RowGroupKey rowGroupKey, List<WarmUpElement> warmWarmUpElements)
     {
-        String cloudImportExportPath = VaradaSessionProperties.getS3ImportExportPath(session, cloudVendorConfig, cloudVendorService);
+        String cloudImportExportPath = WarpSessionProperties.getS3ImportExportPath(session, cloudVendorConfig, cloudVendorService);
         String cloudPath = WarmUtils.getCloudPath(rowGroupKey, cloudImportExportPath);
         String localFileName = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
         RowGroupData rowGroupData = rowGroupDataService.get(rowGroupKey);

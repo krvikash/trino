@@ -23,7 +23,7 @@ import io.airlift.http.client.HttpUriBuilder;
 import io.airlift.http.client.Request;
 import io.airlift.json.JsonCodec;
 import io.trino.plugin.warp.CoordinatorNodeManager;
-import io.trino.plugin.warp.execution.VaradaClient;
+import io.trino.plugin.warp.execution.WarpClient;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
 import io.trino.plugin.warp.util.UriUtils;
@@ -55,14 +55,14 @@ public class WarmingResource
     public static final String WARMING_STATUS = "status";
     private static final JsonCodec<WorkerWarmingStatusData> WARMING_STATUS_DATA_JSON_CODEC = JsonCodec.jsonCodec(WorkerWarmingStatusData.class);
     private final CoordinatorNodeManager coordinatorNodeManager;
-    private final VaradaClient varadaClient;
+    private final WarpClient warpClient;
 
     @Inject
     public WarmingResource(CoordinatorNodeManager coordinatorNodeManager,
-            VaradaClient varadaClient)
+            WarpClient warpClient)
     {
         this.coordinatorNodeManager = requireNonNull(coordinatorNodeManager);
-        this.varadaClient = requireNonNull(varadaClient);
+        this.warpClient = requireNonNull(warpClient);
     }
 
     @GET
@@ -73,7 +73,7 @@ public class WarmingResource
         Map<String, HttpClient.HttpResponseFuture<FullJsonResponseHandler.JsonResponse<WorkerWarmingStatusData>>> allFutures = new HashMap<>();
         coordinatorNodeManager.getWorkerNodes()
                 .forEach(node -> {
-                    HttpUriBuilder uriBuilder = varadaClient.getRestEndpoint(UriUtils.getHttpUri(node));
+                    HttpUriBuilder uriBuilder = warpClient.getRestEndpoint(UriUtils.getHttpUri(node));
                     uriBuilder.appendPath(WarmingResource.WARMING);
                     uriBuilder.appendPath(WorkerWarmingResource.STATUS);
 
@@ -81,7 +81,7 @@ public class WarmingResource
                             .setUri(uriBuilder.build())
                             .setHeader("Content-Type", "application/json")
                             .build();
-                    allFutures.put(node.getHost(), varadaClient.executeAsync(request, createFullJsonResponseHandler(WARMING_STATUS_DATA_JSON_CODEC)));
+                    allFutures.put(node.getHost(), warpClient.executeAsync(request, createFullJsonResponseHandler(WARMING_STATUS_DATA_JSON_CODEC)));
                 });
 
         try {

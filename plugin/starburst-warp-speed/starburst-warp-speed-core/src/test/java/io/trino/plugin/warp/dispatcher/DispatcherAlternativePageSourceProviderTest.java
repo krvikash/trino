@@ -30,7 +30,7 @@ import io.trino.plugin.warp.dispatcher.query.classifier.QueryClassifier;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
-import io.trino.plugin.warp.expression.VaradaPrimitiveConstant;
+import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
@@ -186,7 +186,7 @@ public class DispatcherAlternativePageSourceProviderTest
         when(rowGroupDataService.get(rowGroupKey)).thenReturn(null);
 
         QueryContext queryContext = mock(QueryContext.class);
-        when(queryContext.getPredicateContextData()).thenReturn(new PredicateContextData(ImmutableMap.of(), VaradaPrimitiveConstant.TRUE));
+        when(queryContext.getPredicateContextData()).thenReturn(new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE));
         when(queryClassifier.getBasicQueryContext(anyList(), eq(dispatcherTableHandle), any(DynamicFilter.class), any(ConnectorSession.class)))
                 .thenReturn(queryContext);
 
@@ -244,7 +244,7 @@ public class DispatcherAlternativePageSourceProviderTest
         when(rowGroupDataService.get(rowGroupKey)).thenReturn(null);
 
         QueryContext queryContext = mock(QueryContext.class);
-        when(queryContext.getPredicateContextData()).thenReturn(new PredicateContextData(ImmutableMap.of(), VaradaPrimitiveConstant.TRUE));
+        when(queryContext.getPredicateContextData()).thenReturn(new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE));
         when(queryClassifier.getBasicQueryContext(anyList(), eq(dispatcherTableHandle), any(DynamicFilter.class), any(ConnectorSession.class)))
                 .thenReturn(queryContext);
 
@@ -535,7 +535,7 @@ public class DispatcherAlternativePageSourceProviderTest
     protected void mockQueryClassifier(boolean isProxyOnly, boolean isVaradaOnly, boolean isPrefilledOnly)
     {
         QueryContext basicQueryContext = mock(QueryContext.class);
-        when(basicQueryContext.getPredicateContextData()).thenReturn(new PredicateContextData(ImmutableMap.of(), VaradaPrimitiveConstant.TRUE));
+        when(basicQueryContext.getPredicateContextData()).thenReturn(new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE));
         when(queryClassifier.getBasicQueryContext(anyList(),
                 eq(dispatcherTableHandle),
                 any(DynamicFilter.class),
@@ -547,7 +547,7 @@ public class DispatcherAlternativePageSourceProviderTest
         when(queryContext.getMatchData()).thenReturn(Optional.empty());
         when(queryContext.getRemainingCollectColumns()).thenReturn(ImmutableList.of());
         when(queryContext.getRemainingCollectColumnByBlockIndex()).thenReturn(ImmutableMap.of());
-        when(queryContext.getPredicateContextData()).thenReturn(new PredicateContextData(ImmutableMap.of(), VaradaPrimitiveConstant.TRUE));
+        when(queryContext.getPredicateContextData()).thenReturn(new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE));
         when(queryContext.isProxyOnly()).thenReturn(isProxyOnly);
         when(queryContext.isVaradaOnly()).thenReturn(isVaradaOnly);
         when(queryContext.isPrefilledOnly()).thenReturn(isPrefilledOnly);

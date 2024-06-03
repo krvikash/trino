@@ -14,8 +14,8 @@
 package io.trino.plugin.warp.expression.rewrite.coordinator.warptonative;
 
 import io.trino.matching.Pattern;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaExpression;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpExpression;
 import io.trino.plugin.warp.expression.rewrite.ExpressionPatterns;
 import io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions;
 import io.trino.plugin.warp.gen.constants.FunctionType;
@@ -27,12 +27,12 @@ import static io.trino.plugin.warp.expression.rewrite.ExpressionPatterns.argumen
 import static io.trino.plugin.warp.expression.rewrite.ExpressionPatterns.functionName;
 
 public class FunctionsWithCastRewriter
-        implements ExpressionRewriter<VaradaCall>
+        implements ExpressionRewriter<WarpCall>
 {
-    private static final Pattern<VaradaCall> PATTERN = ExpressionPatterns.call()
+    private static final Pattern<WarpCall> PATTERN = ExpressionPatterns.call()
             .with(functionName().matching(functionName -> SupportedFunctions.DATE_FUNCTIONS.contains(new FunctionName(functionName))))
             .with(argumentCount().equalTo(1))
-            .with(argument(0).matching(x -> x instanceof VaradaCall varadaCall && varadaCall.getFunctionName().equals(StandardFunctions.CAST_FUNCTION_NAME.getName())));
+            .with(argument(0).matching(x -> x instanceof WarpCall warpCall && warpCall.getFunctionName().equals(StandardFunctions.CAST_FUNCTION_NAME.getName())));
     private final NativeExpressionRulesHandler nativeExpressionRulesHandler;
 
     public FunctionsWithCastRewriter(NativeExpressionRulesHandler nativeExpressionRulesHandler)
@@ -41,43 +41,43 @@ public class FunctionsWithCastRewriter
     }
 
     @Override
-    public Pattern<VaradaCall> getPattern()
+    public Pattern<WarpCall> getPattern()
     {
         return PATTERN;
     }
 
-    public boolean dayOfWeek(VaradaExpression varadaExpression, RewriteContext parentContext)
+    public boolean dayOfWeek(WarpExpression warpExpression, RewriteContext parentContext)
     {
-        VaradaCall castFunction = (VaradaCall) varadaExpression.getChildren().get(0);
+        WarpCall castFunction = (WarpCall) warpExpression.getChildren().get(0);
         parentContext.nativeExpressionBuilder().functionType(FunctionType.FUNCTION_TYPE_DAY_OF_WEEK);
         return nativeExpressionRulesHandler.rewrite(castFunction, parentContext);
     }
 
-    public boolean day(VaradaExpression varadaExpression, RewriteContext parentContext)
+    public boolean day(WarpExpression warpExpression, RewriteContext parentContext)
     {
         parentContext.nativeExpressionBuilder().functionType(FunctionType.FUNCTION_TYPE_DAY);
-        VaradaCall castFunction = (VaradaCall) varadaExpression.getChildren().get(0);
+        WarpCall castFunction = (WarpCall) warpExpression.getChildren().get(0);
         return nativeExpressionRulesHandler.rewrite(castFunction, parentContext);
     }
 
-    public boolean dayOfYear(VaradaExpression varadaExpression, RewriteContext parentContext)
+    public boolean dayOfYear(WarpExpression warpExpression, RewriteContext parentContext)
     {
         parentContext.nativeExpressionBuilder().functionType(FunctionType.FUNCTION_TYPE_DAY_OF_YEAR);
-        VaradaCall castFunction = (VaradaCall) varadaExpression.getChildren().get(0);
+        WarpCall castFunction = (WarpCall) warpExpression.getChildren().get(0);
         return nativeExpressionRulesHandler.rewrite(castFunction, parentContext);
     }
 
-    public boolean week(VaradaExpression varadaExpression, RewriteContext parentContext)
+    public boolean week(WarpExpression warpExpression, RewriteContext parentContext)
     {
         parentContext.nativeExpressionBuilder().functionType(FunctionType.FUNCTION_TYPE_WEEK);
-        VaradaCall castFunction = (VaradaCall) varadaExpression.getChildren().get(0);
+        WarpCall castFunction = (WarpCall) warpExpression.getChildren().get(0);
         return nativeExpressionRulesHandler.rewrite(castFunction, parentContext);
     }
 
-    public boolean yearOfWeek(VaradaExpression varadaExpression, RewriteContext parentContext)
+    public boolean yearOfWeek(WarpExpression warpExpression, RewriteContext parentContext)
     {
         parentContext.nativeExpressionBuilder().functionType(FunctionType.FUNCTION_TYPE_YEAR_OF_WEEK);
-        VaradaCall castFunction = (VaradaCall) varadaExpression.getChildren().get(0);
+        WarpCall castFunction = (WarpCall) warpExpression.getChildren().get(0);
         return nativeExpressionRulesHandler.rewrite(castFunction, parentContext);
     }
 }

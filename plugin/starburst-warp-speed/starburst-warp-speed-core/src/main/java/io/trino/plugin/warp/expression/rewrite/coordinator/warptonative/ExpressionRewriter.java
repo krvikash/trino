@@ -15,8 +15,8 @@ package io.trino.plugin.warp.expression.rewrite.coordinator.warptonative;
 
 import io.airlift.log.Logger;
 import io.trino.matching.Pattern;
-import io.trino.plugin.warp.expression.VaradaConstant;
-import io.trino.plugin.warp.expression.VaradaExpression;
+import io.trino.plugin.warp.expression.WarpConstant;
+import io.trino.plugin.warp.expression.WarpExpression;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.ValueSet;
@@ -24,13 +24,13 @@ import io.trino.spi.type.Type;
 
 import java.util.function.BiFunction;
 
-interface ExpressionRewriter<T extends VaradaExpression>
+interface ExpressionRewriter<T extends WarpExpression>
 {
     Logger logger = Logger.get(ExpressionRewriter.class);
 
     Pattern<T> getPattern();
 
-    default Domain convertConstantToDomain(VaradaConstant varadaConstant, BiFunction<Type, Object, Range> rangeBiFunction)
+    default Domain convertConstantToDomain(WarpConstant varadaConstant, BiFunction<Type, Object, Range> rangeBiFunction)
     {
         Type type = varadaConstant.getType();
         try {

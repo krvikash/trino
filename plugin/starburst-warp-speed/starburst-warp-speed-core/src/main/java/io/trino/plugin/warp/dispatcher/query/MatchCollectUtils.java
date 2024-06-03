@@ -32,7 +32,7 @@ public class MatchCollectUtils
 
     public static boolean canMatchForMatchCollect(QueryMatchData match, NativeQueryCollectData collect)
     {
-        return !match.isPartOfLogicalOr() && match.canMatchCollect(collect.getVaradaColumn());
+        return !match.isPartOfLogicalOr() && match.canMatchCollect(collect.getWarpColumn());
     }
 
     // Given a collect that is a match-collect, return if it can still be a match-collect using one of the supplied matches

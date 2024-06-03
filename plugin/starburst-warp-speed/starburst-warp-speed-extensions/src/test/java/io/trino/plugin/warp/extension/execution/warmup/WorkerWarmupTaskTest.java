@@ -87,7 +87,7 @@ public class WorkerWarmupTaskTest
                     WarmupRule.builder()
                             .schema(schema)
                             .table(table)
-                            .varadaColumn(new RegularColumn(column))
+                            .warpColumn(new RegularColumn(column))
                             .warmUpType(WarmUpType.WARM_UP_TYPE_BASIC)
                             .priority(1D)
                             .ttl(2)

@@ -16,8 +16,8 @@ package io.trino.plugin.warp.dispatcher.query.classifier;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.warp.dispatcher.model.TransformedColumn;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.PredicateContext;
 import io.trino.plugin.warp.dispatcher.query.data.match.BasicQueryMatchData;
 import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
@@ -44,14 +44,14 @@ class BasicMatcher
     public MatchContext match(ClassifyArgs classifyArgs,
             MatchContext matchContext)
     {
-        ImmutableListMultimap<VaradaColumn, WarmUpElement> basicColNameToWarmupElement = classifyArgs.getWarmedWarmupTypes().basicWarmedElements();
+        ImmutableListMultimap<WarpColumn, WarmUpElement> basicColNameToWarmupElement = classifyArgs.getWarmedWarmupTypes().basicWarmedElements();
         if (basicColNameToWarmupElement.isEmpty()) {
             return matchContext;
         }
         List<QueryMatchData> matchDataList = new ArrayList<>(matchContext.matchDataList());
-        ImmutableMap.Builder<VaradaColumn, PredicateContext> remainingPredicateContext = ImmutableMap.builder();
+        ImmutableMap.Builder<WarpColumn, PredicateContext> remainingPredicateContext = ImmutableMap.builder();
 
-        for (Map.Entry<VaradaColumn, PredicateContext> predicateColumn : matchContext.remainingPredicateContext().entrySet()) {
+        for (Map.Entry<WarpColumn, PredicateContext> predicateColumn : matchContext.remainingPredicateContext().entrySet()) {
             PredicateContext predicateContext = predicateColumn.getValue();
             Optional<NativeExpression> nativeExpression = predicateContext.getNativeExpression();
             Optional<WarmUpElement> warmUpElement;
@@ -61,9 +61,9 @@ class BasicMatcher
                 List<WarmUpElement> existingWarmupElements = basicColNameToWarmupElement.get(predicateColumn.getKey());
                 warmUpElement = existingWarmupElements.stream()
                         .filter(element ->
-                                ((element.getVaradaColumn() instanceof TransformedColumn transformedColumn) &&
+                                ((element.getWarpColumn() instanceof TransformedColumn transformedColumn) &&
                                         Objects.equals(transformedColumn.getTransformFunction(), nativeExpression.get().transformFunction())) ||
-                                (!element.getVaradaColumn().isTransformedColumn() &&
+                                (!element.getWarpColumn().isTransformedColumn() &&
                                         Objects.equals(nativeExpression.get().transformFunction(), TransformFunction.NONE)))
                         .findFirst();
 

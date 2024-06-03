@@ -16,10 +16,10 @@ package io.trino.plugin.warp.storage.capacity;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.VaradaErrorCode;
+import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
-import io.trino.plugin.warp.di.VaradaInitializedServiceRegistry;
+import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.gen.stats.WarmupDemoterStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
@@ -27,7 +27,7 @@ import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.tools.util.PathUtils;
 import io.trino.plugin.warp.tools.util.StopWatch;
-import io.trino.plugin.warp.util.VaradaInitializedServiceMarker;
+import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
 import io.trino.spi.TrinoException;
 import org.apache.commons.io.FileUtils;
 
@@ -43,7 +43,7 @@ import static java.util.Objects.requireNonNull;
 
 @Singleton
 public class WorkerCapacityManager
-        implements VaradaInitializedServiceMarker
+        implements WarpInitializedServiceMarker
 {
     private static final Logger logger = Logger.get(WorkerCapacityManager.class);
 
@@ -64,7 +64,7 @@ public class WorkerCapacityManager
             WarmupDemoterConfig warmupDemoterConfig,
             StorageEngineConstants storageEngineConstants,
             NativeStorageStateHandler nativeStorageStateHandler,
-            VaradaInitializedServiceRegistry varadaInitializedServiceRegistry,
+            WarpInitializedServiceRegistry warpInitializedServiceRegistry,
             MetricsManager metricsManager)
     {
         this.globalConfig = requireNonNull(globalConfig);
@@ -72,7 +72,7 @@ public class WorkerCapacityManager
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
         statsWarmupDemoter = metricsManager.registerMetric(WarmupDemoterStats.create(WarmupDemoterService.WARMUP_DEMOTER_STAT_GROUP));
-        varadaInitializedServiceRegistry.addService(this);
+        warpInitializedServiceRegistry.addService(this);
     }
 
     @Override
@@ -168,7 +168,7 @@ public class WorkerCapacityManager
         }
         catch (Exception e) {
             logger.error(e);
-            throw new TrinoException(VaradaErrorCode.VARADA_CONTROL, "could not open local store directory");
+            throw new TrinoException(WarpErrorCode.VARADA_CONTROL, "could not open local store directory");
         }
     }
 

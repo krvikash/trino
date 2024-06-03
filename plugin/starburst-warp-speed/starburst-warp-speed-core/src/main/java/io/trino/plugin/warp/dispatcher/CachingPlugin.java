@@ -17,7 +17,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Module;
 import io.trino.spi.TrinoException;
 
-import static io.trino.plugin.warp.VaradaErrorCode.VARADA_SETUP;
+import static io.trino.plugin.warp.WarpErrorCode.VARADA_SETUP;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DateType.DATE;

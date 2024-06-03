@@ -16,8 +16,8 @@ package io.trino.plugin.warp.metrics;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.di.VaradaInitializedServiceRegistry;
-import io.trino.plugin.warp.util.VaradaInitializedServiceMarker;
+import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
+import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
 
 import java.util.Set;
 import java.util.Timer;
@@ -27,7 +27,7 @@ import static java.util.Objects.requireNonNull;
 
 @Singleton
 public class ScheduledMetricsHandler
-        implements VaradaInitializedServiceMarker
+        implements WarpInitializedServiceMarker
 {
     private static final Logger logger = Logger.get(ScheduledMetricsHandler.class);
 
@@ -37,10 +37,10 @@ public class ScheduledMetricsHandler
     @Inject
     public ScheduledMetricsHandler(
             Set<MetricsTimerTask> metricsTimerTasks,
-            VaradaInitializedServiceRegistry varadaInitializedServiceRegistry)
+            WarpInitializedServiceRegistry warpInitializedServiceRegistry)
     {
         this.metricsTimerTasks = requireNonNull(metricsTimerTasks);
-        varadaInitializedServiceRegistry.addService(this);
+        warpInitializedServiceRegistry.addService(this);
         this.timer = new Timer();
     }
 

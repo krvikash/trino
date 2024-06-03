@@ -14,28 +14,28 @@
 package io.trino.plugin.warp.expression.rewrite.worker.warptolucene;
 
 import io.trino.matching.Pattern;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaExpression;
-import io.trino.plugin.warp.expression.VaradaVariable;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpExpression;
+import io.trino.plugin.warp.expression.WarpVariable;
 import io.trino.plugin.warp.expression.rewrite.ExpressionPatterns;
 
 import static io.trino.plugin.warp.expression.rewrite.ExpressionPatterns.argument;
 import static io.trino.plugin.warp.expression.rewrite.ExpressionPatterns.argumentCount;
 
 public class LuceneVariableRewriter
-        implements ExpressionRewriter<VaradaCall>
+        implements ExpressionRewriter<WarpCall>
 {
-    private static final Pattern<VaradaCall> PATTERN = ExpressionPatterns.call()
+    private static final Pattern<WarpCall> PATTERN = ExpressionPatterns.call()
             .with(argumentCount().equalTo(1))
-            .with(argument(0).matching(x -> x instanceof VaradaVariable));
+            .with(argument(0).matching(x -> x instanceof WarpVariable));
 
     @Override
-    public Pattern<VaradaCall> getPattern()
+    public Pattern<WarpCall> getPattern()
     {
         return PATTERN;
     }
 
-    public boolean handleIsNull(VaradaExpression varadaExpression, LuceneRewriteContext luceneRewriteContext)
+    public boolean handleIsNull(WarpExpression warpExpression, LuceneRewriteContext luceneRewriteContext)
     {
         return true;
     }

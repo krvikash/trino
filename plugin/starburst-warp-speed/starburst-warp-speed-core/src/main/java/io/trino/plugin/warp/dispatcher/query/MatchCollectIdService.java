@@ -23,7 +23,7 @@ import io.trino.spi.TrinoException;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import static io.trino.plugin.warp.VaradaErrorCode.VARADA_MATCH_COLLECT_ID_ALLOCATION;
+import static io.trino.plugin.warp.WarpErrorCode.VARADA_MATCH_COLLECT_ID_ALLOCATION;
 
 @Singleton
 public class MatchCollectIdService

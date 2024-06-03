@@ -21,7 +21,7 @@ import java.util.List;
 
 public record TransformFunction(
         @JsonProperty("transformType") TransformFunction.TransformType transformType,
-        @JsonProperty("transformParams") List<? extends VaradaConstant> transformParams)
+        @JsonProperty("transformParams") List<? extends WarpConstant> transformParams)
 {
     public static final TransformFunction NONE = new TransformFunction(TransformType.NONE);
     public static final TransformFunction LOWER = new TransformFunction(TransformType.LOWER);

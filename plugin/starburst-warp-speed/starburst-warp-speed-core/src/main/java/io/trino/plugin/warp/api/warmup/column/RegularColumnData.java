@@ -22,7 +22,7 @@ import java.util.Objects;
 import static java.util.Objects.requireNonNull;
 
 public class RegularColumnData
-        implements VaradaColumnData
+        implements WarpColumnData
 {
     private final String columnName;
 
@@ -40,9 +40,9 @@ public class RegularColumnData
     }
 
     @Override
-    public boolean contains(VaradaColumnData varadaColumnData)
+    public boolean contains(WarpColumnData warpColumnData)
     {
-        return this.equals(varadaColumnData);
+        return this.equals(warpColumnData);
     }
 
     @Override

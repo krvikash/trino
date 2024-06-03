@@ -17,15 +17,15 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.AtomicDouble;
 import io.trino.plugin.warp.TestingTxService;
-import io.trino.plugin.warp.VaradaErrorCode;
+import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WarmupProperties;
 import io.trino.plugin.warp.dispatcher.warmup.WorkerWarmupRuleService;
@@ -201,7 +201,7 @@ public class WarmupDemoterServiceTest
         when(rowGroupDataService.getAll()).thenReturn(new ArrayList<>(rowGroupDataMapTest.values()));
         when(rowGroupDataService.get(any())).thenAnswer(i -> rowGroupDataMapTest.get(i.getArguments()[0]));
         setConfig(0, 0, 1, 1, List.of());
-        doThrow(new TrinoException(VaradaErrorCode.VARADA_NATIVE_ERROR, "test"))
+        doThrow(new TrinoException(WarpErrorCode.VARADA_NATIVE_ERROR, "test"))
                 .doNothing()
                 .when(rowGroupDataService).removeElements(eq(rowGroupData1), any(Collection.class));
 
@@ -445,7 +445,7 @@ public class WarmupDemoterServiceTest
                                 rowGroupData.getRowGroupKey().table()),
                         List.of(
                                 new WarmupDemoterWarmupElementData(
-                                        warmUpElements.get(1).getVaradaColumn().getName(),
+                                        warmUpElements.get(1).getWarpColumn().getName(),
                                         List.of(warmUpElements.get(1).getWarmUpType()))))));
 
         assertThat(deadObjects.size()).isEqualTo(1);
@@ -454,7 +454,7 @@ public class WarmupDemoterServiceTest
     @Test
     public void testMatchPredicates()
     {
-        VaradaColumn partitionKey = new RegularColumn("p1");
+        WarpColumn partitionKey = new RegularColumn("p1");
         String partitionValue = "v1";
         String partitionValue2 = "v2";
         int priority2 = 5;
@@ -463,8 +463,8 @@ public class WarmupDemoterServiceTest
         int ttlInTheFuture = 1;
         int weId = 1;
 
-        Map<VaradaColumn, String> hivePartitionKeys = Map.of(partitionKey, partitionValue);
-        Map<VaradaColumn, String> hivePartitionKeys2 = Map.of(partitionKey, partitionValue2);
+        Map<WarpColumn, String> hivePartitionKeys = Map.of(partitionKey, partitionValue);
+        Map<WarpColumn, String> hivePartitionKeys2 = Map.of(partitionKey, partitionValue2);
         Set<WarmupPredicateRule> predicates = Set.of(new PartitionValueWarmupPredicateRule(partitionKey.getName(), partitionValue));
         Set<WarmupPredicateRule> predicates2 = Set.of(new PartitionValueWarmupPredicateRule(partitionKey.getName(), partitionValue2));
         List<WarmupRule> warmupRules = List.of(buildWarmupRule(defaultSchemaName, defaultTableName, weId, defaultWarmupType, defaultPriority, ttlInTheFuture, predicates),
@@ -481,13 +481,13 @@ public class WarmupDemoterServiceTest
     @Test
     public void testBestMatchOverlappingPredicates()
     {
-        VaradaColumn partitionKey = new RegularColumn("p1");
+        WarpColumn partitionKey = new RegularColumn("p1");
         String partitionValue = "v1";
         int priorityHigh = 10;
         int ttlInTheFuture = 1;
         int weId = 1;
 
-        Map<VaradaColumn, String> hivePartitionKeys = Map.of(partitionKey, partitionValue);
+        Map<WarpColumn, String> hivePartitionKeys = Map.of(partitionKey, partitionValue);
         Set<WarmupPredicateRule> predicates = Set.of(new PartitionValueWarmupPredicateRule(partitionKey.getName(), partitionValue));
         List<WarmupRule> warmupRules = List.of(
                 buildWarmupRule(defaultSchemaName, defaultTableName, weId, defaultWarmupType, defaultPriority, ttlInTheFuture, predicates),
@@ -502,7 +502,7 @@ public class WarmupDemoterServiceTest
     @Test
     public void testBestMatchPredicatesNotMatch()
     {
-        VaradaColumn partitionKey = new RegularColumn("p1");
+        WarpColumn partitionKey = new RegularColumn("p1");
         String partitionValue = "v1";
         String partitionKey2 = "p2";
         String partitionValue2 = "v2";
@@ -510,7 +510,7 @@ public class WarmupDemoterServiceTest
         int ttlInTheFuture = 1;
         int weId = 1;
 
-        Map<VaradaColumn, String> hivePartitionKeys = Map.of(partitionKey, partitionValue);
+        Map<WarpColumn, String> hivePartitionKeys = Map.of(partitionKey, partitionValue);
 
         Set<WarmupPredicateRule> predicates1 = Set.of(new PartitionValueWarmupPredicateRule(partitionKey.getName(), partitionValue));
         Set<WarmupPredicateRule> predicates2 = new HashSet<>(List.of(new PartitionValueWarmupPredicateRule(partitionKey.getName(), partitionValue), new PartitionValueWarmupPredicateRule(partitionKey2, partitionValue2)));
@@ -792,7 +792,7 @@ public class WarmupDemoterServiceTest
         assertThat(tupleRankList.size()).isEqualTo(0);
     }
 
-    private RowGroupData buildRowGroupData(String schemaName, String tableName, List<WarmUpElement> warmUpElements, Map<VaradaColumn, String> hivePartitionKeys, int fileIndex, boolean isEmpty)
+    private RowGroupData buildRowGroupData(String schemaName, String tableName, List<WarmUpElement> warmUpElements, Map<WarpColumn, String> hivePartitionKeys, int fileIndex, boolean isEmpty)
     {
         return RowGroupData.builder()
                 .rowGroupKey(new RowGroupKey(schemaName, tableName, DEFAULT_FILE_PATH + "_" + fileIndex, 0, 1L, 0, "", ""))
@@ -813,7 +813,7 @@ public class WarmupDemoterServiceTest
         return WarmupRule.builder()
                 .schema(schema)
                 .table(table)
-                .varadaColumn(new RegularColumn("c" + weId))
+                .warpColumn(new RegularColumn("c" + weId))
                 .warmUpType(warmUpType)
                 .priority(priority)
                 .ttl(ttl)
@@ -829,7 +829,7 @@ public class WarmupDemoterServiceTest
                 .map((prop) -> WarmupRule.builder()
                         .schema("schema1")
                         .table("table1")
-                        .varadaColumn(new RegularColumn("c" + 0))
+                        .warpColumn(new RegularColumn("c" + 0))
                         .warmUpType(prop.warmUpType())
                         .priority(prop.priority())
                         .ttl(prop.ttl())

@@ -21,7 +21,7 @@ import io.trino.spi.TrinoException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static io.trino.plugin.warp.VaradaErrorCode.VARADA_PREDICATE_CACHE_ERROR;
+import static io.trino.plugin.warp.WarpErrorCode.VARADA_PREDICATE_CACHE_ERROR;
 
 public class MatchDataSorter
 {

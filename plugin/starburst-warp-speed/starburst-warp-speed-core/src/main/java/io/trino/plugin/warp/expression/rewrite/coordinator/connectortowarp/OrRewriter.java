@@ -17,8 +17,8 @@ import io.trino.matching.Captures;
 import io.trino.matching.Pattern;
 import io.trino.plugin.base.expression.ConnectorExpressionPatterns;
 import io.trino.plugin.base.expression.ConnectorExpressionRule;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaExpression;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpExpression;
 import io.trino.spi.expression.Call;
 import io.trino.spi.expression.ConnectorExpression;
 
@@ -29,7 +29,7 @@ import java.util.Optional;
 import static io.trino.spi.expression.StandardFunctions.OR_FUNCTION_NAME;
 
 public class OrRewriter
-        implements ConnectorExpressionRule<Call, VaradaExpression>
+        implements ConnectorExpressionRule<Call, WarpExpression>
 {
     private static final Pattern<Call> PATTERN = ConnectorExpressionPatterns.call()
             .with(ConnectorExpressionPatterns.functionName().equalTo(OR_FUNCTION_NAME));
@@ -41,11 +41,11 @@ public class OrRewriter
     }
 
     @Override
-    public Optional<VaradaExpression> rewrite(Call expression, Captures captures, RewriteContext<VaradaExpression> context)
+    public Optional<WarpExpression> rewrite(Call expression, Captures captures, RewriteContext<WarpExpression> context)
     {
-        List<VaradaExpression> children = new ArrayList<>();
+        List<WarpExpression> children = new ArrayList<>();
         for (ConnectorExpression connectorExpression : expression.getArguments()) {
-            Optional<VaradaExpression> varadaExpression = context.defaultRewrite(connectorExpression);
+            Optional<WarpExpression> varadaExpression = context.defaultRewrite(connectorExpression);
             if (varadaExpression.isEmpty()) {
                 children.clear();
                 break;
@@ -57,6 +57,6 @@ public class OrRewriter
         if (children.isEmpty()) {
             return Optional.empty();
         }
-        return Optional.of(new VaradaCall(OR_FUNCTION_NAME.getName(), children, expression.getType()));
+        return Optional.of(new WarpCall(OR_FUNCTION_NAME.getName(), children, expression.getType()));
     }
 }

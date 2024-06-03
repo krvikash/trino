@@ -27,11 +27,11 @@ import io.airlift.slice.Slice;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.tools.util.CompressionUtil;
 import io.trino.plugin.warp.util.json.SliceSerializer;
-import io.trino.plugin.warp.util.json.VaradaColumnJsonKeyDeserializer;
+import io.trino.plugin.warp.util.json.WarpColumnJsonKeyDeserializer;
 import org.gaul.modernizer_maven_annotations.SuppressModernizer;
 
 import java.io.File;
@@ -67,7 +67,7 @@ public class RowGroupDataDao
 
         objectMapper = requireNonNull(objectMapperProvider).get();
         SimpleModule simpleModule = new SimpleModule();
-        simpleModule.addKeyDeserializer(VaradaColumn.class, new VaradaColumnJsonKeyDeserializer());
+        simpleModule.addKeyDeserializer(WarpColumn.class, new WarpColumnJsonKeyDeserializer());
         simpleModule.addSerializer(Slice.class, new SliceSerializer());
         objectMapper.registerModules(simpleModule);
 

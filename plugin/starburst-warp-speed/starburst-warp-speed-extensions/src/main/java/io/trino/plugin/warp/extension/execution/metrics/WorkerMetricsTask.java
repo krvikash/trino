@@ -18,7 +18,7 @@ import io.airlift.http.client.Request;
 import io.airlift.json.JsonCodec;
 import io.trino.plugin.warp.WorkerNodeManager;
 import io.trino.plugin.warp.api.metrics.ClusterMetricsResult;
-import io.trino.plugin.warp.execution.VaradaClient;
+import io.trino.plugin.warp.execution.WarpClient;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
@@ -40,16 +40,16 @@ public class WorkerMetricsTask
 {
     public static final String WORKER_METRICS_TASK = "worker-metrics";
     private final WorkerCapacityManager workerCapacityManager;
-    private final VaradaClient varadaClient;
+    private final WarpClient warpClient;
     private final WorkerNodeManager workerNodeManager;
 
     @Inject
     public WorkerMetricsTask(WorkerCapacityManager workerCapacityManager,
-            VaradaClient varadaClient,
+            WarpClient warpClient,
             WorkerNodeManager workerNodeManager)
     {
         this.workerCapacityManager = requireNonNull(workerCapacityManager);
-        this.varadaClient = requireNonNull(varadaClient);
+        this.warpClient = requireNonNull(warpClient);
         this.workerNodeManager = requireNonNull(workerNodeManager);
     }
 
@@ -75,6 +75,6 @@ public class WorkerMetricsTask
                         .appendPath("/v1/status")
                         .build())
                 .build();
-        return varadaClient.sendWithRetry(request, createFullJsonResponseHandler(JsonCodec.jsonCodec(Map.class)));
+        return warpClient.sendWithRetry(request, createFullJsonResponseHandler(JsonCodec.jsonCodec(Map.class)));
     }
 }

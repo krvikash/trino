@@ -16,15 +16,15 @@ package io.trino.plugin.warp.dispatcher.query.classifier;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.PredicateContext;
 import io.trino.plugin.warp.dispatcher.query.data.match.LuceneQueryMatchData;
 import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
 import io.trino.plugin.warp.expression.DomainExpression;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaConstant;
-import io.trino.plugin.warp.expression.VaradaExpression;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpConstant;
+import io.trino.plugin.warp.expression.WarpExpression;
 import io.trino.plugin.warp.expression.rewrite.worker.warptolucene.LuceneRewriteContext;
 import io.trino.plugin.warp.expression.rewrite.worker.warptolucene.LuceneRulesHandler;
 import io.trino.plugin.warp.gen.constants.PredicateType;
@@ -56,25 +56,25 @@ final class LuceneElementsMatcher
     @Override
     public MatchContext match(ClassifyArgs classifyArgs, MatchContext matchContext)
     {
-        ImmutableMap<VaradaColumn, WarmUpElement> luceneColumnToWarmupElement = classifyArgs.getWarmedWarmupTypes().luceneWarmedElements();
+        ImmutableMap<WarpColumn, WarmUpElement> luceneColumnToWarmupElement = classifyArgs.getWarmedWarmupTypes().luceneWarmedElements();
         if (luceneColumnToWarmupElement.isEmpty()) {
             return matchContext;
         }
 
         List<QueryMatchData> matchDataList = new ArrayList<>(matchContext.matchDataList());
 
-        ImmutableMap.Builder<VaradaColumn, PredicateContext> remainingPredicateContext = ImmutableMap.builder();
-        ImmutableListMultimap<VaradaColumn, WarmUpElement> basicWarmupElements = classifyArgs.getWarmedWarmupTypes().basicWarmedElements();
-        for (Map.Entry<VaradaColumn, PredicateContext> predicateColumn : matchContext.remainingPredicateContext().entrySet()) {
-            VaradaColumn varadaColumn = predicateColumn.getKey();
-            WarmUpElement warmUpElement = luceneColumnToWarmupElement.get(varadaColumn);
+        ImmutableMap.Builder<WarpColumn, PredicateContext> remainingPredicateContext = ImmutableMap.builder();
+        ImmutableListMultimap<WarpColumn, WarmUpElement> basicWarmupElements = classifyArgs.getWarmedWarmupTypes().basicWarmedElements();
+        for (Map.Entry<WarpColumn, PredicateContext> predicateColumn : matchContext.remainingPredicateContext().entrySet()) {
+            WarpColumn warpColumn = predicateColumn.getKey();
+            WarmUpElement warmUpElement = luceneColumnToWarmupElement.get(warpColumn);
             PredicateContext predicateContext = predicateColumn.getValue();
 
             if (warmUpElement == null) {
                 remainingPredicateContext.put(predicateColumn.getKey(), predicateContext);
                 continue;
             }
-            Optional<WarmUpElement> basicWarmUpElement = basicWarmupElements.get(varadaColumn).stream().filter(basicElement -> !basicElement.getVaradaColumn().isTransformedColumn()).findFirst();
+            Optional<WarmUpElement> basicWarmUpElement = basicWarmupElements.get(warpColumn).stream().filter(basicElement -> !basicElement.getWarpColumn().isTransformedColumn()).findFirst();
             if (preferBasicWarm(predicateContext, basicWarmUpElement)) {
                 remainingPredicateContext.put(predicateColumn.getKey(), predicateContext);
                 continue;
@@ -149,15 +149,15 @@ final class LuceneElementsMatcher
     private boolean buildLuceneExpressionQuery(BooleanQuery.Builder queryBuilder, PredicateContext expressionPredicateContext)
     {
         boolean isValid = false;
-        VaradaExpression varadaExpression = expressionPredicateContext.getExpression();
-        if (varadaExpression instanceof VaradaConstant varadaConstant) {
+        WarpExpression warpExpression = expressionPredicateContext.getExpression();
+        if (warpExpression instanceof WarpConstant varadaConstant) {
             if (varadaConstant.getType() == BooleanType.BOOLEAN && !Boolean.parseBoolean(String.valueOf(varadaConstant.getValue()))) {
                 isValid = true;
             }
         }
-        else if (varadaExpression instanceof VaradaCall) {
+        else if (warpExpression instanceof WarpCall) {
             LuceneRewriteContext context = new LuceneRewriteContext(queryBuilder, BooleanClause.Occur.MUST, expressionPredicateContext.isCollectNulls());
-            isValid = luceneRulesHandler.rewrite(varadaExpression, context);
+            isValid = luceneRulesHandler.rewrite(warpExpression, context);
         }
         return isValid;
     }

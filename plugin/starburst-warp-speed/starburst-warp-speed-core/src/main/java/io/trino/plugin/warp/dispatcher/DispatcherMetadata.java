@@ -15,7 +15,7 @@ package io.trino.plugin.warp.dispatcher;
 
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
-import io.trino.plugin.warp.VaradaSessionProperties;
+import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.expression.rewrite.ExpressionService;
 import io.trino.plugin.warp.expression.rewrite.WarpExpression;
@@ -1369,7 +1369,7 @@ public class DispatcherMetadata
             Optional<DispatcherTableHandle> optionalDispatcherTableHandle,
             ConnectorTableHandle proxiedConnectorTableHandle)
     {
-        int predicateThreashold = VaradaSessionProperties.getPredicateSimplifyThreshold(session, globalConfig);
+        int predicateThreashold = WarpSessionProperties.getPredicateSimplifyThreshold(session, globalConfig);
 
         return optionalDispatcherTableHandle.map(dispatcherTableHandle ->
                         dispatcherTableHandleBuilderProvider.builder(dispatcherTableHandle, predicateThreashold)

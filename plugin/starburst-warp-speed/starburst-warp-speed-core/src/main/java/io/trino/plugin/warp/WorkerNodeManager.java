@@ -18,7 +18,7 @@ import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.util.UriUtils;
-import io.trino.plugin.warp.util.VaradaInitializedServiceMarker;
+import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
 import io.trino.spi.Node;
 import io.trino.spi.NodeManager;
 
@@ -30,7 +30,7 @@ import static java.util.Objects.requireNonNull;
 @SuppressWarnings("deprecation")
 @Singleton
 public class WorkerNodeManager
-        implements VaradaInitializedServiceMarker
+        implements WarpInitializedServiceMarker
 {
     private static final Logger logger = Logger.get(WorkerNodeManager.class);
 

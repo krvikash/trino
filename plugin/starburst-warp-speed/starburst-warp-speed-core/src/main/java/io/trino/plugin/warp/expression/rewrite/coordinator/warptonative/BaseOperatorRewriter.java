@@ -13,9 +13,9 @@
  */
 package io.trino.plugin.warp.expression.rewrite.coordinator.warptonative;
 
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaConstant;
-import io.trino.plugin.warp.expression.VaradaExpression;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpConstant;
+import io.trino.plugin.warp.expression.WarpExpression;
 import io.trino.plugin.warp.gen.stats.PushdownPredicatesStats;
 import io.trino.spi.predicate.Range;
 import io.trino.spi.type.BooleanType;
@@ -24,7 +24,7 @@ import io.trino.spi.type.Type;
 import java.util.function.BiFunction;
 
 abstract class BaseOperatorRewriter
-        implements ExpressionRewriter<VaradaCall>
+        implements ExpressionRewriter<WarpCall>
 {
     static final BiFunction<Type, Object, Range> EQUAL_FUNCTION = Range::equal;
     static final BiFunction<Type, Object, Range> GREATER_THAN_FUNCTION = Range::greaterThan;
@@ -41,49 +41,49 @@ abstract class BaseOperatorRewriter
         this.pushdownPredicatesStats = pushdownPredicatesStats;
     }
 
-    boolean greaterThan(VaradaExpression varadaExpression, RewriteContext rewriteContext)
+    boolean greaterThan(WarpExpression warpExpression, RewriteContext rewriteContext)
     {
-        return convert(varadaExpression,
+        return convert(warpExpression,
                 rewriteContext,
                 GREATER_THAN_FUNCTION);
     }
 
-    boolean greaterThanOrEqual(VaradaExpression varadaExpression, RewriteContext rewriteContext)
+    boolean greaterThanOrEqual(WarpExpression warpExpression, RewriteContext rewriteContext)
     {
-        return convert(varadaExpression,
+        return convert(warpExpression,
                 rewriteContext,
                 GREATER_THAN_OR_EQUAL_FUNCTION);
     }
 
-    boolean equal(VaradaExpression varadaExpression, RewriteContext rewriteContext)
+    boolean equal(WarpExpression warpExpression, RewriteContext rewriteContext)
     {
-        VaradaConstant varadaConstant = ((VaradaConstant) varadaExpression.getChildren().get(1));
+        WarpConstant varadaConstant = ((WarpConstant) warpExpression.getChildren().get(1));
         Type constantType = varadaConstant.getType();
         if (constantType == BooleanType.BOOLEAN && varadaConstant.getValue() == Boolean.FALSE) {
             rewriteContext.customStats().compute("unsupported_functions_native", (key, value) -> value == null ? 1L : value + 1);
             pushdownPredicatesStats.incunsupported_functions_native();
             return false;
         }
-        return convert(varadaExpression,
+        return convert(warpExpression,
                 rewriteContext,
                 EQUAL_FUNCTION);
     }
 
-    boolean lessThanOrEqual(VaradaExpression varadaExpression, RewriteContext rewriteContext)
+    boolean lessThanOrEqual(WarpExpression warpExpression, RewriteContext rewriteContext)
     {
-        return convert(varadaExpression,
+        return convert(warpExpression,
                 rewriteContext,
                 LESS_THAN_OR_EQUAL_FUNCTION);
     }
 
-    boolean lessThan(VaradaExpression varadaExpression, RewriteContext rewriteContext)
+    boolean lessThan(WarpExpression warpExpression, RewriteContext rewriteContext)
     {
-        return convert(varadaExpression,
+        return convert(warpExpression,
                 rewriteContext,
                 LESS_THAN_FUNCTION);
     }
 
-    abstract boolean convert(VaradaExpression varadaExpression,
+    abstract boolean convert(WarpExpression warpExpression,
             RewriteContext rewriteContext,
             BiFunction<Type, Object, Range> rangeBiFunction);
 }

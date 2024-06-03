@@ -17,8 +17,8 @@ import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.expression.DomainExpression;
 import io.trino.plugin.warp.expression.NativeExpression;
 import io.trino.plugin.warp.expression.TransformFunction;
-import io.trino.plugin.warp.expression.VaradaExpression;
-import io.trino.plugin.warp.expression.VaradaExpressionData;
+import io.trino.plugin.warp.expression.WarpExpression;
+import io.trino.plugin.warp.expression.WarpExpressionData;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.SortedRangeSet;
 import io.trino.spi.type.Type;
@@ -31,28 +31,28 @@ import static java.util.Objects.requireNonNull;
 
 public class PredicateContext
 {
-    private final VaradaExpressionData varadaExpressionData;
+    private final WarpExpressionData warpExpressionData;
     private final boolean isSimplified;
 
-    public PredicateContext(VaradaExpressionData varadaExpressionData)
+    public PredicateContext(WarpExpressionData warpExpressionData)
     {
-        this(requireNonNull(varadaExpressionData), false);
+        this(requireNonNull(warpExpressionData), false);
     }
 
-    public PredicateContext(VaradaExpressionData varadaExpressionData, boolean isSimplified)
+    public PredicateContext(WarpExpressionData warpExpressionData, boolean isSimplified)
     {
-        this.varadaExpressionData = varadaExpressionData;
+        this.warpExpressionData = warpExpressionData;
         this.isSimplified = isSimplified;
     }
 
-    public RegularColumn getVaradaColumn()
+    public RegularColumn getWarpColumn()
     {
-        return varadaExpressionData.getVaradaColumn();
+        return warpExpressionData.getWarpColumn();
     }
 
     public Type getColumnType()
     {
-        return varadaExpressionData.getColumnType();
+        return warpExpressionData.getColumnType();
     }
 
     public Domain getDomain()
@@ -61,24 +61,24 @@ public class PredicateContext
                 .orElse(Domain.all(getColumnType()));
     }
 
-    public VaradaExpressionData getVaradaExpressionData()
+    public WarpExpressionData getVaradaExpressionData()
     {
-        return varadaExpressionData;
+        return warpExpressionData;
     }
 
     public Optional<NativeExpression> getNativeExpression()
     {
-        return varadaExpressionData.getNativeExpressionOptional();
+        return warpExpressionData.getNativeExpressionOptional();
     }
 
     public boolean isCollectNulls()
     {
-        return varadaExpressionData.isCollectNulls();
+        return warpExpressionData.isCollectNulls();
     }
 
     public boolean isInverseWithNulls()
     {
-        return varadaExpressionData.isCollectNulls() &&
+        return warpExpressionData.isCollectNulls() &&
                 getExpression() instanceof DomainExpression domainExpression &&
                 domainExpression.getDomain().getValues() instanceof SortedRangeSet sortedRangeSet &&
                 isInversePredicate(sortedRangeSet, domainExpression.getType());
@@ -89,9 +89,9 @@ public class PredicateContext
         return isSimplified;
     }
 
-    public VaradaExpression getExpression()
+    public WarpExpression getExpression()
     {
-        return varadaExpressionData.getExpression();
+        return warpExpressionData.getExpression();
     }
 
     public boolean canMergeExpressions(PredicateContext other)
@@ -126,13 +126,13 @@ public class PredicateContext
         }
         PredicateContext that = (PredicateContext) o;
         return isSimplified == that.isSimplified() &&
-                Objects.equals(varadaExpressionData, that.varadaExpressionData);
+                Objects.equals(warpExpressionData, that.warpExpressionData);
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hash(varadaExpressionData, isSimplified);
+        return Objects.hash(warpExpressionData, isSimplified);
     }
 
     @Override
@@ -140,7 +140,7 @@ public class PredicateContext
     {
         return "PredicateContext{" +
                 "isSimplified=" + isSimplified +
-                ", varadaExpressionData=" + varadaExpressionData +
+                ", varadaExpressionData=" + warpExpressionData +
                 '}';
     }
 }

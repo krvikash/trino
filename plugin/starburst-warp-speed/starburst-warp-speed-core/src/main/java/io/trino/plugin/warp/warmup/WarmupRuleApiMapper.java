@@ -15,23 +15,23 @@ package io.trino.plugin.warp.warmup;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import io.trino.plugin.warp.VaradaErrorCode;
+import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.api.warmup.WarmupColRuleData;
 import io.trino.plugin.warp.api.warmup.column.RegularColumnData;
 import io.trino.plugin.warp.api.warmup.column.TransformedColumnData;
-import io.trino.plugin.warp.api.warmup.column.VaradaColumnData;
+import io.trino.plugin.warp.api.warmup.column.WarpColumnData;
 import io.trino.plugin.warp.api.warmup.column.WildcardColumnData;
 import io.trino.plugin.warp.api.warmup.expression.TransformFunctionData;
-import io.trino.plugin.warp.api.warmup.expression.VaradaConstantData;
-import io.trino.plugin.warp.api.warmup.expression.VaradaExpressionData;
-import io.trino.plugin.warp.api.warmup.expression.VaradaPrimitiveConstantData;
+import io.trino.plugin.warp.api.warmup.expression.WarpConstantData;
+import io.trino.plugin.warp.api.warmup.expression.WarpExpressionData;
+import io.trino.plugin.warp.api.warmup.expression.WarpPrimitiveConstantData;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.TransformedColumn;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.model.WildcardColumn;
 import io.trino.plugin.warp.expression.TransformFunction;
-import io.trino.plugin.warp.expression.VaradaConstant;
-import io.trino.plugin.warp.expression.VaradaPrimitiveConstant;
+import io.trino.plugin.warp.expression.WarpConstant;
+import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.warmup.model.DateRangeSlidingWindowWarmupPredicateRule;
 import io.trino.plugin.warp.warmup.model.DateSlidingWindowWarmupPredicateRule;
@@ -71,11 +71,11 @@ public class WarmupRuleApiMapper
                 .predicates(predicates)
                 .ttl((int) warmupColRuleData.getTtl().getSeconds())
                 .priority(warmupColRuleData.getPriority())
-                .varadaColumn(createVaradaColumn(warmupColRuleData))
+                .warpColumn(createWarpColumn(warmupColRuleData))
                 .build();
     }
 
-    private static VaradaColumn createVaradaColumn(WarmupColRuleData warmupColRuleData)
+    private static WarpColumn createWarpColumn(WarmupColRuleData warmupColRuleData)
     {
         if (warmupColRuleData.getColumn() instanceof TransformedColumnData transformedColumnData) {
             TransformFunction transformFunction = convertApiTransformFunction(transformedColumnData.getTransformFunction());
@@ -87,7 +87,7 @@ public class WarmupRuleApiMapper
         else if (warmupColRuleData.getColumn() instanceof WildcardColumnData) {
             return new WildcardColumn();
         }
-        throw new IllegalArgumentException("Could not create a VaradaColumn " + warmupColRuleData.getColumn());
+        throw new IllegalArgumentException("Could not create a WarpColumn " + warmupColRuleData.getColumn());
     }
 
     private static WarmupPredicateRule convertFromApiPredicate(io.trino.plugin.warp.api.warmup.WarmupPredicateRule apiWarmupPredicateRule)
@@ -121,69 +121,69 @@ public class WarmupRuleApiMapper
             case DATE -> TransformFunction.TransformType.DATE;
             case ELEMENT_AT -> TransformFunction.TransformType.ELEMENT_AT;
             case JSON_EXTRACT_SCALAR -> TransformFunction.TransformType.JSON_EXTRACT_SCALAR;
-            default -> throw new TrinoException(VaradaErrorCode.VARADA_ILLEGAL_PARAMETER, "Unknown apiTransformType " + apiTransformType);
+            default -> throw new TrinoException(WarpErrorCode.VARADA_ILLEGAL_PARAMETER, "Unknown apiTransformType " + apiTransformType);
         };
     }
 
-    private static VaradaPrimitiveConstant convertApiVaradaPrimitiveConstant(VaradaPrimitiveConstantData apiVaradaPrimitiveConstant)
+    private static WarpPrimitiveConstant convertApiVaradaPrimitiveConstant(WarpPrimitiveConstantData apiVaradaPrimitiveConstant)
     {
         Object value = apiVaradaPrimitiveConstant.getValue();
-        VaradaExpressionData.Type type = apiVaradaPrimitiveConstant.getType();
+        WarpExpressionData.Type type = apiVaradaPrimitiveConstant.getType();
 
         switch (type) {
             case VARCHAR -> {
                 if (value instanceof String) {
-                    return new VaradaPrimitiveConstant(value, VarcharType.VARCHAR);
+                    return new WarpPrimitiveConstant(value, VarcharType.VARCHAR);
                 }
             }
             case INTEGER -> {
                 if (value instanceof Integer) {
-                    return new VaradaPrimitiveConstant(value, IntegerType.INTEGER);
+                    return new WarpPrimitiveConstant(value, IntegerType.INTEGER);
                 }
                 if (value instanceof String) {
-                    return new VaradaPrimitiveConstant(Integer.valueOf((String) value), IntegerType.INTEGER);
+                    return new WarpPrimitiveConstant(Integer.valueOf((String) value), IntegerType.INTEGER);
                 }
             }
             case BIGINT -> {
                 if (value instanceof Integer) {
-                    return new VaradaPrimitiveConstant(((Integer) value).longValue(), BigintType.BIGINT);
+                    return new WarpPrimitiveConstant(((Integer) value).longValue(), BigintType.BIGINT);
                 }
                 if (value instanceof String) {
-                    return new VaradaPrimitiveConstant(Long.valueOf((String) value), BigintType.BIGINT);
+                    return new WarpPrimitiveConstant(Long.valueOf((String) value), BigintType.BIGINT);
                 }
             }
             case SMALLINT -> {
                 if (value instanceof Integer) {
-                    return new VaradaPrimitiveConstant(((Integer) value).shortValue(), SmallintType.SMALLINT);
+                    return new WarpPrimitiveConstant(((Integer) value).shortValue(), SmallintType.SMALLINT);
                 }
                 if (value instanceof String) {
-                    return new VaradaPrimitiveConstant(Short.valueOf((String) value), SmallintType.SMALLINT);
+                    return new WarpPrimitiveConstant(Short.valueOf((String) value), SmallintType.SMALLINT);
                 }
             }
             case DOUBLE -> {
                 if (value instanceof Double) {
-                    return new VaradaPrimitiveConstant(value, DoubleType.DOUBLE);
+                    return new WarpPrimitiveConstant(value, DoubleType.DOUBLE);
                 }
                 if (value instanceof Integer) {
-                    return new VaradaPrimitiveConstant(((Integer) value).doubleValue(), DoubleType.DOUBLE);
+                    return new WarpPrimitiveConstant(((Integer) value).doubleValue(), DoubleType.DOUBLE);
                 }
                 if (value instanceof String) {
-                    return new VaradaPrimitiveConstant(Double.valueOf((String) value), DoubleType.DOUBLE);
+                    return new WarpPrimitiveConstant(Double.valueOf((String) value), DoubleType.DOUBLE);
                 }
             }
             case REAL -> {
                 if (value instanceof Double) {
-                    return new VaradaPrimitiveConstant(((Double) value).floatValue(), RealType.REAL);
+                    return new WarpPrimitiveConstant(((Double) value).floatValue(), RealType.REAL);
                 }
                 if (value instanceof Integer) {
-                    return new VaradaPrimitiveConstant(((Integer) value).floatValue(), RealType.REAL);
+                    return new WarpPrimitiveConstant(((Integer) value).floatValue(), RealType.REAL);
                 }
                 if (value instanceof String) {
-                    return new VaradaPrimitiveConstant(Float.valueOf((String) value), RealType.REAL);
+                    return new WarpPrimitiveConstant(Float.valueOf((String) value), RealType.REAL);
                 }
             }
         }
-        throw new TrinoException(VaradaErrorCode.VARADA_ILLEGAL_PARAMETER, "Could not convert " + value + " to " + type);
+        throw new TrinoException(WarpErrorCode.VARADA_ILLEGAL_PARAMETER, "Could not convert " + value + " to " + type);
     }
 
     private static TransformFunction convertApiTransformFunction(TransformFunctionData apiTransformFunction)
@@ -195,9 +195,9 @@ public class WarmupRuleApiMapper
             transformFunction = new TransformFunction(transformType);
         }
         else {
-            List<? extends VaradaConstant> transformParams = apiTransformFunction.transformParams().stream()
-                    .filter(param -> (param instanceof VaradaPrimitiveConstantData))
-                    .map(param -> convertApiVaradaPrimitiveConstant((VaradaPrimitiveConstantData) param))
+            List<? extends WarpConstant> transformParams = apiTransformFunction.transformParams().stream()
+                    .filter(param -> (param instanceof WarpPrimitiveConstantData))
+                    .map(param -> convertApiVaradaPrimitiveConstant((WarpPrimitiveConstantData) param))
                     .collect(Collectors.toList());
             transformFunction = new TransformFunction(transformType, transformParams);
         }
@@ -208,16 +208,16 @@ public class WarmupRuleApiMapper
     {
         ImmutableSet<io.trino.plugin.warp.api.warmup.WarmupPredicateRule> predicates = warmupRule.getPredicates().stream().map(WarmupRuleApiMapper::convertFromModelPredicate).collect(toImmutableSet());
         io.trino.plugin.warp.api.warmup.WarmUpType warmUpType = convertModelWarmUpType(warmupRule.getWarmUpType());
-        VaradaColumnData column = null;
+        WarpColumnData column = null;
 
-        if (warmupRule.getVaradaColumn() instanceof TransformedColumn transformedColumn) {
+        if (warmupRule.getWarpColumn() instanceof TransformedColumn transformedColumn) {
             TransformFunctionData transformFunction = convertModelTransformFunction(transformedColumn.getTransformFunction());
             column = new TransformedColumnData(transformedColumn.getName(), transformFunction);
         }
-        else if (warmupRule.getVaradaColumn() instanceof RegularColumn) {
-            column = new RegularColumnData(warmupRule.getVaradaColumn().getName());
+        else if (warmupRule.getWarpColumn() instanceof RegularColumn) {
+            column = new RegularColumnData(warmupRule.getWarpColumn().getName());
         }
-        else if (warmupRule.getVaradaColumn() instanceof WildcardColumn) {
+        else if (warmupRule.getWarpColumn() instanceof WildcardColumn) {
             column = new WildcardColumnData();
         }
         return new WarmupColRuleData(warmupRule.getId(), warmupRule.getSchema(), warmupRule.getTable(), column, warmUpType, warmupRule.getPriority(), Duration.ofSeconds(warmupRule.getTtl()), predicates);
@@ -243,7 +243,7 @@ public class WarmupRuleApiMapper
             case WARM_UP_TYPE_BASIC -> io.trino.plugin.warp.api.warmup.WarmUpType.WARM_UP_TYPE_BASIC;
             case WARM_UP_TYPE_DATA -> io.trino.plugin.warp.api.warmup.WarmUpType.WARM_UP_TYPE_DATA;
             case WARM_UP_TYPE_LUCENE -> io.trino.plugin.warp.api.warmup.WarmUpType.WARM_UP_TYPE_LUCENE;
-            default -> throw new TrinoException(VaradaErrorCode.VARADA_ILLEGAL_PARAMETER, "Unknown modelWarmUpType " + modelWarmUpType);
+            default -> throw new TrinoException(WarpErrorCode.VARADA_ILLEGAL_PARAMETER, "Unknown modelWarmUpType " + modelWarmUpType);
         };
     }
 
@@ -255,36 +255,36 @@ public class WarmupRuleApiMapper
             case DATE -> TransformFunctionData.TransformType.DATE;
             case ELEMENT_AT -> TransformFunctionData.TransformType.ELEMENT_AT;
             case JSON_EXTRACT_SCALAR -> TransformFunctionData.TransformType.JSON_EXTRACT_SCALAR;
-            default -> throw new TrinoException(VaradaErrorCode.VARADA_ILLEGAL_PARAMETER, "Unknown modelTransformType " + modelTransformType);
+            default -> throw new TrinoException(WarpErrorCode.VARADA_ILLEGAL_PARAMETER, "Unknown modelTransformType " + modelTransformType);
         };
     }
 
-    private static VaradaExpressionData.Type convertModelType(Type modelType)
+    private static WarpExpressionData.Type convertModelType(Type modelType)
     {
         if (modelType instanceof VarcharType) {
-            return VaradaExpressionData.Type.VARCHAR;
+            return WarpExpressionData.Type.VARCHAR;
         }
         if (modelType instanceof IntegerType) {
-            return VaradaExpressionData.Type.INTEGER;
+            return WarpExpressionData.Type.INTEGER;
         }
         if (modelType instanceof BigintType) {
-            return VaradaExpressionData.Type.BIGINT;
+            return WarpExpressionData.Type.BIGINT;
         }
         if (modelType instanceof SmallintType) {
-            return VaradaExpressionData.Type.SMALLINT;
+            return WarpExpressionData.Type.SMALLINT;
         }
         if (modelType instanceof DoubleType) {
-            return VaradaExpressionData.Type.DOUBLE;
+            return WarpExpressionData.Type.DOUBLE;
         }
         if (modelType instanceof RealType) {
-            return VaradaExpressionData.Type.REAL;
+            return WarpExpressionData.Type.REAL;
         }
-        throw new TrinoException(VaradaErrorCode.VARADA_ILLEGAL_PARAMETER, "Unknown modelType " + modelType);
+        throw new TrinoException(WarpErrorCode.VARADA_ILLEGAL_PARAMETER, "Unknown modelType " + modelType);
     }
 
-    private static VaradaPrimitiveConstantData convertModelVaradaPrimitiveConstant(VaradaPrimitiveConstant modelVaradaPrimitiveConstant)
+    private static WarpPrimitiveConstantData convertModelVaradaPrimitiveConstant(WarpPrimitiveConstant modelVaradaPrimitiveConstant)
     {
-        return new VaradaPrimitiveConstantData(modelVaradaPrimitiveConstant.getValue(), convertModelType(modelVaradaPrimitiveConstant.getType()));
+        return new WarpPrimitiveConstantData(modelVaradaPrimitiveConstant.getValue(), convertModelType(modelVaradaPrimitiveConstant.getType()));
     }
 
     private static TransformFunctionData convertModelTransformFunction(TransformFunction modelTransformFunction)
@@ -296,9 +296,9 @@ public class WarmupRuleApiMapper
             transformFunction = new TransformFunctionData(transformType);
         }
         else {
-            ImmutableList<? extends VaradaConstantData> transformParams = modelTransformFunction.transformParams().stream()
-                    .filter(param -> (param instanceof VaradaPrimitiveConstant))
-                    .map(param -> convertModelVaradaPrimitiveConstant((VaradaPrimitiveConstant) param))
+            ImmutableList<? extends WarpConstantData> transformParams = modelTransformFunction.transformParams().stream()
+                    .filter(param -> (param instanceof WarpPrimitiveConstant))
+                    .map(param -> convertModelVaradaPrimitiveConstant((WarpPrimitiveConstant) param))
                     .collect(toImmutableList());
             transformFunction = new TransformFunctionData(transformType, transformParams);
         }

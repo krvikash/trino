@@ -105,7 +105,7 @@ class PredicateBufferClassifierTest
 
         QueryContext baseQueryContext = new QueryContext(predicateContextData, collectColumnsByBlockIndex);
         QueryMatchData queryMatchData = BasicQueryMatchData.builder()
-                .varadaColumn(warmUpElement.getVaradaColumn())
+                .warpColumn(warmUpElement.getWarpColumn())
                 .type(IntegerType.INTEGER)
                 .domain(Optional.of(domain))
                 .warmUpElement(warmUpElement)
@@ -118,7 +118,7 @@ class PredicateBufferClassifierTest
                         .build())
                 .build();
         PrefilledQueryCollectData prefilledQueryCollectData = PrefilledQueryCollectData.builder()
-                .varadaColumn(warmUpElement.getVaradaColumn())
+                .warpColumn(warmUpElement.getWarpColumn())
                 .type(IntegerType.INTEGER)
                 .build();
 

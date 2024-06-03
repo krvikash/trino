@@ -23,12 +23,11 @@ import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.SimplifiedColumns;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.expression.DomainExpression;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaExpression;
-import io.trino.plugin.warp.expression.VaradaExpressionData;
-import io.trino.plugin.warp.expression.VaradaSliceConstant;
-import io.trino.plugin.warp.expression.VaradaVariable;
-import io.trino.plugin.warp.expression.rewrite.WarpExpression;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpExpression;
+import io.trino.plugin.warp.expression.WarpExpressionData;
+import io.trino.plugin.warp.expression.WarpSliceConstant;
+import io.trino.plugin.warp.expression.WarpVariable;
 import io.trino.plugin.warp.util.DefaultFakeConnectorSession;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
@@ -82,12 +81,12 @@ public class PredicateContextFactoryTest
         TupleDomain<ColumnHandle> fullPredicate = TupleDomain.withColumnDomains(Map.of(c1, domain, c2, domain));
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(fullPredicate);
         PredicateContextData predicateContextData = predicateContextFactory.create(session, dynamicFilter, dispatcherTableHandle);
-        List<VaradaExpression> expectedChildren = List.of(
+        List<WarpExpression> expectedChildren = List.of(
                 convertDomainToDomainPredicateData(c1, domain),
                 convertDomainToDomainPredicateData(c2, domain));
-        VaradaCall expectedExpression = new VaradaCall(AND_FUNCTION_NAME.getName(), expectedChildren, BOOLEAN);
-        assertThat(((VaradaCall) predicateContextData.getRootExpression()).getFunctionName()).isEqualTo(expectedExpression.getFunctionName());
-        assertThat(((VaradaCall) predicateContextData.getRootExpression()).getArguments()).containsExactlyInAnyOrderElementsOf(expectedExpression.getArguments());
+        WarpCall expectedExpression = new WarpCall(AND_FUNCTION_NAME.getName(), expectedChildren, BOOLEAN);
+        assertThat(((WarpCall) predicateContextData.getRootExpression()).getFunctionName()).isEqualTo(expectedExpression.getFunctionName());
+        assertThat(((WarpCall) predicateContextData.getRootExpression()).getArguments()).containsExactlyInAnyOrderElementsOf(expectedExpression.getArguments());
     }
 
     /**
@@ -121,11 +120,11 @@ public class PredicateContextFactoryTest
         TestingConnectorColumnHandle c1 = new TestingConnectorColumnHandle(IntegerType.INTEGER, "a");
         TestingConnectorColumnHandle c2 = new TestingConnectorColumnHandle(IntegerType.INTEGER, "b");
         Slice likePattern = Slices.utf8Slice("str%");
-        VaradaCall expA = createLikeVaradaExpression(c1, likePattern);
-        VaradaCall expB = createLikeVaradaExpression(c2, likePattern);
-        VaradaExpression expression = new VaradaCall(OR_FUNCTION_NAME.getName(), List.of(expA, expB), BOOLEAN);
+        WarpCall expA = createLikeVaradaExpression(c1, likePattern);
+        WarpCall expB = createLikeVaradaExpression(c2, likePattern);
+        WarpExpression expression = new WarpCall(OR_FUNCTION_NAME.getName(), List.of(expA, expB), BOOLEAN);
 
-        WarpExpression warpExpression = new WarpExpression(expression,
+        io.trino.plugin.warp.expression.rewrite.WarpExpression warpExpression = new io.trino.plugin.warp.expression.rewrite.WarpExpression(expression,
                 List.of(convertToVaradaExpressionData(expA),
                         convertToVaradaExpressionData(expB)));
         when(dispatcherTableHandle.getWarpExpression()).thenReturn(Optional.of(warpExpression));
@@ -147,11 +146,11 @@ public class PredicateContextFactoryTest
         TestingConnectorColumnHandle c1 = new TestingConnectorColumnHandle(IntegerType.INTEGER, "a");
         TestingConnectorColumnHandle c2 = new TestingConnectorColumnHandle(IntegerType.INTEGER, "b");
         Slice likePattern = Slices.utf8Slice("str%");
-        VaradaCall expA = createLikeVaradaExpression(c1, likePattern);
-        VaradaCall expB = createLikeVaradaExpression(c2, likePattern);
-        VaradaExpression expression = new VaradaCall(AND_FUNCTION_NAME.getName(), List.of(expA, expB), BOOLEAN);
+        WarpCall expA = createLikeVaradaExpression(c1, likePattern);
+        WarpCall expB = createLikeVaradaExpression(c2, likePattern);
+        WarpExpression expression = new WarpCall(AND_FUNCTION_NAME.getName(), List.of(expA, expB), BOOLEAN);
 
-        WarpExpression warpExpression = new WarpExpression(expression,
+        io.trino.plugin.warp.expression.rewrite.WarpExpression warpExpression = new io.trino.plugin.warp.expression.rewrite.WarpExpression(expression,
                 List.of(convertToVaradaExpressionData(expA),
                         convertToVaradaExpressionData(expB)));
         when(dispatcherTableHandle.getWarpExpression()).thenReturn(Optional.of(warpExpression));
@@ -177,18 +176,18 @@ public class PredicateContextFactoryTest
         TupleDomain<ColumnHandle> fullPredicate = TupleDomain.withColumnDomains(Map.of(x, domain));
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(fullPredicate);
         Slice likePattern = Slices.utf8Slice("str%");
-        VaradaCall expA = createLikeVaradaExpression(c1, likePattern);
-        VaradaCall expB = createLikeVaradaExpression(c2, likePattern);
-        VaradaExpression expression = new VaradaCall(AND_FUNCTION_NAME.getName(), List.of(expA, expB), BOOLEAN);
+        WarpCall expA = createLikeVaradaExpression(c1, likePattern);
+        WarpCall expB = createLikeVaradaExpression(c2, likePattern);
+        WarpExpression expression = new WarpCall(AND_FUNCTION_NAME.getName(), List.of(expA, expB), BOOLEAN);
 
-        WarpExpression warpExpression = new WarpExpression(expression,
+        io.trino.plugin.warp.expression.rewrite.WarpExpression warpExpression = new io.trino.plugin.warp.expression.rewrite.WarpExpression(expression,
                 List.of(convertToVaradaExpressionData(expA),
                         convertToVaradaExpressionData(expB)));
         when(dispatcherTableHandle.getWarpExpression()).thenReturn(Optional.of(warpExpression));
         PredicateContextData result = predicateContextFactory.create(session, dynamicFilter, dispatcherTableHandle);
-        VaradaCall expectedExpression = new VaradaCall(AND_FUNCTION_NAME.getName(), List.of(expA, expB, convertDomainToDomainPredicateData(x, domain)), BOOLEAN);
-        assertThat(((VaradaCall) result.getRootExpression()).getFunctionName()).isEqualTo(expectedExpression.getFunctionName());
-        assertThat(((VaradaCall) result.getRootExpression()).getArguments()).containsExactlyInAnyOrderElementsOf(expectedExpression.getArguments());
+        WarpCall expectedExpression = new WarpCall(AND_FUNCTION_NAME.getName(), List.of(expA, expB, convertDomainToDomainPredicateData(x, domain)), BOOLEAN);
+        assertThat(((WarpCall) result.getRootExpression()).getFunctionName()).isEqualTo(expectedExpression.getFunctionName());
+        assertThat(((WarpCall) result.getRootExpression()).getArguments()).containsExactlyInAnyOrderElementsOf(expectedExpression.getArguments());
     }
 
     /**
@@ -208,18 +207,18 @@ public class PredicateContextFactoryTest
         TupleDomain<ColumnHandle> fullPredicate = TupleDomain.withColumnDomains(Map.of(x, domain));
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(fullPredicate);
         Slice likePattern = Slices.utf8Slice("str%");
-        VaradaCall expA = createLikeVaradaExpression(c1, likePattern);
-        VaradaCall expB = createLikeVaradaExpression(c2, likePattern);
-        VaradaExpression expression = new VaradaCall(OR_FUNCTION_NAME.getName(), List.of(expA, expB), BOOLEAN);
+        WarpCall expA = createLikeVaradaExpression(c1, likePattern);
+        WarpCall expB = createLikeVaradaExpression(c2, likePattern);
+        WarpExpression expression = new WarpCall(OR_FUNCTION_NAME.getName(), List.of(expA, expB), BOOLEAN);
 
-        WarpExpression warpExpression = new WarpExpression(expression,
+        io.trino.plugin.warp.expression.rewrite.WarpExpression warpExpression = new io.trino.plugin.warp.expression.rewrite.WarpExpression(expression,
                 List.of(convertToVaradaExpressionData(expA),
                         convertToVaradaExpressionData(expB)));
         when(dispatcherTableHandle.getWarpExpression()).thenReturn(Optional.of(warpExpression));
         PredicateContextData result = predicateContextFactory.create(session, dynamicFilter, dispatcherTableHandle);
-        VaradaCall expectedExpression = new VaradaCall(AND_FUNCTION_NAME.getName(), List.of(expression, convertDomainToDomainPredicateData(x, domain)), BOOLEAN);
-        assertThat(((VaradaCall) result.getRootExpression()).getFunctionName()).isEqualTo(expectedExpression.getFunctionName());
-        assertThat(((VaradaCall) result.getRootExpression()).getArguments()).containsExactlyInAnyOrderElementsOf(expectedExpression.getArguments());
+        WarpCall expectedExpression = new WarpCall(AND_FUNCTION_NAME.getName(), List.of(expression, convertDomainToDomainPredicateData(x, domain)), BOOLEAN);
+        assertThat(((WarpCall) result.getRootExpression()).getFunctionName()).isEqualTo(expectedExpression.getFunctionName());
+        assertThat(((WarpCall) result.getRootExpression()).getArguments()).containsExactlyInAnyOrderElementsOf(expectedExpression.getArguments());
     }
 
     /**
@@ -238,16 +237,16 @@ public class PredicateContextFactoryTest
         TupleDomain<ColumnHandle> fullPredicate = TupleDomain.withColumnDomains(Map.of(x, domain));
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(fullPredicate);
         Slice likePattern = Slices.utf8Slice("str%");
-        VaradaCall expA = createLikeVaradaExpression(a, likePattern);
+        WarpCall expA = createLikeVaradaExpression(a, likePattern);
 
-        WarpExpression warpExpression = new WarpExpression(expA, List.of(convertToVaradaExpressionData(expA)));
+        io.trino.plugin.warp.expression.rewrite.WarpExpression warpExpression = new io.trino.plugin.warp.expression.rewrite.WarpExpression(expA, List.of(convertToVaradaExpressionData(expA)));
         when(dispatcherTableHandle.getWarpExpression()).thenReturn(Optional.of(warpExpression));
         PredicateContextData result = predicateContextFactory.create(session, dynamicFilter, dispatcherTableHandle);
-        VaradaCall expectedExpression = new VaradaCall(AND_FUNCTION_NAME.getName(), List.of(expA,
+        WarpCall expectedExpression = new WarpCall(AND_FUNCTION_NAME.getName(), List.of(expA,
                 convertDomainToDomainPredicateData(x, domain)),
                 BOOLEAN);
-        assertThat(((VaradaCall) result.getRootExpression()).getFunctionName()).isEqualTo(expectedExpression.getFunctionName());
-        assertThat(((VaradaCall) result.getRootExpression()).getArguments()).containsExactlyInAnyOrderElementsOf(expectedExpression.getArguments());
+        assertThat(((WarpCall) result.getRootExpression()).getFunctionName()).isEqualTo(expectedExpression.getFunctionName());
+        assertThat(((WarpCall) result.getRootExpression()).getArguments()).containsExactlyInAnyOrderElementsOf(expectedExpression.getArguments());
     }
 
     /**
@@ -267,17 +266,17 @@ public class PredicateContextFactoryTest
         TupleDomain<ColumnHandle> fullPredicate = TupleDomain.withColumnDomains(Map.of(x, domain, y, domain));
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(fullPredicate);
         Slice likePattern = Slices.utf8Slice("str%");
-        VaradaCall expA = createLikeVaradaExpression(a, likePattern);
+        WarpCall expA = createLikeVaradaExpression(a, likePattern);
 
-        WarpExpression warpExpression = new WarpExpression(expA, List.of(convertToVaradaExpressionData(expA)));
+        io.trino.plugin.warp.expression.rewrite.WarpExpression warpExpression = new io.trino.plugin.warp.expression.rewrite.WarpExpression(expA, List.of(convertToVaradaExpressionData(expA)));
         when(dispatcherTableHandle.getWarpExpression()).thenReturn(Optional.of(warpExpression));
         PredicateContextData result = predicateContextFactory.create(session, dynamicFilter, dispatcherTableHandle);
-        VaradaCall expectedExpression = new VaradaCall(AND_FUNCTION_NAME.getName(), List.of(expA,
+        WarpCall expectedExpression = new WarpCall(AND_FUNCTION_NAME.getName(), List.of(expA,
                 convertDomainToDomainPredicateData(x, domain),
                 convertDomainToDomainPredicateData(y, domain)),
                 BOOLEAN);
-        assertThat(((VaradaCall) result.getRootExpression()).getFunctionName()).isEqualTo(expectedExpression.getFunctionName());
-        assertThat(((VaradaCall) result.getRootExpression()).getArguments()).containsExactlyInAnyOrderElementsOf(expectedExpression.getArguments());
+        assertThat(((WarpCall) result.getRootExpression()).getFunctionName()).isEqualTo(expectedExpression.getFunctionName());
+        assertThat(((WarpCall) result.getRootExpression()).getArguments()).containsExactlyInAnyOrderElementsOf(expectedExpression.getArguments());
     }
 
     /**
@@ -298,21 +297,21 @@ public class PredicateContextFactoryTest
         TupleDomain<ColumnHandle> fullPredicate = TupleDomain.withColumnDomains(Map.of(x, domain, y, domain));
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(fullPredicate);
         Slice likePattern = Slices.utf8Slice("str%");
-        VaradaCall expA = createLikeVaradaExpression(a, likePattern);
-        VaradaCall expB = createLikeVaradaExpression(b, likePattern);
-        VaradaExpression expression = new VaradaCall(OR_FUNCTION_NAME.getName(), List.of(expA, expB), BOOLEAN);
+        WarpCall expA = createLikeVaradaExpression(a, likePattern);
+        WarpCall expB = createLikeVaradaExpression(b, likePattern);
+        WarpExpression expression = new WarpCall(OR_FUNCTION_NAME.getName(), List.of(expA, expB), BOOLEAN);
 
-        WarpExpression warpExpression = new WarpExpression(expression,
+        io.trino.plugin.warp.expression.rewrite.WarpExpression warpExpression = new io.trino.plugin.warp.expression.rewrite.WarpExpression(expression,
                 List.of(convertToVaradaExpressionData(expA),
                         convertToVaradaExpressionData(expB)));
         when(dispatcherTableHandle.getWarpExpression()).thenReturn(Optional.of(warpExpression));
         PredicateContextData result = predicateContextFactory.create(session, dynamicFilter, dispatcherTableHandle);
-        VaradaCall expectedExpression = new VaradaCall(AND_FUNCTION_NAME.getName(), List.of(expression,
+        WarpCall expectedExpression = new WarpCall(AND_FUNCTION_NAME.getName(), List.of(expression,
                 convertDomainToDomainPredicateData(x, domain),
                 convertDomainToDomainPredicateData(y, domain)),
                 BOOLEAN);
-        assertThat(((VaradaCall) result.getRootExpression()).getFunctionName()).isEqualTo(expectedExpression.getFunctionName());
-        assertThat(((VaradaCall) result.getRootExpression()).getArguments()).containsExactlyInAnyOrderElementsOf(expectedExpression.getArguments());
+        assertThat(((WarpCall) result.getRootExpression()).getFunctionName()).isEqualTo(expectedExpression.getFunctionName());
+        assertThat(((WarpCall) result.getRootExpression()).getArguments()).containsExactlyInAnyOrderElementsOf(expectedExpression.getArguments());
     }
 
     /**
@@ -333,49 +332,49 @@ public class PredicateContextFactoryTest
         TupleDomain<ColumnHandle> fullPredicate = TupleDomain.withColumnDomains(Map.of(x, domain, y, domain));
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(fullPredicate);
         Slice likePattern = Slices.utf8Slice("str%");
-        VaradaCall expA = createLikeVaradaExpression(a, likePattern);
-        VaradaCall expB = createLikeVaradaExpression(b, likePattern);
-        VaradaExpression expression = new VaradaCall(AND_FUNCTION_NAME.getName(), List.of(expA, expB), BOOLEAN);
+        WarpCall expA = createLikeVaradaExpression(a, likePattern);
+        WarpCall expB = createLikeVaradaExpression(b, likePattern);
+        WarpExpression expression = new WarpCall(AND_FUNCTION_NAME.getName(), List.of(expA, expB), BOOLEAN);
 
-        WarpExpression warpExpression = new WarpExpression(expression,
+        io.trino.plugin.warp.expression.rewrite.WarpExpression warpExpression = new io.trino.plugin.warp.expression.rewrite.WarpExpression(expression,
                 List.of(convertToVaradaExpressionData(expA),
                         convertToVaradaExpressionData(expB)));
         when(dispatcherTableHandle.getWarpExpression()).thenReturn(Optional.of(warpExpression));
         PredicateContextData result = predicateContextFactory.create(session, dynamicFilter, dispatcherTableHandle);
-        VaradaCall expectedExpression = new VaradaCall(AND_FUNCTION_NAME.getName(), List.of(expA,
+        WarpCall expectedExpression = new WarpCall(AND_FUNCTION_NAME.getName(), List.of(expA,
                 expB,
                 convertDomainToDomainPredicateData(x, domain),
                 convertDomainToDomainPredicateData(y, domain)),
                 BOOLEAN);
-        assertThat(((VaradaCall) result.getRootExpression()).getFunctionName()).isEqualTo(expectedExpression.getFunctionName());
-        assertThat(((VaradaCall) result.getRootExpression()).getArguments()).containsExactlyInAnyOrderElementsOf(expectedExpression.getArguments());
+        assertThat(((WarpCall) result.getRootExpression()).getFunctionName()).isEqualTo(expectedExpression.getFunctionName());
+        assertThat(((WarpCall) result.getRootExpression()).getArguments()).containsExactlyInAnyOrderElementsOf(expectedExpression.getArguments());
     }
 
-    private VaradaExpressionData convertToVaradaExpressionData(VaradaCall varadaCall)
+    private WarpExpressionData convertToVaradaExpressionData(WarpCall warpCall)
     {
-        VaradaExpressionData varadaExpressionData = mock(VaradaExpressionData.class);
-        when(varadaExpressionData.getExpression()).thenReturn(varadaCall);
-        VaradaVariable varadaVariable = (VaradaVariable) varadaCall
-                .getArguments().stream().filter(x -> x instanceof VaradaVariable).findFirst().orElseThrow();
+        WarpExpressionData warpExpressionData = mock(WarpExpressionData.class);
+        when(warpExpressionData.getExpression()).thenReturn(warpCall);
+        WarpVariable varadaVariable = (WarpVariable) warpCall
+                .getArguments().stream().filter(x -> x instanceof WarpVariable).findFirst().orElseThrow();
         String columnName = ((TestingConnectorColumnHandle) varadaVariable.getColumnHandle()).name();
         Type columnType = ((TestingConnectorColumnHandle) varadaVariable.getColumnHandle()).type();
-        when(varadaExpressionData.getVaradaColumn()).thenReturn(new RegularColumn(columnName));
-        when(varadaExpressionData.getColumnType()).thenReturn(columnType);
-        return varadaExpressionData;
+        when(warpExpressionData.getWarpColumn()).thenReturn(new RegularColumn(columnName));
+        when(warpExpressionData.getColumnType()).thenReturn(columnType);
+        return warpExpressionData;
     }
 
     private DomainExpression convertDomainToDomainPredicateData(TestingConnectorColumnHandle column, Domain domain)
     {
-        VaradaVariable varadaVariable = new VaradaVariable(column, domain.getType());
+        WarpVariable varadaVariable = new WarpVariable(column, domain.getType());
         return new DomainExpression(varadaVariable, domain);
     }
 
-    private VaradaCall createLikeVaradaExpression(TestingConnectorColumnHandle columnHandle, Slice likePattern)
+    private WarpCall createLikeVaradaExpression(TestingConnectorColumnHandle columnHandle, Slice likePattern)
     {
         Type variableType = columnHandle.type();
 
-        return new VaradaCall(LIKE_FUNCTION_NAME.getName(),
-                List.of(new VaradaVariable(columnHandle, variableType),
-                        new VaradaSliceConstant(likePattern, VarcharType.VARCHAR)), BOOLEAN);
+        return new WarpCall(LIKE_FUNCTION_NAME.getName(),
+                List.of(new WarpVariable(columnHandle, variableType),
+                        new WarpSliceConstant(likePattern, VarcharType.VARCHAR)), BOOLEAN);
     }
 }

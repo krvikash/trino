@@ -22,15 +22,15 @@ import io.airlift.jaxrs.JaxrsModule;
 import io.airlift.json.JsonModule;
 import io.airlift.node.NodeModule;
 import io.trino.plugin.warp.di.InitializationModule;
-import io.trino.plugin.warp.di.VaradaBaseModule;
-import io.trino.plugin.warp.di.VaradaClientModule;
 import io.trino.plugin.warp.di.WarmupCloudFetcherModule;
+import io.trino.plugin.warp.di.WarpBaseModule;
+import io.trino.plugin.warp.di.WarpClientModule;
 import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleCloudFetcherConfig;
 import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleFetcher;
 import io.trino.plugin.warp.extension.config.CallHomeConfig;
 import io.trino.plugin.warp.extension.config.WarpExtensionConfig;
 import io.trino.plugin.warp.extension.execution.ClusterReadyTaskExecutionIsAllowedSupplier;
-import io.trino.plugin.warp.extension.execution.VaradaTasksModule;
+import io.trino.plugin.warp.extension.execution.WarpTasksModule;
 import io.trino.plugin.warp.extension.execution.WorkerReadyTaskExecutionIsAllowedSupplier;
 import io.trino.plugin.warp.extension.execution.callhome.CallHomeService;
 import io.trino.plugin.warp.extension.warmup.WorkerWarmupRuleFetcher;
@@ -64,7 +64,7 @@ public class WarpExtensionModule
     @Override
     public void configure()
     {
-        binder().install(new VaradaClientModule(config));
+        binder().install(new WarpClientModule(config));
 
         ImmutableSet.Builder<Class<? extends BooleanSupplier>> booleanSuppliers = ImmutableSet.builder();
         if (connectorContext.getNodeManager().getCurrentNode().isCoordinator()) {
@@ -74,9 +74,9 @@ public class WarpExtensionModule
             booleanSuppliers.add(WorkerReadyTaskExecutionIsAllowedSupplier.class);
         }
         binder().install(
-                new VaradaTasksModule(
-                        VaradaBaseModule.isCoordinator(connectorContext),
-                        VaradaBaseModule.isWorker(connectorContext, config),
+                new WarpTasksModule(
+                        WarpBaseModule.isCoordinator(connectorContext),
+                        WarpBaseModule.isWorker(connectorContext, config),
                         booleanSuppliers.build()));
         if (!Boolean.parseBoolean(config.getOrDefault(WarpExtensionConfig.USE_HTTP_SERVER_PORT, Boolean.TRUE.toString()))) {
             configureHttpServer();
@@ -88,7 +88,7 @@ public class WarpExtensionModule
 
         ConfigurationFactory configFactory = new ConfigurationFactory(config);
         WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig = configFactory.build(WarmupRuleCloudFetcherConfig.class);
-        if (VaradaBaseModule.isWorker(connectorContext, config) && StringUtils.isEmpty(warmupRuleCloudFetcherConfig.getStorePath())) {
+        if (WarpBaseModule.isWorker(connectorContext, config) && StringUtils.isEmpty(warmupRuleCloudFetcherConfig.getStorePath())) {
             binder().bind(WarmupRuleFetcher.class).to(WorkerWarmupRuleFetcher.class);
         }
         else {
@@ -112,7 +112,7 @@ public class WarpExtensionModule
         binder().install(new NodeModule());
         binder().install(httpServerModule);
         binder().install(new JsonModule());
-        VaradaJaxrsModule module = new VaradaJaxrsModule();
+        WarpJaxrsModule module = new WarpJaxrsModule();
         module.setConfigurationFactory(configFactory);
         binder().install(module);
         binder().install(binder1 -> binder1.bind(HttpServerLifeCycleHandler.class));

@@ -15,7 +15,7 @@ package io.trino.plugin.warp.storage.write.appenders;
 
 import io.trino.plugin.warp.dispatcher.model.TransformedColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
-import io.trino.plugin.warp.expression.VaradaConstant;
+import io.trino.plugin.warp.expression.WarpConstant;
 import io.trino.plugin.warp.juffer.BlockPosHolder;
 import io.trino.plugin.warp.storage.juffers.WriteJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.write.WarmupElementStatsBuilder;
@@ -35,8 +35,8 @@ public class CrcMapBlockAppender
     @Override
     AppendResult appendWithoutDictionary(int jufferPos, BlockPosHolder blockPos, WarmUpElement warmUpElement, WarmupElementStatsBuilder warmupElementStatsBuilder)
     {
-        TransformedColumn transformedColumn = (TransformedColumn) warmUpElement.getVaradaColumn();
-        VaradaConstant key = transformedColumn.getTransformFunction().transformParams().get(0);
+        TransformedColumn transformedColumn = (TransformedColumn) warmUpElement.getWarpColumn();
+        WarpConstant key = transformedColumn.getTransformFunction().transformParams().get(0);
         return valuesBlockAppender.appendFromMapBlock(blockPos, jufferPos, key.getValue());
     }
 }

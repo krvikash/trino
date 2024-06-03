@@ -45,7 +45,7 @@ public record DictionaryKey(
         return "%s/%s/%s_%s.dict".formatted(
                 schemaTableColumn.schemaTableName().getSchemaName(),
                 schemaTableColumn.schemaTableName().getTableName(),
-                schemaTableColumn.varadaColumn().getName(),
+                schemaTableColumn.warpColumn().getName(),
                 nodeIdentifier);
     }
 }

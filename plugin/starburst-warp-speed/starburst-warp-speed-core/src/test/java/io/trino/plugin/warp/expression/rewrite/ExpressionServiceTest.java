@@ -24,13 +24,13 @@ import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.expression.NativeExpression;
 import io.trino.plugin.warp.expression.TransformFunction;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaConstant;
-import io.trino.plugin.warp.expression.VaradaExpression;
-import io.trino.plugin.warp.expression.VaradaExpressionData;
-import io.trino.plugin.warp.expression.VaradaPrimitiveConstant;
-import io.trino.plugin.warp.expression.VaradaSliceConstant;
-import io.trino.plugin.warp.expression.VaradaVariable;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpConstant;
+import io.trino.plugin.warp.expression.WarpExpression;
+import io.trino.plugin.warp.expression.WarpExpressionData;
+import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
+import io.trino.plugin.warp.expression.WarpSliceConstant;
+import io.trino.plugin.warp.expression.WarpVariable;
 import io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.ExperimentSupportedFunction;
 import io.trino.plugin.warp.expression.rewrite.coordinator.warptonative.NativeExpressionRulesHandler;
 import io.trino.plugin.warp.gen.constants.FunctionType;
@@ -80,7 +80,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Stream;
 
-import static io.trino.plugin.warp.VaradaSessionProperties.ENABLE_OR_PUSHDOWN;
+import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_OR_PUSHDOWN;
 import static io.trino.plugin.warp.expression.rewrite.ExpressionService.PUSHDOWN_PREDICATES_STAT_GROUP;
 import static io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions.CEIL;
 import static io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions.CONTAINS;
@@ -160,7 +160,7 @@ public class ExpressionServiceTest
     public void testEmptyExpression()
     {
         ConnectorExpression expression = new Constant(true, BOOLEAN);
-        Optional<WarpExpression> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats);
+        Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats);
         assertThat(actual.isEmpty()).isTrue();
         assertPushdownStatsSum(0);
     }
@@ -176,7 +176,7 @@ public class ExpressionServiceTest
                 BooleanType.BOOLEAN,
                 IS_NAN,
                 List.of(longDecimalVariable));
-        Optional<WarpExpression> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats);
+        Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats);
         assertThat(actual).isEmpty();
         assertPushdownStatsSum(1);
     }
@@ -187,14 +187,14 @@ public class ExpressionServiceTest
     @Test
     public void testVaradaFunctionsIs_Nan()
     {
-        VaradaExpression expectedResult = new VaradaCall(IS_NAN.getName(),
+        WarpExpression expectedResult = new WarpCall(IS_NAN.getName(),
                 List.of(createExpectedVariable(doubleVariable1)), BOOLEAN);
 
         Call expression = new Call(
                 BooleanType.BOOLEAN,
                 IS_NAN,
                 List.of(doubleVariable1));
-        List<VaradaExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().varadaExpressionDataLeaves();
+        List<WarpExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().warpExpressionDataLeaves();
         assertThat(actual.size()).isEqualTo(1);
         assertThat(actual.get(0).getExpression()).isEqualTo(expectedResult);
         assertPushdownStatsSum(0);
@@ -212,7 +212,7 @@ public class ExpressionServiceTest
                 List.of(
                         doubleVariable1,
                         doubleVariable2));
-        Optional<WarpExpression> actual = expressionService.convertToWarpExpression(connectorSession, call, assignments, customStats);
+        Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> actual = expressionService.convertToWarpExpression(connectorSession, call, assignments, customStats);
         assertThat(actual).isEmpty();
         assertPushdownStatsSum(1);
         PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
@@ -225,17 +225,17 @@ public class ExpressionServiceTest
     @Test
     public void testInverseIsNan()
     {
-        Pair<Call, VaradaCall> isNanExpression = createCallExpression(IS_NAN,
+        Pair<Call, WarpCall> isNanExpression = createCallExpression(IS_NAN,
                 EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 Constant.FALSE);
-        List<VaradaExpressionData> expectedResult = List.of(
-                new VaradaExpressionData(isNanExpression.getValue(),
+        List<WarpExpressionData> expectedResult = List.of(
+                new WarpExpressionData(isNanExpression.getValue(),
                         doubleVariable1.getType(),
                         false,
                         Optional.empty(),
                         new RegularColumn(doubleVariable1.getName())));
-        List<VaradaExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, isNanExpression.getKey(), assignments, customStats).orElseThrow().varadaExpressionDataLeaves();
+        List<WarpExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, isNanExpression.getKey(), assignments, customStats).orElseThrow().warpExpressionDataLeaves();
         assertThat(actual).isEqualTo(expectedResult);
         assertPushdownStatsSum(1);
         PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
@@ -248,7 +248,7 @@ public class ExpressionServiceTest
     @Test
     public void testValidIsNan()
     {
-        Pair<Call, VaradaCall> isNanExpression = createCallExpression(IS_NAN,
+        Pair<Call, WarpCall> isNanExpression = createCallExpression(IS_NAN,
                 EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 Constant.TRUE);
@@ -258,13 +258,13 @@ public class ExpressionServiceTest
                 false,
                 true,
                 Collections.emptyList(), TransformFunction.NONE);
-        List<VaradaExpressionData> expectedResult = List.of(
-                new VaradaExpressionData(isNanExpression.getValue(),
+        List<WarpExpressionData> expectedResult = List.of(
+                new WarpExpressionData(isNanExpression.getValue(),
                         doubleVariable1.getType(),
                         false,
                         Optional.of(expectedNativeExpression),
                         new RegularColumn(doubleVariable1.getName())));
-        List<VaradaExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, isNanExpression.getKey(), assignments, customStats).orElseThrow().varadaExpressionDataLeaves();
+        List<WarpExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, isNanExpression.getKey(), assignments, customStats).orElseThrow().warpExpressionDataLeaves();
         assertThat(actual).isEqualTo(expectedResult);
         assertPushdownStatsSum(0);
     }
@@ -275,12 +275,12 @@ public class ExpressionServiceTest
     @Test
     public void testVaradaFunctionsClientCeil()
     {
-        Pair<Call, VaradaCall> ceilExpression = createCallExpression(CEIL,
+        Pair<Call, WarpCall> ceilExpression = createCallExpression(CEIL,
                 GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(5D, doubleVariable1.getType()));
 
-        List<VaradaExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, ceilExpression.getKey(), assignments, customStats).orElseThrow().varadaExpressionDataLeaves();
+        List<WarpExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, ceilExpression.getKey(), assignments, customStats).orElseThrow().warpExpressionDataLeaves();
         assertThat(actual.size()).isEqualTo(1);
         assertThat(actual.get(0).getExpression()).isEqualTo(ceilExpression.getValue());
         assertPushdownStatsSum(0);
@@ -295,7 +295,7 @@ public class ExpressionServiceTest
     public void testConstantExpression()
     {
         Constant constant = new Constant(null, BOOLEAN);
-        Optional<WarpExpression> actual = expressionService.convertToWarpExpression(connectorSession, constant, assignments, customStats);
+        Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> actual = expressionService.convertToWarpExpression(connectorSession, constant, assignments, customStats);
         assertThat(actual).isEmpty();
     }
 
@@ -305,11 +305,11 @@ public class ExpressionServiceTest
     @Test
     public void testExpressionWithNull2()
     {
-        Pair<Call, VaradaCall> isNanExpression = createCallExpression(IS_NAN,
+        Pair<Call, WarpCall> isNanExpression = createCallExpression(IS_NAN,
                 EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 Constant.TRUE);
-        Pair<Call, VaradaCall> right = createCallExpression(CEIL,
+        Pair<Call, WarpCall> right = createCallExpression(CEIL,
                 GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(5D, DoubleType.DOUBLE));
@@ -322,7 +322,7 @@ public class ExpressionServiceTest
                 BOOLEAN,
                 OR_FUNCTION_NAME,
                 List.of(isNull, isNanExpression.getKey(), right.getKey()));
-        List<VaradaExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().varadaExpressionDataLeaves();
+        List<WarpExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().warpExpressionDataLeaves();
         assertThat(actual.size()).isEqualTo(3);
     }
 
@@ -344,7 +344,7 @@ public class ExpressionServiceTest
                                 BooleanType.BOOLEAN,
                                 IS_NAN,
                                 List.of(doubleVariable1))));
-        Optional<WarpExpression> actual = expressionService.convertToWarpExpression(connectorSession, call, assignments, customStats);
+        Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> actual = expressionService.convertToWarpExpression(connectorSession, call, assignments, customStats);
         assertThat(actual).isEmpty();
         assertPushdownStatsSum(1);
         PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
@@ -357,7 +357,7 @@ public class ExpressionServiceTest
     @Test
     public void testFunctionWithOrSameColumnOneFunctionNotSupported()
     {
-        Pair<Call, VaradaCall> expression = createCallExpression(CEIL,
+        Pair<Call, WarpCall> expression = createCallExpression(CEIL,
                 EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(5D, DoubleType.DOUBLE));
@@ -374,7 +374,7 @@ public class ExpressionServiceTest
                                                 new FunctionName("unsupported"),
                                                 List.of(doubleVariable1)),
                                         new Constant(true, BOOLEAN)))));
-        Optional<WarpExpression> actual = expressionService.convertToWarpExpression(connectorSession, connectorExpression, assignments, customStats);
+        Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> actual = expressionService.convertToWarpExpression(connectorSession, connectorExpression, assignments, customStats);
         assertThat(actual).isEmpty();
         assertPushdownStatsSum(1);
         PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
@@ -387,7 +387,7 @@ public class ExpressionServiceTest
     @Test
     public void testFunctionWith_And_UnsupportedFunction()
     {
-        Pair<Call, VaradaCall> isNanExpression = createCallExpression(IS_NAN,
+        Pair<Call, WarpCall> isNanExpression = createCallExpression(IS_NAN,
                 EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 Constant.TRUE);
@@ -399,7 +399,7 @@ public class ExpressionServiceTest
                 .domain(Domain.create(ValueSet.ofRanges(Range.equal(BOOLEAN, true)), false))
                 .collectNulls(false)
                 .build());
-        List<VaradaExpressionData> expectedResult = List.of(new VaradaExpressionData(isNanExpression.getValue(),
+        List<WarpExpressionData> expectedResult = List.of(new WarpExpressionData(isNanExpression.getValue(),
                 doubleVariable1.getType(),
                 false,
                 expectedNativeExpression,
@@ -417,7 +417,7 @@ public class ExpressionServiceTest
                                                 List.of(doubleVariable1)),
                                         new Constant(5, IntegerType.INTEGER))),
                         isNanExpression.getKey()));
-        List<VaradaExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().varadaExpressionDataLeaves();
+        List<WarpExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().warpExpressionDataLeaves();
         assertThat(actual).isEqualTo(expectedResult);
         assertPushdownStatsSum(1);
         PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
@@ -430,11 +430,11 @@ public class ExpressionServiceTest
     @Test
     public void testFunctionWithOrFunctionSameColumn()
     {
-        Pair<Call, VaradaCall> left = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> left = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(5D, DoubleType.DOUBLE));
 
-        Pair<Call, VaradaCall> isNanExpression = createCallExpression(IS_NAN,
+        Pair<Call, WarpCall> isNanExpression = createCallExpression(IS_NAN,
                 EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 Constant.TRUE);
@@ -442,7 +442,7 @@ public class ExpressionServiceTest
                 BOOLEAN,
                 OR_FUNCTION_NAME,
                 List.of(left.getKey(), isNanExpression.getKey()));
-        List<VaradaExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().varadaExpressionDataLeaves();
+        List<WarpExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().warpExpressionDataLeaves();
         assertThat(actual.size()).isEqualTo(2);
     }
 
@@ -474,7 +474,7 @@ public class ExpressionServiceTest
                 BOOLEAN,
                 OR_FUNCTION_NAME,
                 List.of(left, right));
-        Optional<WarpExpression> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats);
+        Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats);
         assertThat(actual).isEmpty();
         assertPushdownStatsSum(1);
         PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
@@ -487,10 +487,10 @@ public class ExpressionServiceTest
     @Test
     public void testFunctionWithAndFunctionSameColumn()
     {
-        Pair<Call, VaradaCall> left = createCallExpression(CEIL, EQUAL_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> left = createCallExpression(CEIL, EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(5D, DoubleType.DOUBLE));
-        Pair<Call, VaradaCall> isNanExpression = createCallExpression(IS_NAN,
+        Pair<Call, WarpCall> isNanExpression = createCallExpression(IS_NAN,
                 EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 Constant.TRUE);
@@ -498,7 +498,7 @@ public class ExpressionServiceTest
                 BOOLEAN,
                 AND_FUNCTION_NAME,
                 List.of(left.getKey(), isNanExpression.getKey()));
-        List<VaradaExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().varadaExpressionDataLeaves();
+        List<WarpExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().warpExpressionDataLeaves();
         assertThat(actual.size()).isEqualTo(2);
     }
 
@@ -513,15 +513,15 @@ public class ExpressionServiceTest
         when(orEnabled.getProperty(ENABLE_OR_PUSHDOWN, Boolean.class)).thenReturn(true);
         double leftValue = 5D;
         double rightValue = 10D;
-        Pair<Call, VaradaCall> left = createCallExpression(GREATER_THAN_OPERATOR_FUNCTION_NAME, doubleVariable1, new Constant(leftValue, DoubleType.DOUBLE));
-        Pair<Call, VaradaCall> right = createCallExpression(LESS_THAN_OPERATOR_FUNCTION_NAME, doubleVariable2, new Constant(rightValue, DoubleType.DOUBLE));
+        Pair<Call, WarpCall> left = createCallExpression(GREATER_THAN_OPERATOR_FUNCTION_NAME, doubleVariable1, new Constant(leftValue, DoubleType.DOUBLE));
+        Pair<Call, WarpCall> right = createCallExpression(LESS_THAN_OPERATOR_FUNCTION_NAME, doubleVariable2, new Constant(rightValue, DoubleType.DOUBLE));
         ConnectorExpression leftOrExpression = new Call(BOOLEAN, AND_FUNCTION_NAME, List.of(left.getKey(), right.getKey()));
         left = createCallExpression(EQUAL_OPERATOR_FUNCTION_NAME, varcharVariable, new Constant(Slices.utf8Slice("bla"), VarcharType.VARCHAR));
         right = createCallExpression(GREATER_THAN_OPERATOR_FUNCTION_NAME, doubleVariable2, new Constant(leftValue, DoubleType.DOUBLE));
         ConnectorExpression rightOrExpression = new Call(BOOLEAN, AND_FUNCTION_NAME, List.of(left.getKey(), right.getKey()));
         ConnectorExpression connectorExpression = new Call(BOOLEAN, OR_FUNCTION_NAME, List.of(leftOrExpression, rightOrExpression));
-        Optional<WarpExpression> warpExpression = expressionService.convertToWarpExpression(orEnabled, connectorExpression, assignments, customStats);
-        assertThat(warpExpression.orElseThrow().varadaExpressionDataLeaves().size()).isEqualTo(4);
+        Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> warpExpression = expressionService.convertToWarpExpression(orEnabled, connectorExpression, assignments, customStats);
+        assertThat(warpExpression.orElseThrow().warpExpressionDataLeaves().size()).isEqualTo(4);
     }
 
     /**
@@ -534,12 +534,12 @@ public class ExpressionServiceTest
         when(orEnabled.getProperty(ENABLE_OR_PUSHDOWN, Boolean.class)).thenReturn(true);
         double leftValue = 5D;
         double rightValue = 10D;
-        Pair<Call, VaradaCall> left = createCallExpression(GREATER_THAN_OPERATOR_FUNCTION_NAME, doubleVariable1, new Constant(leftValue, DoubleType.DOUBLE));
-        Pair<Call, VaradaCall> right = createCallExpression(LESS_THAN_OPERATOR_FUNCTION_NAME, doubleVariable2, new Constant(rightValue, DoubleType.DOUBLE));
+        Pair<Call, WarpCall> left = createCallExpression(GREATER_THAN_OPERATOR_FUNCTION_NAME, doubleVariable1, new Constant(leftValue, DoubleType.DOUBLE));
+        Pair<Call, WarpCall> right = createCallExpression(LESS_THAN_OPERATOR_FUNCTION_NAME, doubleVariable2, new Constant(rightValue, DoubleType.DOUBLE));
         ConnectorExpression connectorExpression = new Call(BOOLEAN, OR_FUNCTION_NAME, List.of(left.getKey(), right.getKey()));
-        VaradaExpression varadaExpression = new VaradaCall(OR_FUNCTION_NAME.getName(), List.of(left.getValue(), right.getValue()), BOOLEAN);
+        WarpExpression varadaExpression = new WarpCall(OR_FUNCTION_NAME.getName(), List.of(left.getValue(), right.getValue()), BOOLEAN);
 
-        VaradaExpressionData leftVaradaExpressionData = new VaradaExpressionData(left.getValue(),
+        WarpExpressionData leftWarpExpressionData = new WarpExpressionData(left.getValue(),
                 doubleVariable1.getType(),
                 false,
                 Optional.of(new NativeExpression(PredicateType.PREDICATE_TYPE_RANGES,
@@ -549,7 +549,7 @@ public class ExpressionServiceTest
                         false,
                         Collections.emptyList(), TransformFunction.NONE)),
                 new RegularColumn(doubleVariable1.getName()));
-        VaradaExpressionData rightVaradaExpressionData = new VaradaExpressionData(right.getValue(),
+        WarpExpressionData rightWarpExpressionData = new WarpExpressionData(right.getValue(),
                 doubleVariable2.getType(),
                 false,
                 Optional.of(new NativeExpression(PredicateType.PREDICATE_TYPE_RANGES,
@@ -559,8 +559,8 @@ public class ExpressionServiceTest
                         false,
                         Collections.emptyList(), TransformFunction.NONE)),
                 new RegularColumn(doubleVariable2.getName()));
-        WarpExpression expectedSiacExpression = new WarpExpression(varadaExpression, List.of(leftVaradaExpressionData, rightVaradaExpressionData));
-        WarpExpression warpExpression = expressionService.convertToWarpExpression(orEnabled, connectorExpression, assignments, customStats).orElseThrow();
+        io.trino.plugin.warp.expression.rewrite.WarpExpression expectedSiacExpression = new io.trino.plugin.warp.expression.rewrite.WarpExpression(varadaExpression, List.of(leftWarpExpressionData, rightWarpExpressionData));
+        io.trino.plugin.warp.expression.rewrite.WarpExpression warpExpression = expressionService.convertToWarpExpression(orEnabled, connectorExpression, assignments, customStats).orElseThrow();
         assertThat(warpExpression).isEqualTo(expectedSiacExpression);
     }
 
@@ -570,17 +570,17 @@ public class ExpressionServiceTest
     @Test
     public void testAggregateFunctionSameFunctionSameColumn()
     {
-        Pair<Call, VaradaCall> left = createCallExpression(CEIL, EQUAL_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> left = createCallExpression(CEIL, EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(5D, DoubleType.DOUBLE));
-        Pair<Call, VaradaCall> right = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> right = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(10D, DoubleType.DOUBLE));
         ConnectorExpression expression = new Call(
                 BOOLEAN,
                 OR_FUNCTION_NAME,
                 List.of(left.getKey(), right.getKey()));
-        List<VaradaExpressionData> varadaExpressions = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().varadaExpressionDataLeaves();
+        List<WarpExpressionData> varadaExpressions = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().warpExpressionDataLeaves();
         assertThat(varadaExpressions.size()).isEqualTo(2);
     }
 
@@ -590,10 +590,10 @@ public class ExpressionServiceTest
     @Test
     public void testFunction2DifferentColumns_Allowed()
     {
-        Pair<Call, VaradaCall> left = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> left = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(5D, DoubleType.DOUBLE));
-        Pair<Call, VaradaCall> isNanExpression = createCallExpression(IS_NAN,
+        Pair<Call, WarpCall> isNanExpression = createCallExpression(IS_NAN,
                 EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable2,
                 Constant.TRUE);
@@ -611,16 +611,16 @@ public class ExpressionServiceTest
                 .domain(Domain.create(ValueSet.ofRanges(Range.equal(BOOLEAN, true)), false))
                 .collectNulls(false)
                 .build());
-        RegularColumn varadaColumn1 = new RegularColumn(doubleVariable1.getName());
-        RegularColumn varadaColumn2 = new RegularColumn(doubleVariable2.getName());
-        List<VaradaExpressionData> expectedResult = List.of(new VaradaExpressionData(left.getValue(), doubleVariable1.getType(), false, expectedNativeExpression1, varadaColumn1),
-                new VaradaExpressionData(isNanExpression.getValue(), doubleVariable2.getType(), false, expectedNativeExpression2, varadaColumn2));
+        RegularColumn warpColumn1 = new RegularColumn(doubleVariable1.getName());
+        RegularColumn warpColumn2 = new RegularColumn(doubleVariable2.getName());
+        List<WarpExpressionData> expectedResult = List.of(new WarpExpressionData(left.getValue(), doubleVariable1.getType(), false, expectedNativeExpression1, warpColumn1),
+                new WarpExpressionData(isNanExpression.getValue(), doubleVariable2.getType(), false, expectedNativeExpression2, warpColumn2));
 
         ConnectorExpression expression = new Call(
                 BOOLEAN,
                 AND_FUNCTION_NAME,
                 List.of(left.getKey(), isNanExpression.getKey()));
-        List<VaradaExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().varadaExpressionDataLeaves();
+        List<WarpExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().warpExpressionDataLeaves();
         assertThat(actual).containsExactlyInAnyOrderElementsOf(expectedResult);
         assertPushdownStatsSum(0);
     }
@@ -631,14 +631,14 @@ public class ExpressionServiceTest
     @Test
     public void testComplex1()
     {
-        Pair<Call, VaradaCall> left = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> left = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(10D, DoubleType.DOUBLE));
-        Pair<Call, VaradaCall> middle = createModVaradaCall(EQUAL_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> middle = createModVaradaCall(EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(3D, DoubleType.DOUBLE),
                 new Constant(1D, DoubleType.DOUBLE));
-        Pair<Call, VaradaCall> right = createModVaradaCall(EQUAL_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> right = createModVaradaCall(EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(2D, DoubleType.DOUBLE),
                 new Constant(0D, DoubleType.DOUBLE));
@@ -650,7 +650,7 @@ public class ExpressionServiceTest
                 BOOLEAN,
                 AND_FUNCTION_NAME,
                 List.of(left.getKey(), rightSide));
-        List<VaradaExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().varadaExpressionDataLeaves();
+        List<WarpExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().warpExpressionDataLeaves();
         assertThat(actual.size()).isEqualTo(3);
         assertPushdownStatsSum(2);
     }
@@ -661,14 +661,14 @@ public class ExpressionServiceTest
     @Test
     public void testComplex2()
     {
-        Pair<Call, VaradaCall> expectedLeft = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> expectedLeft = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 doubleVariable2,
                 new Constant(10D, DoubleType.DOUBLE));
-        Pair<Call, VaradaCall> left = createModVaradaCall(EQUAL_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> left = createModVaradaCall(EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(3D, DoubleType.DOUBLE),
                 new Constant(1D, DoubleType.DOUBLE));
-        Pair<Call, VaradaCall> right = createModVaradaCall(EQUAL_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> right = createModVaradaCall(EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(2D, DoubleType.DOUBLE),
                 new Constant(0D, DoubleType.DOUBLE));
@@ -681,7 +681,7 @@ public class ExpressionServiceTest
                 BOOLEAN,
                 AND_FUNCTION_NAME,
                 List.of(expectedLeft.getKey(), rightSide));
-        List<VaradaExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().varadaExpressionDataLeaves();
+        List<WarpExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().warpExpressionDataLeaves();
         assertThat(actual.size()).isEqualTo(3);
     }
 
@@ -691,18 +691,18 @@ public class ExpressionServiceTest
     @Test
     public void testFunctionWithComplex()
     {
-        Pair<Call, VaradaCall> expectedLeft1 = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> expectedLeft1 = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(10D, DoubleType.DOUBLE));
-        Pair<Call, VaradaCall> isNanExpression = createCallExpression(IS_NAN,
+        Pair<Call, WarpCall> isNanExpression = createCallExpression(IS_NAN,
                 EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 Constant.TRUE);
-        Pair<Call, VaradaCall> right1 = createModVaradaCall(EQUAL_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> right1 = createModVaradaCall(EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable2,
                 new Constant(2D, DoubleType.DOUBLE),
                 new Constant(0D, DoubleType.DOUBLE));
-        Pair<Call, VaradaCall> right2 = createModVaradaCall(EQUAL_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> right2 = createModVaradaCall(EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable2,
                 new Constant(3D, DoubleType.DOUBLE),
                 new Constant(0D, DoubleType.DOUBLE));
@@ -719,7 +719,7 @@ public class ExpressionServiceTest
                 BOOLEAN,
                 AND_FUNCTION_NAME,
                 List.of(leftSide, rightSide));
-        List<VaradaExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().varadaExpressionDataLeaves();
+        List<WarpExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().warpExpressionDataLeaves();
         assertThat(actual.size()).isEqualTo(4);
     }
 
@@ -729,18 +729,18 @@ public class ExpressionServiceTest
     @Test
     public void testFunctionWithComplex2()
     {
-        Pair<Call, VaradaCall> expectedLeft1 = createCallExpression(CEIL, EQUAL_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> expectedLeft1 = createCallExpression(CEIL, EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(5D, DoubleType.DOUBLE));
-        Pair<Call, VaradaCall> isNanExpression = createCallExpression(IS_NAN,
+        Pair<Call, WarpCall> isNanExpression = createCallExpression(IS_NAN,
                 EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 Constant.TRUE);
-        Pair<Call, VaradaCall> right1 = createModVaradaCall(EQUAL_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> right1 = createModVaradaCall(EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable2,
                 new Constant(2D, DoubleType.DOUBLE),
                 new Constant(0D, DoubleType.DOUBLE));
-        Pair<Call, VaradaCall> right2 = createModVaradaCall(EQUAL_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> right2 = createModVaradaCall(EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable2,
                 new Constant(3D, DoubleType.DOUBLE),
                 new Constant(0D, DoubleType.DOUBLE));
@@ -757,7 +757,7 @@ public class ExpressionServiceTest
                 BOOLEAN,
                 AND_FUNCTION_NAME,
                 List.of(leftSide, rightSide));
-        List<VaradaExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().varadaExpressionDataLeaves();
+        List<WarpExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().warpExpressionDataLeaves();
         assertThat(actual.size()).isEqualTo(4);
     }
 
@@ -783,7 +783,7 @@ public class ExpressionServiceTest
         assignments.put(columnHandle.name(), columnHandle);
         Constant constant = new Constant(5D, DoubleType.DOUBLE);
         ConnectorExpression expression = new Call(type, EQUAL_OPERATOR_FUNCTION_NAME, List.of(column, constant));
-        Optional<WarpExpression> warpExpression = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats);
+        Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> warpExpression = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats);
         assertThat(warpExpression).isEmpty();
     }
 
@@ -799,14 +799,14 @@ public class ExpressionServiceTest
         assignments.put(columnHandle.name(), columnHandle);
         Constant constant = new Constant(5D, DoubleType.DOUBLE);
         ConnectorExpression invalidExpression = new Call(type, EQUAL_OPERATOR_FUNCTION_NAME, List.of(column, constant));
-        Pair<Call, VaradaCall> left = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> left = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(5D, DoubleType.DOUBLE));
         ConnectorExpression expression = new Call(
                 BOOLEAN,
                 OR_FUNCTION_NAME,
                 List.of(left.getKey(), invalidExpression));
-        Optional<WarpExpression> warpExpression = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats);
+        Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> warpExpression = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats);
         assertThat(warpExpression).isEmpty();
     }
 
@@ -822,16 +822,16 @@ public class ExpressionServiceTest
         assignments.put(columnHandle.name(), columnHandle);
         Constant constant = new Constant(5D, DoubleType.DOUBLE);
         ConnectorExpression invalidExpression = new Call(type, EQUAL_OPERATOR_FUNCTION_NAME, List.of(column, constant));
-        Pair<Call, VaradaCall> left = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> left = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(5D, DoubleType.DOUBLE));
         ConnectorExpression expression = new Call(
                 BOOLEAN,
                 AND_FUNCTION_NAME,
                 List.of(left.getKey(), invalidExpression));
-        Optional<WarpExpression> warpExpression = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats);
+        Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> warpExpression = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats);
         assertThat(warpExpression.isPresent()).isTrue();
-        assertThat(warpExpression.orElseThrow().varadaExpressionDataLeaves().size()).isOne();
+        assertThat(warpExpression.orElseThrow().warpExpressionDataLeaves().size()).isOne();
         assertThat(warpExpression.orElseThrow().rootExpression()).isEqualTo(left.getValue());
     }
 
@@ -841,10 +841,10 @@ public class ExpressionServiceTest
     @Test
     public void testFunctionWithComplexRightSideIsNotSupported()
     {
-        Pair<Call, VaradaCall> expectedLeft1 = createCallExpression(CEIL, EQUAL_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> expectedLeft1 = createCallExpression(CEIL, EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(5D, DoubleType.DOUBLE));
-        Pair<Call, VaradaCall> isNanExpression = createCallExpression(IS_NAN,
+        Pair<Call, WarpCall> isNanExpression = createCallExpression(IS_NAN,
                 EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 Constant.TRUE);
@@ -852,11 +852,11 @@ public class ExpressionServiceTest
                 BOOLEAN,
                 OR_FUNCTION_NAME,
                 List.of(expectedLeft1.getKey(), isNanExpression.getKey()));
-        Pair<Call, VaradaCall> right1 = createModVaradaCall(EQUAL_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> right1 = createModVaradaCall(EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable2,
                 new Constant(2D, DoubleType.DOUBLE),
                 new Constant(0D, DoubleType.DOUBLE));
-        Pair<Call, VaradaCall> right2 = createModVaradaCall(EQUAL_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> right2 = createModVaradaCall(EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(3D, DoubleType.DOUBLE),
                 new Constant(0D, DoubleType.DOUBLE));
@@ -869,7 +869,7 @@ public class ExpressionServiceTest
                 BOOLEAN,
                 AND_FUNCTION_NAME,
                 List.of(leftSide, rightSide));
-        List<VaradaExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().varadaExpressionDataLeaves();
+        List<WarpExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().warpExpressionDataLeaves();
         assertThat(actual.size()).isEqualTo(4);
     }
 
@@ -896,8 +896,8 @@ public class ExpressionServiceTest
                 List.of(doubleVariable1, new Constant(2D, DoubleType.DOUBLE)));
 
         Call expression = new Call(BOOLEAN, OR_FUNCTION_NAME, List.of(leftSide, rightSide));
-        Optional<WarpExpression> result = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats);
-        assertThat(result.orElseThrow().varadaExpressionDataLeaves().size()).isEqualTo(3);
+        Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> result = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats);
+        assertThat(result.orElseThrow().warpExpressionDataLeaves().size()).isEqualTo(3);
     }
 
     /**
@@ -924,8 +924,8 @@ public class ExpressionServiceTest
 
         Call expression = new Call(BOOLEAN, OR_FUNCTION_NAME, List.of(leftSide, rightSide));
 
-        Optional<WarpExpression> result = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats);
-        assertThat(result.orElseThrow().varadaExpressionDataLeaves().size()).isEqualTo(3);
+        Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> result = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats);
+        assertThat(result.orElseThrow().warpExpressionDataLeaves().size()).isEqualTo(3);
     }
 
     @Test
@@ -946,7 +946,7 @@ public class ExpressionServiceTest
         Call l1Expression = new Call(BOOLEAN, OR_FUNCTION_NAME, List.of(l2Expression, rightSide));
         Call l0Expression = new Call(BOOLEAN, AND_FUNCTION_NAME, List.of(l1Expression, rightSide));
 
-        Optional<WarpExpression> result = expressionService.convertToWarpExpression(connectorSession, l1Expression, assignments, customStats);
+        Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> result = expressionService.convertToWarpExpression(connectorSession, l1Expression, assignments, customStats);
         assertThat(result).isNotEmpty();
         PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
         assertThat(pushdownPredicatesStats.getunsupported_expression_depth()).isEqualTo(0);
@@ -965,7 +965,7 @@ public class ExpressionServiceTest
                 BooleanType.BOOLEAN,
                 IS_NAN,
                 List.of(doubleVariable1));
-        Optional<WarpExpression> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats);
+        Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats);
         assertThat(actual).isEmpty();
     }
 
@@ -982,11 +982,11 @@ public class ExpressionServiceTest
                 StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME,
                 List.of(castCall, new Constant(slice, VarcharType.VARCHAR)));
         ColumnHandle realColumn = assignments.get(realVariable.getName());
-        VaradaCall expectedCastCall = new VaradaCall(CAST_FUNCTION_NAME.getName(), List.of(new VaradaVariable(realColumn, realVariable.getType())), VarcharType.createVarcharType(20));
-        VaradaCall expectedResult = new VaradaCall(EQUAL_OPERATOR_FUNCTION_NAME.getName(),
-                List.of(expectedCastCall, new VaradaSliceConstant(slice, VarcharType.VARCHAR)),
+        WarpCall expectedCastCall = new WarpCall(CAST_FUNCTION_NAME.getName(), List.of(new WarpVariable(realColumn, realVariable.getType())), VarcharType.createVarcharType(20));
+        WarpCall expectedResult = new WarpCall(EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(expectedCastCall, new WarpSliceConstant(slice, VarcharType.VARCHAR)),
                 BOOLEAN);
-        List<VaradaExpressionData> result = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().varadaExpressionDataLeaves();
+        List<WarpExpressionData> result = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().warpExpressionDataLeaves();
         assertThat(result.get(0).getExpression()).isEqualTo(expectedResult);
         assertPushdownStatsSum(0);
     }
@@ -1002,11 +1002,11 @@ public class ExpressionServiceTest
         Call varadaExpression = new Call(BooleanType.BOOLEAN,
                 GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 List.of(castCall, new Constant(10L, RealType.REAL)));
-        VaradaCall expectedCastCall = new VaradaCall(CAST_FUNCTION_NAME.getName(), List.of(new VaradaVariable(realColumn, realVariable.getType())), RealType.REAL);
-        VaradaCall expectedResult = new VaradaCall(GREATER_THAN_OPERATOR_FUNCTION_NAME.getName(),
-                List.of(expectedCastCall, new VaradaPrimitiveConstant(10L, RealType.REAL)),
+        WarpCall expectedCastCall = new WarpCall(CAST_FUNCTION_NAME.getName(), List.of(new WarpVariable(realColumn, realVariable.getType())), RealType.REAL);
+        WarpCall expectedResult = new WarpCall(GREATER_THAN_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(expectedCastCall, new WarpPrimitiveConstant(10L, RealType.REAL)),
                 BOOLEAN);
-        List<VaradaExpressionData> result = expressionService.convertToWarpExpression(connectorSession, varadaExpression, assignments, customStats).orElseThrow().varadaExpressionDataLeaves();
+        List<WarpExpressionData> result = expressionService.convertToWarpExpression(connectorSession, varadaExpression, assignments, customStats).orElseThrow().warpExpressionDataLeaves();
         assertThat(result.get(0).getExpression()).isEqualTo(expectedResult);
         assertPushdownStatsSum(0);
     }
@@ -1027,7 +1027,7 @@ public class ExpressionServiceTest
         Call expression = new Call(BOOLEAN, AND_FUNCTION_NAME, List.of(leftSide, rightSide));
 
         Domain domain = Domain.create(ValueSet.ofRanges(Range.greaterThan(RealType.REAL, 10L)), false);
-        List<VaradaExpressionData> result = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().varadaExpressionDataLeaves();
+        List<WarpExpressionData> result = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().warpExpressionDataLeaves();
         Optional<NativeExpression> expectedResult = Optional.of(new NativeExpression(PredicateType.PREDICATE_TYPE_RANGES,
                 FunctionType.FUNCTION_TYPE_CAST,
                 domain,
@@ -1065,7 +1065,7 @@ public class ExpressionServiceTest
                 .domain(Domain.none(DoubleType.DOUBLE))
                 .collectNulls(false)
                 .build();
-        List<VaradaExpressionData> result = expressionService.convertToWarpExpression(connectorSession, varadaExpression, assignments, customStats).orElseThrow().varadaExpressionDataLeaves();
+        List<WarpExpressionData> result = expressionService.convertToWarpExpression(connectorSession, varadaExpression, assignments, customStats).orElseThrow().warpExpressionDataLeaves();
         assertPushdownStatsSum(0);
         assertThat(result.get(0).getNativeExpressionOptional().orElseThrow()).isEqualTo(expectedResult);
     }
@@ -1083,7 +1083,7 @@ public class ExpressionServiceTest
                 StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME,
                 List.of(castCall, new Constant(slice, VarcharType.VARCHAR)));
         Map<String, ColumnHandle> invalidAssignment = Collections.emptyMap();
-        Optional<WarpExpression> result = expressionService.convertToWarpExpression(connectorSession, expression, invalidAssignment, customStats);
+        Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> result = expressionService.convertToWarpExpression(connectorSession, expression, invalidAssignment, customStats);
         assertThat(result).isEmpty();
         assertPushdownStatsSum(1);
         PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
@@ -1103,14 +1103,14 @@ public class ExpressionServiceTest
                         new Constant(slice, arrayType.getElementType())));
         assignments.put(columnHandle.name(), columnHandle);
 
-        List<VaradaExpressionData> expectedResult;
+        List<WarpExpressionData> expectedResult;
         if (expectedIsValid) {
-            VaradaExpression expectedVaradaExpression = new VaradaCall(CONTAINS.getName(),
-                    List.of(new VaradaVariable(columnHandle, columnHandle.type()),
-                            new VaradaSliceConstant(slice, arrayType.getElementType())),
+            WarpExpression expectedWarpExpression = new WarpCall(CONTAINS.getName(),
+                    List.of(new WarpVariable(columnHandle, columnHandle.type()),
+                            new WarpSliceConstant(slice, arrayType.getElementType())),
                     BOOLEAN);
             RegularColumn regularColumn = new RegularColumn(columnHandle.name());
-            expectedResult = List.of(new VaradaExpressionData(expectedVaradaExpression,
+            expectedResult = List.of(new WarpExpressionData(expectedWarpExpression,
                     columnHandle.type(),
                     false,
                     Optional.empty(),
@@ -1119,12 +1119,12 @@ public class ExpressionServiceTest
         else {
             expectedResult = List.of();
         }
-        Optional<WarpExpression> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats);
+        Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats);
         if (expectedResult.isEmpty()) {
             assertThat(actual).isEmpty();
         }
         else {
-            assertThat(actual.orElseThrow().varadaExpressionDataLeaves()).isEqualTo(expectedResult);
+            assertThat(actual.orElseThrow().warpExpressionDataLeaves()).isEqualTo(expectedResult);
         }
     }
 
@@ -1151,14 +1151,14 @@ public class ExpressionServiceTest
                 List.of(ceilCall, arrayCall));
 
         Type doubleType = doubleVariable1.getType();
-        VaradaCall expectedCeilCall = new VaradaCall(CEIL.getName(),
-                List.of(new VaradaVariable(assignments.get(doubleVariable1.getName()), doubleType)),
+        WarpCall expectedCeilCall = new WarpCall(CEIL.getName(),
+                List.of(new WarpVariable(assignments.get(doubleVariable1.getName()), doubleType)),
                 doubleType);
 
-        VaradaCall expectedArrayCall = new VaradaCall(ARRAY_CONSTRUCTOR_FUNCTION_NAME.getName(),
-                List.of(new VaradaPrimitiveConstant(5D, DoubleType.DOUBLE), new VaradaPrimitiveConstant(9D, DoubleType.DOUBLE)),
+        WarpCall expectedArrayCall = new WarpCall(ARRAY_CONSTRUCTOR_FUNCTION_NAME.getName(),
+                List.of(new WarpPrimitiveConstant(5D, DoubleType.DOUBLE), new WarpPrimitiveConstant(9D, DoubleType.DOUBLE)),
                 arrayType);
-        VaradaExpression expectedExpression = new VaradaCall(IN_PREDICATE_FUNCTION_NAME.getName(),
+        WarpExpression expectedExpression = new WarpCall(IN_PREDICATE_FUNCTION_NAME.getName(),
                 List.of(expectedCeilCall, expectedArrayCall),
                 BOOLEAN);
         NativeExpression expectedNativeExpression = NativeExpression
@@ -1170,13 +1170,13 @@ public class ExpressionServiceTest
                 .functionParams(Collections.emptyList())
                 .build();
 
-        List<VaradaExpressionData> expectedResult = List.of(new VaradaExpressionData(expectedExpression,
+        List<WarpExpressionData> expectedResult = List.of(new WarpExpressionData(expectedExpression,
                 doubleType,
                 false,
                 Optional.of(expectedNativeExpression),
                 new RegularColumn(doubleVariable1.getName())));
 
-        List<VaradaExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, callExpression, assignments, customStats).orElseThrow().varadaExpressionDataLeaves();
+        List<WarpExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, callExpression, assignments, customStats).orElseThrow().warpExpressionDataLeaves();
         assertThat(actual).isEqualTo(expectedResult);
     }
 
@@ -1189,19 +1189,19 @@ public class ExpressionServiceTest
         return assignments;
     }
 
-    private VaradaVariable createExpectedVariable(Variable variable)
+    private WarpVariable createExpectedVariable(Variable variable)
     {
-        return new VaradaVariable(assignments.get(variable.getName()), variable.getType());
+        return new WarpVariable(assignments.get(variable.getName()), variable.getType());
     }
 
-    private Pair<Call, VaradaCall> createCallExpression(FunctionName functionName,
+    private Pair<Call, WarpCall> createCallExpression(FunctionName functionName,
             FunctionName operator,
             Variable variable,
             Constant operatorValue)
     {
-        VaradaConstant varadaConstant = convertConstantToVaradaConstant(operatorValue);
-        VaradaCall varadaCall = new VaradaCall(operator.getName(),
-                List.of(new VaradaCall(functionName.getName(),
+        WarpConstant varadaConstant = convertConstantToVaradaConstant(operatorValue);
+        WarpCall warpCall = new WarpCall(operator.getName(),
+                List.of(new WarpCall(functionName.getName(),
                                 List.of(createExpectedVariable(variable)), operatorValue.getType()),
                         varadaConstant),
                 BOOLEAN);
@@ -1214,45 +1214,45 @@ public class ExpressionServiceTest
                                 functionName,
                                 List.of(variable)),
                         operatorValue));
-        return Pair.of(call, varadaCall);
+        return Pair.of(call, warpCall);
     }
 
-    private Pair<Call, VaradaCall> createCallExpression(FunctionName operator,
+    private Pair<Call, WarpCall> createCallExpression(FunctionName operator,
             Variable variable,
             Constant operatorValue)
     {
-        VaradaConstant varadaConstant = convertConstantToVaradaConstant(operatorValue);
-        VaradaCall varadaCall = new VaradaCall(operator.getName(),
+        WarpConstant varadaConstant = convertConstantToVaradaConstant(operatorValue);
+        WarpCall warpCall = new WarpCall(operator.getName(),
                 List.of(createExpectedVariable(variable), varadaConstant),
                 BOOLEAN);
         Call call = new Call(
                 BOOLEAN,
                 operator,
                 List.of(variable, operatorValue));
-        return Pair.of(call, varadaCall);
+        return Pair.of(call, warpCall);
     }
 
-    private VaradaConstant convertConstantToVaradaConstant(Constant operatorValue)
+    private WarpConstant convertConstantToVaradaConstant(Constant operatorValue)
     {
-        VaradaConstant varadaConstant;
+        WarpConstant varadaConstant;
         if (operatorValue.getValue() instanceof Slice) {
-            varadaConstant = new VaradaSliceConstant((Slice) operatorValue.getValue(), operatorValue.getType());
+            varadaConstant = new WarpSliceConstant((Slice) operatorValue.getValue(), operatorValue.getType());
         }
         else {
-            varadaConstant = new VaradaPrimitiveConstant(operatorValue.getValue(), operatorValue.getType());
+            varadaConstant = new WarpPrimitiveConstant(operatorValue.getValue(), operatorValue.getType());
         }
         return varadaConstant;
     }
 
-    private Pair<Call, VaradaCall> createModVaradaCall(FunctionName operator, Variable variable, Constant modeValue, Constant operatorValue)
+    private Pair<Call, WarpCall> createModVaradaCall(FunctionName operator, Variable variable, Constant modeValue, Constant operatorValue)
     {
         assertThat(variable.getType()).isEqualTo(modeValue.getType()).isEqualTo(operatorValue.getType());
-        VaradaCall varadaCall = new VaradaCall(operator.getName(),
-                List.of(new VaradaCall(MOD.getName(),
+        WarpCall warpCall = new WarpCall(operator.getName(),
+                List.of(new WarpCall(MOD.getName(),
                                 List.of(createExpectedVariable(variable),
-                                        new VaradaPrimitiveConstant(modeValue.getValue(), modeValue.getType())),
+                                        new WarpPrimitiveConstant(modeValue.getValue(), modeValue.getType())),
                                 modeValue.getType()),
-                        new VaradaPrimitiveConstant(operatorValue.getValue(), operatorValue.getType())),
+                        new WarpPrimitiveConstant(operatorValue.getValue(), operatorValue.getType())),
                 BOOLEAN);
         Call call = new Call(
                 BOOLEAN,
@@ -1263,7 +1263,7 @@ public class ExpressionServiceTest
                                 MOD,
                                 List.of(variable, modeValue)),
                         operatorValue));
-        return Pair.of(call, varadaCall);
+        return Pair.of(call, warpCall);
     }
 
     private void assertPushdownStatsSum(int expectedCount)

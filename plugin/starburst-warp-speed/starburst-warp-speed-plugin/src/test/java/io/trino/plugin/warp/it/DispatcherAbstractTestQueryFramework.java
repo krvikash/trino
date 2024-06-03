@@ -20,7 +20,7 @@ import io.trino.plugin.warp.api.warmup.WarmupPredicateRule;
 import io.trino.plugin.warp.api.warmup.WarmupPropertiesData;
 import io.trino.plugin.warp.api.warmup.column.RegularColumnData;
 import io.trino.plugin.warp.api.warmup.column.TransformedColumnData;
-import io.trino.plugin.warp.api.warmup.column.VaradaColumnData;
+import io.trino.plugin.warp.api.warmup.column.WarpColumnData;
 import io.trino.plugin.warp.api.warmup.expression.TransformFunctionData;
 import io.trino.plugin.warp.extension.execution.debugtools.RowGroupCountResult;
 import io.trino.plugin.warp.extension.execution.debugtools.RowGroupTask;
@@ -42,7 +42,7 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.fail;
 
 public abstract class DispatcherAbstractTestQueryFramework
-        extends VaradaAbstractTestQueryFramework
+        extends WarpAbstractTestQueryFramework
 {
     protected static final String DEFAULT_SCHEMA = "schema";
     protected static final int DEFAULT_PRIORITY = 0;
@@ -59,7 +59,7 @@ public abstract class DispatcherAbstractTestQueryFramework
             throws IOException
     {
         List<WarmupColRuleData> rules = new ArrayList<>();
-        VaradaColumnData column;
+        WarpColumnData column;
 
         for (Entry<String, Set<WarmupPropertiesData>> warmups : warmupMap.entrySet()) {
             for (WarmupPropertiesData warmupPropertiesData : warmups.getValue()) {

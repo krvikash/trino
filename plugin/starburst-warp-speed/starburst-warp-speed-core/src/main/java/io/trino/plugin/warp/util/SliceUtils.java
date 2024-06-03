@@ -16,7 +16,7 @@ package io.trino.plugin.warp.util;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
-import io.trino.plugin.warp.VaradaErrorCode;
+import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.spi.TrinoException;
@@ -163,7 +163,7 @@ public class SliceUtils
             // Then we need to trim the zeroes from the suffix
             return value -> {
                 if (isValidateSize && (weLength < value.length())) {
-                    throw new TrinoException(VaradaErrorCode.VARADA_DATA_WARMUP_RULE_ILLEGAL_CHAR_LENGTH,
+                    throw new TrinoException(WarpErrorCode.VARADA_DATA_WARMUP_RULE_ILLEGAL_CHAR_LENGTH,
                             format("Mismatch in slice length[%d] and expected col length[%d], col type[%s]",
                                     value.length(), weLength, type));
                 }
@@ -191,7 +191,7 @@ public class SliceUtils
             return value -> {
                 // fail if slice bytes are longer than expected
                 if (isValidateSize && (weLength < value.length())) {
-                    throw new TrinoException(VaradaErrorCode.VARADA_DATA_WARMUP_RULE_ILLEGAL_CHAR_LENGTH,
+                    throw new TrinoException(WarpErrorCode.VARADA_DATA_WARMUP_RULE_ILLEGAL_CHAR_LENGTH,
                             format("Mismatch in slice length[%d] and expected col length[%d], col type[%s]",
                                     value.length(), weLength, type));
                 }

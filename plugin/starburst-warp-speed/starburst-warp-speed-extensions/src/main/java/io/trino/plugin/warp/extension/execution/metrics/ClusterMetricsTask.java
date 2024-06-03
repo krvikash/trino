@@ -22,7 +22,7 @@ import io.airlift.json.JsonCodec;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.CoordinatorNodeManager;
 import io.trino.plugin.warp.api.metrics.ClusterMetricsResult;
-import io.trino.plugin.warp.execution.VaradaClient;
+import io.trino.plugin.warp.execution.WarpClient;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
 import io.trino.plugin.warp.util.UriUtils;
@@ -58,7 +58,7 @@ public class ClusterMetricsTask
     private static final JsonCodec<ClusterMetricsResult> workerMetricsCollect = JsonCodec.jsonCodec(ClusterMetricsResult.class);
 
     private final CoordinatorNodeManager coordinatorNodeManager;
-    private final VaradaClient varadaClient;
+    private final WarpClient warpClient;
 
     private final ExecutorService executorService;
 
@@ -66,10 +66,10 @@ public class ClusterMetricsTask
 
     @Inject
     public ClusterMetricsTask(CoordinatorNodeManager coordinatorNodeManager,
-            VaradaClient varadaClient)
+            WarpClient warpClient)
     {
         this.coordinatorNodeManager = requireNonNull(coordinatorNodeManager);
-        this.varadaClient = requireNonNull(varadaClient);
+        this.warpClient = requireNonNull(warpClient);
         executorService = new ThreadPoolExecutor(0,
                 10,
                 10L,
@@ -86,13 +86,13 @@ public class ClusterMetricsTask
         try {
             List<ListenableFuture<ClusterMetricsResult>> workerMetricsFutures = workerNodes.stream()
                     .map(node -> {
-                        HttpUriBuilder uriBuilder = varadaClient.getRestEndpoint(UriUtils.getHttpUri(node))
+                        HttpUriBuilder uriBuilder = warpClient.getRestEndpoint(UriUtils.getHttpUri(node))
                                 .appendPath(WORKER_METRICS_TASK);
                         Request request = prepareGet()
                                 .setUri(uriBuilder.build())
                                 .setHeader("Content-Type", "application/json")
                                 .build();
-                        return Futures.submit(() -> varadaClient.sendWithRetry(request, createFullJsonResponseHandler(workerMetricsCollect)), executorService);
+                        return Futures.submit(() -> warpClient.sendWithRetry(request, createFullJsonResponseHandler(workerMetricsCollect)), executorService);
                     })
                     .collect(Collectors.toList());
 

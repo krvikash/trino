@@ -19,7 +19,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
 
 public class WildcardColumnData
-        implements VaradaColumnData
+        implements WarpColumnData
 {
     private static final String WILDCARD = "*";
 
@@ -34,9 +34,9 @@ public class WildcardColumnData
     }
 
     @Override
-    public boolean contains(VaradaColumnData varadaColumnData)
+    public boolean contains(WarpColumnData warpColumnData)
     {
-        return this.equals(varadaColumnData);
+        return this.equals(warpColumnData);
     }
 
     @Override

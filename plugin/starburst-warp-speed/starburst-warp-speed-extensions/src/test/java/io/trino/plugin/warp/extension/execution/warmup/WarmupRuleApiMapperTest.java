@@ -34,7 +34,7 @@ public class WarmupRuleApiMapperTest
         WarmupRule warmupRule = WarmupRule.builder()
                 .schema("schema")
                 .table("table")
-                .varadaColumn(new RegularColumn("col1"))
+                .warpColumn(new RegularColumn("col1"))
                 .warmUpType(WarmUpType.WARM_UP_TYPE_LUCENE)
                 .priority(0)
                 .ttl(0)

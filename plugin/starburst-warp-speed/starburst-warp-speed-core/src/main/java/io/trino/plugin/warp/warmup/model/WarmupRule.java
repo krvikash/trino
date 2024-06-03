@@ -16,7 +16,7 @@ package io.trino.plugin.warp.warmup.model;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 
 import java.util.Locale;
@@ -47,7 +47,7 @@ public class WarmupRule
     private String table;
 
     @JsonProperty(VARADA_COLUMN)
-    private VaradaColumn varadaColumn;
+    private WarpColumn warpColumn;
 
     @JsonProperty(TTL)
     private int ttl;
@@ -68,7 +68,7 @@ public class WarmupRule
             int id,
             String schema,
             String table,
-            VaradaColumn varadaColumn,
+            WarpColumn warpColumn,
             WarmUpType warmUpType,
             double priority,
             int ttl,
@@ -77,7 +77,7 @@ public class WarmupRule
         this.id = id;
         this.schema = requireNonNull(schema).toLowerCase(Locale.ENGLISH);
         this.table = requireNonNull(table).toLowerCase(Locale.ENGLISH);
-        this.varadaColumn = requireNonNull(varadaColumn);
+        this.warpColumn = requireNonNull(warpColumn);
         this.warmUpType = warmUpType;
         this.priority = priority;
         this.ttl = ttl;
@@ -96,7 +96,7 @@ public class WarmupRule
                 .schema(warmupRule.getSchema())
                 .table(warmupRule.getTable())
                 .warmUpType(warmupRule.getWarmUpType())
-                .varadaColumn(warmupRule.getVaradaColumn())
+                .warpColumn(warmupRule.getWarpColumn())
                 .priority(warmupRule.getPriority())
                 .ttl(warmupRule.getTtl())
                 .predicates(warmupRule.getPredicates());
@@ -117,9 +117,9 @@ public class WarmupRule
         return table;
     }
 
-    public VaradaColumn getVaradaColumn()
+    public WarpColumn getWarpColumn()
     {
-        return varadaColumn;
+        return warpColumn;
     }
 
     public int getTtl()
@@ -152,13 +152,13 @@ public class WarmupRule
             return false;
         }
         WarmupRule that = (WarmupRule) o;
-        return id == that.id && ttl == that.ttl && Double.compare(that.priority, priority) == 0 && Objects.equals(schema, that.schema) && Objects.equals(table, that.table) && Objects.equals(varadaColumn, that.varadaColumn) && warmUpType == that.warmUpType && Objects.equals(predicates, that.predicates);
+        return id == that.id && ttl == that.ttl && Double.compare(that.priority, priority) == 0 && Objects.equals(schema, that.schema) && Objects.equals(table, that.table) && Objects.equals(warpColumn, that.warpColumn) && warmUpType == that.warmUpType && Objects.equals(predicates, that.predicates);
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hash(id, schema, table, varadaColumn, ttl, priority, warmUpType, predicates);
+        return Objects.hash(id, schema, table, warpColumn, ttl, priority, warmUpType, predicates);
     }
 
     @Override
@@ -168,7 +168,7 @@ public class WarmupRule
                 "id=" + id +
                 ", schema='" + schema + '\'' +
                 ", table='" + table + '\'' +
-                ", varadaColumn='" + varadaColumn + '\'' +
+                ", warpColumn='" + warpColumn + '\'' +
                 ", warmUpType=" + warmUpType +
                 ", priority=" + priority +
                 ", ttl=" + ttl +
@@ -182,7 +182,7 @@ public class WarmupRule
         private int id;
         private String schema;
         private String table;
-        private VaradaColumn varadaColumn;
+        private WarpColumn warpColumn;
         private WarmUpType warmUpType;
         private double priority;
         private int ttl;
@@ -200,9 +200,9 @@ public class WarmupRule
         }
 
         @JsonProperty(VARADA_COLUMN)
-        public Builder varadaColumn(VaradaColumn varadaColumn)
+        public Builder warpColumn(WarpColumn warpColumn)
         {
-            this.varadaColumn = requireNonNull(varadaColumn);
+            this.warpColumn = requireNonNull(warpColumn);
             return this;
         }
 
@@ -250,7 +250,7 @@ public class WarmupRule
 
         public WarmupRule build()
         {
-            return new WarmupRule(id, schema, table, varadaColumn, warmUpType, priority, ttl, predicates);
+            return new WarmupRule(id, schema, table, warpColumn, warmUpType, priority, ttl, predicates);
         }
     }
 }

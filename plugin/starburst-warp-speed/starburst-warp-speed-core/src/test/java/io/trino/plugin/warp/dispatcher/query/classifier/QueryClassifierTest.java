@@ -42,11 +42,11 @@ import io.trino.plugin.warp.dispatcher.query.data.match.LogicalMatchData;
 import io.trino.plugin.warp.dispatcher.query.data.match.LuceneQueryMatchData;
 import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
 import io.trino.plugin.warp.expression.NativeExpression;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaExpressionData;
-import io.trino.plugin.warp.expression.VaradaPrimitiveConstant;
-import io.trino.plugin.warp.expression.VaradaSliceConstant;
-import io.trino.plugin.warp.expression.VaradaVariable;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpExpressionData;
+import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
+import io.trino.plugin.warp.expression.WarpSliceConstant;
+import io.trino.plugin.warp.expression.WarpVariable;
 import io.trino.plugin.warp.expression.rewrite.WarpExpression;
 import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.PredicateType;
@@ -88,8 +88,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static io.trino.plugin.warp.VaradaSessionProperties.ENABLE_MATCH_COLLECT;
-import static io.trino.plugin.warp.VaradaSessionProperties.PREDICATE_SIMPLIFY_THRESHOLD;
+import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_MATCH_COLLECT;
+import static io.trino.plugin.warp.WarpSessionProperties.PREDICATE_SIMPLIFY_THRESHOLD;
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.createLuceneQueryMatchData;
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.mockColumnHandle;
 import static io.trino.spi.expression.StandardFunctions.LIKE_FUNCTION_NAME;
@@ -120,7 +120,7 @@ public class QueryClassifierTest
     private final boolean transformAllowed = false;
     private DispatcherTableHandle dispatcherTableHandle;
     private List<TestingConnectorColumnHandle> testingConnectorColumnHandles;
-    private Map<String, TestingConnectorColumnHandle> varadaColumnHandles;
+    private Map<String, TestingConnectorColumnHandle> warpColumnHandles;
     private Map<ColumnHandle, Map<WarmUpType, WarmUpElement>> weHandleToWarmUpElementByType;
     private List<WarmUpElement> warmUpElements;
     private RowGroupData rowGroupData;
@@ -146,7 +146,7 @@ public class QueryClassifierTest
         TestingConnectorColumnHandle columnHandle = mockColumnHandle(name, type, dispatcherProxiedConnectorTransformer);
         when(dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(eq(columnHandle))).thenReturn(new RegularColumn(name));
         when(dispatcherProxiedConnectorTransformer.getColumnType(eq(columnHandle))).thenReturn(type);
-        varadaColumnHandles.put(name, columnHandle);
+        warpColumnHandles.put(name, columnHandle);
 
         for (WarmUpType warmUpType : warmUpTypes) {
             WarmUpElement warmUpElement = WarmUpElement.builder()
@@ -211,7 +211,7 @@ public class QueryClassifierTest
             when(dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(eq(ch))).thenReturn(new RegularColumn(name));
             when(dispatcherProxiedConnectorTransformer.getColumnType(eq(ch))).thenReturn(type);
         });
-        varadaColumnHandles = new HashMap<>();
+        warpColumnHandles = new HashMap<>();
         weHandleToWarmUpElementByType = new HashMap<>();
         warmUpElements = new ArrayList<>();
         createWarmUpElements("v-int-data", intType, WarmUpType.WARM_UP_TYPE_DATA);
@@ -253,7 +253,7 @@ public class QueryClassifierTest
     @Test
     public void testProxiedCollect()
     {
-        PredicateContextData predicateContextData = new PredicateContextData(ImmutableMap.of(), VaradaPrimitiveConstant.TRUE);
+        PredicateContextData predicateContextData = new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE);
         QueryContext queryContext = queryClassifier.classify(new QueryContext(predicateContextData, ImmutableList.copyOf(testingConnectorColumnHandles), 0, true),
                 rowGroupData,
                 dispatcherTableHandle,
@@ -296,11 +296,11 @@ public class QueryClassifierTest
     @Test
     public void testVaradaCollect()
     {
-        ColumnHandle dataIntColumn = varadaColumnHandles.get("v-int-data");
-        ColumnHandle dataIntColumn2 = varadaColumnHandles.get("v-int-data-basic");
+        ColumnHandle dataIntColumn = warpColumnHandles.get("v-int-data");
+        ColumnHandle dataIntColumn2 = warpColumnHandles.get("v-int-data-basic");
         WarmUpElement dataIntWarmUpElement = weHandleToWarmUpElementByType.get(dataIntColumn).get(WarmUpType.WARM_UP_TYPE_DATA);
         WarmUpElement dataIntWarmUpElement2 = weHandleToWarmUpElementByType.get(dataIntColumn2).get(WarmUpType.WARM_UP_TYPE_DATA);
-        PredicateContextData remainingPredicateContext = new PredicateContextData(ImmutableMap.of(), VaradaPrimitiveConstant.TRUE);
+        PredicateContextData remainingPredicateContext = new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE);
         QueryContext queryContext = queryClassifier.classify(new QueryContext(remainingPredicateContext, ImmutableList.of(dataIntColumn, dataIntColumn2), 0, true),
                 rowGroupData,
                 dispatcherTableHandle,
@@ -321,8 +321,8 @@ public class QueryClassifierTest
     @Test
     public void testVaradaCollectMatch()
     {
-        TestingConnectorColumnHandle dataIntColumn = varadaColumnHandles.get("v-int-data");
-        TestingConnectorColumnHandle matchCollectIntColumn = varadaColumnHandles.get("v-int-data-basic");
+        TestingConnectorColumnHandle dataIntColumn = warpColumnHandles.get("v-int-data");
+        TestingConnectorColumnHandle matchCollectIntColumn = warpColumnHandles.get("v-int-data-basic");
         WarmUpElement dataIntWarmUpElement = weHandleToWarmUpElementByType.get(dataIntColumn).get(WarmUpType.WARM_UP_TYPE_DATA);
         WarmUpElement matchCollectIntWarmUpElement = weHandleToWarmUpElementByType.get(matchCollectIntColumn).get(WarmUpType.WARM_UP_TYPE_DATA);
         WarmUpElement matchIntWarmUpElement = weHandleToWarmUpElementByType.get(matchCollectIntColumn).get(WarmUpType.WARM_UP_TYPE_BASIC);
@@ -361,7 +361,7 @@ public class QueryClassifierTest
     @Test
     public void testVaradaMatchCollectWithNotEnoughMemory()
     {
-        TestingConnectorColumnHandle matchCollectIntColumn = varadaColumnHandles.get("v-int-data-basic");
+        TestingConnectorColumnHandle matchCollectIntColumn = warpColumnHandles.get("v-int-data-basic");
         WarmUpElement collectIntWarmUpElement = weHandleToWarmUpElementByType.get(matchCollectIntColumn).get(WarmUpType.WARM_UP_TYPE_DATA);
         WarmUpElement matchIntWarmUpElement = weHandleToWarmUpElementByType.get(matchCollectIntColumn).get(WarmUpType.WARM_UP_TYPE_BASIC);
         Domain matchDomain = Domain.multipleValues(matchCollectIntColumn.type(), List.of(1L, 2L));
@@ -418,7 +418,7 @@ public class QueryClassifierTest
     @Test
     public void testChoseInversePredicateOverMatchCollect()
     {
-        TestingConnectorColumnHandle matchCollectIntColumn = varadaColumnHandles.get("v-int-data-basic");
+        TestingConnectorColumnHandle matchCollectIntColumn = warpColumnHandles.get("v-int-data-basic");
         WarmUpElement collectIntWarmUpElement = weHandleToWarmUpElementByType.get(matchCollectIntColumn).get(WarmUpType.WARM_UP_TYPE_DATA);
         WarmUpElement matchIntWarmUpElement = weHandleToWarmUpElementByType.get(matchCollectIntColumn).get(WarmUpType.WARM_UP_TYPE_BASIC);
         Range rangeLess = Range.lessThan(matchCollectIntColumn.type(), 1L);
@@ -463,8 +463,8 @@ public class QueryClassifierTest
     @Test
     public void testVaradaMatchWithDynamicFilter()
     {
-        ColumnHandle dataIntColumn = varadaColumnHandles.get("v-int-data");
-        TestingConnectorColumnHandle matchCollectIntColumn = varadaColumnHandles.get("v-int-data-basic");
+        ColumnHandle dataIntColumn = warpColumnHandles.get("v-int-data");
+        TestingConnectorColumnHandle matchCollectIntColumn = warpColumnHandles.get("v-int-data-basic");
         WarmUpElement dataIntWarmUpElement = weHandleToWarmUpElementByType.get(dataIntColumn).get(WarmUpType.WARM_UP_TYPE_DATA);
         WarmUpElement matchCollectIntWarmUpElement = weHandleToWarmUpElementByType.get(matchCollectIntColumn).get(WarmUpType.WARM_UP_TYPE_DATA);
         WarmUpElement matchIntWarmUpElement = weHandleToWarmUpElementByType.get(matchCollectIntColumn).get(WarmUpType.WARM_UP_TYPE_BASIC);
@@ -505,7 +505,7 @@ public class QueryClassifierTest
     @Test
     public void testVaradaMatchWithStringRangeDynamicFilter()
     {
-        TestingConnectorColumnHandle matchStringColumn = varadaColumnHandles.get("v-varchar-data-basic");
+        TestingConnectorColumnHandle matchStringColumn = warpColumnHandles.get("v-varchar-data-basic");
         WarmUpElement matchStringWarmUpElement = weHandleToWarmUpElementByType.get(matchStringColumn).get(WarmUpType.WARM_UP_TYPE_DATA);
         WarmUpElement matchBasicStringWarmUpElement = weHandleToWarmUpElementByType.get(matchStringColumn).get(WarmUpType.WARM_UP_TYPE_BASIC);
         // Create a dynamic filter with string range on a non-lucene column, so PredicateUtil.canApplyPredicate() will return PushDownSupport.PRESTO_ONLY
@@ -535,9 +535,9 @@ public class QueryClassifierTest
     @Test
     public void testVaradaMatchWithDynamicFilterOnADifferentColumn()
     {
-        ColumnHandle dataIntColumn = varadaColumnHandles.get("v-int-data");
-        TestingConnectorColumnHandle matchCollectIntColumn = varadaColumnHandles.get("v-int-data-basic");
-        TestingConnectorColumnHandle matchOnlyIntColumn = varadaColumnHandles.get("v-int-data-basic-2");
+        ColumnHandle dataIntColumn = warpColumnHandles.get("v-int-data");
+        TestingConnectorColumnHandle matchCollectIntColumn = warpColumnHandles.get("v-int-data-basic");
+        TestingConnectorColumnHandle matchOnlyIntColumn = warpColumnHandles.get("v-int-data-basic-2");
         WarmUpElement dataIntWarmUpElement = weHandleToWarmUpElementByType.get(dataIntColumn).get(WarmUpType.WARM_UP_TYPE_DATA);
         WarmUpElement matchCollectIntWarmUpElement = weHandleToWarmUpElementByType.get(matchCollectIntColumn).get(WarmUpType.WARM_UP_TYPE_DATA);
         WarmUpElement matchIntWarmUpElement = weHandleToWarmUpElementByType.get(matchCollectIntColumn).get(WarmUpType.WARM_UP_TYPE_BASIC);
@@ -577,7 +577,7 @@ public class QueryClassifierTest
     @Test
     public void testVaradaMatchWithDynamicFilterOnAProxiedColumn()
     {
-        TestingConnectorColumnHandle matchCollectIntColumn = varadaColumnHandles.get("v-int-data-basic");
+        TestingConnectorColumnHandle matchCollectIntColumn = warpColumnHandles.get("v-int-data-basic");
         WarmUpElement matchCollectIntWarmUpElement = weHandleToWarmUpElementByType.get(matchCollectIntColumn).get(WarmUpType.WARM_UP_TYPE_DATA);
         WarmUpElement matchIntWarmUpElement = weHandleToWarmUpElementByType.get(matchCollectIntColumn).get(WarmUpType.WARM_UP_TYPE_BASIC);
         Domain matchDomain = Domain.multipleValues(matchCollectIntColumn.type(), List.of(1L, 2L));
@@ -615,9 +615,9 @@ public class QueryClassifierTest
     @Test
     public void testVaradaMatchWithDynamicFilterOnALuceneColumn()
     {
-        TestingConnectorColumnHandle dataIntColumn = varadaColumnHandles.get("v-int-data");
-        TestingConnectorColumnHandle matchCollectIntColumn = varadaColumnHandles.get("v-int-data-basic");
-        TestingConnectorColumnHandle matchStrWithLuceneColumn = varadaColumnHandles.get("v-varchar-lucene");
+        TestingConnectorColumnHandle dataIntColumn = warpColumnHandles.get("v-int-data");
+        TestingConnectorColumnHandle matchCollectIntColumn = warpColumnHandles.get("v-int-data-basic");
+        TestingConnectorColumnHandle matchStrWithLuceneColumn = warpColumnHandles.get("v-varchar-lucene");
         WarmUpElement dataIntWarmUpElement = weHandleToWarmUpElementByType.get(dataIntColumn).get(WarmUpType.WARM_UP_TYPE_DATA);
         WarmUpElement matchCollectIntWarmUpElement = weHandleToWarmUpElementByType.get(matchCollectIntColumn).get(WarmUpType.WARM_UP_TYPE_DATA);
         WarmUpElement matchIntWarmUpElement = weHandleToWarmUpElementByType.get(matchCollectIntColumn).get(WarmUpType.WARM_UP_TYPE_BASIC);
@@ -663,16 +663,16 @@ public class QueryClassifierTest
     @Test
     public void testVaradaMatchOnALuceneColumn()
     {
-        TestingConnectorColumnHandle matchOnlyLuceneColumn = varadaColumnHandles.get("v-varchar-lucene");
+        TestingConnectorColumnHandle matchOnlyLuceneColumn = warpColumnHandles.get("v-varchar-lucene");
 
         Range range = Range.greaterThan(matchOnlyLuceneColumn.type(), Slices.utf8Slice("str1"));
         Domain rangeDomain = Domain.create(ValueSet.ofRanges(range), false);
 
         Slice likePattern = Slices.utf8Slice("str%");
-        VaradaCall likeVaradaExpression = createLikeVaradaExpression(matchOnlyLuceneColumn, likePattern);
+        WarpCall likeVaradaExpression = createLikeVaradaExpression(matchOnlyLuceneColumn, likePattern);
         String name = matchOnlyLuceneColumn.name();
         RegularColumn regularColumn = new RegularColumn(name);
-        VaradaExpressionData expressionData = new VaradaExpressionData(likeVaradaExpression, varcharType, false, Optional.empty(), regularColumn);
+        WarpExpressionData expressionData = new WarpExpressionData(likeVaradaExpression, varcharType, false, Optional.empty(), regularColumn);
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(TupleDomain.withColumnDomains(Map.of(matchOnlyLuceneColumn, rangeDomain)));
         WarpExpression warpExpression = new WarpExpression(expressionData.getExpression(), List.of(expressionData));
         when(dispatcherTableHandle.getWarpExpression()).thenReturn(Optional.of(warpExpression));
@@ -698,20 +698,20 @@ public class QueryClassifierTest
     @Test
     public void testVaradaMatchOnALuceneColumnWithDateFormat()
     {
-        TestingConnectorColumnHandle matchOnlyLuceneColumn = varadaColumnHandles.get("v-varchar-lucene");
+        TestingConnectorColumnHandle matchOnlyLuceneColumn = warpColumnHandles.get("v-varchar-lucene");
 
         Range range = Range.greaterThan(matchOnlyLuceneColumn.type(), Slices.utf8Slice("2021-07-06"));
         Domain rangeDomain = Domain.create(ValueSet.ofRanges(range), false);
 
         Slice likePattern = Slices.utf8Slice("2012-07%");
-        VaradaCall likeVaradaExpression = createLikeVaradaExpression(matchOnlyLuceneColumn, likePattern);
+        WarpCall likeVaradaExpression = createLikeVaradaExpression(matchOnlyLuceneColumn, likePattern);
         RegularColumn regularColumn = new RegularColumn(matchOnlyLuceneColumn.name());
 
         WarmUpElement warmupElement = weHandleToWarmUpElementByType.get(matchOnlyLuceneColumn).get(WarmUpType.WARM_UP_TYPE_LUCENE);
 
         LuceneQueryMatchData expectedLuceneQueryMatchData = createLuceneQueryMatchData(warmupElement, false, Set.of(range), Set.of(likePattern), rangeDomain, false);
 
-        VaradaExpressionData expressionData = new VaradaExpressionData(likeVaradaExpression, varcharType, false, Optional.empty(), regularColumn);
+        WarpExpressionData expressionData = new WarpExpressionData(likeVaradaExpression, varcharType, false, Optional.empty(), regularColumn);
         when(dispatcherTableHandle.getWarpExpression()).thenReturn(Optional.of(new WarpExpression(expressionData.getExpression(), List.of(expressionData))));
 
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(TupleDomain.withColumnDomains(Map.of(matchOnlyLuceneColumn, rangeDomain)));
@@ -739,8 +739,8 @@ public class QueryClassifierTest
     @Test
     public void testVaradaMatchAllowNull()
     {
-        TestingConnectorColumnHandle matchOnlyLuceneColumn = varadaColumnHandles.get("v-varchar-lucene");
-        TestingConnectorColumnHandle matchCollectStrWithLuceneColumn = varadaColumnHandles.get("v-varchar-all");
+        TestingConnectorColumnHandle matchOnlyLuceneColumn = warpColumnHandles.get("v-varchar-lucene");
+        TestingConnectorColumnHandle matchCollectStrWithLuceneColumn = warpColumnHandles.get("v-varchar-all");
         WarmUpElement matchCollectWithLuceneDataWarmUpElement = weHandleToWarmUpElementByType.get(matchCollectStrWithLuceneColumn).get(WarmUpType.WARM_UP_TYPE_DATA);
         WarmUpElement matchCollectWithLuceneBasicWarmUpElement = weHandleToWarmUpElementByType.get(matchCollectStrWithLuceneColumn).get(WarmUpType.WARM_UP_TYPE_BASIC);
 
@@ -784,7 +784,7 @@ public class QueryClassifierTest
     @Test
     public void testVaradaMatchNotNullOnLuceneColumn()
     {
-        TestingConnectorColumnHandle matchOnlyLuceneColumn = varadaColumnHandles.get("v-varchar-lucene");
+        TestingConnectorColumnHandle matchOnlyLuceneColumn = warpColumnHandles.get("v-varchar-lucene");
 
         Domain notNullDomain = Domain.notNull(matchOnlyLuceneColumn.type());
         TupleDomain<ColumnHandle> fullPredicate = TupleDomain.withColumnDomains(
@@ -820,7 +820,7 @@ public class QueryClassifierTest
     @Test
     public void testEqualsOnAFailedLuceneWarmUpElement()
     {
-        TestingConnectorColumnHandle dataAndFailedLuceneColumn = varadaColumnHandles.get("v-varchar-data-lucene-failed");
+        TestingConnectorColumnHandle dataAndFailedLuceneColumn = warpColumnHandles.get("v-varchar-data-lucene-failed");
         WarmUpElement dataAndFailedLuceneWarmUpElement = weHandleToWarmUpElementByType.get(dataAndFailedLuceneColumn).get(WarmUpType.WARM_UP_TYPE_DATA);
 
         Domain domain = Domain.singleValue(dataAndFailedLuceneColumn.type(), Slices.wrappedBuffer("str".getBytes(Charset.defaultCharset())));
@@ -854,16 +854,16 @@ public class QueryClassifierTest
     @Test
     public void testLikeOnAFailedLuceneWarmUpElement()
     {
-        TestingConnectorColumnHandle dataAndFailedLuceneColumn = varadaColumnHandles.get("v-varchar-data-lucene-failed");
+        TestingConnectorColumnHandle dataAndFailedLuceneColumn = warpColumnHandles.get("v-varchar-data-lucene-failed");
 
         Slice likePattern = Slices.utf8Slice("str%");
-        VaradaCall likeVaradaExpression = createLikeVaradaExpression(dataAndFailedLuceneColumn, likePattern);
-        VaradaExpressionData varadaExpressionData = new VaradaExpressionData(likeVaradaExpression, varcharType, false, Optional.empty(), new RegularColumn(dataAndFailedLuceneColumn.name()));
+        WarpCall likeVaradaExpression = createLikeVaradaExpression(dataAndFailedLuceneColumn, likePattern);
+        WarpExpressionData warpExpressionData = new WarpExpressionData(likeVaradaExpression, varcharType, false, Optional.empty(), new RegularColumn(dataAndFailedLuceneColumn.name()));
 
         WarmUpElement collectWarmUpElement = weHandleToWarmUpElementByType.get(dataAndFailedLuceneColumn).get(WarmUpType.WARM_UP_TYPE_DATA);
 
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(TupleDomain.all());
-        when(dispatcherTableHandle.getWarpExpression()).thenReturn(Optional.of(new WarpExpression(likeVaradaExpression, List.of(varadaExpressionData))));
+        when(dispatcherTableHandle.getWarpExpression()).thenReturn(Optional.of(new WarpExpression(likeVaradaExpression, List.of(warpExpressionData))));
         PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
 
         QueryContext baseQueryContext = new QueryContext(predicateContextData, ImmutableList.of(dataAndFailedLuceneColumn), 0, true);
@@ -884,7 +884,7 @@ public class QueryClassifierTest
     @Test
     public void testProxiedCollectMatchVaradaCollect()
     {
-        TestingConnectorColumnHandle dataIntColumn = varadaColumnHandles.get("v-int-data");
+        TestingConnectorColumnHandle dataIntColumn = warpColumnHandles.get("v-int-data");
         Domain domain = Domain.multipleValues(dataIntColumn.type(), List.of(1L, 2L));
         TupleDomain<ColumnHandle> fullPredicate = TupleDomain.withColumnDomains(
                 Map.of(dataIntColumn, domain));
@@ -912,8 +912,8 @@ public class QueryClassifierTest
     @Test
     public void testProxiedCollectVaradaCollectMatch()
     {
-        TestingConnectorColumnHandle dataIntColumn = varadaColumnHandles.get("v-int-data");
-        TestingConnectorColumnHandle matchCollectIntColumn = varadaColumnHandles.get("v-int-data-basic");
+        TestingConnectorColumnHandle dataIntColumn = warpColumnHandles.get("v-int-data");
+        TestingConnectorColumnHandle matchCollectIntColumn = warpColumnHandles.get("v-int-data-basic");
         WarmUpElement dataIntWarmUpElement = weHandleToWarmUpElementByType.get(dataIntColumn).get(WarmUpType.WARM_UP_TYPE_DATA);
         WarmUpElement matchCollectIntWarmUpElement = weHandleToWarmUpElementByType.get(matchCollectIntColumn).get(WarmUpType.WARM_UP_TYPE_DATA);
         WarmUpElement matchIntWarmUpElement = weHandleToWarmUpElementByType.get(matchCollectIntColumn).get(WarmUpType.WARM_UP_TYPE_BASIC);
@@ -952,8 +952,8 @@ public class QueryClassifierTest
     @Test
     public void testProxiedCollectMatchVaradaCollectMatch()
     {
-        TestingConnectorColumnHandle dataIntColumn = varadaColumnHandles.get("v-int-data");
-        TestingConnectorColumnHandle matchCollectIntColumn = varadaColumnHandles.get("v-int-data-basic");
+        TestingConnectorColumnHandle dataIntColumn = warpColumnHandles.get("v-int-data");
+        TestingConnectorColumnHandle matchCollectIntColumn = warpColumnHandles.get("v-int-data-basic");
         WarmUpElement dataIntWarmUpElement = weHandleToWarmUpElementByType.get(dataIntColumn).get(WarmUpType.WARM_UP_TYPE_DATA);
         WarmUpElement matchCollectIntWarmUpElement = weHandleToWarmUpElementByType.get(matchCollectIntColumn).get(WarmUpType.WARM_UP_TYPE_DATA);
         WarmUpElement matchIntWarmUpElement = weHandleToWarmUpElementByType.get(matchCollectIntColumn).get(WarmUpType.WARM_UP_TYPE_BASIC);
@@ -999,7 +999,7 @@ public class QueryClassifierTest
         Domain domain = Domain.singleValue(testingConnectorColumnHandles.get(0).type(), 1L);
         TupleDomain<ColumnHandle> fullPredicate =
                 TupleDomain.withColumnDomains(Map.of(testingConnectorColumnHandles.get(0), domain));
-        ColumnHandle matchStrWithLuceneColumn = varadaColumnHandles.get("v-varchar-all");
+        ColumnHandle matchStrWithLuceneColumn = warpColumnHandles.get("v-varchar-all");
         WarmUpElement dataIntWarmUpElement = weHandleToWarmUpElementByType.get(matchStrWithLuceneColumn).get(WarmUpType.WARM_UP_TYPE_DATA);
 
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(fullPredicate);
@@ -1016,10 +1016,10 @@ public class QueryClassifierTest
     }
 
     @Test
-    public void testPrefilledCollectVaradaColumn()
+    public void testPrefilledCollectWarpColumn()
     {
-        TestingConnectorColumnHandle matchCollectIntColumn = varadaColumnHandles.get("v-int-data-basic");
-        TestingConnectorColumnHandle matchCollectIntColumn2 = varadaColumnHandles.get("v-int-data-basic-2");
+        TestingConnectorColumnHandle matchCollectIntColumn = warpColumnHandles.get("v-int-data-basic");
+        TestingConnectorColumnHandle matchCollectIntColumn2 = warpColumnHandles.get("v-int-data-basic-2");
         WarmUpElement matchIntWarmUpElement = weHandleToWarmUpElementByType.get(matchCollectIntColumn).get(WarmUpType.WARM_UP_TYPE_BASIC);
         WarmUpElement matchIntWarmUpElement2 = weHandleToWarmUpElementByType.get(matchCollectIntColumn2).get(WarmUpType.WARM_UP_TYPE_BASIC);
         Domain domain = Domain.singleValue(matchCollectIntColumn.type(), 1L);
@@ -1061,7 +1061,7 @@ public class QueryClassifierTest
     @Test
     public void testPrefilledCollectProxiedColumn()
     {
-        TestingConnectorColumnHandle matchOnlyBasicColumn = varadaColumnHandles.get("v-double-basic");
+        TestingConnectorColumnHandle matchOnlyBasicColumn = warpColumnHandles.get("v-double-basic");
         WarmUpElement matchWarmUpElement = weHandleToWarmUpElementByType.get(matchOnlyBasicColumn).get(WarmUpType.WARM_UP_TYPE_BASIC);
         Domain matchDomain = Domain.singleValue(DoubleType.DOUBLE, 1.5d);
         TupleDomain<ColumnHandle> fullPredicate = TupleDomain.withColumnDomains(Map.of(matchOnlyBasicColumn, matchDomain));
@@ -1094,10 +1094,10 @@ public class QueryClassifierTest
     @Test
     public void testPrefilledCollectProxiedColumnWithProxiedDomain()
     {
-        TestingConnectorColumnHandle onlyDataColumnHandle = varadaColumnHandles.get("v-int-data");
+        TestingConnectorColumnHandle onlyDataColumnHandle = warpColumnHandles.get("v-int-data");
         WarmUpElement onlyDataWarmUpElement = weHandleToWarmUpElementByType.get(onlyDataColumnHandle).get(WarmUpType.WARM_UP_TYPE_DATA);
 
-        TestingConnectorColumnHandle onlyBasicColumnHandle = varadaColumnHandles.get("v-double-basic");
+        TestingConnectorColumnHandle onlyBasicColumnHandle = warpColumnHandles.get("v-double-basic");
         WarmUpElement onlyBasicWarmUpElement = weHandleToWarmUpElementByType.get(onlyBasicColumnHandle).get(WarmUpType.WARM_UP_TYPE_BASIC);
 
         // We can't prefill column which has a proxied domain (a domain which is not at enforcedConstraint and can't be handled by Varada)
@@ -1133,7 +1133,7 @@ public class QueryClassifierTest
     @Test
     public void testPrefilledCollectProxiedLuceneColumn()
     {
-        TestingConnectorColumnHandle matchOnlyLuceneColumn = varadaColumnHandles.get("v-varchar-lucene");
+        TestingConnectorColumnHandle matchOnlyLuceneColumn = warpColumnHandles.get("v-varchar-lucene");
         Domain domain = Domain.singleValue(matchOnlyLuceneColumn.type(), Slices.wrappedBuffer("str".getBytes(Charset.defaultCharset())));
         TupleDomain<ColumnHandle> tupleDomain = TupleDomain.withColumnDomains(Map.of(matchOnlyLuceneColumn, domain));
 
@@ -1164,7 +1164,7 @@ public class QueryClassifierTest
     @Test
     public void testBasicMatchColumns()
     {
-        TestingConnectorColumnHandle columnHandle = varadaColumnHandles.get("v-varchar-data-basic");
+        TestingConnectorColumnHandle columnHandle = warpColumnHandles.get("v-varchar-data-basic");
         Domain matchDomain = Domain.multipleValues(columnHandle.type(), List.of(Slices.utf8Slice("str1"), Slices.utf8Slice("str2")));
         TupleDomain<ColumnHandle> fullPredicate = TupleDomain.withColumnDomains(Map.of(columnHandle, matchDomain));
 
@@ -1207,7 +1207,7 @@ public class QueryClassifierTest
     @Test
     public void testNotPrefilledNonTightQueryContext()
     {
-        TestingConnectorColumnHandle matchOnlyBasicColumn = varadaColumnHandles.get("v-double-basic");
+        TestingConnectorColumnHandle matchOnlyBasicColumn = warpColumnHandles.get("v-double-basic");
         WarmUpElement matchWarmUpElement = weHandleToWarmUpElementByType.get(matchOnlyBasicColumn).get(WarmUpType.WARM_UP_TYPE_BASIC);
         Domain matchDomain = Domain.singleValue(DoubleType.DOUBLE, 1.5d);
 
@@ -1252,10 +1252,10 @@ public class QueryClassifierTest
     @Test
     public void testAllPrefilledColumns()
     {
-        ColumnHandle intPartitionColumn = varadaColumnHandles.get("v-int-data");
-        ColumnHandle varcharPartitionColumn = varadaColumnHandles.get("v-varchar-data-basic");
+        ColumnHandle intPartitionColumn = warpColumnHandles.get("v-int-data");
+        ColumnHandle varcharPartitionColumn = warpColumnHandles.get("v-varchar-data-basic");
 
-        PredicateContextData predicateContextData = new PredicateContextData(ImmutableMap.of(), VaradaPrimitiveConstant.TRUE);
+        PredicateContextData predicateContextData = new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE);
         when(dispatcherProxiedConnectorTransformer.getConvertedPartitionValue(anyString(), any(), any(Optional.class)))
                 .thenReturn(1L)
                 .thenReturn(Slices.wrappedBuffer("str".getBytes(Charset.defaultCharset())));
@@ -1275,10 +1275,10 @@ public class QueryClassifierTest
     @Test
     public void testPrefilledWhenOnlyPartitionColumnsAndExternal()
     {
-        TestingConnectorColumnHandle intPartitionColumn = varadaColumnHandles.get("v-int-data");
+        TestingConnectorColumnHandle intPartitionColumn = warpColumnHandles.get("v-int-data");
         WarmUpElement intPartitionDataWarmUpElement = weHandleToWarmUpElementByType.get(intPartitionColumn).get(WarmUpType.WARM_UP_TYPE_DATA);
 
-        TestingConnectorColumnHandle varcharPartitionColumn = varadaColumnHandles.get("v-varchar-data-basic");
+        TestingConnectorColumnHandle varcharPartitionColumn = warpColumnHandles.get("v-varchar-data-basic");
         WarmUpElement varcharPartitionDataWarmUpElement = weHandleToWarmUpElementByType.get(varcharPartitionColumn).get(WarmUpType.WARM_UP_TYPE_DATA);
 
         TestingConnectorColumnHandle column1 = testingConnectorColumnHandles.get(0);
@@ -1315,20 +1315,20 @@ public class QueryClassifierTest
     @Test
     public void testPrefilledCollectPartitionColumn()
     {
-        TestingConnectorColumnHandle intPartitionColumn = varadaColumnHandles.get("v-int-data");
+        TestingConnectorColumnHandle intPartitionColumn = warpColumnHandles.get("v-int-data");
         WarmUpElement intPartitionDataWarmUpElement = weHandleToWarmUpElementByType.get(intPartitionColumn).get(WarmUpType.WARM_UP_TYPE_DATA);
 
-        TestingConnectorColumnHandle varcharPartitionColumn = varadaColumnHandles.get("v-varchar-data-basic");
+        TestingConnectorColumnHandle varcharPartitionColumn = warpColumnHandles.get("v-varchar-data-basic");
         WarmUpElement varcharPartitionDataWarmUpElement = weHandleToWarmUpElementByType.get(varcharPartitionColumn).get(WarmUpType.WARM_UP_TYPE_DATA);
 
-        TestingConnectorColumnHandle varcharNonPartitionColumn = varadaColumnHandles.get("v-varchar-all");
+        TestingConnectorColumnHandle varcharNonPartitionColumn = warpColumnHandles.get("v-varchar-all");
         WarmUpElement varcharNonPartitionDataWarmUpElement = weHandleToWarmUpElementByType.get(varcharNonPartitionColumn).get(WarmUpType.WARM_UP_TYPE_DATA);
 
         // Since we select a non partition column (v-varchar-all) - we expect the partition columns to be prefilled
         Optional<SingleValue> expectedSingleValueV1 = Optional.of(SingleValue.create(intPartitionColumn.type(), 1L));
         Optional<SingleValue> expectedSingleValueV5 = Optional.of(SingleValue.create(varcharPartitionColumn.type(), Slices.wrappedBuffer("str".getBytes(Charset.defaultCharset()))));
 
-        PredicateContextData predicateContextData = new PredicateContextData(ImmutableMap.of(), VaradaPrimitiveConstant.TRUE);
+        PredicateContextData predicateContextData = new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE);
         when(dispatcherProxiedConnectorTransformer.getConvertedPartitionValue(anyString(), any(), any(Optional.class)))
                 .thenReturn(1L)
                 .thenReturn(Slices.wrappedBuffer("str".getBytes(Charset.defaultCharset())));
@@ -1354,13 +1354,13 @@ public class QueryClassifierTest
     @Test
     public void testPrefilledCollectPartitionColumnWithPredicate()
     {
-        TestingConnectorColumnHandle intPartitionColumn = varadaColumnHandles.get("v-int-data");
+        TestingConnectorColumnHandle intPartitionColumn = warpColumnHandles.get("v-int-data");
         WarmUpElement intPartitionDataWarmUpElement = weHandleToWarmUpElementByType.get(intPartitionColumn).get(WarmUpType.WARM_UP_TYPE_DATA);
 
-        TestingConnectorColumnHandle varcharPartitionColumn = varadaColumnHandles.get("v-varchar-data-basic");
+        TestingConnectorColumnHandle varcharPartitionColumn = warpColumnHandles.get("v-varchar-data-basic");
         WarmUpElement varcharPartitionDataWarmUpElement = weHandleToWarmUpElementByType.get(varcharPartitionColumn).get(WarmUpType.WARM_UP_TYPE_DATA);
 
-        TestingConnectorColumnHandle intNonPartitionColumn = varadaColumnHandles.get("v-int-data-basic-2");
+        TestingConnectorColumnHandle intNonPartitionColumn = warpColumnHandles.get("v-int-data-basic-2");
         WarmUpElement intNonPartitionBasicWarmUpElement = weHandleToWarmUpElementByType.get(intNonPartitionColumn).get(WarmUpType.WARM_UP_TYPE_BASIC);
 
         // Since we have predicate on a non partition column (V4) - we expect the partition columns to be prefilled
@@ -1405,8 +1405,8 @@ public class QueryClassifierTest
     {
         int predicateThreshold = 1;
         when(session.getProperty(eq(PREDICATE_SIMPLIFY_THRESHOLD), eq(Integer.class))).thenReturn(predicateThreshold);
-        TestingConnectorColumnHandle onlyDataColumnHandle = varadaColumnHandles.get("v-int-data");
-        TestingConnectorColumnHandle dataBasicIntColumn = varadaColumnHandles.get("v-int-data-basic");
+        TestingConnectorColumnHandle onlyDataColumnHandle = warpColumnHandles.get("v-int-data");
+        TestingConnectorColumnHandle dataBasicIntColumn = warpColumnHandles.get("v-int-data-basic");
         DispatcherTableHandle dispatcherTableHandle = mockDispatcherTableHandle(schemaTableName);
         RegularColumn regularColumn = new RegularColumn(onlyDataColumnHandle.name());
         when(dispatcherTableHandle.getSimplifiedColumns()).thenReturn(new SimplifiedColumns(Set.of(regularColumn)));
@@ -1431,7 +1431,7 @@ public class QueryClassifierTest
     {
         int predicateThreshold = 1;
         when(session.getProperty(eq(PREDICATE_SIMPLIFY_THRESHOLD), eq(Integer.class))).thenReturn(predicateThreshold);
-        TestingConnectorColumnHandle onlyDataColumnHandle = varadaColumnHandles.get("v-int-data");
+        TestingConnectorColumnHandle onlyDataColumnHandle = warpColumnHandles.get("v-int-data");
         DispatcherTableHandle dispatcherTableHandle = mockDispatcherTableHandle(schemaTableName);
         Domain domain = Domain.create(SortedRangeSet.copyOf(IntegerType.INTEGER,
                         List.of(Range.lessThan(IntegerType.INTEGER, 3L), Range.greaterThan(IntegerType.INTEGER, 9L))),
@@ -1453,7 +1453,7 @@ public class QueryClassifierTest
     @Test
     public void testSubsumedPredicatesWithDynamicFilter()
     {
-        TestingConnectorColumnHandle matchCollectIntColumn = varadaColumnHandles.get("v-int-data-basic");
+        TestingConnectorColumnHandle matchCollectIntColumn = warpColumnHandles.get("v-int-data-basic");
         Domain matchDomain = Domain.singleValue(intType, 1L);
         TupleDomain<ColumnHandle> fullPredicate = TupleDomain.withColumnDomains(Map.of(matchCollectIntColumn, matchDomain));
         DispatcherTableHandle dispatcherTableHandle = mockDispatcherTableHandle(schemaTableName);
@@ -1461,7 +1461,7 @@ public class QueryClassifierTest
         when(dispatcherTableHandle.isSubsumedPredicates()).thenReturn(true);
         WarmUpElement matchWarmUpElement = weHandleToWarmUpElementByType.get(matchCollectIntColumn).get(WarmUpType.WARM_UP_TYPE_BASIC);
 
-        TestingConnectorColumnHandle onlyDataColumnHandle = varadaColumnHandles.get("v-int-data");
+        TestingConnectorColumnHandle onlyDataColumnHandle = warpColumnHandles.get("v-int-data");
         Domain dynamicFilterDomain = Domain.create(SortedRangeSet.copyOf(intType,
                         List.of(Range.lessThan(intType, 3L), Range.greaterThan(intType, 9L))),
                 false);
@@ -1517,13 +1517,13 @@ public class QueryClassifierTest
         };
     }
 
-    private VaradaCall createLikeVaradaExpression(TestingConnectorColumnHandle columnHandle, Slice likePattern)
+    private WarpCall createLikeVaradaExpression(TestingConnectorColumnHandle columnHandle, Slice likePattern)
     {
         Type variableType = columnHandle.type();
 
-        return new VaradaCall(LIKE_FUNCTION_NAME.getName(),
-                List.of(new VaradaVariable(columnHandle, variableType),
-                        new VaradaSliceConstant(likePattern, VarcharType.VARCHAR)), BOOLEAN);
+        return new WarpCall(LIKE_FUNCTION_NAME.getName(),
+                List.of(new WarpVariable(columnHandle, variableType),
+                        new WarpSliceConstant(likePattern, VarcharType.VARCHAR)), BOOLEAN);
     }
 
     private NativeQueryCollectData createNativeQueryCollectData(WarmUpElement warmUpElement, int blockIndex)
@@ -1555,7 +1555,7 @@ public class QueryClassifierTest
     private PrefilledQueryCollectData createPrefilledQueryCollectData(WarmUpElement warmUpElement, int blockIndex, SingleValue singleValue)
     {
         return PrefilledQueryCollectData.builder()
-                .varadaColumn(warmUpElement.getVaradaColumn())
+                .warpColumn(warmUpElement.getWarpColumn())
                 .type(warmupElementToType(warmUpElement))
                 .blockIndex(blockIndex)
                 .singleValue(singleValue)

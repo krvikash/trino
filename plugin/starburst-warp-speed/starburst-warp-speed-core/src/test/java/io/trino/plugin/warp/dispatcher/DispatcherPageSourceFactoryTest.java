@@ -60,7 +60,7 @@ import io.trino.plugin.warp.storage.read.StorageCollectorService;
 import io.trino.plugin.warp.storage.read.StubsRangeFillerService;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.plugin.warp.tools.util.Pair;
-import io.trino.plugin.warp.tools.util.VaradaReadWriteLock;
+import io.trino.plugin.warp.tools.util.WarpReadWriteLock;
 import io.trino.spi.HostAddress;
 import io.trino.spi.NodeManager;
 import io.trino.spi.connector.ColumnHandle;
@@ -91,8 +91,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static io.trino.plugin.warp.VaradaSessionProperties.ENABLE_MATCH_COLLECT;
-import static io.trino.plugin.warp.VaradaSessionProperties.PREDICATE_SIMPLIFY_THRESHOLD;
+import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_MATCH_COLLECT;
+import static io.trino.plugin.warp.WarpSessionProperties.PREDICATE_SIMPLIFY_THRESHOLD;
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.generateRowGroupData;
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.mockColumns;
 import static io.trino.plugin.warp.util.NodeUtils.mockNodeManager;
@@ -337,12 +337,12 @@ public class DispatcherPageSourceFactoryTest
                 .warmupElementStats(new WarmupElementStats(0, Long.MIN_VALUE, Long.MAX_VALUE))
                 .totalRecords(1)
                 .build();
-        VaradaReadWriteLock varadaReadWriteLock = mock(VaradaReadWriteLock.class);
-        when(varadaReadWriteLock.readLock()).thenReturn(false);
+        WarpReadWriteLock warpReadWriteLock = mock(WarpReadWriteLock.class);
+        when(warpReadWriteLock.readLock()).thenReturn(false);
         RowGroupKey rowGroupKey = new RowGroupKey("schema", "table", "filePath", 10, 10, Instant.now().getEpochSecond(), "", "");
         RowGroupData rowGroupData = RowGroupData.builder()
                 .rowGroupKey(rowGroupKey)
-                .lock(varadaReadWriteLock)
+                .lock(warpReadWriteLock)
                 .warmUpElements(Collections.singletonList(validWarmUpElement))
                 .build();
 

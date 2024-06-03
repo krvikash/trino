@@ -15,7 +15,7 @@ package io.trino.plugin.warp.juffer;
 
 import io.trino.plugin.warp.WarmColumnDataTestUtil;
 import io.trino.plugin.warp.config.NativeConfig;
-import io.trino.plugin.warp.di.VaradaInitializedServiceRegistry;
+import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
 import io.trino.plugin.warp.dispatcher.model.RecordData;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
@@ -64,7 +64,7 @@ public class BufferAllocatorTest
                 storageEngineConstants,
                 nativeConfig,
                 mock(MetricsManager.class),
-                new VaradaInitializedServiceRegistry());
+                new WarpInitializedServiceRegistry());
     }
 
     private void initStorageEngineConstants(StorageEngineConstants storageEngineConstants)
@@ -95,7 +95,7 @@ public class BufferAllocatorTest
                 storageEngineConstants,
                 nativeConfig,
                 mock(MetricsManager.class),
-                new VaradaInitializedServiceRegistry());
+                new WarpInitializedServiceRegistry());
         // pre-alloc
         bufferAllocator.init();
         PredicateBufferInfo predicateBufferInfo = requireNonNull(bufferAllocator.allocPredicateBuffer(10));

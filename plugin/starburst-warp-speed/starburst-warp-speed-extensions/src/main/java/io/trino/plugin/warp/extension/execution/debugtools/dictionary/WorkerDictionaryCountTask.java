@@ -15,7 +15,7 @@ package io.trino.plugin.warp.extension.execution.debugtools.dictionary;
 
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.VaradaErrorCode;
+import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.WorkerNodeManager;
 import io.trino.plugin.warp.dictionary.DebugDictionaryKey;
 import io.trino.plugin.warp.dictionary.DebugDictionaryMetadata;
@@ -71,10 +71,10 @@ public class WorkerDictionaryCountTask
     private void validateConfig(DictionaryConfigRequest conf)
     {
         if (conf.getMaxDictionaryTotalCacheWeight() < 0) {
-            throw new TrinoException(VaradaErrorCode.VARADA_ILLEGAL_PARAMETER, "maxDictionaryWeight should be greater then -1");
+            throw new TrinoException(WarpErrorCode.VARADA_ILLEGAL_PARAMETER, "maxDictionaryWeight should be greater then -1");
         }
         if (conf.getConcurrency() < 0) {
-            throw new TrinoException(VaradaErrorCode.VARADA_ILLEGAL_PARAMETER, "Concurrency should be greater then -1");
+            throw new TrinoException(WarpErrorCode.VARADA_ILLEGAL_PARAMETER, "Concurrency should be greater then -1");
         }
     }
 

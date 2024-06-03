@@ -40,9 +40,9 @@ public class TransformedColumnData
     }
 
     @Override
-    public boolean contains(VaradaColumnData varadaColumnData)
+    public boolean contains(WarpColumnData warpColumnData)
     {
-        return this.equals(varadaColumnData);
+        return this.equals(warpColumnData);
     }
 
     @Override

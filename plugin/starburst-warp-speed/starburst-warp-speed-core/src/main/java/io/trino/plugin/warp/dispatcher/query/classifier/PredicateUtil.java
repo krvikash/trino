@@ -58,7 +58,7 @@ public class PredicateUtil
     {
         // No support for: arrays, non-orderable types (since we need the values sorted in the predicate)
         return warmUpElement.isPresent() && !(type instanceof ArrayType) &&
-                (type.isOrderable() || warmUpElement.get().getVaradaColumn().isTransformedColumn());
+                (type.isOrderable() || warmUpElement.get().getWarpColumn().isTransformedColumn());
     }
 
     static PredicateData calcPredicateData(NativeExpression nativeExpression, int recTypeLength, boolean transformAllowed, Type columnType)

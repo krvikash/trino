@@ -17,9 +17,9 @@ import io.airlift.slice.Slice;
 import io.trino.matching.Pattern;
 import io.trino.plugin.warp.expression.NativeExpression;
 import io.trino.plugin.warp.expression.TransformFunction;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaExpression;
-import io.trino.plugin.warp.expression.VaradaVariable;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpExpression;
+import io.trino.plugin.warp.expression.WarpVariable;
 import io.trino.plugin.warp.expression.rewrite.ExpressionPatterns;
 import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.PredicateType;
@@ -76,11 +76,11 @@ import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 class VariableRewriter
-        implements ExpressionRewriter<VaradaCall>
+        implements ExpressionRewriter<WarpCall>
 {
-    private static final Pattern<VaradaCall> PATTERN = ExpressionPatterns.call()
+    private static final Pattern<WarpCall> PATTERN = ExpressionPatterns.call()
             .with(argumentCount().equalTo(1))
-            .with(argument(0).matching(x -> x instanceof VaradaVariable));
+            .with(argument(0).matching(x -> x instanceof WarpVariable));
 
     private final StorageEngineConstants storageEngineConstants;
     private final PushdownPredicatesStats pushdownPredicatesStats;
@@ -253,18 +253,18 @@ class VariableRewriter
     }
 
     @Override
-    public Pattern<VaradaCall> getPattern()
+    public Pattern<WarpCall> getPattern()
     {
         return PATTERN;
     }
 
-    boolean ceil(VaradaExpression varadaExpression, RewriteContext rewriteContext)
+    boolean ceil(WarpExpression warpExpression, RewriteContext rewriteContext)
     {
         rewriteContext.nativeExpressionBuilder().functionType(FunctionType.FUNCTION_TYPE_CEIL);
         return true;
     }
 
-    boolean day(VaradaExpression varadaExpression, RewriteContext rewriteContext)
+    boolean day(WarpExpression warpExpression, RewriteContext rewriteContext)
     {
         boolean supported = false;
         if (isValuesPredicateType()) {
@@ -274,7 +274,7 @@ class VariableRewriter
         return supported;
     }
 
-    boolean dayOfWeek(VaradaExpression varadaExpression, RewriteContext rewriteContext)
+    boolean dayOfWeek(WarpExpression warpExpression, RewriteContext rewriteContext)
     {
         boolean supported = false;
         if (isValuesPredicateType()) {
@@ -284,7 +284,7 @@ class VariableRewriter
         return supported;
     }
 
-    boolean dayOfYear(VaradaExpression varadaExpression, RewriteContext rewriteContext)
+    boolean dayOfYear(WarpExpression warpExpression, RewriteContext rewriteContext)
     {
         boolean supported = false;
         if (isValuesPredicateType()) {
@@ -294,7 +294,7 @@ class VariableRewriter
         return supported;
     }
 
-    boolean week(VaradaExpression varadaExpression, RewriteContext rewriteContext)
+    boolean week(WarpExpression warpExpression, RewriteContext rewriteContext)
     {
         boolean supported = false;
         if (isValuesPredicateType()) {
@@ -304,7 +304,7 @@ class VariableRewriter
         return supported;
     }
 
-    boolean yearOfWeek(VaradaExpression varadaExpression, RewriteContext rewriteContext)
+    boolean yearOfWeek(WarpExpression warpExpression, RewriteContext rewriteContext)
     {
         boolean supported = false;
         if (isValuesPredicateType()) {
@@ -314,7 +314,7 @@ class VariableRewriter
         return supported;
     }
 
-    public boolean lower(VaradaExpression expression, RewriteContext rewriteContext)
+    public boolean lower(WarpExpression expression, RewriteContext rewriteContext)
     {
         rewriteContext
                 .nativeExpressionBuilder()
@@ -323,7 +323,7 @@ class VariableRewriter
         return true;
     }
 
-    public boolean upper(VaradaExpression expression, RewriteContext rewriteContext)
+    public boolean upper(WarpExpression expression, RewriteContext rewriteContext)
     {
         rewriteContext
                 .nativeExpressionBuilder()
@@ -332,7 +332,7 @@ class VariableRewriter
         return true;
     }
 
-    boolean cast(VaradaExpression varadaExpression, RewriteContext nativeExpressionRewriteContext)
+    boolean cast(WarpExpression warpExpression, RewriteContext nativeExpressionRewriteContext)
     {
         NativeExpression.Builder nativeExpressionBuilder = nativeExpressionRewriteContext.nativeExpressionBuilder();
         Type columnType = nativeExpressionRewriteContext.columnType();
@@ -342,7 +342,7 @@ class VariableRewriter
             pushdownPredicatesStats.incunsupported_functions_native();
             return false;
         }
-        Type castToType = varadaExpression.getType();
+        Type castToType = warpExpression.getType();
         boolean supported = false;
         if (isVarcharType(castToType)) {
             if (!isCastValidForPushdown((VarcharType) castToType, nativeExpressionRewriteContext.columnType())) {
@@ -389,7 +389,7 @@ class VariableRewriter
         return supported;
     }
 
-    boolean isNan(VaradaExpression varadaExpression, RewriteContext rewriteContext)
+    boolean isNan(WarpExpression warpExpression, RewriteContext rewriteContext)
     {
         NativeExpression.Builder nativeExpressionBuilder = rewriteContext.nativeExpressionBuilder();
         nativeExpressionBuilder.functionType(FunctionType.FUNCTION_TYPE_IS_NAN);

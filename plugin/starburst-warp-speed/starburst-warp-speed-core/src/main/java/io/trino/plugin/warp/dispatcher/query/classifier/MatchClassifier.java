@@ -16,7 +16,7 @@ package io.trino.plugin.warp.dispatcher.query.classifier;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.PredicateContext;
 import io.trino.plugin.warp.dispatcher.query.QueryContext;
 import io.trino.plugin.warp.dispatcher.query.data.match.LogicalMatchData;
@@ -24,10 +24,10 @@ import io.trino.plugin.warp.dispatcher.query.data.match.MatchData;
 import io.trino.plugin.warp.dispatcher.query.data.match.NoneMatchData;
 import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
 import io.trino.plugin.warp.expression.NativeExpression;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaExpression;
-import io.trino.plugin.warp.expression.VaradaExpressionData;
-import io.trino.plugin.warp.expression.VaradaPrimitiveConstant;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpExpression;
+import io.trino.plugin.warp.expression.WarpExpressionData;
+import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.spi.type.BooleanType;
@@ -68,9 +68,9 @@ class MatchClassifier
     public QueryContext classify(ClassifyArgs classifyArgs, QueryContext queryContext)
     {
         PredicateContextData predicateContextData = queryContext.getPredicateContextData();
-        ImmutableMap<VaradaExpression, PredicateContext> leaves = predicateContextData.getLeaves();
-        VaradaExpression rootExpression = queryContext.getPredicateContextData().getRootExpression();
-        if (rootExpression == VaradaPrimitiveConstant.FALSE) {
+        ImmutableMap<WarpExpression, PredicateContext> leaves = predicateContextData.getLeaves();
+        WarpExpression rootExpression = queryContext.getPredicateContextData().getRootExpression();
+        if (rootExpression == WarpPrimitiveConstant.FALSE) {
             return queryContext.asBuilder()
                     .isNone(true)
                     .build();
@@ -80,7 +80,7 @@ class MatchClassifier
         }
         MatchResult matchResult = handleLogicalFunction(classifyArgs, leaves, rootExpression);
         boolean isNone = false;
-        Set<VaradaColumn> matchColumns = new HashSet<>();
+        Set<WarpColumn> matchColumns = new HashSet<>();
         if (matchResult.matchData().isPresent()) {
             MatchData matchData = matchResult.matchData().get();
             if (matchData instanceof NoneMatchData) {
@@ -93,19 +93,19 @@ class MatchClassifier
                         matchColumns.clear();
                         break;
                     }
-                    VaradaColumn varadaColumn = queryMatchData.getVaradaColumn();
-                    matchColumns.add(varadaColumn);
+                    WarpColumn warpColumn = queryMatchData.getWarpColumn();
+                    matchColumns.add(warpColumn);
                 }
             }
         }
 
-        Map<VaradaExpression, PredicateContext> remainingPredicateExpressions = isNone ?
+        Map<WarpExpression, PredicateContext> remainingPredicateExpressions = isNone ?
                 Collections.emptyMap() :
                 leaves.entrySet()
                         .stream()
                         // TODO: This is not accurate, one match is not enough to determine that there are no remaining matches (for example in the case of domain + expression).
                         // TODO: This is ok for now since we mark canBeTight = false in the query context
-                        .filter(entry -> !matchColumns.contains(entry.getValue().getVaradaColumn()))
+                        .filter(entry -> !matchColumns.contains(entry.getValue().getWarpColumn()))
                         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
         // TODO: The predicate is not accurate anymore, leaves are changed while root remains as-is
@@ -120,18 +120,18 @@ class MatchClassifier
     }
 
     private MatchResult handleLogicalFunction(ClassifyArgs classifyArgs,
-            Map<VaradaExpression, PredicateContext> leaves,
-            VaradaExpression expression)
+            Map<WarpExpression, PredicateContext> leaves,
+            WarpExpression expression)
     {
         MatchResult result;
 
         try {
-            if (expression instanceof VaradaCall varadaCall) {
-                if (varadaCall.getFunctionName().equals(AND_FUNCTION_NAME.getName())) {
-                    result = handleAndExpression(classifyArgs, varadaCall, leaves);
+            if (expression instanceof WarpCall warpCall) {
+                if (warpCall.getFunctionName().equals(AND_FUNCTION_NAME.getName())) {
+                    result = handleAndExpression(classifyArgs, warpCall, leaves);
                 }
-                else if (varadaCall.getFunctionName().equals(OR_FUNCTION_NAME.getName())) {
-                    result = handleOrExpression(classifyArgs, varadaCall, leaves);
+                else if (warpCall.getFunctionName().equals(OR_FUNCTION_NAME.getName())) {
+                    result = handleOrExpression(classifyArgs, warpCall, leaves);
                 }
                 else {
                     Optional<MatchData> matchData = handleFlatExpression(classifyArgs, leaves, expression);
@@ -151,8 +151,8 @@ class MatchClassifier
     }
 
     private Optional<MatchData> handleFlatExpression(ClassifyArgs classifyArgs,
-            Map<VaradaExpression, PredicateContext> leaves,
-            VaradaExpression expression)
+            Map<WarpExpression, PredicateContext> leaves,
+            WarpExpression expression)
     {
         Optional<MatchData> res;
         PredicateContext leaf = leaves.get(expression);
@@ -163,7 +163,7 @@ class MatchClassifier
             return Optional.empty();
         }
 
-        MatchContext matchContext = runMatchers(classifyArgs, Map.of(leaf.getVaradaColumn(), leaf));
+        MatchContext matchContext = runMatchers(classifyArgs, Map.of(leaf.getWarpColumn(), leaf));
         if (!matchContext.validRange()) {
             // if there are any existing matches, they are dropped and replaced with none
             return Optional.of(new NoneMatchData());
@@ -181,17 +181,17 @@ class MatchClassifier
         return res;
     }
 
-    private MatchResult handleAndExpression(ClassifyArgs classifyArgs, VaradaCall andExpression,
-            Map<VaradaExpression, PredicateContext> leaves)
+    private MatchResult handleAndExpression(ClassifyArgs classifyArgs, WarpCall andExpression,
+            Map<WarpExpression, PredicateContext> leaves)
     {
         List<MatchData> terms = new ArrayList<>();
-        Map<VaradaColumn, PredicateContext> remainingPredicateContext = new HashMap<>();
+        Map<WarpColumn, PredicateContext> remainingPredicateContext = new HashMap<>();
         boolean canBeTight = true;
-        for (VaradaExpression varadaExpression : andExpression.getChildren()) {
-            if (varadaExpression instanceof VaradaCall varadaCall &&
-                    (varadaCall.getFunctionName().equals(OR_FUNCTION_NAME.getName()) ||
-                            varadaCall.getFunctionName().equals(AND_FUNCTION_NAME.getName()))) {
-                MatchResult matchResult = handleLogicalFunction(classifyArgs, leaves, varadaExpression);
+        for (WarpExpression warpExpression : andExpression.getChildren()) {
+            if (warpExpression instanceof WarpCall warpCall &&
+                    (warpCall.getFunctionName().equals(OR_FUNCTION_NAME.getName()) ||
+                            warpCall.getFunctionName().equals(AND_FUNCTION_NAME.getName()))) {
+                MatchResult matchResult = handleLogicalFunction(classifyArgs, leaves, warpExpression);
                 if (matchResult.matchData().isPresent()) {
                     MatchData matchData = matchResult.matchData().get();
                     if (matchData instanceof NoneMatchData) {
@@ -204,14 +204,14 @@ class MatchClassifier
                 }
             }
             else {
-                PredicateContext predicateContext = leaves.get(varadaExpression);
+                PredicateContext predicateContext = leaves.get(warpExpression);
                 if (predicateContext.getDomain().isNone()) {
                     return new MatchResult(Optional.of(new NoneMatchData()), true);
                 }
-                VaradaColumn varadaColumn = predicateContext.getVaradaColumn();
-                PredicateContext existingPredicateContext = remainingPredicateContext.get(varadaColumn);
+                WarpColumn warpColumn = predicateContext.getWarpColumn();
+                PredicateContext existingPredicateContext = remainingPredicateContext.get(warpColumn);
                 if (existingPredicateContext == null) {
-                    remainingPredicateContext.put(varadaColumn, predicateContext);
+                    remainingPredicateContext.put(warpColumn, predicateContext);
                 }
                 else {
                     Optional<PredicateContext> predicateContextBase = tryMergeAndPredicates(existingPredicateContext, predicateContext);
@@ -220,10 +220,10 @@ class MatchClassifier
                             //no need to continue - will return emptyPageSource
                             return new MatchResult(Optional.of(new NoneMatchData()), true);
                         }
-                        remainingPredicateContext.put(varadaColumn, predicateContextBase.get());
+                        remainingPredicateContext.put(warpColumn, predicateContextBase.get());
                     }
                     else {
-                        Optional<MatchData> matchData = handleFlatExpression(classifyArgs, leaves, varadaExpression);
+                        Optional<MatchData> matchData = handleFlatExpression(classifyArgs, leaves, warpExpression);
                         matchData.ifPresent(terms::add);
                     }
                 }
@@ -258,28 +258,28 @@ class MatchClassifier
             NativeExpression expression1 = existingPredicateContext.getNativeExpression().get();
             NativeExpression expression2 = newPredicateContext.getNativeExpression().get();
             NativeExpression mergedNativeExpression = expression1.mergeAnd(expression2);
-            VaradaExpression varadaExpression = new VaradaCall(AND_FUNCTION_NAME.getName(),
+            WarpExpression warpExpression = new WarpCall(AND_FUNCTION_NAME.getName(),
                     List.of(existingPredicateContext.getExpression(), newPredicateContext.getExpression()),
                     BooleanType.BOOLEAN);
             res = Optional.of(new PredicateContext(
-                    new VaradaExpressionData(varadaExpression,
+                    new WarpExpressionData(warpExpression,
                             existingPredicateContext.getColumnType(),
                             mergedNativeExpression.collectNulls(),
                             Optional.of(mergedNativeExpression),
-                            existingPredicateContext.getVaradaColumn())));
+                            existingPredicateContext.getWarpColumn())));
         }
         return res;
     }
 
-    private MatchResult handleOrExpression(ClassifyArgs classifyArgs, VaradaCall orExpression, Map<VaradaExpression, PredicateContext> leaves)
+    private MatchResult handleOrExpression(ClassifyArgs classifyArgs, WarpCall orExpression, Map<WarpExpression, PredicateContext> leaves)
     {
         List<MatchData> terms = new ArrayList<>();
         boolean canBeTight = true;
-        for (VaradaExpression varadaExpression : orExpression.getArguments()) {
-            checkArgument(varadaExpression instanceof VaradaCall, "varadaExpression is not instance of VaradaCall");
-            String functionName = ((VaradaCall) varadaExpression).getFunctionName();
+        for (WarpExpression warpExpression : orExpression.getArguments()) {
+            checkArgument(warpExpression instanceof WarpCall, "varadaExpression is not instance of VaradaCall");
+            String functionName = ((WarpCall) warpExpression).getFunctionName();
             if (functionName.equals(OR_FUNCTION_NAME.getName()) || functionName.equals(AND_FUNCTION_NAME.getName())) {
-                MatchResult matchResult = handleLogicalFunction(classifyArgs, leaves, varadaExpression);
+                MatchResult matchResult = handleLogicalFunction(classifyArgs, leaves, warpExpression);
                 if (matchResult.matchData().isPresent()) {
                     terms.add(matchResult.matchData().get());
                     canBeTight = canBeTight && matchResult.canBeTight();
@@ -291,14 +291,14 @@ class MatchClassifier
                 }
             }
             else {
-                PredicateContext predicateContext = leaves.get(varadaExpression);
+                PredicateContext predicateContext = leaves.get(warpExpression);
                 if (predicateContext.getDomain().isNone()) {
                     terms.add(new NoneMatchData());
                     canBeTight = true;
                     continue;
                 }
-                VaradaColumn varadaColumn = predicateContext.getVaradaColumn();
-                MatchContext matchContext = runMatchers(classifyArgs, Map.of(varadaColumn, predicateContext));
+                WarpColumn warpColumn = predicateContext.getWarpColumn();
+                MatchContext matchContext = runMatchers(classifyArgs, Map.of(warpColumn, predicateContext));
 
                 checkArgument(matchContext.matchDataList().size() <= 1, "Too many matchData objects in the list");
                 if (matchContext.matchDataList().isEmpty()) {
@@ -335,7 +335,7 @@ class MatchClassifier
     /**
      * @param remainingPredicateContext - A map of predicates with AND relation between them
      */
-    private MatchContext runMatchers(ClassifyArgs classifyArgs, Map<VaradaColumn, PredicateContext> remainingPredicateContext)
+    private MatchContext runMatchers(ClassifyArgs classifyArgs, Map<WarpColumn, PredicateContext> remainingPredicateContext)
     {
         MatchContext matchContext = new MatchContext(Collections.emptyList(), remainingPredicateContext, true);
         if (!remainingPredicateContext.isEmpty()) {

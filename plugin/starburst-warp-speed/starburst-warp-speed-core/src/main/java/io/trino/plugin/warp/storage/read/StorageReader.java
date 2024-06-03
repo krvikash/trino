@@ -34,11 +34,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static io.trino.plugin.warp.VaradaErrorCode.VARADA_MATCH_FAILED;
-import static io.trino.plugin.warp.VaradaErrorCode.VARADA_NATIVE_UNRECOVERABLE_ERROR;
-import static io.trino.plugin.warp.VaradaErrorCode.VARADA_TX_ALLOCATION_FAILED;
-import static io.trino.plugin.warp.VaradaErrorCode.VARADA_UNRECOVERABLE_COLLECT_FAILED;
-import static io.trino.plugin.warp.VaradaErrorCode.VARADA_UNRECOVERABLE_MATCH_FAILED;
+import static io.trino.plugin.warp.WarpErrorCode.VARADA_MATCH_FAILED;
+import static io.trino.plugin.warp.WarpErrorCode.VARADA_NATIVE_UNRECOVERABLE_ERROR;
+import static io.trino.plugin.warp.WarpErrorCode.VARADA_TX_ALLOCATION_FAILED;
+import static io.trino.plugin.warp.WarpErrorCode.VARADA_UNRECOVERABLE_COLLECT_FAILED;
+import static io.trino.plugin.warp.WarpErrorCode.VARADA_UNRECOVERABLE_MATCH_FAILED;
 import static java.util.Objects.requireNonNull;
 
 public class StorageReader

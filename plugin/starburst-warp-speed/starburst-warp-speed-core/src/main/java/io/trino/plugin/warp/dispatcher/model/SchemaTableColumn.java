@@ -21,7 +21,7 @@ import java.io.Serializable;
 
 public record SchemaTableColumn(
         SchemaTableName schemaTableName,
-        VaradaColumn varadaColumn)
+        WarpColumn warpColumn)
         implements Serializable
 {
     public SchemaTableColumn(
@@ -34,9 +34,9 @@ public record SchemaTableColumn(
     @JsonCreator
     public SchemaTableColumn(
             @JsonProperty("schemaTableName") SchemaTableName schemaTableName,
-            @JsonProperty("varadaColumn") VaradaColumn varadaColumn)
+            @JsonProperty("warpColumn") WarpColumn warpColumn)
     {
         this.schemaTableName = schemaTableName;
-        this.varadaColumn = varadaColumn;
+        this.warpColumn = warpColumn;
     }
 }

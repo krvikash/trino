@@ -18,7 +18,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import java.util.Objects;
 
 public class WildcardColumn
-        implements VaradaColumn
+        implements WarpColumn
 {
     @JsonCreator
     public WildcardColumn() {}

@@ -21,7 +21,7 @@ import io.trino.plugin.warp.CoordinatorNodeManager;
 import io.trino.plugin.warp.config.DictionaryConfig;
 import io.trino.plugin.warp.dictionary.DebugDictionaryKey;
 import io.trino.plugin.warp.dictionary.DebugDictionaryMetadata;
-import io.trino.plugin.warp.execution.VaradaClient;
+import io.trino.plugin.warp.execution.WarpClient;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
 import io.trino.plugin.warp.util.UriUtils;
@@ -66,17 +66,17 @@ public class DictionaryTask
 
     private final CoordinatorNodeManager coordinatorNodeManager;
     private final DictionaryConfig dictionaryConfig;
-    private final VaradaClient varadaClient;
+    private final WarpClient warpClient;
 
     @Inject
     public DictionaryTask(
             CoordinatorNodeManager coordinatorNodeManager,
             DictionaryConfig dictionaryConfig,
-            VaradaClient varadaClient)
+            WarpClient warpClient)
     {
         this.coordinatorNodeManager = requireNonNull(coordinatorNodeManager);
         this.dictionaryConfig = requireNonNull(dictionaryConfig);
-        this.varadaClient = requireNonNull(varadaClient);
+        this.warpClient = requireNonNull(warpClient);
     }
 
     @POST
@@ -195,7 +195,7 @@ public class DictionaryTask
         AtomicInteger totalUsage = new AtomicInteger();
         List<Node> workerNodes = coordinatorNodeManager.getWorkerNodes();
         workerNodes.forEach(workerNode -> {
-            HttpUriBuilder uriBuilder = varadaClient.getRestEndpoint(UriUtils.getHttpUri(workerNode));
+            HttpUriBuilder uriBuilder = warpClient.getRestEndpoint(UriUtils.getHttpUri(workerNode));
             uriBuilder.appendPath(WORKER_DICTIONARY_GROUP_PATH);
             uriBuilder.appendPath(WorkerDictionaryCountTask.WORKER_DICTIONARY_USAGE_PATH);
 
@@ -203,7 +203,7 @@ public class DictionaryTask
                     .setUri(uriBuilder.build())
                     .setHeader("Content-Type", "application/json")
                     .build();
-            int workerUsedPages = varadaClient.sendWithRetry(request, createFullJsonResponseHandler(JsonCodec.jsonCodec(Integer.class)));
+            int workerUsedPages = warpClient.sendWithRetry(request, createFullJsonResponseHandler(JsonCodec.jsonCodec(Integer.class)));
             totalUsage.addAndGet(workerUsedPages);
         });
         return totalUsage.get();
@@ -211,7 +211,7 @@ public class DictionaryTask
 
     private Object postWorkerResult(Node workerNode, String workerTaskPath, JsonCodec jsonCodecRequest, Object input, JsonCodec jsonCodecResponse)
     {
-        HttpUriBuilder uriBuilder = varadaClient.getRestEndpoint(UriUtils.getHttpUri(workerNode));
+        HttpUriBuilder uriBuilder = warpClient.getRestEndpoint(UriUtils.getHttpUri(workerNode));
         uriBuilder.appendPath(WORKER_DICTIONARY_GROUP_PATH);
         uriBuilder.appendPath(workerTaskPath);
 
@@ -221,18 +221,18 @@ public class DictionaryTask
         if (input != null && jsonCodecRequest != null) {
             builder.setBodyGenerator(jsonBodyGenerator(jsonCodecRequest, input));
         }
-        return varadaClient.sendWithRetry(builder.build(), createFullJsonResponseHandler(jsonCodecResponse));
+        return warpClient.sendWithRetry(builder.build(), createFullJsonResponseHandler(jsonCodecResponse));
     }
 
     private Object getWorkerResult(Node workerNode, String workerTaskPath, JsonCodec jsonCodecResponse)
     {
-        HttpUriBuilder uriBuilder = varadaClient.getRestEndpoint(UriUtils.getHttpUri(workerNode));
+        HttpUriBuilder uriBuilder = warpClient.getRestEndpoint(UriUtils.getHttpUri(workerNode));
         uriBuilder.appendPath(WORKER_DICTIONARY_GROUP_PATH);
         uriBuilder.appendPath(workerTaskPath);
 
         Request.Builder builder = prepareGet()
                 .setUri(uriBuilder.build())
                 .setHeader("Content-Type", "application/json");
-        return varadaClient.sendWithRetry(builder.build(), createFullJsonResponseHandler(jsonCodecResponse));
+        return warpClient.sendWithRetry(builder.build(), createFullJsonResponseHandler(jsonCodecResponse));
     }
 }

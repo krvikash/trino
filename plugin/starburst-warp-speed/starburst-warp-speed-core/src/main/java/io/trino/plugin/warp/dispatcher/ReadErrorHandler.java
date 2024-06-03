@@ -35,10 +35,10 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static io.trino.plugin.warp.VaradaErrorCode.VARADA_NATIVE_READ_OUT_OF_BOUNDS;
-import static io.trino.plugin.warp.VaradaErrorCode.VARADA_NATIVE_UNRECOVERABLE_ERROR;
-import static io.trino.plugin.warp.VaradaErrorCode.VARADA_UNRECOVERABLE_COLLECT_FAILED;
-import static io.trino.plugin.warp.VaradaErrorCode.VARADA_UNRECOVERABLE_MATCH_FAILED;
+import static io.trino.plugin.warp.WarpErrorCode.VARADA_NATIVE_READ_OUT_OF_BOUNDS;
+import static io.trino.plugin.warp.WarpErrorCode.VARADA_NATIVE_UNRECOVERABLE_ERROR;
+import static io.trino.plugin.warp.WarpErrorCode.VARADA_UNRECOVERABLE_COLLECT_FAILED;
+import static io.trino.plugin.warp.WarpErrorCode.VARADA_UNRECOVERABLE_MATCH_FAILED;
 import static java.util.Objects.requireNonNull;
 
 @Singleton

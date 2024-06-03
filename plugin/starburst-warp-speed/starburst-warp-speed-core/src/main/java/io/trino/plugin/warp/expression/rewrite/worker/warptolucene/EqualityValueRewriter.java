@@ -16,11 +16,11 @@ package io.trino.plugin.warp.expression.rewrite.worker.warptolucene;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.trino.matching.Pattern;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaConstant;
-import io.trino.plugin.warp.expression.VaradaExpression;
-import io.trino.plugin.warp.expression.VaradaPrimitiveConstant;
-import io.trino.plugin.warp.expression.VaradaSliceConstant;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpConstant;
+import io.trino.plugin.warp.expression.WarpExpression;
+import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
+import io.trino.plugin.warp.expression.WarpSliceConstant;
 import io.trino.plugin.warp.expression.rewrite.ExpressionPatterns;
 import io.trino.plugin.warp.util.SliceUtils;
 import io.trino.spi.type.BooleanType;
@@ -43,51 +43,51 @@ import static io.trino.plugin.warp.storage.lucene.LuceneQueryUtils.createLikeQue
 import static io.trino.spi.expression.StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME;
 
 public class EqualityValueRewriter
-        implements ExpressionRewriter<VaradaCall>
+        implements ExpressionRewriter<WarpCall>
 {
-    private static final Pattern<VaradaCall> PATTERN = ExpressionPatterns.call()
+    private static final Pattern<WarpCall> PATTERN = ExpressionPatterns.call()
             .with(argumentCount().equalTo(2))
             .with(functionName().matching(x -> x.equals(EQUAL_OPERATOR_FUNCTION_NAME.getName())))
-            .with(argument(0).matching(x -> x instanceof VaradaCall varadaCall &&
-                    (varadaCall.getFunctionName().equals(SUBSTRING.getName()) ||
-                            varadaCall.getFunctionName().equals(SPLIT_PART.getName()) ||
-                            varadaCall.getFunctionName().equals(TRIM.getName()) ||
-                            varadaCall.getFunctionName().equals(LTRIM.getName()) ||
-                            varadaCall.getFunctionName().equals(RTRIM.getName()) ||
-                            varadaCall.getFunctionName().equals(SUBSTR.getName()) ||
-                            varadaCall.getFunctionName().equals(STRPOS.getName()))))
-            .with(argument(1).matching(x -> x instanceof VaradaConstant && !x.getType().equals(BooleanType.BOOLEAN)));
+            .with(argument(0).matching(x -> x instanceof WarpCall warpCall &&
+                    (warpCall.getFunctionName().equals(SUBSTRING.getName()) ||
+                            warpCall.getFunctionName().equals(SPLIT_PART.getName()) ||
+                            warpCall.getFunctionName().equals(TRIM.getName()) ||
+                            warpCall.getFunctionName().equals(LTRIM.getName()) ||
+                            warpCall.getFunctionName().equals(RTRIM.getName()) ||
+                            warpCall.getFunctionName().equals(SUBSTR.getName()) ||
+                            warpCall.getFunctionName().equals(STRPOS.getName()))))
+            .with(argument(1).matching(x -> x instanceof WarpConstant && !x.getType().equals(BooleanType.BOOLEAN)));
 
     public EqualityValueRewriter()
     {
     }
 
     @Override
-    public Pattern<VaradaCall> getPattern()
+    public Pattern<WarpCall> getPattern()
     {
         return PATTERN;
     }
 
-    public boolean handleEqual(VaradaExpression expression, LuceneRewriteContext context)
+    public boolean handleEqual(WarpExpression expression, LuceneRewriteContext context)
     {
-        VaradaCall varadaCall = (VaradaCall) expression.getChildren().get(0);
-        VaradaConstant varadaConstant;
-        if (varadaCall.getFunctionName().equals(STRPOS.getName())) {
-            VaradaExpression positionValue = expression.getChildren().get(1);
-            if (!(positionValue instanceof VaradaPrimitiveConstant)) {
+        WarpCall warpCall = (WarpCall) expression.getChildren().get(0);
+        WarpConstant varadaConstant;
+        if (warpCall.getFunctionName().equals(STRPOS.getName())) {
+            WarpExpression positionValue = expression.getChildren().get(1);
+            if (!(positionValue instanceof WarpPrimitiveConstant)) {
                 return false;
             }
-            if (((VaradaPrimitiveConstant) positionValue).getValue() == Integer.valueOf(0)) {
+            if (((WarpPrimitiveConstant) positionValue).getValue() == Integer.valueOf(0)) {
                 // See https://stackoverflow.com/a/16091066, =false->false, =true->true, !=true->false, !=false->true
                 context.queryBuilder().add(new MatchAllDocsQuery(), BooleanClause.Occur.SHOULD);
                 context = createContext(context, BooleanClause.Occur.MUST_NOT);
             }
-            varadaConstant = (VaradaConstant) varadaCall.getChildren().get(1);
+            varadaConstant = (WarpConstant) warpCall.getChildren().get(1);
         }
         else {
-            varadaConstant = (VaradaConstant) expression.getChildren().get(1);
+            varadaConstant = (WarpConstant) expression.getChildren().get(1);
         }
-        checkArgument(varadaConstant instanceof VaradaSliceConstant, "%s is not VaradaSliceConstant", varadaConstant);
+        checkArgument(varadaConstant instanceof WarpSliceConstant, "%s is not VaradaSliceConstant", varadaConstant);
         Slice sliceValue = ((Slice) varadaConstant.getValue());
         String val = SliceUtils.serializeSlice(sliceValue);
         Slice likeSlice = Slices.utf8Slice("%" + val + "%");

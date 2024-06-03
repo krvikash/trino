@@ -228,7 +228,7 @@ public class DictionaryCacheServiceTest
         when(warmUpElement.getWarmUpType()).thenReturn(WarmUpType.WARM_UP_TYPE_DATA);
         when(warmUpElement.getRecTypeCode()).thenReturn(recTypeCode);
         when(warmUpElement.getRecTypeLength()).thenReturn(4);
-        when(warmUpElement.getVaradaColumn()).thenReturn(new RegularColumn(columnName));
+        when(warmUpElement.getWarpColumn()).thenReturn(new RegularColumn(columnName));
 
 //        when(attachDictionaryService.attachDictionary(any(), any(), any(), any())).thenReturn(new DictionaryAttachResult(new byte[1], 5));
         DictionaryState dictionaryState = dictionaryCacheService.calculateDictionaryStateForWrite(warmUpElement, null);

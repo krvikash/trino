@@ -13,13 +13,13 @@
  */
 package io.trino.plugin.warp.dispatcher.query.classifier;
 
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.PredicateContext;
 import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
 
 import java.util.List;
 import java.util.Map;
 
-record MatchContext(List<QueryMatchData> matchDataList, Map<VaradaColumn, PredicateContext> remainingPredicateContext, boolean validRange)
+record MatchContext(List<QueryMatchData> matchDataList, Map<WarpColumn, PredicateContext> remainingPredicateContext, boolean validRange)
 {
 }

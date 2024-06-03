@@ -17,8 +17,8 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 
 import java.util.Collections;
@@ -44,7 +44,7 @@ public class EmptyRowGroupWarmer
         rowGroupDataService.updateEmptyRowGroup(rowGroupData, newWarmUpElements, Collections.emptyList());
     }
 
-    public void saveImportedEmptyRowGroup(List<WarmUpElement> newWarmupElements, RowGroupKey rowGroupKey, Map<VaradaColumn, String> partitionKeys)
+    public void saveImportedEmptyRowGroup(List<WarmUpElement> newWarmupElements, RowGroupKey rowGroupKey, Map<WarpColumn, String> partitionKeys)
     {
         List<WarmUpElement> updatedWarmupElements = newWarmupElements
                 .stream()

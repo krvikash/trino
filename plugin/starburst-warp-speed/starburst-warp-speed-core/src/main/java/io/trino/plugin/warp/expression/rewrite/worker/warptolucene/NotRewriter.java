@@ -14,8 +14,8 @@
 package io.trino.plugin.warp.expression.rewrite.worker.warptolucene;
 
 import io.trino.matching.Pattern;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaExpression;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpExpression;
 import io.trino.plugin.warp.expression.rewrite.ExpressionPatterns;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
@@ -29,13 +29,13 @@ import static io.trino.spi.expression.StandardFunctions.NOT_FUNCTION_NAME;
 import static java.util.Objects.requireNonNull;
 
 class NotRewriter
-        implements ExpressionRewriter<VaradaCall>
+        implements ExpressionRewriter<WarpCall>
 {
-    private static final Pattern<VaradaCall> PATTERN = ExpressionPatterns.call()
+    private static final Pattern<WarpCall> PATTERN = ExpressionPatterns.call()
             .with(functionName().matching(x -> x.equals(NOT_FUNCTION_NAME.getName())))
             .with(argumentCount().equalTo(1))
-            .with(argument(0).matching(x -> x instanceof VaradaCall))
-            .with(argument(0).matching(x -> ((VaradaCall) x).getFunctionName().equals(LIKE_FUNCTION_NAME.getName())));
+            .with(argument(0).matching(x -> x instanceof WarpCall))
+            .with(argument(0).matching(x -> ((WarpCall) x).getFunctionName().equals(LIKE_FUNCTION_NAME.getName())));
     private final LuceneRulesHandler luceneRulesHandler;
 
     NotRewriter(LuceneRulesHandler luceneRulesHandler)
@@ -44,17 +44,17 @@ class NotRewriter
     }
 
     @Override
-    public Pattern<VaradaCall> getPattern()
+    public Pattern<WarpCall> getPattern()
     {
         return PATTERN;
     }
 
-    public boolean handleNotLike(VaradaExpression varadaExpression, LuceneRewriteContext context)
+    public boolean handleNotLike(WarpExpression warpExpression, LuceneRewriteContext context)
     {
         BooleanQuery.Builder innerQueryBuilder = new BooleanQuery.Builder();
         LuceneRewriteContext subContext = new LuceneRewriteContext(innerQueryBuilder, BooleanClause.Occur.MUST_NOT, context.collectNulls());
         subContext.queryBuilder().add(new MatchAllDocsQuery(), BooleanClause.Occur.SHOULD);
-        boolean valid = luceneRulesHandler.rewrite(varadaExpression.getChildren().get(0), subContext);
+        boolean valid = luceneRulesHandler.rewrite(warpExpression.getChildren().get(0), subContext);
         if (valid) {
             context.queryBuilder().add(innerQueryBuilder.build(), BooleanClause.Occur.MUST);
         }

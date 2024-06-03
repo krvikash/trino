@@ -21,19 +21,19 @@ import java.util.List;
 import java.util.Objects;
 
 public class DomainExpression
-        implements VaradaExpression
+        implements WarpExpression
 {
-    private final VaradaVariable varadaVariable;
+    private final WarpVariable varadaVariable;
     private final Domain domain;
 
-    public DomainExpression(VaradaVariable varadaVariable, Domain domain)
+    public DomainExpression(WarpVariable varadaVariable, Domain domain)
     {
         this.varadaVariable = varadaVariable;
         this.domain = domain;
     }
 
     @Override
-    public List<? extends VaradaExpression> getChildren()
+    public List<? extends WarpExpression> getChildren()
     {
         return Collections.emptyList();
     }

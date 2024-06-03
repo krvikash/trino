@@ -19,7 +19,7 @@ import com.google.common.collect.ImmutableList;
 
 public record TransformFunctionData(
         @JsonProperty("transformType") io.trino.plugin.warp.api.warmup.expression.TransformFunctionData.TransformType transformType,
-        @JsonProperty("transformParams") ImmutableList<? extends VaradaConstantData> transformParams)
+        @JsonProperty("transformParams") ImmutableList<? extends WarpConstantData> transformParams)
 {
     @JsonCreator
     public TransformFunctionData {}

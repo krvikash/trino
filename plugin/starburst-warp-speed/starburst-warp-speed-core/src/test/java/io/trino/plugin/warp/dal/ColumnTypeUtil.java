@@ -27,7 +27,7 @@
  */
 package io.trino.plugin.warp.dal;
 
-import io.trino.plugin.warp.type.VaradaTypeDeserializer;
+import io.trino.plugin.warp.type.WarpTypeDeserializer;
 import io.trino.spi.type.BigintType;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.Type;
@@ -57,6 +57,6 @@ public final class ColumnTypeUtil
         when(typeManager.getType(eq(BigintType.BIGINT.getTypeSignature()))).thenReturn(BigintType.BIGINT);
         when(typeManager.fromSqlType(startsWith("varchar"))).thenReturn(VarcharType.VARCHAR);
 
-        new VaradaTypeDeserializer(typeManager);
+        new WarpTypeDeserializer(typeManager);
     }
 }

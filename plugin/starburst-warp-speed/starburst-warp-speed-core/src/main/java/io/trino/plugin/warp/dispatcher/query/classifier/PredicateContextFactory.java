@@ -15,7 +15,7 @@ package io.trino.plugin.warp.dispatcher.query.classifier;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
-import io.trino.plugin.warp.VaradaSessionProperties;
+import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
@@ -23,12 +23,11 @@ import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.query.PredicateContext;
 import io.trino.plugin.warp.expression.DomainExpression;
 import io.trino.plugin.warp.expression.NativeExpression;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaExpression;
-import io.trino.plugin.warp.expression.VaradaExpressionData;
-import io.trino.plugin.warp.expression.VaradaPrimitiveConstant;
-import io.trino.plugin.warp.expression.VaradaVariable;
-import io.trino.plugin.warp.expression.rewrite.WarpExpression;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpExpression;
+import io.trino.plugin.warp.expression.WarpExpressionData;
+import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
+import io.trino.plugin.warp.expression.WarpVariable;
 import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.util.DomainUtils;
@@ -66,7 +65,7 @@ public class PredicateContextFactory
             DynamicFilter dynamicFilter,
             DispatcherTableHandle dispatcherTableHandle)
     {
-        Optional<WarpExpression> warpExpression = dispatcherTableHandle.getWarpExpression();
+        Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> warpExpression = dispatcherTableHandle.getWarpExpression();
         if (!(dynamicFilter.getCurrentPredicate().isAll() || dynamicFilter.getCurrentPredicate().isNone())) {
             //in case we have dynamicFilter we can't use warpExpression. we probably need to intersect the expression as well with DF.
             warpExpression = Optional.empty();
@@ -74,9 +73,9 @@ public class PredicateContextFactory
         TupleDomain<ColumnHandle> intersectTupleDomain = dispatcherTableHandle.getFullPredicate()
                 .intersect(dynamicFilter.getCurrentPredicate());
         if (intersectTupleDomain.isNone()) {
-            return new PredicateContextData(ImmutableMap.of(), VaradaPrimitiveConstant.FALSE);
+            return new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.FALSE);
         }
-        int predicateThreshold = VaradaSessionProperties.getPredicateSimplifyThreshold(session, globalConfig);
+        int predicateThreshold = WarpSessionProperties.getPredicateSimplifyThreshold(session, globalConfig);
 
         SimplifyResult<ColumnHandle> simplifyResult = DomainUtils.simplify(intersectTupleDomain, predicateThreshold);
         Set<RegularColumn> simplifiedColumns = Stream.concat(dispatcherTableHandle.getSimplifiedColumns().simplifiedColumns().stream(),
@@ -86,25 +85,25 @@ public class PredicateContextFactory
         return create(warpExpression, tupleDomain, simplifiedColumns);
     }
 
-    private PredicateContextData create(Optional<WarpExpression> warpExpression,
+    private PredicateContextData create(Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> warpExpression,
             TupleDomain<ColumnHandle> tupleDomain,
             Set<RegularColumn> simplifiedColumns)
     {
-        ImmutableMap.Builder<VaradaExpression, PredicateContext> predicateContextMap = ImmutableMap.builder();
+        ImmutableMap.Builder<WarpExpression, PredicateContext> predicateContextMap = ImmutableMap.builder();
         warpExpression.ifPresent((expression) -> {
-            for (VaradaExpressionData leaf : expression.varadaExpressionDataLeaves()) {
+            for (WarpExpressionData leaf : expression.warpExpressionDataLeaves()) {
                 PredicateContext predicateContext = new PredicateContext(leaf);
                 predicateContextMap.put(leaf.getExpression(), predicateContext);
             }
         });
-        List<VaradaExpression> domainExpressions = new ArrayList<>();
+        List<WarpExpression> domainExpressions = new ArrayList<>();
         tupleDomain.getDomains().ifPresent(columnHandleDomainMap -> columnHandleDomainMap.forEach((columnHandle, domain) -> {
             Type columnType = dispatcherProxiedConnectorTransformer.getColumnType(columnHandle);
             if (isWarmBasicSupported(columnType)) {
-                VaradaVariable varadaVariable = new VaradaVariable(columnHandle, domain.getType());
-                RegularColumn varadaColumn = dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(columnHandle);
-                VaradaExpression varadaExpression = new DomainExpression(varadaVariable, domain);
-                boolean isSimplified = simplifiedColumns.contains(varadaColumn);
+                WarpVariable varadaVariable = new WarpVariable(columnHandle, domain.getType());
+                RegularColumn warpColumn = dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(columnHandle);
+                WarpExpression varadaExpression = new DomainExpression(varadaVariable, domain);
+                boolean isSimplified = simplifiedColumns.contains(warpColumn);
                 PredicateType predicateType = PredicateUtil.calcPredicateType(domain, columnType); // todo: move ClassifyArgs::getPredicateTypeFromCache to a global cache?
                 NativeExpression nativeExpression = NativeExpression.builder()
                         .predicateType(predicateType)
@@ -112,27 +111,27 @@ public class PredicateContextFactory
                         .domain(domain)
                         .collectNulls(domain.isNullAllowed())
                         .build();
-                VaradaExpressionData varadaExpressionData = new VaradaExpressionData(varadaExpression,
+                WarpExpressionData warpExpressionData = new WarpExpressionData(varadaExpression,
                         columnType,
                         domain.isNullAllowed(),
                         Optional.of(nativeExpression),
-                        varadaColumn);
-                PredicateContext predicateContext = new PredicateContext(varadaExpressionData, isSimplified);
+                        warpColumn);
+                PredicateContext predicateContext = new PredicateContext(warpExpressionData, isSimplified);
                 domainExpressions.add(varadaExpression);
                 predicateContextMap.put(varadaExpression, predicateContext);
             }
         }));
-        VaradaExpression rootExpression = VaradaPrimitiveConstant.TRUE;
+        WarpExpression rootExpression = WarpPrimitiveConstant.TRUE;
 
         if (warpExpression.isPresent() && domainExpressions.size() > 0) {
-            VaradaExpression warpRootExpression = warpExpression.get().rootExpression();
-            if (warpRootExpression instanceof VaradaCall varadaCall && varadaCall.getFunctionName().equals(AND_FUNCTION_NAME.getName())) {
+            WarpExpression warpRootExpression = warpExpression.get().rootExpression();
+            if (warpRootExpression instanceof WarpCall warpCall && warpCall.getFunctionName().equals(AND_FUNCTION_NAME.getName())) {
                 domainExpressions.addAll(warpRootExpression.getChildren());
             }
             else {
                 domainExpressions.add(warpRootExpression);
             }
-            rootExpression = new VaradaCall(AND_FUNCTION_NAME.getName(), domainExpressions, BOOLEAN);
+            rootExpression = new WarpCall(AND_FUNCTION_NAME.getName(), domainExpressions, BOOLEAN);
         }
         else if (warpExpression.isPresent()) {
             rootExpression = warpExpression.get().rootExpression();
@@ -142,7 +141,7 @@ public class PredicateContextFactory
                 rootExpression = domainExpressions.get(0);
             }
             else {
-                rootExpression = new VaradaCall(AND_FUNCTION_NAME.getName(), domainExpressions, BOOLEAN);
+                rootExpression = new WarpCall(AND_FUNCTION_NAME.getName(), domainExpressions, BOOLEAN);
             }
         }
         return new PredicateContextData(predicateContextMap.buildOrThrow(), rootExpression);

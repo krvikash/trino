@@ -14,10 +14,10 @@
 package io.trino.plugin.warp.expression.rewrite.worker.warptolucene;
 
 import io.trino.matching.Pattern;
-import io.trino.plugin.warp.expression.VaradaExpression;
+import io.trino.plugin.warp.expression.WarpExpression;
 import org.apache.lucene.search.BooleanClause;
 
-interface ExpressionRewriter<T extends VaradaExpression>
+interface ExpressionRewriter<T extends WarpExpression>
 {
     Pattern<T> getPattern();
 

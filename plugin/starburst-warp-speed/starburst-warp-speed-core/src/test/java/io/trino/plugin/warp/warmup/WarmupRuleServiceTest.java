@@ -15,14 +15,14 @@ package io.trino.plugin.warp.warmup;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.eventbus.EventBus;
-import io.trino.plugin.warp.VaradaErrorCode;
+import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.di.DefaultFakeConnectorSessionProvider;
-import io.trino.plugin.warp.di.VaradaInitializedServiceRegistry;
+import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
@@ -105,7 +105,7 @@ public class WarmupRuleServiceTest
                 new DefaultFakeConnectorSessionProvider(),
                 warmupRuleDao,
                 mock(EventBus.class),
-                new VaradaInitializedServiceRegistry(),
+                new WarpInitializedServiceRegistry(),
                 globalConfig);
     }
 
@@ -147,7 +147,7 @@ public class WarmupRuleServiceTest
         WarmupRuleResult warmupRuleResult = warmupRuleService.save(List.of(warmupRule1, warmupRule2));
         assertThat(warmupRuleResult.rejectedRules().size()).isEqualTo(1);
         assertThat(warmupRuleResult.rejectedRules().entrySet().stream().findFirst().orElseThrow().getValue().stream().findAny().orElseThrow()
-                .contains(Integer.toString(VaradaErrorCode.VARADA_DUPLICATE_RECORD.getCode()))).isTrue();
+                .contains(Integer.toString(WarpErrorCode.VARADA_DUPLICATE_RECORD.getCode()))).isTrue();
     }
 
     @Test
@@ -173,7 +173,7 @@ public class WarmupRuleServiceTest
         assertThat(warmupRuleResult.appliedRules().size()).isEqualTo(0);
         assertThat(warmupRuleResult.rejectedRules().size()).isEqualTo(1);
         assertThat(warmupRuleResult.rejectedRules().keySet().stream().findAny().orElseThrow().getWarmUpType()).isEqualTo(WarmUpType.WARM_UP_TYPE_BASIC);
-        assertThat(warmupRuleResult.rejectedRules().entrySet().stream().findFirst().orElseThrow().getValue().stream().findAny().orElseThrow().contains(Integer.toString(VaradaErrorCode.VARADA_WARMUP_RULE_ID_NOT_VALID.getCode()))).isTrue();
+        assertThat(warmupRuleResult.rejectedRules().entrySet().stream().findFirst().orElseThrow().getValue().stream().findAny().orElseThrow().contains(Integer.toString(WarpErrorCode.VARADA_WARMUP_RULE_ID_NOT_VALID.getCode()))).isTrue();
     }
 
     @Test
@@ -191,7 +191,7 @@ public class WarmupRuleServiceTest
             WarmupRuleResult warmupRuleResult = warmupRuleService.save(List.of(warmupRule));
             assertThat(warmupRuleResult.rejectedRules().size()).isEqualTo(1);
             assertThat(warmupRuleResult.rejectedRules().entrySet().stream().findFirst().orElseThrow().getValue().stream().findAny().orElseThrow()
-                    .contains(Integer.toString(VaradaErrorCode.VARADA_WARMUP_RULE_WARMUP_TYPE_DOESNT_SUPPORT_COL_TYPE.getCode()))).isTrue();
+                    .contains(Integer.toString(WarpErrorCode.VARADA_WARMUP_RULE_WARMUP_TYPE_DOESNT_SUPPORT_COL_TYPE.getCode()))).isTrue();
             assertThat(warmupRuleResult.rejectedRules().entrySet().stream().findFirst().orElseThrow().getValue().stream().findAny().orElseThrow()
                     .contains(typeToMessage.getValue())).isTrue();
         }
@@ -211,7 +211,7 @@ public class WarmupRuleServiceTest
             WarmupRuleResult warmupRuleResult = warmupRuleService.save(List.of(warmupRule));
             assertThat(warmupRuleResult.rejectedRules().size()).isEqualTo(1);
             assertThat(warmupRuleResult.rejectedRules().entrySet().stream().findFirst().orElseThrow().getValue().stream().findAny().orElseThrow()
-                    .contains(Integer.toString(VaradaErrorCode.VARADA_WARMUP_RULE_WARMUP_TYPE_DOESNT_SUPPORT_COL_TYPE.getCode()))).isTrue();
+                    .contains(Integer.toString(WarpErrorCode.VARADA_WARMUP_RULE_WARMUP_TYPE_DOESNT_SUPPORT_COL_TYPE.getCode()))).isTrue();
             assertThat(warmupRuleResult.rejectedRules().entrySet().stream().findFirst().orElseThrow().getValue().stream().findAny().orElseThrow()
                     .contains(typeToMessage.getValue())).isTrue();
         }
@@ -243,7 +243,7 @@ public class WarmupRuleServiceTest
             WarmupRuleResult warmupRuleResult = warmupRuleService.save(List.of(warmupRule));
             assertThat(warmupRuleResult.rejectedRules().size()).isEqualTo(1);
             assertThat(warmupRuleResult.rejectedRules().entrySet().stream().findFirst().orElseThrow().getValue().stream().findAny().orElseThrow()
-                    .contains(Integer.toString(VaradaErrorCode.VARADA_WARMUP_RULE_WARMUP_TYPE_DOESNT_SUPPORT_COL_TYPE.getCode()))).isTrue();
+                    .contains(Integer.toString(WarpErrorCode.VARADA_WARMUP_RULE_WARMUP_TYPE_DOESNT_SUPPORT_COL_TYPE.getCode()))).isTrue();
             assertThat(warmupRuleResult.rejectedRules().entrySet().stream().findFirst().orElseThrow().getValue().stream().findAny().orElseThrow()
                     .contains(typeToMessage.getValue())).isTrue();
         }
@@ -263,7 +263,7 @@ public class WarmupRuleServiceTest
             Type type = unsupportedTypes.get(i);
             String columnName = String.valueOf(i);
             createColumn(columnName, type);
-            WarmupRule neverRule = WarmupRule.builder(warmupRule).varadaColumn(new RegularColumn(columnName)).priority(-10).build();
+            WarmupRule neverRule = WarmupRule.builder(warmupRule).warpColumn(new RegularColumn(columnName)).priority(-10).build();
             assertRuleApplied(neverRule);
         }
     }
@@ -302,7 +302,7 @@ public class WarmupRuleServiceTest
         WarmupRule warmupRule1 = WarmupRule.builder()
                 .schema("bundle")
                 .table("bundle")
-                .varadaColumn(new RegularColumn(COL1))
+                .warpColumn(new RegularColumn(COL1))
                 .warmUpType(WarmUpType.WARM_UP_TYPE_BASIC)
                 .priority(0)
                 .ttl(0)
@@ -315,29 +315,29 @@ public class WarmupRuleServiceTest
             warmupRuleService.save(List.of(warmupRule1));
         }
         catch (TrinoException e) {
-            assertThat(e.getErrorCode()).isEqualTo(VaradaErrorCode.VARADA_DUPLICATE_RECORD.toErrorCode());
+            assertThat(e.getErrorCode()).isEqualTo(WarpErrorCode.VARADA_DUPLICATE_RECORD.toErrorCode());
         }
     }
 
     public WarmupRule createRule(WarmUpType warmUpType)
     {
-        VaradaColumn defaultVaradaColumn = new RegularColumn(COL1);
+        WarpColumn defaultWarpColumn = new RegularColumn(COL1);
         Set<WarmupPredicateRule> defaultPredicates = Set.of(new PartitionValueWarmupPredicateRule(COL1, "2"));
-        return createRule(warmUpType, defaultVaradaColumn, defaultPredicates);
+        return createRule(warmUpType, defaultWarpColumn, defaultPredicates);
     }
 
     public WarmupRule createRule(WarmUpType warmUpType, Set<WarmupPredicateRule> predicates)
     {
-        VaradaColumn defaultVaradaColumn = new RegularColumn(COL1);
-        return createRule(warmUpType, defaultVaradaColumn, predicates);
+        WarpColumn defaultWarpColumn = new RegularColumn(COL1);
+        return createRule(warmUpType, defaultWarpColumn, predicates);
     }
 
-    private WarmupRule createRule(WarmUpType warmUpType, VaradaColumn varadaColumn, Set<WarmupPredicateRule> predicates)
+    private WarmupRule createRule(WarmUpType warmUpType, WarpColumn warpColumn, Set<WarmupPredicateRule> predicates)
     {
         return WarmupRule.builder()
                 .schema("schema")
                 .table("table")
-                .varadaColumn(varadaColumn)
+                .warpColumn(warpColumn)
                 .warmUpType(warmUpType)
                 .priority(0)
                 .ttl(0)

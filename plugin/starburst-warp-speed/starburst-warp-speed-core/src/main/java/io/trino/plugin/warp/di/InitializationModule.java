@@ -29,7 +29,7 @@ import java.util.Map;
  * </code>
  */
 public interface InitializationModule
-        extends VaradaBaseModule
+        extends WarpBaseModule
 {
     static Object invokeCreateModule(
             Class<?> clazz,

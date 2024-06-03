@@ -14,7 +14,7 @@
 package io.trino.plugin.warp.dispatcher.warmup;
 
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.VaradaSessionProperties;
+import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
 import io.trino.plugin.warp.cloudvendors.config.StoreType;
 import io.trino.plugin.warp.config.GlobalConfig;
@@ -37,7 +37,7 @@ public class WarmUtils
             CloudVendorConfig cloudVendorConfig,
             ConnectorSession session)
     {
-        Boolean sessionEnabled = VaradaSessionProperties.getEnableImportExport(session);
+        Boolean sessionEnabled = WarpSessionProperties.getEnableImportExport(session);
         return sessionEnabled != null ? sessionEnabled :
                 globalConfig.getEnableImportExport() &&
                         cloudVendorConfig.getStoreType() != StoreType.LOCAL;

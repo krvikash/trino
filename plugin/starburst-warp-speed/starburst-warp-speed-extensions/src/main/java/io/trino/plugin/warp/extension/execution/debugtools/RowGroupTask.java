@@ -19,7 +19,7 @@ import io.airlift.http.client.Request;
 import io.airlift.json.JsonCodec;
 import io.trino.plugin.warp.CoordinatorNodeManager;
 import io.trino.plugin.warp.annotation.Audit;
-import io.trino.plugin.warp.execution.VaradaClient;
+import io.trino.plugin.warp.execution.WarpClient;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
 import io.trino.plugin.warp.util.UriUtils;
@@ -41,7 +41,7 @@ import static io.airlift.http.client.FullJsonResponseHandler.createFullJsonRespo
 import static io.airlift.http.client.JsonBodyGenerator.jsonBodyGenerator;
 import static io.airlift.http.client.Request.Builder.prepareGet;
 import static io.airlift.http.client.Request.Builder.preparePost;
-import static io.trino.plugin.warp.execution.VaradaClient.VOID_RESULTS_CODEC;
+import static io.trino.plugin.warp.execution.WarpClient.VOID_RESULTS_CODEC;
 import static io.trino.plugin.warp.extension.execution.debugtools.RowGroupTask.ROW_GROUP_PATH;
 import static io.trino.plugin.warp.extension.execution.debugtools.WorkerRowGroupTask.WORKER_ROW_GROUP_COLLECT_TASK_NAME;
 import static io.trino.plugin.warp.extension.execution.debugtools.WorkerRowGroupTask.WORKER_ROW_GROUP_PATH;
@@ -64,14 +64,14 @@ public class RowGroupTask
     private static final JsonCodec<List> workerRowGroupCollectResultJsonCoded = JsonCodec.jsonCodec(List.class);
 
     private final CoordinatorNodeManager coordinatorNodeManager;
-    private final VaradaClient varadaClient;
+    private final WarpClient warpClient;
 
     @Inject
     public RowGroupTask(CoordinatorNodeManager coordinatorNodeManager,
-            VaradaClient varadaClient)
+            WarpClient warpClient)
     {
         this.coordinatorNodeManager = requireNonNull(coordinatorNodeManager);
-        this.varadaClient = requireNonNull(varadaClient);
+        this.warpClient = requireNonNull(warpClient);
     }
 
     @GET
@@ -105,7 +105,7 @@ public class RowGroupTask
         Set<String> columnNames = new HashSet<>();
         Map<String, Set<String>> rowGroupFilePathSet = new HashMap<>();
         workerNodes.forEach(workerNode -> {
-            HttpUriBuilder uriBuilder = varadaClient.getRestEndpoint(UriUtils.getHttpUri(workerNode));
+            HttpUriBuilder uriBuilder = warpClient.getRestEndpoint(UriUtils.getHttpUri(workerNode));
             uriBuilder.appendPath(WORKER_ROW_GROUP_PATH);
             uriBuilder.appendPath(isRowGroupFilePath ? WorkerRowGroupTask.WORKER_ROW_GROUP_COUNT_WITH_FILES_TASK_NAME : WorkerRowGroupTask.WORKER_ROW_GROUP_COUNT_TASK_NAME);
 
@@ -113,7 +113,7 @@ public class RowGroupTask
                     .setUri(uriBuilder.build())
                     .setHeader("Content-Type", "application/json")
                     .build();
-            WorkerRowGroupCountResult nodeResult = varadaClient.sendWithRetry(request, createFullJsonResponseHandler(workerRowGroupCountResultJsonCoded));
+            WorkerRowGroupCountResult nodeResult = warpClient.sendWithRetry(request, createFullJsonResponseHandler(workerRowGroupCountResultJsonCoded));
             long nodeCount = nodeResult.count();
             columnNames.addAll(nodeResult.warmupColumnNames());
             allRes.put(workerNode.getNodeIdentifier(), nodeResult.warmupColumnCount());
@@ -144,14 +144,14 @@ public class RowGroupTask
     {
         List<Node> workerNodes = coordinatorNodeManager.getWorkerNodes();
         workerNodes.forEach(workerNode -> {
-            HttpUriBuilder uriBuilder = varadaClient.getRestEndpoint(UriUtils.getHttpUri(workerNode));
+            HttpUriBuilder uriBuilder = warpClient.getRestEndpoint(UriUtils.getHttpUri(workerNode));
             uriBuilder.appendPath(WORKER_ROW_GROUP_PATH).appendPath(WORKER_ROW_GROUP_RESET_TASK_NAME);
 
             Request request = preparePost()
                     .setUri(uriBuilder.build())
                     .setHeader("Content-Type", "application/json")
                     .build();
-            varadaClient.sendWithRetry(request, createFullJsonResponseHandler(VOID_RESULTS_CODEC));
+            warpClient.sendWithRetry(request, createFullJsonResponseHandler(VOID_RESULTS_CODEC));
         });
     }
 
@@ -167,14 +167,14 @@ public class RowGroupTask
         Map ret = new HashMap();
         List<Node> workerNodes = coordinatorNodeManager.getWorkerNodes();
         workerNodes.forEach(node -> {
-            HttpUriBuilder uriBuilder = varadaClient.getRestEndpoint(UriUtils.getHttpUri(node));
+            HttpUriBuilder uriBuilder = warpClient.getRestEndpoint(UriUtils.getHttpUri(node));
             uriBuilder.appendPath(WORKER_ROW_GROUP_PATH).appendPath(WORKER_ROW_GROUP_COLLECT_TASK_NAME);
             Request request = preparePost()
                     .setUri(uriBuilder.build())
                     .setBodyGenerator(jsonBodyGenerator(workerRowGroupCollectJsonCodec, rowGroupCollectData))
                     .setHeader("Content-Type", "application/json")
                     .build();
-            List nodeResult = varadaClient.sendWithRetry(request, createFullJsonResponseHandler(workerRowGroupCollectResultJsonCoded));
+            List nodeResult = warpClient.sendWithRetry(request, createFullJsonResponseHandler(workerRowGroupCollectResultJsonCoded));
             ret.put(UriUtils.getHttpUri(node).getHost(), nodeResult);
         });
         return ret;

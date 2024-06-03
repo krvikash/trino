@@ -22,7 +22,7 @@ import io.trino.plugin.warp.dispatcher.query.data.collect.PrefilledQueryCollectD
 import io.trino.plugin.warp.dispatcher.query.data.collect.QueryCollectData;
 import io.trino.plugin.warp.dispatcher.query.data.match.MatchData;
 import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
-import io.trino.plugin.warp.expression.VaradaPrimitiveConstant;
+import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
 import io.trino.spi.connector.ColumnHandle;
 
 import java.util.Collections;
@@ -288,7 +288,7 @@ public class QueryContext
         private List<NativeQueryCollectData> nativeQueryCollectDataList = List.of();
 
         private Map<Integer, PrefilledQueryCollectData> prefilledQueryCollectDataByBlockIndex = Map.of();
-        private PredicateContextData predicateContextData = new PredicateContextData(ImmutableMap.of(), VaradaPrimitiveConstant.TRUE);
+        private PredicateContextData predicateContextData = new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE);
         private Map<Integer, ColumnHandle> remainingCollectColumnByBlockIndex = Map.of();
 
         private boolean enableMatchCollect;

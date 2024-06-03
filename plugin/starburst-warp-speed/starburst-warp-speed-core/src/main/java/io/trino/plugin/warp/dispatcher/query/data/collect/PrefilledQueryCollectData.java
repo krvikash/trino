@@ -14,7 +14,7 @@
 package io.trino.plugin.warp.dispatcher.query.data.collect;
 
 import io.trino.plugin.warp.dispatcher.SingleValue;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.spi.type.Type;
 
 import java.util.Objects;
@@ -24,12 +24,12 @@ public class PrefilledQueryCollectData
 {
     private final SingleValue singleValue;
 
-    private PrefilledQueryCollectData(VaradaColumn varadaColumn,
+    private PrefilledQueryCollectData(WarpColumn warpColumn,
             Type type,
             int blockIndex,
             SingleValue singleValue)
     {
-        super(varadaColumn, type, blockIndex);
+        super(warpColumn, type, blockIndex);
         this.singleValue = singleValue;
     }
 
@@ -94,13 +94,13 @@ public class PrefilledQueryCollectData
         @Override
         public PrefilledQueryCollectData build()
         {
-            return new PrefilledQueryCollectData(varadaColumn, type, blockIndex, singleValue);
+            return new PrefilledQueryCollectData(warpColumn, type, blockIndex, singleValue);
         }
 
         @Override
-        public Builder varadaColumn(VaradaColumn varadaColumn)
+        public Builder warpColumn(WarpColumn warpColumn)
         {
-            super.varadaColumn(varadaColumn);
+            super.warpColumn(warpColumn);
             return this;
         }
 

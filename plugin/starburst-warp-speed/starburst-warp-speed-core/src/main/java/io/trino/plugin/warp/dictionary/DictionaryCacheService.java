@@ -16,7 +16,7 @@ package io.trino.plugin.warp.dictionary;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.VaradaErrorCode;
+import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.config.DictionaryConfig;
 import io.trino.plugin.warp.dispatcher.model.DictionaryInfo;
 import io.trino.plugin.warp.dispatcher.model.DictionaryKey;
@@ -124,13 +124,13 @@ public class DictionaryCacheService
                     dictionariesCache.loadPreBlock(recTypeCode, dataValueDictionary);
                 }
                 catch (Exception e) {
-                    throw new TrinoException(VaradaErrorCode.VARADA_DICTIONARY_ERROR, e);
+                    throw new TrinoException(WarpErrorCode.VARADA_DICTIONARY_ERROR, e);
                 }
                 dataValueDictionary.dictionaryAttached();
                 return dictionarySize;
             }
             catch (Exception e) {
-                throw new TrinoException(VaradaErrorCode.VARADA_DICTIONARY_ERROR, e);
+                throw new TrinoException(WarpErrorCode.VARADA_DICTIONARY_ERROR, e);
             }
         }
     }

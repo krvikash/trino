@@ -20,9 +20,9 @@ import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import io.trino.plugin.warp.tools.util.VaradaReadWriteLock;
-import io.trino.plugin.warp.util.json.VaradaColumnJsonMapKeyDeserializer;
-import io.trino.plugin.warp.util.json.VaradaColumnJsonSerializer;
+import io.trino.plugin.warp.tools.util.WarpReadWriteLock;
+import io.trino.plugin.warp.util.json.WarpColumnJsonMapKeyDeserializer;
+import io.trino.plugin.warp.util.json.WarpColumnJsonSerializer;
 
 import java.util.Collection;
 import java.util.List;
@@ -48,7 +48,7 @@ public class RowGroupData
 
     private final RowGroupKey rowGroupKey;
     private final Collection<WarmUpElement> warmUpElements;
-    private final Map<VaradaColumn, String> partitionKeys;
+    private final Map<WarpColumn, String> partitionKeys;
     private final boolean isEmpty;
     private final String nodeIdentifier;
     private final int nextOffset;
@@ -58,14 +58,14 @@ public class RowGroupData
     private final RowGroupDataValidation dataValidation;
 
     @JsonIgnore
-    private final VaradaReadWriteLock lock;
+    private final WarpReadWriteLock lock;
     @JsonIgnore
     private List<WarmUpElement> validWarmUpElements;
 
     protected RowGroupData(
             RowGroupKey rowGroupKey,
             Collection<WarmUpElement> warmUpElements,
-            Map<VaradaColumn, String> partitionKeys,
+            Map<WarpColumn, String> partitionKeys,
             boolean isEmpty,
             String nodeIdentifier,
             int nextOffset)
@@ -81,13 +81,13 @@ public class RowGroupData
                 false,                      // isSparseFile = false
                 FastWarmingState.EXPORTED,  // nothing to export
                 new RowGroupDataValidation(0, 0),
-                new VaradaReadWriteLock());
+                new WarpReadWriteLock());
     }
 
     private RowGroupData(
             RowGroupKey rowGroupKey,
             Collection<WarmUpElement> warmUpElements,
-            Map<VaradaColumn, String> partitionKeys,
+            Map<WarpColumn, String> partitionKeys,
             boolean isEmpty,
             String nodeIdentifier,
             int nextOffset,
@@ -95,7 +95,7 @@ public class RowGroupData
             boolean isSparseFile,
             FastWarmingState fastWarmingState,
             RowGroupDataValidation dataValidation,
-            VaradaReadWriteLock lock)
+            WarpReadWriteLock lock)
     {
         this.rowGroupKey = requireNonNull(rowGroupKey);
         this.warmUpElements = requireNonNull(warmUpElements);
@@ -144,10 +144,10 @@ public class RowGroupData
         return warmUpElements;
     }
 
-    @JsonSerialize(keyUsing = VaradaColumnJsonSerializer.class)
-    @JsonDeserialize(keyUsing = VaradaColumnJsonMapKeyDeserializer.class)
+    @JsonSerialize(keyUsing = WarpColumnJsonSerializer.class)
+    @JsonDeserialize(keyUsing = WarpColumnJsonMapKeyDeserializer.class)
     @JsonProperty(PARTITION_KEYS)
-    public Map<VaradaColumn, String> getPartitionKeys()
+    public Map<WarpColumn, String> getPartitionKeys()
     {
         return partitionKeys;
     }
@@ -219,7 +219,7 @@ public class RowGroupData
     }
 
     @JsonIgnore
-    public VaradaReadWriteLock getLock()
+    public WarpReadWriteLock getLock()
     {
         return lock;
     }
@@ -274,7 +274,7 @@ public class RowGroupData
     {
         private RowGroupKey rowGroupKey;
         private Collection<WarmUpElement> warmUpElements;
-        private Map<VaradaColumn, String> partitionKeys = Map.of();
+        private Map<WarpColumn, String> partitionKeys = Map.of();
         private boolean isEmpty;
         private String nodeIdentifier;
         private int nextOffset;
@@ -282,7 +282,7 @@ public class RowGroupData
         private boolean isSparseFile;
         private FastWarmingState fastWarmingState = FastWarmingState.EXPORTED;
         private RowGroupDataValidation dataValidation = new RowGroupDataValidation(0, 0);
-        private VaradaReadWriteLock lock;
+        private WarpReadWriteLock lock;
 
         @JsonProperty(KEY)
         public Builder rowGroupKey(RowGroupKey rowGroupKey)
@@ -298,10 +298,10 @@ public class RowGroupData
             return this;
         }
 
-        @JsonSerialize(keyUsing = VaradaColumnJsonSerializer.class)
-        @JsonDeserialize(keyUsing = VaradaColumnJsonMapKeyDeserializer.class)
+        @JsonSerialize(keyUsing = WarpColumnJsonSerializer.class)
+        @JsonDeserialize(keyUsing = WarpColumnJsonMapKeyDeserializer.class)
         @JsonProperty(PARTITION_KEYS)
-        public Builder partitionKeys(Map<VaradaColumn, String> partitionKeys)
+        public Builder partitionKeys(Map<WarpColumn, String> partitionKeys)
         {
             this.partitionKeys = Map.copyOf(partitionKeys);
             return this;
@@ -350,7 +350,7 @@ public class RowGroupData
         }
 
         @JsonIgnore
-        public Builder lock(VaradaReadWriteLock lock)
+        public Builder lock(WarpReadWriteLock lock)
         {
             this.lock = lock;
             return this;
@@ -375,7 +375,7 @@ public class RowGroupData
                     isSparseFile,
                     fastWarmingState,
                     dataValidation,
-                    Objects.nonNull(lock) ? lock : new VaradaReadWriteLock());
+                    Objects.nonNull(lock) ? lock : new WarpReadWriteLock());
         }
     }
 }

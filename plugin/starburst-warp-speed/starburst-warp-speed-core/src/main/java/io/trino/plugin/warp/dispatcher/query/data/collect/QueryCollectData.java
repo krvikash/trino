@@ -13,8 +13,8 @@
  */
 package io.trino.plugin.warp.dispatcher.query.data.collect;
 
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.data.QueryColumn;
 import io.trino.spi.type.Type;
 
@@ -31,9 +31,9 @@ public abstract class QueryCollectData
         this.blockIndex = blockIndex;
     }
 
-    protected QueryCollectData(VaradaColumn varadaColumn, Type type, int blockIndex)
+    protected QueryCollectData(WarpColumn warpColumn, Type type, int blockIndex)
     {
-        super(varadaColumn, type);
+        super(warpColumn, type);
         this.blockIndex = blockIndex;
     }
 
@@ -95,9 +95,9 @@ public abstract class QueryCollectData
         }
 
         @Override
-        public Builder varadaColumn(VaradaColumn varadaColumn)
+        public Builder warpColumn(WarpColumn warpColumn)
         {
-            super.varadaColumn(varadaColumn);
+            super.warpColumn(warpColumn);
             return this;
         }
 

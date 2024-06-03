@@ -22,8 +22,8 @@ import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.SingleValue;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.PredicateContext;
 import io.trino.plugin.warp.dispatcher.query.QueryContext;
 import io.trino.plugin.warp.dispatcher.query.data.collect.PrefilledQueryCollectData;
@@ -31,7 +31,7 @@ import io.trino.plugin.warp.dispatcher.query.data.match.LogicalMatchData;
 import io.trino.plugin.warp.dispatcher.query.data.match.MatchData;
 import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
 import io.trino.plugin.warp.expression.DomainExpression;
-import io.trino.plugin.warp.expression.VaradaExpression;
+import io.trino.plugin.warp.expression.WarpExpression;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.spi.connector.ColumnHandle;
@@ -72,13 +72,13 @@ class PrefilledCollectClassifier
         }
 
         try {
-            Map<VaradaColumn, Pair<Optional<QueryMatchData>, SingleValue>> prefilledCollectColumnValues =
+            Map<WarpColumn, Pair<Optional<QueryMatchData>, SingleValue>> prefilledCollectColumnValues =
                     getPrefilledCollectColumnValues(classifyArgs, queryContext);
-            Map<VaradaColumn, String> partitionKeys = classifyArgs.getRowGroupData().getPartitionKeys();
+            Map<WarpColumn, String> partitionKeys = classifyArgs.getRowGroupData().getPartitionKeys();
 
             Map<Integer, PrefilledQueryCollectData> prefilledQueryCollectDataByBlockIndex = new HashMap<>(queryContext.getPrefilledQueryCollectDataByBlockIndex());
             Map<Integer, ColumnHandle> remainingCollectColumnByBlockIndex = new HashMap<>(queryContext.getRemainingCollectColumnByBlockIndex());
-            ImmutableMap<VaradaColumn, WarmUpElement> dataElementsMap = classifyArgs.getWarmedWarmupTypes().dataWarmedElements();
+            ImmutableMap<WarpColumn, WarmUpElement> dataElementsMap = classifyArgs.getWarmedWarmupTypes().dataWarmedElements();
             PredicateContextData predicateContextData = queryContext.getPredicateContextData();
             Optional<MatchData> matchData = queryContext.getMatchData();
 
@@ -90,7 +90,7 @@ class PrefilledCollectClassifier
                     Object convertedPartitionValue = dispatcherProxiedConnectorTransformer.getConvertedPartitionValue(partitionKeys.get(regularColumn), entry.getValue(), DispatcherTableHandle.getNullPartitionValue());
                     SingleValue singleValue = SingleValue.create(type, convertedPartitionValue);
                     PrefilledQueryCollectData prefilledQueryCollectData = PrefilledQueryCollectData.builder()
-                            .varadaColumn(regularColumn)
+                            .warpColumn(regularColumn)
                             .type(type)
                             .blockIndex(blockIndex)
                             .singleValue(singleValue)
@@ -99,7 +99,7 @@ class PrefilledCollectClassifier
                         matchData = removePrefillColumnFromMatchTree(regularColumn, matchData.get());
                         List<PredicateContext> remainingPredicates = classifyArgs.getPredicateContextData().getRemainingPredicatesByColumn(regularColumn);
                         if (!remainingPredicates.isEmpty()) {
-                            Map<VaradaExpression, PredicateContext> newLeaves = new HashMap<>(predicateContextData.getLeaves());
+                            Map<WarpExpression, PredicateContext> newLeaves = new HashMap<>(predicateContextData.getLeaves());
                             remainingPredicates.forEach(predicateContext -> newLeaves.put(predicateContext.getExpression(), predicateContext));
                             // TODO: copied from MatchClassifier but it's a bad practice - leaves are changed while root remains as-is
                             predicateContextData = new PredicateContextData(ImmutableMap.copyOf(newLeaves), predicateContextData.getRootExpression());
@@ -112,7 +112,7 @@ class PrefilledCollectClassifier
                     // Create a prefilled collect
                     Pair<Optional<QueryMatchData>, SingleValue> prefilledMatchToValue = prefilledCollectColumnValues.get(regularColumn);
                     PrefilledQueryCollectData prefilledQueryCollectdata = PrefilledQueryCollectData.builder()
-                            .varadaColumn(regularColumn)
+                            .warpColumn(regularColumn)
                             .type(type)
                             .blockIndex(blockIndex)
                             .singleValue(prefilledMatchToValue.getValue())
@@ -133,7 +133,7 @@ class PrefilledCollectClassifier
                             dataWarmupElement.getWarmupElementStats().getNullsCount() == dataWarmupElement.getTotalRecords()) {
                         SingleValue nullSingleValue = SingleValue.create(type, null);
                         PrefilledQueryCollectData prefilledQueryCollectdata = PrefilledQueryCollectData.builder()
-                                .varadaColumn(regularColumn)
+                                .warpColumn(regularColumn)
                                 .type(type)
                                 .blockIndex(blockIndex)
                                 .singleValue(nullSingleValue)
@@ -178,7 +178,7 @@ class PrefilledCollectClassifier
             }
         }
         else if (matchData instanceof QueryMatchData queryMatchData &&
-                queryMatchData.getVaradaColumn().equals(regularColumn)) {
+                queryMatchData.getWarpColumn().equals(regularColumn)) {
             //remove column from Match tree
             result = Optional.empty();
         }
@@ -208,18 +208,18 @@ class PrefilledCollectClassifier
         }
     }
 
-    private Map<VaradaColumn, Pair<Optional<QueryMatchData>, SingleValue>> getPrefilledCollectColumnValues(ClassifyArgs classifyArgs, QueryContext queryContext)
+    private Map<WarpColumn, Pair<Optional<QueryMatchData>, SingleValue>> getPrefilledCollectColumnValues(ClassifyArgs classifyArgs, QueryContext queryContext)
     {
-        Map<VaradaColumn, SingleValue> columnsWithSingleValueDomain = getColumnsWithSingleValueDomain(classifyArgs.getPredicateContextData());
-        Map<VaradaColumn, Pair<Optional<QueryMatchData>, SingleValue>> res =
+        Map<WarpColumn, SingleValue> columnsWithSingleValueDomain = getColumnsWithSingleValueDomain(classifyArgs.getPredicateContextData());
+        Map<WarpColumn, Pair<Optional<QueryMatchData>, SingleValue>> res =
                 new HashMap<>(columnsWithSingleValueDomain.entrySet()
                         .stream()
                         .map(entry -> Pair.of(getQueryMatchDataForPrefill(queryContext, entry.getKey()), entry.getValue()))
                         .filter(pair -> pair.getKey().isPresent())
-                        .collect(Collectors.toMap(pair -> pair.getKey().get().getVaradaColumn(), Function.identity())));
+                        .collect(Collectors.toMap(pair -> pair.getKey().get().getWarpColumn(), Function.identity())));
 
         // Add partition columns (tightness is irrelevant since for each partition, there is only one value in the entire split)
-        Map<VaradaColumn, SingleValue> partitionColumnSingleValues = getPartitionColumnSingleValues(queryContext, classifyArgs.getRowGroupData());
+        Map<WarpColumn, SingleValue> partitionColumnSingleValues = getPartitionColumnSingleValues(queryContext, classifyArgs.getRowGroupData());
         res.putAll(partitionColumnSingleValues.entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, entry -> Pair.of(Optional.empty(), entry.getValue()))));
 
@@ -227,9 +227,9 @@ class PrefilledCollectClassifier
     }
 
     // Note: We can't add these values in coordinator because tupleDomain contains dynamic filter
-    private Map<VaradaColumn, SingleValue> getColumnsWithSingleValueDomain(PredicateContextData predicateContextData)
+    private Map<WarpColumn, SingleValue> getColumnsWithSingleValueDomain(PredicateContextData predicateContextData)
     {
-        Map<VaradaColumn, SingleValue> res = new HashMap<>();
+        Map<WarpColumn, SingleValue> res = new HashMap<>();
         predicateContextData.getLeaves()
                 .entrySet()
                 .stream()
@@ -238,12 +238,12 @@ class PrefilledCollectClassifier
                     PredicateContext predicateContext = entry.getValue();
                     Domain domain = predicateContext.getDomain();
                     if (domain.isSingleValue()) {
-                        res.put(predicateContext.getVaradaColumn(),
+                        res.put(predicateContext.getWarpColumn(),
                                 SingleValue.create(domain.getType(), domain.getValues().getSingleValue()));
                     }
                     // Special case - the only possible value is null
                     if (domain.isOnlyNull()) {
-                        res.put(predicateContext.getVaradaColumn(),
+                        res.put(predicateContext.getWarpColumn(),
                                 SingleValue.create(domain.getType(), null));
                     }
                 });
@@ -251,7 +251,7 @@ class PrefilledCollectClassifier
         return res;
     }
 
-    private Optional<QueryMatchData> getQueryMatchDataForPrefill(QueryContext queryContext, VaradaColumn column)
+    private Optional<QueryMatchData> getQueryMatchDataForPrefill(QueryContext queryContext, WarpColumn column)
     {
         // It doesn't matter if there are other predicates on this column (in Proxy \ Trino) -
         // If there is a tight single-value match that is not part of a logical OR, then this value would be the only output.
@@ -259,11 +259,11 @@ class PrefilledCollectClassifier
         // we can't set prefilled values of B=3, C=4 because the row (A=2,B=5,C=6) also matches the predicate.
         return queryContext.getMatchLeavesDFS().stream()
                 .filter(queryMatchData -> !queryMatchData.isPartOfLogicalOr())
-                .filter(queryMatchData -> queryMatchData.getVaradaColumn().equals(column) && queryMatchData.canBeTight())
+                .filter(queryMatchData -> queryMatchData.getWarpColumn().equals(column) && queryMatchData.canBeTight())
                 .findAny();
     }
 
-    private Map<VaradaColumn, SingleValue> getPartitionColumnSingleValues(QueryContext queryContext, RowGroupData rowGroupData)
+    private Map<WarpColumn, SingleValue> getPartitionColumnSingleValues(QueryContext queryContext, RowGroupData rowGroupData)
     {
         return queryContext
                 .getRemainingCollectColumnByBlockIndex()

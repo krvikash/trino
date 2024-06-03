@@ -14,8 +14,8 @@
 package io.trino.plugin.warp.dispatcher.warmup;
 
 import com.google.common.collect.SetMultimap;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.QueryContext;
 import io.trino.spi.connector.ColumnHandle;
 
@@ -25,7 +25,7 @@ import static java.util.Objects.requireNonNull;
 
 public record WarmData(
         List<ColumnHandle> columnHandleList,
-        SetMultimap<VaradaColumn, WarmupProperties> requiredWarmUpTypeMap,
+        SetMultimap<WarpColumn, WarmupProperties> requiredWarmUpTypeMap,
         WarmExecutionState warmExecutionState,
         boolean txMemoryReserved,
         double highestPriority,
@@ -33,7 +33,7 @@ public record WarmData(
         List<WarmUpElement> warmWarmUpElements)
 {
     public WarmData(List<ColumnHandle> columnHandleList,
-            SetMultimap<VaradaColumn, WarmupProperties> requiredWarmUpTypeMap,
+            SetMultimap<WarpColumn, WarmupProperties> requiredWarmUpTypeMap,
             WarmExecutionState warmExecutionState,
             boolean txMemoryReserved,
             QueryContext queryContext,
@@ -53,7 +53,7 @@ public record WarmData(
     }
 
     public WarmData(List<ColumnHandle> columnHandleList,
-            SetMultimap<VaradaColumn, WarmupProperties> requiredWarmUpTypeMap,
+            SetMultimap<WarpColumn, WarmupProperties> requiredWarmUpTypeMap,
             WarmExecutionState warmExecutionState,
             boolean txMemoryReserved,
             double highestPriority,

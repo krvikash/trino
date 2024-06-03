@@ -45,7 +45,7 @@ public class ColumnFilter
             return true;
         }
         return warmupElementsData.stream()
-                .filter(warmupElementsData -> warmupElementsData.columnName().equalsIgnoreCase(warmUpElement.getVaradaColumn().getName()))
+                .filter(warmupElementsData -> warmupElementsData.columnName().equalsIgnoreCase(warmUpElement.getWarpColumn().getName()))
                 .anyMatch(warmupElementsData -> warmupElementsData.warmupTypes().isEmpty() || warmupElementsData.warmupTypes().contains(warmUpElement.getWarmUpType()));
     }
 

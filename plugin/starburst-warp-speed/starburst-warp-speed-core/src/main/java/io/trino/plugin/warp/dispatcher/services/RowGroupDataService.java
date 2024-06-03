@@ -21,10 +21,10 @@ import io.trino.plugin.warp.dispatcher.dal.RowGroupDataDao;
 import io.trino.plugin.warp.dispatcher.model.FastWarmingState;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmState;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
@@ -45,7 +45,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static io.trino.plugin.warp.VaradaErrorCode.VARADA_ROW_GROUP_ILLEGAL_STATE;
+import static io.trino.plugin.warp.WarpErrorCode.VARADA_ROW_GROUP_ILLEGAL_STATE;
 import static io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
 import static java.util.Objects.requireNonNull;
 
@@ -186,7 +186,7 @@ public class RowGroupDataService
     }
 
     public synchronized RowGroupData getOrCreateRowGroupData(RowGroupKey rowGroupKey,
-            Map<VaradaColumn, String> partitionKeys)
+            Map<WarpColumn, String> partitionKeys)
     {
         RowGroupData rowGroupData = get(rowGroupKey);
 
@@ -308,17 +308,17 @@ public class RowGroupDataService
 
     public void markAsFailed(RowGroupKey rowGroupKey,
             Collection<WarmUpElement> proxiedWarmUpElements,
-            Map<VaradaColumn, String> partitionKeys)
+            Map<WarpColumn, String> partitionKeys)
     {
         RowGroupData rowGroupData = get(rowGroupKey);
 
         long lastTemporaryFailure = System.currentTimeMillis();
-        Map<Pair<VaradaColumn, WarmUpType>, WarmUpElement> failedElementByColNameAndWarmUpType = new HashMap<>();
+        Map<Pair<WarpColumn, WarmUpType>, WarmUpElement> failedElementByColNameAndWarmUpType = new HashMap<>();
 
         for (WarmUpElement we : proxiedWarmUpElements) {
             WarmUpElementState state = addTemporaryFailure(we.getState(), lastTemporaryFailure);
             failedElementByColNameAndWarmUpType.put(
-                    Pair.of(we.getVaradaColumn(), we.getWarmUpType()),
+                    Pair.of(we.getWarpColumn(), we.getWarmUpType()),
                     WarmUpElement.builder(we)
                             .state(state)
                             .warmState(WarmState.COLD)
@@ -340,7 +340,7 @@ public class RowGroupDataService
             List<WarmUpElement> updatedWarmUpElements = new ArrayList<>(failedElementByColNameAndWarmUpType.values());
 
             for (WarmUpElement existingWarmUpElement : rowGroupData.getWarmUpElements()) {
-                if (!failedElementByColNameAndWarmUpType.containsKey(Pair.of(existingWarmUpElement.getVaradaColumn(), existingWarmUpElement.getWarmUpType()))) {
+                if (!failedElementByColNameAndWarmUpType.containsKey(Pair.of(existingWarmUpElement.getWarpColumn(), existingWarmUpElement.getWarmUpType()))) {
                     updatedWarmUpElements.add(existingWarmUpElement);
                 }
             }

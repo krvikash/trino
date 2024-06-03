@@ -18,12 +18,12 @@ import com.google.common.eventbus.Subscribe;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.trino.filesystem.Location;
-import io.trino.plugin.warp.VaradaSessionProperties;
+import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.cloudvendors.CloudVendorService;
 import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
 import io.trino.plugin.warp.config.GlobalConfig;
-import io.trino.plugin.warp.di.VaradaInitializedServiceRegistry;
+import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
@@ -33,14 +33,14 @@ import io.trino.plugin.warp.dispatcher.warmup.events.WarmingFinishedEvent;
 import io.trino.plugin.warp.gen.stats.WarmupExportServiceStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.tools.util.StringUtils;
-import io.trino.plugin.warp.util.VaradaInitializedServiceMarker;
+import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
 
 import static io.trino.plugin.warp.dispatcher.warmup.WarmUtils.isImportExportEnabled;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
 public class WarmupExportingService
-        implements VaradaInitializedServiceMarker
+        implements WarpInitializedServiceMarker
 {
     public static final String WARMUP_EXPORTER_STAT_GROUP = "warmup-exporter";
 
@@ -62,7 +62,7 @@ public class WarmupExportingService
             WorkerTaskExecutorService workerTaskExecutorService,
             @ForWarp CloudVendorConfig cloudVendorConfig,
             @ForWarp CloudVendorService cloudVendorService,
-            VaradaInitializedServiceRegistry varadaInitializedServiceRegistry)
+            WarpInitializedServiceRegistry warpInitializedServiceRegistry)
     {
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.warmupElementsCloudExporter = warmupElementsCloudExporter;
@@ -73,7 +73,7 @@ public class WarmupExportingService
         requireNonNull(eventBus).register(this);
         this.statsWarmupExportService = requireNonNull(metricsManager).registerMetric(new WarmupExportServiceStats(WARMUP_EXPORTER_STAT_GROUP));
         if (isImportExportEnabled(globalConfig, cloudVendorConfig, null)) {
-            varadaInitializedServiceRegistry.addService(this);
+            warpInitializedServiceRegistry.addService(this);
             validateS3ImportExportPath();
         }
     }
@@ -83,7 +83,7 @@ public class WarmupExportingService
         if (StringUtils.isEmpty(cloudVendorConfig.getStorePath())) {
             throw new RuntimeException("backup location is not available");
         }
-        String s3ImportExportPath = VaradaSessionProperties.getS3ImportExportPath(null, cloudVendorConfig, cloudVendorService);
+        String s3ImportExportPath = WarpSessionProperties.getS3ImportExportPath(null, cloudVendorConfig, cloudVendorService);
         Location location = cloudVendorService.getLocation(s3ImportExportPath);
         String pathToValidate = s3ImportExportPath.substring(0, s3ImportExportPath.indexOf(location.path()));
         if (!cloudVendorService.directoryExists(pathToValidate)) {
@@ -126,7 +126,7 @@ public class WarmupExportingService
             // mostly for integration test, but maybe it's good to skip in this case in general
             return;
         }
-        String s3ImportExportPath = VaradaSessionProperties.getS3ImportExportPath(
+        String s3ImportExportPath = WarpSessionProperties.getS3ImportExportPath(
                 warmingFinishedEvent.session(),
                 cloudVendorConfig,
                 cloudVendorService);

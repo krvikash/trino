@@ -14,8 +14,8 @@
 package io.trino.plugin.warp.expression.rewrite.worker.warptolucene;
 
 import io.trino.matching.Pattern;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaExpression;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpExpression;
 import io.trino.plugin.warp.expression.rewrite.ExpressionPatterns;
 import io.trino.spi.expression.StandardFunctions;
 import org.apache.lucene.search.BooleanClause;
@@ -23,9 +23,9 @@ import org.apache.lucene.search.BooleanClause;
 import static io.trino.plugin.warp.expression.rewrite.ExpressionPatterns.functionName;
 
 class LogicalOperatorRewriter
-        implements ExpressionRewriter<VaradaCall>
+        implements ExpressionRewriter<WarpCall>
 {
-    private static final Pattern<VaradaCall> PATTERN = ExpressionPatterns.call()
+    private static final Pattern<WarpCall> PATTERN = ExpressionPatterns.call()
             .with(functionName().matching(x -> x.equals(StandardFunctions.AND_FUNCTION_NAME.getName()) ||
                     x.equals(StandardFunctions.OR_FUNCTION_NAME.getName())));
     private final LuceneRulesHandler luceneRulesHandler;
@@ -36,26 +36,26 @@ class LogicalOperatorRewriter
     }
 
     @Override
-    public Pattern<VaradaCall> getPattern()
+    public Pattern<WarpCall> getPattern()
     {
         return PATTERN;
     }
 
-    boolean handleOr(VaradaExpression expression, LuceneRewriteContext context)
+    boolean handleOr(WarpExpression expression, LuceneRewriteContext context)
     {
         return rewrite(expression, context, BooleanClause.Occur.SHOULD);
     }
 
-    boolean handleAnd(VaradaExpression expression, LuceneRewriteContext context)
+    boolean handleAnd(WarpExpression expression, LuceneRewriteContext context)
     {
         return rewrite(expression, context, BooleanClause.Occur.MUST);
     }
 
-    private boolean rewrite(VaradaExpression expression, LuceneRewriteContext context, BooleanClause.Occur occur)
+    private boolean rewrite(WarpExpression expression, LuceneRewriteContext context, BooleanClause.Occur occur)
     {
         LuceneRewriteContext subContext = createContext(context, occur);
         boolean validExpression = false;
-        for (VaradaExpression argumentExpression : expression.getChildren()) {
+        for (WarpExpression argumentExpression : expression.getChildren()) {
             boolean isValid = luceneRulesHandler.rewrite(argumentExpression, subContext);
             if (!isValid && BooleanClause.Occur.SHOULD.equals(occur)) {
                 validExpression = false;

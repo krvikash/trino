@@ -16,7 +16,7 @@ package io.trino.plugin.warp.storage.capacity;
 import io.trino.plugin.warp.TestingTxService;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
-import io.trino.plugin.warp.di.VaradaInitializedServiceRegistry;
+import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import org.apache.commons.io.FileUtils;
@@ -48,7 +48,7 @@ public class WorkerCapacityManagerTest
                 mock(WarmupDemoterConfig.class),
                 mock(StorageEngineConstants.class),
                 mock(NativeStorageStateHandler.class),
-                mock(VaradaInitializedServiceRegistry.class),
+                mock(WarpInitializedServiceRegistry.class),
                 TestingTxService.createMetricsManager());
     }
 

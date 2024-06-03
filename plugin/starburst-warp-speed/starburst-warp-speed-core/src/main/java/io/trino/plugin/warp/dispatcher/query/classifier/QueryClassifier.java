@@ -18,7 +18,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.VaradaSessionProperties;
+import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
@@ -27,9 +27,9 @@ import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.query.MatchCollectIdService;
 import io.trino.plugin.warp.dispatcher.query.QueryContext;
 import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaExpression;
-import io.trino.plugin.warp.expression.VaradaPrimitiveConstant;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpExpression;
+import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
@@ -70,7 +70,7 @@ public class QueryClassifier
 
     public QueryContext classifyCache(ImmutableList<ColumnHandle> projectColumns, Optional<UUID> storeIdOpt, RowGroupData rowGroupData)
     {
-        PredicateContextData predicateContextData = new PredicateContextData(ImmutableMap.of(), VaradaPrimitiveConstant.TRUE);
+        PredicateContextData predicateContextData = new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE);
         QueryContext baseQueryContext = new QueryContext(predicateContextData, projectColumns, connectorSync.getCatalogSequence(), false);
         return classify(baseQueryContext,
                 rowGroupData,
@@ -110,9 +110,9 @@ public class QueryClassifier
             boolean enableInverseWithNulls = false;
             if (session.isPresent()) {
                 //in cacheManager we don't have session
-                minMaxFilter = VaradaSessionProperties.isMinMaxFilter(session.get());
-                mappedMatchCollect = VaradaSessionProperties.getEnabledMappedMatchCollect(session.get());
-                enableInverseWithNulls = VaradaSessionProperties.getEnabledInverseWithNulls(session.get());
+                minMaxFilter = WarpSessionProperties.isMinMaxFilter(session.get());
+                mappedMatchCollect = WarpSessionProperties.getEnabledMappedMatchCollect(session.get());
+                enableInverseWithNulls = WarpSessionProperties.getEnabledInverseWithNulls(session.get());
             }
             WarmedWarmupTypes warmedWarmupTypes = createColumnToWarmUpElementPerType(rowGroupData, storeIdOpt);
             ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
@@ -222,14 +222,14 @@ public class QueryClassifier
         PredicateContextData predicateContextData = predicateContextFactory.create(session,
                 dynamicFilter,
                 dispatcherTableHandle);
-        String matchCollectCatalog = VaradaSessionProperties.getMatchCollectCatalog(session);
+        String matchCollectCatalog = WarpSessionProperties.getMatchCollectCatalog(session);
         boolean enableMatchCollect = (classificationType == ClassificationType.QUERY) &&
-                VaradaSessionProperties.getEnableMatchCollect(session) &&
+                WarpSessionProperties.getEnableMatchCollect(session) &&
                 ((matchCollectCatalog == null) ? (connectorSync.getCatalogSequence() == DEFAULT_CATALOG) : matchCollectCatalog.equals(connectorSync.getCatalogName()));
         if (enableMatchCollect) {
-            VaradaExpression expression = predicateContextData.getRootExpression();
-            if (expression instanceof VaradaCall varadaCall && (varadaCall.getFunctionName().equals(OR_FUNCTION_NAME.getName()) ||
-                    varadaCall.getArguments().stream().anyMatch(x -> x instanceof VaradaCall child && child.getFunctionName().equals(OR_FUNCTION_NAME.getName())))) {
+            WarpExpression expression = predicateContextData.getRootExpression();
+            if (expression instanceof WarpCall warpCall && (warpCall.getFunctionName().equals(OR_FUNCTION_NAME.getName()) ||
+                    warpCall.getArguments().stream().anyMatch(x -> x instanceof WarpCall child && child.getFunctionName().equals(OR_FUNCTION_NAME.getName())))) {
                 //we cannot support match collect together with OR pushdown. In case OR is pushed we must disable match collect for all elements.
                 enableMatchCollect = false;
             }

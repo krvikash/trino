@@ -18,11 +18,11 @@ import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ListMultimap;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.PredicateContext;
 import io.trino.plugin.warp.expression.DomainExpression;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaExpression;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpExpression;
 import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.spi.predicate.SortedRangeSet;
@@ -35,27 +35,27 @@ import static io.trino.plugin.warp.dispatcher.query.classifier.PredicateUtil.isI
 
 public class PredicateContextData
 {
-    private final ImmutableMap<VaradaExpression, PredicateContext> leaves;
+    private final ImmutableMap<WarpExpression, PredicateContext> leaves;
     /**
      * root expression which is a combination of domain and expression with AND between them
      */
-    private final VaradaExpression rootExpression;
+    private final WarpExpression rootExpression;
 
     private final ListMultimap<RegularColumn, PredicateContext> remainingPredicatesByColumn;
 
-    public PredicateContextData(ImmutableMap<VaradaExpression, PredicateContext> leaves,
-            VaradaExpression rootExpression)
+    public PredicateContextData(ImmutableMap<WarpExpression, PredicateContext> leaves,
+            WarpExpression rootExpression)
     {
         this.leaves = leaves;
         this.rootExpression = rootExpression;
         ListMultimap<RegularColumn, PredicateContext> remainingPredicates = ArrayListMultimap.create();
         for (PredicateContext leaf : leaves.values()) {
-            remainingPredicates.put(leaf.getVaradaColumn(), leaf);
+            remainingPredicates.put(leaf.getWarpColumn(), leaf);
         }
         this.remainingPredicatesByColumn = ImmutableListMultimap.copyOf(remainingPredicates);
     }
 
-    VaradaExpression getRootExpression()
+    WarpExpression getRootExpression()
     {
         return rootExpression;
     }
@@ -65,7 +65,7 @@ public class PredicateContextData
         return remainingPredicatesByColumn.keySet();
     }
 
-    public ImmutableMap<VaradaExpression, PredicateContext> getLeaves()
+    public ImmutableMap<WarpExpression, PredicateContext> getLeaves()
     {
         return leaves;
     }
@@ -75,18 +75,18 @@ public class PredicateContextData
         return remainingPredicatesByColumn.get(regularColumn);
     }
 
-    public boolean isLuceneColumn(VaradaColumn varadaColumn)
+    public boolean isLuceneColumn(WarpColumn warpColumn)
     {
         boolean res = false;
         for (PredicateContext predicateContext : leaves.values()) {
-            if (!predicateContext.getVaradaColumn().equals(varadaColumn)) {
+            if (!predicateContext.getWarpColumn().equals(warpColumn)) {
                 continue;
             }
             if (isLuceneExpression(predicateContext)) {
                 res = true;
                 break;
             }
-            else if (predicateContext.getExpression() instanceof VaradaCall &&
+            else if (predicateContext.getExpression() instanceof WarpCall &&
                     (predicateContext.getVaradaExpressionData().getNativeExpressionOptional().isEmpty() ||
                             predicateContext.getVaradaExpressionData().getNativeExpressionOptional().get().predicateType() == PredicateType.PREDICATE_TYPE_STRING_RANGES)) {
                 res = true;

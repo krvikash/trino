@@ -23,8 +23,8 @@ import io.airlift.slice.Slices;
 import io.trino.Session;
 import io.trino.plugin.hive.HiveColumnHandle;
 import io.trino.plugin.hive.HiveTableHandle;
-import io.trino.plugin.warp.VaradaSessionProperties;
 import io.trino.plugin.warp.WarpPlugin;
+import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.api.health.HealthResult;
 import io.trino.plugin.warp.api.warmup.DateSlidingWindowWarmupPredicateRule;
 import io.trino.plugin.warp.api.warmup.PartitionValueWarmupPredicateRule;
@@ -37,7 +37,7 @@ import io.trino.plugin.warp.api.warmup.WarmupRulesUsageData;
 import io.trino.plugin.warp.api.warmup.column.RegularColumnData;
 import io.trino.plugin.warp.api.warmup.column.WildcardColumnData;
 import io.trino.plugin.warp.api.warmup.expression.TransformFunctionData;
-import io.trino.plugin.warp.api.warmup.expression.VaradaPrimitiveConstantData;
+import io.trino.plugin.warp.api.warmup.expression.WarpPrimitiveConstantData;
 import io.trino.plugin.warp.dictionary.DebugDictionaryMetadata;
 import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
@@ -46,17 +46,16 @@ import io.trino.plugin.warp.dispatcher.model.DictionaryState;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.execution.debugtools.WarmupDemoterWarmupElementData;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaConstant;
-import io.trino.plugin.warp.expression.VaradaExpression;
-import io.trino.plugin.warp.expression.VaradaExpressionData;
-import io.trino.plugin.warp.expression.VaradaSliceConstant;
-import io.trino.plugin.warp.expression.VaradaVariable;
-import io.trino.plugin.warp.expression.rewrite.WarpExpression;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpConstant;
+import io.trino.plugin.warp.expression.WarpExpression;
+import io.trino.plugin.warp.expression.WarpExpressionData;
+import io.trino.plugin.warp.expression.WarpSliceConstant;
+import io.trino.plugin.warp.expression.WarpVariable;
 import io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions;
 import io.trino.plugin.warp.extension.execution.debugtools.FailureGeneratorResource;
 import io.trino.plugin.warp.extension.execution.debugtools.PredicateCacheTask;
@@ -125,12 +124,12 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static io.trino.plugin.warp.VaradaSessionProperties.ENABLE_DEFAULT_WARMING;
-import static io.trino.plugin.warp.VaradaSessionProperties.ENABLE_DEFAULT_WARMING_INDEX;
-import static io.trino.plugin.warp.VaradaSessionProperties.ENABLE_MAPPED_MATCH_COLLECT;
-import static io.trino.plugin.warp.VaradaSessionProperties.PREDICATE_SIMPLIFY_THRESHOLD;
-import static io.trino.plugin.warp.VaradaSessionProperties.UNSUPPORTED_FUNCTIONS;
-import static io.trino.plugin.warp.VaradaSessionProperties.UNSUPPORTED_NATIVE_FUNCTIONS;
+import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_DEFAULT_WARMING;
+import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_DEFAULT_WARMING_INDEX;
+import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_MAPPED_MATCH_COLLECT;
+import static io.trino.plugin.warp.WarpSessionProperties.PREDICATE_SIMPLIFY_THRESHOLD;
+import static io.trino.plugin.warp.WarpSessionProperties.UNSUPPORTED_FUNCTIONS;
+import static io.trino.plugin.warp.WarpSessionProperties.UNSUPPORTED_NATIVE_FUNCTIONS;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.HIVE_CONNECTOR_NAME;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
 import static io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory.PREFILLED;
@@ -843,10 +842,10 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 Map.ofEntries(
                         entry("varchar1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL,
                                 new TransformFunctionData(TransformFunctionData.TransformType.JSON_EXTRACT_SCALAR,
-                                        ImmutableList.of(new VaradaPrimitiveConstantData("$.middle", VaradaPrimitiveConstantData.Type.VARCHAR)))))),
+                                        ImmutableList.of(new WarpPrimitiveConstantData("$.middle", WarpPrimitiveConstantData.Type.VARCHAR)))))),
                         entry("varchar2", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL,
                                 new TransformFunctionData(TransformFunctionData.TransformType.JSON_EXTRACT_SCALAR,
-                                        ImmutableList.of(new VaradaPrimitiveConstantData("$.children[1].age", VaradaPrimitiveConstantData.Type.VARCHAR))))))));
+                                        ImmutableList.of(new WarpPrimitiveConstantData("$.children[1].age", WarpPrimitiveConstantData.Type.VARCHAR))))))));
 
         @Language("SQL") String query = "select count(*) from json_test_table " +
                 "where json_extract_scalar(varchar1, '$.middle') = 'K' " +
@@ -2936,8 +2935,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         DispatcherTableHandle table = executeWithTableHandle(getSession(), query);
 
         // Validate the translation to VaradaExpression
-        WarpExpression warpExpression = table.getWarpExpression().orElseThrow();
-        assertThat(warpExpression.varadaExpressionDataLeaves().size()).isEqualTo(2);
+        io.trino.plugin.warp.expression.rewrite.WarpExpression warpExpression = table.getWarpExpression().orElseThrow();
+        assertThat(warpExpression.warpExpressionDataLeaves().size()).isEqualTo(2);
 
         HiveColumnHandle hiveColumnHandle1 = validateLikeExpression(warpExpression.rootExpression().getChildren().get(0), prefixLikePattern);
         HiveColumnHandle hiveColumnHandle2 = validateLikeExpression(warpExpression.rootExpression().getChildren().get(1), suffixLikePattern);
@@ -2986,19 +2985,19 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         assertPredicate(table, null, null, true, Domain.onlyNull(type));
     }
 
-    private HiveColumnHandle validateLikeExpression(VaradaExpression likeExpression, String likePattern)
+    private HiveColumnHandle validateLikeExpression(WarpExpression likeExpression, String likePattern)
     {
-        assertThat(likeExpression).isInstanceOf(VaradaCall.class);
-        VaradaCall likeCall = (VaradaCall) likeExpression;
+        assertThat(likeExpression).isInstanceOf(WarpCall.class);
+        WarpCall likeCall = (WarpCall) likeExpression;
         assertThat(likeCall.getFunctionName()).isEqualTo(LIKE_FUNCTION_NAME.getName());
         assertThat(likeCall.getArguments().size()).isEqualTo(2);
-        assertThat(likeCall.getArguments().get(0)).isInstanceOf(VaradaVariable.class);
-        assertThat(likeCall.getArguments().get(1)).isInstanceOf(VaradaConstant.class);
-        VaradaVariable varadaVariable = (VaradaVariable) likeCall.getArguments().get(0);
-        VaradaConstant likeConstant = (VaradaConstant) likeCall.getArguments().get(1);
+        assertThat(likeCall.getArguments().get(0)).isInstanceOf(WarpVariable.class);
+        assertThat(likeCall.getArguments().get(1)).isInstanceOf(WarpConstant.class);
+        WarpVariable varadaVariable = (WarpVariable) likeCall.getArguments().get(0);
+        WarpConstant likeConstant = (WarpConstant) likeCall.getArguments().get(1);
         HiveColumnHandle hiveColumnHandle = (HiveColumnHandle) varadaVariable.getColumnHandle();
         assertThat(hiveColumnHandle.getBaseColumnName()).isEqualTo(C2);
-        assertThat(likeConstant).isEqualTo(new VaradaSliceConstant(Slices.utf8Slice(likePattern), VarcharType.createVarcharType(likePattern.length())));
+        assertThat(likeConstant).isEqualTo(new WarpSliceConstant(Slices.utf8Slice(likePattern), VarcharType.createVarcharType(likePattern.length())));
         return hiveColumnHandle;
     }
 
@@ -3996,9 +3995,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 .forEach(warmUpTypePair -> {
                     WarmUpElement warmupElement = warmUpElements.stream()
                             .filter(warmUpElement -> {
-                                VaradaColumn varadaColumn = warmUpElement.getVaradaColumn();
-                                return varadaColumn instanceof RegularColumn &&
-                                        varadaColumn.getName().equals(warmUpTypePair.getKey()) &&
+                                WarpColumn warpColumn = warmUpElement.getWarpColumn();
+                                return warpColumn instanceof RegularColumn &&
+                                        warpColumn.getName().equals(warmUpTypePair.getKey()) &&
                                         warmUpElement.getWarmUpType().name().equals(warmUpTypePair.getValue().name());
                             })
                             .findFirst()
@@ -4097,9 +4096,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 .forEach(warmUpTypePair -> {
                     WarmUpElement warmupElement = warmUpElements.stream()
                             .filter(warmUpElement -> {
-                                VaradaColumn varadaColumn = warmUpElement.getVaradaColumn();
-                                return varadaColumn instanceof RegularColumn &&
-                                        varadaColumn.getName().equals(warmUpTypePair.getKey()) &&
+                                WarpColumn warpColumn = warmUpElement.getWarpColumn();
+                                return warpColumn instanceof RegularColumn &&
+                                        warpColumn.getName().equals(warmUpTypePair.getKey()) &&
                                         warmUpElement.getWarmUpType().name().equals(warmUpTypePair.getValue().name());
                             })
                             .findFirst()
@@ -4203,7 +4202,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         }
 
         session = Session.builder(getSession())
-                .setSystemProperty(catalog + "." + VaradaSessionProperties.ENABLE_MAPPED_MATCH_COLLECT, "true")
+                .setSystemProperty(catalog + "." + WarpSessionProperties.ENABLE_MAPPED_MATCH_COLLECT, "true")
                 .build();
 
         for (@Language("SQL") String query : mapSupportedQueries) {
@@ -4332,14 +4331,14 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                     .isEmpty();
         }
         if (columnName != null) {
-            Map<RegularColumn, VaradaExpressionData> varadaExpressions = table.getWarpExpression().orElseThrow().varadaExpressionDataLeaves().stream().collect(Collectors.toMap(VaradaExpressionData::getVaradaColumn, Function.identity()));
-            VaradaExpressionData varadaExpressionData = varadaExpressions.get(new RegularColumn(columnName));
-            assertThat(varadaExpressionData.isCollectNulls()).isEqualTo(collectNulls);
+            Map<RegularColumn, WarpExpressionData> varadaExpressions = table.getWarpExpression().orElseThrow().warpExpressionDataLeaves().stream().collect(Collectors.toMap(WarpExpressionData::getWarpColumn, Function.identity()));
+            WarpExpressionData warpExpressionData = varadaExpressions.get(new RegularColumn(columnName));
+            assertThat(warpExpressionData.isCollectNulls()).isEqualTo(collectNulls);
             if (functionName != null) {
-                validateFunctionNameExistInExpression(varadaExpressionData.getExpression(), functionName);
+                validateFunctionNameExistInExpression(warpExpressionData.getExpression(), functionName);
             }
             else {
-                assertThat(varadaExpressionData.getExpression() instanceof VaradaConstant).isTrue();
+                assertThat(warpExpressionData.getExpression() instanceof WarpConstant).isTrue();
             }
         }
         else {
@@ -4347,15 +4346,15 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         }
     }
 
-    private boolean validateFunctionNameExistInExpression(VaradaExpression varadaExpression, String functionName)
+    private boolean validateFunctionNameExistInExpression(WarpExpression warpExpression, String functionName)
     {
         boolean result = false;
-        if (varadaExpression instanceof VaradaCall callExpression) {
+        if (warpExpression instanceof WarpCall callExpression) {
             if (callExpression.getFunctionName().equals(functionName)) {
                 result = true;
             }
             else {
-                for (VaradaExpression expression : callExpression.getArguments()) {
+                for (WarpExpression expression : callExpression.getArguments()) {
                     result |= validateFunctionNameExistInExpression(expression, functionName);
                 }
             }

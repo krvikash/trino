@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.warp.dispatcher;
 
-import io.trino.plugin.warp.VaradaErrorCode;
+import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.passthrough.DispatcherProxiedConnectorColumnTransformer;
@@ -60,7 +60,7 @@ public interface DispatcherProxiedConnectorTransformer
     {
         Node node = connectorSplitNodeDistributor.getNode(splitKey);
         if (Objects.isNull(node)) {
-            throw new TrinoException(VaradaErrorCode.VARADA_CLUSTER_NOT_READY, "no worker nodes available");
+            throw new TrinoException(WarpErrorCode.VARADA_CLUSTER_NOT_READY, "no worker nodes available");
         }
         return Collections.singletonList(node.getHostAndPort());
     }

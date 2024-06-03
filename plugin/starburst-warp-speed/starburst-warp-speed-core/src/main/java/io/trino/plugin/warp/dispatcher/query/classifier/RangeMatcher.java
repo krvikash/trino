@@ -19,13 +19,13 @@ import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.trino.plugin.warp.config.GlobalConfig;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.PredicateContext;
 import io.trino.plugin.warp.dispatcher.query.data.match.BasicQueryMatchData;
 import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
 import io.trino.plugin.warp.expression.NativeExpression;
-import io.trino.plugin.warp.expression.VaradaExpressionData;
+import io.trino.plugin.warp.expression.WarpExpressionData;
 import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.spi.predicate.Domain;
@@ -73,8 +73,8 @@ public class RangeMatcher
 
         WarmedWarmupTypes allWarmupElements = classifyArgs.getWarmedWarmupTypes();
 
-        Map<VaradaColumn, PredicateContext> varadaColumnPredicateContextMap = matchContext.remainingPredicateContext();
-        for (Map.Entry<VaradaColumn, PredicateContext> remaining : varadaColumnPredicateContextMap.entrySet()) {
+        Map<WarpColumn, PredicateContext> warpColumnPredicateContextMap = matchContext.remainingPredicateContext();
+        for (Map.Entry<WarpColumn, PredicateContext> remaining : warpColumnPredicateContextMap.entrySet()) {
             PredicateContext context = remaining.getValue();
             Domain domain = context.getDomain();
             Type type = context.getColumnType();
@@ -84,7 +84,7 @@ public class RangeMatcher
                     warmUpElement.get().getRecTypeCode().isSupportedFiltering() &&
                     warmUpElement.get().getWarmupElementStats().isInitialized() &&
                     isNotFunction(context.getVaradaExpressionData()) &&
-                    !warmUpElement.get().getVaradaColumn().isTransformedColumn() &&
+                    !warmUpElement.get().getWarpColumn().isTransformedColumn() &&
                     domain.getValues() instanceof SortedRangeSet sortedRangeSet &&
                     !(sortedRangeSet.isAll() || sortedRangeSet.isNone()) &&
                     (!domain.isNullAllowed() || warmUpElement.get().getWarmupElementStats().getNullsCount() == 0)) {
@@ -122,18 +122,18 @@ public class RangeMatcher
         return matchContext;
     }
 
-    private boolean isNotFunction(VaradaExpressionData expressionData)
+    private boolean isNotFunction(WarpExpressionData expressionData)
     {
         Optional<NativeExpression> nativeExpression = expressionData.getNativeExpressionOptional();
         return nativeExpression.isPresent() &&
                 nativeExpression.get().functionType() == FunctionType.FUNCTION_TYPE_NONE;
     }
 
-    private Optional<WarmUpElement> findColumnInWarmupElements(VaradaColumn column, WarmedWarmupTypes allWarmupElements)
+    private Optional<WarmUpElement> findColumnInWarmupElements(WarpColumn column, WarmedWarmupTypes allWarmupElements)
     {
-        ImmutableListMultimap<VaradaColumn, WarmUpElement> basicWarmupElements = allWarmupElements.basicWarmedElements();
-        ImmutableMap<VaradaColumn, WarmUpElement> dataWarmupElements = allWarmupElements.dataWarmedElements();
-        ImmutableMap<VaradaColumn, WarmUpElement> luceneWarmupElements = allWarmupElements.luceneWarmedElements();
+        ImmutableListMultimap<WarpColumn, WarmUpElement> basicWarmupElements = allWarmupElements.basicWarmedElements();
+        ImmutableMap<WarpColumn, WarmUpElement> dataWarmupElements = allWarmupElements.dataWarmedElements();
+        ImmutableMap<WarpColumn, WarmUpElement> luceneWarmupElements = allWarmupElements.luceneWarmedElements();
 
         Optional<WarmUpElement> element;
         if (luceneWarmupElements.containsKey(column)) {
@@ -141,7 +141,7 @@ public class RangeMatcher
         }
         else {
             element = basicWarmupElements.get(column).stream()
-                    .filter(elem -> !elem.getVaradaColumn().isTransformedColumn())
+                    .filter(elem -> !elem.getWarpColumn().isTransformedColumn())
                     .findFirst();
             if (element.isEmpty()) {
                 element = Optional.ofNullable(dataWarmupElements.get(column));

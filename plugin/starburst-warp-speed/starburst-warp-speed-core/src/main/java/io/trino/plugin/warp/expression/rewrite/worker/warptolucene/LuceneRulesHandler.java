@@ -17,8 +17,8 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.SetMultimap;
 import io.trino.matching.Pattern;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaExpression;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpExpression;
 
 import java.util.Set;
 import java.util.function.BiFunction;
@@ -73,18 +73,18 @@ public class LuceneRulesHandler
         luceneRules.put(GREATER_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME.getName(), new FunctionRewriter(luceneGeneralRewriter.getPattern(), luceneGeneralRewriter::greatThanOrEqual));
     }
 
-    public boolean rewrite(VaradaExpression varadaExpression,
+    public boolean rewrite(WarpExpression warpExpression,
             LuceneRewriteContext context)
     {
-        if (!(varadaExpression instanceof VaradaCall)) {
+        if (!(warpExpression instanceof WarpCall)) {
             return false;
         }
-        String functionName = ((VaradaCall) varadaExpression).getFunctionName();
+        String functionName = ((WarpCall) warpExpression).getFunctionName();
         Set<FunctionRewriter> varadaExpressionRules = luceneRules.get(functionName);
         boolean isValid = false;
         for (FunctionRewriter rule : varadaExpressionRules) {
-            if (rule.pattern().matches(varadaExpression, null)) {
-                isValid = rule.rewriteCallback().apply(varadaExpression, context);
+            if (rule.pattern().matches(warpExpression, null)) {
+                isValid = rule.rewriteCallback().apply(warpExpression, context);
                 break;
             }
         }
@@ -92,6 +92,6 @@ public class LuceneRulesHandler
     }
 
     private record FunctionRewriter(
-            @SuppressWarnings("unused") Pattern<VaradaCall> pattern,
-            @SuppressWarnings("unused") BiFunction<VaradaExpression, LuceneRewriteContext, Boolean> rewriteCallback) {}
+            @SuppressWarnings("unused") Pattern<WarpCall> pattern,
+            @SuppressWarnings("unused") BiFunction<WarpExpression, LuceneRewriteContext, Boolean> rewriteCallback) {}
 }

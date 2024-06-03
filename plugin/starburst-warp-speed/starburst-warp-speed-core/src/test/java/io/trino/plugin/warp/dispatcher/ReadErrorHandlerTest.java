@@ -15,15 +15,15 @@ package io.trino.plugin.warp.dispatcher;
 
 import com.google.common.collect.ImmutableList;
 import io.trino.plugin.warp.TestingTxService;
-import io.trino.plugin.warp.VaradaErrorCode;
+import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.dal.RowGroupDataDao;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.QueryContext;
 import io.trino.plugin.warp.dispatcher.query.data.collect.NativeQueryCollectData;
 import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
@@ -83,7 +83,7 @@ class ReadErrorHandlerTest
     @Test
     public void testHandle_UnrecoverableError()
     {
-        TrinoException trinoException = new TrinoException(VaradaErrorCode.VARADA_NATIVE_UNRECOVERABLE_ERROR, "error message");
+        TrinoException trinoException = new TrinoException(WarpErrorCode.VARADA_NATIVE_UNRECOVERABLE_ERROR, "error message");
         WarmUpElement failedElement = mock(WarmUpElement.class);
         RowGroupKey rowGroupKey = mock(RowGroupKey.class);
         List<ColumnHandle> warmedColumnHandleList = mockColumns(List.of(Pair.of("c1", VarcharType.VARCHAR)));
@@ -105,7 +105,7 @@ class ReadErrorHandlerTest
     @Test
     public void testHandle_ReadOutOfBoundsError()
     {
-        TrinoException trinoException = new TrinoException(VaradaErrorCode.VARADA_NATIVE_READ_OUT_OF_BOUNDS, "error message");
+        TrinoException trinoException = new TrinoException(WarpErrorCode.VARADA_NATIVE_READ_OUT_OF_BOUNDS, "error message");
         WarmUpElement failedElement = createWarmupElement(new RegularColumn("c1"));
         RowGroupKey rowGroupKey = mock(RowGroupKey.class);
         List<ColumnHandle> warmedColumnHandleList = mockColumns(List.of(Pair.of("c1", IntegerType.INTEGER)));
@@ -139,10 +139,10 @@ class ReadErrorHandlerTest
         return nativeQueryCollectData;
     }
 
-    private WarmUpElement createWarmupElement(VaradaColumn columnName)
+    private WarmUpElement createWarmupElement(WarpColumn columnName)
     {
         return WarmUpElement.builder()
-                .varadaColumn(columnName)
+                .warpColumn(columnName)
                 .recTypeCode(RecTypeCode.REC_TYPE_INTEGER)
                 .warmUpType(WarmUpType.WARM_UP_TYPE_DATA)
                 .warmupElementStats(new WarmupElementStats(1, -100, 100))

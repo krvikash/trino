@@ -16,11 +16,11 @@ package io.trino.plugin.warp.expression.rewrite.worker.warptolucene;
 import io.airlift.slice.Slice;
 import io.trino.matching.Pattern;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaConstant;
-import io.trino.plugin.warp.expression.VaradaExpression;
-import io.trino.plugin.warp.expression.VaradaSliceConstant;
-import io.trino.plugin.warp.expression.VaradaVariable;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpConstant;
+import io.trino.plugin.warp.expression.WarpExpression;
+import io.trino.plugin.warp.expression.WarpSliceConstant;
+import io.trino.plugin.warp.expression.WarpVariable;
 import io.trino.plugin.warp.expression.rewrite.ExpressionPatterns;
 import io.trino.spi.predicate.Range;
 import io.trino.spi.type.Type;
@@ -39,12 +39,12 @@ import static io.trino.plugin.warp.storage.lucene.LuceneQueryUtils.createPrefixQ
 import static io.trino.plugin.warp.storage.lucene.LuceneQueryUtils.createRangeQuery;
 
 class GeneralRewriter
-        implements ExpressionRewriter<VaradaCall>
+        implements ExpressionRewriter<WarpCall>
 {
-    private static final Pattern<VaradaCall> PATTERN = ExpressionPatterns.call()
+    private static final Pattern<WarpCall> PATTERN = ExpressionPatterns.call()
             .with(argumentCount().equalTo(2))
-            .with(argument(0).matching(x -> x instanceof VaradaVariable))
-            .with(argument(1).matching(x -> x instanceof VaradaSliceConstant));
+            .with(argument(0).matching(x -> x instanceof WarpVariable))
+            .with(argument(1).matching(x -> x instanceof WarpSliceConstant));
 
     private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
 
@@ -54,27 +54,27 @@ class GeneralRewriter
     }
 
     @Override
-    public Pattern<VaradaCall> getPattern()
+    public Pattern<WarpCall> getPattern()
     {
         return PATTERN;
     }
 
-    boolean handleLike(VaradaExpression expression, LuceneRewriteContext context)
+    boolean handleLike(WarpExpression expression, LuceneRewriteContext context)
     {
         return rewrite(expression, context, (value, type) -> createLikeQuery(value));
     }
 
-    public boolean handleContains(VaradaExpression expression, LuceneRewriteContext context)
+    public boolean handleContains(WarpExpression expression, LuceneRewriteContext context)
     {
         return rewrite(expression, context, (value, type) -> createContainsQuery(value));
     }
 
-    boolean handleStartsWith(VaradaExpression expression, LuceneRewriteContext context)
+    boolean handleStartsWith(WarpExpression expression, LuceneRewriteContext context)
     {
         return rewrite(expression, context, (value, type) -> createPrefixQuery(value));
     }
 
-    boolean handleNotEqual(VaradaExpression expression, LuceneRewriteContext context)
+    boolean handleNotEqual(WarpExpression expression, LuceneRewriteContext context)
     {
         return rewrite(expression, context, (value, type) -> {
             Query lessThan = createRangeQuery(Range.lessThan(type, value));
@@ -86,43 +86,43 @@ class GeneralRewriter
         });
     }
 
-    boolean handleEqual(VaradaExpression expression, LuceneRewriteContext context)
+    boolean handleEqual(WarpExpression expression, LuceneRewriteContext context)
     {
         return rewrite(expression, context, (value, type) -> createRangeQuery(Range.equal(type, value)));
     }
 
-    boolean handleLessThan(VaradaExpression expression, LuceneRewriteContext context)
+    boolean handleLessThan(WarpExpression expression, LuceneRewriteContext context)
     {
         return rewrite(expression, context, (value, type) -> createRangeQuery(Range.lessThan(type, value)));
     }
 
-    boolean handleLessThanOrEqual(VaradaExpression expression, LuceneRewriteContext context)
+    boolean handleLessThanOrEqual(WarpExpression expression, LuceneRewriteContext context)
     {
         return rewrite(expression, context, (value, type) -> createRangeQuery(Range.lessThanOrEqual(type, value)));
     }
 
-    boolean greateThan(VaradaExpression expression, LuceneRewriteContext context)
+    boolean greateThan(WarpExpression expression, LuceneRewriteContext context)
     {
         return rewrite(expression, context, (value, type) -> createRangeQuery(Range.greaterThan(type, value)));
     }
 
-    boolean greatThanOrEqual(VaradaExpression expression, LuceneRewriteContext context)
+    boolean greatThanOrEqual(WarpExpression expression, LuceneRewriteContext context)
     {
         return rewrite(expression, context, (value, type) -> createRangeQuery(Range.greaterThanOrEqual(type, value)));
     }
 
-    private boolean rewrite(VaradaExpression expression, LuceneRewriteContext context, BiFunction<Slice, Type, Query> queryFunction)
+    private boolean rewrite(WarpExpression expression, LuceneRewriteContext context, BiFunction<Slice, Type, Query> queryFunction)
     {
-        Type type = getType((VaradaVariable) expression.getChildren().get(0));
-        VaradaConstant varadaConstant = (VaradaConstant) expression.getChildren().get(1);
-        checkArgument(varadaConstant instanceof VaradaSliceConstant, "%s is not VaradaSliceConstant", varadaConstant);
+        Type type = getType((WarpVariable) expression.getChildren().get(0));
+        WarpConstant varadaConstant = (WarpConstant) expression.getChildren().get(1);
+        checkArgument(varadaConstant instanceof WarpSliceConstant, "%s is not VaradaSliceConstant", varadaConstant);
         Slice value = ((Slice) varadaConstant.getValue());
         Query query = queryFunction.apply(value, type);
         context.queryBuilder().add(query, context.occur());
         return true;
     }
 
-    private Type getType(VaradaVariable varadaVariable)
+    private Type getType(WarpVariable varadaVariable)
     {
         return dispatcherProxiedConnectorTransformer.getColumnType(varadaVariable.getColumnHandle());
     }

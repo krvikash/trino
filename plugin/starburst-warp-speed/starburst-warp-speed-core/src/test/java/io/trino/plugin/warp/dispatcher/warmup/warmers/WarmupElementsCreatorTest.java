@@ -23,9 +23,9 @@ import io.trino.plugin.warp.dispatcher.model.RecordData;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.model.SchemaTableColumn;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WarmupProperties;
 import io.trino.plugin.warp.expression.TransformFunction;
@@ -86,7 +86,7 @@ public class WarmupElementsCreatorTest
                 Pair.of(medium, IntegerType.INTEGER),
                 Pair.of(low, IntegerType.INTEGER)));
 
-        SetMultimap<VaradaColumn, WarmupProperties> warmupProperties = HashMultimap.create();
+        SetMultimap<WarpColumn, WarmupProperties> warmupProperties = HashMultimap.create();
         warmupProperties.putAll(
                 new RegularColumn(high),
                 Set.of(new WarmupProperties(WARM_UP_TYPE_DATA, 3, 0, TransformFunction.NONE)));
@@ -106,7 +106,7 @@ public class WarmupElementsCreatorTest
                 WarmUpElement.builder()
                         .recTypeCode(REC_TYPE_INTEGER)
                         .recTypeLength(4)
-                        .varadaColumn(new RegularColumn(medium))
+                        .warpColumn(new RegularColumn(medium))
                         .warmUpType(WARM_UP_TYPE_DATA)
                         .exportState(ExportState.NOT_EXPORTED)
                         .state(WarmUpElementState.VALID)
@@ -115,7 +115,7 @@ public class WarmupElementsCreatorTest
                 WarmUpElement.builder()
                         .recTypeCode(REC_TYPE_INTEGER)
                         .recTypeLength(4)
-                        .varadaColumn(new RegularColumn(high))
+                        .warpColumn(new RegularColumn(high))
                         .warmUpType(WARM_UP_TYPE_DATA)
                         .exportState(ExportState.NOT_EXPORTED)
                         .state(WarmUpElementState.VALID)
@@ -124,7 +124,7 @@ public class WarmupElementsCreatorTest
                 WarmUpElement.builder()
                         .recTypeCode(REC_TYPE_INTEGER)
                         .recTypeLength(4)
-                        .varadaColumn(new RegularColumn(low))
+                        .warpColumn(new RegularColumn(low))
                         .warmUpType(WARM_UP_TYPE_DATA)
                         .exportState(ExportState.NOT_EXPORTED)
                         .state(WarmUpElementState.VALID)
@@ -148,7 +148,7 @@ public class WarmupElementsCreatorTest
                 Pair.of(medium, IntegerType.INTEGER),
                 Pair.of(high, IntegerType.INTEGER)));
 
-        SetMultimap<VaradaColumn, WarmupProperties> warmupProperties = HashMultimap.create();
+        SetMultimap<WarpColumn, WarmupProperties> warmupProperties = HashMultimap.create();
         warmupProperties.putAll(
                 new RegularColumn(medium),
                 Set.of(new WarmupProperties(WARM_UP_TYPE_DATA, 2, 0, TransformFunction.NONE),
@@ -173,7 +173,7 @@ public class WarmupElementsCreatorTest
                 WarmUpElement.builder()
                         .recTypeCode(REC_TYPE_INTEGER)
                         .recTypeLength(4)
-                        .varadaColumn(new RegularColumn(medium))
+                        .warpColumn(new RegularColumn(medium))
                         .warmUpType(WARM_UP_TYPE_LUCENE)
                         .exportState(ExportState.NOT_EXPORTED)
                         .state(WarmUpElementState.VALID)
@@ -182,7 +182,7 @@ public class WarmupElementsCreatorTest
                 WarmUpElement.builder()
                         .recTypeCode(REC_TYPE_INTEGER)
                         .recTypeLength(4)
-                        .varadaColumn(new RegularColumn(medium))
+                        .warpColumn(new RegularColumn(medium))
                         .warmUpType(WARM_UP_TYPE_DATA)
                         .exportState(ExportState.NOT_EXPORTED)
                         .state(WarmUpElementState.VALID)
@@ -191,7 +191,7 @@ public class WarmupElementsCreatorTest
                 WarmUpElement.builder()
                         .recTypeCode(REC_TYPE_INTEGER)
                         .recTypeLength(4)
-                        .varadaColumn(new RegularColumn(medium))
+                        .warpColumn(new RegularColumn(medium))
                         .warmUpType(WARM_UP_TYPE_BASIC)
                         .exportState(ExportState.NOT_EXPORTED)
                         .state(WarmUpElementState.VALID)
@@ -200,7 +200,7 @@ public class WarmupElementsCreatorTest
                 WarmUpElement.builder()
                         .recTypeCode(REC_TYPE_INTEGER)
                         .recTypeLength(4)
-                        .varadaColumn(new RegularColumn(high))
+                        .warpColumn(new RegularColumn(high))
                         .warmUpType(WARM_UP_TYPE_DATA)
                         .exportState(ExportState.NOT_EXPORTED)
                         .state(WarmUpElementState.VALID)
@@ -209,7 +209,7 @@ public class WarmupElementsCreatorTest
                 WarmUpElement.builder()
                         .recTypeCode(REC_TYPE_INTEGER)
                         .recTypeLength(4)
-                        .varadaColumn(new RegularColumn(low))
+                        .warpColumn(new RegularColumn(low))
                         .warmUpType(WARM_UP_TYPE_DATA)
                         .exportState(ExportState.NOT_EXPORTED)
                         .warmupElementStats(WarmupElementStats.UNINITIALIZED)
@@ -227,7 +227,7 @@ public class WarmupElementsCreatorTest
                 Pair.of(medium, JsonType.JSON), // json type is not supported
                 Pair.of(high, IntegerType.INTEGER)));
 
-        SetMultimap<VaradaColumn, WarmupProperties> warmupProperties = HashMultimap.create();
+        SetMultimap<WarpColumn, WarmupProperties> warmupProperties = HashMultimap.create();
         warmupProperties.putAll(
                 new RegularColumn(medium),
                 Set.of(new WarmupProperties(WARM_UP_TYPE_DATA, 2, 0, TransformFunction.NONE),
@@ -252,7 +252,7 @@ public class WarmupElementsCreatorTest
                 WarmUpElement.builder()
                         .recTypeCode(REC_TYPE_INTEGER)
                         .recTypeLength(4)
-                        .varadaColumn(new RegularColumn(high))
+                        .warpColumn(new RegularColumn(high))
                         .warmUpType(WARM_UP_TYPE_DATA)
                         .exportState(ExportState.NOT_EXPORTED)
                         .state(WarmUpElementState.VALID)
@@ -261,7 +261,7 @@ public class WarmupElementsCreatorTest
                 WarmUpElement.builder()
                         .recTypeCode(REC_TYPE_INTEGER)
                         .recTypeLength(4)
-                        .varadaColumn(new RegularColumn(low))
+                        .warpColumn(new RegularColumn(low))
                         .warmUpType(WARM_UP_TYPE_DATA)
                         .exportState(ExportState.NOT_EXPORTED)
                         .warmupElementStats(WarmupElementStats.UNINITIALIZED)
@@ -276,14 +276,14 @@ public class WarmupElementsCreatorTest
         Type columnType = IntegerType.INTEGER;
         List<Pair<String, Type>> columnsMetadata = List.of(Pair.of(columnName, columnType));
         List<ColumnHandle> columnHandles = mockColumns(columnsMetadata);
-        List<VaradaColumn> varadaColumns = createRegularColumns(
+        List<WarpColumn> warpColumns = createRegularColumns(
                 columnHandles,
                 dispatcherProxiedConnectorTransformer);
 
         List<RecordData> recordDataList = warmupElementsCreator.getRecordData(
                 schemaTableName,
                 columnHandles,
-                Set.copyOf(varadaColumns));
+                Set.copyOf(warpColumns));
 
         RecordData expectedRecordData = new RecordData(
                 new SchemaTableColumn(schemaTableName, columnName),

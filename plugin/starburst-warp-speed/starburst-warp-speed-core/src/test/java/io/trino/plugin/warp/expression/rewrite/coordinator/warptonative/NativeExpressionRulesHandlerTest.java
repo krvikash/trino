@@ -19,11 +19,11 @@ import io.trino.plugin.warp.TestingTxService;
 import io.trino.plugin.warp.connector.TestingConnectorColumnHandle;
 import io.trino.plugin.warp.expression.NativeExpression;
 import io.trino.plugin.warp.expression.TransformFunction;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaExpression;
-import io.trino.plugin.warp.expression.VaradaPrimitiveConstant;
-import io.trino.plugin.warp.expression.VaradaSliceConstant;
-import io.trino.plugin.warp.expression.VaradaVariable;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpExpression;
+import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
+import io.trino.plugin.warp.expression.WarpSliceConstant;
+import io.trino.plugin.warp.expression.WarpVariable;
 import io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions;
 import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.PredicateType;
@@ -165,8 +165,8 @@ class NativeExpressionRulesHandlerTest
     @Test
     public void failedRewriteExpression()
     {
-        VaradaExpression invalidVaradaExpression = new VaradaCall(CEIL.getName(), List.of(createExpectedVariable(doubleVariable1)), BOOLEAN);
-        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(invalidVaradaExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
+        WarpExpression invalidWarpExpression = new WarpCall(CEIL.getName(), List.of(createExpectedVariable(doubleVariable1)), BOOLEAN);
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(invalidWarpExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
         assertThat(result).isEqualTo(Optional.empty());
         assertPushdownStatsSum(1);
         PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
@@ -179,11 +179,11 @@ class NativeExpressionRulesHandlerTest
     @Test
     public void testVaradaExpressionIsNanWithEqual()
     {
-        VaradaExpression varadaExpression = new VaradaCall(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
-                List.of(new VaradaCall(IS_NAN.getName(),
+        WarpExpression warpExpression = new WarpCall(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(new WarpCall(IS_NAN.getName(),
                                 List.of(createExpectedVariable(doubleVariable1)), BOOLEAN),
-                        VaradaPrimitiveConstant.FALSE), BOOLEAN);
-        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(varadaExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
+                        WarpPrimitiveConstant.FALSE), BOOLEAN);
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
         assertThat(result).isEqualTo(Optional.empty());
         assertPushdownStatsSum(1);
         PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
@@ -196,7 +196,7 @@ class NativeExpressionRulesHandlerTest
     @Test
     public void testVaradaExpressionIsNan()
     {
-        VaradaExpression varadaExpression = new VaradaCall(IS_NAN.getName(), List.of(createExpectedVariable(doubleVariable1)), BOOLEAN);
+        WarpExpression warpExpression = new WarpCall(IS_NAN.getName(), List.of(createExpectedVariable(doubleVariable1)), BOOLEAN);
         Range range = Range.equal(BOOLEAN, true);
         Domain domain = Domain.create(ValueSet.ofRanges(range), false);
         NativeExpression expectedResult = new NativeExpression(PREDICATE_TYPE_VALUES,
@@ -205,7 +205,7 @@ class NativeExpressionRulesHandlerTest
                 false,
                 false,
                 Collections.emptyList(), TransformFunction.NONE);
-        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(varadaExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
         assertThat(result).isEqualTo(Optional.of(expectedResult));
         assertPushdownStatsSum(0);
     }
@@ -218,11 +218,11 @@ class NativeExpressionRulesHandlerTest
     {
         MapType mapType = new MapType(VarcharType.VARCHAR, VarcharType.VARCHAR, new TypeOperators());
         TestingConnectorColumnHandle columnHandle = new TestingConnectorColumnHandle(mapType, "mapColumn");
-        VaradaVariable varadaVariable = new VaradaVariable(columnHandle, mapType);
-        VaradaSliceConstant sliceConstant = new VaradaSliceConstant(Slices.utf8Slice("val1"), VarcharType.VARCHAR);
-        VaradaExpression varadaExpression = new VaradaCall(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
-                List.of(new VaradaCall(ELEMENT_AT.getName(),
-                                List.of(varadaVariable, new VaradaSliceConstant(Slices.utf8Slice("key1"), mapType)),
+        WarpVariable varadaVariable = new WarpVariable(columnHandle, mapType);
+        WarpSliceConstant sliceConstant = new WarpSliceConstant(Slices.utf8Slice("val1"), VarcharType.VARCHAR);
+        WarpExpression warpExpression = new WarpCall(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(new WarpCall(ELEMENT_AT.getName(),
+                                List.of(varadaVariable, new WarpSliceConstant(Slices.utf8Slice("key1"), mapType)),
                                 BOOLEAN),
                         sliceConstant),
                 BOOLEAN);
@@ -233,8 +233,8 @@ class NativeExpressionRulesHandlerTest
                 true,
                 Collections.emptyList(),
                 new TransformFunction(TransformFunction.TransformType.ELEMENT_AT,
-                        List.of(new VaradaSliceConstant(Slices.utf8Slice("key1"), mapType))));
-        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(varadaExpression, mapType, Collections.emptySet(), customStats);
+                        List.of(new WarpSliceConstant(Slices.utf8Slice("key1"), mapType))));
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, mapType, Collections.emptySet(), customStats);
         assertThat(result.orElseThrow()).isEqualTo(expectedResult);
     }
 
@@ -245,11 +245,11 @@ class NativeExpressionRulesHandlerTest
     void testJsonExtractScalarExpression()
     {
         TestingConnectorColumnHandle columnHandle = new TestingConnectorColumnHandle(VarcharType.VARCHAR, "varcharCol");
-        VaradaVariable varadaVariable = new VaradaVariable(columnHandle, VarcharType.VARCHAR);
-        VaradaSliceConstant sliceConstant = new VaradaSliceConstant(Slices.utf8Slice("12.345678"), VarcharType.VARCHAR);
-        VaradaExpression varadaExpression = new VaradaCall(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
-                List.of(new VaradaCall(SupportedFunctions.JSON_EXTRACT_SCALAR.getName(),
-                                List.of(varadaVariable, new VaradaSliceConstant(Slices.utf8Slice("$.number"), VarcharType.VARCHAR)),
+        WarpVariable varadaVariable = new WarpVariable(columnHandle, VarcharType.VARCHAR);
+        WarpSliceConstant sliceConstant = new WarpSliceConstant(Slices.utf8Slice("12.345678"), VarcharType.VARCHAR);
+        WarpExpression warpExpression = new WarpCall(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(new WarpCall(SupportedFunctions.JSON_EXTRACT_SCALAR.getName(),
+                                List.of(varadaVariable, new WarpSliceConstant(Slices.utf8Slice("$.number"), VarcharType.VARCHAR)),
                                 BOOLEAN),
                         sliceConstant),
                 BOOLEAN);
@@ -260,8 +260,8 @@ class NativeExpressionRulesHandlerTest
                 true,
                 Collections.emptyList(),
                 new TransformFunction(TransformFunction.TransformType.JSON_EXTRACT_SCALAR,
-                        List.of(new VaradaPrimitiveConstant("$.number", VarcharType.VARCHAR))));
-        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(varadaExpression, VarcharType.VARCHAR, Collections.emptySet(), customStats);
+                        List.of(new WarpPrimitiveConstant("$.number", VarcharType.VARCHAR))));
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, VarcharType.VARCHAR, Collections.emptySet(), customStats);
         assertThat(result.orElseThrow()).isEqualTo(expectedResult);
     }
 
@@ -271,11 +271,11 @@ class NativeExpressionRulesHandlerTest
     @Test
     public void testUnsupportedExpression()
     {
-        VaradaExpression varadaExpression = new VaradaCall(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
-                List.of(new VaradaCall("unsupported",
+        WarpExpression warpExpression = new WarpCall(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(new WarpCall("unsupported",
                                 List.of(createExpectedVariable(doubleVariable1)), BOOLEAN),
-                        VaradaPrimitiveConstant.FALSE), BOOLEAN);
-        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(varadaExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
+                        WarpPrimitiveConstant.FALSE), BOOLEAN);
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
         assertThat(result).isEmpty();
         assertPushdownStatsSum(1);
         PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
@@ -288,11 +288,11 @@ class NativeExpressionRulesHandlerTest
             Range expectedRange,
             PredicateType expectedPredicateType)
     {
-        VaradaExpression varadaExpression = new VaradaCall(functionName.getName(),
-                List.of(new VaradaCall(CEIL.getName(),
+        WarpExpression warpExpression = new WarpCall(functionName.getName(),
+                List.of(new WarpCall(CEIL.getName(),
                                 List.of(createExpectedVariable(doubleVariable1)),
                                 BOOLEAN),
-                        new VaradaPrimitiveConstant(5D, DoubleType.DOUBLE)), BOOLEAN);
+                        new WarpPrimitiveConstant(5D, DoubleType.DOUBLE)), BOOLEAN);
         ValueSet valueSet = ValueSet.ofRanges(expectedRange);
         Domain domain = Domain.create(valueSet, false);
         NativeExpression expectedResult = new NativeExpression(expectedPredicateType,
@@ -301,7 +301,7 @@ class NativeExpressionRulesHandlerTest
                 false,
                 false,
                 Collections.emptyList(), TransformFunction.NONE);
-        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(varadaExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
         assertThat(result).isEqualTo(Optional.of(expectedResult));
         assertPushdownStatsSum(0);
     }
@@ -312,13 +312,13 @@ class NativeExpressionRulesHandlerTest
     @Test
     public void testDomainAlreadySet()
     {
-        VaradaExpression varadaExpression = new VaradaCall(EQUAL_OPERATOR_FUNCTION_NAME.getName(),
-                List.of(new VaradaCall(GREATER_THAN_OPERATOR_FUNCTION_NAME.getName(),
-                                List.of(new VaradaCall(CEIL.getName(),
+        WarpExpression warpExpression = new WarpCall(EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(new WarpCall(GREATER_THAN_OPERATOR_FUNCTION_NAME.getName(),
+                                List.of(new WarpCall(CEIL.getName(),
                                                 List.of(createExpectedVariable(doubleVariable1)), BOOLEAN),
-                                        new VaradaPrimitiveConstant(5L, IntegerType.INTEGER)), BOOLEAN),
-                        new VaradaPrimitiveConstant(false, BOOLEAN)), BOOLEAN);
-        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(varadaExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
+                                        new WarpPrimitiveConstant(5L, IntegerType.INTEGER)), BOOLEAN),
+                        new WarpPrimitiveConstant(false, BOOLEAN)), BOOLEAN);
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
         assertThat(result).isEmpty();
         PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
         assertPushdownStatsSum(1);
@@ -336,11 +336,11 @@ class NativeExpressionRulesHandlerTest
         Slice slice = Slices.utf8Slice(stringValue);
         Variable columnType = realVariable;
         ColumnHandle realColumn = assignments.get(columnType.getName());
-        VaradaCall expectedCastCall = new VaradaCall(CAST_FUNCTION_NAME.getName(),
-                List.of(new VaradaVariable(realColumn, columnType.getType())),
+        WarpCall expectedCastCall = new WarpCall(CAST_FUNCTION_NAME.getName(),
+                List.of(new WarpVariable(realColumn, columnType.getType())),
                 VarcharType.VARCHAR);
-        VaradaCall varadaExpression = new VaradaCall(operator.getName(),
-                List.of(expectedCastCall, new VaradaSliceConstant(slice, VarcharType.VARCHAR)),
+        WarpCall varadaExpression = new WarpCall(operator.getName(),
+                List.of(expectedCastCall, new WarpSliceConstant(slice, VarcharType.VARCHAR)),
                 BOOLEAN);
 
         Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(varadaExpression, columnType.getType(), Collections.emptySet(), customStats);
@@ -362,11 +362,11 @@ class NativeExpressionRulesHandlerTest
         Slice slice = RealOperators.castToVarchar(varcharType.getLength().orElse(VarcharType.UNBOUNDED_LENGTH), intBits);
         Variable columnType = realVariable;
         ColumnHandle realColumn = assignments.get(columnType.getName());
-        VaradaCall castCall = new VaradaCall(CAST_FUNCTION_NAME.getName(),
-                List.of(new VaradaVariable(realColumn, columnType.getType())),
+        WarpCall castCall = new WarpCall(CAST_FUNCTION_NAME.getName(),
+                List.of(new WarpVariable(realColumn, columnType.getType())),
                 varcharType);
-        VaradaCall varadaExpression = new VaradaCall(EQUAL_OPERATOR_FUNCTION_NAME.getName(),
-                List.of(castCall, new VaradaSliceConstant(slice, varcharType)),
+        WarpCall varadaExpression = new WarpCall(EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(castCall, new WarpSliceConstant(slice, varcharType)),
                 BOOLEAN);
 
         Domain domain = Domain.singleValue(RealType.REAL, intBits);
@@ -391,11 +391,11 @@ class NativeExpressionRulesHandlerTest
     public void testCastDoubleToReal(FunctionName functionName, Domain domain)
     {
         ColumnHandle doubleColumn = assignments.get(doubleVariable1.getName());
-        VaradaCall expectedCastCall = new VaradaCall(CAST_FUNCTION_NAME.getName(),
-                List.of(new VaradaVariable(doubleColumn, doubleVariable1.getType())),
+        WarpCall expectedCastCall = new WarpCall(CAST_FUNCTION_NAME.getName(),
+                List.of(new WarpVariable(doubleColumn, doubleVariable1.getType())),
                 RealType.REAL);
-        VaradaCall varadaExpression = new VaradaCall(functionName.getName(),
-                List.of(expectedCastCall, new VaradaPrimitiveConstant(5L, RealType.REAL)),
+        WarpCall varadaExpression = new WarpCall(functionName.getName(),
+                List.of(expectedCastCall, new WarpPrimitiveConstant(5L, RealType.REAL)),
                 BOOLEAN);
 
         PredicateType expectedPredicateType;
@@ -416,9 +416,9 @@ class NativeExpressionRulesHandlerTest
         assertPushdownStatsSum(0);
     }
 
-    private VaradaVariable createExpectedVariable(Variable variable)
+    private WarpVariable createExpectedVariable(Variable variable)
     {
-        return new VaradaVariable(assignments.get(variable.getName()), variable.getType());
+        return new WarpVariable(assignments.get(variable.getName()), variable.getType());
     }
 
     private void assertPushdownStatsSum(int expectedCount)

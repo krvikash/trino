@@ -22,7 +22,7 @@ import io.trino.plugin.warp.CoordinatorNodeManager;
 import io.trino.plugin.warp.api.health.HealthNode;
 import io.trino.plugin.warp.api.health.HealthResult;
 import io.trino.plugin.warp.config.GlobalConfig;
-import io.trino.plugin.warp.execution.VaradaClient;
+import io.trino.plugin.warp.execution.WarpClient;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
 import io.trino.plugin.warp.util.UriUtils;
@@ -59,16 +59,16 @@ public class ClusterHealthTask
 
     private final CoordinatorNodeManager coordinatorNodeManager;
     private final GlobalConfig globalConfig;
-    private final VaradaClient varadaClient;
+    private final WarpClient warpClient;
 
     @Inject
     public ClusterHealthTask(CoordinatorNodeManager coordinatorNodeManager,
             GlobalConfig globalConfig,
-            VaradaClient varadaClient)
+            WarpClient warpClient)
     {
         this.coordinatorNodeManager = requireNonNull(coordinatorNodeManager);
         this.globalConfig = requireNonNull(globalConfig);
-        this.varadaClient = requireNonNull(varadaClient);
+        this.warpClient = requireNonNull(warpClient);
     }
 
     @SuppressWarnings("unused")
@@ -83,7 +83,7 @@ public class ClusterHealthTask
         long totalCapacityMB = workers.stream()
                 .parallel()
                 .map(node -> {
-                    HttpUriBuilder uriBuilder = varadaClient.getRestEndpoint(UriUtils.getHttpUri(node));
+                    HttpUriBuilder uriBuilder = warpClient.getRestEndpoint(UriUtils.getHttpUri(node));
                     uriBuilder.appendPath(HEALTH_PATH).appendPath(HealthTask.TASK_NAME);
                     Request request = prepareGet()
                             .setUri(uriBuilder.build())
@@ -92,7 +92,7 @@ public class ClusterHealthTask
 
                     long totalCapacity = 0;
                     try {
-                        HealthResult healthResult = varadaClient.sendWithRetry(request, createFullJsonResponseHandler(HEALTH_RESULT_CODEC));
+                        HealthResult healthResult = warpClient.sendWithRetry(request, createFullJsonResponseHandler(HEALTH_RESULT_CODEC));
                         healthNodes.add(new HealthNode(healthResult.getCreateEpochTime(), node.getNodeIdentifier(), UriUtils.getHttpUri(node).toString(), "UP"));
                         totalCapacity = healthResult.getTotalCapacityMB();
                     }

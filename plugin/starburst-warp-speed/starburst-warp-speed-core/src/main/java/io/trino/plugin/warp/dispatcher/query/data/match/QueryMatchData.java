@@ -14,8 +14,8 @@
 package io.trino.plugin.warp.dispatcher.query.data.match;
 
 import com.google.common.collect.ImmutableList;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.data.QueryColumn;
 import io.trino.plugin.warp.juffer.PredicateCacheData;
 import io.trino.spi.predicate.Domain;
@@ -57,7 +57,7 @@ public abstract class QueryMatchData
         this.leaves = ImmutableList.of(this);
     }
 
-    public abstract boolean canMatchCollect(VaradaColumn varadaColumn);
+    public abstract boolean canMatchCollect(WarpColumn warpColumn);
 
     public abstract boolean canMapMatchCollect();
 
@@ -213,9 +213,9 @@ public abstract class QueryMatchData
         }
 
         @Override
-        public Builder varadaColumn(VaradaColumn varadaColumn)
+        public Builder warpColumn(WarpColumn warpColumn)
         {
-            super.varadaColumn(varadaColumn);
+            super.warpColumn(warpColumn);
             return this;
         }
 

@@ -16,10 +16,10 @@ package io.trino.plugin.warp.expression.rewrite.coordinator.warptonative;
 import io.airlift.slice.Slice;
 import io.trino.matching.Pattern;
 import io.trino.plugin.warp.expression.NativeExpression;
-import io.trino.plugin.warp.expression.VaradaCall;
-import io.trino.plugin.warp.expression.VaradaConstant;
-import io.trino.plugin.warp.expression.VaradaExpression;
-import io.trino.plugin.warp.expression.VaradaVariable;
+import io.trino.plugin.warp.expression.WarpCall;
+import io.trino.plugin.warp.expression.WarpConstant;
+import io.trino.plugin.warp.expression.WarpExpression;
+import io.trino.plugin.warp.expression.WarpVariable;
 import io.trino.plugin.warp.expression.rewrite.ExpressionPatterns;
 import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.PredicateType;
@@ -47,10 +47,10 @@ import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static java.util.Objects.requireNonNull;
 
 class InNativeRewriter
-        implements ExpressionRewriter<VaradaCall>
+        implements ExpressionRewriter<WarpCall>
 
 {
-    private static final Pattern<VaradaCall> PATTERN = ExpressionPatterns.call()
+    private static final Pattern<WarpCall> PATTERN = ExpressionPatterns.call()
             .with(ExpressionPatterns.functionName().equalTo(IN_PREDICATE_FUNCTION_NAME.getName()))
             .with(ExpressionPatterns.type().equalTo(BOOLEAN))
             .with(ExpressionPatterns.argumentCount().equalTo(2))
@@ -65,16 +65,16 @@ class InNativeRewriter
     }
 
     @Override
-    public Pattern<VaradaCall> getPattern()
+    public Pattern<WarpCall> getPattern()
     {
         return PATTERN;
     }
 
-    boolean convertIn(VaradaExpression varadaExpression, RewriteContext rewriteContext)
+    boolean convertIn(WarpExpression warpExpression, RewriteContext rewriteContext)
     {
-        VaradaExpression child0 = varadaExpression.getChildren().get(0);
+        WarpExpression child0 = warpExpression.getChildren().get(0);
         boolean validValue;
-        if (child0 instanceof VaradaVariable) {
+        if (child0 instanceof WarpVariable) {
             rewriteContext.nativeExpressionBuilder().functionType(FunctionType.FUNCTION_TYPE_NONE);
             validValue = true;
         }
@@ -84,7 +84,7 @@ class InNativeRewriter
         if (!validValue) {
             return false;
         }
-        List<? extends VaradaExpression> inConstantValues = varadaExpression.getChildren().get(1).getChildren();
+        List<? extends WarpExpression> inConstantValues = warpExpression.getChildren().get(1).getChildren();
         if (inConstantValues.isEmpty()) {
             return false;
         }
@@ -92,7 +92,7 @@ class InNativeRewriter
         Type domainType;
         List<Object> functionParams = Collections.emptyList();
         try {
-            Function<VaradaConstant, Optional<Range>> convertToRangeFunc;
+            Function<WarpConstant, Optional<Range>> convertToRangeFunc;
             NativeExpression.Builder nativeExpressionBuilder = rewriteContext.nativeExpressionBuilder();
             Type columnType = rewriteContext.columnType();
             if (columnType instanceof MapType mapType) {
@@ -133,8 +133,8 @@ class InNativeRewriter
                 }
             }
             List<Range> ranges = new ArrayList<>();
-            for (VaradaExpression value : inConstantValues) {
-                Optional<Range> range = convertToRangeFunc.apply((VaradaConstant) value);
+            for (WarpExpression value : inConstantValues) {
+                Optional<Range> range = convertToRangeFunc.apply((WarpConstant) value);
                 range.ifPresent(ranges::add);
             }
             Domain domain;
@@ -151,7 +151,7 @@ class InNativeRewriter
                     .functionParams(functionParams);
         }
         catch (Exception e) {
-            logger.debug("failed to convertInFunction. error=%s, varadaExpression=%s", e, varadaExpression);
+            logger.debug("failed to convertInFunction. error=%s, varadaExpression=%s", e, warpExpression);
             pushdownPredicatesStats.incunsupported_functions_native();
             valid = false;
         }

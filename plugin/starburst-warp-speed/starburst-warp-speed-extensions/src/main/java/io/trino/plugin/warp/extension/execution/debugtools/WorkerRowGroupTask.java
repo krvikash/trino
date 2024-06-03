@@ -17,8 +17,8 @@ import com.google.inject.Inject;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.model.TransformedColumn;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.execution.debugtools.DebugToolResult;
 import io.trino.plugin.warp.extension.execution.TaskResource;
@@ -91,13 +91,13 @@ public class WorkerRowGroupTask
                         .filter(WarmUpElement::isHot)
                         .forEach(warmUpElement -> {
                             RowGroupKey rowGroupKey = rowGroupData.getRowGroupKey();
-                            VaradaColumn varadaColumn = warmUpElement.getVaradaColumn();
+                            WarpColumn warpColumn = warmUpElement.getWarpColumn();
                             String name;
-                            if (varadaColumn instanceof TransformedColumn transformedColumn) {
+                            if (warpColumn instanceof TransformedColumn transformedColumn) {
                                 name = transformedColumn.getTransformedName();
                             }
                             else {
-                                name = varadaColumn.getName();
+                                name = warpColumn.getName();
                             }
                             String key = rowGroupKey.schema() + "." + rowGroupKey.table() + "." + name + "." + warmUpElement.getWarmUpType();
                             columnNames.add(key);

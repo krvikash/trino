@@ -14,7 +14,7 @@
 package io.trino.plugin.warp.dispatcher;
 
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
-import io.trino.plugin.warp.expression.VaradaCall;
+import io.trino.plugin.warp.expression.WarpCall;
 import io.trino.plugin.warp.expression.rewrite.WarpExpression;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.predicate.TupleDomain;
@@ -54,7 +54,7 @@ public class DispatcherTableHandleBuilderProviderTest
                 TupleDomain.none(),
                 simplifiedColumns,
                 mock(ConnectorTableHandle.class),
-                Optional.of(new WarpExpression(new VaradaCall("func", emptyList(), IntegerType.INTEGER), emptyList())),
+                Optional.of(new WarpExpression(new WarpCall("func", emptyList(), IntegerType.INTEGER), emptyList())),
                 List.of(new CustomStat("stat", 1)),
                 true);
 

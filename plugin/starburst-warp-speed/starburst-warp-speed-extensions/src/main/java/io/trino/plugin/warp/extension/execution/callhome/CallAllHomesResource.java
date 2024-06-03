@@ -27,7 +27,7 @@ import io.airlift.json.JsonCodec;
 import io.trino.plugin.warp.CoordinatorNodeManager;
 import io.trino.plugin.warp.annotation.Audit;
 import io.trino.plugin.warp.config.GlobalConfig;
-import io.trino.plugin.warp.execution.VaradaClient;
+import io.trino.plugin.warp.execution.WarpClient;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
 import io.trino.plugin.warp.util.UriUtils;
@@ -61,17 +61,17 @@ public class CallAllHomesResource
 
     private final CoordinatorNodeManager coordinatorNodeManager;
     private final GlobalConfig globalConfig;
-    private final VaradaClient varadaClient;
+    private final WarpClient warpClient;
 
     @Inject
     public CallAllHomesResource(
             CoordinatorNodeManager coordinatorNodeManager,
             GlobalConfig globalConfig,
-            VaradaClient varadaClient)
+            WarpClient warpClient)
     {
         this.coordinatorNodeManager = requireNonNull(coordinatorNodeManager);
         this.globalConfig = requireNonNull(globalConfig);
-        this.varadaClient = requireNonNull(varadaClient);
+        this.warpClient = requireNonNull(warpClient);
     }
 
     @POST
@@ -82,7 +82,7 @@ public class CallAllHomesResource
         List<Node> workerNodes = coordinatorNodeManager.getWorkerNodes();
         Map<String, HttpResponseFuture<JsonResponse<Void>>> allFutures = new HashMap<>();
         workerNodes.forEach(node -> {
-            HttpUriBuilder uriBuilder = varadaClient.getRestEndpoint(UriUtils.getHttpUri(node));
+            HttpUriBuilder uriBuilder = warpClient.getRestEndpoint(UriUtils.getHttpUri(node));
             uriBuilder.appendPath(CALL_HOME_PATH);
 
             Request request = Request.Builder.preparePost()
@@ -90,11 +90,11 @@ public class CallAllHomesResource
                     .setHeader("Content-Type", "application/json")
                     .setBodyGenerator(JsonBodyGenerator.jsonBodyGenerator(callHomeDataJsonCodec, callHomeData))
                     .build();
-            allFutures.put(node.getNodeIdentifier(), varadaClient.executeAsync(request, FullJsonResponseHandler.createFullJsonResponseHandler(VaradaClient.VOID_RESULTS_CODEC)));
+            allFutures.put(node.getNodeIdentifier(), warpClient.executeAsync(request, FullJsonResponseHandler.createFullJsonResponseHandler(WarpClient.VOID_RESULTS_CODEC)));
         });
 
         if (!globalConfig.getIsSingle()) {
-            HttpUriBuilder uriBuilder = varadaClient.getRestEndpoint(UriUtils.getHttpUri(coordinatorNodeManager.getCoordinatorNode()));
+            HttpUriBuilder uriBuilder = warpClient.getRestEndpoint(UriUtils.getHttpUri(coordinatorNodeManager.getCoordinatorNode()));
             uriBuilder.appendPath(CALL_HOME_PATH);
 
             Request request = Request.Builder.preparePost()
@@ -102,7 +102,7 @@ public class CallAllHomesResource
                     .setHeader("Content-Type", "application/json")
                     .setBodyGenerator(JsonBodyGenerator.jsonBodyGenerator(callHomeDataJsonCodec, callHomeData))
                     .build();
-            allFutures.put(coordinatorNodeManager.getCoordinatorNode().getNodeIdentifier(), varadaClient.executeAsync(request, FullJsonResponseHandler.createFullJsonResponseHandler(VaradaClient.VOID_RESULTS_CODEC)));
+            allFutures.put(coordinatorNodeManager.getCoordinatorNode().getNodeIdentifier(), warpClient.executeAsync(request, FullJsonResponseHandler.createFullJsonResponseHandler(WarpClient.VOID_RESULTS_CODEC)));
         }
 
         ListenableFuture<List<JsonResponse<Void>>> waitingFuture = Futures.allAsList(allFutures.values());

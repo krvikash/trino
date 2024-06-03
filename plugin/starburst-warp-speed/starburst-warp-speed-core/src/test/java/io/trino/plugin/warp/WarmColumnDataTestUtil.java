@@ -20,8 +20,8 @@ import io.trino.plugin.warp.dispatcher.model.DictionaryState;
 import io.trino.plugin.warp.dispatcher.model.RecordData;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.SchemaTableColumn;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
@@ -48,7 +48,7 @@ public class WarmColumnDataTestUtil
                 .warmUpType(warmUpType)
                 .recTypeCode(recordData.recTypeCode())
                 .recTypeLength(recordData.recTypeLength())
-                .varadaColumn(recordData.schemaTableColumn().varadaColumn())
+                .warpColumn(recordData.schemaTableColumn().warpColumn())
                 .dictionaryInfo(dictionaryInfo)
                 .warmupElementStats(WarmupElementStats.UNINITIALIZED)
                 .build();
@@ -65,12 +65,12 @@ public class WarmColumnDataTestUtil
         return generateRecordData(new RegularColumn(columnName), type);
     }
 
-    public static RecordData generateRecordData(VaradaColumn varadaColumn, Type type)
+    public static RecordData generateRecordData(WarpColumn warpColumn, Type type)
     {
         int varcharMaxLen = 7 * 8192;
         int recTypeLength = TypeUtils.getTypeLength(type, varcharMaxLen);
         RecTypeCode recTypeCode = TypeUtils.convertToRecTypeCode(type, recTypeLength, 8);
-        SchemaTableColumn schemaTableColumn = new SchemaTableColumn(new SchemaTableName("SCHEMA", "TABLE"), varadaColumn);
+        SchemaTableColumn schemaTableColumn = new SchemaTableColumn(new SchemaTableName("SCHEMA", "TABLE"), warpColumn);
 
         return new RecordData(schemaTableColumn, type, recTypeCode, recTypeLength);
     }

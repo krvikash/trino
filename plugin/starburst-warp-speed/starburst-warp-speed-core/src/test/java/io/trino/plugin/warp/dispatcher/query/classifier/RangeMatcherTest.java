@@ -18,13 +18,13 @@ import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.TransformedColumn;
-import io.trino.plugin.warp.dispatcher.model.VaradaColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.PredicateContext;
 import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
 import io.trino.plugin.warp.expression.NativeExpression;
 import io.trino.plugin.warp.expression.TransformFunction;
-import io.trino.plugin.warp.expression.VaradaExpressionData;
+import io.trino.plugin.warp.expression.WarpExpressionData;
 import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
@@ -77,7 +77,7 @@ class RangeMatcherTest
         when(queryMatchData.getWarmUpElement()).thenReturn(warmUpElement);
         when(warmUpElement.getWarmupElementStats()).thenReturn(warmupElementStats);
         rangeMatcher = new RangeMatcher(new GlobalConfig());
-        Map<VaradaColumn, PredicateContext> remainingPredicateContext = Map.of(new RegularColumn("remainingColumn"), mock(PredicateContext.class));
+        Map<WarpColumn, PredicateContext> remainingPredicateContext = Map.of(new RegularColumn("remainingColumn"), mock(PredicateContext.class));
         MatchContext matchContext = new MatchContext(List.of(queryMatchData), remainingPredicateContext, true);
 
         MatchContext res = rangeMatcher.match(classifyArgs, matchContext);
@@ -109,7 +109,7 @@ class RangeMatcherTest
         when(warmUpElement.getRecTypeCode()).thenReturn(RecTypeCode.REC_TYPE_INTEGER);
         WarmupElementStats warmupElementStats = new WarmupElementStats(1, 1, 100);
         when(queryMatchData.getWarmUpElement()).thenReturn(warmUpElement);
-        when(warmUpElement.getVaradaColumn()).thenReturn(new RegularColumn("aaa"));
+        when(warmUpElement.getWarpColumn()).thenReturn(new RegularColumn("aaa"));
         when(warmUpElement.getWarmupElementStats()).thenReturn(warmupElementStats);
 
         RegularColumn column = new RegularColumn("remainingColumn");
@@ -121,18 +121,18 @@ class RangeMatcherTest
 
         Optional<NativeExpression> nativeExpression = Optional.of(mock(NativeExpression.class));
         when(nativeExpression.orElseThrow().functionType()).thenReturn(FunctionType.FUNCTION_TYPE_NONE);
-        VaradaExpressionData expressionData = mock(VaradaExpressionData.class);
+        WarpExpressionData expressionData = mock(WarpExpressionData.class);
         when(expressionData.getNativeExpressionOptional()).thenReturn(nativeExpression);
         when(context.getVaradaExpressionData()).thenReturn(expressionData);
 
         WarmedWarmupTypes warmupTypes = mock(WarmedWarmupTypes.class);
-        ImmutableListMultimap<VaradaColumn, WarmUpElement> basicWarmUpElements = ImmutableListMultimap.of(column, warmUpElement);
+        ImmutableListMultimap<WarpColumn, WarmUpElement> basicWarmUpElements = ImmutableListMultimap.of(column, warmUpElement);
         when(warmupTypes.basicWarmedElements()).thenReturn(basicWarmUpElements);
         when(warmupTypes.luceneWarmedElements()).thenReturn(ImmutableMap.of());
         when(classifyArgs.getWarmedWarmupTypes()).thenReturn(warmupTypes);
 
         rangeMatcher = new RangeMatcher(new GlobalConfig());
-        Map<VaradaColumn, PredicateContext> remainingPredicateContext = Map.of(column, context);
+        Map<WarpColumn, PredicateContext> remainingPredicateContext = Map.of(column, context);
         MatchContext matchContext = new MatchContext(List.of(queryMatchData), remainingPredicateContext, true);
 
         MatchContext res = rangeMatcher.match(classifyArgs, matchContext);
@@ -155,7 +155,7 @@ class RangeMatcherTest
         when(warmUpElement.getRecTypeCode()).thenReturn(RecTypeCode.REC_TYPE_INTEGER);
         WarmupElementStats warmupElementStats = new WarmupElementStats(1, 1, 100);
         when(queryMatchData.getWarmUpElement()).thenReturn(warmUpElement);
-        when(warmUpElement.getVaradaColumn()).thenReturn(new RegularColumn("aaa"));
+        when(warmUpElement.getWarpColumn()).thenReturn(new RegularColumn("aaa"));
         when(warmUpElement.getWarmupElementStats()).thenReturn(warmupElementStats);
 
         RegularColumn column = new RegularColumn("remainingColumn");
@@ -167,20 +167,20 @@ class RangeMatcherTest
 
         Optional<NativeExpression> nativeExpression = Optional.of(mock(NativeExpression.class));
         when(nativeExpression.orElseThrow().functionType()).thenReturn(FunctionType.FUNCTION_TYPE_NONE);
-        VaradaExpressionData expressionData = mock(VaradaExpressionData.class);
+        WarpExpressionData expressionData = mock(WarpExpressionData.class);
         when(expressionData.getNativeExpressionOptional()).thenReturn(nativeExpression);
         when(context.getVaradaExpressionData()).thenReturn(expressionData);
 
         WarmedWarmupTypes warmupTypes = mock(WarmedWarmupTypes.class);
-        ImmutableListMultimap<VaradaColumn, WarmUpElement> basicWarmUpElements = ImmutableListMultimap.of();
+        ImmutableListMultimap<WarpColumn, WarmUpElement> basicWarmUpElements = ImmutableListMultimap.of();
         when(warmupTypes.basicWarmedElements()).thenReturn(basicWarmUpElements);
-        ImmutableMap<VaradaColumn, WarmUpElement> dataElements = ImmutableMap.of(column, warmUpElement);
+        ImmutableMap<WarpColumn, WarmUpElement> dataElements = ImmutableMap.of(column, warmUpElement);
         when(warmupTypes.dataWarmedElements()).thenReturn(dataElements);
         when(warmupTypes.luceneWarmedElements()).thenReturn(ImmutableMap.of());
         when(classifyArgs.getWarmedWarmupTypes()).thenReturn(warmupTypes);
 
         rangeMatcher = new RangeMatcher(new GlobalConfig());
-        Map<VaradaColumn, PredicateContext> remainingPredicateContext = Map.of(column, context);
+        Map<WarpColumn, PredicateContext> remainingPredicateContext = Map.of(column, context);
         MatchContext matchContext = new MatchContext(List.of(queryMatchData), remainingPredicateContext, true);
 
         MatchContext res = rangeMatcher.match(classifyArgs, matchContext);
@@ -205,10 +205,10 @@ class RangeMatcherTest
         when(queryMatchData.getWarmUpElement()).thenReturn(warmUpElement);
         TransformFunction func = new TransformFunction(TransformFunction.TransformType.LOWER);
         TransformedColumn transformedColumn = new TransformedColumn("remainingColumn", "remainingColumn", func);
-        when(warmUpElement.getVaradaColumn()).thenReturn(transformedColumn);
+        when(warmUpElement.getWarpColumn()).thenReturn(transformedColumn);
 
         WarmedWarmupTypes warmupTypes = mock(WarmedWarmupTypes.class);
-        ImmutableListMultimap<VaradaColumn, WarmUpElement> basicWarmUpElements = ImmutableListMultimap.of(transformedColumn, warmUpElement);
+        ImmutableListMultimap<WarpColumn, WarmUpElement> basicWarmUpElements = ImmutableListMultimap.of(transformedColumn, warmUpElement);
         when(warmupTypes.basicWarmedElements()).thenReturn(basicWarmUpElements);
         when(warmupTypes.dataWarmedElements()).thenReturn(ImmutableMap.of());
 
@@ -217,7 +217,7 @@ class RangeMatcherTest
 
         PredicateContext context = mock(PredicateContext.class);
         rangeMatcher = new RangeMatcher(new GlobalConfig());
-        Map<VaradaColumn, PredicateContext> remainingPredicateContext = Map.of(transformedColumn, context);
+        Map<WarpColumn, PredicateContext> remainingPredicateContext = Map.of(transformedColumn, context);
         MatchContext matchContext = new MatchContext(List.of(queryMatchData), remainingPredicateContext, true);
 
         MatchContext res = rangeMatcher.match(classifyArgs, matchContext);

@@ -193,7 +193,7 @@ class PredicateBufferClassifier
                 // Since this is an edge case and a better solution is not simple, just rollback the prefill creation - to avoid bugs.
                 queryContext.getPrefilledQueryCollectDataByBlockIndex()
                         .entrySet().stream()
-                        .filter(entry -> entry.getValue().getVaradaColumn().equals(queryMatchData.getVaradaColumn()))
+                        .filter(entry -> entry.getValue().getWarpColumn().equals(queryMatchData.getWarpColumn()))
                         .forEach(entry -> {
                             int blockIndex = entry.getKey();
                             newPrefilledQueryCollectDataByBlockIndex.remove(blockIndex);

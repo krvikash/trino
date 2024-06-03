@@ -354,11 +354,11 @@ public class DictionariesCache
     {
         return cache.asMap().values().stream().collect(Collectors.toMap(
                 x -> new DebugDictionaryKey(x.getDictionaryKey().schemaTableColumn().schemaTableName(),
-                        x.getDictionaryKey().schemaTableColumn().varadaColumn().getName(),
+                        x.getDictionaryKey().schemaTableColumn().warpColumn().getName(),
                         x.getDictionaryKey().nodeIdentifier()),
                 x ->
                         new DebugDictionaryMetadata(new DebugDictionaryKey(x.getDictionaryKey().schemaTableColumn().schemaTableName(),
-                                x.getDictionaryKey().schemaTableColumn().varadaColumn().getName(),
+                                x.getDictionaryKey().schemaTableColumn().warpColumn().getName(),
                                 x.getDictionaryKey().nodeIdentifier()),
                                 x.getWriteSize(),
                                 getFailedWriteCount(x.getDictionaryKey()))));
@@ -482,7 +482,7 @@ public class DictionariesCache
         return cache.asMap().entrySet().stream()
                 .collect(Collectors.toMap(e -> format("%s.%s",
                         e.getKey().schemaTableColumn().schemaTableName(),
-                        e.getKey().schemaTableColumn().varadaColumn().getName()), e -> e.getValue().getDictionaryWeight()));
+                        e.getKey().schemaTableColumn().warpColumn().getName()), e -> e.getValue().getDictionaryWeight()));
     }
 
     private record DictionaryCacheConfig(

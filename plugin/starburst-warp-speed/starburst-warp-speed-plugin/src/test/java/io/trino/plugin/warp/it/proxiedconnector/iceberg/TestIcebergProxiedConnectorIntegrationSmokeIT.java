@@ -24,7 +24,7 @@ import io.trino.plugin.warp.api.warmup.WarmUpType;
 import io.trino.plugin.warp.api.warmup.WarmupColRuleData;
 import io.trino.plugin.warp.api.warmup.WarmupPropertiesData;
 import io.trino.plugin.warp.api.warmup.column.RegularColumnData;
-import io.trino.plugin.warp.di.VaradaStubsStorageEngineModule;
+import io.trino.plugin.warp.di.WarpStubsStorageEngineModule;
 import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
 import io.trino.plugin.warp.extension.execution.warmup.WarmupTask;
 import io.trino.plugin.warp.it.DispatcherQueryRunner;
@@ -48,7 +48,7 @@ import java.util.OptionalInt;
 import java.util.Set;
 import java.util.stream.IntStream;
 
-import static io.trino.plugin.warp.VaradaSessionProperties.ENABLE_DEFAULT_WARMING;
+import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_DEFAULT_WARMING;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.ICEBERG_CONNECTOR_NAME;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
 import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP_SERVER_PORT;
@@ -67,7 +67,7 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        QueryRunner queryRunner = DispatcherQueryRunner.createQueryRunner(new VaradaStubsStorageEngineModule(),
+        QueryRunner queryRunner = DispatcherQueryRunner.createQueryRunner(new WarpStubsStorageEngineModule(),
                 Optional.empty(),
                 numNodes,
                 Collections.emptyMap(),

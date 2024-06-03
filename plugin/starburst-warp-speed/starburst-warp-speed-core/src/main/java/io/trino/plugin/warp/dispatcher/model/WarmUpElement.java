@@ -30,7 +30,7 @@ import static java.util.Objects.requireNonNull;
 @JsonDeserialize(builder = WarmUpElement.Builder.class)
 public class WarmUpElement
 {
-    public static final String VARADA_COLUMN = "varadaColumn";
+    public static final String VARADA_COLUMN = "warpColumn";
     public static final String WARM_UP_TYPE = "warmUpType";
     public static final String STORE_ID = "storeId";
 
@@ -55,7 +55,7 @@ public class WarmUpElement
 
     public static final String TOTAL_RECORDS = "total_records";
 
-    private final VaradaColumn varadaColumn;
+    private final WarpColumn warpColumn;
     private final WarmUpType warmUpType;
     private final RecTypeCode recTypeCode;
     private final int recTypeLength;
@@ -84,7 +84,7 @@ public class WarmUpElement
     private final UUID storeId;
 
     private WarmUpElement(
-            VaradaColumn varadaColumn,
+            WarpColumn warpColumn,
             WarmUpType warmUpType,
             RecTypeCode recTypeCode,
             int recTypeLength,
@@ -107,7 +107,7 @@ public class WarmUpElement
             long creationTime,
             long firstUsedTimestamp)
     {
-        this.varadaColumn = requireNonNull(varadaColumn);
+        this.warpColumn = requireNonNull(warpColumn);
         this.warmUpType = requireNonNull(warmUpType);
         this.recTypeCode = recTypeCode;
         this.recTypeLength = recTypeLength;
@@ -135,7 +135,7 @@ public class WarmUpElement
     public static Builder builder(WarmUpElement warmUpElement)
     {
         return new Builder()
-                .varadaColumn(warmUpElement.getVaradaColumn())
+                .warpColumn(warmUpElement.getWarpColumn())
                 .warmUpType(warmUpElement.getWarmUpType())
                 .recTypeCode(warmUpElement.getRecTypeCode())
                 .recTypeLength(warmUpElement.getRecTypeLength())
@@ -166,9 +166,9 @@ public class WarmUpElement
     }
 
     @JsonProperty(VARADA_COLUMN)
-    public VaradaColumn getVaradaColumn()
+    public WarpColumn getWarpColumn()
     {
-        return varadaColumn;
+        return warpColumn;
     }
 
     @JsonProperty(WARM_UP_TYPE)
@@ -252,7 +252,7 @@ public class WarmUpElement
     @JsonIgnore
     public boolean isSameColNameAndWarmUpType(WarmUpElement other)
     {
-        return varadaColumn.equals(other.getVaradaColumn()) && warmUpType.equals(other.getWarmUpType());
+        return warpColumn.equals(other.getWarpColumn()) && warmUpType.equals(other.getWarmUpType());
     }
 
     @JsonIgnore
@@ -346,7 +346,7 @@ public class WarmUpElement
     public String toString()
     {
         return "WarmUpElement{" +
-                "varadaColumn='" + varadaColumn + '\'' +
+                "warpColumn='" + warpColumn + '\'' +
                 ", warmUpType=" + warmUpType +
                 ", recTypeCode=" + recTypeCode +
                 ", recTypeLength=" + recTypeLength +
@@ -382,7 +382,7 @@ public class WarmUpElement
             return false;
         }
         WarmUpElement warmUpElement = (WarmUpElement) o;
-        return Objects.equals(varadaColumn, warmUpElement.varadaColumn) &&
+        return Objects.equals(warpColumn, warmUpElement.warpColumn) &&
                 (warmUpType == warmUpElement.warmUpType) &&
                 (recTypeCode == warmUpElement.recTypeCode) &&
                 (recTypeLength == warmUpElement.recTypeLength) &&
@@ -407,13 +407,13 @@ public class WarmUpElement
     @Override
     public int hashCode()
     {
-        return Objects.hash(varadaColumn, warmUpType, recTypeCode, recTypeLength, warmUpContextSize, warmupElementStats, usedDictionarySize, dictionaryInfo, startOffset, queryOffset, queryReadSize, warmEvents, endOffset, state, exportState, isImported, warmState, storeId, totalRecords);
+        return Objects.hash(warpColumn, warmUpType, recTypeCode, recTypeLength, warmUpContextSize, warmupElementStats, usedDictionarySize, dictionaryInfo, startOffset, queryOffset, queryReadSize, warmEvents, endOffset, state, exportState, isImported, warmState, storeId, totalRecords);
     }
 
     @JsonPOJOBuilder
     public static class Builder
     {
-        VaradaColumn varadaColumn;
+        WarpColumn warpColumn;
         WarmUpType warmUpType;
         RecTypeCode recTypeCode;
         int recTypeLength;
@@ -469,13 +469,13 @@ public class WarmUpElement
         @JsonIgnore
         public Builder colName(String colName)
         {
-            return varadaColumn(new RegularColumn(colName));
+            return warpColumn(new RegularColumn(colName));
         }
 
         @JsonProperty(VARADA_COLUMN)
-        public Builder varadaColumn(VaradaColumn varadaColumn)
+        public Builder warpColumn(WarpColumn warpColumn)
         {
-            this.varadaColumn = varadaColumn;
+            this.warpColumn = warpColumn;
             return this;
         }
 
@@ -607,7 +607,7 @@ public class WarmUpElement
 
         public WarmUpElement build()
         {
-            WarmUpElement warmUpElement = new WarmUpElement(varadaColumn,
+            WarmUpElement warmUpElement = new WarmUpElement(warpColumn,
                     warmUpType,
                     recTypeCode,
                     recTypeLength,

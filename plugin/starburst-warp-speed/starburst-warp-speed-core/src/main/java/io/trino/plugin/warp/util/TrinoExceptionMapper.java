@@ -14,7 +14,7 @@
 package io.trino.plugin.warp.util;
 
 import com.google.common.base.Throwables;
-import io.trino.plugin.warp.VaradaErrorCode;
+import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.spi.TrinoException;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.ext.ExceptionMapper;
@@ -36,7 +36,7 @@ public class TrinoExceptionMapper
         String message = null;
         Optional<TrinoException> trinoExceptionOpt = getTrinoException(throwable);
         if (trinoExceptionOpt.isPresent()) {
-            Optional<VaradaErrorCode> varadaErrorCodeOpt = getFromCode(trinoExceptionOpt.get().getErrorCode().getCode());
+            Optional<WarpErrorCode> varadaErrorCodeOpt = getFromCode(trinoExceptionOpt.get().getErrorCode().getCode());
             if (varadaErrorCodeOpt.isPresent()) {
                 message = String.format("%s (code %d)", trinoExceptionOpt.get().getMessage(), trinoExceptionOpt.get().getErrorCode().getCode() - VARADA_ERROR_CODE_OFFSET);
             }
@@ -65,11 +65,11 @@ public class TrinoExceptionMapper
         return Optional.empty();
     }
 
-    public Optional<VaradaErrorCode> getFromCode(int code)
+    public Optional<WarpErrorCode> getFromCode(int code)
     {
-        for (VaradaErrorCode varadaErrorCode : VaradaErrorCode.values()) {
-            if (varadaErrorCode.toErrorCode().getCode() == code) {
-                return Optional.of(varadaErrorCode);
+        for (WarpErrorCode warpErrorCode : WarpErrorCode.values()) {
+            if (warpErrorCode.toErrorCode().getCode() == code) {
+                return Optional.of(warpErrorCode);
             }
         }
         return Optional.empty();

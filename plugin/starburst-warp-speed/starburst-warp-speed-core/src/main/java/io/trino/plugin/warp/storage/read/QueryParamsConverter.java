@@ -37,7 +37,7 @@ import java.util.Optional;
 import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_CODE;
 import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_LENGTH;
 import static io.trino.plugin.warp.dispatcher.query.MatchCollectUtils.findMatchForMatchCollect;
-import static io.trino.plugin.warp.storage.read.VaradaPageSource.INVALID_COL_IX;
+import static io.trino.plugin.warp.storage.read.WarpPageSource.INVALID_COL_IX;
 
 public class QueryParamsConverter
 {
