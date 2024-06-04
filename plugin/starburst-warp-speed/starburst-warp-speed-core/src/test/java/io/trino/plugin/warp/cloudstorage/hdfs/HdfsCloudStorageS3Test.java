@@ -50,7 +50,7 @@ public class HdfsCloudStorageS3Test
     @BeforeAll
     static void beforeAll()
     {
-        System.setProperty("aws.profile", "varada");
+        System.setProperty("aws.profile", "943680618140_galaxy-developer");
         System.setProperty("aws.region", REGION);
 
         injector = Guice.createInjector(new HdfsTestModule());

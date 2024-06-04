@@ -67,7 +67,6 @@ public class GcsCloudStorageModule
     {
         GcsFileSystemFactory gcsFileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         GcsStorageFactory gcsStorageFactory = requireNonNull(storageFactory, "storageFactory is null");
-        ConnectorIdentity connectorIdentity = ConnectorIdentity.ofUser("varada");
-        return new GcsCloudStorage(gcsFileSystemFactory, gcsStorageFactory.create(connectorIdentity));
+        return new GcsCloudStorage(gcsFileSystemFactory, gcsStorageFactory.create(ConnectorIdentity.ofUser("warp")));
     }
 }

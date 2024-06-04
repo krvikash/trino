@@ -36,7 +36,7 @@ public abstract class CloudStorageService
 
     protected CloudStorageService(TrinoFileSystemFactory fileSystemFactory)
     {
-        this.fileSystem = requireNonNull(fileSystemFactory).create(ConnectorIdentity.ofUser("varada"));
+        this.fileSystem = requireNonNull(fileSystemFactory).create(ConnectorIdentity.ofUser("warp"));
     }
 
     @Override

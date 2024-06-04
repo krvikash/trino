@@ -41,7 +41,7 @@ public class S3CloudStorageTest
     @BeforeEach
     void setUp()
     {
-        System.setProperty("aws.profile", "varada");
+        System.setProperty("aws.profile", "943680618140_galaxy-developer");
 
         S3FileSystemConfig config = new S3FileSystemConfig()
 //                .setAwsAccessKey(ACCESS_KEY)
