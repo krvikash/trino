@@ -73,7 +73,7 @@ import static org.mockito.Mockito.when;
 
 public class DispatcherPageSourceTest
 {
-    protected WarpStoragePageSource varadaPageSource;
+    protected WarpStoragePageSource warpPageSource;
     protected ConnectorPageSource proxiedConnectorPageSource;
     protected RowGroupData rowGroupData;
     protected final DispatcherPageSourceStats stats = new DispatcherPageSourceStats("test");
@@ -109,15 +109,15 @@ public class DispatcherPageSourceTest
             List<Page> proxiedPages,
             Optional<long[]> rowRanges)
     {
-        varadaPageSource = new TestingWarpPageSource(testPages);
+        warpPageSource = new TestingWarpPageSource(testPages);
         proxiedConnectorPageSource = new FixedPageSourceWithRowRanges(proxiedPages, rowRanges);
     }
 
     @Test
     public void testRowGroupRemovalOnNativeException()
     {
-        varadaPageSource = mock(WarpPageSource.class);
-        when(varadaPageSource.getNextPage())
+        warpPageSource = mock(WarpPageSource.class);
+        when(warpPageSource.getNextPage())
                 .thenThrow(new TrinoException(WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_ERROR, "message"));
 
         DispatcherPageSource mixQueryWithPredicate = getDispatcherPageSource(2, Map.of(0, IntegerType.INTEGER));
@@ -132,14 +132,14 @@ public class DispatcherPageSourceTest
     @Test
     public void testNullValueOnProxied()
     {
-        long[] varadaMatches = new long[] {4, 5};
-        LongArrayBlockBuilder proxiedBlock = new LongArrayBlockBuilder(null, varadaMatches.length);
+        long[] warpMatches = new long[] {4, 5};
+        LongArrayBlockBuilder proxiedBlock = new LongArrayBlockBuilder(null, warpMatches.length);
         proxiedBlock.appendNull();
         proxiedBlock.writeLong(99);
 
         Page firstProxiedPage = new Page(proxiedBlock.build());
-        Page varadaPage = buildPageLong(varadaMatches);
-        TestPage testPage = new TestPage(varadaPage, createRowRanges(0, 2));
+        Page warpPage = buildPageLong(warpMatches);
+        TestPage testPage = new TestPage(warpPage, createRowRanges(0, 2));
 
         prepareMock(
                 Lists.newArrayList(testPage),
@@ -148,33 +148,33 @@ public class DispatcherPageSourceTest
         DispatcherPageSource mixQueryWithPredicate = getDispatcherPageSource(2, Map.of(1, BIGINT));
         Page resultPage = mixQueryWithPredicate.getNextPage(); //act
         int positionCount = resultPage.getPositionCount();
-        assertThat(positionCount).isEqualTo(varadaMatches.length);
-        assertThat(BigintType.BIGINT.getLong(resultPage.getBlock(0), 0)).isEqualTo(varadaMatches[0]);
+        assertThat(positionCount).isEqualTo(warpMatches.length);
+        assertThat(BigintType.BIGINT.getLong(resultPage.getBlock(0), 0)).isEqualTo(warpMatches[0]);
         assertThat(resultPage.getBlock(1).isNull(0)).isTrue();
-        assertThat(BigintType.BIGINT.getLong(resultPage.getBlock(0), 1)).isEqualTo(varadaMatches[1]);
+        assertThat(BigintType.BIGINT.getLong(resultPage.getBlock(0), 1)).isEqualTo(warpMatches[1]);
         assertThat(BigintType.BIGINT.getLong(resultPage.getBlock(1), 1)).isEqualTo(99);
     }
 
     @Test
     public void mixedQuery_1ProxiedPages_singleRange()
     {
-        ConnectorPageSource.RowRanges varadaMatchRanges = createRowRanges(0, 1);
+        ConnectorPageSource.RowRanges warpMatchRanges = createRowRanges(0, 1);
 
-        long[] varadaMatches = new long[] {4};
+        long[] warpMatches = new long[] {4};
         long[] proxiedMatches = new long[] {99};
 
         Page firstProxiedPage = buildLongPage(proxiedMatches[0], -1);
 
-        Page varadaPage = buildPageLong(varadaMatches);
-        TestPage testPage = new TestPage(varadaPage, varadaMatchRanges);
-        List<TestPage> varadaPages = Lists.newArrayList(testPage);
+        Page warpPage = buildPageLong(warpMatches);
+        TestPage testPage = new TestPage(warpPage, warpMatchRanges);
+        List<TestPage> warpPages = Lists.newArrayList(testPage);
         prepareMock(
-                varadaPages,
+                warpPages,
                 Lists.newArrayList(firstProxiedPage));
 
         DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
 
-        actAndAssert(varadaMatches, proxiedMatches, dispatcherPageSource);
+        actAndAssert(warpMatches, proxiedMatches, dispatcherPageSource);
         if (assertNextPageMetrics) {
             assertThat(stats.getproxied_loaded_pages()).isEqualTo(1);
             assertThat(stats.getproxied_pages()).isEqualTo(1);
@@ -185,23 +185,23 @@ public class DispatcherPageSourceTest
     @Test
     public void mixedQuery_2ProxiedPages_singleRange()
     {
-        ConnectorPageSource.RowRanges varadaMatchRanges = createRowRanges(1, 2);
+        ConnectorPageSource.RowRanges warpMatchRanges = createRowRanges(1, 2);
 
-        long[] varadaMatches = new long[] {4};
+        long[] warpMatches = new long[] {4};
         long[] proxiedMatches = new long[] {99};
 
         Page firstProxiedPage = buildLongPage(-1);
         Page secondProxiedPage = buildLongPage(proxiedMatches[0], -1);
 
-        Page varadaPage = buildPageLong(varadaMatches);
-        TestPage testPage = new TestPage(varadaPage, varadaMatchRanges);
-        List<TestPage> varadaPages = Lists.newArrayList(testPage);
+        Page warpPage = buildPageLong(warpMatches);
+        TestPage testPage = new TestPage(warpPage, warpMatchRanges);
+        List<TestPage> warpPages = Lists.newArrayList(testPage);
         prepareMock(
-                varadaPages,
+                warpPages,
                 Lists.newArrayList(firstProxiedPage, secondProxiedPage));
         DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
 
-        actAndAssert(varadaMatches, proxiedMatches, dispatcherPageSource);
+        actAndAssert(warpMatches, proxiedMatches, dispatcherPageSource);
         if (assertNextPageMetrics) {
             assertThat(stats.getproxied_loaded_pages()).isEqualTo(1);
             assertThat(stats.getproxied_pages()).isEqualTo(2);
@@ -210,50 +210,50 @@ public class DispatcherPageSourceTest
     }
 
     @Test
-    public void test_skipAtEndOfVaradaPage()
+    public void test_skipAtEndOfWarpPage()
     {
-        long[] varadaMatches = new long[] {2, 5, 89};
+        long[] warpMatches = new long[] {2, 5, 89};
         long[] proxiedMatches = new long[] {17, 99, 101};
-        ConnectorPageSource.RowRanges varadaMatchRanges1 = createRowRanges(0, 1);
+        ConnectorPageSource.RowRanges warpMatchRanges1 = createRowRanges(0, 1);
 
         Page firstProxiedPage = buildLongPage(proxiedMatches[0], -1, proxiedMatches[1], -1, proxiedMatches[2], -1);
 
-        Page varadaPage = buildPageLong(Arrays.copyOf(varadaMatches, 1));
-        TestPage testPage1 = new TestPage(varadaPage, varadaMatchRanges1);
+        Page warpPage = buildPageLong(Arrays.copyOf(warpMatches, 1));
+        TestPage testPage1 = new TestPage(warpPage, warpMatchRanges1);
 
-        ConnectorPageSource.RowRanges varadaMatchRanges2 = createRowRanges(2, 3, 4, 5);
-        Page varadaPage2 = buildPageLong(Arrays.copyOfRange(varadaMatches, 1, varadaMatches.length));
-        TestPage testPage2 = new TestPage(varadaPage2, varadaMatchRanges2);
+        ConnectorPageSource.RowRanges warpMatchRanges2 = createRowRanges(2, 3, 4, 5);
+        Page warpPage2 = buildPageLong(Arrays.copyOfRange(warpMatches, 1, warpMatches.length));
+        TestPage testPage2 = new TestPage(warpPage2, warpMatchRanges2);
 
-        List<TestPage> varadaPages = Lists.newArrayList(testPage1, testPage2);
+        List<TestPage> warpPages = Lists.newArrayList(testPage1, testPage2);
         prepareMock(
-                varadaPages,
+                warpPages,
                 Lists.newArrayList(firstProxiedPage));
         DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
 
-        actAndAssert(varadaMatches, proxiedMatches, dispatcherPageSource);
+        actAndAssert(warpMatches, proxiedMatches, dispatcherPageSource);
     }
 
     @Test
     public void mixedQuery_2ProxiedPages_singleRange_lastRowMatch()
     {
-        long[] varadaMatches = new long[] {4};
+        long[] warpMatches = new long[] {4};
         long[] proxiedMatches = new long[] {99};
 
-        ConnectorPageSource.RowRanges varadaMatchRanges = createRowRanges(2, 3);
+        ConnectorPageSource.RowRanges warpMatchRanges = createRowRanges(2, 3);
         Page firstProxiedPage = buildLongPage(-1);
         Page secondProxiedPage = buildLongPage(-1, proxiedMatches[0]);
 
-        Page varadaPage = buildPageLong(varadaMatches);
-        TestPage testPage = new TestPage(varadaPage, varadaMatchRanges);
-        List<TestPage> varadaPages = Lists.newArrayList(testPage);
+        Page warpPage = buildPageLong(warpMatches);
+        TestPage testPage = new TestPage(warpPage, warpMatchRanges);
+        List<TestPage> warpPages = Lists.newArrayList(testPage);
 
         prepareMock(
-                varadaPages,
+                warpPages,
                 Lists.newArrayList(firstProxiedPage, secondProxiedPage));
         DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
 
-        actAndAssert(varadaMatches, proxiedMatches, dispatcherPageSource);
+        actAndAssert(warpMatches, proxiedMatches, dispatcherPageSource);
         if (assertNextPageMetrics) {
             assertThat(stats.getproxied_loaded_pages()).isEqualTo(1);
             assertThat(stats.getproxied_pages()).isEqualTo(2);
@@ -264,22 +264,22 @@ public class DispatcherPageSourceTest
     @Test
     public void mixedQuery_2ProxiedPages_overlappingRange()
     {
-        long[] varadaMatches = new long[] {2, 5, 89};
+        long[] warpMatches = new long[] {2, 5, 89};
         long[] proxiedMatches = new long[] {17, 99, 101};
-        ConnectorPageSource.RowRanges varadaMatchRanges = createRowRanges(0, 2, 3, 4);
+        ConnectorPageSource.RowRanges warpMatchRanges = createRowRanges(0, 2, 3, 4);
 
         Page firstProxiedPage = buildLongPage(proxiedMatches[0]);
         Page secondProxiedPage = buildLongPage(proxiedMatches[1], -1, proxiedMatches[2]);
 
-        Page varadaPage = buildPageLong(varadaMatches);
-        TestPage testPage = new TestPage(varadaPage, varadaMatchRanges);
-        List<TestPage> varadaPages = Lists.newArrayList(testPage);
+        Page warpPage = buildPageLong(warpMatches);
+        TestPage testPage = new TestPage(warpPage, warpMatchRanges);
+        List<TestPage> warpPages = Lists.newArrayList(testPage);
         prepareMock(
-                varadaPages,
+                warpPages,
                 Lists.newArrayList(firstProxiedPage, secondProxiedPage));
         DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
 
-        actAndAssert(varadaMatches, proxiedMatches, dispatcherPageSource);
+        actAndAssert(warpMatches, proxiedMatches, dispatcherPageSource);
         if (assertNextPageMetrics) {
             assertThat(stats.getproxied_loaded_pages()).isEqualTo(2);
             assertThat(stats.getproxied_pages()).isEqualTo(2);
@@ -288,371 +288,371 @@ public class DispatcherPageSourceTest
     }
 
     @Test
-    public void test_2VaradaPages_1ProxiedPage_MatchAtStartOfSecondVaradaPage()
+    public void test_2WarpPages_1ProxiedPage_MatchAtStartOfSecondWarpPage()
     {
-        long[] varadaMatches = new long[] {2, 9};
+        long[] warpMatches = new long[] {2, 9};
         long[] proxiedMatches = new long[] {88, 66};
-        ConnectorPageSource.RowRanges varadaMatchRanges1 = createRowRanges(0, 1);
+        ConnectorPageSource.RowRanges warpMatchRanges1 = createRowRanges(0, 1);
 
-        long[] pageValues = Arrays.copyOfRange(varadaMatches, 0, 1);
-        Page varadaPage1 = buildPageLong(pageValues);
-        TestPage testPage1 = new TestPage(varadaPage1, varadaMatchRanges1);
+        long[] pageValues = Arrays.copyOfRange(warpMatches, 0, 1);
+        Page warpPage1 = buildPageLong(pageValues);
+        TestPage testPage1 = new TestPage(warpPage1, warpMatchRanges1);
 
-        ConnectorPageSource.RowRanges varadaMatchRanges2 = createRowRanges(1, 2);
+        ConnectorPageSource.RowRanges warpMatchRanges2 = createRowRanges(1, 2);
 
-        pageValues = Arrays.copyOfRange(varadaMatches, 1, 2);
-        Page varadaPage2 = buildPageLong(pageValues);
-        TestPage testPage2 = new TestPage(varadaPage2, varadaMatchRanges2);
+        pageValues = Arrays.copyOfRange(warpMatches, 1, 2);
+        Page warpPage2 = buildPageLong(pageValues);
+        TestPage testPage2 = new TestPage(warpPage2, warpMatchRanges2);
 
         Page firstProxiedPage = buildLongPage(proxiedMatches[0], proxiedMatches[1], -1, -1, -1);
 
-        List<TestPage> varadaPages = Lists.newArrayList(testPage1, testPage2);
+        List<TestPage> warpPages = Lists.newArrayList(testPage1, testPage2);
         prepareMock(
-                varadaPages,
+                warpPages,
                 Lists.newArrayList(firstProxiedPage));
         DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
 
-        actAndAssert(varadaMatches, proxiedMatches, dispatcherPageSource);
+        actAndAssert(warpMatches, proxiedMatches, dispatcherPageSource);
     }
 
     @Test
-    public void test_singleProxiedPage_2VaradaPages()
+    public void test_singleProxiedPage_2WarpPages()
     {
-        long[] varadaMatches = new long[] {2, 9, 56, 77, 3};
+        long[] warpMatches = new long[] {2, 9, 56, 77, 3};
         long[] proxiedMatches = new long[] {88, 66, 34, 54, 23};
 
-        ConnectorPageSource.RowRanges varadaMatchRanges1 = createRowRanges(1, 3);
-        long[] pageValues = Arrays.copyOfRange(varadaMatches, 0, 2);
-        Page varadaPage1 = buildPageLong(pageValues);
-        TestPage testPage1 = new TestPage(varadaPage1, varadaMatchRanges1);
+        ConnectorPageSource.RowRanges warpMatchRanges1 = createRowRanges(1, 3);
+        long[] pageValues = Arrays.copyOfRange(warpMatches, 0, 2);
+        Page warpPage1 = buildPageLong(pageValues);
+        TestPage testPage1 = new TestPage(warpPage1, warpMatchRanges1);
 
-        ConnectorPageSource.RowRanges varadaMatchRanges2 = createRowRanges(3, 6);
+        ConnectorPageSource.RowRanges warpMatchRanges2 = createRowRanges(3, 6);
 
-        pageValues = Arrays.copyOfRange(varadaMatches, 2, 5);
-        Page varadaPage2 = buildPageLong(pageValues);
-        TestPage testPage2 = new TestPage(varadaPage2, varadaMatchRanges2);
+        pageValues = Arrays.copyOfRange(warpMatches, 2, 5);
+        Page warpPage2 = buildPageLong(pageValues);
+        TestPage testPage2 = new TestPage(warpPage2, warpMatchRanges2);
 
         Page firstProxiedPage = buildLongPage(-1, proxiedMatches[0], proxiedMatches[1], proxiedMatches[2], proxiedMatches[3], proxiedMatches[4], -1);
 
-        List<TestPage> varadaPages = Lists.newArrayList(testPage1, testPage2);
+        List<TestPage> warpPages = Lists.newArrayList(testPage1, testPage2);
         prepareMock(
-                varadaPages,
+                warpPages,
                 Lists.newArrayList(firstProxiedPage));
 
         DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
 
-        actAndAssert(varadaMatches, proxiedMatches, dispatcherPageSource);
+        actAndAssert(warpMatches, proxiedMatches, dispatcherPageSource);
     }
 
     @Test
     public void test_skipEntireProxiedPages()
     {
         int firstSkippedRows = 10000;
-        long[] varadaMatches = new long[] {2, 9, 56, 77, 3};
+        long[] warpMatches = new long[] {2, 9, 56, 77, 3};
         long[] proxiedMatches = new long[] {88, 66, 34, 54, 23};
 
-        ConnectorPageSource.RowRanges varadaMatchRanges1 = createRowRanges(firstSkippedRows + 1, firstSkippedRows + 3);
+        ConnectorPageSource.RowRanges warpMatchRanges1 = createRowRanges(firstSkippedRows + 1, firstSkippedRows + 3);
 
-        long[] pageValues = Arrays.copyOfRange(varadaMatches, 0, 2);
-        Page varadaPage1 = buildPageLong(pageValues);
-        TestPage testPage1 = new TestPage(varadaPage1, varadaMatchRanges1);
+        long[] pageValues = Arrays.copyOfRange(warpMatches, 0, 2);
+        Page warpPage1 = buildPageLong(pageValues);
+        TestPage testPage1 = new TestPage(warpPage1, warpMatchRanges1);
 
-        ConnectorPageSource.RowRanges varadaMatchRanges2 = createRowRanges(firstSkippedRows + 3, firstSkippedRows + 6);
+        ConnectorPageSource.RowRanges warpMatchRanges2 = createRowRanges(firstSkippedRows + 3, firstSkippedRows + 6);
 
-        pageValues = Arrays.copyOfRange(varadaMatches, 2, 5);
-        Page varadaPage2 = buildPageLong(pageValues);
-        TestPage testPage2 = new TestPage(varadaPage2, varadaMatchRanges2);
+        pageValues = Arrays.copyOfRange(warpMatches, 2, 5);
+        Page warpPage2 = buildPageLong(pageValues);
+        TestPage testPage2 = new TestPage(warpPage2, warpMatchRanges2);
 
         long[] proxiedFirstPage = new long[firstSkippedRows];
         Arrays.fill(proxiedFirstPage, -1);
         Page firstProxiedPage = buildLongPage(proxiedFirstPage);
         Page secondProxiedPage = buildLongPage(-1, proxiedMatches[0], proxiedMatches[1], proxiedMatches[2], proxiedMatches[3], proxiedMatches[4], -1);
 
-        List<TestPage> varadaPages = Lists.newArrayList(testPage1, testPage2);
+        List<TestPage> warpPages = Lists.newArrayList(testPage1, testPage2);
         prepareMock(
-                varadaPages,
+                warpPages,
                 Lists.newArrayList(firstProxiedPage, secondProxiedPage));
 
         DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
 
-        actAndAssert(varadaMatches, proxiedMatches, dispatcherPageSource);
+        actAndAssert(warpMatches, proxiedMatches, dispatcherPageSource);
     }
 
     @Test
-    public void test_2VaradaPages_1ProxiedPage_MatchAtMiddleOfSecondVaradaPage()
+    public void test_2WarpPages_1ProxiedPage_MatchAtMiddleOfSecondWarpPage()
     {
-        long[] varadaMatches = new long[] {2, 9};
+        long[] warpMatches = new long[] {2, 9};
         long[] proxiedMatches = new long[] {88, 66};
-        ConnectorPageSource.RowRanges varadaMatchRanges1 = createRowRanges(0, 1);
+        ConnectorPageSource.RowRanges warpMatchRanges1 = createRowRanges(0, 1);
 
-        long[] pageValues = Arrays.copyOfRange(varadaMatches, 0, 1);
-        Page varadaPage1 = buildPageLong(pageValues);
-        TestPage testPage1 = new TestPage(varadaPage1, varadaMatchRanges1);
+        long[] pageValues = Arrays.copyOfRange(warpMatches, 0, 1);
+        Page warpPage1 = buildPageLong(pageValues);
+        TestPage testPage1 = new TestPage(warpPage1, warpMatchRanges1);
 
-        ConnectorPageSource.RowRanges varadaMatchRanges2 = createRowRanges(4, 5);
+        ConnectorPageSource.RowRanges warpMatchRanges2 = createRowRanges(4, 5);
 
-        pageValues = Arrays.copyOfRange(varadaMatches, 1, 2);
-        Page varadaPage2 = buildPageLong(pageValues);
-        TestPage testPage2 = new TestPage(varadaPage2, varadaMatchRanges2);
+        pageValues = Arrays.copyOfRange(warpMatches, 1, 2);
+        Page warpPage2 = buildPageLong(pageValues);
+        TestPage testPage2 = new TestPage(warpPage2, warpMatchRanges2);
 
         Page firstProxiedPage = buildLongPage(proxiedMatches[0], -1, -1, -1, proxiedMatches[1], -1);
 
-        List<TestPage> varadaPages = Lists.newArrayList(testPage1, testPage2);
+        List<TestPage> warpPages = Lists.newArrayList(testPage1, testPage2);
         prepareMock(
-                varadaPages,
+                warpPages,
                 Lists.newArrayList(firstProxiedPage));
         DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
 
-        actAndAssert(varadaMatches, proxiedMatches, dispatcherPageSource);
+        actAndAssert(warpMatches, proxiedMatches, dispatcherPageSource);
     }
 
     @Test
-    public void test_2VaradaPages_1ProxiedPage_MatchAtMiddleOfSecondVaradaPage2()
+    public void test_2WarpPages_1ProxiedPage_MatchAtMiddleOfSecondWarpPage2()
     {
-        long[] varadaMatches = new long[] {2, 9, 7};
+        long[] warpMatches = new long[] {2, 9, 7};
         long[] proxiedMatches = new long[] {88, 66, 6};
-        ConnectorPageSource.RowRanges varadaMatchRanges1 = createRowRanges(0, 1);
+        ConnectorPageSource.RowRanges warpMatchRanges1 = createRowRanges(0, 1);
 
-        long[] pageValues = Arrays.copyOfRange(varadaMatches, 0, 1);
-        Page varadaPage1 = buildPageLong(pageValues);
-        TestPage testPage1 = new TestPage(varadaPage1, varadaMatchRanges1);
+        long[] pageValues = Arrays.copyOfRange(warpMatches, 0, 1);
+        Page warpPage1 = buildPageLong(pageValues);
+        TestPage testPage1 = new TestPage(warpPage1, warpMatchRanges1);
 
-        ConnectorPageSource.RowRanges varadaMatchRanges2 = createRowRanges(4, 5);
+        ConnectorPageSource.RowRanges warpMatchRanges2 = createRowRanges(4, 5);
 
-        pageValues = Arrays.copyOfRange(varadaMatches, 1, 2);
-        Page varadaPage2 = buildPageLong(pageValues);
-        TestPage testPage2 = new TestPage(varadaPage2, varadaMatchRanges2);
+        pageValues = Arrays.copyOfRange(warpMatches, 1, 2);
+        Page warpPage2 = buildPageLong(pageValues);
+        TestPage testPage2 = new TestPage(warpPage2, warpMatchRanges2);
 
-        ConnectorPageSource.RowRanges varadaMatchRanges3 = createRowRanges(8, 9);
+        ConnectorPageSource.RowRanges warpMatchRanges3 = createRowRanges(8, 9);
 
-        pageValues = Arrays.copyOfRange(varadaMatches, 2, 3);
-        Page varadaPage3 = buildPageLong(pageValues);
-        TestPage testPage3 = new TestPage(varadaPage3, varadaMatchRanges3);
+        pageValues = Arrays.copyOfRange(warpMatches, 2, 3);
+        Page warpPage3 = buildPageLong(pageValues);
+        TestPage testPage3 = new TestPage(warpPage3, warpMatchRanges3);
 
         Page firstProxiedPage = buildLongPage(proxiedMatches[0], -1, -1, -1, proxiedMatches[1], -1);
         Page secondProxiedPage = buildLongPage(-1, -1, proxiedMatches[2]);
 
-        List<TestPage> varadaPages = Lists.newArrayList(testPage1, testPage2, testPage3);
+        List<TestPage> warpPages = Lists.newArrayList(testPage1, testPage2, testPage3);
         prepareMock(
-                varadaPages,
+                warpPages,
                 Lists.newArrayList(firstProxiedPage, secondProxiedPage));
         DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
 
-        actAndAssert(varadaMatches, proxiedMatches, dispatcherPageSource);
+        actAndAssert(warpMatches, proxiedMatches, dispatcherPageSource);
     }
 
     @Test
     public void testMultipleRanges()
     {
-        long[] varadaMatches = new long[] {1, 2, 3, 4, 5, 6, 7, 8};
+        long[] warpMatches = new long[] {1, 2, 3, 4, 5, 6, 7, 8};
         long[] proxiedMatches = new long[] {11, 22, 33, 44, 55, 66, 77, 88};
 
         Page firstProxiedPage = buildLongPage(-1, proxiedMatches[0], -1, -1, proxiedMatches[1], proxiedMatches[2], proxiedMatches[3], proxiedMatches[4], -1, -1, proxiedMatches[5], -1, proxiedMatches[6], -1, proxiedMatches[7]);
-        ConnectorPageSource.RowRanges varadaMatchRanges = createRowRanges(1, 2, 4, 8, 10, 11, 12, 13, 14, 15);
+        ConnectorPageSource.RowRanges warpMatchRanges = createRowRanges(1, 2, 4, 8, 10, 11, 12, 13, 14, 15);
 
-        Page varadaPage = buildPageLong(varadaMatches);
-        TestPage testPage1 = new TestPage(varadaPage, varadaMatchRanges);
+        Page warpPage = buildPageLong(warpMatches);
+        TestPage testPage1 = new TestPage(warpPage, warpMatchRanges);
 
-        List<TestPage> varadaPages = Lists.newArrayList(testPage1);
+        List<TestPage> warpPages = Lists.newArrayList(testPage1);
         prepareMock(
-                varadaPages,
+                warpPages,
                 Lists.newArrayList(firstProxiedPage));
 
         DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
 
-        actAndAssert(varadaMatches, proxiedMatches, dispatcherPageSource);
+        actAndAssert(warpMatches, proxiedMatches, dispatcherPageSource);
     }
 
     @Test
-    public void test_2VaradaPages_1ProxiedPage_MatchAtEndOfSecondVaradaPage()
+    public void test_2WarpPages_1ProxiedPage_MatchAtEndOfSecondWarpPage()
     {
-        long[] varadaMatches = new long[] {2, 9};
+        long[] warpMatches = new long[] {2, 9};
         long[] proxiedMatches = new long[] {88, 66};
-        long[] pageValues = Arrays.copyOfRange(varadaMatches, 0, 1);
-        Page varadaPage1 = buildPageLong(pageValues);
-        TestPage testPage1 = new TestPage(varadaPage1, createRowRanges(0, 1));
+        long[] pageValues = Arrays.copyOfRange(warpMatches, 0, 1);
+        Page warpPage1 = buildPageLong(pageValues);
+        TestPage testPage1 = new TestPage(warpPage1, createRowRanges(0, 1));
 
-        ConnectorPageSource.RowRanges varadaMatchRanges = createRowRanges(4, 5);
+        ConnectorPageSource.RowRanges warpMatchRanges = createRowRanges(4, 5);
 
-        pageValues = Arrays.copyOfRange(varadaMatches, 1, 2);
-        Page varadaPage2 = buildPageLong(pageValues);
-        TestPage testPage2 = new TestPage(varadaPage2, varadaMatchRanges);
+        pageValues = Arrays.copyOfRange(warpMatches, 1, 2);
+        Page warpPage2 = buildPageLong(pageValues);
+        TestPage testPage2 = new TestPage(warpPage2, warpMatchRanges);
 
         Page firstProxiedPage = buildLongPage(proxiedMatches[0], -1, -1, -1, proxiedMatches[1]);
 
-        List<TestPage> varadaPages = Lists.newArrayList(testPage1, testPage2);
+        List<TestPage> warpPages = Lists.newArrayList(testPage1, testPage2);
         prepareMock(
-                varadaPages,
+                warpPages,
                 Lists.newArrayList(firstProxiedPage));
 
         DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
 
-        actAndAssert(varadaMatches, proxiedMatches, dispatcherPageSource);
+        actAndAssert(warpMatches, proxiedMatches, dispatcherPageSource);
     }
 
     @Test
     public void test_complex()
     {
-        long[] varadaMatches = new long[10];
+        long[] warpMatches = new long[10];
         long[] proxiedMatches = new long[10];
         for (int i = 0; i < 10; i++) {
-            varadaMatches[i] = i;
+            warpMatches[i] = i;
             proxiedMatches[i] = i + 10L;
         }
-        long[] pageValues = Arrays.copyOfRange(varadaMatches, 0, 5);
-        Page varadaPage1 = buildPageLong(pageValues);
-        ConnectorPageSource.RowRanges varadaMatchRanges1 = createRowRanges(1, 3, 5, 7, 9, 10);
+        long[] pageValues = Arrays.copyOfRange(warpMatches, 0, 5);
+        Page warpPage1 = buildPageLong(pageValues);
+        ConnectorPageSource.RowRanges warpMatchRanges1 = createRowRanges(1, 3, 5, 7, 9, 10);
 
         Page firstProxiedPage = buildLongPage(-1, proxiedMatches[0]);
         Page secondProxiedPage = buildLongPage(proxiedMatches[1], -1);
         Page thirdProxiedPage = buildLongPage(-1, proxiedMatches[2], proxiedMatches[3]);
         Page fiveProxiedPage = buildLongPage(-1, -1, proxiedMatches[4]);
-        TestPage testPage1 = new TestPage(varadaPage1, varadaMatchRanges1);
+        TestPage testPage1 = new TestPage(warpPage1, warpMatchRanges1);
 
-        long[] pageValues2 = Arrays.copyOfRange(varadaMatches, 5, 10);
-        Page varadaPage2 = buildPageLong(pageValues2);
-        ConnectorPageSource.RowRanges varadaMatchRanges2 = createRowRanges(10, 12, 14, 16, 18, 19);
+        long[] pageValues2 = Arrays.copyOfRange(warpMatches, 5, 10);
+        Page warpPage2 = buildPageLong(pageValues2);
+        ConnectorPageSource.RowRanges warpMatchRanges2 = createRowRanges(10, 12, 14, 16, 18, 19);
         Page sixProxiedPage = buildLongPage(proxiedMatches[5]);
         Page sevenProxiedPage = buildLongPage(proxiedMatches[6], -1);
         Page eightProxiedPage = buildLongPage(-1, proxiedMatches[7], proxiedMatches[8]);
         Page nineProxiedPage = buildLongPage(-1, -1, proxiedMatches[9]);
-        TestPage testPage2 = new TestPage(varadaPage2, varadaMatchRanges2);
+        TestPage testPage2 = new TestPage(warpPage2, warpMatchRanges2);
 
-        List<TestPage> varadaPages = Lists.newArrayList(testPage1, testPage2);
+        List<TestPage> warpPages = Lists.newArrayList(testPage1, testPage2);
         prepareMock(
-                varadaPages,
+                warpPages,
                 Lists.newArrayList(firstProxiedPage, secondProxiedPage, thirdProxiedPage, fiveProxiedPage,
                         sixProxiedPage, sevenProxiedPage, eightProxiedPage, nineProxiedPage));
 
         DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
 
-        actAndAssert(varadaMatches, proxiedMatches, dispatcherPageSource);
+        actAndAssert(warpMatches, proxiedMatches, dispatcherPageSource);
     }
 
     @Test
-    public void test_2VaradaPages_2ProxiedPage_NoSkip()
+    public void test_2WarpPages_2ProxiedPage_NoSkip()
     {
-        long[] varadaMatches = new long[] {2, 9};
+        long[] warpMatches = new long[] {2, 9};
         long[] proxiedMatches = new long[] {88, 66};
-        long[] pageValues = Arrays.copyOfRange(varadaMatches, 0, 1);
-        Page varadaPage1 = buildPageLong(pageValues);
-        TestPage testPage1 = new TestPage(varadaPage1, createRowRanges(1, 2));
+        long[] pageValues = Arrays.copyOfRange(warpMatches, 0, 1);
+        Page warpPage1 = buildPageLong(pageValues);
+        TestPage testPage1 = new TestPage(warpPage1, createRowRanges(1, 2));
 
-        pageValues = Arrays.copyOfRange(varadaMatches, 1, 2);
-        Page varadaPage2 = buildPageLong(pageValues);
-        TestPage testPage2 = new TestPage(varadaPage2, createRowRanges(3, 4));
+        pageValues = Arrays.copyOfRange(warpMatches, 1, 2);
+        Page warpPage2 = buildPageLong(pageValues);
+        TestPage testPage2 = new TestPage(warpPage2, createRowRanges(3, 4));
 
         Page firstProxiedPage = buildLongPage(-1, proxiedMatches[0]);
         Page secondProxiedPage = buildLongPage(-1, proxiedMatches[1]);
 
-        List<TestPage> varadaPages = Lists.newArrayList(testPage1, testPage2);
+        List<TestPage> warpPages = Lists.newArrayList(testPage1, testPage2);
         prepareMock(
-                varadaPages,
+                warpPages,
                 Lists.newArrayList(firstProxiedPage, secondProxiedPage));
 
         DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
 
-        actAndAssert(varadaMatches, proxiedMatches, dispatcherPageSource);
+        actAndAssert(warpMatches, proxiedMatches, dispatcherPageSource);
     }
 
     @Test
-    public void test_1VaradaPage_1prefilled()
+    public void test_1WarpPage_1prefilled()
     {
-        long[] varadaMatches = new long[] {2, 9};
-        Page varadaPage = buildPageLong(varadaMatches);
-        TestPage testPage = new TestPage(varadaPage, createRowRanges(1, 2));
-        List<TestPage> varadaPages = Lists.newArrayList(testPage);
+        long[] warpMatches = new long[] {2, 9};
+        Page warpPage = buildPageLong(warpMatches);
+        TestPage testPage = new TestPage(warpPage, createRowRanges(1, 2));
+        List<TestPage> warpPages = Lists.newArrayList(testPage);
 
         long singleValue = 5L;
         Map<Integer, PrefilledQueryCollectData> prefilledQueryCollectDataByBlockIndex = Map.of(1, createPrefilledQueryCollectData(singleValue));
-        prepareMock(varadaPages, List.of());
+        prepareMock(warpPages, List.of());
 
         DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, Map.of(), prefilledQueryCollectDataByBlockIndex);
 
-        actAndAssert(varadaMatches, Optional.empty(), dispatcherPageSource, Optional.of(singleValue));
+        actAndAssert(warpMatches, Optional.empty(), dispatcherPageSource, Optional.of(singleValue));
     }
 
     @Test
-    public void test_2VaradaPages_2ProxiedPage_1prefilled_NoSkip()
+    public void test_2WarpPages_2ProxiedPage_1prefilled_NoSkip()
     {
-        long[] varadaMatches = new long[] {2, 5, 89};
+        long[] warpMatches = new long[] {2, 5, 89};
         long[] proxiedMatches = new long[] {17, 99, 101};
-        ConnectorPageSource.RowRanges varadaMatchRanges1 = createRowRanges(0, 1);
+        ConnectorPageSource.RowRanges warpMatchRanges1 = createRowRanges(0, 1);
 
         Page firstProxiedPage = buildLongPage(proxiedMatches[0], -1, proxiedMatches[1], -1, proxiedMatches[2], -1);
 
-        Page varadaPage = buildPageLong(Arrays.copyOf(varadaMatches, 1));
-        TestPage testPage1 = new TestPage(varadaPage, varadaMatchRanges1);
+        Page warpPage = buildPageLong(Arrays.copyOf(warpMatches, 1));
+        TestPage testPage1 = new TestPage(warpPage, warpMatchRanges1);
 
-        ConnectorPageSource.RowRanges varadaMatchRanges2 = createRowRanges(2, 3, 4, 5);
-        Page varadaPage2 = buildPageLong(Arrays.copyOfRange(varadaMatches, 1, varadaMatches.length));
-        TestPage testPage2 = new TestPage(varadaPage2, varadaMatchRanges2);
+        ConnectorPageSource.RowRanges warpMatchRanges2 = createRowRanges(2, 3, 4, 5);
+        Page warpPage2 = buildPageLong(Arrays.copyOfRange(warpMatches, 1, warpMatches.length));
+        TestPage testPage2 = new TestPage(warpPage2, warpMatchRanges2);
 
-        List<TestPage> varadaPages = Lists.newArrayList(testPage1, testPage2);
+        List<TestPage> warpPages = Lists.newArrayList(testPage1, testPage2);
 
         long singleValue = 3L;
         Map<Integer, PrefilledQueryCollectData> prefilledQueryCollectDataByBlockIndex = Map.of(2, createPrefilledQueryCollectData(singleValue));
-        prepareMock(varadaPages, Lists.newArrayList(firstProxiedPage));
+        prepareMock(warpPages, Lists.newArrayList(firstProxiedPage));
 
         DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(3, proxiedCollectTypeByBlockIndex, prefilledQueryCollectDataByBlockIndex);
 
-        actAndAssert(varadaMatches, Optional.of(proxiedMatches), dispatcherPageSource, Optional.of(singleValue));
+        actAndAssert(warpMatches, Optional.of(proxiedMatches), dispatcherPageSource, Optional.of(singleValue));
     }
 
     @Test
     public void mixedQuery_2ProxiedPages_overlappingRange_with_prefilled()
     {
-        long[] varadaMatches = new long[] {2, 5, 89};
+        long[] warpMatches = new long[] {2, 5, 89};
         long[] proxiedMatches = new long[] {17, 99, 101};
-        ConnectorPageSource.RowRanges varadaMatchRanges = createRowRanges(0, 2, 3, 4);
+        ConnectorPageSource.RowRanges warpMatchRanges = createRowRanges(0, 2, 3, 4);
 
         Page firstProxiedPage = buildLongPage(proxiedMatches[0]);
         Page secondProxiedPage = buildLongPage(proxiedMatches[1], -1, proxiedMatches[2]);
 
-        Page varadaPage = buildPageLong(varadaMatches);
-        TestPage testPage = new TestPage(varadaPage, varadaMatchRanges);
-        List<TestPage> varadaPages = Lists.newArrayList(testPage);
+        Page warpPage = buildPageLong(warpMatches);
+        TestPage testPage = new TestPage(warpPage, warpMatchRanges);
+        List<TestPage> warpPages = Lists.newArrayList(testPage);
 
         long singleValue = 3L;
         Map<Integer, PrefilledQueryCollectData> prefilledQueryCollectDataByBlockIndex = Map.of(2, createPrefilledQueryCollectData(singleValue));
-        prepareMock(varadaPages, Lists.newArrayList(firstProxiedPage, secondProxiedPage));
+        prepareMock(warpPages, Lists.newArrayList(firstProxiedPage, secondProxiedPage));
 
         DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(3, proxiedCollectTypeByBlockIndex, prefilledQueryCollectDataByBlockIndex);
 
-        actAndAssert(varadaMatches, Optional.of(proxiedMatches), dispatcherPageSource, Optional.of(singleValue));
+        actAndAssert(warpMatches, Optional.of(proxiedMatches), dispatcherPageSource, Optional.of(singleValue));
     }
 
     /**
      * simulate query "select * from t limit 2":
      * native are not aware of 'limit' section, so it returns maximum rows fit into page.
-     * in this case sumRowRanges > varadaPageCount
+     * in this case sumRowRanges > warpPageCount
      */
     @Test
     public void mixedQuery_2ProxiedPages_singleRange_simulateLimit()
     {
-        ConnectorPageSource.RowRanges varadaMatchRanges = createRowRanges(0, 3);
+        ConnectorPageSource.RowRanges warpMatchRanges = createRowRanges(0, 3);
 
-        long[] varadaMatches = new long[] {4, 5};
+        long[] warpMatches = new long[] {4, 5};
         long[] proxiedMatches = new long[] {99, 34, 99};
 
         Page firstProxiedPage = buildLongPage(proxiedMatches[0]);
         Page secondProxiedPage = buildLongPage(proxiedMatches[1], proxiedMatches[2]);
 
-        Page varadaPage = buildPageLong(varadaMatches);
-        TestPage testPage = new TestPage(varadaPage, varadaMatchRanges);
-        List<TestPage> varadaPages = Lists.newArrayList(testPage);
+        Page warpPage = buildPageLong(warpMatches);
+        TestPage testPage = new TestPage(warpPage, warpMatchRanges);
+        List<TestPage> warpPages = Lists.newArrayList(testPage);
         prepareMock(
-                varadaPages,
+                warpPages,
                 Lists.newArrayList(firstProxiedPage, secondProxiedPage));
 
         DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
 
         long[] expectedProxiedMatches = Arrays.copyOfRange(proxiedMatches, 0, 2);
-        actAndAssert(varadaMatches, expectedProxiedMatches, dispatcherPageSource);
+        actAndAssert(warpMatches, expectedProxiedMatches, dispatcherPageSource);
     }
 
     @Test
-    public void mixedQueryEmptyVaradaPageSource()
+    public void mixedQueryEmptyWarpPageSource()
     {
         long[] proxiedMatches = new long[] {99, 34, 99};
         Page firstProxiedPage = buildLongPage(proxiedMatches[0]);
@@ -669,13 +669,13 @@ public class DispatcherPageSourceTest
     @Test
     public void mixedQueryProxiedRowRangesIntersection()
     {
-        List<TestPage> varadaPages = List.of(
+        List<TestPage> warpPages = List.of(
                 new TestPage(buildLongPage(100, 101), createRowRanges(0, 2)),
                 new TestPage(buildLongPage(105, 106), createRowRanges(5, 7)),
                 new TestPage(buildLongPage(110, 111), createRowRanges(11, 13)),
                 new TestPage(buildLongPage(115, 116), createRowRanges(15, 17)));
         prepareMock(
-                varadaPages,
+                warpPages,
                 List.of(buildLongPage(1, 2), buildLongPage(3, 4)),
                 Optional.of(new long[] {6, 8, 10, 12}));
 
@@ -700,16 +700,16 @@ public class DispatcherPageSourceTest
         test_complex();
         testMultipleRanges();
         mixedQuery_2ProxiedPages_overlappingRange();
-        test_2VaradaPages_1ProxiedPage_MatchAtEndOfSecondVaradaPage();
-        test_2VaradaPages_1ProxiedPage_MatchAtMiddleOfSecondVaradaPage();
-        test_2VaradaPages_1ProxiedPage_MatchAtStartOfSecondVaradaPage();
-        test_singleProxiedPage_2VaradaPages();
+        test_2WarpPages_1ProxiedPage_MatchAtEndOfSecondWarpPage();
+        test_2WarpPages_1ProxiedPage_MatchAtMiddleOfSecondWarpPage();
+        test_2WarpPages_1ProxiedPage_MatchAtStartOfSecondWarpPage();
+        test_singleProxiedPage_2WarpPages();
         mixedQuery_1ProxiedPages_singleRange();
         mixedQuery_2ProxiedPages_singleRange_lastRowMatch();
-        test_2VaradaPages_2ProxiedPage_NoSkip();
-        test_2VaradaPages_1ProxiedPage_MatchAtMiddleOfSecondVaradaPage2();
-        test_1VaradaPage_1prefilled();
-        test_2VaradaPages_2ProxiedPage_1prefilled_NoSkip();
+        test_2WarpPages_2ProxiedPage_NoSkip();
+        test_2WarpPages_1ProxiedPage_MatchAtMiddleOfSecondWarpPage2();
+        test_1WarpPage_1prefilled();
+        test_2WarpPages_2ProxiedPage_1prefilled_NoSkip();
         mixedQuery_2ProxiedPages_overlappingRange_with_prefilled();
         mixedQuery_2ProxiedPages_singleRange_simulateLimit();
     }
@@ -759,15 +759,15 @@ public class DispatcherPageSourceTest
                 .prefilledQueryCollectDataByBlockIndex(prefilledQueryCollectDataByBlockIndex)
                 .build();
 
-        List<Type> varadaWithoutPrefilledAndProxiedCollectTypes = Stream.concat(
+        List<Type> warpWithoutPrefilledAndProxiedCollectTypes = Stream.concat(
                         queryContext.getRemainingCollectColumns().stream().map(dispatcherProxiedConnectorTransformer::getColumnType),
                         queryContext.getNativeQueryCollectDataList().stream().map(QueryColumn::getType))
                 .collect(toImmutableList());
 
         return new DispatcherPageSource(() -> proxiedConnectorPageSource,
                 mock(QueryClassifier.class),
-                varadaWithoutPrefilledAndProxiedCollectTypes,
-                varadaPageSource,
+                warpWithoutPrefilledAndProxiedCollectTypes,
+                warpPageSource,
                 queryContext,
                 rowGroupData,
                 proxiedCollectTypeByBlockIndex.isEmpty() ? PageSourceDecision.WARP : PageSourceDecision.MIXED,
@@ -779,23 +779,23 @@ public class DispatcherPageSourceTest
 
     private Page buildPageLong(long[] values)
     {
-        PageBuilder varadaPageBuilder = new PageBuilder(List.of(BigintType.BIGINT));
-        BlockBuilder varadaBlockBuilder = varadaPageBuilder.getBlockBuilder(0);
+        PageBuilder warpPageBuilder = new PageBuilder(List.of(BigintType.BIGINT));
+        BlockBuilder warpBlockBuilder = warpPageBuilder.getBlockBuilder(0);
         Page page = buildLongPage(values);
         Block block = page.getBlock(0);
         for (int i = 0; i < values.length; i++) {
-            ((Type) io.trino.spi.type.BigintType.BIGINT).appendTo(block, i, varadaBlockBuilder);
+            ((Type) io.trino.spi.type.BigintType.BIGINT).appendTo(block, i, warpBlockBuilder);
         }
-        varadaPageBuilder.declarePositions(values.length);
-        return varadaPageBuilder.build();
+        warpPageBuilder.declarePositions(values.length);
+        return warpPageBuilder.build();
     }
 
-    private void actAndAssert(long[] varadaMatches, long[] proxiedMatches, DispatcherPageSource dispatcherPageSource)
+    private void actAndAssert(long[] warpMatches, long[] proxiedMatches, DispatcherPageSource dispatcherPageSource)
     {
-        actAndAssert(varadaMatches, Optional.of(proxiedMatches), dispatcherPageSource, Optional.empty());
+        actAndAssert(warpMatches, Optional.of(proxiedMatches), dispatcherPageSource, Optional.empty());
     }
 
-    private void actAndAssert(long[] varadaMatches,
+    private void actAndAssert(long[] warpMatches,
             Optional<long[]> proxiedMatches,
             DispatcherPageSource dispatcherPageSource,
             Optional<Long> prefilled)
@@ -805,7 +805,7 @@ public class DispatcherPageSourceTest
             Page resultPage = dispatcherPageSource.getNextPage(); //act
             int positionCount = resultPage.getPositionCount();
             for (int i = 0; i < positionCount; i++) {
-                assertThat(BigintType.BIGINT.getLong(resultPage.getBlock(0), i)).isEqualTo(varadaMatches[totalMatchesPosition + i]);
+                assertThat(BigintType.BIGINT.getLong(resultPage.getBlock(0), i)).isEqualTo(warpMatches[totalMatchesPosition + i]);
                 if (proxiedMatches.isPresent()) {
                     assertThat(BigintType.BIGINT.getLong(resultPage.getBlock(1), i)).isEqualTo(proxiedMatches.orElseThrow()[totalMatchesPosition + i]);
                 }
@@ -820,7 +820,7 @@ public class DispatcherPageSourceTest
         if (proxiedMatches.isPresent()) {
             assertThat(totalMatchesPosition).isEqualTo(proxiedMatches.orElseThrow().length);
         }
-        assertThat(totalMatchesPosition).isEqualTo(varadaMatches.length);
+        assertThat(totalMatchesPosition).isEqualTo(warpMatches.length);
     }
 
     private static ConnectorPageSource.RowRanges createRowRanges(long... ranges)

@@ -78,7 +78,7 @@ public class DispatcherCacheTransformer
     }
 
     @Override
-    public RegularColumn getVaradaRegularColumn(ColumnHandle columnHandle)
+    public RegularColumn getWarpRegularColumn(ColumnHandle columnHandle)
     {
         return new RegularColumn(((WarpCacheColumnHandle) columnHandle).name());
     }

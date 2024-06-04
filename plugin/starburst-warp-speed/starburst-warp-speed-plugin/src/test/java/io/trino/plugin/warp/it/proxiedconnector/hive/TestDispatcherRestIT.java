@@ -112,7 +112,7 @@ public class TestDispatcherRestIT
                 Map.of(),
                 Map.of("http-server.log.enabled", "false",
                         USE_HTTP_SERVER_PORT, "false",
-                        "node.environment", "varada",
+                        "node.environment", "warp",
                         PROXIED_CONNECTOR, HIVE_CONNECTOR_NAME),
                 hiveDir,
                 DispatcherConnectorFactory.DISPATCHER_CONNECTOR_NAME,

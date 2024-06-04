@@ -233,7 +233,7 @@ public class DispatcherPageSourceFactoryTest
     }
 
     @Test
-    public void testCreateVaradaConnectorPageSourceRowGroupDataIsNotWarm()
+    public void testCreateWarpConnectorPageSourceRowGroupDataIsNotWarm()
     {
         List<ColumnHandle> columnHandleList = WarmupTestDataUtil.mockColumns(List.of(Pair.of("c1", VarcharType.VARCHAR)));
 
@@ -270,7 +270,7 @@ public class DispatcherPageSourceFactoryTest
     }
 
     @Test
-    public void testCreateVaradaConnectorPageSourceRowGroupDataIsEmpty()
+    public void testCreateWarpConnectorPageSourceRowGroupDataIsEmpty()
     {
         List<ColumnHandle> columnHandleList = mockColumns(List.of(Pair.of("c1", VarcharType.VARCHAR)));
         long now = Instant.now().toEpochMilli();
@@ -325,7 +325,7 @@ public class DispatcherPageSourceFactoryTest
     }
 
     @Test
-    public void testCreateVaradaConnectorPageSourceRowGroupDataIsLocked()
+    public void testCreateWarpConnectorPageSourceRowGroupDataIsLocked()
     {
         List<ColumnHandle> columnHandleList = mockColumns(List.of(Pair.of("c1", VarcharType.VARCHAR)));
         WarmUpElement validWarmUpElement = WarmUpElement.builder()
@@ -383,7 +383,7 @@ public class DispatcherPageSourceFactoryTest
     }
 
     @Test
-    public void testCreateVaradaConnectorPageSourceOnlyProxy()
+    public void testCreateWarpConnectorPageSourceOnlyProxy()
     {
         List<ColumnHandle> columnHandleList = mockColumns(List.of(Pair.of("c1", VarcharType.VARCHAR)));
 
@@ -421,7 +421,7 @@ public class DispatcherPageSourceFactoryTest
     }
 
     @Test
-    public void testCreateVaradaConnectorPageSourceMixed()
+    public void testCreateWarpConnectorPageSourceMixed()
     {
         List<ColumnHandle> columnHandleList = mockColumns(List.of(Pair.of("c1", VarcharType.VARCHAR)));
 

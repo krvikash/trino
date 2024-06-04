@@ -87,8 +87,8 @@ public class PredicateContextData
                 break;
             }
             else if (predicateContext.getExpression() instanceof WarpCall &&
-                    (predicateContext.getVaradaExpressionData().getNativeExpressionOptional().isEmpty() ||
-                            predicateContext.getVaradaExpressionData().getNativeExpressionOptional().get().predicateType() == PredicateType.PREDICATE_TYPE_STRING_RANGES)) {
+                    (predicateContext.getWarpExpressionData().getNativeExpressionOptional().isEmpty() ||
+                            predicateContext.getWarpExpressionData().getNativeExpressionOptional().get().predicateType() == PredicateType.PREDICATE_TYPE_STRING_RANGES)) {
                 res = true;
                 break;
             }

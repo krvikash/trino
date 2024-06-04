@@ -38,7 +38,7 @@ class AllProxyDecisionClassifier
                 queryContext.getPredicateContextData().getRemainingColumns().size() > 0 &&
                 transformer.proxyHasPushedDownFilter(classifyArgs.getDispatcherTableHandle()) &&
                 !queryContext.getRemainingCollectColumnByBlockIndex().isEmpty()) {
-            // Since there are no matches in Varada while there are matches in proxy, and we must go to proxy for collect,
+            // Since there are no matches in Warp while there are matches in proxy, and we must go to proxy for collect,
             // if the proxy has pushdowns go all proxy - and try to benefit from proxy's limited filtering capabilities.
             logger.debug("Classified as all proxy");
             return queryContext.asBuilder()

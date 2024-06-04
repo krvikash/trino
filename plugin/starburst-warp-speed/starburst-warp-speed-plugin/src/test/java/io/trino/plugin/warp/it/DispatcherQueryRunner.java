@@ -51,7 +51,7 @@ public class DispatcherQueryRunner
             Optional<Module> additionalModule,
             int numOfNodes,
             Map<String, String> coordinatorProperties,
-            Map<String, String> varadaConfig,
+            Map<String, String> warpConfig,
             Path hiveDir,
             String connectorName,
             String catalogName,
@@ -61,10 +61,10 @@ public class DispatcherQueryRunner
     {
         Path localStorePath = Files.createTempDirectory("local_store_");
 
-        boolean isExtensionsEnabled = Boolean.parseBoolean(varadaConfig.getOrDefault(WarpExtensionConfig.ENABLED, "true"));
+        boolean isExtensionsEnabled = Boolean.parseBoolean(warpConfig.getOrDefault(WarpExtensionConfig.ENABLED, "true"));
 
         ImmutableMap<String, String> additionalCatalogConfig = ImmutableMap.<String, String>builder()
-                .putAll(varadaConfig.entrySet().stream().filter(entry -> !entry.getKey().equals(WarpExtensionConfig.ENABLED)).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)))
+                .putAll(warpConfig.entrySet().stream().filter(entry -> !entry.getKey().equals(WarpExtensionConfig.ENABLED)).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)))
                 // replace this config with the other 3 when you want to use a real thrift meta-store (E.g. local docker)
 //          .put("hive.metastore.uri", "thrift://localhost:9083").build();
 //                .put("testMode", "true")

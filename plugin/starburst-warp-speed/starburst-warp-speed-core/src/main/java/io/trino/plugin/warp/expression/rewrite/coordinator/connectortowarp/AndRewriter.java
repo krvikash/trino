@@ -52,8 +52,8 @@ public class AndRewriter
     {
         List<WarpExpression> children = new ArrayList<>();
         for (ConnectorExpression connectorExpression : expression.getArguments()) {
-            Optional<WarpExpression> varadaExpression = context.defaultRewrite(connectorExpression);
-            varadaExpression.ifPresent(children::add);
+            Optional<WarpExpression> warpExpression = context.defaultRewrite(connectorExpression);
+            warpExpression.ifPresent(children::add);
         }
         Optional<WarpExpression> res;
         if (children.isEmpty()) {

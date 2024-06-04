@@ -19,7 +19,7 @@ import io.trino.spi.type.Type;
 
 public interface DispatcherProxiedConnectorColumnTransformer
 {
-    RegularColumn getVaradaRegularColumn(ColumnHandle columnHandle);
+    RegularColumn getWarpRegularColumn(ColumnHandle columnHandle);
 
     Type getColumnType(ColumnHandle columnHandle);
 }

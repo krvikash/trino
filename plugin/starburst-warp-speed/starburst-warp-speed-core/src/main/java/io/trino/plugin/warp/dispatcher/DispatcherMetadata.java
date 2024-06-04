@@ -865,8 +865,8 @@ public class DispatcherMetadata
                         dispatcherTableHandle.getProxyConnectorTableHandle(),
                         constraint);
 
-        // TODO: VDB-5850 The new varadaExpressions should be merged with the existing ones at the table handle
-        // TODO: and we should check that no changes were made to the varadaExpressions before returning Optional.empty().
+        // TODO: VDB-5850 The new WarpExpressions should be merged with the existing ones at the table handle
+        // TODO: and we should check that no changes were made to the WarpExpressions before returning Optional.empty().
         Map<String, Long> customStats = new HashMap<>();
 
         Optional<WarpExpression> warpExpression = dispatcherTableHandle.getWarpExpression();

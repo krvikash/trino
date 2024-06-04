@@ -84,7 +84,7 @@ class PrefilledCollectClassifier
 
             for (Map.Entry<Integer, ColumnHandle> entry : queryContext.getRemainingCollectColumnByBlockIndex().entrySet()) {
                 int blockIndex = entry.getKey();
-                RegularColumn regularColumn = dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(entry.getValue());
+                RegularColumn regularColumn = dispatcherProxiedConnectorTransformer.getWarpRegularColumn(entry.getValue());
                 Type type = dispatcherProxiedConnectorTransformer.getColumnType(entry.getValue());
                 if (partitionKeys.containsKey(regularColumn)) {
                     Object convertedPartitionValue = dispatcherProxiedConnectorTransformer.getConvertedPartitionValue(partitionKeys.get(regularColumn), entry.getValue(), DispatcherTableHandle.getNullPartitionValue());
@@ -272,7 +272,7 @@ class PrefilledCollectClassifier
                 .map(column -> Pair.of(column, dispatcherProxiedConnectorTransformer.getConvertedPartitionValue(rowGroupData, column, DispatcherTableHandle.getNullPartitionValue())))
                 .filter(pair -> pair.getValue().isPresent()) // skip non-partition columns
                 .collect(Collectors.toMap(
-                        pair -> dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(pair.getKey()),
+                        pair -> dispatcherProxiedConnectorTransformer.getWarpRegularColumn(pair.getKey()),
                         pair -> SingleValue.create(dispatcherProxiedConnectorTransformer.getColumnType(pair.getKey()), pair.getValue().get())));
     }
 }

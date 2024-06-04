@@ -27,9 +27,9 @@ public class DispatcherIndexProvider
 {
     private final ConnectorIndexProvider connectorIndexProvider;
 
-    public DispatcherIndexProvider(ConnectorIndexProvider varadaConnectorIndexProvider)
+    public DispatcherIndexProvider(ConnectorIndexProvider warpConnectorIndexProvider)
     {
-        this.connectorIndexProvider = varadaConnectorIndexProvider;
+        this.connectorIndexProvider = warpConnectorIndexProvider;
     }
 
     @Override

@@ -276,7 +276,7 @@ class MatchClassifier
         List<MatchData> terms = new ArrayList<>();
         boolean canBeTight = true;
         for (WarpExpression warpExpression : orExpression.getArguments()) {
-            checkArgument(warpExpression instanceof WarpCall, "varadaExpression is not instance of VaradaCall");
+            checkArgument(warpExpression instanceof WarpCall, "warpExpression is not instance of WarpCall");
             String functionName = ((WarpCall) warpExpression).getFunctionName();
             if (functionName.equals(OR_FUNCTION_NAME.getName()) || functionName.equals(AND_FUNCTION_NAME.getName())) {
                 MatchResult matchResult = handleLogicalFunction(classifyArgs, leaves, warpExpression);

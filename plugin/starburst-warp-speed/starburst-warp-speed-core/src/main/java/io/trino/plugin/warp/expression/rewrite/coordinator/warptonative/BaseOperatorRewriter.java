@@ -57,9 +57,9 @@ abstract class BaseOperatorRewriter
 
     boolean equal(WarpExpression warpExpression, RewriteContext rewriteContext)
     {
-        WarpConstant varadaConstant = ((WarpConstant) warpExpression.getChildren().get(1));
-        Type constantType = varadaConstant.getType();
-        if (constantType == BooleanType.BOOLEAN && varadaConstant.getValue() == Boolean.FALSE) {
+        WarpConstant warpConstant = ((WarpConstant) warpExpression.getChildren().get(1));
+        Type constantType = warpConstant.getType();
+        if (constantType == BooleanType.BOOLEAN && warpConstant.getValue() == Boolean.FALSE) {
             rewriteContext.customStats().compute("unsupported_functions_native", (key, value) -> value == null ? 1L : value + 1);
             pushdownPredicatesStats.incunsupported_functions_native();
             return false;

@@ -208,7 +208,7 @@ public class ProxyExecutionTask
             logger.error("Max iteration count has reached (%d), won't try to warm again. rowGroupKey=%s, warpColumns=%s, dataToWarm=%s",
                     globalConfig.getMaxWarmupIterationsPerQuery(),
                     rowGroupKey,
-                    columns.stream().map(dispatcherProxiedConnectorTransformer::getVaradaRegularColumn).collect(Collectors.toList()),
+                    columns.stream().map(dispatcherProxiedConnectorTransformer::getWarpRegularColumn).collect(Collectors.toList()),
                     dataToWarm);
             eventBus.post(new WarmingFinishedEvent(rowGroupKey, session));
         }

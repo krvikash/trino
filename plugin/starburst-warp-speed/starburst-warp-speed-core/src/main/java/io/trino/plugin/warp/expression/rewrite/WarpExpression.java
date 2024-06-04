@@ -20,7 +20,7 @@ import java.io.Serializable;
 import java.util.List;
 
 public record WarpExpression(@JsonProperty("rootExpression") io.trino.plugin.warp.expression.WarpExpression rootExpression,
-                             @JsonProperty("varadaExpressionDataLeaves") List<WarpExpressionData> warpExpressionDataLeaves)
+                             @JsonProperty("warpExpressionDataLeaves") List<WarpExpressionData> warpExpressionDataLeaves)
         implements Serializable
 {
 }

@@ -17,7 +17,7 @@ import java.util.Arrays;
 import java.util.Locale;
 
 /*
-    when storetype is azure, need to add to varada.properties:
+    when storetype is azure, need to add to Warp.properties:
         - warp-speed.config.azure.connection-string (currently not working with https)
         - hive.azure.abfs-storage-account=
         - hive.azure.abfs-access-key

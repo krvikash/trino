@@ -123,7 +123,7 @@ class RangeMatcherTest
         when(nativeExpression.orElseThrow().functionType()).thenReturn(FunctionType.FUNCTION_TYPE_NONE);
         WarpExpressionData expressionData = mock(WarpExpressionData.class);
         when(expressionData.getNativeExpressionOptional()).thenReturn(nativeExpression);
-        when(context.getVaradaExpressionData()).thenReturn(expressionData);
+        when(context.getWarpExpressionData()).thenReturn(expressionData);
 
         WarmedWarmupTypes warmupTypes = mock(WarmedWarmupTypes.class);
         ImmutableListMultimap<WarpColumn, WarmUpElement> basicWarmUpElements = ImmutableListMultimap.of(column, warmUpElement);
@@ -169,7 +169,7 @@ class RangeMatcherTest
         when(nativeExpression.orElseThrow().functionType()).thenReturn(FunctionType.FUNCTION_TYPE_NONE);
         WarpExpressionData expressionData = mock(WarpExpressionData.class);
         when(expressionData.getNativeExpressionOptional()).thenReturn(nativeExpression);
-        when(context.getVaradaExpressionData()).thenReturn(expressionData);
+        when(context.getWarpExpressionData()).thenReturn(expressionData);
 
         WarmedWarmupTypes warmupTypes = mock(WarmedWarmupTypes.class);
         ImmutableListMultimap<WarpColumn, WarmUpElement> basicWarmUpElements = ImmutableListMultimap.of();

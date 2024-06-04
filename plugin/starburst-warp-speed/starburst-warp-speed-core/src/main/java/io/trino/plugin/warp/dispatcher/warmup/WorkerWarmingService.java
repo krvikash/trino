@@ -224,7 +224,7 @@ public class WorkerWarmingService
             return new WarmData(List.of(), ImmutableSetMultimap.of(), WarmExecutionState.NOTHING_TO_WARM, false, queryContext, null);
         }
         Map<RegularColumn, ColumnHandle> columnNameHandleMap = columns.stream()
-                .collect(Collectors.toMap(dispatcherProxiedConnectorTransformer::getVaradaRegularColumn, Function.identity()));
+                .collect(Collectors.toMap(dispatcherProxiedConnectorTransformer::getWarpRegularColumn, Function.identity()));
 
         Map<WarpColumn, Map<WarmUpType, WarmupProperties>> requiredWarmupMap = getMatchingRules(dispatcherSplit, columnNameHandleMap);
 
@@ -460,7 +460,7 @@ public class WorkerWarmingService
                 .stream()
                 .filter(c -> !(dispatcherProxiedConnectorTransformer.getColumnType(c) instanceof MapType))
                 .collect(Collectors.toMap(
-                        dispatcherProxiedConnectorTransformer::getVaradaRegularColumn,
+                        dispatcherProxiedConnectorTransformer::getWarpRegularColumn,
                         dispatcherProxiedConnectorTransformer::getColumnType));
         Map<WarpColumn, Set<WarmupProperties>> result = new HashMap<>();
         Set<WarpColumn> warpColumns = new HashSet<>(queryContext.getPredicateContextData().getRemainingColumns());
@@ -507,9 +507,9 @@ public class WorkerWarmingService
         }
         queryContext.getRemainingCollectColumns()
                 .stream()
-                .filter(column -> TypeUtils.isWarmDataSupported(columnNameToColumnType.get(dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(column))))
+                .filter(column -> TypeUtils.isWarmDataSupported(columnNameToColumnType.get(dispatcherProxiedConnectorTransformer.getWarpRegularColumn(column))))
                 .forEach(column -> {
-                    RegularColumn warpColumn = dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(column);
+                    RegularColumn warpColumn = dispatcherProxiedConnectorTransformer.getWarpRegularColumn(column);
                     Set<WarmupProperties> properties = result.computeIfAbsent(warpColumn, v -> new HashSet<>());
                     properties.add(defaultRules.get(WarmUpType.WARM_UP_TYPE_DATA));
                 });
@@ -539,12 +539,12 @@ public class WorkerWarmingService
             if (warmupRule.getWarpColumn() instanceof WildcardColumn) {
                 warpColumns = columnNameToColumnHandle.values()
                         .stream()
-                        .map(dispatcherProxiedConnectorTransformer::getVaradaRegularColumn)
+                        .map(dispatcherProxiedConnectorTransformer::getWarpRegularColumn)
                         .collect(Collectors.toList());
             }
             else {
                 ColumnHandle columnHandle = columnNameToColumnHandle.get(warmupRule.getWarpColumn().getName());
-                RegularColumn regularColumn = dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(columnHandle);
+                RegularColumn regularColumn = dispatcherProxiedConnectorTransformer.getWarpRegularColumn(columnHandle);
 
                 if (warmupRule.getWarpColumn() instanceof TransformedColumn warmupRuleColumn) {
                     TransformedColumn transformedColumn =
@@ -680,7 +680,7 @@ public class WorkerWarmingService
     private List<ColumnHandle> getColumnHandleList(List<ColumnHandle> columnHandleList, Set<WarpColumn> columnSet)
     {
         Map<RegularColumn, ColumnHandle> columnNameHandleMap = columnHandleList.stream()
-                .collect(Collectors.toMap(dispatcherProxiedConnectorTransformer::getVaradaRegularColumn, Function.identity()));
+                .collect(Collectors.toMap(dispatcherProxiedConnectorTransformer::getWarpRegularColumn, Function.identity()));
 
         List<ColumnHandle> dispatcherColumnsToWarm = new ArrayList<>();
 

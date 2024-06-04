@@ -86,7 +86,7 @@ class GenericRewriter
         expressionPattern.resolve(captures, matchContext);
         List<WarpExpression> arguments = new ArrayList<>();
         Matcher matcher = REWRITE_TOKENS.matcher(originalExpression);
-        WarpVariable varadaVariable = null;
+        WarpVariable warpVariable = null;
         while (matcher.find()) {
             String identifier = matcher.group(0);
             Optional<Object> capture = matchContext.getIfPresent(identifier);
@@ -102,8 +102,8 @@ class GenericRewriter
                         return Optional.empty();
                     }
                     if (rewrittenExpression.get() instanceof WarpVariable variable) {
-                        if (varadaVariable == null || varadaVariable.equals(variable)) {
-                            varadaVariable = variable;
+                        if (warpVariable == null || warpVariable.equals(variable)) {
+                            warpVariable = variable;
                             arguments.add(rewrittenExpression.get());
                         }
                         else {

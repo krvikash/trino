@@ -179,7 +179,7 @@ public class WarmupElementsCreator
     {
         Map<String, Type> columnNameToType = columnHandles.stream()
                 .collect(Collectors.toMap(
-                        columnHandle -> dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(columnHandle).getName(),
+                        columnHandle -> dispatcherProxiedConnectorTransformer.getWarpRegularColumn(columnHandle).getName(),
                         dispatcherProxiedConnectorTransformer::getColumnType));
         return actualColumnsToWarm.stream()
                 .map(warpColumn -> createColumn(schemaTableName, warpColumn, columnNameToType))

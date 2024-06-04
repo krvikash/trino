@@ -36,8 +36,8 @@ public class TrinoExceptionMapper
         String message = null;
         Optional<TrinoException> trinoExceptionOpt = getTrinoException(throwable);
         if (trinoExceptionOpt.isPresent()) {
-            Optional<WarpErrorCode> varadaErrorCodeOpt = getFromCode(trinoExceptionOpt.get().getErrorCode().getCode());
-            if (varadaErrorCodeOpt.isPresent()) {
+            Optional<WarpErrorCode> warpErrorCodeOpt = getFromCode(trinoExceptionOpt.get().getErrorCode().getCode());
+            if (warpErrorCodeOpt.isPresent()) {
                 message = String.format("%s (code %d)", trinoExceptionOpt.get().getMessage(), trinoExceptionOpt.get().getErrorCode().getCode() - WARP_ERROR_CODE_OFFSET);
             }
         }

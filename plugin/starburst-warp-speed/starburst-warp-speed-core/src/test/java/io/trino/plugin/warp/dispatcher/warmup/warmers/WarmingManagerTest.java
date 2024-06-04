@@ -174,7 +174,7 @@ public class WarmingManagerTest
 
     private WarmingManager createWarmingManager()
     {
-        WarpProxiedWarmer warpProxiedWarmer = createVaradaProxiedWarmer(metricsManager, globalConfig, new NativeConfig());
+        WarpProxiedWarmer warpProxiedWarmer = createWarpProxiedWarmer(metricsManager, globalConfig, new NativeConfig());
         EmptyRowGroupWarmer emptyRowGroupWarmer = new EmptyRowGroupWarmer(rowGroupDataService);
         WeGroupWarmer weGroupWarmer = mock(WeGroupWarmer.class);
         return new WarmingManager(
@@ -189,7 +189,7 @@ public class WarmingManagerTest
                 mock(StorageWarmerService.class));
     }
 
-    private WarpProxiedWarmer createVaradaProxiedWarmer(
+    private WarpProxiedWarmer createWarpProxiedWarmer(
             MetricsManager metricsManager,
             GlobalConfig globalConfig,
             NativeConfig nativeConfig)
@@ -345,7 +345,7 @@ public class WarmingManagerTest
         List<ColumnHandle> columns = mockColumns(columnsMetadata);
         for (ColumnHandle ch : columns) {
             RegularColumn regularColumn = new RegularColumn(((TestingConnectorColumnHandle) ch).name());
-            when(dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(eq(ch))).thenReturn(regularColumn);
+            when(dispatcherProxiedConnectorTransformer.getWarpRegularColumn(eq(ch))).thenReturn(regularColumn);
             when(dispatcherProxiedConnectorTransformer.getColumnType(eq(ch))).thenReturn(((TestingConnectorColumnHandle) ch).type());
         }
         int index = 0;

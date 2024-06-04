@@ -98,7 +98,7 @@ public class WarmupTestDataUtil
         ret.forEach((ch) -> {
             TestingConnectorColumnHandle testingConnectorColumnHandle = (TestingConnectorColumnHandle) ch;
             Type columnType = testingConnectorColumnHandle.type();
-            when(dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(eq(ch))).thenReturn(new RegularColumn(testingConnectorColumnHandle.name()));
+            when(dispatcherProxiedConnectorTransformer.getWarpRegularColumn(eq(ch))).thenReturn(new RegularColumn(testingConnectorColumnHandle.name()));
             when(dispatcherProxiedConnectorTransformer.getColumnType(eq(ch))).thenReturn(columnType);
         });
         return ret;
@@ -114,7 +114,7 @@ public class WarmupTestDataUtil
     public static List<WarpColumn> createRegularColumns(List<ColumnHandle> columnHandles, DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer)
     {
         return columnHandles.stream()
-                .map(dispatcherProxiedConnectorTransformer::getVaradaRegularColumn)
+                .map(dispatcherProxiedConnectorTransformer::getWarpRegularColumn)
                 .collect(Collectors.toList());
     }
 

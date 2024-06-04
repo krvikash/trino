@@ -72,12 +72,12 @@ public class NativeCollectClassifierTest
     @Test
     public void testCollectedColumnsLimitation()
     {
-        final int numVaradaCols = 3;
+        final int numWarpCols = 3;
         final int numProxyCols = 5;
 
-        QueryContext classify = classifyNativeCollect(numVaradaCols, 0, numVaradaCols + numProxyCols, 0, false);
+        QueryContext classify = classifyNativeCollect(numWarpCols, 0, numWarpCols + numProxyCols, 0, false);
 
-        assertThat(classify.getNativeQueryCollectDataList().size()).isEqualTo(numVaradaCols);
+        assertThat(classify.getNativeQueryCollectDataList().size()).isEqualTo(numWarpCols);
         assertThat(classify.getRemainingCollectColumnByBlockIndex().size()).isEqualTo(numProxyCols);
         assertFalse(classify.getNativeQueryCollectDataList().stream()
                 .map(QueryCollectData::getBlockIndex)
@@ -88,14 +88,14 @@ public class NativeCollectClassifierTest
     public void testCollectedColumnsOrderFixedSizeAndString()
     {
         final int numIntCols = 3;
-        final int numVaradaStrCols = 2;
+        final int numWarpStrCols = 2;
         final int numProxyStrCols = 5;
-        final int numStrCols = numVaradaStrCols + numProxyStrCols;
-        final int numVaradaCols = numIntCols + numVaradaStrCols;
+        final int numStrCols = numWarpStrCols + numProxyStrCols;
+        final int numWarpCols = numIntCols + numWarpStrCols;
 
-        QueryContext classify = classifyNativeCollect(numIntCols, numVaradaStrCols, numIntCols, numStrCols, false);
+        QueryContext classify = classifyNativeCollect(numIntCols, numWarpStrCols, numIntCols, numStrCols, false);
 
-        assertThat(classify.getNativeQueryCollectDataList().size()).isEqualTo(numVaradaCols);
+        assertThat(classify.getNativeQueryCollectDataList().size()).isEqualTo(numWarpCols);
         assertThat(classify.getRemainingCollectColumnByBlockIndex().size()).isEqualTo(numProxyStrCols);
         assertFalse(classify.getNativeQueryCollectDataList().stream()
                 .map(QueryCollectData::getBlockIndex)
@@ -105,7 +105,7 @@ public class NativeCollectClassifierTest
         for (i = 0; i < numIntCols; i++) {
             assertThat(classify.getNativeQueryCollectDataList().get(i).getWarmUpElement().getRecTypeLength()).isEqualTo(INT_SIZE);
         }
-        for (; i < numVaradaCols; i++) {
+        for (; i < numWarpCols; i++) {
             assertThat(classify.getNativeQueryCollectDataList().get(i).getWarmUpElement().getRecTypeLength()).isEqualTo(STR_SIZE);
         }
     }
@@ -113,19 +113,19 @@ public class NativeCollectClassifierTest
     @Test
     public void testCollectedColumnsOrderWithMatchCollect()
     {
-        final int numVaradaIntCols = 1;
+        final int numWarpIntCols = 1;
         final int numIntCols = 3;
         final int numStrCols = 2;
 
-        QueryContext classify = classifyNativeCollect(numVaradaIntCols, 0, numIntCols, numStrCols, true);
+        QueryContext classify = classifyNativeCollect(numWarpIntCols, 0, numIntCols, numStrCols, true);
 
-        assertThat(classify.getNativeQueryCollectDataList().size()).isEqualTo(numVaradaIntCols);
-        assertThat(classify.getRemainingCollectColumnByBlockIndex().size()).isEqualTo(numIntCols + numStrCols - numVaradaIntCols);
+        assertThat(classify.getNativeQueryCollectDataList().size()).isEqualTo(numWarpIntCols);
+        assertThat(classify.getRemainingCollectColumnByBlockIndex().size()).isEqualTo(numIntCols + numStrCols - numWarpIntCols);
         assertFalse(classify.getNativeQueryCollectDataList().stream()
                 .map(QueryCollectData::getBlockIndex)
                 .anyMatch(classify.getRemainingCollectColumnByBlockIndex().keySet()::contains));
 
-        for (int i = 0; i < numVaradaIntCols; i++) {
+        for (int i = 0; i < numWarpIntCols; i++) {
             assertThat(classify.getNativeQueryCollectDataList().get(i).getWarmUpElement().getWarmUpType()).isEqualTo(WarmUpType.WARM_UP_TYPE_BASIC);
             assertThat(classify.getNativeQueryCollectDataList().get(i).getWarmUpElement().getRecTypeLength()).isEqualTo(INT_SIZE);
         }
@@ -190,14 +190,14 @@ public class NativeCollectClassifierTest
                 .build();
     }
 
-    private QueryContext classifyNativeCollect(int numVaradaIntCols, int numVaradaStrCols, int numIntCols, int numStrCols, boolean withMatchCollect)
+    private QueryContext classifyNativeCollect(int numWarpIntCols, int numWarpStrCols, int numIntCols, int numStrCols, boolean withMatchCollect)
     {
-        NativeCollectClassifier nativeCollectClassifier = createNativeCollectClassifier(numVaradaIntCols, numVaradaStrCols);
+        NativeCollectClassifier nativeCollectClassifier = createNativeCollectClassifier(numWarpIntCols, numWarpStrCols);
         ImmutableMap<Integer, ColumnHandle> collectColumnsByBlockIndex = createCollectColumnsByBlockIndexMap(numIntCols, numStrCols);
         for (ColumnHandle ch : collectColumnsByBlockIndex.values()) {
             RegularColumn warpColumn = new RegularColumn(((TestingConnectorColumnHandle) ch).name());
             Type warmUpType = ((TestingConnectorColumnHandle) ch).type();
-            when(dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(eq(ch))).thenReturn(warpColumn);
+            when(dispatcherProxiedConnectorTransformer.getWarpRegularColumn(eq(ch))).thenReturn(warpColumn);
             when(dispatcherProxiedConnectorTransformer.getColumnType(eq(ch))).thenReturn(warmUpType);
         }
         WarmedWarmupTypes warmedWarmupTypes;

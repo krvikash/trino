@@ -121,10 +121,10 @@ public class ObjectStoreProxiedConnectorTransformer
     }
 
     @Override
-    public RegularColumn getVaradaRegularColumn(ColumnHandle columnHandle)
+    public RegularColumn getWarpRegularColumn(ColumnHandle columnHandle)
     {
         return transformerMap.get(getTransformerKey(columnHandle))
-                .getVaradaRegularColumn(columnHandle);
+                .getWarpRegularColumn(columnHandle);
     }
 
     @Override

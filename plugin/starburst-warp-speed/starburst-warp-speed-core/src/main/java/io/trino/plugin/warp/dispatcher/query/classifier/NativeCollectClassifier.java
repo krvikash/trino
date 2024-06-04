@@ -302,7 +302,7 @@ class NativeCollectClassifier
         void setCurrentColumn(ColumnHandle columnHandle, int blockIndex)
         {
             currentBlockIndex = blockIndex;
-            currentColumn = dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(columnHandle);
+            currentColumn = dispatcherProxiedConnectorTransformer.getWarpRegularColumn(columnHandle);
             currentColumnType = dispatcherProxiedConnectorTransformer.getColumnType(columnHandle);
         }
 

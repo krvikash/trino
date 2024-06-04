@@ -100,7 +100,7 @@ public class IcebergProxiedConnectorTransformerTest
 //                Map.of(),
 //                "JSON",
 //                Set.of("col1"),
-//                Map.of("expr1", mock(VaradaExpressionData.class)),
+//                Map.of("expr1", mock(WarpExpressionData.class)),
 //                icebergTableHandle);
 //
 //        DispatcherSplit expectedDispatcherSplit = new DispatcherSplit(dispatcherTableHandle.getSchemaName(),

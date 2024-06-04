@@ -114,16 +114,16 @@ class GeneralRewriter
     private boolean rewrite(WarpExpression expression, LuceneRewriteContext context, BiFunction<Slice, Type, Query> queryFunction)
     {
         Type type = getType((WarpVariable) expression.getChildren().get(0));
-        WarpConstant varadaConstant = (WarpConstant) expression.getChildren().get(1);
-        checkArgument(varadaConstant instanceof WarpSliceConstant, "%s is not VaradaSliceConstant", varadaConstant);
-        Slice value = ((Slice) varadaConstant.getValue());
+        WarpConstant warpConstant = (WarpConstant) expression.getChildren().get(1);
+        checkArgument(warpConstant instanceof WarpSliceConstant, "%s is not WarpSliceConstant", warpConstant);
+        Slice value = ((Slice) warpConstant.getValue());
         Query query = queryFunction.apply(value, type);
         context.queryBuilder().add(query, context.occur());
         return true;
     }
 
-    private Type getType(WarpVariable varadaVariable)
+    private Type getType(WarpVariable warpVariable)
     {
-        return dispatcherProxiedConnectorTransformer.getColumnType(varadaVariable.getColumnHandle());
+        return dispatcherProxiedConnectorTransformer.getColumnType(warpVariable.getColumnHandle());
     }
 }

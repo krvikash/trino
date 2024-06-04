@@ -137,10 +137,10 @@ public class WarpProxiedWarmerTest
     }
 
     @Test
-    public void testVaradaWarmerWarmSuccessSingleElementNonLucene()
+    public void testWarpWarmerWarmSuccessSingleElementNonLucene()
             throws IOException
     {
-        WarpProxiedWarmer warpProxiedWarmer = createVaradaProxiedWarmer();
+        WarpProxiedWarmer warpProxiedWarmer = createWarpProxiedWarmer();
 
         Pair<DispatcherSplit, RowGroupKey> dispatcherSplitRowGroupKeyPair = mockConnectorSplit();
         String column1 = "C1";
@@ -158,10 +158,10 @@ public class WarpProxiedWarmerTest
     }
 
     @Test
-    public void testVaradaWarmerWarmSuccessMixedWithLucene()
+    public void testWarpWarmerWarmSuccessMixedWithLucene()
             throws IOException
     {
-        WarpProxiedWarmer warpProxiedWarmer = createVaradaProxiedWarmer();
+        WarpProxiedWarmer warpProxiedWarmer = createWarpProxiedWarmer();
 
         Pair<DispatcherSplit, RowGroupKey> dispatcherSplitRowGroupKeyPair = mockConnectorSplit();
         String column1 = "C1";
@@ -207,7 +207,7 @@ public class WarpProxiedWarmerTest
     public void testAllocateByPriorityDifferentWarmupElements()
             throws IOException
     {
-        WarpProxiedWarmer warpProxiedWarmer = createVaradaProxiedWarmer();
+        WarpProxiedWarmer warpProxiedWarmer = createWarpProxiedWarmer();
         Pair<DispatcherSplit, RowGroupKey> dispatcherSplitRowGroupKeyPair = mockConnectorSplit();
         RegularColumn column0 = new RegularColumn("c0");
         RegularColumn column1 = new RegularColumn("c1");
@@ -254,7 +254,7 @@ public class WarpProxiedWarmerTest
     public void testSameColumnDifferentPriority()
             throws IOException
     {
-        WarpProxiedWarmer warpProxiedWarmer = createVaradaProxiedWarmer();
+        WarpProxiedWarmer warpProxiedWarmer = createWarpProxiedWarmer();
         Pair<DispatcherSplit, RowGroupKey> dispatcherSplitRowGroupKeyPair = mockConnectorSplit();
         String column1 = "C1";
         WarpColumn warpColumn1 = new RegularColumn(column1);
@@ -281,10 +281,10 @@ public class WarpProxiedWarmerTest
     }
 
     @Test
-    public void testVaradaWarmerWarmFailed()
+    public void testWarpWarmerWarmFailed()
     {
         Assertions.assertThrows(RuntimeException.class, () -> {
-            WarpProxiedWarmer warpProxiedWarmer = createVaradaProxiedWarmer();
+            WarpProxiedWarmer warpProxiedWarmer = createWarpProxiedWarmer();
 
             Pair<DispatcherSplit, RowGroupKey> dispatcherSplitRowGroupKeyPair = mockConnectorSplit();
             RegularColumn column1 = new RegularColumn("c3");
@@ -307,10 +307,10 @@ public class WarpProxiedWarmerTest
     }
 
     @Test
-    public void testVaradaWarmerWarmFailedDuringWarm()
+    public void testWarpWarmerWarmFailedDuringWarm()
     {
         Assertions.assertThrows(RuntimeException.class, () -> {
-            WarpProxiedWarmer warpProxiedWarmer = createVaradaProxiedWarmer();
+            WarpProxiedWarmer warpProxiedWarmer = createWarpProxiedWarmer();
 
             Pair<DispatcherSplit, RowGroupKey> dispatcherSplitRowGroupKeyPair = mockConnectorSplit();
             RegularColumn column1 = new RegularColumn("c1");
@@ -356,7 +356,7 @@ public class WarpProxiedWarmerTest
                 new ArrayList<>());
     }
 
-    private WarpProxiedWarmer createVaradaProxiedWarmer()
+    private WarpProxiedWarmer createWarpProxiedWarmer()
     {
         NodeManager nodeManager = mockNodeManager();
         StorageWriterService storageWriterService = mock(StorageWriterService.class);

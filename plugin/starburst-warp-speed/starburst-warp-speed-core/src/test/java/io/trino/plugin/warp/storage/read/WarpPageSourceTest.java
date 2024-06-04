@@ -94,7 +94,7 @@ public class WarpPageSourceTest
     {
         ByteBuffer rowsBuff = setMocks();
         PredicatesCacheService predicatesCacheService = mock(PredicatesCacheService.class);
-        WarpPageSource varadaPageSource = new WarpPageSource(
+        WarpPageSource warpPageSource = new WarpPageSource(
                 storageEngine,
                 storageEngineConstants,
                 Integer.MAX_VALUE,
@@ -110,9 +110,9 @@ public class WarpPageSourceTest
                 mock(StorageCollectorService.class),
                 new StubsRangeFillerService());
         when(storageEngine.match(anyInt(), anyInt(), any(), any())).thenReturn(mockMatch(rowsBuff)).thenReturn(0L);
-        Page nextPage = varadaPageSource.getNextPage();
+        Page nextPage = warpPageSource.getNextPage();
         assertThat(nextPage).isNotNull();
-        assertThat(varadaPageSource.isFinished()).isFalse();
+        assertThat(warpPageSource.isFinished()).isFalse();
     }
 
     @Disabled
@@ -151,7 +151,7 @@ public class WarpPageSourceTest
                 .warpColumn(warmUpElement.getWarpColumn())
                 .matchCollectType(MatchCollectType.ORDINARY);*/
 
-        WarpPageSource varadaPageSource = new WarpPageSource(
+        WarpPageSource warpPageSource = new WarpPageSource(
                 storageEngine,
                 storageEngineConstants,
                 Integer.MAX_VALUE,
@@ -167,8 +167,8 @@ public class WarpPageSourceTest
                 mock(StorageCollectorService.class),
                 new StubsRangeFillerService());
         when(storageEngine.match(anyInt(), anyInt(), any(), any())).thenReturn(mockMatch(rowsBuff)).thenReturn(0L);
-        assertThat(varadaPageSource.getNextPage()).isNotNull();
-        assertThat(varadaPageSource.isFinished()).isFalse();
+        assertThat(warpPageSource.getNextPage()).isNotNull();
+        assertThat(warpPageSource.isFinished()).isFalse();
     }
 
     @Disabled
@@ -200,7 +200,7 @@ public class WarpPageSourceTest
                         .build())
                 .build();
 
-        WarpPageSource varadaPageSource = new WarpPageSource(
+        WarpPageSource warpPageSource = new WarpPageSource(
                 storageEngine,
                 storageEngineConstants,
                 Integer.MAX_VALUE,
@@ -216,8 +216,8 @@ public class WarpPageSourceTest
                 mock(StorageCollectorService.class),
                 new StubsRangeFillerService());
         when(storageEngine.match(anyInt(), anyInt(), any(), any())).thenReturn(mockMatch(rowsBuff)).thenReturn(0L);
-        assertThat(varadaPageSource.getNextPage()).isNotNull();
-        assertThat(varadaPageSource.isFinished()).isFalse();
+        assertThat(warpPageSource.getNextPage()).isNotNull();
+        assertThat(warpPageSource.isFinished()).isFalse();
     }
 
     @Disabled
@@ -240,7 +240,7 @@ public class WarpPageSourceTest
         NativeQueryCollectData.Builder nativeCollectBuilder = new NativeQueryCollectData.Builder();
         nativeCollectBuilder.blockIndex(0).type(IntegerType.INTEGER).warmUpElement(warmUpElement).warpColumn(warmUpElement.getWarpColumn());
 
-        WarpPageSource varadaPageSource = new WarpPageSource(
+        WarpPageSource warpPageSource = new WarpPageSource(
                 storageEngine,
                 storageEngineConstants,
                 Integer.MAX_VALUE,
@@ -256,10 +256,10 @@ public class WarpPageSourceTest
                 mock(StorageCollectorService.class),
                 new StubsRangeFillerService());
         when(storageEngine.match(anyInt(), anyInt(), any(), any())).thenReturn(mockMatch(rowsBuff)).thenReturn(0L);
-        Page nextPage = varadaPageSource.getNextPage();
+        Page nextPage = warpPageSource.getNextPage();
         assertThat(nextPage).isNotNull();
         assertThat(nextPage.getPositionCount()).isEqualTo(10);
-        assertThat(varadaPageSource.isFinished()).isFalse();
+        assertThat(warpPageSource.isFinished()).isFalse();
     }
 
     @Disabled
@@ -303,7 +303,7 @@ public class WarpPageSourceTest
         NativeQueryCollectData.Builder nativeCollectBuilderMatch = new NativeQueryCollectData.Builder();
         nativeCollectBuilderMatch.blockIndex(1).type(IntegerType.INTEGER).warmUpElement(warmUpElementMatch).warpColumn(warmUpElementMatch.getWarpColumn());
 
-        WarpPageSource varadaPageSource = new WarpPageSource(
+        WarpPageSource warpPageSource = new WarpPageSource(
                 storageEngine,
                 storageEngineConstants,
                 Integer.MAX_VALUE,
@@ -319,8 +319,8 @@ public class WarpPageSourceTest
                 mock(StorageCollectorService.class),
                 new StubsRangeFillerService());
         when(storageEngine.match(anyInt(), anyInt(), any(), any())).thenReturn(mockMatch(rowsBuff)).thenReturn(0L);
-        assertThat(varadaPageSource.getNextPage()).isNotNull();
-        assertThat(varadaPageSource.isFinished()).isFalse();
+        assertThat(warpPageSource.getNextPage()).isNotNull();
+        assertThat(warpPageSource.isFinished()).isFalse();
     }
 
     private ByteBuffer setMocks()

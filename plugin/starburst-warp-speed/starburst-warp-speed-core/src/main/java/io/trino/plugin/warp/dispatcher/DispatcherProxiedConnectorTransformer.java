@@ -100,7 +100,7 @@ public interface DispatcherProxiedConnectorTransformer
     {
         RegularColumn regularColumn = null;
         try {
-            regularColumn = getVaradaRegularColumn(columnHandle);
+            regularColumn = getWarpRegularColumn(columnHandle);
             if (partitionValue == null || partitionValue.equals(nullPartitionValue.orElse(null))) {
                 return null;
             }
@@ -117,7 +117,7 @@ public interface DispatcherProxiedConnectorTransformer
         String partitionValue = null;
         RegularColumn regularColumn = null;
         try {
-            regularColumn = getVaradaRegularColumn(columnHandle);
+            regularColumn = getWarpRegularColumn(columnHandle);
             partitionValue = rowGroupData.getPartitionKeys().get(regularColumn);
             if (partitionValue == null) {
                 return Optional.empty();
@@ -160,7 +160,7 @@ public interface DispatcherProxiedConnectorTransformer
 
         return new SimplifiedColumns(Stream.concat(simplifyResult.getSimplifiedColumns()
                                 .stream()
-                                .map(this::getVaradaRegularColumn),
+                                .map(this::getWarpRegularColumn),
                         currentSimplifiedColumns.stream())
                 .collect(Collectors.toSet()));
     }

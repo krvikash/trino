@@ -158,7 +158,7 @@ public class HiveProxiedConnectorTransformer
     }
 
     @Override
-    public RegularColumn getVaradaRegularColumn(ColumnHandle columnHandle)
+    public RegularColumn getWarpRegularColumn(ColumnHandle columnHandle)
     {
         String name = ((HiveColumnHandle) columnHandle).getName();
         return new RegularColumn(name);

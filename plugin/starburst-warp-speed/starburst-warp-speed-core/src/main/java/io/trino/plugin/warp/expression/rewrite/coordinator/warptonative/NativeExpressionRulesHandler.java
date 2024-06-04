@@ -139,7 +139,7 @@ public class NativeExpressionRulesHandler
             }
         }
         catch (Exception e) {
-            logger.error(e, "failed to convert varadaExpression to domain pattern. %s", warpExpression);
+            logger.error(e, "failed to convert warpExpression to domain pattern. %s", warpExpression);
             pushdownPredicatesStats.incfailed_rewrite_to_native_expression();
         }
         return res;

@@ -80,9 +80,9 @@ public class LuceneRulesHandler
             return false;
         }
         String functionName = ((WarpCall) warpExpression).getFunctionName();
-        Set<FunctionRewriter> varadaExpressionRules = luceneRules.get(functionName);
+        Set<FunctionRewriter> warpExpressionRules = luceneRules.get(functionName);
         boolean isValid = false;
-        for (FunctionRewriter rule : varadaExpressionRules) {
+        for (FunctionRewriter rule : warpExpressionRules) {
             if (rule.pattern().matches(warpExpression, null)) {
                 isValid = rule.rewriteCallback().apply(warpExpression, context);
                 break;

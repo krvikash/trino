@@ -45,7 +45,7 @@ public final class ColumnTypeUtil
 
     private ColumnTypeUtil() {}
 
-    public static void initVaradaTypeDeserializer(Type... types)
+    public static void initWarpTypeDeserializer(Type... types)
     {
         for (Type type : types) {
             when(typeManager.getType(eq(type.getTypeSignature()))).thenReturn(type);

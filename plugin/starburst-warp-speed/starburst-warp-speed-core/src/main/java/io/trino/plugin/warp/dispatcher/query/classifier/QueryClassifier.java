@@ -177,7 +177,7 @@ public class QueryClassifier
             totalRecords = getTotalRecords(classifyArgs, queryContext, regularColumn, totalRecords);
         }
         for (ColumnHandle columnHandle : queryContext.getRemainingCollectColumns()) {
-            RegularColumn regularColumn = dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(columnHandle);
+            RegularColumn regularColumn = dispatcherProxiedConnectorTransformer.getWarpRegularColumn(columnHandle);
             totalRecords = getTotalRecords(classifyArgs, queryContext, regularColumn, totalRecords);
         }
         return totalRecords;

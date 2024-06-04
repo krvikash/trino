@@ -84,7 +84,7 @@ public class TestingConnectorProxiedConnectorTransformer
     }
 
     @Override
-    public RegularColumn getVaradaRegularColumn(ColumnHandle columnHandle)
+    public RegularColumn getWarpRegularColumn(ColumnHandle columnHandle)
     {
         String name = ((TestingConnectorColumnHandle) columnHandle).name();
         return new RegularColumn(name);

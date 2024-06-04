@@ -166,7 +166,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 Map.of("http-server.log.enabled", "false",
                         "hive.s3.aws-access-key", "this is a fake key",
                         USE_HTTP_SERVER_PORT, "false",
-                        "node.environment", "varada",
+                        "node.environment", "warp",
                         PROXIED_CONNECTOR, HIVE_CONNECTOR_NAME),
                 hiveDir,
                 DispatcherConnectorFactory.DISPATCHER_CONNECTOR_NAME,
@@ -800,7 +800,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
     @ParameterizedTest
     @MethodSource("provideJsonExtractScalarTestParams")
-    void testJsonExtractScalar(int expectedWarmupElements, int expectedWarmFinished, long varadaCollectColumns, long varadaMatchColumns, String jsonExtractScalarPredicate)
+    void testJsonExtractScalar(int expectedWarmupElements, int expectedWarmFinished, long warpCollectColumns, long warpMatchColumns, String jsonExtractScalarPredicate)
     {
         createTable(DEFAULT_SCHEMA,
                 "json_test_table",
@@ -816,9 +816,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         warmAndValidate(query, true, expectedWarmupElements, expectedWarmFinished);
 
         Map<String, Long> expectedQueryStats = Map.of(
-                "varada_collect_columns", varadaCollectColumns,
+                "varada_collect_columns", warpCollectColumns,
                 "external_collect_columns", 0L,
-                "varada_match_columns", varadaMatchColumns,
+                "varada_match_columns", warpMatchColumns,
                 "external_match_columns", 0L);
         validateQueryStats(query, getSession(), expectedQueryStats);
     }
@@ -2934,7 +2934,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         String query = format("SELECT %1$s FROM t WHERE %1$s LIKE '%2$s' AND %1$s LIKE '%3$s'", C2, prefixLikePattern, suffixLikePattern);
         DispatcherTableHandle table = executeWithTableHandle(getSession(), query);
 
-        // Validate the translation to VaradaExpression
+        // Validate the translation to WarpExpression
         io.trino.plugin.warp.expression.rewrite.WarpExpression warpExpression = table.getWarpExpression().orElseThrow();
         assertThat(warpExpression.warpExpressionDataLeaves().size()).isEqualTo(2);
 
@@ -2993,9 +2993,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         assertThat(likeCall.getArguments().size()).isEqualTo(2);
         assertThat(likeCall.getArguments().get(0)).isInstanceOf(WarpVariable.class);
         assertThat(likeCall.getArguments().get(1)).isInstanceOf(WarpConstant.class);
-        WarpVariable varadaVariable = (WarpVariable) likeCall.getArguments().get(0);
+        WarpVariable warpVariable = (WarpVariable) likeCall.getArguments().get(0);
         WarpConstant likeConstant = (WarpConstant) likeCall.getArguments().get(1);
-        HiveColumnHandle hiveColumnHandle = (HiveColumnHandle) varadaVariable.getColumnHandle();
+        HiveColumnHandle hiveColumnHandle = (HiveColumnHandle) warpVariable.getColumnHandle();
         assertThat(hiveColumnHandle.getBaseColumnName()).isEqualTo(C2);
         assertThat(likeConstant).isEqualTo(new WarpSliceConstant(Slices.utf8Slice(likePattern), VarcharType.createVarcharType(likePattern.length())));
         return hiveColumnHandle;
@@ -3031,7 +3031,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         // Query again, expect the same counters
         query = "SELECT v1 FROM t WHERE v1 = 'singleValue'";
-        // (Lucene index may or may not be deleted - either way we should match from Varada since we query for a single value)
+        // (Lucene index may or may not be deleted - either way we should match from Warp since we query for a single value)
         expectedQueryStats = Map.of(WARP_MATCH_COLUMNS_STAT, 1L);
         validateQueryStats(query, getSession(), expectedQueryStats);
     }
@@ -3147,8 +3147,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     public void testLikeBeforeAndAfterLuceneWarmupIsAdded()
             throws IOException
     {
-        // warmup v1 with data+basic and validate that like query is not matched by Varada
-        // then update warmups with +lucene, and validate that the query is matched by Varada
+        // warmup v1 with data+basic and validate that like query is not matched by Warp
+        // then update warmups with +lucene, and validate that the query is matched by Warp
 
         // warmup v1 with data+basic
         computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomishlomishlomi')");
@@ -4331,8 +4331,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                     .isEmpty();
         }
         if (columnName != null) {
-            Map<RegularColumn, WarpExpressionData> varadaExpressions = table.getWarpExpression().orElseThrow().warpExpressionDataLeaves().stream().collect(Collectors.toMap(WarpExpressionData::getWarpColumn, Function.identity()));
-            WarpExpressionData warpExpressionData = varadaExpressions.get(new RegularColumn(columnName));
+            Map<RegularColumn, WarpExpressionData> warpExpressions = table.getWarpExpression().orElseThrow().warpExpressionDataLeaves().stream().collect(Collectors.toMap(WarpExpressionData::getWarpColumn, Function.identity()));
+            WarpExpressionData warpExpressionData = warpExpressions.get(new RegularColumn(columnName));
             assertThat(warpExpressionData.isCollectNulls()).isEqualTo(collectNulls);
             if (functionName != null) {
                 validateFunctionNameExistInExpression(warpExpressionData.getExpression(), functionName);

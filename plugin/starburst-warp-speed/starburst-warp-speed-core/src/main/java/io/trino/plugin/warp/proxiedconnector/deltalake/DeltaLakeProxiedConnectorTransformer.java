@@ -100,7 +100,7 @@ public class DeltaLakeProxiedConnectorTransformer
     }
 
     @Override
-    public RegularColumn getVaradaRegularColumn(ColumnHandle columnHandle)
+    public RegularColumn getWarpRegularColumn(ColumnHandle columnHandle)
     {
         String name = ((DeltaLakeColumnHandle) columnHandle).getQualifiedPhysicalName();
         return new RegularColumn(name);

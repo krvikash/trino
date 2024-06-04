@@ -151,7 +151,7 @@ class InNativeRewriter
                     .functionParams(functionParams);
         }
         catch (Exception e) {
-            logger.debug("failed to convertInFunction. error=%s, varadaExpression=%s", e, warpExpression);
+            logger.debug("failed to convertInFunction. error=%s, warpExpression=%s", e, warpExpression);
             pushdownPredicatesStats.incunsupported_functions_native();
             valid = false;
         }

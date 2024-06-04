@@ -30,16 +30,16 @@ interface ExpressionRewriter<T extends WarpExpression>
 
     Pattern<T> getPattern();
 
-    default Domain convertConstantToDomain(WarpConstant varadaConstant, BiFunction<Type, Object, Range> rangeBiFunction)
+    default Domain convertConstantToDomain(WarpConstant warpConstant, BiFunction<Type, Object, Range> rangeBiFunction)
     {
-        Type type = varadaConstant.getType();
+        Type type = warpConstant.getType();
         try {
-            Object value = varadaConstant.getValue();
+            Object value = warpConstant.getValue();
             Range range = rangeBiFunction.apply(type, value);
             return Domain.create(ValueSet.ofRanges(range), false);
         }
         catch (Exception e) {
-            logger.error("failed to get create domain from constant  varadaConstant=%s, type=%s", varadaConstant, type);
+            logger.error("failed to get create domain from constant  warpConstant=%s, type=%s", warpConstant, type);
             throw new UnsupportedOperationException(e);
         }
     }

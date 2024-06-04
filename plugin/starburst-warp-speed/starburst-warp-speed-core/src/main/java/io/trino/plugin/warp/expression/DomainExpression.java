@@ -23,12 +23,12 @@ import java.util.Objects;
 public class DomainExpression
         implements WarpExpression
 {
-    private final WarpVariable varadaVariable;
+    private final WarpVariable warpVariable;
     private final Domain domain;
 
-    public DomainExpression(WarpVariable varadaVariable, Domain domain)
+    public DomainExpression(WarpVariable warpVariable, Domain domain)
     {
-        this.varadaVariable = varadaVariable;
+        this.warpVariable = warpVariable;
         this.domain = domain;
     }
 
@@ -59,20 +59,20 @@ public class DomainExpression
             return false;
         }
         DomainExpression that = (DomainExpression) o;
-        return Objects.equals(varadaVariable, that.varadaVariable) && Objects.equals(domain, that.domain);
+        return Objects.equals(warpVariable, that.warpVariable) && Objects.equals(domain, that.domain);
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hash(varadaVariable, domain);
+        return Objects.hash(warpVariable, domain);
     }
 
     @Override
     public String toString()
     {
         return "DomainExpression{" +
-                "varadaVariable=" + varadaVariable +
+                "warpVariable=" + warpVariable +
                 ", domain=" + domain +
                 '}';
     }

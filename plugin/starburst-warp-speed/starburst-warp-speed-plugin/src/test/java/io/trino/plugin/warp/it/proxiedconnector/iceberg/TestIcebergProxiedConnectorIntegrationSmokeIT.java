@@ -73,7 +73,7 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
                 Collections.emptyMap(),
                 Map.of("http-server.log.enabled", "false",
                         USE_HTTP_SERVER_PORT, "false",
-                        "node.environment", "varada",
+                        "node.environment", "warp",
                         "iceberg.catalog.type", "TESTING_FILE_METASTORE",
                         PROXIED_CONNECTOR, ICEBERG_CONNECTOR_NAME),
                 hiveDir,

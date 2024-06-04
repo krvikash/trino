@@ -79,7 +79,7 @@ class InRewriter
                     inValues.add(constant.get());
                 }
                 else {
-                    logger.debug("can't convert expression=%s to varada expression", constantValue);
+                    logger.debug("can't convert expression=%s to Warp expression", constantValue);
                     return Optional.empty();
                 }
             }

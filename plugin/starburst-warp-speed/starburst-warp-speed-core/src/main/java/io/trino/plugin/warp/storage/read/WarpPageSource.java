@@ -152,7 +152,7 @@ public class WarpPageSource
             close(); // release any resources now (dictionaries)
         }
 
-        // blocks.length can be 0 in case we just match in varada when collect is done in external/prefilled
+        // blocks.length can be 0 in case we just match in Warp when collect is done in external/prefilled
         return ((blocks.length > 0) && blocks[0] != null) ? new Page(currentPositionsCount, blocks) : new Page(currentPositionsCount);
     }
 

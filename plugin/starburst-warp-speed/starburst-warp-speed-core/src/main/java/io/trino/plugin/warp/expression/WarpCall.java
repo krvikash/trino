@@ -69,7 +69,7 @@ public class WarpCall
     @Override
     public String toString()
     {
-        return "VaradaCall{" +
+        return "WarpCall{" +
                 "functionName='" + functionName + '\'' +
                 ", type=" + type +
                 ", arguments=" + arguments +

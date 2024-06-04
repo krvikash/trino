@@ -79,7 +79,7 @@ public class LuceneMatcherTest
     private LuceneElementsMatcher luceneElementsMatcher;
     private RowGroupData rowGroupData;
 
-    static Stream<Arguments> testVaradaExpressionsParams()
+    static Stream<Arguments> testWarpExpressionsParams()
     {
         Slice comparisonValue = Slices.utf8Slice("str");
         Type type = VarcharType.createVarcharType(5);
@@ -270,19 +270,19 @@ public class LuceneMatcherTest
     }
 
     @ParameterizedTest
-    @MethodSource("testVaradaExpressionsParams")
-    public void testVaradaExpressions(String comparisonFunctionName, Slice comparisonValue, Query comparisonQuery)
+    @MethodSource("testWarpExpressionsParams")
+    public void testWarpExpressions(String comparisonFunctionName, Slice comparisonValue, Query comparisonQuery)
     {
         String columnName = "col1";
         ColumnHandle columnHandle = mockColumnHandle(columnName, varcharType, dispatcherProxiedConnectorTransformer);
         Type type = varcharType;
-        WarpVariable varadaVariable = new WarpVariable(columnHandle, type);
+        WarpVariable warpVariable = new WarpVariable(columnHandle, type);
 
         // col1 LIKE '%aa%' = TRUE
         Slice likePattern = Slices.utf8Slice("%aa%");
         WarpCall likeEqualsTrueCall = new WarpCall(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
                 List.of(new WarpCall(LIKE_FUNCTION_NAME.getName(),
-                                List.of(varadaVariable,
+                                List.of(warpVariable,
                                         new WarpSliceConstant(likePattern, type)), type),
                         WarpPrimitiveConstant.TRUE), type);
         Query likeQuery = createLikeQuery(likePattern);
@@ -293,13 +293,13 @@ public class LuceneMatcherTest
         // STARTS_WITH(col1, 'b')
         Slice prefix = Slices.utf8Slice("b");
         WarpCall startsWithCall = new WarpCall("starts_with",
-                List.of(varadaVariable,
+                List.of(warpVariable,
                         new WarpSliceConstant(prefix, type)), type);
         Query startsWithQuery = createPrefixQuery(prefix);
 
         // col1 =, !=, >, >=, <, <= 'str'
         WarpCall comparisonFunctionCall = new WarpCall(comparisonFunctionName,
-                List.of(varadaVariable,
+                List.of(warpVariable,
                         new WarpSliceConstant(comparisonValue, type)), type);
 
         // <expression> AND <expression> AND <expression>
@@ -342,16 +342,16 @@ public class LuceneMatcherTest
     }
 
     @Test
-    public void testVaradaExpressionEqualsAndNotEquals()
+    public void testWarpExpressionEqualsAndNotEquals()
     {
         String columnName = "col1";
         ColumnHandle columnHandle = mockColumnHandle(columnName, varcharType, dispatcherProxiedConnectorTransformer);
         Type type = VarcharType.createVarcharType(5);
-        WarpVariable varadaVariable = new WarpVariable(columnHandle, type);
+        WarpVariable warpVariable = new WarpVariable(columnHandle, type);
 
         Slice likePattern = Slices.utf8Slice("%aa%");
         WarpCall likeCall = new WarpCall(LIKE_FUNCTION_NAME.getName(),
-                List.of(varadaVariable,
+                List.of(warpVariable,
                         new WarpSliceConstant(likePattern, type)), type);
         WarpCall equalsTrue = new WarpCall(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
                 List.of(likeCall,
@@ -384,19 +384,19 @@ public class LuceneMatcherTest
     }
 
     @Test
-    public void testVaradaExpressionCantBeConverted()
+    public void testWarpExpressionCantBeConverted()
     {
         String columnName = "col1";
         ColumnHandle columnHandle = mockColumnHandle(columnName, varcharType, dispatcherProxiedConnectorTransformer);
         Type type = VarcharType.createVarcharType(5);
-        WarpVariable varadaVariable = new WarpVariable(columnHandle, type);
+        WarpVariable warpVariable = new WarpVariable(columnHandle, type);
         Slice likePattern = Slices.utf8Slice("%aa%");
 
         WarpCall likeCall = new WarpCall(LIKE_FUNCTION_NAME.getName(),
-                List.of(varadaVariable,
+                List.of(warpVariable,
                         new WarpSliceConstant(likePattern, type)), type);
         WarpCall untranslatableCall = new WarpCall("$unfamiliar_call",
-                List.of(varadaVariable), type);
+                List.of(warpVariable), type);
         WarpCall orCall = new WarpCall(StandardFunctions.OR_FUNCTION_NAME.getName(),
                 List.of(likeCall,
                         untranslatableCall), type);
@@ -405,16 +405,16 @@ public class LuceneMatcherTest
                         untranslatableCall), type);
         WarpCall andCallWithInvalidArgument = new WarpCall(StandardFunctions.AND_FUNCTION_NAME.getName(),
                 List.of(likeCall,
-                        varadaVariable), type);
+                        warpVariable), type);
         WarpCall andCallWhichCantBeConverted = new WarpCall(StandardFunctions.AND_FUNCTION_NAME.getName(),
                 List.of(untranslatableCall,
-                        varadaVariable), type);
+                        warpVariable), type);
 
         Query likeQuery = createLikeQuery(likePattern);
         BooleanQuery mustLikeQuery = new BooleanQuery.Builder()
                 .add(likeQuery, BooleanClause.Occur.MUST)
                 .build();
-        assertExpressionNotConverted(columnName, columnHandle, Optional.of(varadaVariable), Optional.empty());
+        assertExpressionNotConverted(columnName, columnHandle, Optional.of(warpVariable), Optional.empty());
         assertExpressionNotConverted(columnName, columnHandle, Optional.of(untranslatableCall), Optional.empty());
         assertExpressionNotConverted(columnName, columnHandle, Optional.of(orCall), Optional.empty());
         assertExpressionNotConverted(columnName, columnHandle, Optional.of(andCallWhichCantBeConverted), Optional.empty());
@@ -431,7 +431,7 @@ public class LuceneMatcherTest
     }
 
     @Test
-    public void testOnlyIsNullVaradaExpression()
+    public void testOnlyIsNullWarpExpression()
     {
         String columnName = "col1";
         ColumnHandle columnHandle = mockColumnHandle(columnName, varcharType, dispatcherProxiedConnectorTransformer);

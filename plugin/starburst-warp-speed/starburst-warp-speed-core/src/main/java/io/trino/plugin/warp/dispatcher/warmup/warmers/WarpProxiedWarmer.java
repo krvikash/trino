@@ -250,7 +250,7 @@ public class WarpProxiedWarmer
         for (int connectorBlockIdx = 0; connectorBlockIdx < columnsToWarm.size(); connectorBlockIdx++) {
             ColumnHandle columnHandle = columnsToWarm.get(connectorBlockIdx);
             Type type = dispatcherProxiedConnectorTransformer.getColumnType(columnHandle);
-            RegularColumn warpColumn = dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(columnHandle);
+            RegularColumn warpColumn = dispatcherProxiedConnectorTransformer.getWarpRegularColumn(columnHandle);
             Collection<WarmUpElement> warmUpElements = new ArrayList<>();
 
             List<TransformedColumn> transformedColumns = requiredWarmUpTypeMap

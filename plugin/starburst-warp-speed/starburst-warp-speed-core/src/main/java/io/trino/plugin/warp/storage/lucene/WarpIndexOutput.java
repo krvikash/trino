@@ -46,14 +46,14 @@ public class WarpIndexOutput
             long weCookie,
             boolean forwardToNative)
     {
-        super("VaradaLuceneIndex", "varadaLucene");
+        super("WarpLuceneIndex", "warpLucene");
         this.storageEngine = storageEngine;
         this.forwardToNative = forwardToNative;
         this.luceneFileType = LuceneFileType.getType(fileName);
         this.storageEngineConstants = storageEngineConstants;
         this.weCookie = weCookie;
         this.juffersWE = juffersWE;
-        this.byteBuffersIndexOutput = new ByteBuffersIndexOutput(new ByteBuffersDataOutput(), "VaradaLuceneIndex", "varadaLucene");
+        this.byteBuffersIndexOutput = new ByteBuffersIndexOutput(new ByteBuffersDataOutput(), "WarpLuceneIndex", "warpLucene");
     }
 
     @Override

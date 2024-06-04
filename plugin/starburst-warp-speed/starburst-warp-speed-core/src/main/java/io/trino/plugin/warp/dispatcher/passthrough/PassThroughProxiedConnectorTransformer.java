@@ -95,9 +95,9 @@ public class PassThroughProxiedConnectorTransformer
     }
 
     @Override
-    public RegularColumn getVaradaRegularColumn(ColumnHandle columnHandle)
+    public RegularColumn getWarpRegularColumn(ColumnHandle columnHandle)
     {
-        return dispatcherProxiedConnectorColumnTransformer.getVaradaRegularColumn(columnHandle);
+        return dispatcherProxiedConnectorColumnTransformer.getWarpRegularColumn(columnHandle);
     }
 
     @Override

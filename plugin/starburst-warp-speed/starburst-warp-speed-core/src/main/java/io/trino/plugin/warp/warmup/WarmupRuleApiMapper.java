@@ -125,10 +125,10 @@ public class WarmupRuleApiMapper
         };
     }
 
-    private static WarpPrimitiveConstant convertApiVaradaPrimitiveConstant(WarpPrimitiveConstantData apiVaradaPrimitiveConstant)
+    private static WarpPrimitiveConstant convertApiWarpPrimitiveConstant(WarpPrimitiveConstantData apiWarpPrimitiveConstant)
     {
-        Object value = apiVaradaPrimitiveConstant.getValue();
-        WarpExpressionData.Type type = apiVaradaPrimitiveConstant.getType();
+        Object value = apiWarpPrimitiveConstant.getValue();
+        WarpExpressionData.Type type = apiWarpPrimitiveConstant.getType();
 
         switch (type) {
             case VARCHAR -> {
@@ -197,7 +197,7 @@ public class WarmupRuleApiMapper
         else {
             List<? extends WarpConstant> transformParams = apiTransformFunction.transformParams().stream()
                     .filter(param -> (param instanceof WarpPrimitiveConstantData))
-                    .map(param -> convertApiVaradaPrimitiveConstant((WarpPrimitiveConstantData) param))
+                    .map(param -> convertApiWarpPrimitiveConstant((WarpPrimitiveConstantData) param))
                     .collect(Collectors.toList());
             transformFunction = new TransformFunction(transformType, transformParams);
         }
@@ -282,9 +282,9 @@ public class WarmupRuleApiMapper
         throw new TrinoException(WarpErrorCode.WARP_ILLEGAL_PARAMETER, "Unknown modelType " + modelType);
     }
 
-    private static WarpPrimitiveConstantData convertModelVaradaPrimitiveConstant(WarpPrimitiveConstant modelVaradaPrimitiveConstant)
+    private static WarpPrimitiveConstantData convertModelWarpPrimitiveConstant(WarpPrimitiveConstant modelWarpPrimitiveConstant)
     {
-        return new WarpPrimitiveConstantData(modelVaradaPrimitiveConstant.getValue(), convertModelType(modelVaradaPrimitiveConstant.getType()));
+        return new WarpPrimitiveConstantData(modelWarpPrimitiveConstant.getValue(), convertModelType(modelWarpPrimitiveConstant.getType()));
     }
 
     private static TransformFunctionData convertModelTransformFunction(TransformFunction modelTransformFunction)
@@ -298,7 +298,7 @@ public class WarmupRuleApiMapper
         else {
             ImmutableList<? extends WarpConstantData> transformParams = modelTransformFunction.transformParams().stream()
                     .filter(param -> (param instanceof WarpPrimitiveConstant))
-                    .map(param -> convertModelVaradaPrimitiveConstant((WarpPrimitiveConstant) param))
+                    .map(param -> convertModelWarpPrimitiveConstant((WarpPrimitiveConstant) param))
                     .collect(toImmutableList());
             transformFunction = new TransformFunctionData(transformType, transformParams);
         }

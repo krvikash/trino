@@ -61,12 +61,12 @@ class CallAndConstantRewriter
             //currently, not supported complex expression. etc: where (ceil(c1) > 5) = false
             return false;
         }
-        WarpConstant varadaConstant = ((WarpConstant) warpExpression.getChildren().get(1));
-        Type constantType = varadaConstant.getType();
+        WarpConstant warpConstant = ((WarpConstant) warpExpression.getChildren().get(1));
+        Type constantType = warpConstant.getType();
         String functionName = ((WarpCall) warpExpression).getFunctionName();
         PredicateType predicateType = calcPredicateType(constantType, functionName);
 
-        Domain domain = convertConstantToDomain(varadaConstant, rangeBiFunction);
+        Domain domain = convertConstantToDomain(warpConstant, rangeBiFunction);
         NativeExpression.Builder nativeExpressionBuilder = rewriteContext.nativeExpressionBuilder();
         nativeExpressionBuilder.domain(domain)
                 .predicateType(predicateType)

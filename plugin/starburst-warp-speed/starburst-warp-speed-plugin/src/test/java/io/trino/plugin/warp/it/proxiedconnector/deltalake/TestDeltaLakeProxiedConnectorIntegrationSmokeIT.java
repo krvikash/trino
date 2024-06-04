@@ -46,7 +46,7 @@ public class TestDeltaLakeProxiedConnectorIntegrationSmokeIT
                 Collections.emptyMap(),
                 Map.of("http-server.log.enabled", "false",
                         USE_HTTP_SERVER_PORT, "false",
-                        "node.environment", "varada",
+                        "node.environment", "warp",
                         PROXIED_CONNECTOR, DELTA_LAKE_CONNECTOR_NAME),
                 hiveDir,
                 DispatcherConnectorFactory.DISPATCHER_CONNECTOR_NAME,

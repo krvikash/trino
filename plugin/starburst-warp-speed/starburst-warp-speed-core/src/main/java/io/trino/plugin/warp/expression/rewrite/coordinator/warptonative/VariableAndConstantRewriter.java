@@ -68,12 +68,12 @@ class VariableAndConstantRewriter
             pushdownPredicatesStats.incunsupported_functions_composite();
             return false;
         }
-        WarpConstant varadaConstant = ((WarpConstant) warpExpression.getChildren().get(1));
-        Type constantType = varadaConstant.getType();
+        WarpConstant warpConstant = ((WarpConstant) warpExpression.getChildren().get(1));
+        Type constantType = warpConstant.getType();
         String functionName = ((WarpCall) warpExpression).getFunctionName();
         PredicateType predicateType = calcPredicateType(constantType, functionName);
 
-        Domain domain = convertConstantToDomain(varadaConstant, rangeBiFunction);
+        Domain domain = convertConstantToDomain(warpConstant, rangeBiFunction);
         NativeExpression.Builder nativeExpressionBuilder = rewriteContext.nativeExpressionBuilder();
         nativeExpressionBuilder.domain(domain)
                 .predicateType(predicateType)
@@ -86,11 +86,11 @@ class VariableAndConstantRewriter
     {
         boolean res = false;
         if (warpExpression.getChildren().get(0).getType() instanceof MapType mapType && isWarmBasicSupported(mapType.getValueType())) {
-            WarpConstant varadaConstant = (WarpConstant) warpExpression.getChildren().get(1);
+            WarpConstant warpConstant = (WarpConstant) warpExpression.getChildren().get(1);
             NativeExpression.Builder nativeExpressionBuilder = rewriteContext.nativeExpressionBuilder();
             nativeExpressionBuilder
                     .functionType(FunctionType.FUNCTION_TYPE_TRANSFORMED)
-                    .transformedColumn(new TransformFunction(TransformFunction.TransformType.ELEMENT_AT, List.of(varadaConstant)));
+                    .transformedColumn(new TransformFunction(TransformFunction.TransformType.ELEMENT_AT, List.of(warpConstant)));
             res = true;
         }
         return res;
@@ -98,16 +98,16 @@ class VariableAndConstantRewriter
 
     public boolean jsonExtractScalar(WarpExpression warpExpression, RewriteContext rewriteContext)
     {
-        WarpSliceConstant varadaSliceConstant = (WarpSliceConstant) warpExpression.getChildren()
+        WarpSliceConstant warpSliceConstant = (WarpSliceConstant) warpExpression.getChildren()
                 .stream()
-                .filter(varadaExpr -> varadaExpr instanceof WarpSliceConstant)
+                .filter(warpExpr -> warpExpr instanceof WarpSliceConstant)
                 .findFirst()
                 .orElseThrow();
         rewriteContext
                 .nativeExpressionBuilder()
                 .functionType(FunctionType.FUNCTION_TYPE_TRANSFORMED)
                 .transformedColumn(new TransformFunction(TransformFunction.TransformType.JSON_EXTRACT_SCALAR,
-                        List.of(new WarpPrimitiveConstant(varadaSliceConstant.getValue().toStringUtf8(), VarcharType.VARCHAR))));
+                        List.of(new WarpPrimitiveConstant(warpSliceConstant.getValue().toStringUtf8(), VarcharType.VARCHAR))));
         return true;
     }
 }

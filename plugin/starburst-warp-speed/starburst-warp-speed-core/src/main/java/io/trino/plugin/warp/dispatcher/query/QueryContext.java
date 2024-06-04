@@ -223,7 +223,7 @@ public class QueryContext
                 (getNativeQueryCollectDataList().isEmpty() && getMatchData().isEmpty() && getPrefilledQueryCollectDataByBlockIndex().isEmpty());
     }
 
-    public boolean isVaradaOnly()
+    public boolean isWarpOnly()
     {
         return getRemainingCollectColumnByBlockIndex().isEmpty() &&
                 (!getNativeQueryCollectDataList().isEmpty() || getMatchData().isPresent());

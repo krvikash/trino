@@ -112,7 +112,7 @@ public abstract class ClassifierTest
     protected TestingConnectorColumnHandle mockColumnHandle(String columnName, Type type, DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer)
     {
         TestingConnectorColumnHandle columnHandle = new TestingConnectorColumnHandle(type, columnName);
-        when(dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(eq(columnHandle))).thenReturn(new RegularColumn(columnName));
+        when(dispatcherProxiedConnectorTransformer.getWarpRegularColumn(eq(columnHandle))).thenReturn(new RegularColumn(columnName));
         when(dispatcherProxiedConnectorTransformer.getColumnType(eq(columnHandle))).thenReturn(type);
         return columnHandle;
     }

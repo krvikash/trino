@@ -57,7 +57,7 @@ class CastRewriter
     @Override
     public Optional<WarpExpression> rewrite(Call expression, Captures captures, RewriteContext<WarpExpression> context)
     {
-        Optional<WarpExpression> varadaExpression = context.defaultRewrite(expression.getChildren().get(0));
-        return varadaExpression.map(value -> new WarpCall(CAST_FUNCTION_NAME.getName(), List.of(value), expression.getType()));
+        Optional<WarpExpression> warpExpression = context.defaultRewrite(expression.getChildren().get(0));
+        return warpExpression.map(value -> new WarpCall(CAST_FUNCTION_NAME.getName(), List.of(value), expression.getType()));
     }
 }

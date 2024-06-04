@@ -61,7 +61,7 @@ public class TestHivePassThroughProxiedConnectorIntegrationSmokeIT
                 Collections.emptyMap(),
                 Map.of("http-server.log.enabled", "false",
                         USE_HTTP_SERVER_PORT, "false",
-                        "node.environment", "varada",
+                        "node.environment", "warp",
                         PROXIED_CONNECTOR, HIVE_CONNECTOR_NAME,
                         PASS_THROUGH_DISPATCHER, "hive,hudi"),
                 hiveDir,

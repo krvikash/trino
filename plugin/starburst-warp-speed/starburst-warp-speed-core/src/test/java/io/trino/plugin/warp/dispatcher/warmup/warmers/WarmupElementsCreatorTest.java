@@ -136,7 +136,7 @@ public class WarmupElementsCreatorTest
      * createWarmupElements method doesn't consider the priority ,unless the priority prevent by demoter.
      * removal elements with low priority is done before this method in filterRequiredCoWarmupTypeMap method.
      * CloudImporter doesn't need to consider the priority order, so creation of required warmup elements is done in recordDataList order.
-     * sorting warmupElements by valid priority is done in VaradaProxiedWarmer
+     * sorting warmupElements by valid priority is done in WarpProxiedWarmer
      */
     @Test
     public void testAllocateByPrioritySamePriorityOrderByColId()

@@ -62,7 +62,7 @@ public class WarpReadIndexInput
             long length,
             String sliceDescription)
     {
-        super("VaradaReadIndexInput_" + nativeCookie + "_" + luceneFileType);
+        super("WarpReadIndexInput_" + nativeCookie + "_" + luceneFileType);
         this.storageEngine = storageEngine;
         this.storageEngineConstants = storageEngineConstants;
         this.dataRecordJuffer = juffersWE;

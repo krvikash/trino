@@ -45,13 +45,13 @@ public class OrRewriter
     {
         List<WarpExpression> children = new ArrayList<>();
         for (ConnectorExpression connectorExpression : expression.getArguments()) {
-            Optional<WarpExpression> varadaExpression = context.defaultRewrite(connectorExpression);
-            if (varadaExpression.isEmpty()) {
+            Optional<WarpExpression> warpExpression = context.defaultRewrite(connectorExpression);
+            if (warpExpression.isEmpty()) {
                 children.clear();
                 break;
             }
             else {
-                children.add(varadaExpression.get());
+                children.add(warpExpression.get());
             }
         }
         if (children.isEmpty()) {

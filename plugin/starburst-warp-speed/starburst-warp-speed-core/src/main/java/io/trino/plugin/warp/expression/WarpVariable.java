@@ -61,7 +61,7 @@ public class WarpVariable
     @Override
     public String toString()
     {
-        return "VaradaVariable{" +
+        return "WarpVariable{" +
                 "columnHandle=" + columnHandle +
                 ", type=" + type +
                 '}';
@@ -76,9 +76,9 @@ public class WarpVariable
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        WarpVariable varadaVariable = (WarpVariable) o;
-        return Objects.equals(getColumnHandle(), varadaVariable.getColumnHandle()) &&
-                Objects.equals(getType(), varadaVariable.getType());
+        WarpVariable warpVariable = (WarpVariable) o;
+        return Objects.equals(getColumnHandle(), warpVariable.getColumnHandle()) &&
+                Objects.equals(getType(), warpVariable.getType());
     }
 
     @Override

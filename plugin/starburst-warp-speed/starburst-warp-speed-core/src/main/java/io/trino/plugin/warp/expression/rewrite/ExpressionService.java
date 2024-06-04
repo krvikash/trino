@@ -123,24 +123,24 @@ public class ExpressionService
                     unsupportedFunctions.stream().collect(MoreCollectors.onlyElement()).equals("*")) {
                 return Optional.empty();
             }
-            Optional<WarpExpression> varadaExpressionOpt = convertToVaradaExpression(session,
+            Optional<WarpExpression> warpExpressionOpt = convertToWarpExpression(session,
                     expression,
                     assignments,
                     unsupportedFunctions,
                     customStats);
-            if (varadaExpressionOpt.isPresent()) {
-                ImmutableSetMultimap.Builder<RegularColumn, WarpExpressionData> outVaradaExpressionDataLeaves = ImmutableSetMultimap.builder();
+            if (warpExpressionOpt.isPresent()) {
+                ImmutableSetMultimap.Builder<RegularColumn, WarpExpressionData> outWarpExpressionDataLeaves = ImmutableSetMultimap.builder();
                 Set<String> unsupportedNativeFunctions = WarpSessionProperties.getUnsupportedNativeFunctions(session, nativeConfig);
 
-                boolean validExpression = convertToFlatVaradaExpressionDataList(varadaExpressionOpt.get(), outVaradaExpressionDataLeaves, unsupportedNativeFunctions, customStats, 0);
-                List<WarpExpressionData> warpExpressionDataLeaves = new ArrayList<>(outVaradaExpressionDataLeaves.build().values());
+                boolean validExpression = convertToFlatWarpExpressionDataList(warpExpressionOpt.get(), outWarpExpressionDataLeaves, unsupportedNativeFunctions, customStats, 0);
+                List<WarpExpressionData> warpExpressionDataLeaves = new ArrayList<>(outWarpExpressionDataLeaves.build().values());
 
                 if (warpExpressionDataLeaves.isEmpty() ||
                         !validExpression) {
                     res = Optional.empty();
                 }
                 else {
-                    res = Optional.of(new io.trino.plugin.warp.expression.rewrite.WarpExpression(varadaExpressionOpt.get(), warpExpressionDataLeaves));
+                    res = Optional.of(new io.trino.plugin.warp.expression.rewrite.WarpExpression(warpExpressionOpt.get(), warpExpressionDataLeaves));
                 }
             }
             else {
@@ -155,8 +155,8 @@ public class ExpressionService
         return res;
     }
 
-    private boolean convertToFlatVaradaExpressionDataList(WarpExpression warpExpression,
-                                                          ImmutableSetMultimap.Builder<RegularColumn, WarpExpressionData> outVaradaExpressionDataLeaves,
+    private boolean convertToFlatWarpExpressionDataList(WarpExpression warpExpression,
+                                                          ImmutableSetMultimap.Builder<RegularColumn, WarpExpressionData> outWarpExpressionDataLeaves,
                                                           Set<String> unsupportedNativeFunctions,
                                                           Map<String, Long> customStats,
                                                           int treeLevel)
@@ -170,7 +170,7 @@ public class ExpressionService
                 }
                 treeLevel++;
                 for (WarpExpression expression : warpCall.getArguments()) {
-                    if (!convertToFlatVaradaExpressionDataList(expression, outVaradaExpressionDataLeaves, unsupportedNativeFunctions, customStats, treeLevel)) {
+                    if (!convertToFlatWarpExpressionDataList(expression, outWarpExpressionDataLeaves, unsupportedNativeFunctions, customStats, treeLevel)) {
                         return false;
                     }
                 }
@@ -182,7 +182,7 @@ public class ExpressionService
                 }
 
                 Type columnType = dispatcherProxiedConnectorTransformer.getColumnType(columnHandleOptional.get());
-                RegularColumn warpColumn = dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(columnHandleOptional.get());
+                RegularColumn warpColumn = dispatcherProxiedConnectorTransformer.getWarpRegularColumn(columnHandleOptional.get());
 
                 Optional<NativeExpression> nativeExpressionOptional;
                 if (isNullExpression(warpExpression)) {
@@ -213,14 +213,14 @@ public class ExpressionService
                             nativeExpressionOptional.isPresent() && nativeExpressionOptional.get().collectNulls(),
                             nativeExpressionOptional,
                             column.get());
-                    outVaradaExpressionDataLeaves.put(warpColumn, warpExpressionData);
+                    outWarpExpressionDataLeaves.put(warpColumn, warpExpressionData);
                 }
             }
         }
         return true;
     }
 
-    private Optional<WarpExpression> convertToVaradaExpression(ConnectorSession session,
+    private Optional<WarpExpression> convertToWarpExpression(ConnectorSession session,
             ConnectorExpression expression,
             Map<String, ColumnHandle> assignments,
             Set<String> unsupportedFunctions,
@@ -296,7 +296,7 @@ public class ExpressionService
             @Override
             public Optional<WarpExpression> defaultRewrite(ConnectorExpression expression)
             {
-                return convertToVaradaExpression(session, expression, assignments, unsupportedFunctions, customStats);
+                return convertToWarpExpression(session, expression, assignments, unsupportedFunctions, customStats);
             }
         };
     }

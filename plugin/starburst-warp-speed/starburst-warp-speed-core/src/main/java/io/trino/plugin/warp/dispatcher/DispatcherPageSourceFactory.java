@@ -476,7 +476,7 @@ public class DispatcherPageSourceFactory
         boolean isMixedQuery = PageSourceDecision.MIXED.equals(pageSourceDecision);
         String filePath = rowGroupData.getRowGroupKey().stringFileNameRepresentation(globalConfig.getLocalStorePath());
         QueryParams queryParams = createQueryParams(queryContext, filePath);
-        WarpPageSource varadaPageSource = new WarpPageSource(storageEngine,
+        WarpPageSource warpPageSource = new WarpPageSource(storageEngine,
                 storageEngineConstants,
                 dispatcherTableHandle.getLimit().orElse(Long.MAX_VALUE),
                 bufferAllocator,
@@ -492,14 +492,14 @@ public class DispatcherPageSourceFactory
                 rangeFillerService);
 
         DispatcherPageSourceStats pageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
-        List<Type> varadaWithoutPrefilledAndProxiedCollectTypes = Stream.concat(
+        List<Type> warpWithoutPrefilledAndProxiedCollectTypes = Stream.concat(
                         queryContext.getRemainingCollectColumns().stream().map(dispatcherProxiedConnectorTransformer::getColumnType),
                         queryContext.getNativeQueryCollectDataList().stream().map(QueryColumn::getType))
                 .collect(toImmutableList());
         return new DispatcherPageSource(proxiedConnectorPageSourceProvider,
                 queryClassifier,
-                varadaWithoutPrefilledAndProxiedCollectTypes,
-                varadaPageSource,
+                warpWithoutPrefilledAndProxiedCollectTypes,
+                warpPageSource,
                 queryContext,
                 rowGroupData,
                 pageSourceDecision,
@@ -510,7 +510,7 @@ public class DispatcherPageSourceFactory
     }
 
     // it is assumed that in case all match are proxied,
-    // the varada collect is empty. this is done by the parse API
+    // the warp collect is empty. this is done by the parse API
     private PageSourceDecision getBasicPageSourceDecision(
             RowGroupData rowGroupData,
             DispatcherTableHandle dispatcherTableHandle,
@@ -539,7 +539,7 @@ public class DispatcherPageSourceFactory
             return PageSourceDecision.EMPTY;
         }
 
-        // now we mean business, check if related to varada
+        // now we mean business, check if related to warp
         dispatcherPageSourceStats.inccached_files();
         if (!dynamicFilter.getCurrentPredicate().isAll()) {
             dispatcherPageSourceStats.incdf_splits();
@@ -581,8 +581,8 @@ public class DispatcherPageSourceFactory
         else if (queryContext.isNoneOnly()) {
             pageSourceDecision = PageSourceDecision.EMPTY;
         }
-        else if (queryContext.isVaradaOnly()) {
-            logger.debug("all columns are warmed -> only varada. %s", queryContext);
+        else if (queryContext.isWarpOnly()) {
+            logger.debug("all columns are warmed -> only warp. %s", queryContext);
             pageSourceDecision = PageSourceDecision.WARP;
         }
 
@@ -594,7 +594,7 @@ public class DispatcherPageSourceFactory
             QueryContext queryContext)
     {
         stats.addexternal_collect_columns(queryContext.getRemainingCollectColumnByBlockIndex().size());
-        Set<String> varadaMatchColumns = queryContext
+        Set<String> warpMatchColumns = queryContext
                 .getMatchLeavesDFS()
                 .stream()
                 .flatMap(x -> Stream.of(x.getWarpColumn().getName()))
@@ -604,7 +604,7 @@ public class DispatcherPageSourceFactory
                 .getRemainingColumns()
                 .stream()
                 .flatMap(x -> Stream.of(x.getName()))
-                .filter(x -> !varadaMatchColumns.contains(x))
+                .filter(x -> !warpMatchColumns.contains(x))
                 .collect(Collectors.toSet());
         long externalMatchColumnsCount = externalMatchColumns.size();
         stats.addexternal_match_columns(externalMatchColumnsCount);
@@ -619,7 +619,7 @@ public class DispatcherPageSourceFactory
                 .count();
         stats.addvarada_mapped_match_collect_columns(mappedMatchCollect);
         stats.addprefilled_collect_columns(queryContext.getPrefilledQueryCollectDataByBlockIndex().size());
-        stats.addvarada_match_columns(varadaMatchColumns.size());
+        stats.addvarada_match_columns(warpMatchColumns.size());
         stats.addvarada_match_on_simplified_domain(sumColumns(queryContext.getMatchLeavesDFS().stream().filter(QueryMatchData::isSimplifiedDomain)));
 
         stats.addcached_total_rows(queryContext.getTotalRecords());
@@ -635,7 +635,7 @@ public class DispatcherPageSourceFactory
         queryContext.getNativeQueryCollectDataList().forEach((collectData) -> customStatsContext.addFixedStat(createFixedStatKey(WARP_COLLECT, collectData.getWarpColumn().getName(), collectData.getWarmUpElement().getWarmUpType()), 1));
         queryContext.getPrefilledQueryCollectDataByBlockIndex().values().forEach((prefilledData) -> customStatsContext.addFixedStat(createFixedStatKey(PREFILLED, prefilledData.getWarpColumn().getName()), 1));
         queryContext.getMatchLeavesDFS().forEach((matchData) -> customStatsContext.addFixedStat(createFixedStatKey(WARP_MATCH, matchData.getWarpColumn().getName(), matchData.getWarmUpElement().getWarmUpType()), 1));
-        queryContext.getRemainingCollectColumnByBlockIndex().values().forEach((collectColumnHandle) -> customStatsContext.addFixedStat(createFixedStatKey(EXTERNAL_COLLECT, dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(collectColumnHandle).getName()), 1));
+        queryContext.getRemainingCollectColumnByBlockIndex().values().forEach((collectColumnHandle) -> customStatsContext.addFixedStat(createFixedStatKey(EXTERNAL_COLLECT, dispatcherProxiedConnectorTransformer.getWarpRegularColumn(collectColumnHandle).getName()), 1));
         queryContext.getPredicateContextData()
                 .getRemainingColumns()
                 .stream()
@@ -655,7 +655,7 @@ public class DispatcherPageSourceFactory
                 .flatMap(x -> Stream.of(x.getName()))
                 .distinct()
                 .count();
-        if (columns.isEmpty()) { //couldn't find any representative column to get from varada
+        if (columns.isEmpty()) { //couldn't find any representative column to get from warp
             globalPageSourceStats.incexternal_collect_columns();
         }
         else {
@@ -669,7 +669,7 @@ public class DispatcherPageSourceFactory
         ImmutableList<ColumnHandle> remainingCollectColumns = queryContext.getRemainingCollectColumns();
         if (remainingCollectColumns != null) {
             remainingCollectColumns.forEach(columnHandle ->
-                    customStatsContext.addFixedStat(createFixedStatKey(EXTERNAL_COLLECT, dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(columnHandle).getName()), 1));
+                    customStatsContext.addFixedStat(createFixedStatKey(EXTERNAL_COLLECT, dispatcherProxiedConnectorTransformer.getWarpRegularColumn(columnHandle).getName()), 1));
         }
     }
 
@@ -680,16 +680,16 @@ public class DispatcherPageSourceFactory
     }
 
     /**
-     * case we return emptyPageSource due to predicate filter we mark all collect and match columns as varada
+     * case we return emptyPageSource due to predicate filter we mark all collect and match columns as warp
      */
     private void addStatsOnFilteredByPredicate(List<ColumnHandle> columns, CustomStatsContext customStatsContext, DispatcherPageSourceStats dispatcherPageSourceStats, QueryContext basicQueryContext)
     {
         dispatcherPageSourceStats.incfiltered_by_predicate();
-        columns.forEach((columnHandle) -> customStatsContext.addFixedStat(createFixedStatKey(WARP_COLLECT, dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(columnHandle).getName(), WarmUpType.WARM_UP_TYPE_DATA), 1));
-        Set<RegularColumn> varadaMatchColumns = basicQueryContext.getPredicateContextData().getRemainingColumns();
-        varadaMatchColumns.forEach(regularColumn -> customStatsContext.addFixedStat(createFixedStatKey(WARP_MATCH, regularColumn.getName(), WarmUpType.WARM_UP_TYPE_BASIC), 1));
+        columns.forEach((columnHandle) -> customStatsContext.addFixedStat(createFixedStatKey(WARP_COLLECT, dispatcherProxiedConnectorTransformer.getWarpRegularColumn(columnHandle).getName(), WarmUpType.WARM_UP_TYPE_DATA), 1));
+        Set<RegularColumn> warpMatchColumns = basicQueryContext.getPredicateContextData().getRemainingColumns();
+        warpMatchColumns.forEach(regularColumn -> customStatsContext.addFixedStat(createFixedStatKey(WARP_MATCH, regularColumn.getName(), WarmUpType.WARM_UP_TYPE_BASIC), 1));
         dispatcherPageSourceStats.addvarada_collect_columns(columns.size());
-        dispatcherPageSourceStats.addvarada_match_columns(varadaMatchColumns.size());
+        dispatcherPageSourceStats.addvarada_match_columns(warpMatchColumns.size());
     }
 
     public Optional<ConnectorPageSource> createConnectorPageSource(RowGroupKey rowGroupKey, PlanSignature planSignature, Optional<UUID> queryStoreId)
@@ -724,7 +724,7 @@ public class DispatcherPageSourceFactory
         initializeCustomStats(customStatsContext);
         String filePath = rowGroupData.getRowGroupKey().stringFileNameRepresentation(globalConfig.getLocalStorePath());
         QueryParams queryParams = createQueryParams(queryContext, filePath);
-        WarpPageSource varadaPageSource = new WarpPageSource(storageEngine,
+        WarpPageSource warpPageSource = new WarpPageSource(storageEngine,
                 storageEngineConstants,
                 Long.MAX_VALUE,
                 bufferAllocator,
@@ -744,7 +744,7 @@ public class DispatcherPageSourceFactory
             DispatcherPageSource dispatcherPageSource = new DispatcherPageSource(EmptyPageSource::new,
                     queryClassifier,
                     Collections.emptyList(), // no proxied in case of cache
-                    varadaPageSource,
+                    warpPageSource,
                     queryContext,
                     rowGroupData,
                     pageSourceDecision,

@@ -160,7 +160,7 @@ public class IcebergProxiedConnectorTransformer
     }
 
     @Override
-    public RegularColumn getVaradaRegularColumn(ColumnHandle columnHandle)
+    public RegularColumn getWarpRegularColumn(ColumnHandle columnHandle)
     {
         IcebergColumnHandle icebergColumnHandle = (IcebergColumnHandle) columnHandle;
         return new RegularColumn(icebergColumnHandle.getName(), String.valueOf(icebergColumnHandle.getId()));

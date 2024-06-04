@@ -430,7 +430,7 @@ public class DispatcherAlternativePageSourceProviderTest
     }
 
     @Test
-    public void testReadFlow_FileExist_mixedWithPredicateOnVarada()
+    public void testReadFlow_FileExist_mixedWithPredicateOnWarp()
     {
         Type columnType = IntegerType.INTEGER;
         List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer,
@@ -526,13 +526,13 @@ public class DispatcherAlternativePageSourceProviderTest
                 pageSourceFactory,
                 txService,
                 customStatsContext,
-                new CatalogNameProvider("varada"),
+                new CatalogNameProvider("warp"),
                 split,
                 table,
                 resourceCloser);
     }
 
-    protected void mockQueryClassifier(boolean isProxyOnly, boolean isVaradaOnly, boolean isPrefilledOnly)
+    protected void mockQueryClassifier(boolean isProxyOnly, boolean isWarpOnly, boolean isPrefilledOnly)
     {
         QueryContext basicQueryContext = mock(QueryContext.class);
         when(basicQueryContext.getPredicateContextData()).thenReturn(new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE));
@@ -549,7 +549,7 @@ public class DispatcherAlternativePageSourceProviderTest
         when(queryContext.getRemainingCollectColumnByBlockIndex()).thenReturn(ImmutableMap.of());
         when(queryContext.getPredicateContextData()).thenReturn(new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE));
         when(queryContext.isProxyOnly()).thenReturn(isProxyOnly);
-        when(queryContext.isVaradaOnly()).thenReturn(isVaradaOnly);
+        when(queryContext.isWarpOnly()).thenReturn(isWarpOnly);
         when(queryContext.isPrefilledOnly()).thenReturn(isPrefilledOnly);
         when(queryClassifier.classify(eq(basicQueryContext),
                 any(),

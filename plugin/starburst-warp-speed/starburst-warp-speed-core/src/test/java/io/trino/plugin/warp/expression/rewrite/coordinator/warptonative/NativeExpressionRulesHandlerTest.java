@@ -177,7 +177,7 @@ class NativeExpressionRulesHandlerTest
      * is_nan(double1) = false
      */
     @Test
-    public void testVaradaExpressionIsNanWithEqual()
+    public void testWarpExpressionIsNanWithEqual()
     {
         WarpExpression warpExpression = new WarpCall(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
                 List.of(new WarpCall(IS_NAN.getName(),
@@ -194,7 +194,7 @@ class NativeExpressionRulesHandlerTest
      * is_nan(double1)
      */
     @Test
-    public void testVaradaExpressionIsNan()
+    public void testWarpExpressionIsNan()
     {
         WarpExpression warpExpression = new WarpCall(IS_NAN.getName(), List.of(createExpectedVariable(doubleVariable1)), BOOLEAN);
         Range range = Range.equal(BOOLEAN, true);
@@ -218,11 +218,11 @@ class NativeExpressionRulesHandlerTest
     {
         MapType mapType = new MapType(VarcharType.VARCHAR, VarcharType.VARCHAR, new TypeOperators());
         TestingConnectorColumnHandle columnHandle = new TestingConnectorColumnHandle(mapType, "mapColumn");
-        WarpVariable varadaVariable = new WarpVariable(columnHandle, mapType);
+        WarpVariable warpVariable = new WarpVariable(columnHandle, mapType);
         WarpSliceConstant sliceConstant = new WarpSliceConstant(Slices.utf8Slice("val1"), VarcharType.VARCHAR);
         WarpExpression warpExpression = new WarpCall(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
                 List.of(new WarpCall(ELEMENT_AT.getName(),
-                                List.of(varadaVariable, new WarpSliceConstant(Slices.utf8Slice("key1"), mapType)),
+                                List.of(warpVariable, new WarpSliceConstant(Slices.utf8Slice("key1"), mapType)),
                                 BOOLEAN),
                         sliceConstant),
                 BOOLEAN);
@@ -245,11 +245,11 @@ class NativeExpressionRulesHandlerTest
     void testJsonExtractScalarExpression()
     {
         TestingConnectorColumnHandle columnHandle = new TestingConnectorColumnHandle(VarcharType.VARCHAR, "varcharCol");
-        WarpVariable varadaVariable = new WarpVariable(columnHandle, VarcharType.VARCHAR);
+        WarpVariable warpVariable = new WarpVariable(columnHandle, VarcharType.VARCHAR);
         WarpSliceConstant sliceConstant = new WarpSliceConstant(Slices.utf8Slice("12.345678"), VarcharType.VARCHAR);
         WarpExpression warpExpression = new WarpCall(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
                 List.of(new WarpCall(SupportedFunctions.JSON_EXTRACT_SCALAR.getName(),
-                                List.of(varadaVariable, new WarpSliceConstant(Slices.utf8Slice("$.number"), VarcharType.VARCHAR)),
+                                List.of(warpVariable, new WarpSliceConstant(Slices.utf8Slice("$.number"), VarcharType.VARCHAR)),
                                 BOOLEAN),
                         sliceConstant),
                 BOOLEAN);
@@ -339,11 +339,11 @@ class NativeExpressionRulesHandlerTest
         WarpCall expectedCastCall = new WarpCall(CAST_FUNCTION_NAME.getName(),
                 List.of(new WarpVariable(realColumn, columnType.getType())),
                 VarcharType.VARCHAR);
-        WarpCall varadaExpression = new WarpCall(operator.getName(),
+        WarpCall warpExpression = new WarpCall(operator.getName(),
                 List.of(expectedCastCall, new WarpSliceConstant(slice, VarcharType.VARCHAR)),
                 BOOLEAN);
 
-        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(varadaExpression, columnType.getType(), Collections.emptySet(), customStats);
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, columnType.getType(), Collections.emptySet(), customStats);
         assertThat(result).isEmpty();
         assertPushdownStatsSum(1);
         PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PUSHDOWN_PREDICATES_STAT_GROUP);
@@ -365,7 +365,7 @@ class NativeExpressionRulesHandlerTest
         WarpCall castCall = new WarpCall(CAST_FUNCTION_NAME.getName(),
                 List.of(new WarpVariable(realColumn, columnType.getType())),
                 varcharType);
-        WarpCall varadaExpression = new WarpCall(EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+        WarpCall warpExpression = new WarpCall(EQUAL_OPERATOR_FUNCTION_NAME.getName(),
                 List.of(castCall, new WarpSliceConstant(slice, varcharType)),
                 BOOLEAN);
 
@@ -378,7 +378,7 @@ class NativeExpressionRulesHandlerTest
                 false,
                 Collections.emptyList(), TransformFunction.NONE);
 
-        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(varadaExpression, columnType.getType(), Collections.emptySet(), customStats);
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, columnType.getType(), Collections.emptySet(), customStats);
         assertThat(result).isEqualTo(Optional.of(expectedResult));
         assertPushdownStatsSum(0);
     }
@@ -394,7 +394,7 @@ class NativeExpressionRulesHandlerTest
         WarpCall expectedCastCall = new WarpCall(CAST_FUNCTION_NAME.getName(),
                 List.of(new WarpVariable(doubleColumn, doubleVariable1.getType())),
                 RealType.REAL);
-        WarpCall varadaExpression = new WarpCall(functionName.getName(),
+        WarpCall warpExpression = new WarpCall(functionName.getName(),
                 List.of(expectedCastCall, new WarpPrimitiveConstant(5L, RealType.REAL)),
                 BOOLEAN);
 
@@ -411,7 +411,7 @@ class NativeExpressionRulesHandlerTest
                 false,
                 false,
                 List.of(RecTypeCode.REC_TYPE_REAL.ordinal()), TransformFunction.NONE);
-        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(varadaExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
         assertThat(result).isEqualTo(Optional.of(expectedResult));
         assertPushdownStatsSum(0);
     }

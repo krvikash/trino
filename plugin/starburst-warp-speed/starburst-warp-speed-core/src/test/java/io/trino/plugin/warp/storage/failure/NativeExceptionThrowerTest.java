@@ -47,7 +47,7 @@ public class NativeExceptionThrowerTest
         assertThat(ExceptionThrower.isNativeException(new TrinoException(WARP_NATIVE_ERROR, "msg"))).isTrue();
         assertThat(ExceptionThrower.isNativeException(new TrinoException(WARP_NATIVE_READ_OUT_OF_BOUNDS, "msg"))).isTrue();
         Arrays.stream(WarpErrorCode.values())
-                .filter(varadaErrorCode -> !(WARP_NATIVE_UNRECOVERABLE_ERROR.equals(varadaErrorCode) || WARP_NATIVE_ERROR.equals(varadaErrorCode) || WARP_NATIVE_READ_OUT_OF_BOUNDS.equals(varadaErrorCode)))
-                .forEach(varadaErrorCode -> assertThat(ExceptionThrower.isNativeException(new TrinoException(varadaErrorCode, "msg"))).isFalse());
+                .filter(warpErrorCode -> !(WARP_NATIVE_UNRECOVERABLE_ERROR.equals(warpErrorCode) || WARP_NATIVE_ERROR.equals(warpErrorCode) || WARP_NATIVE_READ_OUT_OF_BOUNDS.equals(warpErrorCode)))
+                .forEach(warpErrorCode -> assertThat(ExceptionThrower.isNativeException(new TrinoException(warpErrorCode, "msg"))).isFalse());
     }
 }

@@ -141,15 +141,15 @@ class MatchClassifierTest
 
     private io.trino.plugin.warp.expression.rewrite.WarpExpression createWrapExpression()
     {
-        Map<String, WarpVariable> columnNameToVaradaVariable = columns
+        Map<String, WarpVariable> columnNameToWarpVariable = columns
                 .entrySet()
                 .stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, x -> new WarpVariable(x.getValue(), IntegerType.INTEGER)));
         Map<String, WarpExpression> leaves = Map.of(
-                "a", createLeafExpression("a", 5L, columnNameToVaradaVariable),
-                "b", createLeafExpression("b", 6L, columnNameToVaradaVariable),
-                "c", createLeafExpression("c", 7L, columnNameToVaradaVariable),
-                "d", createLeafExpression("d", 8L, columnNameToVaradaVariable));
+                "a", createLeafExpression("a", 5L, columnNameToWarpVariable),
+                "b", createLeafExpression("b", 6L, columnNameToWarpVariable),
+                "c", createLeafExpression("c", 7L, columnNameToWarpVariable),
+                "d", createLeafExpression("d", 8L, columnNameToWarpVariable));
 
         WarpCall rootExpression = new WarpCall(AND_FUNCTION_NAME.getName(),
                 List.of(leaves.get("a"),
@@ -178,10 +178,10 @@ class MatchClassifierTest
         return new io.trino.plugin.warp.expression.rewrite.WarpExpression(rootExpression, warpExpressionDataLeaves);
     }
 
-    private WarpCall createLeafExpression(String columnName, long value, Map<String, WarpVariable> columnNameToVaradaVariable)
+    private WarpCall createLeafExpression(String columnName, long value, Map<String, WarpVariable> columnNameToWarpVariable)
     {
         return new WarpCall(EQUAL_OPERATOR_FUNCTION_NAME.getName(),
-                List.of(columnNameToVaradaVariable.get(columnName), new WarpPrimitiveConstant(value, IntegerType.INTEGER)),
+                List.of(columnNameToWarpVariable.get(columnName), new WarpPrimitiveConstant(value, IntegerType.INTEGER)),
                 BOOLEAN);
     }
 }

@@ -71,7 +71,7 @@ public class EqualityValueRewriter
     public boolean handleEqual(WarpExpression expression, LuceneRewriteContext context)
     {
         WarpCall warpCall = (WarpCall) expression.getChildren().get(0);
-        WarpConstant varadaConstant;
+        WarpConstant warpConstant;
         if (warpCall.getFunctionName().equals(STRPOS.getName())) {
             WarpExpression positionValue = expression.getChildren().get(1);
             if (!(positionValue instanceof WarpPrimitiveConstant)) {
@@ -82,13 +82,13 @@ public class EqualityValueRewriter
                 context.queryBuilder().add(new MatchAllDocsQuery(), BooleanClause.Occur.SHOULD);
                 context = createContext(context, BooleanClause.Occur.MUST_NOT);
             }
-            varadaConstant = (WarpConstant) warpCall.getChildren().get(1);
+            warpConstant = (WarpConstant) warpCall.getChildren().get(1);
         }
         else {
-            varadaConstant = (WarpConstant) expression.getChildren().get(1);
+            warpConstant = (WarpConstant) expression.getChildren().get(1);
         }
-        checkArgument(varadaConstant instanceof WarpSliceConstant, "%s is not VaradaSliceConstant", varadaConstant);
-        Slice sliceValue = ((Slice) varadaConstant.getValue());
+        checkArgument(warpConstant instanceof WarpSliceConstant, "%s is not WarpSliceConstant", warpConstant);
+        Slice sliceValue = ((Slice) warpConstant.getValue());
         String val = SliceUtils.serializeSlice(sliceValue);
         Slice likeSlice = Slices.utf8Slice("%" + val + "%");
         Query likeQuery = createLikeQuery(likeSlice);

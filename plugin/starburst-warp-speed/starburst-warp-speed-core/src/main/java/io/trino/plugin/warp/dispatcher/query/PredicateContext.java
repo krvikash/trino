@@ -61,7 +61,7 @@ public class PredicateContext
                 .orElse(Domain.all(getColumnType()));
     }
 
-    public WarpExpressionData getVaradaExpressionData()
+    public WarpExpressionData getWarpExpressionData()
     {
         return warpExpressionData;
     }
@@ -140,7 +140,7 @@ public class PredicateContext
     {
         return "PredicateContext{" +
                 "isSimplified=" + isSimplified +
-                ", varadaExpressionData=" + warpExpressionData +
+                ", warpExpressionData=" + warpExpressionData +
                 '}';
     }
 }

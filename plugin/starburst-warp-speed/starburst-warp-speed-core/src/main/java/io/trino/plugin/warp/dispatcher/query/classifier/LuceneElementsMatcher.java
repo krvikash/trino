@@ -100,9 +100,9 @@ final class LuceneElementsMatcher
     private static boolean preferBasicWarm(PredicateContext predicateContext, Optional<WarmUpElement> basicWarmUpElement)
     {
         return basicWarmUpElement.isPresent() &&
-                predicateContext.getVaradaExpressionData().getNativeExpressionOptional().isPresent() &&
-                (predicateContext.getVaradaExpressionData().getNativeExpressionOptional().get().predicateType() == PredicateType.PREDICATE_TYPE_STRING_VALUES ||
-                        predicateContext.getVaradaExpressionData().getNativeExpressionOptional().get().predicateType() == PredicateType.PREDICATE_TYPE_INVERSE_STRING);
+                predicateContext.getWarpExpressionData().getNativeExpressionOptional().isPresent() &&
+                (predicateContext.getWarpExpressionData().getNativeExpressionOptional().get().predicateType() == PredicateType.PREDICATE_TYPE_STRING_VALUES ||
+                        predicateContext.getWarpExpressionData().getNativeExpressionOptional().get().predicateType() == PredicateType.PREDICATE_TYPE_INVERSE_STRING);
     }
 
     private Optional<LuceneQueryMatchData> convert(
@@ -150,8 +150,8 @@ final class LuceneElementsMatcher
     {
         boolean isValid = false;
         WarpExpression warpExpression = expressionPredicateContext.getExpression();
-        if (warpExpression instanceof WarpConstant varadaConstant) {
-            if (varadaConstant.getType() == BooleanType.BOOLEAN && !Boolean.parseBoolean(String.valueOf(varadaConstant.getValue()))) {
+        if (warpExpression instanceof WarpConstant warpConstant) {
+            if (warpConstant.getType() == BooleanType.BOOLEAN && !Boolean.parseBoolean(String.valueOf(warpConstant.getValue()))) {
                 isValid = true;
             }
         }

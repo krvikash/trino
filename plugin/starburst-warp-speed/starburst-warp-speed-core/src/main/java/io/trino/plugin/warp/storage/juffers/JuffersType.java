@@ -25,15 +25,15 @@ public enum JuffersType
     CHUNKS_MAP(7),
     NUM_TYPES(8);
 
-    private final int varadaBufferTypes;
+    private final int warpBufferTypes;
 
     JuffersType(int intValue)
     {
-        this.varadaBufferTypes = intValue;
+        this.warpBufferTypes = intValue;
     }
 
     public int value()
     {
-        return varadaBufferTypes;
+        return warpBufferTypes;
     }
 }

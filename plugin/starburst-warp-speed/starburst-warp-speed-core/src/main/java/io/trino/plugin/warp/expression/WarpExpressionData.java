@@ -117,7 +117,7 @@ public class WarpExpressionData
     @Override
     public String toString()
     {
-        return "VaradaExpressionData{" +
+        return "WarpExpressionData{" +
                 "expression=" + expression +
                 ", warpColumn=" + warpColumn +
                 ", type=" + columnType +

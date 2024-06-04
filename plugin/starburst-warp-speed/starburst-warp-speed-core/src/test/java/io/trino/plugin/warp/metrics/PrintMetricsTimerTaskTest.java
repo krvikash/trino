@@ -48,7 +48,7 @@ public class PrintMetricsTimerTaskTest
         metricsManager = new MetricsManager(metricsRegistry);
         printMetricsTimerTask = new PrintMetricsTimerTask(metricsConfig,
                 metricsManager,
-                new CatalogNameProvider("varada"));
+                new CatalogNameProvider("warp"));
     }
 
     @AfterEach

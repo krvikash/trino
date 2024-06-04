@@ -79,7 +79,7 @@ public class PredicateContextFactory
 
         SimplifyResult<ColumnHandle> simplifyResult = DomainUtils.simplify(intersectTupleDomain, predicateThreshold);
         Set<RegularColumn> simplifiedColumns = Stream.concat(dispatcherTableHandle.getSimplifiedColumns().simplifiedColumns().stream(),
-                        simplifyResult.getSimplifiedColumns().stream().map(dispatcherProxiedConnectorTransformer::getVaradaRegularColumn))
+                        simplifyResult.getSimplifiedColumns().stream().map(dispatcherProxiedConnectorTransformer::getWarpRegularColumn))
                 .collect(Collectors.toSet());
         TupleDomain<ColumnHandle> tupleDomain = simplifyResult.getTupleDomain();
         return create(warpExpression, tupleDomain, simplifiedColumns);
@@ -100,9 +100,9 @@ public class PredicateContextFactory
         tupleDomain.getDomains().ifPresent(columnHandleDomainMap -> columnHandleDomainMap.forEach((columnHandle, domain) -> {
             Type columnType = dispatcherProxiedConnectorTransformer.getColumnType(columnHandle);
             if (isWarmBasicSupported(columnType)) {
-                WarpVariable varadaVariable = new WarpVariable(columnHandle, domain.getType());
-                RegularColumn warpColumn = dispatcherProxiedConnectorTransformer.getVaradaRegularColumn(columnHandle);
-                WarpExpression varadaExpression = new DomainExpression(varadaVariable, domain);
+                WarpVariable warpVariable = new WarpVariable(columnHandle, domain.getType());
+                RegularColumn warpColumn = dispatcherProxiedConnectorTransformer.getWarpRegularColumn(columnHandle);
+                WarpExpression newWarpExpression = new DomainExpression(warpVariable, domain);
                 boolean isSimplified = simplifiedColumns.contains(warpColumn);
                 PredicateType predicateType = PredicateUtil.calcPredicateType(domain, columnType); // todo: move ClassifyArgs::getPredicateTypeFromCache to a global cache?
                 NativeExpression nativeExpression = NativeExpression.builder()
@@ -111,14 +111,14 @@ public class PredicateContextFactory
                         .domain(domain)
                         .collectNulls(domain.isNullAllowed())
                         .build();
-                WarpExpressionData warpExpressionData = new WarpExpressionData(varadaExpression,
+                WarpExpressionData warpExpressionData = new WarpExpressionData(newWarpExpression,
                         columnType,
                         domain.isNullAllowed(),
                         Optional.of(nativeExpression),
                         warpColumn);
                 PredicateContext predicateContext = new PredicateContext(warpExpressionData, isSimplified);
-                domainExpressions.add(varadaExpression);
-                predicateContextMap.put(varadaExpression, predicateContext);
+                domainExpressions.add(newWarpExpression);
+                predicateContextMap.put(newWarpExpression, predicateContext);
             }
         }));
         WarpExpression rootExpression = WarpPrimitiveConstant.TRUE;
