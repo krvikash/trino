@@ -463,7 +463,7 @@ public class StarburstOracleClient
             String tableName = super.getRelation(client, remoteTableName);
             return partitionNames
                     .map(batch -> batch.stream()
-                            .map(partitionName -> format("SELECT * FROM %s PARTITION (%s)", tableName, partitionName))
+                            .map(partitionName -> format("SELECT * FROM %s PARTITION (%s)", tableName, client.quoted(partitionName)))
                             .collect(joining(" UNION ALL ", "(", ")"))) // wrap subquery in parentheses
                     .orElse(tableName);
         }

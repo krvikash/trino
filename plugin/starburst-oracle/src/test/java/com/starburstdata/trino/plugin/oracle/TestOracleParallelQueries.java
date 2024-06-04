@@ -126,6 +126,20 @@ public class TestOracleParallelQueries
         }
     }
 
+    @Test
+    public void testPartitionNameQuoted()
+            throws Exception
+    {
+        String tableName = randomTableName("partitioned");
+        try (AutoCloseable ignore = createPartitionedTable(
+                tableName,
+                "c NUMBER",
+                "LIST(c) (PARTITION \"na\" VALUES(1), PARTITION \"nA\" VALUES(2), PARTITION \"NA\" VALUES(3), PARTITION unquoted VALUES(4), PARTITION \"quoted\" VALUES(5))")) {
+            insertIntoTable(tableName, "c", ImmutableList.of(1, 2, 3, 4, 5));
+            verifyTableSplitCount(tableName, "c", "Rr82C9neJlc=", PARTITIONS, Optional.empty(), 5);
+        }
+    }
+
     private void insertIntoTable(String tableName, String columns, List<Object> values)
     {
         int columnsCount = columns.split(",").length;
@@ -190,6 +204,12 @@ public class TestOracleParallelQueries
     private AutoCloseable createPartitionedTable(String tableName, String columns, String partitionColumn, int partitionCount)
     {
         oracleServer.get().executeInOracle(format("CREATE TABLE %s(%s) PARTITION BY HASH (%s) PARTITIONS %d", tableName, columns, partitionColumn, partitionCount));
+        return () -> oracleServer.get().executeInOracle(format("DROP TABLE %s", tableName));
+    }
+
+    private AutoCloseable createPartitionedTable(String tableName, String columns, String partitionDefinition)
+    {
+        oracleServer.get().executeInOracle(format("CREATE TABLE %s (%s) PARTITION BY %s", tableName, columns, partitionDefinition));
         return () -> oracleServer.get().executeInOracle(format("DROP TABLE %s", tableName));
     }
 
