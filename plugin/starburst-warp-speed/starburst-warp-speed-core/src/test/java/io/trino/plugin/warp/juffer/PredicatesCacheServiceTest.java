@@ -59,6 +59,12 @@ public class PredicatesCacheServiceTest
                 arguments(PredicateBufferPoolType.LARGE));
     }
 
+    static Stream<Arguments> poolSmall()
+    {
+        return Stream.of(
+                arguments(PredicateBufferPoolType.SMALL));
+    }
+
     @BeforeEach
     public void before()
     {
@@ -93,6 +99,35 @@ public class PredicatesCacheServiceTest
         assertThat(actualBufferHandle.isUsed()).isFalse();
     }
 
+    @ParameterizedTest
+    @MethodSource("poolSmall")
+    public void testMetricsPoolSmall(PredicateBufferPoolType predicateBufferPoolType)
+    {
+        PredicateData predicateData = buildMockedPredicateData(MemorySegment.NULL, predicateBufferPoolType, 1);
+        PredicateData predicateData2 = buildMockedPredicateData(MemorySegment.NULL, predicateBufferPoolType, 1);
+        ArgumentCaptor<PredicateCacheData> argument = ArgumentCaptor.forClass(PredicateCacheData.class);
+        Domain domain = Domain.singleValue(IntegerType.INTEGER, (long) 1);
+        Domain domain2 = Domain.singleValue(IntegerType.INTEGER, (long) 2);
+        PredicateCacheData actualBufferHandle;
+        actualBufferHandle = predicatesCacheService.getOrCreatePredicateBufferId(predicateData, domain).orElseThrow();
+        assertThat(actualBufferHandle.isUsed()).isTrue();
+        assertThat(predicatesCacheService.getHitSmall()).isZero();
+        assertThat(predicatesCacheService.getMissSmall()).isEqualTo(1);
+        assertThat(predicatesCacheService.getMaxSmall()).isEqualTo(1);
+        actualBufferHandle = predicatesCacheService.getOrCreatePredicateBufferId(predicateData, domain).orElseThrow();
+        assertThat(actualBufferHandle.isUsed()).isTrue();
+        assertThat(predicatesCacheService.getHitSmall()).isEqualTo(1);
+        assertThat(predicatesCacheService.getMissSmall()).isEqualTo(1);
+        assertThat(predicatesCacheService.getMaxSmall()).isEqualTo(1);
+        actualBufferHandle = predicatesCacheService.getOrCreatePredicateBufferId(predicateData2, domain2).orElseThrow();
+        assertThat(predicatesCacheService.getHitSmall()).isEqualTo(1);
+        assertThat(predicatesCacheService.getMissSmall()).isEqualTo(2);
+        assertThat(predicatesCacheService.getMaxSmall()).isEqualTo(2);
+        predicatesCacheService.markFinished(List.of(actualBufferHandle));
+        verify(bufferAllocator, never()).freePredicateBuffer(argument.capture());
+        assertThat(actualBufferHandle.isUsed()).isFalse();
+    }
+
     private PredicateData buildMockedPredicateData(MemorySegment buff, PredicateBufferPoolType predicateBufferPoolType, int size)
     {
         PredicateData predicateData = mock(PredicateData.class);
@@ -101,6 +136,7 @@ public class PredicatesCacheServiceTest
         when(bufferAllocator.allocPredicateBuffer(eq(size))).thenReturn(predicateBufferInfo);
         when(predicateData.getPredicateSize()).thenReturn(size);
         when(predicateData.getPredicateInfo()).thenReturn(new PredicateInfo(PredicateType.PREDICATE_TYPE_VALUES, FunctionType.FUNCTION_TYPE_NONE, size, Collections.emptyList(), 8));
+        when(predicateData.getPredicateHashCode()).thenReturn(predicateData.hashCode());
         return predicateData;
     }
 }

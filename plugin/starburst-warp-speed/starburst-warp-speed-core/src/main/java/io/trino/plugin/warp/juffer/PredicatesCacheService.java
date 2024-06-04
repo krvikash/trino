@@ -17,6 +17,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
+import io.airlift.units.DataSize;
 import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.dispatcher.query.PredicateData;
 import io.trino.plugin.warp.dispatcher.query.PredicateInfo;
@@ -44,6 +45,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -63,6 +65,18 @@ public class PredicatesCacheService
     private final DomainToMapBlockConvertor domainToMapBlockConvertor;
     private final Lock readLock;
     private final Lock writeLock;
+    private final AtomicInteger activePredicatesSmall;
+    private final AtomicInteger activePredicatesMedium;
+    private final AtomicInteger activePredicatesLarge;
+    private static final int PREDICATE_SIZE1 = 80;
+    private static final int PREDICATE_SIZE2 = (int) DataSize.of(32, DataSize.Unit.KILOBYTE).toBytes();
+    private static final int PREDICATE_SIZE3 = (int) DataSize.of(64, DataSize.Unit.KILOBYTE).toBytes();
+    private static final int PREDICATE_SIZE4 = (int) DataSize.of(96, DataSize.Unit.KILOBYTE).toBytes();
+    private static final int PREDICATE_SIZE5 = (int) DataSize.of(128, DataSize.Unit.KILOBYTE).toBytes();
+    private static final int PREDICATE_SIZE6 = (int) DataSize.of(640, DataSize.Unit.KILOBYTE).toBytes();
+    private static final int PREDICATE_SIZE7 = (int) DataSize.of(1152, DataSize.Unit.KILOBYTE).toBytes();
+    private static final int PREDICATE_SIZE8 = (int) DataSize.of(1664, DataSize.Unit.KILOBYTE).toBytes();
+    private static final int PREDICATE_SIZE9 = (int) DataSize.of(2176, DataSize.Unit.KILOBYTE).toBytes();
 
     @Inject
     public PredicatesCacheService(BufferAllocator bufferAllocator,
@@ -81,6 +95,9 @@ public class PredicatesCacheService
         initPredicateCachePoll();
         initPredicateFillerMap();
         this.cachePredicatesStats = metricsManager.registerMetric(CachePredicatesStats.create(STATS_CACHE_PREDICATE_KEY));
+        this.activePredicatesSmall = new AtomicInteger(0);
+        this.activePredicatesMedium = new AtomicInteger(0);
+        this.activePredicatesLarge = new AtomicInteger(0);
     }
 
     private void initPredicateCachePoll()
@@ -122,6 +139,40 @@ public class PredicatesCacheService
                 predicateData.getPredicateInfo().predicateType(),
                 predicateData.getPredicateInfo().functionType(),
                 values.getValues().getRanges().getRangeCount());
+    }
+
+    private void updatePredicateSizeStats(int size)
+    {
+        if (size < PREDICATE_SIZE1) {
+            cachePredicatesStats.incsize1_minus();
+        }
+        else if (size < PREDICATE_SIZE2) {
+            cachePredicatesStats.incsize1_size2();
+        }
+        else if (size < PREDICATE_SIZE3) {
+            cachePredicatesStats.incsize2_size3();
+        }
+        else if (size < PREDICATE_SIZE4) {
+            cachePredicatesStats.incsize3_size4();
+        }
+        else if (size < PREDICATE_SIZE5) {
+            cachePredicatesStats.incsize4_size5();
+        }
+        else if (size < PREDICATE_SIZE6) {
+            cachePredicatesStats.incsize5_size6();
+        }
+        else if (size < PREDICATE_SIZE7) {
+            cachePredicatesStats.incsize6_size7();
+        }
+        else if (size < PREDICATE_SIZE8) {
+            cachePredicatesStats.incsize7_size8();
+        }
+        else if (size < PREDICATE_SIZE9) {
+            cachePredicatesStats.incsize8_size9();
+        }
+        else {
+            cachePredicatesStats.incsize9_plus();
+        }
     }
 
     public Optional<PredicateCacheData> createPredicateCacheData(PredicateData predicateData, Domain values)
@@ -166,6 +217,7 @@ public class PredicatesCacheService
             if (predicateCacheData != null) {
                 predicateCacheDataOpt = Optional.of(predicateCacheData);
                 incrementUse(predicateCacheData);
+                incrementHit(predicateBufferPoolType);
             }
         }
         catch (Exception e) {
@@ -192,32 +244,136 @@ public class PredicatesCacheService
 
     private void incrementUse(PredicateCacheData predicateCacheData)
     {
-        predicateCacheData.incrementUse();
-        updateMetrics(predicateCacheData.getPredicateBufferInfo().predicateBufferPoolType(), true);
+        if (predicateCacheData.getCurrentUse() == 0) {
+            synchronized (this) {
+                if (predicateCacheData.getCurrentUse() == 0) {
+                    updateActivePredicates(predicateCacheData.getPredicateBufferInfo().predicateBufferPoolType(), true);
+                }
+                predicateCacheData.incrementUse();
+                updateMetrics(predicateCacheData.getPredicateBufferInfo().predicateBufferPoolType(), true, MetricsType.IN_USE);
+            }
+        }
+        else {
+            predicateCacheData.incrementUse();
+            updateMetrics(predicateCacheData.getPredicateBufferInfo().predicateBufferPoolType(), true, MetricsType.IN_USE);
+        }
     }
 
     private void decrementUse(PredicateCacheData predicateCacheData)
     {
-        predicateCacheData.decrementUse();
-        updateMetrics(predicateCacheData.getPredicateBufferInfo().predicateBufferPoolType(), false);
+        if (predicateCacheData.getCurrentUse() == 1) {
+            synchronized (this) {
+                if (predicateCacheData.getCurrentUse() == 1) {
+                    updateActivePredicates(predicateCacheData.getPredicateBufferInfo().predicateBufferPoolType(), false);
+                }
+                predicateCacheData.decrementUse();
+                updateMetrics(predicateCacheData.getPredicateBufferInfo().predicateBufferPoolType(), false, MetricsType.IN_USE);
+            }
+        }
+        else {
+            predicateCacheData.decrementUse();
+            updateMetrics(predicateCacheData.getPredicateBufferInfo().predicateBufferPoolType(), false, MetricsType.IN_USE);
+        }
     }
 
-    private void updateMetrics(PredicateBufferPoolType predicateBufferPoolType, boolean increase)
+    private void incrementHit(PredicateBufferPoolType predicateBufferPoolType)
     {
+        updateMetrics(predicateBufferPoolType, true, MetricsType.CACHE_HIT);
+    }
+
+    private void incrementMiss(PredicateBufferPoolType predicateBufferPoolType)
+    {
+        updateMetrics(predicateBufferPoolType, true, MetricsType.CACHE_MISS);
+    }
+
+    private void updateActivePredicates(PredicateBufferPoolType predicateBufferPoolType, boolean increase)
+    {
+        int newVal;
+        int delta;
         if (increase) {
             switch (predicateBufferPoolType) {
-                case SMALL -> cachePredicatesStats.incin_use_small();
-                case MEDIUM -> cachePredicatesStats.incin_use_medium();
-                case LARGE -> cachePredicatesStats.incin_use_large();
+                case SMALL -> {
+                    newVal = activePredicatesSmall.incrementAndGet();
+                    delta = (int) (newVal - cachePredicatesStats.getmax_small());
+                    if (delta > 0) {
+                        cachePredicatesStats.addmax_small(delta);
+                    }
+                }
+                case MEDIUM -> {
+                    newVal = activePredicatesMedium.incrementAndGet();
+                    delta = (int) (newVal - cachePredicatesStats.getmax_medium());
+                    if (delta > 0) {
+                        cachePredicatesStats.addmax_medium(delta);
+                    }
+                }
+                case LARGE -> {
+                    newVal = activePredicatesLarge.incrementAndGet();
+                    delta = (int) (newVal - cachePredicatesStats.getmax_large());
+                    if (delta > 0) {
+                        cachePredicatesStats.addmax_large(delta);
+                    }
+                }
                 default -> throw new TrinoException(WarpErrorCode.WARP_ILLEGAL_PARAMETER, "Uknown predicateBufferPoolType " + predicateBufferPoolType);
             }
         }
         else {
             switch (predicateBufferPoolType) {
-                case SMALL -> cachePredicatesStats.addin_use_small(-1);
-                case MEDIUM -> cachePredicatesStats.addin_use_medium(-1);
-                case LARGE -> cachePredicatesStats.addin_use_large(-1);
+                case SMALL -> {
+                    activePredicatesSmall.decrementAndGet();
+                }
+                case MEDIUM -> {
+                    activePredicatesMedium.decrementAndGet();
+                }
+                case LARGE -> {
+                    activePredicatesLarge.decrementAndGet();
+                }
                 default -> throw new TrinoException(WarpErrorCode.WARP_ILLEGAL_PARAMETER, "Uknown predicateBufferPoolType " + predicateBufferPoolType);
+            }
+        }
+    }
+
+    private void updateMetrics(PredicateBufferPoolType predicateBufferPoolType, boolean increase, MetricsType metricsType)
+    {
+        if (increase) {
+            switch (predicateBufferPoolType) {
+                case SMALL -> {
+                    switch (metricsType) {
+                        case IN_USE -> cachePredicatesStats.incin_use_small();
+                        case CACHE_HIT -> cachePredicatesStats.inchit_small();
+                        case CACHE_MISS -> cachePredicatesStats.incmiss_small();
+                        case CACHE_MAX -> throw new TrinoException(WarpErrorCode.WARP_GENERIC, "Unexpected to increase " + metricsType);
+                    }
+                }
+                case MEDIUM -> {
+                    switch (metricsType) {
+                        case IN_USE -> cachePredicatesStats.incin_use_medium();
+                        case CACHE_HIT -> cachePredicatesStats.inchit_medium();
+                        case CACHE_MISS -> cachePredicatesStats.incmiss_medium();
+                        case CACHE_MAX -> throw new TrinoException(WarpErrorCode.WARP_GENERIC, "Unexpected to increase " + metricsType);
+                    }
+                }
+                case LARGE -> {
+                    switch (metricsType) {
+                        case IN_USE -> cachePredicatesStats.incin_use_large();
+                        case CACHE_HIT -> cachePredicatesStats.inchit_large();
+                        case CACHE_MISS -> cachePredicatesStats.incmiss_large();
+                        case CACHE_MAX -> throw new TrinoException(WarpErrorCode.WARP_GENERIC, "Unexpected to increase " + metricsType);
+                    }
+                }
+                default -> throw new TrinoException(WarpErrorCode.WARP_ILLEGAL_PARAMETER, "Uknown predicateBufferPoolType " + predicateBufferPoolType);
+            }
+        }
+        else {
+            if (metricsType != MetricsType.IN_USE) {
+                throw new TrinoException(WarpErrorCode.WARP_GENERIC, "Unexpected to decrease " + metricsType);
+            }
+            else {
+                switch (predicateBufferPoolType) {
+                    case SMALL -> cachePredicatesStats.addin_use_small(-1);
+                    case MEDIUM -> cachePredicatesStats.addin_use_medium(-1);
+                    case LARGE -> cachePredicatesStats.addin_use_large(-1);
+                    default -> throw new TrinoException(WarpErrorCode.WARP_ILLEGAL_PARAMETER, "Uknown predicateBufferPoolType " + predicateBufferPoolType);
+                }
             }
         }
     }
@@ -248,10 +404,13 @@ public class PredicatesCacheService
                             predicateCacheData,
                             predicateData.getPredicateHashCode(),
                             predicateCachePool.get(predicateBufferPoolType).size());
+                    incrementMiss(predicateBufferPoolType);
+                    updatePredicateSizeStats(predicateData.getPredicateSize());
                 }
             }
             else {
                 predicateCacheDataOpt = Optional.of(predicateCacheData);
+                incrementHit(predicateBufferPoolType);
             }
         }
         catch (Exception e) {
@@ -283,6 +442,29 @@ public class PredicatesCacheService
             PredicateCacheData removed = integerPredicateBufferMap.remove(key);
             bufferAllocator.freePredicateBuffer(removed);
         });
+    }
+
+    private enum MetricsType
+    {
+        IN_USE,
+        CACHE_HIT,
+        CACHE_MISS,
+        CACHE_MAX
+    }
+
+    public int getHitSmall()
+    {
+        return (int) cachePredicatesStats.gethit_small();
+    }
+
+    public int getMissSmall()
+    {
+        return (int) cachePredicatesStats.getmiss_small();
+    }
+
+    public int getMaxSmall()
+    {
+        return (int) cachePredicatesStats.getmax_small();
     }
 
     @VisibleForTesting
