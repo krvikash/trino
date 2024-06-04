@@ -59,72 +59,71 @@ public class TestOracleParallelQueries
 
     @Test
     public void testReadingPartitionedTable()
+            throws Exception
     {
         String tableName = randomTableName("partitioned");
-        createPartitionedTable(tableName, "a NUMBER, b NUMBER, c NUMBER", "a", 4);
-        insertIntoTable(tableName,
-                "a, b, c",
-                ImmutableList.of(
-                        1, 2, 3,
-                        4, 5, 6,
-                        7, 6, 8));
+        try (AutoCloseable ignore = createPartitionedTable(tableName, "a NUMBER, b NUMBER, c NUMBER", "a", 4)) {
+            insertIntoTable(tableName,
+                    "a, b, c",
+                    ImmutableList.of(
+                            1, 2, 3,
+                            4, 5, 6,
+                            7, 6, 8));
 
-        verifyTableSplitCount(tableName, "b", "GPhxvpcxVrk=", NO_PARALLELISM, Optional.empty(), 1);
-        verifyTableSplitCount(tableName, "c", "/GYVBejTO3U=", PARTITIONS, Optional.empty(), 4);
-
-        dropTable(tableName);
+            verifyTableSplitCount(tableName, "b", "GPhxvpcxVrk=", NO_PARALLELISM, Optional.empty(), 1);
+            verifyTableSplitCount(tableName, "c", "/GYVBejTO3U=", PARTITIONS, Optional.empty(), 4);
+        }
     }
 
     @Test
     public void testReadingPartitionedTableWithMaxSplits()
+            throws Exception
     {
         String tableName = randomTableName("partitioned");
-        createPartitionedTable(tableName, "a NUMBER, b NUMBER, c NUMBER", "a", 4);
-        insertIntoTable(tableName,
-                "a, b, c",
-                ImmutableList.of(
-                        1, 2, 3,
-                        4, 5, 6,
-                        7, 6, 8));
+        try (AutoCloseable ignore = createPartitionedTable(tableName, "a NUMBER, b NUMBER, c NUMBER", "a", 4)) {
+            insertIntoTable(tableName,
+                    "a, b, c",
+                    ImmutableList.of(
+                            1, 2, 3,
+                            4, 5, 6,
+                            7, 6, 8));
 
-        verifyTableSplitCount(tableName, "b", "GPhxvpcxVrk=", NO_PARALLELISM, Optional.empty(), 1);
-        verifyTableSplitCount(tableName, "c", "/GYVBejTO3U=", PARTITIONS, Optional.of(2), 2);
-        verifyTableSplitCount(tableName, "c", "/GYVBejTO3U=", PARTITIONS, Optional.of(3), 2);
-
-        dropTable(tableName);
+            verifyTableSplitCount(tableName, "b", "GPhxvpcxVrk=", NO_PARALLELISM, Optional.empty(), 1);
+            verifyTableSplitCount(tableName, "c", "/GYVBejTO3U=", PARTITIONS, Optional.of(2), 2);
+            verifyTableSplitCount(tableName, "c", "/GYVBejTO3U=", PARTITIONS, Optional.of(3), 2);
+        }
     }
 
     @Test
     public void testReadingTableWithMaxSplitsPerScan()
+            throws Exception
     {
         String tableName = randomTableName("partitioned_big");
-        createPartitionedTable(tableName, "a NUMBER, b NUMBER, c NUMBER", "a", 100);
+        try (AutoCloseable ignore = createPartitionedTable(tableName, "a NUMBER, b NUMBER, c NUMBER", "a", 100)) {
+            insertIntoTable(tableName,
+                    "a, b, c",
+                    IntStream.range(0, 99999).boxed().collect(toImmutableList()));
 
-        insertIntoTable(tableName,
-                "a, b, c",
-                IntStream.range(0, 99999).boxed().collect(toImmutableList()));
+            verifyTableSplitCount(tableName, "a", "82outvYm50s=", NO_PARALLELISM, Optional.empty(), 1);
 
-        verifyTableSplitCount(tableName, "a", "82outvYm50s=", NO_PARALLELISM, Optional.empty(), 1);
-
-        verifyTableSplitCount(tableName, "a", "82outvYm50s=", PARTITIONS, Optional.of(1), 1);
-        verifyTableSplitCount(tableName, "b", "BaJpI0zFEZ0=", PARTITIONS, Optional.of(7), 7);
-        verifyTableSplitCount(tableName, "c", "KgAXfidTzXE=", PARTITIONS, Optional.of(100), 100);
-        verifyTableSplitCount(tableName, "c", "KgAXfidTzXE=", PARTITIONS, Optional.of(101), 100);
-
-        dropTable(tableName);
+            verifyTableSplitCount(tableName, "a", "82outvYm50s=", PARTITIONS, Optional.of(1), 1);
+            verifyTableSplitCount(tableName, "b", "BaJpI0zFEZ0=", PARTITIONS, Optional.of(7), 7);
+            verifyTableSplitCount(tableName, "c", "KgAXfidTzXE=", PARTITIONS, Optional.of(100), 100);
+            verifyTableSplitCount(tableName, "c", "KgAXfidTzXE=", PARTITIONS, Optional.of(101), 100);
+        }
     }
 
     @Test
     public void testReadingNonPartitionedTable()
+            throws Exception
     {
         String tableName = randomTableName("non_partitioned");
-        createNonPartitionedTable(tableName, "a NUMBER, b NUMBER");
-        insertIntoTable(tableName, "a, b", ImmutableList.of(1, 2, 3, 4, 5, 6, 7, 6, 8, 11));
+        try (AutoCloseable ignore = createNonPartitionedTable(tableName, "a NUMBER, b NUMBER")) {
+            insertIntoTable(tableName, "a, b", ImmutableList.of(1, 2, 3, 4, 5, 6, 7, 6, 8, 11));
 
-        verifyTableSplitCount(tableName, "a", "Gv+Z64FGbJw=", NO_PARALLELISM, Optional.empty(), 1);
-        verifyTableSplitCount(tableName, "b", "meGP+zKVR8U=", PARTITIONS, Optional.empty(), 1);
-
-        dropTable(tableName);
+            verifyTableSplitCount(tableName, "a", "Gv+Z64FGbJw=", NO_PARALLELISM, Optional.empty(), 1);
+            verifyTableSplitCount(tableName, "b", "meGP+zKVR8U=", PARTITIONS, Optional.empty(), 1);
+        }
     }
 
     private void insertIntoTable(String tableName, String columns, List<Object> values)
@@ -159,11 +158,6 @@ public class TestOracleParallelQueries
         return format("%s_%d", prefix, Math.abs(ThreadLocalRandom.current().nextLong()));
     }
 
-    private void dropTable(String tableName)
-    {
-        oracleServer.get().executeInOracle(format("DROP TABLE %s", tableName));
-    }
-
     private void verifyTableSplitCount(String tableName, String column, String expectedChecksum, OracleParallelismType parallelismType, Optional<Integer> maxSplits, int expectedSplits)
     {
         DistributedQueryRunner queryRunner = (DistributedQueryRunner) getQueryRunner();
@@ -193,13 +187,15 @@ public class TestOracleParallelQueries
                 .orElseThrow(() -> new RuntimeException("Could not find TableScanOperator statistics"));
     }
 
-    private void createPartitionedTable(String tableName, String columns, String partitionColumn, int partitionCount)
+    private AutoCloseable createPartitionedTable(String tableName, String columns, String partitionColumn, int partitionCount)
     {
         oracleServer.get().executeInOracle(format("CREATE TABLE %s(%s) PARTITION BY HASH (%s) PARTITIONS %d", tableName, columns, partitionColumn, partitionCount));
+        return () -> oracleServer.get().executeInOracle(format("DROP TABLE %s", tableName));
     }
 
-    private void createNonPartitionedTable(String tableName, String columns)
+    private AutoCloseable createNonPartitionedTable(String tableName, String columns)
     {
         oracleServer.get().executeInOracle(format("CREATE TABLE %s(%s)", tableName, columns));
+        return () -> oracleServer.get().executeInOracle(format("DROP TABLE %s", tableName));
     }
 }
