@@ -526,7 +526,7 @@ public class TestDataApiFacade
                 .failsWithin(100, MILLISECONDS) // returns immediatelly
                 .withThrowableOfType(ExecutionException.class)
                 .matches(e -> ((DataApiException) e.getCause()).getErrorCode().equals(ErrorCode.DRAINED))
-                .withMessageContaining("Node already DRAINED");
+                .withMessageMatching(".*Node .* already DRAINED");
     }
 
     private static class TestingDataApi

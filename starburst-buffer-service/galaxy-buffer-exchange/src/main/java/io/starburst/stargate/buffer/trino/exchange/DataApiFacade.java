@@ -63,6 +63,7 @@ import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static com.google.common.util.concurrent.MoreExecutors.listeningDecorator;
 import static io.airlift.units.Duration.succinctDuration;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 @ThreadSafe
@@ -529,11 +530,11 @@ public class DataApiFacade
         BufferNodeInfo bufferNodeInfo = bufferNodes.getAllBufferNodes().get(bufferNodeId);
         if (bufferNodeInfo != null && bufferNodeInfo.state() == BufferNodeState.DRAINED) {
             // Node already DRAINED according to DiscoveryService. Short-circuiting error code.
-            throw new DataApiException(ErrorCode.DRAINED, "Node already DRAINED");
+            throw new DataApiException(ErrorCode.DRAINED, format("Node %s (%s) already DRAINED", bufferNodeId, bufferNodeInfo.uri()));
         }
         if (shortCircuitDraining && bufferNodeInfo != null && bufferNodeInfo.state() == BufferNodeState.DRAINING) {
             // Node already started DRAINING according to DiscoveryService. Short-circuiting error code.
-            throw new DataApiException(ErrorCode.DRAINING, "Node is DRAINING");
+            throw new DataApiException(ErrorCode.DRAINING, format("Node %s (%s) is DRAINING", bufferNodeId, bufferNodeInfo.uri()));
         }
         return dataApiClients.computeIfAbsent(bufferNodeId, this::createDataApi);
     }
