@@ -69,37 +69,21 @@ public class ConstraintApplicationResult<T>
         this.alternatives = requireNonNull(alternatives, "alternatives is null");
     }
 
-    /**
-     * @deprecated use {@link Alternative#handle()} of each Alternative returned from {@link #getAlternatives()}
-     */
-    @Deprecated
     public T getHandle()
     {
         return getSingleTransformedAlternative().handle();
     }
 
-    /**
-     * @deprecated use {@link Alternative#remainingFilter()} of each Alternative returned from {@link #getAlternatives()}
-     */
-    @Deprecated
     public TupleDomain<ColumnHandle> getRemainingFilter()
     {
         return getSingleTransformedAlternative().remainingFilter();
     }
 
-    /**
-     * @deprecated use {@link Alternative#remainingExpression()} of each Alternative returned from {@link #getAlternatives()}
-     */
-    @Deprecated
     public Optional<ConnectorExpression> getRemainingExpression()
     {
         return getSingleTransformedAlternative().remainingExpression();
     }
 
-    /**
-     * @deprecated use {@link Alternative#precalculateStatistics()} of each Alternative returned from {@link #getAlternatives()}
-     */
-    @Deprecated
     public boolean isPrecalculateStatistics()
     {
         return getSingleTransformedAlternative().precalculateStatistics();
