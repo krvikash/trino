@@ -35,6 +35,7 @@ import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorAlternativeChooser;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
+import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableHandle;
@@ -54,7 +55,7 @@ public class DispatcherAlternativeChooser
 {
     private static final Logger logger = Logger.get(DispatcherAlternativeChooser.class);
 
-    private final ConnectorPageSourceProvider connectorPageSourceProvider;
+    private final ConnectorPageSourceProviderFactory connectorPageSourceProviderFactory;
     private final DispatcherPageSourceFactory pageSourceFactory;
     private final StorageEngineTxService txService;
     private final MetricsManager metricsManager;
@@ -66,7 +67,7 @@ public class DispatcherAlternativeChooser
 
     @Inject
     public DispatcherAlternativeChooser(
-            @ForWarp ConnectorPageSourceProvider connectorPageSourceProvider,
+            @ForWarp ConnectorPageSourceProviderFactory connectorPageSourceProviderFactory,
             DispatcherPageSourceFactory pageSourceFactory,
             StorageEngineTxService txService,
             MetricsManager metricsManager,
@@ -76,7 +77,7 @@ public class DispatcherAlternativeChooser
             PredicatesCacheService predicatesCacheService,
             NativeStorageStateHandler nativeStorageStateHandler)
     {
-        this.connectorPageSourceProvider = requireNonNull(connectorPageSourceProvider);
+        this.connectorPageSourceProviderFactory = requireNonNull(connectorPageSourceProviderFactory);
         this.pageSourceFactory = requireNonNull(pageSourceFactory);
         this.txService = requireNonNull(txService);
         this.metricsManager = requireNonNull(metricsManager);
@@ -162,7 +163,7 @@ public class DispatcherAlternativeChooser
             return new Choice(
                     chosenIndex,
                     new DispatcherAlternativePageSourceProvider(
-                            connectorPageSourceProvider,
+                            connectorPageSourceProviderFactory.createPageSourceProvider(),
                             pageSourceFactory,
                             txService,
                             customStatsContext,
@@ -224,6 +225,7 @@ public class DispatcherAlternativeChooser
             ConnectorTableHandle table,
             TupleDomain<ColumnHandle> dynamicFilter)
     {
+        ConnectorPageSourceProvider connectorPageSourceProvider = connectorPageSourceProviderFactory.createPageSourceProvider();
         DispatcherTableHandle dispatcherTableHandle = (DispatcherTableHandle) table;
         ConnectorSplit connectorSplit = ((DispatcherSplit) split).getProxyConnectorSplit();
         ConnectorTableHandle connectorTableHandle = dispatcherTableHandle.getProxyConnectorTableHandle();
@@ -251,10 +253,11 @@ public class DispatcherAlternativeChooser
             ConnectorTableHandle table,
             TupleDomain<ColumnHandle> predicate)
     {
-        return connectorPageSourceProvider.prunePredicate(session,
-                ((DispatcherSplit) split).getProxyConnectorSplit(),
-                ((DispatcherTableHandle) table).getProxyConnectorTableHandle(),
-                predicate);
+        return connectorPageSourceProviderFactory.createPageSourceProvider()
+                .prunePredicate(session,
+                        ((DispatcherSplit) split).getProxyConnectorSplit(),
+                        ((DispatcherTableHandle) table).getProxyConnectorTableHandle(),
+                        predicate);
     }
 
     @Override

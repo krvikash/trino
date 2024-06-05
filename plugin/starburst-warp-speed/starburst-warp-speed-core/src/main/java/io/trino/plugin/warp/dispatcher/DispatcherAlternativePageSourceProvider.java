@@ -14,7 +14,6 @@
 package io.trino.plugin.warp.dispatcher;
 
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
@@ -47,7 +46,7 @@ public class DispatcherAlternativePageSourceProvider
     private final DispatcherAlternativeChooser.ResourceCloser resourceCloser;
 
     public DispatcherAlternativePageSourceProvider(
-            @ForWarp ConnectorPageSourceProvider connectorPageSourceProvider,
+            ConnectorPageSourceProvider connectorPageSourceProvider,
             DispatcherPageSourceFactory pageSourceFactory,
             StorageEngineTxService txService,
             CustomStatsContext customStatsContext,

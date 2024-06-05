@@ -377,7 +377,7 @@ public class DispatcherAlternativeChooserTest
         NativeStorageStateHandler nativeStorageStateHandler = mock(NativeStorageStateHandler.class);
         when(nativeStorageStateHandler.isStorageAvailable()).thenReturn(true);
         return new DispatcherAlternativeChooser(
-                connectorPageSourceProvider,
+                () -> connectorPageSourceProvider,
                 mock(DispatcherPageSourceFactory.class),
                 mock(StorageEngineTxService.class),
                 mock(MetricsManager.class),

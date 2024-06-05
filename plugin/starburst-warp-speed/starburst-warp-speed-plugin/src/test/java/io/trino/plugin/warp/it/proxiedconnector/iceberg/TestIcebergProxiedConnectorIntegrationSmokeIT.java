@@ -471,8 +471,7 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
         IntStream.range(0, 2).forEach(indexDateInt -> IntStream.range(1, 3).forEach(indexDateDate -> {
             @Language("SQL") String sql = format("INSERT INTO %s(%s, %s, %s) VALUES('a-%d', 2019031%d, CAST('2020-04-%d%d' AS date))",
                     table, aCol, dateIntCol, dateDateCol, indexDateDate, indexDateInt, indexDateInt, indexDateDate);
-            assertUpdate(sql,
-                    1);
+            assertUpdate(sql, 1);
         }));
 
         createWarmupRules(DEFAULT_SCHEMA,

@@ -36,7 +36,7 @@ import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorNodePartitioningProvider;
 import io.trino.spi.connector.ConnectorPageSinkProvider;
-import io.trino.spi.connector.ConnectorPageSourceProvider;
+import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.type.TypeManager;
 import org.weakref.jmx.guice.MBeanModule;
@@ -73,13 +73,13 @@ public class InternalDispatcherConnectorFactory
         Map<String, String> warpConfig = config.entrySet().stream()
                 .filter(e ->
                         e.getKey().startsWith("warp-speed") ||
-                        e.getKey().startsWith(WARP_PREFIX) ||
-                        // TrinoFileSystem hdfs config
-                        e.getKey().startsWith("hive.s3") || e.getKey().startsWith("hive.azure") || e.getKey().startsWith("hive.gcs") ||
-                        // TrinoFileSystem native config
-                        e.getKey().startsWith("fs.") || e.getKey().startsWith("s3.") || e.getKey().startsWith("azure.") || e.getKey().startsWith("gcs.") ||
-                        e.getKey().startsWith("http") ||
-                        e.getKey().equals("node.environment"))
+                                e.getKey().startsWith(WARP_PREFIX) ||
+                                // TrinoFileSystem hdfs config
+                                e.getKey().startsWith("hive.s3") || e.getKey().startsWith("hive.azure") || e.getKey().startsWith("hive.gcs") ||
+                                // TrinoFileSystem native config
+                                e.getKey().startsWith("fs.") || e.getKey().startsWith("s3.") || e.getKey().startsWith("azure.") || e.getKey().startsWith("gcs.") ||
+                                e.getKey().startsWith("http") ||
+                                e.getKey().equals("node.environment"))
                 .collect(Collectors.toMap(entry -> entry.getKey().startsWith(WARP_PREFIX) ? entry.getKey().substring(WARP_PREFIX.length()) : entry.getKey(), Entry::getValue));
 
         String proxiedConnectorName = warpConfig.get(ProxiedConnectorConfig.PROXIED_CONNECTOR);
@@ -140,7 +140,7 @@ public class InternalDispatcherConnectorFactory
             binder.bind(Connector.class).annotatedWith(ForWarp.class).toInstance(connector);
             binder.bind(ConnectorSplitManager.class).annotatedWith(ForWarp.class).toInstance(connector.getSplitManager());
             binder.bind(ConnectorCacheMetadata.class).annotatedWith(ForWarp.class).toInstance(connector.getCacheMetadata());
-            binder.bind(ConnectorPageSourceProvider.class).annotatedWith(ForWarp.class).toInstance(connector.getPageSourceProvider());
+            binder.bind(ConnectorPageSourceProviderFactory.class).annotatedWith(ForWarp.class).toInstance(connector.getPageSourceProviderFactory());
             binder.bind(ConnectorPageSinkProvider.class).annotatedWith(ForWarp.class).toInstance(connector.getPageSinkProvider());
             binder.bind(ConnectorNodePartitioningProvider.class).annotatedWith(ForWarp.class).toInstance(connector.getNodePartitioningProvider());
         };
