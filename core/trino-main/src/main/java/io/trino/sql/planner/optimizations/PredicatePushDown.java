@@ -33,9 +33,9 @@ import io.trino.sql.ir.Comparison.Operator;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.Reference;
+import io.trino.sql.ir.optimizer.IrExpressionOptimizer;
 import io.trino.sql.planner.EffectivePredicateExtractor;
 import io.trino.sql.planner.EqualityInference;
-import io.trino.sql.planner.IrExpressionInterpreter;
 import io.trino.sql.planner.PlanNodeIdAllocator;
 import io.trino.sql.planner.Symbol;
 import io.trino.sql.planner.SymbolAllocator;
@@ -104,6 +104,7 @@ import static io.trino.sql.ir.IrExpressions.mayFail;
 import static io.trino.sql.ir.IrUtils.combineConjuncts;
 import static io.trino.sql.ir.IrUtils.extractConjuncts;
 import static io.trino.sql.ir.IrUtils.filterDeterministicConjuncts;
+import static io.trino.sql.ir.optimizer.IrExpressionOptimizer.newOptimizer;
 import static io.trino.sql.planner.DeterminismEvaluator.isDeterministic;
 import static io.trino.sql.planner.EqualityInference.isInferenceCandidate;
 import static io.trino.sql.planner.ExpressionSymbolInliner.inlineSymbols;
@@ -157,6 +158,7 @@ public class PredicatePushDown
         private final SymbolAllocator symbolAllocator;
         private final PlanNodeIdAllocator idAllocator;
         private final PlannerContext plannerContext;
+        private final IrExpressionOptimizer optimizer;
         private final Metadata metadata;
         private final Session session;
         private final boolean dynamicFiltering;
@@ -180,6 +182,7 @@ public class PredicatePushDown
             this.effectivePredicateExtractor = new EffectivePredicateExtractor(
                     plannerContext,
                     useTableProperties && isPredicatePushdownUseTableProperties(session));
+            optimizer = newOptimizer(plannerContext);
         }
 
         @Override
@@ -1293,7 +1296,7 @@ public class PredicatePushDown
         // Temporary implementation for joins because the SimplifyExpressions optimizers cannot run properly on join clauses
         private Expression simplifyExpression(Expression expression)
         {
-            return new IrExpressionInterpreter(expression, plannerContext, session).optimize();
+            return optimizer.process(expression, session, ImmutableMap.of()).orElse(expression);
         }
 
         /**
@@ -1301,8 +1304,12 @@ public class PredicatePushDown
          */
         private Expression nullInputEvaluator(Collection<Symbol> nullSymbols, Expression expression)
         {
-            return new IrExpressionInterpreter(expression, plannerContext, session)
-                    .optimize(symbol -> nullSymbols.contains(symbol) ? Optional.of(new Constant(symbol.type(), null)) : Optional.empty());
+            Map<Symbol, Expression> inputs = nullSymbols.stream()
+                    .collect(Collectors.toMap(
+                            symbol -> symbol,
+                            symbol -> new Constant(symbol.type(), null)));
+
+            return optimizer.process(expression, session, inputs).orElse(expression);
         }
 
         private boolean joinEqualityExpression(Expression expression, Collection<Symbol> leftSymbols, Collection<Symbol> rightSymbols)
