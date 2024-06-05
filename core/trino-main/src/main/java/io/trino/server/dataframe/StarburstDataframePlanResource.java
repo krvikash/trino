@@ -20,6 +20,7 @@ import com.starburstdata.dataframe.analyzer.AnalyzerFactory;
 import com.starburstdata.dataframe.analyzer.TrinoMetadata;
 import com.starburstdata.dataframe.plan.LogicalPlan;
 import com.starburstdata.dataframe.plan.TrinoPlan;
+import io.airlift.log.Logger;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
 import io.trino.Session;
@@ -31,7 +32,9 @@ import io.trino.server.SessionSupplier;
 import io.trino.server.security.InternalPrincipal;
 import io.trino.server.security.ResourceSecurity;
 import io.trino.spi.QueryId;
+import io.trino.spi.TrinoException;
 import io.trino.spi.security.Identity;
+import io.trino.sql.parser.ParsingException;
 import io.trino.transaction.TransactionId;
 import io.trino.transaction.TransactionManager;
 import jakarta.servlet.http.HttpServletRequest;
@@ -45,7 +48,9 @@ import jakarta.ws.rs.core.MultivaluedMap;
 
 import java.util.Optional;
 
+import static com.starburstdata.dataframe.DataframeException.ErrorCode.ANALYSIS_ERROR;
 import static com.starburstdata.dataframe.DataframeException.ErrorCode.GENERIC_INTERNAL_ERROR;
+import static com.starburstdata.dataframe.DataframeException.ErrorCode.SQL_ERROR;
 import static io.trino.server.ServletSecurityUtils.authenticatedIdentity;
 import static io.trino.server.security.ResourceSecurity.AccessType.AUTHENTICATED_USER;
 import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
@@ -54,6 +59,7 @@ import static java.util.Objects.requireNonNull;
 @Path("/v1/dataframe/plan")
 public class StarburstDataframePlanResource
 {
+    private static final Logger log = Logger.get(StarburstDataframePlanResource.class);
     private final TestingTrinoMetadataFactory testingTrinoMetadataFactory;
     private final AnalyzerFactory analyzerFactory;
     private final HttpRequestSessionContextFactory sessionContextFactory;
@@ -98,11 +104,21 @@ public class StarburstDataframePlanResource
             throw new DataframeException("Internal communication cannot be used to start a query", GENERIC_INTERNAL_ERROR);
         }
         MultivaluedMap<String, String> headers = httpHeaders.getRequestHeaders();
-        Session session = initializeSession(headers, remoteAddress, identity);
-        languageFunctionManager.registerQuery(session);
-        TrinoMetadata trinoMetadata = testingTrinoMetadataFactory.create(session);
-        Analyzer analyzer = analyzerFactory.create(trinoMetadata);
-        return analyzer.resolve(plan);
+        try {
+            Session session = initializeSession(headers, remoteAddress, identity);
+            languageFunctionManager.registerQuery(session);
+            TrinoMetadata trinoMetadata = testingTrinoMetadataFactory.create(session);
+            Analyzer analyzer = analyzerFactory.create(trinoMetadata);
+            return analyzer.resolve(plan);
+        }
+        catch (ParsingException | TrinoException trinoException) {
+            log.error(trinoException, "Error occurred during analysis");
+            throw new DataframeException(trinoException.getMessage(), SQL_ERROR);
+        }
+        catch (Exception exception) {
+            log.error(exception, "Unexpected error");
+            throw new DataframeException(exception.getMessage(), ANALYSIS_ERROR);
+        }
     }
 
     private Session initializeSession(MultivaluedMap<String, String> headers, Optional<String> remoteAddress, Optional<Identity> identity)

@@ -15,7 +15,6 @@ package io.trino.server.dataframe;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.starburstdata.dataframe.DataframeException;
 import com.starburstdata.dataframe.analyzer.TrinoMetadata;
 import com.starburstdata.dataframe.expression.Attribute;
 import io.airlift.log.Logger;
@@ -27,7 +26,6 @@ import io.trino.sql.analyzer.Analysis;
 import io.trino.sql.analyzer.Analyzer;
 import io.trino.sql.analyzer.AnalyzerFactory;
 import io.trino.sql.analyzer.Field;
-import io.trino.sql.parser.ParsingException;
 import io.trino.sql.parser.SqlParser;
 import io.trino.sql.tree.AllColumns;
 import io.trino.sql.tree.Cast;
@@ -48,8 +46,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.starburstdata.dataframe.DataframeException.ErrorCode.ANALYSIS_ERROR;
-import static com.starburstdata.dataframe.DataframeException.ErrorCode.SQL_ERROR;
 import static com.starburstdata.dataframe.analyzer.AnalyzerUtils.COMMA;
 import static com.starburstdata.dataframe.analyzer.AnalyzerUtils.DOUBLE_QUOTE;
 import static com.starburstdata.dataframe.analyzer.AnalyzerUtils.generateId;
@@ -90,11 +86,7 @@ public class DataframeMetadataProvider
                 return false;
             }
             log.error(trinoException, "Error occurred during analysis");
-            throw new DataframeException(trinoException.getMessage(), SQL_ERROR);
-        }
-        catch (Exception exception) {
-            log.error(exception, "Unexpected error");
-            throw new DataframeException(exception.getMessage(), ANALYSIS_ERROR);
+            throw trinoException;
         }
         return true;
     }
@@ -295,17 +287,7 @@ public class DataframeMetadataProvider
 
     private Optional<Analysis> resolve(String sqlStatement)
     {
-        try {
-            return describe(sqlStatement);
-        }
-        catch (ParsingException | TrinoException trinoException) {
-            log.error(trinoException, "Error occurred during analysis");
-            throw new DataframeException(trinoException.getMessage(), SQL_ERROR);
-        }
-        catch (Exception exception) {
-            log.error(exception, "Unexpected error");
-            throw new DataframeException(exception.getMessage(), ANALYSIS_ERROR);
-        }
+        return describe(sqlStatement);
     }
 
     private Optional<Analysis> describe(String sqlStatement)
