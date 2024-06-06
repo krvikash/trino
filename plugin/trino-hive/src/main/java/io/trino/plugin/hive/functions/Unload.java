@@ -62,6 +62,7 @@ import io.trino.spi.function.table.TableFunctionProcessorProvider;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.VarcharType;
 import org.apache.avro.SchemaParseException;
 
 import java.io.IOException;
@@ -246,10 +247,14 @@ public class Unload
             for (RowType.Field field : inputSchema) {
                 String columnName = field.getName().orElseThrow(() -> new TrinoException(NOT_SUPPORTED, "Column name not specified at position " + (inputSchema.indexOf(field) + 1))).toLowerCase(ENGLISH);
                 verifyHiveColumnName(columnName);
-                if (format == HiveStorageFormat.CSV && !field.getType().equals(VARCHAR)) {
-                    throw new TrinoException(NOT_SUPPORTED, "CSV only supports VARCHAR columns: '%s'".formatted(columnName));
+                Type fieldType = field.getType();
+                if (format == HiveStorageFormat.CSV) {
+                    if (!(fieldType instanceof VarcharType)) {
+                        throw new TrinoException(NOT_SUPPORTED, "CSV only supports VARCHAR columns: '%s'".formatted(columnName));
+                    }
+                    fieldType = VARCHAR;
                 }
-                if (format == HiveStorageFormat.JSON && field.getType().equals(VARBINARY)) {
+                if (format == HiveStorageFormat.JSON && fieldType.equals(VARBINARY)) {
                     // Disable VARBINARY type with JSON format as it has a correctness issue for some data, e.g. X'0001020304050607080DF9367AA7000000'
                     throw new TrinoException(NOT_SUPPORTED, "UNLOAD table function does not support VARBINARY columns for JSON format: '%s'".formatted(columnName));
                 }
@@ -260,18 +265,18 @@ public class Unload
 
                 HiveColumnHandle.ColumnType columnType;
                 if (partitionColumns.contains(columnName)) {
-                    partitionColumnTypes.add(field.getType());
+                    partitionColumnTypes.add(fieldType);
                     columnType = HiveColumnHandle.ColumnType.PARTITION_KEY;
                 }
                 else {
                     dataColumnNames.add(columnName);
-                    dataColumnTypes.add(toHiveType(field.getType()));
+                    dataColumnTypes.add(toHiveType(fieldType));
                     columnType = HiveColumnHandle.ColumnType.REGULAR;
                 }
                 columnHandles.add(new HiveColumnHandle(
                         columnName,
                         0,
-                        toHiveType(field.getType()),
+                        toHiveType(fieldType),
                         field.getType(),
                         Optional.empty(),
                         columnType,

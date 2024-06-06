@@ -914,6 +914,27 @@ class TestUnloadFunction
     }
 
     @Test
+    void testUnloadCsvBoundedVarchar()
+            throws Exception
+    {
+        String tableName = "test_unload_csv_varchar_" + randomNameSuffix();
+        String location = directory.resolve(tableName).toUri().toString();
+        Files.createDirectory(directory.resolve(tableName));
+
+        MaterializedResult result = computeActual("SELECT * FROM TABLE(hive.system.unload(" +
+                "input => TABLE(SELECT 'test data') t(col)," +
+                "location => '" + location + "'," +
+                "format => 'CSV'))");
+        assertThat(result.getColumnNames()).containsExactly("path", "count");
+        assertThat(result.getRowCount()).isEqualTo(1);
+
+        assertUpdate("CREATE TABLE " + tableName + "(col varchar) WITH (external_location = '" + location + "', format = 'CSV')");
+        assertQuery("SELECT * FROM " + tableName, "VALUES 'test data'");
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    @Test
     void testUnloadUnsupportedColumnType()
     {
         String location = directory.resolve("test_anonymous_column").toUri().toString();
