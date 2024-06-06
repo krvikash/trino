@@ -50,8 +50,6 @@ import static io.trino.testing.TestingHandles.TEST_CATALOG_HANDLE;
 import static java.util.Collections.shuffle;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class TestArbitraryDistributionSplitAssigner
 {
@@ -95,8 +93,8 @@ public class TestArbitraryDistributionSplitAssigner
         splitAssigner = createSplitAssigner(ImmutableSet.of(PARTITIONED_1), ImmutableSet.of(REPLICATED_1), 100, true);
         tester = new SplitAssignerTester();
         tester.update(splitAssigner.assign(REPLICATED_1, ImmutableListMultimap.of(), true));
-        assertFalse(tester.isNoMoreSplits(0, PARTITIONED_1));
-        assertFalse(tester.isNoMoreSplits(0, REPLICATED_1));
+        assertThat(tester.isNoMoreSplits(0, PARTITIONED_1)).isFalse();
+        assertThat(tester.isNoMoreSplits(0, REPLICATED_1)).isFalse();
         tester.update(splitAssigner.assign(PARTITIONED_1, ImmutableListMultimap.of(), true));
         assertThat(tester.isNoMoreSplits(0, PARTITIONED_1)).isTrue();
         assertThat(tester.isNoMoreSplits(0, REPLICATED_1)).isTrue();
@@ -108,8 +106,8 @@ public class TestArbitraryDistributionSplitAssigner
         splitAssigner = createSplitAssigner(ImmutableSet.of(PARTITIONED_1), ImmutableSet.of(REPLICATED_1), 100, true);
         tester = new SplitAssignerTester();
         tester.update(splitAssigner.assign(PARTITIONED_1, ImmutableListMultimap.of(), true));
-        assertFalse(tester.isNoMoreSplits(0, PARTITIONED_1));
-        assertFalse(tester.isNoMoreSplits(0, REPLICATED_1));
+        assertThat(tester.isNoMoreSplits(0, PARTITIONED_1)).isFalse();
+        assertThat(tester.isNoMoreSplits(0, REPLICATED_1)).isFalse();
         tester.update(splitAssigner.assign(REPLICATED_1, ImmutableListMultimap.of(), true));
         assertThat(tester.isNoMoreSplits(0, PARTITIONED_1)).isTrue();
         assertThat(tester.isNoMoreSplits(0, REPLICATED_1)).isTrue();
@@ -123,10 +121,10 @@ public class TestArbitraryDistributionSplitAssigner
         tester.update(splitAssigner.assign(REPLICATED_1, ImmutableListMultimap.of(), true));
         tester.update(splitAssigner.assign(PARTITIONED_1, ImmutableListMultimap.of(), true));
         tester.update(splitAssigner.assign(PARTITIONED_2, ImmutableListMultimap.of(), true));
-        assertFalse(tester.isNoMoreSplits(0, PARTITIONED_1));
-        assertFalse(tester.isNoMoreSplits(0, REPLICATED_1));
-        assertFalse(tester.isNoMoreSplits(0, PARTITIONED_2));
-        assertFalse(tester.isNoMoreSplits(0, REPLICATED_2));
+        assertThat(tester.isNoMoreSplits(0, PARTITIONED_1)).isFalse();
+        assertThat(tester.isNoMoreSplits(0, REPLICATED_1)).isFalse();
+        assertThat(tester.isNoMoreSplits(0, PARTITIONED_2)).isFalse();
+        assertThat(tester.isNoMoreSplits(0, REPLICATED_2)).isFalse();
         tester.update(splitAssigner.assign(REPLICATED_2, ImmutableListMultimap.of(), true));
         assertThat(tester.isNoMoreSplits(0, PARTITIONED_1)).isTrue();
         assertThat(tester.isNoMoreSplits(0, REPLICATED_1)).isTrue();
@@ -296,7 +294,7 @@ public class TestArbitraryDistributionSplitAssigner
 
         SplitAssigner splitAssigner = createSplitAssigner(ImmutableSet.of(PARTITIONED_1), ImmutableSet.of(), 1, true);
         SplitAssigner.AssignmentResult result = splitAssigner.assign(PARTITIONED_1, ImmutableListMultimap.of(0, split), true);
-        assertTrue(result.noMorePartitions());
+        assertThat(result.noMorePartitions()).isTrue();
         assertThat(result.partitionsAdded()).hasSize(1);
         SplitAssigner.Partition partition = getOnlyElement(result.partitionsAdded());
         assertThat(partition.nodeRequirements().getAddresses()).containsExactly(HOST_2);
