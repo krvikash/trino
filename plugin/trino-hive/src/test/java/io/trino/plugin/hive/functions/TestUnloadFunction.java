@@ -21,6 +21,7 @@ import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.QueryRunner;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -33,6 +34,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.stream.Stream;
 
+import static com.google.common.io.MoreFiles.deleteRecursively;
+import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
 import static io.trino.plugin.hive.HiveStorageFormat.AVRO;
 import static io.trino.plugin.hive.HiveStorageFormat.JSON;
 import static io.trino.plugin.hive.HiveStorageFormat.PARQUET;
@@ -61,6 +64,13 @@ class TestUnloadFunction
         directory = queryRunner.getCoordinator().getBaseDataDir().resolve("unload");
         Files.createDirectory(directory);
         return queryRunner;
+    }
+
+    @AfterAll
+    void tearDown()
+            throws Exception
+    {
+        deleteRecursively(directory, ALLOW_INSECURE);
     }
 
     @ParameterizedTest
