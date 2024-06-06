@@ -562,7 +562,7 @@ public final class HttpRemoteTask
     }
 
     @Override
-    public SpoolingOutputStats.Snapshot retrieveAndDropSpoolingOutputStats()
+    public Optional<SpoolingOutputStats.Snapshot> retrieveAndDropSpoolingOutputStats()
     {
         return taskInfoFetcher.retrieveAndDropSpoolingOutputStats();
     }
