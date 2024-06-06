@@ -34,7 +34,7 @@ public class TestDeltaLakeProxiedConnectorIntegrationSmokeIT
 {
     public TestDeltaLakeProxiedConnectorIntegrationSmokeIT()
     {
-        super(1, "varada_deltalake");
+        super(1, "warp_deltalake");
     }
 
     @Override

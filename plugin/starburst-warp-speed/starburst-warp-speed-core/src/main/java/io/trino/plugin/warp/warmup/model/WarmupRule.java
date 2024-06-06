@@ -31,7 +31,7 @@ public class WarmupRule
     public static final String ID = "id";
     public static final String SCHEMA_NAME = "schema_name";
     public static final String TABLE_NAME = "table_name";
-    public static final String WARP_COLUMN = "varada_column";
+    public static final String WARP_COLUMN = "warp_column";
     public static final String TTL = "ttl";
     public static final String PRIORITY = "priority";
     public static final String COLUMN_WARMUP_TYPE = "column_warmup_type";

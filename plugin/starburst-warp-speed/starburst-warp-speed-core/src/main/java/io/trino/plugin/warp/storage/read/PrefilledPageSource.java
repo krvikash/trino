@@ -126,7 +126,7 @@ public class PrefilledPageSource
     public void close()
     {
         closeHandler.ifPresent(handler -> handler.accept(rowGroupData));
-        stats.inccached_varada_success_files();
+        stats.inccached_warp_success_files();
         stats.addexecution_time(System.currentTimeMillis() - this.startTime);
     }
 }

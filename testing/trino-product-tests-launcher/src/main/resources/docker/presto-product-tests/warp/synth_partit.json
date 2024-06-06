@@ -56,8 +56,8 @@
         ],
         "query_id": "partition_test_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -70,8 +70,8 @@
         ],
         "query_id": "partition_test_2",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -147,8 +147,8 @@
         ],
         "query_id": "partition_test_two_levels_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -159,8 +159,8 @@
         "expected_result": [687],
         "query_id": "partition_test_two_levels_2",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -220,8 +220,8 @@
         ],
         "query_id": "partition_folders_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -234,9 +234,9 @@
         ],
         "query_id": "partition_folders_2",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -248,8 +248,8 @@
         ],
         "query_id": "partition_folders_3",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -314,8 +314,8 @@
         ],
         "query_id": "integer_date_partition_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -372,8 +372,8 @@
         ],
         "query_id": "custom_partitions_test_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -385,9 +385,9 @@
         ],
         "query_id": "custom_partitions_test_2",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -539,8 +539,8 @@
         ],
         "query_id": "date_partition_orc_file_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 6,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 6,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -552,9 +552,9 @@
         ],
         "query_id": "date_partition_orc_file_2",
         "expected_counters": {
-          "varada_match_columns": 6,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 6,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -566,9 +566,9 @@
         ],
         "query_id": "date_partition_orc_file_3",
         "expected_counters": {
-          "varada_match_columns": 12,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 12,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -586,9 +586,9 @@
         ],
         "query_id": "date_partition_orc_file_4",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 6,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 6,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 1
         }
@@ -697,8 +697,8 @@
         ],
         "query_id": "partition_date_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -1532,8 +1532,8 @@
         ],
         "query_id": "phoenix_table_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 9,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -1549,9 +1549,9 @@
         ],
         "query_id": "phoenix_table_2",
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 4,
-          "prefilled_collect_columns": 2,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 4,
+          "warp_prefilled_collect_columns": 2,
           "external_match_columns": 4,
           "external_collect_columns": 1
         }
@@ -1566,9 +1566,9 @@
         ],
         "query_id": "phoenix_table_3",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 3,
-          "prefilled_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 3,
+          "warp_prefilled_collect_columns": 1,
           "external_match_columns": 3,
           "external_collect_columns": 1
         }
@@ -1583,9 +1583,9 @@
         ],
         "query_id": "phoenix_table_4",
         "expected_counters": {
-          "varada_match_columns": 3,
-          "varada_collect_columns": 4,
-          "prefilled_collect_columns": 2,
+          "warp_match_columns": 3,
+          "warp_collect_columns": 4,
+          "warp_prefilled_collect_columns": 2,
           "external_match_columns": 2,
           "external_collect_columns": 2
         }
@@ -1597,9 +1597,9 @@
         ],
         "query_id": "phoenix_table_5",
         "expected_counters": {
-          "varada_match_columns": 4,
-          "varada_collect_columns": 4,
-          "prefilled_collect_columns": 2,
+          "warp_match_columns": 4,
+          "warp_collect_columns": 4,
+          "warp_prefilled_collect_columns": 2,
           "external_match_columns": 2,
           "external_collect_columns": 0
         }
@@ -1618,9 +1618,9 @@
         ],
         "query_id": "phoenix_table_6",
         "expected_counters": {
-          "varada_match_columns": 4,
-          "varada_collect_columns": 2,
-          "prefilled_collect_columns": 2,
+          "warp_match_columns": 4,
+          "warp_collect_columns": 2,
+          "warp_prefilled_collect_columns": 2,
           "external_match_columns": 1,
           "external_collect_columns": 1
         }
@@ -1632,9 +1632,9 @@
         ],
         "query_id": "phoenix_table_7",
         "expected_counters": {
-          "varada_match_columns": 3,
-          "varada_collect_columns": 3,
-          "prefilled_collect_columns": 1,
+          "warp_match_columns": 3,
+          "warp_collect_columns": 3,
+          "warp_prefilled_collect_columns": 1,
           "external_match_columns": 2,
           "external_collect_columns": 2
         }
@@ -1646,9 +1646,9 @@
         ],
         "query_id": "phoenix_table_8",
         "expected_counters": {
-          "varada_match_columns": 51,
-          "varada_collect_columns": 60,
-          "prefilled_collect_columns": 32,
+          "warp_match_columns": 51,
+          "warp_collect_columns": 60,
+          "warp_prefilled_collect_columns": 32,
           "external_match_columns": 48,
           "external_collect_columns": 8
         }
@@ -1660,9 +1660,9 @@
         ],
         "query_id": "phoenix_table_9",
         "expected_counters": {
-          "varada_match_columns": 36,
-          "varada_collect_columns": 54,
-          "prefilled_collect_columns": 36,
+          "warp_match_columns": 36,
+          "warp_collect_columns": 54,
+          "warp_prefilled_collect_columns": 36,
           "external_match_columns": 45,
           "external_collect_columns": 0
         }
@@ -1674,9 +1674,9 @@
         ],
         "query_id": "phoenix_table_10",
         "expected_counters": {
-          "varada_match_columns": 63,
-          "varada_collect_columns": 72,
-          "prefilled_collect_columns": 63,
+          "warp_match_columns": 63,
+          "warp_collect_columns": 72,
+          "warp_prefilled_collect_columns": 63,
           "external_match_columns": 63,
           "external_collect_columns": 0
         }
@@ -1689,8 +1689,8 @@
         ],
         "expected_counters": {
           "filtered_by_predicate": 1,
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1703,8 +1703,8 @@
         ],
         "expected_counters": {
           "filtered_by_predicate": 1,
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1717,8 +1717,8 @@
         ],
         "expected_counters": {
           "filtered_by_predicate": 1,
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1731,8 +1731,8 @@
         ],
         "expected_counters": {
           "filtered_by_predicate": 1,
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2044,8 +2044,8 @@
         ],
         "query_id": "phoenix_1716_rules_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 713,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 713,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2060,9 +2060,9 @@
         ],
         "query_id": "phoenix_1716_rules_2",
         "expected_counters": {
-          "varada_match_columns": 3565,
-          "varada_collect_columns": 2139,
-          "prefilled_collect_columns": 2852,
+          "warp_match_columns": 3565,
+          "warp_collect_columns": 2139,
+          "warp_prefilled_collect_columns": 2852,
           "external_match_columns": 713,
           "external_collect_columns": 0
         }
@@ -2165,8 +2165,8 @@
         ],
         "query_id": "long_part_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -2194,9 +2194,9 @@
           6
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 9,
-          "prefilled_collect_columns": 7,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 9,
+          "warp_prefilled_collect_columns": 7,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2223,9 +2223,9 @@
           6
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 9,
-          "prefilled_collect_columns": 7,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 9,
+          "warp_prefilled_collect_columns": 7,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2451,8 +2451,8 @@
         ],
         "query_id": "partition_null_values_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -2465,8 +2465,8 @@
         ],
         "query_id": "partition_null_values_2",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -2479,8 +2479,8 @@
         ],
         "query_id": "partition_null_values_3",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -2493,9 +2493,9 @@
         ],
         "query_id": "partition_null_values_4",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -2508,9 +2508,9 @@
         ],
         "query_id": "partition_null_values_5",
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 2,
-          "prefilled_collect_columns": 1,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 2,
+          "warp_prefilled_collect_columns": 1,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -2565,9 +2565,9 @@
         ],
         "query_id": "timestamp_partition_1",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2579,9 +2579,9 @@
         ],
         "query_id": "timestamp_partition_2",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2593,9 +2593,9 @@
         ],
         "query_id": "timestamp_partition_3",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2651,9 +2651,9 @@
         ],
         "query_id": "decimal_partition_2",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2716,9 +2716,9 @@
         ],
         "query_id": "decimal_timestamp_partition_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2730,9 +2730,9 @@
         ],
         "query_id": "decimal_timestamp_partition_2",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2744,9 +2744,9 @@
         ],
         "query_id": "decimal_timestamp_partition_3",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }

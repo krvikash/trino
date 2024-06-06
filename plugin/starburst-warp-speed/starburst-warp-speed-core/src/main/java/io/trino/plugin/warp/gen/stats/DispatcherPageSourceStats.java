@@ -37,18 +37,18 @@ public final class DispatcherPageSourceStats
 
     private final LongAdder cached_files = new LongAdder();
     private final LongAdder df_splits = new LongAdder();
-    private final LongAdder cached_varada_success_files = new LongAdder();
-    private final LongAdder cached_varada_failed_files = new LongAdder();
-    private final LongAdder cached_varada_failed_pages = new LongAdder();
+    private final LongAdder cached_warp_success_files = new LongAdder();
+    private final LongAdder cached_warp_failed_files = new LongAdder();
+    private final LongAdder cached_warp_failed_pages = new LongAdder();
     private final LongAdder cached_proxied_files = new LongAdder();
     private final LongAdder cached_total_rows = new LongAdder();
     private final LongAdder cached_read_rows = new LongAdder();
-    private final LongAdder varada_match_columns = new LongAdder();
-    private final LongAdder varada_match_on_simplified_domain = new LongAdder();
-    private final LongAdder varada_collect_columns = new LongAdder();
-    private final LongAdder varada_match_collect_columns = new LongAdder();
-    private final LongAdder varada_mapped_match_collect_columns = new LongAdder();
-    private final LongAdder prefilled_collect_columns = new LongAdder();
+    private final LongAdder warp_match_columns = new LongAdder();
+    private final LongAdder warp_match_on_simplified_domain = new LongAdder();
+    private final LongAdder warp_collect_columns = new LongAdder();
+    private final LongAdder warp_match_collect_columns = new LongAdder();
+    private final LongAdder warp_mapped_match_collect_columns = new LongAdder();
+    private final LongAdder warp_prefilled_collect_columns = new LongAdder();
     private final LongAdder empty_collect_columns = new LongAdder();
     private final LongAdder external_match_columns = new LongAdder();
     private final LongAdder external_collect_columns = new LongAdder();
@@ -132,71 +132,71 @@ public final class DispatcherPageSourceStats
 
     @JsonIgnore
     @Managed
-    public long getcached_varada_success_files()
+    public long getcached_warp_success_files()
     {
-        return cached_varada_success_files.longValue();
+        return cached_warp_success_files.longValue();
     }
 
-    public void inccached_varada_success_files()
+    public void inccached_warp_success_files()
     {
-        cached_varada_success_files.increment();
+        cached_warp_success_files.increment();
     }
 
-    public void addcached_varada_success_files(long val)
+    public void addcached_warp_success_files(long val)
     {
-        cached_varada_success_files.add(val);
+        cached_warp_success_files.add(val);
     }
 
-    public void setcached_varada_success_files(long val)
+    public void setcached_warp_success_files(long val)
     {
-        cached_varada_success_files.reset();
-        addcached_varada_success_files(val);
-    }
-
-    @JsonIgnore
-    @Managed
-    public long getcached_varada_failed_files()
-    {
-        return cached_varada_failed_files.longValue();
-    }
-
-    public void inccached_varada_failed_files()
-    {
-        cached_varada_failed_files.increment();
-    }
-
-    public void addcached_varada_failed_files(long val)
-    {
-        cached_varada_failed_files.add(val);
-    }
-
-    public void setcached_varada_failed_files(long val)
-    {
-        cached_varada_failed_files.reset();
-        addcached_varada_failed_files(val);
+        cached_warp_success_files.reset();
+        addcached_warp_success_files(val);
     }
 
     @JsonIgnore
     @Managed
-    public long getcached_varada_failed_pages()
+    public long getcached_warp_failed_files()
     {
-        return cached_varada_failed_pages.longValue();
+        return cached_warp_failed_files.longValue();
     }
 
-    public void inccached_varada_failed_pages()
+    public void inccached_warp_failed_files()
     {
-        cached_varada_failed_pages.increment();
+        cached_warp_failed_files.increment();
     }
 
-    public void addcached_varada_failed_pages(long val)
+    public void addcached_warp_failed_files(long val)
     {
-        cached_varada_failed_pages.add(val);
+        cached_warp_failed_files.add(val);
     }
 
-    public void setcached_varada_failed_pages(long val)
+    public void setcached_warp_failed_files(long val)
     {
-        cached_varada_failed_pages.reset();
-        addcached_varada_failed_pages(val);
+        cached_warp_failed_files.reset();
+        addcached_warp_failed_files(val);
+    }
+
+    @JsonIgnore
+    @Managed
+    public long getcached_warp_failed_pages()
+    {
+        return cached_warp_failed_pages.longValue();
+    }
+
+    public void inccached_warp_failed_pages()
+    {
+        cached_warp_failed_pages.increment();
+    }
+
+    public void addcached_warp_failed_pages(long val)
+    {
+        cached_warp_failed_pages.add(val);
+    }
+
+    public void setcached_warp_failed_pages(long val)
+    {
+        cached_warp_failed_pages.reset();
+        addcached_warp_failed_pages(val);
     }
 
     @JsonIgnore
@@ -270,140 +270,140 @@ public final class DispatcherPageSourceStats
 
     @JsonIgnore
     @Managed
-    public long getvarada_match_columns()
+    public long getwarp_match_columns()
     {
-        return varada_match_columns.longValue();
+        return warp_match_columns.longValue();
     }
 
-    public void incvarada_match_columns()
+    public void incwarp_match_columns()
     {
-        varada_match_columns.increment();
+        warp_match_columns.increment();
     }
 
-    public void addvarada_match_columns(long val)
+    public void addwarp_match_columns(long val)
     {
-        varada_match_columns.add(val);
+        warp_match_columns.add(val);
     }
 
-    public void setvarada_match_columns(long val)
+    public void setwarp_match_columns(long val)
     {
-        varada_match_columns.reset();
-        addvarada_match_columns(val);
-    }
-
-    @JsonIgnore
-    @Managed
-    public long getvarada_match_on_simplified_domain()
-    {
-        return varada_match_on_simplified_domain.longValue();
-    }
-
-    public void incvarada_match_on_simplified_domain()
-    {
-        varada_match_on_simplified_domain.increment();
-    }
-
-    public void addvarada_match_on_simplified_domain(long val)
-    {
-        varada_match_on_simplified_domain.add(val);
-    }
-
-    public void setvarada_match_on_simplified_domain(long val)
-    {
-        varada_match_on_simplified_domain.reset();
-        addvarada_match_on_simplified_domain(val);
+        warp_match_columns.reset();
+        addwarp_match_columns(val);
     }
 
     @JsonIgnore
     @Managed
-    public long getvarada_collect_columns()
+    public long getwarp_match_on_simplified_domain()
     {
-        return varada_collect_columns.longValue();
+        return warp_match_on_simplified_domain.longValue();
     }
 
-    public void incvarada_collect_columns()
+    public void incwarp_match_on_simplified_domain()
     {
-        varada_collect_columns.increment();
+        warp_match_on_simplified_domain.increment();
     }
 
-    public void addvarada_collect_columns(long val)
+    public void addwarp_match_on_simplified_domain(long val)
     {
-        varada_collect_columns.add(val);
+        warp_match_on_simplified_domain.add(val);
     }
 
-    public void setvarada_collect_columns(long val)
+    public void setwarp_match_on_simplified_domain(long val)
     {
-        varada_collect_columns.reset();
-        addvarada_collect_columns(val);
-    }
-
-    @JsonIgnore
-    @Managed
-    public long getvarada_match_collect_columns()
-    {
-        return varada_match_collect_columns.longValue();
-    }
-
-    public void incvarada_match_collect_columns()
-    {
-        varada_match_collect_columns.increment();
-    }
-
-    public void addvarada_match_collect_columns(long val)
-    {
-        varada_match_collect_columns.add(val);
-    }
-
-    public void setvarada_match_collect_columns(long val)
-    {
-        varada_match_collect_columns.reset();
-        addvarada_match_collect_columns(val);
+        warp_match_on_simplified_domain.reset();
+        addwarp_match_on_simplified_domain(val);
     }
 
     @JsonIgnore
     @Managed
-    public long getvarada_mapped_match_collect_columns()
+    public long getwarp_collect_columns()
     {
-        return varada_mapped_match_collect_columns.longValue();
+        return warp_collect_columns.longValue();
     }
 
-    public void incvarada_mapped_match_collect_columns()
+    public void incwarp_collect_columns()
     {
-        varada_mapped_match_collect_columns.increment();
+        warp_collect_columns.increment();
     }
 
-    public void addvarada_mapped_match_collect_columns(long val)
+    public void addwarp_collect_columns(long val)
     {
-        varada_mapped_match_collect_columns.add(val);
+        warp_collect_columns.add(val);
     }
 
-    public void setvarada_mapped_match_collect_columns(long val)
+    public void setwarp_collect_columns(long val)
     {
-        varada_mapped_match_collect_columns.reset();
-        addvarada_mapped_match_collect_columns(val);
+        warp_collect_columns.reset();
+        addwarp_collect_columns(val);
     }
 
     @JsonIgnore
     @Managed
-    public long getprefilled_collect_columns()
+    public long getwarp_match_collect_columns()
     {
-        return prefilled_collect_columns.longValue();
+        return warp_match_collect_columns.longValue();
     }
 
-    public void incprefilled_collect_columns()
+    public void incwarp_match_collect_columns()
     {
-        prefilled_collect_columns.increment();
+        warp_match_collect_columns.increment();
     }
 
-    public void addprefilled_collect_columns(long val)
+    public void addwarp_match_collect_columns(long val)
     {
-        prefilled_collect_columns.add(val);
+        warp_match_collect_columns.add(val);
     }
 
-    public void setprefilled_collect_columns(long val)
+    public void setwarp_match_collect_columns(long val)
     {
-        prefilled_collect_columns.reset();
-        addprefilled_collect_columns(val);
+        warp_match_collect_columns.reset();
+        addwarp_match_collect_columns(val);
+    }
+
+    @JsonIgnore
+    @Managed
+    public long getwarp_mapped_match_collect_columns()
+    {
+        return warp_mapped_match_collect_columns.longValue();
+    }
+
+    public void incwarp_mapped_match_collect_columns()
+    {
+        warp_mapped_match_collect_columns.increment();
+    }
+
+    public void addwarp_mapped_match_collect_columns(long val)
+    {
+        warp_mapped_match_collect_columns.add(val);
+    }
+
+    public void setwarp_mapped_match_collect_columns(long val)
+    {
+        warp_mapped_match_collect_columns.reset();
+        addwarp_mapped_match_collect_columns(val);
+    }
+
+    @JsonIgnore
+    @Managed
+    public long getwarp_prefilled_collect_columns()
+    {
+        return warp_prefilled_collect_columns.longValue();
+    }
+
+    public void incwarp_prefilled_collect_columns()
+    {
+        warp_prefilled_collect_columns.increment();
+    }
+
+    public void addwarp_prefilled_collect_columns(long val)
+    {
+        warp_prefilled_collect_columns.add(val);
+    }
+
+    public void setwarp_prefilled_collect_columns(long val)
+    {
+        warp_prefilled_collect_columns.reset();
+        addwarp_prefilled_collect_columns(val);
     }
 
     @JsonIgnore
@@ -825,18 +825,18 @@ public final class DispatcherPageSourceStats
         Map<String, LongAdder> ret = new HashMap<>();
         ret.put("cached_files", cached_files);
         ret.put("df_splits", df_splits);
-        ret.put("cached_varada_success_files", cached_varada_success_files);
-        ret.put("cached_varada_failed_files", cached_varada_failed_files);
-        ret.put("cached_varada_failed_pages", cached_varada_failed_pages);
+        ret.put("cached_warp_success_files", cached_warp_success_files);
+        ret.put("cached_warp_failed_files", cached_warp_failed_files);
+        ret.put("cached_warp_failed_pages", cached_warp_failed_pages);
         ret.put("cached_proxied_files", cached_proxied_files);
         ret.put("cached_total_rows", cached_total_rows);
         ret.put("cached_read_rows", cached_read_rows);
-        ret.put("varada_match_columns", varada_match_columns);
-        ret.put("varada_match_on_simplified_domain", varada_match_on_simplified_domain);
-        ret.put("varada_collect_columns", varada_collect_columns);
-        ret.put("varada_match_collect_columns", varada_match_collect_columns);
-        ret.put("varada_mapped_match_collect_columns", varada_mapped_match_collect_columns);
-        ret.put("prefilled_collect_columns", prefilled_collect_columns);
+        ret.put("warp_match_columns", warp_match_columns);
+        ret.put("warp_match_on_simplified_domain", warp_match_on_simplified_domain);
+        ret.put("warp_collect_columns", warp_collect_columns);
+        ret.put("warp_match_collect_columns", warp_match_collect_columns);
+        ret.put("warp_mapped_match_collect_columns", warp_mapped_match_collect_columns);
+        ret.put("warp_prefilled_collect_columns", warp_prefilled_collect_columns);
         ret.put("empty_collect_columns", empty_collect_columns);
         ret.put("external_match_columns", external_match_columns);
         ret.put("external_collect_columns", external_collect_columns);
@@ -865,18 +865,18 @@ public final class DispatcherPageSourceStats
         DispatcherPageSourceStats other = (DispatcherPageSourceStats) warpStatsBase;
         this.cached_files.add(other.cached_files.longValue());
         this.df_splits.add(other.df_splits.longValue());
-        this.cached_varada_success_files.add(other.cached_varada_success_files.longValue());
-        this.cached_varada_failed_files.add(other.cached_varada_failed_files.longValue());
-        this.cached_varada_failed_pages.add(other.cached_varada_failed_pages.longValue());
+        this.cached_warp_success_files.add(other.cached_warp_success_files.longValue());
+        this.cached_warp_failed_files.add(other.cached_warp_failed_files.longValue());
+        this.cached_warp_failed_pages.add(other.cached_warp_failed_pages.longValue());
         this.cached_proxied_files.add(other.cached_proxied_files.longValue());
         this.cached_total_rows.add(other.cached_total_rows.longValue());
         this.cached_read_rows.add(other.cached_read_rows.longValue());
-        this.varada_match_columns.add(other.varada_match_columns.longValue());
-        this.varada_match_on_simplified_domain.add(other.varada_match_on_simplified_domain.longValue());
-        this.varada_collect_columns.add(other.varada_collect_columns.longValue());
-        this.varada_match_collect_columns.add(other.varada_match_collect_columns.longValue());
-        this.varada_mapped_match_collect_columns.add(other.varada_mapped_match_collect_columns.longValue());
-        this.prefilled_collect_columns.add(other.prefilled_collect_columns.longValue());
+        this.warp_match_columns.add(other.warp_match_columns.longValue());
+        this.warp_match_on_simplified_domain.add(other.warp_match_on_simplified_domain.longValue());
+        this.warp_collect_columns.add(other.warp_collect_columns.longValue());
+        this.warp_match_collect_columns.add(other.warp_match_collect_columns.longValue());
+        this.warp_mapped_match_collect_columns.add(other.warp_mapped_match_collect_columns.longValue());
+        this.warp_prefilled_collect_columns.add(other.warp_prefilled_collect_columns.longValue());
         this.empty_collect_columns.add(other.empty_collect_columns.longValue());
         this.external_match_columns.add(other.external_match_columns.longValue());
         this.external_collect_columns.add(other.external_collect_columns.longValue());
@@ -903,18 +903,18 @@ public final class DispatcherPageSourceStats
     {
         cached_files.reset();
         df_splits.reset();
-        cached_varada_success_files.reset();
-        cached_varada_failed_files.reset();
-        cached_varada_failed_pages.reset();
+        cached_warp_success_files.reset();
+        cached_warp_failed_files.reset();
+        cached_warp_failed_pages.reset();
         cached_proxied_files.reset();
         cached_total_rows.reset();
         cached_read_rows.reset();
-        varada_match_columns.reset();
-        varada_match_on_simplified_domain.reset();
-        varada_collect_columns.reset();
-        varada_match_collect_columns.reset();
-        varada_mapped_match_collect_columns.reset();
-        prefilled_collect_columns.reset();
+        warp_match_columns.reset();
+        warp_match_on_simplified_domain.reset();
+        warp_collect_columns.reset();
+        warp_match_collect_columns.reset();
+        warp_mapped_match_collect_columns.reset();
+        warp_prefilled_collect_columns.reset();
         empty_collect_columns.reset();
         external_match_columns.reset();
         external_collect_columns.reset();
@@ -942,18 +942,18 @@ public final class DispatcherPageSourceStats
         Map<String, Object> res = new HashMap<>();
         res.put(getJmxKey() + ":cached_files", cached_files.longValue());
         res.put(getJmxKey() + ":df_splits", df_splits.longValue());
-        res.put(getJmxKey() + ":cached_varada_success_files", cached_varada_success_files.longValue());
-        res.put(getJmxKey() + ":cached_varada_failed_files", cached_varada_failed_files.longValue());
-        res.put(getJmxKey() + ":cached_varada_failed_pages", cached_varada_failed_pages.longValue());
+        res.put(getJmxKey() + ":cached_warp_success_files", cached_warp_success_files.longValue());
+        res.put(getJmxKey() + ":cached_warp_failed_files", cached_warp_failed_files.longValue());
+        res.put(getJmxKey() + ":cached_warp_failed_pages", cached_warp_failed_pages.longValue());
         res.put(getJmxKey() + ":cached_proxied_files", cached_proxied_files.longValue());
         res.put(getJmxKey() + ":cached_total_rows", cached_total_rows.longValue());
         res.put(getJmxKey() + ":cached_read_rows", cached_read_rows.longValue());
-        res.put(getJmxKey() + ":varada_match_columns", varada_match_columns.longValue());
-        res.put(getJmxKey() + ":varada_match_on_simplified_domain", varada_match_on_simplified_domain.longValue());
-        res.put(getJmxKey() + ":varada_collect_columns", varada_collect_columns.longValue());
-        res.put(getJmxKey() + ":varada_match_collect_columns", varada_match_collect_columns.longValue());
-        res.put(getJmxKey() + ":varada_mapped_match_collect_columns", varada_mapped_match_collect_columns.longValue());
-        res.put(getJmxKey() + ":prefilled_collect_columns", prefilled_collect_columns.longValue());
+        res.put(getJmxKey() + ":warp_match_columns", warp_match_columns.longValue());
+        res.put(getJmxKey() + ":warp_match_on_simplified_domain", warp_match_on_simplified_domain.longValue());
+        res.put(getJmxKey() + ":warp_collect_columns", warp_collect_columns.longValue());
+        res.put(getJmxKey() + ":warp_match_collect_columns", warp_match_collect_columns.longValue());
+        res.put(getJmxKey() + ":warp_mapped_match_collect_columns", warp_mapped_match_collect_columns.longValue());
+        res.put(getJmxKey() + ":warp_prefilled_collect_columns", warp_prefilled_collect_columns.longValue());
         res.put(getJmxKey() + ":empty_collect_columns", empty_collect_columns.longValue());
         res.put(getJmxKey() + ":external_match_columns", external_match_columns.longValue());
         res.put(getJmxKey() + ":external_collect_columns", external_collect_columns.longValue());
@@ -982,18 +982,18 @@ public final class DispatcherPageSourceStats
         Map<String, Object> res = new HashMap<>();
         res.put("cached_files", getcached_files());
         res.put("df_splits", getdf_splits());
-        res.put("cached_varada_success_files", getcached_varada_success_files());
-        res.put("cached_varada_failed_files", getcached_varada_failed_files());
-        res.put("cached_varada_failed_pages", getcached_varada_failed_pages());
+        res.put("cached_warp_success_files", getcached_warp_success_files());
+        res.put("cached_warp_failed_files", getcached_warp_failed_files());
+        res.put("cached_warp_failed_pages", getcached_warp_failed_pages());
         res.put("cached_proxied_files", getcached_proxied_files());
         res.put("cached_total_rows", getcached_total_rows());
         res.put("cached_read_rows", getcached_read_rows());
-        res.put("varada_match_columns", getvarada_match_columns());
-        res.put("varada_match_on_simplified_domain", getvarada_match_on_simplified_domain());
-        res.put("varada_collect_columns", getvarada_collect_columns());
-        res.put("varada_match_collect_columns", getvarada_match_collect_columns());
-        res.put("varada_mapped_match_collect_columns", getvarada_mapped_match_collect_columns());
-        res.put("prefilled_collect_columns", getprefilled_collect_columns());
+        res.put("warp_match_columns", getwarp_match_columns());
+        res.put("warp_match_on_simplified_domain", getwarp_match_on_simplified_domain());
+        res.put("warp_collect_columns", getwarp_collect_columns());
+        res.put("warp_match_collect_columns", getwarp_match_collect_columns());
+        res.put("warp_mapped_match_collect_columns", getwarp_mapped_match_collect_columns());
+        res.put("warp_prefilled_collect_columns", getwarp_prefilled_collect_columns());
         res.put("empty_collect_columns", getempty_collect_columns());
         res.put("external_match_columns", getexternal_match_columns());
         res.put("external_collect_columns", getexternal_collect_columns());

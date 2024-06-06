@@ -220,7 +220,7 @@ public class DispatcherPageSource
             return buildResultPage(resultPageBuilder);
         }
         catch (Throwable e) {
-            stats.inccached_varada_failed_pages();
+            stats.inccached_warp_failed_pages();
             if (!Thread.currentThread().isInterrupted()) {
                 shapingLogger.error(e, "failed to read cache file %s from warp.", rowGroupData.getRowGroupKey());
             }
@@ -437,10 +437,10 @@ public class DispatcherPageSource
                 success = false;
             }
             if (success) {
-                stats.inccached_varada_success_files();
+                stats.inccached_warp_success_files();
             }
             else {
-                stats.inccached_varada_failed_files();
+                stats.inccached_warp_failed_files();
                 errorMsg.add(format("failed to close file %s", rowGroupData.getRowGroupKey()));
                 throw new IOException(errorMsg.toString());
             }

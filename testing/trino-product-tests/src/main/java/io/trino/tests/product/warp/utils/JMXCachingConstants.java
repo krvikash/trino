@@ -21,7 +21,7 @@ public class JMXCachingConstants
     public static class DispatcherPageSource
     {
         public static final String HIVE = "cached_proxied_files";
-        public static final String WARP_SUCCESS = "cached_varada_success_files";
+        public static final String WARP_SUCCESS = "cached_warp_success_files";
         public static final String EMPTY_COLLECT_COLUMNS = "empty_collect_columns";
         public static final String FILTERED_BY_PREDICATE = "filtered_by_predicate";
         public static final String NON_TRIVIAL_ALTERNATIVE_CHOSEN = "non_trivial_alternative_chosen";
@@ -29,11 +29,11 @@ public class JMXCachingConstants
 
     public static class Columns
     {
-        public static final String WARP_MATCH = "varada_match_columns";
-        public static final String WARP_MATCH_ON_SIMPLIFIED_DOMAIN = "varada_match_on_simplified_domain";
-        public static final String WARP_COLLECT = "varada_collect_columns";
-        public static final String WARP_MATCH_COLLECT = "varada_match_collect_columns";
-        public static final String PREFILLED_COLLECT = "prefilled_collect_columns";
+        public static final String WARP_MATCH = "warp_match_columns";
+        public static final String WARP_MATCH_ON_SIMPLIFIED_DOMAIN = "warp_match_on_simplified_domain";
+        public static final String WARP_COLLECT = "warp_collect_columns";
+        public static final String WARP_MATCH_COLLECT = "warp_match_collect_columns";
+        public static final String PREFILLED_COLLECT = "warp_prefilled_collect_columns";
         public static final String EXTERNAL_MATCH = "external_match_columns";
         public static final String EXTERNAL_COLLECT = "external_collect_columns";
         public static final String WARP_CACHE_SKIPPED = "skip_warp_cache_manager";

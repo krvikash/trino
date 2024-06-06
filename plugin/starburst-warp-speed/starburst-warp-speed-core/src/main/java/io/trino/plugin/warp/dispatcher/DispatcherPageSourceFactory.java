@@ -87,8 +87,8 @@ import static java.util.Objects.requireNonNull;
 @Singleton
 public class DispatcherPageSourceFactory
 {
-    public static final String WARP_COLLECT = "varada-collect";
-    public static final String WARP_MATCH = "varada-match";
+    public static final String WARP_COLLECT = "warp-collect";
+    public static final String WARP_MATCH = "warp-match";
     public static final String EXTERNAL_COLLECT = "external-collect";
     public static final String EXTERNAL_MATCH = "external-match";
     public static final String PREFILLED = "prefilled";
@@ -336,7 +336,7 @@ public class DispatcherPageSourceFactory
 
             checkArgument(queryContext.getTotalRecords() != QueryClassifier.INVALID_TOTAL_RECORDS, "invalid totalRecords, %s", queryContext);
             if (PageSourceDecision.PREFILL.equals(pageSourceDecision)) {
-                dispatcherPageSourceStats.addprefilled_collect_columns(columns.size());
+                dispatcherPageSourceStats.addwarp_prefilled_collect_columns(columns.size());
                 queryClassifier.close(queryContext);
                 //in prefill queryContext doesn't hold any WE
                 int totalRecords = getTotalRecords(rowGroupData);
@@ -609,17 +609,17 @@ public class DispatcherPageSourceFactory
         stats.addexternal_match_columns(externalMatchColumnsCount);
         long transformedColumns = queryContext.getMatchLeavesDFS().stream().filter(x -> x.getWarmUpElement().getWarpColumn().isTransformedColumn()).map(QueryColumn::getWarpColumn).distinct().count();
         stats.addtransformed_column(transformedColumns);
-        stats.addvarada_collect_columns(queryContext.getNativeQueryCollectDataList().size());
-        stats.addvarada_match_collect_columns(queryContext.getNativeQueryCollectDataList().stream()
+        stats.addwarp_collect_columns(queryContext.getNativeQueryCollectDataList().size());
+        stats.addwarp_match_collect_columns(queryContext.getNativeQueryCollectDataList().stream()
                 .filter(nativeQueryCollectData -> !MatchCollectType.DISABLED.equals(nativeQueryCollectData.getMatchCollectType()))
                 .count());
         long mappedMatchCollect = queryContext.getNativeQueryCollectDataList().stream()
                 .filter(nativeQueryCollectData -> MatchCollectType.MAPPED.equals(nativeQueryCollectData.getMatchCollectType()))
                 .count();
-        stats.addvarada_mapped_match_collect_columns(mappedMatchCollect);
-        stats.addprefilled_collect_columns(queryContext.getPrefilledQueryCollectDataByBlockIndex().size());
-        stats.addvarada_match_columns(warpMatchColumns.size());
-        stats.addvarada_match_on_simplified_domain(sumColumns(queryContext.getMatchLeavesDFS().stream().filter(QueryMatchData::isSimplifiedDomain)));
+        stats.addwarp_mapped_match_collect_columns(mappedMatchCollect);
+        stats.addwarp_prefilled_collect_columns(queryContext.getPrefilledQueryCollectDataByBlockIndex().size());
+        stats.addwarp_match_columns(warpMatchColumns.size());
+        stats.addwarp_match_on_simplified_domain(sumColumns(queryContext.getMatchLeavesDFS().stream().filter(QueryMatchData::isSimplifiedDomain)));
 
         stats.addcached_total_rows(queryContext.getTotalRecords());
     }
@@ -687,8 +687,8 @@ public class DispatcherPageSourceFactory
         columns.forEach((columnHandle) -> customStatsContext.addFixedStat(createFixedStatKey(WARP_COLLECT, dispatcherProxiedConnectorTransformer.getWarpRegularColumn(columnHandle).getName(), WarmUpType.WARM_UP_TYPE_DATA), 1));
         Set<RegularColumn> warpMatchColumns = basicQueryContext.getPredicateContextData().getRemainingColumns();
         warpMatchColumns.forEach(regularColumn -> customStatsContext.addFixedStat(createFixedStatKey(WARP_MATCH, regularColumn.getName(), WarmUpType.WARM_UP_TYPE_BASIC), 1));
-        dispatcherPageSourceStats.addvarada_collect_columns(columns.size());
-        dispatcherPageSourceStats.addvarada_match_columns(warpMatchColumns.size());
+        dispatcherPageSourceStats.addwarp_collect_columns(columns.size());
+        dispatcherPageSourceStats.addwarp_match_columns(warpMatchColumns.size());
     }
 
     public Optional<ConnectorPageSource> createConnectorPageSource(RowGroupKey rowGroupKey, PlanSignature planSignature, Optional<UUID> queryStoreId)
@@ -751,7 +751,7 @@ public class DispatcherPageSourceFactory
                     closeHandler,
                     readErrorHandler,
                     globalConfig);
-            statsDispatcherPageSource.addvarada_collect_columns(planSignature.getColumns().size());
+            statsDispatcherPageSource.addwarp_collect_columns(planSignature.getColumns().size());
             statsDispatcherPageSource.incwarp_cache_manager();
             return Optional.of(dispatcherPageSource);
         }

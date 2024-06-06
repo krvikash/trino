@@ -457,8 +457,8 @@ public class DispatcherPageSourceFactoryTest
         DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
         assertThat(stats.getexternal_collect_columns()).isEqualTo(columnHandleList.size());
         assertThat(stats.getexternal_match_columns()).isZero();
-        assertThat(stats.getvarada_collect_columns()).isEqualTo(warmedColumnHandleList.size());
-        assertThat(stats.getvarada_match_columns()).isZero();
+        assertThat(stats.getwarp_collect_columns()).isEqualTo(warmedColumnHandleList.size());
+        assertThat(stats.getwarp_match_columns()).isZero();
     }
 
     @Test
@@ -544,7 +544,7 @@ public class DispatcherPageSourceFactoryTest
         assertThat(pageSource).isInstanceOf(PrefilledPageSource.class);
         DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
         assertThat(stats.getexternal_collect_columns()).isEqualTo(0);
-        assertThat(stats.getvarada_collect_columns()).isEqualTo(0);
+        assertThat(stats.getwarp_collect_columns()).isEqualTo(0);
         assertThat(stats.getempty_collect_columns()).isEqualTo(1);
     }
 
@@ -579,9 +579,9 @@ public class DispatcherPageSourceFactoryTest
                 customStatsContext);
         assertThat(pageSource).isInstanceOf(PrefilledPageSource.class);
         DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
-        assertThat(stats.getprefilled_collect_columns()).isEqualTo(1);
+        assertThat(stats.getwarp_prefilled_collect_columns()).isEqualTo(1);
         assertThat(stats.getexternal_collect_columns()).isEqualTo(0);
-        assertThat(stats.getvarada_collect_columns()).isEqualTo(0);
+        assertThat(stats.getwarp_collect_columns()).isEqualTo(0);
         assertThat(stats.getempty_collect_columns()).isEqualTo(0);
         assertThat(pageSource.getNextPage()).isNotNull();
     }

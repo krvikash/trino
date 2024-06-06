@@ -154,7 +154,7 @@ public class TestStatistics
     {
         QueryResult queryResult = onTrino().executeQuery(format("EXPLAIN ANALYZE VERBOSE SELECT * FROM %s.%s.%s", CATALOG_NAME, SCHEMA_NAME, TABLE_NAME));
         logger.debug("queryResult=%s", queryResult.rows());
-        assertThat(queryResult.rows().toString().contains("varada-collect:string_col:WARM_UP_TYPE_DATA'")).isTrue();
+        assertThat(queryResult.rows().toString().contains("warp-collect:string_col:WARM_UP_TYPE_DATA'")).isTrue();
     }
 
     @Test(groups = {WARP_SPEED_HIVE_2, PROFILE_SPECIFIC_TESTS})

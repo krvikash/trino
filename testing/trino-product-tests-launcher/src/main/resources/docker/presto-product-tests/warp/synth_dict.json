@@ -34,9 +34,9 @@
         ],
         "query_id": "dict_test_100_1",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -48,9 +48,9 @@
         ],
         "query_id": "dict_test_100_2",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -147,8 +147,8 @@
           1000000
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -254,8 +254,8 @@
           1000000
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -269,8 +269,8 @@
         ],
         "expected_counters": {
           "filtered_by_predicate": 1,
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -283,8 +283,8 @@
         ],
         "expected_counters": {
           "filtered_by_predicate": 1,
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -297,8 +297,8 @@
         ],
         "expected_counters": {
           "filtered_by_predicate": 1,
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -311,8 +311,8 @@
         ],
         "expected_counters": {
           "filtered_by_predicate": 1,
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -325,8 +325,8 @@
         ],
         "expected_counters": {
           "filtered_by_predicate": 1,
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -339,8 +339,8 @@
         ],
         "expected_counters": {
           "filtered_by_predicate": 1,
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -353,8 +353,8 @@
         ],
         "expected_counters": {
           "filtered_by_predicate": 1,
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -367,8 +367,8 @@
         ],
         "expected_counters": {
           "filtered_by_predicate": 1,
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -381,8 +381,8 @@
         ],
         "expected_counters": {
           "filtered_by_predicate": 1,
-          "varada_match_columns": 2,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -395,8 +395,8 @@
         ],
         "expected_counters": {
           "filtered_by_predicate": 1,
-          "varada_match_columns": 2,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -409,8 +409,8 @@
         ],
         "expected_counters": {
           "filtered_by_predicate": 0,
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 1,
           "external_collect_columns": 0
         }
@@ -423,8 +423,8 @@
         ],
         "expected_counters": {
           "filtered_by_predicate": 0,
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 1,
           "external_collect_columns": 0
         }
@@ -471,8 +471,8 @@
         ],
         "query_id": "dict_varchar2k_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -522,8 +522,8 @@
         ],
         "query_id": "long_varchar_dict_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -536,9 +536,9 @@
           29840, 1
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -632,8 +632,8 @@
         ],
         "query_id": "dict_multifile_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -646,9 +646,9 @@
         ],
         "query_id": "dict_multifile_2",
         "expected_counters": {
-          "varada_match_columns": 3,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 3,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -660,9 +660,9 @@
         ],
         "query_id": "dict_multifile_3",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -674,8 +674,8 @@
         ],
         "query_id": "dict_multifile_4",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -687,8 +687,8 @@
         ],
         "query_id": "dict_multifile_5",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -700,8 +700,8 @@
         ],
         "query_id": "dict_multifile_6",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -713,8 +713,8 @@
         ],
         "query_id": "dict_multifile_7",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -726,8 +726,8 @@
         ],
         "query_id": "dict_multifile_8",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -739,8 +739,8 @@
         ],
         "query_id": "dict_multifile_9",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -752,8 +752,8 @@
         ],
         "query_id": "dict_multifile_10",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -765,8 +765,8 @@
         ],
         "query_id": "dict_multifile_11",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -854,8 +854,8 @@
         ],
         "query_id": "dict_mix_types_max_keys_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -869,8 +869,8 @@
         ],
         "query_id": "dict_mix_types_max_keys_2",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -882,9 +882,9 @@
         ],
         "query_id": "dict_mix_types_max_keys_3",
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -925,8 +925,8 @@
         ],
         "query_id": "dict_304chunks_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -939,8 +939,8 @@
         ],
         "query_id": "dict_304chunks_2",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -953,8 +953,8 @@
         ],
         "query_id": "dict_304chunks_3",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -995,8 +995,8 @@
         ],
         "query_id": "dict_304chunks_4single_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -1009,8 +1009,8 @@
         ],
         "query_id": "dict_304chunks_4single_2",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1023,9 +1023,9 @@
         ],
         "query_id": "dict_304chunks_4single_3",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1066,8 +1066,8 @@
         ],
         "query_id": "dict_long_varchar_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -1080,8 +1080,8 @@
         ],
         "query_id": "dict_long_varchar_2",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1093,8 +1093,8 @@
         ],
         "query_id": "dict_long_varchar_3",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1183,8 +1183,8 @@
         ],
         "query_id": "dict_wide_table_mix_types_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -1197,8 +1197,8 @@
         ],
         "query_id": "dict_wide_table_mix_types_2",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1210,9 +1210,9 @@
         ],
         "query_id": "dict_wide_table_mix_types_3",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1224,9 +1224,9 @@
         ],
         "query_id": "dict_wide_table_mix_types_4",
         "expected_counters": {
-          "varada_match_columns": 3,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 3,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1262,8 +1262,8 @@
           262144
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -1279,8 +1279,8 @@
           "Nancy CallahanD_UFq+"
         ],
         "expected_counters": {
-          "varada_match_columns": 4,
-          "varada_collect_columns": 4,
+          "warp_match_columns": 4,
+          "warp_collect_columns": 4,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1295,8 +1295,8 @@
           "Andrew LewisDdMxqgpQ"
         ],
         "expected_counters": {
-          "varada_match_columns": 4,
-          "varada_collect_columns": 4,
+          "warp_match_columns": 4,
+          "warp_collect_columns": 4,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1311,8 +1311,8 @@
           "Barry GouldPRRkyRN7S"
         ],
         "expected_counters": {
-          "varada_match_columns": 4,
-          "varada_collect_columns": 4,
+          "warp_match_columns": 4,
+          "warp_collect_columns": 4,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }

@@ -76,9 +76,9 @@ import static org.assertj.core.api.Assertions.fail;
 public abstract class DispatcherStubsIntegrationSmokeIT
         extends DispatcherAbstractTestQueryFramework
 {
-    protected static final String WARP_MATCH_COLUMNS_STAT = "varada_match_columns";
-    protected static final String WARP_COLLECT_COLUMNS_STAT = "varada_collect_columns";
-    protected static final String PREFILLED_COLUMNS_STAT = "prefilled_collect_columns";
+    protected static final String WARP_MATCH_COLUMNS_STAT = "warp_match_columns";
+    protected static final String WARP_COLLECT_COLUMNS_STAT = "warp_collect_columns";
+    protected static final String PREFILLED_COLUMNS_STAT = "warp_prefilled_collect_columns";
     protected static final String EXTERNAL_MATCH_STAT = "external_match_columns";
     protected static final String EXTERNAL_COLLECT_STAT = "external_collect_columns";
     protected static final String CACHED_TOTAL_ROWS = "cached_total_rows";
@@ -703,15 +703,15 @@ public abstract class DispatcherStubsIntegrationSmokeIT
 
         @Language("SQL") String pushDownQuery = "select * from %s.%s where int_1 < 2".formatted(schema, table);
         Map<String, Long> expectedPushDownQueryStats = Map.of(
-                "varada_match_columns", 0L,
-                "varada_collect_columns", 0L,
+                "warp_match_columns", 0L,
+                "warp_collect_columns", 0L,
                 "external_match_columns", 1L,
                 "external_collect_columns", 2L);
         validateQueryStats(pushDownQuery, session, expectedPushDownQueryStats);
         @Language("SQL") String noPushDownQuery = "select * from %s.%s where ceiling(int_1) < 2".formatted(schema, table);
         Map<String, Long> expectedNoPushDownQueryStats = Map.of(
-                "varada_match_columns", 0L,
-                "varada_collect_columns", 1L,
+                "warp_match_columns", 0L,
+                "warp_collect_columns", 1L,
                 "external_match_columns", 0L,
                 "external_collect_columns", 1L);
         validateQueryStats(noPushDownQuery, session, expectedNoPushDownQueryStats);

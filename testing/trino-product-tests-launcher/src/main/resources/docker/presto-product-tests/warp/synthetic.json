@@ -63,9 +63,9 @@
         ],
         "query_id": "check_limit_1",
         "expected_counters": {
-          "varada_match_columns": 3,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 3,
+          "warp_match_columns": 3,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 3,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -78,8 +78,8 @@
         ],
         "query_id": "check_limit_2",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -100,8 +100,8 @@
             ]
           ],
           "expected_counters": {
-            "varada_match_columns": 1,
-            "varada_collect_columns": 2,
+            "warp_match_columns": 1,
+            "warp_collect_columns": 2,
             "external_match_columns": 0,
             "external_collect_columns": 0
           }
@@ -266,8 +266,8 @@
           "IGNORE"
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -279,8 +279,8 @@
           4
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -302,9 +302,9 @@
           4.02
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 9,
-          "prefilled_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 9,
+          "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -324,8 +324,8 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -338,9 +338,9 @@
           2.03
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 2,
-          "varada_match_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 2,
+          "warp_match_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -352,8 +352,8 @@
           3
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -376,8 +376,8 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -389,8 +389,8 @@
           2
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -410,8 +410,8 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -423,8 +423,8 @@
           4
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -437,9 +437,9 @@
           2.03
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 4,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 4,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 1,
           "external_collect_columns": 0
         }
@@ -451,8 +451,8 @@
           11
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -464,8 +464,8 @@
           2015
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -477,8 +477,8 @@
           2015
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -490,8 +490,8 @@
           3
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -503,8 +503,8 @@
           2017
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -516,8 +516,8 @@
           0
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -529,8 +529,8 @@
           "15"
         ],
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -542,8 +542,8 @@
           "MacBook Pro"
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -560,8 +560,8 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -573,8 +573,8 @@
           3
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -586,8 +586,8 @@
           1
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -599,8 +599,8 @@
           1
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -612,8 +612,8 @@
           1
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -625,8 +625,8 @@
           0
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -646,8 +646,8 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -661,8 +661,8 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -676,8 +676,8 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -691,8 +691,8 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -706,8 +706,8 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -724,8 +724,8 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -742,8 +742,8 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -757,8 +757,8 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -772,8 +772,8 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -785,8 +785,8 @@
           4
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -798,8 +798,8 @@
           2
         ],
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0,
           "non_trivial_alternative_chosen": 1
@@ -822,8 +822,8 @@
             4
           ],
           "expected_counters": {
-            "varada_match_columns": 0,
-            "varada_collect_columns": 1,
+            "warp_match_columns": 0,
+            "warp_collect_columns": 1,
             "external_match_columns": 0,
             "external_collect_columns": 0
           }
@@ -838,8 +838,8 @@
             ]
           ],
           "expected_counters": {
-            "varada_match_columns": 1,
-            "varada_collect_columns": 2,
+            "warp_match_columns": 1,
+            "warp_collect_columns": 2,
             "external_match_columns": 0,
             "external_collect_columns": 0
           }
@@ -1000,8 +1000,8 @@
           4
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -1023,9 +1023,9 @@
           4.02
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 9,
-          "prefilled_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 9,
+          "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1042,8 +1042,8 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1141,8 +1141,8 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -1157,9 +1157,9 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1173,9 +1173,9 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1189,9 +1189,9 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1205,9 +1205,9 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1227,8 +1227,8 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1242,9 +1242,9 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1259,10 +1259,10 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_match_on_simplified_domain": 1,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_match_on_simplified_domain": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
@@ -1280,9 +1280,9 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
@@ -1300,10 +1300,10 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_match_on_simplified_domain": 1,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_match_on_simplified_domain": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
@@ -1321,9 +1321,9 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
@@ -1344,8 +1344,8 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1363,8 +1363,8 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1382,8 +1382,8 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1401,8 +1401,8 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1420,8 +1420,8 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1498,8 +1498,8 @@
         ],
         "query_id": "empty_result_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -1513,8 +1513,8 @@
         ],
         "query_id": "empty_result_2",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "filtered_by_predicate": 1,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
@@ -1529,27 +1529,27 @@
         ],
         "query_id": "empty_result_3",
         "expected_counters": {
-          "varada_match_columns": 11,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 10,
+          "warp_match_columns": 11,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 10,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "iceberg_expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
-          "varada_match_collect": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
+          "warp_match_collect": 1,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "dl_expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
-          "varada_match_collect": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
+          "warp_match_collect": 1,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -1562,27 +1562,27 @@
         ],
         "query_id": "empty_result_4",
         "expected_counters": {
-          "varada_match_columns": 11,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 10,
+          "warp_match_columns": 11,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 10,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "iceberg_expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
-          "varada_match_collect": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
+          "warp_match_collect": 1,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "dl_expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
-          "varada_match_collect": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
+          "warp_match_collect": 0,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -1596,8 +1596,8 @@
         ],
         "query_id": "empty_result_5",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "filtered_by_predicate": 1,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
@@ -1611,25 +1611,25 @@
         ],
         "query_id": "empty_result_6",
         "expected_counters": {
-          "varada_match_columns": 11,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 10,
+          "warp_match_columns": 11,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 10,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "iceberg_expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "dl_expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -1694,8 +1694,8 @@
         ],
         "query_id": "compression_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -1778,8 +1778,8 @@
         ],
         "query_id": "similar_num_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -1795,8 +1795,8 @@
         ],
         "query_id": "similar_num_2",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1811,8 +1811,8 @@
         ],
         "query_id": "similar_num_3",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1824,9 +1824,9 @@
         ],
         "query_id": "similar_num_4",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1838,9 +1838,9 @@
         ],
         "query_id": "similar_num_5",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1852,9 +1852,9 @@
         ],
         "query_id": "similar_num_6",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1866,9 +1866,9 @@
         ],
         "query_id": "similar_num_7",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1880,9 +1880,9 @@
         ],
         "query_id": "similar_num_8",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1894,9 +1894,9 @@
         ],
         "query_id": "similar_num_9",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1908,9 +1908,9 @@
         ],
         "query_id": "similar_num_10",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1922,9 +1922,9 @@
         ],
         "query_id": "similar_num_11",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1936,9 +1936,9 @@
         ],
         "query_id": "similar_num_12",
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1950,9 +1950,9 @@
         ],
         "query_id": "similar_num_13",
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1964,9 +1964,9 @@
         ],
         "query_id": "similar_num_14",
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1978,9 +1978,9 @@
         ],
         "query_id": "similar_num_15",
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2038,8 +2038,8 @@
         ],
         "query_id": "similar_num_basic_warm_1",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -2102,8 +2102,8 @@
         ],
         "query_id": "similar_char_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -2116,9 +2116,9 @@
         ],
         "query_id": "similar_char_2",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2130,9 +2130,9 @@
         ],
         "query_id": "similar_char_3",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2144,20 +2144,20 @@
         ],
         "query_id": "similar_char_4",
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "iceberg_expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "dl_expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2169,21 +2169,21 @@
         ],
         "query_id": "similar_char_5",
         "expected_counters": {
-          "varada_match_columns": 4,
-          "varada_collect_columns": 2,
-          "prefilled_collect_columns": 2,
+          "warp_match_columns": 4,
+          "warp_collect_columns": 2,
+          "warp_prefilled_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "iceberg_expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "dl_expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2195,9 +2195,9 @@
         ],
         "query_id": "similar_char_6",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2209,9 +2209,9 @@
         ],
         "query_id": "similar_char_7",
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2223,9 +2223,9 @@
         ],
         "query_id": "similar_char_8",
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2242,8 +2242,8 @@
         ],
         "query_id": "similar_char_9",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2260,21 +2260,21 @@
         ],
         "query_id": "similar_char_10",
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 1,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "iceberg_expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "dl_expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2316,8 +2316,8 @@
         ],
         "query_id": "similarv_one_other_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -2330,9 +2330,9 @@
         ],
         "query_id": "similarv_one_other_2",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2344,9 +2344,9 @@
         ],
         "query_id": "similarv_one_other_3",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2395,8 +2395,8 @@
         ],
         "query_id": "similarc_one_other_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -2409,9 +2409,9 @@
         ],
         "query_id": "similarc_one_other_2",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2423,9 +2423,9 @@
         ],
         "query_id": "similarc_one_other_3",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2437,9 +2437,9 @@
         ],
         "query_id": "similarc_one_other_4",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2488,8 +2488,8 @@
         ],
         "query_id": "similarc_two_other_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -2502,9 +2502,9 @@
         ],
         "query_id": "similarc_two_other_2",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2516,9 +2516,9 @@
         ],
         "query_id": "similarc_two_other_3",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2530,9 +2530,9 @@
         ],
         "query_id": "similarc_two_other_4",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2574,8 +2574,8 @@
         ],
         "query_id": "integer_tuples_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -2588,8 +2588,8 @@
         ],
         "query_id": "integer_tuples_2",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2601,8 +2601,8 @@
         ],
         "query_id": "integer_tuples_3",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2614,9 +2614,9 @@
         ],
         "query_id": "integer_tuples_4",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2628,8 +2628,8 @@
         ],
         "query_id": "integer_tuples_5",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2641,8 +2641,8 @@
         ],
         "query_id": "integer_tuples_6",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2775,8 +2775,8 @@
         ],
         "query_id": "tuples_40keys_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -2789,8 +2789,8 @@
         ],
         "query_id": "tuples_40keys_2",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2802,8 +2802,8 @@
         ],
         "query_id": "tuples_40keys_3",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2815,8 +2815,8 @@
         ],
         "query_id": "tuples_40keys_4",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2828,8 +2828,8 @@
         ],
         "query_id": "tuples_40keys_5",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2841,8 +2841,8 @@
         ],
         "query_id": "tuples_40keys_6",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2854,9 +2854,9 @@
         ],
         "query_id": "tuples_40keys_7",
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2868,9 +2868,9 @@
         ],
         "query_id": "tuples_40keys_8",
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2882,9 +2882,9 @@
         ],
         "query_id": "tuples_40keys_9",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 2,
-          "prefilled_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 2,
+          "warp_prefilled_collect_columns": 1,
           "external_match_columns": 2,
           "external_collect_columns": 0
         }
@@ -2896,8 +2896,8 @@
         ],
         "query_id": "tuples_40keys_10",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2909,8 +2909,8 @@
         ],
         "query_id": "tuples_40keys_11",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2923,8 +2923,8 @@
         ],
         "query_id": "tuples_40keys_12",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2937,8 +2937,8 @@
         ],
         "query_id": "tuples_40keys_13",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2950,9 +2950,9 @@
         ],
         "query_id": "tuples_40keys_14",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 2,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 2,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2965,8 +2965,8 @@
         ],
         "query_id": "tuples_40keys_15",
         "expected_counters": {
-          "varada_match_columns": 3,
-          "varada_collect_columns": 4,
+          "warp_match_columns": 3,
+          "warp_collect_columns": 4,
           "external_match_columns": 1,
           "external_collect_columns": 0
         }
@@ -2978,9 +2978,9 @@
         ],
         "query_id": "tuples_40keys_16",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2993,9 +2993,9 @@
         ],
         "query_id": "tuples_40keys_17",
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 2,
-          "prefilled_collect_columns": 1,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 2,
+          "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3007,9 +3007,9 @@
         ],
         "query_id": "tuples_40keys_18",
         "expected_counters": {
-          "varada_match_columns": 3,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 3,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3021,9 +3021,9 @@
         ],
         "query_id": "tuples_40keys_19",
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3035,9 +3035,9 @@
         ],
         "query_id": "tuples_40keys_20",
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3052,11 +3052,11 @@
         ],
         "query_id": "tuples_40keys_21",
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 0,
-          "varada_match_collect_columns": 0,
-          "varada_mapped_match_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 0,
+          "warp_match_collect_columns": 0,
+          "warp_mapped_match_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3069,9 +3069,9 @@
         ],
         "query_id": "tuples_40keys_22",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3083,9 +3083,9 @@
         ],
         "query_id": "tuples_40keys_23",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3097,8 +3097,8 @@
         ],
         "query_id": "tuples_40keys_24",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 3,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 3,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3110,8 +3110,8 @@
         ],
         "query_id": "tuples_40keys_25",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 3,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 3,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3123,9 +3123,9 @@
         ],
         "query_id": "tuples_40keys_26",
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3137,9 +3137,9 @@
         ],
         "query_id": "tuples_40keys_27",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3151,9 +3151,9 @@
         ],
         "query_id": "tuples_40keys_28",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 2,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 2,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3165,9 +3165,9 @@
         ],
         "query_id": "tuples_40keys_29",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 2,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 2,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3179,9 +3179,9 @@
         ],
         "query_id": "tuples_40keys_30",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3193,9 +3193,9 @@
         ],
         "query_id": "tuples_40keys_31",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3207,23 +3207,23 @@
         ],
         "query_id": "tuples_40keys_32",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "iceberg_expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 4,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 4,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 2,
           "external_collect_columns": 0
         },
         "dl_expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 4,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 4,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 2,
           "external_collect_columns": 0
         }
@@ -3235,23 +3235,23 @@
         ],
         "query_id": "tuples_40keys_33",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 2,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 2,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "iceberg_expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 4,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 4,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 2,
           "external_collect_columns": 0
         },
         "dl_expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 4,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 4,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 2,
           "external_collect_columns": 0
         }
@@ -3263,9 +3263,9 @@
         ],
         "query_id": "tuples_40keys_34",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3277,9 +3277,9 @@
         ],
         "query_id": "tuples_40keys_35",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3291,9 +3291,9 @@
         ],
         "query_id": "tuples_40keys_36",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3305,9 +3305,9 @@
         ],
         "query_id": "tuples_40keys_37",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3319,9 +3319,9 @@
         ],
         "query_id": "tuples_40keys_38",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3333,9 +3333,9 @@
         ],
         "query_id": "tuples_40keys_39",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3347,9 +3347,9 @@
         ],
         "query_id": "tuples_40keys_40",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3361,8 +3361,8 @@
         ],
         "query_id": "tuples_40keys_41",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3374,9 +3374,9 @@
         ],
         "query_id": "tuples_40keys_42",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3388,9 +3388,9 @@
         ],
         "query_id": "tuples_40keys_43",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3402,9 +3402,9 @@
         ],
         "query_id": "tuples_40keys_44",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3416,9 +3416,9 @@
         ],
         "query_id": "tuples_40keys_45",
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 2,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 2,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3430,9 +3430,9 @@
         ],
         "query_id": "tuples_40keys_46",
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3444,9 +3444,9 @@
         ],
         "query_id": "tuples_40keys_47",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3463,8 +3463,8 @@
             46500000
           ],
           "expected_counters": {
-            "varada_match_columns": 2,
-            "varada_collect_columns": 1,
+            "warp_match_columns": 2,
+            "warp_collect_columns": 1,
             "external_match_columns": 0,
             "external_collect_columns": 0
           }
@@ -3476,8 +3476,8 @@
             22500000
           ],
           "expected_counters": {
-            "varada_match_columns": 4,
-            "varada_collect_columns": 4,
+            "warp_match_columns": 4,
+            "warp_collect_columns": 4,
             "external_match_columns": 0,
             "external_collect_columns": 0
           }
@@ -3674,8 +3674,8 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -3690,7 +3690,7 @@
           ]
         ],
         "expected_counters": {
-          "varada_collect_columns": 1,
+          "warp_collect_columns": 1,
           "empty_collect_columns": 0
         }
       }
@@ -3738,8 +3738,8 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 1
         }
@@ -3786,8 +3786,8 @@
         ],
         "query_id": "single_chunk_null_133k_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -3800,8 +3800,8 @@
         ],
         "query_id": "single_chunk_null_133k_2",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3814,8 +3814,8 @@
         ],
         "query_id": "single_chunk_null_133k_3",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3856,8 +3856,8 @@
         ],
         "query_id": "single_chunk_xynull_133k_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -3870,8 +3870,8 @@
         ],
         "query_id": "single_chunk_xynull_133k_2",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3890,8 +3890,8 @@
         ],
         "query_id": "single_chunk_xynull_133k_3",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3968,8 +3968,8 @@
         ],
         "query_id": "consecutive_nulls_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -3982,8 +3982,8 @@
         ],
         "query_id": "consecutive_nulls_2",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -3995,10 +3995,10 @@
         ],
         "query_id": "consecutive_nulls_3",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_match_on_simplified_domain": 0,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_match_on_simplified_domain": 0,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -4010,9 +4010,9 @@
         ],
         "query_id": "consecutive_nulls_4",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -4024,9 +4024,9 @@
         ],
         "query_id": "consecutive_nulls_5",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -4410,8 +4410,8 @@
           1
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -4424,8 +4424,8 @@
           40000
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -4437,8 +4437,8 @@
           1
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 1,
           "external_collect_columns": 0
         }
@@ -4450,8 +4450,8 @@
           0
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 1,
           "external_collect_columns": 0
         }
@@ -4580,8 +4580,8 @@
           128020
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -4594,8 +4594,8 @@
           64015
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -4607,8 +4607,8 @@
           64010
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -4620,23 +4620,23 @@
           64008
         ],
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 1,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "iceberg_expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "dl_expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -4648,9 +4648,9 @@
           57586
         ],
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -4662,23 +4662,23 @@
           52007
         ],
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 1,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "iceberg_expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "dl_expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -4690,23 +4690,23 @@
           434
         ],
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 1,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "iceberg_expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "dl_expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -4718,23 +4718,23 @@
           "ooops22"
         ],
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 1,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "iceberg_expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "dl_expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -4875,8 +4875,8 @@
           128010
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -4889,8 +4889,8 @@
           64008
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 1,
           "external_collect_columns": 0
         }
@@ -4902,8 +4902,8 @@
           64010
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -4915,8 +4915,8 @@
           64010
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -4928,8 +4928,8 @@
           64006
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -4941,8 +4941,8 @@
           64010
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -4954,8 +4954,8 @@
           64008
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -4967,8 +4967,8 @@
           10000000000009999
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -4980,8 +4980,8 @@
           84759
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -4993,8 +4993,8 @@
           "myarrayy"
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -5006,8 +5006,8 @@
           "Array story and the "
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -5236,8 +5236,8 @@
           128010
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -5250,8 +5250,8 @@
           64006
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -5263,8 +5263,8 @@
           "c"
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -5276,8 +5276,8 @@
           "W"
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -5289,8 +5289,8 @@
           "Hdskskhf"
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -5302,8 +5302,8 @@
           "Root and tute and go"
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -5321,8 +5321,8 @@
           "1999-09-08 05:01:40.000 UTC"
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -5334,8 +5334,8 @@
           453534.45646
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -5347,8 +5347,8 @@
           false
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -5360,8 +5360,8 @@
           "c"
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -5373,8 +5373,8 @@
           "charrayy"
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -5386,8 +5386,8 @@
           "Array story and pund"
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -5405,8 +5405,8 @@
           "2008-09-08 19:01:35.000 UTC"
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -5418,8 +5418,8 @@
           "2010-08-04"
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -5431,8 +5431,8 @@
           5326100.351550714
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -5444,8 +5444,8 @@
           true
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -5457,8 +5457,8 @@
           0.3453453
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -5470,8 +5470,8 @@
           "64010"
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -5520,8 +5520,8 @@
           128002
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -5533,8 +5533,8 @@
           49152
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -5546,9 +5546,9 @@
           315
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -6790,8 +6790,8 @@
           "pripripripripriought                              "
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 160,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 160,
           "external_match_columns": 0,
           "external_collect_columns": 15
         }
@@ -6979,8 +6979,8 @@
           "pripripripripriought                              "
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 160,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 160,
           "external_match_columns": 0,
           "external_collect_columns": 15
         }
@@ -7004,8 +7004,8 @@
         ],
         "query_id": "single_entry_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -7018,8 +7018,8 @@
         ],
         "query_id": "single_entry_2",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -7031,8 +7031,8 @@
         ],
         "query_id": "single_entry_3",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -7044,9 +7044,9 @@
         ],
         "query_id": "single_entry_3",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -7072,9 +7072,9 @@
         ],
         "query_id": "eight_varchar_distinct_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -7086,9 +7086,9 @@
         ],
         "query_id": "eight_varchar_distinct_2",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -7100,9 +7100,9 @@
         ],
         "query_id": "eight_varchar_distinct_3",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -7133,22 +7133,22 @@
           917504
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 12,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "iceberg_expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 1
         },
         "dl_expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 1
@@ -7162,20 +7162,20 @@
         ],
         "expected_iceberg_result": [0],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 11
         },
         "iceberg_expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "dl_expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 3,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 3,
           "external_match_columns": 0,
           "external_collect_columns": 2
         }
@@ -7187,20 +7187,20 @@
           3
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 12,
           "external_collect_columns": 11
         },
         "iceberg_expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 2,
           "external_match_columns": 2,
           "external_collect_columns": 0
         },
         "dl_expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 3,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 3,
           "external_match_columns": 5,
           "external_collect_columns": 2
         }
@@ -7212,20 +7212,20 @@
           3
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 12,
           "external_collect_columns": 11
         },
         "iceberg_expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 2,
           "external_match_columns": 2,
           "external_collect_columns": 0
         },
         "dl_expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 3,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 3,
           "external_match_columns": 5,
           "external_collect_columns": 2
         }
@@ -7237,20 +7237,20 @@
           6
         ],
         "expected_counters": {
-          "varada_match_columns": 12,
-          "varada_collect_columns": 8,
+          "warp_match_columns": 12,
+          "warp_collect_columns": 8,
           "external_match_columns": 0,
           "external_collect_columns": 4
         },
         "iceberg_expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "dl_expected_counters": {
-          "varada_match_columns": 3,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 3,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 2
         }
@@ -7262,20 +7262,20 @@
           917504
         ],
         "expected_counters": {
-          "varada_match_columns": 12,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 12,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 11
         },
         "iceberg_expected_counters": {
-        "varada_match_columns": 2,
-        "varada_collect_columns": 2,
+        "warp_match_columns": 2,
+        "warp_collect_columns": 2,
         "external_match_columns": 0,
         "external_collect_columns": 0
       },
         "dl_expected_counters": {
-          "varada_match_columns": 5,
-          "varada_collect_columns": 3,
+          "warp_match_columns": 5,
+          "warp_collect_columns": 3,
           "external_match_columns": 0,
           "external_collect_columns": 2
         }
@@ -7293,20 +7293,20 @@
           28
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 12,
           "external_collect_columns": 11
         },
         "iceberg_expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 2,
           "external_match_columns": 2,
           "external_collect_columns": 0
         },
         "dl_expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 3,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 3,
           "external_match_columns": 5,
           "external_collect_columns": 2
         }
@@ -7340,8 +7340,8 @@
           65536
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -7378,8 +7378,8 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -7421,8 +7421,8 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -7439,9 +7439,9 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -7461,9 +7461,9 @@
           "IGNORE"
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
-          "prefilled_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
+          "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -7545,8 +7545,8 @@
           "65539"
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -7558,8 +7558,8 @@
           null
         ],
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -7571,8 +7571,8 @@
           13
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -7839,8 +7839,8 @@
           99081
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -7852,8 +7852,8 @@
           712417
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -7865,8 +7865,8 @@
           513060
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -7878,8 +7878,8 @@
           513060
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -7891,8 +7891,8 @@
           945459
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -7904,8 +7904,8 @@
           945459
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -7917,8 +7917,8 @@
           446424
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -7932,8 +7932,8 @@
           566126307
         ],
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -7947,22 +7947,22 @@
           919
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 3,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 3,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "iceberg_expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 2,
-          "prefilled_collect_columns": 1,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 2,
+          "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "dl_expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 2,
-          "prefilled_collect_columns": 1,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 2,
+          "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -7974,8 +7974,8 @@
           3
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -7987,8 +7987,8 @@
           128.11
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -8003,8 +8003,8 @@
           50.385825780595276
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 3,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 3,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -8016,8 +8016,8 @@
           673789
         ],
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -8055,8 +8055,8 @@
           58955
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -8260,14 +8260,14 @@
           6845
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "dl_expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -8279,14 +8279,14 @@
           6845
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "dl_expected_counters": {
-        "varada_match_columns": 0,
-        "varada_collect_columns": 1,
+        "warp_match_columns": 0,
+        "warp_collect_columns": 1,
         "external_match_columns": 0,
         "external_collect_columns": 0
       }
@@ -8299,14 +8299,14 @@
           2.247616942216
         ],
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "dl_expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 3,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 3,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -8318,14 +8318,14 @@
           6020
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "dl_expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -8337,14 +8337,14 @@
           6020
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "dl_expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -8356,14 +8356,14 @@
           6020
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "dl_expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -8375,14 +8375,14 @@
           6020
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "dl_expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -8394,8 +8394,8 @@
           6845
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -8407,14 +8407,14 @@
           6109
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 2,
           "external_match_columns": 1,
           "external_collect_columns": 0
         },
         "dl_expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -8426,8 +8426,8 @@
           6697
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -8439,8 +8439,8 @@
           2498
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -8512,8 +8512,8 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -8529,8 +8529,8 @@
           "Zoe Youngx"
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 3,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 3,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -8543,8 +8543,8 @@
           1
         ],
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 1,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -8557,8 +8557,8 @@
           39316
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -8571,8 +8571,8 @@
           685
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 2,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -8639,8 +8639,8 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -8658,9 +8658,9 @@
           ]
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "prefilled_collect_columns": 1,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_prefilled_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -10104,8 +10104,8 @@
         ],
         "query_id": "limit_max_match_wes_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 129
         }
@@ -10118,9 +10118,9 @@
         ],
         "query_id": "limit_max_match_wes_2",
         "expected_counters": {
-          "varada_match_collect": 0,
-          "varada_match_columns": 128,
-          "varada_collect_columns": 0,
+          "warp_match_collect": 0,
+          "warp_match_columns": 128,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 128
         }
@@ -10133,8 +10133,8 @@
         ],
         "query_id": "limit_max_match_wes_3",
         "expected_counters": {
-          "varada_match_columns": 128,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 128,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 129
         }
@@ -10165,9 +10165,9 @@
           2.40904820500737E8
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -10179,9 +10179,9 @@
           96897
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -10193,8 +10193,8 @@
           1572864
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -10206,8 +10206,8 @@
           1066367
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -10219,8 +10219,8 @@
           664077
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -10232,8 +10232,8 @@
           60254
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -10245,8 +10245,8 @@
           1170574
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -10261,8 +10261,8 @@
           "NaN"
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -10382,20 +10382,20 @@
           1000000
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "iceberg_expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 1
         },
         "dl_expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 1
         }
@@ -10407,8 +10407,8 @@
           true
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -10420,8 +10420,8 @@
           0
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -10433,8 +10433,8 @@
           107835.34246970105
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -10446,8 +10446,8 @@
           189707
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 3,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 3,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -10459,8 +10459,8 @@
           189887
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 3,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 3,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -10472,8 +10472,8 @@
           497827
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -10485,8 +10485,8 @@
           990589
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -10498,8 +10498,8 @@
           56315
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -10511,8 +10511,8 @@
           570770
         ],
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 4,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 4,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -10595,8 +10595,8 @@
           1
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -10608,8 +10608,8 @@
           1
         ],
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 2,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -10621,8 +10621,8 @@
           1
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -10652,8 +10652,8 @@
           16
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -10665,8 +10665,8 @@
           "1992-01-04"
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -10678,8 +10678,8 @@
           21
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -10691,8 +10691,8 @@
           172
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -10705,8 +10705,8 @@
           4
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -10719,8 +10719,8 @@
           521
         ],
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -10760,8 +10760,8 @@
         ],
         "query_id": "extreme_mixed_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -10775,8 +10775,8 @@
         ],
         "query_id": "extreme_mixed_2",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 1
@@ -10790,8 +10790,8 @@
         ],
         "query_id": "extreme_mixed_3",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 1
@@ -10805,8 +10805,8 @@
         ],
         "query_id": "extreme_mixed_4",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 0,
           "external_match_columns": 1,
           "external_collect_columns": 2
@@ -10935,9 +10935,9 @@
         ],
         "query_id": "enable_dict_false_1",
         "expected_counters": {
-          "varada_match_columns": 1,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -10958,23 +10958,23 @@
         ],
         "query_id": "enable_dict_false_2",
         "expected_counters": {
-          "varada_match_columns": 2,
-          "varada_collect_columns": 2,
-          "prefilled_collect_columns": 1,
+          "warp_match_columns": 2,
+          "warp_collect_columns": 2,
+          "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "iceberg_expected_counters": {
-          "varada_match_columns": 8,
-          "varada_collect_columns": 7,
-          "prefilled_collect_columns": 5,
+          "warp_match_columns": 8,
+          "warp_collect_columns": 7,
+          "warp_prefilled_collect_columns": 5,
           "external_match_columns": 0,
           "external_collect_columns": 0
         },
         "dl_expected_counters": {
-          "varada_match_columns": 8,
-          "varada_collect_columns": 7,
-          "prefilled_collect_columns": 5,
+          "warp_match_columns": 8,
+          "warp_collect_columns": 7,
+          "warp_prefilled_collect_columns": 5,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -11011,9 +11011,9 @@
         ],
         "query_id": "int_array_with_nulls_1",
         "expected_counters": {
-          "varada_match_columns": 0,
-          "varada_collect_columns": 1,
-          "prefilled_collect_columns": 0,
+          "warp_match_columns": 0,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }

@@ -329,14 +329,14 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 1,
                 0);
         Map<String, Long> expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_collect_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats("select * from %s where contains(dummy, '5')".formatted(table),
                 session,
                 expectedJmxQueryStats);
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 0L,
+                "warp_match_columns", 0L,
                 "external_collect_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats("select * from %s where element_at(dummy,1) = '1'".formatted(table),
@@ -362,13 +362,13 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 1,
                 0);
         Map<String, Long> expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats("select * from %s where contains(dummy, '1')".formatted(table),
                 session,
                 expectedJmxQueryStats);
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 0L,
+                "warp_match_columns", 0L,
                 "external_match_columns", 0L);
         validateQueryStats("select * from %s where element_at(dummy,1) = '1'".formatted(table),
                 session,
@@ -388,7 +388,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 1,
                 0);
         Map<String, Long> expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 0L,
+                "warp_match_columns", 0L,
                 "external_match_columns", 0L);
         validateQueryStats("select * from %s where contains(dummy, false)".formatted(table),
                 session,
@@ -408,7 +408,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 1,
                 0);
         Map<String, Long> expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 0L,
+                "warp_match_columns", 0L,
                 "external_match_columns", 0L);
         validateQueryStats("select * from %s where contains(dummy, CAST('2002-04-29' as date))".formatted(table),
                 session,
@@ -484,9 +484,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 1); //DATA for varcharColumn
 
         Map<String, Long> expectedQueryStats = Map.of(
-                "varada_collect_columns", 2L,
+                "warp_collect_columns", 2L,
                 "external_collect_columns", 0L,
-                "varada_match_columns", 0L,
+                "warp_match_columns", 0L,
                 "external_match_columns", 0L);
         validateQueryStats("SELECT * from %s WHERE arrayColumn = ARRAY['a', 'b'] OR varcharColumn='a'".formatted(table),
                 getSession(),
@@ -511,9 +511,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         @Language("SQL") String query = "select int1 from %s where element_at(map_column_integer[1], 2) = 3".formatted(table);
         warmAndValidate(query, true, 1, 1);
         Map<String, Long> expectedQueryStats = Map.of(
-                "varada_collect_columns", 1L,
+                "warp_collect_columns", 1L,
                 "external_collect_columns", 1L,
-                "varada_match_columns", 0L,
+                "warp_match_columns", 0L,
                 "external_match_columns", 0L);
         validateQueryStats(query, getSession(), expectedQueryStats);
         query = "select int1 from %s where element_at(element_at(map_column_integer,1),2) = 3".formatted(table);
@@ -633,7 +633,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
             warmAndValidate(query, true, 1, 1);
             Map<String, Long> expectedQueryStats = Map.of(
                     "external_collect_columns", 1L,
-                    "varada_match_columns", 1L,
+                    "warp_match_columns", 1L,
                     "external_match_columns", 0L);
             validateQueryStats(query, getSession(), expectedQueryStats);
         }
@@ -642,14 +642,14 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         @Language("SQL") String query = "select count(*) from maps_table where element_at(varchar_varchar, 'key9') = 'val9' and element_at(varchar_varchar, 'key1') = 'val1'";
         Map<String, Long> expectedQueryStats = Map.of(
                 "external_collect_columns", 1L,
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, getSession(), expectedQueryStats);
         query = "select count(*) from maps_table where element_at(varchar_varchar, 'c0sy8It%$R') = varchar1";
         //2 columns in a leaf is not supported
         expectedQueryStats = Map.of(
                 "external_collect_columns", 2L,
-                "varada_match_columns", 0L,
+                "warp_match_columns", 0L,
                 "external_match_columns", 0L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
@@ -657,7 +657,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         //2 columns in a leaf is not supported
         expectedQueryStats = Map.of(
                 "external_collect_columns", 3L,
-                "varada_match_columns", 0L,
+                "warp_match_columns", 0L,
                 "external_match_columns", 0L);
 
         validateQueryStats(query, getSession(), expectedQueryStats);
@@ -665,7 +665,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         query = "select count(*) from maps_table where element_at(varchar_varchar, 'c0sy8It%$R') = varchar1 and element_at(integer_varchar,  3) = 'val3'";
         expectedQueryStats = Map.of(
                 "external_collect_columns", 3L,
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
@@ -673,7 +673,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         query = "select count(*) from maps_table where element_at(varchar_integer, 'key13') = 13 and element_at(varchar_integer, 'key9') = 2";
         expectedQueryStats = Map.of(
                 "external_collect_columns", 1L,
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
@@ -681,7 +681,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         query = "select count(*) from maps_table where element_at(varchar_integer, 'key13') = 13 or element_at(varchar_integer, 'key2') = 2";
         expectedQueryStats = Map.of(
                 "external_collect_columns", 1L,
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
@@ -689,7 +689,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         query = "select count(*) from maps_table where element_at(varchar_integer, 'key13') = 13 or element_at(varchar_integer, 'key_not_warmed') = 2";
         expectedQueryStats = Map.of(
                 "external_collect_columns", 1L,
-                "varada_match_columns", 0L,
+                "warp_match_columns", 0L,
                 "external_match_columns", 1L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
@@ -700,7 +700,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 .build();
         warmAndValidate(query, session, 1, 1, 0);
         expectedQueryStats = Map.of(
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_collect_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats);
@@ -709,16 +709,16 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         query = "select int1, integer_array_not_support from maps_table where element_at(integer_array_not_support, 1) = array[1]";
         expectedQueryStats = Map.of(
-                "varada_match_columns", 0L,
-                "varada_collect_columns", 1L,
+                "warp_match_columns", 0L,
+                "warp_collect_columns", 1L,
                 "external_collect_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats);
 
         query = "select bigint_decimal_not_support from maps_table where element_at(bigint_decimal_not_support, 4080364000929075947) = 5";
         expectedQueryStats = Map.of(
-                "varada_match_columns", 0L,
-                "varada_collect_columns", 0L,
+                "warp_match_columns", 0L,
+                "warp_collect_columns", 0L,
                 "external_collect_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats);
@@ -737,8 +737,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         query = "select count(*) from maps_table where int1 = element_at(varchar_integer, 'key1')";
         expectedQueryStats = Map.of(
-                "varada_collect_columns", 1L,
-                "varada_match_columns", 0L,
+                "warp_collect_columns", 1L,
+                "warp_match_columns", 0L,
                 "external_match_columns", 0L,
                 "external_collect_columns", 1L);
         validateQueryStats(query, getSession(), expectedQueryStats);
@@ -760,17 +760,17 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         warmAndValidate(query, false, 2, 1);
 
         Map<String, Long> expectedQueryStats = Map.of(
-                "varada_collect_columns", 1L,
+                "warp_collect_columns", 1L,
                 "external_collect_columns", 1L,
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
         query = "select v1 from t where lower(v1) = 'shlomi'";
         expectedQueryStats = Map.of(
-                "varada_collect_columns", 0L,
+                "warp_collect_columns", 0L,
                 "external_collect_columns", 1L,
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, getSession(), expectedQueryStats);
     }
@@ -816,9 +816,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         warmAndValidate(query, true, expectedWarmupElements, expectedWarmFinished);
 
         Map<String, Long> expectedQueryStats = Map.of(
-                "varada_collect_columns", warpCollectColumns,
+                "warp_collect_columns", warpCollectColumns,
                 "external_collect_columns", 0L,
-                "varada_match_columns", warpMatchColumns,
+                "warp_match_columns", warpMatchColumns,
                 "external_match_columns", 0L);
         validateQueryStats(query, getSession(), expectedQueryStats);
     }
@@ -854,9 +854,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         warmAndValidate(query, false, 2, 1);
 
         Map<String, Long> expectedQueryStats = Map.of(
-                "varada_collect_columns", 0L,
+                "warp_collect_columns", 0L,
                 "external_collect_columns", 2L,
-                "varada_match_columns", 2L,
+                "warp_match_columns", 2L,
                 "external_match_columns", 0L);
         validateQueryStats(query, getSession(), expectedQueryStats);
     }
@@ -881,9 +881,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         // Call must contain Variable, and we don't support 2 Variables in a single predicate (GenericRewriter.rewrite)
         query = "select count(*) from json_test_table where json_extract_scalar(varchar1, '$.\"last name\"') = 'Doe'";
         Map<String, Long> expectedQueryStats = Map.of(
-                "varada_collect_columns", 1L,
+                "warp_collect_columns", 1L,
                 "external_collect_columns", 0L,
-                "varada_match_columns", 0L,
+                "warp_match_columns", 0L,
                 "external_match_columns", 0L);
         validateQueryStats(query, getSession(), expectedQueryStats);
     }
@@ -921,9 +921,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
             Map<String, Long> expectedQueryStats = Map.of(
                     "external_match_columns", 0L,
                     "external_collect_columns", 0L,
-                    "prefilled_collect_columns", prefilledCollectColumns,
-                    "varada_match_columns", 1L,
-                    "varada_collect_columns", collectColumns);
+                    "warp_prefilled_collect_columns", prefilledCollectColumns,
+                    "warp_match_columns", 1L,
+                    "warp_collect_columns", collectColumns);
             int expectedLuceneReadColumns = 0;
             validateQueryStats(query, session, expectedQueryStats, expectedLuceneReadColumns);
             executeRestCommand(RowGroupTask.ROW_GROUP_PATH, RowGroupTask.ROW_GROUP_RESET_TASK_NAME, null, HttpMethod.POST, HttpURLConnection.HTTP_NO_CONTENT);
@@ -945,9 +945,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
             Map<String, Long> expectedQueryStats = Map.of(
                     "external_match_columns", 0L,
                     "external_collect_columns", 0L,
-                    "prefilled_collect_columns", 0L,
-                    "varada_match_columns", 1L,
-                    "varada_collect_columns", 1L);
+                    "warp_prefilled_collect_columns", 0L,
+                    "warp_match_columns", 1L,
+                    "warp_collect_columns", 1L);
             int expectedLuceneReadColumns = 1;
             validateQueryStats(query, session, expectedQueryStats, expectedLuceneReadColumns);
 
@@ -1005,32 +1005,32 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         @Language("SQL") String query = "select not_warm_double ,int_1 from %s.%s where int_1 > 0".formatted(schema, table);
         Map<String, Long> expectedQueryStats = Map.of(
                 "filtered_by_predicate", 0L,
-                "varada_match_columns", 1L,
-                "varada_collect_columns", 1L,
+                "warp_match_columns", 1L,
+                "warp_collect_columns", 1L,
                 "external_collect_columns", 1L);
         validateQueryStats(query, session, expectedQueryStats, true);
 
         query = "select not_warm_double ,int_1 from %s.%s where int_1 > 1".formatted(schema, table);
         expectedQueryStats = Map.of(
                 "filtered_by_predicate", 1L,
-                "varada_match_columns", 1L,
-                "varada_collect_columns", 2L,
+                "warp_match_columns", 1L,
+                "warp_collect_columns", 2L,
                 "external_collect_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats, true);
 
         query = "select not_warm_double ,int_1 from %s.%s where int_1 > 1 and tiny_int_col > 5".formatted(schema, table);
         expectedQueryStats = Map.of(
                 "filtered_by_predicate", 1L,
-                "varada_match_columns", 2L,
-                "varada_collect_columns", 2L,
+                "warp_match_columns", 2L,
+                "warp_collect_columns", 2L,
                 "external_collect_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats, true);
 
         query = "select small_int_col from %s.%s where small_int_col > 5".formatted(schema, table);
         expectedQueryStats = Map.of(
                 "filtered_by_predicate", 1L,
-                "varada_match_columns", 1L,
-                "varada_collect_columns", 1L,
+                "warp_match_columns", 1L,
+                "warp_collect_columns", 1L,
                 "external_collect_columns", 0L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats, true);
@@ -1038,8 +1038,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         query = "select small_int_col, varchar_col from %s.%s where small_int_col > 5 and varchar_col > '6'".formatted(schema, table);
         expectedQueryStats = Map.of(
                 "filtered_by_predicate", 1L,
-                "varada_match_columns", 2L,
-                "varada_collect_columns", 2L,
+                "warp_match_columns", 2L,
+                "warp_collect_columns", 2L,
                 "external_collect_columns", 0L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats, true);
@@ -1047,49 +1047,49 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         query = "select not_warm_double ,int_1 from %s.%s where int_1 is null".formatted(schema, table);
         expectedQueryStats = Map.of(
                 "filtered_by_predicate", 0L,
-                "varada_match_columns", 1L,
-                "prefilled_collect_columns", 1L,
-                "varada_collect_columns", 0L,
+                "warp_match_columns", 1L,
+                "warp_prefilled_collect_columns", 1L,
+                "warp_collect_columns", 0L,
                 "external_collect_columns", 1L);
         validateQueryStats(query, session, expectedQueryStats, true);
 
         query = "select not_warm_double ,int_1 from %s.%s where int_1 > 0 or int_1 is null".formatted(schema, table);
         expectedQueryStats = Map.of(
                 "filtered_by_predicate", 0L,
-                "varada_match_columns", 1L,
-                "varada_collect_columns", 1L,
+                "warp_match_columns", 1L,
+                "warp_collect_columns", 1L,
                 "external_collect_columns", 1L);
         validateQueryStats(query, session, expectedQueryStats, true);
 
         query = "select not_warm_double ,tiny_int_col from %s.%s where tiny_int_col > 3".formatted(schema, table);
         expectedQueryStats = Map.of(
                 "filtered_by_predicate", 1L,
-                "varada_match_columns", 1L,
-                "varada_collect_columns", 2L,
+                "warp_match_columns", 1L,
+                "warp_collect_columns", 2L,
                 "external_collect_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats, true);
 
         query = "select char_8_col from %s.%s where char_8_col > 'bbbbb'".formatted(schema, table);
         expectedQueryStats = Map.of(
                 "filtered_by_predicate", 1L,
-                "varada_match_columns", 1L,
-                "varada_collect_columns", 1L,
+                "warp_match_columns", 1L,
+                "warp_collect_columns", 1L,
                 "external_collect_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats, true);
 
         query = "select char_8_col from %s.%s where char_8_col < 'aaa     '".formatted(schema, table);
         expectedQueryStats = Map.of(
                 "filtered_by_predicate", 0L,
-                "varada_match_columns", 1L,
-                "varada_collect_columns", 1L,
+                "warp_match_columns", 1L,
+                "warp_collect_columns", 1L,
                 "external_collect_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats, true);
 
         query = "select char_8_col from %s.%s where char_8_col < 'aaaA'".formatted(schema, table);
         expectedQueryStats = Map.of(
                 "filtered_by_predicate", 0L,
-                "varada_match_columns", 1L,
-                "varada_collect_columns", 1L,
+                "warp_match_columns", 1L,
+                "warp_collect_columns", 1L,
                 "external_collect_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats, true);
     }
@@ -1114,18 +1114,18 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         Map<String, Long> expectedQueryStats = Map.of(
                 "external_match_columns", 0L,
                 "external_collect_columns", 0L,
-                "prefilled_collect_columns", 1L,
-                "varada_match_columns", 1L,
-                "varada_collect_columns", 0L);
+                "warp_prefilled_collect_columns", 1L,
+                "warp_match_columns", 1L,
+                "warp_collect_columns", 0L);
         int expectedLuceneReadColumns = 0;
         validateQueryStats(nativeQuery, session, expectedQueryStats, expectedLuceneReadColumns);
         @Language("SQL") String luceneQuery = "select v1 from t where v1 like '%shlomi%'";
         expectedQueryStats = Map.of(
                 "external_match_columns", 1L,
                 "external_collect_columns", 0L,
-                "prefilled_collect_columns", 0L,
-                "varada_match_columns", 0L,
-                "varada_collect_columns", 1L);
+                "warp_prefilled_collect_columns", 0L,
+                "warp_match_columns", 0L,
+                "warp_collect_columns", 1L);
         validateQueryStats(luceneQuery, session, expectedQueryStats, expectedLuceneReadColumns);
 
         warmAndValidate(luceneQuery, true, 1, 1);
@@ -1140,18 +1140,18 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         expectedQueryStats = Map.of(
                 "external_match_columns", 0L,
                 "external_collect_columns", 0L,
-                "prefilled_collect_columns", 0L,
-                "varada_match_columns", 1L,
-                "varada_collect_columns", 1L);
+                "warp_prefilled_collect_columns", 0L,
+                "warp_match_columns", 1L,
+                "warp_collect_columns", 1L);
         expectedLuceneReadColumns = 1;
         validateQueryStats(luceneQuery, session, expectedQueryStats, expectedLuceneReadColumns);
 
         expectedQueryStats = Map.of(
                 "external_match_columns", 0L,
                 "external_collect_columns", 0L,
-                "prefilled_collect_columns", 1L,
-                "varada_match_columns", 1L,
-                "varada_collect_columns", 0L);
+                "warp_prefilled_collect_columns", 1L,
+                "warp_match_columns", 1L,
+                "warp_collect_columns", 0L);
         expectedLuceneReadColumns = 0;
         validateQueryStats(nativeQuery, session, expectedQueryStats, expectedLuceneReadColumns);
 
@@ -1164,9 +1164,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
             expectedQueryStats = Map.of(
                     "external_match_columns", 0L,
                     "external_collect_columns", 0L,
-                    "prefilled_collect_columns", 0L,
-                    "varada_match_columns", 2L,
-                    "varada_collect_columns", 2L);
+                    "warp_prefilled_collect_columns", 0L,
+                    "warp_match_columns", 2L,
+                    "warp_collect_columns", 2L);
             validateQueryStats(query, session, expectedQueryStats, expectedLuceneReadColumns);
         }
 
@@ -1174,9 +1174,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         expectedQueryStats = Map.of(
                 "external_match_columns", 0L,
                 "external_collect_columns", 0L,
-                "prefilled_collect_columns", 0L,
-                "varada_match_columns", 2L,
-                "varada_collect_columns", 1L);
+                "warp_prefilled_collect_columns", 0L,
+                "warp_match_columns", 2L,
+                "warp_collect_columns", 1L);
         validateQueryStats(query, session, expectedQueryStats, 0);
 
         List<String> rangeQueries = List.of(
@@ -1189,9 +1189,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
             expectedQueryStats = Map.of(
                     "external_match_columns", 0L,
                     "external_collect_columns", 0L,
-                    "prefilled_collect_columns", 0L,
-                    "varada_match_columns", 1L,
-                    "varada_collect_columns", 1L);
+                    "warp_prefilled_collect_columns", 0L,
+                    "warp_match_columns", 1L,
+                    "warp_collect_columns", 1L);
             expectedLuceneReadColumns = 1;
             validateQueryStats(rangeQuery, session, expectedQueryStats, expectedLuceneReadColumns);
         }
@@ -1211,14 +1211,14 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         Map<String, Long> expectedQueryStats = Map.of(
                 "transformed_column", 0L,
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_collect_columns", 0L,
                 "external_match_columns", 0L);
         validateQueryStats(query, querySession, expectedQueryStats);
 
         expectedQueryStats = Map.of(
                 "transformed_column", 1L,
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_collect_columns", 0L,
                 "external_match_columns", 0L);
 
@@ -1251,8 +1251,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         String baseQuery = "select var_date_col from transform_data where %s(CAST(var_date_col as date)) = 5";
         Map<String, Long> expectedQueryStats = Map.of(
                 "transformed_column", 1L,
-                "varada_collect_columns", 1L,
-                "varada_match_columns", 1L,
+                "warp_collect_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 0L);
         for (FunctionName dateFunction : SupportedFunctions.DATE_FUNCTIONS) {
             @Language("SQL") String dateFunctionQuery = format(baseQuery, dateFunction.getName());
@@ -1291,8 +1291,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         warmAndValidate(query, warmSession, 0, 1, 1);
         Map<String, Long> expectedQueryStats = Map.of(
                 "transformed_column", 0L,
-                "varada_collect_columns", 1L,
-                "varada_match_columns", 0L,
+                "warp_collect_columns", 1L,
+                "warp_match_columns", 0L,
                 "external_match_columns", 1L);
         validateQueryStats(query, getSession(), expectedQueryStats);
     }
@@ -1375,7 +1375,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         @Language("SQL") String query = "select count(*) from %s.%s where double1 > 2 OR n_long_decimal > 3".formatted(schema, table); ////todo bug in serialization of LongDecimal type
         Map<String, Long> expectedQueryStats = Map.of(
-                "varada_match_columns", 0L,
+                "warp_match_columns", 0L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats);
 
@@ -1384,105 +1384,105 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         query = "select count(*) from %s.%s where double1 is null or ceil(double1) > 3".formatted(schema, table);
         expectedQueryStats = Map.of(
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats);
 
         query = "select count(*) from %s.%s where ceil(double1) > 2 and ceil(double2) > 3".formatted(schema, table);
         expectedQueryStats = Map.of(
-                "varada_match_columns", 2L,
+                "warp_match_columns", 2L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats);
         query = "select count(*) from %s.%s where ceil(double1) > 2 and ceiling(double2) > 3".formatted(schema, table);
         expectedQueryStats = Map.of(
-                "varada_match_columns", 2L,
+                "warp_match_columns", 2L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats);
 
         query = "select count(*) from " + schema + "." + table + " where double1 > 2 or double2 > 3 or varchar_10_col like '%lucene%'";
         expectedQueryStats = Map.of(
-                "varada_match_columns", 3L,
+                "warp_match_columns", 3L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats);
 
         query = "select count(*) from %s.%s where ceil(double1) > 2 or ceil(double2) > 3".formatted(schema, table);
         expectedQueryStats = Map.of(
-                "varada_match_columns", 2L,
+                "warp_match_columns", 2L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats);
 
         query = "select count(*) from %s.%s where double1 is null or double2 > 3".formatted(schema, table);
         expectedQueryStats = Map.of(
-                "varada_match_columns", 2L,
+                "warp_match_columns", 2L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats);
 
         query = "select count(*) from %s.%s where double1 is null or double2 is null".formatted(schema, table);
         expectedQueryStats = Map.of(
-                "varada_match_columns", 2L,
+                "warp_match_columns", 2L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats);
 
         query = "select count(*) from %s.%s where ceil(double1) = 2 or ceil(double1) = 3".formatted(schema, table);
         expectedQueryStats = Map.of(
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats);
 
         query = "select count(*) from %s.%s where ceil(double1) = 2 or ceil(double1) = 3 or ceil(double2) =9".formatted(schema, table);
         expectedQueryStats = Map.of(
-                "varada_match_columns", 2L,
+                "warp_match_columns", 2L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats);
 
         query = "select count(*) from %s.%s where double1 is null or double2 is not null".formatted(schema, table);
         //not x is unsupported function
         expectedQueryStats = Map.of(
-                "varada_match_columns", 0L,
+                "warp_match_columns", 0L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats);
 
         query = "select count(*) from %s.%s where double1 is null or double1 > 3 or double2 > 5".formatted(schema, table);
         expectedQueryStats = Map.of(
-                "varada_match_columns", 2L,
+                "warp_match_columns", 2L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats);
 
         query = "select count(*) from %s.%s where double1 > 5 AND (not_warm_double > 9 or double2 > 3)".formatted(schema, table);
         ////a and (c or b) -> double1 is part of tupleDomain and not part of ConnectorExpression, currently we drop the OR section
         expectedQueryStats = Map.of(
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 2L);
         validateQueryStats(query, session, expectedQueryStats);
 
         query = "select count(*) from %s.%s where ceil(double1) > 5 AND (not_warm_double > 9 or double2 > 3)".formatted(schema, table);
         ////ceil(a) and (c or b) -> all columns exist in ConnectorExpression
         expectedQueryStats = Map.of(
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 2L);
         validateQueryStats(query, session, expectedQueryStats);
 
         query = "select count(*) from %s.%s where ceil(double1) > 5 AND (bingint1 > 9 or double2 > 3)".formatted(schema, table);
         expectedQueryStats = Map.of(
-                "varada_match_columns", 3L,
+                "warp_match_columns", 3L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats);
 
         query = "select count(*) from " + schema + "." + table + " where ceil(double1) > 5 OR (varchar_10_col like '%warm lucene%' and ceil(double2) > 3)";
         expectedQueryStats = Map.of(
-                "varada_match_columns", 3L,
+                "warp_match_columns", 3L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats);
 
         query = "select count(*) from %s.%s where not_warm_double > 5 or double1 > 3".formatted(schema, table);
         expectedQueryStats = Map.of(
-                "varada_match_columns", 0L,
+                "warp_match_columns", 0L,
                 "external_match_columns", 2L);
         validateQueryStats(query, session, expectedQueryStats);
 
         query = "select count(*) from " + schema + "." + table + " where int_1 in (1,2) and (varchar_col = 'str3' or varchar_col like '%str%')";
         expectedQueryStats = Map.of(
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 1L);
         validateQueryStats(query, session, expectedQueryStats);
 
@@ -1490,7 +1490,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         //      ( s_real  AND (double1 OR double2 ) AND (bingint1 OR int_1) OR varchar_col ) =>
         //     ( (varchar_col OR  s_real) AND ( varchar_col OR double1 OR double2) AND (varchar_col OR bingint1 OR int_1)
         expectedQueryStats = Map.of(
-                "varada_match_columns", 6L,
+                "warp_match_columns", 6L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats);
 
@@ -1498,7 +1498,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         //      ( not_warm_double  AND (double1 OR double2 ) AND (bingint1 OR int_1) OR varchar_col ) =>
         //     ( (varchar_col OR  not_warm_double) AND ( not_warm_double OR double1 OR double2) AND (not_warm_double OR bingint1 OR int_1)
         expectedQueryStats = Map.of(
-                "varada_match_columns", 5L,
+                "warp_match_columns", 5L,
                 "external_match_columns", 1L);
         validateQueryStats(query, session, expectedQueryStats);
 
@@ -1506,7 +1506,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         //      ( s_real  AND (double1 OR double2 ) AND (bingint1 OR int_1) OR not_warm_double ) =>
         //     ( (varchar_col OR  s_real) AND ( not_warm_double OR double1 OR double2) AND (not_warm_double OR bingint1 OR int_1)
         expectedQueryStats = Map.of(
-                "varada_match_columns", 0L,
+                "warp_match_columns", 0L,
                 "external_match_columns", 6L);
         validateQueryStats(query, session, expectedQueryStats);
 
@@ -1514,14 +1514,14 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         //      ( s_real  AND (not_warm_double OR double2 ) AND (bingint1 OR int_1) OR varchar_col ) =>
         //     ( (varchar_col OR  s_real) AND ( varchar_col OR not_warm_double OR double2) AND (varchar_col OR bingint1 OR int_1)
         expectedQueryStats = Map.of(
-                "varada_match_columns", 4L,
+                "warp_match_columns", 4L,
                 "external_match_columns", 2L);
         validateQueryStats(query, session, expectedQueryStats);
 
         query = "select count(*) from %s.%s where (double1 = 2 AND double2 = 3) OR (double1 = 4 AND double2 = 5)".formatted(schema, table);
         //(A = 2 AND B = 3) OR (A = 4 AND B = 5) => (A = 2 OR B = 5 ) AND (A = 4 OR B = 3). Domain will be A[2, 4], B[3,5]
         expectedQueryStats = Map.of(
-                "varada_match_columns", 2L,
+                "warp_match_columns", 2L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats);
 
@@ -1529,20 +1529,20 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         // (s_real' AND double1 ) OR (s_real'' AND double2) =>
         // ((s_real' OR double2) AND (double1 OR s_real'') AND (double1 OR double2)) // Domain will be s_real( [infinte,0), (5, infinte])
         expectedQueryStats = Map.of(
-                "varada_match_columns", 3L,
+                "warp_match_columns", 3L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats);
 
         query = "select count(*) from %s.%s where cast(timestamp_col as varchar) = '2021-04-12 00:00:00.000' or ceil(double2) > 3".formatted(schema, table);
         expectedQueryStats = Map.of(
-                "varada_match_columns", 2L,
+                "warp_match_columns", 2L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats);
 
         query = "select count(*) from %s.%s where ((ceil(double1) > 5 AND ceil(double2) > 5) OR  (ceil(double1) < 5 AND ceil(double2) < 5))".formatted(schema, table);
         //domain is translated to double1 ( [infinte,5), (5, infinte]), double2 ( [infinte,5), (5, infinte])
         expectedQueryStats = Map.of(
-                "varada_match_columns", 2L,
+                "warp_match_columns", 2L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats);
     }
@@ -1580,30 +1580,30 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "select count(*) from t where strpos(v1, 'shlomi', 3) = 2");
 
         Map<String, Long> expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 1L,
-                "varada_collect_columns", 1L,
+                "warp_match_columns", 1L,
+                "warp_collect_columns", 1L,
                 "external_match_columns", 0L);
         for (@Language("SQL") String query : queries) {
             int expectedLuceneReadColumns = query.contains("or") || query.contains("and") ? 2 : 1;
             validateQueryStats(query, getSession(), expectedJmxQueryStats, expectedLuceneReadColumns);
         }
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 1L,
-                "varada_collect_columns", 1L,
+                "warp_match_columns", 1L,
+                "warp_collect_columns", 1L,
                 "external_collect_columns", 1L,
                 "external_match_columns", 1L);
         validateQueryStats("select count(*) from t where v1 like '%Santa%' and int1 > 1000", getSession(), expectedJmxQueryStats);
 
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 0L,
-                "varada_collect_columns", 1L,
+                "warp_match_columns", 0L,
+                "warp_collect_columns", 1L,
                 "external_collect_columns", 1L,
                 "external_match_columns", 2L);
         validateQueryStats("select count(*) from t where v1 like '%Santa%' or int1 > 1000", getSession(), expectedJmxQueryStats);
 
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 1L,
-                "varada_collect_columns", 1L,
+                "warp_match_columns", 1L,
+                "warp_collect_columns", 1L,
                 "external_collect_columns", 0L,
                 "external_match_columns", 0L);
         //translated by Trino to expression (v1 like '%Mo%' and v1 like 'San%'), domain ([San, Sao))
@@ -1635,9 +1635,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         @Language("SQL") String query = "select MAX(driver_age) from trips_data_table where driver_first='Grant' AND driver_last='JACKSON' AND ts<=CAST('2018-01-03 10:50:35.000' as timestamp)";
         Map<String, Long> expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 1L,
-                "varada_collect_columns", 3L,
-                "prefilled_collect_columns", 0L,
+                "warp_match_columns", 1L,
+                "warp_collect_columns", 3L,
+                "warp_prefilled_collect_columns", 0L,
                 "external_match_columns", 2L,
                 "external_collect_columns", 1L);
         validateQueryStats(query, getSession(), expectedJmxQueryStats);
@@ -1645,8 +1645,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         //trips_data_table_case4_q02
         query = "select MIN(driver_first) from trips_data_table where driver_age=20 OR driver_age=19 OR ts<=CAST('2018-01-03 10:50:35.000' as timestamp)";
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 2L,
-                "varada_collect_columns", 2L,
+                "warp_match_columns", 2L,
+                "warp_collect_columns", 2L,
                 "external_match_columns", 0L,
                 "external_collect_columns", 1L);
         validateQueryStats(query, getSession(), expectedJmxQueryStats);
@@ -1654,8 +1654,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         //trips_data_table_case4_q04
         query = "select MAX(driver_age) from trips_data_table where driver_first='Grant' OR driver_last='JACKSON' OR ts<=CAST('2018-01-03 10:50:35.000' as timestamp)";
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 0L,
-                "varada_collect_columns", 2L,
+                "warp_match_columns", 0L,
+                "warp_collect_columns", 2L,
                 "external_match_columns", 3L,
                 "external_collect_columns", 2L);
         validateQueryStats(query, getSession(), expectedJmxQueryStats);
@@ -1688,8 +1688,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         //trips_data_table_case5_q02
         @Language("SQL") String query = "select MIN(driver_first) from trips_data_table where driver_gender LIKE '%F%' AND driver_age=20 OR driver_age=19 OR ts<=CAST('2018-01-03 10:50:35.000' as timestamp)";
         Map<String, Long> expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 0L,
-                "varada_collect_columns", 2L,
+                "warp_match_columns", 0L,
+                "warp_collect_columns", 2L,
                 "external_match_columns", 3L,
                 "external_collect_columns", 2L);
         validateQueryStats(query, getSession(), expectedJmxQueryStats);
@@ -1697,8 +1697,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         //trips_data_table_case5_q04
         query = "select MAX(driver_age) from trips_data_table where driver_gender>='M' AND (driver_first='Grant' OR driver_last='JACKSON' OR ts<=CAST('2018-01-03 10:50:35.000' as timestamp))";
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 1L,
-                "varada_collect_columns", 2L,
+                "warp_match_columns", 1L,
+                "warp_collect_columns", 2L,
                 "external_match_columns", 3L,
                 "external_collect_columns", 3L);
         validateQueryStats(query, getSession(), expectedJmxQueryStats);
@@ -1772,7 +1772,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         //cast nonVarchar to varchar
         @Language("SQL") String query = "select * from %s.%s where cast(char_8_col as varchar) = 'aaaaaaaa'".formatted(schema, table);
         Map<String, Long> expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
@@ -1807,28 +1807,28 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         validateQueryStats(query, session, expectedJmxQueryStats);
 
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 0L,
-                "varada_collect_columns", 1L,
+                "warp_match_columns", 0L,
+                "warp_collect_columns", 1L,
                 "external_match_columns", 0L);
         query = "select n_long_decimal from %s.%s where cast(n_long_decimal as varchar) = '5.00'".formatted(schema, table);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
         query = "select * from %s.%s where cast(double1 as varchar) > '5.0E0'".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 0L,
+                "warp_match_columns", 0L,
                 "external_match_columns", 1L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
         query = "select * from %s.%s where cast(varchar_col as varchar) = 'shlomi'".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
         //cast to limited varchar
         query = "select * from %s.%s where cast(int_1 as varchar(20)) = '5'".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
@@ -1839,7 +1839,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         query = "select * from %s.%s where cast(int_1 as varchar(1)) = '44' or varchar_col = 'shlomi'".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
@@ -1850,7 +1850,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         query = "select* from %s.%s where cast(char_8_col as varchar(2)) = 'aa'".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 0L,
+                "warp_match_columns", 0L,
                 "external_match_columns", 1L);
         validateQueryStats(query, session, expectedJmxQueryStats);
         query = "select * from %s.%s where cast(char_8_col as varchar(2)) = 'aa' or cast(char_8_col as varchar(2)) = 'bb'".formatted(schema, table);
@@ -1858,26 +1858,26 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         query = "select * from %s.%s where cast(char_8_col as varchar(10)) = 'aaaaaaaa'".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
         query = "select * from %s.%s where cast(varchar_10_col as varchar(20)) = 'aaa' or cast(varchar_10_col as varchar(20)) = 'bbb'".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats); //not pushdown as expression
 
         query = "select * from %s.%s where cast(varchar_10_col as varchar(5)) = 'aaa' or cast(varchar_10_col as varchar(5)) = 'bbb'".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 0L,
+                "warp_match_columns", 0L,
                 "external_match_columns", 1L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
         //cast to nonVarchar
         query = "select * from %s.%s where cast(double1 as real) >= 4.02".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
@@ -1892,14 +1892,14 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         query = "select * from %s.%s where cast(double1 as int) = 5".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 0L,
+                "warp_match_columns", 0L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
         //notEqual - not currently to supported to nativeExpression
         query = "select * from %s.%s where double1 <> 5".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 0L,
+                "warp_match_columns", 0L,
                 "external_match_columns", 1L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
@@ -1909,7 +1909,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         //ceil
         query = "select * from %s.%s where ceil(not_warm_double) > 5".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 0L,
+                "warp_match_columns", 0L,
                 "external_match_columns", 1L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
@@ -1918,7 +1918,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         query = "select * from %s.%s where ceil(double1) = 5  or ceil(double1) = 9".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
@@ -1927,8 +1927,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         expectedJmxQueryStats = Map.of(
                 "filtered_by_predicate", 1L,
-                "varada_match_columns", 1L,
-                "varada_collect_columns", 1L,
+                "warp_match_columns", 1L,
+                "warp_collect_columns", 1L,
                 "external_match_columns", 0L);
 
         query = "select double1 from %s.%s where cast(double1 as varchar) = '01111111111111111111E0'".formatted(schema, table);
@@ -1942,8 +1942,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         expectedJmxQueryStats = Map.of(
                 "filtered_by_predicate", 1L,
-                "varada_match_columns", 2L,
-                "varada_collect_columns", 1L,
+                "warp_match_columns", 2L,
+                "warp_collect_columns", 1L,
                 "external_match_columns", 0L);
 
         query = "select double1 from %s.%s where ceil(double1) > 5  and ceil(double1) < 4 and double2 > 6".formatted(schema, table); // EmptyPageSource
@@ -1954,8 +1954,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         expectedJmxQueryStats = Map.of(
                 "filtered_by_predicate", 1L,
-                "varada_match_columns", 2L,
-                "varada_collect_columns", 2L,
+                "warp_match_columns", 2L,
+                "warp_collect_columns", 2L,
                 "external_match_columns", 0L);
 
         query = "select double1 from %s.%s where ceil(double1) > 5  and ceil(double1) < 4 and  yow(date_col) = 53".formatted(schema, table); // EmptyPageSource
@@ -1966,20 +1966,20 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         query = "select n_long_decimal from %s.%s where ceil(n_long_decimal) > ".formatted(schema, table) + Integer.MAX_VALUE + 1;
         validateQueryStats(query, session, Map.of(
-                "varada_collect_columns", 1L,
-                "varada_match_columns", 0L,
+                "warp_collect_columns", 1L,
+                "warp_match_columns", 0L,
                 "external_match_columns", 0L));
 
         query = "select double1 from %s.%s where double2 > 5 or ceil(double1) > 9  and ceil(double1) < 4".formatted(schema, table);
         //translated to: (double2 > 5 or ceil(double1) > 9) AND (double2 > 5 or ceil(double1) < 4)
         validateQueryStats(query, session, Map.of(
-                "varada_collect_columns", 2L,
-                "varada_match_columns", 2L,
+                "warp_collect_columns", 2L,
+                "warp_match_columns", 2L,
                 "external_match_columns", 0L));
 
         query = "select * from %s.%s where year(date_col) = 53".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
@@ -1989,7 +1989,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         query = "select count(*) from %s.%s where cast(double1 as varchar) = '01111111111111111111E0' or double2 > 2".formatted(schema, table);
         //cast(double1 as varchar) = '01111111111111111111E0' is invalid but left is valid
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 1L); //todo: fix?
         validateQueryStats(query, session, expectedJmxQueryStats);
 
@@ -1997,15 +1997,15 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         //both are invalid
         expectedJmxQueryStats = Map.of(
                 "filtered_by_predicate", 1L,
-                "varada_collect_columns", 2L,
-                "varada_match_columns", 2L,
+                "warp_collect_columns", 2L,
+                "warp_match_columns", 2L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
         //date functions
         query = "select * from %s.%s where day(date_col) > 2012".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
         query = "select * from %s.%s where day(date_col) = 2012".formatted(schema, table);
@@ -2067,24 +2067,24 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         query = "select * from %s.%s where ceil(double1) = 5  or ceil(double1) = 10 or ceil(double1) = 30 or is_nan(double1)=true or (double1 < 19 and double1 > 17)".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
         query = "select * from %s.%s where ceil(double1) = 5  or is_nan(double2)=true".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 2L,
+                "warp_match_columns", 2L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
         query = "select * from %s.%s where ceil(double1) = 5  and is_nan(double2)=true".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 2L,
+                "warp_match_columns", 2L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
         query = "select * from %s.%s where ceil(double1) = 5  or is_nan(double1)=true".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
         query = "select * from %s.%s where (ceil(double1) = 5  or is_nan(double1)=true) and (mod(double2 , 2) = 0 and mod(double2 , 3) = 0)".formatted(schema, table);
@@ -2095,42 +2095,42 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         validateQueryStats(query, session, expectedJmxQueryStats);
         query = "select * from %s.%s where (ceil(double1) = 5  or is_nan(double1)=true) and (ceil(double2) = 5  or ceil(double2) = 9)".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 2L,
+                "warp_match_columns", 2L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
         query = "select * from %s.%s where double1 < 19 and double1 > 17".formatted(schema, table);
         // expression translated to: (ceil(double1) = 5 OR double1 < 19) AND (ceil(double1) = 5 OR double1 > 17)
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
         query = "select * from %s.%s where is_nan(double1)".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
         query = "select * from %s.%s where ST_CONTAINS(ST_Polygon('polygon((-73.9266974303558 40.7398342228254))'),(ST_Point(double1, double2)))".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 0L,
+                "warp_match_columns", 0L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
         query = "select * from %s.%s where is_nan(double1) = false".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 0L,
+                "warp_match_columns", 0L,
                 "external_match_columns", 1L);
         validateQueryStats(query, session, expectedJmxQueryStats, List.of("unsupported_functions_native"));
 
         query = "select * from %s.%s where true = is_nan(double1)".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
 
         query = "select * from %s.%s where ST_EQUALS(ST_Point(double1, double2),ST_Point(n_long_decimal, s_real))".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 0L,
+                "warp_match_columns", 0L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats, List.of("unsupported_functions"));
 
@@ -2140,12 +2140,12 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         query = "select * from %s.%s where (( double1 = 4  AND  double2 <= 6 )  OR  double1 = 2)".formatted(schema, table);
         //trino convert to a single domain predicate 2 <= double1 <= 4
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 2L,
+                "warp_match_columns", 2L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
         query = "select * from %s.%s where (( double1 = 4  AND  double2 <= 6 )  OR  n_long_decimal = 2)".formatted(schema, table); //composite, currently unsupported
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 0L,
+                "warp_match_columns", 0L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedJmxQueryStats);
         session = Session.builder(getSession())
@@ -2155,7 +2155,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 .build();
         query = "select * from %s.%s where ceil(s_real) > 5".formatted(schema, table);
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 0L,
+                "warp_match_columns", 0L,
                 "external_match_columns", 1L);
         validateQueryStats(query, session, expectedJmxQueryStats);
     }
@@ -2240,7 +2240,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "true")
                 .build();
         Map<String, Long> expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats("select count(*) from t where v1 not like '%mishlomi%'", session, expectedJmxQueryStats);
     }
@@ -2432,18 +2432,18 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         @Language("SQL") String query = "select v1 from t where int1 = 1";
         Map<String, Long> expectedQueryStats = Map.of(
-                "varada_match_columns", 1L,
-                "varada_collect_columns", 1L,
-                "prefilled_collect_columns", 0L,
+                "warp_match_columns", 1L,
+                "warp_collect_columns", 1L,
+                "warp_prefilled_collect_columns", 0L,
                 "external_collect_columns", 0L,
                 "external_match_columns", 0L);
         validateQueryStats(query, getSession(), expectedQueryStats);
 
         query = "select int1 from t where v1 = 'shlomishlomishlomi'";
         expectedQueryStats = Map.of(
-                "varada_match_columns", 0L,
-                "varada_collect_columns", 0L,
-                "prefilled_collect_columns", 0L,
+                "warp_match_columns", 0L,
+                "warp_collect_columns", 0L,
+                "warp_prefilled_collect_columns", 0L,
                 "external_collect_columns", 2L,
                 "external_match_columns", 1L);
         validateQueryStats(query, getSession(), expectedQueryStats);
@@ -2630,9 +2630,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         @Language("SQL") String query = format("select %s from t where %s is NULL", C2, C2);
         Map<String, Long> expectedQueryStats = Map.of(
-                "prefilled_collect_columns", 1L,
-                "varada_match_columns", 0L,
-                "varada_collect_columns", 0L,
+                "warp_prefilled_collect_columns", 1L,
+                "warp_match_columns", 0L,
+                "warp_collect_columns", 0L,
                 "external_match_columns", 0L);
         validateQueryStats(query, getSession(), expectedQueryStats);
     }
@@ -2691,9 +2691,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         //query on warmed partition column and not warmed regular column
         @Language("SQL") String query = "select warmedPartition, notWarmedColumn from %s.%s where warmedPartition in ('partition1', 'partition2')".formatted(schema, table);
         Map<String, Long> expectedQueryStats = Map.of(
-                "prefilled_collect_columns", 1L,
-                "varada_match_columns", 0L,
-                "varada_collect_columns", 0L,
+                "warp_prefilled_collect_columns", 1L,
+                "warp_match_columns", 0L,
+                "warp_collect_columns", 0L,
                 "external_collect_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats);
@@ -2701,9 +2701,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         //query on non warmed partition column and a warmed regular column
         query = "select warmedColumn, notWarmedPartition from %s.%s where notWarmedPartition in ('partition1', 'partition2')".formatted(schema, table);
         expectedQueryStats = Map.of(
-                "prefilled_collect_columns", 1L,
-                "varada_match_columns", 0L,
-                "varada_collect_columns", 1L,
+                "warp_prefilled_collect_columns", 1L,
+                "warp_match_columns", 0L,
+                "warp_collect_columns", 1L,
                 "external_collect_columns", 0L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats);
@@ -2711,9 +2711,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         //only query on notWarmedPartition, and warmedPartition
         query = "select warmedPartition, notWarmedPartition from %s.%s where notWarmedPartition in ('partition1', 'partition2')".formatted(schema, table);
         expectedQueryStats = Map.of(
-                "prefilled_collect_columns", 2L,
-                "varada_match_columns", 0L,
-                "varada_collect_columns", 0L,
+                "warp_prefilled_collect_columns", 2L,
+                "warp_match_columns", 0L,
+                "warp_collect_columns", 0L,
                 "external_collect_columns", 0L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats);
@@ -2721,9 +2721,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         //only query on notWarmedPartition, and warmedPartition
         query = "select warmedPartition, notWarmedPartition from %s.%s where warmedPartition in ('partition1', 'partition2')".formatted(schema, table);
         expectedQueryStats = Map.of(
-                "prefilled_collect_columns", 2L,
-                "varada_match_columns", 0L,
-                "varada_collect_columns", 0L,
+                "warp_prefilled_collect_columns", 2L,
+                "warp_match_columns", 0L,
+                "warp_collect_columns", 0L,
                 "external_collect_columns", 0L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats);
@@ -2731,9 +2731,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         //query on notWarmedPartition
         query = "select notWarmedPartition from %s.%s where notWarmedPartition in ('partition1', 'partition2')".formatted(schema, table);
         expectedQueryStats = Map.of(
-                "prefilled_collect_columns", 0L,
-                "varada_match_columns", 0L,
-                "varada_collect_columns", 0L,
+                "warp_prefilled_collect_columns", 0L,
+                "warp_match_columns", 0L,
+                "warp_collect_columns", 0L,
                 "external_collect_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, session, expectedQueryStats);
@@ -2775,10 +2775,10 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         QueryRunner.MaterializedResultWithPlan materializedResult = getQueryRunner()
                 .executeWithPlan(session, "SELECT count(v1) FROM t WHERE int1 > 1");
         Map<String, Long> customMetrics = getCustomMetrics(materializedResult.queryId(), (DistributedQueryRunner) getQueryRunner());
-        assertThat(customMetrics.get("dispatcherPageSource:prefilled_collect_columns")).isEqualTo(1);
+        assertThat(customMetrics.get("dispatcherPageSource:warp_prefilled_collect_columns")).isEqualTo(1);
         assertThat(customMetrics.get("prefilled:int1")).isEqualTo(1);
-        assertThat(customMetrics.get("dispatcherPageSource:varada_match_columns")).isEqualTo(1);
-        assertThat(customMetrics.get("dispatcherPageSource:varada_match_on_simplified_domain")).isEqualTo(0);
+        assertThat(customMetrics.get("dispatcherPageSource:warp_match_columns")).isEqualTo(1);
+        assertThat(customMetrics.get("dispatcherPageSource:warp_match_on_simplified_domain")).isEqualTo(0);
         assertThat(customMetrics.get("dispatcherPageSource:external_collect_columns")).isEqualTo(1);
         assertThat(customMetrics.get("external-collect:v1")).isEqualTo(1);
 
@@ -2786,11 +2786,11 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         materializedResult = getQueryRunner()
                 .executeWithPlan(session, "SELECT count(v1) FROM t WHERE int1 in (0, 2)");
         customMetrics = getCustomMetrics(materializedResult.queryId(), (DistributedQueryRunner) getQueryRunner());
-        assertThat(customMetrics.get("dispatcherPageSource:prefilled_collect_columns")).isEqualTo(0);
-        assertThat(customMetrics.get("dispatcherPageSource:varada_collect_columns")).isEqualTo(1);
-        assertThat(customMetrics.get("varada-collect:int1:WARM_UP_TYPE_BASIC")).isEqualTo(1);
-        assertThat(customMetrics.get("dispatcherPageSource:varada_match_columns")).isEqualTo(1);
-        assertThat(customMetrics.get("dispatcherPageSource:varada_match_on_simplified_domain")).isEqualTo(1);
+        assertThat(customMetrics.get("dispatcherPageSource:warp_prefilled_collect_columns")).isEqualTo(0);
+        assertThat(customMetrics.get("dispatcherPageSource:warp_collect_columns")).isEqualTo(1);
+        assertThat(customMetrics.get("warp-collect:int1:WARM_UP_TYPE_BASIC")).isEqualTo(1);
+        assertThat(customMetrics.get("dispatcherPageSource:warp_match_columns")).isEqualTo(1);
+        assertThat(customMetrics.get("dispatcherPageSource:warp_match_on_simplified_domain")).isEqualTo(1);
         assertThat(customMetrics.get("dispatcherPageSource:external_collect_columns")).isEqualTo(1);
         assertThat(customMetrics.get("external-collect:v1")).isEqualTo(1);
     }
@@ -2911,7 +2911,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "true")
                 .build();
         Map<String, Long> expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 1L,
+                "warp_match_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats("select v1 from t where v1 = 'shlomishlomishlomi' AND v1 like '%mishlomi%'", session, expectedJmxQueryStats);
         session = Session.builder(getSession())
@@ -2919,7 +2919,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 .setSystemProperty(catalog + "." + UNSUPPORTED_FUNCTIONS, String.format("%s, %s", LIKE_FUNCTION_NAME.getName(), EQUAL_OPERATOR_FUNCTION_NAME.getName()))
                 .build();
         expectedJmxQueryStats = Map.of(
-                "varada_match_columns", 0L,
+                "warp_match_columns", 0L,
                 "external_match_columns", 0L);
         validateQueryStats("select v1 from t where v1 like '%mishlomi%'", session, expectedJmxQueryStats);
     }
@@ -3133,8 +3133,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "where luceneAndBasic > 'a' and luceneAndBasic like '%mishlomi%'");
 
         Map<String, Long> expectedQueryStats = Map.of(
-                "varada_match_columns", 1L,
-                "varada_collect_columns", 0L,
+                "warp_match_columns", 1L,
+                "warp_collect_columns", 0L,
                 "external_collect_columns", 1L,
                 "external_match_columns", 0L);
         for (String predicate : predicates) {
@@ -3900,8 +3900,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 0);
         @Language("SQL") String query = "SELECT c_partition FROM table_with_nulls WHERE c_partition LIKE 'a_%'";
         Map<String, Long> expectedQueryStats = Map.of(
-                "prefilled_collect_columns", 1L,
-                "varada_match_columns", 0L,
+                "warp_prefilled_collect_columns", 1L,
+                "warp_match_columns", 0L,
                 "external_match_columns", 0L);
         validateQueryStats(query, getSession(), expectedQueryStats);
     }
@@ -4192,16 +4192,16 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "select char_5 from %s where char_5='three' or char_5='bla'".formatted(table));
 
         Map<String, Long> expectedStatsMapSupported = Map.of(
-                "varada_match_collect_columns", 1L,
-                "varada_mapped_match_collect_columns", 1L);
+                "warp_match_collect_columns", 1L,
+                "warp_mapped_match_collect_columns", 1L);
 
         List<String> multiMapSupportedQueries = List.of(
                 "select * from mapped_match_collect_test where double_1 in (1, 4) and (varchar_1='1' or varchar_1='kjhfj') and " +
                         "(short_decimal=1 or short_decimal is NULL) and (long_dec=1.1 or long_dec=3.3)");
 
         Map<String, Long> expectedStatsMultiMapSupported = Map.of(
-                "varada_match_collect_columns", 4L,
-                "varada_mapped_match_collect_columns", 4L);
+                "warp_match_collect_columns", 4L,
+                "warp_mapped_match_collect_columns", 4L);
 
         // ================== Mapped match collect unsupported ================== //
 
@@ -4212,8 +4212,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "select boolean_1 from %s where boolean_1=true or boolean_1 is NULL".formatted(table));
 
         Map<String, Long> expectedStatsMapUnsupported = Map.of(
-                "varada_match_collect_columns", 1L,
-                "varada_mapped_match_collect_columns", 0L);
+                "warp_match_collect_columns", 1L,
+                "warp_mapped_match_collect_columns", 0L);
 
         // ================== Match collect unsupported ================== //
 
@@ -4224,8 +4224,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "select double_1 from %s where (double_1=1 or double_1=3) or short_decimal is NULL".formatted(table));
 
         Map<String, Long> expectedStatsMatchCollectUnsupported = Map.of(
-                "varada_match_collect_columns", 0L,
-                "varada_mapped_match_collect_columns", 0L);
+                "warp_match_collect_columns", 0L,
+                "warp_mapped_match_collect_columns", 0L);
 
         for (@Language("SQL") String query : mapSupportedQueries) {
             validateQueryStats(query, session, expectedStatsMapSupported);

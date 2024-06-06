@@ -120,7 +120,7 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
         warmAndValidate(query, warmSession, 3, 1, 0);
         Map<String, Long> expectedQueryStats = Map.of(
                 WARP_MATCH_COLUMNS_STAT, 0L,
-                "prefilled_collect_columns", 1L,
+                "warp_prefilled_collect_columns", 1L,
                 WARP_COLLECT_COLUMNS_STAT, 2L);
         validateQueryStats(query, getSession(), expectedQueryStats);
     }
@@ -328,8 +328,8 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
                 " WHERE longTimestampWithTimeZoneTypeColumn >= TIMESTAMP '2023-06-18 10:30:00.000000 America/New_York'");
         //predicate in domain
         Map<String, Long> expectedQueryStats = Map.of(
-                "varada_collect_columns", 0L,
-                "varada_match_columns", 0L,
+                "warp_collect_columns", 0L,
+                "warp_match_columns", 0L,
                 "external_collect_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, getSession(), expectedQueryStats);
@@ -337,8 +337,8 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
         query = "SELECT longTimestampWithTimeZoneTypeColumn FROM %s.%s".formatted(schema, table) +
                 " WHERE day(longTimestampWithTimeZoneTypeColumn) > 3";
         expectedQueryStats = Map.of(
-                "varada_collect_columns", 0L,
-                "varada_match_columns", 0L,
+                "warp_collect_columns", 0L,
+                "warp_match_columns", 0L,
                 "external_collect_columns", 1L,
                 "external_match_columns", 0L);
         validateQueryStats(query, getSession(), expectedQueryStats);
