@@ -264,8 +264,6 @@ public class DispatcherPageSourceFactoryTest
         DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
 
         assertThat(stats.getcached_proxied_files()).isEqualTo(1);
-        assertThat(stats.getlocked_row_group()).isZero();
-        assertThat(stats.getlocked_row_group()).isZero();
         assertThat(stats.getcached_files()).isZero();
     }
 
@@ -319,8 +317,6 @@ public class DispatcherPageSourceFactoryTest
         assertThat(pageSource).isInstanceOf(EmptyPageSource.class);
         DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
         assertThat(stats.getcached_proxied_files()).isZero();
-        assertThat(stats.getlocked_row_group()).isZero();
-        assertThat(stats.getlocked_row_group()).isZero();
         assertThat(stats.getcached_files()).isZero();
     }
 
@@ -378,8 +374,6 @@ public class DispatcherPageSourceFactoryTest
                         eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
                         anyList(),
                         any(DynamicFilter.class));
-        DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
-        assertThat(stats.getlocked_row_group()).isEqualTo(1);
     }
 
     @Test

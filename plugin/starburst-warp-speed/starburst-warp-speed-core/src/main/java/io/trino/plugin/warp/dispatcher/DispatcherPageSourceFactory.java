@@ -556,7 +556,6 @@ public class DispatcherPageSourceFactory
         // important to keep this lock here after basic decisions are made
         // if we can't get a read lock, fallback to proxy
         if (!rowGroupData.getLock().readLock()) {
-            dispatcherPageSourceStats.inclocked_row_group();
             return PageSourceDecision.PROXY;
         }
 

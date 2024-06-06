@@ -70,7 +70,6 @@ public class PrefilledPageSource
         }
 
         Block singleBlock = prefilledQueryCollectData.getSingleValue().getValueBlock();
-        stats.addprefilled_collect_bytes(positionCount * singleBlock.getSizeInBytes());
         return RunLengthEncodedBlock.create(singleBlock, positionCount);
     }
 

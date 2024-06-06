@@ -178,7 +178,6 @@ public class DispatcherPageSourceTest
         if (assertNextPageMetrics) {
             assertThat(stats.getproxied_loaded_pages()).isEqualTo(1);
             assertThat(stats.getproxied_pages()).isEqualTo(1);
-            assertThat(stats.getproxied_loaded_pages_bytes()).isEqualTo(firstProxiedPage.getLogicalSizeInBytes());
         }
     }
 
@@ -205,7 +204,6 @@ public class DispatcherPageSourceTest
         if (assertNextPageMetrics) {
             assertThat(stats.getproxied_loaded_pages()).isEqualTo(1);
             assertThat(stats.getproxied_pages()).isEqualTo(2);
-            assertThat(stats.getproxied_loaded_pages_bytes()).isEqualTo(secondProxiedPage.getSizeInBytes());
         }
     }
 
@@ -257,7 +255,6 @@ public class DispatcherPageSourceTest
         if (assertNextPageMetrics) {
             assertThat(stats.getproxied_loaded_pages()).isEqualTo(1);
             assertThat(stats.getproxied_pages()).isEqualTo(2);
-            assertThat(stats.getproxied_loaded_pages_bytes()).isEqualTo(secondProxiedPage.getLogicalSizeInBytes());
         }
     }
 
@@ -283,7 +280,6 @@ public class DispatcherPageSourceTest
         if (assertNextPageMetrics) {
             assertThat(stats.getproxied_loaded_pages()).isEqualTo(2);
             assertThat(stats.getproxied_pages()).isEqualTo(2);
-            assertThat(stats.getproxied_loaded_pages_bytes()).isEqualTo(firstProxiedPage.getLogicalSizeInBytes() + secondProxiedPage.getLogicalSizeInBytes());
         }
     }
 
