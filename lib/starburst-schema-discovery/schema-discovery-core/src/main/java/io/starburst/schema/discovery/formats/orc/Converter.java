@@ -59,14 +59,14 @@ class Converter
 
     static TypeInfo fromOrcType(OrcColumn orcColumn, List<OrcType> typesLookup)
     {
-        return switch (orcColumn.getColumnType()) {
+        return switch (orcColumn.getColumnType().getOrcTypeKind()) {
             case LIST -> fromOrcListType(orcColumn.getNestedColumns(), typesLookup);
             case MAP -> fromOrcMapType(orcColumn.getNestedColumns(), typesLookup);
             case STRUCT -> fromOrcStructType(orcColumn.getNestedColumns(), typesLookup);
             case UNION -> throw new TrinoException(SchemaDiscoveryErrorCode.UNION_NOT_SUPPORTED, "UNION not supported");
             case CHAR -> fromOrcCharType(orcColumn, typesLookup);
             case DECIMAL -> fromOrcDecimalType(orcColumn, typesLookup);
-            default -> staticConversions.getOrDefault(orcColumn.getColumnType(), STRING_TYPE);
+            default -> staticConversions.getOrDefault(orcColumn.getColumnType().getOrcTypeKind(), STRING_TYPE);
         };
     }
 
