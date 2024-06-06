@@ -64,7 +64,7 @@ public class TestFeaturesConfig
                 .setIncrementalHashArrayLoadFactorEnabled(true)
                 .setHideInaccessibleColumns(false)
                 .setForceSpillingJoin(false)
-                .setColumnarFilterEvaluationEnabled(false)
+                .setColumnarFilterEvaluationEnabled(true)
                 .setFaultTolerantExecutionExchangeEncryptionEnabled(true));
     }
 
@@ -98,7 +98,7 @@ public class TestFeaturesConfig
                 .put("incremental-hash-array-load-factor.enabled", "false")
                 .put("hide-inaccessible-columns", "true")
                 .put("force-spilling-join-operator", "true")
-                .put("columnar-filter-evaluation.enabled", "true")
+                .put("experimental.columnar-filter-evaluation.enabled", "false")
                 .put("fault-tolerant-execution.exchange-encryption-enabled", "false")
                 .buildOrThrow();
 
@@ -129,7 +129,7 @@ public class TestFeaturesConfig
                 .setIncrementalHashArrayLoadFactorEnabled(false)
                 .setHideInaccessibleColumns(true)
                 .setForceSpillingJoin(true)
-                .setColumnarFilterEvaluationEnabled(true)
+                .setColumnarFilterEvaluationEnabled(false)
                 .setFaultTolerantExecutionExchangeEncryptionEnabled(false);
         assertFullMapping(properties, expected);
     }

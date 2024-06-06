@@ -15,47 +15,46 @@ package io.trino.sql.gen.columnar;
 
 import io.trino.operator.project.SelectedPositions;
 import io.trino.spi.Page;
-
-import java.util.function.Consumer;
+import io.trino.spi.connector.ConnectorSession;
 
 import static io.trino.operator.project.SelectedPositions.positionsList;
 import static io.trino.operator.project.SelectedPositions.positionsRange;
+import static java.util.Objects.requireNonNull;
 
-public class ColumnFilterProcessor
+public final class ColumnarFilterEvaluator
+        implements FilterEvaluator
 {
     private final ColumnarFilter filter;
     private int[] outputPositions = new int[0];
 
-    public ColumnFilterProcessor(ColumnarFilter filter)
+    public ColumnarFilterEvaluator(ColumnarFilter filter)
     {
-        this.filter = filter;
+        this.filter = requireNonNull(filter, "filter is null");
     }
 
-    public SelectedPositions processFilter(SelectedPositions activePositions, Page page, Consumer<Long> recordFilterTimeSince)
+    @Override
+    public SelectionResult evaluate(ConnectorSession session, SelectedPositions activePositions, Page page)
     {
         if (activePositions.isEmpty()) {
-            return activePositions;
+            return new SelectionResult(activePositions, 0);
         }
         // Should load only the blocks necessary for evaluating the kernel and unwrap lazy blocks
         Page loadedPage = filter.getInputChannels().getInputChannels(page);
-
-        long start = System.nanoTime();
         if (outputPositions.length < activePositions.size()) {
             outputPositions = new int[activePositions.size()];
         }
         int outputPositionsCount;
+        long start = System.nanoTime();
         if (activePositions.isList()) {
-            outputPositionsCount = filter.filterPositionsList(outputPositions, activePositions.getPositions(), activePositions.getOffset(), activePositions.size(), loadedPage);
+            outputPositionsCount = filter.filterPositionsList(session, outputPositions, activePositions.getPositions(), activePositions.getOffset(), activePositions.size(), loadedPage);
         }
         else {
-            outputPositionsCount = filter.filterPositionsRange(outputPositions, activePositions.getOffset(), activePositions.size(), loadedPage);
+            outputPositionsCount = filter.filterPositionsRange(session, outputPositions, activePositions.getOffset(), activePositions.size(), loadedPage);
             // full range was selected
             if (outputPositionsCount == activePositions.size()) {
-                recordFilterTimeSince.accept(start);
-                return positionsRange(activePositions.getOffset(), outputPositionsCount);
+                return new SelectionResult(positionsRange(activePositions.getOffset(), outputPositionsCount), System.nanoTime() - start);
             }
         }
-        recordFilterTimeSince.accept(start);
-        return positionsList(outputPositions, 0, outputPositionsCount);
+        return new SelectionResult(positionsList(outputPositions, 0, outputPositionsCount), System.nanoTime() - start);
     }
 }

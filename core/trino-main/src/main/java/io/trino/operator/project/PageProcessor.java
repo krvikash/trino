@@ -27,7 +27,7 @@ import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.DictionaryId;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.sql.gen.ExpressionProfiler;
-import io.trino.sql.gen.columnar.ExpressionEvaluator;
+import io.trino.sql.gen.columnar.FilterEvaluator;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -57,37 +57,20 @@ public class PageProcessor
 
     private final ExpressionProfiler expressionProfiler;
     private final DictionarySourceIdFunction dictionarySourceIdFunction = new DictionarySourceIdFunction();
-    private final Optional<PageFilter> filter;
-    private final Optional<ExpressionEvaluator> columnarFilterEvaluator;
+    private final Optional<FilterEvaluator> filterEvaluator;
     private final List<PageProjection> projections;
 
     private int projectBatchSize;
 
-    public PageProcessor(Optional<PageFilter> filter, List<? extends PageProjection> projections, OptionalInt initialBatchSize)
+    public PageProcessor(Optional<FilterEvaluator> filterEvaluator, List<? extends PageProjection> projections, OptionalInt initialBatchSize)
     {
-        this(filter, Optional.empty(), projections, initialBatchSize, new ExpressionProfiler());
-    }
-
-    public PageProcessor(Optional<PageFilter> filter, Optional<ExpressionEvaluator> columnarFilterEvaluator, List<? extends PageProjection> projections, OptionalInt initialBatchSize)
-    {
-        this(filter, columnarFilterEvaluator, projections, initialBatchSize, new ExpressionProfiler());
-    }
-
-    public PageProcessor(Optional<PageFilter> filter, List<? extends PageProjection> projections, OptionalInt initialBatchSize, ExpressionProfiler expressionProfiler)
-    {
-        this(filter, Optional.empty(), projections, initialBatchSize, expressionProfiler);
+        this(filterEvaluator, projections, initialBatchSize, new ExpressionProfiler());
     }
 
     @VisibleForTesting
-    public PageProcessor(Optional<PageFilter> filter, Optional<ExpressionEvaluator> columnarFilterEvaluator, List<? extends PageProjection> projections, OptionalInt initialBatchSize, ExpressionProfiler expressionProfiler)
+    public PageProcessor(Optional<FilterEvaluator> filterEvaluator, List<? extends PageProjection> projections, OptionalInt initialBatchSize, ExpressionProfiler expressionProfiler)
     {
-        this.filter = filter.map(pageFilter -> {
-            if (pageFilter.getInputChannels().size() == 1 && pageFilter.isDeterministic()) {
-                return new DictionaryAwarePageFilter(pageFilter);
-            }
-            return pageFilter;
-        });
-        this.columnarFilterEvaluator = requireNonNull(columnarFilterEvaluator, "columnarFilterEvaluator is null");
+        this.filterEvaluator = requireNonNull(filterEvaluator, "columnarFilterEvaluator is null");
         this.projections = projections.stream()
                 .map(projection -> {
                     if (projection.getInputChannels().size() == 1 && projection.isDeterministic()) {
@@ -100,14 +83,10 @@ public class PageProcessor
         this.expressionProfiler = requireNonNull(expressionProfiler, "expressionProfiler is null");
     }
 
-    public PageProcessor(Optional<PageFilter> filter, List<? extends PageProjection> projections)
+    @VisibleForTesting
+    public PageProcessor(Optional<FilterEvaluator> filterEvaluator, List<? extends PageProjection> projections)
     {
-        this(filter, projections, OptionalInt.of(1));
-    }
-
-    public PageProcessor(Optional<PageFilter> filter, Optional<ExpressionEvaluator> columnarFilterEvaluator, List<? extends PageProjection> projections)
-    {
-        this(filter, columnarFilterEvaluator, projections, OptionalInt.of(1));
+        this(filterEvaluator, projections, OptionalInt.of(1));
     }
 
     @VisibleForTesting
@@ -131,28 +110,12 @@ public class PageProcessor
             return WorkProcessor.of();
         }
 
-        if (filter.isPresent()) {
-            Page inputPage = filter.get().getInputChannels().getInputChannels(page);
-            long start = System.nanoTime();
-            SelectedPositions selectedPositions = filter.get().filter(session, inputPage);
-            metrics.recordFilterTimeSince(start);
-            if (selectedPositions.isEmpty()) {
-                return WorkProcessor.of();
-            }
-
-            if (projections.isEmpty()) {
-                // retained memory for empty page is negligible
-                return WorkProcessor.of(new Page(selectedPositions.size()));
-            }
-
-            if (selectedPositions.size() != page.getPositionCount()) {
-                return WorkProcessor.create(new ProjectSelectedPositions(session, yieldSignal, memoryContext, metrics, page, selectedPositions));
-            }
-        }
-        else if (columnarFilterEvaluator.isPresent()) {
-            metrics.recordUsedColumnarFilterEvaluation();
+        if (filterEvaluator.isPresent()) {
             SelectedPositions activePositions = SelectedPositions.positionsRange(0, page.getPositionCount());
-            SelectedPositions selectedPositions = columnarFilterEvaluator.get().evaluate(activePositions, page, metrics::recordFilterTimeSince);
+            FilterEvaluator.SelectionResult result = filterEvaluator.get().evaluate(session, activePositions, page);
+            SelectedPositions selectedPositions = result.selectedPositions();
+            metrics.recordFilterTime(result.filterTimeNanos());
+
             if (selectedPositions.isEmpty()) {
                 return WorkProcessor.of();
             }

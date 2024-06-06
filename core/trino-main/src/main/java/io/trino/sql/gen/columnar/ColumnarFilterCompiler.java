@@ -19,7 +19,6 @@ import com.google.common.cache.CacheLoader;
 import com.google.inject.Inject;
 import io.airlift.bytecode.BytecodeBlock;
 import io.airlift.bytecode.ClassDefinition;
-import io.airlift.bytecode.MethodDefinition;
 import io.airlift.bytecode.Parameter;
 import io.airlift.bytecode.Scope;
 import io.airlift.bytecode.Variable;
@@ -44,30 +43,34 @@ import org.objectweb.asm.MethodTooLargeException;
 import org.weakref.jmx.Managed;
 import org.weakref.jmx.Nested;
 
-import java.util.HashMap;
+import java.lang.reflect.Constructor;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Set;
 import java.util.function.Supplier;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static io.airlift.bytecode.Access.PUBLIC;
 import static io.airlift.bytecode.Access.a;
 import static io.airlift.bytecode.ParameterizedType.type;
+import static io.airlift.bytecode.expression.BytecodeExpressions.add;
 import static io.airlift.bytecode.expression.BytecodeExpressions.constantFalse;
 import static io.airlift.bytecode.expression.BytecodeExpressions.constantInt;
 import static io.airlift.bytecode.expression.BytecodeExpressions.constantTrue;
+import static io.airlift.bytecode.expression.BytecodeExpressions.inlineIf;
 import static io.trino.cache.SafeCaches.buildNonEvictableCache;
 import static io.trino.operator.project.PageFieldsToInputParametersRewriter.rewritePageFieldsToInputParameters;
 import static io.trino.spi.StandardErrorCode.COMPILER_ERROR;
 import static io.trino.sql.gen.BytecodeUtils.invoke;
-import static io.trino.sql.gen.columnar.ExpressionEvaluator.isNotExpression;
-import static io.trino.sql.gen.columnar.IsolatedFilterFactory.createIsolatedIsNotNullColumnarFilter;
-import static io.trino.sql.gen.columnar.IsolatedFilterFactory.createIsolatedIsNullColumnarFilter;
+import static io.trino.sql.gen.columnar.FilterEvaluator.isNotExpression;
+import static io.trino.sql.gen.columnar.IsNotNullColumnarFilter.createIsNotNullColumnarFilter;
+import static io.trino.sql.gen.columnar.IsNullColumnarFilter.createIsNullColumnarFilter;
 import static io.trino.sql.relational.SpecialForm.Form.BETWEEN;
 import static io.trino.sql.relational.SpecialForm.Form.IN;
 import static io.trino.sql.relational.SpecialForm.Form.IS_NULL;
 import static io.trino.util.CompilerUtils.defineClass;
+import static java.util.Collections.nCopies;
 import static java.util.Objects.requireNonNull;
 
 public class ColumnarFilterCompiler
@@ -125,8 +128,8 @@ public class ColumnarFilterCompiler
                 if (isNotExpression(callExpression)) {
                     // "not(is_null(input_reference))" is handled explicitly as it is easy.
                     // more generic cases like "not(equal(input_reference, constant))" are not handled yet
-                    if (callExpression.arguments().get(0) instanceof SpecialForm specialForm && specialForm.form() == IS_NULL) {
-                        return Optional.of(createIsolatedIsNotNullColumnarFilter(specialForm));
+                    if (callExpression.arguments().getFirst() instanceof SpecialForm specialForm && specialForm.form() == IS_NULL) {
+                        return Optional.of(createIsNotNullColumnarFilter(specialForm));
                     }
                     return Optional.empty();
                 }
@@ -134,7 +137,7 @@ public class ColumnarFilterCompiler
             }
             else if (filter instanceof SpecialForm specialForm) {
                 if (specialForm.form() == IS_NULL) {
-                    return Optional.of(createIsolatedIsNullColumnarFilter(specialForm));
+                    return Optional.of(createIsNullColumnarFilter(specialForm));
                 }
                 if (specialForm.form() == IN) {
                     return Optional.of(new InColumnarFilterGenerator(specialForm, functionManager).generateColumnarFilter());
@@ -156,21 +159,7 @@ public class ColumnarFilterCompiler
         }
     }
 
-    public static void generateConstructor(ClassDefinition classDefinition)
-    {
-        MethodDefinition constructorDefinition = classDefinition.declareConstructor(a(PUBLIC));
-
-        BytecodeBlock body = constructorDefinition.getBody();
-        Variable thisVariable = constructorDefinition.getThis();
-
-        body.comment("super();")
-                .append(thisVariable)
-                .invokeConstructor(Object.class);
-
-        body.ret();
-    }
-
-    public static void generateGetInputChannels(CallSiteBinder callSiteBinder, ClassDefinition classDefinition, RowExpression rowExpression)
+    static void generateGetInputChannels(CallSiteBinder callSiteBinder, ClassDefinition classDefinition, RowExpression rowExpression)
     {
         PageFieldsToInputParametersRewriter.Result result = rewritePageFieldsToInputParameters(rowExpression);
 
@@ -181,11 +170,12 @@ public class ColumnarFilterCompiler
                 .retObject();
     }
 
-    public static Supplier<ColumnarFilter> createClassInstance(CallSiteBinder binder, ClassDefinition classDefinition)
+    static Supplier<ColumnarFilter> createClassInstance(CallSiteBinder binder, ClassDefinition classDefinition)
     {
-        Class<? extends ColumnarFilter> functionClass;
+        Constructor<? extends ColumnarFilter> filterConstructor;
         try {
-            functionClass = defineClass(classDefinition, ColumnarFilter.class, binder.getBindings(), ColumnarFilterCompiler.class.getClassLoader());
+            Class<? extends ColumnarFilter> functionClass = defineClass(classDefinition, ColumnarFilter.class, binder.getBindings(), ColumnarFilterCompiler.class.getClassLoader());
+            filterConstructor = functionClass.getConstructor();
         }
         catch (Exception e) {
             if (Throwables.getRootCause(e) instanceof MethodTooLargeException) {
@@ -197,7 +187,7 @@ public class ColumnarFilterCompiler
 
         return () -> {
             try {
-                return functionClass.getConstructor().newInstance();
+                return filterConstructor.newInstance();
             }
             catch (ReflectiveOperationException e) {
                 throw new TrinoException(COMPILER_ERROR, e);
@@ -205,50 +195,84 @@ public class ColumnarFilterCompiler
         };
     }
 
-    public static void declareBlockVariables(List<RowExpression> rowExpressions, Parameter page, Scope scope, BytecodeBlock body)
+    static void declareBlockVariables(List<RowExpression> rowExpressions, Parameter page, Scope scope, BytecodeBlock body)
     {
-        int blocksCount = 0;
-        AtomicInteger channel = new AtomicInteger();
-        Map<Integer, Integer> fieldToChannel = new HashMap<>(); // There may be multiple InputReferenceExpression on the same input block
+        int channel = 0;
+        Set<Integer> inputFields = new HashSet<>(); // There may be multiple InputReferenceExpression on the same input block
         for (RowExpression rowExpression : rowExpressions) {
-            if (rowExpression instanceof InputReferenceExpression inputReference) {
-                scope.declareVariable(
-                        "block_" + blocksCount,
-                        body,
-                        page.invoke(
-                                "getBlock",
-                                Block.class,
-                                constantInt(fieldToChannel.computeIfAbsent(inputReference.field(), key -> channel.getAndIncrement()))));
-                blocksCount++;
+            if (!(rowExpression instanceof InputReferenceExpression inputReference)) {
+                continue;
             }
+            if (inputFields.contains(inputReference.field())) {
+                continue;
+            }
+            scope.declareVariable(
+                    "block_" + inputReference.field(),
+                    body,
+                    page.invoke(
+                            "getBlock",
+                            Block.class,
+                            constantInt(channel)));
+            inputFields.add(inputReference.field());
+            channel++;
         }
     }
 
-    public static BytecodeExpression generateBlockMayHaveNull(List<RowExpression> rowExpressions, Scope scope)
+    static BytecodeExpression generateBlockMayHaveNull(List<RowExpression> rowExpressions, Scope scope)
     {
+        return generateBlockMayHaveNull(rowExpressions, nCopies(rowExpressions.size(), false), scope);
+    }
+
+    static BytecodeExpression generateBlockMayHaveNull(List<RowExpression> rowExpressions, List<Boolean> isNullableArgument, Scope scope)
+    {
+        checkArgument(
+                rowExpressions.size() == isNullableArgument.size(),
+                "rowExpressions size %s does not match isNullableArgument size %s",
+                rowExpressions.size(),
+                isNullableArgument.size());
         BytecodeExpression mayHaveNull = constantFalse();
-        int blocksCount = 0;
-        for (RowExpression rowExpression : rowExpressions) {
-            if (rowExpression instanceof InputReferenceExpression) {
-                mayHaveNull = BytecodeExpressions.or(mayHaveNull, scope.getVariable("block_" + blocksCount).invoke("mayHaveNull", boolean.class));
-                blocksCount++;
+        for (int i = 0; i < rowExpressions.size(); i++) {
+            RowExpression rowExpression = rowExpressions.get(i);
+            // Function with nullable argument should get adapted to a MethodHandle which returns false on NULL, so explicit isNull check isn't needed
+            if (rowExpression instanceof InputReferenceExpression inputReference && !isNullableArgument.get(i)) {
+                mayHaveNull = BytecodeExpressions.or(
+                        mayHaveNull,
+                        scope.getVariable("block_" + inputReference.field()).invoke("mayHaveNull", boolean.class));
             }
         }
         return mayHaveNull;
     }
 
-    public static BytecodeExpression generateBlockPositionNotNull(List<RowExpression> rowExpressions, Scope scope, Variable position)
+    static BytecodeExpression generateBlockPositionNotNull(List<RowExpression> rowExpressions, Scope scope, Variable position)
     {
+        return generateBlockPositionNotNull(rowExpressions, nCopies(rowExpressions.size(), false), scope, position);
+    }
+
+    static BytecodeExpression generateBlockPositionNotNull(List<RowExpression> rowExpressions, List<Boolean> isNullableArgument, Scope scope, Variable position)
+    {
+        checkArgument(
+                rowExpressions.size() == isNullableArgument.size(),
+                "rowExpressions size %s does not match isNullableArgument size %s",
+                rowExpressions.size(),
+                isNullableArgument.size());
         BytecodeExpression isNotNull = constantTrue();
-        int blocksCount = 0;
-        for (RowExpression rowExpression : rowExpressions) {
-            if (rowExpression instanceof InputReferenceExpression) {
+        for (int i = 0; i < rowExpressions.size(); i++) {
+            RowExpression rowExpression = rowExpressions.get(i);
+            // Function with nullable argument should get adapted to a MethodHandle which returns false on NULL, so explicit isNull check isn't needed
+            if (rowExpression instanceof InputReferenceExpression inputReference && !isNullableArgument.get(i)) {
                 isNotNull = BytecodeExpressions.and(
                         isNotNull,
-                        BytecodeExpressions.not(scope.getVariable("block_" + blocksCount).invoke("isNull", boolean.class, position)));
-                blocksCount++;
+                        BytecodeExpressions.not(scope.getVariable("block_" + inputReference.field()).invoke("isNull", boolean.class, position)));
             }
         }
         return isNotNull;
+    }
+
+    static BytecodeBlock updateOutputPositions(Variable result, Variable position, Parameter outputPositions, Variable outputPositionsCount)
+    {
+        return new BytecodeBlock()
+                .append(outputPositions.setElement(outputPositionsCount, position))
+                .append(outputPositionsCount.set(
+                        add(outputPositionsCount, inlineIf(result, constantInt(1), constantInt(0)))));
     }
 }

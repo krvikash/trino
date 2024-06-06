@@ -9063,34 +9063,6 @@ public abstract class BaseHiveConnectorTest
     }
 
     @Test
-    public void testExplainAnalyzeColumnarFilter()
-    {
-        assertExplainAnalyze(
-                withColumnarFilterEvaluation(getSession(), false),
-                "EXPLAIN ANALYZE VERBOSE SELECT nationkey * 2 FROM nation WHERE nationkey > 0",
-                "'Filter CPU time' = \\{duration=.*}",
-                "'Columnar filter evaluation' = false");
-
-        assertExplainAnalyze(
-                withColumnarFilterEvaluation(getSession(), true),
-                "EXPLAIN ANALYZE VERBOSE SELECT nationkey * 2 FROM nation WHERE nationkey > 0",
-                "'Filter CPU time' = \\{duration=.*}",
-                "'Columnar filter evaluation' = true");
-
-        assertExplainAnalyze(
-                withColumnarFilterEvaluation(getSession(), false),
-                "EXPLAIN ANALYZE VERBOSE SELECT * FROM (SELECT nationkey, count(*) cnt FROM nation GROUP BY 1) where cnt > 0",
-                "'Filter CPU time' = \\{duration=.*}",
-                "'Columnar filter evaluation' = false");
-
-        assertExplainAnalyze(
-                withColumnarFilterEvaluation(getSession(), true),
-                "EXPLAIN ANALYZE VERBOSE SELECT * FROM (SELECT nationkey, count(*) cnt FROM nation GROUP BY 1) where cnt > 0",
-                "'Filter CPU time' = \\{duration=.*}",
-                "'Columnar filter evaluation' = true");
-    }
-
-    @Test
     public void testCreateAcidTableUnsupported()
     {
         assertQueryFails("CREATE TABLE acid_unsupported (x int) WITH (transactional = true)", "FileHiveMetastore does not support ACID tables");

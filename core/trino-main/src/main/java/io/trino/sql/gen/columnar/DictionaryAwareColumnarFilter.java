@@ -18,6 +18,7 @@ import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.RunLengthEncodedBlock;
+import io.trino.spi.connector.ConnectorSession;
 
 import static com.google.common.base.Verify.verify;
 import static java.lang.System.arraycopy;
@@ -37,49 +38,47 @@ public final class DictionaryAwareColumnarFilter
     }
 
     @Override
-    public int filterPositionsRange(int[] outputPositions, int offset, int size, Page loadedPage)
+    public int filterPositionsRange(ConnectorSession session, int[] outputPositions, int offset, int size, Page loadedPage)
     {
         Block block = loadedPage.getBlock(0);
         if (block instanceof RunLengthEncodedBlock runLengthEncodedBlock) {
-            return processRle(outputPositions, offset, size, runLengthEncodedBlock);
+            return processRle(session, outputPositions, offset, size, runLengthEncodedBlock);
         }
         else if (block instanceof DictionaryBlock dictionaryBlock) {
             try {
-                return processDictionary(outputPositions, offset, size, dictionaryBlock);
+                return processDictionary(session, outputPositions, offset, size, dictionaryBlock);
             }
             catch (Exception ignored) {
                 // Processing of dictionary failed, but we ignore the exception here
                 // and force reprocessing of the whole block using the normal code.
                 // The second pass may not fail due to filtering.
-                // todo dictionary processing should be able to tolerate failures of unused elements
                 lastOutputDictionary = null;
             }
         }
 
-        return columnarFilter.filterPositionsRange(outputPositions, offset, size, loadedPage);
+        return columnarFilter.filterPositionsRange(session, outputPositions, offset, size, loadedPage);
     }
 
     @Override
-    public int filterPositionsList(int[] outputPositions, int[] activePositions, int offset, int size, Page loadedPage)
+    public int filterPositionsList(ConnectorSession session, int[] outputPositions, int[] activePositions, int offset, int size, Page loadedPage)
     {
         Block block = loadedPage.getBlock(0);
         if (block instanceof RunLengthEncodedBlock runLengthEncodedBlock) {
-            return processRle(outputPositions, activePositions, offset, size, runLengthEncodedBlock);
+            return processRle(session, outputPositions, activePositions, offset, size, runLengthEncodedBlock);
         }
         else if (block instanceof DictionaryBlock dictionaryBlock) {
             try {
-                return processDictionary(outputPositions, activePositions, offset, size, dictionaryBlock);
+                return processDictionary(session, outputPositions, activePositions, offset, size, dictionaryBlock);
             }
             catch (Exception ignored) {
                 // Processing of dictionary failed, but we ignore the exception here
                 // and force reprocessing of the whole block using the normal code.
                 // The second pass may not fail due to filtering.
-                // todo dictionary processing should be able to tolerate failures of unused elements
                 lastOutputDictionary = null;
             }
         }
 
-        return columnarFilter.filterPositionsList(outputPositions, activePositions, offset, size, loadedPage);
+        return columnarFilter.filterPositionsList(session, outputPositions, activePositions, offset, size, loadedPage);
     }
 
     @Override
@@ -88,10 +87,10 @@ public final class DictionaryAwareColumnarFilter
         return columnarFilter.getInputChannels();
     }
 
-    private int processRle(int[] outputPositions, int[] activePositions, int offset, int size, RunLengthEncodedBlock runLengthEncodedBlock)
+    private int processRle(ConnectorSession session, int[] outputPositions, int[] activePositions, int offset, int size, RunLengthEncodedBlock runLengthEncodedBlock)
     {
         Block value = runLengthEncodedBlock.getValue();
-        boolean[] selectedPositionsMask = selectedDictionaryMask(value);
+        boolean[] selectedPositionsMask = selectedDictionaryMask(session, value);
         if (!selectedPositionsMask[0]) {
             return 0;
         }
@@ -99,10 +98,10 @@ public final class DictionaryAwareColumnarFilter
         return size;
     }
 
-    private int processRle(int[] outputPositions, int offset, int size, RunLengthEncodedBlock runLengthEncodedBlock)
+    private int processRle(ConnectorSession session, int[] outputPositions, int offset, int size, RunLengthEncodedBlock runLengthEncodedBlock)
     {
         Block value = runLengthEncodedBlock.getValue();
-        boolean[] selectedPositionsMask = selectedDictionaryMask(value);
+        boolean[] selectedPositionsMask = selectedDictionaryMask(session, value);
         if (!selectedPositionsMask[0]) {
             return 0;
         }
@@ -112,9 +111,9 @@ public final class DictionaryAwareColumnarFilter
         return size;
     }
 
-    private int processDictionary(int[] outputPositions, int offset, int size, DictionaryBlock dictionaryBlock)
+    private int processDictionary(ConnectorSession session, int[] outputPositions, int offset, int size, DictionaryBlock dictionaryBlock)
     {
-        boolean[] dictionaryMask = selectedDictionaryMask(dictionaryBlock.getDictionary());
+        boolean[] dictionaryMask = selectedDictionaryMask(session, dictionaryBlock.getDictionary());
         int selectedPositionsCount = 0;
         for (int position = offset; position < offset + size; position++) {
             outputPositions[selectedPositionsCount] = position;
@@ -123,9 +122,9 @@ public final class DictionaryAwareColumnarFilter
         return selectedPositionsCount;
     }
 
-    private int processDictionary(int[] outputPositions, int[] activePositions, int offset, int size, DictionaryBlock dictionaryBlock)
+    private int processDictionary(ConnectorSession session, int[] outputPositions, int[] activePositions, int offset, int size, DictionaryBlock dictionaryBlock)
     {
-        boolean[] dictionaryMask = selectedDictionaryMask(dictionaryBlock.getDictionary());
+        boolean[] dictionaryMask = selectedDictionaryMask(session, dictionaryBlock.getDictionary());
         int selectedPositionsCount = 0;
         for (int index = offset; index < offset + size; index++) {
             int position = activePositions[index];
@@ -135,7 +134,7 @@ public final class DictionaryAwareColumnarFilter
         return selectedPositionsCount;
     }
 
-    private boolean[] selectedDictionaryMask(Block dictionary)
+    private boolean[] selectedDictionaryMask(ConnectorSession session, Block dictionary)
     {
         if (lastInputDictionary == dictionary) {
             return lastOutputDictionary;
@@ -143,7 +142,7 @@ public final class DictionaryAwareColumnarFilter
 
         int positionCount = dictionary.getPositionCount();
         int[] selectedPositions = new int[positionCount];
-        int selectedPositionsCount = columnarFilter.filterPositionsRange(selectedPositions, 0, positionCount, new Page(positionCount, dictionary));
+        int selectedPositionsCount = columnarFilter.filterPositionsRange(session, selectedPositions, 0, positionCount, new Page(positionCount, dictionary));
 
         boolean[] positionsMask = new boolean[positionCount];
         for (int index = 0; index < selectedPositionsCount; index++) {

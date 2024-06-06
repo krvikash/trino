@@ -29,7 +29,8 @@ import io.trino.operator.project.PageProcessor;
 import io.trino.operator.project.PageProjection;
 import io.trino.spi.TrinoException;
 import io.trino.sql.gen.columnar.ColumnarFilterCompiler;
-import io.trino.sql.gen.columnar.ExpressionEvaluator;
+import io.trino.sql.gen.columnar.FilterEvaluator;
+import io.trino.sql.gen.columnar.PageFilterEvaluator;
 import io.trino.sql.relational.RowExpression;
 import org.weakref.jmx.Managed;
 import org.weakref.jmx.Nested;
@@ -50,7 +51,7 @@ import static io.airlift.bytecode.ParameterizedType.type;
 import static io.trino.cache.SafeCaches.buildNonEvictableCache;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.sql.gen.BytecodeUtils.invoke;
-import static io.trino.sql.gen.columnar.ExpressionEvaluator.createColumnarFilterEvaluator;
+import static io.trino.sql.gen.columnar.FilterEvaluator.createColumnarFilterEvaluator;
 import static io.trino.sql.relational.Expressions.constant;
 import static io.trino.util.CompilerUtils.defineClass;
 import static io.trino.util.CompilerUtils.makeClassName;
@@ -117,7 +118,7 @@ public class ExpressionCompiler
             OptionalInt initialBatchSize)
     {
         Optional<Supplier<PageFilter>> filterFunctionSupplier = Optional.empty();
-        Optional<Supplier<ExpressionEvaluator>> columnarFilterEvaluatorSupplier = createColumnarFilterEvaluator(columnarFilterEvaluationEnabled, filter, columnarFilterCompiler);
+        Optional<Supplier<FilterEvaluator>> columnarFilterEvaluatorSupplier = createColumnarFilterEvaluator(columnarFilterEvaluationEnabled, filter, columnarFilterCompiler);
         if (columnarFilterEvaluatorSupplier.isEmpty()) {
             filterFunctionSupplier = filter.map(expression -> pageFunctionCompiler.compileFilter(expression, classNameSuffix));
         }
@@ -128,12 +129,16 @@ public class ExpressionCompiler
 
         Optional<Supplier<PageFilter>> finalFilterFunctionSupplier = filterFunctionSupplier;
         return () -> {
-            Optional<ExpressionEvaluator> columnarFilterEvaluator = columnarFilterEvaluatorSupplier.map(Supplier::get);
-            Optional<PageFilter> filterFunction = finalFilterFunctionSupplier.map(Supplier::get);
+            Optional<FilterEvaluator> filterEvaluator = columnarFilterEvaluatorSupplier.map(Supplier::get);
+            if (filterEvaluator.isEmpty()) {
+                filterEvaluator = finalFilterFunctionSupplier
+                        .map(Supplier::get)
+                        .map(PageFilterEvaluator::new);
+            }
             List<PageProjection> pageProjections = pageProjectionSuppliers.stream()
                     .map(Supplier::get)
                     .collect(toImmutableList());
-            return new PageProcessor(filterFunction, columnarFilterEvaluator, pageProjections, initialBatchSize);
+            return new PageProcessor(filterEvaluator, pageProjections, initialBatchSize);
         };
     }
 

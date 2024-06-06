@@ -31,6 +31,7 @@ import io.airlift.slice.Slice;
 import io.trino.metadata.FunctionManager;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.spi.Page;
+import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.Binding;
 import io.trino.sql.gen.CallSiteBinder;
@@ -60,7 +61,6 @@ import static io.airlift.bytecode.expression.BytecodeExpressions.add;
 import static io.airlift.bytecode.expression.BytecodeExpressions.constantFalse;
 import static io.airlift.bytecode.expression.BytecodeExpressions.constantInt;
 import static io.airlift.bytecode.expression.BytecodeExpressions.constantTrue;
-import static io.airlift.bytecode.expression.BytecodeExpressions.inlineIf;
 import static io.airlift.bytecode.expression.BytecodeExpressions.invokeStatic;
 import static io.airlift.bytecode.expression.BytecodeExpressions.lessThan;
 import static io.airlift.bytecode.instruction.JumpInstruction.jump;
@@ -77,8 +77,8 @@ import static io.trino.sql.gen.columnar.ColumnarFilterCompiler.createClassInstan
 import static io.trino.sql.gen.columnar.ColumnarFilterCompiler.declareBlockVariables;
 import static io.trino.sql.gen.columnar.ColumnarFilterCompiler.generateBlockMayHaveNull;
 import static io.trino.sql.gen.columnar.ColumnarFilterCompiler.generateBlockPositionNotNull;
-import static io.trino.sql.gen.columnar.ColumnarFilterCompiler.generateConstructor;
 import static io.trino.sql.gen.columnar.ColumnarFilterCompiler.generateGetInputChannels;
+import static io.trino.sql.gen.columnar.ColumnarFilterCompiler.updateOutputPositions;
 import static io.trino.sql.relational.SpecialForm.Form.IN;
 import static io.trino.util.CompilerUtils.makeClassName;
 import static io.trino.util.FastutilSetHelper.toFastutilHashSet;
@@ -97,17 +97,19 @@ public class InColumnarFilterGenerator
     {
         checkArgument(specialForm.form() == IN, "specialForm should be IN");
         checkArgument(specialForm.arguments().size() >= 2, "At least two arguments are required");
-        if (!(specialForm.arguments().get(0) instanceof InputReferenceExpression)) {
-            throw new UnsupportedOperationException();
+        if (!(specialForm.arguments().getFirst() instanceof InputReferenceExpression)) {
+            throw new UnsupportedOperationException("IN clause columnar evaluation is supported only on input references");
         }
-        valueExpression = (InputReferenceExpression) specialForm.arguments().get(0);
+        valueExpression = (InputReferenceExpression) specialForm.arguments().getFirst();
         List<RowExpression> expressions = specialForm.arguments().subList(1, specialForm.arguments().size());
         expressions.forEach(expression -> {
             if (!(expression instanceof ConstantExpression)) {
-                throw new UnsupportedOperationException();
+                throw new UnsupportedOperationException("IN clause columnar evaluation is supported only on input reference against constants");
             }
         });
-        List<ConstantExpression> testExpressions = expressions.stream().map(ConstantExpression.class::cast).collect(toImmutableList());
+        List<ConstantExpression> testExpressions = expressions.stream()
+                .map(ConstantExpression.class::cast)
+                .collect(toImmutableList());
 
         checkArgument(specialForm.functionDependencies().size() == 3);
         ResolvedFunction resolvedEqualsFunction = specialForm.getOperatorDependency(EQUAL);
@@ -136,7 +138,7 @@ public class InColumnarFilterGenerator
                 type(ColumnarFilter.class));
         CallSiteBinder callSiteBinder = new CallSiteBinder();
 
-        generateConstructor(classDefinition);
+        classDefinition.declareDefaultConstructor(a(PUBLIC));
 
         generateGetInputChannels(callSiteBinder, classDefinition, valueExpression);
 
@@ -144,7 +146,6 @@ public class InColumnarFilterGenerator
         Binding constant = callSiteBinder.bind(constantValuesSet, constantValuesSet.getClass());
 
         generateFilterRangeMethod(callSiteBinder, classDefinition, constantValuesSet, constant);
-
         generateFilterListMethod(callSiteBinder, classDefinition, constantValuesSet, constant);
 
         return createClassInstance(callSiteBinder, classDefinition);
@@ -152,6 +153,7 @@ public class InColumnarFilterGenerator
 
     private void generateFilterRangeMethod(CallSiteBinder binder, ClassDefinition classDefinition, Set<?> constantValuesSet, Binding constant)
     {
+        Parameter session = arg("session", ConnectorSession.class);
         Parameter outputPositions = arg("outputPositions", int[].class);
         Parameter offset = arg("offset", int.class);
         Parameter size = arg("size", int.class);
@@ -161,7 +163,7 @@ public class InColumnarFilterGenerator
                 a(PUBLIC),
                 "filterPositionsRange",
                 type(int.class),
-                ImmutableList.of(outputPositions, offset, size, page));
+                ImmutableList.of(session, outputPositions, offset, size, page));
         Scope scope = method.getScope();
         BytecodeBlock body = method.getBody();
 
@@ -183,29 +185,22 @@ public class InColumnarFilterGenerator
                         .condition(generateBlockPositionNotNull(ImmutableList.of(valueExpression), scope, position))
                         .ifTrue(new BytecodeBlock()
                                 .append(generateSetContainsCall(binder, scope, constantValuesSet, constant, position, result))
-                                .append(outputPositions.setElement(outputPositionsCount, position))
-                                .append(outputPositionsCount.set(
-                                        add(
-                                                outputPositionsCount,
-                                                inlineIf(result, constantInt(1), constantInt(0))))))));
+                                .append(updateOutputPositions(result, position, outputPositions, outputPositionsCount)))));
 
         ifStatement.ifFalse(new ForLoop("non-nullable range based loop")
                 .initialize(position.set(offset))
                 .condition(lessThan(position, add(offset, size)))
                 .update(position.increment())
                 .body(new BytecodeBlock()
-                        .append(outputPositions.setElement(outputPositionsCount, position))
                         .append(generateSetContainsCall(binder, scope, constantValuesSet, constant, position, result))
-                        .append(outputPositionsCount.set(
-                                add(
-                                        outputPositionsCount,
-                                        inlineIf(result, constantInt(1), constantInt(0)))))));
+                        .append(updateOutputPositions(result, position, outputPositions, outputPositionsCount))));
 
         body.append(outputPositionsCount.ret());
     }
 
     private void generateFilterListMethod(CallSiteBinder binder, ClassDefinition classDefinition, Set<?> constantValuesSet, Binding constant)
     {
+        Parameter session = arg("session", ConnectorSession.class);
         Parameter outputPositions = arg("outputPositions", int[].class);
         Parameter activePositions = arg("activePositions", int[].class);
         Parameter offset = arg("offset", int.class);
@@ -216,7 +211,7 @@ public class InColumnarFilterGenerator
                 a(PUBLIC),
                 "filterPositionsList",
                 type(int.class),
-                ImmutableList.of(outputPositions, activePositions, offset, size, page));
+                ImmutableList.of(session, outputPositions, activePositions, offset, size, page));
         Scope scope = method.getScope();
         BytecodeBlock body = method.getBody();
 
@@ -240,12 +235,8 @@ public class InColumnarFilterGenerator
                         .append(new IfStatement()
                                 .condition(generateBlockPositionNotNull(ImmutableList.of(valueExpression), scope, position))
                                 .ifTrue(new BytecodeBlock()
-                                        .append(outputPositions.setElement(outputPositionsCount, position))
                                         .append(generateSetContainsCall(binder, scope, constantValuesSet, constant, position, result))
-                                        .append(outputPositionsCount.set(
-                                                add(
-                                                        outputPositionsCount,
-                                                        inlineIf(result, constantInt(1), constantInt(0)))))))));
+                                        .append(updateOutputPositions(result, position, outputPositions, outputPositionsCount))))));
 
         ifStatement.ifFalse(new ForLoop("non-nullable positions loop")
                 .initialize(index.set(offset))
@@ -253,12 +244,8 @@ public class InColumnarFilterGenerator
                 .update(index.increment())
                 .body(new BytecodeBlock()
                         .append(position.set(activePositions.getElement(index)))
-                        .append(outputPositions.setElement(outputPositionsCount, position))
                         .append(generateSetContainsCall(binder, scope, constantValuesSet, constant, position, result))
-                        .append(outputPositionsCount.set(
-                                add(
-                                        outputPositionsCount,
-                                        inlineIf(result, constantInt(1), constantInt(0)))))));
+                        .append(updateOutputPositions(result, position, outputPositions, outputPositionsCount))));
 
         body.append(outputPositionsCount.ret());
     }
@@ -274,7 +261,7 @@ public class InColumnarFilterGenerator
         }
         String methodName = "get" + Primitives.wrap(callType).getSimpleName();
         BytecodeExpression value = constantType(binder, valueType)
-                .invoke(methodName, callType, scope.getVariable("block_0"), position);
+                .invoke(methodName, callType, scope.getVariable("block_" + valueExpression.field()), position);
         if (callType != javaType) {
             value = value.cast(javaType);
         }
@@ -332,6 +319,8 @@ public class InColumnarFilterGenerator
             return false;
         }
         Object value = constantExpression.value();
+        // NULL constants are skipped as they do not satisfy IN filter
+        // NULL positions will need to be handled differently to allow IN filters to be composed (e.g. NOT IN)
         if (value == null) {
             return false;
         }
@@ -364,9 +353,11 @@ public class InColumnarFilterGenerator
         }
         for (RowExpression expression : values) {
             if (!(expression instanceof ConstantExpression)) {
-                throw new UnsupportedOperationException();
+                throw new UnsupportedOperationException("IN clause columnar evaluation is supported only on input reference against constants");
             }
             Object constant = ((ConstantExpression) expression).value();
+            // NULL constants are skipped as they do not satisfy IN filter
+            // NULL positions will need to be handled differently to allow IN filters to be composed (e.g. NOT IN)
             if (constant == null) {
                 continue;
             }

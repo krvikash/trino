@@ -15,14 +15,21 @@ package io.trino.sql.gen.columnar;
 
 import io.trino.operator.project.InputChannels;
 import io.trino.spi.Page;
+import io.trino.spi.connector.ConnectorSession;
 
 /**
  * Implementations of this interface evaluate a filter on the input Page.
  * <p>
- * {@link ExpressionEvaluator} will call one of filterPositionsRange or filterPositionsList depending on whether the
+ * {@link FilterEvaluator} will call one of filterPositionsRange or filterPositionsList depending on whether the
  * active SelectionPositions are stored in a list or in a range.
  * <p>
  * Implementations are expected to operate on a Page containing only the required channels specified by getInputChannels.
+ * <p>
+ * Currently, the implementations of this interface except IS_NULL and NOT(IS_NULL),
+ * don't explicitly handle NULLs or indeterminate values, and just return FALSE for those cases.
+ * This will need to change to allow ColumnarFilter implementations to be composed in all cases (e.g. NOT filters).
+ * ColumnarFilter implementations are never composed, {@link FilterEvaluator} implementations may be composed.
+ * <p>
  */
 public interface ColumnarFilter
 {
@@ -33,7 +40,7 @@ public interface ColumnarFilter
      * @param loadedPage input Page after using {@link ColumnarFilter#getInputChannels} to load only the required channels
      * @return count of positions active after evaluating this filter on the input loadedPage
      */
-    int filterPositionsRange(int[] outputPositions, int offset, int size, Page loadedPage);
+    int filterPositionsRange(ConnectorSession session, int[] outputPositions, int offset, int size, Page loadedPage);
 
     /**
      * @param outputPositions list of positions active after evaluating this filter on the input loadedPage
@@ -43,7 +50,7 @@ public interface ColumnarFilter
      * @param loadedPage input Page after using {@link ColumnarFilter#getInputChannels} to load only the required channels
      * @return count of positions active after evaluating this filter on the input loadedPage
      */
-    int filterPositionsList(int[] outputPositions, int[] activePositions, int offset, int size, Page loadedPage);
+    int filterPositionsList(ConnectorSession session, int[] outputPositions, int[] activePositions, int offset, int size, Page loadedPage);
 
     /**
      * @return InputChannels of input Page that this filter operates on

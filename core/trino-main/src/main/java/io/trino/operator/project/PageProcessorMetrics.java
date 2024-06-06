@@ -15,7 +15,6 @@ package io.trino.operator.project;
 
 import com.google.common.collect.ImmutableMap;
 import io.airlift.units.Duration;
-import io.trino.plugin.base.metrics.BooleanCount;
 import io.trino.plugin.base.metrics.DurationTiming;
 import io.trino.spi.metrics.Metric;
 import io.trino.spi.metrics.Metrics;
@@ -26,17 +25,15 @@ public class PageProcessorMetrics
 {
     private static final String FILTER_TIME = "Filter CPU time";
     private static final String PROJECTION_TIME = "Projection CPU time";
-    private static final String COLUMNAR_FILTER_EVALUATION = "Columnar filter evaluation";
 
     private long filterTimeNanos;
     private boolean hasFilter;
-    private boolean usedColumnarFilterEvaluation;
     private long projectionTimeNanos;
     private boolean hasProjection;
 
-    public void recordFilterTimeSince(long startNanos)
+    public void recordFilterTime(long filterTimeNanos)
     {
-        filterTimeNanos += System.nanoTime() - startNanos;
+        this.filterTimeNanos += filterTimeNanos;
         hasFilter = true;
     }
 
@@ -46,17 +43,11 @@ public class PageProcessorMetrics
         hasProjection = true;
     }
 
-    public void recordUsedColumnarFilterEvaluation()
-    {
-        this.usedColumnarFilterEvaluation = true;
-    }
-
     public Metrics getMetrics()
     {
         ImmutableMap.Builder<String, Metric<?>> builder = ImmutableMap.builder();
         if (hasFilter) {
             builder.put(FILTER_TIME, new DurationTiming(new Duration(filterTimeNanos, NANOSECONDS)));
-            builder.put(COLUMNAR_FILTER_EVALUATION, new BooleanCount(usedColumnarFilterEvaluation));
         }
         if (hasProjection) {
             builder.put(PROJECTION_TIME, new DurationTiming(new Duration(projectionTimeNanos, NANOSECONDS)));

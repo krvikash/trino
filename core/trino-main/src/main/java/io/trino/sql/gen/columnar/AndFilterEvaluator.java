@@ -16,52 +16,55 @@ package io.trino.sql.gen.columnar;
 import com.google.common.collect.ImmutableList;
 import io.trino.operator.project.SelectedPositions;
 import io.trino.spi.Page;
+import io.trino.spi.connector.ConnectorSession;
 import io.trino.sql.relational.RowExpression;
 import io.trino.sql.relational.SpecialForm;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.sql.relational.SpecialForm.Form.AND;
 
-public final class AndExpressionEvaluator
-        implements ExpressionEvaluator
+public final class AndFilterEvaluator
+        implements FilterEvaluator
 {
-    public static Optional<Supplier<ExpressionEvaluator>> createAndExpressionEvaluator(ColumnarFilterCompiler compiler, SpecialForm specialForm)
+    public static Optional<Supplier<FilterEvaluator>> createAndExpressionEvaluator(ColumnarFilterCompiler compiler, SpecialForm specialForm)
     {
         checkArgument(specialForm.form() == AND, "specialForm %s should be AND", specialForm);
         checkArgument(specialForm.arguments().size() >= 2, "AND expression %s should have at least 2 arguments", specialForm);
 
-        ImmutableList.Builder<Supplier<ExpressionEvaluator>> builder = ImmutableList.builder();
+        ImmutableList.Builder<Supplier<FilterEvaluator>> builder = ImmutableList.builder();
         for (RowExpression expression : specialForm.arguments()) {
-            Optional<Supplier<ExpressionEvaluator>> subExpressionEvaluator = ExpressionEvaluator.createColumnarFilterEvaluator(expression, compiler);
+            Optional<Supplier<FilterEvaluator>> subExpressionEvaluator = FilterEvaluator.createColumnarFilterEvaluator(expression, compiler);
             if (subExpressionEvaluator.isEmpty()) {
                 return Optional.empty();
             }
             builder.add(subExpressionEvaluator.get());
         }
-        List<Supplier<ExpressionEvaluator>> subExpressionEvaluators = builder.build();
-        return Optional.of(() -> new AndExpressionEvaluator(subExpressionEvaluators.stream().map(Supplier::get).collect(toImmutableList())));
+        List<Supplier<FilterEvaluator>> subExpressionEvaluators = builder.build();
+        return Optional.of(() -> new AndFilterEvaluator(subExpressionEvaluators.stream().map(Supplier::get).collect(toImmutableList())));
     }
 
-    private final List<ExpressionEvaluator> subExpressionEvaluators;
+    private final List<FilterEvaluator> subFilterEvaluators;
 
-    private AndExpressionEvaluator(List<ExpressionEvaluator> subExpressionEvaluators)
+    private AndFilterEvaluator(List<FilterEvaluator> subFilterEvaluators)
     {
-        checkArgument(subExpressionEvaluators.size() >= 2, "must have at least 2 subexpressions to AND");
-        this.subExpressionEvaluators = subExpressionEvaluators;
+        checkArgument(subFilterEvaluators.size() >= 2, "must have at least 2 subexpressions to AND");
+        this.subFilterEvaluators = subFilterEvaluators;
     }
 
     @Override
-    public SelectedPositions evaluate(SelectedPositions activePositions, Page page, Consumer<Long> recordFilterTimeSince)
+    public SelectionResult evaluate(ConnectorSession session, SelectedPositions activePositions, Page page)
     {
-        for (ExpressionEvaluator evaluator : subExpressionEvaluators) {
-            activePositions = evaluator.evaluate(activePositions, page, recordFilterTimeSince);
+        long filterTimeNanos = 0;
+        for (FilterEvaluator evaluator : subFilterEvaluators) {
+            SelectionResult result = evaluator.evaluate(session, activePositions, page);
+            filterTimeNanos += result.filterTimeNanos();
+            activePositions = result.selectedPositions();
         }
-        return activePositions;
+        return new SelectionResult(activePositions, filterTimeNanos);
     }
 }

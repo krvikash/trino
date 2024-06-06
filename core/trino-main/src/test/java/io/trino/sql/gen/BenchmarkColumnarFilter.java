@@ -47,6 +47,7 @@ import java.util.concurrent.TimeUnit;
 
 import static io.trino.jmh.Benchmarks.benchmark;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
+import static io.trino.spi.function.OperatorType.LESS_THAN_OR_EQUAL;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.IntegerType.INTEGER;
@@ -76,6 +77,7 @@ public class BenchmarkColumnarFilter
     @Param({"0", "10"})
     public int nullsPercentage;
     @Param({
+            "BETWEEN",
             "LESS_THAN",
             "IS_NULL",
             "IS_NOT_NULL",
@@ -85,6 +87,17 @@ public class BenchmarkColumnarFilter
 
     public enum FilterProvider
     {
+        BETWEEN {
+            @Override
+            RowExpression getExpression(Type type)
+            {
+                return new SpecialForm(
+                        SpecialForm.Form.BETWEEN,
+                        BOOLEAN,
+                        ImmutableList.of(field(0, type), constant(CONSTANT - 5, type), constant(CONSTANT + 5, type)),
+                        ImmutableList.of(FUNCTION_RESOLUTION.resolveOperator(LESS_THAN_OR_EQUAL, ImmutableList.of(type, type))));
+            }
+        },
         LESS_THAN {
             @Override
             RowExpression getExpression(Type type)

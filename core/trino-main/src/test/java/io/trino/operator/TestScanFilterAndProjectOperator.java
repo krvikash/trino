@@ -41,6 +41,7 @@ import io.trino.spi.type.TypeOperators;
 import io.trino.sql.gen.ExpressionCompiler;
 import io.trino.sql.gen.PageFunctionCompiler;
 import io.trino.sql.gen.columnar.ColumnarFilterCompiler;
+import io.trino.sql.gen.columnar.PageFilterEvaluator;
 import io.trino.sql.planner.plan.PlanNodeId;
 import io.trino.sql.relational.RowExpression;
 import io.trino.testing.MaterializedResult;
@@ -100,10 +101,11 @@ public class TestScanFilterAndProjectOperator
     public final void initTestFunctions()
     {
         runner = new StandaloneQueryRunner(session);
+        FunctionManager functionManager = runner.getPlannerContext().getFunctionManager();
         expressionCompiler = new ExpressionCompiler(
-                runner.getPlannerContext().getFunctionManager(),
-                new PageFunctionCompiler(runner.getPlannerContext().getFunctionManager(), 0),
-                new ColumnarFilterCompiler(runner.getPlannerContext().getFunctionManager(), 0));
+                functionManager,
+                new PageFunctionCompiler(functionManager, 0),
+                new ColumnarFilterCompiler(functionManager, 0));
     }
 
     @AfterAll
@@ -215,7 +217,7 @@ public class TestScanFilterAndProjectOperator
 
         List<RowExpression> projections = ImmutableList.of(field(0, VARCHAR));
         Supplier<CursorProcessor> cursorProcessor = expressionCompiler.compileCursorProcessor(Optional.empty(), projections, "key");
-        PageProcessor pageProcessor = new PageProcessor(Optional.of(new SelectAllFilter()), ImmutableList.of(new LazyPagePageProjection()));
+        PageProcessor pageProcessor = new PageProcessor(Optional.of(new PageFilterEvaluator(new SelectAllFilter())), ImmutableList.of(new LazyPagePageProjection()));
 
         ScanFilterAndProjectOperator.ScanFilterAndProjectOperatorFactory factory = new ScanFilterAndProjectOperator.ScanFilterAndProjectOperatorFactory(
                 0,
@@ -296,10 +298,11 @@ public class TestScanFilterAndProjectOperator
         runner.addFunctions(new InternalFunctionBundle(functions.build()));
 
         // match each column with a projection
+        FunctionManager functionManager = runner.getPlannerContext().getFunctionManager();
         ExpressionCompiler expressionCompiler = new ExpressionCompiler(
-                runner.getPlannerContext().getFunctionManager(),
-                new PageFunctionCompiler(runner.getPlannerContext().getFunctionManager(), 0),
-                new ColumnarFilterCompiler(runner.getPlannerContext().getFunctionManager(), 0));
+                functionManager,
+                new PageFunctionCompiler(functionManager, 0),
+                new ColumnarFilterCompiler(functionManager, 0));
         ImmutableList.Builder<RowExpression> projections = ImmutableList.builder();
         for (int i = 0; i < totalColumns; i++) {
             projections.add(call(runner.getPlannerContext().getMetadata().resolveBuiltinFunction("generic_long_page_col" + i, fromTypes(BIGINT)), field(0, BIGINT)));

@@ -81,13 +81,6 @@ public class TestHiveWithPlanAlternativesConnectorTest
 
     @Override
     @Test
-    public void testExplainAnalyzeColumnarFilter()
-    {
-        // Filter stats are not expected when connector uses an alternative in which the filter is subsumed
-    }
-
-    @Override
-    @Test
     public void testMultipleWriters()
     {
         // Not applicable with plan alternatives

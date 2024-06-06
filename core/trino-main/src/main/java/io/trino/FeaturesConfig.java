@@ -119,7 +119,7 @@ public class FeaturesConfig
     private boolean hideInaccessibleColumns;
     private boolean forceSpillingJoin;
 
-    private boolean columnarFilterEvaluationEnabled;
+    private boolean columnarFilterEvaluationEnabled = true;
 
     private boolean faultTolerantExecutionExchangeEncryptionEnabled = true;
 
@@ -493,7 +493,8 @@ public class FeaturesConfig
         return columnarFilterEvaluationEnabled;
     }
 
-    @Config("columnar-filter-evaluation.enabled")
+    @Config("experimental.columnar-filter-evaluation.enabled")
+    @LegacyConfig("columnar-filter-evaluation.enabled")
     @ConfigDescription("Enables columnar evaluation of filters")
     public FeaturesConfig setColumnarFilterEvaluationEnabled(boolean columnarFilterEvaluationEnabled)
     {

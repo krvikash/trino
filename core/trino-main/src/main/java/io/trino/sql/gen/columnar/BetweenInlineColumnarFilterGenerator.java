@@ -25,6 +25,7 @@ import io.airlift.bytecode.control.IfStatement;
 import io.trino.metadata.FunctionManager;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.spi.Page;
+import io.trino.spi.connector.ConnectorSession;
 import io.trino.sql.gen.CallSiteBinder;
 import io.trino.sql.relational.CallExpression;
 import io.trino.sql.relational.InputReferenceExpression;
@@ -41,16 +42,15 @@ import static io.airlift.bytecode.Parameter.arg;
 import static io.airlift.bytecode.ParameterizedType.type;
 import static io.airlift.bytecode.expression.BytecodeExpressions.add;
 import static io.airlift.bytecode.expression.BytecodeExpressions.constantInt;
-import static io.airlift.bytecode.expression.BytecodeExpressions.inlineIf;
 import static io.airlift.bytecode.expression.BytecodeExpressions.lessThan;
 import static io.trino.spi.function.OperatorType.LESS_THAN_OR_EQUAL;
-import static io.trino.sql.gen.columnar.CallColumnarFilterGenerator.generateFunctionCall;
+import static io.trino.sql.gen.columnar.CallColumnarFilterGenerator.generateInvocation;
 import static io.trino.sql.gen.columnar.ColumnarFilterCompiler.createClassInstance;
 import static io.trino.sql.gen.columnar.ColumnarFilterCompiler.declareBlockVariables;
 import static io.trino.sql.gen.columnar.ColumnarFilterCompiler.generateBlockMayHaveNull;
 import static io.trino.sql.gen.columnar.ColumnarFilterCompiler.generateBlockPositionNotNull;
-import static io.trino.sql.gen.columnar.ColumnarFilterCompiler.generateConstructor;
 import static io.trino.sql.gen.columnar.ColumnarFilterCompiler.generateGetInputChannels;
+import static io.trino.sql.gen.columnar.ColumnarFilterCompiler.updateOutputPositions;
 import static io.trino.sql.relational.Expressions.call;
 import static io.trino.sql.relational.SpecialForm.Form.BETWEEN;
 import static io.trino.util.CompilerUtils.makeClassName;
@@ -72,7 +72,7 @@ public class BetweenInlineColumnarFilterGenerator
 
         // Between requires evaluate once semantic for the value being tested
         // Until we can pre-project it into a temporary variable, we apply columnar evaluation only on InputReference
-        checkArgument(specialForm.arguments().get(0) instanceof InputReferenceExpression, "valueExpression is not an InputReference");
+        checkArgument(specialForm.arguments().getFirst() instanceof InputReferenceExpression, "valueExpression is not an InputReference");
         this.valueExpression = (InputReferenceExpression) specialForm.arguments().get(0);
         ResolvedFunction lessThanOrEqual = specialForm.getOperatorDependency(LESS_THAN_OR_EQUAL);
         this.leftExpression = call(lessThanOrEqual, specialForm.arguments().get(1), valueExpression);
@@ -88,12 +88,11 @@ public class BetweenInlineColumnarFilterGenerator
                 type(ColumnarFilter.class));
         CallSiteBinder callSiteBinder = new CallSiteBinder();
 
-        generateConstructor(classDefinition);
+        classDefinition.declareDefaultConstructor(a(PUBLIC));
 
         generateGetInputChannels(callSiteBinder, classDefinition, valueExpression);
 
         generateFilterRangeMethod(callSiteBinder, classDefinition);
-
         generateFilterListMethod(callSiteBinder, classDefinition);
 
         return createClassInstance(callSiteBinder, classDefinition);
@@ -101,6 +100,7 @@ public class BetweenInlineColumnarFilterGenerator
 
     private void generateFilterRangeMethod(CallSiteBinder binder, ClassDefinition classDefinition)
     {
+        Parameter session = arg("session", ConnectorSession.class);
         Parameter outputPositions = arg("outputPositions", int[].class);
         Parameter offset = arg("offset", int.class);
         Parameter size = arg("size", int.class);
@@ -110,7 +110,7 @@ public class BetweenInlineColumnarFilterGenerator
                 a(PUBLIC),
                 "filterPositionsRange",
                 type(int.class),
-                ImmutableList.of(outputPositions, offset, size, page));
+                ImmutableList.of(session, outputPositions, offset, size, page));
         Scope scope = method.getScope();
         BytecodeBlock body = method.getBody();
 
@@ -124,45 +124,48 @@ public class BetweenInlineColumnarFilterGenerator
                 .condition(generateBlockMayHaveNull(ImmutableList.of(valueExpression), scope));
         body.append(ifStatement);
 
+        /* if (block_0.mayHaveNull()) {
+         *     for (position = offset; position < offset + size; position++) {
+         *         if (!block_0.isNull(position)) {
+         *             boolean result = less_than_or_equal(constant, block_0, position);
+         *             if (result) {
+         *                 result = less_than_or_equal(block_0, position, constant);
+         *             }
+         *             outputPositions[outputPositionsCount] = position;
+         *             outputPositionsCount += result ? 1 : 0;
+         *         }
+         *     }
+         * }
+         */
         ifStatement.ifTrue(new ForLoop("nullable range based loop")
                 .initialize(position.set(offset))
                 .condition(lessThan(position, add(offset, size)))
                 .update(position.increment())
                 .body(new IfStatement()
                         .condition(generateBlockPositionNotNull(ImmutableList.of(valueExpression), scope, position))
-                        .ifTrue(new BytecodeBlock()
-                                .append(new IfStatement()
-                                        .condition(generateFunctionCall(functionManager, binder, leftExpression, scope, position))
-                                        .ifTrue(new BytecodeBlock()
-                                                .append(generateFunctionCall(functionManager, binder, rightExpression, scope, position)
-                                                        .putVariable(result))
-                                                .append(outputPositions.setElement(outputPositionsCount, position))
-                                                .append(outputPositionsCount.set(
-                                                        add(
-                                                                outputPositionsCount,
-                                                                inlineIf(result, constantInt(1), constantInt(0))))))))));
+                        .ifTrue(computeAndAssignResult(binder, scope, result, position, outputPositions, outputPositionsCount))));
 
+        /* for (position = offset; position < offset + size; position++) {
+         *     boolean result = less_than_or_equal(constant, block_0, position);
+         *     if (result) {
+         *         result = less_than_or_equal(block_0, position, constant);
+         *     }
+         *     outputPositions[outputPositionsCount] = position;
+         *     outputPositionsCount += result ? 1 : 0;
+         * }
+         */
         ifStatement.ifFalse(new ForLoop("non-nullable range based loop")
                 .initialize(position.set(offset))
                 .condition(lessThan(position, add(offset, size)))
                 .update(position.increment())
-                .body(new BytecodeBlock()
-                        .append(new IfStatement()
-                                .condition(generateFunctionCall(functionManager, binder, leftExpression, scope, position))
-                                .ifTrue(new BytecodeBlock()
-                                        .append(generateFunctionCall(functionManager, binder, rightExpression, scope, position)
-                                                .putVariable(result))
-                                        .append(outputPositions.setElement(outputPositionsCount, position))
-                                        .append(outputPositionsCount.set(
-                                                add(
-                                                        outputPositionsCount,
-                                                        inlineIf(result, constantInt(1), constantInt(0)))))))));
+                .body(computeAndAssignResult(binder, scope, result, position, outputPositions, outputPositionsCount)));
 
         body.append(outputPositionsCount.ret());
     }
 
     private void generateFilterListMethod(CallSiteBinder binder, ClassDefinition classDefinition)
     {
+        Parameter session = arg("session", ConnectorSession.class);
         Parameter outputPositions = arg("outputPositions", int[].class);
         Parameter activePositions = arg("activePositions", int[].class);
         Parameter offset = arg("offset", int.class);
@@ -173,7 +176,7 @@ public class BetweenInlineColumnarFilterGenerator
                 a(PUBLIC),
                 "filterPositionsList",
                 type(int.class),
-                ImmutableList.of(outputPositions, activePositions, offset, size, page));
+                ImmutableList.of(session, outputPositions, activePositions, offset, size, page));
         Scope scope = method.getScope();
         BytecodeBlock body = method.getBody();
 
@@ -188,6 +191,20 @@ public class BetweenInlineColumnarFilterGenerator
                 .condition(generateBlockMayHaveNull(ImmutableList.of(valueExpression), scope));
         body.append(ifStatement);
 
+        /* if (block_0.mayHaveNull()) {
+         *     for (int index = offset; index < offset + size; index++) {
+         *         int position = activePositions[index];
+         *         if (!block_0.isNull(position)) {
+         *             boolean result = less_than_or_equal(constant, block_0, position);
+         *             if (result) {
+         *                 result = less_than_or_equal(block_0, position, constant);
+         *             }
+         *             outputPositions[outputPositionsCount] = position;
+         *             outputPositionsCount += result ? 1 : 0;
+         *         }
+         *     }
+         * }
+         */
         ifStatement.ifTrue(new ForLoop("nullable positions loop")
                 .initialize(index.set(offset))
                 .condition(lessThan(index, add(offset, size)))
@@ -196,36 +213,38 @@ public class BetweenInlineColumnarFilterGenerator
                         .append(position.set(activePositions.getElement(index)))
                         .append(new IfStatement()
                                 .condition(generateBlockPositionNotNull(ImmutableList.of(valueExpression), scope, position))
-                                .ifTrue(new BytecodeBlock()
-                                        .append(new IfStatement()
-                                                .condition(generateFunctionCall(functionManager, binder, leftExpression, scope, position))
-                                                .ifTrue(new BytecodeBlock()
-                                                        .append(generateFunctionCall(functionManager, binder, rightExpression, scope, position)
-                                                                .putVariable(result))
-                                                        .append(outputPositions.setElement(outputPositionsCount, position))
-                                                        .append(outputPositionsCount.set(
-                                                                add(
-                                                                        outputPositionsCount,
-                                                                        inlineIf(result, constantInt(1), constantInt(0)))))))))));
+                                .ifTrue(computeAndAssignResult(binder, scope, result, position, outputPositions, outputPositionsCount)))));
 
+        /* for (int index = offset; index < offset + size; index++) {
+         *     int position = activePositions[index];
+         *     boolean result = less_than_or_equal(constant, block_0, position);
+         *     if (result) {
+         *         result = less_than_or_equal(block_0, position, constant);
+         *     }
+         *     outputPositions[outputPositionsCount] = position;
+         *     outputPositionsCount += result ? 1 : 0;
+         * }
+         */
         ifStatement.ifFalse(new ForLoop("non-nullable positions loop")
                 .initialize(index.set(offset))
                 .condition(lessThan(index, add(offset, size)))
                 .update(index.increment())
                 .body(new BytecodeBlock()
                         .append(position.set(activePositions.getElement(index)))
-                        .append(outputPositions.setElement(outputPositionsCount, position))
-                        .append(new IfStatement()
-                                .condition(generateFunctionCall(functionManager, binder, leftExpression, scope, position))
-                                .ifTrue(new BytecodeBlock()
-                                        .append(generateFunctionCall(functionManager, binder, rightExpression, scope, position)
-                                                .putVariable(result))
-                                        .append(outputPositions.setElement(outputPositionsCount, position))
-                                        .append(outputPositionsCount.set(
-                                                add(
-                                                        outputPositionsCount,
-                                                        inlineIf(result, constantInt(1), constantInt(0)))))))));
+                        .append(computeAndAssignResult(binder, scope, result, position, outputPositions, outputPositionsCount))));
 
         body.append(outputPositionsCount.ret());
+    }
+
+    private BytecodeBlock computeAndAssignResult(CallSiteBinder binder, Scope scope, Variable result, Variable position, Parameter outputPositions, Variable outputPositionsCount)
+    {
+        return new BytecodeBlock()
+                .append(generateInvocation(functionManager, binder, leftExpression, scope, position)
+                        .putVariable(result))
+                .append(new IfStatement()
+                        .condition(result)
+                        .ifTrue(generateInvocation(functionManager, binder, rightExpression, scope, position)
+                                .putVariable(result)))
+                .append(updateOutputPositions(result, position, outputPositions, outputPositionsCount));
     }
 }
