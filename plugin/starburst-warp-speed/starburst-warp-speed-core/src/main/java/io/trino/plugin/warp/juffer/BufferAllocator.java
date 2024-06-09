@@ -18,6 +18,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
+import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
@@ -33,6 +34,7 @@ import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.lucene.LuceneFileType;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
+import io.trino.spi.TrinoException;
 import io.trino.spi.type.TinyintType;
 
 import java.lang.foreign.Arena;
@@ -241,33 +243,40 @@ public class BufferAllocator
     public void init()
     {
         final int numSegments = connectorSync.isCatalogReducedResources() ? nativeConfig.getTaskMinWorkerThreads() : nativeConfig.getTaskMaxWorkerThreads();
-        checkArgument(numSegments > 0, "no segments configured for warming resources");
-        initWarmBundles(numSegments);
-        initWarmWriteBuffer(numSegments);
-        initWarmContextBuffer(numSegments);
-        final long predicateBundleSize = initPredicateBundle(connectorSync.isCatalogReducedResources());
+        try {
+            checkArgument(numSegments > 0, "no segments configured for warming resources");
+            initWarmBundles(numSegments);
+            initWarmWriteBuffer(numSegments);
+            initWarmContextBuffer(numSegments);
+            final long predicateBundleSize = initPredicateBundle(connectorSync.isCatalogReducedResources());
 
-        // read bundles
-        bundles = new ByteBuffer[storageEngineConstants.getNumBundles()];
-        for (int bufIx = 0; bufIx < bundles.length; bufIx++) {
-            bundles[bufIx] = storageEngine.getBundleFromPool(bufIx);
-            if (bundles[bufIx] != null) {
-                bundles[bufIx].order(ByteOrder.LITTLE_ENDIAN);
+            // read bundles
+            bundles = new ByteBuffer[storageEngineConstants.getNumBundles()];
+            for (int bufIx = 0; bufIx < bundles.length; bufIx++) {
+                bundles[bufIx] = storageEngine.getBundleFromPool(bufIx);
+                if (bundles[bufIx] != null) {
+                    bundles[bufIx].order(ByteOrder.LITTLE_ENDIAN);
+                }
             }
+
+            logger.info("catalog %d loadSegmentsSize %d warmBundleSize %d warmWriteBufferSize %d warmContextBufferSize %d readNumBundles %d predicateBundleSize %dMB",
+                    connectorSync.getCatalogSequence(),
+                    loadSegmentsQueue.size(),
+                    warmBundleSize,
+                    warmWriteBufferSize,
+                    warmContextBufferSize,
+                    bundles.length,
+                    predicateBundleSize >> 20);
+
+            metricsManager.registerMetric(this.stats);
+            updateStats(loadSegmentsQueue.size());
+            stats.addallowed_loaders(loadSegmentsQueue.size());
         }
-
-        logger.info("catalog %d loadSegmentsSize %d warmBundleSize %d warmWriteBufferSize %d warmContextBufferSize %d readNumBundles %d predicateBundleSize %dMB",
-                connectorSync.getCatalogSequence(),
-                loadSegmentsQueue.size(),
-                warmBundleSize,
-                warmWriteBufferSize,
-                warmContextBufferSize,
-                bundles.length,
-                predicateBundleSize >> 20);
-
-        metricsManager.registerMetric(this.stats);
-        updateStats(loadSegmentsQueue.size());
-        stats.addallowed_loaders(loadSegmentsQueue.size());
+        catch (Exception e) {
+            String msg = String.format("catalog %d failed to load with numSegments %d", connectorSync.getCatalogSequence(), numSegments);
+            logger.error(e, msg);
+            throw new TrinoException(WarpErrorCode.WARP_CATALOG_FAILED_TO_LOAD, msg, e);
+        }
     }
 
     public int getPoolSize(PredicateBufferPoolType predicateBufferPoolType)
