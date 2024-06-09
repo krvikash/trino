@@ -135,6 +135,7 @@ public class StorageReader
 
         createLuceneMatchers(globalConfig); // this call must be after creating the matchJuffersWE
 
+        this.lastReportTime = System.currentTimeMillis();
         this.minRoundTime = Long.MAX_VALUE;
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
@@ -248,7 +249,6 @@ public class StorageReader
         }
         numCollectedRows = 0;
 
-        this.lastReportTime = System.currentTimeMillis();
         return collectOpenResult;
     }
 
