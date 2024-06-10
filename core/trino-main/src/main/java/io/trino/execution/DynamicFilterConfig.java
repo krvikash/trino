@@ -38,7 +38,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
         "experimental.dynamic-filtering-refresh-interval",
         "experimental.enable-dynamic-filtering",
         "enable-coordinator-dynamic-filters-distribution",
-        "dynamic-row-filtering.enabled",
         "dynamic-row-filtering.selectivity-threshold",
         "dynamic-row-filtering.wait-timeout",
 })
@@ -46,6 +45,7 @@ public class DynamicFilterConfig
 {
     private boolean enableDynamicFiltering = true;
     private boolean enableLargeDynamicFilters = true;
+    private boolean enableDynamicRowFiltering = true;
 
     private Duration smallDynamicFilterWaitTimeout = new Duration(20, SECONDS);
     private long smallDynamicFilterMaxRowCount = 150_000;
@@ -103,6 +103,20 @@ public class DynamicFilterConfig
     public DynamicFilterConfig setEnableLargeDynamicFilters(boolean enableLargeDynamicFilters)
     {
         this.enableLargeDynamicFilters = enableLargeDynamicFilters;
+        return this;
+    }
+
+    public boolean isEnableDynamicRowFiltering()
+    {
+        return enableDynamicRowFiltering;
+    }
+
+    @Config("enable-dynamic-row-filtering")
+    @LegacyConfig("dynamic-row-filtering.enabled")
+    @ConfigDescription("Enable fine-grained filtering of rows in the scan operator using dynamic filters")
+    public DynamicFilterConfig setEnableDynamicRowFiltering(boolean enableDynamicRowFiltering)
+    {
+        this.enableDynamicRowFiltering = enableDynamicRowFiltering;
         return this;
     }
 
