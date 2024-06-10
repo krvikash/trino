@@ -27,6 +27,9 @@ import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Set;
 
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_START_OFFSET;
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX;
+
 public class WarpIndexOutput
         extends IndexOutput
 {
@@ -37,6 +40,7 @@ public class WarpIndexOutput
     private final StorageEngineConstants storageEngineConstants;
     private final WriteJuffersWarmUpElement juffersWE;
     private final long weCookie;
+    private final long[] fileCookieParams;
     private final ByteBuffersIndexOutput byteBuffersIndexOutput;
 
     public WarpIndexOutput(String fileName,
@@ -44,6 +48,7 @@ public class WarpIndexOutput
             StorageEngineConstants storageEngineConstants,
             StorageEngine storageEngine,
             long weCookie,
+            long[] fileCookieParams,
             boolean forwardToNative)
     {
         super("WarpLuceneIndex", "warpLucene");
@@ -52,6 +57,7 @@ public class WarpIndexOutput
         this.luceneFileType = LuceneFileType.getType(fileName);
         this.storageEngineConstants = storageEngineConstants;
         this.weCookie = weCookie;
+        this.fileCookieParams = fileCookieParams;
         this.juffersWE = juffersWE;
         this.byteBuffersIndexOutput = new ByteBuffersIndexOutput(new ByteBuffersDataOutput(), "WarpLuceneIndex", "warpLucene");
     }
@@ -79,7 +85,7 @@ public class WarpIndexOutput
     {
         ByteBuffer luceneFileBuffer = juffersWE.getLuceneFileBuffer(luceneFileType);
         int bytesLeftToRead = numBytes;
-        int fileOffset = 0;
+        int offset = 0;
         byte[] readBytes = new byte[bufferSize];
 
         while (bytesLeftToRead > 0) {
@@ -88,15 +94,17 @@ public class WarpIndexOutput
                 luceneFileBuffer.position(0);
                 input.readBytes(readBytes, 0, bytesToRead);
                 luceneFileBuffer.put(readBytes, 0, bytesToRead);
-                logger.debug("weCookie %x, before write buffer file %s(%d), offset %d, length %d", weCookie, luceneFileType, luceneFileType.getNativeId(), fileOffset, bytesToRead);
-                storageEngine.luceneWriteBuffer(weCookie, luceneFileType.getNativeId(), fileOffset, bytesToRead);
+                logger.debug("weCookie %x, before write buffer file %s(%d), offset %d, length %d", weCookie, luceneFileType, luceneFileType.getNativeId(), offset, bytesToRead);
+                long res = storageEngine.warmupLucene(weCookie, luceneFileType.getNativeId(), offset, bytesToRead, fileCookieParams);
+                fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFF;
+                fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX.ordinal()] = res >> 32;
             }
             catch (IOException e) {
                 logger.warn(e, "Failed to write buffer. weCookie %x", weCookie);
                 throw new RuntimeException(e);
             }
             bytesLeftToRead -= bytesToRead;
-            fileOffset += bytesToRead;
+            offset += bytesToRead;
         }
     }
 

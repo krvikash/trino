@@ -257,7 +257,7 @@ public class ArrayReadWriteTest
     private void initialize(StorageEngineConstants storageEngineConstants, BufferAllocator bufferAllocator, RecTypeCode arrayTypeCode, ArrayType arrayType)
     {
         WarmUpElementAllocationParams warmUpElementAllocationParams = new WarmUpElementAllocationParams(arrayTypeCode, storageEngineConstants.getVarcharMaxLen(), 1000, 0, 1000, true, false, null);
-        WriteJuffersWarmUpElement juffersWE = new WriteJuffersWarmUpElement(mock(StorageEngine.class), storageEngineConstants, bufferAllocator, new MemorySegment[JbufType.values().length], 0, warmUpElementAllocationParams);
+        WriteJuffersWarmUpElement juffersWE = new WriteJuffersWarmUpElement(mock(StorageEngine.class), storageEngineConstants, bufferAllocator, new MemorySegment[JbufType.values().length], 0, warmUpElementAllocationParams, new long[] {0, 0, 0});
         juffersWE.createBuffers(false);
         BlockTransformerFactory blockTransformerFactory = new BlockTransformerFactory();
         appender = new ArrayBlockAppender(blockTransformerFactory, juffersWE,

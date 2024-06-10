@@ -47,6 +47,8 @@ import java.util.Arrays;
 import static com.google.common.io.BaseEncoding.base64;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_LUCENE_FAILURE;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_LUCENE_WRITER_ERROR;
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_START_OFFSET;
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX;
 import static io.trino.plugin.warp.util.SliceUtils.serializeSlice;
 
 public class LuceneIndexer
@@ -138,7 +140,7 @@ public class LuceneIndexer
     }
 
     @SuppressWarnings("ThrowFromFinallyBlock")
-    public void closeLuceneIndex(long weCookie)
+    public void closeLuceneIndex(long weCookie, long[] fileCookieParams)
     {
         IndexWriter weIndexWriter = indexWriter;
         if (weIndexWriter == null) {
@@ -146,7 +148,7 @@ public class LuceneIndexer
         }
         logger.debug("weCookie %x, close index", weCookie);
         Directory tempDirectory = weIndexWriter.getDirectory();
-        WarpOutputDirectory finalDirectory = new WarpOutputDirectory(storageEngine, storageEngineConstants, juffersWE, weCookie);
+        WarpOutputDirectory finalDirectory = new WarpOutputDirectory(storageEngine, storageEngineConstants, juffersWE, weCookie, fileCookieParams);
         int[] filesLength = new int[LuceneFileType.values().length - 1];
         try {
             stopWatch.reset();
@@ -190,10 +192,12 @@ public class LuceneIndexer
             try {
                 if (!failedCommit) {
                     logger.debug("weCookie %x, committing lucene buffer: fileLengths %s", weCookie, Arrays.toString(filesLength));
-                    int rc = (int) storageEngine.luceneCommitBuffers(weCookie, juffersWE.getSingleAndResetLuceneWE(), filesLength);
-                    if (rc < 0) {
+                    long res = storageEngine.warmupLuceneChunk(weCookie, juffersWE.getSingleAndResetLuceneWE(), filesLength, fileCookieParams);
+                    if (res < 0) {
                         throw new TrinoException(WARP_LUCENE_WRITER_ERROR, "lucene commit failed, file too big");
                     }
+                    fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFF;
+                    fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX.ordinal()] = res >> 32;
                 }
             }
             catch (Throwable t) {

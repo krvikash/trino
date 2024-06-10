@@ -34,12 +34,14 @@ public class WarpOutputDirectory
     private final StorageEngineConstants storageEngineConstants;
     private final WriteJuffersWarmUpElement juffersWE;
     private final long weCookie;
+    private final long[] fileCookieParams;
     private final ByteBuffersDirectory byteBuffersDirectory;
 
     protected WarpOutputDirectory(StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
             WriteJuffersWarmUpElement juffersWE,
-            long weCookie)
+            long weCookie,
+            long[] fileCookieParams)
     {
         super(NoLockFactory.INSTANCE);
         this.byteBuffersDirectory = new ByteBuffersDirectory(NoLockFactory.INSTANCE);
@@ -47,12 +49,13 @@ public class WarpOutputDirectory
         this.storageEngineConstants = storageEngineConstants;
         this.juffersWE = juffersWE;
         this.weCookie = weCookie;
+        this.fileCookieParams = fileCookieParams;
     }
 
     @Override
     public IndexOutput createOutput(String name, IOContext context)
     {
-        return new WarpIndexOutput(name, juffersWE, storageEngineConstants, storageEngine, weCookie, true);
+        return new WarpIndexOutput(name, juffersWE, storageEngineConstants, storageEngine, weCookie, fileCookieParams, true);
     }
 
     @Override

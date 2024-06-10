@@ -23,6 +23,8 @@ import java.lang.foreign.MemorySegment;
 
 import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_CODE;
 import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_LENGTH;
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_START_OFFSET;
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX;
 
 public class RecordWriteJuffer
         extends BaseWriteJuffer
@@ -30,18 +32,21 @@ public class RecordWriteJuffer
     private final WarmUpElementAllocationParams allocParams;
     private final StorageEngine storageEngine;
     private final long weCookie;
+    private final long[] fileCookieParams;
     private int recordBufferEntrySize;            // size of one record, one if its a byte buffer
     private boolean isDictionaryValid;
 
     public RecordWriteJuffer(BufferAllocator bufferAllocator,
             WarmUpElementAllocationParams allocParams,
             StorageEngine storageEngine,
-            long weCookie)
+            long weCookie,
+            long[] fileCookieParams)
     {
         super(bufferAllocator, JuffersType.RECORD);
         this.allocParams = allocParams;
         this.storageEngine = storageEngine;
         this.weCookie = weCookie;
+        this.fileCookieParams = fileCookieParams;
     }
 
     @Override
@@ -81,10 +86,18 @@ public class RecordWriteJuffer
         return 1;
     }
 
-    public void commitAndResetWE(int numRecs, int nullsCount, int numBytes, long min, long max, int singleOffset)
+    public void commitAndResetWE(int numRecs,
+            int nullsCount,
+            int numBytes,
+            long min,
+            long max,
+            int singleOffset)
     {
         // no need to add to chunk map as we are not closing the chunk
-        storageEngine.commitRecordBuffer(weCookie, numRecs, nullsCount, numBytes, min, max, singleOffset, false, null);
+
+        long res = storageEngine.warmupChunk(weCookie, numRecs, nullsCount, numBytes, min, max, singleOffset, false, fileCookieParams, null);
+        fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFF;
+        fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX.ordinal()] = res >> 32;
         resetSingleRecordBufferPos();
     }
 

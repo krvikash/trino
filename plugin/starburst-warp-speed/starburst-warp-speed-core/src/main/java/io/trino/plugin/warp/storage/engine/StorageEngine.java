@@ -73,13 +73,12 @@ public interface StorageEngine
 
     //----------------------- warmup ----------------------------------------
 
-    default long warmupElementOpen(long context, long[] fileCookie, int offetInPages,
-            int recTypeCode, int recTypeLength, int warmUpType, long writeBuffAddress, long[] buffAddresses)
+    default long warmupElementOpen(long context, int recTypeCode, int recTypeLength, int warmUpType, long[] buffAddresses)
     {
         throw new UnsupportedOperationException();
     }
 
-    default long warmupElementClose(long weCookie, int[] outQueryFileParams)
+    default long warmupElementClose(long weCookie, long[] fileCookieParams, int[] outQueryFileParams)
     {
         throw new UnsupportedOperationException();
     }
@@ -89,27 +88,23 @@ public interface StorageEngine
         throw new UnsupportedOperationException();
     }
 
-    default void commitRecordBufferPrepare(long weCookie)
+    default long warmupChunk(long weCookie, int addedNumRows, int addedNV, int addedBytes, long valueMin, long valueMax,
+            int singleValOffset, boolean close, long[] fileCookieParams, byte[] outChunkCookies)
     {
         throw new UnsupportedOperationException();
     }
 
-    default void commitRecordBuffer(long weCookie, int addedNumRows, int addedNV, int addedBytes, long valueMin, long valueMax,
-            int singleValOffset, boolean close, byte[] outChunkCookies)
+    default long warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, long[] fileCookieParams)
     {
         throw new UnsupportedOperationException();
     }
 
-    default void commitExtRecordBuffer(long weCookie, int extRecordFirstOffset, int addedExtBytes)
+    default long warmupLucene(long weCookie, int fileId, int offset, int len, long[] fileCookieParams)
     {
-        throw new UnsupportedOperationException();
+        return 0;
     }
 
-    default void luceneWriteBuffer(long weCookie, int fileId, int offset, int len)
-    {
-    }
-
-    default long luceneCommitBuffers(long weCookie, boolean singleVal, int[] fileLengths)
+    default long warmupLuceneChunk(long weCookie, boolean singleVal, int[] fileLengths, long[] fileCookieParams)
     {
         return 0;
     }

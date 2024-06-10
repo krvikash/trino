@@ -37,6 +37,7 @@ final class StorageWriterContext
     private final WriteJuffersWarmUpElement writeJuffersWarmUpElement;
     private final DictionaryWarmInfo dictionaryWarmInfo;
     private final long weCookie;
+    private final long[] fileCookieParams;
     private final BlockAppender blockAppender;
     private boolean weSuccess;
     private final Optional<WriteDictionary> writeDictionary;
@@ -48,6 +49,7 @@ final class StorageWriterContext
             WriteJuffersWarmUpElement writeJuffersWarmUpElement,
             DictionaryWarmInfo dictionaryWarmInfo,
             long weCookie,
+            long[] fileCookieParams,
             BlockAppender blockAppender,
             boolean weSuccess,
             Optional<WriteDictionary> writeDictionary,
@@ -60,6 +62,7 @@ final class StorageWriterContext
         this.writeJuffersWarmUpElement = writeJuffersWarmUpElement;
         this.dictionaryWarmInfo = dictionaryWarmInfo;
         this.weCookie = weCookie;
+        this.fileCookieParams = fileCookieParams;
         this.blockAppender = blockAppender;
         this.weSuccess = weSuccess;
         this.writeDictionary = writeDictionary;
@@ -91,6 +94,11 @@ final class StorageWriterContext
     public long getWeCookie()
     {
         return weCookie;
+    }
+
+    public long[] getFileCookieParams()
+    {
+        return fileCookieParams;
     }
 
     int getRecordBufferSize()

@@ -19,6 +19,9 @@ import io.trino.plugin.warp.storage.engine.StorageEngine;
 
 import java.lang.foreign.MemorySegment;
 
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_START_OFFSET;
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX;
+
 /**
  * buffer for marking extended strings
  */
@@ -28,6 +31,7 @@ public class ExtendedJuffer
     private final WarmUpElementAllocationParams allocParams;
     private final StorageEngine storageEngine;
     private final long weCookie;
+    private final long[] fileCookieParams;
     private int extWESize;                          // extended recs buffer size
     private int extRecordFirstOffset;               // offset of the first extended entry we encountered
     private int extRecordLastPos;                   // extended records last entry address
@@ -35,12 +39,14 @@ public class ExtendedJuffer
     public ExtendedJuffer(BufferAllocator bufferAllocator,
             WarmUpElementAllocationParams allocParams,
             StorageEngine storageEngine,
-            long weCookie)
+            long weCookie,
+            long[] fileCookieParams)
     {
         super(bufferAllocator, JuffersType.EXTENDED_REC);
         this.allocParams = allocParams;
         this.storageEngine = storageEngine;
         this.weCookie = weCookie;
+        this.fileCookieParams = fileCookieParams;
         extRecordFirstOffset = -1;
     }
 
@@ -55,7 +61,9 @@ public class ExtendedJuffer
     protected void commitAndResetExtRecordBuffer(int numExtBytes)
     {
         if (numExtBytes > 0) {
-            storageEngine.commitExtRecordBuffer(weCookie, extRecordFirstOffset, numExtBytes);
+            long res = storageEngine.warmupChunkExtRec(weCookie, extRecordFirstOffset, numExtBytes, fileCookieParams);
+            fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFF;
+            fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX.ordinal()] = res >> 32;
             resetExtBuf();
         }
     }
@@ -63,7 +71,9 @@ public class ExtendedJuffer
     public void commitAndResetExtRecordBuffer()
     {
         if (wrappedBuffer.position() > 0) {
-            storageEngine.commitExtRecordBuffer(weCookie, extRecordFirstOffset, wrappedBuffer.position());
+            long res = storageEngine.warmupChunkExtRec(weCookie, extRecordFirstOffset, wrappedBuffer.position(), fileCookieParams);
+            fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFF;
+            fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX.ordinal()] = res >> 32;
         }
         resetExtBuf();
     }

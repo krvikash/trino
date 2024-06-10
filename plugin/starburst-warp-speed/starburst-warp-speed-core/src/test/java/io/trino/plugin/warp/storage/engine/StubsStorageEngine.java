@@ -95,14 +95,13 @@ public class StubsStorageEngine
     }
 
     @Override
-    public long warmupElementOpen(long context, long[] fileCookie, int offetInPages,
-            int recTypeCode, int recTypeLength, int warmUpType, long writeBuffAddress, long[] buffAddresses)
+    public long warmupElementOpen(long context, int recTypeCode, int recTypeLength, int warmUpType, long[] buffAddresses)
     {
         return 1;
     }
 
     @Override
-    public long warmupElementClose(long weCookie, int[] outQueryFileParams)
+    public long warmupElementClose(long weCookie, long[] fileCookie, int[] outQueryFileParams)
     {
         outQueryFileParams[0] = 0;
         outQueryFileParams[1] = 1;
@@ -115,19 +114,16 @@ public class StubsStorageEngine
     }
 
     @Override
-    public void commitRecordBufferPrepare(long weCookie)
+    public long warmupChunk(long weCookie, int addedNumRows, int addedNV, int addedBytes, long valueMin, long valueMax,
+            int singleValOffset, boolean close, long[] fileCookieParams, byte[] outChunkCookies)
     {
+        return 0;
     }
 
     @Override
-    public void commitRecordBuffer(long weCookie, int addedNumRows, int addedNV, int addedBytes, long valueMin, long valueMax,
-            int singleValOffset, boolean close, byte[] outChunkCookies)
+    public long warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, long[] fileCookieParams)
     {
-    }
-
-    @Override
-    public void commitExtRecordBuffer(long weCookie, int extRecordFirstOffset, int addedExtBytes)
-    {
+        return 0;
     }
 
     @Override

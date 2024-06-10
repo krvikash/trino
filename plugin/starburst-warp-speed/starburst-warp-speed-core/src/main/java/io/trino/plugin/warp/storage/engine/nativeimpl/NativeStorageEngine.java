@@ -126,30 +126,26 @@ public class NativeStorageEngine
     public native void fileIsAboutToBeDeleted(String fileName, int fileSizeInPages);
 
     @Override
-    public native long warmupElementOpen(long context, long[] fileCookie, int offetInPages,
-            int recTypeCode, int recTypeLength, int warmUpType, long writeBuffAddress, long[] buffAddresses);
+    public native long warmupElementOpen(long context, int recTypeCode, int recTypeLength, int warmUpType, long[] buffAddresses);
 
     @Override
-    public native long warmupElementClose(long weCookie, int[] outQueryFileParams);
+    public native long warmupElementClose(long weCookie, long[] fileCookie, int[] outQueryFileParams);
 
     @Override
     public native void warmupVerifyQueryOffset(int queryOffset, long[] fileCookie);
 
     @Override
-    public native void commitRecordBufferPrepare(long weCookie);
+    public native long warmupChunk(long weCookie, int addedNumRows, int addedNV, int addedBytes, long valueMin, long valueMax,
+            int singleValOffset, boolean close, long[] fileCookieParams, byte[] outChunkCookies);
 
     @Override
-    public native void commitRecordBuffer(long weCookie, int addedNumRows, int addedNV, int addedBytes, long valueMin, long valueMax,
-            int singleValOffset, boolean close, byte[] outChunkCookies);
+    public native long warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, long[] fileCookieParams);
 
     @Override
-    public native void commitExtRecordBuffer(long weCookie, int extRecordFirstOffset, int addedExtBytes);
+    public native long warmupLucene(long weCookie, int fileId, int offset, int len, long[] fileCookieParams);
 
     @Override
-    public native void luceneWriteBuffer(long weCookie, int fileId, int offset, int len);
-
-    @Override
-    public native long luceneCommitBuffers(long weCookie, boolean singleVal, int[] fileLengths);
+    public native long warmupLuceneChunk(long weCookie, boolean singleVal, int[] fileLengths, long[] fileCookieParams);
 
     @Override
     public native int queryGetCollect2MatchSize();

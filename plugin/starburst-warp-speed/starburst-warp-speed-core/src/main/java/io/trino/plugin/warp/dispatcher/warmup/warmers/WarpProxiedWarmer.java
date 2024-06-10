@@ -71,6 +71,10 @@ import java.util.Set;
 import java.util.function.Function;
 
 import static io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService.INVALID_FILE_COOKIE_FD;
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FD;
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_NUM_OF;
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_START_OFFSET;
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_WRITE_BUF_ADDR;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -135,14 +139,18 @@ public class WarpProxiedWarmer
 
         WarmupElementWriteMetadata currWarmUpElementWriteMetadata;
         String rowGroupFilePath = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
-        long[] fileCookie = {INVALID_FILE_COOKIE_FD, 0};
+        long[] fileCookieParams = new long[FILE_COOKIE_PARAMS_NUM_OF.ordinal()];
+        fileCookieParams[FILE_COOKIE_PARAMS_FD.ordinal()] = INVALID_FILE_COOKIE_FD;
         StorageWriterSplitConfig storageWriterSplitConfig = null;
         try {
             storageWarmerService.createFile(rowGroupKey);
-            fileCookie = storageWarmerService.fileOpen(rowGroupKey);
+            fileCookieParams = storageWarmerService.fileOpen(rowGroupKey);
             storageWriterSplitConfig = storageWriterService.startWarming(nodeIdentifier,
                     rowGroupFilePath,
                     WarpSessionProperties.getEnableDictionary(session));
+            if (storageWriterSplitConfig != null) {
+                fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_ADDR.ordinal()] = storageWriterSplitConfig.writeBuff().address();
+            }
             try {
                 int fileOffset = firstOffset;
                 ConnectorSplit nonFilterSplit = dispatcherProxiedConnectorTransformer.createProxiedConnectorNonFilteredSplit(dispatcherSplit.getProxyConnectorSplit());
@@ -169,7 +177,8 @@ public class WarpProxiedWarmer
                             int pagePositionCount = (nextPage != null) ? nextPage.getPositionCount() : 0;
                             if (pagePositionCount > 0) {
                                 if (rowCount == 0) { //first time
-                                    pageSink.open(fileCookie, fileOffset, currWarmUpElementWriteMetadata, outDictionariesWarmInfos);
+                                    fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = fileOffset;
+                                    pageSink.open(fileCookieParams, currWarmUpElementWriteMetadata, outDictionariesWarmInfos);
                                 }
                                 isValidWE = pageSink.appendPage(nextPage, rowCount);
                                 rowCount += pagePositionCount;
@@ -179,7 +188,7 @@ public class WarpProxiedWarmer
                             }
                         }
 
-                        WarmSinkResult warmSinkResult = storageWarmerService.sinkClose(pageSink, currWarmUpElementWriteMetadata, rowCount, isValidWE, fileOffset, fileCookie);
+                        WarmSinkResult warmSinkResult = storageWarmerService.sinkClose(pageSink, currWarmUpElementWriteMetadata, rowCount, isValidWE, fileOffset, fileCookieParams);
                         pageSink = null;
                         fileOffset = warmSinkResult.offset(); // if we failed it will set the same number again
                         rowGroupData = rowGroupDataService.updateRowGroupData(rowGroupData, warmSinkResult.warmUpElement(), fileOffset, rowCount);
@@ -201,7 +210,7 @@ public class WarpProxiedWarmer
                 throw e;
             }
             finally {
-                storageWarmerService.flushRecords(fileCookie, rowGroupData); // a log will also be written here
+                storageWarmerService.flushRecords(fileCookieParams, rowGroupData); // a log will also be written here
             }
         }
         catch (IOException e) {
@@ -216,7 +225,7 @@ public class WarpProxiedWarmer
                     logger.error(e, "failed to release warming resources file %s", rowGroupFilePath);
                 }
             }
-            storageWarmerService.fileClose(fileCookie, Optional.of(rowGroupData));
+            storageWarmerService.fileClose(fileCookieParams, Optional.of(rowGroupData));
         }
 
         //if (extraDebug) {

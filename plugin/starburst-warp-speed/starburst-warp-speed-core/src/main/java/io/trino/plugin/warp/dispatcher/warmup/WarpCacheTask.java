@@ -43,6 +43,8 @@ import java.util.stream.Collectors;
 
 import static io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService.INVALID_FILE_COOKIE_FD;
 import static io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService.INVALID_FLOW_ID;
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FD;
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_NUM_OF;
 import static java.util.Objects.requireNonNull;
 
 public class WarpCacheTask
@@ -149,7 +151,9 @@ public class WarpCacheTask
                     if (aborted) {
                         cacheWarmState = CacheWarmState.ABORT_ON_INIT_PROCESS;
                     }
-                    warmingCandidates = toWarm.stream().map(x -> new WarmingCandidate(new long[] {INVALID_FILE_COOKIE_FD, 0}, null, 0, x, null)).collect(Collectors.toList());
+                    long[] fileCookieParams = new long[FILE_COOKIE_PARAMS_NUM_OF.ordinal()];
+                    fileCookieParams[FILE_COOKIE_PARAMS_FD.ordinal()] = INVALID_FILE_COOKIE_FD;
+                    warmingCandidates = toWarm.stream().map(x -> new WarmingCandidate(fileCookieParams, null, 0, x, null)).collect(Collectors.toList());
                 }
                 closeAndSave(cacheWarmState);
             }

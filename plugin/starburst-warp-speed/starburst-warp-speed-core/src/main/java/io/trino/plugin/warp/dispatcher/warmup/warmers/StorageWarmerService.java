@@ -168,7 +168,8 @@ public class StorageWarmerService
 
     public void verifyQueryOffsets(RowGroupKey rowGroupKey, List<WarmUpElement> validWarmUpElements)
     {
-        long[] fileCookie = {INVALID_FILE_COOKIE_FD, 0};
+        long[] fileCookie = new long[FILE_COOKIE_PARAMS_NUM_OF.ordinal()];
+        fileCookie[FILE_COOKIE_PARAMS_FD.ordinal()] = INVALID_FILE_COOKIE_FD;
         try {
             if ((validWarmUpElements.size() > 0) && (validWarmUpElements.get(0).getTotalRecords() < 32 * 1024)) {
                 fileCookie = fileOpen(rowGroupKey);

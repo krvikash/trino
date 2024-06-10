@@ -52,7 +52,6 @@ import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.store.ByteBuffersDirectory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.nio.Buffer;
@@ -79,7 +78,6 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -339,46 +337,6 @@ public class StorageWriterServiceTest
         assertThat(recordBuffer.getInt(1)).isEqualTo(values[0].length);
     }
 
-    @Disabled
-    @Test
-    public void testBigArrayVarcharWithRecycleBuffers()
-    {
-        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
-        Page page = createBigVarcharArrayPage(false);
-        Page dictPage = createBigVarcharArrayPage(true);
-
-        ArrayType varcharArrayType = new ArrayType(VarcharType.VARCHAR);
-        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1", varcharArrayType), WarmUpType.WARM_UP_TYPE_DATA);
-
-        List<DictionaryWarmInfo> outDictionaryWarmInfos = new ArrayList<>();
-        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", "rowGroupFilePath", true);
-        StorageWriterContext storageWriterContext = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata, outDictionaryWarmInfos);
-        storageWriterService.appendPage(page, storageWriterContext);
-        verify(storageEngine, times(2)).commitRecordBufferPrepare(0);
-
-        storageWriterService.appendPage(dictPage, storageWriterContext);
-
-        // Dict page has X2 number of rows
-        verify(storageEngine, times(4)).commitRecordBufferPrepare(0);
-    }
-
-    @Disabled
-    @Test
-    public void testBigVarcharWithRecycleBuffers()
-    {
-        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
-        Page page = createBigPageVarchar();
-
-        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1", VARCHAR), WarmUpType.WARM_UP_TYPE_DATA);
-
-        List<DictionaryWarmInfo> outDictionaryWarmInfos = new ArrayList<>();
-        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", "rowGroupFilePath", true);
-        StorageWriterContext storageWriterContext = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata, outDictionaryWarmInfos);
-        storageWriterService.appendPage(page, storageWriterContext);
-
-        verify(storageEngine, times(2)).commitRecordBufferPrepare(0);
-    }
-
     @Test
     public void writeVarchar_varcharIsSmallerThanVarcharAsCharLimit()
     {
@@ -502,8 +460,8 @@ public class StorageWriterServiceTest
         assertThat(juffersWE.getLuceneFileBuffer(LuceneFileType.CFE).position()).isEqualTo(0);
         assertThat(juffersWE.getLuceneFileBuffer(LuceneFileType.CFS).position()).isEqualTo(0);
         assertThat(juffersWE.getLuceneFileBuffer(LuceneFileType.SEGMENTS).position()).isEqualTo(0);
-        verify(storageEngine, never()).luceneWriteBuffer(anyLong(), anyInt(), anyInt(), anyInt());
-        verify(storageEngine, never()).luceneCommitBuffers(anyLong(), anyBoolean(), any(int[].class));
+        verify(storageEngine, never()).warmupLucene(anyLong(), anyInt(), anyInt(), anyInt(), any());
+        verify(storageEngine, never()).warmupLuceneChunk(anyLong(), anyBoolean(), any(int[].class), any());
     }
 
     @Test
@@ -590,7 +548,7 @@ public class StorageWriterServiceTest
 
     private StorageWriterContext txCreate(StorageWriterSplitConfig storageWriterSplitConfig, WarmupElementWriteMetadata warmupElementWriteMetadata, List<DictionaryWarmInfo> outDictionaryWarmInfos)
     {
-        return storageWriterService.open(new long[] {INVALID_FILE_COOKIE_FD, 0}, 0, storageWriterSplitConfig, warmupElementWriteMetadata, outDictionaryWarmInfos);
+        return storageWriterService.open(new long[] {INVALID_FILE_COOKIE_FD, 0, 0, 0, 0}, storageWriterSplitConfig, warmupElementWriteMetadata, outDictionaryWarmInfos);
     }
 
     private StorageWriterContext runTest(Page page, WarmupElementWriteMetadata warmupElementWriteMetadata, List<DictionaryWarmInfo> outDictionaryWarmInfos)

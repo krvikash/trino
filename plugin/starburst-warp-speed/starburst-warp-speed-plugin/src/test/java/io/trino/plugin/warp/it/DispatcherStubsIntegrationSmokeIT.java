@@ -488,7 +488,6 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                     .describedAs("expectedWarmedFailed is not as expected. %s", query)
                     .isEqualTo(integer.longValue()));
         });
-        logger.info("finished warming");
     }
 
     protected void validateDictionaryStats(Session jmxSession, long expectedMaxException, long expectedDictionaryWriteCount, long expectedReadDictionaryCount)

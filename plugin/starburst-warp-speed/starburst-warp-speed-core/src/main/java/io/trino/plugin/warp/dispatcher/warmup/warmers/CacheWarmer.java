@@ -41,6 +41,8 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_START_OFFSET;
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_WRITE_BUF_ADDR;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -133,12 +135,17 @@ public class CacheWarmer
         PageSink pageSink = warpPageSinkFactory.create(storageWriterSplitConfig);
         rowGroupDataService.getOrCreateTmpRowGroupData(tmpRowGroupKey);
         storageWarmerService.createFile(tmpRowGroupKey);
-        long[] fileCookie = storageWarmerService.fileOpen(tmpRowGroupKey);
-        int fileOffset = getFileOffset(tmpRowGroupKey);
+        long[] fileCookieParams = storageWarmerService.fileOpen(tmpRowGroupKey);
+        fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = getFileOffset(tmpRowGroupKey);
+        fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_ADDR.ordinal()] = storageWriterSplitConfig.writeBuff().address();
         List<DictionaryWarmInfo> outDictionaryWarmInfos = new ArrayList<>();
 
-        pageSink.open(fileCookie, fileOffset, warmUpElementToWarm, outDictionaryWarmInfos);
-        return new WarmingCandidate(fileCookie, pageSink, fileOffset, warmUpElementToWarm, tmpRowGroupKey);
+        pageSink.open(fileCookieParams, warmUpElementToWarm, outDictionaryWarmInfos);
+        return new WarmingCandidate(fileCookieParams,
+                pageSink,
+                (int) fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()],
+                warmUpElementToWarm,
+                tmpRowGroupKey);
     }
 
     public StorageWriterSplitConfig lockAndStartWarming(RowGroupKey permanentRowGroupKey)

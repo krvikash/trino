@@ -31,6 +31,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_START_OFFSET;
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX;
 import static java.lang.Double.doubleToLongBits;
 import static java.lang.Double.longBitsToDouble;
 import static java.lang.Float.floatToIntBits;
@@ -45,6 +47,7 @@ public class WriteJuffersWarmUpElement
     private final StorageEngine storageEngine;
     private final int pageOffsetMask;
     private final long weCookie;
+    private final long[] fileCookieParams;
     private final int chunkHeaderSize;
     private final List<ChunkMap> chunkMapList;
     private final MemorySegment[] buffs;
@@ -63,7 +66,8 @@ public class WriteJuffersWarmUpElement
             BufferAllocator bufferAllocator,
             MemorySegment[] buffs,
             long weCookie,
-            WarmUpElementAllocationParams allocParams)
+            WarmUpElementAllocationParams allocParams,
+            long[] fileCookieParams)
     {
         super();
 
@@ -73,6 +77,7 @@ public class WriteJuffersWarmUpElement
         this.buffs = buffs;
         this.allocParams = allocParams;
         this.weCookie = weCookie;
+        this.fileCookieParams = fileCookieParams;
         this.chunkHeaderSize = storageEngineConstants.getChunkHeaderMaxSize();
 
         // we always have an invalid cookie at the end of the list for a case we aborted the last chunk in the middle
@@ -82,11 +87,11 @@ public class WriteJuffersWarmUpElement
         this.chunkMapList.add(new ChunkMap(defaultChunkCookies));
 
         if (allocParams.isRecBufferNeeded()) {
-            RecordWriteJuffer recordJuffers = new RecordWriteJuffer(bufferAllocator, allocParams, storageEngine, weCookie);
+            RecordWriteJuffer recordJuffers = new RecordWriteJuffer(bufferAllocator, allocParams, storageEngine, weCookie, fileCookieParams);
             juffers.put(recordJuffers.getJufferType(), recordJuffers);
 
             if (allocParams.isExtBufferNeeded()) {
-                ExtendedJuffer extendedJuffers = new ExtendedJuffer(bufferAllocator, allocParams, storageEngine, weCookie);
+                ExtendedJuffer extendedJuffers = new ExtendedJuffer(bufferAllocator, allocParams, storageEngine, weCookie, fileCookieParams);
                 juffers.put(extendedJuffers.getJufferType(), extendedJuffers);
             }
         }
@@ -165,7 +170,7 @@ public class WriteJuffersWarmUpElement
         }
 
         byte[] outChunkCookies = new byte[chunkHeaderSize];
-        storageEngine.commitRecordBuffer(weCookie,
+        long res = storageEngine.warmupChunk(weCookie,
                 recordBufferPos,
                 getNullJuffer().getNullsCount(),
                 numBytesWritten,
@@ -173,7 +178,10 @@ public class WriteJuffersWarmUpElement
                 recordBufferMax,
                 recordBufferSingleOffset,
                 true,
+                fileCookieParams,
                 outChunkCookies);
+        fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFF;
+        fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX.ordinal()] = res >> 32;
         chunkMapList.add(chunkMapList.size() - 1, new ChunkMap(outChunkCookies));
     }
 
@@ -196,7 +204,12 @@ public class WriteJuffersWarmUpElement
         if (allocParams.isExtBufferNeeded()) {
             getExtRecordJuffer().commitAndResetExtRecordBuffer(numExtBytes);
         }
-        getRecordJuffer().commitAndResetWE(numRecs, getNullJuffer().getNullsCount() + addedNV, numBytes, recordBufferMin, recordBufferMax, recordBufferSingleOffset);
+        getRecordJuffer().commitAndResetWE(numRecs,
+                getNullJuffer().getNullsCount() + addedNV,
+                numBytes,
+                recordBufferMin,
+                recordBufferMax,
+                recordBufferSingleOffset);
     }
 
     public void increaseNullsCount(int nullsCount)

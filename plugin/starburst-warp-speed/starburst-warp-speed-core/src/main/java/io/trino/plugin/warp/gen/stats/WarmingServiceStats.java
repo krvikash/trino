@@ -54,6 +54,7 @@ public final class WarmingServiceStats
     private final LongAdder all_elements_warmed_or_skipped = new LongAdder();
     private final LongAdder row_group_count = new LongAdder();
     private final LongAdder warm_warp_cache_started = new LongAdder();
+    private final LongAdder warm_warp_cache_engine_aborted = new LongAdder();
     private final LongAdder warm_warp_cache_accomplished = new LongAdder();
     private final LongAdder warm_warp_cache_failed = new LongAdder();
     private final LongAdder warm_warp_cache_invalid_type = new LongAdder();
@@ -521,6 +522,29 @@ public final class WarmingServiceStats
 
     @JsonIgnore
     @Managed
+    public long getwarm_warp_cache_engine_aborted()
+    {
+        return warm_warp_cache_engine_aborted.longValue();
+    }
+
+    public void incwarm_warp_cache_engine_aborted()
+    {
+        warm_warp_cache_engine_aborted.increment();
+    }
+
+    public void addwarm_warp_cache_engine_aborted(long val)
+    {
+        warm_warp_cache_engine_aborted.add(val);
+    }
+
+    public void setwarm_warp_cache_engine_aborted(long val)
+    {
+        warm_warp_cache_engine_aborted.reset();
+        addwarm_warp_cache_engine_aborted(val);
+    }
+
+    @JsonIgnore
+    @Managed
     public long getwarm_warp_cache_accomplished()
     {
         return warm_warp_cache_accomplished.longValue();
@@ -794,6 +818,7 @@ public final class WarmingServiceStats
         ret.put("all_elements_warmed_or_skipped", all_elements_warmed_or_skipped);
         ret.put("row_group_count", row_group_count);
         ret.put("warm_warp_cache_started", warm_warp_cache_started);
+        ret.put("warm_warp_cache_engine_aborted", warm_warp_cache_engine_aborted);
         ret.put("warm_warp_cache_accomplished", warm_warp_cache_accomplished);
         ret.put("warm_warp_cache_failed", warm_warp_cache_failed);
         ret.put("warm_warp_cache_invalid_type", warm_warp_cache_invalid_type);
@@ -832,6 +857,7 @@ public final class WarmingServiceStats
         this.all_elements_warmed_or_skipped.add(other.all_elements_warmed_or_skipped.longValue());
         this.row_group_count.add(other.row_group_count.longValue());
         this.warm_warp_cache_started.add(other.warm_warp_cache_started.longValue());
+        this.warm_warp_cache_engine_aborted.add(other.warm_warp_cache_engine_aborted.longValue());
         this.warm_warp_cache_accomplished.add(other.warm_warp_cache_accomplished.longValue());
         this.warm_warp_cache_failed.add(other.warm_warp_cache_failed.longValue());
         this.warm_warp_cache_invalid_type.add(other.warm_warp_cache_invalid_type.longValue());
@@ -868,6 +894,7 @@ public final class WarmingServiceStats
         all_elements_warmed_or_skipped.reset();
         row_group_count.reset();
         warm_warp_cache_started.reset();
+        warm_warp_cache_engine_aborted.reset();
         warm_warp_cache_accomplished.reset();
         warm_warp_cache_failed.reset();
         warm_warp_cache_invalid_type.reset();
@@ -905,6 +932,7 @@ public final class WarmingServiceStats
         res.put(getJmxKey() + ":all_elements_warmed_or_skipped", all_elements_warmed_or_skipped.longValue());
         res.put(getJmxKey() + ":row_group_count", row_group_count.longValue());
         res.put(getJmxKey() + ":warm_warp_cache_started", warm_warp_cache_started.longValue());
+        res.put(getJmxKey() + ":warm_warp_cache_engine_aborted", warm_warp_cache_engine_aborted.longValue());
         res.put(getJmxKey() + ":warm_warp_cache_accomplished", warm_warp_cache_accomplished.longValue());
         res.put(getJmxKey() + ":warm_warp_cache_failed", warm_warp_cache_failed.longValue());
         res.put(getJmxKey() + ":warm_warp_cache_invalid_type", warm_warp_cache_invalid_type.longValue());
@@ -939,6 +967,7 @@ public final class WarmingServiceStats
         res.put("warm_success_retry_warmup_element", getwarm_success_retry_warmup_element());
         res.put("row_group_count", getrow_group_count());
         res.put("warm_warp_cache_started", getwarm_warp_cache_started());
+        res.put("warm_warp_cache_engine_aborted", getwarm_warp_cache_engine_aborted());
         res.put("warm_warp_cache_accomplished", getwarm_warp_cache_accomplished());
         res.put("warm_warp_cache_failed", getwarm_warp_cache_failed());
         res.put("warm_warp_cache_invalid_type", getwarm_warp_cache_invalid_type());

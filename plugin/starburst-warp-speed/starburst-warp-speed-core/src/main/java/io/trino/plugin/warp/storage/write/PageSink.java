@@ -23,7 +23,7 @@ import java.util.List;
 
 public interface PageSink
 {
-    void open(long[] fileCookie, int fileOffset, WarmupElementWriteMetadata warmupElementWriteMetadata, List<DictionaryWarmInfo> outDictionaryWarmInfos);
+    void open(long[] fileCookieParams, WarmupElementWriteMetadata warmupElementWriteMetadata, List<DictionaryWarmInfo> outDictionaryWarmInfos);
 
     boolean appendPage(Page page, int totalRecords);
 
