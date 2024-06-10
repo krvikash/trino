@@ -38,6 +38,7 @@ public class CrcLongDecimalBlockAppender
                     nullsCount++;
                 }
                 else {
+                    nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                     Int128 value = (Int128) blockPos.getObject();
                     writeValue(value, blockPos, jufferPos);
                 }
@@ -46,6 +47,7 @@ public class CrcLongDecimalBlockAppender
         }
         else {
             while (blockPos.inRange()) {
+                nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                 Int128 value = (Int128) blockPos.getObject();
                 writeValue(value, blockPos, jufferPos);
                 blockPos.advance();
@@ -61,6 +63,5 @@ public class CrcLongDecimalBlockAppender
                 value.getHigh(), // MSB used for min-max
                 value,
                 crcJufferOffset);      // position of the value in case of single value
-        advanceNullBuff();
     }
 }

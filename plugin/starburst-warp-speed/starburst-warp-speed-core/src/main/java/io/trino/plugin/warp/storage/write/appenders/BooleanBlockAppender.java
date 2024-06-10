@@ -42,6 +42,7 @@ public class BooleanBlockAppender
                     nullsCount++;
                 }
                 else {
+                    nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                     byte val = blockPos.getBoolean();
                     writeValue(val, buff);
                 }
@@ -49,6 +50,7 @@ public class BooleanBlockAppender
         }
         else {
             for (; blockPos.inRange(); blockPos.advance()) {
+                nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                 byte val = blockPos.getBoolean();
                 writeValue(val, buff);
             }
@@ -59,7 +61,6 @@ public class BooleanBlockAppender
     private void writeValue(byte val, ByteBuffer buff)
     {
         buff.put(val);
-        advanceNullBuff();
     }
 
     @Override

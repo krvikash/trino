@@ -43,6 +43,7 @@ public class LongBlockAppender
                     nullsCount++;
                 }
                 else {
+                    nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                     long val = blockPos.getLong();
                     warmupElementStatsBuilder.updateMinMax(val);
                     writeValue(val, longBuffer);
@@ -51,6 +52,7 @@ public class LongBlockAppender
         }
         else {
             for (; blockPos.inRange(); blockPos.advance()) {
+                nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                 long val = blockPos.getLong();
                 warmupElementStatsBuilder.updateMinMax(val);
                 writeValue(val, longBuffer);
@@ -63,7 +65,6 @@ public class LongBlockAppender
     {
         juffersWE.updateRecordBufferProps(val);
         longBuffer.put(val);
-        advanceNullBuff();
     }
 
     @Override
@@ -79,6 +80,7 @@ public class LongBlockAppender
                     nullsCount++;
                 }
                 else {
+                    nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                     long val = blockPos.getLong();
                     warmupElementStatsBuilder.updateMinMax(val);
                     short key = writeDictionary.get(val);
@@ -88,6 +90,7 @@ public class LongBlockAppender
         }
         else {
             for (; blockPos.inRange(); blockPos.advance()) {
+                nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                 long val = blockPos.getLong();
                 warmupElementStatsBuilder.updateMinMax(val);
                 short key = writeDictionary.get(val);

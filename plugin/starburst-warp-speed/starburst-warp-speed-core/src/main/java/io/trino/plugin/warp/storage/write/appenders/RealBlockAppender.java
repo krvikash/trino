@@ -42,6 +42,7 @@ public class RealBlockAppender
                     nullsCount++;
                 }
                 else {
+                    nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                     int val = blockPos.getInt();
                     Float floatVal = Float.intBitsToFloat(val);
                     warmupElementStatsBuilder.updateMinMax(floatVal);
@@ -51,6 +52,7 @@ public class RealBlockAppender
         }
         else {
             for (; blockPos.inRange(); blockPos.advance()) {
+                nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                 int val = blockPos.getInt();
                 Float floatVal = Float.intBitsToFloat(val);
                 warmupElementStatsBuilder.updateMinMax(floatVal);
@@ -64,6 +66,5 @@ public class RealBlockAppender
     {
         juffersWE.updateRecordBufferProps(Float.intBitsToFloat(val));
         buff.put(val);
-        advanceNullBuff();
     }
 }

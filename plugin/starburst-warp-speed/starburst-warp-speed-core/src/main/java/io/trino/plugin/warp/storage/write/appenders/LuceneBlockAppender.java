@@ -51,6 +51,7 @@ public class LuceneBlockAppender
                         luceneIndexer.addDoc(LuceneIndexer.LUCENE_NULL_STRING);
                     }
                     else {
+                        nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                         writeValue(blockPos);
                     }
                     blockPos.advance();
@@ -58,6 +59,7 @@ public class LuceneBlockAppender
             }
             else {
                 while (blockPos.inRange()) {
+                    nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                     writeValue(blockPos);
                     blockPos.advance();
                 }
@@ -74,7 +76,6 @@ public class LuceneBlockAppender
     private void writeValue(BlockPosHolder blockPos)
             throws IOException
     {
-        advanceNullBuff();
         Slice value = blockPos.getSlice();
         luceneIndexer.addDoc(value);
         juffersWE.updateLuceneProps(value);

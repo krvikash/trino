@@ -43,6 +43,7 @@ public class DoubleBlockAppender
                     nullsCount++;
                 }
                 else {
+                    nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                     double val = blockPos.getDouble();
                     warmupElementStatsBuilder.updateMinMax(val);
                     writeValue(val, buff);
@@ -51,6 +52,7 @@ public class DoubleBlockAppender
         }
         else {
             for (; blockPos.inRange(); blockPos.advance()) {
+                nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                 double val = blockPos.getDouble();
                 warmupElementStatsBuilder.updateMinMax(val);
                 writeValue(val, buff);
@@ -63,6 +65,5 @@ public class DoubleBlockAppender
     {
         juffersWE.updateRecordBufferProps(val);
         buff.put(Double.doubleToLongBits(val));
-        advanceNullBuff();
     }
 }

@@ -73,6 +73,7 @@ public class VariableLengthStringBlockAppender
                     nullsCount++;
                 }
                 else {
+                    nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                     Slice slice = getSlice(blockPos, sliceConverter);
                     warmupElementStatsBuilder.updateMinMax(slice);
                     writeValue(writeDictionary, buff, slice);
@@ -81,6 +82,7 @@ public class VariableLengthStringBlockAppender
         }
         else {
             for (; blockPos.inRange(); blockPos.advance()) {
+                nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                 Slice slice = getSlice(blockPos, sliceConverter);
                 warmupElementStatsBuilder.updateMinMax(slice);
                 writeValue(writeDictionary, buff, slice);
@@ -106,7 +108,6 @@ public class VariableLengthStringBlockAppender
         short key = writeDictionary.get(value);
         juffersWE.updateRecordBufferProps(key, value.length());
         buff.put(key);
-        advanceNullBuff();
     }
 
     @Override
@@ -180,7 +181,7 @@ public class VariableLengthStringBlockAppender
                 recordBuff.put((byte) 1); // dictionary rollback in native puts 1s since it uses memset so we do the same
             }
             else {
-                advanceNullBuff();
+                nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                 warmupElementStatsBuilder.updateMinMax(value);
                 if (att.extLen > 0) {
                     // handle extended string

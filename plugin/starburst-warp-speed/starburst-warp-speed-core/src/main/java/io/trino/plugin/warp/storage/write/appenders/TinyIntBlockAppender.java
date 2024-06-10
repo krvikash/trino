@@ -41,6 +41,7 @@ public class TinyIntBlockAppender
                     nullsCount++;
                 }
                 else {
+                    nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                     byte val = blockPos.getByte();
                     warmupElementStatsBuilder.updateMinMax(val);
                     writeValue(val, buff);
@@ -49,6 +50,7 @@ public class TinyIntBlockAppender
         }
         else {
             for (; blockPos.inRange(); blockPos.advance()) {
+                nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                 byte val = blockPos.getByte();
                 warmupElementStatsBuilder.updateMinMax(val);
                 writeValue(val, buff);
@@ -61,6 +63,5 @@ public class TinyIntBlockAppender
     {
         juffersWE.updateRecordBufferProps(val);
         buff.put(val);
-        advanceNullBuff();
     }
 }

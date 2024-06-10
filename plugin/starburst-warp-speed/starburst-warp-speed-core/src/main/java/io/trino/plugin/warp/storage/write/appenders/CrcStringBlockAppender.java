@@ -80,6 +80,7 @@ public class CrcStringBlockAppender
                     nullsCount++;
                 }
                 else {
+                    nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                     warmupElementStatsBuilder.updateMinMax(slice);
                     Slice value = sliceConverter.apply(slice);
                     writeValue(blockPos, jufferPos, stringLength, value);
@@ -114,6 +115,7 @@ public class CrcStringBlockAppender
                 nullsCount++;
             }
             else {
+                nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                 Slice slice = valueType.getSlice(elementBlock.getRawValueBlock(), elementBlock.getRawOffset() + pos);
                 Slice value = sliceConverter.apply(slice);
                 writeValue(blockPos, jufferPos, stringLength, value);
@@ -155,7 +157,5 @@ public class CrcStringBlockAppender
             valLength = Long.BYTES;
         }
         juffersWE.updateRecordBufferProps(stringVal, crc, valLength, crcJufferOffset);
-
-        advanceNullBuff();
     }
 }

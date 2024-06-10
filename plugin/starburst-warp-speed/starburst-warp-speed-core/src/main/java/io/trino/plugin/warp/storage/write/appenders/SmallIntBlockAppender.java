@@ -42,6 +42,7 @@ public class SmallIntBlockAppender
                     nullsCount++;
                 }
                 else {
+                    nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                     short val = blockPos.getShort();
                     warmupElementStatsBuilder.updateMinMax(val);
                     writeValue(val, buff);
@@ -50,6 +51,7 @@ public class SmallIntBlockAppender
         }
         else {
             for (; blockPos.inRange(); blockPos.advance()) {
+                nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                 short val = blockPos.getShort();
                 warmupElementStatsBuilder.updateMinMax(val);
                 writeValue(val, buff);

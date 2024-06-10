@@ -39,6 +39,7 @@ public class CrcLongBlockAppender
                     nullsCount++;
                 }
                 else {
+                    nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                     long val = blockPos.getLong();
                     warmupElementStatsBuilder.updateMinMax(val);
                     writeValue(jufferPos, blockPos, val);
@@ -47,6 +48,7 @@ public class CrcLongBlockAppender
         }
         else {
             for (; blockPos.inRange(); blockPos.advance()) {
+                nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                 long val = blockPos.getLong();
                 warmupElementStatsBuilder.updateMinMax(val);
                 writeValue(jufferPos, blockPos, val);
@@ -69,6 +71,7 @@ public class CrcLongBlockAppender
                 nullsCount++;
             }
             else {
+                nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                 long val = BigintType.BIGINT.getLong(elementBlock.getRawValueBlock(), elementBlock.getRawOffset() + pos);
                 writeValue(jufferPos, blockPos, val);
             }
@@ -80,6 +83,5 @@ public class CrcLongBlockAppender
     {
         crcJuffers.put(val, jufferPos, blockPos);
         juffersWE.updateRecordBufferProps(val);
-        advanceNullBuff();
     }
 }

@@ -31,6 +31,7 @@ import java.util.Optional;
 public abstract class BlockAppender
 {
     protected static final byte NULL_VALUE_BYTE_SIGNAL = -1;
+    protected static final byte NON_NULL_VALUE_BYTE_SIGNAL = 0;
     protected static final byte ZERO_BYTE_SIGNAL = 0;
     private static final byte[] padding = new byte[8192];   // PageSize
     protected final WriteJuffersWarmUpElement juffersWE;
@@ -75,11 +76,6 @@ public abstract class BlockAppender
         }
     }
 
-    protected void advanceNullBuff()
-    {
-        nullBuff.position(nullBuff.position() + 1);
-    }
-
     protected void padBuffer(ByteBuffer buff, int len)
     {
         if (len > padding.length) {
@@ -103,7 +99,6 @@ public abstract class BlockAppender
     {
         juffersWE.updateRecordBufferProps(key);
         buffer.put(key);
-        advanceNullBuff();
     }
 
     protected boolean commitWEIfNeeded(BlockPosHolder blockPos, ByteBuffer buff, int jufferPos, int addedNv, int recBuffSize)

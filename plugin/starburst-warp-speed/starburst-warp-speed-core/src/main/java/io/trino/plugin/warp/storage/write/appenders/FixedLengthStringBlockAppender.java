@@ -66,6 +66,7 @@ public class FixedLengthStringBlockAppender
                     nullsCount++;
                 }
                 else {
+                    nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                     Slice slice = blockPos.getSlice();
                     warmupElementStatsBuilder.updateMinMax(slice);
                     writeValue(writeDictionary, buff, stringLength, sliceConverter.apply(slice));
@@ -74,6 +75,7 @@ public class FixedLengthStringBlockAppender
         }
         else {
             for (; blockPos.inRange(); blockPos.advance()) {
+                nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                 Slice slice = blockPos.getSlice();
                 warmupElementStatsBuilder.updateMinMax(slice);
                 writeValue(writeDictionary, buff, stringLength, sliceConverter.apply(slice));
@@ -87,7 +89,6 @@ public class FixedLengthStringBlockAppender
         short key = writeDictionary.get(value);
         juffersWE.updateRecordBufferProps(key, stringLength);
         buff.put(key);
-        advanceNullBuff();
     }
 
     @Override
@@ -115,6 +116,7 @@ public class FixedLengthStringBlockAppender
                     nullsCount++;
                 }
                 else {
+                    nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                     Slice slice = blockPos.getSlice();
                     warmupElementStatsBuilder.updateMinMax(slice);
                     writeValue(buff, stringLength, sliceConverter.apply(slice));
@@ -124,6 +126,7 @@ public class FixedLengthStringBlockAppender
         }
         else {
             while (blockPos.inRange()) {
+                nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                 paddPageEnd(buff, stringLength);
                 commitWEIfNeeded(blockPos, buff, jufferPos, 0, recBuffSize);
                 Slice slice = blockPos.getSlice();
@@ -141,7 +144,6 @@ public class FixedLengthStringBlockAppender
         juffersWE.updateRecordBufferProps(SliceUtils.calcStringValue(byteBuffer, value.length(), stringLength, false),
                 byteBuffer, value.length(), buff.position());
         buff.put(byteBuffer);
-        advanceNullBuff();
     }
 
     private void paddPageEnd(ByteBuffer buff, int len)

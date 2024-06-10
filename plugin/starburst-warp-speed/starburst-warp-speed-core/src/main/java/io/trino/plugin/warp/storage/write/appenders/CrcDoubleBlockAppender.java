@@ -40,6 +40,7 @@ public class CrcDoubleBlockAppender
                     nullsCount++;
                 }
                 else {
+                    nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                     double val = blockPos.getDouble();
                     warmupElementStatsBuilder.updateMinMax(val);
                     writeValue(jufferPos, blockPos, val);
@@ -48,6 +49,7 @@ public class CrcDoubleBlockAppender
         }
         else {
             for (; blockPos.inRange(); blockPos.advance()) {
+                nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                 double val = blockPos.getDouble();
                 warmupElementStatsBuilder.updateMinMax(val);
                 writeValue(jufferPos, blockPos, val);
@@ -69,6 +71,7 @@ public class CrcDoubleBlockAppender
                 nullsCount++;
             }
             else {
+                nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                 double val = valueType.getDouble(elementBlock.getRawValueBlock(), elementBlock.getRawOffset() + pos);
                 writeValue(jufferPos, blockPos, val);
             }
@@ -80,6 +83,5 @@ public class CrcDoubleBlockAppender
     {
         crcJuffers.put(val, jufferPos, blockPos);
         juffersWE.updateRecordBufferProps(val);
-        advanceNullBuff();
     }
 }

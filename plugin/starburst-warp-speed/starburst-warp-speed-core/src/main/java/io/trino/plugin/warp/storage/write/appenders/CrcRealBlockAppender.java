@@ -43,6 +43,7 @@ public class CrcRealBlockAppender
                     nullsCount++;
                 }
                 else {
+                    nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                     int val = blockPos.getInt();
                     Float floatVal = Float.intBitsToFloat(val);
                     warmupElementStatsBuilder.updateMinMax(floatVal);
@@ -52,6 +53,7 @@ public class CrcRealBlockAppender
         }
         else {
             for (; blockPos.inRange(); blockPos.advance()) {
+                nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                 int val = blockPos.getInt();
                 Float floatVal = Float.intBitsToFloat(val);
                 warmupElementStatsBuilder.updateMinMax(floatVal);
@@ -73,6 +75,7 @@ public class CrcRealBlockAppender
                 nullsCount++;
             }
             else {
+                nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                 int val = IntegerType.INTEGER.getInt(elementBlock.getRawValueBlock(), elementBlock.getRawOffset() + pos);
                 writeValue(jufferPos, blockPos, val);
             }
@@ -84,6 +87,5 @@ public class CrcRealBlockAppender
     {
         crcJuffers.put(val, jufferPos, blockPos);
         juffersWE.updateRecordBufferProps(Float.intBitsToFloat(val));
-        advanceNullBuff();
     }
 }

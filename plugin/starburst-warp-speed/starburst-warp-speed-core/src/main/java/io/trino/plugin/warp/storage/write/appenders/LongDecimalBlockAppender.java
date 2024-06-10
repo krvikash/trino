@@ -53,6 +53,7 @@ public class LongDecimalBlockAppender
                     nullsCount++;
                 }
                 else {
+                    nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                     Int128 value = (Int128) blockPos.getObject();
                     writeValue(value, buff);
                 }
@@ -62,6 +63,7 @@ public class LongDecimalBlockAppender
         }
         else {
             while (blockPos.inRange()) {
+                nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                 commitWEIfNeeded(blockPos, buff, jufferPos, 0, recBuffSize);
                 Int128 value = (Int128) blockPos.getObject();
                 writeValue(value, buff);
@@ -84,6 +86,7 @@ public class LongDecimalBlockAppender
                     nullsCount++;
                 }
                 else {
+                    nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                     short key = writeDictionary.get(blockPos.getSlice());
                     writeValue(key, buff);
                 }
@@ -91,6 +94,7 @@ public class LongDecimalBlockAppender
         }
         else {
             for (; blockPos.inRange(); blockPos.advance()) {
+                nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                 short key = writeDictionary.get(blockPos.getSlice());
                 writeValue(key, buff);
             }
@@ -103,6 +107,5 @@ public class LongDecimalBlockAppender
         juffersWE.updateRecordBufferProps(value.getHigh(), value, buff.position());
         buff.putLong(value.getHigh());
         buff.putLong(value.getLow());
-        advanceNullBuff();
     }
 }

@@ -54,6 +54,7 @@ public class LuceneArrayBlockAppender
                         luceneIndexer.addDoc(LUCENE_NULL_STRING);
                     }
                     else {
+                        nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                         writeValue(blockPos);
                     }
                     blockPos.advance();
@@ -61,6 +62,7 @@ public class LuceneArrayBlockAppender
             }
             else {
                 while (blockPos.inRange()) {
+                    nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                     writeValue(blockPos);
                     blockPos.advance();
                 }
@@ -77,7 +79,6 @@ public class LuceneArrayBlockAppender
     private void writeValue(BlockPosHolder blockPos)
             throws IOException
     {
-        advanceNullBuff();
         Block value = (Block) blockPos.getObject();
         luceneIndexer.addDoc(getArrayValues(value));
     }
