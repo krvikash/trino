@@ -39,7 +39,6 @@ import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.getT
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static java.lang.Math.min;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class TestLimitedWorkersCollected
         extends AbstractTestQueryFramework
@@ -134,7 +133,7 @@ public class TestLimitedWorkersCollected
     private static String extractGroup(String pattern, String value)
     {
         Matcher m = Pattern.compile(pattern).matcher(value);
-        assertTrue(m.find());
+        assertThat(m.find()).isTrue();
         return m.group(1);
     }
 

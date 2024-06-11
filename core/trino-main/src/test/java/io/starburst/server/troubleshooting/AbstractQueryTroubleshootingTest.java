@@ -78,7 +78,6 @@ import static java.util.Spliterators.spliteratorUnknownSize;
 import static java.util.stream.StreamSupport.stream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
 @ExtendWith(SoftAssertionsExtension.class)
@@ -213,7 +212,7 @@ public abstract class AbstractQueryTroubleshootingTest
             boolean workerSpansIncluded = stream(spliteratorUnknownSize(traceSpans.elements(), ORDERED), false)
                     // split (leaf) span is executed on a worker
                     .anyMatch(span -> "split (leaf)".equals(span.get("operationName").asText()));
-            assertTrue(workerSpansIncluded);
+            assertThat(workerSpansIncluded).isTrue();
         }
     }
 
