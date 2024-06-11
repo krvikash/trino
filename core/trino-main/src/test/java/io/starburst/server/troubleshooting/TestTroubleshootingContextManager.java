@@ -57,7 +57,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(SoftAssertionsExtension.class)
 @Timeout(value = 30)
@@ -117,7 +117,7 @@ public class TestTroubleshootingContextManager
         manager.start(queryId);
         manager.finish(queryId);
 
-        assertEventually(succinctDuration(1, SECONDS), () -> assertTrue(removeSucceeded.get()));
+        assertEventually(succinctDuration(1, SECONDS), () -> assertThat(removeSucceeded.get()).isTrue());
     }
 
     private static TroubleshootingContextManager createTroubleshootingContextManager(
