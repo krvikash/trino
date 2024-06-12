@@ -186,9 +186,9 @@ public class DiscoveryManager
 
     private void updateMetrics()
     {
-        NodeStateStats nodeStats = new NodeStateStats();
-        getNodeInfos().forEach(nodeInfo -> nodeStats.increment(nodeInfo.state()));
-        discoveryStats.setNodeStateStats(nodeStats);
+        NodeStateStats.Updater statsUpdater = discoveryStats.getNodeStateStats().update();
+        getNodeInfos().forEach(nodeInfo -> statsUpdater.increment(nodeInfo.state()));
+        statsUpdater.commit();
     }
 
     @Retention(RUNTIME)

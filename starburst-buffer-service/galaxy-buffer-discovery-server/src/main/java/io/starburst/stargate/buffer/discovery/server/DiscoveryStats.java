@@ -14,17 +14,12 @@ import org.weakref.jmx.Nested;
 
 public class DiscoveryStats
 {
-    private volatile NodeStateStats nodeStateStats = new NodeStateStats();
+    private final NodeStateStats nodeStateStats = new NodeStateStats();
 
     @Managed
     @Nested
     public NodeStateStats getNodeStateStats()
     {
         return nodeStateStats;
-    }
-
-    public void setNodeStateStats(NodeStateStats nodeStateStats)
-    {
-        this.nodeStateStats = nodeStateStats;
     }
 }

@@ -28,20 +28,10 @@ public class NodeStateStats
         return starting.get();
     }
 
-    public void updateStarting(long starting)
-    {
-        this.starting.set(starting);
-    }
-
     @Managed
     public long getStarted()
     {
         return started.get();
-    }
-
-    public void updateStarted(long started)
-    {
-        this.started.set(started);
     }
 
     @Managed
@@ -50,20 +40,10 @@ public class NodeStateStats
         return active.get();
     }
 
-    public void updateActive(long active)
-    {
-        this.active.set(active);
-    }
-
     @Managed
     public long getDraining()
     {
         return draining.get();
-    }
-
-    public void updateDraining(long draining)
-    {
-        this.draining.set(draining);
     }
 
     @Managed
@@ -72,19 +52,37 @@ public class NodeStateStats
         return drained.get();
     }
 
-    public void updateDrained(long drained)
+    public Updater update()
     {
-        this.drained.set(drained);
+        return new Updater();
     }
 
-    public void increment(BufferNodeState state)
+    public class Updater
     {
-        switch (state) {
-            case STARTING -> starting.incrementAndGet();
-            case STARTED -> started.incrementAndGet();
-            case ACTIVE -> active.incrementAndGet();
-            case DRAINING -> draining.incrementAndGet();
-            case DRAINED -> drained.incrementAndGet();
+        private long starting;
+        private long started;
+        private long active;
+        private long draining;
+        private long drained;
+
+        public void increment(BufferNodeState state)
+        {
+            switch (state) {
+                case STARTING -> starting++;
+                case STARTED -> started++;
+                case ACTIVE -> active++;
+                case DRAINING -> draining++;
+                case DRAINED -> drained++;
+            }
+        }
+
+        public void commit()
+        {
+            NodeStateStats.this.starting.set(starting);
+            NodeStateStats.this.started.set(started);
+            NodeStateStats.this.active.set(active);
+            NodeStateStats.this.draining.set(draining);
+            NodeStateStats.this.drained.set(drained);
         }
     }
 }
