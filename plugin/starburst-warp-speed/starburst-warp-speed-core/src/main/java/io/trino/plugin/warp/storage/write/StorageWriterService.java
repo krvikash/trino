@@ -396,7 +396,7 @@ public class StorageWriterService
             }
         }
 
-        if (storageWriterContext.weSuccess() && !flushed) {
+        if (storageWriterContext.weSuccess() && !(stopAfterOneChunk && flushed)) {
             flushAfterAppendingBlocks(warmupElementBlocks, storageWriterContext);
         }
 
@@ -420,7 +420,7 @@ public class StorageWriterService
         }
 
         if (storageWriterContext.isRecordBufferFull() ||  // for the case that we filled the buffer on the last iteration and exited because recycling
-                !warmupElementBlocks.isReady()) { // When isReady() == false, we know that we should flush, so we already do it here without counting on cleanup() to do the job
+                !warmupElementBlocks.isReady()) { // When isReady() == false, we have to flush without waiting for cleanup() to do the job, because until then, the data on the buffers might get overwritten with data of another WarmUpElement
             flushRecordBuffer(storageWriterContext);
             return;
         }
