@@ -38,6 +38,7 @@ import java.sql.SQLException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static com.google.common.base.Verify.verify;
 import static io.trino.plugin.jdbc.JdbcErrorCode.JDBC_ERROR;
@@ -221,14 +222,10 @@ public class StarburstSqlServerMultiDatabaseClient
             throws SQLException
     {
         Optional<DatabaseSchemaName> databaseSchema = remoteSchemaName.map(StarburstSqlServerMultiDatabaseClient::parseDatabaseSchemaName);
-
-        DatabaseMetaData metadata = connection.getMetaData();
-
-        return metadata.getTables(
+        return getTablesInternal(
+                connection,
                 databaseSchema.map(DatabaseSchemaName::databaseName).orElse(null),
-                escapeObjectNameForMetadataQuery(databaseSchema.map(DatabaseSchemaName::schemaName), metadata.getSearchStringEscape()).orElse(null),
-                escapeObjectNameForMetadataQuery(remoteTableName, metadata.getSearchStringEscape()).orElse(null),
-                getTableTypes().map(types -> types.toArray(String[]::new)).orElse(null));
+                databaseSchema.map(DatabaseSchemaName::schemaName), remoteTableName);
     }
 
     @Override
@@ -251,4 +248,49 @@ public class StarburstSqlServerMultiDatabaseClient
     }
 
     record DatabaseSchemaName(String databaseName, String schemaName) {}
+
+    @Override
+    public RemoteIdentifiers getRemoteIdentifiers(Connection connection)
+    {
+        return new RemoteIdentifiers()
+        {
+            @Override
+            public Set<String> getRemoteSchemas()
+            {
+                return ImmutableSet.copyOf(listSchemas(connection));
+            }
+
+            @Override
+            public Set<String> getRemoteTables(String remoteSchema)
+            {
+                try (ResultSet resultSet = getTablesInternal(connection, connection.getCatalog(), Optional.of(remoteSchema), Optional.empty())) {
+                    ImmutableSet.Builder<String> tableNames = ImmutableSet.builder();
+                    while (resultSet.next()) {
+                        tableNames.add(resultSet.getString("TABLE_NAME"));
+                    }
+                    return tableNames.build();
+                }
+                catch (SQLException e) {
+                    throw new TrinoException(JDBC_ERROR, e);
+                }
+            }
+
+            @Override
+            public boolean storesUpperCaseIdentifiers()
+            {
+                return false;
+            }
+        };
+    }
+
+    private ResultSet getTablesInternal(Connection connection, String remoteDatabase, Optional<String> remoteSchema, Optional<String> remoteTableName)
+            throws SQLException
+    {
+        DatabaseMetaData metadata = connection.getMetaData();
+        return metadata.getTables(
+                remoteDatabase,
+                escapeObjectNameForMetadataQuery(remoteSchema, metadata.getSearchStringEscape()).orElse(null),
+                escapeObjectNameForMetadataQuery(remoteTableName, metadata.getSearchStringEscape()).orElse(null),
+                getTableTypes().map(types -> types.toArray(String[]::new)).orElse(null));
+    }
 }
