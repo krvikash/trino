@@ -152,7 +152,6 @@ public class StorageWriterServiceTest
                 warmupElementStatsService);
     }
 
-    @Disabled
     @Test
     public void writeInt()
     {
@@ -174,7 +173,6 @@ public class StorageWriterServiceTest
         assertThat(outDictionaryWarmInfos).anyMatch(x -> x.dictionaryState() == DictionaryState.DICTIONARY_NOT_EXIST);
     }
 
-    @Disabled
     @Test
     public void writeReal()
     {
@@ -196,7 +194,6 @@ public class StorageWriterServiceTest
         assertThat(values).isEqualTo(writtenValues);
     }
 
-    @Disabled
     @Test
     public void writeLong()
     {
@@ -219,7 +216,6 @@ public class StorageWriterServiceTest
         assertThat(values).isEqualTo(writtenValues);
     }
 
-    @Disabled
     @Test
     public void writeArrayTypeArrayOfInteger()
     {
@@ -235,7 +231,6 @@ public class StorageWriterServiceTest
         assertPositionResults(dataRecordJuffer, 1, 1);
     }
 
-    @Disabled
     @Test
     public void writeArrayTypeArrayOfBigInt()
     {
@@ -255,7 +250,6 @@ public class StorageWriterServiceTest
         assertPositionResults(dataRecordJuffer, 2, 1);
     }
 
-    @Disabled
     @Test
     public void writeVarcharArray_EmptyArray()
     {
@@ -274,7 +268,6 @@ public class StorageWriterServiceTest
         assertPositionResults(dataRecordJuffer, values.length, 0);
     }
 
-    @Disabled
     @Test
     public void writeVarcharArray()
     {
@@ -298,7 +291,6 @@ public class StorageWriterServiceTest
         assertThat(recordBuffer.getInt(1)).isEqualTo(values[0].length);
     }
 
-    @Disabled
     @Test
     public void writeVarcharArrayTest_TestNullBuffer()
     {
@@ -319,7 +311,6 @@ public class StorageWriterServiceTest
         assertThat(recordBuffer.getInt(1)).isEqualTo(values[0].length);
     }
 
-    @Disabled
     @Test
     public void writeVarcharArrayTest_TestNullAtEndOfRow()
     {
@@ -380,7 +371,6 @@ public class StorageWriterServiceTest
         verify(storageEngine, times(2)).commitRecordBufferPrepare(0);
     }
 
-    @Disabled
     @Test
     public void writeVarchar_varcharIsSmallerThanVarcharAsCharLimit()
     {
@@ -402,7 +392,6 @@ public class StorageWriterServiceTest
         assertThat(actualRecBuffer.position()).isEqualTo(typeLength * values.length);
     }
 
-    @Disabled
     @Test
     public void writeVarchar()
     {
@@ -422,7 +411,6 @@ public class StorageWriterServiceTest
         assertThat(actualRecBuffer.position()).isEqualTo(2 * values.length);
     }
 
-    @Disabled
     @Test
     public void writeVarcharIndex()
     {
@@ -445,7 +433,6 @@ public class StorageWriterServiceTest
         assertThat(actualRecBuffer.position()).isEqualTo(expectedPosition);
     }
 
-    @Disabled
     @Test
     public void writeVarcharWithLucene()
     {
@@ -478,7 +465,6 @@ public class StorageWriterServiceTest
         //verify(storageEngine, times(values.length)).luceneCommitBuffers(anyLong(), anyBoolean(), any(int[].class));
     }
 
-    @Disabled
     @Test
     public void abortVarcharWithLucene()
     {
