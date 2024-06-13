@@ -71,9 +71,9 @@ class TestBufferExchangeConfig
                 .setDataClientAddDataPagesRetryBackoffMax(succinctDuration(120.0, SECONDS))
                 .setDataClientAddDataPagesRetryBackoffFactor(2.0)
                 .setDataClientAddDataPagesRetryBackoffJitter(0.5)
-                .setDataClientAddDataPagesCircuitBreakerFailureThreshold(10)
+                .setDataClientAddDataPagesCircuitBreakerFailureThreshold(100)
                 .setDataClientAddDataPagesCircuitBreakerSuccessThreshold(5)
-                .setDataClientAddDataPagesCircuitBreakerDelay(succinctDuration(60.0, SECONDS)));
+                .setDataClientAddDataPagesCircuitBreakerDelay(succinctDuration(5.0, SECONDS)));
     }
 
     @Test

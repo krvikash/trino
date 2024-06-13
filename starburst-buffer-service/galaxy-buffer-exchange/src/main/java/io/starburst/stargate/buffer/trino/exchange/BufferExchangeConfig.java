@@ -65,9 +65,9 @@ public class BufferExchangeConfig
     private Duration dataClientAddDataPagesRetryBackoffMax = succinctDuration(120.0, SECONDS);
     private double dataClientAddDataPagesRetryBackoffFactor = 2.0;
     private double dataClientAddDataPagesRetryBackoffJitter = 0.5;
-    private int dataClientAddDataPagesCircuitBreakerFailureThreshold = 10;
+    private int dataClientAddDataPagesCircuitBreakerFailureThreshold = 100;
     private int dataClientAddDataPagesCircuitBreakerSuccessThreshold = 5;
-    private Duration dataClientAddDataPagesCircuitBreakerDelay = succinctDuration(60.0, SECONDS);
+    private Duration dataClientAddDataPagesCircuitBreakerDelay = succinctDuration(5.0, SECONDS);
 
     @NotNull
     public URI getDiscoveryServiceUri()
