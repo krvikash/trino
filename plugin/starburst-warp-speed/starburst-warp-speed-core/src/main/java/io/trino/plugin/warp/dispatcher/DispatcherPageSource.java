@@ -79,6 +79,8 @@ public class DispatcherPageSource
     private Page currentWarpPage;
     private int currentWarpPagePosition; // Position upto which currentWarpPage has been consumed
     private Deque<RowRange> warpPageRanges;
+    private int emptyPagesCounter;
+    private boolean forceFinish;
 
     public DispatcherPageSource(Provider<ConnectorPageSource> proxiedConnectorPageSourceProvider,
             QueryClassifier queryClassifier,
@@ -110,17 +112,43 @@ public class DispatcherPageSource
         this.proxiedPageRanges = new ArrayDeque<>();
         this.warpPageRanges = new ArrayDeque<>();
         this.proxiedConnectorProvidesRowRanges = Optional.empty();
-        this.startTime = System.currentTimeMillis();
+        this.startTime = System.nanoTime();
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
                 globalConfig.getShapingLoggerThreshold(),
                 globalConfig.getShapingLoggerDuration(),
                 globalConfig.getShapingLoggerNumberOfSamples());
         this.warpWithoutPrefilledAndProxiedCollectTypes = warpWithoutPrefilledAndProxiedCollectTypes;
+        this.emptyPagesCounter = 0;
+        this.forceFinish = false;
     }
 
     @Override
     public Page getNextPage()
+    {
+        Page dispatcherPage = getDispatcherPage();
+        if (dispatcherPage.getPositionCount() == 0 && !isFinished()) {
+            emptyPagesCounter++;
+            if (emptyPagesCounter > 1000) {
+                String info = String.format("currentProxiedPagePosition=%s, proxiedConnectorPageSource.isFinished=%s, proxiedPageRanges=%s, warpPageRanges=%s, queryContext=%s, warpWithoutPrefilledAndProxiedCollectTypes=%s, rowGroupData=%s",
+                        currentProxiedPagePosition,
+                        proxiedConnectorPageSource.isFinished(),
+                        proxiedPageRanges,
+                        warpPageRanges,
+                        queryContext,
+                        warpWithoutPrefilledAndProxiedCollectTypes,
+                        rowGroupData);
+                shapingLogger.info("returned more than emptyPagesCounter=%s emptyPages, set forced finished. info=%s", emptyPagesCounter, info);
+                forceFinish = true;
+            }
+        }
+        else {
+            emptyPagesCounter = 0;
+        }
+        return dispatcherPage;
+    }
+
+    private Page getDispatcherPage()
     {
         try {
             if (PageSourceDecision.WARP.equals(pageSourceDecision)) {
@@ -370,8 +398,8 @@ public class DispatcherPageSource
     @Override
     public boolean isFinished()
     {
-        return (proxiedPageRanges.isEmpty() || warpPageRanges.isEmpty())
-                && (warpPageSource.isFinished() || (proxiedConnectorPageSource != null && proxiedConnectorPageSource.isFinished()));
+        return forceFinish || ((proxiedPageRanges.isEmpty() || warpPageRanges.isEmpty())
+                && (warpPageSource.isFinished() || (proxiedConnectorPageSource != null && proxiedConnectorPageSource.isFinished())));
     }
 
     @Override
@@ -419,7 +447,7 @@ public class DispatcherPageSource
         }
         finally {
             queryClassifier.close(queryContext);
-            this.stats.addexecution_time(System.currentTimeMillis() - this.startTime);
+            this.stats.addexecution_time(System.nanoTime() - this.startTime);
             closeHandler.accept(rowGroupData);
         }
     }
