@@ -67,7 +67,7 @@ public class OpenTelemetryTraceProvider
                                 "traces/opentelemetry-worker-" + entry.getKey().getNodeIdentifier() + ".error.txt",
                         entry -> entry.getValue().inputStream()));
         return ImmutableMap.<String, InputStream>builder()
-                .put("traces/opentelemetry-coordinator.grpc.gz", spanInterceptor.removeSpans(context.getQueryId()))
+                .put("traces/opentelemetry-coordinator.grpc.gz", spanInterceptor.getSpans(context.getQueryId()))
                 .putAll(remoteInputStreamsByNodeId)
                 .buildOrThrow();
     }

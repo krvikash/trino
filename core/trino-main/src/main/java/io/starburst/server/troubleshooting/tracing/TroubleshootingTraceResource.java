@@ -59,8 +59,8 @@ public class TroubleshootingTraceResource
     public Response download(@PathParam("queryId") QueryId queryId)
             throws IOException
     {
-        log.info("remove queryId: %s", queryId);
-        InputStream is = spanInterceptor.removeSpans(queryId);
+        log.info("download queryId: %s", queryId);
+        InputStream is = spanInterceptor.getSpans(queryId);
         return Response.ok(is)
                 .header("Content-disposition", "attachment; filename=\"opentelemetry-worker.grpc.gz\"")
                 .build();

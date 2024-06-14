@@ -66,9 +66,9 @@ public class SpanInterceptor
         queryIdByTraceId.entrySet().removeIf(entry -> entry.getValue().equals(queryId));
     }
 
-    public InputStream removeSpans(QueryId queryId)
+    public InputStream getSpans(QueryId queryId)
     {
-        return spanSerializerProvider.get().execute(Optional.ofNullable(spansByQueryIds.remove(queryId)).orElse(emptySet()));
+        return spanSerializerProvider.get().execute(Optional.ofNullable(spansByQueryIds.get(queryId)).orElse(emptySet()));
     }
 
     public void remove(QueryId queryId)

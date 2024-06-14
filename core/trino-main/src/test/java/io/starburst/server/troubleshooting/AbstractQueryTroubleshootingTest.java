@@ -166,6 +166,15 @@ public abstract class AbstractQueryTroubleshootingTest
     {
         String troubleshootedQuery = "select linenumber, count(*) from tpch.tiny.lineitem l group by 1;";
         TroubleshootingData data = getTroubleshootingDataForQuery(troubleshootedSession, troubleshootedQuery);
+        assertCompleteTroubleshootingData(softly, data, troubleshootedQuery);
+
+        TroubleshootingData dataReadAgain = awaitForTroubleshootingData(data.getQueryId());
+        assertCompleteTroubleshootingData(softly, dataReadAgain, troubleshootedQuery);
+    }
+
+    private void assertCompleteTroubleshootingData(SoftAssertions softly, TroubleshootingData data, String troubleshootedQuery)
+            throws IOException
+    {
         assertThat(data.getStream()).isPresent();
         Unzipped inputsMap = zipInputStreamToMap(data.getRequiredStreams().get(), tmpDir);
 
