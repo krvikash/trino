@@ -226,6 +226,7 @@ public final class SystemSessionProperties
     public static final String CACHE_AGGREGATIONS_ENABLED = "cache_aggregations_enabled";
     public static final String CACHE_PROJECTIONS_ENABLED = "cache_projections_enabled";
     public static final String CACHE_MAX_SPLIT_SIZE = "cache_max_split_size";
+    public static final String CACHE_MIN_WORKER_SPLIT_SEPARATION = "cache_min_worker_split_separation";
     public static final String DYNAMIC_ROW_FILTERING_ENABLED = "dynamic_row_filtering_enabled";
     public static final String DYNAMIC_ROW_FILTERING_SELECTIVITY_THRESHOLD = "dynamic_row_filtering_selectivity_threshold";
     public static final String DYNAMIC_ROW_FILTERING_WAIT_TIMEOUT = "dynamic_row_filtering_wait_timeout";
@@ -1175,6 +1176,11 @@ public final class SystemSessionProperties
                         CACHE_MAX_SPLIT_SIZE,
                         "Max size of cached split",
                         cacheConfig.getMaxSplitSize(),
+                        true),
+                integerProperty(
+                        CACHE_MIN_WORKER_SPLIT_SEPARATION,
+                        "The minimum separation (in terms of processed splits) between two splits with same cache split id being scheduled on the single worker",
+                        cacheConfig.getCacheMinWorkerSplitSeparation(),
                         true),
                 booleanProperty(
                         DYNAMIC_ROW_FILTERING_ENABLED,
@@ -2130,6 +2136,11 @@ public final class SystemSessionProperties
     public static DataSize getCacheMaxSplitSize(Session session)
     {
         return session.getSystemProperty(CACHE_MAX_SPLIT_SIZE, DataSize.class);
+    }
+
+    public static int getCacheMinWorkerSplitSeparation(Session session)
+    {
+        return session.getSystemProperty(CACHE_MIN_WORKER_SPLIT_SEPARATION, Integer.class);
     }
 
     public static boolean isDynamicRowFilteringEnabled(Session session)
