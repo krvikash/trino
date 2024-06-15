@@ -50,6 +50,7 @@ import io.trino.spi.type.RealType;
 import io.trino.spi.type.VarcharType;
 import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.store.ByteBuffersDirectory;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -89,6 +90,7 @@ public class StorageWriterServiceTest
     private StorageEngine storageEngine;
     private DictionaryCacheService dictionaryCacheService;
     private StorageWriterService storageWriterService;
+    private BufferAllocator bufferAllocator;
 
     public static Page buildIntPage(int... values)
     {
@@ -123,6 +125,12 @@ public class StorageWriterServiceTest
         initiate(new StubsStorageEngine(), new StubsStorageEngineConstants());
     }
 
+    @AfterEach
+    public void after()
+    {
+        bufferAllocator.clear();
+    }
+
     private void initiate(StorageEngine storageEngineToSpy, StubsStorageEngineConstants storageEngineConstants)
     {
         storageEngine = spy(storageEngineToSpy);
@@ -137,7 +145,7 @@ public class StorageWriterServiceTest
         nativeConfig.setTaskMaxWorkerThreads(4);
         nativeConfig.setPredicateBundleSizeInMegaBytes(20);
 
-        BufferAllocator bufferAllocator = mockBufferAllocator(storageEngine, storageEngineConstants, nativeConfig, metricsManager);
+        this.bufferAllocator = mockBufferAllocator(storageEngine, storageEngineConstants, nativeConfig, metricsManager);
         dictionaryCacheService = mock(DictionaryCacheService.class);
         BlockTransformerFactory blockTransformerFactory = new BlockTransformerFactory();
         BlockAppenderFactory blockAppenderFactory = new BlockAppenderFactory(storageEngineConstants, bufferAllocator, new GlobalConfig(), blockTransformerFactory);

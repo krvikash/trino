@@ -164,8 +164,8 @@ public class BufferAllocator
         this.warmContextBufferSize = storageEngineConstants.getMaxWeContextSize() * 1024;
         final long alignment = Integer.BYTES;
         final long allocSize = ((long) warmContextBufferSize) * numSegments + alignment;
-
         SegmentAllocator nativeAllocator = SegmentAllocator.slicingAllocator(Arena.global().allocate(allocSize, alignment));
+
         ArrayList<MemorySegment> segmentList = new ArrayList<>(numSegments);
         for (int i = 0; i < numSegments; i++) {
             segmentList.add(nativeAllocator.allocate(warmContextBufferSize, alignment));
@@ -242,41 +242,74 @@ public class BufferAllocator
     @Override
     public void init()
     {
-        final int numSegments = connectorSync.isCatalogReducedResources() ? nativeConfig.getTaskMinWorkerThreads() : nativeConfig.getTaskMaxWorkerThreads();
-        try {
-            checkArgument(numSegments > 0, "no segments configured for warming resources");
-            initWarmBundles(numSegments);
-            initWarmWriteBuffer(numSegments);
-            initWarmContextBuffer(numSegments);
-            final long predicateBundleSize = initPredicateBundle(connectorSync.isCatalogReducedResources());
+        int minNumSegments = nativeConfig.getTaskMinWorkerThreads();
+        int numSegments = connectorSync.isCatalogReducedResources() ? minNumSegments : nativeConfig.getTaskMaxWorkerThreads();
+        checkArgument(numSegments > 0, "no segments configured for warming resources");
+        long predicateBundleSize = 0;
+        boolean success = false;
 
-            // read bundles
-            bundles = new ByteBuffer[storageEngineConstants.getNumBundles()];
-            for (int bufIx = 0; bufIx < bundles.length; bufIx++) {
-                bundles[bufIx] = storageEngine.getBundleFromPool(bufIx);
-                if (bundles[bufIx] != null) {
-                    bundles[bufIx].order(ByteOrder.LITTLE_ENDIAN);
+        while (!success && (numSegments >= minNumSegments)) {
+            try {
+                initWarmBundles(numSegments);
+                initWarmWriteBuffer(numSegments);
+                initWarmContextBuffer(numSegments);
+                predicateBundleSize = initPredicateBundle(connectorSync.isCatalogReducedResources());
+                success = true;
+            }
+            catch (Throwable t) {
+                logger.warn("catalog %d failed to load with numSegments %d", connectorSync.getCatalogSequence(), numSegments);
+                clear();
+                numSegments /= 2;
+            }
+        }
+
+        if (numSegments < minNumSegments) {
+            throw new TrinoException(WarpErrorCode.WARP_CATALOG_FAILED_TO_LOAD, "catalog " + connectorSync.getCatalogSequence() + " failed to load");
+        }
+
+        // read bundles
+        bundles = new ByteBuffer[storageEngineConstants.getNumBundles()];
+        for (int bufIx = 0; bufIx < bundles.length; bufIx++) {
+            bundles[bufIx] = storageEngine.getBundleFromPool(bufIx);
+            if (bundles[bufIx] != null) {
+                bundles[bufIx].order(ByteOrder.LITTLE_ENDIAN);
+            }
+        }
+
+        logger.info("catalog %d loadSegmentsSize %d warmBundleSize %d warmWriteBufferSize %d warmContextBufferSize %d readNumBundles %d predicateBundleSize %dMB",
+                connectorSync.getCatalogSequence(),
+                loadSegmentsQueue.size(),
+                warmBundleSize,
+                warmWriteBufferSize,
+                warmContextBufferSize,
+                bundles.length,
+                predicateBundleSize >> 20);
+
+        metricsManager.registerMetric(this.stats);
+        updateStats(loadSegmentsQueue.size());
+        stats.addallowed_loaders(loadSegmentsQueue.size());
+    }
+
+    @VisibleForTesting
+    public void clear()
+    {
+        if (loadContextQueue != null) {
+            loadContextQueue.clear();
+        }
+        if (loadSegmentsQueue != null) {
+            loadSegmentsQueue.clear();
+        }
+        if (loadWriteBufferQueue != null) {
+            loadWriteBufferQueue.clear();
+        }
+        if (predicateBufferPools != null) {
+            for (int i = 0; i < predicateBufferPools.length; i++) {
+                if (predicateBufferPools[i] != null) {
+                    predicateBufferPools[i].clear();
                 }
             }
-
-            logger.info("catalog %d loadSegmentsSize %d warmBundleSize %d warmWriteBufferSize %d warmContextBufferSize %d readNumBundles %d predicateBundleSize %dMB",
-                    connectorSync.getCatalogSequence(),
-                    loadSegmentsQueue.size(),
-                    warmBundleSize,
-                    warmWriteBufferSize,
-                    warmContextBufferSize,
-                    bundles.length,
-                    predicateBundleSize >> 20);
-
-            metricsManager.registerMetric(this.stats);
-            updateStats(loadSegmentsQueue.size());
-            stats.addallowed_loaders(loadSegmentsQueue.size());
         }
-        catch (Exception e) {
-            String msg = String.format("catalog %d failed to load with numSegments %d", connectorSync.getCatalogSequence(), numSegments);
-            logger.error(e, msg);
-            throw new TrinoException(WarpErrorCode.WARP_CATALOG_FAILED_TO_LOAD, msg, e);
-        }
+        System.gc();
     }
 
     public int getPoolSize(PredicateBufferPoolType predicateBufferPoolType)

@@ -107,6 +107,11 @@ class PredicateBufferPool
         return poolType;
     }
 
+    void clear()
+    {
+        queue.clear();
+    }
+
     @Override
     public String toString()
     {

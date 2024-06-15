@@ -25,6 +25,7 @@ import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.spi.type.VarcharType;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -67,6 +68,12 @@ public class BufferAllocatorTest
                 mock(ConnectorSync.class),
                 mock(MetricsManager.class),
                 new WarpInitializedServiceRegistry());
+    }
+
+    @AfterEach
+    public void after()
+    {
+        bufferAllocator.clear();
     }
 
     private void initStorageEngineConstants(StorageEngineConstants storageEngineConstants)
@@ -135,6 +142,8 @@ public class BufferAllocatorTest
         PredicateCacheData bufferHandleLarge2 = createPredicateCacheData(bufferAllocator, 1700000);
         assertThat(bufferHandleLarge2.getPredicateBufferInfo().predicateBufferPoolType()).isEqualTo(PredicateBufferPoolType.LARGE);
         bufferAllocator.freePredicateBuffer(bufferHandleLarge2);
+
+        bufferAllocator.clear();
     }
 
     public PredicateCacheData createPredicateCacheData(BufferAllocator bufferAllocator, int size)
