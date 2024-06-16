@@ -13,13 +13,13 @@ RUN \
     apt-get install -q -y python2 && \
     apt-get install -q -y curl && \
     update-alternatives --install /usr/bin/python python /usr/bin/python2 1 && \
-    rm -rf /var/lib/apt/lists/* && \
-    groupadd ${PROJECT_NAME} --gid 1000 && \
-    useradd ${PROJECT_NAME} --uid 1000 --gid 1000
+    rm -rf /var/lib/apt/lists/*
 
 # Add project files
 ADD target/${MODULE_NAME}-${PROJECT_VERSION}.tar.gz /tmp/${PROJECT_NAME}
 RUN \
+    groupadd ${PROJECT_NAME} --gid 1000 && \
+    useradd ${PROJECT_NAME} --uid 1000 --gid 1000 && \
     mkdir -p /opt/app && \
     chown -R "${CHOWN}" /opt/app && \
     mv /tmp/${PROJECT_NAME}/${MODULE_NAME}-${PROJECT_VERSION}/* /opt/app && \
