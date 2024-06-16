@@ -397,6 +397,7 @@ public class StorageWriterService
         }
 
         if (storageWriterContext.weSuccess() && !(stopAfterOneChunk && flushed)) {
+            // Note that we don't add the amount of flushed records to 'currentRecordNumber' because blockPosHolder.getPos() already counted them
             flushAfterAppendingBlocks(warmupElementBlocks, storageWriterContext);
         }
 
@@ -425,6 +426,8 @@ public class StorageWriterService
             return;
         }
 
+        // Note that we have to throw an exception \ handle this case somehow, otherwise we'll report in WarmResult that we wrote some data,
+        // while it wasn't actually flushed (and therefor will be forgotten)
         throw new RuntimeException("CacheManager expected to flush, but it didn't happen");
     }
 
