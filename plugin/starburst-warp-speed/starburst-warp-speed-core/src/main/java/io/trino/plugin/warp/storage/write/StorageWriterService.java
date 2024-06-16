@@ -375,7 +375,7 @@ public class StorageWriterService
         int blockIndex = 0;
         boolean flushed = false;
         int currentRecordNumber = warmupElementBlocks.getStartOffsetInFirstBlock();
-        for (; blockIndex < warmupElementBlocks.getBlocks().size() && !flushed && storageWriterContext.weSuccess(); blockIndex++) {
+        for (; blockIndex < warmupElementBlocks.getBlocks().size() && !(stopAfterOneChunk && flushed) && storageWriterContext.weSuccess(); blockIndex++) {
             Block block = warmupElementBlocks.getBlocks().get(blockIndex);
             if (blockIndex > 0) {
                 currentRecordNumber = 0;
