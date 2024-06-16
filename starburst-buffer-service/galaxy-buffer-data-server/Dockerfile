@@ -6,7 +6,7 @@ ARG PROJECT_NAME=data-server
 ARG PROJECT_VERSION
 ARG CHOWN="${PROJECT_NAME}:${PROJECT_NAME}"
 
-# Install python
+# Install python (needed by Airlift launcher)
 RUN \
     set -xeu && \
     apt-get update -q && \
