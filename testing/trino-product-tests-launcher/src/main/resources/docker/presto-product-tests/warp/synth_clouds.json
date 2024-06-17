@@ -1,0 +1,59 @@
+[
+  {
+    "name": "nation_test",
+    "pt_enable": true,
+    "lines": 25,
+    "structure": [
+      {
+        "name": "nationkey",
+        "type": "bigint"
+      },
+      {
+        "name": "name",
+        "type": "varchar"
+      },
+      {
+        "name": "regionkey",
+        "type": "bigint"
+      },
+      {
+        "name": "comment",
+        "type": "varchar"
+      }
+    ],
+    "session_properties": {
+      "enable_default_warming": true,
+      "enable_import_export": true
+    },
+    "warm_query": "select * from nation_test",
+    "queries_data": [
+      {
+        "query": "select nationkey from nation_test where regionkey = 1",
+        "query_id": "nation_test_01",
+        "expected_result": [
+          [
+            1
+          ],
+          [
+            2
+          ],
+          [
+            3
+          ],
+          [
+            17
+          ],
+          [
+            24
+          ]
+        ],
+        "expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 2,
+          "external_match_columns": 1,
+          "external_collect_columns": 0
+        }
+      }
+    ]
+  }
+]
