@@ -13,10 +13,10 @@ remote exchange (GATHER, SINGLE, [])
                                                 join (INNER, PARTITIONED):
                                                     remote exchange (REPARTITION, HASH, [ca_zip, upper])
                                                         alternatives
-                                                            dynamic filter ([ca_zip::char(10)])
+                                                            dynamic filter (await [ca_zip::char(10)])
                                                                 scan customer_address
                                                             cache data
-                                                                dynamic filter ([ca_zip::char(10)])
+                                                                dynamic filter (await [ca_zip::char(10)])
                                                                     scan customer_address
                                                             load from cache
                                                     local exchange (GATHER, SINGLE, [])

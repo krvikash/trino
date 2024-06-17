@@ -31,10 +31,10 @@ local exchange (GATHER, SINGLE, [])
                                                             local exchange (GATHER, SINGLE, [])
                                                                 remote exchange (REPLICATE, BROADCAST, [])
                                                                     alternatives
-                                                                        dynamic filter ([i_brand_id_7::integer, i_category_id_9::integer, i_class_id_8::integer, i_manufact_id_10::integer])
+                                                                        dynamic filter ([i_brand_id_7::integer, i_manufact_id_10::integer], await [i_category_id_9::integer, i_class_id_8::integer])
                                                                             scan item
                                                                         cache data
-                                                                            dynamic filter ([i_brand_id_7::integer, i_category_id_9::integer, i_class_id_8::integer, i_manufact_id_10::integer])
+                                                                            dynamic filter ([i_brand_id_7::integer, i_manufact_id_10::integer], await [i_category_id_9::integer, i_class_id_8::integer])
                                                                                 scan item
                                                                         load from cache
                                                         local exchange (GATHER, SINGLE, [])
@@ -69,10 +69,10 @@ local exchange (GATHER, SINGLE, [])
                                                             local exchange (GATHER, SINGLE, [])
                                                                 remote exchange (REPLICATE, BROADCAST, [])
                                                                     alternatives
-                                                                        dynamic filter ([i_brand_id_32::integer, i_category_id_36::integer, i_class_id_34::integer, i_manufact_id_38::integer])
+                                                                        dynamic filter ([i_brand_id_32::integer, i_manufact_id_38::integer], await [i_category_id_36::integer, i_class_id_34::integer])
                                                                             scan item
                                                                         cache data
-                                                                            dynamic filter ([i_brand_id_32::integer, i_category_id_36::integer, i_class_id_34::integer, i_manufact_id_38::integer])
+                                                                            dynamic filter ([i_brand_id_32::integer, i_manufact_id_38::integer], await [i_category_id_36::integer, i_class_id_34::integer])
                                                                                 scan item
                                                                         load from cache
                                                         local exchange (GATHER, SINGLE, [])
@@ -107,10 +107,10 @@ local exchange (GATHER, SINGLE, [])
                                                             local exchange (GATHER, SINGLE, [])
                                                                 remote exchange (REPLICATE, BROADCAST, [])
                                                                     alternatives
-                                                                        dynamic filter ([i_brand_id_96::integer, i_category_id_100::integer, i_class_id_98::integer, i_manufact_id_102::integer])
+                                                                        dynamic filter ([i_brand_id_96::integer, i_manufact_id_102::integer], await [i_category_id_100::integer, i_class_id_98::integer])
                                                                             scan item
                                                                         cache data
-                                                                            dynamic filter ([i_brand_id_96::integer, i_category_id_100::integer, i_class_id_98::integer, i_manufact_id_102::integer])
+                                                                            dynamic filter ([i_brand_id_96::integer, i_manufact_id_102::integer], await [i_category_id_100::integer, i_class_id_98::integer])
                                                                                 scan item
                                                                         load from cache
                                                         local exchange (GATHER, SINGLE, [])

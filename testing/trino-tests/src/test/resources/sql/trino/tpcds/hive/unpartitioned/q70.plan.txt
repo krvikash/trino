@@ -18,7 +18,7 @@ local exchange (GATHER, SINGLE, [])
                                                             scan date_dim
                                                 local exchange (GATHER, SINGLE, [])
                                                     remote exchange (REPLICATE, BROADCAST, [])
-                                                        dynamic filter ([s_state::char(2)])
+                                                        dynamic filter (await [s_state::char(2)])
                                                             scan store
                                             local exchange (GATHER, SINGLE, [])
                                                 remote exchange (REPLICATE, BROADCAST, [])

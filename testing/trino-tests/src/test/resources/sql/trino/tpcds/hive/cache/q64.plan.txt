@@ -97,10 +97,10 @@ remote exchange (GATHER, SINGLE, [])
                                                                                         local exchange (GATHER, SINGLE, [])
                                                                                             remote exchange (REPLICATE, BROADCAST, [])
                                                                                                 alternatives
-                                                                                                    dynamic filter ([s_store_name::varchar(50), s_zip::char(10)])
+                                                                                                    dynamic filter ([s_zip::char(10)], await [s_store_name::varchar(50)])
                                                                                                         scan store
                                                                                                     cache data
-                                                                                                        dynamic filter ([s_store_name::varchar(50), s_zip::char(10)])
+                                                                                                        dynamic filter ([s_zip::char(10)], await [s_store_name::varchar(50)])
                                                                                                             scan store
                                                                                                     load from cache
                                                                                 local exchange (GATHER, SINGLE, [])

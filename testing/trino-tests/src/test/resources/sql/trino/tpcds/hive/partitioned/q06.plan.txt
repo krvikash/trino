@@ -23,7 +23,7 @@ local exchange (GATHER, SINGLE, [])
                                                                 local exchange (GATHER, SINGLE, [])
                                                                     remote exchange (REPARTITION, HASH, [ss_customer_sk])
                                                                         join (INNER, REPLICATED):
-                                                                            dynamic filter ([ss_item_sk::bigint, ss_sold_date_sk::bigint])
+                                                                            dynamic filter ([ss_item_sk::bigint], await [ss_sold_date_sk::bigint])
                                                                                 scan store_sales
                                                                             local exchange (GATHER, SINGLE, [])
                                                                                 remote exchange (REPLICATE, BROADCAST, [])

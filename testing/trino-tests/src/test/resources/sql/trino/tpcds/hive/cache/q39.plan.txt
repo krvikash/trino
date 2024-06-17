@@ -11,11 +11,11 @@ remote exchange (GATHER, SINGLE, [])
                                         join (INNER, REPLICATED):
                                             alternatives
                                                 partial aggregation over (inv_date_sk, inv_item_sk, inv_warehouse_sk)
-                                                    dynamic filter ([inv_item_sk::bigint, inv_item_sk::bigint, inv_warehouse_sk::bigint], await [inv_date_sk::bigint, inv_warehouse_sk::bigint])
+                                                    dynamic filter ([inv_item_sk::bigint, inv_item_sk::bigint], await [inv_date_sk::bigint, inv_warehouse_sk::bigint, inv_warehouse_sk::bigint])
                                                         scan inventory
                                                 cache data
                                                     partial aggregation over (inv_date_sk, inv_item_sk, inv_warehouse_sk)
-                                                        dynamic filter ([inv_item_sk::bigint, inv_item_sk::bigint, inv_warehouse_sk::bigint], await [inv_date_sk::bigint, inv_warehouse_sk::bigint])
+                                                        dynamic filter ([inv_item_sk::bigint, inv_item_sk::bigint], await [inv_date_sk::bigint, inv_warehouse_sk::bigint, inv_warehouse_sk::bigint])
                                                             scan inventory
                                                 load from cache
                                             local exchange (GATHER, SINGLE, [])
@@ -37,10 +37,10 @@ remote exchange (GATHER, SINGLE, [])
                                     local exchange (GATHER, SINGLE, [])
                                         remote exchange (REPLICATE, BROADCAST, [])
                                             alternatives
-                                                dynamic filter ([w_warehouse_sk::bigint])
+                                                dynamic filter (await [w_warehouse_sk::bigint])
                                                     scan warehouse
                                                 cache data
-                                                    dynamic filter ([w_warehouse_sk::bigint])
+                                                    dynamic filter (await [w_warehouse_sk::bigint])
                                                         scan warehouse
                                                 load from cache
                 local exchange (GATHER, SINGLE, [])

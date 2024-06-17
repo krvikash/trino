@@ -47,8 +47,8 @@ public class DynamicFilterConfig
     private boolean enableLargeDynamicFilters = true;
 
     private Duration smallDynamicFilterWaitTimeout = new Duration(20, SECONDS);
-    private long smallDynamicFilterMaxRowCount = 100_000;
-    private long smallDynamicFilterMaxNdvCount = 500;
+    private long smallDynamicFilterMaxRowCount = 150_000;
+    private long smallDynamicFilterMaxNdvCount = 300;
     /*
      * dynamic-filtering.small.* and dynamic-filtering.large.* limits are applied when
      * collected over a not pre-partitioned source (when join distribution type is

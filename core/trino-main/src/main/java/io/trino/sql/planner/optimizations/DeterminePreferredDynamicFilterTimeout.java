@@ -208,15 +208,16 @@ public class DeterminePreferredDynamicFilterTimeout
 
         private DynamicFilterTimeout getBuildSideState(PlanNode planNode, Symbol dynamicFilterSymbol)
         {
-            // Skip for expanding plan nodes like CROSS JOIN or UNNEST which can substantially increase the amount of data.
-            if (isInputMultiplyingPlanNodePresent(planNode)) {
-                return DynamicFilterTimeout.NO_WAIT;
-            }
             SymbolStatsEstimate symbolStatsEstimate = statsProvider.getStats(planNode).getSymbolStatistics(dynamicFilterSymbol);
-            if (!symbolStatsEstimate.isUnknown() && !isExpandingPlanNodePresent(planNode)) {
+            if (!symbolStatsEstimate.isUnknown()) {
                 if (symbolStatsEstimate.getDistinctValuesCount() < smallDynamicFilterMaxNdvCount) {
                     return DynamicFilterTimeout.USE_PREFERRED_TIMEOUT;
                 }
+            }
+
+            // Skip for expanding plan nodes like CROSS JOIN or UNNEST which can substantially increase the amount of data.
+            if (isInputMultiplyingPlanNodePresent(planNode)) {
+                return DynamicFilterTimeout.NO_WAIT;
             }
 
             double rowCount = getEstimatedMaxOutputRowCount(planNode, statsProvider);
@@ -235,13 +236,6 @@ public class DeterminePreferredDynamicFilterTimeout
     {
         return PlanNodeSearcher.searchFrom(root)
                 .where(DeterminePreferredDynamicFilterTimeout::isInputMultiplyingPlanNode)
-                .matches();
-    }
-
-    private static boolean isExpandingPlanNodePresent(PlanNode root)
-    {
-        return PlanNodeSearcher.searchFrom(root)
-                .where(DeterminePreferredDynamicFilterTimeout::isExpandingPlanNode)
                 .matches();
     }
 

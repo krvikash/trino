@@ -16,7 +16,7 @@ local exchange (GATHER, SINGLE, [])
                                                 join (INNER, REPLICATED):
                                                     join (INNER, REPLICATED):
                                                         join (INNER, REPLICATED):
-                                                            dynamic filter ([inv_date_sk::bigint, inv_item_sk::bigint, inv_item_sk::bigint, inv_quantity_on_hand::integer], await [inv_warehouse_sk::bigint])
+                                                            dynamic filter ([inv_date_sk::bigint, inv_item_sk::bigint, inv_item_sk::bigint], await [inv_quantity_on_hand::integer, inv_warehouse_sk::bigint])
                                                                 scan inventory
                                                             local exchange (GATHER, SINGLE, [])
                                                                 remote exchange (REPLICATE, BROADCAST, [])

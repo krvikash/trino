@@ -63,7 +63,7 @@ remote exchange (GATHER, SINGLE, [])
                                                                                                                                                                 scan catalog_returns
                                                                                                                     local exchange (GATHER, SINGLE, [])
                                                                                                                         remote exchange (REPLICATE, BROADCAST, [])
-                                                                                                                            dynamic filter ([s_store_name::varchar(50), s_zip::char(10)])
+                                                                                                                            dynamic filter ([s_zip::char(10)], await [s_store_name::varchar(50)])
                                                                                                                                 scan store
                                                                                                             local exchange (GATHER, SINGLE, [])
                                                                                                                 remote exchange (REPARTITION, HASH, [cd_demo_sk])

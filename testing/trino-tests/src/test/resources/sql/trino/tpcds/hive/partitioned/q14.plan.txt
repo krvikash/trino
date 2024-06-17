@@ -32,7 +32,7 @@ local exchange (GATHER, SINGLE, [])
                                                                                     partial aggregation over (i_item_sk_15)
                                                                                         join (INNER, PARTITIONED, can skip output duplicates):
                                                                                             remote exchange (REPARTITION, HASH, [i_brand_id_22, i_category_id_26, i_class_id_24])
-                                                                                                dynamic filter ([i_brand_id_22::integer, i_category_id_26::integer, i_class_id_24::integer])
+                                                                                                dynamic filter ([i_brand_id_22::integer], await [i_category_id_26::integer, i_class_id_24::integer])
                                                                                                     scan item
                                                                                             final aggregation over (brand_id, category_id, class_id)
                                                                                                 local exchange (GATHER, SINGLE, [])
@@ -126,7 +126,7 @@ local exchange (GATHER, SINGLE, [])
                                                                                     partial aggregation over (i_item_sk_546)
                                                                                         join (INNER, PARTITIONED, can skip output duplicates):
                                                                                             remote exchange (REPARTITION, HASH, [i_brand_id_553, i_category_id_557, i_class_id_555])
-                                                                                                dynamic filter ([i_brand_id_553::integer, i_category_id_557::integer, i_class_id_555::integer])
+                                                                                                dynamic filter ([i_brand_id_553::integer], await [i_category_id_557::integer, i_class_id_555::integer])
                                                                                                     scan item
                                                                                             final aggregation over (brand_id_571, category_id_573, class_id_572)
                                                                                                 local exchange (GATHER, SINGLE, [])
@@ -220,7 +220,7 @@ local exchange (GATHER, SINGLE, [])
                                                                                 partial aggregation over (i_item_sk_1152)
                                                                                     join (INNER, PARTITIONED, can skip output duplicates):
                                                                                         remote exchange (REPARTITION, HASH, [i_brand_id_1159, i_category_id_1163, i_class_id_1161])
-                                                                                            dynamic filter ([i_brand_id_1159::integer, i_category_id_1163::integer, i_class_id_1161::integer])
+                                                                                            dynamic filter ([i_brand_id_1159::integer], await [i_category_id_1163::integer, i_class_id_1161::integer])
                                                                                                 scan item
                                                                                         final aggregation over (brand_id_1177, category_id_1179, class_id_1178)
                                                                                             local exchange (GATHER, SINGLE, [])

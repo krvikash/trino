@@ -12,20 +12,20 @@ local exchange (GATHER, SINGLE, [])
                                             remote exchange (REPARTITION, HASH, [sr_item_sk])
                                                 join (INNER, REPLICATED):
                                                     alternatives
-                                                        dynamic filter ([sr_item_sk::bigint, sr_returned_date_sk::bigint])
+                                                        dynamic filter ([sr_item_sk::bigint], await [sr_returned_date_sk::bigint])
                                                             scan store_returns
                                                         cache data
-                                                            dynamic filter ([sr_item_sk::bigint, sr_returned_date_sk::bigint])
+                                                            dynamic filter ([sr_item_sk::bigint], await [sr_returned_date_sk::bigint])
                                                                 scan store_returns
                                                         load from cache
                                                     local exchange (GATHER, SINGLE, [])
                                                         remote exchange (REPLICATE, BROADCAST, [])
                                                             join (INNER, REPLICATED):
                                                                 alternatives
-                                                                    dynamic filter ([d_date::date])
+                                                                    dynamic filter (await [d_date::date])
                                                                         scan date_dim
                                                                     cache data
-                                                                        dynamic filter ([d_date::date])
+                                                                        dynamic filter (await [d_date::date])
                                                                             scan date_dim
                                                                     load from cache
                                                                 local exchange (GATHER, SINGLE, [])
@@ -73,20 +73,20 @@ local exchange (GATHER, SINGLE, [])
                                                 remote exchange (REPARTITION, HASH, [cr_item_sk])
                                                     join (INNER, REPLICATED):
                                                         alternatives
-                                                            dynamic filter ([cr_item_sk::bigint, cr_returned_date_sk::bigint])
+                                                            dynamic filter ([cr_item_sk::bigint], await [cr_returned_date_sk::bigint])
                                                                 scan catalog_returns
                                                             cache data
-                                                                dynamic filter ([cr_item_sk::bigint, cr_returned_date_sk::bigint])
+                                                                dynamic filter ([cr_item_sk::bigint], await [cr_returned_date_sk::bigint])
                                                                     scan catalog_returns
                                                             load from cache
                                                         local exchange (GATHER, SINGLE, [])
                                                             remote exchange (REPLICATE, BROADCAST, [])
                                                                 join (INNER, REPLICATED):
                                                                     alternatives
-                                                                        dynamic filter ([d_date_105::date])
+                                                                        dynamic filter (await [d_date_105::date])
                                                                             scan date_dim
                                                                         cache data
-                                                                            dynamic filter ([d_date_105::date])
+                                                                            dynamic filter (await [d_date_105::date])
                                                                                 scan date_dim
                                                                         load from cache
                                                                     local exchange (GATHER, SINGLE, [])
@@ -133,20 +133,20 @@ local exchange (GATHER, SINGLE, [])
                                                 remote exchange (REPARTITION, HASH, [wr_item_sk])
                                                     join (INNER, REPLICATED):
                                                         alternatives
-                                                            dynamic filter ([wr_item_sk::bigint, wr_returned_date_sk::bigint])
+                                                            dynamic filter ([wr_item_sk::bigint], await [wr_returned_date_sk::bigint])
                                                                 scan web_returns
                                                             cache data
-                                                                dynamic filter ([wr_item_sk::bigint, wr_returned_date_sk::bigint])
+                                                                dynamic filter ([wr_item_sk::bigint], await [wr_returned_date_sk::bigint])
                                                                     scan web_returns
                                                             load from cache
                                                         local exchange (GATHER, SINGLE, [])
                                                             remote exchange (REPLICATE, BROADCAST, [])
                                                                 join (INNER, REPLICATED):
                                                                     alternatives
-                                                                        dynamic filter ([d_date_236::date])
+                                                                        dynamic filter (await [d_date_236::date])
                                                                             scan date_dim
                                                                         cache data
-                                                                            dynamic filter ([d_date_236::date])
+                                                                            dynamic filter (await [d_date_236::date])
                                                                                 scan date_dim
                                                                         load from cache
                                                                     local exchange (GATHER, SINGLE, [])

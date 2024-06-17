@@ -19,20 +19,20 @@ remote exchange (GATHER, SINGLE, [])
                                             remote exchange (REPLICATE, BROADCAST, [])
                                                 join (INNER, REPLICATED):
                                                     alternatives
-                                                        dynamic filter ([nationkey_13::bigint], await [nationkey_13::bigint])
+                                                        dynamic filter (await [nationkey_13::bigint, nationkey_13::bigint])
                                                             scan supplier
                                                         cache data
-                                                            dynamic filter ([nationkey_13::bigint], await [nationkey_13::bigint])
+                                                            dynamic filter (await [nationkey_13::bigint, nationkey_13::bigint])
                                                                 scan supplier
                                                         load from cache
                                                     local exchange (GATHER, SINGLE, [])
                                                         remote exchange (REPLICATE, BROADCAST, [])
                                                             join (INNER, REPLICATED):
                                                                 alternatives
-                                                                    dynamic filter ([nationkey_20::bigint], await [regionkey::bigint])
+                                                                    dynamic filter (await [nationkey_20::bigint, regionkey::bigint])
                                                                         scan nation
                                                                     cache data
-                                                                        dynamic filter ([nationkey_20::bigint], await [regionkey::bigint])
+                                                                        dynamic filter (await [nationkey_20::bigint, regionkey::bigint])
                                                                             scan nation
                                                                     load from cache
                                                                 local exchange (GATHER, SINGLE, [])

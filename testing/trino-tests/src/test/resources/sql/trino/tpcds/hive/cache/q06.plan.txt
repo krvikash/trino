@@ -13,10 +13,10 @@ local exchange (GATHER, SINGLE, [])
                                                 remote exchange (REPARTITION, HASH, [ss_customer_sk])
                                                     join (INNER, REPLICATED):
                                                         alternatives
-                                                            dynamic filter ([ss_customer_sk::bigint, ss_item_sk::bigint, ss_sold_date_sk::bigint])
+                                                            dynamic filter ([ss_customer_sk::bigint, ss_item_sk::bigint], await [ss_sold_date_sk::bigint])
                                                                 scan store_sales
                                                             cache data
-                                                                dynamic filter ([ss_customer_sk::bigint, ss_item_sk::bigint, ss_sold_date_sk::bigint])
+                                                                dynamic filter ([ss_customer_sk::bigint, ss_item_sk::bigint], await [ss_sold_date_sk::bigint])
                                                                     scan store_sales
                                                             load from cache
                                                         local exchange (GATHER, SINGLE, [])

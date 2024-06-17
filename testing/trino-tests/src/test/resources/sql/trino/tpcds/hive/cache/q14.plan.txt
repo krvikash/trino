@@ -47,10 +47,10 @@ local exchange (GATHER, SINGLE, [])
                                                                                         join (INNER, PARTITIONED, can skip output duplicates):
                                                                                             remote exchange (REPARTITION, HASH, [i_brand_id_22, i_category_id_26, i_class_id_24])
                                                                                                 alternatives
-                                                                                                    dynamic filter ([i_brand_id_22::integer, i_category_id_26::integer, i_class_id_24::integer])
+                                                                                                    dynamic filter ([i_brand_id_22::integer], await [i_category_id_26::integer, i_class_id_24::integer])
                                                                                                         scan item
                                                                                                     cache data
-                                                                                                        dynamic filter ([i_brand_id_22::integer, i_category_id_26::integer, i_class_id_24::integer])
+                                                                                                        dynamic filter ([i_brand_id_22::integer], await [i_category_id_26::integer, i_class_id_24::integer])
                                                                                                             scan item
                                                                                                     load from cache
                                                                                             final aggregation over (brand_id, category_id, class_id)
@@ -226,10 +226,10 @@ local exchange (GATHER, SINGLE, [])
                                                                                         join (INNER, PARTITIONED, can skip output duplicates):
                                                                                             remote exchange (REPARTITION, HASH, [i_brand_id_546, i_category_id_550, i_class_id_548])
                                                                                                 alternatives
-                                                                                                    dynamic filter ([i_brand_id_546::integer, i_category_id_550::integer, i_class_id_548::integer])
+                                                                                                    dynamic filter ([i_brand_id_546::integer], await [i_category_id_550::integer, i_class_id_548::integer])
                                                                                                         scan item
                                                                                                     cache data
-                                                                                                        dynamic filter ([i_brand_id_546::integer, i_category_id_550::integer, i_class_id_548::integer])
+                                                                                                        dynamic filter ([i_brand_id_546::integer], await [i_category_id_550::integer, i_class_id_548::integer])
                                                                                                             scan item
                                                                                                     load from cache
                                                                                             final aggregation over (brand_id_564, category_id_566, class_id_565)
@@ -405,10 +405,10 @@ local exchange (GATHER, SINGLE, [])
                                                                                         join (INNER, PARTITIONED, can skip output duplicates):
                                                                                             remote exchange (REPARTITION, HASH, [i_brand_id_1145, i_category_id_1149, i_class_id_1147])
                                                                                                 alternatives
-                                                                                                    dynamic filter ([i_brand_id_1145::integer, i_category_id_1149::integer, i_class_id_1147::integer])
+                                                                                                    dynamic filter ([i_brand_id_1145::integer], await [i_category_id_1149::integer, i_class_id_1147::integer])
                                                                                                         scan item
                                                                                                     cache data
-                                                                                                        dynamic filter ([i_brand_id_1145::integer, i_category_id_1149::integer, i_class_id_1147::integer])
+                                                                                                        dynamic filter ([i_brand_id_1145::integer], await [i_category_id_1149::integer, i_class_id_1147::integer])
                                                                                                             scan item
                                                                                                     load from cache
                                                                                             final aggregation over (brand_id_1163, category_id_1165, class_id_1164)

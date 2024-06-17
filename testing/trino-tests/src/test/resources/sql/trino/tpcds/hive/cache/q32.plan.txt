@@ -10,10 +10,10 @@ final aggregation over ()
                                     partial aggregation over (cs_item_sk_21)
                                         join (INNER, REPLICATED):
                                             alternatives
-                                                dynamic filter ([cs_item_sk_21::bigint], await [cs_sold_date_sk_6::bigint])
+                                                dynamic filter (await [cs_item_sk_21::bigint, cs_sold_date_sk_6::bigint])
                                                     scan catalog_sales
                                                 cache data
-                                                    dynamic filter ([cs_item_sk_21::bigint], await [cs_sold_date_sk_6::bigint])
+                                                    dynamic filter (await [cs_item_sk_21::bigint, cs_sold_date_sk_6::bigint])
                                                         scan catalog_sales
                                                 load from cache
                                             local exchange (GATHER, SINGLE, [])

@@ -13,12 +13,12 @@ remote exchange (GATHER, SINGLE, [])
                                         local exchange (GATHER, SINGLE, [])
                                             remote exchange (REPLICATE, BROADCAST, [])
                                                 join (INNER, REPLICATED):
-                                                    dynamic filter ([nationkey_13::bigint], await [nationkey_13::bigint])
+                                                    dynamic filter (await [nationkey_13::bigint, nationkey_13::bigint])
                                                         scan supplier
                                                     local exchange (GATHER, SINGLE, [])
                                                         remote exchange (REPLICATE, BROADCAST, [])
                                                             join (INNER, REPLICATED):
-                                                                dynamic filter ([nationkey_20::bigint], await [regionkey::bigint])
+                                                                dynamic filter (await [nationkey_20::bigint, regionkey::bigint])
                                                                     scan nation
                                                                 local exchange (GATHER, SINGLE, [])
                                                                     remote exchange (REPLICATE, BROADCAST, [])

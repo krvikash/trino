@@ -11,12 +11,12 @@ local exchange (GATHER, SINGLE, [])
                                         remote exchange (REPARTITION, HASH, [cs_item_sk])
                                             partial aggregation over (cs_item_sk)
                                                 join (INNER, REPLICATED):
-                                                    dynamic filter ([cs_item_sk::bigint, cs_sold_date_sk::bigint])
+                                                    dynamic filter ([cs_item_sk::bigint], await [cs_sold_date_sk::bigint])
                                                         scan catalog_sales
                                                     local exchange (GATHER, SINGLE, [])
                                                         remote exchange (REPLICATE, BROADCAST, [])
                                                             join (INNER, REPLICATED):
-                                                                dynamic filter ([d_date_100::date])
+                                                                dynamic filter (await [d_date_100::date])
                                                                     scan date_dim
                                                                 local exchange (GATHER, SINGLE, [])
                                                                     remote exchange (REPLICATE, BROADCAST, [])
@@ -44,12 +44,12 @@ local exchange (GATHER, SINGLE, [])
                                         join (INNER, REPLICATED):
                                             partial aggregation over (ss_item_sk)
                                                 join (INNER, REPLICATED):
-                                                    dynamic filter ([ss_item_sk::bigint, ss_sold_date_sk::bigint])
+                                                    dynamic filter ([ss_item_sk::bigint], await [ss_sold_date_sk::bigint])
                                                         scan store_sales
                                                     local exchange (GATHER, SINGLE, [])
                                                         remote exchange (REPLICATE, BROADCAST, [])
                                                             join (INNER, REPLICATED):
-                                                                dynamic filter ([d_date::date])
+                                                                dynamic filter (await [d_date::date])
                                                                     scan date_dim
                                                                 local exchange (GATHER, SINGLE, [])
                                                                     remote exchange (REPLICATE, BROADCAST, [])
@@ -77,12 +77,12 @@ local exchange (GATHER, SINGLE, [])
                                             remote exchange (REPARTITION, HASH, [ws_item_sk])
                                                 partial aggregation over (ws_item_sk)
                                                     join (INNER, REPLICATED):
-                                                        dynamic filter ([ws_item_sk::bigint, ws_sold_date_sk::bigint])
+                                                        dynamic filter ([ws_item_sk::bigint], await [ws_sold_date_sk::bigint])
                                                             scan web_sales
                                                         local exchange (GATHER, SINGLE, [])
                                                             remote exchange (REPLICATE, BROADCAST, [])
                                                                 join (INNER, REPLICATED):
-                                                                    dynamic filter ([d_date_226::date])
+                                                                    dynamic filter (await [d_date_226::date])
                                                                         scan date_dim
                                                                     local exchange (GATHER, SINGLE, [])
                                                                         remote exchange (REPLICATE, BROADCAST, [])

@@ -23,7 +23,7 @@ local exchange (GATHER, SINGLE, [])
                                                                     scan date_dim
                                                         local exchange (GATHER, SINGLE, [])
                                                             remote exchange (REPLICATE, BROADCAST, [])
-                                                                dynamic filter ([i_brand_id_7::integer, i_category_id_9::integer, i_class_id_8::integer, i_manufact_id_10::integer])
+                                                                dynamic filter ([i_brand_id_7::integer, i_manufact_id_10::integer], await [i_category_id_9::integer, i_class_id_8::integer])
                                                                     scan item
                                 remote exchange (REPARTITION, HASH, [i_brand_id_34, i_category_id_38, i_class_id_36, i_manufact_id_40])
                                     partial aggregation over (d_year_58, expr_87, expr_88, i_brand_id_34, i_category_id_38, i_class_id_36, i_manufact_id_40)
@@ -42,7 +42,7 @@ local exchange (GATHER, SINGLE, [])
                                                                     scan date_dim
                                                         local exchange (GATHER, SINGLE, [])
                                                             remote exchange (REPLICATE, BROADCAST, [])
-                                                                dynamic filter ([i_brand_id_34::integer, i_category_id_38::integer, i_class_id_36::integer, i_manufact_id_40::integer])
+                                                                dynamic filter ([i_brand_id_34::integer, i_manufact_id_40::integer], await [i_category_id_38::integer, i_class_id_36::integer])
                                                                     scan item
                                 remote exchange (REPARTITION, HASH, [i_brand_id_100, i_category_id_104, i_class_id_102, i_manufact_id_106])
                                     partial aggregation over (d_year_124, expr_153, expr_154, i_brand_id_100, i_category_id_104, i_class_id_102, i_manufact_id_106)
@@ -61,7 +61,7 @@ local exchange (GATHER, SINGLE, [])
                                                                     scan date_dim
                                                         local exchange (GATHER, SINGLE, [])
                                                             remote exchange (REPLICATE, BROADCAST, [])
-                                                                dynamic filter ([i_brand_id_100::integer, i_category_id_104::integer, i_class_id_102::integer, i_manufact_id_106::integer])
+                                                                dynamic filter ([i_brand_id_100::integer, i_manufact_id_106::integer], await [i_category_id_104::integer, i_class_id_102::integer])
                                                                     scan item
                     single aggregation over (d_year_157, i_brand_id_158, i_category_id_160, i_class_id_159, i_manufact_id_161)
                         final aggregation over (d_year_157, i_brand_id_158, i_category_id_160, i_class_id_159, i_manufact_id_161, sales_amt_163, sales_cnt_162)
