@@ -66,7 +66,7 @@ public class WorkerWarmupRuleFetcher
     @Override
     public List<WarmupRule> getWarmupRules(boolean force)
     {
-        List<WarmupColRuleData> res = List.of();
+        List<WarmupRule> ret = List.of();
         try {
             HttpUriBuilder restEndpointBuilder = warpClient.getRestEndpoint(workerNodeManager.getCoordinatorNodeHttpUri());
             URI uri = restEndpointBuilder.appendPath(WarmupRuleService.WARMUP_PATH).appendPath(WarmupRuleService.TASK_NAME_GET).build();
@@ -74,15 +74,26 @@ public class WorkerWarmupRuleFetcher
                     .setUri(uri)
                     .setHeader(CONTENT_TYPE, JSON_UTF_8.toString())
                     .build();
-            res = warpClient.sendWithRetry(request, createFullJsonResponseHandler(WARMUP_RULES_CODEC));
+            List<WarmupColRuleData> rulesResult = warpClient.sendWithRetry(request, createFullJsonResponseHandler(WARMUP_RULES_CODEC));
+            if (rulesResult != null) {
+                ret = rulesResult.stream().map(WarmupRuleApiMapper::toModel).collect(Collectors.toList());
+            }
+            else {
+                handleFetchFailure();
+            }
         }
         catch (Exception e) {
-            WarmingServiceStats warmingStats = (WarmingServiceStats) metricsManager.get(WarmingServiceStats.createKey(WARMING_SERVICE_STAT_GROUP));
-            warmingStats.incfailed_fetching_rules();
-            warmingStats.incwarm_skipped_due_key_conflict(); // HACK HACK HACk until test will support the previous counter
-            logger.warn("failed getting rules from coordinator");
+            handleFetchFailure();
         }
-        return res.stream().map(WarmupRuleApiMapper::toModel).collect(Collectors.toList());
+        return ret;
+    }
+
+    private void handleFetchFailure()
+    {
+        WarmingServiceStats warmingStats = (WarmingServiceStats) metricsManager.get(WarmingServiceStats.createKey(WARMING_SERVICE_STAT_GROUP));
+        warmingStats.incfailed_fetching_rules();
+        warmingStats.incwarm_skipped_due_key_conflict(); // HACK HACK HACk until test will support the previous counter
+        logger.warn("failed getting rules from coordinator");
     }
 
     @Override
