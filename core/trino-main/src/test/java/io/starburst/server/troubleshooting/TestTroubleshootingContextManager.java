@@ -77,7 +77,7 @@ public class TestTroubleshootingContextManager
         manager.start(queryId);
         manager.finish(queryId);
 
-        Unzipped unzipped = zipInputStreamToMap(manager.getArchive(queryId).get(), tmpDir);
+        Unzipped unzipped = zipInputStreamToMap(manager.getArchive(queryId).orElseThrow().get(), tmpDir);
         softly.assertThat(unzipped.contents())
                 .hasSize(5)
                 .hasEntrySatisfying("123/happy", b -> softly.assertThat(new String(b, UTF_8)).isEqualTo("path"))

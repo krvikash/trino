@@ -64,7 +64,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.starburstdata.presto.server.StarburstClientCapabilities.QUERY_TROUBLESHOOTING;
-import static io.starburst.server.troubleshooting.TroubleshootingArchiver.TOP_LEVEL_ERRORS_FILENAME;
 import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.zipInputStreamToMap;
 import static io.trino.SystemSessionProperties.QUERY_MAX_MEMORY_PER_NODE;
 import static io.trino.testing.DataProviders.toDataProvider;
@@ -139,7 +138,7 @@ public abstract class AbstractQueryTroubleshootingTest
     {
         String troubleshootedQuery = "SHOW CATALOGS";
         TroubleshootingData data = getTroubleshootingDataForQuery(SESSION, troubleshootedQuery);
-        assertZipContainsOnlyErrorFileWithStackTrace(data);
+        assertThat(data.getStream()).isEmpty();
     }
 
     @ParameterizedTest
@@ -148,7 +147,7 @@ public abstract class AbstractQueryTroubleshootingTest
     {
         String troubleshootedQuery = "SHOW CATALOGS";
         TroubleshootingData data = getTroubleshootingDataForQuery(sessionUnauthorized, troubleshootedQuery);
-        assertZipContainsOnlyErrorFileWithStackTrace(data);
+        assertThat(data.getStream()).isEmpty();
     }
 
     public Object[][] unauthorizedSessionsProvider()
@@ -333,7 +332,7 @@ public abstract class AbstractQueryTroubleshootingTest
             assertThat(awaitForTroubleshootingData(result.getQueryId()).getStream()).isPresent();
 
             assertEventually(Duration.valueOf("30s"), () -> {
-                assertZipContainsOnlyErrorFileWithStackTrace(awaitForTroubleshootingData(result.getQueryId()));
+                assertThat(awaitForTroubleshootingData(result.getQueryId()).getStream()).isEmpty();
             });
         }
     }
@@ -355,17 +354,20 @@ public abstract class AbstractQueryTroubleshootingTest
 
     private TroubleshootingData awaitForTroubleshootingData(QueryId queryId)
     {
-        try {
-            return new TroubleshootingData(queryId, Optional.of(troubleshootingContextManager.getArchive(queryId).get(10, TimeUnit.SECONDS)));
-        }
-        catch (ExecutionException | TimeoutException e) {
-            log.error(e, "Awaiting troubleshooting data failed");
-            return new TroubleshootingData(queryId, Optional.empty());
-        }
-        catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException(e);
-        }
+        return new TroubleshootingData(queryId, troubleshootingContextManager.getArchive(queryId)
+                .map(future -> {
+                    try {
+                        return future.get(10, TimeUnit.SECONDS);
+                    }
+                    catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException(e);
+                    }
+                    catch (ExecutionException | TimeoutException e) {
+                        log.error(e, "Awaiting troubleshooting data failed");
+                        return null;
+                    }
+                }));
     }
 
     private Set<String> getNodesProcessingQuery(QueryId queryId)
@@ -430,14 +432,6 @@ public abstract class AbstractQueryTroubleshootingTest
         {
             return stream;
         }
-    }
-
-    private void assertZipContainsOnlyErrorFileWithStackTrace(TroubleshootingData data)
-    {
-        Unzipped unzipped = zipInputStreamToMap(data.getStream().get(), tmpDir);
-        assertThat(unzipped.contents()).hasSize(1);
-        assertThat(byteToString(unzipped.contents().get(String.format("%s/%s", data.queryId, TOP_LEVEL_ERRORS_FILENAME))))
-                .contains("java.util.NoSuchElementException: TroubleshootingContext is null");
     }
 
     private static String getPath(TroubleshootingData data, String suffix)

@@ -34,7 +34,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -44,7 +43,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
-import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.Futures.transform;
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.FINISHED;
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.INITIALIZED;
@@ -229,27 +227,13 @@ public class TroubleshootingContextManager
         };
     }
 
-    public ListenableFuture<InputStream> getArchive(QueryId queryId)
+    public Optional<ListenableFuture<InputStream>> getArchive(QueryId queryId)
     {
-        // entry of this method means that the web UI queried for troubleshooting info
-        // but the query might have even not started
-        // it might take hours to complete before we even start gathering troubleshooting info
-        // therefore we return a ListenableFuture that has the following properties
-        //  - it will NOT contain a computed value until the query has finished processing
-        //  - it WILL contain a computed value once we start gathering troubleshooting info,
-        //    the result will be an asynchronous stream that will be populated by a separate thread
-        //    once we have troubleshooting files
-        final TroubleshootingContext context = contexts.getIfPresent(queryId);
-        if (null == context) {
-            TroubleshootingContext immediateContext = new TroubleshootingContext(queryId, new StateMachine<>("troubleshooting-" + queryId.getId(), executorService, INVALID, Set.of(INVALID)));
-            immediateContext.addGeneralError(new NoSuchElementException("TroubleshootingContext is null"));
-            return immediateFuture(troubleshootingArchiver.execute(immediateContext));
-        }
-
-        return transform(context.getState().getStateChange(STARTED), state -> {
-            verify(state == FINISHED, "%s is not in the %s state but %s", context, FINISHED, state);
-            return troubleshootingArchiver.execute(context);
-        }, executorService);
+        return Optional.ofNullable(contexts.getIfPresent(queryId))
+                .map(context -> transform(context.getState().getStateChange(STARTED), state -> {
+                    verify(state == FINISHED, "%s is not in the %s state but %s", context, FINISHED, state);
+                    return troubleshootingArchiver.execute(context);
+                }, executorService));
     }
 
     private boolean startContext(TroubleshootingContext context)

@@ -65,7 +65,7 @@ class TroubleshootingTestHelper
     {
         try (TestingTrinoClient client = new TestingTrinoClient(queryRunner.getCoordinator(), session)) {
             TroubleshootingContextManager troubleshootingContextManager = queryRunner.getCoordinator().getInstance(Key.get(TroubleshootingContextManager.class));
-            InputStream inputStream = troubleshootingContextManager.getArchive(client.execute(query).getQueryId()).get(10, TimeUnit.SECONDS);
+            InputStream inputStream = troubleshootingContextManager.getArchive(client.execute(query).getQueryId()).orElseThrow().get(10, TimeUnit.SECONDS);
             return zipInputStreamToMap(inputStream, tmpDir);
         }
     }

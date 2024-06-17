@@ -11,6 +11,7 @@ package io.starburst.server.troubleshooting;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.errorprone.annotations.FormatMethod;
 import com.google.errorprone.annotations.FormatString;
 import com.google.inject.Inject;
@@ -46,6 +47,7 @@ import static io.airlift.jaxrs.AsyncResponseHandler.bindAsyncResponse;
 import static io.trino.server.security.ResourceSecurity.AccessType.WEB_UI;
 import static jakarta.ws.rs.core.Response.Status.BAD_REQUEST;
 import static jakarta.ws.rs.core.Response.Status.FORBIDDEN;
+import static jakarta.ws.rs.core.Response.Status.NOT_FOUND;
 import static java.lang.String.format;
 import static java.net.URLDecoder.decode;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -60,13 +62,19 @@ public class TroubleshootingCoordinatorResource
     private final WebUiAccessControl accessControl;
     private final TroubleshootingContextManager troubleshootingContextManager;
     private final ScheduledExecutorService executorService;
+    private final Duration maxAccessDuration;
 
     @Inject
-    public TroubleshootingCoordinatorResource(WebUiAccessControl accessControl, TroubleshootingContextManager troubleshootingContextManager, @ForTroubleshooting ScheduledExecutorService executorService)
+    public TroubleshootingCoordinatorResource(
+            WebUiAccessControl accessControl,
+            TroubleshootingContextManager troubleshootingContextManager,
+            @ForTroubleshooting ScheduledExecutorService executorService,
+            TroubleshootingConfig config)
     {
         this.accessControl = requireNonNull(accessControl, "accessControl is null");
         this.troubleshootingContextManager = requireNonNull(troubleshootingContextManager, "troubleshootingContextManager is null");
         this.executorService = requireNonNull(executorService, "executorService is null");
+        this.maxAccessDuration = requireNonNull(config, "config is null").getMaxAccessDuration();
     }
 
     @ResourceSecurity(WEB_UI)
@@ -81,8 +89,24 @@ public class TroubleshootingCoordinatorResource
             return;
         }
 
-        bindAsyncResponse(asyncResponse, transform(troubleshootingContextManager.getArchive(queryId), stream -> renderResponse(stream, queryId), executorService), executorService)
-                .withTimeout(MAX_POOL_TIME_MS, retryPollingResponse(request));
+        Optional<ListenableFuture<InputStream>> archive = troubleshootingContextManager.getArchive(queryId);
+        if (archive.isEmpty()) {
+            bindAsyncResponse(
+                    asyncResponse,
+                    immediateFuture(Response
+                            .status(NOT_FOUND)
+                            .entity("""
+                                    Troubleshooting archive for '%s' is no longer available. The archive is available only up to %s after query is finished.
+                                    Please re-run the query and download the archive immediately after query is done.
+                                    """.formatted(
+                                    queryId,
+                                    maxAccessDuration.toString())).build()),
+                    executorService);
+        }
+        else {
+            bindAsyncResponse(asyncResponse, transform(archive.orElseThrow(), stream -> renderResponse(stream, queryId), executorService), executorService)
+                    .withTimeout(MAX_POOL_TIME_MS, retryPollingResponse(request));
+        }
     }
 
     private Identity setSelectedRoleIfPresent(Identity identity, @Nullable String roleQueryParam)
