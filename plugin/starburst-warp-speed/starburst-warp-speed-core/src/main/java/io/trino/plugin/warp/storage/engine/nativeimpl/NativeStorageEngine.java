@@ -111,10 +111,10 @@ public class NativeStorageEngine
     public native long initWarmupTxSizes(int[] fixedWarmupDataTxSizes, int[] varlenWarmupDataTxSizes);
 
     @Override
-    public native void fileOpen(String fileName, long[] outFileCookie);
+    public native long fileOpen(String fileName);
 
     @Override
-    public native void fileClose(long[] fileCookie);
+    public native void fileClose(long fileFd);
 
     @Override
     public native void fileTruncate(long[] fileCookie, int offset);
@@ -123,7 +123,7 @@ public class NativeStorageEngine
     public native void filePunchHole(String fileName, int startOffset, int endOffset);
 
     @Override
-    public native void fileIsAboutToBeDeleted(String fileName, int fileSizeInPages);
+    public native void fileIsAboutToBeDeleted(long fileHash, int fileSizeInPages);
 
     @Override
     public native long warmupElementOpen(long context, int recTypeCode, int recTypeLength, int warmUpType, long[] buffAddresses);

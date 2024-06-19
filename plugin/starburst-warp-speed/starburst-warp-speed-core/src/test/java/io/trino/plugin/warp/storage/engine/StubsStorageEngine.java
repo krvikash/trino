@@ -70,12 +70,13 @@ public class StubsStorageEngine
     }
 
     @Override
-    public void fileOpen(String fileName, long[] outFileCookie)
+    public long fileOpen(String fileName)
     {
+        return 0;
     }
 
     @Override
-    public void fileClose(long[] fileCookie)
+    public void fileClose(long fileFd)
     {
     }
 
@@ -90,7 +91,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public void fileIsAboutToBeDeleted(String fileName, int fileSizeInPages)
+    public void fileIsAboutToBeDeleted(long fileHash, int fileSizeInPages)
     {
     }
 

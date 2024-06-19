@@ -39,6 +39,7 @@ import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_ERROR
 import static io.trino.plugin.warp.WarpErrorCode.WARP_TX_ALLOCATION_FAILED;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_COLLECT_FAILED;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_MATCH_FAILED;
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FD;
 import static java.util.Objects.requireNonNull;
 
 public class StorageReader
@@ -146,7 +147,7 @@ public class StorageReader
 
     void close()
     {
-        storageEngine.fileClose(storageCollectorArgs.fileCookie());
+        storageEngine.fileClose(storageCollectorArgs.fileCookie()[FILE_COOKIE_PARAMS_FD.ordinal()]);
     }
 
     private void createLuceneMatchers(GlobalConfig globalConfig)

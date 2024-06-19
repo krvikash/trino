@@ -46,12 +46,12 @@ public interface StorageEngine
     }
 
     //----------------------- file ----------------------------------------
-    default void fileOpen(String fileName, long[] outFileCookie)
+    default long fileOpen(String fileName)
     {
         throw new UnsupportedOperationException();
     }
 
-    default void fileClose(long[] fileCookie)
+    default void fileClose(long fileFd)
     {
         throw new UnsupportedOperationException();
     }
@@ -66,7 +66,7 @@ public interface StorageEngine
         throw new UnsupportedOperationException();
     }
 
-    default void fileIsAboutToBeDeleted(String fileName, int fileSizeInPages)
+    default void fileIsAboutToBeDeleted(long fileHash, int fileSizeInPages)
     {
         throw new UnsupportedOperationException();
     }

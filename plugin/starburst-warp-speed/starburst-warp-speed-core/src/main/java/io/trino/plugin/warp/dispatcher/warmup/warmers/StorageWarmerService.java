@@ -31,6 +31,7 @@ import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.flows.FlowType;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
 import io.trino.plugin.warp.storage.write.PageSink;
+import io.trino.plugin.warp.util.StorageUtils;
 import org.apache.commons.io.FileUtils;
 
 import java.io.File;
@@ -42,6 +43,7 @@ import java.util.concurrent.ExecutionException;
 
 import static io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FD;
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FILE_HASH;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_NUM_OF;
 import static java.util.Objects.requireNonNull;
 
@@ -95,7 +97,9 @@ public class StorageWarmerService
         String rowGroupFilePath = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
         long[] fileCookie = new long[FILE_COOKIE_PARAMS_NUM_OF.ordinal()];
         // fileCookie.fd was initialized to -1. In case fileOpen throws an exception we will not close it in the finally clause
-        storageEngine.fileOpen(rowGroupFilePath, fileCookie);
+        fileCookie[FILE_COOKIE_PARAMS_FD.ordinal()] = storageEngine.fileOpen(rowGroupFilePath);
+        fileCookie[FILE_COOKIE_PARAMS_FILE_HASH.ordinal()] = StorageUtils.fileHash64(rowGroupFilePath);
+
         return fileCookie;
     }
 
@@ -149,7 +153,7 @@ public class StorageWarmerService
     {
         if (fileCookie[FILE_COOKIE_PARAMS_FD.ordinal()] != INVALID_FILE_COOKIE_FD) {
             try {
-                storageEngine.fileClose(fileCookie);
+                storageEngine.fileClose(fileCookie[FILE_COOKIE_PARAMS_FD.ordinal()]);
             }
             catch (Exception e) {
                 if (rowGroupData.isPresent()) {

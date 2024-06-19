@@ -31,6 +31,7 @@ import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.tools.util.Pair;
+import io.trino.plugin.warp.util.StorageUtils;
 import io.trino.spi.NodeManager;
 import io.trino.spi.TrinoException;
 
@@ -173,7 +174,8 @@ public class RowGroupDataService
             return;
         }
         RowGroupKey rowGroupKey = rowGroupData.getRowGroupKey();
-        storageEngine.fileIsAboutToBeDeleted(rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath()), rowGroupData.getNextOffset());
+        long fileHash = StorageUtils.fileHash64(rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath()));
+        storageEngine.fileIsAboutToBeDeleted(fileHash, rowGroupData.getNextOffset());
         rowGroupDataDao.delete(rowGroupKey, deleteFromCache);
         logger.debug("deleted rowGroupKey %s offset %d next-export-offset %d",
                 rowGroupKey, rowGroupData.getNextOffset(), rowGroupData.getNextExportOffset());
