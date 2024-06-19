@@ -142,10 +142,11 @@ public class WarmupElementBlocks
     public String toString()
     {
         return "WarmupElementBlocks{" +
-                ", warmupElementWriteMetadata=" + metadata +
                 ", blocks.size=" + blocks.size() +
                 ", startOffsetInFirstBlock=" + startOffsetInFirstBlock +
                 ", positionCount=" + positionCount +
+                ", isReady=" + isReady() +
+                ", chunkSize=" + chunkSize +
                 ", logicalSizeInBytes=" + logicalSizeInBytes +
                 '}';
     }

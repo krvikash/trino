@@ -72,7 +72,7 @@ public class WarpCacheTask
     private LocalMemoryContext localMemoryContext;
     private final BlockingQueue<Integer> blocksToProcess;
     private boolean engineAbort;
-
+    private boolean taskStarted;
     private boolean finished;
 
     public WarpCacheTask(GlobalConfig globalConfig,
@@ -99,6 +99,7 @@ public class WarpCacheTask
         this.warpAbort = false;
         this.engineAbort = false;
         this.blocksToProcess = new LinkedBlockingQueue<>();
+        this.taskStarted = false;
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
                 globalConfig.getShapingLoggerThreshold(),
@@ -133,9 +134,10 @@ public class WarpCacheTask
     @Override
     public void run()
     {
+        taskStarted = true;
         CacheWarmState cacheWarmState = CacheWarmState.ABORT_ON_INIT_PROCESS;
         boolean loadFromWarmingThread = false;
-        if (isEngineAbort()) {
+        if (isAborted()) {
             return;
         }
         try {
@@ -145,7 +147,7 @@ public class WarpCacheTask
                     storageWarmerService.waitForLoaders();
                 }
                 statsWarmingService.incwarm_started();
-                if (isEngineAbort()) {
+                if (isAborted()) {
                     return;
                 }
                 cacheWarmState = init();
@@ -190,6 +192,18 @@ public class WarpCacheTask
         try {
             while (!isAborted()) {
                 int blockIndexToProcess = blocksToProcess.take();
+                if (blockIndexToProcess == STOP_TRIGGER && !isAborted() && warmupCacheData.notAllDataFlushed()) {
+                    if (!blocksToProcess.isEmpty()) {
+                        shapingLogger.debug("STOP TRIGGER but there is more work to do blocksToProcess=%s", blocksToProcess.toString());
+                        blocksToProcess.add(STOP_TRIGGER);
+                        continue;
+                    }
+                    else {
+                        shapingLogger.error("There's a another bug - Not all blocks were fully written. engineAbort=%s, warpAbort=%s, blocksToProcess=%s, warmupCacheData=%s", engineAbort, warpAbort, blocksToProcess, warmupCacheData);
+                        cacheWarmState = CacheWarmState.ABORTING;
+                        setWarpAbort();
+                    }
+                }
                 if (isAborted() || blockIndexToProcess == STOP_TRIGGER) {
                     break;
                 }
@@ -207,9 +221,9 @@ public class WarpCacheTask
             cacheWarmState = CacheWarmState.ABORTING;
             setWarpAbort();
         }
-        if (!isAborted() && warmupCacheData.notAllDataFlushed()) {
+        if (!isAborted() && warmupCacheData.notAllDataFlushed() && !finished) {
             // This shouldn't happen. The check is for safety, so we won't get wrong results on query
-            logger.error("There's a bug - Not all blocks were fully written. blocksToProcessSize=%s, warmupCacheData=%s", blocksToProcess.size(), warmupCacheData);
+            shapingLogger.error("There's a bug - Not all blocks were fully written. engine=%s, warp=%s, blocksToProcessSize=%s, warmupCacheData=%s", engineAbort, warpAbort, blocksToProcess.size(), warmupCacheData);
             cacheWarmState = CacheWarmState.ABORTING;
             setWarpAbort();
         }
@@ -228,7 +242,6 @@ public class WarpCacheTask
     }
 
     private void processBlock(WarmupElementBlocks warmupElementBlocks, int blockIndexToProcess)
-            throws InterruptedException
     {
         WarmingCandidate warmingCandidate = warmingCandidates.get(blockIndexToProcess);
 
@@ -237,7 +250,7 @@ public class WarpCacheTask
             warmupElementBlocks.dropProcessed(result.columnBlockIndex(), result.offset());
             if (warmupElementBlocks.isReady()) {
                 // there's still work to do
-                blocksToProcess.put(blockIndexToProcess);
+                blocksToProcess.add(blockIndexToProcess);
             }
         }
         else {
@@ -381,15 +394,19 @@ public class WarpCacheTask
         localMemoryContext = null; //we set to null in case it started, so we won't release twice
     }
 
-    public void setFinished()
+    public synchronized void setFinished()
     {
         if (isAborted()) {
             return;
         }
         this.localMemoryContext = memoryContextService.poll();
         if (localMemoryContext == null) {
-            logger.error("failed to locate memory context");
-            setWarpAbort();
+            logger.error("failed to locate memory context size=%s", memoryContextService.getRunningSize());
+            if (!taskStarted) {
+                shapingLogger.info("clear memory of Task since it not started yet but hold memory");
+                warmupCacheData.clear();
+            }
+            setEngineAbort();
         }
         else if (localMemoryContext.trySetBytes(warmupCacheData.getRetainedSizeInBytes())) {
             finished = true;
@@ -404,7 +421,7 @@ public class WarpCacheTask
         }
     }
 
-    private void setWarpAbort()
+    private synchronized void setWarpAbort()
     {
         if (isAborted()) {
             return;
@@ -413,10 +430,10 @@ public class WarpCacheTask
         blocksToProcess.add(STOP_TRIGGER);
     }
 
-    public void setEngineAbort()
+    public synchronized void setEngineAbort()
     {
         if (isAborted()) {
-            logger.info("already aborted");
+            logger.info("already aborted but got abort again");
             return;
         }
         this.engineAbort = true;
@@ -433,7 +450,7 @@ public class WarpCacheTask
         return engineAbort;
     }
 
-    private boolean isAborted()
+    private synchronized boolean isAborted()
     {
         return warpAbort || engineAbort;
     }

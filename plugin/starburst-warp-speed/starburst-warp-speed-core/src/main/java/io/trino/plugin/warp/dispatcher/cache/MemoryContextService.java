@@ -23,7 +23,10 @@ import io.airlift.log.Logger;
 import io.trino.memory.context.AggregatedMemoryContext;
 import io.trino.memory.context.LocalMemoryContext;
 import io.trino.memory.context.MemoryReservationHandler;
+import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.dispatcher.warmup.WarpCacheTask;
+import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
+import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.spi.cache.CacheManagerContext;
 import io.trino.spi.cache.MemoryAllocator;
 
@@ -32,32 +35,38 @@ import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import static io.trino.memory.context.AggregatedMemoryContext.newRootAggregatedMemoryContext;
+import static io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
 
 @Singleton
 public class MemoryContextService
 {
     private static final Logger logger = Logger.get(MemoryContextService.class);
     private final LinkedBlockingQueue<LocalMemoryContext> localMemoryContexts;
-    private boolean isRunning;
+    private final WarmingServiceStats statsWarmingService;
+    private boolean revokeIsRunning;
     private final MemoryAllocator revocableMemoryAllocator;
     @GuardedBy("this")
     private long allocatedMemory;
 
-    private static final int LOCAL_MEMORY_COUNT = 1000;
+    private static final int LOCAL_MEMORY_COUNT = 1500;
     private final Set<WarpCacheTask> runningTasks;
 
     @Inject
-    public MemoryContextService(CacheManagerContext cacheManagerContext)
+    public MemoryContextService(CacheManagerContext cacheManagerContext,
+            MetricsManager metricsManager,
+            WarmupDemoterConfig warmupDemoterConfig)
     {
-        this.localMemoryContexts = new LinkedBlockingQueue<>(LOCAL_MEMORY_COUNT);
+        int queueSize = warmupDemoterConfig.getTasksExecutorQueueSize();
+        this.localMemoryContexts = new LinkedBlockingQueue<>(queueSize);
         this.runningTasks = Sets.newConcurrentHashSet();
-        this.isRunning = false;
+        this.revokeIsRunning = false;
         AggregatedMemoryContext memoryContext = newRootAggregatedMemoryContext(new WarpCacheMemoryReservationHandler(), 0L);
         this.revocableMemoryAllocator = cacheManagerContext.revocableMemoryAllocator();
-        for (int i = 0; i < LOCAL_MEMORY_COUNT; i++) {
+        for (int i = 0; i < queueSize; i++) {
             LocalMemoryContext localMemoryContext = memoryContext.newLocalMemoryContext("ignored");
             localMemoryContexts.add(localMemoryContext);
         }
+        this.statsWarmingService = metricsManager.registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
     }
 
     public LocalMemoryContext poll()
@@ -86,40 +95,47 @@ public class MemoryContextService
         }
     }
 
-    public void add(WarpCacheTask warpCacheTask)
+    public boolean add(WarpCacheTask warpCacheTask)
     {
-        runningTasks.add(warpCacheTask);
+        if (localMemoryContexts.isEmpty()) {
+            logger.info("localMemoryContexts is empty. LOCAL_MEMORY_COUNT=%s runningTasks.size()=%s, localMemoryContexts.size()=%s", LOCAL_MEMORY_COUNT, runningTasks.size(), localMemoryContexts.size());
+            return false;
+        }
+        return runningTasks.add(warpCacheTask);
     }
 
     public long revoke(long bytesToRevoke)
     {
-        logger.info("revoke memory triggered bytesToRevoke=%s, allocatedMemory=%s, runningTasksSize=%s", bytesToRevoke, getAllocatedMemory(), runningTasks.size());
+        logger.info("revoke memory triggered bytesToRevoke=%s, allocatedMemory=%s, runningTasksSize=%s, localMemoryContexts.size()=%s", bytesToRevoke, getAllocatedMemory(), runningTasks.size(), localMemoryContexts.size());
         long revokedMemory = 0;
         try {
-            isRunning = true;
+            statsWarmingService.incwarm_warp_cache_revoke_started();
+            revokeIsRunning = true;
             while (revokedMemory < bytesToRevoke && !runningTasks.isEmpty()) {
                 Optional<WarpCacheTask> warpCacheTaskOpt = runningTasks.stream().findAny();
                 if (warpCacheTaskOpt.isEmpty()) {
+                    //protect a race in case another thread poll a task
                     continue;
                 }
                 WarpCacheTask warpCacheTask = warpCacheTaskOpt.get();
                 revokedMemory += warpCacheTask.getUsedMemory();
                 if (warpCacheTask.isWarmStarted()) {
                     warpCacheTask.setEngineAbort();
-                    runningTasks.remove(warpCacheTask);
                 }
                 else {
-                    logger.debug("warm not started yet, we set to abort and release the memory");
+                    logger.info("revoke cache manager: warp warm not started yet, we set state as abort and release the memory");
                     warpCacheTask.revoke();
                 }
                 logger.info("revoked memory=%s of bytesToRevoke=%s, runningTasksSize=%s", revokedMemory, bytesToRevoke, runningTasks.size());
             }
+            statsWarmingService.incwarm_warp_cache_revoke_accomplished();
         }
         catch (Exception e) {
             logger.error(e, "failed to revoke");
+            statsWarmingService.incwarm_warp_cache_revoke_failed();
         }
         finally {
-            isRunning = false;
+            revokeIsRunning = false;
         }
         return revokedMemory;
     }
@@ -129,11 +145,6 @@ public class MemoryContextService
         return allocatedMemory;
     }
 
-    public boolean isRunning(WarpCacheTask warpCacheTask)
-    {
-        return runningTasks.contains(warpCacheTask);
-    }
-
     public int getRunningSize()
     {
         return runningTasks.size();
@@ -141,7 +152,7 @@ public class MemoryContextService
 
     public boolean revokeIsRunning()
     {
-        return isRunning;
+        return revokeIsRunning;
     }
 
     private class WarpCacheMemoryReservationHandler
@@ -168,7 +179,7 @@ public class MemoryContextService
                     return false;
                 }
                 allocatedMemory += delta;
-                logger.info("allocatedMemory=%s delta=%s", allocatedMemory, delta);
+                logger.debug("allocatedMemory=%s delta=%s", allocatedMemory, delta);
                 return true;
             }
         }

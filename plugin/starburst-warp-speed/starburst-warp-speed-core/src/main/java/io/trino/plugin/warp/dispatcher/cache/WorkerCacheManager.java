@@ -48,12 +48,12 @@ import io.trino.spi.connector.ConnectorPageSink;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.predicate.TupleDomain;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory.STATS_DISPATCHER_KEY;
 import static io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
 import static java.util.Objects.requireNonNull;
@@ -191,10 +191,11 @@ public class WorkerCacheManager
                 toWarm = cacheWarmer.getWarmupElementWriteMetadatasToWarm(
                         planSignature.getColumns(), planSignature.getColumnsTypes(), rowGroupKey);
                 if (toWarm.isEmpty()) {
+                    statsWarmingService.incwarm_warp_cache_skip_zero_columns();
                     logger.debug("nothing to warm for %s", planSignature);
                     return res;
                 }
-                List<WarmupElementBlocks> warmupElementBlocksList = toWarm.stream().map(x -> new WarmupElementBlocks(x, chunkSize)).collect(toImmutableList());
+                List<WarmupElementBlocks> warmupElementBlocksList = new ArrayList<>(toWarm.stream().map(x -> new WarmupElementBlocks(x, chunkSize)).toList());
                 WarpCacheTask warpCacheTask = new WarpCacheTask(
                         globalConfig,
                         cacheActions,
@@ -206,12 +207,12 @@ public class WorkerCacheManager
                         toWarm,
                         rowGroupKey,
                         memoryContextService);
-                if (memoryContextService.isRunning(warpCacheTask)) {
-                    shapingLogger.info("Skipping warming since a similar warming is already running. warpCacheTask =%s. runningSize()=%s", warpCacheTask, memoryContextService.getRunningSize());
+                boolean taskAdded = memoryContextService.add(warpCacheTask);
+                if (taskAdded) {
+                    res = Optional.of(new WarpCachePageSink(warpCacheTask, workerTaskExecutorService));
                 }
                 else {
-                    memoryContextService.add(warpCacheTask);
-                    res = Optional.of(new WarpCachePageSink(warpCacheTask, workerTaskExecutorService));
+                    shapingLogger.debug("Skipping warming since a similar warming is already running. warpCacheTask =%s. runningSize()=%s", warpCacheTask, memoryContextService.getRunningSize());
                 }
             }
             catch (Exception e) {
