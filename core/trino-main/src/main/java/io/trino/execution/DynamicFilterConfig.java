@@ -21,6 +21,8 @@ import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 import io.airlift.units.MaxDataSize;
 import io.airlift.units.MinDuration;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
@@ -38,7 +40,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
         "experimental.dynamic-filtering-refresh-interval",
         "experimental.enable-dynamic-filtering",
         "enable-coordinator-dynamic-filters-distribution",
-        "dynamic-row-filtering.selectivity-threshold",
         "dynamic-row-filtering.wait-timeout",
 })
 public class DynamicFilterConfig
@@ -46,6 +47,7 @@ public class DynamicFilterConfig
     private boolean enableDynamicFiltering = true;
     private boolean enableLargeDynamicFilters = true;
     private boolean enableDynamicRowFiltering = true;
+    private double dynamicRowFilterSelectivityThreshold = 0.7;
 
     private Duration smallDynamicFilterWaitTimeout = new Duration(20, SECONDS);
     private long smallDynamicFilterMaxRowCount = 150_000;
@@ -117,6 +119,21 @@ public class DynamicFilterConfig
     public DynamicFilterConfig setEnableDynamicRowFiltering(boolean enableDynamicRowFiltering)
     {
         this.enableDynamicRowFiltering = enableDynamicRowFiltering;
+        return this;
+    }
+
+    @DecimalMin("0.0")
+    @DecimalMax("1.0")
+    public double getDynamicRowFilterSelectivityThreshold()
+    {
+        return dynamicRowFilterSelectivityThreshold;
+    }
+
+    @Config("dynamic-row-filtering.selectivity-threshold")
+    @ConfigDescription("Avoid using dynamic row filters when fraction of rows selected is above threshold")
+    public DynamicFilterConfig setDynamicRowFilterSelectivityThreshold(double dynamicRowFilterSelectivityThreshold)
+    {
+        this.dynamicRowFilterSelectivityThreshold = dynamicRowFilterSelectivityThreshold;
         return this;
     }
 

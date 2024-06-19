@@ -321,6 +321,7 @@ import static com.google.common.collect.Range.closedOpen;
 import static io.trino.SystemSessionProperties.getAdaptivePartialAggregationUniqueRowsRatioThreshold;
 import static io.trino.SystemSessionProperties.getAggregationOperatorUnspillMemoryLimit;
 import static io.trino.SystemSessionProperties.getCacheMaxSplitSize;
+import static io.trino.SystemSessionProperties.getDynamicRowFilterSelectivityThreshold;
 import static io.trino.SystemSessionProperties.getExchangeCompressionCodec;
 import static io.trino.SystemSessionProperties.getFilterAndProjectMinOutputPageRowCount;
 import static io.trino.SystemSessionProperties.getFilterAndProjectMinOutputPageSize;
@@ -2149,7 +2150,8 @@ public class LocalExecutionPlanner
                             plannerContext.getTypeManager(),
                             dynamicFilter,
                             ((TableScanNode) sourceNode).getAssignments(),
-                            sourceLayout));
+                            sourceLayout,
+                            getDynamicRowFilterSelectivityThreshold(session)));
                 }
                 Supplier<PageProcessor> pageProcessor = expressionCompiler.compilePageProcessor(
                         columnarFilterEvaluationEnabled,

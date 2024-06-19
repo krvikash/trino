@@ -144,6 +144,7 @@ public final class SystemSessionProperties
     public static final String ENABLE_DYNAMIC_FILTERING = "enable_dynamic_filtering";
     public static final String ENABLE_LARGE_DYNAMIC_FILTERS = "enable_large_dynamic_filters";
     public static final String ENABLE_DYNAMIC_ROW_FILTERING = "enable_dynamic_row_filtering";
+    public static final String DYNAMIC_ROW_FILTERING_SELECTIVITY_THRESHOLD = "dynamic_row_filtering_selectivity_threshold";
     public static final String SMALL_DYNAMIC_FILTER_WAIT_TIMEOUT = "small_dynamic_filter_wait_timeout";
     public static final String SMALL_DYNAMIC_FILTER_MAX_ROW_COUNT = "small_dynamic_filter_max_row_count";
     public static final String SMALL_DYNAMIC_FILTER_MAX_NDV_COUNT = "small_dynamic_filter_max_ndv_count";
@@ -731,6 +732,16 @@ public final class SystemSessionProperties
                         ENABLE_DYNAMIC_ROW_FILTERING,
                         "Enable fine-grained filtering of rows in the scan operator using dynamic filters",
                         dynamicFilterConfig.isEnableDynamicRowFiltering(),
+                        false),
+                doubleProperty(
+                        DYNAMIC_ROW_FILTERING_SELECTIVITY_THRESHOLD,
+                        "Avoid using dynamic row filters when fraction of rows selected is above threshold",
+                        dynamicFilterConfig.getDynamicRowFilterSelectivityThreshold(),
+                        value -> {
+                            if (value < 0 || value > 1) {
+                                throw new TrinoException(INVALID_SESSION_PROPERTY, format("%s must be in the range [0, 1]: %s", DYNAMIC_ROW_FILTERING_SELECTIVITY_THRESHOLD, value));
+                            }
+                        },
                         false),
                 dataSizeProperty(
                         QUERY_MAX_MEMORY_PER_NODE,
@@ -1709,6 +1720,11 @@ public final class SystemSessionProperties
     public static boolean isEnableDynamicRowFiltering(Session session)
     {
         return session.getSystemProperty(ENABLE_DYNAMIC_ROW_FILTERING, Boolean.class);
+    }
+
+    public static double getDynamicRowFilterSelectivityThreshold(Session session)
+    {
+        return session.getSystemProperty(DYNAMIC_ROW_FILTERING_SELECTIVITY_THRESHOLD, Double.class);
     }
 
     public static Duration getSmallDynamicFilterWaitTimeout(Session session)
