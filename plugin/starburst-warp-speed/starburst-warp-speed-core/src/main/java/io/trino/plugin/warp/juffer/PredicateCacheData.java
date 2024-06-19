@@ -51,6 +51,11 @@ public class PredicateCacheData
         usedBySplitCount.getAndDecrement();
     }
 
+    int getCurrentUse()
+    {
+        return usedBySplitCount.get();
+    }
+
     boolean canRemove()
     {
         return usedBySplitCount.get() == 0;

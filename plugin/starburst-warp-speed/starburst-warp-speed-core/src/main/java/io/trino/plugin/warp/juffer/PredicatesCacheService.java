@@ -184,7 +184,9 @@ public class PredicatesCacheService
     public void markFinished(List<PredicateCacheData> predicateCacheDatas)
     {
         for (PredicateCacheData predicateCacheData : predicateCacheDatas) {
-            decrementUse(predicateCacheData);
+            if (predicateCacheData.getCurrentUse() > 0) {
+                decrementUse(predicateCacheData);
+            }
         }
     }
 
