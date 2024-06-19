@@ -245,22 +245,23 @@ public class Unload
             ImmutableList.Builder<HiveType> dataColumnTypes = ImmutableList.builderWithExpectedSize(inputSchema.size());
             ImmutableList.Builder<Type> partitionColumnTypes = ImmutableList.builderWithExpectedSize(partitionColumns.size());
             for (RowType.Field field : inputSchema) {
-                String columnName = field.getName().orElseThrow(() -> new TrinoException(NOT_SUPPORTED, "Column name not specified at position " + (inputSchema.indexOf(field) + 1))).toLowerCase(ENGLISH);
-                verifyHiveColumnName(columnName);
+                String columnName = field.getName().orElseThrow(() -> new TrinoException(NOT_SUPPORTED, "Column name not specified at position " + (inputSchema.indexOf(field) + 1)));
+                String canonicalColumnName = columnName.toLowerCase(ENGLISH);
+                verifyHiveColumnName(canonicalColumnName);
                 Type fieldType = field.getType();
                 if (format == HiveStorageFormat.CSV) {
                     if (!(fieldType instanceof VarcharType)) {
-                        throw new TrinoException(NOT_SUPPORTED, "CSV only supports VARCHAR columns: '%s'".formatted(columnName));
+                        throw new TrinoException(NOT_SUPPORTED, "CSV only supports VARCHAR columns: '%s'".formatted(canonicalColumnName));
                     }
                     fieldType = VARCHAR;
                 }
                 if (format == HiveStorageFormat.JSON && fieldType.equals(VARBINARY)) {
                     // Disable VARBINARY type with JSON format as it has a correctness issue for some data, e.g. X'0001020304050607080DF9367AA7000000'
-                    throw new TrinoException(NOT_SUPPORTED, "UNLOAD table function does not support VARBINARY columns for JSON format: '%s'".formatted(columnName));
+                    throw new TrinoException(NOT_SUPPORTED, "UNLOAD table function does not support VARBINARY columns for JSON format: '%s'".formatted(canonicalColumnName));
                 }
                 if ((format == HiveStorageFormat.PARQUET || format == HiveStorageFormat.AVRO || format == HiveStorageFormat.RCBINARY) && field.getType() instanceof TimestampType) {
                     // TODO Fix correctness issue for timestamp type in Parquet, Avro, RCBinary formats
-                    throw new TrinoException(NOT_SUPPORTED, "UNLOAD table function does not support timestamp columns for %s format: '%s'".formatted(columnName, format));
+                    throw new TrinoException(NOT_SUPPORTED, "UNLOAD table function does not support timestamp columns for %s format: '%s'".formatted(canonicalColumnName, format));
                 }
 
                 HiveColumnHandle.ColumnType columnType;
@@ -269,12 +270,12 @@ public class Unload
                     columnType = HiveColumnHandle.ColumnType.PARTITION_KEY;
                 }
                 else {
-                    dataColumnNames.add(columnName);
+                    dataColumnNames.add(canonicalColumnName);
                     dataColumnTypes.add(toHiveType(fieldType));
                     columnType = HiveColumnHandle.ColumnType.REGULAR;
                 }
                 columnHandles.add(new HiveColumnHandle(
-                        columnName,
+                        canonicalColumnName,
                         0,
                         toHiveType(fieldType),
                         field.getType(),

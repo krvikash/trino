@@ -503,6 +503,36 @@ class TestUnloadFunction
     }
 
     @Test
+    void testUnloadNonLowercasePartitionKey()
+            throws Exception
+    {
+        String tableName = "test_unload_case_partition_" + randomNameSuffix();
+        String location = directory.resolve(tableName).toUri().toString();
+        Files.createDirectory(directory.resolve(tableName));
+
+        MaterializedResult result = computeActual("SELECT * FROM TABLE(hive.system.unload(" +
+                "input => TABLE(VALUES (1, 'part1'), (2, 'part2'), (20, 'part2'), (3, 'part3'), (30, 'part3'), (300, 'part3')) t(data, PART) PARTITION BY \"PART\"," +
+                "location => '" + location + "'," +
+                "format => 'ORC'))");
+
+        assertThat(result.getColumnNames()).containsExactly("path", "count", "PART");
+
+        // Create partitioned table, sync partitions and verify results
+        assertUpdate("CREATE TABLE " + tableName + "(data bigint, part varchar) WITH (external_location = '" + location + "', format = 'ORC', partitioned_by = ARRAY['part'])");
+        assertQueryReturnsEmptyResult("SELECT * FROM " + tableName);
+
+        assertUpdate("CALL system.sync_partition_metadata('tpch', '" + tableName + "', 'ADD')");
+        assertQuery(
+                "SELECT * FROM \"" + tableName + "$partitions\"",
+                "VALUES 'part1', 'part2', 'part3'");
+        assertQuery(
+                "SELECT * FROM " + tableName,
+                "VALUES (1, 'part1'), (2, 'part2'), (20, 'part2'), (3, 'part3'), (30, 'part3'), (300, 'part3')");
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    @Test
     void testUnloadLargeResult()
             throws Exception
     {
