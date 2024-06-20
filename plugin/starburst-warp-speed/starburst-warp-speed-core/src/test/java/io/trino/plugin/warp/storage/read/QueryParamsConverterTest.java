@@ -61,7 +61,7 @@ public class QueryParamsConverterTest
         when(queryContext.getMatchData()).thenReturn(Optional.of(matchData));
         when(queryContext.getNativeQueryCollectDataList()).thenReturn(ImmutableList.of());
         when(queryContext.getTotalRecords()).thenReturn(100);
-        QueryParams queryParams = QueryParamsConverter.createQueryParams(queryContext, "filePath");
+        QueryParams queryParams = QueryParamsConverter.createQueryParams(queryContext, "filePath", 0x40302010);
         List<MatchNode> es = List.of(
                 new LogicalMatchNode(MatchNodeType.MATCH_NODE_TYPE_AND,
                         List.of(

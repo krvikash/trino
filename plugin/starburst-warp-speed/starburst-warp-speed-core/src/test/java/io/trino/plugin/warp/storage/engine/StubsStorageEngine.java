@@ -91,7 +91,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public void fileIsAboutToBeDeleted(long fileHash, int fileSizeInPages)
+    public void fileIsAboutToBeDeleted(long fileHash, long fileModTime, int fileSizeInPages)
     {
     }
 

@@ -66,7 +66,7 @@ public interface StorageEngine
         throw new UnsupportedOperationException();
     }
 
-    default void fileIsAboutToBeDeleted(long fileHash, int fileSizeInPages)
+    default void fileIsAboutToBeDeleted(long fileHash, long fileModTime, int fileSizeInPages)
     {
         throw new UnsupportedOperationException();
     }

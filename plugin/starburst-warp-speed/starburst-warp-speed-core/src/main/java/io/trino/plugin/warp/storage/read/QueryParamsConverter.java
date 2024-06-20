@@ -47,7 +47,8 @@ public class QueryParamsConverter
     private QueryParamsConverter() {}
 
     public static QueryParams createQueryParams(QueryContext queryContext,
-            String filePath)
+            String filePath,
+            long fileModTime)
     {
         Optional<MatchData> matchData = queryContext.getMatchData();
         ImmutableList.Builder<PredicateCacheData> predicateCacheDataBuilder = ImmutableList.builder();
@@ -78,6 +79,7 @@ public class QueryParamsConverter
                 minOffsets[MATCH],
                 minOffsets[COLLECT],
                 filePath,
+                fileModTime,
                 predicateCacheDataBuilder.build());
     }
 

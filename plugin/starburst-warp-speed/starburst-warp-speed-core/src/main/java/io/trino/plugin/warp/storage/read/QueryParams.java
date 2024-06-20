@@ -41,6 +41,7 @@ public class QueryParams
     private final ImmutableList<PredicateCacheData> predicateCacheData;
 
     private final String filePath;
+    private final long fileModTime;
     private final long rowGroupUniqueId; // TBD - will be used for logs, currently zero
 
     public QueryParams(Optional<MatchNode> rootMatchNode,
@@ -51,6 +52,7 @@ public class QueryParams
             int minMatchOffset,
             int minCollectOffset,
             String filePath,
+            long fileModTime,
             ImmutableList<PredicateCacheData> predicateCacheData)
     {
         this.rootMatchNode = requireNonNull(rootMatchNode, "rootMatchNode is null");
@@ -71,6 +73,7 @@ public class QueryParams
         //TODO hash of file path
         this.rowGroupUniqueId = Calendar.getInstance().getTimeInMillis();
         this.filePath = filePath;
+        this.fileModTime = fileModTime;
     }
 
     private List<WarmupElementMatchParams> getLeaves(MatchNode node)
@@ -133,6 +136,11 @@ public class QueryParams
     public String getFilePath()
     {
         return filePath;
+    }
+
+    public long getFileModTime()
+    {
+        return fileModTime;
     }
 
     public int getCatalogSequence()

@@ -44,6 +44,7 @@ import java.util.concurrent.ExecutionException;
 import static io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FD;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FILE_HASH;
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FILE_MOD_TIME;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_NUM_OF;
 import static java.util.Objects.requireNonNull;
 
@@ -99,6 +100,7 @@ public class StorageWarmerService
         // fileCookie.fd was initialized to -1. In case fileOpen throws an exception we will not close it in the finally clause
         fileCookie[FILE_COOKIE_PARAMS_FD.ordinal()] = storageEngine.fileOpen(rowGroupFilePath);
         fileCookie[FILE_COOKIE_PARAMS_FILE_HASH.ordinal()] = StorageUtils.fileHash64(rowGroupFilePath);
+        fileCookie[FILE_COOKIE_PARAMS_FILE_MOD_TIME.ordinal()] = rowGroupKey.fileModifiedTime();
 
         return fileCookie;
     }

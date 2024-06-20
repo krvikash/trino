@@ -123,7 +123,7 @@ public class NativeStorageEngine
     public native void filePunchHole(String fileName, int startOffset, int endOffset);
 
     @Override
-    public native void fileIsAboutToBeDeleted(long fileHash, int fileSizeInPages);
+    public native void fileIsAboutToBeDeleted(long fileHash, long fileModTime, int fileSizeInPages);
 
     @Override
     public native long warmupElementOpen(long context, int recTypeCode, int recTypeLength, int warmUpType, long[] buffAddresses);

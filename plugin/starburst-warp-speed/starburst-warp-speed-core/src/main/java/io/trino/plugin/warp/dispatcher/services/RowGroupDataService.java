@@ -175,7 +175,8 @@ public class RowGroupDataService
         }
         RowGroupKey rowGroupKey = rowGroupData.getRowGroupKey();
         long fileHash = StorageUtils.fileHash64(rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath()));
-        storageEngine.fileIsAboutToBeDeleted(fileHash, rowGroupData.getNextOffset());
+        long fileModTime = rowGroupKey.fileModifiedTime();
+        storageEngine.fileIsAboutToBeDeleted(fileHash, fileModTime, rowGroupData.getNextOffset());
         rowGroupDataDao.delete(rowGroupKey, deleteFromCache);
         logger.debug("deleted rowGroupKey %s offset %d next-export-offset %d",
                 rowGroupKey, rowGroupData.getNextOffset(), rowGroupData.getNextExportOffset());
