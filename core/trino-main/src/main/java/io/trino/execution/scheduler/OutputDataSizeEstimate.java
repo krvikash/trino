@@ -61,7 +61,7 @@ public class OutputDataSizeEstimate
                 .mapToInt(estimate -> estimate.partitionDataSizes.length())
                 .distinct()
                 .toArray();
-        checkArgument(partitionCounts.length <= 1, "partition count is expected to match");
+        checkArgument(partitionCounts.length <= 1, "partition count is expected to match for estimates %s", estimates);
         if (partitionCounts.length == 0) {
             return 0;
         }
