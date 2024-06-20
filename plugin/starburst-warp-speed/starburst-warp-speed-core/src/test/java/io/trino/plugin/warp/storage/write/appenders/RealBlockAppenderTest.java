@@ -33,7 +33,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.Mockito.when;
 
@@ -84,12 +84,12 @@ class RealBlockAppenderTest
     {
         RecTypeCode recTypeCode = getRecTypeCode(blockType);
         if (recTypeCode.isSupportedDictionary()) {
-            assertThrows(UnsupportedOperationException.class, () -> {
+            assertThatThrownBy(() -> {
                 when(writeJuffersWarmUpElement.getRecordBuffer()).thenReturn(ShortBuffer.allocate(100));
                 BlockPosHolder blockPosHolder = new BlockPosHolder(block, blockType, 0, block.getPositionCount());
                 WarmupElementStatsBuilder warmupElementStatsBuilder = new WarmupElementStatsBuilder();
                 blockAppender.appendWithDictionary(blockPosHolder, getWriteDictionary(recTypeCode).orElseThrow(), warmupElementStatsBuilder);
-            });
+            }).isInstanceOf(UnsupportedOperationException.class);
         }
     }
 }

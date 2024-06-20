@@ -70,10 +70,8 @@ import static io.trino.operator.scalar.ApplyFunction.APPLY_FUNCTION;
 import static io.trino.plugin.tpch.TpchMetadata.TINY_SCHEMA_NAME;
 import static io.trino.testing.TestingEventListenerManager.emptyEventListenerManager;
 import static io.trino.testing.TestingSession.testSessionBuilder;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 @TestInstance(PER_CLASS)
@@ -169,8 +167,8 @@ public class TestDataframeMetadataProvider
     @Test
     public void testTableExists()
     {
-        assertTrue(dataframeMetadataProvider.tableExists("nation"));
-        assertFalse(dataframeMetadataProvider.tableExists("not_exists"));
+        assertThat(dataframeMetadataProvider.tableExists("nation")).isTrue();
+        assertThat(dataframeMetadataProvider.tableExists("not_exists")).isFalse();
     }
 
     @Test
@@ -183,7 +181,7 @@ public class TestDataframeMetadataProvider
                 new Attribute(attributesQuery.get().get(1).getId(), "\"name\"", new StringType(Optional.of(25)), true),
                 new Attribute(attributesQuery.get().get(2).getId(), "\"regionkey\"", new LongType(), true),
                 new Attribute(attributesQuery.get().get(3).getId(), "\"comment\"", new StringType(Optional.of(152)), true)));
-        assertEquals(attributeList, attributesQuery);
+        assertThat(attributesQuery).isEqualTo(attributeList);
 
         assertThatThrownBy(() -> dataframeMetadataProvider.resolveOutput("SELECT * FROM (SELECT avg(1))"))
                 .hasMessageContaining("Dataframe columns should always be named")
@@ -193,33 +191,37 @@ public class TestDataframeMetadataProvider
     @Test
     public void testAliasOutput()
     {
-        assertEquals("""
+        assertThat(dataframeMetadataProvider.aliasOutput("SELECT nationkey as key FROM tpch.tiny.nation"))
+                .isEqualTo("""
                 SELECT nationkey key
                 FROM
                  \stpch.tiny.nation
-                    """, dataframeMetadataProvider.aliasOutput("SELECT nationkey as key FROM tpch.tiny.nation"));
-        assertEquals("SELECT avg(1) \"avg(1)\"\n\n", dataframeMetadataProvider.aliasOutput("SELECT avg(1)"));
-        assertEquals("""
+                    """);
+        assertThat(dataframeMetadataProvider.aliasOutput("SELECT avg(1)")).isEqualTo("SELECT avg(1) \"avg(1)\"\n\n");
+        assertThat(dataframeMetadataProvider.aliasOutput("SELECT * FROM (SELECT avg(1))"))
+                .isEqualTo("""
                 SELECT * FROM (SELECT *
                 FROM
                   (
                    SELECT avg(1)
 
                 )\s
-                ) t("_1")""", dataframeMetadataProvider.aliasOutput("SELECT * FROM (SELECT avg(1))"));
+                ) t("_1")""");
     }
 
     @Test
     public void testLimit()
     {
-        assertEquals("""
+        assertThat(dataframeMetadataProvider.limit("SELECT * FROM tpch.tiny.nation", "5", "5"))
+                .isEqualTo("""
                 SELECT *
                 FROM
                   tpch.tiny.nation
                 OFFSET 5 ROWS
                 LIMIT 5
-                """, dataframeMetadataProvider.limit("SELECT * FROM tpch.tiny.nation", "5", "5"));
-        assertEquals(" SELECT  *  FROM (SELECT * FROM tpch.tiny.nation OFFSET 10 rows LIMIT 10) OFFSET 1 LIMIT 1", dataframeMetadataProvider.limit("SELECT * FROM tpch.tiny.nation OFFSET 10 rows LIMIT 10", "1", "1"));
+                """);
+        assertThat(dataframeMetadataProvider.limit("SELECT * FROM tpch.tiny.nation OFFSET 10 rows LIMIT 10", "1", "1"))
+                .isEqualTo(" SELECT  *  FROM (SELECT * FROM tpch.tiny.nation OFFSET 10 rows LIMIT 10) OFFSET 1 LIMIT 1");
     }
 
     @Test
@@ -231,20 +233,22 @@ public class TestDataframeMetadataProvider
                   tpch.tiny.nation
                 ORDER BY regionkey ASC, nationkey ASC
                 """;
-        assertEquals(query, dataframeMetadataProvider.sort("SELECT * FROM tpch.tiny.nation", Arrays.asList("regionkey", "nationkey")));
-        assertEquals(query, dataframeMetadataProvider.sort("SELECT * FROM tpch.tiny.nation ORDER BY regionkey, nationkey", Arrays.asList("regionkey", "nationkey")));
-        assertEquals("""
+        assertThat(dataframeMetadataProvider.sort("SELECT * FROM tpch.tiny.nation", Arrays.asList("regionkey", "nationkey"))).isEqualTo(query);
+        assertThat(dataframeMetadataProvider.sort("SELECT * FROM tpch.tiny.nation ORDER BY regionkey, nationkey", Arrays.asList("regionkey", "nationkey"))).isEqualTo(query);
+        assertThat(dataframeMetadataProvider.sort("SELECT * FROM tpch.tiny.nation ORDER BY regionkey DESC, nationkey DESC", Arrays.asList("regionkey ASC", "nationkey DESC")))
+                .isEqualTo("""
                 SELECT *
                 FROM
                   tpch.tiny.nation
                 ORDER BY regionkey ASC, nationkey DESC
-                """, dataframeMetadataProvider.sort("SELECT * FROM tpch.tiny.nation ORDER BY regionkey DESC, nationkey DESC", Arrays.asList("regionkey ASC", "nationkey DESC")));
-        assertEquals("""
+                """);
+        assertThat(dataframeMetadataProvider.sort("SELECT * FROM tpch.tiny.nation ORDER BY regionkey DESC, nationkey DESC", Arrays.asList("nationkey DESC")))
+                .isEqualTo("""
                 SELECT *
                 FROM
                   tpch.tiny.nation
                 ORDER BY nationkey DESC
-                """, dataframeMetadataProvider.sort("SELECT * FROM tpch.tiny.nation ORDER BY regionkey DESC, nationkey DESC", Arrays.asList("nationkey DESC")));
+                """);
     }
 
     private static Session createSession(TransactionId transactionId)

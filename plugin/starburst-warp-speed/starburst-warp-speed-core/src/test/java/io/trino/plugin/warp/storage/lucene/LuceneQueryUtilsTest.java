@@ -17,7 +17,7 @@ import io.airlift.slice.Slices;
 import org.junit.jupiter.api.Test;
 
 import static io.trino.plugin.warp.storage.lucene.LuceneQueryUtils.likeToRegexp;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class LuceneQueryUtilsTest
 {
@@ -25,10 +25,10 @@ class LuceneQueryUtilsTest
     @Test
     public void testLikeToRegexp()
     {
-        assertEquals(likeToRegexp(Slices.utf8Slice("a_b_c")), "a.b.c");
-        assertEquals(likeToRegexp(Slices.utf8Slice("a%b%c")), "a.*b.*c");
-        assertEquals(likeToRegexp(Slices.utf8Slice("a%b_c")), "a.*b.c");
-        assertEquals(likeToRegexp(Slices.utf8Slice("a[b")), "a\\[b");
-        assertEquals(likeToRegexp(Slices.utf8Slice("a_\\b")), "a.\\\\b");
+        assertThat(likeToRegexp(Slices.utf8Slice("a_b_c"))).isEqualTo("a.b.c");
+        assertThat(likeToRegexp(Slices.utf8Slice("a%b%c"))).isEqualTo("a.*b.*c");
+        assertThat(likeToRegexp(Slices.utf8Slice("a%b_c"))).isEqualTo("a.*b.c");
+        assertThat(likeToRegexp(Slices.utf8Slice("a[b"))).isEqualTo("a\\[b");
+        assertThat(likeToRegexp(Slices.utf8Slice("a_\\b"))).isEqualTo("a.\\\\b");
     }
 }

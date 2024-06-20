@@ -19,7 +19,7 @@ import io.trino.spi.block.IntArrayBlock;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -137,18 +137,18 @@ class WarmupElementBlocksTest
         assertThat(warmupElementBlocks.add(block)).isFalse();
 
         // negative input
-        assertThrows(RuntimeException.class, () -> warmupElementBlocks.dropProcessed(-1, 0));
-        assertThrows(RuntimeException.class, () -> warmupElementBlocks.dropProcessed(0, -1));
+        assertThatThrownBy(() -> warmupElementBlocks.dropProcessed(-1, 0)).isInstanceOf(RuntimeException.class);
+        assertThatThrownBy(() -> warmupElementBlocks.dropProcessed(0, -1)).isInstanceOf(RuntimeException.class);
 
         // drop too many blocks
-        assertThrows(RuntimeException.class, () -> warmupElementBlocks.dropProcessed(2, 0));
+        assertThatThrownBy(() -> warmupElementBlocks.dropProcessed(2, 0)).isInstanceOf(RuntimeException.class);
 
         // offset too large
-        assertThrows(RuntimeException.class, () -> warmupElementBlocks.dropProcessed(0, block.getPositionCount()));
+        assertThatThrownBy(() -> warmupElementBlocks.dropProcessed(0, block.getPositionCount())).isInstanceOf(RuntimeException.class);
 
         // move offset backwards
         warmupElementBlocks.dropProcessed(0, 2);
-        assertThrows(RuntimeException.class, () -> warmupElementBlocks.dropProcessed(0, 1));
+        assertThatThrownBy(() -> warmupElementBlocks.dropProcessed(0, 1)).isInstanceOf(RuntimeException.class);
     }
 
     private Block mockBlock(int positionCount)

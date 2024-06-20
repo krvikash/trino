@@ -70,7 +70,6 @@ import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -618,7 +617,7 @@ public class StorageWriterServiceTest
     private void assertBuffer(BaseJuffer juffer, int expectedPosition)
     {
         if (expectedPosition == SHOULD_BE_NULL) {
-            assertNull(juffer);
+            assertThat(juffer).isNull();
         }
         else {
             Buffer buffer = juffer.getWrappedBuffer();

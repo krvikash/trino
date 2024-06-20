@@ -68,7 +68,6 @@ import static io.trino.plugin.warp.storage.lucene.LuceneQueryUtils.createPrefixQ
 import static io.trino.plugin.warp.storage.lucene.LuceneQueryUtils.createRangeQuery;
 import static io.trino.spi.expression.StandardFunctions.LIKE_FUNCTION_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -145,7 +144,7 @@ public class LuceneMatcherTest
         MatchContext result = luceneElementsMatcher.match(classifyArgs, matchContext);
 
         assertThat(result.matchDataList().size()).isEqualTo(totalLuceneMatches);
-        assertTrue(result.remainingPredicateContext().isEmpty());
+        assertThat(result.remainingPredicateContext()).isEmpty();
     }
 
     @Test
@@ -270,7 +269,7 @@ public class LuceneMatcherTest
         MatchContext result = luceneElementsMatcher.match(classifyArgs, matchContext);
 
         assertThat(result.matchDataList().size()).isEqualTo(1);
-        assertTrue(result.remainingPredicateContext().isEmpty());
+        assertThat(result.remainingPredicateContext()).isEmpty();
     }
 
     @ParameterizedTest
@@ -516,7 +515,7 @@ public class LuceneMatcherTest
         LuceneQueryMatchData luceneQueryMatchData = (LuceneQueryMatchData) queryMatchData;
         assertThat(luceneQueryMatchData.getQuery()).isEqualTo(expectedQuery);
         assertThat(luceneQueryMatchData.isCollectNulls()).isEqualTo(expectedNullAllowed);
-        assertTrue(result.remainingPredicateContext().isEmpty());
+        assertThat(result.remainingPredicateContext()).isEmpty();
     }
 
     private void assertExpressionNotConverted(String columnName,

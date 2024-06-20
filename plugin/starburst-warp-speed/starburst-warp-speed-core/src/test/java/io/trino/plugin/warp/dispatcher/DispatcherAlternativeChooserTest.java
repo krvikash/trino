@@ -86,7 +86,6 @@ import static java.util.Collections.emptySet;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
@@ -244,7 +243,8 @@ public class DispatcherAlternativeChooserTest
         when(queryClassifier.classify(any(), any(), any(), any(), any(), any())).thenThrow(exception);
         DispatcherAlternativeChooser dispatcherAlternativeChooser = createAlternativeChooser(queryClassifier);
 
-        assertThrows(exception.getClass(), () -> dispatcherAlternativeChooser.chooseAlternative(session, dispatcherSplit, alternatives));
+        assertThatThrownBy(() -> dispatcherAlternativeChooser.chooseAlternative(session, dispatcherSplit, alternatives))
+                .isInstanceOf(exception.getClass());
         assertNoResourcesAreOpened();
     }
 

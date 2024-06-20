@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.util.stream.IntStream;
 
-import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
@@ -167,7 +167,7 @@ public class ShapingLoggerTest
     {
         ShapingLogger shapingLogger1 = ShapingLogger.getInstance(logger, 10, Duration.ofMillis(3));
         ShapingLogger shapingLogger2 = ShapingLogger.getInstance(logger, 10, Duration.ofMillis(3));
-        assertSame(shapingLogger1, shapingLogger2);
+        assertThat(shapingLogger1).isSameAs(shapingLogger2);
     }
 
     @Test

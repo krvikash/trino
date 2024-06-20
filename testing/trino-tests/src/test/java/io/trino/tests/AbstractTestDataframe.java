@@ -43,8 +43,8 @@ import static io.airlift.http.client.Request.Builder.preparePost;
 import static io.airlift.json.JsonCodec.jsonCodec;
 import static io.trino.SessionTestUtils.TEST_SESSION;
 import static java.lang.String.format;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public abstract class AbstractTestDataframe
 {
@@ -72,7 +72,7 @@ public abstract class AbstractTestDataframe
         logicalPlan = LOGICAL_PLAN.fromJson(LOGICAL_PLAN.toJson(logicalPlan));
         Request request = prepareRequest(logicalPlan);
         TrinoPlan trinoPlan = resolveLogicalPlan(request);
-        assertEquals(trinoPlan.getQueries(), expectedQueries);
+        assertThat(trinoPlan.getQueries()).isEqualTo(expectedQueries);
     }
 
     protected void assertQueryFails(LogicalPlan logicalPlan, DataframeException.ErrorCode errorCode)
@@ -84,7 +84,7 @@ public abstract class AbstractTestDataframe
         }
         catch (DataframeException exception) {
             exception.addSuppressed(new Exception("Logical plan: " + logicalPlan));
-            assertEquals(exception.getResponseEntity().getErrorCode(), errorCode);
+            assertThat(exception.getResponseEntity().getErrorCode()).isEqualTo(errorCode);
         }
     }
 

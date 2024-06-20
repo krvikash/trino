@@ -40,7 +40,6 @@ import static io.trino.tests.product.warp.utils.WarmTypeForStrings.lucene_data_o
 import static io.trino.tests.product.warp.utils.WarmTypeForStrings.no_lucene;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.testng.Assert.fail;
 
 public class RuleUtils
 {
@@ -191,7 +190,7 @@ public class RuleUtils
             assertThat(operatorTypes.contains("ScanFilterAndProjectOperator")).isFalse().describedAs("validate that ScanFilterAndProjectOperator stage was not applied");
         }
         catch (Exception e) {
-            fail("failed %s", e);
+            throw new RuntimeException("failed", e);
         }
     }
 
@@ -205,7 +204,7 @@ public class RuleUtils
             assertThat(operatorTypes.contains("ScanFilterAndProjectOperator")).isTrue().describedAs("validate that ScanFilterAndProjectOperator stage was applied");
         }
         catch (Exception e) {
-            fail("failed %s", e);
+            throw new RuntimeException("failed", e);
         }
     }
 

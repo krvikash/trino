@@ -53,7 +53,7 @@ import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.testing.QueryAssertions.assertEqualsIgnoreOrder;
 import static java.lang.Math.max;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestHiveDynamicPartitionPruningTestWithPlanAlternatives
         extends TestHiveDynamicPartitionPruningTest
@@ -84,16 +84,16 @@ public class TestHiveDynamicPartitionPruningTestWithPlanAlternatives
 
         OperatorStats probeStats = searchScanFilterAndProjectOperatorStats(result.queryId(), getQualifiedTableName(PARTITIONED_LINEITEM));
         // Probe-side is partially scanned
-        assertEquals(probeStats.getInputPositions(), 369L);
+        assertThat(probeStats.getInputPositions()).isEqualTo(369L);
 
         DynamicFilterService.DynamicFiltersStats dynamicFiltersStats = getDynamicFilteringStats(result.queryId());
-        assertEquals(dynamicFiltersStats.getTotalDynamicFilters(), 1L);
-        assertEquals(dynamicFiltersStats.getLazyDynamicFilters(), 1L);
-        assertEquals(dynamicFiltersStats.getReplicatedDynamicFilters(), 0L);
-        assertEquals(dynamicFiltersStats.getDynamicFiltersCompleted(), 1L);
+        assertThat(dynamicFiltersStats.getTotalDynamicFilters()).isEqualTo(1L);
+        assertThat(dynamicFiltersStats.getLazyDynamicFilters()).isEqualTo(1L);
+        assertThat(dynamicFiltersStats.getReplicatedDynamicFilters()).isEqualTo(0L);
+        assertThat(dynamicFiltersStats.getDynamicFiltersCompleted()).isEqualTo(1L);
 
         DynamicFilterService.DynamicFilterDomainStats domainStats = getOnlyElement(dynamicFiltersStats.getDynamicFilterDomainStats());
-        assertEquals(domainStats.getSimplifiedDomain(), singleValue(BIGINT, 1L).toString(getSession().toConnectorSession()));
+        assertThat(domainStats.getSimplifiedDomain()).isEqualTo(singleValue(BIGINT, 1L).toString(getSession().toConnectorSession()));
     }
 
     @Override

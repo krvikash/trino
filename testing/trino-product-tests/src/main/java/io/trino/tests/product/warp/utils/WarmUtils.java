@@ -18,8 +18,8 @@ import io.airlift.log.Logger;
 import io.airlift.units.Duration;
 import io.trino.tempto.query.QueryExecutor;
 import io.trino.tempto.query.QueryResult;
+import org.assertj.core.api.SoftAssertions;
 import org.intellij.lang.annotations.Language;
-import org.testng.asserts.SoftAssert;
 
 import java.util.HashMap;
 import java.util.List;
@@ -185,11 +185,11 @@ public class WarmUtils
                                 .isZero();
                     }
                 });
-        SoftAssert softAssert = new SoftAssert();
+        SoftAssertions softAssertions = new SoftAssertions();
         if (expectedDictionaryCounters != null && !expectedDictionaryCounters.isEmpty()) {
-            verifyDictionaryCounters(expectedDictionaryCounters, dictionaryRowBefore, tableName, softAssert);
+            verifyDictionaryCounters(expectedDictionaryCounters, dictionaryRowBefore, tableName, softAssertions);
         }
-        softAssert.assertAll();
+        softAssertions.assertAll();
         logger.info("Warmup process has finished %s %s", tableName, fastWarming);
     }
 
@@ -220,7 +220,7 @@ public class WarmUtils
         return queryResult;
     }
 
-    private void verifyDictionaryCounters(Map<String, Long> expectedDictionaryCounters, QueryResult dictionaryRowBefore, String testName, SoftAssert softAssert)
+    private void verifyDictionaryCounters(Map<String, Long> expectedDictionaryCounters, QueryResult dictionaryRowBefore, String testName, SoftAssertions softAssert)
     {
         if (expectedDictionaryCounters == null) {
             return;

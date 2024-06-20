@@ -17,7 +17,6 @@ import io.trino.tpch.TpchTable;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -26,7 +25,6 @@ import static com.starburstdata.trino.plugin.dynamodb.DynamoDbJdbcClient.getRsdS
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class TestProgrammaticallyGeneratedDynamoDbRsdSchema
         extends AbstractTestQueryFramework
@@ -54,8 +52,8 @@ public class TestProgrammaticallyGeneratedDynamoDbRsdSchema
     public void testVerifyProgrammaticallyGeneratedSchemas()
     {
         requireNonNull(actualSchemasDirectory);
-        assertTrue(Files.exists(Path.of(actualSchemasDirectory)));
-        assertTrue(Files.exists(Path.of(EXPECTED_PROGRAMMATICALLY_GENERATED_SCHEMAS_DIRECTORY)));
+        assertThat(Path.of(actualSchemasDirectory)).exists();
+        assertThat(Path.of(EXPECTED_PROGRAMMATICALLY_GENERATED_SCHEMAS_DIRECTORY)).exists();
 
         for (TpchTable<?> table : TPCH_TABLES) {
             String tableName = table.getTableName();

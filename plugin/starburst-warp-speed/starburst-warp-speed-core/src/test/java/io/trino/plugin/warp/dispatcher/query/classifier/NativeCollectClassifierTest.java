@@ -42,7 +42,6 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -79,9 +78,10 @@ public class NativeCollectClassifierTest
 
         assertThat(classify.getNativeQueryCollectDataList().size()).isEqualTo(numWarpCols);
         assertThat(classify.getRemainingCollectColumnByBlockIndex().size()).isEqualTo(numProxyCols);
-        assertFalse(classify.getNativeQueryCollectDataList().stream()
+        assertThat(classify.getNativeQueryCollectDataList().stream()
                 .map(QueryCollectData::getBlockIndex)
-                .anyMatch(classify.getRemainingCollectColumnByBlockIndex().keySet()::contains));
+                .anyMatch(classify.getRemainingCollectColumnByBlockIndex().keySet()::contains))
+                .isFalse();
     }
 
     @Test
@@ -97,9 +97,10 @@ public class NativeCollectClassifierTest
 
         assertThat(classify.getNativeQueryCollectDataList().size()).isEqualTo(numWarpCols);
         assertThat(classify.getRemainingCollectColumnByBlockIndex().size()).isEqualTo(numProxyStrCols);
-        assertFalse(classify.getNativeQueryCollectDataList().stream()
+        assertThat(classify.getNativeQueryCollectDataList().stream()
                 .map(QueryCollectData::getBlockIndex)
-                .anyMatch(classify.getRemainingCollectColumnByBlockIndex().keySet()::contains));
+                .anyMatch(classify.getRemainingCollectColumnByBlockIndex().keySet()::contains))
+                .isFalse();
 
         int i;
         for (i = 0; i < numIntCols; i++) {
@@ -121,9 +122,10 @@ public class NativeCollectClassifierTest
 
         assertThat(classify.getNativeQueryCollectDataList().size()).isEqualTo(numWarpIntCols);
         assertThat(classify.getRemainingCollectColumnByBlockIndex().size()).isEqualTo(numIntCols + numStrCols - numWarpIntCols);
-        assertFalse(classify.getNativeQueryCollectDataList().stream()
+        assertThat(classify.getNativeQueryCollectDataList().stream()
                 .map(QueryCollectData::getBlockIndex)
-                .anyMatch(classify.getRemainingCollectColumnByBlockIndex().keySet()::contains));
+                .anyMatch(classify.getRemainingCollectColumnByBlockIndex().keySet()::contains))
+                .isFalse();
 
         for (int i = 0; i < numWarpIntCols; i++) {
             assertThat(classify.getNativeQueryCollectDataList().get(i).getWarmUpElement().getWarmUpType()).isEqualTo(WarmUpType.WARM_UP_TYPE_BASIC);

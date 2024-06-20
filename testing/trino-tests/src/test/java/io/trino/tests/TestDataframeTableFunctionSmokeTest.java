@@ -23,8 +23,8 @@ import org.junit.jupiter.api.TestInstance;
 import java.util.List;
 
 import static java.lang.String.format;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.abort;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 @TestInstance(PER_CLASS)
@@ -36,8 +36,7 @@ public class TestDataframeTableFunctionSmokeTest
     {
         Object result = queryRunner.execute(format("SELECT trino_plan FROM TABLE(analyze_logical_plan('%s'))", "$zstd:KLUv/WCCB9UTAJacWycAreoBPuZ5NTamzCNt0/AukrembwBiBADEBQlsTwocLEJEVVVVxQpTAFUASwDuLu0uDQh36e7u7l50YxfJhALBLgBNPabIVHEO7XDaW/zbhNO0w1nXYqonAAp4WGY1/AxZw1vFnisVGdeOoyIWCTIduHa4tzIJltkKf/b4TEV2mhGiFZoxgm/W6uznrVqcs1TgNHnL5C1z7Tw4SOBgQeoBgl4seqJMCQ2Mzt2M16AzgmR8HAZsLLphQunKZIlIDBA63c2gFhQQFAy6IvWCqkgP6FTouEuQzkefNiCH8IruD3ze45dfMOMSze31+uRPGOmkFfReVvPhi++B1jMr/1hFZ/Mbzrf6vRvm2tlEYFmE8uyWhGOxohVOf6Jf/1y6JaGbjbMwSdM+Al3fJiY8wRxD4c/+GAFu1ymu4882YyIstp7iZtpjzJKvv06TrYVlFf58LWTTcI8V0khe8ZJUzilfhI+sVUZRfDCqEdI4A3SooUEZIhJJiwpq5mACEbK6OhKglBzGkQwGMaYQc0oCGYkSlZQphQdTMJilUbudbRDbZYMlulURG5lBo9FFQz6+WjG37BqjCsNtDp/OHhVCDalnwIGCX6CE+w/AmEHBaiG12o5bOflYiFhXEgW00Y9wLq2jKfFBJWBK6HnJbiT95ISR/0SZuiycZlpnaYAs148YtW/yJaHR5foQaD5+LJ3Tdpe5Fv8EBPEHy8A5jir+cMXvRUaOrKrAWlIBFXKtcv4BMgQvjTYcCJaaJzkNgIGMWD0j84eMbsseJ+Gv6mCuoUlqqxnAI35EjM0nPGLMLTXTAMu0XZSkQ4TYCB3MQ7vvJlBKCDRkQ6s=")).getOnlyValue();
         TrinoPlan trinoPlan = TRINO_PLAN.fromJson((String) result);
-        assertEquals(
-                trinoPlan.getQueries(),
+        assertThat(trinoPlan.getQueries()).isEqualTo(
                 ImmutableList.of(
                         """
                                 SELECT *
@@ -97,7 +96,7 @@ public class TestDataframeTableFunctionSmokeTest
     {
         Object result = queryRunner.execute(format("SELECT trino_plan FROM TABLE(analyze_logical_plan('%s'))", LOGICAL_PLAN.toJson(logicalPlan).replace("'", "''"))).getOnlyValue();
         TrinoPlan trinoPlan = TRINO_PLAN.fromJson((String) result);
-        assertEquals(trinoPlan.getQueries(), expectedQueries);
+        assertThat(trinoPlan.getQueries()).isEqualTo(expectedQueries);
     }
 
     @Override
@@ -105,11 +104,11 @@ public class TestDataframeTableFunctionSmokeTest
     {
         try {
             queryRunner.execute(format("SELECT trino_plan FROM TABLE(analyze_logical_plan('%s'", LOGICAL_PLAN.toJson(logicalPlan).replace("'", "''"))).getOnlyValue();
-            fail(format("Logical plan expected to fail: %s, with error code: %s", logicalPlan, errorCode));
+            abort(format("Logical plan expected to fail: %s, with error code: %s", logicalPlan, errorCode));
         }
         catch (DataframeException exception) {
             exception.addSuppressed(new Exception("Logical plan: " + logicalPlan));
-            assertEquals(exception.getResponseEntity().getErrorCode(), errorCode);
+            assertThat(exception.getResponseEntity().getErrorCode()).isEqualTo(errorCode);
         }
     }
 }

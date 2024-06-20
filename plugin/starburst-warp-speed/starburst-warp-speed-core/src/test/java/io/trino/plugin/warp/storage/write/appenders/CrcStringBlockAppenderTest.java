@@ -34,7 +34,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.Mockito.when;
 
@@ -92,10 +92,10 @@ class CrcStringBlockAppenderTest
     {
         RecTypeCode recTypeCode = getRecTypeCode(blockType);
         if (recTypeCode.isSupportedDictionary()) {
-            assertThrows(UnsupportedOperationException.class, () -> {
+            assertThatThrownBy(() -> {
                 when(writeJuffersWarmUpElement.getRecordBuffer()).thenReturn(ShortBuffer.allocate(100));
                 runTest(block, blockType, expectedResult, getWriteDictionary(recTypeCode));
-            });
+            }).isInstanceOf(UnsupportedOperationException.class);
         }
     }
 

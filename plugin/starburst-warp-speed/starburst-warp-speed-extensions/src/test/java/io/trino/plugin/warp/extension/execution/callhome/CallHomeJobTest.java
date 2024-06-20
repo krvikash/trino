@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -26,7 +27,6 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.mock;
@@ -84,7 +84,7 @@ public class CallHomeJobTest
             Files.createFile(new File(catalogPath, fileName).toPath());
         }
         catch (IOException e) {
-            fail(e);
+            throw new UncheckedIOException(e);
         }
     }
 }

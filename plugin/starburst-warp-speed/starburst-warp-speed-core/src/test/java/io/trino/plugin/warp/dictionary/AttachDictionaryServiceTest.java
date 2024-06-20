@@ -32,9 +32,8 @@ import java.io.IOException;
 import java.nio.file.Path;
 
 import static io.trino.plugin.warp.dictionary.DictionariesCacheTest.buildDictionaryKey;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -75,11 +74,11 @@ class AttachDictionaryServiceTest
         attachDictionaryService.save(dictionaryToWrite, RecTypeCode.REC_TYPE_INTEGER, 0, rowGroupFilePath);
         DataValueDictionary res = attachDictionaryService.load(dictionaryKey, RecTypeCode.REC_TYPE_INTEGER, 4, 0, rowGroupFilePath);
 
-        assertTrue(res.isImmutable());
-        assertEquals(res.getWriteSize(), 2);
-        assertEquals(res.getDictionaryWeight(), 8);
-        assertEquals(res.get(0), 1);
-        assertEquals(res.get(1), 2);
+        assertThat(res.isImmutable()).isTrue();
+        assertThat(res.getWriteSize()).isEqualTo(2);
+        assertThat(res.getDictionaryWeight()).isEqualTo(8);
+        assertThat(res.get(0)).isEqualTo(1);
+        assertThat(res.get(1)).isEqualTo(2);
 
         FileUtils.deleteQuietly(Path.of(rowGroupFilePath).toFile());
     }
@@ -102,14 +101,14 @@ class AttachDictionaryServiceTest
         attachDictionaryService.save(dictionaryToWrite, RecTypeCode.REC_TYPE_CHAR, 0, rowGroupFilePath);
         DataValueDictionary res = attachDictionaryService.load(dictionaryKey, RecTypeCode.REC_TYPE_CHAR, 4, 0, rowGroupFilePath);
 
-        assertTrue(res.isImmutable());
-        assertEquals(res.getWriteSize(), 5);
-        assertEquals(res.getDictionaryWeight(), 20);
-        assertEquals(((io.airlift.slice.Slice) res.get(0)).toStringUtf8(), "aaa");
-        assertEquals(((io.airlift.slice.Slice) res.get(1)).toStringUtf8(), "bbbb");
-        assertEquals(((io.airlift.slice.Slice) res.get(2)).toStringUtf8(), "cccc");
-        assertEquals(((io.airlift.slice.Slice) res.get(3)).toStringUtf8(), "dddd");
-        assertEquals(((io.airlift.slice.Slice) res.get(4)).toStringUtf8(), "eeee");
+        assertThat(res.isImmutable()).isTrue();
+        assertThat(res.getWriteSize()).isEqualTo(5);
+        assertThat(res.getDictionaryWeight()).isEqualTo(20);
+        assertThat(((io.airlift.slice.Slice) res.get(0)).toStringUtf8()).isEqualTo("aaa");
+        assertThat(((io.airlift.slice.Slice) res.get(1)).toStringUtf8()).isEqualTo("bbbb");
+        assertThat(((io.airlift.slice.Slice) res.get(2)).toStringUtf8()).isEqualTo("cccc");
+        assertThat(((io.airlift.slice.Slice) res.get(3)).toStringUtf8()).isEqualTo("dddd");
+        assertThat(((io.airlift.slice.Slice) res.get(4)).toStringUtf8()).isEqualTo("eeee");
 
         FileUtils.deleteQuietly(Path.of(rowGroupFilePath).toFile());
     }
@@ -132,14 +131,14 @@ class AttachDictionaryServiceTest
         attachDictionaryService.save(dictionaryToWrite, RecTypeCode.REC_TYPE_VARCHAR, 0, rowGroupFilePath);
         DataValueDictionary res = attachDictionaryService.load(dictionaryKey, RecTypeCode.REC_TYPE_VARCHAR, 256, 0, rowGroupFilePath);
 
-        assertTrue(res.isImmutable());
-        assertEquals(res.getWriteSize(), 5);
-        assertEquals(res.getDictionaryWeight(), 18);
-        assertEquals(((io.airlift.slice.Slice) res.get(0)).toStringUtf8(), "1");
-        assertEquals(((io.airlift.slice.Slice) res.get(1)).toStringUtf8(), "88888888");
-        assertEquals(((io.airlift.slice.Slice) res.get(2)).toStringUtf8(), "333");
-        assertEquals(((io.airlift.slice.Slice) res.get(3)).toStringUtf8(), "4444");
-        assertEquals(((io.airlift.slice.Slice) res.get(4)).toStringUtf8(), "00");
+        assertThat(res.isImmutable()).isTrue();
+        assertThat(res.getWriteSize()).isEqualTo(5);
+        assertThat(res.getDictionaryWeight()).isEqualTo(18);
+        assertThat(((io.airlift.slice.Slice) res.get(0)).toStringUtf8()).isEqualTo("1");
+        assertThat(((io.airlift.slice.Slice) res.get(1)).toStringUtf8()).isEqualTo("88888888");
+        assertThat(((io.airlift.slice.Slice) res.get(2)).toStringUtf8()).isEqualTo("333");
+        assertThat(((io.airlift.slice.Slice) res.get(3)).toStringUtf8()).isEqualTo("4444");
+        assertThat(((io.airlift.slice.Slice) res.get(4)).toStringUtf8()).isEqualTo("00");
 
         FileUtils.deleteQuietly(Path.of(rowGroupFilePath).toFile());
     }
@@ -153,7 +152,8 @@ class AttachDictionaryServiceTest
         DictionaryKey dictionaryKey = buildDictionaryKey("int1");
         String rowGroupFilePath = globalConfig.getLocalStorePath() + dictionaryKey.stringFileNameRepresentation() + "/// ...";
 
-        assertThrows(RuntimeException.class, () ->
-                attachDictionaryService.save(dictionaryToWrite, RecTypeCode.REC_TYPE_INTEGER, dictionaryOffset, rowGroupFilePath));
+        assertThatThrownBy(() ->
+                attachDictionaryService.save(dictionaryToWrite, RecTypeCode.REC_TYPE_INTEGER, dictionaryOffset, rowGroupFilePath))
+                .isInstanceOf(RuntimeException.class);
     }
 }

@@ -21,8 +21,8 @@ import io.airlift.log.Logger;
 import io.airlift.units.Duration;
 import io.trino.jdbc.TrinoResultSet;
 import io.trino.tempto.query.QueryResult;
+import org.assertj.core.api.SoftAssertions;
 import org.intellij.lang.annotations.Language;
-import org.testng.asserts.SoftAssert;
 
 import java.math.BigDecimal;
 import java.sql.Date;
@@ -70,20 +70,20 @@ public class QueryUtils
             return;
         }
         logger.info("Going to execute %s queries", queriesData.size());
-        SoftAssert softAssert = new SoftAssert();
+        SoftAssertions softAssertions = new SoftAssertions();
         for (TestFormat.QueryData query : queriesData) {
             if (query.skip()) {
                 logger.info("query %s was skipped", query);
             }
             logger.debug("run the query with/without planAlternative");
             onTrino().executeQuery("set session use_sub_plan_alternatives = true");
-            queryAndValidate(query, true, softAssert);
+            queryAndValidate(query, true, softAssertions);
             onTrino().executeQuery("set session use_sub_plan_alternatives = false");
             //we assert on correctness without sub_plan_alternatives session, counters according to default config
-            queryAndValidate(query, false, softAssert);
+            queryAndValidate(query, false, softAssertions);
         }
 
-        softAssert.assertAll();
+        softAssertions.assertAll();
     }
 
     public int runCacheQueries(TestFormat test, boolean isWarp)
@@ -157,13 +157,13 @@ public class QueryUtils
     {
         QueryResult queryResult = onTrino().executeQuery(query);
         String queryId = ((TrinoResultSet) queryResult.getJdbcResultSet().orElseThrow()).getQueryId();
-        SoftAssert softAssert = new SoftAssert();
-        verifyQueryCounters(queryId, expectedResults, CachingType.ACCORDING_TO_COUNTERS, testName, softAssert);
-        softAssert.assertAll();
+        SoftAssertions softAssertions = new SoftAssertions();
+        verifyQueryCounters(queryId, expectedResults, CachingType.ACCORDING_TO_COUNTERS, testName, softAssertions);
+        softAssertions.assertAll();
         return queryResult;
     }
 
-    private void queryAndValidate(TestFormat.QueryData query, boolean assertOnCounters, SoftAssert softAssert)
+    private void queryAndValidate(TestFormat.QueryData query, boolean assertOnCounters, SoftAssertions softAssert)
     {
         String defaultWarmingSession = "warp.enable_default_warming";
         try {
@@ -207,7 +207,7 @@ public class QueryUtils
             Map<String, Long> expectedCounters,
             Map<String, Long> actualValues,
             String testName,
-            SoftAssert softAssert)
+            SoftAssertions softAssertions)
     {
         if (actualValues == null) {
             return;
@@ -232,14 +232,14 @@ public class QueryUtils
                 double expectedValue = expectedCounters.get(counter) * numberOfSplits;
                 String info = "testName: " + testName + "; Counter: " + counter + "; Result: " + counterValue + "; Expected: " + expectedValue;
                 logger.debug(info);
-                softAssert.assertEquals(counterValue,
-                        expectedValue,
-                        format("assert failed. actual=%s. expected=%s (%s * %s splits). info=%s, error=%s", counterValue, expectedValue, expectedCounters.get(counter), numberOfSplits, info, JMXCachingManager.getErrorMessage(counter)));
+                softAssertions.assertThat(counterValue)
+                        .as("assert failed. actual=%s. expected=%s (%s * %s splits). info=%s, error=%s", counterValue, expectedValue, expectedCounters.get(counter), numberOfSplits, info, JMXCachingManager.getErrorMessage(counter))
+                        .isEqualTo(expectedValue);
             }
         }
     }
 
-    private void verifyQueryCounters(String queryId, Map<String, Long> expectedCounters, CachingType cachingType, String testName, SoftAssert softAssert)
+    private void verifyQueryCounters(String queryId, Map<String, Long> expectedCounters, CachingType cachingType, String testName, SoftAssertions softAssert)
     {
         if (cachingType == CachingType.ACCORDING_TO_COUNTERS) {
             logger.debug(expectedCounters.toString());

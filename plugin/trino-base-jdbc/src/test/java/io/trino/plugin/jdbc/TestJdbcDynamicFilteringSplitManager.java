@@ -41,8 +41,6 @@ import static io.trino.plugin.jdbc.JdbcDynamicFilteringSessionProperties.DYNAMIC
 import static io.trino.spi.connector.Constraint.alwaysTrue;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class TestJdbcDynamicFilteringSplitManager
 {
@@ -173,22 +171,22 @@ public class TestJdbcDynamicFilteringSplitManager
 
         // verify that getNextBatch() future completes after a min dynamic filter timeout
         CompletableFuture<?> splitSourceNextBatchFuture = splitSource.getNextBatch(100);
-        assertFalse(splitSourceNextBatchFuture.isDone());
+        assertThat(splitSourceNextBatchFuture.isDone()).isFalse();
         // first narrow down of DF
         dynamicFilterFuture.complete(null);
-        assertTrue(splitSourceNextBatchFuture.isDone());
+        assertThat(splitSourceNextBatchFuture.isDone()).isTrue();
         // whole DF is not completed, still min dynamic filter timeout remains
-        assertFalse(splitSource.isFinished());
+        assertThat(splitSource.isFinished()).isFalse();
         splitSourceNextBatchFuture = splitSource.getNextBatch(100);
-        assertFalse(splitSourceNextBatchFuture.isDone());
-        assertFalse(splitSource.isFinished());
+        assertThat(splitSourceNextBatchFuture.isDone()).isFalse();
+        assertThat(splitSource.isFinished()).isFalse();
         // await preferred timeout ~ 3s
         splitSourceNextBatchFuture.get(20, SECONDS);
-        assertTrue(splitSourceNextBatchFuture.isDone());
+        assertThat(splitSourceNextBatchFuture.isDone()).isTrue();
         // preferred timeout passed but dynamic filter is still not done
-        assertTrue(dynamicFilter.isAwaitable());
+        assertThat(dynamicFilter.isAwaitable()).isTrue();
         // split source is completed
-        assertTrue(splitSource.isFinished());
+        assertThat(splitSource.isFinished()).isTrue();
         splitSource.close();
     }
 

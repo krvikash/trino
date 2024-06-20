@@ -57,9 +57,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -246,11 +243,11 @@ public class HudiProxiedConnectorTransformerTest
                 nodePartitionProvider,
                 nodes);
 
-        assertTrue(optional.isPresent());
-        assertTrue(optional.orElseThrow().hasFixedMapping());
-        assertEquals(bucketCount, optional.orElseThrow().getBucketCount());
-        assertNotNull(optional.orElseThrow().getFixedMapping());
-        assertEquals(bucketCount, optional.orElseThrow().getFixedMapping().size());
+        assertThat(optional).isPresent();
+        assertThat(optional.orElseThrow().hasFixedMapping()).isTrue();
+        assertThat(optional.orElseThrow().getBucketCount()).isEqualTo(bucketCount);
+        assertThat(optional.orElseThrow().getFixedMapping()).isNotNull();
+        assertThat(optional.orElseThrow().getFixedMapping().size()).isEqualTo(bucketCount);
 
         nodes = mockNodes;
 
@@ -261,11 +258,11 @@ public class HudiProxiedConnectorTransformerTest
                 nodePartitionProvider,
                 nodes);
 
-        assertTrue(optional.isPresent());
-        assertTrue(optional.orElseThrow().hasFixedMapping());
-        assertEquals(bucketCount, optional.orElseThrow().getBucketCount());
-        assertNotNull(optional.orElseThrow().getFixedMapping());
-        assertEquals(bucketCount, optional.orElseThrow().getFixedMapping().size());
+        assertThat(optional).isPresent();
+        assertThat(optional.orElseThrow().hasFixedMapping()).isTrue();
+        assertThat(optional.orElseThrow().getBucketCount()).isEqualTo(bucketCount);
+        assertThat(optional.orElseThrow().getFixedMapping()).isNotNull();
+        assertThat(optional.orElseThrow().getFixedMapping().size()).isEqualTo(bucketCount);
     }
 
     @Override
