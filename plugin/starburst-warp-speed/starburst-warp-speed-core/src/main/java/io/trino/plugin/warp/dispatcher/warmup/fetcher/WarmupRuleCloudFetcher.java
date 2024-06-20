@@ -58,8 +58,7 @@ public class WarmupRuleCloudFetcher
             logger,
             10,
             Duration.ZERO,
-            1,
-            ShapingLogger.MODE.FULL);
+            1);
 
     private final WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig;
     private final CloudVendorService cloudVendorService;

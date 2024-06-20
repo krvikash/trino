@@ -52,8 +52,7 @@ public class CloudVendorStorageService
             logger,
             10,
             Duration.ZERO,
-            1,
-            ShapingLogger.MODE.FULL);
+            1);
 
     private final CloudStorage cloudStorage;
 
