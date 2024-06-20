@@ -140,7 +140,7 @@ public class LuceneIndexer
     }
 
     @SuppressWarnings("ThrowFromFinallyBlock")
-    public void closeLuceneIndex(long weCookie, long[] fileCookieParams)
+    public void closeLuceneIndex(long weCookie, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams)
     {
         IndexWriter weIndexWriter = indexWriter;
         if (weIndexWriter == null) {
@@ -148,7 +148,14 @@ public class LuceneIndexer
         }
         logger.debug("weCookie %x, close index", weCookie);
         Directory tempDirectory = weIndexWriter.getDirectory();
-        WarpOutputDirectory finalDirectory = new WarpOutputDirectory(storageEngine, storageEngineConstants, juffersWE, weCookie, fileCookieParams);
+        WarpOutputDirectory finalDirectory = new WarpOutputDirectory(storageEngine,
+                storageEngineConstants,
+                juffersWE,
+                weCookie,
+                recTypeCode,
+                recTypeLength,
+                warmUpType,
+                fileCookieParams);
         int[] filesLength = new int[LuceneFileType.values().length - 1];
         try {
             stopWatch.reset();
@@ -192,7 +199,13 @@ public class LuceneIndexer
             try {
                 if (!failedCommit) {
                     logger.debug("weCookie %x, committing lucene buffer: fileLengths %s", weCookie, Arrays.toString(filesLength));
-                    long res = storageEngine.warmupLuceneChunk(weCookie, juffersWE.getSingleAndResetLuceneWE(), filesLength, fileCookieParams);
+                    long res = storageEngine.warmupLuceneChunk(weCookie,
+                            juffersWE.getSingleAndResetLuceneWE(),
+                            filesLength,
+                            recTypeCode,
+                            recTypeLength,
+                            warmUpType,
+                            fileCookieParams);
                     if (res < 0) {
                         throw new TrinoException(WARP_LUCENE_WRITER_ERROR, "lucene commit failed, file too big");
                     }

@@ -129,23 +129,23 @@ public class NativeStorageEngine
     public native long warmupElementOpen(long context, int recTypeCode, int recTypeLength, int warmUpType, long[] buffAddresses);
 
     @Override
-    public native long warmupElementClose(long weCookie, long[] fileCookie, int[] outQueryFileParams);
+    public native long warmupElementClose(long weCookie, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookie, int[] outQueryFileParams);
 
     @Override
     public native void warmupVerifyQueryOffset(int queryOffset, long[] fileCookie);
 
     @Override
-    public native long warmupChunk(long weCookie, int addedNumRows, int addedNV, int addedBytes, long valueMin, long valueMax,
-            int singleValOffset, boolean close, long[] fileCookieParams, byte[] outChunkCookies);
+    public native long warmupChunk(long weCookie, int addedNumRows, int addedNV, int addedBytes, long valueMin, long valueMax, int singleValOffset,
+            boolean close, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams, byte[] outChunkCookies);
 
     @Override
-    public native long warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, long[] fileCookieParams);
+    public native long warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams);
 
     @Override
-    public native long warmupLucene(long weCookie, int fileId, int offset, int len, long[] fileCookieParams);
+    public native long warmupLucene(long weCookie, int fileId, int offset, int len, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams);
 
     @Override
-    public native long warmupLuceneChunk(long weCookie, boolean singleVal, int[] fileLengths, long[] fileCookieParams);
+    public native long warmupLuceneChunk(long weCookie, boolean singleVal, int[] fileLengths, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams);
 
     @Override
     public native int queryGetCollect2MatchSize();

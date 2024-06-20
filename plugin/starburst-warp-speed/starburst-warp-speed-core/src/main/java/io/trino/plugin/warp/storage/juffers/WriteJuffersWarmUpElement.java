@@ -47,6 +47,9 @@ public class WriteJuffersWarmUpElement
     private final StorageEngine storageEngine;
     private final int pageOffsetMask;
     private final long weCookie;
+    private final int recTypeCode;
+    private final int recTypeLength;
+    private final int warmUpType;
     private final long[] fileCookieParams;
     private final int chunkHeaderSize;
     private final List<ChunkMap> chunkMapList;
@@ -66,6 +69,9 @@ public class WriteJuffersWarmUpElement
             BufferAllocator bufferAllocator,
             MemorySegment[] buffs,
             long weCookie,
+            int recTypeCode,
+            int recTypeLength,
+            int warmUpType,
             WarmUpElementAllocationParams allocParams,
             long[] fileCookieParams)
     {
@@ -77,6 +83,9 @@ public class WriteJuffersWarmUpElement
         this.buffs = buffs;
         this.allocParams = allocParams;
         this.weCookie = weCookie;
+        this.recTypeCode = recTypeCode;
+        this.recTypeLength = recTypeLength;
+        this.warmUpType = warmUpType;
         this.fileCookieParams = fileCookieParams;
         this.chunkHeaderSize = storageEngineConstants.getChunkHeaderMaxSize();
 
@@ -87,11 +96,25 @@ public class WriteJuffersWarmUpElement
         this.chunkMapList.add(new ChunkMap(defaultChunkCookies));
 
         if (allocParams.isRecBufferNeeded()) {
-            RecordWriteJuffer recordJuffers = new RecordWriteJuffer(bufferAllocator, allocParams, storageEngine, weCookie, fileCookieParams);
+            RecordWriteJuffer recordJuffers = new RecordWriteJuffer(bufferAllocator,
+                    allocParams,
+                    storageEngine,
+                    weCookie,
+                    recTypeCode,
+                    recTypeLength,
+                    warmUpType,
+                    fileCookieParams);
             juffers.put(recordJuffers.getJufferType(), recordJuffers);
 
             if (allocParams.isExtBufferNeeded()) {
-                ExtendedJuffer extendedJuffers = new ExtendedJuffer(bufferAllocator, allocParams, storageEngine, weCookie, fileCookieParams);
+                ExtendedJuffer extendedJuffers = new ExtendedJuffer(bufferAllocator,
+                        allocParams,
+                        storageEngine,
+                        weCookie,
+                        recTypeCode,
+                        recTypeLength,
+                        warmUpType,
+                        fileCookieParams);
                 juffers.put(extendedJuffers.getJufferType(), extendedJuffers);
             }
         }
@@ -178,6 +201,9 @@ public class WriteJuffersWarmUpElement
                 recordBufferMax,
                 recordBufferSingleOffset,
                 true,
+                recTypeCode,
+                recTypeLength,
+                warmUpType,
                 fileCookieParams,
                 outChunkCookies);
         fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFF;

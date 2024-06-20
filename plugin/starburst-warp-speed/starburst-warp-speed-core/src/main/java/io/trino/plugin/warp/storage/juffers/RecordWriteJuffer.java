@@ -32,6 +32,9 @@ public class RecordWriteJuffer
     private final WarmUpElementAllocationParams allocParams;
     private final StorageEngine storageEngine;
     private final long weCookie;
+    private final int recTypeCode;
+    private final int recTypeLength;
+    private final int warmUpType;
     private final long[] fileCookieParams;
     private int recordBufferEntrySize;            // size of one record, one if its a byte buffer
     private boolean isDictionaryValid;
@@ -40,32 +43,38 @@ public class RecordWriteJuffer
             WarmUpElementAllocationParams allocParams,
             StorageEngine storageEngine,
             long weCookie,
+            int recTypeCode,
+            int recTypeLength,
+            int warmUpType,
             long[] fileCookieParams)
     {
         super(bufferAllocator, JuffersType.RECORD);
         this.allocParams = allocParams;
         this.storageEngine = storageEngine;
         this.weCookie = weCookie;
+        this.recTypeCode = recTypeCode;
+        this.recTypeLength = recTypeLength;
+        this.warmUpType = warmUpType;
         this.fileCookieParams = fileCookieParams;
     }
 
     @Override
     public void createBuffer(MemorySegment[] buffs, boolean isDictionaryValid)
     {
-        RecTypeCode recTypeCode;
-        int recTypeLength;
+        RecTypeCode bufferRecTypeCode;
+        int bufferRecTypeLength;
         baseBuffer = bufferAllocator.memorySegment2RecBuff(buffs);
         if (isDictionaryValid) {
-            recTypeCode = DICTIONARY_REC_TYPE_CODE;
-            recTypeLength = DICTIONARY_REC_TYPE_LENGTH;
+            bufferRecTypeCode = DICTIONARY_REC_TYPE_CODE;
+            bufferRecTypeLength = DICTIONARY_REC_TYPE_LENGTH;
         }
         else {
-            recTypeCode = allocParams.recTypeCode();
-            recTypeLength = allocParams.recTypeLength();
+            bufferRecTypeCode = allocParams.recTypeCode();
+            bufferRecTypeLength = allocParams.recTypeLength();
         }
         this.isDictionaryValid = isDictionaryValid;
-        this.wrappedBuffer = createWrapperBuffer(baseBuffer, recTypeCode, recTypeLength, true, isDictionaryValid);
-        this.recordBufferEntrySize = calcRecordBufferEntrySize(recTypeCode, recTypeLength);
+        this.wrappedBuffer = createWrapperBuffer(baseBuffer, bufferRecTypeCode, bufferRecTypeLength, true, isDictionaryValid);
+        this.recordBufferEntrySize = calcRecordBufferEntrySize(bufferRecTypeCode, bufferRecTypeLength);
     }
 
     public int getRecordBufferEntrySize()
@@ -95,7 +104,19 @@ public class RecordWriteJuffer
     {
         // no need to add to chunk map as we are not closing the chunk
 
-        long res = storageEngine.warmupChunk(weCookie, numRecs, nullsCount, numBytes, min, max, singleOffset, false, fileCookieParams, null);
+        long res = storageEngine.warmupChunk(weCookie,
+                numRecs,
+                nullsCount,
+                numBytes,
+                min,
+                max,
+                singleOffset,
+                false,
+                recTypeCode,
+                recTypeLength,
+                warmUpType,
+                fileCookieParams,
+                null);
         fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFF;
         fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX.ordinal()] = res >> 32;
         resetSingleRecordBufferPos();

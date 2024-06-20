@@ -179,6 +179,9 @@ public class StorageWriterService
                 writeJuffersWarmUpElement,
                 dictionaryWarmInfo,
                 storageOpenResult.weCookie(),
+                storageOpenResult.recTypeCode(),
+                storageOpenResult.recTypeLength(),
+                storageOpenResult.warmUpType(),
                 fileCookieParams,
                 blockAppender,
                 true,
@@ -186,7 +189,7 @@ public class StorageWriterService
                 luceneIndexerOpt);
     }
 
-    WriteJuffersWarmUpElement getWriteJuffersWarmUpElement(StorageOpenResult storageOpenResult,
+    private WriteJuffersWarmUpElement getWriteJuffersWarmUpElement(StorageOpenResult storageOpenResult,
             boolean dictionaryValid,
             WarmUpElementAllocationParams allocParams,
             long[] fileCookieParams)
@@ -196,6 +199,9 @@ public class StorageWriterService
                 bufferAllocator,
                 storageOpenResult.buffs(),
                 storageOpenResult.weCookie(),
+                storageOpenResult.recTypeCode(),
+                storageOpenResult.recTypeLength(),
+                storageOpenResult.warmUpType(),
                 allocParams,
                 fileCookieParams);
         juffersWE.createBuffers(dictionaryValid);
@@ -245,7 +251,7 @@ public class StorageWriterService
                 recTypeLength,
                 warmUpType,
                 buffAddresses);
-        return new StorageOpenResult(buffs, weCookie);
+        return new StorageOpenResult(buffs, weCookie, recTypeCode, recTypeLength, warmUpType);
     }
 
     WarmSinkResult close(int totalRecords, StorageWriterSplitConfig storageWriterSplitConfig, StorageWriterContext storageWriterContext)
@@ -492,7 +498,11 @@ public class StorageWriterService
     private void flushRecordBuffer(StorageWriterContext storageWriterContext)
     {
         if (storageWriterContext.getLuceneIndexer().isPresent()) {
-            storageWriterContext.getLuceneIndexer().get().closeLuceneIndex(storageWriterContext.getWeCookie(), storageWriterContext.getFileCookieParams());
+            storageWriterContext.getLuceneIndexer().get().closeLuceneIndex(storageWriterContext.getWeCookie(),
+                    storageWriterContext.getRecTypeCode(),
+                    storageWriterContext.getRecTypeLength(),
+                    storageWriterContext.getWarmUpType(),
+                    storageWriterContext.getFileCookieParams());
         }
 
         if (storageWriterContext.weSuccess()) {
@@ -509,6 +519,9 @@ public class StorageWriterService
             long[] fileCookieParams = storageWriterContext.getFileCookieParams();
             outFileParams[WeProperties.WE_PROPERTIES_END_OFFSET.ordinal()] = (int) storageEngine.warmupElementClose(
                     storageWriterContext.getWeCookie(),
+                    storageWriterContext.getRecTypeCode(),
+                    storageWriterContext.getRecTypeLength(),
+                    storageWriterContext.getWarmUpType(),
                     fileCookieParams,
                     outFileParams);
             fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = outFileParams[WeProperties.WE_PROPERTIES_END_OFFSET.ordinal()];

@@ -40,6 +40,9 @@ public class WarpIndexOutput
     private final StorageEngineConstants storageEngineConstants;
     private final WriteJuffersWarmUpElement juffersWE;
     private final long weCookie;
+    private final int recTypeCode;
+    private final int recTypeLength;
+    private final int warmUpType;
     private final long[] fileCookieParams;
     private final ByteBuffersIndexOutput byteBuffersIndexOutput;
 
@@ -48,6 +51,9 @@ public class WarpIndexOutput
             StorageEngineConstants storageEngineConstants,
             StorageEngine storageEngine,
             long weCookie,
+            int recTypeCode,
+            int recTypeLength,
+            int warmUpType,
             long[] fileCookieParams,
             boolean forwardToNative)
     {
@@ -57,6 +63,9 @@ public class WarpIndexOutput
         this.luceneFileType = LuceneFileType.getType(fileName);
         this.storageEngineConstants = storageEngineConstants;
         this.weCookie = weCookie;
+        this.recTypeCode = recTypeCode;
+        this.recTypeLength = recTypeLength;
+        this.warmUpType = warmUpType;
         this.fileCookieParams = fileCookieParams;
         this.juffersWE = juffersWE;
         this.byteBuffersIndexOutput = new ByteBuffersIndexOutput(new ByteBuffersDataOutput(), "WarpLuceneIndex", "warpLucene");
@@ -95,7 +104,14 @@ public class WarpIndexOutput
                 input.readBytes(readBytes, 0, bytesToRead);
                 luceneFileBuffer.put(readBytes, 0, bytesToRead);
                 logger.debug("weCookie %x, before write buffer file %s(%d), offset %d, length %d", weCookie, luceneFileType, luceneFileType.getNativeId(), offset, bytesToRead);
-                long res = storageEngine.warmupLucene(weCookie, luceneFileType.getNativeId(), offset, bytesToRead, fileCookieParams);
+                long res = storageEngine.warmupLucene(weCookie,
+                        luceneFileType.getNativeId(),
+                        offset,
+                        bytesToRead,
+                        recTypeCode,
+                        recTypeLength,
+                        warmUpType,
+                        fileCookieParams);
                 fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFF;
                 fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX.ordinal()] = res >> 32;
             }

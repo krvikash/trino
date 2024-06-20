@@ -31,6 +31,9 @@ public class ExtendedJuffer
     private final WarmUpElementAllocationParams allocParams;
     private final StorageEngine storageEngine;
     private final long weCookie;
+    private final int recTypeCode;
+    private final int recTypeLength;
+    private final int warmUpType;
     private final long[] fileCookieParams;
     private int extWESize;                          // extended recs buffer size
     private int extRecordFirstOffset;               // offset of the first extended entry we encountered
@@ -40,12 +43,18 @@ public class ExtendedJuffer
             WarmUpElementAllocationParams allocParams,
             StorageEngine storageEngine,
             long weCookie,
+            int recTypeCode,
+            int recTypeLength,
+            int warmUpType,
             long[] fileCookieParams)
     {
         super(bufferAllocator, JuffersType.EXTENDED_REC);
         this.allocParams = allocParams;
         this.storageEngine = storageEngine;
         this.weCookie = weCookie;
+        this.recTypeCode = recTypeCode;
+        this.recTypeLength = recTypeLength;
+        this.warmUpType = warmUpType;
         this.fileCookieParams = fileCookieParams;
         extRecordFirstOffset = -1;
     }
@@ -61,7 +70,13 @@ public class ExtendedJuffer
     protected void commitAndResetExtRecordBuffer(int numExtBytes)
     {
         if (numExtBytes > 0) {
-            long res = storageEngine.warmupChunkExtRec(weCookie, extRecordFirstOffset, numExtBytes, fileCookieParams);
+            long res = storageEngine.warmupChunkExtRec(weCookie,
+                    extRecordFirstOffset,
+                    numExtBytes,
+                    recTypeCode,
+                    recTypeLength,
+                    warmUpType,
+                    fileCookieParams);
             fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFF;
             fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX.ordinal()] = res >> 32;
             resetExtBuf();
@@ -71,7 +86,13 @@ public class ExtendedJuffer
     public void commitAndResetExtRecordBuffer()
     {
         if (wrappedBuffer.position() > 0) {
-            long res = storageEngine.warmupChunkExtRec(weCookie, extRecordFirstOffset, wrappedBuffer.position(), fileCookieParams);
+            long res = storageEngine.warmupChunkExtRec(weCookie,
+                    extRecordFirstOffset,
+                    wrappedBuffer.position(),
+                    recTypeCode,
+                    recTypeLength,
+                    warmUpType,
+                    fileCookieParams);
             fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFF;
             fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX.ordinal()] = res >> 32;
         }

@@ -78,7 +78,7 @@ public interface StorageEngine
         throw new UnsupportedOperationException();
     }
 
-    default long warmupElementClose(long weCookie, long[] fileCookieParams, int[] outQueryFileParams)
+    default long warmupElementClose(long weCookie, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams, int[] outQueryFileParams)
     {
         throw new UnsupportedOperationException();
     }
@@ -88,23 +88,23 @@ public interface StorageEngine
         throw new UnsupportedOperationException();
     }
 
-    default long warmupChunk(long weCookie, int addedNumRows, int addedNV, int addedBytes, long valueMin, long valueMax,
-            int singleValOffset, boolean close, long[] fileCookieParams, byte[] outChunkCookies)
+    default long warmupChunk(long weCookie, int addedNumRows, int addedNV, int addedBytes, long valueMin, long valueMax, int singleValOffset,
+            boolean close, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams, byte[] outChunkCookies)
     {
         throw new UnsupportedOperationException();
     }
 
-    default long warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, long[] fileCookieParams)
+    default long warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams)
     {
         throw new UnsupportedOperationException();
     }
 
-    default long warmupLucene(long weCookie, int fileId, int offset, int len, long[] fileCookieParams)
+    default long warmupLucene(long weCookie, int fileId, int offset, int len, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams)
     {
         return 0;
     }
 
-    default long warmupLuceneChunk(long weCookie, boolean singleVal, int[] fileLengths, long[] fileCookieParams)
+    default long warmupLuceneChunk(long weCookie, boolean singleVal, int[] fileLengths, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams)
     {
         return 0;
     }
