@@ -181,6 +181,37 @@ public class DispatcherPageSourceTest
         }
     }
 
+    /**
+     * SIC-2235 protect in case proxied return empty page source
+     */
+    @Test
+    public void mixedQuery_1ProxiedPages_singleRangeProxiedReturnEmptyPage()
+    {
+        ConnectorPageSource.RowRanges warpMatchRanges = createRowRanges(0, 65536);
+
+        long[] warpMatches = new long[] {4};
+        long[] proxiedMatches = new long[] {99};
+
+        Page firstProxiedPage = buildLongPage(proxiedMatches[0], -1);
+        LongArrayBlockBuilder block = new LongArrayBlockBuilder(null, 0);
+        Page emptyPage = new Page(block.build());
+        Page warpPage = buildPageLong(warpMatches);
+        TestPage testPage = new TestPage(warpPage, warpMatchRanges);
+        List<TestPage> warpPages = Lists.newArrayList(testPage);
+        prepareMock(
+                warpPages,
+                Lists.newArrayList(emptyPage, firstProxiedPage),
+                Optional.of(new long[] {0, 206876}));
+
+        DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
+
+        actAndAssert(warpMatches, proxiedMatches, dispatcherPageSource);
+        if (assertNextPageMetrics) {
+            assertThat(stats.getproxied_loaded_pages()).isEqualTo(2);
+            assertThat(stats.getproxied_pages()).isEqualTo(2);
+        }
+    }
+
     @Test
     public void mixedQuery_2ProxiedPages_singleRange()
     {

@@ -130,14 +130,17 @@ public class DispatcherPageSource
         if (dispatcherPage.getPositionCount() == 0 && !isFinished()) {
             emptyPagesCounter++;
             if (emptyPagesCounter > 1000) {
-                String info = String.format("currentProxiedPagePosition=%s, proxiedConnectorPageSource.isFinished=%s, proxiedPageRanges=%s, warpPageRanges=%s, queryContext=%s, warpWithoutPrefilledAndProxiedCollectTypes=%s, rowGroupData=%s",
+                String info = String.format("currentProxiedPagePosition=%s, proxiedConnectorPageSource.isFinished=%s, proxiedPageRanges=%s, warpPageRanges=%s, currentWarpPagePosition=%s, currentProxiedPage.getPositionCount()=%s, currentWarpPage.getPositionCount()=%s, warpWithoutPrefilledAndProxiedCollectTypes=%s, proxiedPagePositionsRead=%s, rowGroupKey=%s",
                         currentProxiedPagePosition,
                         proxiedConnectorPageSource.isFinished(),
                         proxiedPageRanges,
                         warpPageRanges,
-                        queryContext,
+                        currentWarpPagePosition,
+                        currentProxiedPage.getPositionCount(),
+                        currentWarpPage.getPositionCount(),
                         warpWithoutPrefilledAndProxiedCollectTypes,
-                        rowGroupData);
+                        proxiedPagePositionsRead,
+                        rowGroupData.getRowGroupKey());
                 shapingLogger.info("returned more than emptyPagesCounter=%s emptyPages, set forced finished. info=%s", emptyPagesCounter, info);
                 forceFinish = true;
             }
@@ -165,8 +168,9 @@ public class DispatcherPageSource
                 }
             }
 
-            // Calling getNextPage at least once is necessary to make proxied page source populate row ranges
-            if (currentProxiedPage == null) {
+            // Calling getNextPage if it's the first one to make proxied page source populate row ranges
+            // Or in case the current page is empty to avoid getting into infinite loop of empty pages
+            if (currentProxiedPage == null || currentProxiedPage.getPositionCount() == 0) {
                 getNextProxiedPage();
             }
 
