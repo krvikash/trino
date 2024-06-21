@@ -62,9 +62,9 @@ public class ByStatsOutputStatsEstimator
         if (!isFinite(outputRowCount) || isNaN(size)) {
             return Optional.empty();
         }
-        int partitionsCount = stageExecution.getPartitionsCount();
+        int outputPartitionsCount = stageExecution.getSinkPartitioningScheme().getPartitionCount();
         // Assume uniform output-size distribution across all partitions.
-        ImmutableLongArray sizes = ImmutableLongArray.copyOf(LongStream.generate(() -> (long) (size / partitionsCount)).limit(partitionsCount));
+        ImmutableLongArray sizes = ImmutableLongArray.copyOf(LongStream.generate(() -> (long) (size / outputPartitionsCount)).limit(outputPartitionsCount));
         return Optional.of(new OutputStatsEstimateResult(new OutputDataSizeEstimate(sizes), (long) outputRowCount, "BY_STATS", false));
     }
 }
