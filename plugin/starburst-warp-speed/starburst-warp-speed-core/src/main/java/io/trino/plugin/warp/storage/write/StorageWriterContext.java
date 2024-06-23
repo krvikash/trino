@@ -41,6 +41,7 @@ final class StorageWriterContext
     private final int recTypeLength;
     private final int warmUpType;
     private final long[] fileCookieParams;
+    private final long[] buffAddresses;
     private final BlockAppender blockAppender;
     private boolean weSuccess;
     private final Optional<WriteDictionary> writeDictionary;
@@ -56,6 +57,7 @@ final class StorageWriterContext
             int recTypeLength,
             int warmUpType,
             long[] fileCookieParams,
+            long[] buffAddresses,
             BlockAppender blockAppender,
             boolean weSuccess,
             Optional<WriteDictionary> writeDictionary,
@@ -72,6 +74,7 @@ final class StorageWriterContext
         this.recTypeLength = recTypeLength;
         this.warmUpType = warmUpType;
         this.fileCookieParams = fileCookieParams;
+        this.buffAddresses = buffAddresses;
         this.blockAppender = blockAppender;
         this.weSuccess = weSuccess;
         this.writeDictionary = writeDictionary;
@@ -123,6 +126,11 @@ final class StorageWriterContext
     public long[] getFileCookieParams()
     {
         return fileCookieParams;
+    }
+
+    public long[] getBuffAddresses()
+    {
+        return buffAddresses;
     }
 
     int getRecordBufferSize()

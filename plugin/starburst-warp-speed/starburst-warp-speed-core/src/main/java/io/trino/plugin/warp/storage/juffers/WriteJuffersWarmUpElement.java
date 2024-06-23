@@ -51,6 +51,7 @@ public class WriteJuffersWarmUpElement
     private final int recTypeLength;
     private final int warmUpType;
     private final long[] fileCookieParams;
+    private final long[] buffAddresses;
     private final int chunkHeaderSize;
     private final List<ChunkMap> chunkMapList;
     private final MemorySegment[] buffs;
@@ -73,7 +74,8 @@ public class WriteJuffersWarmUpElement
             int recTypeLength,
             int warmUpType,
             WarmUpElementAllocationParams allocParams,
-            long[] fileCookieParams)
+            long[] fileCookieParams,
+            long[] buffAddresses)
     {
         super();
 
@@ -87,6 +89,7 @@ public class WriteJuffersWarmUpElement
         this.recTypeLength = recTypeLength;
         this.warmUpType = warmUpType;
         this.fileCookieParams = fileCookieParams;
+        this.buffAddresses = buffAddresses;
         this.chunkHeaderSize = storageEngineConstants.getChunkHeaderMaxSize();
 
         // we always have an invalid cookie at the end of the list for a case we aborted the last chunk in the middle
@@ -103,7 +106,8 @@ public class WriteJuffersWarmUpElement
                     recTypeCode,
                     recTypeLength,
                     warmUpType,
-                    fileCookieParams);
+                    fileCookieParams,
+                    buffAddresses);
             juffers.put(recordJuffers.getJufferType(), recordJuffers);
 
             if (allocParams.isExtBufferNeeded()) {
@@ -114,7 +118,8 @@ public class WriteJuffersWarmUpElement
                         recTypeCode,
                         recTypeLength,
                         warmUpType,
-                        fileCookieParams);
+                        fileCookieParams,
+                        buffAddresses);
                 juffers.put(extendedJuffers.getJufferType(), extendedJuffers);
             }
         }
@@ -205,6 +210,7 @@ public class WriteJuffersWarmUpElement
                 recTypeLength,
                 warmUpType,
                 fileCookieParams,
+                buffAddresses,
                 outChunkCookies);
         fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFF;
         fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX.ordinal()] = res >> 32;

@@ -140,7 +140,7 @@ public class LuceneIndexer
     }
 
     @SuppressWarnings("ThrowFromFinallyBlock")
-    public void closeLuceneIndex(long weCookie, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams)
+    public void closeLuceneIndex(long weCookie, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams, long[] buffAddresses)
     {
         IndexWriter weIndexWriter = indexWriter;
         if (weIndexWriter == null) {
@@ -155,7 +155,8 @@ public class LuceneIndexer
                 recTypeCode,
                 recTypeLength,
                 warmUpType,
-                fileCookieParams);
+                fileCookieParams,
+                buffAddresses);
         int[] filesLength = new int[LuceneFileType.values().length - 1];
         try {
             stopWatch.reset();
@@ -205,7 +206,8 @@ public class LuceneIndexer
                             recTypeCode,
                             recTypeLength,
                             warmUpType,
-                            fileCookieParams);
+                            fileCookieParams,
+                            buffAddresses);
                     if (res < 0) {
                         throw new TrinoException(WARP_LUCENE_WRITER_ERROR, "lucene commit failed, file too big");
                     }

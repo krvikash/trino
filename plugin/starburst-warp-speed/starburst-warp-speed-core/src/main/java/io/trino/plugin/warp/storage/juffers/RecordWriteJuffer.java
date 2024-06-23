@@ -36,6 +36,7 @@ public class RecordWriteJuffer
     private final int recTypeLength;
     private final int warmUpType;
     private final long[] fileCookieParams;
+    private final long[] buffAddresses;
     private int recordBufferEntrySize;            // size of one record, one if its a byte buffer
     private boolean isDictionaryValid;
 
@@ -46,7 +47,8 @@ public class RecordWriteJuffer
             int recTypeCode,
             int recTypeLength,
             int warmUpType,
-            long[] fileCookieParams)
+            long[] fileCookieParams,
+            long[] buffAddresses)
     {
         super(bufferAllocator, JuffersType.RECORD);
         this.allocParams = allocParams;
@@ -56,6 +58,7 @@ public class RecordWriteJuffer
         this.recTypeLength = recTypeLength;
         this.warmUpType = warmUpType;
         this.fileCookieParams = fileCookieParams;
+        this.buffAddresses = buffAddresses;
     }
 
     @Override
@@ -116,6 +119,7 @@ public class RecordWriteJuffer
                 recTypeLength,
                 warmUpType,
                 fileCookieParams,
+                buffAddresses,
                 null);
         fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFF;
         fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX.ordinal()] = res >> 32;

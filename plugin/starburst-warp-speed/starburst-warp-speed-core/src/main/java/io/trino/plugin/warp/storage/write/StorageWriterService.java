@@ -183,6 +183,7 @@ public class StorageWriterService
                 storageOpenResult.recTypeLength(),
                 storageOpenResult.warmUpType(),
                 fileCookieParams,
+                storageOpenResult.buffAddresses(),
                 blockAppender,
                 true,
                 writeDictionaryOpt,
@@ -203,7 +204,8 @@ public class StorageWriterService
                 storageOpenResult.recTypeLength(),
                 storageOpenResult.warmUpType(),
                 allocParams,
-                fileCookieParams);
+                fileCookieParams,
+                storageOpenResult.buffAddresses());
         juffersWE.createBuffers(dictionaryValid);
         return juffersWE;
     }
@@ -249,9 +251,8 @@ public class StorageWriterService
         long weCookie = storageEngine.warmupElementOpen(context,
                 recTypeCode,
                 recTypeLength,
-                warmUpType,
-                buffAddresses);
-        return new StorageOpenResult(buffs, weCookie, recTypeCode, recTypeLength, warmUpType);
+                warmUpType);
+        return new StorageOpenResult(buffs, weCookie, recTypeCode, recTypeLength, warmUpType, buffAddresses);
     }
 
     WarmSinkResult close(int totalRecords, StorageWriterSplitConfig storageWriterSplitConfig, StorageWriterContext storageWriterContext)
@@ -502,7 +503,8 @@ public class StorageWriterService
                     storageWriterContext.getRecTypeCode(),
                     storageWriterContext.getRecTypeLength(),
                     storageWriterContext.getWarmUpType(),
-                    storageWriterContext.getFileCookieParams());
+                    storageWriterContext.getFileCookieParams(),
+                    storageWriterContext.getBuffAddresses());
         }
 
         if (storageWriterContext.weSuccess()) {
@@ -523,6 +525,7 @@ public class StorageWriterService
                     storageWriterContext.getRecTypeLength(),
                     storageWriterContext.getWarmUpType(),
                     fileCookieParams,
+                    storageWriterContext.getBuffAddresses(),
                     outFileParams);
             fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = outFileParams[WeProperties.WE_PROPERTIES_END_OFFSET.ordinal()];
             storageWriterContext.setWeClosed();

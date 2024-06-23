@@ -15,4 +15,4 @@ package io.trino.plugin.warp.storage.write;
 
 import java.lang.foreign.MemorySegment;
 
-record StorageOpenResult(MemorySegment[] buffs, long weCookie, int recTypeCode, int recTypeLength, int warmUpType) {}
+record StorageOpenResult(MemorySegment[] buffs, long weCookie, int recTypeCode, int recTypeLength, int warmUpType, long[] buffAddresses) {}

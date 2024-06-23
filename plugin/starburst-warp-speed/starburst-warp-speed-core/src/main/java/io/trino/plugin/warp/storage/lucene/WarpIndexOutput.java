@@ -44,6 +44,7 @@ public class WarpIndexOutput
     private final int recTypeLength;
     private final int warmUpType;
     private final long[] fileCookieParams;
+    private final long[] buffAddresses;
     private final ByteBuffersIndexOutput byteBuffersIndexOutput;
 
     public WarpIndexOutput(String fileName,
@@ -55,6 +56,7 @@ public class WarpIndexOutput
             int recTypeLength,
             int warmUpType,
             long[] fileCookieParams,
+            long[] buffAddresses,
             boolean forwardToNative)
     {
         super("WarpLuceneIndex", "warpLucene");
@@ -67,6 +69,7 @@ public class WarpIndexOutput
         this.recTypeLength = recTypeLength;
         this.warmUpType = warmUpType;
         this.fileCookieParams = fileCookieParams;
+        this.buffAddresses = buffAddresses;
         this.juffersWE = juffersWE;
         this.byteBuffersIndexOutput = new ByteBuffersIndexOutput(new ByteBuffersDataOutput(), "WarpLuceneIndex", "warpLucene");
     }
@@ -111,7 +114,8 @@ public class WarpIndexOutput
                         recTypeCode,
                         recTypeLength,
                         warmUpType,
-                        fileCookieParams);
+                        fileCookieParams,
+                        buffAddresses);
                 fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFF;
                 fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX.ordinal()] = res >> 32;
             }

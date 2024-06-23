@@ -35,6 +35,7 @@ public class ExtendedJuffer
     private final int recTypeLength;
     private final int warmUpType;
     private final long[] fileCookieParams;
+    private final long[] buffAddresses;
     private int extWESize;                          // extended recs buffer size
     private int extRecordFirstOffset;               // offset of the first extended entry we encountered
     private int extRecordLastPos;                   // extended records last entry address
@@ -46,7 +47,8 @@ public class ExtendedJuffer
             int recTypeCode,
             int recTypeLength,
             int warmUpType,
-            long[] fileCookieParams)
+            long[] fileCookieParams,
+            long[] buffAddresses)
     {
         super(bufferAllocator, JuffersType.EXTENDED_REC);
         this.allocParams = allocParams;
@@ -56,6 +58,7 @@ public class ExtendedJuffer
         this.recTypeLength = recTypeLength;
         this.warmUpType = warmUpType;
         this.fileCookieParams = fileCookieParams;
+        this.buffAddresses = buffAddresses;
         extRecordFirstOffset = -1;
     }
 
@@ -76,7 +79,8 @@ public class ExtendedJuffer
                     recTypeCode,
                     recTypeLength,
                     warmUpType,
-                    fileCookieParams);
+                    fileCookieParams,
+                    buffAddresses);
             fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFF;
             fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX.ordinal()] = res >> 32;
             resetExtBuf();
@@ -92,7 +96,8 @@ public class ExtendedJuffer
                     recTypeCode,
                     recTypeLength,
                     warmUpType,
-                    fileCookieParams);
+                    fileCookieParams,
+                    buffAddresses);
             fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFF;
             fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX.ordinal()] = res >> 32;
         }

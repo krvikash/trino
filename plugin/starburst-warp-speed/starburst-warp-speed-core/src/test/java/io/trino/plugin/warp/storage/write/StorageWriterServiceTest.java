@@ -460,8 +460,8 @@ public class StorageWriterServiceTest
         assertThat(juffersWE.getLuceneFileBuffer(LuceneFileType.CFE).position()).isEqualTo(0);
         assertThat(juffersWE.getLuceneFileBuffer(LuceneFileType.CFS).position()).isEqualTo(0);
         assertThat(juffersWE.getLuceneFileBuffer(LuceneFileType.SEGMENTS).position()).isEqualTo(0);
-        verify(storageEngine, never()).warmupLucene(anyLong(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), any());
-        verify(storageEngine, never()).warmupLuceneChunk(anyLong(), anyBoolean(), any(int[].class), anyInt(), anyInt(), anyInt(), any());
+        verify(storageEngine, never()).warmupLucene(anyLong(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), any(), any());
+        verify(storageEngine, never()).warmupLuceneChunk(anyLong(), anyBoolean(), any(int[].class), anyInt(), anyInt(), anyInt(), any(), any());
     }
 
     @Test

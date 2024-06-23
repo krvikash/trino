@@ -96,13 +96,13 @@ public class StubsStorageEngine
     }
 
     @Override
-    public long warmupElementOpen(long context, int recTypeCode, int recTypeLength, int warmUpType, long[] buffAddresses)
+    public long warmupElementOpen(long context, int recTypeCode, int recTypeLength, int warmUpType)
     {
         return 1;
     }
 
     @Override
-    public long warmupElementClose(long weCookie, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookie, int[] outQueryFileParams)
+    public long warmupElementClose(long weCookie, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookie, long[] buffAddresses, int[] outQueryFileParams)
     {
         outQueryFileParams[0] = 0;
         outQueryFileParams[1] = 1;
@@ -116,13 +116,13 @@ public class StubsStorageEngine
 
     @Override
     public long warmupChunk(long weCookie, int addedNumRows, int addedNV, int addedBytes, long valueMin, long valueMax, int singleValOffset,
-            boolean close, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams, byte[] outChunkCookies)
+            boolean close, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams, long[] buffAddresses, byte[] outChunkCookies)
     {
         return 0;
     }
 
     @Override
-    public long warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams)
+    public long warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams, long[] buffAddresses)
     {
         return 0;
     }

@@ -73,12 +73,12 @@ public interface StorageEngine
 
     //----------------------- warmup ----------------------------------------
 
-    default long warmupElementOpen(long context, int recTypeCode, int recTypeLength, int warmUpType, long[] buffAddresses)
+    default long warmupElementOpen(long context, int recTypeCode, int recTypeLength, int warmUpType)
     {
         throw new UnsupportedOperationException();
     }
 
-    default long warmupElementClose(long weCookie, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams, int[] outQueryFileParams)
+    default long warmupElementClose(long weCookie, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams, long[] buffAddresses, int[] outQueryFileParams)
     {
         throw new UnsupportedOperationException();
     }
@@ -89,22 +89,22 @@ public interface StorageEngine
     }
 
     default long warmupChunk(long weCookie, int addedNumRows, int addedNV, int addedBytes, long valueMin, long valueMax, int singleValOffset,
-            boolean close, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams, byte[] outChunkCookies)
+            boolean close, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams, long[] buffAddresses, byte[] outChunkCookies)
     {
         throw new UnsupportedOperationException();
     }
 
-    default long warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams)
+    default long warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams, long[] buffAddresses)
     {
         throw new UnsupportedOperationException();
     }
 
-    default long warmupLucene(long weCookie, int fileId, int offset, int len, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams)
+    default long warmupLucene(long weCookie, int fileId, int offset, int len, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams, long[] buffAddresses)
     {
         return 0;
     }
 
-    default long warmupLuceneChunk(long weCookie, boolean singleVal, int[] fileLengths, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams)
+    default long warmupLuceneChunk(long weCookie, boolean singleVal, int[] fileLengths, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams, long[] buffAddresses)
     {
         return 0;
     }
