@@ -46,8 +46,6 @@ import io.trino.sql.planner.iterative.rule.DesugarLambdaExpression;
 import io.trino.sql.planner.iterative.rule.DetermineJoinDistributionType;
 import io.trino.sql.planner.iterative.rule.DetermineSemiJoinDistributionType;
 import io.trino.sql.planner.iterative.rule.DetermineTableScanNodePartitioning;
-import io.trino.sql.planner.iterative.rule.DistinctAggregationController;
-import io.trino.sql.planner.iterative.rule.DistinctAggregationToGroupBy;
 import io.trino.sql.planner.iterative.rule.EliminateCrossJoins;
 import io.trino.sql.planner.iterative.rule.EvaluateEmptyIntersect;
 import io.trino.sql.planner.iterative.rule.EvaluateZeroSample;
@@ -78,8 +76,8 @@ import io.trino.sql.planner.iterative.rule.MergePatternRecognitionNodes;
 import io.trino.sql.planner.iterative.rule.MergeProjectWithValues;
 import io.trino.sql.planner.iterative.rule.MergeUnion;
 import io.trino.sql.planner.iterative.rule.MultipleDistinctAggregationToMarkDistinct;
-import io.trino.sql.planner.iterative.rule.MultipleDistinctAggregationsToSubqueries;
 import io.trino.sql.planner.iterative.rule.OptimizeDuplicateInsensitiveJoins;
+import io.trino.sql.planner.iterative.rule.OptimizeMixedDistinctAggregations;
 import io.trino.sql.planner.iterative.rule.OptimizeRowPattern;
 import io.trino.sql.planner.iterative.rule.PreAggregateCaseAggregations;
 import io.trino.sql.planner.iterative.rule.PruneAggregationColumns;
@@ -290,7 +288,6 @@ public class PlanOptimizers
             @EstimatedExchanges CostCalculator costCalculatorWithEstimatedExchanges,
             CostComparator costComparator,
             TaskCountEstimator taskCountEstimator,
-            DistinctAggregationController distinctAggregationController,
             NodePartitioningManager nodePartitioningManager,
             RuleStatsRecorder ruleStats)
     {
@@ -305,7 +302,6 @@ public class PlanOptimizers
                 costCalculatorWithEstimatedExchanges,
                 costComparator,
                 taskCountEstimator,
-                distinctAggregationController,
                 nodePartitioningManager,
                 ruleStats);
     }
@@ -322,7 +318,6 @@ public class PlanOptimizers
             CostCalculator costCalculatorWithEstimatedExchanges,
             CostComparator costComparator,
             TaskCountEstimator taskCountEstimator,
-            DistinctAggregationController distinctAggregationController,
             NodePartitioningManager nodePartitioningManager,
             RuleStatsRecorder ruleStats)
     {
@@ -688,15 +683,10 @@ public class PlanOptimizers
                                 new RemoveRedundantIdentityProjections(),
                                 new PushAggregationThroughOuterJoin(),
                                 new ReplaceRedundantJoinWithSource(), // Run this after PredicatePushDown optimizer as it inlines filter constants
-                                // Run this after PredicatePushDown and PushProjectionIntoTableScan as it uses stats, and those two rules may reduce the number of partitions
-                                // and columns we need stats for thus reducing the overhead of reading statistics from the metastore.
-                                new MultipleDistinctAggregationsToSubqueries(distinctAggregationController),
-                                // Run SingleDistinctAggregationToGroupBy after MultipleDistinctAggregationsToSubqueries to ensure the single column distinct is optimized
-                                new SingleDistinctAggregationToGroupBy(),
-                                new DistinctAggregationToGroupBy(plannerContext, distinctAggregationController), // Run this after aggregation pushdown so that multiple distinct aggregations can be pushed into a connector
+                                new OptimizeMixedDistinctAggregations(plannerContext, taskCountEstimator), // Run this after aggregation pushdown so that multiple distinct aggregations can be pushed into a connector
                                 // It also is run before MultipleDistinctAggregationToMarkDistinct to take precedence if enabled
-                                new ImplementFilteredAggregations(), // DistinctAggregationToGroupBy will add filters if fired
-                                new MultipleDistinctAggregationToMarkDistinct(distinctAggregationController))), // Run this after aggregation pushdown so that multiple distinct aggregations can be pushed into a connector
+                                new ImplementFilteredAggregations(), // OptimizeMixedDistinctAggregations will add filters if fired
+                                new MultipleDistinctAggregationToMarkDistinct(taskCountEstimator))), // Run this after aggregation pushdown so that multiple distinct aggregations can be pushed into a connector
                 inlineProjections,
                 simplifyOptimizer, // Re-run the SimplifyExpressions to simplify any recomposed expressions from other optimizations
                 pushProjectionIntoTableScanOptimizer,

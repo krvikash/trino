@@ -191,7 +191,6 @@ import io.trino.sql.planner.PlanOptimizers;
 import io.trino.sql.planner.PlanOptimizersFactory;
 import io.trino.sql.planner.RuleStatsRecorder;
 import io.trino.sql.planner.SubPlan;
-import io.trino.sql.planner.iterative.rule.DistinctAggregationController;
 import io.trino.sql.planner.optimizations.AdaptivePlanOptimizer;
 import io.trino.sql.planner.optimizations.PlanOptimizer;
 import io.trino.sql.planner.plan.PlanNode;
@@ -909,7 +908,6 @@ public class PlanTester
                 estimatedExchangesCostCalculator,
                 new CostComparator(optimizerConfig),
                 taskCountEstimator,
-                new DistinctAggregationController(taskCountEstimator, plannerContext.getMetadata()),
                 nodePartitioningManager,
                 new RuleStatsRecorder());
     }

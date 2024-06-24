@@ -13,9 +13,11 @@
  */
 package io.trino.sql.planner.iterative.rule;
 
+import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import io.trino.cost.TaskCountEstimator;
 import io.trino.matching.Captures;
 import io.trino.matching.Pattern;
 import io.trino.sql.planner.OptimizerConfig.DistinctAggregationsStrategy;
@@ -36,8 +38,8 @@ import static io.trino.SystemSessionProperties.distinctAggregationsStrategy;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.sql.planner.OptimizerConfig.DistinctAggregationsStrategy.AUTOMATIC;
 import static io.trino.sql.planner.OptimizerConfig.DistinctAggregationsStrategy.MARK_DISTINCT;
+import static io.trino.sql.planner.iterative.rule.DistinctAggregationStrategyChooser.createDistinctAggregationStrategyChooser;
 import static io.trino.sql.planner.plan.Patterns.aggregation;
-import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toSet;
 
 /**
@@ -66,13 +68,12 @@ public class MultipleDistinctAggregationToMarkDistinct
         implements Rule<AggregationNode>
 {
     private static final Pattern<AggregationNode> PATTERN = aggregation()
-            .matching(MultipleDistinctAggregationToMarkDistinct::canUseMarkDistinct);
-
-    public static boolean canUseMarkDistinct(AggregationNode aggregationNode)
-    {
-        return hasNoDistinctWithFilterOrMask(aggregationNode) &&
-                (hasMultipleDistincts(aggregationNode) || hasMixedDistinctAndNonDistincts(aggregationNode));
-    }
+            .matching(
+                    Predicates.and(
+                            MultipleDistinctAggregationToMarkDistinct::hasNoDistinctWithFilterOrMask,
+                            Predicates.or(
+                                    MultipleDistinctAggregationToMarkDistinct::hasMultipleDistincts,
+                                    MultipleDistinctAggregationToMarkDistinct::hasMixedDistinctAndNonDistincts)));
 
     private static boolean hasNoDistinctWithFilterOrMask(AggregationNode aggregationNode)
     {
@@ -102,11 +103,11 @@ public class MultipleDistinctAggregationToMarkDistinct
         return distincts > 0 && distincts < aggregationNode.getAggregations().size();
     }
 
-    private final DistinctAggregationController distinctAggregationController;
+    private final DistinctAggregationStrategyChooser distinctAggregationStrategyChooser;
 
-    public MultipleDistinctAggregationToMarkDistinct(DistinctAggregationController distinctAggregationController)
+    public MultipleDistinctAggregationToMarkDistinct(TaskCountEstimator taskCountEstimator)
     {
-        this.distinctAggregationController = requireNonNull(distinctAggregationController, "distinctAggregationController is null");
+        this.distinctAggregationStrategyChooser = createDistinctAggregationStrategyChooser(taskCountEstimator);
     }
 
     @Override
@@ -120,7 +121,7 @@ public class MultipleDistinctAggregationToMarkDistinct
     {
         DistinctAggregationsStrategy distinctAggregationsStrategy = distinctAggregationsStrategy(context.getSession());
         if (!(distinctAggregationsStrategy.equals(MARK_DISTINCT) ||
-                (distinctAggregationsStrategy.equals(AUTOMATIC) && distinctAggregationController.shouldAddMarkDistinct(parent, context)))) {
+                (distinctAggregationsStrategy.equals(AUTOMATIC) && distinctAggregationStrategyChooser.shouldAddMarkDistinct(parent, context.getSession(), context.getStatsProvider())))) {
             return Result.empty();
         }
 

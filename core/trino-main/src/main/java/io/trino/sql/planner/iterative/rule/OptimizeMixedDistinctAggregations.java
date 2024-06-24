@@ -13,9 +13,11 @@
  */
 package io.trino.sql.planner.iterative.rule;
 
+import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import io.trino.cost.TaskCountEstimator;
 import io.trino.matching.Captures;
 import io.trino.matching.Pattern;
 import io.trino.metadata.FunctionResolver;
@@ -53,11 +55,11 @@ import static io.trino.sql.analyzer.TypeSignatureProvider.fromTypes;
 import static io.trino.sql.ir.Comparison.Operator.EQUAL;
 import static io.trino.sql.planner.OptimizerConfig.DistinctAggregationsStrategy.AUTOMATIC;
 import static io.trino.sql.planner.OptimizerConfig.DistinctAggregationsStrategy.PRE_AGGREGATE;
+import static io.trino.sql.planner.iterative.rule.DistinctAggregationStrategyChooser.createDistinctAggregationStrategyChooser;
 import static io.trino.sql.planner.plan.AggregationNode.Step.SINGLE;
 import static io.trino.sql.planner.plan.AggregationNode.singleGroupingSet;
 import static io.trino.sql.planner.plan.Patterns.aggregation;
 import static java.util.Map.Entry.comparingByValue;
-import static java.util.Objects.requireNonNull;
 
 /*
  * This optimizer rule convert query of form:
@@ -73,8 +75,7 @@ import static java.util.Objects.requireNonNull;
  *      GROUP BY a1, a2,..., an, c1,..., ck, group
  *  GROUP BY a1, a2,..., an
  */
-
-public class DistinctAggregationToGroupBy
+public class OptimizeMixedDistinctAggregations
         implements Rule<AggregationNode>
 {
     private static final CatalogSchemaFunctionName COUNT_NAME = builtinFunctionName("count");
@@ -82,33 +83,26 @@ public class DistinctAggregationToGroupBy
     private static final CatalogSchemaFunctionName APPROX_DISTINCT_NAME = builtinFunctionName("approx_distinct");
 
     private static final Pattern<AggregationNode> PATTERN = aggregation()
-            .matching(DistinctAggregationToGroupBy::canUsePreAggregate);
+            .matching(Predicates.and(
+                    Predicates.or(
+                            // single distinct can be supported in this rule, but it is already supported by SingleDistinctAggregationToGroupBy, which produces simpler plans (without group-id)
+                            OptimizeMixedDistinctAggregations::hasMultipleDistincts,
+                            OptimizeMixedDistinctAggregations::hasMixedDistinctAndNonDistincts),
+                    OptimizeMixedDistinctAggregations::allDistinctAggregationsHaveSingleArgument,
+                    OptimizeMixedDistinctAggregations::noFilters,
+                    OptimizeMixedDistinctAggregations::noMasks,
+                    aggregation -> !aggregation.hasOrderings(),
+                    aggregation -> aggregation.getStep().equals(SINGLE)));
 
-    public static boolean canUsePreAggregate(AggregationNode aggregationNode)
-    {
-        // single distinct can be supported in this rule, but it is already supported by SingleDistinctAggregationToGroupBy, which produces simpler plans (without group-id)
-        return (hasMultipleDistincts(aggregationNode) || hasMixedDistinctAndNonDistincts(aggregationNode)) &&
-                allDistinctAggregationsHaveSingleArgument(aggregationNode) &&
-                noFilters(aggregationNode) &&
-                noMasks(aggregationNode) &&
-                !aggregationNode.hasOrderings() &&
-                aggregationNode.getStep().equals(SINGLE);
-    }
-
-    public static boolean hasMultipleDistincts(AggregationNode aggregationNode)
-    {
-        return distinctAggregationsUniqueArgumentCount(aggregationNode) > 1;
-    }
-
-    public static long distinctAggregationsUniqueArgumentCount(AggregationNode aggregationNode)
+    private static boolean hasMultipleDistincts(AggregationNode aggregationNode)
     {
         return aggregationNode.getAggregations()
-                .values().stream()
-                .filter(Aggregation::isDistinct)
-                .map(Aggregation::getArguments)
-                .map(HashSet::new)
-                .distinct()
-                .count();
+                       .values().stream()
+                       .filter(Aggregation::isDistinct)
+                       .map(Aggregation::getArguments)
+                       .map(HashSet::new)
+                       .distinct()
+                       .count() > 1;
     }
 
     private static boolean hasMixedDistinctAndNonDistincts(AggregationNode aggregationNode)
@@ -126,7 +120,7 @@ public class DistinctAggregationToGroupBy
         return aggregation.getAggregations()
                 .values().stream()
                 .filter(Aggregation::isDistinct)
-                .allMatch(c -> c.getArguments().size() == 1);
+                .allMatch(node -> node.getArguments().size() == 1);
     }
 
     private static boolean noFilters(AggregationNode aggregationNode)
@@ -144,12 +138,12 @@ public class DistinctAggregationToGroupBy
     }
 
     private final FunctionResolver functionResolver;
-    private final DistinctAggregationController distinctAggregationController;
+    private final DistinctAggregationStrategyChooser distinctAggregationStrategyChooser;
 
-    public DistinctAggregationToGroupBy(PlannerContext plannerContext, DistinctAggregationController distinctAggregationController)
+    public OptimizeMixedDistinctAggregations(PlannerContext plannerContext, TaskCountEstimator taskCountEstimator)
     {
-        this.functionResolver = requireNonNull(plannerContext, "plannerContext is null").getFunctionResolver();
-        this.distinctAggregationController = requireNonNull(distinctAggregationController, "distinctAggregationController is null");
+        this.functionResolver = plannerContext.getFunctionResolver();
+        this.distinctAggregationStrategyChooser = createDistinctAggregationStrategyChooser(taskCountEstimator);
     }
 
     @Override
@@ -164,7 +158,7 @@ public class DistinctAggregationToGroupBy
         DistinctAggregationsStrategy distinctAggregationsStrategy = distinctAggregationsStrategy(context.getSession());
 
         if (!(distinctAggregationsStrategy.equals(PRE_AGGREGATE) ||
-                (distinctAggregationsStrategy.equals(AUTOMATIC) && distinctAggregationController.shouldUsePreAggregate(node, context)))) {
+                (distinctAggregationsStrategy.equals(AUTOMATIC) && distinctAggregationStrategyChooser.shouldUsePreAggregate(node, context.getSession(), context.getStatsProvider())))) {
             return Result.empty();
         }
 

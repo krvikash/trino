@@ -74,7 +74,7 @@ public class SingleDistinctAggregationToGroupBy
                 .count() == 1;
     }
 
-    public static boolean allDistinctAggregates(AggregationNode aggregationNode)
+    private static boolean allDistinctAggregates(AggregationNode aggregationNode)
     {
         return aggregationNode.getAggregations()
                 .values().stream()

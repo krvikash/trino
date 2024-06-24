@@ -1293,18 +1293,6 @@ public class DispatcherMetadata
     }
 
     @Override
-    public boolean isColumnarTableScan(ConnectorSession session, ConnectorTableHandle proxiedConnectorTableHandle)
-    {
-//        DispatcherTableHandle dispatcherTableHandle = (DispatcherTableHandle) proxiedConnectorTableHandle;
-//        return proxiedConnectorMetadata.isColumnarTableScan(session, dispatcherTableHandle.getProxyConnectorTableHandle());
-
-        // @see * 9911e9420a lukasz-stec:  (tag: 425-galaxy-1-u46-g9911e9420a) Fire MultipleDistinctAggregationsToSubqueries automatically
-        // TODO uncomment after adding test that validate that multiple count(distinct col) on the same table
-        // SIC-1451
-        return false;
-    }
-
-    @Override
     public Optional<Type> getSupportedType(ConnectorSession session, Map<String, Object> map, Type type)
     {
         return proxiedConnectorMetadata.getSupportedType(session, map, type);

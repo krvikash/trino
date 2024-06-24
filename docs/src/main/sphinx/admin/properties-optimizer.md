@@ -43,22 +43,21 @@ create them.
 ## `optimizer.distinct-aggregations-strategy`
 
 - **Type:** {ref}`prop-type-string`
-- **Allowed values:** `AUTOMATIC`, `MARK_DISTINCT`, `SINGLE_STEP`, `PRE_AGGREGATE`, `SPLIT_TO_SUBQUERIES`
+- **Allowed values:** `AUTOMATIC`, `MARK_DISTINCT`, `SINGLE_STEP`, `PRE_AGGREGATE`
 - **Default value:** `AUTOMATIC`
-- **Session property:**  `distinct_aggregations_strategy`
+- **Session property:** `distinct_aggregations_strategy`
 
 The strategy to use for multiple distinct aggregations.
 `SINGLE_STEP` Computes distinct aggregations in single-step without any pre-aggregations.
 This strategy will perform poorly if the number of distinct grouping keys is small.
 `MARK_DISTINCT` uses `MarkDistinct` for multiple distinct aggregations
 or for mix of distinct and non-distinct aggregations.
-`PRE_AGGREGATE` Computes distinct aggregations using a combination of aggregation 
+`PRE_AGGREGATE` Computes distinct aggregations using a combination of aggregation
 and pre-aggregation steps.
-`SPLIT_TO_SUBQUERIES` Splits the aggregation input to independent sub-queries,
-where each subquery computes single distinct aggregation thus improving parallelism
 `AUTOMATIC` chooses the strategy automatically.
+
 Single-step strategy is preferred. However, for cases with limited concurrency due to
-a small number of distinct grouping keys, it will choose an alternative strategy 
+a small number of distinct grouping keys, it will choose an alternative strategy
 based on input data statistics.
 
 ## `optimizer.push-aggregation-through-outer-join`

@@ -40,7 +40,7 @@ import static io.trino.sql.planner.assertions.PlanMatchPattern.values;
 import static io.trino.sql.planner.plan.AggregationNode.Step.SINGLE;
 import static io.trino.type.UnknownType.UNKNOWN;
 
-public class TestSingleDistinctAggregationToGroupBy
+public class TestSingleOptimizeMixedDistinctAggregations
         extends BaseRuleTest
 {
     @Test

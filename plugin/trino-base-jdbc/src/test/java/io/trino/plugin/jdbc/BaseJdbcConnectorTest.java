@@ -514,6 +514,39 @@ public abstract class BaseJdbcConnectorTest
         Session withMarkDistinct = Session.builder(getSession())
                 .setSystemProperty(DISTINCT_AGGREGATIONS_STRATEGY, "mark_distinct")
                 .build();
+        // distinct aggregation
+        assertThat(query(withMarkDistinct, "SELECT count(DISTINCT regionkey) FROM nation")).isFullyPushedDown();
+        // distinct aggregation with GROUP BY
+        assertThat(query(withMarkDistinct, "SELECT count(DISTINCT nationkey) FROM nation GROUP BY regionkey")).isFullyPushedDown();
+        // distinct aggregation with varchar
+        assertConditionallyPushedDown(
+                withMarkDistinct,
+                "SELECT count(DISTINCT comment) FROM nation",
+                hasBehavior(SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_INEQUALITY),
+                node(AggregationNode.class, node(TableScanNode.class)));
+        // two distinct aggregations
+        assertConditionallyPushedDown(
+                withMarkDistinct,
+                "SELECT count(DISTINCT regionkey), sum(nationkey) FROM nation",
+                hasBehavior(SUPPORTS_AGGREGATION_PUSHDOWN_COUNT_DISTINCT),
+                node(MarkDistinctNode.class, node(ExchangeNode.class, node(ExchangeNode.class, node(TableScanNode.class)))));
+        assertConditionallyPushedDown(
+                withMarkDistinct,
+                "SELECT sum(DISTINCT regionkey), sum(DISTINCT nationkey) FROM nation",
+                hasBehavior(SUPPORTS_PREDICATE_PUSHDOWN),
+                node(MarkDistinctNode.class, node(ExchangeNode.class, node(ExchangeNode.class, node(TableScanNode.class)))));
+        // distinct aggregation and a non-distinct aggregation
+        assertConditionallyPushedDown(
+                withMarkDistinct,
+                "SELECT count(DISTINCT regionkey), count(DISTINCT nationkey) FROM nation",
+                hasBehavior(SUPPORTS_AGGREGATION_PUSHDOWN_COUNT_DISTINCT),
+                node(MarkDistinctNode.class, node(ExchangeNode.class, node(ExchangeNode.class, node(TableScanNode.class)))));
+        assertConditionallyPushedDown(
+                withMarkDistinct,
+                "SELECT sum(DISTINCT regionkey), count(nationkey) FROM nation",
+                hasBehavior(SUPPORTS_PREDICATE_PUSHDOWN),
+                node(MarkDistinctNode.class, node(ExchangeNode.class, node(ExchangeNode.class, node(TableScanNode.class)))));
+
         Session withSingleStep = Session.builder(getSession())
                 .setSystemProperty(DISTINCT_AGGREGATIONS_STRATEGY, "single_step")
                 .build();
@@ -656,12 +689,6 @@ public abstract class BaseJdbcConnectorTest
                 assertThat(query(withMarkDistinct, "SELECT count(DISTINCT t_char), count(DISTINCT t_varchar) FROM " + testTable.getName()))
                         .matches("VALUES (BIGINT '7', BIGINT '7')")
                         .isNotFullyPushedDown(MarkDistinctNode.class, ExchangeNode.class, ExchangeNode.class);
-                assertThat(query(withSingleStep, "SELECT count(DISTINCT t_char), count(DISTINCT t_varchar) FROM " + testTable.getName()))
-                        .matches("VALUES (BIGINT '7', BIGINT '7')")
-                        .isNotFullyPushedDown(node(AggregationNode.class, anyTree(node(TableScanNode.class))));
-                assertThat(query(withPreAggregate, "SELECT count(DISTINCT t_char), count(DISTINCT t_varchar) FROM " + testTable.getName()))
-                        .matches("VALUES (BIGINT '7', BIGINT '7')")
-                        .isNotFullyPushedDown(node(AggregationNode.class, project(node(AggregationNode.class, anyTree(node(GroupIdNode.class, node(TableScanNode.class)))))));
             }
             else {
                 // Single count(DISTINCT ...) can be pushed even down even if SUPPORTS_AGGREGATION_PUSHDOWN_COUNT_DISTINCT == false as GROUP BY
