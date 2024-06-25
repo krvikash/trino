@@ -16,6 +16,8 @@ package io.trino.plugin.kudu;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.log.Logger;
+import io.airlift.slice.Slice;
+import io.airlift.slice.Slices;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 import io.trino.plugin.base.mapping.IdentifierMapping;
@@ -64,6 +66,7 @@ import org.apache.kudu.client.PartitionSchema.HashBucketSchema;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -637,6 +640,10 @@ public class KuduClientSession
         }
         if (javaValue instanceof byte[] byteArrayValue) {
             return KuduPredicate.newComparisonPredicate(columnSchema, op, byteArrayValue);
+        }
+        if (javaValue instanceof ByteBuffer byteBuffer) {
+            Slice slice = Slices.wrappedHeapBuffer(byteBuffer);
+            return KuduPredicate.newComparisonPredicate(columnSchema, op, slice.getBytes(0, slice.length()));
         }
         if (javaValue == null) {
             throw new IllegalStateException("Unexpected null java value for column " + columnSchema.getName());
