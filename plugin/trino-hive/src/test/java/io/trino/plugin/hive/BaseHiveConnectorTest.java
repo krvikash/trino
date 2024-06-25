@@ -8461,6 +8461,18 @@ public abstract class BaseHiveConnectorTest
     }
 
     @Test
+    public void testCoercingVarchar0ToVarchar1WithAddColumn()
+    {
+        try (TestTable testTable = new TestTable(
+                getQueryRunner()::execute,
+                "test_coercion_add_column_varchar",
+                "(col integer)")) {
+            assertUpdate("ALTER TABLE " + testTable.getName() + " ADD COLUMN var_column varchar(0)");
+            assertThat(getColumnType(testTable.getName(), "var_column")).isEqualTo("varchar(1)");
+        }
+    }
+
+    @Test
     public void testOptimize()
     {
         String tableName = "test_optimize_" + randomNameSuffix();
