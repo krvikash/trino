@@ -336,9 +336,11 @@ public class TestDynamoDbPredicatePushdown
             // Test different values lesser than or equals to `DEFAULT_COMPACTION_THRESHOLD`
             for (int count : largeInValuesCountData()) {
                 String longValues = range(0, count)
+                        .map(value -> value * 2) // Make the values discontinuous to avoid getting optimized to a BETWEEN filter
                         .mapToObj(Integer::toString)
                         .collect(joining(", "));
                 String longValuesMinusOne = range(0, count - 1) // Used for NOT IN clause as it generates (NOT IN parameters + 1) ranges which exceeds the `DEFAULT_COMPACTION_THRESHOLD` when tested with value equals to `DEFAULT_COMPACTION_THRESHOLD`
+                        .map(value -> value * 2) // Make the values discontinuous to avoid getting optimized to a BETWEEN filter
                         .mapToObj(Integer::toString)
                         .collect(joining(", "));
 
@@ -354,9 +356,11 @@ public class TestDynamoDbPredicatePushdown
 
             // Test with (`DEFAULT_COMPACTION_THRESHOLD` + 1) to confirm that predicates are not pushed down
             String crossesThreshold = range(0, DEFAULT_COMPACTION_THRESHOLD + 1)
+                    .map(value -> value * 2) // Make the values discontinuous to avoid getting optimized to a BETWEEN filter
                     .mapToObj(Integer::toString)
                     .collect(joining(", "));
             String threshold = range(0, DEFAULT_COMPACTION_THRESHOLD) // Used for NOT IN clause as it generates (NOT IN parameters + 1) ranges which exceeds the `DEFAULT_COMPACTION_THRESHOLD` threshold
+                    .map(value -> value * 2) // Make the values discontinuous to avoid getting optimized to a BETWEEN filter
                     .mapToObj(Integer::toString)
                     .collect(joining(", "));
 
@@ -392,7 +396,7 @@ public class TestDynamoDbPredicatePushdown
                 List.of(
                         ImmutableMap.of(
                                 primaryKey, AttributeValue.builder().s("a").build(),
-                                col1, AttributeValue.builder().n("9223372036854775806").build()),
+                                col1, AttributeValue.builder().n("9223372036854775807").build()),
                         ImmutableMap.of(
                                 primaryKey, AttributeValue.builder().s("b").build(),
                                 col1, AttributeValue.builder().n("9223372036854775805").build()),
@@ -409,7 +413,7 @@ public class TestDynamoDbPredicatePushdown
 
             assertQuery(
                     "SELECT row_id, col1, col2 FROM " + tableName,
-                    "VALUES ('a', 9223372036854775806, null), ('b', 9223372036854775805, null), ('c', null, 9223372036854775804)");
+                    "VALUES ('a', 9223372036854775807, null), ('b', 9223372036854775805, null), ('c', null, 9223372036854775804)");
 
             assertThat(query("SELECT * FROM " + tableName + " WHERE col1 IN (9223372036854775805, 9223372036854775804)"))
                     .isFullyPushedDown();
@@ -417,7 +421,7 @@ public class TestDynamoDbPredicatePushdown
                     .isFullyPushedDown();
             assertThat(query("SELECT * FROM " + tableName + " WHERE col1 NOT IN (9223372036854775805, 9223372036854775804)"))
                     .isFullyPushedDown();
-            assertThat(query("SELECT * FROM " + tableName + " WHERE col1 NOT IN (null, 9223372036854775805, 9223372036854775804)"))
+            assertThat(query("SELECT * FROM " + tableName + " WHERE col1 NOT IN (null, 9223372036854775805, 9223372036854775803)"))
                     .isReplacedWithEmptyValues();
 
             assertThat(query("SELECT * FROM " + tableName + " WHERE col1 > 9223372036854775805 AND col1 IS NULL"))
@@ -440,13 +444,13 @@ public class TestDynamoDbPredicatePushdown
                     .isReplacedWithEmptyValues();
             assertThat(query("SELECT * FROM " + tableName + " WHERE col1 > 9223372036854775805 AND col1 < null"))
                     .isReplacedWithEmptyValues();
-            assertThat(query("SELECT * FROM " + tableName + " WHERE col1 >= null AND col1 <= 9223372036854775806"))
+            assertThat(query("SELECT * FROM " + tableName + " WHERE col1 >= null AND col1 <= 9223372036854775807"))
                     .isReplacedWithEmptyValues();
-            assertThat(query("SELECT * FROM " + tableName + " WHERE col1 > null AND col1 < 9223372036854775806"))
+            assertThat(query("SELECT * FROM " + tableName + " WHERE col1 > null AND col1 < 9223372036854775807"))
                     .isReplacedWithEmptyValues();
-            assertThat(query("SELECT * FROM " + tableName + " WHERE col1 >= 9223372036854775805 AND col1 <= 9223372036854775806"))
+            assertThat(query("SELECT * FROM " + tableName + " WHERE col1 >= 9223372036854775805 AND col1 <= 9223372036854775807"))
                     .isFullyPushedDown();
-            assertThat(query("SELECT * FROM " + tableName + " WHERE NOT (col1 >= 9223372036854775805 AND col1 <= 9223372036854775806)"))
+            assertThat(query("SELECT * FROM " + tableName + " WHERE NOT (col1 >= 9223372036854775805 AND col1 <= 9223372036854775807)"))
                     .isFullyPushedDown();
 
             assertThat(query("SELECT * FROM " + tableName + " WHERE col1 > 9223372036854775805 OR col1 IS NULL"))
@@ -509,9 +513,9 @@ public class TestDynamoDbPredicatePushdown
                                 assertThat(effectivePredicate).isEqualTo(expectedPredicate);
                                 return true;
                             }));
-            assertThat(query("SELECT * FROM " + tableName + " WHERE col1 >= 9223372036854775805 OR col1 <= 9223372036854775806"))
+            assertThat(query("SELECT * FROM " + tableName + " WHERE col1 >= 9223372036854775805 OR col1 <= 9223372036854775807"))
                     .isNotFullyPushedDown(FilterNode.class);
-            assertThat(query("SELECT * FROM " + tableName + " WHERE NOT (col1 >= 9223372036854775805 OR col1 <= 9223372036854775806)"))
+            assertThat(query("SELECT * FROM " + tableName + " WHERE NOT (col1 >= 9223372036854775805 OR col1 <= 9223372036854775807)"))
                     .isReplacedWithEmptyValues();
 
             assertThat(query("SELECT * FROM " + tableName + " WHERE col1 > 9223372036854775805"))
@@ -547,15 +551,17 @@ public class TestDynamoDbPredicatePushdown
                     .isNotFullyPushedDown(FilterNode.class);
             assertThat(query("SELECT * FROM " + tableName + " WHERE col1 IS NOT NULL"))
                     .isNotFullyPushedDown(FilterNode.class);
-            assertThat(query("SELECT * FROM " + tableName + " WHERE col1 BETWEEN 1 AND 9223372036854775806"))
+            assertThat(query("SELECT * FROM " + tableName + " WHERE col1 BETWEEN 1 AND 9223372036854775807"))
                     .isFullyPushedDown();
 
             // Test different values lesser than or equals to `DEFAULT_COMPACTION_THRESHOLD`
             for (int count : largeInValuesCountData()) {
                 String longValues = range(0, count)
+                        .map(value -> value * 2) // Make the values discontinuous to avoid getting optimized to a BETWEEN filter
                         .mapToObj(Integer::toString)
                         .collect(joining(", "));
                 String longValuesMinusOne = range(0, count - 1) // Used for NOT IN clause as it generates (NOT IN parameters + 1) ranges which exceeds the `DEFAULT_COMPACTION_THRESHOLD` when tested with value equals to `DEFAULT_COMPACTION_THRESHOLD`
+                        .map(value -> value * 2) // Make the values discontinuous to avoid getting optimized to a BETWEEN filter
                         .mapToObj(Integer::toString)
                         .collect(joining(", "));
 
@@ -571,9 +577,11 @@ public class TestDynamoDbPredicatePushdown
 
             // Test with (`DEFAULT_COMPACTION_THRESHOLD` + 1) to confirm that predicates are not pushed down
             String crossesThreshold = range(0, DEFAULT_COMPACTION_THRESHOLD + 1)
+                    .map(value -> value * 2) // Make the values discontinuous to avoid getting optimized to a BETWEEN filter
                     .mapToObj(Integer::toString)
                     .collect(joining(", "));
             String threshold = range(0, DEFAULT_COMPACTION_THRESHOLD) // Used for NOT IN clause as it generates (NOT IN parameters + 1) ranges which exceeds the `DEFAULT_COMPACTION_THRESHOLD` threshold
+                    .map(value -> value * 2) // Make the values discontinuous to avoid getting optimized to a BETWEEN filter
                     .mapToObj(Integer::toString)
                     .collect(joining(", "));
 
@@ -801,9 +809,11 @@ public class TestDynamoDbPredicatePushdown
         // Test different values lesser than or equals to `DEFAULT_COMPACTION_THRESHOLD`
         for (int count : largeInValuesCountData()) {
             String longStringValues = range(0, count)
+                    .map(value -> value * 2) // Make the values discontinuous to avoid getting optimized to a BETWEEN filter
                     .mapToObj("'a%s'"::formatted)
                     .collect(joining(", "));
             String longStringValuesMinusOne = range(0, count - 1) // Used for NOT IN clause as it generates (NOT IN parameters + 1) ranges which exceeds the `DEFAULT_COMPACTION_THRESHOLD` when tested with value equals to `DEFAULT_COMPACTION_THRESHOLD`
+                    .map(value -> value * 2) // Make the values discontinuous to avoid getting optimized to a BETWEEN filter
                     .mapToObj("'a%s'"::formatted)
                     .collect(joining(", "));
 
@@ -820,9 +830,11 @@ public class TestDynamoDbPredicatePushdown
 
         // Test with (`DEFAULT_COMPACTION_THRESHOLD` + 1) to confirm that predicates are not pushed down
         String crossesThresholdStringValues = range(0, DEFAULT_COMPACTION_THRESHOLD + 1)
+                .map(value -> value * 2) // Make the values discontinuous to avoid getting optimized to a BETWEEN filter
                 .mapToObj("'a%s'"::formatted)
                 .collect(joining(", "));
         String thresholdStringValues = range(0, DEFAULT_COMPACTION_THRESHOLD) // Used for NOT IN clause as it generates (NOT IN parameters + 1) ranges which exceeds the `DEFAULT_COMPACTION_THRESHOLD`
+                .map(value -> value * 2) // Make the values discontinuous to avoid getting optimized to a BETWEEN filter
                 .mapToObj("'a%s'"::formatted)
                 .collect(joining(", "));
 

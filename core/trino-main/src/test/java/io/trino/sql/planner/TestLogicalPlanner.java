@@ -30,6 +30,7 @@ import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.predicate.ValueSet;
 import io.trino.spi.type.RowType;
+import io.trino.sql.ir.Between;
 import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Cast;
 import io.trino.sql.ir.Coalesce;
@@ -482,7 +483,7 @@ public class TestLogicalPlanner
                                                         Optional.empty(),
                                                         PARTIAL,
                                                         filter(
-                                                                new In(new Reference(BIGINT, "groupId"), ImmutableList.of(new Constant(BIGINT, 0L), new Constant(BIGINT, 1L))),
+                                                                new Between(new Reference(BIGINT, "groupId"), new Constant(BIGINT, 0L), new Constant(BIGINT, 1L)),
                                                                 groupId(
                                                                         ImmutableList.of(ImmutableList.of("orderkey"), ImmutableList.of("custkey")),
                                                                         "groupId",
@@ -2189,20 +2190,20 @@ public class TestLogicalPlanner
         assertPlan(
                 "SELECT orderstatus, t2.s " +
                         "FROM orders " +
-                        "JOIN (SELECT x * 1 FROM (VALUES BIGINT '1', BIGINT '2') t(x)) t2(s) " +
+                        "JOIN (SELECT x * 1 FROM (VALUES BIGINT '1', BIGINT '3') t(x)) t2(s) " +
                         "ON orders.orderkey = t2.s",
                 anyTree(
                         join(INNER, builder -> builder
                                 .equiCriteria("ORDER_KEY", "expr")
                                 .left(
                                         filter(
-                                                new In(new Reference(BIGINT, "ORDER_KEY"), ImmutableList.of(new Constant(BIGINT, 1L), new Constant(BIGINT, 2L))),
+                                                new In(new Reference(BIGINT, "ORDER_KEY"), ImmutableList.of(new Constant(BIGINT, 1L), new Constant(BIGINT, 3L))),
                                                 strictConstrainedTableScan(
                                                         "orders",
                                                         ImmutableMap.of("ORDER_STATUS", "orderstatus", "ORDER_KEY", "orderkey"),
                                                         ImmutableMap.of())))
                                 .right(
-                                        values(ImmutableList.of("expr"), ImmutableList.of(ImmutableList.of(new Constant(BIGINT, 1L)), ImmutableList.of(new Constant(BIGINT, 2L))))))));
+                                        values(ImmutableList.of("expr"), ImmutableList.of(ImmutableList.of(new Constant(BIGINT, 1L)), ImmutableList.of(new Constant(BIGINT, 3L))))))));
     }
 
     @Test

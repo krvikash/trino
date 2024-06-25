@@ -426,6 +426,7 @@ public class TestSalesforceConnectorTest
     public void testLargeIn(int valuesCount)
     {
         String longValues = range(0, valuesCount)
+                .map(value -> value * 2) // Make the values discontinuous to avoid getting optimized to a BETWEEN filter
                 .mapToObj(Integer::toString)
                 .collect(joining(", "));
         assertQuery("SELECT orderkey__c FROM " + salesforceOrdersTableName + " WHERE orderkey__c IN (" + longValues + ")");

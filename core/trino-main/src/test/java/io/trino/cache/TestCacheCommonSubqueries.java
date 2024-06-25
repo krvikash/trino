@@ -250,7 +250,7 @@ public class TestCacheCommonSubqueries
                 new PlanSignature(
                         combine(
                                 scanFilterProjectKey(new CacheTableId(testCatalogId + ":tiny:nation:0.01")),
-                                "filters=((\"[nationkey:bigint]\" IN (bigint '0', bigint '1')) OR (\"[regionkey:bigint]\" IN (bigint '0', bigint '1')))"),
+                                "filters=((\"[nationkey:bigint]\" IN (bigint '0', bigint '2')) OR (\"[regionkey:bigint]\" IN (bigint '0', bigint '2')))"),
                         Optional.empty(),
                         cacheColumnIds,
                         cacheColumnTypes),
@@ -259,9 +259,9 @@ public class TestCacheCommonSubqueries
                 NATIONKEY_COLUMN_ID, new TpchColumnHandle("nationkey", BIGINT),
                 REGIONKEY_COLUMN_ID, new TpchColumnHandle("regionkey", BIGINT));
         assertPlan("""
-                        (SELECT nationkey FROM nation n JOIN (SELECT * FROM (VALUES 0, 1) t(a)) t ON n.nationkey = t.a)
+                        (SELECT nationkey FROM nation n JOIN (SELECT * FROM (VALUES 0, 2) t(a)) t ON n.nationkey = t.a)
                         UNION ALL
-                        (SELECT regionkey FROM nation n JOIN (SELECT * FROM (VALUES 0, 1) t(a)) t ON n.regionkey = t.a)
+                        (SELECT regionkey FROM nation n JOIN (SELECT * FROM (VALUES 0, 2) t(a)) t ON n.regionkey = t.a)
                         """,
                 anyTree(exchange(LOCAL,
                         node(JoinNode.class,
