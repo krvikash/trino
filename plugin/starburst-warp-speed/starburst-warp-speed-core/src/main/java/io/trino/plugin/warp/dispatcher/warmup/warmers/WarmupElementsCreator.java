@@ -62,6 +62,7 @@ import static java.util.Objects.requireNonNull;
 public class WarmupElementsCreator
 {
     private static final Logger logger = Logger.get(WarmupElementsCreator.class);
+    public static final int INAVLID_WARM_ID = -1;
     private final ShapingLogger shapingLogger;
 
     private final RowGroupDataService rowGroupDataService;
@@ -127,6 +128,7 @@ public class WarmupElementsCreator
                                 .recTypeCode(existingWarmUpElement.get().getRecTypeCode())
                                 .recTypeLength(existingWarmUpElement.get().getRecTypeLength())
                                 .warpColumn(warpColumn)
+                                .warmId(INAVLID_WARM_ID)
                                 .warmupElementStats(WarmupElementStats.UNINITIALIZED)
                                 .warmUpContextSize(existingWarmUpElement.get().getWarmUpContextSize())
                                 .build());
@@ -164,6 +166,7 @@ public class WarmupElementsCreator
                             .recTypeCode(recTypeCode)
                             .recTypeLength(recTypeLength)
                             .warpColumn(warpColumn)
+                            .warmId(INAVLID_WARM_ID)
                             .warmupElementStats(WarmupElementStats.UNINITIALIZED)
                             .warmUpContextSize(warmUpContextSize)
                             .build());
@@ -216,13 +219,13 @@ public class WarmupElementsCreator
             WarpColumn cachedColumn = new RegularColumn(cacheColumnId);
             int recTypeLength = TypeUtils.getTypeLength(columnType, storageEngineConstants.getVarcharMaxLen());
             RecTypeCode recTypeCode = TypeUtils.convertToRecTypeCode(columnType, recTypeLength, storageEngineConstants.getFixedLengthStringLimit());
-            res = Optional.of(WarmUpElement
-                    .builder()
+            res = Optional.of(WarmUpElement.builder()
                     .creationTime(System.currentTimeMillis())
                     .warpColumn(cachedColumn)
                     .warmUpType(WarmUpType.WARM_UP_TYPE_DATA)
                     .recTypeCode(recTypeCode)
                     .recTypeLength(recTypeLength)
+                    .warmId(INAVLID_WARM_ID)
                     .exportState(ExportState.NOT_EXPORTED)
                     .storeId(storeId)
                     .state(WarmUpElementState.VALID)

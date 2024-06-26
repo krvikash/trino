@@ -37,6 +37,7 @@ import java.util.Optional;
 import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_CODE;
 import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_LENGTH;
 import static io.trino.plugin.warp.dispatcher.query.MatchCollectUtils.findMatchForMatchCollect;
+import static io.trino.plugin.warp.dispatcher.warmup.warmers.WarmupElementsCreator.INAVLID_WARM_ID;
 import static io.trino.plugin.warp.storage.read.WarpPageSource.INVALID_COL_IX;
 
 public class QueryParamsConverter
@@ -145,7 +146,7 @@ public class QueryParamsConverter
                                 queryMatchData.isTightnessRequired(),
                                 matchCollectIndex,
                                 matchCollectOp,
-                                matchDataWarmUpElement.hasStoreId() ? -1 : matchDataWarmUpElement.getWarmId(),
+                                INAVLID_WARM_ID,
                                 luceneParams));
                 predicateCacheDataBuilder.add(queryMatchData.getPredicateCacheData());
             }
@@ -225,7 +226,7 @@ public class QueryParamsConverter
                                 matchCollectIndex,
                                 matchCollectId,
                                 isCollectNulls,
-                                collectDataWarmUpElement.hasStoreId() ? -1 : collectDataWarmUpElement.getWarmId(),
+                                collectDataWarmUpElement.hasStoreId() ? INAVLID_WARM_ID : collectDataWarmUpElement.getWarmId(),
                                 valuesDictBlock));
             }
             else {
@@ -247,7 +248,7 @@ public class QueryParamsConverter
                                 matchCollectIndex,
                                 matchCollectId,
                                 isCollectNulls,
-                                collectDataWarmUpElement.hasStoreId() ? -1 : collectDataWarmUpElement.getWarmId(),
+                                collectDataWarmUpElement.hasStoreId() ? INAVLID_WARM_ID : collectDataWarmUpElement.getWarmId(),
                                 valuesDictBlock));
             }
         }

@@ -33,6 +33,7 @@ import java.lang.foreign.MemorySegment;
 import java.util.List;
 import java.util.Optional;
 
+import static io.trino.plugin.warp.dispatcher.warmup.warmers.WarmupElementsCreator.INAVLID_WARM_ID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -90,7 +91,7 @@ public class QueryParamsConverterTest
                 luceneQueryMatchData.isTightnessRequired(),
                 -1,
                 MatchCollectOp.MATCH_COLLECT_OP_INVALID,
-                0,
+                INAVLID_WARM_ID,
                 Optional.of(new WarmupElementLuceneParams(luceneQueryMatchData, luceneIx)));
     }
 
