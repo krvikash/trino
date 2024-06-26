@@ -24,6 +24,7 @@ import java.lang.foreign.MemorySegment;
 import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_CODE;
 import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_LENGTH;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_START_OFFSET;
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_WARM_EVENTS;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX;
 
 public class RecordWriteJuffer
@@ -106,7 +107,7 @@ public class RecordWriteJuffer
             int singleOffset)
     {
         // no need to add to chunk map as we are not closing the chunk
-
+        int[] warmEvents = new int[1];
         long res = storageEngine.warmupChunk(weCookie,
                 numRecs,
                 nullsCount,
@@ -120,9 +121,11 @@ public class RecordWriteJuffer
                 warmUpType,
                 fileCookieParams,
                 buffAddresses,
-                null);
+                null,
+                warmEvents);
         fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFF;
         fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX.ordinal()] = res >> 32;
+        fileCookieParams[FILE_COOKIE_PARAMS_WARM_EVENTS.ordinal()] |= warmEvents[0];
         resetSingleRecordBufferPos();
     }
 

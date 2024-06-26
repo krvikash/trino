@@ -25,6 +25,9 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static io.trino.plugin.warp.dispatcher.warmup.warmers.WarmupElementsCreator.getCurrentThreadWarmId;
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_WARM_ID;
+
 final class StorageWriterContext
 {
     private final AtomicReference<Object> isCleanupDone;
@@ -59,7 +62,6 @@ final class StorageWriterContext
             long[] fileCookieParams,
             long[] buffAddresses,
             BlockAppender blockAppender,
-            boolean weSuccess,
             Optional<WriteDictionary> writeDictionary,
             Optional<LuceneIndexer> luceneIndexer)
     {
@@ -76,11 +78,12 @@ final class StorageWriterContext
         this.fileCookieParams = fileCookieParams;
         this.buffAddresses = buffAddresses;
         this.blockAppender = blockAppender;
-        this.weSuccess = weSuccess;
+        this.weSuccess = true;
         this.writeDictionary = writeDictionary;
         this.luceneIndexer = luceneIndexer;
         this.isCleanupDone = new AtomicReference<>(null);
         this.warmupElementStatsBuilder = new WarmupElementStatsBuilder(warmupElementWriteMetadata.warmUpElement().getWarmupElementStats());
+        this.fileCookieParams[FILE_COOKIE_PARAMS_WARM_ID.ordinal()] = getCurrentThreadWarmId();
     }
 
     int getRecordBufferPos()

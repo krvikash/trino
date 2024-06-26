@@ -32,6 +32,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_START_OFFSET;
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_WARM_EVENTS;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX;
 import static java.lang.Double.doubleToLongBits;
 import static java.lang.Double.longBitsToDouble;
@@ -198,6 +199,7 @@ public class WriteJuffersWarmUpElement
         }
 
         byte[] outChunkCookies = new byte[chunkHeaderSize];
+        int[] outWarmEvents = new int[1];
         long res = storageEngine.warmupChunk(weCookie,
                 recordBufferPos,
                 getNullJuffer().getNullsCount(),
@@ -211,9 +213,11 @@ public class WriteJuffersWarmUpElement
                 warmUpType,
                 fileCookieParams,
                 buffAddresses,
-                outChunkCookies);
+                outChunkCookies,
+                outWarmEvents);
         fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFF;
         fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX.ordinal()] = res >> 32;
+        fileCookieParams[FILE_COOKIE_PARAMS_WARM_EVENTS.ordinal()] |= outWarmEvents[0];
         chunkMapList.add(chunkMapList.size() - 1, new ChunkMap(outChunkCookies));
     }
 

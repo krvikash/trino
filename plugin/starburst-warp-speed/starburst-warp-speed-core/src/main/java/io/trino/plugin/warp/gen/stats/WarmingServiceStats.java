@@ -55,6 +55,10 @@ public final class WarmingServiceStats
     private final LongAdder row_group_count = new LongAdder();
     private final LongAdder warm_warp_cache_started = new LongAdder();
     private final LongAdder warm_warp_cache_engine_aborted = new LongAdder();
+    private final LongAdder warm_warp_cache_skip_zero_columns = new LongAdder();
+    private final LongAdder warm_warp_cache_revoke_started = new LongAdder();
+    private final LongAdder warm_warp_cache_revoke_accomplished = new LongAdder();
+    private final LongAdder warm_warp_cache_revoke_failed = new LongAdder();
     private final LongAdder warm_warp_cache_accomplished = new LongAdder();
     private final LongAdder warm_warp_cache_failed = new LongAdder();
     private final LongAdder warm_warp_cache_invalid_type = new LongAdder();
@@ -545,6 +549,98 @@ public final class WarmingServiceStats
 
     @JsonIgnore
     @Managed
+    public long getwarm_warp_cache_skip_zero_columns()
+    {
+        return warm_warp_cache_skip_zero_columns.longValue();
+    }
+
+    public void incwarm_warp_cache_skip_zero_columns()
+    {
+        warm_warp_cache_skip_zero_columns.increment();
+    }
+
+    public void addwarm_warp_cache_skip_zero_columns(long val)
+    {
+        warm_warp_cache_skip_zero_columns.add(val);
+    }
+
+    public void setwarm_warp_cache_skip_zero_columns(long val)
+    {
+        warm_warp_cache_skip_zero_columns.reset();
+        addwarm_warp_cache_skip_zero_columns(val);
+    }
+
+    @JsonIgnore
+    @Managed
+    public long getwarm_warp_cache_revoke_started()
+    {
+        return warm_warp_cache_revoke_started.longValue();
+    }
+
+    public void incwarm_warp_cache_revoke_started()
+    {
+        warm_warp_cache_revoke_started.increment();
+    }
+
+    public void addwarm_warp_cache_revoke_started(long val)
+    {
+        warm_warp_cache_revoke_started.add(val);
+    }
+
+    public void setwarm_warp_cache_revoke_started(long val)
+    {
+        warm_warp_cache_revoke_started.reset();
+        addwarm_warp_cache_revoke_started(val);
+    }
+
+    @JsonIgnore
+    @Managed
+    public long getwarm_warp_cache_revoke_accomplished()
+    {
+        return warm_warp_cache_revoke_accomplished.longValue();
+    }
+
+    public void incwarm_warp_cache_revoke_accomplished()
+    {
+        warm_warp_cache_revoke_accomplished.increment();
+    }
+
+    public void addwarm_warp_cache_revoke_accomplished(long val)
+    {
+        warm_warp_cache_revoke_accomplished.add(val);
+    }
+
+    public void setwarm_warp_cache_revoke_accomplished(long val)
+    {
+        warm_warp_cache_revoke_accomplished.reset();
+        addwarm_warp_cache_revoke_accomplished(val);
+    }
+
+    @JsonIgnore
+    @Managed
+    public long getwarm_warp_cache_revoke_failed()
+    {
+        return warm_warp_cache_revoke_failed.longValue();
+    }
+
+    public void incwarm_warp_cache_revoke_failed()
+    {
+        warm_warp_cache_revoke_failed.increment();
+    }
+
+    public void addwarm_warp_cache_revoke_failed(long val)
+    {
+        warm_warp_cache_revoke_failed.add(val);
+    }
+
+    public void setwarm_warp_cache_revoke_failed(long val)
+    {
+        warm_warp_cache_revoke_failed.reset();
+        addwarm_warp_cache_revoke_failed(val);
+    }
+
+    @JsonIgnore
+    @Managed
     public long getwarm_warp_cache_accomplished()
     {
         return warm_warp_cache_accomplished.longValue();
@@ -819,6 +915,10 @@ public final class WarmingServiceStats
         ret.put("row_group_count", row_group_count);
         ret.put("warm_warp_cache_started", warm_warp_cache_started);
         ret.put("warm_warp_cache_engine_aborted", warm_warp_cache_engine_aborted);
+        ret.put("warm_warp_cache_skip_zero_columns", warm_warp_cache_skip_zero_columns);
+        ret.put("warm_warp_cache_revoke_started", warm_warp_cache_revoke_started);
+        ret.put("warm_warp_cache_revoke_accomplished", warm_warp_cache_revoke_accomplished);
+        ret.put("warm_warp_cache_revoke_failed", warm_warp_cache_revoke_failed);
         ret.put("warm_warp_cache_accomplished", warm_warp_cache_accomplished);
         ret.put("warm_warp_cache_failed", warm_warp_cache_failed);
         ret.put("warm_warp_cache_invalid_type", warm_warp_cache_invalid_type);
@@ -858,6 +958,10 @@ public final class WarmingServiceStats
         this.row_group_count.add(other.row_group_count.longValue());
         this.warm_warp_cache_started.add(other.warm_warp_cache_started.longValue());
         this.warm_warp_cache_engine_aborted.add(other.warm_warp_cache_engine_aborted.longValue());
+        this.warm_warp_cache_skip_zero_columns.add(other.warm_warp_cache_skip_zero_columns.longValue());
+        this.warm_warp_cache_revoke_started.add(other.warm_warp_cache_revoke_started.longValue());
+        this.warm_warp_cache_revoke_accomplished.add(other.warm_warp_cache_revoke_accomplished.longValue());
+        this.warm_warp_cache_revoke_failed.add(other.warm_warp_cache_revoke_failed.longValue());
         this.warm_warp_cache_accomplished.add(other.warm_warp_cache_accomplished.longValue());
         this.warm_warp_cache_failed.add(other.warm_warp_cache_failed.longValue());
         this.warm_warp_cache_invalid_type.add(other.warm_warp_cache_invalid_type.longValue());
@@ -895,6 +999,10 @@ public final class WarmingServiceStats
         row_group_count.reset();
         warm_warp_cache_started.reset();
         warm_warp_cache_engine_aborted.reset();
+        warm_warp_cache_skip_zero_columns.reset();
+        warm_warp_cache_revoke_started.reset();
+        warm_warp_cache_revoke_accomplished.reset();
+        warm_warp_cache_revoke_failed.reset();
         warm_warp_cache_accomplished.reset();
         warm_warp_cache_failed.reset();
         warm_warp_cache_invalid_type.reset();
@@ -933,6 +1041,10 @@ public final class WarmingServiceStats
         res.put(getJmxKey() + ":row_group_count", row_group_count.longValue());
         res.put(getJmxKey() + ":warm_warp_cache_started", warm_warp_cache_started.longValue());
         res.put(getJmxKey() + ":warm_warp_cache_engine_aborted", warm_warp_cache_engine_aborted.longValue());
+        res.put(getJmxKey() + ":warm_warp_cache_skip_zero_columns", warm_warp_cache_skip_zero_columns.longValue());
+        res.put(getJmxKey() + ":warm_warp_cache_revoke_started", warm_warp_cache_revoke_started.longValue());
+        res.put(getJmxKey() + ":warm_warp_cache_revoke_accomplished", warm_warp_cache_revoke_accomplished.longValue());
+        res.put(getJmxKey() + ":warm_warp_cache_revoke_failed", warm_warp_cache_revoke_failed.longValue());
         res.put(getJmxKey() + ":warm_warp_cache_accomplished", warm_warp_cache_accomplished.longValue());
         res.put(getJmxKey() + ":warm_warp_cache_failed", warm_warp_cache_failed.longValue());
         res.put(getJmxKey() + ":warm_warp_cache_invalid_type", warm_warp_cache_invalid_type.longValue());
@@ -968,6 +1080,10 @@ public final class WarmingServiceStats
         res.put("row_group_count", getrow_group_count());
         res.put("warm_warp_cache_started", getwarm_warp_cache_started());
         res.put("warm_warp_cache_engine_aborted", getwarm_warp_cache_engine_aborted());
+        res.put("warm_warp_cache_skip_zero_columns", getwarm_warp_cache_skip_zero_columns());
+        res.put("warm_warp_cache_revoke_started", getwarm_warp_cache_revoke_started());
+        res.put("warm_warp_cache_revoke_accomplished", getwarm_warp_cache_revoke_accomplished());
+        res.put("warm_warp_cache_revoke_failed", getwarm_warp_cache_revoke_failed());
         res.put("warm_warp_cache_accomplished", getwarm_warp_cache_accomplished());
         res.put("warm_warp_cache_failed", getwarm_warp_cache_failed());
         res.put("warm_warp_cache_invalid_type", getwarm_warp_cache_invalid_type());

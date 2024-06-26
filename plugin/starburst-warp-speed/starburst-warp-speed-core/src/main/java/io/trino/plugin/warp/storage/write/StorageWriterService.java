@@ -60,6 +60,8 @@ import java.util.Optional;
 import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_CODE_NUM;
 import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_LENGTH;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_START_OFFSET;
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_WARM_EVENTS;
+import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_WARM_ID;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -81,8 +83,6 @@ public class StorageWriterService
     {
         WE_PROPERTIES_QUERY_OFFSET,
         WE_PROPERTIES_QUERY_READ_SIZE,
-        WE_PROPERTIES_WARM_EVENTS,
-        WE_PROPERTIES_WARM_ID,
         WE_PROPERTIES_END_OFFSET // MUST BE LAST
     }
 
@@ -185,7 +185,6 @@ public class StorageWriterService
                 fileCookieParams,
                 storageOpenResult.buffAddresses(),
                 blockAppender,
-                true,
                 writeDictionaryOpt,
                 luceneIndexerOpt);
     }
@@ -271,12 +270,13 @@ public class StorageWriterService
                 warmupElementWriteMetadata.warmUpElement().getRecTypeCode(),
                 warmupElementWriteMetadata.warmUpElement().getWarmUpType());
 
+        long[] fileCookieParams = storageWriterContext.getFileCookieParams();
         warmupElementBuilder.state(WarmUpElementState.VALID)
                 .warmState(WarmState.HOT)
                 .queryOffset(outFileParams[WeProperties.WE_PROPERTIES_QUERY_OFFSET.ordinal()])
                 .queryReadSize(outFileParams[WeProperties.WE_PROPERTIES_QUERY_READ_SIZE.ordinal()])
-                .warmEvents(outFileParams[WeProperties.WE_PROPERTIES_WARM_EVENTS.ordinal()])
-                .warmId(outFileParams[WeProperties.WE_PROPERTIES_WARM_ID.ordinal()])
+                .warmEvents((int) fileCookieParams[FILE_COOKIE_PARAMS_WARM_EVENTS.ordinal()])
+                .warmId((int) fileCookieParams[FILE_COOKIE_PARAMS_WARM_ID.ordinal()])
                 .totalRecords(totalRecords)
                 .warmupElementStats(closedStats);
 
