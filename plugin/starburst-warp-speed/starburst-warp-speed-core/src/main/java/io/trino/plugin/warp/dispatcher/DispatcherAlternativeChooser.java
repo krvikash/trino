@@ -260,12 +260,6 @@ public class DispatcherAlternativeChooser
                         predicate);
     }
 
-    @Override
-    public boolean shouldPerformDynamicRowFiltering()
-    {
-        return true;
-    }
-
     public class ResourceCloser
     {
         private final Optional<RowGroupCloseHandler> closeHandler;

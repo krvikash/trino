@@ -25,8 +25,6 @@ import io.trino.execution.SplitAssignment;
 import io.trino.memory.context.LocalMemoryContext;
 import io.trino.metadata.Split;
 import io.trino.metadata.TableHandle;
-import io.trino.operator.dynamicfiltering.DynamicPageFilterCache;
-import io.trino.operator.dynamicfiltering.DynamicRowFilteringPageSourceProvider;
 import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ColumnHandle;
@@ -34,7 +32,6 @@ import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.FixedPageSource;
 import io.trino.spi.type.Type;
-import io.trino.spi.type.TypeOperators;
 import io.trino.split.PageSourceProvider;
 import io.trino.sql.planner.plan.PlanNodeId;
 import io.trino.testing.MaterializedResult;
@@ -178,7 +175,6 @@ public class TestDriver
                 (session, split, table, columns, dynamicFilter) -> new FixedPageSource(rowPagesBuilder(types)
                         .addSequencePage(10, 20, 30, 40)
                         .build()),
-                createTestingDynamicRowFilterProvider(),
                 TEST_TABLE_HANDLE,
                 ImmutableList.of(),
                 DynamicFilter.EMPTY);
@@ -587,7 +583,7 @@ public class TestDriver
                 TableHandle table,
                 Iterable<ColumnHandle> columns)
         {
-            super(operatorContext, planNodeId, pageSourceProvider, createTestingDynamicRowFilterProvider(), table, columns, DynamicFilter.EMPTY);
+            super(operatorContext, planNodeId, pageSourceProvider, table, columns, DynamicFilter.EMPTY);
         }
 
         @Override
@@ -607,7 +603,7 @@ public class TestDriver
                 TableHandle table,
                 Iterable<ColumnHandle> columns)
         {
-            super(operatorContext, planNodeId, pageSourceProvider, createTestingDynamicRowFilterProvider(), table, columns, DynamicFilter.EMPTY);
+            super(operatorContext, planNodeId, pageSourceProvider, table, columns, DynamicFilter.EMPTY);
         }
 
         @Override
@@ -632,7 +628,7 @@ public class TestDriver
                 TableHandle table,
                 Iterable<ColumnHandle> columns)
         {
-            super(operatorContext, planNodeId, pageSourceProvider, createTestingDynamicRowFilterProvider(), table, columns, DynamicFilter.EMPTY);
+            super(operatorContext, planNodeId, pageSourceProvider, table, columns, DynamicFilter.EMPTY);
         }
 
         @Override
@@ -656,10 +652,5 @@ public class TestDriver
         {
             return 0;
         }
-    }
-
-    private static DynamicRowFilteringPageSourceProvider createTestingDynamicRowFilterProvider()
-    {
-        return new DynamicRowFilteringPageSourceProvider(new DynamicPageFilterCache(new TypeOperators()));
     }
 }

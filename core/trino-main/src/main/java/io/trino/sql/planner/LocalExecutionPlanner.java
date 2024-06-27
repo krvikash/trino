@@ -113,7 +113,6 @@ import io.trino.operator.aggregation.AggregatorFactory;
 import io.trino.operator.aggregation.DistinctAccumulatorFactory;
 import io.trino.operator.aggregation.OrderedAccumulatorFactory;
 import io.trino.operator.aggregation.partial.PartialAggregationController;
-import io.trino.operator.dynamicfiltering.DynamicRowFilteringPageSourceProvider;
 import io.trino.operator.exchange.LocalExchange;
 import io.trino.operator.exchange.LocalExchangeSinkOperator.LocalExchangeSinkOperatorFactory;
 import io.trino.operator.exchange.LocalExchangeSourceOperator.LocalExchangeSourceOperatorFactory;
@@ -426,7 +425,6 @@ public class LocalExecutionPlanner
     private final Metadata metadata;
     private final Optional<ExplainAnalyzeContext> explainAnalyzeContext;
     private final PageSourceManager pageSourceProvider;
-    private final DynamicRowFilteringPageSourceProvider dynamicRowFilteringPageSourceProvider;
     private final CacheManagerRegistry cacheManagerRegistry;
     private final JsonCodec<TupleDomain> tupleDomainCodec;
     private final AlternativeChooser alternativeChooser;
@@ -486,7 +484,6 @@ public class LocalExecutionPlanner
             PlannerContext plannerContext,
             Optional<ExplainAnalyzeContext> explainAnalyzeContext,
             PageSourceManager pageSourceProvider,
-            DynamicRowFilteringPageSourceProvider dynamicRowFilteringPageSourceProvider,
             AlternativeChooser alternativeChooser,
             IndexManager indexManager,
             NodePartitioningManager nodePartitioningManager,
@@ -519,7 +516,6 @@ public class LocalExecutionPlanner
         this.metadata = plannerContext.getMetadata();
         this.explainAnalyzeContext = requireNonNull(explainAnalyzeContext, "explainAnalyzeContext is null");
         this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
-        this.dynamicRowFilteringPageSourceProvider = requireNonNull(dynamicRowFilteringPageSourceProvider, "dynamicRowFilteringPageSourceProvider is null");
         this.alternativeChooser = requireNonNull(alternativeChooser, "alternativeChooser is null");
         this.indexManager = requireNonNull(indexManager, "indexManager is null");
         this.nodePartitioningManager = requireNonNull(nodePartitioningManager, "nodePartitioningManager is null");
@@ -776,7 +772,6 @@ public class LocalExecutionPlanner
                                 pageSourceProvider,
                                 cacheManagerRegistry,
                                 tupleDomainCodec,
-                                dynamicRowFilteringPageSourceProvider,
                                 cacheContext.getOriginalTableHandle(),
                                 cacheContext.getPlanSignature(),
                                 cacheContext.getCommonColumnHandles(),
@@ -2151,7 +2146,6 @@ public class LocalExecutionPlanner
                             planNodeId,
                             sourceNode.getId(),
                             pageSourceProvider,
-                            dynamicRowFilteringPageSourceProvider,
                             cursorProcessor,
                             pageProcessor,
                             table,
@@ -2286,7 +2280,7 @@ public class LocalExecutionPlanner
             }
 
             DynamicFilter dynamicFilter = getDynamicFilter(node, filterExpression, context);
-            OperatorFactory operatorFactory = new TableScanOperatorFactory(context.getNextOperatorId(), planNodeId, node.getId(), pageSourceProvider, dynamicRowFilteringPageSourceProvider, node.getTable(), columns, dynamicFilter);
+            OperatorFactory operatorFactory = new TableScanOperatorFactory(context.getNextOperatorId(), planNodeId, node.getId(), pageSourceProvider, node.getTable(), columns, dynamicFilter);
             return new PhysicalOperation(operatorFactory, makeLayout(node));
         }
 

@@ -17,7 +17,6 @@ import io.trino.Session;
 import io.trino.metadata.Split;
 import io.trino.metadata.TableHandle;
 import io.trino.operator.OperatorContext;
-import io.trino.operator.dynamicfiltering.DynamicRowFilteringPageSourceProvider;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorAlternativePageSourceProvider;
 import io.trino.spi.connector.ConnectorPageSource;
@@ -36,31 +35,26 @@ public class TableAwarePageSourceProvider
     private final PageSourceProvider pageSourceProvider;
     private final TableHandle tableHandle;
     private final Optional<ConnectorAlternativePageSourceProvider> connectorAlternativePageSourceProvider;
-    private final DynamicRowFilteringPageSourceProvider dynamicRowFilteringPageSourceProvider;
 
     public static TableAwarePageSourceProvider create(
             OperatorContext operatorContext,
             TableHandle table,
-            PageSourceProvider pageSourceProvider,
-            DynamicRowFilteringPageSourceProvider dynamicRowFilteringPageSourceProvider)
+            PageSourceProvider pageSourceProvider)
     {
         return new TableAwarePageSourceProvider(
                 pageSourceProvider,
                 table,
-                operatorContext.getDriverContext().getConnectorAlternativePageSourceProvider(),
-                dynamicRowFilteringPageSourceProvider);
+                operatorContext.getDriverContext().getConnectorAlternativePageSourceProvider());
     }
 
     private TableAwarePageSourceProvider(
             PageSourceProvider pageSourceProvider,
             TableHandle tableHandle,
-            Optional<ConnectorAlternativePageSourceProvider> connectorAlternativePageSourceProvider,
-            DynamicRowFilteringPageSourceProvider dynamicRowFilteringPageSourceProvider)
+            Optional<ConnectorAlternativePageSourceProvider> connectorAlternativePageSourceProvider)
     {
         this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
         this.tableHandle = requireNonNull(tableHandle, "tableHandle is null");
         this.connectorAlternativePageSourceProvider = requireNonNull(connectorAlternativePageSourceProvider, "connectorAlternativePageSourceProvider is null");
-        this.dynamicRowFilteringPageSourceProvider = requireNonNull(dynamicRowFilteringPageSourceProvider, "dynamicRowFilteringPageSourceProvider is null");
     }
 
     public ConnectorPageSource createPageSource(Session session, Split split, List<ColumnHandle> columns, DynamicFilter dynamicFilter)
@@ -69,15 +63,12 @@ public class TableAwarePageSourceProvider
             return new EmptyPageSource();
         }
         return connectorAlternativePageSourceProvider
-                .map(factory -> {
-                    ConnectorPageSource pageSource = factory.createPageSource(
-                            tableHandle.transaction(),
-                            session.toConnectorSession(tableHandle.catalogHandle()),
-                            columns,
-                            dynamicFilter,
-                            split.isSplitAddressEnforced());
-                    return dynamicRowFilteringPageSourceProvider.createPageSource(pageSource, session, columns, dynamicFilter);
-                })
+                .map(factory -> factory.createPageSource(
+                        tableHandle.transaction(),
+                        session.toConnectorSession(tableHandle.catalogHandle()),
+                        columns,
+                        dynamicFilter,
+                        split.isSplitAddressEnforced()))
                 .orElseGet(() -> pageSourceProvider.createPageSource(session, split, tableHandle, columns, dynamicFilter));
     }
 

@@ -20,7 +20,6 @@ import io.trino.operator.OperatorContext;
 import io.trino.operator.OperatorFactory;
 import io.trino.operator.SourceOperator;
 import io.trino.operator.SourceOperatorFactory;
-import io.trino.operator.dynamicfiltering.DynamicRowFilteringPageSource;
 import io.trino.spi.Page;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.sql.planner.plan.PlanNodeId;
@@ -151,9 +150,6 @@ public class LoadCachedDataOperator
         cacheStats.recordReadFromCacheData(page.getSizeInBytes());
         operatorContext.recordProcessedInput(page.getSizeInBytes(), page.getPositionCount());
         memoryContext.setBytes(pageSource.getMemoryUsage());
-        if (pageSource instanceof DynamicRowFilteringPageSource) {
-            operatorContext.recordDynamicFilterSplitProcessed(1L);
-        }
         return page.getLoadedPage();
     }
 

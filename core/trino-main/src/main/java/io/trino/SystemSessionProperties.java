@@ -227,9 +227,6 @@ public final class SystemSessionProperties
     public static final String CACHE_PROJECTIONS_ENABLED = "cache_projections_enabled";
     public static final String CACHE_MAX_SPLIT_SIZE = "cache_max_split_size";
     public static final String CACHE_MIN_WORKER_SPLIT_SEPARATION = "cache_min_worker_split_separation";
-    public static final String DYNAMIC_ROW_FILTERING_ENABLED = "dynamic_row_filtering_enabled";
-    public static final String DYNAMIC_ROW_FILTERING_SELECTIVITY_THRESHOLD = "dynamic_row_filtering_selectivity_threshold";
-    public static final String DYNAMIC_ROW_FILTERING_WAIT_TIMEOUT = "dynamic_row_filtering_wait_timeout";
     public static final String PAGE_PARTITIONING_BUFFER_POOL_SIZE = "page_partitioning_buffer_pool_size";
     public static final String IDLE_WRITER_MIN_DATA_SIZE_THRESHOLD = "idle_writer_min_data_size_threshold";
     public static final String CLOSE_IDLE_WRITERS_TRIGGER_DURATION = "close_idle_writers_trigger_duration";
@@ -1182,26 +1179,6 @@ public final class SystemSessionProperties
                         "The minimum separation (in terms of processed splits) between two splits with same cache split id being scheduled on the single worker",
                         cacheConfig.getCacheMinWorkerSplitSeparation(),
                         true),
-                booleanProperty(
-                        DYNAMIC_ROW_FILTERING_ENABLED,
-                        "Enable dynamic row filtering on worker nodes",
-                        dynamicFilterConfig.isDynamicRowFilteringEnabled(),
-                        false),
-                doubleProperty(
-                        DYNAMIC_ROW_FILTERING_SELECTIVITY_THRESHOLD,
-                        "Avoid using dynamic row filters when fraction of rows selected is above threshold",
-                        dynamicFilterConfig.getDynamicRowFilterSelectivityThreshold(),
-                        value -> {
-                            if (value < 0 || value > 1) {
-                                throw new TrinoException(INVALID_SESSION_PROPERTY, format("%s must be in the range [0, 1]: %s", DYNAMIC_ROW_FILTERING_SELECTIVITY_THRESHOLD, value));
-                            }
-                        },
-                        false),
-                durationProperty(
-                        DYNAMIC_ROW_FILTERING_WAIT_TIMEOUT,
-                        "Duration to wait for completion of dynamic filters",
-                        dynamicFilterConfig.getDynamicRowFilteringWaitTimeout(),
-                        false),
                 integerProperty(PAGE_PARTITIONING_BUFFER_POOL_SIZE,
                         "Maximum number of free buffers in the per task partitioned page buffer pool. Setting this to zero effectively disables the pool",
                         taskManagerConfig.getPagePartitioningBufferPoolSize(),
@@ -2141,21 +2118,6 @@ public final class SystemSessionProperties
     public static int getCacheMinWorkerSplitSeparation(Session session)
     {
         return session.getSystemProperty(CACHE_MIN_WORKER_SPLIT_SEPARATION, Integer.class);
-    }
-
-    public static boolean isDynamicRowFilteringEnabled(Session session)
-    {
-        return session.getSystemProperty(DYNAMIC_ROW_FILTERING_ENABLED, Boolean.class);
-    }
-
-    public static double getDynamicRowFilterSelectivityThreshold(Session session)
-    {
-        return session.getSystemProperty(DYNAMIC_ROW_FILTERING_SELECTIVITY_THRESHOLD, Double.class);
-    }
-
-    public static Duration getDynamicRowFilteringWaitTimeout(Session session)
-    {
-        return session.getSystemProperty(DYNAMIC_ROW_FILTERING_WAIT_TIMEOUT, Duration.class);
     }
 
     public static int getPagePartitioningBufferPoolSize(Session session)

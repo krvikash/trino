@@ -224,12 +224,6 @@ public class HivePageSourceProvider
                 .filter((columnHandle, domain) -> !prefilledColumns.contains(columnHandle));
     }
 
-    @Override
-    public boolean shouldPerformDynamicRowFiltering()
-    {
-        return true;
-    }
-
     public static Optional<ConnectorPageSource> createHivePageSource(
             Set<HivePageSourceFactory> pageSourceFactories,
             ConnectorSession session,

@@ -28,7 +28,6 @@ import io.trino.metadata.TableHandle;
 import io.trino.operator.Driver;
 import io.trino.operator.DriverContext;
 import io.trino.operator.DriverFactory;
-import io.trino.operator.dynamicfiltering.DynamicRowFilteringPageSourceProvider;
 import io.trino.plugin.base.cache.CacheUtils;
 import io.trino.plugin.base.metrics.TDigestHistogram;
 import io.trino.spi.TrinoException;
@@ -55,7 +54,6 @@ import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
-import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.trino.cache.CacheCommonSubqueries.LOAD_PAGES_ALTERNATIVE;
 import static io.trino.cache.CacheCommonSubqueries.ORIGINAL_PLAN_ALTERNATIVE;
@@ -88,14 +86,12 @@ public class CacheDriverFactory
     private final CacheMetrics cacheMetrics = new CacheMetrics();
     private final CacheStats cacheStats;
     private final Ticker ticker = Ticker.systemTicker();
-    private final DynamicRowFilteringPageSourceProvider dynamicRowFilteringPageSourceProvider;
 
     public CacheDriverFactory(
             Session session,
             PageSourceProviderFactory pageSourceProvider,
             CacheManagerRegistry cacheManagerRegistry,
             JsonCodec<TupleDomain> tupleDomainCodec,
-            DynamicRowFilteringPageSourceProvider dynamicRowFilteringPageSourceProvider,
             TableHandle originalTableHandle,
             PlanSignatureWithPredicate planSignature,
             Map<CacheColumnId, ColumnHandle> commonColumnHandles,
@@ -108,7 +104,6 @@ public class CacheDriverFactory
         this.session = requireNonNull(session, "session is null");
         this.splitCache = requireNonNull(cacheManagerRegistry, "cacheManagerRegistry is null").getCacheManager().getSplitCache(planSignature.signature());
         this.tupleDomainCodec = requireNonNull(tupleDomainCodec, "tupleDomainCodec is null");
-        this.dynamicRowFilteringPageSourceProvider = requireNonNull(dynamicRowFilteringPageSourceProvider, "dynamicRowFilteringPageSourceProvider is null");
         this.originalTableHandle = requireNonNull(originalTableHandle, "originalTableHandle is null");
         this.enforcedPredicate = planSignature.predicate();
         this.commonColumnHandles = ImmutableBiMap.copyOf(requireNonNull(commonColumnHandles, "commonColumnHandles is null")).inverse();
@@ -186,22 +181,6 @@ public class CacheDriverFactory
 
         // load data from cache
         Optional<ConnectorPageSource> pageSource = splitCache.loadPages(splitIdWithPredicates, projectedEnforcedPredicate.predicate(), projectedUnenforcedPredicate.predicate());
-        if (pageSource.isEmpty()
-                && (!projectedUnenforcedPredicate.predicate().isAll() || projectedUnenforcedPredicate.remainingPredicate.isPresent())) {
-            // load page source as fallback with no unenforced predicate
-            CacheSplitId fallbackSplitId = appendRemainingPredicates(splitId, projectedEnforcedPredicate, new ProjectPredicate(TupleDomain.all(), Optional.empty()));
-            pageSource = splitCache.loadPages(fallbackSplitId, projectedEnforcedPredicate.predicate(), TupleDomain.all());
-            if (pageSource.isPresent()) {
-                // apply dynamic row filtering
-                Map<ColumnHandle, Integer> channelIndexes = commonColumnHandles.entrySet().stream()
-                        // Cached subplan might not contain all table scan columns
-                        .filter(entry -> projectedColumns.containsKey(entry.getValue()))
-                        .collect(toImmutableMap(Map.Entry::getKey, entry -> projectedColumns.get(entry.getValue())));
-                checkState(channelIndexes.keySet().containsAll(dynamicFilter.getColumnsCovered()), "Cached pageSource does not contain all columns required by dynamic filter");
-                pageSource = Optional.of(dynamicRowFilteringPageSourceProvider.createPageSource(pageSource.get(), session, projectedColumns.size(), channelIndexes, dynamicFilter));
-            }
-        }
-
         if (pageSource.isPresent()) {
             cacheStats.recordCacheHit();
             return new DriverFactoryWithCacheContext(

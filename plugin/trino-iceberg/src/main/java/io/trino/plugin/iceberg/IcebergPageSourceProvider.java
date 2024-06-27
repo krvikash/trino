@@ -520,12 +520,6 @@ public class IcebergPageSourceProvider
                 .transformKeys(ColumnHandle.class::cast);
     }
 
-    @Override
-    public boolean shouldPerformDynamicRowFiltering()
-    {
-        return true;
-    }
-
     private static SplitSpec getSplitSpec(ConnectorTableHandle tableHandle, ConnectorSplit split)
     {
         IcebergTableHandle icebergTableHandle = (IcebergTableHandle) tableHandle;

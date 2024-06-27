@@ -29,8 +29,6 @@ import io.trino.operator.ScanFilterAndProjectOperator.ScanFilterAndProjectOperat
 import io.trino.operator.SourceOperator;
 import io.trino.operator.SourceOperatorFactory;
 import io.trino.operator.TableScanOperator.TableScanOperatorFactory;
-import io.trino.operator.dynamicfiltering.DynamicPageFilterCache;
-import io.trino.operator.dynamicfiltering.DynamicRowFilteringPageSourceProvider;
 import io.trino.operator.project.CursorProcessor;
 import io.trino.operator.project.PageProcessor;
 import io.trino.orc.OrcReaderOptions;
@@ -48,7 +46,6 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.Type;
-import io.trino.spi.type.TypeOperators;
 import io.trino.sql.gen.ExpressionCompiler;
 import io.trino.sql.gen.PageFunctionCompiler;
 import io.trino.sql.gen.columnar.ColumnarFilterCompiler;
@@ -598,7 +595,6 @@ public class TestOrcPageSourceMemoryTracking
                     new PlanNodeId("0"),
                     new PlanNodeId("0"),
                     catalog -> (session, split, table, columnHandles, dynamicFilter) -> pageSource,
-                    new DynamicRowFilteringPageSourceProvider(new DynamicPageFilterCache(new TypeOperators())),
                     TEST_TABLE_HANDLE,
                     columns.stream().map(ColumnHandle.class::cast).collect(toImmutableList()),
                     DynamicFilter.EMPTY);
@@ -621,7 +617,6 @@ public class TestOrcPageSourceMemoryTracking
                     new PlanNodeId("test"),
                     new PlanNodeId("0"),
                     (catalog) -> (session, split, table, columnHandles, dynamicFilter) -> pageSource,
-                    new DynamicRowFilteringPageSourceProvider(new DynamicPageFilterCache(new TypeOperators())),
                     cursorProcessor,
                     pageProcessor,
                     TEST_TABLE_HANDLE,

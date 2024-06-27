@@ -26,7 +26,6 @@ import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDe
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
 import static io.airlift.units.DataSize.Unit.KILOBYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
-import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class TestDynamicFilterConfig
 {
@@ -56,10 +55,7 @@ public class TestDynamicFilterConfig
                 .setLargePartitionedMaxSizePerDriver(DataSize.of(200, KILOBYTE))
                 .setLargePartitionedRangeRowLimitPerDriver(30_000)
                 .setLargePartitionedMaxSizePerOperator(DataSize.of(5, MEGABYTE))
-                .setLargeMaxSizePerFilter(DataSize.of(10, MEGABYTE))
-                .setDynamicRowFilteringEnabled(true)
-                .setDynamicRowFilterSelectivityThreshold(0.7)
-                .setDynamicRowFilteringWaitTimeout(new Duration(0, SECONDS)));
+                .setLargeMaxSizePerFilter(DataSize.of(10, MEGABYTE)));
     }
 
     @Test
@@ -89,9 +85,6 @@ public class TestDynamicFilterConfig
                 .put("dynamic-filtering.large-partitioned.range-row-limit-per-driver", "200000")
                 .put("dynamic-filtering.large-partitioned.max-size-per-operator", "643kB")
                 .put("dynamic-filtering.large.max-size-per-filter", "3411kB")
-                .put("dynamic-row-filtering.enabled", "false")
-                .put("dynamic-row-filtering.selectivity-threshold", "0.9")
-                .put("dynamic-row-filtering.wait-timeout", "10s")
                 .buildOrThrow();
 
         DynamicFilterConfig expected = new DynamicFilterConfig()
@@ -117,10 +110,7 @@ public class TestDynamicFilterConfig
                 .setLargePartitionedMaxSizePerDriver(DataSize.of(64, KILOBYTE))
                 .setLargePartitionedRangeRowLimitPerDriver(200000)
                 .setLargePartitionedMaxSizePerOperator(DataSize.of(643, KILOBYTE))
-                .setLargeMaxSizePerFilter(DataSize.of(3411, KILOBYTE))
-                .setDynamicRowFilteringEnabled(false)
-                .setDynamicRowFilterSelectivityThreshold(0.9)
-                .setDynamicRowFilteringWaitTimeout(new Duration(10, SECONDS));
+                .setLargeMaxSizePerFilter(DataSize.of(3411, KILOBYTE));
 
         assertFullMapping(properties, expected);
     }

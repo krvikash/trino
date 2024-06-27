@@ -86,10 +86,4 @@ public class AlternativeChooserPageSourceProvider
     {
         return alternativeChooser.prunePredicate(session, split, table, predicate);
     }
-
-    @Override
-    public boolean shouldPerformDynamicRowFiltering()
-    {
-        return alternativeChooser.shouldPerformDynamicRowFiltering();
-    }
 }

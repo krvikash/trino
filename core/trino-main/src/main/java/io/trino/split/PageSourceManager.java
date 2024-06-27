@@ -18,7 +18,6 @@ import io.trino.Session;
 import io.trino.connector.CatalogServiceProvider;
 import io.trino.metadata.Split;
 import io.trino.metadata.TableHandle;
-import io.trino.operator.dynamicfiltering.DynamicRowFilteringPageSourceProvider;
 import io.trino.spi.connector.CatalogHandle;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
@@ -39,29 +38,26 @@ public class PageSourceManager
         implements PageSourceProviderFactory
 {
     private final CatalogServiceProvider<ConnectorPageSourceProviderFactory> pageSourceProviderFactory;
-    private final DynamicRowFilteringPageSourceProvider dynamicRowFilteringPageSourceProvider;
 
     @Inject
-    public PageSourceManager(CatalogServiceProvider<ConnectorPageSourceProviderFactory> pageSourceProviderFactory, DynamicRowFilteringPageSourceProvider dynamicRowFilteringPageSourceProvider)
+    public PageSourceManager(CatalogServiceProvider<ConnectorPageSourceProviderFactory> pageSourceProviderFactory)
     {
         this.pageSourceProviderFactory = requireNonNull(pageSourceProviderFactory, "pageSourceProviderFactory is null");
-        this.dynamicRowFilteringPageSourceProvider = requireNonNull(dynamicRowFilteringPageSourceProvider, "dynamicRowFilteringPageSourceProvider is null");
     }
 
     @Override
     public PageSourceProvider createPageSourceProvider(CatalogHandle catalogHandle)
     {
         ConnectorPageSourceProviderFactory provider = pageSourceProviderFactory.getService(catalogHandle);
-        return new PageSourceProviderInstance(provider.createPageSourceProvider(), dynamicRowFilteringPageSourceProvider);
+        return new PageSourceProviderInstance(provider.createPageSourceProvider());
     }
 
-    private record PageSourceProviderInstance(ConnectorPageSourceProvider pageSourceProvider, DynamicRowFilteringPageSourceProvider dynamicRowFilteringPageSourceProvider)
+    private record PageSourceProviderInstance(ConnectorPageSourceProvider pageSourceProvider)
             implements PageSourceProvider
     {
         private PageSourceProviderInstance
         {
             requireNonNull(pageSourceProvider, "pageSourceProvider is null");
-            requireNonNull(dynamicRowFilteringPageSourceProvider, "dynamicRowFilteringPageSourceProvider is null");
         }
 
         @Override
@@ -81,7 +77,7 @@ public class PageSourceManager
             if (!isAllowPushdownIntoConnectors(session)) {
                 dynamicFilter = DynamicFilter.EMPTY;
             }
-            ConnectorPageSource pageSource = pageSourceProvider.createPageSource(
+            return pageSourceProvider.createPageSource(
                     table.transaction(),
                     session.toConnectorSession(table.catalogHandle()),
                     split.getConnectorSplit(),
@@ -89,14 +85,6 @@ public class PageSourceManager
                     columns,
                     dynamicFilter,
                     split.isSplitAddressEnforced());
-            if (!pageSourceProvider.shouldPerformDynamicRowFiltering()) {
-                return pageSource;
-            }
-            return dynamicRowFilteringPageSourceProvider.createPageSource(
-                    pageSource,
-                    session,
-                    columns,
-                    dynamicFilter);
         }
 
         @Override
@@ -108,10 +96,7 @@ public class PageSourceManager
         {
             CatalogHandle catalogHandle = split.getCatalogHandle();
             ConnectorSession connectorSession = session.toConnectorSession(catalogHandle);
-            if (!pageSourceProvider.shouldPerformDynamicRowFiltering()) {
-                return pageSourceProvider.getUnenforcedPredicate(connectorSession, split.getConnectorSplit(), table.connectorHandle(), dynamicFilter);
-            }
-            return dynamicRowFilteringPageSourceProvider.getUnenforcedPredicate(pageSourceProvider, session, connectorSession, split.getConnectorSplit(), table.connectorHandle(), dynamicFilter);
+            return pageSourceProvider.getUnenforcedPredicate(connectorSession, split.getConnectorSplit(), table.connectorHandle(), dynamicFilter);
         }
 
         @Override
