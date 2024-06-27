@@ -56,7 +56,7 @@ public class WeGroupWarmer
     private static final Logger logger = Logger.get(WeGroupWarmer.class);
     private final ShapingLogger shapingLogger;
 
-    public static final String WARMUP_IMPORTER_STAT_GROUP = "import-service";
+    public static final String WARMUP_IMPORTER_STAT_GROUP = "import_service";
 
     private final GlobalConfig globalConfig;
     private final CloudVendorConfig cloudVendorConfig;

@@ -31,18 +31,15 @@ import static java.util.Objects.requireNonNull;
 public class MetricsRegistry
 {
     private static final Logger logger = Logger.get(MetricsRegistry.class);
-    private final CatalogNameProvider catalogNameProvider;
     private final MBeanExporter exporter;
     private final MetricsConfig metricsConfig;
     private final Map<String, WarpStatsBase> metricsRegistry;
 
     @Inject
     MetricsRegistry(
-            CatalogNameProvider catalogNameProvider,
             MBeanExporter exporter,
             MetricsConfig metricsConfig)
     {
-        this.catalogNameProvider = requireNonNull(catalogNameProvider);
         this.exporter = requireNonNull(exporter);
         this.metricsConfig = requireNonNull(metricsConfig);
         metricsRegistry = new ConcurrentHashMap<>();
@@ -50,12 +47,12 @@ public class MetricsRegistry
 
     public MetricsRegistry(CatalogNameProvider catalogNameProvider, MetricsConfig metricsConfig)
     {
-        this(catalogNameProvider, MBeanExporter.withPlatformMBeanServer(), metricsConfig);
+        this(MBeanExporter.withPlatformMBeanServer(), metricsConfig);
     }
 
     public String getKey(String objectKey)
     {
-        return objectKey + "." + catalogNameProvider.get();
+        return objectKey;
     }
 
     public synchronized boolean registerMetric(WarpStatsBase statObject)

@@ -68,7 +68,7 @@ import static java.util.Objects.requireNonNull;
 public class StorageWriterService
 {
     private static final Logger logger = Logger.get(StorageWriterService.class);
-    private static final String LUCENE_STATS_GROUP_NAME = "lucene-index";
+    private static final String LUCENE_STATS_GROUP_NAME = "lucene_index";
 
     private final StorageEngine storageEngine;
     private final StorageEngineConstants storageEngineConstants;

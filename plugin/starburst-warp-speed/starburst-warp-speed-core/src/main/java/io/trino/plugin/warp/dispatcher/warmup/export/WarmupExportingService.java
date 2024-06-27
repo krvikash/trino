@@ -42,7 +42,7 @@ import static java.util.Objects.requireNonNull;
 public class WarmupExportingService
         implements WarpInitializedServiceMarker
 {
-    public static final String WARMUP_EXPORTER_STAT_GROUP = "warmup-exporter";
+    public static final String WARMUP_EXPORTER_STAT_GROUP = "warmup_exporter";
 
     private final RowGroupDataService rowGroupDataService;
     private final WarmupElementsCloudExporter warmupElementsCloudExporter;

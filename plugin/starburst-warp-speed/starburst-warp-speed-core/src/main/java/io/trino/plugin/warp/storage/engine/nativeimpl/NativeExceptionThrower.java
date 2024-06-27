@@ -49,7 +49,7 @@ public class NativeExceptionThrower
         for (ErrorCodes errorCode : ErrorCodes.values()) {
             errorCodesMap.put(errorCode.getCode(), errorCode);
         }
-        exceptionThrowerStats = ExceptionThrowerStats.create("exception-thrower");
+        exceptionThrowerStats = ExceptionThrowerStats.create("exception_thrower");
         metricsManager.registerMetric(this.exceptionThrowerStats);
         nativeInit();
     }

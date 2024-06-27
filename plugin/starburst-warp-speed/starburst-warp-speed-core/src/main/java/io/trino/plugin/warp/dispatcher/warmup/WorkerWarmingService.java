@@ -82,7 +82,7 @@ import static java.util.Objects.requireNonNull;
 @Singleton
 public class WorkerWarmingService
 {
-    public static final String WARMING_SERVICE_STAT_GROUP = "warming-service";
+    public static final String WARMING_SERVICE_STAT_GROUP = "warming_service";
     private static final int MAX_BATCH_SIZE = 1024;
 
     public static final Comparator<WarmupRule> warmupRuleComparator =

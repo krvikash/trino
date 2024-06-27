@@ -118,25 +118,25 @@ public class JMXCachingManager
     public static QueryResult getWarmingStats()
     {
         List<String> statsNames = JMXCachingManager.getStatsNames(JMXCachingConstants.WarmingService.class);
-        return getServiceStats("jmx.current.\"*name=warming-service.*\"", statsNames);
+        return getServiceStats("jmx.current.\"*name=warming_service*\"", statsNames);
     }
 
     public static QueryResult getDictionaryStats()
     {
         List<String> dictionaryStatsNames = JMXCachingManager.getStatsNames(JMXCachingConstants.Dictionary.class);
-        return getServiceStats("jmx.current.\"*name=dictionary.*\"", dictionaryStatsNames);
+        return getServiceStats("jmx.current.\"*name=dictionary*\"", dictionaryStatsNames);
     }
 
     public static QueryResult getDemoterStats()
     {
         List<String> demoterStatsNames = JMXCachingManager.getStatsNames(JMXCachingConstants.WarmupDemoter.class);
-        return getServiceStats("jmx.current.\"*name=warmupDemoter.*\"", demoterStatsNames);
+        return getServiceStats("jmx.current.\"*name=warmupDemoter*\"", demoterStatsNames);
     }
 
     public static QueryResult getImportStats()
     {
         List<String> importStats = JMXCachingManager.getStatsNames(JMXCachingConstants.WarmupImportService.class);
-        return getServiceStats("jmx.current.\"*name=import-service.*\"", importStats);
+        return getServiceStats("jmx.current.\"*name=import_service*\"", importStats);
     }
 
     public static QueryResult getExportStats()

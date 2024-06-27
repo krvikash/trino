@@ -14,7 +14,6 @@
 package io.trino.plugin.warp.metrics;
 
 import io.trino.plugin.warp.config.MetricsConfig;
-import io.trino.plugin.warp.tools.CatalogNameProvider;
 import org.junit.jupiter.api.Test;
 import org.weakref.jmx.MBeanExporter;
 
@@ -31,12 +30,11 @@ public class MetricsRegistryTest
     {
         MBeanExporter mBeanExporter = mock(MBeanExporter.class);
         MetricsRegistry metricsRegistry = new MetricsRegistry(
-                new CatalogNameProvider("catalog-name"),
                 mBeanExporter,
                 new MetricsConfig());
 
         WarpTestStats stats = new WarpTestStats("11111");
-        String key = stats.getJmxKey() + ".catalog-name";
+        String key = stats.getJmxKey();
 
         metricsRegistry.registerMetric(stats);
         verify(mBeanExporter, times(1))
@@ -63,12 +61,11 @@ public class MetricsRegistryTest
         metricsConfig.setEnabled(false);
 
         MetricsRegistry metricsRegistry = new MetricsRegistry(
-                new CatalogNameProvider("catalog-name"),
                 mBeanExporter,
                 metricsConfig);
 
         WarpTestStats stats = new WarpTestStats("11111");
-        String key = stats.getJmxKey() + ".catalog-name";
+        String key = stats.getJmxKey();
 
         metricsRegistry.registerMetric(stats);
         verify(mBeanExporter, never())

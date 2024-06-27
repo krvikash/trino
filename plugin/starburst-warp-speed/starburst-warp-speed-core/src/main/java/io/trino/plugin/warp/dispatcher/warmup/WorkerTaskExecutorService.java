@@ -57,7 +57,7 @@ import static java.util.Objects.requireNonNull;
 public class WorkerTaskExecutorService
         implements WarpInitializedServiceMarker
 {
-    public static final String WORKER_TASK_EXECUTOR_STAT_GROUP = "worker-task-executor";
+    public static final String WORKER_TASK_EXECUTOR_STAT_GROUP = "worker_task_executor";
     private static final Logger logger = Logger.get(WorkerTaskExecutorService.class);
     private final WarmupDemoterConfig warmupDemoterConfig;
     private final NativeConfig nativeConfig;

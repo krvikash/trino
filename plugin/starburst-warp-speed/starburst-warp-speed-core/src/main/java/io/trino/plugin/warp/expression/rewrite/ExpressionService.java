@@ -79,7 +79,7 @@ import static java.util.Objects.requireNonNull;
 @Singleton
 public class ExpressionService
 {
-    public static final String PUSHDOWN_PREDICATES_STAT_GROUP = "pushdown-predicates";
+    public static final String PUSHDOWN_PREDICATES_STAT_GROUP = "pushdown_predicates";
     private static final int MAX_TREE_LEVEL = 4;
 
     private static final Logger logger = Logger.get(ExpressionService.class);

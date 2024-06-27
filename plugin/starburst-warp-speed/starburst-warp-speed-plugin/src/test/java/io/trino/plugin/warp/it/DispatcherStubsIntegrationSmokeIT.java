@@ -442,11 +442,10 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                 "warmup_elements_count",
                 "warm_failed",
                 "warm_started");
-        String warmStatsTableName = "%s:catalog=%s,name=%s.%s,type=%s".formatted(
+        String warmStatsTableName = "%s:catalog=%s,name=%s,type=%s".formatted(
                 WarmingServiceStats.class.getPackageName(),
                 catalog,
                 WARMING_SERVICE_STAT_GROUP,
-                catalog,
                 WarmingServiceStats.class.getSimpleName().toLowerCase(Locale.ROOT));
         Session jmxSession = createJmxSession();
         MaterializedRow materializedRow = null;
@@ -630,11 +629,10 @@ public abstract class DispatcherStubsIntegrationSmokeIT
 
     protected int getWarmingServiceStats(Session jmxSession, String statColName)
     {
-        String warmStatsTableName = "%s:catalog=%s,name=%s.%s,type=%s".formatted(
+        String warmStatsTableName = "%s:catalog=%s,name=%s,type=%s".formatted(
                 WarmingServiceStats.class.getPackageName(),
                 catalog,
                 WARMING_SERVICE_STAT_GROUP,
-                catalog,
                 WarmingServiceStats.class.getSimpleName().toLowerCase(Locale.ROOT));
 
         long result = (long) getServiceStats(jmxSession,
