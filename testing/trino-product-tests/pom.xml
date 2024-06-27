@@ -468,20 +468,4 @@
             </plugin>
         </plugins>
     </build>
-
-    <profiles>
-        <!-- delete or update this profile according to used jdk support       -->
-        <profile>
-            <id>java22</id>
-            <activation>
-                <jdk>[22,)</jdk>
-            </activation>
-            <properties>
-                <air.compiler.enable-preview>false</air.compiler.enable-preview>
-                <project.build.sourceJdk>22</project.build.sourceJdk>
-                <project.build.targetJdk>22</project.build.targetJdk>
-                <jvm.enable-preview />
-            </properties>
-        </profile>
-    </profiles>
 </project>

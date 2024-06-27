@@ -21,11 +21,8 @@
 
     <properties>
         <air.main.basedir>${project.parent.basedir}</air.main.basedir>
-        <!-- enable-preview is needed since warp-speed is using memory segments https://openjdk.org/jeps/442 -->
-        <air.compiler.enable-preview>true</air.compiler.enable-preview>
         <dep.lucene.version>9.11.1</dep.lucene.version>
         <dep.warp-speed-native.version>83</dep.warp-speed-native.version>
-        <jvm.enable-preview>--enable-preview</jvm.enable-preview>
         <air.compiler.fail-warnings>true</air.compiler.fail-warnings>
     </properties>
 
@@ -77,42 +74,11 @@
                     <artifactId>build-helper-maven-plugin</artifactId>
                     <version>3.0.0</version>
                 </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-compiler-plugin</artifactId>
-                    <configuration>
-                        <compilerArgs combine.self="append">
-                            <!-- workaround for https://youtrack.jetbrains.com/issue/IDEA-296303/Support-for-Maven-Compiler-Plugin-enablePreview-parameter -->
-                            <arg>${jvm.enable-preview}</arg>
-                        </compilerArgs>
-                    </configuration>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-javadoc-plugin</artifactId>
-                    <configuration>
-                        <!-- TODO should be handled by airbase when air.compiler.enable-preview=true (e.g. https://github.com/airlift/airbase/pull/404) -->
-                        <additionalOptions>${jvm.enable-preview}</additionalOptions>
-                    </configuration>
-                </plugin>
             </plugins>
         </pluginManagement>
     </build>
 
     <profiles>
-        <!-- delete or update this profile according to used jdk support       -->
-        <profile>
-            <id>java22</id>
-            <activation>
-                <jdk>[22,)</jdk>
-            </activation>
-            <properties>
-                <air.compiler.enable-preview>false</air.compiler.enable-preview>
-                <project.build.sourceJdk>22</project.build.sourceJdk>
-                <project.build.targetJdk>22</project.build.targetJdk>
-                <jvm.enable-preview />
-            </properties>
-        </profile>
         <profile>
             <id>errorprone-compiler</id>
             <build>
