@@ -150,6 +150,12 @@ public abstract class DispatcherConnectorBase
     }
 
     @Override
+    public long getInitialMemoryRequirement()
+    {
+        return proxiedConnector.getInitialMemoryRequirement();
+    }
+
+    @Override
     public Set<ConnectorTableFunction> getTableFunctions()
     {
         return proxiedConnector.getTableFunctions();

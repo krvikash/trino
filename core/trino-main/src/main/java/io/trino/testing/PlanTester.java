@@ -407,7 +407,8 @@ public class PlanTester
                 transactionManager,
                 typeManager,
                 nodeSchedulerConfig,
-                optimizerConfig));
+                optimizerConfig,
+                new LocalMemoryManager(new NodeMemoryConfig())));
         this.splitManager = new SplitManager(createSplitManagerProvider(catalogManager), tracer, new QueryManagerConfig());
         this.pageSourceManager = new PageSourceManager(createPageSourceProviderFactory(catalogManager), new DynamicRowFilteringPageSourceProvider(new DynamicPageFilterCache(typeOperators)));
         this.dynamicRowFilteringPageSourceProvider = new DynamicRowFilteringPageSourceProvider(new DynamicPageFilterCache(typeOperators));
