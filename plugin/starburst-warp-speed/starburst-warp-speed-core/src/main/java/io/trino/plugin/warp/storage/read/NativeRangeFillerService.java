@@ -19,7 +19,6 @@ import io.airlift.log.Logger;
 import io.trino.plugin.warp.gen.constants.RecordIndexListHeader;
 import io.trino.plugin.warp.gen.constants.RecordIndexListType;
 import io.trino.plugin.warp.juffer.BufferAllocator;
-import io.trino.spi.connector.ConnectorPageSource;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 
 import java.nio.ByteBuffer;
@@ -136,13 +135,13 @@ public class NativeRangeFillerService
     }
 
     @Override
-    public ConnectorPageSource.RowRanges reset(RangeData rangeData)
+    public WarpPageSource.RowRanges reset(RangeData rangeData)
     {
         long[] lowerInclusive = rangeData.getLowerInclusiveAsArray();
         rangeData.clearLowerInclusive();
         long[] upperExclusive = rangeData.getUpperExclusiveAsArray();
         rangeData.clearUpperExclusive();
-        return new ConnectorPageSource.RowRanges(lowerInclusive, upperExclusive, false);
+        return new WarpPageSource.RowRanges(lowerInclusive, upperExclusive, false);
     }
 
     @Override
@@ -290,9 +289,9 @@ public class NativeRangeFillerService
      * @return rangesCount - ranges in juffer
      */
     @Override
-    public ConnectorPageSource.RowRanges collectRanges(RangeData rangeData, int rowsLimit)
+    public WarpPageSource.RowRanges collectRanges(RangeData rangeData, int rowsLimit)
     {
-        ConnectorPageSource.RowRanges ranges = reset(rangeData);
+        WarpPageSource.RowRanges ranges = reset(rangeData);
         if (rowsLimit == Integer.MAX_VALUE) {
             return ranges;
         }
@@ -314,6 +313,6 @@ public class NativeRangeFillerService
             limitedUpperExclusive.add(max);
             currRange++;
         }
-        return new ConnectorPageSource.RowRanges(limitedLowerInclusive.toLongArray(), limitedUpperExclusive.toLongArray(), false);
+        return new WarpPageSource.RowRanges(limitedLowerInclusive.toLongArray(), limitedUpperExclusive.toLongArray(), false);
     }
 }

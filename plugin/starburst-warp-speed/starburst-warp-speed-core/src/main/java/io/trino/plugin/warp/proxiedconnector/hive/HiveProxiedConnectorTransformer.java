@@ -122,7 +122,7 @@ public class HiveProxiedConnectorTransformer
                 tableHandle.getDataColumns(),
                 tableHandle.getPartitionNames(),
                 tableHandle.getPartitions(),
-                tableHandle.getCompactEffectivePredicate(),
+                TupleDomain.all(),
                 TupleDomain.all(),
                 tableHandle.getBucketHandle(),
                 Optional.empty(),

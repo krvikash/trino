@@ -18,7 +18,6 @@ import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.metrics.Metrics;
 
 import java.io.IOException;
-import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
 
@@ -89,11 +88,5 @@ public class MockConnectorPageSource
     public Metrics getMetrics()
     {
         return delegate.getMetrics().mergeWith(metrics);
-    }
-
-    @Override
-    public Optional<RowRanges> getNextFilteredRowRanges()
-    {
-        return delegate.getNextFilteredRowRanges();
     }
 }

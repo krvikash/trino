@@ -275,7 +275,7 @@ public class HudiProxiedConnectorTransformerTest
         assertThat(hudiActual.getTableName()).isEqualTo(hudiExpected.getTableName());
         assertThat(hudiActual.getSchemaName()).isEqualTo(hudiExpected.getSchemaName());
         assertThat(hudiActual.getTableType()).isEqualTo(hudiExpected.getTableType());
-        assertThat(hudiActual.getRegularPredicates()).isEqualTo(hudiExpected.getRegularPredicates());
+        assertThat(hudiActual.getRegularPredicates()).isEqualTo(TupleDomain.all());
         assertThat(hudiActual.getPartitionPredicates()).isEqualTo(TupleDomain.all());
     }
 }

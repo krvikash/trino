@@ -15,7 +15,6 @@ package io.trino.plugin.warp.dispatcher;
 
 import io.trino.plugin.warp.storage.read.WarpStoragePageSource;
 import io.trino.spi.Page;
-import io.trino.spi.connector.ConnectorPageSource;
 
 import java.util.Iterator;
 import java.util.List;
@@ -27,7 +26,7 @@ public class TestingWarpPageSource
 {
     private final Iterator<DispatcherPageSourceTest.TestPage> testPages;
     private long rowsLimit;
-    private ConnectorPageSource.RowRanges currentRowRange;
+    private WarpStoragePageSource.RowRanges currentRowRange;
     private boolean closed;
 
     public TestingWarpPageSource(List<DispatcherPageSourceTest.TestPage> testPages)
@@ -42,7 +41,7 @@ public class TestingWarpPageSource
         checkState(!closed);
         if (!testPages.hasNext()) {
             checkState(rowsLimit == 0);
-            currentRowRange = ConnectorPageSource.RowRanges.EMPTY;
+            currentRowRange = WarpStoragePageSource.RowRanges.EMPTY;
             return new Page(0);
         }
         DispatcherPageSourceTest.TestPage testPage = testPages.next();
@@ -82,7 +81,7 @@ public class TestingWarpPageSource
     }
 
     @Override
-    public ConnectorPageSource.RowRanges getSortedRowRanges()
+    public WarpStoragePageSource.RowRanges getSortedRowRanges()
     {
         return currentRowRange;
     }

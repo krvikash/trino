@@ -183,7 +183,7 @@ public class DeltaLakeProxiedConnectorTransformer
                 tableHandle.getMetadataEntry(),
                 tableHandle.getProtocolEntry(),
                 TupleDomain.all(),
-                tableHandle.getNonPartitionConstraint(),
+                TupleDomain.all(),
                 tableHandle.getWriteType(),
                 tableHandle.getProjectedColumns(),
                 tableHandle.getUpdatedColumns(),

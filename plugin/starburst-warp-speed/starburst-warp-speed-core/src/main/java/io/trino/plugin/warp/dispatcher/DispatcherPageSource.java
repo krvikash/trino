@@ -24,6 +24,7 @@ import io.trino.plugin.warp.dispatcher.query.classifier.QueryClassifier;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.storage.read.PrefilledPageSource;
+import io.trino.plugin.warp.storage.read.WarpPageSource;
 import io.trino.plugin.warp.storage.read.WarpStoragePageSource;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
@@ -74,7 +75,6 @@ public class DispatcherPageSource
     private int currentProxiedPagePosition; // Position upto which currentProxiedPage has been consumed
     private final Deque<RowRange> proxiedPageRanges;
     private long proxiedPagePositionsRead;
-    private Optional<Boolean> proxiedConnectorProvidesRowRanges;
     private boolean wasProxiedPagedLoaded;
     private Page currentWarpPage;
     private int currentWarpPagePosition; // Position upto which currentWarpPage has been consumed
@@ -111,7 +111,6 @@ public class DispatcherPageSource
         this.readErrorHandler = requireNonNull(readErrorHandler);
         this.proxiedPageRanges = new ArrayDeque<>();
         this.warpPageRanges = new ArrayDeque<>();
-        this.proxiedConnectorProvidesRowRanges = Optional.empty();
         this.startTime = System.nanoTime();
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
@@ -402,8 +401,7 @@ public class DispatcherPageSource
     @Override
     public boolean isFinished()
     {
-        return forceFinish || ((proxiedPageRanges.isEmpty() || warpPageRanges.isEmpty())
-                && (warpPageSource.isFinished() || (proxiedConnectorPageSource != null && proxiedConnectorPageSource.isFinished())));
+        return forceFinish || (warpPageRanges.isEmpty() && warpPageSource.isFinished());
     }
 
     @Override
@@ -462,7 +460,7 @@ public class DispatcherPageSource
         currentWarpPagePosition = 0;
         // WarpPageSource#getSortedRowRanges always returns row ranges for the Page returned from previous call of WarpPageSource#getNextPage
         // It may return a smaller Page than the row ranges when LIMIT is reached
-        ConnectorPageSource.RowRanges warpRowRanges = warpPageSource.getSortedRowRanges();
+        WarpPageSource.RowRanges warpRowRanges = warpPageSource.getSortedRowRanges();
         if (warpPageSource.isRowsLimitReached()) {
             validateRanges(
                     warpRowRanges.getRowCount() >= currentWarpPage.getPositionCount(),
@@ -505,29 +503,8 @@ public class DispatcherPageSource
         wasProxiedPagedLoaded = false;
         while (currentProxiedPage == null && !proxiedConnectorPageSource.isFinished()) {
             currentProxiedPage = proxiedConnectorPageSource.getNextPage();
-            // ConnectorPage#getNextFilteredRowRanges always returns row ranges for at least the Page returned from previous call of ConnectorPage#getNextPage
-            // and additionally for any number of Pages to come after that
-            Optional<ConnectorPageSource.RowRanges> rowRanges = proxiedConnectorPageSource.getNextFilteredRowRanges();
-            if (rowRanges.isEmpty()) {
-                // Filtering is not supported by this connector page source (e.g. TEXT, CSV, AVRO etc.)
-                checkState(!proxiedConnectorProvidesRowRanges.orElse(false), "proxied connector was expected to provide row ranges");
-                proxiedConnectorProvidesRowRanges = Optional.of(false);
-                if (currentProxiedPage != null && currentProxiedPage.getPositionCount() > 0) {
-                    proxiedPageRanges.add(new RowRange(proxiedPagePositionsRead, proxiedPagePositionsRead + currentProxiedPage.getPositionCount()));
-                }
-            }
-            else {
-                checkState(proxiedConnectorProvidesRowRanges.orElse(true), "proxied connector was not expected to provide row ranges");
-                proxiedConnectorProvidesRowRanges = Optional.of(true);
-                int positionsCount = currentProxiedPage == null ? 0 : currentProxiedPage.getPositionCount();
-                validateRanges(
-                        rowRanges.get().getRangesCount() == 0 || rowRanges.get().getRowCount() >= positionsCount,
-                        "proxied connector returned fewer row ranges %s than page positions %s",
-                        rowRanges,
-                        positionsCount);
-                for (int index = 0; index < rowRanges.get().getRangesCount(); index++) {
-                    proxiedPageRanges.add(new RowRange(rowRanges.get().getLowerInclusive(index), rowRanges.get().getUpperExclusive(index)));
-                }
+            if (currentProxiedPage != null && currentProxiedPage.getPositionCount() > 0) {
+                proxiedPageRanges.add(new RowRange(proxiedPagePositionsRead, proxiedPagePositionsRead + currentProxiedPage.getPositionCount()));
             }
         }
         currentProxiedPagePosition = 0;

@@ -15,8 +15,6 @@ package io.trino.spi.connector;
 
 import io.trino.spi.Page;
 
-import java.util.Optional;
-
 public class EmptyPageSource
         implements ConnectorPageSource
 {
@@ -42,12 +40,6 @@ public class EmptyPageSource
     public Page getNextPage()
     {
         return null;
-    }
-
-    @Override
-    public Optional<RowRanges> getNextFilteredRowRanges()
-    {
-        return Optional.of(RowRanges.EMPTY);
     }
 
     @Override

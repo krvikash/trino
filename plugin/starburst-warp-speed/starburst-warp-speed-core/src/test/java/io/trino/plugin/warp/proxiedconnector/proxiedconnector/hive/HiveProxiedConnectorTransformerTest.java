@@ -245,7 +245,7 @@ public class HiveProxiedConnectorTransformerTest
                 hiveTableHandle.getDataColumns(),
                 hiveTableHandle.getPartitionNames(),
                 hiveTableHandle.getPartitions(),
-                hiveTableHandle.getCompactEffectivePredicate(),
+                TupleDomain.all(),
                 TupleDomain.all(),
                 hiveTableHandle.getBucketHandle(),
                 hiveTableHandle.getBucketFilter(),

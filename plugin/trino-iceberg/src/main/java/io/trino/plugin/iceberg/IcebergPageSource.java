@@ -210,12 +210,6 @@ public class IcebergPageSource
         return delegate.getMetrics();
     }
 
-    @Override
-    public Optional<RowRanges> getNextFilteredRowRanges()
-    {
-        return delegate.getNextFilteredRowRanges();
-    }
-
     protected void closeWithSuppression(Throwable throwable)
     {
         closeAllSuppress(throwable, this);

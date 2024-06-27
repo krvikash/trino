@@ -14,7 +14,6 @@
 package io.trino.plugin.warp.storage.read;
 
 import io.trino.plugin.warp.gen.constants.RecordIndexListType;
-import io.trino.spi.connector.ConnectorPageSource;
 
 public interface RangeFillerService
 {
@@ -24,7 +23,7 @@ public interface RangeFillerService
     // return the number of rows collected in this round
     int add(int chunkIndex, int currentNumCollectedRows, StorageCollectorArgs storageCollectorArgs, boolean rangesRequired, RangeData rangeData);
 
-    ConnectorPageSource.RowRanges reset(RangeData rangeData);
+    WarpStoragePageSource.RowRanges reset(RangeData rangeData);
 
     int getNumCollectedFromCurrentChunk(int chunkIndex, RangeData rangeData);
 
@@ -35,5 +34,5 @@ public interface RangeFillerService
 
     void restoreRowList(RangeData rangeData, int storeRowListSize, RecordIndexListType storeRowListType, byte[] storeRowListBuff);
 
-    ConnectorPageSource.RowRanges collectRanges(RangeData rangeData, int rowsLimit);
+    WarpStoragePageSource.RowRanges collectRanges(RangeData rangeData, int rowsLimit);
 }

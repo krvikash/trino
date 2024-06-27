@@ -128,7 +128,7 @@ public class IcebergProxiedConnectorTransformer
                 tableHandle.getTableSchemaJson(),
                 tableHandle.getPartitionSpecJson(),
                 tableHandle.getFormatVersion(),
-                tableHandle.getUnenforcedPredicate(),
+                TupleDomain.all(),
                 TupleDomain.all(),
                 tableHandle.getLimit(),
                 tableHandle.getProjectedColumns(),

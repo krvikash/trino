@@ -27,7 +27,6 @@ import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.proxiedconnector.deltalake.DeltaLakeProxiedConnectorTransformer;
 import io.trino.plugin.warp.proxiedconnector.proxiedconnector.ProxyConnectorTransformerBaseTest;
 import io.trino.spi.SplitWeight;
-import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.TupleDomain;
 import org.junit.jupiter.api.Test;
 
@@ -36,15 +35,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static io.trino.plugin.deltalake.DeltaLakeColumnType.REGULAR;
-import static io.trino.spi.type.IntegerType.INTEGER;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -190,9 +186,7 @@ public class DeltaLakeProxiedConnectorTransformerTest
                 mock(MetadataEntry.class),
                 mock(ProtocolEntry.class),
                 TupleDomain.all(),
-                TupleDomain.withColumnDomains(Map.of(
-                        new DeltaLakeColumnHandle("col1", INTEGER, OptionalInt.empty(), "col1", INTEGER, REGULAR, Optional.empty()),
-                        Domain.singleValue(INTEGER, 1L))),
+                TupleDomain.all(),
                 Optional.empty(),
                 Optional.empty(),
                 Optional.empty(),

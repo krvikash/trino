@@ -27,7 +27,6 @@ import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
-import io.trino.spi.connector.ConnectorPageSource;
 
 import java.util.Optional;
 
@@ -61,7 +60,7 @@ public class WarpPageSource
     private long rowsLimit;
     private boolean finished;
     private boolean closed; // May be set explicitly by someone calling {@link #close()} or if we finished reading all available data from the table
-    private ConnectorPageSource.RowRanges sortedRowRanges;
+    private RowRanges sortedRowRanges;
     private long completedBytes;
     private long completedPositions;
     private StorageCollectorArgs storageCollectorArgs;
@@ -95,7 +94,7 @@ public class WarpPageSource
         this.chunksQueueService = chunksQueueService;
         this.storageCollectorService = storageCollectorService;
         this.rangeFillerService = rangeFillerService;
-        this.sortedRowRanges = ConnectorPageSource.RowRanges.EMPTY;
+        this.sortedRowRanges = RowRanges.EMPTY;
         this.rowsLimit = rowsLimit;
         this.queryParams = queryParams;
         this.shapingLogger = ShapingLogger.getInstance(
@@ -199,7 +198,7 @@ public class WarpPageSource
     {
         int limit = rowsLimit > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) rowsLimit;
         int collectedRows = 0;
-        sortedRowRanges = ConnectorPageSource.RowRanges.EMPTY; // Reset the row ranges before reading another page.
+        sortedRowRanges = RowRanges.EMPTY; // Reset the row ranges before reading another page.
         CollectOpenResult collectOpenResult = null;
         try {
             bufferAllocator.readerOnAllocBundle();
@@ -241,7 +240,7 @@ public class WarpPageSource
     }
 
     @Override
-    public ConnectorPageSource.RowRanges getSortedRowRanges()
+    public RowRanges getSortedRowRanges()
     {
         return sortedRowRanges;
     }

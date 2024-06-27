@@ -60,6 +60,7 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.plugin.warp.storage.read.WarpStoragePageSource.RowRanges;
 import static io.trino.plugin.warp.storage.write.StorageWriterServiceTest.buildLongPage;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -97,20 +98,10 @@ public class DispatcherPageSourceTest
         when(rowGroupData.getRowGroupKey()).thenReturn(rowGroupKey);
     }
 
-    private void prepareMock(
-            List<TestPage> testPages,
-            List<Page> proxiedPages)
-    {
-        prepareMock(testPages, proxiedPages, Optional.empty());
-    }
-
-    private void prepareMock(
-            List<TestPage> testPages,
-            List<Page> proxiedPages,
-            Optional<long[]> rowRanges)
+    private void prepareMock(List<TestPage> testPages, List<Page> proxiedPages)
     {
         warpPageSource = new TestingWarpPageSource(testPages);
-        proxiedConnectorPageSource = new FixedPageSourceWithRowRanges(proxiedPages, rowRanges);
+        proxiedConnectorPageSource = new FixedPageSource(proxiedPages);
     }
 
     @Test
@@ -158,7 +149,7 @@ public class DispatcherPageSourceTest
     @Test
     public void mixedQuery_1ProxiedPages_singleRange()
     {
-        ConnectorPageSource.RowRanges warpMatchRanges = createRowRanges(0, 1);
+        RowRanges warpMatchRanges = createRowRanges(0, 1);
 
         long[] warpMatches = new long[] {4};
         long[] proxiedMatches = new long[] {99};
@@ -187,7 +178,7 @@ public class DispatcherPageSourceTest
     @Test
     public void mixedQuery_1ProxiedPages_singleRangeProxiedReturnEmptyPage()
     {
-        ConnectorPageSource.RowRanges warpMatchRanges = createRowRanges(0, 65536);
+        RowRanges warpMatchRanges = createRowRanges(0, 65536);
 
         long[] warpMatches = new long[] {4};
         long[] proxiedMatches = new long[] {99};
@@ -200,14 +191,13 @@ public class DispatcherPageSourceTest
         List<TestPage> warpPages = Lists.newArrayList(testPage);
         prepareMock(
                 warpPages,
-                Lists.newArrayList(emptyPage, firstProxiedPage),
-                Optional.of(new long[] {0, 206876}));
+                Lists.newArrayList(emptyPage, firstProxiedPage));
 
         DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
 
         actAndAssert(warpMatches, proxiedMatches, dispatcherPageSource);
         if (assertNextPageMetrics) {
-            assertThat(stats.getproxied_loaded_pages()).isEqualTo(2);
+            assertThat(stats.getproxied_loaded_pages()).isEqualTo(1);
             assertThat(stats.getproxied_pages()).isEqualTo(2);
         }
     }
@@ -215,7 +205,7 @@ public class DispatcherPageSourceTest
     @Test
     public void mixedQuery_2ProxiedPages_singleRange()
     {
-        ConnectorPageSource.RowRanges warpMatchRanges = createRowRanges(1, 2);
+        RowRanges warpMatchRanges = createRowRanges(1, 2);
 
         long[] warpMatches = new long[] {4};
         long[] proxiedMatches = new long[] {99};
@@ -243,14 +233,14 @@ public class DispatcherPageSourceTest
     {
         long[] warpMatches = new long[] {2, 5, 89};
         long[] proxiedMatches = new long[] {17, 99, 101};
-        ConnectorPageSource.RowRanges warpMatchRanges1 = createRowRanges(0, 1);
+        RowRanges warpMatchRanges1 = createRowRanges(0, 1);
 
         Page firstProxiedPage = buildLongPage(proxiedMatches[0], -1, proxiedMatches[1], -1, proxiedMatches[2], -1);
 
         Page warpPage = buildPageLong(Arrays.copyOf(warpMatches, 1));
         TestPage testPage1 = new TestPage(warpPage, warpMatchRanges1);
 
-        ConnectorPageSource.RowRanges warpMatchRanges2 = createRowRanges(2, 3, 4, 5);
+        RowRanges warpMatchRanges2 = createRowRanges(2, 3, 4, 5);
         Page warpPage2 = buildPageLong(Arrays.copyOfRange(warpMatches, 1, warpMatches.length));
         TestPage testPage2 = new TestPage(warpPage2, warpMatchRanges2);
 
@@ -269,7 +259,7 @@ public class DispatcherPageSourceTest
         long[] warpMatches = new long[] {4};
         long[] proxiedMatches = new long[] {99};
 
-        ConnectorPageSource.RowRanges warpMatchRanges = createRowRanges(2, 3);
+        RowRanges warpMatchRanges = createRowRanges(2, 3);
         Page firstProxiedPage = buildLongPage(-1);
         Page secondProxiedPage = buildLongPage(-1, proxiedMatches[0]);
 
@@ -294,7 +284,7 @@ public class DispatcherPageSourceTest
     {
         long[] warpMatches = new long[] {2, 5, 89};
         long[] proxiedMatches = new long[] {17, 99, 101};
-        ConnectorPageSource.RowRanges warpMatchRanges = createRowRanges(0, 2, 3, 4);
+        RowRanges warpMatchRanges = createRowRanges(0, 2, 3, 4);
 
         Page firstProxiedPage = buildLongPage(proxiedMatches[0]);
         Page secondProxiedPage = buildLongPage(proxiedMatches[1], -1, proxiedMatches[2]);
@@ -319,13 +309,13 @@ public class DispatcherPageSourceTest
     {
         long[] warpMatches = new long[] {2, 9};
         long[] proxiedMatches = new long[] {88, 66};
-        ConnectorPageSource.RowRanges warpMatchRanges1 = createRowRanges(0, 1);
+        RowRanges warpMatchRanges1 = createRowRanges(0, 1);
 
         long[] pageValues = Arrays.copyOfRange(warpMatches, 0, 1);
         Page warpPage1 = buildPageLong(pageValues);
         TestPage testPage1 = new TestPage(warpPage1, warpMatchRanges1);
 
-        ConnectorPageSource.RowRanges warpMatchRanges2 = createRowRanges(1, 2);
+        RowRanges warpMatchRanges2 = createRowRanges(1, 2);
 
         pageValues = Arrays.copyOfRange(warpMatches, 1, 2);
         Page warpPage2 = buildPageLong(pageValues);
@@ -348,12 +338,12 @@ public class DispatcherPageSourceTest
         long[] warpMatches = new long[] {2, 9, 56, 77, 3};
         long[] proxiedMatches = new long[] {88, 66, 34, 54, 23};
 
-        ConnectorPageSource.RowRanges warpMatchRanges1 = createRowRanges(1, 3);
+        RowRanges warpMatchRanges1 = createRowRanges(1, 3);
         long[] pageValues = Arrays.copyOfRange(warpMatches, 0, 2);
         Page warpPage1 = buildPageLong(pageValues);
         TestPage testPage1 = new TestPage(warpPage1, warpMatchRanges1);
 
-        ConnectorPageSource.RowRanges warpMatchRanges2 = createRowRanges(3, 6);
+        RowRanges warpMatchRanges2 = createRowRanges(3, 6);
 
         pageValues = Arrays.copyOfRange(warpMatches, 2, 5);
         Page warpPage2 = buildPageLong(pageValues);
@@ -378,13 +368,13 @@ public class DispatcherPageSourceTest
         long[] warpMatches = new long[] {2, 9, 56, 77, 3};
         long[] proxiedMatches = new long[] {88, 66, 34, 54, 23};
 
-        ConnectorPageSource.RowRanges warpMatchRanges1 = createRowRanges(firstSkippedRows + 1, firstSkippedRows + 3);
+        RowRanges warpMatchRanges1 = createRowRanges(firstSkippedRows + 1, firstSkippedRows + 3);
 
         long[] pageValues = Arrays.copyOfRange(warpMatches, 0, 2);
         Page warpPage1 = buildPageLong(pageValues);
         TestPage testPage1 = new TestPage(warpPage1, warpMatchRanges1);
 
-        ConnectorPageSource.RowRanges warpMatchRanges2 = createRowRanges(firstSkippedRows + 3, firstSkippedRows + 6);
+        RowRanges warpMatchRanges2 = createRowRanges(firstSkippedRows + 3, firstSkippedRows + 6);
 
         pageValues = Arrays.copyOfRange(warpMatches, 2, 5);
         Page warpPage2 = buildPageLong(pageValues);
@@ -410,13 +400,13 @@ public class DispatcherPageSourceTest
     {
         long[] warpMatches = new long[] {2, 9};
         long[] proxiedMatches = new long[] {88, 66};
-        ConnectorPageSource.RowRanges warpMatchRanges1 = createRowRanges(0, 1);
+        RowRanges warpMatchRanges1 = createRowRanges(0, 1);
 
         long[] pageValues = Arrays.copyOfRange(warpMatches, 0, 1);
         Page warpPage1 = buildPageLong(pageValues);
         TestPage testPage1 = new TestPage(warpPage1, warpMatchRanges1);
 
-        ConnectorPageSource.RowRanges warpMatchRanges2 = createRowRanges(4, 5);
+        RowRanges warpMatchRanges2 = createRowRanges(4, 5);
 
         pageValues = Arrays.copyOfRange(warpMatches, 1, 2);
         Page warpPage2 = buildPageLong(pageValues);
@@ -438,19 +428,19 @@ public class DispatcherPageSourceTest
     {
         long[] warpMatches = new long[] {2, 9, 7};
         long[] proxiedMatches = new long[] {88, 66, 6};
-        ConnectorPageSource.RowRanges warpMatchRanges1 = createRowRanges(0, 1);
+        RowRanges warpMatchRanges1 = createRowRanges(0, 1);
 
         long[] pageValues = Arrays.copyOfRange(warpMatches, 0, 1);
         Page warpPage1 = buildPageLong(pageValues);
         TestPage testPage1 = new TestPage(warpPage1, warpMatchRanges1);
 
-        ConnectorPageSource.RowRanges warpMatchRanges2 = createRowRanges(4, 5);
+        RowRanges warpMatchRanges2 = createRowRanges(4, 5);
 
         pageValues = Arrays.copyOfRange(warpMatches, 1, 2);
         Page warpPage2 = buildPageLong(pageValues);
         TestPage testPage2 = new TestPage(warpPage2, warpMatchRanges2);
 
-        ConnectorPageSource.RowRanges warpMatchRanges3 = createRowRanges(8, 9);
+        RowRanges warpMatchRanges3 = createRowRanges(8, 9);
 
         pageValues = Arrays.copyOfRange(warpMatches, 2, 3);
         Page warpPage3 = buildPageLong(pageValues);
@@ -475,7 +465,7 @@ public class DispatcherPageSourceTest
         long[] proxiedMatches = new long[] {11, 22, 33, 44, 55, 66, 77, 88};
 
         Page firstProxiedPage = buildLongPage(-1, proxiedMatches[0], -1, -1, proxiedMatches[1], proxiedMatches[2], proxiedMatches[3], proxiedMatches[4], -1, -1, proxiedMatches[5], -1, proxiedMatches[6], -1, proxiedMatches[7]);
-        ConnectorPageSource.RowRanges warpMatchRanges = createRowRanges(1, 2, 4, 8, 10, 11, 12, 13, 14, 15);
+        RowRanges warpMatchRanges = createRowRanges(1, 2, 4, 8, 10, 11, 12, 13, 14, 15);
 
         Page warpPage = buildPageLong(warpMatches);
         TestPage testPage1 = new TestPage(warpPage, warpMatchRanges);
@@ -499,7 +489,7 @@ public class DispatcherPageSourceTest
         Page warpPage1 = buildPageLong(pageValues);
         TestPage testPage1 = new TestPage(warpPage1, createRowRanges(0, 1));
 
-        ConnectorPageSource.RowRanges warpMatchRanges = createRowRanges(4, 5);
+        RowRanges warpMatchRanges = createRowRanges(4, 5);
 
         pageValues = Arrays.copyOfRange(warpMatches, 1, 2);
         Page warpPage2 = buildPageLong(pageValues);
@@ -528,7 +518,7 @@ public class DispatcherPageSourceTest
         }
         long[] pageValues = Arrays.copyOfRange(warpMatches, 0, 5);
         Page warpPage1 = buildPageLong(pageValues);
-        ConnectorPageSource.RowRanges warpMatchRanges1 = createRowRanges(1, 3, 5, 7, 9, 10);
+        RowRanges warpMatchRanges1 = createRowRanges(1, 3, 5, 7, 9, 10);
 
         Page firstProxiedPage = buildLongPage(-1, proxiedMatches[0]);
         Page secondProxiedPage = buildLongPage(proxiedMatches[1], -1);
@@ -538,7 +528,7 @@ public class DispatcherPageSourceTest
 
         long[] pageValues2 = Arrays.copyOfRange(warpMatches, 5, 10);
         Page warpPage2 = buildPageLong(pageValues2);
-        ConnectorPageSource.RowRanges warpMatchRanges2 = createRowRanges(10, 12, 14, 16, 18, 19);
+        RowRanges warpMatchRanges2 = createRowRanges(10, 12, 14, 16, 18, 19);
         Page sixProxiedPage = buildLongPage(proxiedMatches[5]);
         Page sevenProxiedPage = buildLongPage(proxiedMatches[6], -1);
         Page eightProxiedPage = buildLongPage(-1, proxiedMatches[7], proxiedMatches[8]);
@@ -604,14 +594,14 @@ public class DispatcherPageSourceTest
     {
         long[] warpMatches = new long[] {2, 5, 89};
         long[] proxiedMatches = new long[] {17, 99, 101};
-        ConnectorPageSource.RowRanges warpMatchRanges1 = createRowRanges(0, 1);
+        RowRanges warpMatchRanges1 = createRowRanges(0, 1);
 
         Page firstProxiedPage = buildLongPage(proxiedMatches[0], -1, proxiedMatches[1], -1, proxiedMatches[2], -1);
 
         Page warpPage = buildPageLong(Arrays.copyOf(warpMatches, 1));
         TestPage testPage1 = new TestPage(warpPage, warpMatchRanges1);
 
-        ConnectorPageSource.RowRanges warpMatchRanges2 = createRowRanges(2, 3, 4, 5);
+        RowRanges warpMatchRanges2 = createRowRanges(2, 3, 4, 5);
         Page warpPage2 = buildPageLong(Arrays.copyOfRange(warpMatches, 1, warpMatches.length));
         TestPage testPage2 = new TestPage(warpPage2, warpMatchRanges2);
 
@@ -631,7 +621,7 @@ public class DispatcherPageSourceTest
     {
         long[] warpMatches = new long[] {2, 5, 89};
         long[] proxiedMatches = new long[] {17, 99, 101};
-        ConnectorPageSource.RowRanges warpMatchRanges = createRowRanges(0, 2, 3, 4);
+        RowRanges warpMatchRanges = createRowRanges(0, 2, 3, 4);
 
         Page firstProxiedPage = buildLongPage(proxiedMatches[0]);
         Page secondProxiedPage = buildLongPage(proxiedMatches[1], -1, proxiedMatches[2]);
@@ -657,7 +647,7 @@ public class DispatcherPageSourceTest
     @Test
     public void mixedQuery_2ProxiedPages_singleRange_simulateLimit()
     {
-        ConnectorPageSource.RowRanges warpMatchRanges = createRowRanges(0, 3);
+        RowRanges warpMatchRanges = createRowRanges(0, 3);
 
         long[] warpMatches = new long[] {4, 5};
         long[] proxiedMatches = new long[] {99, 34, 99};
@@ -703,11 +693,10 @@ public class DispatcherPageSourceTest
                 new TestPage(buildLongPage(115, 116), createRowRanges(15, 17)));
         prepareMock(
                 warpPages,
-                List.of(buildLongPage(1, 2), buildLongPage(3, 4)),
-                Optional.of(new long[] {6, 8, 10, 12}));
+                List.of(buildLongPage(1, 2), buildLongPage(3, 4), buildLongPage(5, 6, 7, 8, 9, 10, 11, 12, 13)));
 
         DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
-        actAndAssert(new long[] {106, 110}, new long[] {1, 4}, dispatcherPageSource);
+        actAndAssert(new long[] {100, 101, 105, 106, 110, 111}, new long[] {1, 2, 6, 7, 12, 13}, dispatcherPageSource);
     }
 
     private PrefilledQueryCollectData createPrefilledQueryCollectData(long singleValue)
@@ -850,7 +839,7 @@ public class DispatcherPageSourceTest
         assertThat(totalMatchesPosition).isEqualTo(warpMatches.length);
     }
 
-    private static ConnectorPageSource.RowRanges createRowRanges(long... ranges)
+    private static RowRanges createRowRanges(long... ranges)
     {
         long[] lowInclusive = new long[ranges.length / 2];
         long[] upperExclusive = new long[ranges.length / 2];
@@ -858,78 +847,15 @@ public class DispatcherPageSourceTest
             lowInclusive[i] = ranges[i * 2];
             upperExclusive[i] = ranges[i * 2 + 1];
         }
-        return new ConnectorPageSource.RowRanges(lowInclusive, upperExclusive, false);
-    }
-
-    private static class FixedPageSourceWithRowRanges
-            implements ConnectorPageSource
-    {
-        private final FixedPageSource fixedPageSource;
-        private final Optional<ConnectorPageSource.RowRanges> rowRanges;
-        private boolean noMoreRowRanges;
-
-        private FixedPageSourceWithRowRanges(List<Page> pages, Optional<long[]> rowRanges)
-        {
-            this.fixedPageSource = new FixedPageSource(pages);
-            this.rowRanges = rowRanges.map(DispatcherPageSourceTest::createRowRanges);
-        }
-
-        @Override
-        public long getCompletedBytes()
-        {
-            return fixedPageSource.getCompletedBytes();
-        }
-
-        @Override
-        public long getReadTimeNanos()
-        {
-            return fixedPageSource.getReadTimeNanos();
-        }
-
-        @Override
-        public boolean isFinished()
-        {
-            return fixedPageSource.isFinished();
-        }
-
-        @Override
-        public Page getNextPage()
-        {
-            return fixedPageSource.getNextPage();
-        }
-
-        @Override
-        public Optional<RowRanges> getNextFilteredRowRanges()
-        {
-            if (rowRanges.isEmpty()) {
-                return rowRanges;
-            }
-            if (!noMoreRowRanges) {
-                noMoreRowRanges = true;
-                return rowRanges;
-            }
-            return Optional.of(RowRanges.EMPTY);
-        }
-
-        @Override
-        public long getMemoryUsage()
-        {
-            return fixedPageSource.getMemoryUsage();
-        }
-
-        @Override
-        public void close()
-        {
-            fixedPageSource.close();
-        }
+        return new RowRanges(lowInclusive, upperExclusive, false);
     }
 
     public static class TestPage
     {
         private final Page page;
-        private final ConnectorPageSource.RowRanges matchRanges;
+        private final RowRanges matchRanges;
 
-        public TestPage(Page page, ConnectorPageSource.RowRanges matchRanges)
+        public TestPage(Page page, RowRanges matchRanges)
         {
             this.page = page;
             this.matchRanges = matchRanges;
@@ -940,7 +866,7 @@ public class DispatcherPageSourceTest
             return page;
         }
 
-        public ConnectorPageSource.RowRanges getMatchedRanges()
+        public RowRanges getMatchedRanges()
         {
             return matchRanges;
         }

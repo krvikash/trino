@@ -99,7 +99,7 @@ public class HudiProxiedConnectorTransformer
                 tableHandle.getTableType(),
                 tableHandle.getPartitionColumns(),
                 TupleDomain.all(),
-                tableHandle.getRegularPredicates());
+                TupleDomain.all());
     }
 
     @Override

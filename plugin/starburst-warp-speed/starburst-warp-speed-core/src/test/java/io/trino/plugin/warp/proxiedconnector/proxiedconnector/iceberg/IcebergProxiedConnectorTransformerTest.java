@@ -13,9 +13,7 @@
  */
 package io.trino.plugin.warp.proxiedconnector.proxiedconnector.iceberg;
 
-import com.google.common.collect.ImmutableList;
 import io.airlift.units.DataSize;
-import io.trino.plugin.iceberg.ColumnIdentity;
 import io.trino.plugin.iceberg.IcebergColumnHandle;
 import io.trino.plugin.iceberg.IcebergTableHandle;
 import io.trino.plugin.iceberg.TableType;
@@ -28,7 +26,6 @@ import io.trino.plugin.warp.proxiedconnector.proxiedconnector.ProxyConnectorTran
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.CatalogHandle;
 import io.trino.spi.connector.ConnectorTableHandle;
-import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.TupleDomain;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -42,7 +39,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static io.trino.spi.type.IntegerType.INTEGER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -196,15 +192,7 @@ public class IcebergProxiedConnectorTransformerTest
                 "tableSchemaJson",
                 Optional.of("partitionSpecJson"),
                 1,
-                TupleDomain.withColumnDomains(Map.of(
-                        new IcebergColumnHandle(
-                                new ColumnIdentity(1, "name", ColumnIdentity.TypeCategory.PRIMITIVE, ImmutableList.of()),
-                                INTEGER,
-                                ImmutableList.of(),
-                                INTEGER,
-                                false,
-                                Optional.empty()),
-                        Domain.singleValue(INTEGER, 1L))),
+                TupleDomain.all(),
                 TupleDomain.all(),
                 OptionalLong.empty(),
                 Set.of(mock(IcebergColumnHandle.class)),

@@ -15,7 +15,6 @@ package io.trino.plugin.warp.storage.read;
 
 import com.google.inject.Singleton;
 import io.trino.plugin.warp.gen.constants.RecordIndexListType;
-import io.trino.spi.connector.ConnectorPageSource;
 
 import static io.trino.plugin.warp.gen.constants.RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL;
 
@@ -42,9 +41,9 @@ public class StubsRangeFillerService
     }
 
     @Override
-    public ConnectorPageSource.RowRanges reset(RangeData rangeData)
+    public WarpPageSource.RowRanges reset(RangeData rangeData)
     {
-        return ConnectorPageSource.RowRanges.EMPTY;
+        return WarpPageSource.RowRanges.EMPTY;
     }
 
     @Override
@@ -68,8 +67,8 @@ public class StubsRangeFillerService
     }
 
     @Override
-    public ConnectorPageSource.RowRanges collectRanges(RangeData rangeData, int rowsLimit)
+    public WarpPageSource.RowRanges collectRanges(RangeData rangeData, int rowsLimit)
     {
-        return ConnectorPageSource.RowRanges.EMPTY;
+        return WarpPageSource.RowRanges.EMPTY;
     }
 }
