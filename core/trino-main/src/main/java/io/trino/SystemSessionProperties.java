@@ -142,7 +142,6 @@ public final class SystemSessionProperties
     public static final String COMPLEX_EXPRESSION_PUSHDOWN = "complex_expression_pushdown";
     public static final String PREDICATE_PUSHDOWN_USE_TABLE_PROPERTIES = "predicate_pushdown_use_table_properties";
     public static final String ENABLE_DYNAMIC_FILTERING = "enable_dynamic_filtering";
-    public static final String ENABLE_COORDINATOR_DYNAMIC_FILTERS_DISTRIBUTION = "enable_coordinator_dynamic_filters_distribution";
     public static final String ENABLE_LARGE_DYNAMIC_FILTERS = "enable_large_dynamic_filters";
     public static final String SMALL_DYNAMIC_FILTER_WAIT_TIMEOUT = "small_dynamic_filter_wait_timeout";
     public static final String SMALL_DYNAMIC_FILTER_MAX_ROW_COUNT = "small_dynamic_filter_max_row_count";
@@ -708,11 +707,6 @@ public final class SystemSessionProperties
                         ENABLE_DYNAMIC_FILTERING,
                         "Enable dynamic filtering",
                         dynamicFilterConfig.isEnableDynamicFiltering(),
-                        false),
-                booleanProperty(
-                        ENABLE_COORDINATOR_DYNAMIC_FILTERS_DISTRIBUTION,
-                        "Enable distribution of dynamic filters from coordinator to all workers",
-                        dynamicFilterConfig.isEnableCoordinatorDynamicFiltersDistribution(),
                         false),
                 booleanProperty(
                         ENABLE_LARGE_DYNAMIC_FILTERS,
@@ -1716,11 +1710,6 @@ public final class SystemSessionProperties
     public static boolean isEnableDynamicFiltering(Session session)
     {
         return session.getSystemProperty(ENABLE_DYNAMIC_FILTERING, Boolean.class);
-    }
-
-    public static boolean isEnableCoordinatorDynamicFiltersDistribution(Session session)
-    {
-        return session.getSystemProperty(ENABLE_COORDINATOR_DYNAMIC_FILTERS_DISTRIBUTION, Boolean.class);
     }
 
     public static boolean isEnableLargeDynamicFilters(Session session)

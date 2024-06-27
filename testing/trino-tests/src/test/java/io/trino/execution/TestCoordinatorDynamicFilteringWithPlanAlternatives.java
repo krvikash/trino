@@ -71,15 +71,14 @@ public class TestCoordinatorDynamicFilteringWithPlanAlternatives
     @Timeout(30)
     public void testJoinWithAlternativesOnBothSides()
     {
-        testJoinWithAlternativesOnBothSides(BROADCAST, true);
-        testJoinWithAlternativesOnBothSides(PARTITIONED, false);
-        testJoinWithAlternativesOnBothSides(PARTITIONED, true);
+        testJoinWithAlternativesOnBothSides(BROADCAST);
+        testJoinWithAlternativesOnBothSides(PARTITIONED);
     }
 
-    private void testJoinWithAlternativesOnBothSides(JoinDistributionType joinDistributionType, boolean coordinatorDynamicFiltersDistribution)
+    private void testJoinWithAlternativesOnBothSides(JoinDistributionType joinDistributionType)
     {
         assertQueryDynamicFilters(
-                noJoinReordering(joinDistributionType, coordinatorDynamicFiltersDistribution),
+                noJoinReordering(joinDistributionType),
                 // filter on lineitem and supplier force alternatives when going through PlanAlternativePlugin
                 "SELECT * FROM lineitem JOIN tpch.tiny.supplier ON lineitem.suppkey = supplier.suppkey AND supplier.name = 'Supplier#000000001' AND lineitem.shipmode = 'MAIL' ",
                 Set.of(SUPP_KEY_HANDLE),

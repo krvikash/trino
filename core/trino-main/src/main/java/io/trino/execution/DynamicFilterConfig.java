@@ -39,11 +39,11 @@ import static java.util.concurrent.TimeUnit.SECONDS;
         "experimental.dynamic-filtering-max-per-driver-size",
         "experimental.dynamic-filtering-refresh-interval",
         "experimental.enable-dynamic-filtering",
+        "enable-coordinator-dynamic-filters-distribution",
 })
 public class DynamicFilterConfig
 {
     private boolean enableDynamicFiltering = true;
-    private boolean enableCoordinatorDynamicFiltersDistribution = true;
     private boolean enableLargeDynamicFilters = true;
 
     private Duration smallDynamicFilterWaitTimeout = new Duration(20, SECONDS);
@@ -93,19 +93,6 @@ public class DynamicFilterConfig
     public DynamicFilterConfig setEnableDynamicFiltering(boolean enableDynamicFiltering)
     {
         this.enableDynamicFiltering = enableDynamicFiltering;
-        return this;
-    }
-
-    public boolean isEnableCoordinatorDynamicFiltersDistribution()
-    {
-        return enableCoordinatorDynamicFiltersDistribution;
-    }
-
-    @Config("enable-coordinator-dynamic-filters-distribution")
-    @ConfigDescription("Enable distribution of dynamic filters from coordinator to all workers")
-    public DynamicFilterConfig setEnableCoordinatorDynamicFiltersDistribution(boolean enableCoordinatorDynamicFiltersDistribution)
-    {
-        this.enableCoordinatorDynamicFiltersDistribution = enableCoordinatorDynamicFiltersDistribution;
         return this;
     }
 
