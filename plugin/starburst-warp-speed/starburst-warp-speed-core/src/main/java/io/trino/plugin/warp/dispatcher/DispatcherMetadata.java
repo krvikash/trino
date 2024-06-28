@@ -19,6 +19,7 @@ import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.expression.rewrite.ExpressionService;
 import io.trino.plugin.warp.expression.rewrite.WarpExpression;
+import io.trino.spi.RefreshType;
 import io.trino.spi.connector.AggregateFunction;
 import io.trino.spi.connector.AggregationApplicationResult;
 import io.trino.spi.connector.BeginTableExecuteResult;
@@ -539,7 +540,8 @@ public class DispatcherMetadata
             ConnectorSession session,
             ConnectorTableHandle tableHandle,
             List<ConnectorTableHandle> sourceTableHandles,
-            RetryMode retryMode)
+            RetryMode retryMode,
+            RefreshType refreshType)
     {
         return proxiedConnectorMetadata.beginRefreshMaterializedView(
                 session,
@@ -552,7 +554,8 @@ public class DispatcherMetadata
                             return connectorTableHandle;
                         })
                         .toList(),
-                retryMode);
+                retryMode,
+                refreshType);
     }
 
     @Override

@@ -24,6 +24,7 @@ import io.trino.connector.alternatives.MockPlanAlternativeTableHandle.IsNull;
 import io.trino.connector.alternatives.MockPlanAlternativeTableHandle.Ranges;
 import io.trino.connector.alternatives.MockPlanAlternativeTableHandle.VarcharIn;
 import io.trino.spi.Experimental;
+import io.trino.spi.RefreshType;
 import io.trino.spi.connector.AggregateFunction;
 import io.trino.spi.connector.AggregationApplicationResult;
 import io.trino.spi.connector.BeginTableExecuteResult;
@@ -516,9 +517,9 @@ public class MockPlanAlternativeMetadata
     }
 
     @Override
-    public ConnectorInsertTableHandle beginRefreshMaterializedView(ConnectorSession session, ConnectorTableHandle tableHandle, List<ConnectorTableHandle> sourceTableHandles, RetryMode retryMode)
+    public ConnectorInsertTableHandle beginRefreshMaterializedView(ConnectorSession session, ConnectorTableHandle tableHandle, List<ConnectorTableHandle> sourceTableHandles, RetryMode retryMode, RefreshType refreshType)
     {
-        return delegate.beginRefreshMaterializedView(session, getDelegate(tableHandle), sourceTableHandles, retryMode);
+        return delegate.beginRefreshMaterializedView(session, getDelegate(tableHandle), sourceTableHandles, retryMode, refreshType);
     }
 
     @Override
