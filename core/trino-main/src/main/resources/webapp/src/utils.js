@@ -247,7 +247,6 @@ export function getChildren(nodeInfo: any)
         case 'simpleTableExecuteNode':
         case 'sort':
         case 'tableCommit':
-        case 'tableDelete':
         case 'tableExecute':
         case 'tableWriter':
         case 'topN':
@@ -272,6 +271,7 @@ export function getChildren(nodeInfo: any)
         case 'loadCachedData':
         case 'refreshMaterializedView':
         case 'remoteSource':
+        case 'tableDelete':
         case 'tableScan':
         case 'tableUpdate':
         case 'values':
