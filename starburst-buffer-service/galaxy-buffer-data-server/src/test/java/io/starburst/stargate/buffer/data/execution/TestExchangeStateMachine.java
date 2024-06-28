@@ -24,10 +24,8 @@ import static io.starburst.stargate.buffer.data.execution.ExchangeState.SINK_STR
 import static io.starburst.stargate.buffer.data.execution.ExchangeState.SOURCE_FINISHED;
 import static io.starburst.stargate.buffer.data.execution.ExchangeState.SOURCE_STREAMING;
 import static io.starburst.stargate.buffer.data.execution.ExchangeStateMachine.EVENT_STATE;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class TestExchangeStateMachine
@@ -39,30 +37,30 @@ public class TestExchangeStateMachine
     public void testHappyPath()
     {
         ExchangeStateMachine state = new ExchangeStateMachine("1", CREATED, executor);
-        assertEquals(CREATED, state.getState());
+        assertThat(state.getState()).isEqualTo(CREATED);
 
         state.sourceStreaming();
-        assertEquals(SOURCE_STREAMING, state.getState());
+        assertThat(state.getState()).isEqualTo(SOURCE_STREAMING);
 
         state.transitionToSourceFinished();
-        assertEquals(SOURCE_FINISHED, state.getState());
+        assertThat(state.getState()).isEqualTo(SOURCE_FINISHED);
 
         state.sinkStreaming();
-        assertEquals(SINK_STREAMING, state.getState());
+        assertThat(state.getState()).isEqualTo(SINK_STREAMING);
 
         state.transitionToRemoved(REMOVED_EXCHANGE_ATTRIBUTES);
-        assertEquals(REMOVED, state.getState());
+        assertThat(state.getState()).isEqualTo(REMOVED);
     }
 
     @Test
     public void testSourceBeforeCreate()
     {
         ExchangeStateMachine state = new ExchangeStateMachine("1", SOURCE_STREAMING, executor);
-        assertEquals(SOURCE_STREAMING, state.getState());
+        assertThat(state.getState()).isEqualTo(SOURCE_STREAMING);
 
         // Should not affect state
         state.sourceStreaming();
-        assertEquals(SOURCE_STREAMING, state.getState());
+        assertThat(state.getState()).isEqualTo(SOURCE_STREAMING);
     }
 
     @Test
@@ -70,8 +68,9 @@ public class TestExchangeStateMachine
     {
         ExchangeStateMachine state = new ExchangeStateMachine("1", CREATED, executor);
 
-        assertThrows(IllegalStateException.class, () -> state.sinkStreaming(),
-                "Expected sinkStreaming() to throw when a source has not been initialized, but it didn't");
+        assertThatThrownBy(state::sinkStreaming)
+                .as("Expected sinkStreaming() to throw when a source has not been initialized, but it didn't")
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
@@ -80,16 +79,16 @@ public class TestExchangeStateMachine
         ExchangeStateMachine state = new ExchangeStateMachine("1", CREATED, executor);
 
         state.transitionToRemoved(REMOVED_EXCHANGE_ATTRIBUTES);
-        assertEquals(REMOVED, state.getState());
+        assertThat(state.getState()).isEqualTo(REMOVED);
 
         // Should not affect state
-        assertFalse(state.transitionToFailed(REMOVED_EXCHANGE_ATTRIBUTES));
-        assertEquals(REMOVED, state.getState());
+        assertThat(state.transitionToFailed(REMOVED_EXCHANGE_ATTRIBUTES)).isFalse();
+        assertThat(state.getState()).isEqualTo(REMOVED);
 
         state.sourceStreaming();
         state.sinkStreaming();
         state.transitionToSourceFinished();
-        assertEquals(REMOVED, state.getState());
+        assertThat(state.getState()).isEqualTo(REMOVED);
     }
 
     @Test
@@ -97,15 +96,15 @@ public class TestExchangeStateMachine
     {
         ExchangeStateMachine state = new ExchangeStateMachine("1", CREATED, executor);
         state.transitionToFailed(REMOVED_EXCHANGE_ATTRIBUTES);
-        assertEquals(FAILED, state.getState());
+        assertThat(state.getState()).isEqualTo(FAILED);
 
-        assertTrue(state.transitionToRemoved(REMOVED_EXCHANGE_ATTRIBUTES));
-        assertEquals(FAILED, state.getState());
+        assertThat(state.transitionToRemoved(REMOVED_EXCHANGE_ATTRIBUTES)).isTrue();
+        assertThat(state.getState()).isEqualTo(FAILED);
 
         state.sourceStreaming();
         state.sinkStreaming();
         state.transitionToSourceFinished();
-        assertEquals(FAILED, state.getState());
+        assertThat(state.getState()).isEqualTo(FAILED);
     }
 
     @AfterAll

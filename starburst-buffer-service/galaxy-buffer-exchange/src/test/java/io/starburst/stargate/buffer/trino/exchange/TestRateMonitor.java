@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestRateMonitor
 {
@@ -31,33 +31,33 @@ public class TestRateMonitor
 
         // no rate limit information, then no delay
         rateMonitor.updateRateLimitInfo(BUFFER_NODE_ID_0, Optional.empty());
-        assertEquals(0L, rateMonitor.registerExecutionSchedule(BUFFER_NODE_ID_0));
-        assertEquals(0, rateMonitor.getExecutionScheduleSize(BUFFER_NODE_ID_0));
+        assertThat(rateMonitor.registerExecutionSchedule(BUFFER_NODE_ID_0)).isEqualTo(0L);
+        assertThat(rateMonitor.getExecutionScheduleSize(BUFFER_NODE_ID_0)).isEqualTo(0);
 
         // #requests per second = 25, avg processing time = 10ms, then execution interval is Math.max(0, 1000 / 25 - 10) = 30ms
         rateMonitor.updateRateLimitInfo(BUFFER_NODE_ID_0, Optional.of(new RateLimitInfo(25, 10)));
-        assertEquals(30L, rateMonitor.registerExecutionSchedule(BUFFER_NODE_ID_0));
-        assertEquals(70L, rateMonitor.registerExecutionSchedule(BUFFER_NODE_ID_0));
-        assertEquals(110L, rateMonitor.registerExecutionSchedule(BUFFER_NODE_ID_0));
-        assertEquals(3, rateMonitor.getExecutionScheduleSize(BUFFER_NODE_ID_0));
+        assertThat(rateMonitor.registerExecutionSchedule(BUFFER_NODE_ID_0)).isEqualTo(30L);
+        assertThat(rateMonitor.registerExecutionSchedule(BUFFER_NODE_ID_0)).isEqualTo(70L);
+        assertThat(rateMonitor.registerExecutionSchedule(BUFFER_NODE_ID_0)).isEqualTo(110L);
+        assertThat(rateMonitor.getExecutionScheduleSize(BUFFER_NODE_ID_0)).isEqualTo(3);
 
         // different buffer nodes' schedule should be independent
         // #requests per second = 10, avg processing time = 20ms, then execution interval is Math.max(0, 1000 / 10 - 20) = 80ms
         rateMonitor.updateRateLimitInfo(BUFFER_NODE_ID_1, Optional.of(new RateLimitInfo(10, 20)));
-        assertEquals(80L, rateMonitor.registerExecutionSchedule(BUFFER_NODE_ID_1));
-        assertEquals(180L, rateMonitor.registerExecutionSchedule(BUFFER_NODE_ID_1));
-        assertEquals(2, rateMonitor.getExecutionScheduleSize(BUFFER_NODE_ID_1));
+        assertThat(rateMonitor.registerExecutionSchedule(BUFFER_NODE_ID_1)).isEqualTo(80L);
+        assertThat(rateMonitor.registerExecutionSchedule(BUFFER_NODE_ID_1)).isEqualTo(180L);
+        assertThat(rateMonitor.getExecutionScheduleSize(BUFFER_NODE_ID_1)).isEqualTo(2);
 
         // delay should reflect the passage of time
         ticker.increment(100, TimeUnit.MILLISECONDS);
-        assertEquals(50L, rateMonitor.registerExecutionSchedule(BUFFER_NODE_ID_0));
-        assertEquals(2, rateMonitor.getExecutionScheduleSize(BUFFER_NODE_ID_0));
+        assertThat(rateMonitor.registerExecutionSchedule(BUFFER_NODE_ID_0)).isEqualTo(50L);
+        assertThat(rateMonitor.getExecutionScheduleSize(BUFFER_NODE_ID_0)).isEqualTo(2);
 
         // #requests per second = 50, avg processing time = 40ms, then execution interval is Math.max(0, 1000 / 50 - 40) = 0ms
         ticker.increment(20, TimeUnit.MILLISECONDS);
         rateMonitor.updateRateLimitInfo(BUFFER_NODE_ID_0, Optional.of(new RateLimitInfo(50, 40)));
-        assertEquals(70L, rateMonitor.registerExecutionSchedule(BUFFER_NODE_ID_0));
-        assertEquals(110L, rateMonitor.registerExecutionSchedule(BUFFER_NODE_ID_0));
-        assertEquals(4, rateMonitor.getExecutionScheduleSize(BUFFER_NODE_ID_0));
+        assertThat(rateMonitor.registerExecutionSchedule(BUFFER_NODE_ID_0)).isEqualTo(70L);
+        assertThat(rateMonitor.registerExecutionSchedule(BUFFER_NODE_ID_0)).isEqualTo(110L);
+        assertThat(rateMonitor.getExecutionScheduleSize(BUFFER_NODE_ID_0)).isEqualTo(4);
     }
 }

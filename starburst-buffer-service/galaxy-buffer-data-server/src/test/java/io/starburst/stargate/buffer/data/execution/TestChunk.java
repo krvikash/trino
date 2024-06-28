@@ -26,9 +26,7 @@ import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
 import static io.starburst.stargate.buffer.data.execution.ChunkTestHelper.verifyChunkData;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class TestChunk
@@ -57,13 +55,13 @@ public class TestChunk
         DataPage extraDataPage = new DataPage(1, 0, utf8Slice("666666"));
 
         for (DataPage dataPage : dataPages) {
-            assertTrue(chunk.hasEnoughSpace(DATA_PAGE_HEADER_SIZE + dataPage.data().length()));
+            assertThat(chunk.hasEnoughSpace(DATA_PAGE_HEADER_SIZE + dataPage.data().length())).isTrue();
             getFutureValue(chunk.write(dataPage.taskId(), dataPage.attemptId(), dataPage.data()));
         }
-        assertFalse(chunk.hasEnoughSpace(DATA_PAGE_HEADER_SIZE + extraDataPage.data().length()));
+        assertThat(chunk.hasEnoughSpace(DATA_PAGE_HEADER_SIZE + extraDataPage.data().length())).isFalse();
         chunk.close();
 
-        assertEquals(12, chunk.dataSizeInBytes());
+        assertThat(chunk.dataSizeInBytes()).isEqualTo(12);
         verifyChunkData(chunk.getChunkDataLease(), dataPages.get(0), dataPages.get(1), dataPages.get(2));
     }
 

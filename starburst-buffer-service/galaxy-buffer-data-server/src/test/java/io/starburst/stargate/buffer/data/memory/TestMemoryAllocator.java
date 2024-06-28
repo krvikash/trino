@@ -30,9 +30,7 @@ import static io.airlift.slice.Slices.utf8Slice;
 import static io.airlift.units.DataSize.Unit.KILOBYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static java.lang.Math.toIntExact;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class TestMemoryAllocator
@@ -47,45 +45,45 @@ public class TestMemoryAllocator
                 new MemoryAllocatorConfig().setHeapHeadroom(DataSize.succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes)),
                 new ChunkManagerConfig(),
                 new DataServerStats());
-        assertEquals(100L, memoryAllocator.getFreeMemory());
+        assertThat((Object) memoryAllocator.getFreeMemory()).isEqualTo(100L);
 
         ListenableFuture<Slice> sliceFuture1 = memoryAllocator.allocate(50);
-        assertTrue(sliceFuture1.isDone());
+        assertThat(sliceFuture1.isDone()).isTrue();
 
         ListenableFuture<Slice> sliceFuture2 = memoryAllocator.allocate(40);
-        assertTrue(sliceFuture2.isDone());
+        assertThat(sliceFuture2.isDone()).isTrue();
 
         ListenableFuture<Slice> sliceFuture3 = memoryAllocator.allocate(30);
-        assertFalse(sliceFuture3.isDone());
+        assertThat(sliceFuture3.isDone()).isFalse();
 
         ListenableFuture<Slice> sliceFuture4 = memoryAllocator.allocate(20);
-        assertFalse(sliceFuture4.isDone());
+        assertThat(sliceFuture4.isDone()).isFalse();
 
         ListenableFuture<Slice> sliceFuture5 = memoryAllocator.allocate(10);
-        assertTrue(sliceFuture5.isDone());
+        assertThat(sliceFuture5.isDone()).isTrue();
 
         memoryAllocator.release(getFutureValue(sliceFuture5));
-        assertEquals(10L, memoryAllocator.getFreeMemory());
-        assertFalse(sliceFuture3.isDone());
-        assertFalse(sliceFuture4.isDone());
+        assertThat((Object) memoryAllocator.getFreeMemory()).isEqualTo(10L);
+        assertThat(sliceFuture3.isDone()).isFalse();
+        assertThat(sliceFuture4.isDone()).isFalse();
 
         ListenableFuture<Slice> sliceFuture6 = memoryAllocator.allocate(25);
-        assertFalse(sliceFuture6.isDone());
+        assertThat(sliceFuture6.isDone()).isFalse();
 
         sliceFuture4.cancel(true);
         memoryAllocator.release(getFutureValue(sliceFuture2));
         // allocation should happen in FIFO order
-        assertTrue(sliceFuture3.isDone());
-        assertFalse(sliceFuture6.isDone());
-        assertEquals(20L, memoryAllocator.getFreeMemory());
+        assertThat(sliceFuture3.isDone()).isTrue();
+        assertThat(sliceFuture6.isDone()).isFalse();
+        assertThat(memoryAllocator.getFreeMemory()).isEqualTo(20L);
 
         memoryAllocator.release(getFutureValue(sliceFuture1));
-        assertTrue(sliceFuture6.isDone());
-        assertEquals(45L, memoryAllocator.getFreeMemory());
+        assertThat(sliceFuture6.isDone()).isTrue();
+        assertThat(memoryAllocator.getFreeMemory()).isEqualTo(45L);
 
         memoryAllocator.release(getFutureValue(sliceFuture3));
         memoryAllocator.release(getFutureValue(sliceFuture6));
-        assertEquals(100L, memoryAllocator.getFreeMemory());
+        assertThat(memoryAllocator.getFreeMemory()).isEqualTo(100L);
     }
 
     @Test
@@ -102,24 +100,24 @@ public class TestMemoryAllocator
 
         for (int i = 0; i < 10_000_000; ++i) {
             ListenableFuture<Slice> sliceFuture1 = memoryAllocator.allocate(toIntExact(chunkSliceSize.toBytes()));
-            assertTrue(sliceFuture1.isDone());
+            assertThat(sliceFuture1.isDone()).isTrue();
 
             ListenableFuture<Slice> sliceFuture2 = memoryAllocator.allocate(1);
-            assertTrue(sliceFuture2.isDone());
+            assertThat(sliceFuture2.isDone()).isTrue();
 
             memoryAllocator.release(getFutureValue(sliceFuture1));
             memoryAllocator.release(getFutureValue(sliceFuture2));
         }
-        assertEquals(1, memoryAllocator.getChunkSlicePoolSize());
+        assertThat(memoryAllocator.getChunkSlicePoolSize()).isEqualTo(1);
 
         ImmutableList.Builder<ListenableFuture<Slice>> sliceFutures = ImmutableList.builder();
         for (int i = 0; i < 1000; ++i) {
             ListenableFuture<Slice> sliceFuture = memoryAllocator.allocate(toIntExact(chunkSliceSize.toBytes()));
-            assertTrue(sliceFuture.isDone());
+            assertThat(sliceFuture.isDone()).isTrue();
             sliceFutures.add(sliceFuture);
         }
         sliceFutures.build().forEach(sliceFuture -> memoryAllocator.release(getFutureValue(sliceFuture)));
-        assertEquals(800, memoryAllocator.getChunkSlicePoolSize());
+        assertThat(memoryAllocator.getChunkSlicePoolSize()).isEqualTo(800);
     }
 
     @Test
@@ -145,12 +143,12 @@ public class TestMemoryAllocator
 
         ChunkDataLease chunkDataLease0 = chunk0.getChunkDataLease();
         chunk0.release();
-        assertEquals(0, memoryAllocator.getChunkSlicePoolSize());
-        assertEquals(chunkSliceSizeInBytes, memoryAllocator.getAllocatedMemory());
+        assertThat(memoryAllocator.getChunkSlicePoolSize()).isEqualTo(0);
+        assertThat(memoryAllocator.getAllocatedMemory()).isEqualTo(chunkSliceSizeInBytes);
 
         chunkDataLease0.release();
-        assertEquals(1, memoryAllocator.getChunkSlicePoolSize());
-        assertEquals(0, memoryAllocator.getAllocatedMemory());
+        assertThat(memoryAllocator.getChunkSlicePoolSize()).isEqualTo(1);
+        assertThat(memoryAllocator.getAllocatedMemory()).isEqualTo(0);
 
         Chunk chunk1 = new Chunk(
                 1L,
@@ -167,12 +165,12 @@ public class TestMemoryAllocator
 
         ChunkDataLease chunkDataLease1 = chunk1.getChunkDataLease();
         chunkDataLease1.release();
-        assertEquals(0, memoryAllocator.getChunkSlicePoolSize());
-        assertEquals(chunkSliceSizeInBytes, memoryAllocator.getAllocatedMemory());
+        assertThat(memoryAllocator.getChunkSlicePoolSize()).isEqualTo(0);
+        assertThat(memoryAllocator.getAllocatedMemory()).isEqualTo(chunkSliceSizeInBytes);
 
         chunk1.release();
-        assertEquals(1, memoryAllocator.getChunkSlicePoolSize());
-        assertEquals(0, memoryAllocator.getAllocatedMemory());
+        assertThat(memoryAllocator.getChunkSlicePoolSize()).isEqualTo(1);
+        assertThat(memoryAllocator.getAllocatedMemory()).isEqualTo(0);
     }
 
     @AfterAll

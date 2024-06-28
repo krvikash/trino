@@ -76,8 +76,7 @@ import static org.awaitility.Durations.FIVE_SECONDS;
 import static org.awaitility.Durations.ONE_SECOND;
 import static org.awaitility.Durations.TEN_SECONDS;
 import static org.awaitility.Durations.TWO_SECONDS;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assumptions.abort;
 
 @TestInstance(TestInstance.Lifecycle.PER_METHOD)
 public class TestDataServer
@@ -191,17 +190,17 @@ public class TestDataServer
 
         ChunkList chunkList0 = listClosedChunks(EXCHANGE_0, OptionalLong.empty(), 2);
         assertThat(chunkList0.chunks()).containsExactlyInAnyOrder(chunkHandle0, chunkHandle1);
-        assertTrue(chunkList0.nextPagingId().isEmpty());
+        assertThat(chunkList0.nextPagingId()).isEmpty();
         ChunkList chunkList1 = listClosedChunks(EXCHANGE_1, OptionalLong.empty(), 1);
         assertThat(chunkList1.chunks()).containsExactlyInAnyOrder(chunkHandle3);
-        assertTrue(chunkList1.nextPagingId().isPresent());
+        assertThat(chunkList1.nextPagingId()).isPresent();
 
         finishExchange(EXCHANGE_1);
         assertNodeStats(2, 0, 0, 5);
 
         chunkList1 = listClosedChunks(EXCHANGE_1, chunkList1.nextPagingId(), 2);
         assertThat(chunkList1.chunks()).containsExactlyInAnyOrder(chunkHandle2, chunkHandle4);
-        assertTrue(chunkList1.nextPagingId().isEmpty());
+        assertThat(chunkList1.nextPagingId()).isEmpty();
 
         assertThat(getChunkData(EXCHANGE_0, chunkHandle0)).containsExactly(
                 new DataPage(0, 0, utf8Slice("trino")),
@@ -254,7 +253,7 @@ public class TestDataServer
         ChunkHandle chunkHandle2 = getChunkHandleOrThrow(chunkList0.chunks(), 1, 3 + largePage1.length()); // v, x, largePage1, y
         ChunkHandle chunkHandle3 = getChunkHandleOrThrow(chunkList0.chunks(), 1, 1 + largePage2.length()); // largePage2, z
 
-        assertTrue(chunkList0.nextPagingId().isEmpty());
+        assertThat(chunkList0.nextPagingId()).isEmpty();
         assertThat(getChunkData(EXCHANGE_0, chunkHandle0)).containsExactly(
                 new DataPage(0, 0, utf8Slice("a")),
                 new DataPage(0, 0, utf8Slice("b")),
@@ -316,7 +315,7 @@ public class TestDataServer
                     throw new RuntimeException(e);
                 }
             }
-            return fail();
+            return abort();
         });
 
         await().atMost(ONE_SECOND).until(chunkListFuture::isDone);
@@ -429,12 +428,12 @@ public class TestDataServer
                 return new ChunkList(chunkHandles, pagingId);
             }
             if (chunkHandles.size() > expectedChunkListSize) {
-                return fail();
+                return abort();
             }
 
             sleepUninterruptibly(100, MILLISECONDS);
         }
-        return fail();
+        return abort();
     }
 
     private void markAllClosedChunksReceived(String exchangeId)
@@ -474,7 +473,7 @@ public class TestDataServer
                 return chunkHandle;
             }
         }
-        return fail();
+        return abort();
     }
 
     private void assertNodeStats(long trackedExchanges, int openChunks, int spooledChunks, int closedChunks)

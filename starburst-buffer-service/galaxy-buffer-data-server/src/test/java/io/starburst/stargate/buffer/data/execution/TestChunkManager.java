@@ -68,10 +68,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 import static org.awaitility.Awaitility.waitAtMost;
 import static org.awaitility.Durations.ONE_SECOND;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assumptions.abort;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class TestChunkManager
@@ -123,32 +120,32 @@ public class TestChunkManager
         ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 1, 1L, 20);
         ChunkHandle chunkHandle2 = new ChunkHandle(BUFFER_NODE_ID, 0, 2L, 5);
 
-        assertEquals(2, chunkManager.getTrackedExchanges());
-        assertEquals(3, chunkManager.getOpenChunks());
-        assertEquals(0, chunkManager.getClosedChunks());
+        assertThat(chunkManager.getTrackedExchanges()).isEqualTo(2);
+        assertThat(chunkManager.getOpenChunks()).isEqualTo(3);
+        assertThat(chunkManager.getClosedChunks()).isEqualTo(0);
 
         ChunkList chunkList0 = listClosedChunks(chunkManager, EXCHANGE_0, OptionalLong.empty(), 0);
-        assertTrue(chunkList0.chunks().isEmpty());
-        assertTrue(chunkList0.nextPagingId().isPresent());
+        assertThat(chunkList0.chunks()).isEmpty();
+        assertThat(chunkList0.nextPagingId()).isPresent();
 
         ChunkList chunkList1 = listClosedChunks(chunkManager, EXCHANGE_1, OptionalLong.empty(), 0);
-        assertTrue(chunkList1.chunks().isEmpty());
-        assertTrue(chunkList1.nextPagingId().isPresent());
+        assertThat(chunkList1.chunks()).isEmpty();
+        assertThat(chunkList1.nextPagingId()).isPresent();
 
         getFutureValue(chunkManager.finishExchange(EXCHANGE_0));
         getFutureValue(chunkManager.finishExchange(EXCHANGE_1));
 
-        assertEquals(2, chunkManager.getTrackedExchanges());
-        assertEquals(0, chunkManager.getOpenChunks());
-        assertEquals(3, chunkManager.getClosedChunks());
+        assertThat(chunkManager.getTrackedExchanges()).isEqualTo(2);
+        assertThat(chunkManager.getOpenChunks()).isEqualTo(0);
+        assertThat(chunkManager.getClosedChunks()).isEqualTo(3);
 
         chunkList0 = listClosedChunks(chunkManager, EXCHANGE_0, chunkList0.nextPagingId(), 2);
         assertThat(chunkList0.chunks()).containsExactlyInAnyOrder(chunkHandle0, chunkHandle1);
-        assertTrue(chunkList0.nextPagingId().isEmpty());
+        assertThat(chunkList0.nextPagingId()).isEmpty();
 
         chunkList1 = listClosedChunks(chunkManager, EXCHANGE_1, chunkList1.nextPagingId(), 1);
         assertThat(chunkList1.chunks()).containsExactlyInAnyOrder(chunkHandle2);
-        assertTrue(chunkList1.nextPagingId().isEmpty());
+        assertThat(chunkList1.nextPagingId()).isEmpty();
 
         verifyChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle0.partitionId(), chunkHandle0.chunkId()),
                 new DataPage(0, 0, utf8Slice("000_0")),
@@ -161,12 +158,12 @@ public class TestChunkManager
         verifyChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_1, chunkHandle2.partitionId(), chunkHandle2.chunkId()),
                 new DataPage(0, 0, utf8Slice("100_0")));
 
-        assertEquals(DataSize.of(384, KILOBYTE).toBytes(), memoryAllocator.getTotalMemory() - memoryAllocator.getFreeMemory());
+        assertThat(memoryAllocator.getTotalMemory() - memoryAllocator.getFreeMemory()).isEqualTo(DataSize.of(384, KILOBYTE).toBytes());
 
         chunkManager.removeExchange(EXCHANGE_0);
         chunkManager.removeExchange(EXCHANGE_1);
 
-        assertEquals(memoryAllocator.getTotalMemory(), memoryAllocator.getFreeMemory());
+        assertThat(memoryAllocator.getFreeMemory()).isEqualTo(memoryAllocator.getTotalMemory());
     }
 
     @Test
@@ -194,32 +191,32 @@ public class TestChunkManager
         ChunkHandle chunkHandle2 = new ChunkHandle(BUFFER_NODE_ID, 1, 2L, 10);
         ChunkHandle chunkHandle3 = new ChunkHandle(BUFFER_NODE_ID, 0, 3L, 5);
 
-        assertEquals(2, chunkManager.getTrackedExchanges());
-        assertEquals(3, chunkManager.getOpenChunks());
-        assertEquals(1, chunkManager.getClosedChunks());
+        assertThat(chunkManager.getTrackedExchanges()).isEqualTo(2);
+        assertThat(chunkManager.getOpenChunks()).isEqualTo(3);
+        assertThat(chunkManager.getClosedChunks()).isEqualTo(1);
 
         ChunkList chunkList0 = listClosedChunks(chunkManager, EXCHANGE_0, OptionalLong.empty(), 1);
         assertThat(chunkList0.chunks()).containsExactlyInAnyOrder(chunkHandle1);
-        assertTrue(chunkList0.nextPagingId().isPresent());
+        assertThat(chunkList0.nextPagingId()).isPresent();
 
         ChunkList chunkList1 = listClosedChunks(chunkManager, EXCHANGE_1, OptionalLong.empty(), 0);
-        assertTrue(chunkList1.chunks().isEmpty());
-        assertTrue(chunkList1.nextPagingId().isPresent());
+        assertThat(chunkList1.chunks()).isEmpty();
+        assertThat(chunkList1.nextPagingId()).isPresent();
 
         getFutureValue(chunkManager.finishExchange(EXCHANGE_0));
         getFutureValue(chunkManager.finishExchange(EXCHANGE_1));
 
-        assertEquals(2, chunkManager.getTrackedExchanges());
-        assertEquals(0, chunkManager.getOpenChunks());
-        assertEquals(4, chunkManager.getClosedChunks());
+        assertThat(chunkManager.getTrackedExchanges()).isEqualTo(2);
+        assertThat(chunkManager.getOpenChunks()).isEqualTo(0);
+        assertThat(chunkManager.getClosedChunks()).isEqualTo(4);
 
         chunkList0 = listClosedChunks(chunkManager, EXCHANGE_0, chunkList0.nextPagingId(), 2);
         assertThat(chunkList0.chunks()).containsExactlyInAnyOrder(chunkHandle0, chunkHandle2);
-        assertTrue(chunkList0.nextPagingId().isEmpty());
+        assertThat(chunkList0.nextPagingId()).isEmpty();
 
         chunkList1 = listClosedChunks(chunkManager, EXCHANGE_1, chunkList1.nextPagingId(), 1);
         assertThat(chunkList1.chunks()).containsExactlyInAnyOrder(chunkHandle3);
-        assertTrue(chunkList1.nextPagingId().isEmpty());
+        assertThat(chunkList1.nextPagingId()).isEmpty();
 
         verifyChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle0.partitionId(), chunkHandle0.chunkId()),
                 new DataPage(0, 0, utf8Slice("000_0")));
@@ -232,12 +229,12 @@ public class TestChunkManager
         verifyChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_1, chunkHandle3.partitionId(), chunkHandle3.chunkId()),
                 new DataPage(0, 0, utf8Slice("100_0")));
 
-        assertEquals(DataSize.of(96, BYTE).toBytes(), memoryAllocator.getTotalMemory() - memoryAllocator.getFreeMemory());
+        assertThat(memoryAllocator.getTotalMemory() - memoryAllocator.getFreeMemory()).isEqualTo(DataSize.of(96, BYTE).toBytes());
 
         chunkManager.removeExchange(EXCHANGE_0);
         chunkManager.removeExchange(EXCHANGE_1);
 
-        assertEquals(memoryAllocator.getTotalMemory(), memoryAllocator.getFreeMemory());
+        assertThat(memoryAllocator.getFreeMemory()).isEqualTo(memoryAllocator.getTotalMemory());
     }
 
     @Test
@@ -257,15 +254,15 @@ public class TestChunkManager
 
         ticker.increment(1000, MILLISECONDS);
         chunkManager.cleanupStaleExchanges();
-        assertEquals(DataSize.of(1, MEGABYTE).toBytes(), memoryAllocator.getTotalMemory() - memoryAllocator.getFreeMemory());
+        assertThat((memoryAllocator.getTotalMemory() - memoryAllocator.getFreeMemory())).isEqualTo(DataSize.of(1, MEGABYTE).toBytes());
 
         ChunkList chunkList0 = listClosedChunks(chunkManager, EXCHANGE_0, OptionalLong.empty(), 0);
         assertThat(chunkList0.chunks()).isEmpty();
-        assertTrue(chunkList0.nextPagingId().isPresent());
+        assertThat(chunkList0.nextPagingId()).isPresent();
 
         ChunkList chunkList1 = listClosedChunks(chunkManager, EXCHANGE_1, OptionalLong.empty(), 0);
         assertThat(chunkList1.chunks()).isEmpty();
-        assertTrue(chunkList1.nextPagingId().isPresent());
+        assertThat(chunkList1.nextPagingId()).isPresent();
 
         ticker.increment(1000, MILLISECONDS);
         chunkManager.pingExchange(EXCHANGE_0);
@@ -275,12 +272,13 @@ public class TestChunkManager
 
         chunkList0 = listClosedChunks(chunkManager, EXCHANGE_0, chunkList0.nextPagingId(), 0);
         assertThat(chunkList0.chunks()).isEmpty();
-        assertTrue(chunkList0.nextPagingId().isPresent());
+        assertThat(chunkList0.nextPagingId()).isPresent();
         assertThatThrownBy(() -> getFutureValue(chunkManager.listClosedChunks(EXCHANGE_1, OptionalLong.empty())))
                 .isInstanceOf(DataServerException.class)
                 .hasMessage("exchange %s not found".formatted(EXCHANGE_1));
 
-        assertEquals(memoryAllocator.getTotalMemory(), memoryAllocator.getFreeMemory());
+        Object expected = memoryAllocator.getTotalMemory();
+        assertThat(memoryAllocator.getFreeMemory()).isEqualTo(expected);
     }
 
     @Test
@@ -310,7 +308,7 @@ public class TestChunkManager
 
         ChunkList chunkList0 = listClosedChunks(chunkManager, EXCHANGE_0, OptionalLong.empty(), 3);
         assertThat(chunkList0.chunks()).containsExactlyInAnyOrder(chunkHandle0, chunkHandle1, chunkHandle2);
-        assertTrue(chunkList0.nextPagingId().isEmpty());
+        assertThat(chunkList0.nextPagingId()).isEmpty();
 
         verifyChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle0.partitionId(), chunkHandle0.chunkId()),
                 new DataPage(0, 0, utf8Slice("chunk")), new DataPage(0, 0, utf8Slice("manager")));
@@ -321,7 +319,8 @@ public class TestChunkManager
 
         chunkManager.removeExchange(EXCHANGE_0);
 
-        assertEquals(memoryAllocator.getTotalMemory(), memoryAllocator.getFreeMemory());
+        Object expected = memoryAllocator.getTotalMemory();
+        assertThat(memoryAllocator.getFreeMemory()).isEqualTo(expected);
     }
 
     @Test
@@ -345,7 +344,8 @@ public class TestChunkManager
                 .isInstanceOf(DataServerException.class)
                 .hasMessage("exchange %s not found".formatted(EXCHANGE_0));
 
-        assertEquals(memoryAllocator.getTotalMemory(), memoryAllocator.getFreeMemory());
+        Object expected = memoryAllocator.getTotalMemory();
+        assertThat(memoryAllocator.getFreeMemory()).isEqualTo(expected);
     }
 
     @Test
@@ -403,23 +403,24 @@ public class TestChunkManager
         ListenableFuture<Void> addDataPagesFuture1 = chunkManager.addDataPages(
                 EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("test"), utf8Slice("spool"), utf8Slice("chunks"))).addDataPagesFuture();
         awaitOneSecond().until(addDataPagesFuture1::isDone);
-        assertEquals(32, memoryAllocator.getFreeMemory());
+        assertThat(memoryAllocator.getFreeMemory()).isEqualTo(32);
 
         ListenableFuture<Void> addDataPagesFuture2 = chunkManager.addDataPages(
                 EXCHANGE_0, 0, 0, 0, 1L, ImmutableList.of(utf8Slice("add"), utf8Slice("data"), utf8Slice("pages"))).addDataPagesFuture();
         awaitOneSecond().until(addDataPagesFuture2::isDone);
-        assertEquals(0, memoryAllocator.getFreeMemory());
+        assertThat(memoryAllocator.getFreeMemory()).isEqualTo(0);
 
         ListenableFuture<Void> addDataPagesFuture3 = chunkManager.addDataPages(
                 EXCHANGE_1, 1, 1, 1, 2L, ImmutableList.of(utf8Slice("dummy"))).addDataPagesFuture();
-        assertFalse(addDataPagesFuture3.isDone()); // no memory available yet
+        assertThat(addDataPagesFuture3.isDone()).isFalse(); // no memory available yet
 
         chunkManager.spoolIfNecessary();
-        assertEquals(0, chunkManager.getClosedChunks());
-        assertEquals(2, chunkManager.getSpooledChunksCount()); // the open chunk should have spooled too
+        assertThat(chunkManager.getClosedChunks()).isEqualTo(0);
+        // the open chunk should have spooled too
+        assertThat(chunkManager.getSpooledChunksCount()).isEqualTo(2);
 
         awaitOneSecond().until(addDataPagesFuture3::isDone);
-        assertEquals(64, memoryAllocator.getFreeMemory());
+        assertThat(memoryAllocator.getFreeMemory()).isEqualTo(64);
 
         ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 22);
         ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 0, 1L, 5);
@@ -442,9 +443,9 @@ public class TestChunkManager
         awaitOneSecond().until(sliceFuture::isDone);
 
         chunkManager.spoolIfNecessary(); // only one closed chunk can be spooled at this point
-        assertEquals(0, chunkManager.getClosedChunks());
-        assertEquals(3, chunkManager.getSpooledChunksCount());
-        assertEquals(32, memoryAllocator.getFreeMemory());
+        assertThat(chunkManager.getClosedChunks()).isEqualTo(0);
+        assertThat(chunkManager.getSpooledChunksCount()).isEqualTo(3);
+        assertThat(memoryAllocator.getFreeMemory()).isEqualTo(32);
         memoryAllocator.release(getFutureValue(sliceFuture));
 
         ChunkHandle chunkHandle2 = new ChunkHandle(BUFFER_NODE_ID, 1, 2L, 5);
@@ -456,9 +457,9 @@ public class TestChunkManager
         chunkManager.removeExchange(EXCHANGE_0);
         chunkManager.removeExchange(EXCHANGE_1);
 
-        assertEquals(0, chunkManager.getClosedChunks());
-        assertEquals(0, chunkManager.getSpooledChunksCount());
-        assertEquals(96, memoryAllocator.getFreeMemory());
+        assertThat(chunkManager.getClosedChunks()).isEqualTo(0);
+        assertThat(chunkManager.getSpooledChunksCount()).isEqualTo(0);
+        assertThat(memoryAllocator.getFreeMemory()).isEqualTo(96);
     }
 
     @Test
@@ -484,16 +485,16 @@ public class TestChunkManager
         ListenableFuture<Void> addDataPagesFuture1 = chunkManager.addDataPages(
                 EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("a"), utf8Slice("b"), utf8Slice("c"))).addDataPagesFuture();
         awaitOneSecond().until(addDataPagesFuture1::isDone);
-        assertEquals(40, memoryAllocator.getFreeMemory());
+        assertThat(memoryAllocator.getFreeMemory()).isEqualTo(40);
 
         ListenableFuture<Void> addDataPagesFuture2 = chunkManager.addDataPages(
                 EXCHANGE_0, 1, 1, 1, 1L, ImmutableList.of(utf8Slice("d"), utf8Slice("e"), utf8Slice("f"))).addDataPagesFuture();
         awaitOneSecond().until(addDataPagesFuture2::isDone);
-        assertEquals(16, memoryAllocator.getFreeMemory());
+        assertThat(memoryAllocator.getFreeMemory()).isEqualTo(16);
 
         ListenableFuture<Void> addDataPagesFuture3 = chunkManager.addDataPages(
                 EXCHANGE_0, 2, 2, 2, 2L, ImmutableList.of(utf8Slice("g"), utf8Slice("h"), utf8Slice("i"))).addDataPagesFuture();
-        assertFalse(addDataPagesFuture3.isDone()); // not enough memory available yet
+        assertThat(addDataPagesFuture3.isDone()).isFalse(); // not enough memory available yet
 
         // wait for all addDataPagesFutures to finish
         chunkManager.spoolIfNecessary();
@@ -513,16 +514,16 @@ public class TestChunkManager
 
                 sleepUninterruptibly(100, MILLISECONDS);
             }
-            return fail();
+            return abort();
         });
 
         chunkManager.drainAllChunks();
 
-        assertTrue(numClosedChunksFuture.isDone());
-        assertEquals(6, getFutureValue(numClosedChunksFuture));
-        assertEquals(0, chunkManager.getClosedChunks());
-        assertEquals(6, chunkManager.getSpooledChunksCount());
-        assertEquals(maxBytes, memoryAllocator.getFreeMemory());
+        assertThat(numClosedChunksFuture.isDone()).isTrue();
+        assertThat(getFutureValue(numClosedChunksFuture)).isEqualTo(6);
+        assertThat(chunkManager.getClosedChunks()).isEqualTo(0);
+        assertThat(chunkManager.getSpooledChunksCount()).isEqualTo(6);
+        assertThat(memoryAllocator.getFreeMemory()).isEqualTo(maxBytes);
 
         assertThatThrownBy(() -> getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 3, 3, 3, 3L, ImmutableList.of(utf8Slice("dummy"))).addDataPagesFuture()))
                 .isInstanceOf(IllegalStateException.class)
@@ -548,7 +549,7 @@ public class TestChunkManager
                 DataSize.of(8, BYTE));
 
         chunkManager.registerExchange(EXCHANGE_0, STANDARD, Optional.empty());
-        assertFalse(chunkManager.getExchangeAndHeartbeat(EXCHANGE_0).isFinished());
+        assertThat(chunkManager.getExchangeAndHeartbeat(EXCHANGE_0).isFinished()).isFalse();
 
         Future<?> drainAllChunksFuture = executor.submit(chunkManager::drainAllChunks);
 
@@ -612,7 +613,7 @@ public class TestChunkManager
         OptionalLong pagingId = OptionalLong.empty();
         ChunkList chunkList = listClosedChunks(chunkManager, EXCHANGE_0, pagingId, 1); // only chunk 0 closed at this point
         pagingId = chunkList.nextPagingId();
-        assertTrue(pagingId.isPresent());
+        assertThat(pagingId).isPresent();
         assertThat(chunkList.chunks()).containsExactly(new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 5));
 
         getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 2L, ImmutableList.of(utf8Slice("page2"))).addDataPagesFuture());
@@ -620,7 +621,7 @@ public class TestChunkManager
         getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 4L, ImmutableList.of(utf8Slice("page4"))).addDataPagesFuture());
         chunkList = listClosedChunks(chunkManager, EXCHANGE_0, pagingId, 3); // chunk 1, 2, 3 are newly closed
         pagingId = chunkList.nextPagingId();
-        assertTrue(pagingId.isPresent());
+        assertThat(pagingId).isPresent();
         assertThat(chunkList.chunks()).containsExactly(
                 new ChunkHandle(BUFFER_NODE_ID, 0, 1L, 5),
                 new ChunkHandle(BUFFER_NODE_ID, 0, 2L, 5),
@@ -632,7 +633,7 @@ public class TestChunkManager
         getFutureValue(chunkManager.finishExchange(EXCHANGE_0));
         chunkList = listClosedChunks(chunkManager, EXCHANGE_0, pagingId, 4); // chunk 4, 5, 6, 7 are newly closed
         pagingId = chunkList.nextPagingId();
-        assertTrue(pagingId.isEmpty());
+        assertThat(pagingId).isEmpty();
         assertThat(chunkList.chunks()).containsExactly(
                 new ChunkHandle(BUFFER_NODE_ID, 0, 4L, 5),
                 new ChunkHandle(BUFFER_NODE_ID, 0, 5L, 5),
@@ -662,11 +663,11 @@ public class TestChunkManager
         ListenableFuture<Void> addDataPagesFuture2 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 2L, ImmutableList.of(utf8Slice("2"))).addDataPagesFuture();
         awaitOneSecond().until(addDataPagesFuture2::isDone);
         ListenableFuture<Void> addDataPagesFuture3 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 3L, ImmutableList.of(utf8Slice("3"))).addDataPagesFuture();
-        assertFalse(addDataPagesFuture3.isDone());
+        assertThat(addDataPagesFuture3.isDone()).isFalse();
 
         ListenableFuture<Void> exchangeFinishFuture = chunkManager.finishExchange(EXCHANGE_0);
-        assertFalse(exchangeFinishFuture.isDone()); // wait for in-progress addDataPages to complete
-        assertFalse(addDataPagesFuture3.isDone());
+        assertThat(exchangeFinishFuture.isDone()).isFalse(); // wait for in-progress addDataPages to complete
+        assertThat(addDataPagesFuture3.isDone()).isFalse();
 
         chunkManager.spoolIfNecessary();
         awaitOneSecond().until(addDataPagesFuture3::isDone);
@@ -705,16 +706,17 @@ public class TestChunkManager
                 DataSize.of(128, KILOBYTE));
 
         AddDataPagesResult addDataPagesResult = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("dummy")));
-        assertFalse(addDataPagesResult.addDataPagesFuture().isDone()); // addDataPagesResult will block because of memory not enough
-        assertTrue(addDataPagesResult.shouldRetainMemory());
+        assertThat(addDataPagesResult.addDataPagesFuture().isDone()).isFalse(); // addDataPagesResult will block because of memory not enough
+        assertThat(addDataPagesResult.shouldRetainMemory()).isTrue();
 
         AddDataPagesResult retriedAddDataPagesResult = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("dummy")));
-        assertFalse(retriedAddDataPagesResult.addDataPagesFuture().isDone());
-        assertEquals(addDataPagesResult.addDataPagesFuture(), retriedAddDataPagesResult.addDataPagesFuture()); // retry should get the same future
-        assertFalse(retriedAddDataPagesResult.shouldRetainMemory()); // retry shouldn't retain memory for input data
+        assertThat(retriedAddDataPagesResult.addDataPagesFuture().isDone()).isFalse();
+        // retry should get the same future
+        assertThat(retriedAddDataPagesResult.addDataPagesFuture()).isEqualTo(addDataPagesResult.addDataPagesFuture());
+        assertThat(retriedAddDataPagesResult.shouldRetainMemory()).isFalse(); // retry shouldn't retain memory for input data
 
         addDataPagesResult.addDataPagesFuture().cancel(true);
-        assertTrue(retriedAddDataPagesResult.addDataPagesFuture().isCancelled());
+        assertThat(retriedAddDataPagesResult.addDataPagesFuture().isCancelled()).isTrue();
     }
 
     @Test
@@ -757,7 +759,7 @@ public class TestChunkManager
         ChunkList chunkList = listClosedChunks(chunkManager, EXCHANGE_0, OptionalLong.empty(), 7);
         assertThat(chunkList.chunks()).containsExactlyInAnyOrder(chunkHandle0, chunkHandle1, chunkHandle2, chunkHandle3, chunkHandle4, chunkHandle5, chunkHandle6);
 
-        assertEquals(192, memoryAllocator.getTotalMemory() - memoryAllocator.getFreeMemory());
+        assertThat((memoryAllocator.getTotalMemory() - memoryAllocator.getFreeMemory())).isEqualTo(192);
 
         assertThatThrownBy(() -> getFutureValue(chunkManager.addDataPages(EXCHANGE_1, 3, 3, 3, 0L, ImmutableList.of(hugePage)).addDataPagesFuture()))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -765,7 +767,8 @@ public class TestChunkManager
 
         chunkManager.removeExchange(EXCHANGE_0);
         chunkManager.removeExchange(EXCHANGE_1);
-        assertEquals(memoryAllocator.getTotalMemory(), memoryAllocator.getFreeMemory());
+        Object expected = memoryAllocator.getTotalMemory();
+        assertThat(memoryAllocator.getFreeMemory()).isEqualTo(expected);
     }
 
     @Test
@@ -796,13 +799,13 @@ public class TestChunkManager
 
                 sleepUninterruptibly(100, MILLISECONDS);
             }
-            return fail();
+            return abort();
         });
 
         drainedChunkManager.drainAllChunks();
         drainedChunkManager.clearSpooledChunkByExchange();
 
-        assertTrue(numClosedChunksFuture.isDone());
+        assertThat(numClosedChunksFuture.isDone()).isTrue();
 
         ChunkManager newChunkManager = createChunkManager(
                 BUFFER_NODE_ID,
@@ -854,7 +857,7 @@ public class TestChunkManager
             verifyChunkData(chunkDataResult.chunkDataLease().get(), values);
         }
         else {
-            assertTrue(chunkDataResult.spooledChunk().isPresent());
+            assertThat(chunkDataResult.spooledChunk()).isPresent();
             List<DataPage> dataPages = getFutureValue(spooledChunkReader.getDataPages(chunkDataResult.spooledChunk().get()));
             assertThat(dataPages).containsExactlyInAnyOrder(values);
         }
@@ -917,7 +920,7 @@ public class TestChunkManager
 
             sleepUninterruptibly(100, MILLISECONDS);
         }
-        return fail();
+        return abort();
     }
 
     private ChunkList listClosedChunks(ChunkManager chunkManager, String exchangeId, OptionalLong pagingId, int expectedChunkListSize)
@@ -932,21 +935,21 @@ public class TestChunkManager
                 return new ChunkList(chunkHandles, pagingId);
             }
             if (chunkHandles.size() > expectedChunkListSize) {
-                return fail(String.format("Expected chunkHandles.size()=%s to be less than or equal to %s; chunkHandles=%s", chunkHandles.size(), expectedChunkListSize, chunkHandles));
+                return abort(String.format("Expected chunkHandles.size()=%s to be less than or equal to %s; chunkHandles=%s", chunkHandles.size(), expectedChunkListSize, chunkHandles));
             }
 
             sleepUninterruptibly(100, MILLISECONDS);
         }
-        return fail();
+        return abort();
     }
 
     protected void assertDrainedChunkDataResult(ChunkManager chunkManager, long drainedBufferNodeId)
     {
         ChunkDataResult chunkDataResult = chunkManager.getChunkData(drainedBufferNodeId, EXCHANGE_0, 0, 0L);
-        assertTrue(chunkDataResult.spooledChunk().isPresent());
-        assertEquals(52, chunkDataResult.spooledChunk().get().length());
-        assertTrue(chunkDataResult.spooledChunk().get().location().startsWith("s3://" + minioStorage.getBucketName()));
-        assertTrue(chunkDataResult.spooledChunk().get().location().contains("exchange-0." + drainedBufferNodeId));
+        assertThat(chunkDataResult.spooledChunk()).isPresent();
+        assertThat(chunkDataResult.spooledChunk().get().length()).isEqualTo(52);
+        assertThat(chunkDataResult.spooledChunk().get().location()).startsWith("s3://" + minioStorage.getBucketName());
+        assertThat(chunkDataResult.spooledChunk().get().location()).contains("exchange-0." + drainedBufferNodeId);
     }
 
     private static ConditionFactory awaitOneSecond()

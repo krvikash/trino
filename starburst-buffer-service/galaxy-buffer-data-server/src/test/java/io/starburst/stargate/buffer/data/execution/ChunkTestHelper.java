@@ -22,7 +22,6 @@ import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.calculateChecksum;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.readSerializedPages;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public final class ChunkTestHelper
 {
@@ -38,8 +37,8 @@ public final class ChunkTestHelper
         chunkSlices.forEach(sliceOutput::writeBytes);
 
         List<DataPage> dataPages = ImmutableList.copyOf(readSerializedPages(sliceOutput.getUnderlyingSlice().getInput()));
-        assertEquals(checksum, calculateChecksum(dataPages));
-        assertEquals(numDataPages, dataPages.size());
+        assertThat(calculateChecksum(dataPages)).isEqualTo(checksum);
+        assertThat(dataPages.size()).isEqualTo(numDataPages);
 
         assertThat(dataPages).containsExactlyInAnyOrder(values);
 

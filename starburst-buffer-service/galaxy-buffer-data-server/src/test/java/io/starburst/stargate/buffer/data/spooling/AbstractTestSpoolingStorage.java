@@ -35,7 +35,6 @@ import static io.starburst.stargate.buffer.data.execution.ChunkTestHelper.toChun
 import static io.starburst.stargate.buffer.data.execution.SpooledChunksByExchange.decodeMetadataSlice;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractTestSpoolingStorage
@@ -144,7 +143,7 @@ public abstract class AbstractTestSpoolingStorage
                     .containsExactlyElementsOf(ImmutableList.of(new DataPage(0, 0, utf8Slice(String.valueOf(chunkId)))));
         }
 
-        assertEquals(32, spooledChunkMap.size());
+        assertThat(spooledChunkMap).hasSize(32);
         getFutureValue(spoolingStorage.removeExchange(BUFFER_NODE_ID, EXCHANGE_ID));
 
         // verify spooling files are removed
@@ -167,7 +166,7 @@ public abstract class AbstractTestSpoolingStorage
         spooledChunksByExchange.update(EXCHANGE_ID, expectedSpooledChunkMap);
         getFutureValue(spoolingStorage.writeMetadataFile(BUFFER_NODE_ID, spooledChunksByExchange.encodeMetadataSlice()));
 
-        assertEquals(expectedSpooledChunkMap, decodeMetadataSlice(getFutureValue(spoolingStorage.readMetadataFile(BUFFER_NODE_ID))));
+        assertThat(decodeMetadataSlice(getFutureValue(spoolingStorage.readMetadataFile(BUFFER_NODE_ID)))).isEqualTo(expectedSpooledChunkMap);
     }
 
     private static String getRandomLargeString()

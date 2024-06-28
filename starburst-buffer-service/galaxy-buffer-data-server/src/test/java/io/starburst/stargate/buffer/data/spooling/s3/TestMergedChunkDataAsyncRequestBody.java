@@ -43,9 +43,7 @@ import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.toDat
 import static io.starburst.stargate.buffer.data.execution.ChunkTestHelper.toChunkDataLease;
 import static io.starburst.stargate.buffer.data.spooling.s3.MergedChunkDataAsyncRequestBody.fromChunks;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assumptions.abort;
 
 public class TestMergedChunkDataAsyncRequestBody
 {
@@ -133,7 +131,7 @@ public class TestMergedChunkDataAsyncRequestBody
         public void onComplete()
         {
             if (onCompleteCalled) {
-                fail("onComplete called multiple times");
+                abort("onComplete called multiple times");
             }
             onCompleteCalled = true;
             outputBuffer.flip();
@@ -156,7 +154,7 @@ public class TestMergedChunkDataAsyncRequestBody
 
         public byte[] getWrittenRawData()
         {
-            assertTrue(onCompleteCalled);
+            assertThat(onCompleteCalled).isTrue();
             byte[] readBytes = new byte[outputBuffer.limit()];
             outputBuffer.get(readBytes);
             return readBytes;
@@ -176,7 +174,7 @@ public class TestMergedChunkDataAsyncRequestBody
                 rawInputStream.reset();
             }
             catch (IOException ex) {
-                fail("SpooledChunkMap not specified correctly");
+                abort("SpooledChunkMap not specified correctly");
             }
         }
         return readData.buildOrThrow();
@@ -228,9 +226,9 @@ public class TestMergedChunkDataAsyncRequestBody
                 spooledChunkMap);
         MockSubscriber subscriber = new MockSubscriber(consumerCallLimit, false);
         testBody.subscribe(subscriber);
-        assertTrue(subscriber.isOnCompleteCalled());
-        assertEquals(numSlices + 1, subscriber.getOnNextCounter());
-        assertEquals(numSlices + 1, subscriber.getRequestCounter());
+        assertThat(subscriber.isOnCompleteCalled()).isTrue();
+        assertThat(subscriber.getOnNextCounter()).isEqualTo(numSlices + 1);
+        assertThat(subscriber.getRequestCounter()).isEqualTo(numSlices + 1);
         verifyExpectedOutput(dataToWrite, spooledChunkMap.buildOrThrow(), subscriber.getWrittenRawData());
     }
 
@@ -248,10 +246,10 @@ public class TestMergedChunkDataAsyncRequestBody
                 spooledChunkMap);
         MockSubscriber subscriber = new MockSubscriber(consumerCallLimit, true);
         testBody.subscribe(subscriber);
-        assertTrue(subscriber.isOnCompleteCalled());
-        assertEquals(numSlices + 1, subscriber.getOnNextCounter());
+        assertThat(subscriber.isOnCompleteCalled()).isTrue();
+        assertThat(subscriber.getOnNextCounter()).isEqualTo(numSlices + 1);
         // This has an extra call to request because of nested calls to request() from onNext()
-        assertEquals(numSlices + 2, subscriber.getRequestCounter());
+        assertThat(subscriber.getRequestCounter()).isEqualTo(numSlices + 2);
         verifyExpectedOutput(dataToWrite, spooledChunkMap.buildOrThrow(), subscriber.getWrittenRawData());
     }
 
@@ -284,9 +282,9 @@ public class TestMergedChunkDataAsyncRequestBody
                 spooledChunkMap);
         MockSubscriber subscriber = new MockSubscriber(consumerCallLimit, nestedRequests);
         testBody.subscribe(subscriber);
-        assertTrue(subscriber.isOnCompleteCalled());
-        assertEquals(chunk0NumSlices + chunk1NumSlices + chunk2NumSlices + 3, subscriber.getOnNextCounter());
-        assertEquals((chunk0NumSlices + chunk1NumSlices + chunk2NumSlices + 3 + consumerCallLimit - 1) / consumerCallLimit, subscriber.getRequestCounter());
+        assertThat(subscriber.isOnCompleteCalled()).isTrue();
+        assertThat(subscriber.getOnNextCounter()).isEqualTo(chunk0NumSlices + chunk1NumSlices + chunk2NumSlices + 3);
+        assertThat(subscriber.getRequestCounter()).isEqualTo((chunk0NumSlices + chunk1NumSlices + chunk2NumSlices + 3 + consumerCallLimit - 1) / consumerCallLimit);
         verifyExpectedOutput(dataToWrite, spooledChunkMap.buildOrThrow(), subscriber.getWrittenRawData());
     }
 
@@ -318,9 +316,9 @@ public class TestMergedChunkDataAsyncRequestBody
                 spooledChunkMap);
         MockSubscriber subscriber = new MockSubscriber(consumerCallLimit, nestedRequests);
         testBody.subscribe(subscriber);
-        assertTrue(subscriber.isOnCompleteCalled());
-        assertEquals(chunk0NumSlices + chunk1NumSlices + 2, subscriber.getOnNextCounter());
-        assertEquals((chunk0NumSlices + chunk1NumSlices + 2 + consumerCallLimit - 1) / consumerCallLimit, subscriber.getRequestCounter());
+        assertThat(subscriber.isOnCompleteCalled()).isTrue();
+        assertThat(subscriber.getOnNextCounter()).isEqualTo(chunk0NumSlices + chunk1NumSlices + 2);
+        assertThat(subscriber.getRequestCounter()).isEqualTo((chunk0NumSlices + chunk1NumSlices + 2 + consumerCallLimit - 1) / consumerCallLimit);
         verifyExpectedOutput(dataToWrite, spooledChunkMap.buildOrThrow(), subscriber.getWrittenRawData());
     }
 
@@ -352,9 +350,9 @@ public class TestMergedChunkDataAsyncRequestBody
                 spooledChunkMap);
         MockSubscriber subscriber = new MockSubscriber(consumerCallLimit, nestedRequests);
         testBody.subscribe(subscriber);
-        assertTrue(subscriber.isOnCompleteCalled());
-        assertEquals(chunk0NumSlices + chunk1NumSlices + 2, subscriber.getOnNextCounter());
-        assertEquals((chunk0NumSlices + chunk1NumSlices + 2 + consumerCallLimit - 1) / consumerCallLimit, subscriber.getRequestCounter());
+        assertThat(subscriber.isOnCompleteCalled()).isTrue();
+        assertThat(subscriber.getOnNextCounter()).isEqualTo(chunk0NumSlices + chunk1NumSlices + 2);
+        assertThat(subscriber.getRequestCounter()).isEqualTo((chunk0NumSlices + chunk1NumSlices + 2 + consumerCallLimit - 1) / consumerCallLimit);
         verifyExpectedOutput(dataToWrite, spooledChunkMap.buildOrThrow(), subscriber.getWrittenRawData());
     }
 }
