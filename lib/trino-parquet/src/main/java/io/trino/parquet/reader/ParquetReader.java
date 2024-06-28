@@ -185,7 +185,7 @@ public class ParquetReader
                 int columnId = field.getId();
                 ColumnChunkMetadata chunkMetadata = getColumnChunkMetaData(metadata, field.getDescriptor());
                 ColumnPath columnPath = chunkMetadata.getPath();
-                long rowGroupRowCount = metadata.getRowCount();
+                long rowGroupRowCount = metadata.rowCount();
                 long startingPosition = chunkMetadata.getStartingPos();
                 long totalLength = chunkMetadata.getTotalSize();
                 long totalDataSize = 0;
@@ -301,7 +301,7 @@ public class ParquetReader
         RowGroupInfo rowGroupInfo = rowGroups.get(currentRowGroup);
         currentBlockMetadata = rowGroupInfo.blockMetaData();
         firstRowIndexInGroup = rowGroupInfo.fileRowOffset();
-        currentGroupRowCount = currentBlockMetadata.getRowCount();
+        currentGroupRowCount = currentBlockMetadata.rowCount();
         FilteredRowRanges currentGroupRowRanges = blockRowRanges[currentRowGroup];
         log.debug("advanceToNextRowGroup dataSource %s, currentRowGroup %d, rowRanges %s, currentBlockMetadata %s", dataSource.getId(), currentRowGroup, currentGroupRowRanges, currentBlockMetadata);
         if (currentGroupRowRanges != null) {
@@ -450,12 +450,12 @@ public class ParquetReader
         int fieldId = field.getId();
         ColumnReader columnReader = columnReaders.get(fieldId);
         if (!columnReader.hasPageReader()) {
-            validateParquet(currentBlockMetadata.getRowCount() > 0, dataSource.getId(), "Row group has 0 rows");
+            validateParquet(currentBlockMetadata.rowCount() > 0, dataSource.getId(), "Row group has 0 rows");
             ColumnChunkMetadata metadata = getColumnChunkMetaData(currentBlockMetadata, columnDescriptor);
             FilteredRowRanges rowRanges = blockRowRanges[currentRowGroup];
             OffsetIndex offsetIndex = null;
             if (rowRanges != null) {
-                offsetIndex = getFilteredOffsetIndex(rowRanges, currentRowGroup, currentBlockMetadata.getRowCount(), metadata.getPath());
+                offsetIndex = getFilteredOffsetIndex(rowRanges, currentRowGroup, currentBlockMetadata.rowCount(), metadata.getPath());
             }
             ChunkedInputStream columnChunkInputStream = chunkReaders.get(new ChunkKey(fieldId, currentRowGroup));
             columnReader.setPageReader(
@@ -495,7 +495,7 @@ public class ParquetReader
     private ColumnChunkMetadata getColumnChunkMetaData(BlockMetadata blockMetaData, ColumnDescriptor columnDescriptor)
             throws IOException
     {
-        for (ColumnChunkMetadata metadata : blockMetaData.getColumns()) {
+        for (ColumnChunkMetadata metadata : blockMetaData.columns()) {
             // Column paths for nested structures have common root, so we compare in reverse to find mismatch sooner
             if (arrayEqualsReversed(metadata.getPath().toArray(), columnDescriptor.getPath())) {
                 return metadata;
@@ -587,7 +587,7 @@ public class ParquetReader
                 continue;
             }
             BlockMetadata metadata = rowGroupInfo.blockMetaData();
-            long rowGroupRowCount = metadata.getRowCount();
+            long rowGroupRowCount = metadata.rowCount();
             FilteredRowRanges rowRanges = new FilteredRowRanges(ColumnIndexFilter.calculateRowRanges(
                     FilterCompat.get(filter.get()),
                     rowGroupColumnIndexStore.get(),
