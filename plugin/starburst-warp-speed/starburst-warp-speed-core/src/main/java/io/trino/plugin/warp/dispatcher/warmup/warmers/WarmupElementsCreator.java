@@ -62,7 +62,6 @@ import static java.util.Objects.requireNonNull;
 public class WarmupElementsCreator
 {
     private static final Logger logger = Logger.get(WarmupElementsCreator.class);
-    private static final int WARM_ID_MASK = (1 << 6) - 1; // number of bits available to hold the warm id is limited in the chunk header
     public static final int INAVLID_WARM_ID = -1;
     private final ShapingLogger shapingLogger;
 
@@ -244,8 +243,8 @@ public class WarmupElementsCreator
         return res;
     }
 
-    public static int getCurrentThreadWarmId()
+    public static byte getCurrentThreadWarmId()
     {
-        return System.identityHashCode(Thread.currentThread()) & WARM_ID_MASK;
+        return (byte) System.identityHashCode(Thread.currentThread());
     }
 }

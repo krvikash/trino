@@ -228,9 +228,9 @@ public class WarpProxiedWarmer
             storageWarmerService.fileClose(fileCookieParams, Optional.of(rowGroupData));
         }
 
-        //if (extraDebug) {
-        //    storageWarmerService.verifyQueryOffsets(rowGroupKey, rowGroupData.getValidWarmUpElements());
-        //}
+        if (extraDebug) {
+            storageWarmerService.verifyQueryOffsets(rowGroupKey, rowGroupData.getValidWarmUpElements());
+        }
         return rowGroupData;
     }
 

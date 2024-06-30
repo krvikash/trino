@@ -72,7 +72,7 @@ public class GlobalConfig
     private SwaggerExposingLevel swaggerExposingLevel = SwaggerExposingLevel.DEBUG;
 
     private boolean debugWarmingSingleThreaded;
-    private boolean debugWarming = true;
+    private boolean debugWarming;
 
     private boolean enableImportExport;
     private boolean enableExportAppendOnCloud = true;
