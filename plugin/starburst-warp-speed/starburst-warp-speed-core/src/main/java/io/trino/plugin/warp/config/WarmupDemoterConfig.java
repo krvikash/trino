@@ -30,8 +30,6 @@ public class WarmupDemoterConfig
     private Duration maxDurationAcquireThread = Duration.ofSeconds(200);
     private int maxRetriesAcquireThread = 300;
     private int tasksExecutorQueueSize = 2_000_000;
-    private int prioritizeExecutorPoolSize = 1000;
-    private int cloudExecutorPoolSize = 200;
     private boolean enableDemote = true;
 
     public double getMaxUsageThresholdPercentage()
@@ -155,28 +153,6 @@ public class WarmupDemoterConfig
         this.tasksExecutorQueueSize = tasksExecutorQueueSize;
     }
 
-    public int getPrioritizeExecutorPoolSize()
-    {
-        return prioritizeExecutorPoolSize;
-    }
-
-    @Config("warp-speed.config.task.prioritize-executor-pool-size")
-    public void setPrioritizeExecutorPoolSize(int prioritizeExecutorPoolSize)
-    {
-        this.prioritizeExecutorPoolSize = prioritizeExecutorPoolSize;
-    }
-
-    public int getCloudExecutorPoolSize()
-    {
-        return cloudExecutorPoolSize;
-    }
-
-    @Config("warp-speed.config.task.cloud-executor-pool-size")
-    public void setCloudExecutorPoolSize(int cloudExecutorPoolSize)
-    {
-        this.cloudExecutorPoolSize = cloudExecutorPoolSize;
-    }
-
     public boolean isEnableDemote()
     {
         return enableDemote;
@@ -201,8 +177,6 @@ public class WarmupDemoterConfig
                 ", epsilon=" + epsilon +
                 ", tasksExecutorQueueSize=" + tasksExecutorQueueSize +
                 ", enableDemote=" + enableDemote +
-                ", cloudExecutorPoolSize=" + cloudExecutorPoolSize +
-                ", prioritizeExecutorPoolSize=" + prioritizeExecutorPoolSize +
                 '}';
     }
 }

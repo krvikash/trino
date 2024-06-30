@@ -87,6 +87,8 @@ public class GlobalConfig
     private boolean dataOnlyWarming;
     private boolean enableInverseWithNulls;
     private int cacheManagerMaxParallelWarmupElements = 200;
+    private int cloudExecutorPoolSize = Runtime.getRuntime().availableProcessors() * 100;
+    private int prioritizeExecutorPoolSize = 1000;
 
     public int getStripeSize()
     {
@@ -146,6 +148,28 @@ public class GlobalConfig
     public boolean getEnableExportAppendOnCloud()
     {
         return enableExportAppendOnCloud;
+    }
+
+    public int getCloudExecutorPoolSize()
+    {
+        return cloudExecutorPoolSize;
+    }
+
+    @Config("warp-speed.config.task.cloud-executor-pool-size")
+    public void setCloudExecutorPoolSize(int cloudExecutorPoolSize)
+    {
+        this.cloudExecutorPoolSize = cloudExecutorPoolSize;
+    }
+
+    public int getPrioritizeExecutorPoolSize()
+    {
+        return prioritizeExecutorPoolSize;
+    }
+
+    @Config("warp-speed.config.task.prioritize-executor-pool-size")
+    public void setPrioritizeExecutorPoolSize(int prioritizeExecutorPoolSize)
+    {
+        this.prioritizeExecutorPoolSize = prioritizeExecutorPoolSize;
     }
 
     @Config("warp-speed.enable.export-append-on-cloud")
@@ -530,6 +554,8 @@ public class GlobalConfig
                 ", warmRetryBackoffFactorInMillis=" + warmRetryBackoffFactorInMillis +
                 ", maxWarmupIterationsPerQuery=" + maxWarmupIterationsPerQuery +
                 ", enableImportExport=" + enableImportExport +
+                ", cloudExecutorPoolSize=" + cloudExecutorPoolSize +
+                ", prioritizeExecutorPoolSize=" + prioritizeExecutorPoolSize +
                 ", enableExportAppendOnCloud=" + enableExportAppendOnCloud +
                 ", enableMatchCollect=" + enableMatchCollect +
                 ", certLocalLocalLocation='" + certLocalLocalLocation + '\'' +
