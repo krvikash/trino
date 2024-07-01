@@ -129,9 +129,7 @@ public class WorkerCacheManager
     @Override
     public long revokeMemory(long bytesToRevoke)
     {
-        long revokedBytes = memoryContextService.revoke(bytesToRevoke);
-        shapingLogger.info("revoked %s bytesToRevoke=%s", revokedBytes, bytesToRevoke);
-        return revokedBytes;
+        return memoryContextService.revoke(bytesToRevoke);
     }
 
     private class WarpSplitCache

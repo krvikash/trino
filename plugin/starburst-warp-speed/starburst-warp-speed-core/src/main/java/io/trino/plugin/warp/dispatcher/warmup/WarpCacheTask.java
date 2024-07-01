@@ -138,6 +138,8 @@ public class WarpCacheTask
         CacheWarmState cacheWarmState = CacheWarmState.ABORT_ON_INIT_PROCESS;
         boolean loadFromWarmingThread = false;
         if (isAborted()) {
+            workerTaskExecutorService.taskFinished(rowGroupKey);
+            memoryContextService.remove(this);
             return;
         }
         try {
@@ -389,9 +391,18 @@ public class WarpCacheTask
     public void revoke()
     {
         setEngineAbort();
+        blocksToProcess.clear();
+        blocksToProcess.add(STOP_TRIGGER);
         warmupCacheData.clear();
         memoryContextService.releaseMemory(localMemoryContext);
         localMemoryContext = null; //we set to null in case it started, so we won't release twice
+        memoryContextService.remove(this);
+        workerTaskExecutorService.taskFinished(rowGroupKey);
+    }
+
+    public long getRetainedSizeInBytes()
+    {
+        return warmupCacheData.getRetainedSizeInBytes();
     }
 
     public synchronized void setFinished()
@@ -416,7 +427,7 @@ public class WarpCacheTask
             blocksToProcess.add(STOP_TRIGGER);
         }
         else {
-            logger.info("too much memory allocated in cache %s", memoryContextService);
+            logger.debug("too much memory allocated in cache. currentTaskSize=%s, rowGroupKey=%s", warmupCacheData.getRetainedSizeInBytes(), rowGroupKey);
             setEngineAbort();
         }
     }
@@ -457,10 +468,7 @@ public class WarpCacheTask
 
     public long getUsedMemory()
     {
-        if (localMemoryContext == null) {
-            logger.info("localMemoryContext is null %s, %s", finished, isAborted());
-        }
-        return localMemoryContext != null ? localMemoryContext.getBytes() : 0;
+        return warmupCacheData.getRetainedSizeInBytes();
     }
 
     @Override

@@ -23,13 +23,16 @@ import io.airlift.log.Logger;
 import io.trino.memory.context.AggregatedMemoryContext;
 import io.trino.memory.context.LocalMemoryContext;
 import io.trino.memory.context.MemoryReservationHandler;
+import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.dispatcher.warmup.WarpCacheTask;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
+import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.spi.cache.CacheManagerContext;
 import io.trino.spi.cache.MemoryAllocator;
 
+import java.util.Comparator;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -43,6 +46,7 @@ public class MemoryContextService
     private static final Logger logger = Logger.get(MemoryContextService.class);
     private final LinkedBlockingQueue<LocalMemoryContext> localMemoryContexts;
     private final WarmingServiceStats statsWarmingService;
+    private final ShapingLogger shapingLogger;
     private boolean revokeIsRunning;
     private final MemoryAllocator revocableMemoryAllocator;
     @GuardedBy("this")
@@ -54,7 +58,8 @@ public class MemoryContextService
     @Inject
     public MemoryContextService(CacheManagerContext cacheManagerContext,
             MetricsManager metricsManager,
-            WarmupDemoterConfig warmupDemoterConfig)
+            WarmupDemoterConfig warmupDemoterConfig,
+            GlobalConfig globalConfig)
     {
         int queueSize = warmupDemoterConfig.getTasksExecutorQueueSize();
         this.localMemoryContexts = new LinkedBlockingQueue<>(queueSize);
@@ -67,6 +72,11 @@ public class MemoryContextService
             localMemoryContexts.add(localMemoryContext);
         }
         this.statsWarmingService = metricsManager.registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
+        this.shapingLogger = ShapingLogger.getInstance(
+                logger,
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
     }
 
     public LocalMemoryContext poll()
@@ -77,8 +87,13 @@ public class MemoryContextService
     public void releaseMemory(LocalMemoryContext localMemoryContext)
     {
         try {
-            localMemoryContext.trySetBytes(0); //warming finished
-            localMemoryContexts.put(localMemoryContext);
+            if (localMemoryContext != null) {
+                localMemoryContext.trySetBytes(0); //warming finished
+                localMemoryContexts.put(localMemoryContext);
+            }
+            else {
+                shapingLogger.warn("revoked but localMemoryContexts is null.");
+            }
         }
         catch (Exception e) {
             logger.error("failed to put localMemoryContext localMemoryContextsSize=%s error=%s", localMemoryContexts.size(), e.getMessage());
@@ -111,8 +126,9 @@ public class MemoryContextService
         try {
             statsWarmingService.incwarm_warp_cache_revoke_started();
             revokeIsRunning = true;
+            int iteration = 0;
             while (revokedMemory < bytesToRevoke && !runningTasks.isEmpty()) {
-                Optional<WarpCacheTask> warpCacheTaskOpt = runningTasks.stream().findAny();
+                Optional<WarpCacheTask> warpCacheTaskOpt = runningTasks.stream().max(Comparator.comparingLong(WarpCacheTask::getRetainedSizeInBytes));
                 if (warpCacheTaskOpt.isEmpty()) {
                     //protect a race in case another thread poll a task
                     continue;
@@ -123,11 +139,11 @@ public class MemoryContextService
                     warpCacheTask.setEngineAbort();
                 }
                 else {
-                    logger.info("revoke cache manager: warp warm not started yet, we set state as abort and release the memory");
                     warpCacheTask.revoke();
                 }
-                logger.info("revoked memory=%s of bytesToRevoke=%s, runningTasksSize=%s", revokedMemory, bytesToRevoke, runningTasks.size());
+                iteration++;
             }
+            logger.info("revoked memory=%s of bytesToRevoke=%s, runningTasksSize=%s, totalRevokedTasks=%s", revokedMemory, bytesToRevoke, runningTasks.size(), iteration);
             statsWarmingService.incwarm_warp_cache_revoke_accomplished();
         }
         catch (Exception e) {
@@ -168,7 +184,7 @@ public class MemoryContextService
         public boolean tryReserveMemory(String allocationTag, long delta)
         {
             if (delta == 0) {
-                logger.info("delta is 0");
+                logger.debug("delta is 0");
                 // noop
                 return true;
             }
