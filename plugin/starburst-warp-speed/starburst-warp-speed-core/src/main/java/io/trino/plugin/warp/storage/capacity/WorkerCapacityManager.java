@@ -25,6 +25,7 @@ import io.trino.plugin.warp.gen.stats.WarmupDemoterStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
+import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.tools.util.PathUtils;
 import io.trino.plugin.warp.tools.util.StopWatch;
 import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
@@ -32,9 +33,11 @@ import io.trino.spi.TrinoException;
 import org.apache.commons.io.FileUtils;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -52,6 +55,7 @@ public class WorkerCapacityManager
     private final StorageEngineConstants storageEngineConstants;
     private final WarmupDemoterStats statsWarmupDemoter;
     private final NativeStorageStateHandler nativeStorageStateHandler;
+    private final CatalogNameProvider catalogNameProvider;
     private final AtomicBoolean workerInitialized = new AtomicBoolean();
     private final AtomicInteger executingTxCount = new AtomicInteger();
 
@@ -65,12 +69,14 @@ public class WorkerCapacityManager
             StorageEngineConstants storageEngineConstants,
             NativeStorageStateHandler nativeStorageStateHandler,
             WarpInitializedServiceRegistry warpInitializedServiceRegistry,
-            MetricsManager metricsManager)
+            MetricsManager metricsManager,
+            CatalogNameProvider catalogNameProvider)
     {
         this.globalConfig = requireNonNull(globalConfig);
         this.warmupDemoterConfig = requireNonNull(warmupDemoterConfig);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
+        this.catalogNameProvider = requireNonNull(catalogNameProvider);
         statsWarmupDemoter = metricsManager.registerMetric(WarmupDemoterStats.create(WarmupDemoterService.WARMUP_DEMOTER_STAT_GROUP));
         warpInitializedServiceRegistry.addService(this);
     }
@@ -151,17 +157,41 @@ public class WorkerCapacityManager
         executingTxCount.decrementAndGet();
     }
 
-    private void calculateTotalCapacity()
+    private boolean createCatalogLocalStore()
     {
-        Path dataPath = Paths.get(globalConfig.getLocalStorePath());
-        if (!Files.exists(dataPath)) {
-            logger.error("local store directory does not exists %s setting StorageDisableState to permanently disabled", globalConfig.getLocalStorePath());
-            nativeStorageStateHandler.setStorageDisableState(true, false);
-            return;
-        }
+        String localStorePath = PathUtils.getUriPath(globalConfig.getLocalStorePath(), catalogNameProvider.get());
 
         try {
-            warpDir = dataPath.toFile();
+            // verify that directory exist
+            if (!Files.exists(Paths.get(localStorePath))) {
+                if (!new File(localStorePath).mkdirs()) {
+                    logger.error("local store directory does not exists %s. setting StorageDisableState to permanently disabled", localStorePath);
+                    nativeStorageStateHandler.setStorageDisableState(true, false);
+                    return false;
+                }
+            }
+
+            // verify that write is enabled
+            File tempFile = new File(localStorePath + "/temp.temp");
+            Writer writer = Files.newBufferedWriter(tempFile.toPath(), StandardCharsets.UTF_8);
+            writer.write(tempFile.getName());
+            writer.close();
+            tempFile.delete();
+            return true;
+        }
+        catch (Exception e) {
+            logger.error("cannot write to local store path %s. message %s. setting StorageDisableState to permanently disabled", localStorePath, e.getMessage());
+            nativeStorageStateHandler.setStorageDisableState(true, false);
+            return false;
+        }
+    }
+
+    private void calculateTotalCapacity()
+    {
+        String localStorePath = PathUtils.getUriPath(globalConfig.getLocalStorePath(), catalogNameProvider.get());
+
+        try {
+            warpDir = new File(localStorePath);
             totalCapacity = warpDir.getTotalSpace(); // As we are the sole users of the mount we can use total space
             statsWarmupDemoter.addtotalUsage(totalCapacity);
             logger.info("totalCapacity %dMB", totalCapacity >> 20);
@@ -174,22 +204,22 @@ public class WorkerCapacityManager
 
     private void cleanLocalStorage()
     {
-        String localStorePath = globalConfig.getLocalStorePath();
-
-        File doNotRemove = new File(PathUtils.getUriPath(localStorePath, "DO-NOT-REMOVE"));
-        if (doNotRemove.exists()) {
-            if (doNotRemove.delete()) {
-                logger.info("cleanLocalStorage exiting since DO-NOT-REMOVE file exists (and removed)");
-            }
-            else {
-                logger.info("cleanLocalStorage exiting since DO-NOT-REMOVE file exists (was not removed)");
-            }
+        if (!createCatalogLocalStore()) {
+            logger.info("cleanLocalStorage exiting since cannot write to local store");
             calculateTotalCapacity();
             return;
         }
 
+        if (!globalConfig.isEnableLocalStoreCleanOnLoad()) {
+            logger.info("cleanLocalStorage exiting since clean is disabled");
+            calculateTotalCapacity();
+            return;
+        }
+
+        String localStorePath = PathUtils.getUriPath(globalConfig.getLocalStorePath(), catalogNameProvider.get());
         File localStore = new File(localStorePath);
         String[] ls = localStore.list();
+
         if ((ls == null) || (ls.length == 0)) {
             logger.info("cleanLocalStorage exiting since no files found");
             calculateTotalCapacity();
@@ -207,6 +237,10 @@ public class WorkerCapacityManager
                 stopWatch.stop();
                 logger.info("cleanLocalStorage job finished. took %d nano sec", stopWatch.getNanoTime());
                 // in case we hit an error, we leave total capacity as zero and storage state as permanently failed
+                nativeStorageStateHandler.setStorageDisableState(false, false);
+            }
+            catch (FileNotFoundException e) {
+                logger.error("cleanLocalStorage job failed to clean localStorePath %s. message %s", localStorePath, e.getMessage());
                 nativeStorageStateHandler.setStorageDisableState(false, false);
             }
             catch (IOException e) {

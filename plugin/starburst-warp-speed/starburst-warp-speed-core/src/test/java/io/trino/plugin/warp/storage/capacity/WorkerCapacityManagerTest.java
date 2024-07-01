@@ -17,8 +17,11 @@ import io.trino.plugin.warp.TestingTxService;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
+import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
+import io.trino.plugin.warp.tools.CatalogNameProvider;
+import io.trino.plugin.warp.tools.util.PathUtils;
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,27 +36,31 @@ import java.util.Random;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 public class WorkerCapacityManagerTest
 {
     private WorkerCapacityManager workerCapacityManager;
     private GlobalConfig globalConfig;
+    private CatalogNameProvider catalogNameProvider;
 
     @BeforeEach
     public void before()
     {
         globalConfig = new GlobalConfig();
+        catalogNameProvider = new CatalogNameProvider("CatalogName");
         workerCapacityManager = new WorkerCapacityManager(globalConfig,
                 mock(WarmupDemoterConfig.class),
                 mock(StorageEngineConstants.class),
                 mock(NativeStorageStateHandler.class),
                 mock(WarpInitializedServiceRegistry.class),
-                TestingTxService.createMetricsManager());
+                TestingTxService.createMetricsManager(),
+                catalogNameProvider);
     }
 
     @Test
-    void tesCleanLocalStorage()
+    void testCleanLocalStorage()
     {
         Path localStorePath;
         try {
@@ -65,10 +72,14 @@ public class WorkerCapacityManagerTest
         File localStoreDirectory = localStorePath.toFile();
         globalConfig.setLocalStorePath(localStoreDirectory.getAbsolutePath());
 
+        String catalogLocalStorePath = PathUtils.getUriPath(globalConfig.getLocalStorePath(), catalogNameProvider.get());
+        File catalogLocalStore = new File(catalogLocalStorePath);
+        catalogLocalStore.mkdirs();
+
         try {
             int numFiles = 10;
             for (int i = 0; i < numFiles; i++) {
-                String tempFileName = String.format(localStorePath + "/test/case-%d/bucket/schema/table/part-%05d-7a144fa0-52b0-473d-b1ab-a5dbbadd01ae-c000.snappy.parquet/0/110606/", i, i);
+                String tempFileName = String.format(catalogLocalStorePath + "/test/case-%d/bucket/schema/table/part-%05d-7a144fa0-52b0-473d-b1ab-a5dbbadd01ae-c000.snappy.parquet/0/110606/", i, i);
                 new File(tempFileName).mkdirs();
                 File tempFile = new File(tempFileName + "1549797223000-" + i);
 
@@ -85,7 +96,7 @@ public class WorkerCapacityManagerTest
                     throw new RuntimeException("failed to create file");
                 }
             }
-            Assertions.assertEquals(1, requireNonNull(localStoreDirectory.list()).length);
+            Assertions.assertEquals(1, requireNonNull(catalogLocalStore.list()).length);
 
             workerCapacityManager.init();
 
@@ -98,7 +109,7 @@ public class WorkerCapacityManagerTest
                 throw new RuntimeException(e);
             }
 
-            Assertions.assertEquals(0, requireNonNull(localStoreDirectory.list()).length);
+            Assertions.assertEquals(0, requireNonNull(catalogLocalStore.list()).length);
             FileUtils.deleteDirectory(localStoreDirectory);
         }
         catch (IOException e) {
@@ -118,9 +129,14 @@ public class WorkerCapacityManagerTest
         }
         File localStoreDirectory = localStorePath.toFile();
         globalConfig.setLocalStorePath(localStoreDirectory.getAbsolutePath());
+        globalConfig.setEnableLocalStoreCleanOnLoad(false);
+
+        String catalogLocalStorePath = PathUtils.getUriPath(globalConfig.getLocalStorePath(), catalogNameProvider.get());
+        File catalogLocalStore = new File(catalogLocalStorePath);
+        catalogLocalStore.mkdirs();
 
         try {
-            String tempFileName = String.format(localStorePath + "/test/bucket/schema/table/part-7a144fa0-52b0-473d-b1ab-a5dbbadd01ae-c000.snappy.parquet/0/110606/");
+            String tempFileName = String.format(catalogLocalStorePath + "/test/bucket/schema/table/part-7a144fa0-52b0-473d-b1ab-a5dbbadd01ae-c000.snappy.parquet/0/110606/");
             new File(tempFileName).mkdirs();
             File tempFile = new File(tempFileName + "1549797223000");
 
@@ -137,12 +153,7 @@ public class WorkerCapacityManagerTest
                 throw new RuntimeException("failed to create file");
             }
 
-            File doNotRemoveFile = new File(localStorePath + "/DO-NOT-REMOVE");
-            if (!doNotRemoveFile.createNewFile()) {
-                throw new RuntimeException("failed to create file");
-            }
-
-            Assertions.assertEquals(2, requireNonNull(localStoreDirectory.list()).length);
+            Assertions.assertEquals(1, requireNonNull(catalogLocalStore.list()).length);
 
             workerCapacityManager.init();
 
@@ -155,11 +166,28 @@ public class WorkerCapacityManagerTest
                 throw new RuntimeException(e);
             }
 
-            Assertions.assertEquals(1, requireNonNull(localStoreDirectory.list()).length);
+            Assertions.assertEquals(1, requireNonNull(catalogLocalStore.list()).length);
             FileUtils.deleteDirectory(localStoreDirectory);
         }
         catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Test
+    void testCatalogLocalStore()
+    {
+        RowGroupKey rowGroupKey = new RowGroupKey(
+                "s",
+                "t",
+                "fl",
+                1L,
+                2L,
+                3L,
+                null,
+                catalogNameProvider.get());
+
+        assertThat(rowGroupKey.stringFileNameRepresentation("localStorePath"))
+                .startsWith("localStorePath/" + catalogNameProvider.get());
     }
 }

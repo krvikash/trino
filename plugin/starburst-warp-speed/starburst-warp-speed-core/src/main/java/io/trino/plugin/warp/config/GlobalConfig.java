@@ -36,6 +36,7 @@ public class GlobalConfig
     public static final String ENABLE_DEFAULT_WARMING = "warp-speed.enable-default-warming";
     public static final String DEFAULT_WARMING_INDEX = "warp-speed.default-warming-index";
     public static final String LOCAL_STORE_PATH = "warp-speed.local-store.path";
+    public static final String LOCAL_STORE_CLEAN_ON_LOAD = "warp-speed.local-store.clean-on-load";
     public static final String MAX_COLLECT_COLUMNS_SKIP_DEFAULT_WARMING = "warp-speed.max-collect-columns-skip-default-warming";
     public static final String CERT_LOCAL_LOCATION = "warp-speed.config.cert-local-location";
     public static final String AZURE_CONNECTION_STRING = "warp-speed.config.azure.connection-string";
@@ -58,6 +59,7 @@ public class GlobalConfig
     private int consistentSplitBucketsPerWorker = 2048;
     private int exportDelayInSeconds;
     private String localStorePath = "/opt/data/";
+    private boolean enableLocalStoreCleanOnLoad = true;
     private int maxCollectColumnsSkipDefaultWarming = 128;
     private int predicateSimplifyThreshold = 1_000_000;
     private long reservationUsageForSingleTxInBytes = 1024L * 1024 * 128;
@@ -333,6 +335,17 @@ public class GlobalConfig
     public int getMaxCollectColumnsSkipDefaultWarming()
     {
         return maxCollectColumnsSkipDefaultWarming;
+    }
+
+    public boolean isEnableLocalStoreCleanOnLoad()
+    {
+        return enableLocalStoreCleanOnLoad;
+    }
+
+    @Config(LOCAL_STORE_CLEAN_ON_LOAD)
+    public void setEnableLocalStoreCleanOnLoad(boolean enableLocalStoreCleanOnLoad)
+    {
+        this.enableLocalStoreCleanOnLoad = enableLocalStoreCleanOnLoad;
     }
 
     @Config(MAX_COLLECT_COLUMNS_SKIP_DEFAULT_WARMING)
