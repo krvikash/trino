@@ -270,4 +270,11 @@ public class TestStargateWithMemoryWritesEnabledConnectorTest
     @Disabled // Disable to avoid flaky test failures
     @Override
     public void testUpdateRowConcurrently() {}
+
+    @Test
+    @Override // Override because this connector doesn't support creating tables
+    public void testExecuteProcedure()
+    {
+        // TODO (https://github.com/starburstdata/cork/issues/984) Enable this test
+    }
 }

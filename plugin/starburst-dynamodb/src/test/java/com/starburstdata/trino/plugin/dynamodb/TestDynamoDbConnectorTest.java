@@ -195,4 +195,18 @@ public class TestDynamoDbConnectorTest
         assertThatThrownBy(super::testCharTrailingSpace)
                 .hasMessageMatching("Failed to execute statement: CREATE TABLE amazondynamodb.* \\(x char\\(10\\)\\)");
     }
+
+    @Test
+    @Override // Override because this connector doesn't support creating tables
+    public void testExecuteProcedure()
+    {
+        // TODO (https://github.com/starburstdata/cork/issues/984) Enable this test
+    }
+
+    @Test
+    @Override // Override because this connector doesn't support creating tables
+    public void testExecuteProcedureWithNamedArgument()
+    {
+        // TODO (https://github.com/starburstdata/cork/issues/984) Enable this test
+    }
 }
