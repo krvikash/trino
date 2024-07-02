@@ -115,7 +115,7 @@ public final class FlowSequencerStats
 
     public static String createKey(String group, String flowType)
     {
-        return new StringJoiner(".").add(group).add(flowType).toString();
+        return new StringJoiner("_").add(group).add(flowType).toString();
     }
 
     @Override

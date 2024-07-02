@@ -480,7 +480,7 @@ public final class WarmupDemoterStats
 
     public static String createKey(String group)
     {
-        return new StringJoiner(".").add(group).toString();
+        return new StringJoiner("_").add(group).toString();
     }
 
     @Override

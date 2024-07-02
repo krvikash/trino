@@ -239,7 +239,7 @@ public final class LuceneIndexerStats
 
     public static String createKey(String group, String weIx)
     {
-        return new StringJoiner(".").add(group).add(weIx).toString();
+        return new StringJoiner("_").add(group).add(weIx).toString();
     }
 
     @Override
