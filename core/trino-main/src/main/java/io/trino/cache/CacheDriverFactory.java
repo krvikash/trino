@@ -24,6 +24,7 @@ import io.airlift.units.Duration;
 import io.trino.Session;
 import io.trino.cache.CommonPlanAdaptation.PlanSignatureWithPredicate;
 import io.trino.execution.ScheduledSplit;
+import io.trino.metadata.Split;
 import io.trino.metadata.TableHandle;
 import io.trino.operator.Driver;
 import io.trino.operator.DriverContext;
@@ -55,6 +56,7 @@ import java.util.stream.IntStream;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static io.trino.SystemSessionProperties.isEnableDynamicRowFiltering;
 import static io.trino.cache.CacheCommonSubqueries.LOAD_PAGES_ALTERNATIVE;
 import static io.trino.cache.CacheCommonSubqueries.ORIGINAL_PLAN_ALTERNATIVE;
 import static io.trino.cache.CacheCommonSubqueries.STORE_PAGES_ALTERNATIVE;
@@ -156,11 +158,12 @@ public class CacheDriverFactory
         StaticDynamicFilter dynamicFilter = resolveDynamicFilter(originalDynamicFilter, commonDynamicFilter);
 
         TupleDomain<CacheColumnId> enforcedPredicate = pruneEnforcedPredicate(split);
-        TupleDomain<CacheColumnId> unenforcedPredicate = pageSourceProvider.getUnenforcedPredicate(
-                        session,
-                        split.getSplit(),
-                        originalTableHandle,
-                        dynamicFilter.getCurrentPredicate())
+        TupleDomain<CacheColumnId> unenforcedPredicate = getDynamicRowFilteringUnenforcedPredicate(
+                pageSourceProvider,
+                session,
+                split.getSplit(),
+                originalTableHandle,
+                dynamicFilter.getCurrentPredicate())
                 .transformKeys(handle -> requireNonNull(commonColumnHandles.get(handle)));
 
         // skip caching of completely filtered out splits
@@ -288,6 +291,30 @@ public class CacheDriverFactory
         }
 
         return commonDynamicFilter;
+    }
+
+    @VisibleForTesting
+    public static TupleDomain<ColumnHandle> getDynamicRowFilteringUnenforcedPredicate(
+            PageSourceProvider delegatePageSourceProvider,
+            Session session,
+            Split split,
+            TableHandle table,
+            TupleDomain<ColumnHandle> dynamicFilter)
+    {
+        if (!isEnableDynamicRowFiltering(session)) {
+            return delegatePageSourceProvider.getUnenforcedPredicate(session, split, table, dynamicFilter);
+        }
+
+        TupleDomain<ColumnHandle> unenforcedPredicate = delegatePageSourceProvider.getUnenforcedPredicate(session, split, table, dynamicFilter);
+        if (unenforcedPredicate.isNone()) {
+            // split is fully filtered out
+            return TupleDomain.none();
+        }
+
+        // DynamicRowFilteringPageSourceProvider doesn't simplify dynamic predicate,
+        // but we can still prune columns from dynamic filter, which are ineffective
+        // in filtering split data
+        return unenforcedPredicate.intersect(delegatePageSourceProvider.prunePredicate(session, split, table, dynamicFilter));
     }
 
     @VisibleForTesting

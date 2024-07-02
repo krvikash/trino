@@ -47,6 +47,7 @@ import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.EmptyPageSource;
 import io.trino.spi.connector.FixedPageSource;
+import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.TestingColumnHandle;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.TupleDomain;
@@ -83,8 +84,10 @@ import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.trino.RowPagesBuilder.rowPagesBuilder;
+import static io.trino.SystemSessionProperties.ENABLE_DYNAMIC_ROW_FILTERING;
 import static io.trino.cache.CacheDriverFactory.MAX_UNENFORCED_PREDICATE_VALUE_COUNT;
 import static io.trino.cache.CacheDriverFactory.appendRemainingPredicates;
+import static io.trino.cache.CacheDriverFactory.getDynamicRowFilteringUnenforcedPredicate;
 import static io.trino.cache.StaticDynamicFilter.createStaticDynamicFilter;
 import static io.trino.cache.StaticDynamicFilter.createStaticDynamicFilterSupplier;
 import static io.trino.plugin.base.cache.CacheUtils.normalizeTupleDomain;
@@ -94,7 +97,7 @@ import static io.trino.spi.predicate.Domain.singleValue;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.testing.PlanTester.getTupleDomainJsonCodec;
 import static io.trino.testing.TestingHandles.TEST_CATALOG_HANDLE;
-import static io.trino.testing.TestingHandles.TEST_TABLE_HANDLE;
+import static io.trino.testing.TestingHandles.createTestTableHandle;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static io.trino.testing.TestingSplit.createRemoteSplit;
 import static java.util.function.Function.identity;
@@ -110,6 +113,11 @@ public class TestCacheDriverFactory
     private static final SignatureKey SIGNATURE_KEY = new SignatureKey("key");
     private static final CacheSplitId SPLIT_ID = new CacheSplitId("split");
     private static final ScheduledSplit SPLIT = new ScheduledSplit(0, new PlanNodeId("id"), new Split(TEST_CATALOG_HANDLE, createRemoteSplit(), Optional.empty(), true));
+    private static final ColumnHandle COLUMN1 = new TestingColumnHandle("COLUMN1");
+    private static final ColumnHandle COLUMN2 = new TestingColumnHandle("COLUMN2");
+    private static final ColumnHandle COLUMN3 = new TestingColumnHandle("COLUMN3");
+    private static final TableHandle TEST_TABLE_HANDLE = createTestTableHandle(new SchemaTableName("schema", "table"));
+
     private final PlanNodeIdAllocator planNodeIdAllocator = new PlanNodeIdAllocator();
     private TestSplitCache splitCache;
     private CacheManagerRegistry registry;
@@ -326,7 +334,10 @@ public class TestCacheDriverFactory
                         nonProjectedScanColumnHandle, singleValue(BIGINT, 410L))));
         DriverFactory driverFactory = createDriverFactory(new AtomicInteger());
         CacheDriverFactory cacheDriverFactory = new CacheDriverFactory(
-                TEST_SESSION,
+                Session.builder(TEST_SESSION)
+                        // dynamic row filtering prevents propagation of domain values
+                        .setSystemProperty(ENABLE_DYNAMIC_ROW_FILTERING, "false")
+                        .build(),
                 pageSourceProvider,
                 registry,
                 tupleDomainCodec,
@@ -352,6 +363,76 @@ public class TestCacheDriverFactory
                 TupleDomain.withColumnDomains(ImmutableMap.of(projectedScanColumnId, singleValue(BIGINT, 300L))));
         Driver driver = cacheDriverFactory.createDriver(createDriverContext(), SPLIT, Optional.of(SPLIT_ID));
         assertThat(driver.getDriverContext().getCacheDriverContext()).isPresent();
+    }
+
+    @Test
+    public void testGetUnenforcedPredicate()
+    {
+        assertThat(getDynamicRowFilteringUnenforcedPredicate(
+                new TestingConnectorPageSourceProvider(
+                        TupleDomain.withColumnDomains(ImmutableMap.of(
+                                COLUMN1, singleValue(BIGINT, 10L),
+                                COLUMN2, multipleValues(BIGINT, ImmutableList.of(20L, 22L, 23L)))),
+                        TupleDomain.withColumnDomains(ImmutableMap.of(
+                                COLUMN2, multipleValues(BIGINT, ImmutableList.of(20L, 21L))))),
+                TEST_SESSION,
+                SPLIT.getSplit(),
+                TEST_TABLE_HANDLE,
+                TupleDomain.withColumnDomains(ImmutableMap.of(
+                        COLUMN2, multipleValues(BIGINT, ImmutableList.of(20L, 21L, 23L)),
+                        COLUMN3, singleValue(BIGINT, 30L)))))
+                .isEqualTo(TupleDomain.withColumnDomains(ImmutableMap.of(
+                        COLUMN1, singleValue(BIGINT, 10L),
+                        COLUMN2, singleValue(BIGINT, 20L))));
+
+        // delegate provider returns TupleDomain.none()
+        assertThat(getDynamicRowFilteringUnenforcedPredicate(
+                new TestingConnectorPageSourceProvider(TupleDomain.none(), TupleDomain.none()),
+                TEST_SESSION,
+                SPLIT.getSplit(),
+                TEST_TABLE_HANDLE,
+                TupleDomain.withColumnDomains(ImmutableMap.of(COLUMN3, singleValue(BIGINT, 1L)))))
+                .isEqualTo(TupleDomain.none());
+
+        // delegate provider returns TupleDomain.all()
+        assertThat(getDynamicRowFilteringUnenforcedPredicate(
+                new TestingConnectorPageSourceProvider(TupleDomain.all(), TupleDomain.all()),
+                TEST_SESSION,
+                SPLIT.getSplit(),
+                TEST_TABLE_HANDLE,
+                TupleDomain.withColumnDomains(ImmutableMap.of(COLUMN3, singleValue(BIGINT, 1L)))))
+                .isEqualTo(TupleDomain.all());
+    }
+
+    private static class TestingConnectorPageSourceProvider
+            implements PageSourceProvider
+    {
+        private final TupleDomain<ColumnHandle> unenforcedPredicate;
+        private final TupleDomain<ColumnHandle> prunedPredicate;
+
+        public TestingConnectorPageSourceProvider(TupleDomain<ColumnHandle> unenforcedPredicate, TupleDomain<ColumnHandle> prunedPredicate)
+        {
+            this.unenforcedPredicate = unenforcedPredicate;
+            this.prunedPredicate = prunedPredicate;
+        }
+
+        @Override
+        public ConnectorPageSource createPageSource(Session session, Split split, TableHandle table, List<ColumnHandle> columns, DynamicFilter dynamicFilter)
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public TupleDomain<ColumnHandle> getUnenforcedPredicate(Session session, Split split, TableHandle table, TupleDomain<ColumnHandle> dynamicFilter)
+        {
+            return unenforcedPredicate;
+        }
+
+        @Override
+        public TupleDomain<ColumnHandle> prunePredicate(Session session, Split split, TableHandle table, TupleDomain<ColumnHandle> predicate)
+        {
+            return prunedPredicate;
+        }
     }
 
     private static class TestPageSourceProviderFactory

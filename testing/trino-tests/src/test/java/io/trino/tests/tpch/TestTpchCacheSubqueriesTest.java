@@ -17,6 +17,8 @@ import io.trino.testing.BaseCacheSubqueriesTest;
 import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.List;
 import java.util.Map;
@@ -49,9 +51,10 @@ public class TestTpchCacheSubqueriesTest
         abort("tpch does not support for pushing down projections");
     }
 
-    @Test
     @Override
-    public void testDynamicFilterCache()
+    @ParameterizedTest
+    @MethodSource("isDynamicRowFilteringEnabled")
+    public void testDynamicFilterCache(boolean isDynamicRowFilteringEnabled)
     {
         abort("tpch does not support for partitioned tables");
     }
@@ -77,9 +80,10 @@ public class TestTpchCacheSubqueriesTest
         abort("tpch does not support for partitioned tables");
     }
 
-    @Test
     @Override
-    public void testGetUnenforcedPredicateAndPrunePredicate()
+    @ParameterizedTest
+    @MethodSource("isDynamicRowFilteringEnabled")
+    public void testGetUnenforcedPredicateAndPrunePredicate(boolean isDynamicRowFilteringEnabled)
     {
         abort("tpch does not support for partitioned tables");
     }

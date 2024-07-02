@@ -26,6 +26,7 @@ import io.trino.cache.CommonPlanAdaptation.PlanSignatureWithPredicate;
 import io.trino.cache.LoadCachedDataOperator;
 import io.trino.metadata.Metadata;
 import io.trino.metadata.QualifiedObjectName;
+import io.trino.metadata.Split;
 import io.trino.metadata.TableHandle;
 import io.trino.operator.OperatorStats;
 import io.trino.operator.ScanFilterAndProjectOperator;
@@ -35,12 +36,14 @@ import io.trino.spi.QueryId;
 import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.cache.CacheTableId;
 import io.trino.spi.cache.PlanSignature;
+import io.trino.spi.connector.CatalogHandle;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableHandle;
+import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.Constraint;
 import io.trino.spi.connector.ConstraintApplicationResult;
 import io.trino.spi.connector.DynamicFilter;
@@ -50,6 +53,8 @@ import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.predicate.ValueSet;
 import io.trino.spi.type.VarcharType;
 import io.trino.split.AlternativeChooserPageSourceProvider;
+import io.trino.split.PageSourceManager.PageSourceProviderInstance;
+import io.trino.split.PageSourceProvider;
 import io.trino.split.SplitSource;
 import io.trino.sql.planner.Plan;
 import io.trino.sql.planner.assertions.PlanAssert;
@@ -61,6 +66,8 @@ import io.trino.tpch.TpchTable;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.List;
 import java.util.Map;
@@ -78,9 +85,11 @@ import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.trino.SystemSessionProperties.CACHE_AGGREGATIONS_ENABLED;
 import static io.trino.SystemSessionProperties.CACHE_COMMON_SUBQUERIES_ENABLED;
 import static io.trino.SystemSessionProperties.CACHE_PROJECTIONS_ENABLED;
+import static io.trino.SystemSessionProperties.ENABLE_DYNAMIC_ROW_FILTERING;
 import static io.trino.SystemSessionProperties.ENABLE_LARGE_DYNAMIC_FILTERS;
 import static io.trino.SystemSessionProperties.JOIN_DISTRIBUTION_TYPE;
 import static io.trino.SystemSessionProperties.JOIN_REORDERING_STRATEGY;
+import static io.trino.cache.CacheDriverFactory.getDynamicRowFilteringUnenforcedPredicate;
 import static io.trino.cache.CommonSubqueriesExtractor.scanFilterProjectKey;
 import static io.trino.cost.StatsCalculator.noopStatsCalculator;
 import static io.trino.metadata.FunctionManager.createTestingFunctionManager;
@@ -119,6 +128,11 @@ public abstract class BaseCacheSubqueriesTest
     public void flushCache()
     {
         getDistributedQueryRunner().getServers().forEach(server -> server.getCacheManagerRegistry().flushCache());
+    }
+
+    public static Object[][] isDynamicRowFilteringEnabled()
+    {
+        return new Object[][] {{true}, {false}};
     }
 
     @Test
@@ -309,8 +323,9 @@ public abstract class BaseCacheSubqueriesTest
         assertThat(getScanSplitsWithDynamicFiltersApplied(resultWithCache.queryId())).isPositive();
     }
 
-    @Test
-    public void testDynamicFilterCache()
+    @ParameterizedTest
+    @MethodSource("isDynamicRowFilteringEnabled")
+    public void testDynamicFilterCache(boolean isDynamicRowFilteringEnabled)
     {
         createPartitionedTableAsSelect("orders_part", ImmutableList.of("custkey"), "select orderkey, orderdate, orderpriority, mod(custkey, 10) as custkey from orders");
         @Language("SQL") String totalScanOrdersQuery = "select count(orderkey) from orders_part";
@@ -330,8 +345,8 @@ public abstract class BaseCacheSubqueriesTest
                 select count(orderkey) from orders_part o join (select * from (values 0, 1) t(custkey)) t on o.custkey = t.custkey
                 """;
 
-        Session cacheSubqueriesEnabled = withCacheEnabled();
-        Session cacheSubqueriesDisabled = withCacheDisabled();
+        Session cacheSubqueriesEnabled = withDynamicRowFiltering(withCacheEnabled(), isDynamicRowFilteringEnabled);
+        Session cacheSubqueriesDisabled = withDynamicRowFiltering(withCacheDisabled(), isDynamicRowFilteringEnabled);
         MaterializedResultWithPlan totalScanOrdersExecution = executeWithPlan(cacheSubqueriesDisabled, totalScanOrdersQuery);
         MaterializedResultWithPlan firstJoinExecution = executeWithPlan(cacheSubqueriesEnabled, firstJoinQuery);
         MaterializedResultWithPlan anotherFirstJoinExecution = executeWithPlan(cacheSubqueriesEnabled, firstJoinQuery);
@@ -525,15 +540,18 @@ public abstract class BaseCacheSubqueriesTest
         assertUpdate("drop table orders_part");
     }
 
-    @Test
-    public void testGetUnenforcedPredicateAndPrunePredicate()
+    @ParameterizedTest
+    @MethodSource("isDynamicRowFilteringEnabled")
+    public void testGetUnenforcedPredicateAndPrunePredicate(boolean isDynamicRowFilteringEnabled)
     {
-        String tableName = "get_unenforced_predicate_is_prune_and_prune_orders_part";
+        String tableName = "get_unenforced_predicate_is_prune_and_prune_orders_part_" + isDynamicRowFilteringEnabled;
         createPartitionedTableAsSelect(tableName, ImmutableList.of("orderpriority"), "select orderkey, orderdate, '9876' as orderpriority from orders");
         DistributedQueryRunner runner = getDistributedQueryRunner();
-        Session session = Session.builder(getSession())
-                .setQueryId(new QueryId("prune_predicate"))
-                .build();
+        Session session = withDynamicRowFiltering(
+                Session.builder(getSession())
+                        .setQueryId(new QueryId("prune_predicate_" + isDynamicRowFilteringEnabled))
+                        .build(),
+                isDynamicRowFilteringEnabled);
         transaction(runner.getTransactionManager(), runner.getPlannerContext().getMetadata(), runner.getAccessControl())
                 .singleStatement()
                 .execute(session, transactionSession -> {
@@ -541,6 +559,10 @@ public abstract class BaseCacheSubqueriesTest
                     TestingTrinoServer worker = runner.getServers().get(0);
                     checkState(!worker.isCoordinator());
                     String catalog = transactionSession.getCatalog().orElseThrow();
+                    CatalogHandle catalogHandle = coordinator.getCatalogHandle(catalog);
+                    // metadata.getCatalogHandle() registers the catalog for the transaction
+                    coordinator.getPlannerContext().getMetadata().getCatalogHandle(transactionSession, catalog);
+                    ConnectorTransactionHandle catalogTransaction = coordinator.getTransactionManager().getConnectorTransaction(transactionSession.getTransactionId().orElseThrow(), catalogHandle);
                     Metadata metadata = coordinator.getPlannerContext().getMetadata();
                     TableHandle handle = metadata.getTableHandle(
                             transactionSession,
@@ -555,7 +577,7 @@ public abstract class BaseCacheSubqueriesTest
                     ColumnHandle dataColumn = metadata.getColumnHandles(transactionSession, handle).get("orderkey");
                     assertThat(dataColumn).isNotNull();
 
-                    ConnectorPageSourceProvider pageSourceProvider = worker.getConnector(coordinator.getCatalogHandle(catalog)).getPageSourceProviderFactory().createPageSourceProvider();
+                    ConnectorPageSourceProvider pageSourceProvider = worker.getConnector(catalogHandle).getPageSourceProviderFactory().createPageSourceProvider();
                     VarcharType type = VarcharType.createVarcharType(4);
 
                     // getUnenforcedPredicate and prunePredicate should return none if predicate is exclusive on partition column
@@ -570,10 +592,12 @@ public abstract class BaseCacheSubqueriesTest
                             connectorTableHandle,
                             TupleDomain.withColumnDomains(ImmutableMap.of(partitionColumn, nonPartitionDomain))))
                             .matches(TupleDomain::isNone);
-                    assertThat(pageSourceProvider.getUnenforcedPredicate(
-                            connectorSession,
-                            split,
-                            connectorTableHandle,
+                    assertThat(getUnenforcedPredicate(
+                            new PageSourceProviderInstance(pageSourceProvider),
+                            isDynamicRowFilteringEnabled,
+                            session,
+                            new Split(catalogHandle, split),
+                            new TableHandle(catalogHandle, connectorTableHandle, catalogTransaction),
                             TupleDomain.withColumnDomains(ImmutableMap.of(partitionColumn, nonPartitionDomain))))
                             .matches(TupleDomain::isNone);
 
@@ -585,10 +609,12 @@ public abstract class BaseCacheSubqueriesTest
                             connectorTableHandle,
                             TupleDomain.withColumnDomains(ImmutableMap.of(partitionColumn, partitionDomain))))
                             .matches(TupleDomain::isAll);
-                    assertThat(pageSourceProvider.getUnenforcedPredicate(
-                            connectorSession,
-                            split,
-                            connectorTableHandle,
+                    assertThat(getUnenforcedPredicate(
+                            new PageSourceProviderInstance(pageSourceProvider),
+                            isDynamicRowFilteringEnabled,
+                            session,
+                            new Split(catalogHandle, split),
+                            new TableHandle(catalogHandle, connectorTableHandle, catalogTransaction),
                             TupleDomain.withColumnDomains(ImmutableMap.of(partitionColumn, partitionDomain))))
                             .matches(TupleDomain::isAll);
 
@@ -629,12 +655,14 @@ public abstract class BaseCacheSubqueriesTest
                                 .isEqualTo(TupleDomain.all());
                     }
 
-                    if (getUnenforcedPredicateIsPrune()) {
+                    if (isDynamicRowFilteringEnabled || getUnenforcedPredicateIsPrune()) {
                         // getUnenforcedPredicate should not prune or simplify data column
-                        assertThat(pageSourceProvider.prunePredicate(
-                                connectorSession,
-                                split,
-                                connectorTableHandle,
+                        assertThat(getUnenforcedPredicate(
+                                new PageSourceProviderInstance(pageSourceProvider),
+                                isDynamicRowFilteringEnabled,
+                                session,
+                                new Split(catalogHandle, split),
+                                new TableHandle(catalogHandle, connectorTableHandle, catalogTransaction),
                                 TupleDomain.withColumnDomains(ImmutableMap.of(dataColumn, dataDomain))))
                                 .isEqualTo(TupleDomain.withColumnDomains(ImmutableMap.of(dataColumn, dataDomain)));
                     }
@@ -735,6 +763,20 @@ public abstract class BaseCacheSubqueriesTest
         }
         requireNonNull(pageSourceProvider, format("Connector '%s' returned a null page source provider", workerConnector));
         return pageSourceProvider;
+    }
+
+    private TupleDomain<ColumnHandle> getUnenforcedPredicate(
+            PageSourceProvider pageSourceProvider,
+            boolean isDynamicRowFilteringEnabled,
+            Session session,
+            Split split,
+            TableHandle table,
+            TupleDomain<ColumnHandle> predicate)
+    {
+        if (isDynamicRowFilteringEnabled) {
+            return getDynamicRowFilteringUnenforcedPredicate(pageSourceProvider, session, split, table, predicate);
+        }
+        return pageSourceProvider.getUnenforcedPredicate(session, split, table, predicate);
     }
 
     protected CacheColumnId getCacheColumnId(Session session, String tableName, String columnName)
@@ -871,6 +913,13 @@ public abstract class BaseCacheSubqueriesTest
                 .setSystemProperty(CACHE_COMMON_SUBQUERIES_ENABLED, "false")
                 .setSystemProperty(CACHE_AGGREGATIONS_ENABLED, "false")
                 .setSystemProperty(CACHE_PROJECTIONS_ENABLED, "false")
+                .build();
+    }
+
+    protected Session withDynamicRowFiltering(Session baseSession, boolean enabled)
+    {
+        return Session.builder(baseSession)
+                .setSystemProperty(ENABLE_DYNAMIC_ROW_FILTERING, String.valueOf(enabled))
                 .build();
     }
 
