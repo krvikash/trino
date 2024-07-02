@@ -9,7 +9,6 @@
  */
 package com.starburstdata.trino.plugin.snowflake;
 
-import com.google.common.io.Closer;
 import io.trino.plugin.jdbc.BaseJdbcConnectorSmokeTest;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
@@ -24,14 +23,12 @@ import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.para
 public class TestParallelSnowflakeConnectionPoolingConnectorSmokeTest
         extends BaseJdbcConnectorSmokeTest
 {
-    private final SnowflakeServer server = new SnowflakeServer();
-    private final Closer closer = Closer.create();
-    private final TestDatabase testDatabase = closer.register(server.createTestDatabase());
-
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
     {
+        SnowflakeServer server = new SnowflakeServer();
+        TestDatabase testDatabase = closeAfterClass(server.createTestDatabase());
         return parallelBuilder()
                 .withServer(server)
                 .withDatabase(Optional.of(testDatabase.getName()))

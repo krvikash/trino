@@ -10,16 +10,12 @@
 package com.starburstdata.trino.plugin.snowflake;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.io.Closer;
 import io.trino.Session;
 import io.trino.testing.AbstractTestQueryFramework;
+import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
-import java.sql.SQLException;
 import java.util.Optional;
 
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.TEST_SCHEMA;
@@ -35,40 +31,26 @@ public class TestJdbcSnowflakeWarehouseSwitching
     protected static final String COMPUTE_WAREHOUSE = "COMPUTE_WH";
     protected static final String INVALID_WAREHOUSE = "NOT_EXISTING_WH";
 
-    protected final SnowflakeServer server = new SnowflakeServer();
-    protected final Closer closer = Closer.create();
-    protected final TestDatabase testDB = closer.register(server.createTestDatabase());
-
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        return createBuilder()
+        SnowflakeServer server = new SnowflakeServer();
+        TestDatabase testDB = closeAfterClass(server.createTestDatabase());
+        DistributedQueryRunner queryRunner = createBuilder()
                 .withServer(server)
                 .withDatabase(Optional.of(testDB.getName()))
                 .withSchema(Optional.of(TEST_SCHEMA))
                 .withConnectorProperties(impersonationDisabled())
                 .withTpchTables(ImmutableList.of(NATION))
                 .build();
+        server.executeOnDatabase(testDB.getName(), format("CREATE VIEW IF NOT EXISTS %s.current_warehouse (warehouse) AS SELECT current_warehouse();", TEST_SCHEMA));
+        return queryRunner;
     }
 
     protected SnowflakeQueryRunner.Builder createBuilder()
     {
         return jdbcBuilder();
-    }
-
-    @BeforeAll
-    public void initialize()
-            throws SQLException
-    {
-        server.executeOnDatabase(testDB.getName(), format("CREATE VIEW IF NOT EXISTS %s.current_warehouse (warehouse) AS SELECT current_warehouse();", TEST_SCHEMA));
-    }
-
-    @AfterAll
-    public void cleanup()
-            throws IOException
-    {
-        closer.close();
     }
 
     @Test

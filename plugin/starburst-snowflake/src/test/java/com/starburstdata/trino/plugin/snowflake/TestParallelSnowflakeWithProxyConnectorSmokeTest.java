@@ -9,7 +9,6 @@
  */
 package com.starburstdata.trino.plugin.snowflake;
 
-import com.google.common.io.Closer;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpRequest;
 import io.trino.plugin.jdbc.BaseJdbcConnectorSmokeTest;
@@ -36,17 +35,13 @@ public class TestParallelSnowflakeWithProxyConnectorSmokeTest
     private static final String PROXY_USER = "proxyuser";
     private static final String PROXY_PASSWORD = "proxypassword";
 
-    private final SnowflakeServer server = new SnowflakeServer();
-    private final Closer closer = Closer.create();
-    private final TestDatabase testDatabase = closer.register(server.createTestDatabase());
-
-    @SuppressWarnings("UnusedVariable")
-    private final Closeable proxy = closer.register(createProxyServer());
-
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
     {
+        SnowflakeServer server = new SnowflakeServer();
+        TestDatabase testDatabase = closeAfterClass(server.createTestDatabase());
+        closeAfterClass(createProxyServer());
         return parallelBuilder()
                 .withServer(server)
                 .withDatabase(Optional.of(testDatabase.getName()))

@@ -10,14 +10,11 @@
 package com.starburstdata.trino.plugin.snowflake;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.io.Closer;
 import com.starburstdata.trino.plugin.snowflake.dynamicfiltering.AbstractDynamicFilteringTest;
 import io.trino.testing.QueryRunner;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.util.Optional;
 
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.TEST_SCHEMA;
@@ -28,14 +25,12 @@ import static io.trino.tpch.TpchTable.ORDERS;
 public class TestSnowflakeDynamicFiltering
         extends AbstractDynamicFilteringTest
 {
-    protected final SnowflakeServer server = new SnowflakeServer();
-    protected final Closer closer = Closer.create();
-    protected final TestDatabase testDatabase = closer.register(server.createDatabase("TEST"));
-
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
     {
+        SnowflakeServer server = new SnowflakeServer();
+        TestDatabase testDatabase = closeAfterClass(server.createDatabase("TEST"));
         return createBuilder()
                 .withServer(server)
                 .withDatabase(Optional.of(testDatabase.getName()))
@@ -57,13 +52,6 @@ public class TestSnowflakeDynamicFiltering
     @Disabled
     public void testDynamicFilteringWithLimit()
     {
-    }
-
-    @AfterAll
-    public void cleanup()
-            throws IOException
-    {
-        closer.close();
     }
 
     @Override

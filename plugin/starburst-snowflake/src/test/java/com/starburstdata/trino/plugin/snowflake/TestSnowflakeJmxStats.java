@@ -10,16 +10,13 @@
 package com.starburstdata.trino.plugin.snowflake;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.io.Closer;
 import io.trino.plugin.base.jmx.ConnectorObjectNameGeneratorModule;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.MaterializedRow;
 import io.trino.testing.QueryRunner;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.util.Optional;
 
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.TEST_SCHEMA;
@@ -34,15 +31,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class TestSnowflakeJmxStats
         extends AbstractTestQueryFramework
 {
-    protected final SnowflakeServer server = new SnowflakeServer();
-    protected final Closer closer = Closer.create();
-    protected final TestDatabase testDatabase = closer.register(server.createTestDatabase());
     protected final String catalogName = "snowflake_" + randomNameSuffix();
 
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
     {
+        SnowflakeServer server = new SnowflakeServer();
+        TestDatabase testDatabase = closeAfterClass(server.createTestDatabase());
         return parallelBuilder()
                 .withServer(server)
                 .withDatabase(Optional.of(testDatabase.getName()))
@@ -53,13 +49,6 @@ public class TestSnowflakeJmxStats
                 .withNodeCount(1)
                 .withTpchTables(ImmutableList.of(ORDERS, NATION))
                 .build();
-    }
-
-    @AfterAll
-    public void cleanup()
-            throws IOException
-    {
-        closer.close();
     }
 
     @Test

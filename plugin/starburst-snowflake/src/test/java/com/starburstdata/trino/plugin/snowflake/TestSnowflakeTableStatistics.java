@@ -9,13 +9,10 @@
  */
 package com.starburstdata.trino.plugin.snowflake;
 
-import com.google.common.io.Closer;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.util.Optional;
 
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.TEST_SCHEMA;
@@ -27,14 +24,12 @@ import static java.lang.String.format;
 public class TestSnowflakeTableStatistics
         extends AbstractTestQueryFramework
 {
-    protected final SnowflakeServer server = new SnowflakeServer();
-    protected final Closer closer = Closer.create();
-    protected final TestDatabase testDatabase = closer.register(server.createTestDatabase());
-
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
     {
+        SnowflakeServer server = new SnowflakeServer();
+        TestDatabase testDatabase = closeAfterClass(server.createTestDatabase());
         return createBuilder()
                 .withConnectorProperties(impersonationDisabled())
                 .withServer(server)
@@ -46,13 +41,6 @@ public class TestSnowflakeTableStatistics
     protected SnowflakeQueryRunner.Builder createBuilder()
     {
         return jdbcBuilder();
-    }
-
-    @AfterAll
-    public void cleanup()
-            throws IOException
-    {
-        closer.close();
     }
 
     @Test
