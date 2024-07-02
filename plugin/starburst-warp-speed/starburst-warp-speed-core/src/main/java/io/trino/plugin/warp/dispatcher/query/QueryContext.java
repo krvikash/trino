@@ -61,11 +61,13 @@ public class QueryContext
     private final PredicateContextData predicateContextData;
     private final boolean canBeTight;
     private final int totalRecords;
+    private final String queryId;
 
     public QueryContext(PredicateContextData predicateContextData,
-            ImmutableList<ColumnHandle> remainingCollectColumns,
-            int catalogSequence,
-            boolean enableMatchCollect)
+                        ImmutableList<ColumnHandle> remainingCollectColumns,
+                        int catalogSequence,
+                        boolean enableMatchCollect,
+                        String queryId)
     {
         this(
                 Optional.empty(),
@@ -79,12 +81,14 @@ public class QueryContext
                 catalogSequence,
                 false,
                 predicateContextData.getRemainingColumns().isEmpty(),
-                INVALID_TOTAL_RECORDS);
+                INVALID_TOTAL_RECORDS,
+                queryId);
     }
 
     // used only for tests
     public QueryContext(PredicateContextData predicateContextData,
-            ImmutableMap<Integer, ColumnHandle> remainingCollectColumnByBlockIndex)
+            ImmutableMap<Integer, ColumnHandle> remainingCollectColumnByBlockIndex,
+            String queryId)
     {
         this(
                 Optional.empty(),
@@ -98,7 +102,8 @@ public class QueryContext
                 0,
                 false,
                 predicateContextData.getRemainingColumns().isEmpty(),
-                INVALID_TOTAL_RECORDS);
+                INVALID_TOTAL_RECORDS,
+                queryId);
     }
 
     private QueryContext(Optional<MatchData> matchData,
@@ -112,7 +117,8 @@ public class QueryContext
             int catalogSequence,
             boolean isNone,
             boolean canBeTight,
-            int totalRecords)
+            int totalRecords,
+            String queryId)
     {
         this.matchData = matchData;
         this.matchLeaves = matchData.isPresent() ? matchData.get().getLeavesDFS() : Collections.emptyList();
@@ -127,6 +133,7 @@ public class QueryContext
         this.catalogSequence = catalogSequence;
         this.isNone = isNone;
         this.totalRecords = totalRecords;
+        this.queryId = queryId;
 
         // TODO: It would be more accurate to check if there's at least one tight queryMatchData per predicate,
         //  but at this point, we don't know if 2 queryMatchDatas on the same column represent
@@ -247,6 +254,11 @@ public class QueryContext
                 getTotalRecords() != QueryClassifier.INVALID_TOTAL_RECORDS;
     }
 
+    public String getQueryId()
+    {
+        return queryId;
+    }
+
     public Builder asBuilder()
     {
         return new Builder().matchData(matchData)
@@ -258,6 +270,7 @@ public class QueryContext
                 .matchCollectId(matchCollectId)
                 .catalogSequence(catalogSequence)
                 .totalRecords(totalRecords)
+                .queryId(queryId)
                 .canBeTight(canBeTight);
     }
 
@@ -297,6 +310,7 @@ public class QueryContext
         private boolean isNone;
         private boolean canBeTight;
         private int totalRecords;
+        private String queryId;
 
         private Builder()
         {
@@ -316,7 +330,8 @@ public class QueryContext
                     catalogSequence,
                     isNone,
                     canBeTight,
-                    totalRecords);
+                    totalRecords,
+                    queryId);
         }
 
         public Builder matchData(Optional<MatchData> matchData)
@@ -382,6 +397,12 @@ public class QueryContext
         public Builder catalogSequence(int catalogSequence)
         {
             this.catalogSequence = catalogSequence;
+            return this;
+        }
+
+        public Builder queryId(String queryId)
+        {
+            this.queryId = queryId;
             return this;
         }
     }

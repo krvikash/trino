@@ -769,7 +769,7 @@ public class DispatcherPageSourceTest
         }
 
         QueryContext queryContext = new QueryContext(new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE),
-                ImmutableMap.copyOf(remainingCollectColumnByBlockIndex))
+                ImmutableMap.copyOf(remainingCollectColumnByBlockIndex), "query-id")
                 .asBuilder()
                 .nativeQueryCollectDataList(nativeQueryCollectDataList)
                 .prefilledQueryCollectDataByBlockIndex(prefilledQueryCollectDataByBlockIndex)

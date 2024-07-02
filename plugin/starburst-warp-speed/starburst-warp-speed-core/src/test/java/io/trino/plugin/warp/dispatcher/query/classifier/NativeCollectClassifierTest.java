@@ -65,7 +65,7 @@ public class NativeCollectClassifierTest
         when(bufferAllocator.getCollectRecordBufferSize(any(), eq(STR_SIZE))).thenReturn(STR_SIZE * COLLECT_REC_SIZE_PER_BYTE);
         when(bufferAllocator.getMatchCollectRecordBufferSize(eq(INT_SIZE))).thenReturn(INT_SIZE * COLLECT_REC_SIZE_PER_BYTE);
         when(bufferAllocator.getQueryNullBufferSize(any())).thenReturn(COLLECT_NULLS_SIZE);
-        this.baseQueryContext = new QueryContext(new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE), ImmutableMap.of());
+        this.baseQueryContext = new QueryContext(new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE), ImmutableMap.of(), "query-id");
     }
 
     @Test

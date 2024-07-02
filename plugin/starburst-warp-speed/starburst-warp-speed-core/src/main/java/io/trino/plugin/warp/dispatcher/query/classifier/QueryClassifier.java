@@ -71,7 +71,8 @@ public class QueryClassifier
     public QueryContext classifyCache(ImmutableList<ColumnHandle> projectColumns, Optional<UUID> storeIdOpt, RowGroupData rowGroupData)
     {
         PredicateContextData predicateContextData = new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE);
-        QueryContext baseQueryContext = new QueryContext(predicateContextData, projectColumns, connectorSync.getCatalogSequence(), false);
+        String queryId = storeIdOpt.isPresent() ? storeIdOpt.get().toString() : "Empty-Query-Id";
+        QueryContext baseQueryContext = new QueryContext(predicateContextData, projectColumns, connectorSync.getCatalogSequence(), false, queryId);
         return classify(baseQueryContext,
                 rowGroupData,
                 null,
@@ -240,7 +241,8 @@ public class QueryClassifier
         return new QueryContext(predicateContextData,
                 ImmutableList.copyOf(collectColumns),
                 connectorSync.getCatalogSequence(),
-                enableMatchCollect);
+                enableMatchCollect,
+                session.getQueryId());
     }
 
     private WarmedWarmupTypes createColumnToWarmUpElementPerType(RowGroupData rowGroupData, Optional<UUID> storeIdOpt)

@@ -63,7 +63,7 @@ public class MatchPrepareAfterCollectClassifierTest
     {
         matchCollectIdService = mock(MatchCollectIdService.class);
         matchPrepareAfterCollectClassifier = new MatchPrepareAfterCollectClassifier(matchCollectIdService, MAX_MATCH_COLUMNS);
-        baseContext = new QueryContext(new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE), ImmutableMap.of());
+        baseContext = new QueryContext(new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE), ImmutableMap.of(), "query-id");
         rowGroupData = mock(RowGroupData.class);
     }
 

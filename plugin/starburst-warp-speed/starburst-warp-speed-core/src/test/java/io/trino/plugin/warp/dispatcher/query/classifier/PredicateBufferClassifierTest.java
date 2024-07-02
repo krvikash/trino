@@ -103,7 +103,7 @@ class PredicateBufferClassifierTest
 
         PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
 
-        QueryContext baseQueryContext = new QueryContext(predicateContextData, collectColumnsByBlockIndex);
+        QueryContext baseQueryContext = new QueryContext(predicateContextData, collectColumnsByBlockIndex, "query-id");
         QueryMatchData queryMatchData = BasicQueryMatchData.builder()
                 .warpColumn(warmUpElement.getWarpColumn())
                 .type(IntegerType.INTEGER)

@@ -131,30 +131,32 @@ public class DispatcherPageSource
     @Override
     public Page getNextPage()
     {
+        if (emptyPagesCounter == 5000) {
+            String info = String.format("queryId=%s, pageSourceDecision=%s, currentProxiedPagePosition=%s, proxiedConnectorPageSource.isFinished=%s, proxiedPageRanges=%s, warpPageRanges.size=%s, currentWarpPagePosition=%s, " +
+                            "currentProxiedPage.getPositionCount()=%s, currentWarpPage.getPositionCount()=%s, warpWithoutPrefilledAndProxiedCollectTypes=%s, proxiedPagePositionsRead=%s, proxiedConnectorPageSource=%s, " +
+                            "wasProxiedPagedLoaded=%s, dispatcherTableHandle=%s, dispatcherSplit=%s, rowGroupKey=%s",
+                    queryContext.getQueryId(),
+                    pageSourceDecision,
+                    currentProxiedPagePosition,
+                    proxiedConnectorPageSource.isFinished(),
+                    proxiedPageRanges,
+                    warpPageRanges.size(),
+                    currentWarpPagePosition,
+                    currentProxiedPage.getPositionCount(),
+                    currentWarpPage.getPositionCount(),
+                    warpWithoutPrefilledAndProxiedCollectTypes,
+                    proxiedPagePositionsRead,
+                    proxiedConnectorPageSource,
+                    wasProxiedPagedLoaded,
+                    dispatcherTableHandle,
+                    dispatcherSplit,
+                    rowGroupData.getRowGroupKey());
+            shapingLogger.info("returned more than emptyPagesCounter=%s emptyPages, set forced finished. info=%s", emptyPagesCounter, info);
+            forceFinish = true;
+        }
         Page dispatcherPage = getDispatcherPage();
         if (dispatcherPage.getPositionCount() == 0 && !isFinished()) {
             emptyPagesCounter++;
-            if (emptyPagesCounter > 5000) {
-                String info = String.format("currentProxiedPagePosition=%s, proxiedConnectorPageSource.isFinished=%s, proxiedPageRanges=%s, warpPageRanges.size=%s, currentWarpPagePosition=%s, " +
-                                "currentProxiedPage.getPositionCount()=%s, currentWarpPage.getPositionCount()=%s, warpWithoutPrefilledAndProxiedCollectTypes=%s, proxiedPagePositionsRead=%s, proxiedConnectorPageSource=%s, " +
-                                "wasProxiedPagedLoaded=%s, dispatcherTableHandle=%s, dispatcherSplit=%s, rowGroupKey=%s",
-                        currentProxiedPagePosition,
-                        proxiedConnectorPageSource.isFinished(),
-                        proxiedPageRanges,
-                        warpPageRanges.size(),
-                        currentWarpPagePosition,
-                        currentProxiedPage.getPositionCount(),
-                        currentWarpPage.getPositionCount(),
-                        warpWithoutPrefilledAndProxiedCollectTypes,
-                        proxiedPagePositionsRead,
-                        proxiedConnectorPageSource,
-                        wasProxiedPagedLoaded,
-                        dispatcherTableHandle,
-                        dispatcherSplit,
-                        rowGroupData.getRowGroupKey());
-                shapingLogger.info("returned more than emptyPagesCounter=%s emptyPages, set forced finished. info=%s", emptyPagesCounter, info);
-                forceFinish = true;
-            }
         }
         else {
             emptyPagesCounter = 0;
@@ -232,7 +234,11 @@ public class DispatcherPageSource
                     }
                 }
             }
-            return buildResultPage(resultPageBuilder);
+            Page resultPage = buildResultPage(resultPageBuilder);
+            if (forceFinish) {
+                logger.info("queryId=%s, resultPage positionCount=%s", queryContext.getQueryId(), resultPage.getPositionCount());
+            }
+            return resultPage;
         }
         catch (Throwable e) {
             stats.inccached_warp_failed_pages();
@@ -509,6 +515,9 @@ public class DispatcherPageSource
     {
         long start = System.nanoTime();
         if (proxiedConnectorPageSource == null) {
+            if (forceFinish) {
+                logger.info("queryId=%s, creating new page source - SHOULD NOT HAPPEN", queryContext.getQueryId());
+            }
             proxiedConnectorPageSource = proxiedConnectorPageSourceProvider.get();
         }
         currentProxiedPage = null;
@@ -521,10 +530,16 @@ public class DispatcherPageSource
         }
         currentProxiedPagePosition = 0;
         if (currentProxiedPage == null) {
+            if (forceFinish) {
+                logger.info("queryId=%s, currentProxiedPage is null and pageSource isFinished? %s", queryContext.getQueryId(), proxiedConnectorPageSource.isFinished());
+            }
             // proxiedConnectorPageSource is finished, return an empty page
             currentProxiedPage = new Page(0);
         }
         else {
+            if (forceFinish) {
+                logger.info("queryId=%s, currentProxiedPage is not null and position is %s, proxiedPageRanges=%s", queryContext.getQueryId(), currentProxiedPage.getPositionCount(), proxiedPageRanges);
+            }
             proxiedPagePositionsRead += currentProxiedPage.getPositionCount();
             stats.incproxied_pages();
         }

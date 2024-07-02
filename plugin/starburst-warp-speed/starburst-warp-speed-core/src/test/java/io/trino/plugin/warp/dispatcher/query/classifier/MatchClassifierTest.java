@@ -127,7 +127,7 @@ class MatchClassifierTest
         when(dispatcherTableHandle.getSimplifiedColumns()).thenReturn(new SimplifiedColumns(Collections.emptySet()));
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(TupleDomain.all());
         PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
-        QueryContext queryContext = new QueryContext(predicateContextData, ImmutableList.of(), 0, false);
+        QueryContext queryContext = new QueryContext(predicateContextData, ImmutableList.of(), 0, false, "query-id");
         QueryContext result = matchClassifier.classify(classifyArgs, queryContext);
         List<String> actualMatchColumns;
         if (result.getMatchData().isEmpty()) {
