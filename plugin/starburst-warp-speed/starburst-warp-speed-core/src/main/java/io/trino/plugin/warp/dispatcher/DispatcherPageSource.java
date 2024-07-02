@@ -129,7 +129,7 @@ public class DispatcherPageSource
         if (dispatcherPage.getPositionCount() == 0 && !isFinished()) {
             emptyPagesCounter++;
             if (emptyPagesCounter > 1000) {
-                String info = String.format("currentProxiedPagePosition=%s, proxiedConnectorPageSource.isFinished=%s, proxiedPageRanges=%s, warpPageRanges=%s, currentWarpPagePosition=%s, currentProxiedPage.getPositionCount()=%s, currentWarpPage.getPositionCount()=%s, warpWithoutPrefilledAndProxiedCollectTypes=%s, proxiedPagePositionsRead=%s, rowGroupKey=%s",
+                String info = String.format("currentProxiedPagePosition=%s, proxiedConnectorPageSource.isFinished=%s, proxiedPageRanges=%s, warpPageRanges=%s, currentWarpPagePosition=%s, currentProxiedPage.getPositionCount()=%s, currentWarpPage.getPositionCount()=%s, warpWithoutPrefilledAndProxiedCollectTypes=%s, proxiedPagePositionsRead=%s, proxiedConnectorPageSource=%s, wasProxiedPagedLoaded=%s, rowGroupKey=%s",
                         currentProxiedPagePosition,
                         proxiedConnectorPageSource.isFinished(),
                         proxiedPageRanges,
@@ -139,6 +139,8 @@ public class DispatcherPageSource
                         currentWarpPage.getPositionCount(),
                         warpWithoutPrefilledAndProxiedCollectTypes,
                         proxiedPagePositionsRead,
+                        wasProxiedPagedLoaded,
+                        proxiedConnectorPageSource,
                         rowGroupData.getRowGroupKey());
                 shapingLogger.info("returned more than emptyPagesCounter=%s emptyPages, set forced finished. info=%s", emptyPagesCounter, info);
                 forceFinish = true;
