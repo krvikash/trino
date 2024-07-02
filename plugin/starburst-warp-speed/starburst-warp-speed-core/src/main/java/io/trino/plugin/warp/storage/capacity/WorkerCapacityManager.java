@@ -226,25 +226,37 @@ public class WorkerCapacityManager
             return;
         }
 
-        logger.info("cleanLocalStorage launching background delete for path %s", localStorePath);
+        logger.info("cleanLocalStorage launching background clean for path %s", localStorePath);
         nativeStorageStateHandler.setStorageDisableState(true, false);
         Thread cleanLocalStorageThread = new Thread(() -> {
             try {
                 logger.info("cleanLocalStorage job starting localStorePath %s", localStorePath);
                 StopWatch stopWatch = new StopWatch();
                 stopWatch.start();
-                FileUtils.cleanDirectory(new File(localStorePath));
+
+                String[] fileList = localStore.list();
+                boolean cleaned = ((fileList == null) || (fileList.length == 0));
+                int iterations = 0;
+
+                while (!cleaned && (iterations < 3)) {
+                    try {
+                        FileUtils.cleanDirectory(new File(localStorePath));
+                        cleaned = true;
+                    }
+                    catch (FileNotFoundException e) {
+                        fileList = localStore.list();
+                        cleaned = ((fileList == null) || (fileList.length == 0));
+                    }
+                    iterations++;
+                }
+
                 stopWatch.stop();
-                logger.info("cleanLocalStorage job finished. took %d nano sec", stopWatch.getNanoTime());
+                logger.info("cleanLocalStorage job finished. took %d nano sec %d iterations", stopWatch.getNanoTime(), iterations);
                 // in case we hit an error, we leave total capacity as zero and storage state as permanently failed
                 nativeStorageStateHandler.setStorageDisableState(false, false);
             }
-            catch (FileNotFoundException e) {
-                logger.error("cleanLocalStorage job failed to clean localStorePath %s. message %s", localStorePath, e.getMessage());
-                nativeStorageStateHandler.setStorageDisableState(false, false);
-            }
             catch (IOException e) {
-                logger.error(e, "cleanLocalStorage job failed to delete localStorePath %s", localStorePath);
+                logger.error(e, "cleanLocalStorage job failed to clean localStorePath %s", localStorePath);
             }
             finally {
                 calculateTotalCapacity();
