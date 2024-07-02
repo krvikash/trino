@@ -337,9 +337,10 @@ public class TestSnowflakeDatabasePrefixIntegrationSmokeTest
         try (TestTable table = new TestTable(snowflakeExecutor, "public.test_table_for_show_create", "(a VARCHAR(3))")) {
             String tableName = table.getName().split("\\.")[1];
             assertThat((String) computeActual("SHOW CREATE TABLE " + databaseSchemaTableName(normalizedDatabaseName, "public", tableName)).getOnlyValue())
-                    .isEqualTo(format("CREATE TABLE snowflake.\"%s.public\".%s (\n" +
-                            "   a varchar(3)\n" +
-                            ")",
+                    .isEqualTo(format("""
+                                    CREATE TABLE snowflake."%s.public".%s (
+                                       a varchar(3)
+                                    )""",
                             normalizedDatabaseName,
                             tableName));
         }

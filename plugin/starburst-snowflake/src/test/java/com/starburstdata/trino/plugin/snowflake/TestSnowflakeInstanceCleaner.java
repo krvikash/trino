@@ -102,7 +102,7 @@ public class TestSnowflakeInstanceCleaner
                     .bindList("databases_to_keep", databasesToKeep)
                     .bind("database_prefix", tmpDatabasePrefix)
                     .bind("database_comment", tmpDatabaseComment)
-                    .map((rs, ctx) -> new SnowflakeDatabase(rs.getString("DATABASE_NAME"), rs.getTimestamp("CREATED")))
+                    .map((rs, _) -> new SnowflakeDatabase(rs.getString("DATABASE_NAME"), rs.getTimestamp("CREATED")))
                     .list();
         }
 
@@ -146,19 +146,19 @@ public class TestSnowflakeInstanceCleaner
             handle.execute("USE ROLE " + ROLE);
             handle.execute("USE WAREHOUSE " + TEST_WAREHOUSE);
             handle.execute("USE DATABASE " + TEST_DATABASE);
-            objectsToDrop = handle.createQuery("" +
-                            "SELECT table_schema, table_name, table_type " +
-                            "FROM INFORMATION_SCHEMA.TABLES " +
-                            "WHERE datediff(hour, created, current_timestamp) > 24 " +
-                            "AND table_catalog = :table_catalog AND lower(table_schema) = :table_schema " +
-                            // the table_name is lowercased before comparision to ensure it matches case from tablesToKeep
-                            "AND lower(table_name) NOT IN (<tables_to_keep>) " +
-                            "AND table_type IN (<table_types_to_drop>)")
+            // the table_name is lowercased before comparison to ensure it matches case from tablesToKeep
+            objectsToDrop = handle.createQuery("""
+                            SELECT table_schema, table_name, table_type
+                            FROM INFORMATION_SCHEMA.TABLES
+                            WHERE datediff(hour, created, current_timestamp) > 24
+                            AND table_catalog = :table_catalog AND lower(table_schema) = :table_schema
+                            AND lower(table_name) NOT IN (<tables_to_keep>)
+                            AND table_type IN (<table_types_to_drop>)""")
                     .bind("table_catalog", TEST_DATABASE)
                     .bind("table_schema", schemaName)
                     .bindList("tables_to_keep", tablesToKeep)
                     .bindList("table_types_to_drop", tableTypesToDrop)
-                    .map((rs, ctx) -> new SnowflakeObject(rs.getString("TABLE_SCHEMA"), rs.getString("TABLE_NAME"), rs.getString("TABLE_TYPE")))
+                    .map((rs, _) -> new SnowflakeObject(rs.getString("TABLE_SCHEMA"), rs.getString("TABLE_NAME"), rs.getString("TABLE_TYPE")))
                     .list();
         }
         catch (SQLException e) {
@@ -195,14 +195,16 @@ public class TestSnowflakeInstanceCleaner
             handle.execute("USE ROLE " + ROLE);
             handle.execute("USE WAREHOUSE " + TEST_WAREHOUSE);
             handle.execute("USE DATABASE " + TEST_DATABASE);
-            handle.createQuery("" +
-                    "SELECT table_type, count(*) AS c " +
-                    "FROM INFORMATION_SCHEMA.TABLES " +
-                    "WHERE table_catalog = :table_catalog AND lower(table_schema) = :table_schema " +
-                    "GROUP BY table_type")
+            handle.createQuery("""
+                            SELECT table_type, count(*) AS c
+                            FROM INFORMATION_SCHEMA.TABLES
+                            WHERE table_catalog = :table_catalog AND lower(table_schema) = :table_schema
+                            GROUP BY table_type""")
                     .bind("table_catalog", TEST_DATABASE)
                     .bind("table_schema", schemaName)
-                    .map((rs, ctx) -> (Entry<String, Long>) new SimpleImmutableEntry<>(rs.getString("TABLE_TYPE"), rs.getLong("C")))
+                    .map((rs, _) -> (Entry<String, Long>) new SimpleImmutableEntry<>(
+                            rs.getString("TABLE_TYPE"),
+                            rs.getLong("C")))
                     .list()
                     .forEach(entry -> LOG.info("Schema '%s' contains %s objects of type '%s'", schemaName, entry.getValue(), entry.getKey()));
         }
@@ -213,14 +215,11 @@ public class TestSnowflakeInstanceCleaner
 
     private static String getDropStatement(String schemaName, String objectName, String objectType)
     {
-        switch (objectType) {
-            case "BASE TABLE":
-                return format("DROP TABLE IF EXISTS %s.%s", quoted(schemaName), quoted(objectName));
-            case "VIEW":
-                return format("DROP VIEW IF EXISTS %s.%s", quoted(schemaName), quoted(objectName));
-            default:
-                throw new IllegalArgumentException("Unexpected object type " + objectType);
-        }
+        return switch (objectType) {
+            case "BASE TABLE" -> format("DROP TABLE IF EXISTS %s.%s", quoted(schemaName), quoted(objectName));
+            case "VIEW" -> format("DROP VIEW IF EXISTS %s.%s", quoted(schemaName), quoted(objectName));
+            default -> throw new IllegalArgumentException("Unexpected object type " + objectType);
+        };
     }
 
     private static String quoted(String identifier)
@@ -228,29 +227,7 @@ public class TestSnowflakeInstanceCleaner
         return IDENTIFIER_QUOTE + identifier.replace(IDENTIFIER_QUOTE, IDENTIFIER_QUOTE + IDENTIFIER_QUOTE) + IDENTIFIER_QUOTE;
     }
 
-    private static class SnowflakeObject
-    {
-        private final String schemaName;
-        private final String tableName;
-        private final String tableType;
+    private record SnowflakeObject(String schemaName, String tableName, String tableType) {}
 
-        private SnowflakeObject(String schemaName, String tableName, String tableType)
-        {
-            this.schemaName = schemaName;
-            this.tableName = tableName;
-            this.tableType = tableType;
-        }
-    }
-
-    private static class SnowflakeDatabase
-    {
-        public final String databaseName;
-        public final Timestamp created;
-
-        private SnowflakeDatabase(String databaseName, Timestamp created)
-        {
-            this.databaseName = databaseName;
-            this.created = created;
-        }
-    }
+    private record SnowflakeDatabase(String databaseName, Timestamp created) {}
 }

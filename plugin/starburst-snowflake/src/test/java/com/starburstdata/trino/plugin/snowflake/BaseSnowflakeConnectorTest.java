@@ -109,9 +109,10 @@ public abstract class BaseSnowflakeConnectorTest
                 "test_char_is_varchar_",
                 "AS SELECT CHAR 'is_actually_a_varchar' AS a_char")) {
             assertThat((String) computeActual("SHOW CREATE TABLE " + table.getName()).getOnlyValue())
-                    .matches("CREATE TABLE \\w+\\.\\w+\\.\\w+ \\Q(\n" +
-                            "   a_char varchar(21)\n" +
-                            ")");
+                    .matches("""
+                            CREATE TABLE \\w+\\.\\w+\\.\\w+ \\Q(
+                               a_char varchar(21)
+                            )""");
         }
     }
 
@@ -148,11 +149,12 @@ public abstract class BaseSnowflakeConnectorTest
         return new TestTable(
                 (sql) -> server.safeExecuteOnDatabase(testDatabase.getName(), sql),
                 format("%s.test_table_with_default_columns", TEST_SCHEMA),
-                "(col_required BIGINT NOT NULL," +
-                        "col_nullable BIGINT," +
-                        "col_default BIGINT DEFAULT 43," +
-                        "col_nonnull_default BIGINT NOT NULL DEFAULT 42," +
-                        "col_required2 BIGINT NOT NULL)");
+                """
+                        (col_required BIGINT NOT NULL,
+                        col_nullable BIGINT,
+                        col_default BIGINT DEFAULT 43,
+                        col_nonnull_default BIGINT NOT NULL DEFAULT 42,
+                        col_required2 BIGINT NOT NULL)""");
     }
 
     @Override
@@ -336,16 +338,17 @@ public abstract class BaseSnowflakeConnectorTest
     public void testSelectInformationSchemaColumns()
     {
         String schema = getSession().getSchema().get();
-        String ordersTableWithColumns = "VALUES " +
-                "('orders', 'orderkey'), " +
-                "('orders', 'custkey'), " +
-                "('orders', 'orderstatus'), " +
-                "('orders', 'totalprice'), " +
-                "('orders', 'orderdate'), " +
-                "('orders', 'orderpriority'), " +
-                "('orders', 'clerk'), " +
-                "('orders', 'shippriority'), " +
-                "('orders', 'comment')";
+        String ordersTableWithColumns = """
+                VALUES
+                ('orders', 'orderkey'),
+                ('orders', 'custkey'),
+                ('orders', 'orderstatus'),
+                ('orders', 'totalprice'),
+                ('orders', 'orderdate'),
+                ('orders', 'orderpriority'),
+                ('orders', 'clerk'),
+                ('orders', 'shippriority'),
+                ('orders', 'comment')""";
 
         assertQuery("SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = '" + schema + "' AND table_name = 'orders'", ordersTableWithColumns);
         assertQuery("SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = '" + schema + "' AND table_name LIKE '%rders'", ordersTableWithColumns);
@@ -451,28 +454,30 @@ public abstract class BaseSnowflakeConnectorTest
     public void testShowCreateTable()
     {
         assertThat((String) computeActual("SHOW CREATE TABLE orders").getOnlyValue())
-                .matches("CREATE TABLE \\w+\\.\\w+\\.orders \\Q(\n" +
-                        "   orderkey decimal(19, 0),\n" +
-                        "   custkey decimal(19, 0),\n" +
-                        "   orderstatus varchar(1),\n" +
-                        "   totalprice double,\n" +
-                        "   orderdate date,\n" +
-                        "   orderpriority varchar(15),\n" +
-                        "   clerk varchar(15),\n" +
-                        "   shippriority decimal(10, 0),\n" +
-                        "   comment varchar(79)\n" +
-                        ")");
+                .matches("""
+                        CREATE TABLE \\w+\\.\\w+\\.orders \\Q(
+                           orderkey decimal(19, 0),
+                           custkey decimal(19, 0),
+                           orderstatus varchar(1),
+                           totalprice double,
+                           orderdate date,
+                           orderpriority varchar(15),
+                           clerk varchar(15),
+                           shippriority decimal(10, 0),
+                           comment varchar(79)
+                        )""");
     }
 
     @Test
     public void testPredicatePushdown()
     {
         try (TestTable testTable = new TestTable(snowflakeExecutor, getSession().getSchema().orElseThrow() + ".test_aggregation_pushdown",
-                "(" +
-                        "bigint_column bigint, " +
-                        "short_decimal decimal(9, 3), " +
-                        "long_decimal decimal(30, 10), " +
-                        "varchar_column varchar(10))")) {
+                """
+                        (
+                        bigint_column bigint,
+                        short_decimal decimal(9, 3),
+                        long_decimal decimal(30, 10),
+                        varchar_column varchar(10))""")) {
             snowflakeExecutor.execute("INSERT INTO " + testTable.getName() + " VALUES (100, 100.000, 100000000.000000000, 'ala')");
             snowflakeExecutor.execute("INSERT INTO " + testTable.getName() + " VALUES (123, 123.321, 123456789.987654321, 'kot')");
             assertThat(query("SELECT * FROM " + testTable.getName() + " WHERE bigint_column = 100")).isFullyPushedDown();
@@ -536,43 +541,45 @@ public abstract class BaseSnowflakeConnectorTest
                         "timestamp7 timestamp(7)," +
                         "timestamp8 timestamp(8)," +
                         "timestamp9 timestamp(9))",
-                ImmutableList.of("" +
-                        "TIMESTAMP '1901-02-03 04:05:06'," +
-                        "TIMESTAMP '1901-02-03 04:05:06.1'," +
-                        "TIMESTAMP '1901-02-03 04:05:06.12'," +
-                        "TIMESTAMP '1901-02-03 04:05:06.123'," +
-                        "TIMESTAMP '1901-02-03 04:05:06.1234'," +
-                        "TIMESTAMP '1901-02-03 04:05:06.12345'," +
-                        "TIMESTAMP '1901-02-03 04:05:06.123456'," +
-                        "TIMESTAMP '1901-02-03 04:05:06.1234567'," +
-                        "TIMESTAMP '1901-02-03 04:05:06.12345678'," +
-                        "TIMESTAMP '1901-02-03 04:05:06.123456789'"))) {
+                ImmutableList.of("""
+                        TIMESTAMP '1901-02-03 04:05:06',
+                        TIMESTAMP '1901-02-03 04:05:06.1',
+                        TIMESTAMP '1901-02-03 04:05:06.12',
+                        TIMESTAMP '1901-02-03 04:05:06.123',
+                        TIMESTAMP '1901-02-03 04:05:06.1234',
+                        TIMESTAMP '1901-02-03 04:05:06.12345',
+                        TIMESTAMP '1901-02-03 04:05:06.123456',
+                        TIMESTAMP '1901-02-03 04:05:06.1234567',
+                        TIMESTAMP '1901-02-03 04:05:06.12345678',
+                        TIMESTAMP '1901-02-03 04:05:06.123456789'"""))) {
             assertThat((String) computeActual("SHOW CREATE TABLE " + testTable.getName()).getOnlyValue())
-                    .matches("CREATE TABLE \\w+\\.\\w+\\.\\w+ \\Q(\n" +
-                            "   timestamp0 timestamp(0),\n" +
-                            "   timestamp1 timestamp(1),\n" +
-                            "   timestamp2 timestamp(2),\n" +
-                            "   timestamp3 timestamp(3),\n" +
-                            "   timestamp4 timestamp(4),\n" +
-                            "   timestamp5 timestamp(5),\n" +
-                            "   timestamp6 timestamp(6),\n" +
-                            "   timestamp7 timestamp(7),\n" +
-                            "   timestamp8 timestamp(8),\n" +
-                            "   timestamp9 timestamp(9)\n" +
-                            ")");
+                    .matches("""
+                            CREATE TABLE \\w+\\.\\w+\\.\\w+ \\Q(
+                               timestamp0 timestamp(0),
+                               timestamp1 timestamp(1),
+                               timestamp2 timestamp(2),
+                               timestamp3 timestamp(3),
+                               timestamp4 timestamp(4),
+                               timestamp5 timestamp(5),
+                               timestamp6 timestamp(6),
+                               timestamp7 timestamp(7),
+                               timestamp8 timestamp(8),
+                               timestamp9 timestamp(9)
+                            )""");
 
             assertThat(query("SELECT * FROM " + testTable.getName()))
-                    .matches("VALUES (" +
-                            "TIMESTAMP '1901-02-03 04:05:06'," +
-                            "TIMESTAMP '1901-02-03 04:05:06.1'," +
-                            "TIMESTAMP '1901-02-03 04:05:06.12'," +
-                            "TIMESTAMP '1901-02-03 04:05:06.123'," +
-                            "TIMESTAMP '1901-02-03 04:05:06.1234'," +
-                            "TIMESTAMP '1901-02-03 04:05:06.12345'," +
-                            "TIMESTAMP '1901-02-03 04:05:06.123456'," +
-                            "TIMESTAMP '1901-02-03 04:05:06.1234567'," +
-                            "TIMESTAMP '1901-02-03 04:05:06.12345678'," +
-                            "TIMESTAMP '1901-02-03 04:05:06.123456789')");
+                    .matches("""
+                            VALUES (
+                            TIMESTAMP '1901-02-03 04:05:06',
+                            TIMESTAMP '1901-02-03 04:05:06.1',
+                            TIMESTAMP '1901-02-03 04:05:06.12',
+                            TIMESTAMP '1901-02-03 04:05:06.123',
+                            TIMESTAMP '1901-02-03 04:05:06.1234',
+                            TIMESTAMP '1901-02-03 04:05:06.12345',
+                            TIMESTAMP '1901-02-03 04:05:06.123456',
+                            TIMESTAMP '1901-02-03 04:05:06.1234567',
+                            TIMESTAMP '1901-02-03 04:05:06.12345678',
+                            TIMESTAMP '1901-02-03 04:05:06.123456789')""");
         }
     }
 
@@ -580,54 +587,57 @@ public abstract class BaseSnowflakeConnectorTest
     public void testSnowflakeTimestampWithTimeZoneWithPrecision()
     {
         try (TestTable testTable = new TestTable(snowflakeExecutor, getSession().getSchema().orElseThrow() + ".test_timestamptz_with_precision",
-                "(" +
-                        "timestamptz0 timestamp_tz(0)," +
-                        "timestamptz1 timestamp_tz(1)," +
-                        "timestamptz2 timestamp_tz(2)," +
-                        "timestamptz3 timestamp_tz(3)," +
-                        "timestamptz4 timestamp_tz(4)," +
-                        "timestamptz5 timestamp_tz(5)," +
-                        "timestamptz6 timestamp_tz(6)," +
-                        "timestamptz7 timestamp_tz(7)," +
-                        "timestamptz8 timestamp_tz(8)," +
-                        "timestamptz9 timestamp_tz(9))",
-                ImmutableList.of("" +
-                        "'1901-02-03 04:05:06 +02:00'," +
-                        "'1901-02-03 04:05:06.1 +02:00'," +
-                        "'1901-02-03 04:05:06.12 +02:00'," +
-                        "'1901-02-03 04:05:06.123 +02:00'," +
-                        "'1901-02-03 04:05:06.1234 +02:00'," +
-                        "'1901-02-03 04:05:06.12345 +02:00'," +
-                        "'1901-02-03 04:05:06.123456 +02:00'," +
-                        "'1901-02-03 04:05:06.1234567 +02:00'," +
-                        "'1901-02-03 04:05:06.12345678 +02:00'," +
-                        "'1901-02-03 04:05:06.123456789 +02:00'"))) {
+                """
+                        (
+                        timestamptz0 timestamp_tz(0),
+                        timestamptz1 timestamp_tz(1),
+                        timestamptz2 timestamp_tz(2),
+                        timestamptz3 timestamp_tz(3),
+                        timestamptz4 timestamp_tz(4),
+                        timestamptz5 timestamp_tz(5),
+                        timestamptz6 timestamp_tz(6),
+                        timestamptz7 timestamp_tz(7),
+                        timestamptz8 timestamp_tz(8),
+                        timestamptz9 timestamp_tz(9))""",
+                ImmutableList.of("""
+                        '1901-02-03 04:05:06 +02:00',
+                        '1901-02-03 04:05:06.1 +02:00',
+                        '1901-02-03 04:05:06.12 +02:00',
+                        '1901-02-03 04:05:06.123 +02:00',
+                        '1901-02-03 04:05:06.1234 +02:00',
+                        '1901-02-03 04:05:06.12345 +02:00',
+                        '1901-02-03 04:05:06.123456 +02:00',
+                        '1901-02-03 04:05:06.1234567 +02:00',
+                        '1901-02-03 04:05:06.12345678 +02:00',
+                        '1901-02-03 04:05:06.123456789 +02:00'"""))) {
             assertThat((String) computeActual("SHOW CREATE TABLE " + testTable.getName()).getOnlyValue())
-                    .matches("CREATE TABLE \\w+\\.\\w+\\.\\w+ \\Q(\n" +
-                            "   timestamptz0 timestamp(0) with time zone,\n" +
-                            "   timestamptz1 timestamp(1) with time zone,\n" +
-                            "   timestamptz2 timestamp(2) with time zone,\n" +
-                            "   timestamptz3 timestamp(3) with time zone,\n" +
-                            "   timestamptz4 timestamp(4) with time zone,\n" +
-                            "   timestamptz5 timestamp(5) with time zone,\n" +
-                            "   timestamptz6 timestamp(6) with time zone,\n" +
-                            "   timestamptz7 timestamp(7) with time zone,\n" +
-                            "   timestamptz8 timestamp(8) with time zone,\n" +
-                            "   timestamptz9 timestamp(9) with time zone\n" +
-                            ")");
+                    .matches("""
+                            CREATE TABLE \\w+\\.\\w+\\.\\w+ \\Q(
+                               timestamptz0 timestamp(0) with time zone,
+                               timestamptz1 timestamp(1) with time zone,
+                               timestamptz2 timestamp(2) with time zone,
+                               timestamptz3 timestamp(3) with time zone,
+                               timestamptz4 timestamp(4) with time zone,
+                               timestamptz5 timestamp(5) with time zone,
+                               timestamptz6 timestamp(6) with time zone,
+                               timestamptz7 timestamp(7) with time zone,
+                               timestamptz8 timestamp(8) with time zone,
+                               timestamptz9 timestamp(9) with time zone
+                            )""");
 
             assertThat(query("SELECT * FROM " + testTable.getName()))
-                    .matches("VALUES (" +
-                            "TIMESTAMP '1901-02-03 04:05:06 +02:00'," +
-                            "TIMESTAMP '1901-02-03 04:05:06.1 +02:00'," +
-                            "TIMESTAMP '1901-02-03 04:05:06.12 +02:00'," +
-                            "TIMESTAMP '1901-02-03 04:05:06.123 +02:00'," +
-                            "TIMESTAMP '1901-02-03 04:05:06.1234 +02:00'," +
-                            "TIMESTAMP '1901-02-03 04:05:06.12345 +02:00'," +
-                            "TIMESTAMP '1901-02-03 04:05:06.123456 +02:00'," +
-                            "TIMESTAMP '1901-02-03 04:05:06.1234567 +02:00'," +
-                            "TIMESTAMP '1901-02-03 04:05:06.12345678 +02:00'," +
-                            "TIMESTAMP '1901-02-03 04:05:06.123456789 +02:00')");
+                    .matches("""
+                            VALUES (
+                            TIMESTAMP '1901-02-03 04:05:06 +02:00',
+                            TIMESTAMP '1901-02-03 04:05:06.1 +02:00',
+                            TIMESTAMP '1901-02-03 04:05:06.12 +02:00',
+                            TIMESTAMP '1901-02-03 04:05:06.123 +02:00',
+                            TIMESTAMP '1901-02-03 04:05:06.1234 +02:00',
+                            TIMESTAMP '1901-02-03 04:05:06.12345 +02:00',
+                            TIMESTAMP '1901-02-03 04:05:06.123456 +02:00',
+                            TIMESTAMP '1901-02-03 04:05:06.1234567 +02:00',
+                            TIMESTAMP '1901-02-03 04:05:06.12345678 +02:00',
+                            TIMESTAMP '1901-02-03 04:05:06.123456789 +02:00')""");
         }
     }
 
@@ -635,41 +645,43 @@ public abstract class BaseSnowflakeConnectorTest
     public void testSnowflakeTimeWithPrecision()
     {
         try (TestTable testTable = new TestTable(snowflakeExecutor, getSession().getSchema().orElseThrow() + ".test_time_with_precision",
-                "(" +
-                        "time0 time(0)," +
-                        "time1 time(1)," +
-                        "time2 time(2)," +
-                        "time3 time(3)," +
-                        "time4 time(4)," +
-                        "time5 time(5)," +
-                        "time6 time(6)," +
-                        "time7 time(7)," +
-                        "time8 time(8)," +
-                        "time9 time(9))",
-                ImmutableList.of("" +
-                        "TIME '04:05:06'," +
-                        "TIME '04:05:06.1'," +
-                        "TIME '04:05:06.12'," +
-                        "TIME '04:05:06.123'," +
-                        "TIME '04:05:06.1234'," +
-                        "TIME '04:05:06.12345'," +
-                        "TIME '04:05:06.123456'," +
-                        "TIME '04:05:06.1234567'," +
-                        "TIME '04:05:06.12345678'," +
-                        "TIME '04:05:06.123456789'"))) {
+                """
+                        (
+                        time0 time(0),
+                        time1 time(1),
+                        time2 time(2),
+                        time3 time(3),
+                        time4 time(4),
+                        time5 time(5),
+                        time6 time(6),
+                        time7 time(7),
+                        time8 time(8),
+                        time9 time(9))""",
+                ImmutableList.of("""
+                        TIME '04:05:06',
+                        TIME '04:05:06.1',
+                        TIME '04:05:06.12',
+                        TIME '04:05:06.123',
+                        TIME '04:05:06.1234',
+                        TIME '04:05:06.12345',
+                        TIME '04:05:06.123456',
+                        TIME '04:05:06.1234567',
+                        TIME '04:05:06.12345678',
+                        TIME '04:05:06.123456789'"""))) {
             assertThat((String) computeActual("SHOW CREATE TABLE " + testTable.getName()).getOnlyValue())
-                    .matches("CREATE TABLE \\w+\\.\\w+\\.\\w+ \\Q(\n" +
-                            "   time0 time(3),\n" +
-                            "   time1 time(3),\n" +
-                            "   time2 time(3),\n" +
-                            "   time3 time(3),\n" +
-                            "   time4 time(3),\n" +
-                            "   time5 time(3),\n" +
-                            "   time6 time(3),\n" +
-                            "   time7 time(3),\n" +
-                            "   time8 time(3),\n" +
-                            "   time9 time(3)\n" +
-                            ")");
+                    .matches("""
+                            CREATE TABLE \\w+\\.\\w+\\.\\w+ \\Q(
+                               time0 time(3),
+                               time1 time(3),
+                               time2 time(3),
+                               time3 time(3),
+                               time4 time(3),
+                               time5 time(3),
+                               time6 time(3),
+                               time7 time(3),
+                               time8 time(3),
+                               time9 time(3)
+                            )""");
 
             assertThat(query("SELECT * FROM " + testTable.getName()))
                     .matches("VALUES (" +
@@ -698,12 +710,13 @@ public abstract class BaseSnowflakeConnectorTest
                         "TIMESTAMP '2001-02-03 04:05:06.123499999'",
                         "TIMESTAMP '2001-02-03 04:05:06.123900000'"))) {
             assertThat(query("SELECT * FROM " + testTable.getName()))
-                    .matches("VALUES " +
-                            "TIMESTAMP '1901-02-03 04:05:06.123499999'," +
-                            "TIMESTAMP '1901-02-03 04:05:06.123900000'," +
-                            "TIMESTAMP '1969-12-31 23:59:59.999999999'," +
-                            "TIMESTAMP '2001-02-03 04:05:06.123499999'," +
-                            "TIMESTAMP '2001-02-03 04:05:06.123900000'");
+                    .matches("""
+                            VALUES
+                            TIMESTAMP '1901-02-03 04:05:06.123499999',
+                            TIMESTAMP '1901-02-03 04:05:06.123900000',
+                            TIMESTAMP '1969-12-31 23:59:59.999999999',
+                            TIMESTAMP '2001-02-03 04:05:06.123499999',
+                            TIMESTAMP '2001-02-03 04:05:06.123900000'""");
         }
     }
 
@@ -718,11 +731,12 @@ public abstract class BaseSnowflakeConnectorTest
                         "'2001-02-03 04:05:06.123499999 +02:00'",
                         "'2001-02-03 04:05:06.123900000 +02:00'"))) {
             assertThat(query("SELECT * FROM " + testTable.getName()))
-                    .matches("VALUES " +
-                            "TIMESTAMP '1901-02-03 04:05:06.123499999 +02:00'," +
-                            "TIMESTAMP '1901-02-03 04:05:06.123900000 +02:00'," +
-                            "TIMESTAMP '2001-02-03 04:05:06.123499999 +02:00'," +
-                            "TIMESTAMP '2001-02-03 04:05:06.123900000 +02:00'");
+                    .matches("""
+                            VALUES
+                            TIMESTAMP '1901-02-03 04:05:06.123499999 +02:00',
+                            TIMESTAMP '1901-02-03 04:05:06.123900000 +02:00',
+                            TIMESTAMP '2001-02-03 04:05:06.123499999 +02:00',
+                            TIMESTAMP '2001-02-03 04:05:06.123900000 +02:00'""");
         }
     }
 
