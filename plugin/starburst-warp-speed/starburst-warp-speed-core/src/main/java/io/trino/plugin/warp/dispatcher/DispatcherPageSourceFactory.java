@@ -506,6 +506,8 @@ public class DispatcherPageSourceFactory
                 pageSourceDecision,
                 pageSourceStats,
                 closeHandler,
+                dispatcherSplit,
+                dispatcherTableHandle,
                 readErrorHandler,
                 globalConfig);
     }
@@ -749,6 +751,8 @@ public class DispatcherPageSourceFactory
                     pageSourceDecision,
                     statsDispatcherPageSource,
                     closeHandler,
+                    null, //used for debug for mixed case, unused in CM
+                    null,
                     readErrorHandler,
                     globalConfig);
             statsDispatcherPageSource.addwarp_collect_columns(planSignature.getColumns().size());

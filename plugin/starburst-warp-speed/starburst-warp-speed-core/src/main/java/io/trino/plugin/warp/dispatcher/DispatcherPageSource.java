@@ -59,6 +59,8 @@ public class DispatcherPageSource
 
     private final ShapingLogger shapingLogger;
     protected final WarpStoragePageSource warpPageSource;
+    private final DispatcherSplit dispatcherSplit;
+    private final DispatcherTableHandle dispatcherTableHandle;
     private final PrefilledPageSource prefilledPageSource;
     private final QueryContext queryContext;
     private final RowGroupData rowGroupData;
@@ -91,12 +93,16 @@ public class DispatcherPageSource
             PageSourceDecision pageSourceDecision,
             DispatcherPageSourceStats stats,
             RowGroupCloseHandler closeHandler,
+            DispatcherSplit dispatcherSplit,
+            DispatcherTableHandle dispatcherTableHandle,
             ReadErrorHandler readErrorHandler,
             GlobalConfig globalConfig)
     {
         this.proxiedConnectorPageSourceProvider = proxiedConnectorPageSourceProvider;
         this.queryClassifier = queryClassifier;
         this.warpPageSource = warpPageSource;
+        this.dispatcherSplit = dispatcherSplit;
+        this.dispatcherTableHandle = dispatcherTableHandle;
         this.prefilledPageSource = new PrefilledPageSource(
                 queryContext.getPrefilledQueryCollectDataByBlockIndex(),
                 stats,
@@ -128,19 +134,23 @@ public class DispatcherPageSource
         Page dispatcherPage = getDispatcherPage();
         if (dispatcherPage.getPositionCount() == 0 && !isFinished()) {
             emptyPagesCounter++;
-            if (emptyPagesCounter > 1000) {
-                String info = String.format("currentProxiedPagePosition=%s, proxiedConnectorPageSource.isFinished=%s, proxiedPageRanges=%s, warpPageRanges=%s, currentWarpPagePosition=%s, currentProxiedPage.getPositionCount()=%s, currentWarpPage.getPositionCount()=%s, warpWithoutPrefilledAndProxiedCollectTypes=%s, proxiedPagePositionsRead=%s, proxiedConnectorPageSource=%s, wasProxiedPagedLoaded=%s, rowGroupKey=%s",
+            if (emptyPagesCounter > 5000) {
+                String info = String.format("currentProxiedPagePosition=%s, proxiedConnectorPageSource.isFinished=%s, proxiedPageRanges=%s, warpPageRanges.size=%s, currentWarpPagePosition=%s, " +
+                                "currentProxiedPage.getPositionCount()=%s, currentWarpPage.getPositionCount()=%s, warpWithoutPrefilledAndProxiedCollectTypes=%s, proxiedPagePositionsRead=%s, proxiedConnectorPageSource=%s, " +
+                                "wasProxiedPagedLoaded=%s, dispatcherTableHandle=%s, dispatcherSplit=%s, rowGroupKey=%s",
                         currentProxiedPagePosition,
                         proxiedConnectorPageSource.isFinished(),
                         proxiedPageRanges,
-                        warpPageRanges,
+                        warpPageRanges.size(),
                         currentWarpPagePosition,
                         currentProxiedPage.getPositionCount(),
                         currentWarpPage.getPositionCount(),
                         warpWithoutPrefilledAndProxiedCollectTypes,
                         proxiedPagePositionsRead,
-                        wasProxiedPagedLoaded,
                         proxiedConnectorPageSource,
+                        wasProxiedPagedLoaded,
+                        dispatcherTableHandle,
+                        dispatcherSplit,
                         rowGroupData.getRowGroupKey());
                 shapingLogger.info("returned more than emptyPagesCounter=%s emptyPages, set forced finished. info=%s", emptyPagesCounter, info);
                 forceFinish = true;

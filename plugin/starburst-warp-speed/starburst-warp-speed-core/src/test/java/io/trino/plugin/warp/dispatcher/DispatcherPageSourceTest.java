@@ -789,6 +789,8 @@ public class DispatcherPageSourceTest
                 proxiedCollectTypeByBlockIndex.isEmpty() ? PageSourceDecision.WARP : PageSourceDecision.MIXED,
                 stats,
                 closeHandler,
+                null,
+                null,
                 readErrorHandler,
                 new GlobalConfig());
     }
