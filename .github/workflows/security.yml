@@ -1,0 +1,105 @@
+name: security
+# The security workflow performs static analysis for SCA/SAST and secret detection. It complements open source tooling that developers may already have in place.
+# The results are aggregated and triaged to help determine what vulnerabilities need to be addressed to meet customer obligations and internal goals.
+# For more information on AppSec @ Starburst, see https://starburstdata.atlassian.net/wiki/spaces/STARBURST/pages/3453419644.
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+    paths-ignore:
+      - "docs/**"
+  workflow_dispatch:
+
+env:
+  BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+  ENDORCTL_CHECKSUM: "04f1196ed44f29d7a2da6248a94c120fd6f635456d04cb35703af2dc6d312a84"
+  ENDORCTL_NAMESPACE: "starburst"
+  ENDORCTL_VERSION: "v1.6.367"
+  MAVEN_OPTS: "-Xmx3G -XX:+ExitOnOutOfMemoryError"
+  mavenReleaseUsername: ${{ vars.CODE_ARTIFACT_USERNAME }}
+  mavenReleasePassword: ${{ secrets.CODE_ARTIFACT_PASSWORD }}
+  mavenSnapshotsUsername: ${{ vars.CODE_ARTIFACT_USERNAME }}
+  mavenSnapshotsPassword: ${{ secrets.CODE_ARTIFACT_PASSWORD }}
+
+# Cancel previous PR builds.
+concurrency:
+  # Cancel all workflow runs except latest within a concurrency group. This is achieved by defining a concurrency group for the PR.
+  # Non-PR builds have singleton concurrency groups.
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  sca-scan:
+    permissions:
+      contents: read # Used to check out a private repository with actions/checkout.
+      id-token: write # Used for keyless authentication to Endor Labs.
+    runs-on: [self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8459bc0c7e3759cdf591f513d9f141a95fef0a8f # v4.1.4
+      - name: CodeArtifact Login
+        uses: ./.github/actions/starburst-setup
+        with:
+          aws-access-key-id: ${{ vars.ENG_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.ENG_AWS_SECRET_ACCESS_KEY }}
+          secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
+          login-maven: true
+      - name: ECR Login
+        shell: bash
+        run: |
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 843985043183.dkr.ecr.us-east-1.amazonaws.com
+      - name: Setup Java
+        uses: actions/setup-java@99b8673ff64fbf99d8d325f52d9a5bdedb8483e9 # v4.2.1
+        with:
+          distribution: "temurin" # use same JDK distro as in Trino docker images
+          java-version: "22"
+      - name: Setup Python
+        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
+        with:
+          python-version: "3.12"
+      - name: Install mvn
+        # There is currently no way of pointing Endor Labs to the mvn wrapper, so we install mvn
+        uses: sdkman/sdkman-action@b1f9b696c79148b66d3d3a06f7ea801820318d0f # v1
+        with:
+          candidate: maven
+          version: 3.9.8 # Always match the project default
+      - name: Maven Build
+        run: ./mvnw clean install -s .github/settings.xml -V -B --quiet -T 1C -DskipTests -Dmaven.source.skip=true -Dair.check.skip-all
+      - name: Don't Skip Deps
+        # Endor will not be able to perform reachability analysis if this is set to true because "one or more of the declared dependencies is invalid"
+        run: ./mvnw versions:set-property -Dproperty=air.check.skip-dependency -DnewVersion=false -f core/trino-server/pom.xml --quiet
+      - name: Endor Labs Pull Request Scan
+        if: github.event_name == 'pull_request'
+        env:
+          ENDOR_SCAN_PYTHON_GLOBAL_SITE_PACKAGES: true
+          MAVEN_ARGS: "-s ${{ github.workspace }}/.github/settings.xml"
+        uses: endorlabs/github-action@802fa65ba7c140405ee52d1c806cfdb647f8f743 # v1.1.4
+        with:
+          additional_args: '--exclude="testing/" --bypass-host-check'
+          enable_pr_comments: false
+          endorctl_checksum: ${{ env.ENDORCTL_CHECKSUM }}
+          endorctl_version: ${{ env.ENDORCTL_VERSION }}
+          namespace: ${{ env.ENDORCTL_NAMESPACE }}
+          pr: true
+          scan_dependencies: true
+          scan_secrets: true
+          tags: "actor=${{ github.actor }},branch=${{ env.BRANCH_NAME }},pr=${{ github.event.number }},run-id=${{ github.run_id }}"
+      - name: Endor Labs Merge Scan
+        if: github.event_name == 'push'
+        env:
+          ENDOR_SCAN_PYTHON_GLOBAL_SITE_PACKAGES: true
+          MAVEN_ARGS: "-s ${{ github.workspace }}.github/settings.xml"
+        uses: endorlabs/github-action@802fa65ba7c140405ee52d1c806cfdb647f8f743 # v1.1.4
+        with:
+          additional_args: '--exclude="testing/" --bypass-host-check'
+          endorctl_checksum: ${{ env.ENDORCTL_CHECKSUM }}
+          endorctl_version: ${{ env.ENDORCTL_VERSION }}
+          namespace: ${{ env.ENDORCTL_NAMESPACE }}
+          pr: false
+          scan_dependencies: true
+          scan_secrets: true
+          scan_tools: true
+          tags: "actor=${{ github.actor }},branch=${{ env.BRANCH_NAME }},run-id=${{ github.run_id }}"
