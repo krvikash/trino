@@ -19,6 +19,7 @@ import io.trino.metastore.HiveMetastore;
 import io.trino.metastore.HiveMetastoreFactory;
 import io.trino.metastore.PrincipalPrivileges;
 import io.trino.metastore.Table;
+import io.trino.plugin.hive.HiveConfig;
 import io.trino.plugin.hive.HiveQueryRunner;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.MaterializedRow;
@@ -32,6 +33,7 @@ import java.util.Optional;
 
 import static io.trino.plugin.hive.HiveQueryRunner.TPCH_SCHEMA;
 import static io.trino.plugin.hive.TestingHiveUtils.getConnectorService;
+import static io.trino.spi.connector.SchemaTableName.schemaTableName;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -318,6 +320,82 @@ public abstract class BaseCachingDirectoryListerTest
         assertThat(isCached(tableGroup1PartitionLocation)).isFalse();
         assertThat(isCached(tableGroup2PartitionLocation)).isFalse();
         assertThat(isCached(tableGroup3PartitionLocation)).isFalse();
+    }
+
+    @Test
+    public void testCachingWithExcludeTables()
+    {
+        CachingDirectoryLister cachingDirectoryLister = new CachingDirectoryLister(new HiveConfig()
+                .setFileStatusCacheTables(ImmutableList.of("tpch.*"))
+                .setFileStatusCacheTablesExcluded(ImmutableList.of("tpch.aa", "tpch.ab")));
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpch", "aa"))).isFalse();
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpch", "ab"))).isFalse();
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpcha", "ab"))).isFalse();
+
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpch", "bb"))).isTrue();
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpch", "a"))).isTrue();
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpch", "aaa"))).isTrue();
+
+        cachingDirectoryLister = new CachingDirectoryLister(new HiveConfig()
+                .setFileStatusCacheTables(ImmutableList.of("*"))
+                .setFileStatusCacheTablesExcluded(ImmutableList.of("tpch.*")));
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpch", "bb"))).isFalse();
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpch", "a"))).isFalse();
+
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("schema", "aa"))).isTrue();
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("schema", "bb"))).isTrue();
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("schema11", "bb"))).isTrue();
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("schema11", "b11b"))).isTrue();
+
+        //excluded has higher priority
+        cachingDirectoryLister = new CachingDirectoryLister(new HiveConfig()
+                .setFileStatusCacheTables(ImmutableList.of("tpch.aa", "tpch.ab"))
+                .setFileStatusCacheTablesExcluded(ImmutableList.of("*")));
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpch", "aa"))).isFalse();
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpch", "ab"))).isFalse();
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("schema", "aa"))).isFalse();
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("schema", "bb"))).isFalse();
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("schema11", "bb"))).isFalse();
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("schema11", "b11b"))).isFalse();
+
+        cachingDirectoryLister = new CachingDirectoryLister(new HiveConfig()
+                .setFileStatusCacheTables(ImmutableList.of("tpch.a", "tpch.b", "tpch.c"))
+                .setFileStatusCacheTablesExcluded(ImmutableList.of("tpch.a", "tpch.b")));
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpch", "a"))).isFalse();
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpch", "b"))).isFalse();
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpch", "c"))).isTrue();
+
+        cachingDirectoryLister = new CachingDirectoryLister(new HiveConfig()
+                .setFileStatusCacheTables(ImmutableList.of("*"))
+                .setFileStatusCacheTablesExcluded(ImmutableList.of("tpch.a", "tpch.b", "tpchh.*")));
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpch", "a"))).isFalse();
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpch", "b"))).isFalse();
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpch", "c"))).isTrue();
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpch", "aa"))).isTrue();
+
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpcha", "a"))).isTrue();
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpchb", "a"))).isTrue();
+
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpchh", "a"))).isFalse();
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpchh", "a"))).isFalse();
+
+        cachingDirectoryLister = new CachingDirectoryLister(new HiveConfig()
+                .setFileStatusCacheTables(ImmutableList.of("*"))
+                .setFileStatusCacheTablesExcluded(ImmutableList.of("*")));
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpch", "a"))).isFalse();
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpch", "b"))).isFalse();
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpch", "c"))).isFalse();
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpch", "aa"))).isFalse();
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpcha", "a"))).isFalse();
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpchb", "a"))).isFalse();
+
+        cachingDirectoryLister = new CachingDirectoryLister(new HiveConfig()
+                .setFileStatusCacheTables(ImmutableList.of("*"))
+                .setFileStatusCacheTablesExcluded(ImmutableList.of("tpch._a", "tpch.b123")));
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpch", "_a"))).isFalse();
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpch", "_A"))).isFalse();
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpch", "b123"))).isFalse();
+        assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("tpch", "B123"))).isFalse();
     }
 
     protected Optional<Table> getTable(String schemaName, String tableName)
