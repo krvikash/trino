@@ -74,6 +74,7 @@ public class WarpCacheTask
     private boolean engineAbort;
     private boolean taskStarted;
     private boolean finished;
+    private boolean revoked;
 
     public WarpCacheTask(GlobalConfig globalConfig,
             Map<CacheWarmState, CacheAction> cacheActions,
@@ -100,6 +101,7 @@ public class WarpCacheTask
         this.engineAbort = false;
         this.blocksToProcess = new LinkedBlockingQueue<>();
         this.taskStarted = false;
+        this.revoked = false;
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
                 globalConfig.getShapingLoggerThreshold(),
@@ -137,6 +139,10 @@ public class WarpCacheTask
         taskStarted = true;
         CacheWarmState cacheWarmState = CacheWarmState.ABORT_ON_INIT_PROCESS;
         boolean loadFromWarmingThread = false;
+        if (revoked) {
+            //all resources already released by @revoke
+            return;
+        }
         if (isAborted()) {
             workerTaskExecutorService.taskFinished(rowGroupKey);
             memoryContextService.remove(this);
@@ -390,6 +396,7 @@ public class WarpCacheTask
 
     public void revoke()
     {
+        revoked = true;
         setEngineAbort();
         blocksToProcess.clear();
         blocksToProcess.add(STOP_TRIGGER);
