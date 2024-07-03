@@ -38,8 +38,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.BlockingDeque;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.stream.Collectors;
 
 import static io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService.INVALID_FILE_COOKIE_FD;
@@ -70,7 +70,7 @@ public class WarpCacheTask
     private boolean warpAbort;
     private long flowId = -1;
     private LocalMemoryContext localMemoryContext;
-    private final BlockingQueue<Integer> blocksToProcess;
+    private final BlockingDeque<Integer> blocksToProcess;
     private boolean engineAbort;
     private boolean taskStarted;
     private boolean finished;
@@ -99,7 +99,7 @@ public class WarpCacheTask
         this.id = UUID.randomUUID();
         this.warpAbort = false;
         this.engineAbort = false;
-        this.blocksToProcess = new LinkedBlockingQueue<>();
+        this.blocksToProcess = new LinkedBlockingDeque<>();
         this.taskStarted = false;
         this.revoked = false;
         this.shapingLogger = ShapingLogger.getInstance(
@@ -200,18 +200,6 @@ public class WarpCacheTask
         try {
             while (!isAborted()) {
                 int blockIndexToProcess = blocksToProcess.take();
-                if (blockIndexToProcess == STOP_TRIGGER && !isAborted() && warmupCacheData.notAllDataFlushed()) {
-                    if (!blocksToProcess.isEmpty()) {
-                        shapingLogger.debug("STOP TRIGGER but there is more work to do blocksToProcess=%s", blocksToProcess.toString());
-                        blocksToProcess.add(STOP_TRIGGER);
-                        continue;
-                    }
-                    else {
-                        shapingLogger.error("There's a another bug - Not all blocks were fully written. engineAbort=%s, warpAbort=%s, blocksToProcess=%s, warmupCacheData=%s", engineAbort, warpAbort, blocksToProcess, warmupCacheData);
-                        cacheWarmState = CacheWarmState.ABORTING;
-                        setWarpAbort();
-                    }
-                }
                 if (isAborted() || blockIndexToProcess == STOP_TRIGGER) {
                     break;
                 }
@@ -229,9 +217,9 @@ public class WarpCacheTask
             cacheWarmState = CacheWarmState.ABORTING;
             setWarpAbort();
         }
-        if (!isAborted() && warmupCacheData.notAllDataFlushed() && !finished) {
+        if (!isAborted() && warmupCacheData.notAllDataFlushed()) {
             // This shouldn't happen. The check is for safety, so we won't get wrong results on query
-            shapingLogger.error("There's a bug - Not all blocks were fully written. engine=%s, warp=%s, blocksToProcessSize=%s, warmupCacheData=%s", engineAbort, warpAbort, blocksToProcess.size(), warmupCacheData);
+            shapingLogger.error("There's a bug - Not all blocks were fully written - aborting. blocksToProcess=%s, warmupCacheData=%s", blocksToProcess.toString(), warmupCacheData);
             cacheWarmState = CacheWarmState.ABORTING;
             setWarpAbort();
         }
@@ -257,8 +245,8 @@ public class WarpCacheTask
         if (result.success()) {
             warmupElementBlocks.dropProcessed(result.columnBlockIndex(), result.offset());
             if (warmupElementBlocks.isReady()) {
-                // there's still work to do
-                blocksToProcess.add(blockIndexToProcess);
+                // there's still work to do (add first for the case STOP_TRIGGER was already added)
+                blocksToProcess.addFirst(blockIndexToProcess);
             }
         }
         else {
