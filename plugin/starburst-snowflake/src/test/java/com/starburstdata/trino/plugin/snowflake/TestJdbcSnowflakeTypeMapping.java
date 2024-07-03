@@ -32,7 +32,6 @@ public class TestJdbcSnowflakeTypeMapping
             throws Exception
     {
         return createBuilder()
-                .withServer(server)
                 .withDatabase(Optional.of(testDatabase.getName()))
                 .withSchema(Optional.of(TEST_SCHEMA))
                 .withConnectorProperties(impersonationDisabled())

@@ -54,11 +54,9 @@ public abstract class BaseSnowflakeFailureRecoveryTest
     protected QueryRunner createQueryRunner(List<TpchTable<?>> requiredTpchTables, Map<String, String> configProperties, Map<String, String> coordinatorProperties)
             throws Exception
     {
-        SnowflakeServer snowflakeServer = new SnowflakeServer();
         closer = Closer.create();
-        TestDatabase testDB = closer.register(snowflakeServer.createTestDatabase());
+        TestDatabase testDB = closer.register(SnowflakeServer.createTestDatabase());
         return getBuilder()
-                .withServer(snowflakeServer)
                 .withExtraProperties(configProperties)
                 .withConnectorProperties(impersonationDisabled())
                 .withDatabase(Optional.of(testDB.getName()))

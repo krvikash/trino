@@ -31,18 +31,15 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 public class TestParallelSnowflakeQuotedIdentifiersIgnoreCase
         extends AbstractTestQueryFramework
 {
-    private SnowflakeServer server;
     private String testDbName;
 
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        server = new SnowflakeServer();
-        TestDatabase testDb = closeAfterClass(server.createTestDatabase());
+        TestDatabase testDb = closeAfterClass(SnowflakeServer.createTestDatabase());
         testDbName = testDb.getName();
         return SnowflakeQueryRunner.parallelBuilder()
-                .withServer(server)
                 .withDatabase(Optional.of(testDbName))
                 .withSchema(Optional.of(TEST_SCHEMA))
                 .withConnectorProperties(impersonationDisabled())
@@ -91,7 +88,7 @@ public class TestParallelSnowflakeQuotedIdentifiersIgnoreCase
                 "(\"AbC\" decimal(19, 0))",
                 ImmutableList.of("1"))) {
             // when creating objects with SET QUOTED_IDENTIFIERS_IGNORE_CASE=true, Snowflake creates them in upper case
-            server.executeOnDatabaseWithResultSetConsumer(testDbName, resultSet -> {
+            SnowflakeServer.executeOnDatabaseWithResultSetConsumer(testDbName, resultSet -> {
                 try {
                     resultSet.next();
                     assertThat(resultSet.getString("name")).isEqualTo("ABC");
@@ -141,12 +138,12 @@ public class TestParallelSnowflakeQuotedIdentifiersIgnoreCase
 
     private void executeSnowflake(String sql)
     {
-        server.safeExecuteOnDatabase(testDbName, sql);
+        SnowflakeServer.safeExecuteOnDatabase(testDbName, sql);
     }
 
     private void executeSnowflakeIgnoreCase(String sql)
     {
-        server.safeExecuteOnDatabase(testDbName, "ALTER SESSION SET QUOTED_IDENTIFIERS_IGNORE_CASE = true", sql);
+        SnowflakeServer.safeExecuteOnDatabase(testDbName, "ALTER SESSION SET QUOTED_IDENTIFIERS_IGNORE_CASE = true", sql);
     }
 
     private static Session ignoreCase(Session session)

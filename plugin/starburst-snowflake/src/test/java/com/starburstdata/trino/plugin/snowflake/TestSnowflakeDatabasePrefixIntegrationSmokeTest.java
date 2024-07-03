@@ -31,26 +31,23 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class TestSnowflakeDatabasePrefixIntegrationSmokeTest
         extends AbstractTestQueryFramework
 {
-    private SnowflakeServer server;
     private TestDatabase testDatabase;
     private TestDatabase testDatabase2;
     private String normalizedDatabaseName;
     private String normalizedDatabaseName2;
-    private final SqlExecutor snowflakeExecutor = (sql) -> server.safeExecuteOnDatabase(testDatabase.getName(), sql);
-    private final SqlExecutor snowflakeExecutor2 = (sql) -> server.safeExecuteOnDatabase(testDatabase2.getName(), sql);
+    private final SqlExecutor snowflakeExecutor = (sql) -> SnowflakeServer.safeExecuteOnDatabase(testDatabase.getName(), sql);
+    private final SqlExecutor snowflakeExecutor2 = (sql) -> SnowflakeServer.safeExecuteOnDatabase(testDatabase2.getName(), sql);
 
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        server = new SnowflakeServer();
-        testDatabase = closeAfterClass(server.createTestDatabase());
-        testDatabase2 = closeAfterClass(server.createTestDatabase());
+        testDatabase = closeAfterClass(SnowflakeServer.createTestDatabase());
+        testDatabase2 = closeAfterClass(SnowflakeServer.createTestDatabase());
         normalizedDatabaseName = testDatabase.getName().toLowerCase(ENGLISH);
         normalizedDatabaseName2 = testDatabase2.getName().toLowerCase(ENGLISH);
 
         return createBuilder()
-                .withServer(server)
                 .withConnectorProperties(ImmutableMap.of(
                         "snowflake.database-prefix-for-schema.enabled", "true",
                         "snowflake.role", "test_role"))

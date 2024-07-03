@@ -27,18 +27,15 @@ import static java.util.Locale.ENGLISH;
 public class TestParallelSnowflakeQuotedIdentifiersIgnoreCaseWithCaseInsensitiveNameMatching
         extends AbstractTestQueryFramework
 {
-    private SnowflakeServer server;
     private String testDbName;
 
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        server = new SnowflakeServer();
-        TestDatabase testDb = closeAfterClass(server.createTestDatabase());
+        TestDatabase testDb = closeAfterClass(SnowflakeServer.createTestDatabase());
         testDbName = testDb.getName();
         return SnowflakeQueryRunner.parallelBuilder()
-                .withServer(server)
                 .withDatabase(Optional.of(testDbName))
                 .withSchema(Optional.of(TEST_SCHEMA))
                 .withConnectorProperties(impersonationDisabled())
@@ -51,7 +48,7 @@ public class TestParallelSnowflakeQuotedIdentifiersIgnoreCaseWithCaseInsensitive
     {
         String tableName = "TaBle_" + randomNameSuffix();
         String sql = "CREATE TABLE %s.\"%s\" AS SELECT 1 test".formatted(TEST_SCHEMA, tableName);
-        server.safeExecuteOnDatabase(testDbName, sql);
+        SnowflakeServer.safeExecuteOnDatabase(testDbName, sql);
 
         assertQuerySucceeds("SELECT test FROM %s".formatted(tableName));
         assertQuerySucceeds("SELECT test FROM %s".formatted(tableName.toUpperCase(ENGLISH)));

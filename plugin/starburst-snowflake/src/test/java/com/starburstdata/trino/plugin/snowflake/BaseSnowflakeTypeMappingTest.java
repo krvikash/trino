@@ -58,9 +58,8 @@ public abstract class BaseSnowflakeTypeMappingTest
         extends AbstractTestQueryFramework
 {
     protected static final int MAX_VARCHAR = 16777216;
-    protected final SnowflakeServer server = new SnowflakeServer();
     protected final Closer closer = Closer.create();
-    protected final TestDatabase testDatabase = closer.register(server.createTestDatabase());
+    protected final TestDatabase testDatabase = closer.register(SnowflakeServer.createTestDatabase());
 
     private LocalDateTime dateTimeBeforeEpoch;
     private LocalDateTime dateTimeEpoch;
@@ -841,7 +840,7 @@ public abstract class BaseSnowflakeTypeMappingTest
     {
         return sql -> {
             try {
-                server.executeOnDatabase(testDatabase.getName(), String.format("USE SCHEMA %s", TEST_SCHEMA), sql);
+                SnowflakeServer.executeOnDatabase(testDatabase.getName(), String.format("USE SCHEMA %s", TEST_SCHEMA), sql);
             }
             catch (SQLException e) {
                 throw new RuntimeException(e);

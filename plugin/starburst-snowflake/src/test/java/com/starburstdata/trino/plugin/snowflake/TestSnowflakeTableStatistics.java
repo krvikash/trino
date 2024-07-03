@@ -28,11 +28,9 @@ public class TestSnowflakeTableStatistics
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        SnowflakeServer server = new SnowflakeServer();
-        TestDatabase testDatabase = closeAfterClass(server.createTestDatabase());
+        TestDatabase testDatabase = closeAfterClass(SnowflakeServer.createTestDatabase());
         return createBuilder()
                 .withConnectorProperties(impersonationDisabled())
-                .withServer(server)
                 .withDatabase(Optional.of(testDatabase.getName()))
                 .withSchema(Optional.of(TEST_SCHEMA))
                 .build();

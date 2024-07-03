@@ -36,7 +36,6 @@ public class TestJdbcSnowflakeConnectorTest
             throws Exception
     {
         return jdbcBuilder()
-                .withServer(server)
                 .withDatabase(Optional.of(testDatabase.getName()))
                 .withSchema(Optional.of(TEST_SCHEMA))
                 .withConnectorProperties(impersonationDisabled())
@@ -67,7 +66,7 @@ public class TestJdbcSnowflakeConnectorTest
                     .build();
             String tableName = TEST_SCHEMA + ".test_insert_";
             // this test uses the role: test_role whose default database is "TEST_DATABASE"
-            try (TestTable testTable = new TestTable(sql -> server.safeExecuteOnDatabase(TEST_DATABASE, sql),
+            try (TestTable testTable = new TestTable(sql -> SnowflakeServer.safeExecuteOnDatabase(TEST_DATABASE, sql),
                     tableName,
                     "(x decimal(19, 0), y varchar(100))",
                     ImmutableList.of("123, 'test'"))) {

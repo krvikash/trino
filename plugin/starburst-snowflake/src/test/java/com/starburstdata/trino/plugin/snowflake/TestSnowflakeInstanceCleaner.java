@@ -73,13 +73,6 @@ public class TestSnowflakeInstanceCleaner
 
     public static final Collection<String> tableTypesToDrop = ImmutableList.of("BASE TABLE", "VIEW");
 
-    private final SnowflakeServer snowflakeServer;
-
-    public TestSnowflakeInstanceCleaner()
-    {
-        snowflakeServer = new SnowflakeServer();
-    }
-
     @Test
     public void cleanupTestDatabases()
             throws SQLException
@@ -88,7 +81,7 @@ public class TestSnowflakeInstanceCleaner
         LOG.info("Will not drop these databases: %s", join(", ", databasesToKeep));
 
         List<SnowflakeDatabase> snowflakeDatabasesToDrop;
-        try (Handle handle = Jdbi.create(snowflakeServer.getConnection()).open()) {
+        try (Handle handle = Jdbi.create(SnowflakeServer.getConnection()).open()) {
             handle.execute("USE ROLE " + ROLE);
             handle.execute("USE WAREHOUSE " + TEST_WAREHOUSE);
             handle.execute("USE DATABASE " + TEST_DATABASE);
@@ -114,7 +107,7 @@ public class TestSnowflakeInstanceCleaner
         LOG.info("Dropping: %s", snowflakeDatabasesToDrop.stream()
                 .map(snowflakeDatabase -> snowflakeDatabase.databaseName + ":created:" + snowflakeDatabase.created.toString())
                 .collect(joining(", ")));
-        try (Handle handle = Jdbi.create(snowflakeServer.getConnection()).open()) {
+        try (Handle handle = Jdbi.create(SnowflakeServer.getConnection()).open()) {
             handle.execute("USE ROLE " + ROLE);
             handle.execute("USE WAREHOUSE " + TEST_WAREHOUSE);
             handle.execute("USE DATABASE " + TEST_DATABASE);
@@ -142,7 +135,7 @@ public class TestSnowflakeInstanceCleaner
         LOG.info("Identifying tables to drop...");
         // Drop all tables created more than 24 hours ago
         List<SnowflakeObject> objectsToDrop;
-        try (Handle handle = Jdbi.create(snowflakeServer.getConnection()).open()) {
+        try (Handle handle = Jdbi.create(SnowflakeServer.getConnection()).open()) {
             handle.execute("USE ROLE " + ROLE);
             handle.execute("USE WAREHOUSE " + TEST_WAREHOUSE);
             handle.execute("USE DATABASE " + TEST_DATABASE);
@@ -172,7 +165,7 @@ public class TestSnowflakeInstanceCleaner
 
         LOG.info("Dropping %s objects.", objectsToDrop.size());
         LOG.info("Dropping: %s", objectsToDrop.stream().map(snowflakeObject -> snowflakeObject.schemaName + "." + snowflakeObject.tableName).collect(joining(", ")));
-        try (Handle handle = Jdbi.create(snowflakeServer.getConnection()).open()) {
+        try (Handle handle = Jdbi.create(SnowflakeServer.getConnection()).open()) {
             handle.execute("USE ROLE " + ROLE);
             handle.execute("USE WAREHOUSE " + TEST_WAREHOUSE);
             handle.execute("USE DATABASE " + TEST_DATABASE);
@@ -191,7 +184,7 @@ public class TestSnowflakeInstanceCleaner
 
     private void logObjectsCount(String schemaName)
     {
-        try (Handle handle = Jdbi.create(snowflakeServer.getConnection()).open()) {
+        try (Handle handle = Jdbi.create(SnowflakeServer.getConnection()).open()) {
             handle.execute("USE ROLE " + ROLE);
             handle.execute("USE WAREHOUSE " + TEST_WAREHOUSE);
             handle.execute("USE DATABASE " + TEST_DATABASE);

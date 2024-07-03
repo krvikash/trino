@@ -39,11 +39,9 @@ public class TestParallelSnowflakeWithProxyConnectorSmokeTest
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        SnowflakeServer server = new SnowflakeServer();
-        TestDatabase testDatabase = closeAfterClass(server.createTestDatabase());
+        TestDatabase testDatabase = closeAfterClass(SnowflakeServer.createTestDatabase());
         closeAfterClass(createProxyServer());
         return parallelBuilder()
-                .withServer(server)
                 .withDatabase(Optional.of(testDatabase.getName()))
                 .withSchema(Optional.of(TEST_SCHEMA))
                 .withConnectorProperties(impersonationDisabled())

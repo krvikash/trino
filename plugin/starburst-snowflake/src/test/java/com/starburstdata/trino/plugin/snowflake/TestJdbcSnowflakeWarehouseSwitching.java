@@ -35,16 +35,14 @@ public class TestJdbcSnowflakeWarehouseSwitching
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        SnowflakeServer server = new SnowflakeServer();
-        TestDatabase testDB = closeAfterClass(server.createTestDatabase());
+        TestDatabase testDB = closeAfterClass(SnowflakeServer.createTestDatabase());
         DistributedQueryRunner queryRunner = createBuilder()
-                .withServer(server)
                 .withDatabase(Optional.of(testDB.getName()))
                 .withSchema(Optional.of(TEST_SCHEMA))
                 .withConnectorProperties(impersonationDisabled())
                 .withTpchTables(ImmutableList.of(NATION))
                 .build();
-        server.executeOnDatabase(testDB.getName(), format("CREATE VIEW IF NOT EXISTS %s.current_warehouse (warehouse) AS SELECT current_warehouse();", TEST_SCHEMA));
+        SnowflakeServer.executeOnDatabase(testDB.getName(), format("CREATE VIEW IF NOT EXISTS %s.current_warehouse (warehouse) AS SELECT current_warehouse();", TEST_SCHEMA));
         return queryRunner;
     }
 

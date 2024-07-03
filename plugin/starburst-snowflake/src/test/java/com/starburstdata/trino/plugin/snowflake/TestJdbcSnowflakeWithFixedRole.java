@@ -32,10 +32,8 @@ public class TestJdbcSnowflakeWithFixedRole
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        SnowflakeServer server = new SnowflakeServer();
-        TestDatabase testDB = closeAfterClass(server.createTestDatabase());
+        TestDatabase testDB = closeAfterClass(SnowflakeServer.createTestDatabase());
         return createBuilder()
-                .withServer(server)
                 .withConnectorProperties(impersonationDisabled())
                 .withDatabase(Optional.of(testDB.getName()))
                 .withSchema(Optional.of(TEST_SCHEMA))

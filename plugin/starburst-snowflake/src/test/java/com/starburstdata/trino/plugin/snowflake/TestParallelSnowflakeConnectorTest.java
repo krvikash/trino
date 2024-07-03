@@ -30,7 +30,6 @@ public class TestParallelSnowflakeConnectorTest
             throws Exception
     {
         return parallelBuilder()
-                .withServer(server)
                 .withDatabase(Optional.of(testDatabase.getName()))
                 .withSchema(Optional.of(TEST_SCHEMA))
                 .withConnectorProperties(impersonationDisabled())

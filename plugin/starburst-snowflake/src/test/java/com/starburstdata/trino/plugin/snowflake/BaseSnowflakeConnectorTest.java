@@ -57,10 +57,9 @@ public abstract class BaseSnowflakeConnectorTest
         // Still most of the extra testcases defined in BaseJdbcConnectorTest are applicable to both.
         extends BaseJdbcConnectorTest
 {
-    protected final SnowflakeServer server = new SnowflakeServer();
     protected final Closer closer = Closer.create();
-    protected final TestDatabase testDatabase = closer.register(server.createTestDatabase());
-    protected final SqlExecutor snowflakeExecutor = (sql) -> server.safeExecuteOnDatabase(testDatabase.getName(), sql);
+    protected final TestDatabase testDatabase = closer.register(SnowflakeServer.createTestDatabase());
+    protected final SqlExecutor snowflakeExecutor = (sql) -> SnowflakeServer.safeExecuteOnDatabase(testDatabase.getName(), sql);
 
     @Override
     protected boolean hasBehavior(TestingConnectorBehavior connectorBehavior)
@@ -147,7 +146,7 @@ public abstract class BaseSnowflakeConnectorTest
     protected TestTable createTableWithDefaultColumns()
     {
         return new TestTable(
-                (sql) -> server.safeExecuteOnDatabase(testDatabase.getName(), sql),
+                (sql) -> SnowflakeServer.safeExecuteOnDatabase(testDatabase.getName(), sql),
                 format("%s.test_table_with_default_columns", TEST_SCHEMA),
                 """
                         (col_required BIGINT NOT NULL,
@@ -275,10 +274,10 @@ public abstract class BaseSnowflakeConnectorTest
             throws SQLException
     {
         String viewName = "test_view_" + randomNameSuffix();
-        server.executeOnDatabase(testDatabase.getName(), format("CREATE VIEW %s.%s AS SELECT * FROM orders", TEST_SCHEMA, viewName));
+        SnowflakeServer.executeOnDatabase(testDatabase.getName(), format("CREATE VIEW %s.%s AS SELECT * FROM orders", TEST_SCHEMA, viewName));
         assertThat(getQueryRunner().tableExists(getSession(), viewName)).isTrue();
         assertQuery(format("SELECT orderkey FROM %s", viewName), "SELECT orderkey FROM orders");
-        server.executeOnDatabase(testDatabase.getName(), format("DROP VIEW %s.%s", TEST_SCHEMA, viewName));
+        SnowflakeServer.executeOnDatabase(testDatabase.getName(), format("DROP VIEW %s.%s", TEST_SCHEMA, viewName));
     }
 
     @Test
@@ -286,7 +285,7 @@ public abstract class BaseSnowflakeConnectorTest
     {
         String tableName = TEST_SCHEMA + ".test_predicate_pushdown_numeric";
         try (TestTable testTable = new TestTable(
-                sql -> server.safeExecuteOnDatabase(testDatabase.getName(), sql),
+                sql -> SnowflakeServer.safeExecuteOnDatabase(testDatabase.getName(), sql),
                 tableName,
                 "(c_binary_float FLOAT, c_binary_double DOUBLE, c_number NUMBER(5,3))",
                 ImmutableList.of("5.0, 20.233, 5.0"))) {

@@ -30,7 +30,7 @@ import static java.util.Objects.requireNonNull;
  * provided, and they must connect to a database server, for this class to be
  * used.
  */
-public class SnowflakeServer
+public final class SnowflakeServer
 {
     private static final Logger LOG = Logger.get(SnowflakeServer.class);
 
@@ -42,7 +42,9 @@ public class SnowflakeServer
     public static final String TEST_WAREHOUSE = requireNonNull(System.getProperty("snowflake.test.warehouse"), "snowflake.test.warehouse is not set");
     public static final String TEST_DATABASE = "TEST_DB";
 
-    void init()
+    private SnowflakeServer() {}
+
+    static void init()
             throws SQLException
     {
         LOG.info("Using %s", JDBC_URL);
@@ -51,35 +53,35 @@ public class SnowflakeServer
         execute("SELECT 1");
     }
 
-    public TestDatabase createDatabase(String databaseSuffix)
+    public static TestDatabase createDatabase(String databaseSuffix)
     {
-        return new TestDatabase(this::safeExecute, databaseSuffix);
+        return new TestDatabase(SnowflakeServer::safeExecute, databaseSuffix);
     }
 
-    public TestDatabase createTestDatabase()
+    public static TestDatabase createTestDatabase()
     {
         return createDatabase("TEST");
     }
 
-    public void createSchema(String databaseName, String schemaName)
+    public static void createSchema(String databaseName, String schemaName)
             throws SQLException
     {
         executeOnDatabase(databaseName, format("CREATE SCHEMA IF NOT EXISTS %s", schemaName));
     }
 
-    void execute(String... sqls)
+    static void execute(String... sqls)
             throws SQLException
     {
         executeOnDatabase(TEST_DATABASE, sqls);
     }
 
-    public void executeOnDatabase(String database, String... sqls)
+    public static void executeOnDatabase(String database, String... sqls)
             throws SQLException
     {
         executeOnDatabaseWithResultSetConsumer(database, (rs) -> {}, sqls);
     }
 
-    public void executeOnDatabaseWithResultSetConsumer(String database, Consumer<ResultSet> consumer, String... sqls)
+    public static void executeOnDatabaseWithResultSetConsumer(String database, Consumer<ResultSet> consumer, String... sqls)
             throws SQLException
     {
         try (Connection conn = getConnection();
@@ -97,7 +99,7 @@ public class SnowflakeServer
         }
     }
 
-    private void safeExecute(String sql)
+    private static void safeExecute(String sql)
     {
         try {
             execute(sql);
@@ -107,7 +109,7 @@ public class SnowflakeServer
         }
     }
 
-    public void safeExecuteOnDatabase(String database, String... sqls)
+    public static void safeExecuteOnDatabase(String database, String... sqls)
     {
         try {
             executeOnDatabase(database, sqls);
@@ -117,7 +119,7 @@ public class SnowflakeServer
         }
     }
 
-    public Connection getConnection()
+    public static Connection getConnection()
             throws SQLException
     {
         return DriverManager.getConnection(JDBC_URL, USER, PASSWORD);

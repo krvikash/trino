@@ -29,10 +29,8 @@ public class TestSnowflakeDynamicFiltering
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        SnowflakeServer server = new SnowflakeServer();
-        TestDatabase testDatabase = closeAfterClass(server.createDatabase("TEST"));
+        TestDatabase testDatabase = closeAfterClass(SnowflakeServer.createDatabase("TEST"));
         return createBuilder()
-                .withServer(server)
                 .withDatabase(Optional.of(testDatabase.getName()))
                 .withSchema(Optional.of(TEST_SCHEMA))
                 .withConnectorProperties(impersonationDisabled())

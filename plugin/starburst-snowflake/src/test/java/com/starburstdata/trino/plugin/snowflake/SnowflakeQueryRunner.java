@@ -68,7 +68,6 @@ public class SnowflakeQueryRunner
     }
 
     private static DistributedQueryRunner createSnowflakeQueryRunner(
-            SnowflakeServer server,
             String connectorName,
             Optional<String> warehouse,
             Optional<String> database,
@@ -91,7 +90,6 @@ public class SnowflakeQueryRunner
                 .build();
 
         createSnowflakeQueryRunner(
-                server,
                 new TestingSnowflakePlugin(),
                 connectorName,
                 catalogName,
@@ -106,7 +104,6 @@ public class SnowflakeQueryRunner
     }
 
     protected static void createSnowflakeQueryRunner(
-            SnowflakeServer server,
             Plugin snowflakePlugin,
             String connectorName,
             String catalogName,
@@ -118,11 +115,11 @@ public class SnowflakeQueryRunner
             DistributedQueryRunner queryRunner)
             throws SQLException
     {
-        server.init();
+        SnowflakeServer.init();
         // Create view used for testing user/role impersonation
         if (createUserContextView) {
             database.ifPresent(databaseName ->
-                    server.safeExecuteOnDatabase(
+                    SnowflakeServer.safeExecuteOnDatabase(
                             databaseName,
                             "CREATE VIEW IF NOT EXISTS public.user_context (user, role) AS SELECT current_user(), current_role();",
                             "GRANT SELECT ON VIEW USER_CONTEXT TO ROLE \"PUBLIC\";"));
@@ -182,7 +179,6 @@ public class SnowflakeQueryRunner
     public static class Builder
     {
         private String connectorName;
-        private SnowflakeServer server = new SnowflakeServer();
         private Optional<String> warehouseName = Optional.of(TEST_WAREHOUSE);
         private Optional<String> databaseName = Optional.of(TEST_DATABASE);
         private String catalogName = SNOWFLAKE_CATALOG;
@@ -198,12 +194,6 @@ public class SnowflakeQueryRunner
         private Builder(String connectorName)
         {
             this.connectorName = requireNonNull(connectorName, "connectorName is null");
-        }
-
-        public Builder withServer(SnowflakeServer server)
-        {
-            this.server = requireNonNull(server, "server is null");
-            return this;
         }
 
         public Builder withWarehouse(Optional<String> warehouseName)
@@ -277,10 +267,9 @@ public class SnowflakeQueryRunner
                 throws Exception
         {
             if (databaseName.isPresent() && schemaName.isPresent()) {
-                server.createSchema(databaseName.get(), schemaName.get());
+                SnowflakeServer.createSchema(databaseName.get(), schemaName.get());
             }
             return createSnowflakeQueryRunner(
-                    server,
                     connectorName,
                     warehouseName,
                     databaseName,
@@ -304,9 +293,7 @@ public class SnowflakeQueryRunner
     {
         Logging.initialize();
 
-        SnowflakeServer server = new SnowflakeServer();
         DistributedQueryRunner queryRunner = jdbcBuilder()
-                .withServer(server)
                 .withConnectorProperties(ImmutableMap.<String, String>builder()
                         .putAll(impersonationDisabled())
                         .buildOrThrow())
