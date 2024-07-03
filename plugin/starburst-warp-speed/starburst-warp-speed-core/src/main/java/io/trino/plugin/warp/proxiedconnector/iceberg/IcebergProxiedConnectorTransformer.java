@@ -52,6 +52,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -243,7 +244,7 @@ public class IcebergProxiedConnectorTransformer
                 icebergSplit.getPath(),
                 icebergSplit.getStart(),
                 icebergSplit.getLength(),
-                0,
+                Objects.hash(icebergSplit.getFileSize(), icebergSplit.getFileRecordCount()), // iceberg split doesn't have modification time. using these 2 parameters as additional uniqueness parameters
                 hostAddresses,
                 partitionKeyMap,
                 deletedFilesHash,
