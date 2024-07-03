@@ -186,10 +186,14 @@ public class WorkerCacheManager
                     return res;
                 }
 
+                if (planSignature.getColumns().isEmpty()) {
+                    statsWarmingService.incwarm_warp_cache_skip_zero_columns();
+                    return res;
+                }
+
                 toWarm = cacheWarmer.getWarmupElementWriteMetadatasToWarm(
                         planSignature.getColumns(), planSignature.getColumnsTypes(), rowGroupKey);
                 if (toWarm.isEmpty()) {
-                    statsWarmingService.incwarm_warp_cache_skip_zero_columns();
                     logger.debug("nothing to warm for %s", planSignature);
                     return res;
                 }

@@ -233,12 +233,9 @@ public class WarmupElementsCreator
                     .warmUpContextSize(bufferAllocator.getWarmupDataTxSize(recTypeCode, recTypeLength))
                     .build());
         }
-        catch (UnsupportedOperationException e) {
+        catch (Exception e) {
             statsWarmingService.incwarm_warp_cache_invalid_type();
             shapingLogger.error("failed to create warmup element. columnType=%s, e.getMessage()=%s", columnType, e.getMessage());
-        }
-        catch (Exception e) {
-            shapingLogger.error(e, "failed to create warmup element. columnType=%s", columnType);
         }
         return res;
     }
