@@ -57,13 +57,13 @@ public abstract class BaseSnowflakeFailureRecoveryTest
         closer = Closer.create();
         TestDatabase testDB = closer.register(SnowflakeServer.createTestDatabase());
         return getBuilder()
-                .withExtraProperties(configProperties)
+                .addExtraProperties(configProperties)
                 .withConnectorProperties(impersonationDisabled())
                 .withDatabase(Optional.of(testDB.getName()))
                 .withSchema(Optional.of(TEST_SCHEMA))
-                .withCoordinatorProperties(coordinatorProperties)
+                .addCoordinatorProperties(coordinatorProperties)
                 .withTpchTables(requiredTpchTables)
-                .withAdditionalSetup(runner -> {
+                .setAdditionalSetup(runner -> {
                     runner.installPlugin(new FileSystemExchangePlugin());
                     runner.loadExchangeManager("filesystem", ImmutableMap.of(
                             "exchange.base-directories", System.getProperty("java.io.tmpdir") + "/trino-local-file-system-exchange-manager"));
@@ -71,7 +71,7 @@ public abstract class BaseSnowflakeFailureRecoveryTest
                 .build();
     }
 
-    protected SnowflakeQueryRunner.Builder getBuilder()
+    protected SnowflakeQueryRunner.Builder<?> getBuilder()
     {
         return jdbcBuilder();
     }

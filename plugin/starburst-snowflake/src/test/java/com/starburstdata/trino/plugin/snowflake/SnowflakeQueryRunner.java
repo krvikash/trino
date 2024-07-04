@@ -10,6 +10,7 @@
 package com.starburstdata.trino.plugin.snowflake;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import io.airlift.log.Logger;
 import io.airlift.log.Logging;
 import io.trino.Session;
@@ -18,13 +19,12 @@ import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.spi.Plugin;
 import io.trino.spi.security.Identity;
 import io.trino.testing.DistributedQueryRunner;
-import io.trino.testing.QueryRunner;
 import io.trino.tpch.TpchTable;
 
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Consumer;
+import java.util.function.Function;
 
 import static com.google.common.base.Verify.verify;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeConnectorFlavour.JDBC;
@@ -40,6 +40,7 @@ import static io.trino.plugin.tpch.TpchMetadata.TINY_SCHEMA_NAME;
 import static io.trino.testing.QueryAssertions.copyTpchTables;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static java.util.Objects.requireNonNull;
+import static java.util.function.Function.identity;
 
 public class SnowflakeQueryRunner
 {
@@ -57,84 +58,16 @@ public class SnowflakeQueryRunner
                 "snowflake.role", ROLE);
     }
 
-    public static Builder jdbcBuilder()
+    public static Builder<?> jdbcBuilder()
     {
-        return new Builder(JDBC.getName());
+        return new Builder<>(createSessionForUser(USER))
+                .withConnectorName(JDBC.getName());
     }
 
-    public static Builder parallelBuilder()
+    public static Builder<?> parallelBuilder()
     {
-        return new Builder(PARALLEL.getName());
-    }
-
-    private static DistributedQueryRunner createSnowflakeQueryRunner(
-            String connectorName,
-            Optional<String> warehouse,
-            Optional<String> database,
-            String catalogName,
-            Map<String, String> connectorProperties,
-            Map<String, String> extraProperties,
-            int nodeCount,
-            Iterable<TpchTable<?>> tpchTables,
-            Map<String, String> coordinatorProperties,
-            Consumer<QueryRunner> additionalSetup)
-            throws Exception
-    {
-        DistributedQueryRunner queryRunner = DistributedQueryRunner.builder(createSessionForUser(USER, catalogName))
-                .setWorkerCount(nodeCount - 1)
-                .addExtraProperties(extraProperties)
-                .setCoordinatorProperties(coordinatorProperties)
-                .setAdditionalSetup(additionalSetup)
-                .build();
-
-        createSnowflakeQueryRunner(
-                new TestingSnowflakePlugin(),
-                connectorName,
-                catalogName,
-                warehouse,
-                database,
-                connectorProperties,
-                tpchTables,
-                queryRunner.getDefaultSession(),
-                queryRunner);
-        return queryRunner;
-    }
-
-    protected static void createSnowflakeQueryRunner(
-            Plugin snowflakePlugin,
-            String connectorName,
-            String catalogName,
-            Optional<String> warehouse,
-            Optional<String> database,
-            Map<String, String> connectorProperties,
-            Iterable<TpchTable<?>> tpchTables,
-            Session session,
-            DistributedQueryRunner queryRunner)
-    {
-        try {
-            queryRunner.installPlugin(new TpchPlugin());
-            queryRunner.createCatalog(TPCH_CATALOG, TPCH_CATALOG, ImmutableMap.of());
-
-            ImmutableMap.Builder<String, String> properties = ImmutableMap.<String, String>builder()
-                    .put("connection-url", JDBC_URL)
-                    .put("connection-user", USER)
-                    .put("connection-password", PASSWORD)
-                    .putAll(connectorProperties);
-            warehouse.ifPresent(warehouseName -> properties.put("snowflake.warehouse", warehouseName));
-            database.ifPresent(databaseName -> properties.put("snowflake.database", databaseName));
-
-            queryRunner.installPlugin(snowflakePlugin);
-            queryRunner.createCatalog(catalogName, connectorName, properties.buildOrThrow());
-
-            copyTpchTables(queryRunner, TPCH_CATALOG, TINY_SCHEMA_NAME, session, tpchTables);
-
-            queryRunner.installPlugin(new JmxPlugin());
-            queryRunner.createCatalog("jmx", "jmx", ImmutableMap.of());
-        }
-        catch (Throwable e) {
-            closeAllSuppress(e, queryRunner);
-            throw e;
-        }
+        return new Builder<>(createSessionForUser(USER))
+                .withConnectorName(PARALLEL.getName());
     }
 
     public static Session createSessionForUser(String user)
@@ -152,75 +85,98 @@ public class SnowflakeQueryRunner
                 .build();
     }
 
-    public static class Builder
+    public static class Builder<SELF extends Builder<?>>
+            extends DistributedQueryRunner.Builder<SELF>
     {
+        private Function<Session, Session> builderSessionModifier = identity();
+        private Plugin plugin = new TestingSnowflakePlugin();
         private String connectorName;
         private Optional<String> warehouseName = Optional.of(TEST_WAREHOUSE);
         private Optional<String> databaseName = Optional.of(TEST_DATABASE);
         private String catalogName = SNOWFLAKE_CATALOG;
         private Optional<String> schemaName = Optional.empty();
         private ImmutableMap.Builder<String, String> connectorProperties = ImmutableMap.builder();
-        private ImmutableMap.Builder<String, String> extraProperties = ImmutableMap.builder();
         private int nodeCount = 3;
         private Iterable<TpchTable<?>> tpchTables = new ArrayList<>();
-        private ImmutableMap.Builder<String, String> coordinatorProperties = ImmutableMap.builder();
-        private Consumer<QueryRunner> additionalSetup = queryRunner -> {};
 
-        private Builder(String connectorName)
+        protected Builder(Session defaultSession)
+        {
+            super(defaultSession);
+        }
+
+        @CanIgnoreReturnValue
+        protected SELF withBuilderSession(Function<Session, Session> builderSessionModifier)
+        {
+            this.builderSessionModifier = builderSessionModifier;
+            return self();
+        }
+
+        @CanIgnoreReturnValue
+        public SELF withPlugin(Plugin plugin)
+        {
+            this.plugin = requireNonNull(plugin, "plugin is null");
+            return self();
+        }
+
+        @CanIgnoreReturnValue
+        public SELF withConnectorName(String connectorName)
         {
             this.connectorName = requireNonNull(connectorName, "connectorName is null");
+            return self();
         }
 
-        public Builder withWarehouse(Optional<String> warehouseName)
+        @CanIgnoreReturnValue
+        public SELF withWarehouse(Optional<String> warehouseName)
         {
             this.warehouseName = warehouseName;
-            return this;
+            return self();
         }
 
-        public Builder withDatabase(Optional<String> databaseName)
+        @CanIgnoreReturnValue
+        public SELF withDatabase(Optional<String> databaseName)
         {
             this.databaseName = databaseName;
-            return this;
+            return self();
         }
 
-        public Builder withCatalog(String catalogName)
+        @CanIgnoreReturnValue
+        public SELF withCatalog(String catalogName)
         {
             this.catalogName = requireNonNull(catalogName, "catalogName is null");
-            return this;
+            return self();
         }
 
-        public Builder withSchema(Optional<String> schemaName)
+        @CanIgnoreReturnValue
+        public SELF withSchema(Optional<String> schemaName)
         {
             this.schemaName = schemaName;
-            return this;
+            return self();
         }
 
         // additive. TODO change name to indicate that
-        public Builder withConnectorProperties(Map<String, String> connectorProperties)
+        @CanIgnoreReturnValue
+        public SELF withConnectorProperties(Map<String, String> connectorProperties)
         {
             this.connectorProperties.putAll(requireNonNull(connectorProperties, "connectorProperties is null"));
-            return this;
+            return self();
         }
 
-        public Builder withExtraProperties(Map<String, String> extraProperties)
-        {
-            this.extraProperties.putAll(requireNonNull(extraProperties, "extraProperties is null"));
-            return this;
-        }
-
-        public Builder withNodeCount(int nodeCount)
+        @CanIgnoreReturnValue
+        public SELF withNodeCount(int nodeCount)
         {
             this.nodeCount = nodeCount;
-            return this;
+            return self();
         }
 
-        public Builder withTpchTables(Iterable<TpchTable<?>> tpchTables)
+        @CanIgnoreReturnValue
+        public SELF withTpchTables(Iterable<TpchTable<?>> tpchTables)
         {
             this.tpchTables = tpchTables;
-            return this;
+            return self();
         }
 
-        public Builder withCreateUserContextView()
+        @CanIgnoreReturnValue
+        public SELF withCreateUserContextView()
         {
             verify(databaseName.isPresent(), "Database name must be provided to create view");
             // Create view used for testing user/role impersonation
@@ -228,38 +184,46 @@ public class SnowflakeQueryRunner
                     databaseName.get(),
                     "CREATE VIEW IF NOT EXISTS public.user_context (user, role) AS SELECT current_user(), current_role();",
                     "GRANT SELECT ON VIEW USER_CONTEXT TO ROLE \"PUBLIC\";");
-            return this;
+            return self();
         }
 
-        public Builder withAdditionalSetup(Consumer<QueryRunner> additionalSetup)
-        {
-            this.additionalSetup = requireNonNull(additionalSetup, "additionalSetup is null");
-            return this;
-        }
-
-        public Builder withCoordinatorProperties(Map<String, String> coordinatorProperties)
-        {
-            this.coordinatorProperties.putAll(requireNonNull(coordinatorProperties, "connectorProperties is null"));
-            return this;
-        }
-
+        @Override
         public DistributedQueryRunner build()
                 throws Exception
         {
             if (databaseName.isPresent() && schemaName.isPresent()) {
                 SnowflakeServer.createSchema(databaseName.get(), schemaName.get());
             }
-            return createSnowflakeQueryRunner(
-                    connectorName,
-                    warehouseName,
-                    databaseName,
-                    catalogName,
-                    connectorProperties.buildOrThrow(),
-                    extraProperties.buildOrThrow(),
-                    nodeCount,
-                    tpchTables,
-                    coordinatorProperties.buildOrThrow(),
-                    additionalSetup);
+
+            amendSession(sessionBuilder -> sessionBuilder.setCatalog(catalogName));
+            setWorkerCount(nodeCount - 1);
+            DistributedQueryRunner queryRunner = super.build();
+            Session session = builderSessionModifier.apply(queryRunner.getDefaultSession());
+            try {
+                queryRunner.installPlugin(new TpchPlugin());
+                queryRunner.createCatalog(TPCH_CATALOG, TPCH_CATALOG, ImmutableMap.of());
+
+                ImmutableMap.Builder<String, String> properties = ImmutableMap.<String, String>builder()
+                        .put("connection-url", JDBC_URL)
+                        .put("connection-user", USER)
+                        .put("connection-password", PASSWORD)
+                        .putAll(connectorProperties.buildOrThrow());
+                warehouseName.ifPresent(warehouse -> properties.put("snowflake.warehouse", warehouse));
+                databaseName.ifPresent(database -> properties.put("snowflake.database", database));
+
+                queryRunner.installPlugin(plugin);
+                queryRunner.createCatalog(catalogName, connectorName, properties.buildOrThrow());
+
+                copyTpchTables(queryRunner, TPCH_CATALOG, TINY_SCHEMA_NAME, session, tpchTables);
+
+                queryRunner.installPlugin(new JmxPlugin());
+                queryRunner.createCatalog("jmx", "jmx", ImmutableMap.of());
+            }
+            catch (Throwable e) {
+                closeAllSuppress(e, queryRunner);
+                throw e;
+            }
+            return queryRunner;
         }
     }
 
@@ -276,7 +240,7 @@ public class SnowflakeQueryRunner
                 .withConnectorProperties(ImmutableMap.<String, String>builder()
                         .putAll(impersonationDisabled())
                         .buildOrThrow())
-                .withExtraProperties(ImmutableMap.of("http-server.http.port", "8080"))
+                .addExtraProperties(ImmutableMap.of("http-server.http.port", "8080"))
                 .build();
 
         Logger log = Logger.get(SnowflakeQueryRunner.class);

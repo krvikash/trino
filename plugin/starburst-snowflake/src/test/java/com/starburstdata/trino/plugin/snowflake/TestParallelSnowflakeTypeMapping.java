@@ -15,7 +15,7 @@ public class TestParallelSnowflakeTypeMapping
         extends TestJdbcSnowflakeTypeMapping
 {
     @Override
-    protected SnowflakeQueryRunner.Builder createBuilder()
+    protected SnowflakeQueryRunner.Builder<?> createBuilder()
     {
         return parallelBuilder();
     }

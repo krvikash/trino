@@ -23,7 +23,7 @@ public class TestParallelSnowflakeQueryFailureRecoveryTest
     }
 
     @Override
-    protected SnowflakeQueryRunner.Builder getBuilder()
+    protected SnowflakeQueryRunner.Builder<?> getBuilder()
     {
         return parallelBuilder();
     }

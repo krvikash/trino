@@ -15,7 +15,7 @@ public class TestParallelSnowflakeWithFixedRole
         extends TestJdbcSnowflakeWithFixedRole
 {
     @Override
-    protected SnowflakeQueryRunner.Builder createBuilder()
+    protected SnowflakeQueryRunner.Builder<?> createBuilder()
     {
         return parallelBuilder();
     }

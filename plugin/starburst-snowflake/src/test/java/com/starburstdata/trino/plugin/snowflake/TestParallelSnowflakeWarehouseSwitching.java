@@ -18,7 +18,7 @@ public class TestParallelSnowflakeWarehouseSwitching
         extends TestJdbcSnowflakeWarehouseSwitching
 {
     @Override
-    protected SnowflakeQueryRunner.Builder createBuilder()
+    protected SnowflakeQueryRunner.Builder<?> createBuilder()
     {
         return parallelBuilder();
     }
