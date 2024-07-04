@@ -28,6 +28,7 @@ import io.trino.plugin.tpcds.TpcdsPlugin;
 import io.trino.plugin.tpch.ColumnNaming;
 import io.trino.plugin.tpch.DecimalTypeMapping;
 import io.trino.plugin.tpch.TpchPlugin;
+import io.trino.server.testing.TestingTrinoServer;
 import io.trino.spi.security.Identity;
 import io.trino.spi.security.PrincipalType;
 import io.trino.spi.security.SelectedRole;
@@ -265,6 +266,8 @@ public final class HiveQueryRunner
                 }
 
                 queryRunner.createCatalog(HIVE_CATALOG, withPlanAlternatives ? "plan_alternatives_hive" : "hive", hiveProperties);
+
+                queryRunner.getServers().forEach(TestingTrinoServer::getCacheManagerRegistry);
 
                 if (createTpchSchemas) {
                     populateData(queryRunner);

@@ -25,6 +25,7 @@ import io.trino.plugin.hive.containers.HiveHadoop;
 import io.trino.plugin.hive.containers.HiveMinioDataLake;
 import io.trino.plugin.iceberg.catalog.jdbc.TestingIcebergJdbcServer;
 import io.trino.plugin.tpch.TpchPlugin;
+import io.trino.server.testing.TestingTrinoServer;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.containers.Minio;
@@ -150,6 +151,9 @@ public final class IcebergQueryRunner
                 Path dataDir = metastoreDirectory.map(File::toPath).orElseGet(() -> queryRunner.getCoordinator().getBaseDataDir().resolve("iceberg_data"));
                 queryRunner.installPlugin(new TestingIcebergPlugin(dataDir));
                 queryRunner.createCatalog(ICEBERG_CATALOG, "iceberg", icebergProperties.buildOrThrow());
+
+                queryRunner.getServers().forEach(TestingTrinoServer::getCacheManagerRegistry);
+
                 schemaInitializer.orElseGet(() -> SchemaInitializer.builder().build()).accept(queryRunner);
 
                 return queryRunner;

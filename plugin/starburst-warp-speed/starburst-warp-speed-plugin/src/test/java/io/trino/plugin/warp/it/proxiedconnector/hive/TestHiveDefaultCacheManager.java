@@ -18,6 +18,7 @@ import io.trino.plugin.warp.WarpPlugin;
 import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
 import io.trino.plugin.warp.it.DispatcherQueryRunner;
 import io.trino.plugin.warp.it.DispatcherStubsIntegrationSmokeIT;
+import io.trino.server.testing.TestingTrinoServer;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.QueryRunner.MaterializedResultWithPlan;
@@ -40,14 +41,14 @@ public class TestHiveDefaultCacheManager
 {
     public TestHiveDefaultCacheManager()
     {
-        super(1, "hive1");
+        super(1, "hive_warp");
     }
 
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        return DispatcherQueryRunner.createQueryRunner(storageEngineModule,
+        QueryRunner queryRunner = DispatcherQueryRunner.createQueryRunner(storageEngineModule,
                 Optional.empty(),
                 numNodes,
                 Collections.emptyMap(),
@@ -61,6 +62,9 @@ public class TestHiveDefaultCacheManager
                 catalog,
                 new WarpPlugin(),
                 Map.of("cache.enabled", "true"));
+        ((DistributedQueryRunner) queryRunner).getServers()
+                .forEach(TestingTrinoServer::getCacheManagerRegistry);
+        return queryRunner;
     }
 
     @Test

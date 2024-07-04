@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
 import io.trino.plugin.tpch.TpchPlugin;
+import io.trino.server.testing.TestingTrinoServer;
 import io.trino.spi.Plugin;
 import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.cache.CacheSplitId;
@@ -85,11 +86,13 @@ public class TestCacheDynamicFiltering
                 .setCatalog("test")
                 .setSchema("default")
                 .build();
-        return DistributedQueryRunner.builder(session)
+        DistributedQueryRunner distributedQueryRunner = DistributedQueryRunner.builder(session)
                 .setExtraProperties(ImmutableMap.of(
                         "cache.enabled", "true",
                         "query.schedule-split-batch-size", "1"))
                 .build();
+        distributedQueryRunner.getServers().forEach(TestingTrinoServer::getCacheManagerRegistry);
+        return distributedQueryRunner;
     }
 
     @BeforeAll
