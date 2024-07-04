@@ -80,10 +80,9 @@ public class SnowflakeQueryRunner
             Consumer<QueryRunner> additionalSetup)
             throws Exception
     {
-        DistributedQueryRunner.Builder builder = DistributedQueryRunner.builder(createSessionForUser(USER, catalogName))
-                .setWorkerCount(nodeCount - 1);
-        extraProperties.forEach(builder::addExtraProperty);
-        DistributedQueryRunner queryRunner = builder
+        DistributedQueryRunner queryRunner = DistributedQueryRunner.builder(createSessionForUser(USER, catalogName))
+                .setWorkerCount(nodeCount - 1)
+                .addExtraProperties(extraProperties)
                 .setCoordinatorProperties(coordinatorProperties)
                 .setAdditionalSetup(additionalSetup)
                 .build();
