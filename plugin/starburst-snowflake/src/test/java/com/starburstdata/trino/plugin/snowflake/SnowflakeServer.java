@@ -44,13 +44,16 @@ public final class SnowflakeServer
 
     private SnowflakeServer() {}
 
-    static void init()
-            throws SQLException
-    {
+    static {
         LOG.info("Using %s", JDBC_URL);
 
         // make sure Snowflake is accessible
-        execute("SELECT 1");
+        try {
+            execute("SELECT 1");
+        }
+        catch (SQLException e) {
+            throw new RuntimeException("Snowflake is not accessible", e);
+        }
     }
 
     public static TestDatabase createDatabase(String databaseSuffix)

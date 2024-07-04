@@ -21,7 +21,6 @@ import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 import io.trino.tpch.TpchTable;
 
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Optional;
@@ -113,9 +112,7 @@ public class SnowflakeQueryRunner
             boolean createUserContextView, Iterable<TpchTable<?>> tpchTables,
             Session session,
             DistributedQueryRunner queryRunner)
-            throws SQLException
     {
-        SnowflakeServer.init();
         // Create view used for testing user/role impersonation
         if (createUserContextView) {
             database.ifPresent(databaseName ->
