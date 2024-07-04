@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 
+import static com.google.common.base.Verify.verify;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeConnectorFlavour.JDBC;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeConnectorFlavour.PARALLEL;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeServer.JDBC_URL;
@@ -74,7 +75,6 @@ public class SnowflakeQueryRunner
             Map<String, String> connectorProperties,
             Map<String, String> extraProperties,
             int nodeCount,
-            boolean createUserContextView,
             Iterable<TpchTable<?>> tpchTables,
             Map<String, String> coordinatorProperties,
             Consumer<QueryRunner> additionalSetup)
@@ -94,7 +94,6 @@ public class SnowflakeQueryRunner
                 warehouse,
                 database,
                 connectorProperties,
-                createUserContextView,
                 tpchTables,
                 queryRunner.getDefaultSession(),
                 queryRunner);
@@ -108,19 +107,10 @@ public class SnowflakeQueryRunner
             Optional<String> warehouse,
             Optional<String> database,
             Map<String, String> connectorProperties,
-            boolean createUserContextView, Iterable<TpchTable<?>> tpchTables,
+            Iterable<TpchTable<?>> tpchTables,
             Session session,
             DistributedQueryRunner queryRunner)
     {
-        // Create view used for testing user/role impersonation
-        if (createUserContextView) {
-            database.ifPresent(databaseName ->
-                    SnowflakeServer.safeExecuteOnDatabase(
-                            databaseName,
-                            "CREATE VIEW IF NOT EXISTS public.user_context (user, role) AS SELECT current_user(), current_role();",
-                            "GRANT SELECT ON VIEW USER_CONTEXT TO ROLE \"PUBLIC\";"));
-        }
-
         try {
             queryRunner.installPlugin(new TpchPlugin());
             queryRunner.createCatalog(TPCH_CATALOG, TPCH_CATALOG, ImmutableMap.of());
@@ -173,7 +163,6 @@ public class SnowflakeQueryRunner
         private ImmutableMap.Builder<String, String> extraProperties = ImmutableMap.builder();
         private int nodeCount = 3;
         private Iterable<TpchTable<?>> tpchTables = new ArrayList<>();
-        private boolean createUserContextView;
         private ImmutableMap.Builder<String, String> coordinatorProperties = ImmutableMap.builder();
         private Consumer<QueryRunner> additionalSetup = queryRunner -> {};
 
@@ -233,7 +222,12 @@ public class SnowflakeQueryRunner
 
         public Builder withCreateUserContextView()
         {
-            this.createUserContextView = true;
+            verify(databaseName.isPresent(), "Database name must be provided to create view");
+            // Create view used for testing user/role impersonation
+            SnowflakeServer.safeExecuteOnDatabase(
+                    databaseName.get(),
+                    "CREATE VIEW IF NOT EXISTS public.user_context (user, role) AS SELECT current_user(), current_role();",
+                    "GRANT SELECT ON VIEW USER_CONTEXT TO ROLE \"PUBLIC\";");
             return this;
         }
 
@@ -263,7 +257,6 @@ public class SnowflakeQueryRunner
                     connectorProperties.buildOrThrow(),
                     extraProperties.buildOrThrow(),
                     nodeCount,
-                    createUserContextView,
                     tpchTables,
                     coordinatorProperties.buildOrThrow(),
                     additionalSetup);
