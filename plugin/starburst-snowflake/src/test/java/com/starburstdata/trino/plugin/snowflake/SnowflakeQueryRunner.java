@@ -139,7 +139,7 @@ public class SnowflakeQueryRunner
 
     public static Session createSessionForUser(String user)
     {
-        return createSessionForUser(user, "snowflake");
+        return createSessionForUser(user, SNOWFLAKE_CATALOG);
     }
 
     public static Session createSessionForUser(String user, String catalogName)
