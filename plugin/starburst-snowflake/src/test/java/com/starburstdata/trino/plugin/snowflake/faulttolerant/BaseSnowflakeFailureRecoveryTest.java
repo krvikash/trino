@@ -61,7 +61,6 @@ public abstract class BaseSnowflakeFailureRecoveryTest
                 .withConnectorProperties(impersonationDisabled())
                 .withDatabase(Optional.of(testDB.getName()))
                 .withSchema(Optional.of(TEST_SCHEMA))
-                .withCreateUserContextView()
                 .withCoordinatorProperties(coordinatorProperties)
                 .withTpchTables(requiredTpchTables)
                 .withAdditionalSetup(runner -> {
