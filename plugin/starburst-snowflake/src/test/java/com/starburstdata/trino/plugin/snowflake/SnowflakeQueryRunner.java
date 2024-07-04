@@ -148,16 +148,6 @@ public class SnowflakeQueryRunner
         }
     }
 
-    public static Session createSession()
-    {
-        return testSessionBuilder()
-                .setCatalog("snowflake")
-                .setSchema(TEST_SCHEMA)
-                .setIdentity(Identity.forUser(USER)
-                        .build())
-                .build();
-    }
-
     public static Session createSessionForUser(String user)
     {
         return createSessionForUser(user, "snowflake");
