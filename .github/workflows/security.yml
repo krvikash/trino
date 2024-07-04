@@ -91,7 +91,7 @@ jobs:
         if: github.event_name == 'push'
         env:
           ENDOR_SCAN_PYTHON_GLOBAL_SITE_PACKAGES: true
-          MAVEN_ARGS: "-s ${{ github.workspace }}.github/settings.xml"
+          MAVEN_ARGS: "-s ${{ github.workspace }}/.github/settings.xml"
         uses: endorlabs/github-action@802fa65ba7c140405ee52d1c806cfdb647f8f743 # v1.1.4
         with:
           additional_args: '--exclude="testing/" --bypass-host-check'
