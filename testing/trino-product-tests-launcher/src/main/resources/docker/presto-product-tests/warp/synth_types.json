@@ -8316,5 +8316,210 @@
         }
       }
     ]
+  },
+  {
+    "name": "vec_nested_id",
+    "structure": [
+      {
+        "name": "id",
+        "type": "row",
+        "args": [
+          "orig_h varchar",
+          "orig_p integer",
+          "resp_h varchar",
+          "resp_p integer",
+          "ip_ver varchar"
+        ]
+      },
+      {
+        "name": "timestamp",
+        "type": "timestamp"
+      },
+      {
+        "name": "uid",
+        "type": "varchar"
+      },
+      {
+        "name": "sensor_uid",
+        "type": "varchar"
+      },
+      {
+        "name": "proto",
+        "type": "smallint"
+      },
+      {
+        "name": "proto_name",
+        "type": "varchar"
+      },
+      {
+        "name": "service",
+        "type": "varchar"
+      },
+      {
+        "name": "duration",
+        "type": "decimal",
+        "args": [
+          20,
+          0
+        ]
+      },
+      {
+        "name": "conn_state",
+        "type": "varchar"
+      },
+      {
+        "name": "local_orig",
+        "type": "boolean"
+      },
+      {
+        "name": "local_resp",
+        "type": "boolean"
+      },
+      {
+        "name": "orig_pkts",
+        "type": "bigint"
+      },
+      {
+        "name": "orig_ip_bytes",
+        "type": "decimal",
+        "args": [
+          20,
+          0
+        ]
+      },
+      {
+        "name": "resp_pkts",
+        "type": "bigint"
+      },
+      {
+        "name": "resp_ip_bytes",
+        "type": "decimal",
+        "args": [
+          20,
+          0
+        ]
+      },
+      {
+        "name": "resp_domain",
+        "type": "varchar"
+      },
+      {
+        "name": "resp_multihomed",
+        "type": "boolean"
+      },
+      {
+        "name": "orig_vlan_id",
+        "type": "integer"
+      },
+      {
+        "name": "resp_vlan_id",
+        "type": "integer"
+      },
+      {
+        "name": "first_orig_resp_pkt_time",
+        "type": "timestamp"
+      },
+      {
+        "name": "first_resp_orig_pkt_time",
+        "type": "timestamp"
+      },
+      {
+        "name": "first_orig_resp_data_pkt_time",
+        "type": "timestamp"
+      },
+      {
+        "name": "first_resp_orig_data_pkt_time",
+        "type": "timestamp"
+      },
+      {
+        "name": "session_start_time",
+        "type": "timestamp"
+      },
+      {
+        "name": "first_orig_resp_data_pkt",
+        "type": "varchar"
+      },
+      {
+        "name": "first_resp_orig_data_pkt",
+        "type": "varchar"
+      },
+      {
+        "name": "orig_hostname",
+        "type": "varchar"
+      },
+      {
+        "name": "resp_hostname",
+        "type": "varchar"
+      },
+      {
+        "name": "orig_huid",
+        "type": "varchar"
+      },
+      {
+        "name": "resp_huid",
+        "type": "varchar"
+      },
+      {
+        "name": "orig_sluid",
+        "type": "varchar"
+      },
+      {
+        "name": "resp_sluid",
+        "type": "varchar"
+      },
+      {
+        "name": "application",
+        "type": "array",
+        "args": [
+          "varchar"
+        ]
+      },
+      {
+        "name": "dir_confidence",
+        "type": "smallint"
+      },
+      {
+        "name": "vectra_internal",
+        "type": "row",
+        "args": [
+          "version integer",
+          "timestamps row(silver_processing timestamp, gold_processing timestamp, account_attribution timestamp)",
+          "sourcepath varchar",
+          "processing_timestamps array(row(stage varchar, timestamp timestamp))"
+        ]
+      },
+      {
+        "name": "dt",
+        "type": "date"
+      },
+      {
+        "name": "hour",
+        "type": "varchar"
+      }
+    ],
+    "cases": [
+      {
+        "case_name": "inverse",
+        "warm_query": "select count(id) from vec_nested_id where id.orig_h!='168.202.3.102'",
+        "session_properties": {
+          "enable_default_warming": true
+        },
+        "queries_data": [
+          {
+            "query": "select count(id) from vec_nested_id where id.orig_h!='168.202.3.102'",
+            "query_id": "vec_nested_id_1",
+            "expected_result": [
+              1175
+            ],
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 1
+            }
+          }
+        ]
+      }
+    ]
   }
 ]
