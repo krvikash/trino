@@ -24,8 +24,12 @@ import org.opensearch.search.SearchHit;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
+import static com.google.common.base.Preconditions.checkState;
+import static io.trino.plugin.opensearch.ScanQueryPageSource.getField;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.StandardErrorCode.TYPE_MISMATCH;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
@@ -46,7 +50,7 @@ public class TimestampDecoder
     }
 
     @Override
-    public void decode(SearchHit hit, Supplier<Object> getter, BlockBuilder output)
+    public void decode(SearchHit hit, Supplier<Object> getter, BlockBuilder output, List<String> dereferenceName)
     {
         DocumentField documentField = hit.getFields().get(path);
         Object value;
@@ -63,6 +67,11 @@ public class TimestampDecoder
 
         if (value == null) {
             output.appendNull();
+        }
+        else if (value instanceof Map nestedFields) {
+            checkState(!dereferenceName.isEmpty(), "dereferenceName is empty");
+            String nextLevel = dereferenceName.getFirst();
+            this.decode(hit, () -> getField(nestedFields, nextLevel), output, dereferenceName.subList(1, dereferenceName.size()));
         }
         else {
             LocalDateTime timestamp;

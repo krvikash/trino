@@ -21,6 +21,7 @@ import io.trino.spi.predicate.TupleDomain;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
@@ -32,7 +33,8 @@ public record OpenSearchTableHandle(
         TupleDomain<ColumnHandle> constraint,
         Map<String, String> regexes,
         Optional<String> query,
-        OptionalLong limit)
+        OptionalLong limit,
+        Set<OpenSearchColumnHandle> projectedColumns)
         implements ConnectorTableHandle
 {
     public enum Type
@@ -49,7 +51,21 @@ public record OpenSearchTableHandle(
                 TupleDomain.all(),
                 ImmutableMap.of(),
                 query,
-                OptionalLong.empty());
+                OptionalLong.empty(),
+                Set.of());
+    }
+
+    public OpenSearchTableHandle withProjectedColumns(Set<OpenSearchColumnHandle> projectedColumns)
+    {
+        return new OpenSearchTableHandle(
+                type,
+                schema,
+                index,
+                constraint,
+                regexes,
+                query,
+                limit,
+                projectedColumns);
     }
 
     public OpenSearchTableHandle

@@ -18,6 +18,7 @@ import io.trino.plugin.opensearch.DecoderDescriptor;
 import io.trino.spi.block.BlockBuilder;
 import org.opensearch.search.SearchHit;
 
+import java.util.List;
 import java.util.function.Supplier;
 
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -26,7 +27,7 @@ public class IdColumnDecoder
         implements Decoder
 {
     @Override
-    public void decode(SearchHit hit, Supplier<Object> getter, BlockBuilder output)
+    public void decode(SearchHit hit, Supplier<Object> getter, BlockBuilder output, List<String> dereferenceName)
     {
         VARCHAR.writeSlice(output, Slices.utf8Slice(hit.getId()));
     }

@@ -20,6 +20,7 @@ import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ColumnMetadata;
 import io.trino.spi.type.Type;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -84,6 +85,7 @@ enum BuiltinColumns
     {
         return new OpenSearchColumnHandle(
                 name,
+                List.of(),
                 type,
                 decoderDescriptor,
                 supportsPredicates);

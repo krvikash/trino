@@ -20,8 +20,12 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.block.BlockBuilder;
 import org.opensearch.search.SearchHit;
 
+import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
+import static com.google.common.base.Preconditions.checkState;
+import static io.trino.plugin.opensearch.ScanQueryPageSource.getField;
 import static io.trino.spi.StandardErrorCode.TYPE_MISMATCH;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static java.lang.String.format;
@@ -38,7 +42,7 @@ public class DoubleDecoder
     }
 
     @Override
-    public void decode(SearchHit hit, Supplier<Object> getter, BlockBuilder output)
+    public void decode(SearchHit hit, Supplier<Object> getter, BlockBuilder output, List<String> dereferenceName)
     {
         Object value = getter.get();
         if (value == null) {
@@ -49,6 +53,7 @@ public class DoubleDecoder
         double decoded;
         if (value instanceof Number number) {
             decoded = number.doubleValue();
+            DOUBLE.writeDouble(output, decoded);
         }
         else if (value instanceof String stringValue) {
             if (stringValue.isEmpty()) {
@@ -61,12 +66,16 @@ public class DoubleDecoder
             catch (NumberFormatException e) {
                 throw new TrinoException(TYPE_MISMATCH, format("Cannot parse value for field '%s' as DOUBLE: %s", path, value));
             }
+            DOUBLE.writeDouble(output, decoded);
+        }
+        else if (value instanceof Map nestedFields) {
+            checkState(!dereferenceName.isEmpty(), "dereferenceName is empty");
+            String nextLevel = dereferenceName.getFirst();
+            this.decode(hit, () -> getField(nestedFields, nextLevel), output, dereferenceName.subList(1, dereferenceName.size()));
         }
         else {
             throw new TrinoException(TYPE_MISMATCH, format("Expected a numeric value for field %s of type DOUBLE: %s [%s]", path, value, value.getClass().getSimpleName()));
         }
-
-        DOUBLE.writeDouble(output, decoded);
     }
 
     public static class Descriptor

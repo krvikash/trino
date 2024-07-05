@@ -19,6 +19,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import io.airlift.slice.Slice;
 import io.trino.plugin.base.expression.ConnectorExpressions;
+import io.trino.plugin.base.projection.ApplyProjectionUtil;
 import io.trino.plugin.opensearch.client.IndexMetadata;
 import io.trino.plugin.opensearch.client.IndexMetadata.DateTimeType;
 import io.trino.plugin.opensearch.client.IndexMetadata.ObjectType;
@@ -41,6 +42,7 @@ import io.trino.plugin.opensearch.decoders.VarbinaryDecoder;
 import io.trino.plugin.opensearch.decoders.VarcharDecoder;
 import io.trino.plugin.opensearch.ptf.RawQuery.RawQueryFunctionHandle;
 import io.trino.spi.TrinoException;
+import io.trino.spi.connector.Assignment;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ColumnMetadata;
 import io.trino.spi.connector.ConnectorMetadata;
@@ -52,6 +54,7 @@ import io.trino.spi.connector.ConnectorTableVersion;
 import io.trino.spi.connector.Constraint;
 import io.trino.spi.connector.ConstraintApplicationResult;
 import io.trino.spi.connector.LimitApplicationResult;
+import io.trino.spi.connector.ProjectionApplicationResult;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.SchemaTablePrefix;
 import io.trino.spi.connector.TableColumnsMetadata;
@@ -59,6 +62,7 @@ import io.trino.spi.connector.TableFunctionApplicationResult;
 import io.trino.spi.expression.Call;
 import io.trino.spi.expression.ConnectorExpression;
 import io.trino.spi.expression.Constant;
+import io.trino.spi.expression.FieldDereference;
 import io.trino.spi.expression.Variable;
 import io.trino.spi.function.table.ConnectorTableFunctionHandle;
 import io.trino.spi.predicate.Domain;
@@ -86,10 +90,13 @@ import java.util.stream.Stream;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verifyNotNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterators.singletonIterator;
 import static io.airlift.slice.SliceUtf8.getCodePointAt;
 import static io.airlift.slice.SliceUtf8.lengthOfCodePoint;
+import static io.trino.plugin.base.projection.ApplyProjectionUtil.extractSupportedProjectedColumns;
+import static io.trino.plugin.base.projection.ApplyProjectionUtil.replaceWithNewVariables;
 import static io.trino.spi.StandardErrorCode.INVALID_FUNCTION_ARGUMENT;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.expression.StandardFunctions.LIKE_FUNCTION_NAME;
@@ -107,6 +114,7 @@ import static java.lang.String.format;
 import static java.util.Collections.emptyIterator;
 import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
+import static java.util.function.Function.identity;
 
 public class OpenSearchMetadata
         implements ConnectorMetadata
@@ -123,6 +131,7 @@ public class OpenSearchMetadata
             PASSTHROUGH_QUERY_RESULT_COLUMN_NAME,
             new OpenSearchColumnHandle(
                     PASSTHROUGH_QUERY_RESULT_COLUMN_NAME,
+                    List.of(),
                     VARCHAR,
                     new VarcharDecoder.Descriptor(PASSTHROUGH_QUERY_RESULT_COLUMN_NAME),
                     false));
@@ -161,7 +170,7 @@ public class OpenSearchMetadata
 
         if (tableName.getSchemaName().equals(schemaName)) {
             if (client.indexExists(tableName.getTableName()) && !client.getIndexMetadata(tableName.getTableName()).schema().fields().isEmpty()) {
-                return new OpenSearchTableHandle(OpenSearchTableHandle.Type.SCAN, schemaName, tableName.getTableName(), Optional.empty());
+                return new OpenSearchTableHandle(OpenSearchTableHandle.Type.SCAN, schemaName, tableName.getTableName(), Optional.empty()); //
             }
         }
 
@@ -196,8 +205,8 @@ public class OpenSearchMetadata
     private InternalTableMetadata makeInternalTableMetadata(String schema, String tableName)
     {
         IndexMetadata metadata = client.getIndexMetadata(tableName);
-        List<IndexMetadata.Field> fields = getColumnFields(metadata);
-        return new InternalTableMetadata(new SchemaTableName(schema, tableName), makeColumnMetadata(fields), makeColumnHandles(fields));
+        List<IndexMetadata.Field> fields = getColumnFields(metadata); //
+        return new InternalTableMetadata(new SchemaTableName(schema, tableName), makeColumnMetadata(fields), makeColumnHandles(fields)); //
     }
 
     private List<IndexMetadata.Field> getColumnFields(IndexMetadata metadata)
@@ -240,6 +249,7 @@ public class OpenSearchMetadata
             TypeAndDecoder converted = toTrino(field);
             result.put(field.name(), new OpenSearchColumnHandle(
                     field.name(),
+                    List.of(),
                     converted.type(),
                     converted.decoderDescriptor(),
                     supportsPredicates(field.type())));
@@ -276,7 +286,7 @@ public class OpenSearchMetadata
         return toTrino("", field);
     }
 
-    private TypeAndDecoder toTrino(String prefix, IndexMetadata.Field field)
+    private TypeAndDecoder toTrino(String prefix, IndexMetadata.Field field) //
     {
         String path = appendPath(prefix, field.name());
 
@@ -328,7 +338,7 @@ public class OpenSearchMetadata
         }
         else if (type instanceof ObjectType objectType) {
             ImmutableList.Builder<RowType.Field> rowFieldsBuilder = ImmutableList.builder();
-            ImmutableList.Builder<RowDecoder.NameAndDescriptor> decoderFields = ImmutableList.builder();
+            ImmutableList.Builder<RowDecoder.NameAndDescriptor> decoderFields = ImmutableList.builder(); //
             for (IndexMetadata.Field rowField : objectType.fields()) {
                 String name = rowField.name();
                 TypeAndDecoder child = toTrino(path, rowField);
@@ -409,17 +419,17 @@ public class OpenSearchMetadata
         OpenSearchColumnHandle column = (OpenSearchColumnHandle) columnHandle;
 
         if (isPassthroughQuery(table)) {
-            if (column.name().equals(PASSTHROUGH_QUERY_RESULT_COLUMN_METADATA.getName())) {
+            if (column.baseName().equals(PASSTHROUGH_QUERY_RESULT_COLUMN_METADATA.getName())) {
                 return PASSTHROUGH_QUERY_RESULT_COLUMN_METADATA;
             }
 
-            throw new IllegalArgumentException(format("Unexpected column for table '%s$query': %s", table.index(), column.name()));
+            throw new IllegalArgumentException(format("Unexpected column for table '%s$query': %s", table.index(), column.baseName()));
         }
 
-        return BuiltinColumns.of(column.name())
+        return BuiltinColumns.of(column.baseName())
                 .map(BuiltinColumns::getMetadata)
                 .orElse(ColumnMetadata.builder()
-                        .setName(column.name())
+                        .setName(column.baseName())
                         .setType(column.type())
                         .build());
     }
@@ -494,7 +504,8 @@ public class OpenSearchMetadata
                 handle.constraint(),
                 handle.regexes(),
                 handle.query(),
-                OptionalLong.of(limit));
+                OptionalLong.of(limit),
+                Set.of());
 
         return Optional.of(new LimitApplicationResult<>(handle, false, false));
     }
@@ -537,7 +548,7 @@ public class OpenSearchMetadata
                     String variableName = ((Variable) arguments.get(0)).getName();
                     OpenSearchColumnHandle column = (OpenSearchColumnHandle) constraint.getAssignments().get(variableName);
                     verifyNotNull(column, "No assignment for %s", variableName);
-                    String columnName = column.name();
+                    String columnName = column.baseName();
                     Object pattern = ((Constant) arguments.get(1)).getValue();
                     Optional<Slice> escape = Optional.empty();
                     if (arguments.size() == 3) {
@@ -570,7 +581,8 @@ public class OpenSearchMetadata
                 newDomain,
                 newRegexes,
                 handle.query(),
-                handle.limit());
+                handle.limit(),
+                Set.of());
 
         return Optional.of(new ConstraintApplicationResult<>(handle, TupleDomain.withColumnDomains(unsupported), newExpression, false));
     }
@@ -658,6 +670,142 @@ public class OpenSearchMetadata
     private static boolean isPassthroughQuery(OpenSearchTableHandle table)
     {
         return table.type().equals(OpenSearchTableHandle.Type.QUERY);
+    }
+
+    @Override
+    public Optional<ProjectionApplicationResult<ConnectorTableHandle>> applyProjection(
+            ConnectorSession session,
+            ConnectorTableHandle handle,
+            List<ConnectorExpression> projections,
+            Map<String, ColumnHandle> assignments)
+    {
+//        if (!isProjectionPushdownEnabled(session)) {
+        if (false) {
+            return Optional.empty();
+        }
+        // Create projected column representations for supported sub expressions. Simple column references and chain of
+        // dereferences on a variable are supported right now.
+        Set<ConnectorExpression> projectedExpressions = projections.stream()
+                .flatMap(expression -> extractSupportedProjectedColumns(expression, OpenSearchMetadata::isSupportedForPushdown).stream())
+                .collect(toImmutableSet());
+
+        Map<ConnectorExpression, ApplyProjectionUtil.ProjectedColumnRepresentation> columnProjections = projectedExpressions.stream()
+                .collect(toImmutableMap(identity(), ApplyProjectionUtil::createProjectedColumnRepresentation));
+
+        OpenSearchTableHandle openSearchTableHandle = (OpenSearchTableHandle) handle;
+
+        // all references are simple variables
+        if (columnProjections.values().stream().allMatch(ApplyProjectionUtil.ProjectedColumnRepresentation::isVariable)) {
+            Set<OpenSearchColumnHandle> projectedColumns = assignments.values().stream()
+                    .map(OpenSearchColumnHandle.class::cast)
+                    .collect(toImmutableSet());
+            if (openSearchTableHandle.projectedColumns().equals(projectedColumns)) {
+                return Optional.empty();
+            }
+            List<Assignment> assignmentsList = assignments.entrySet().stream()
+                    .map(assignment -> new Assignment(
+                            assignment.getKey(),
+                            assignment.getValue(),
+                            ((OpenSearchColumnHandle) assignment.getValue()).type()))
+                    .collect(toImmutableList());
+
+            return Optional.of(new ProjectionApplicationResult<>(
+                    openSearchTableHandle.withProjectedColumns(projectedColumns),
+                    projections,
+                    assignmentsList,
+                    false));
+        }
+
+        Map<String, Assignment> newAssignments = new HashMap<>();
+        ImmutableMap.Builder<ConnectorExpression, Variable> newVariablesBuilder = ImmutableMap.builder();
+        ImmutableSet.Builder<OpenSearchColumnHandle> projectedColumnsBuilder = ImmutableSet.builder();
+
+        for (Map.Entry<ConnectorExpression, ApplyProjectionUtil.ProjectedColumnRepresentation> entry : columnProjections.entrySet()) {
+            ConnectorExpression expression = entry.getKey();
+            ApplyProjectionUtil.ProjectedColumnRepresentation projectedColumn = entry.getValue();
+
+            OpenSearchColumnHandle baseColumnHandle = (OpenSearchColumnHandle) assignments.get(projectedColumn.getVariable().getName());
+            OpenSearchColumnHandle projectedColumnHandle = projectColumn(baseColumnHandle, projectedColumn.getDereferenceIndices(), expression.getType());
+            String projectedColumnName = projectedColumnHandle.getQualifiedName(); //
+
+            Variable projectedColumnVariable = new Variable(projectedColumnName, expression.getType());
+            Assignment newAssignment = new Assignment(projectedColumnName, projectedColumnHandle, expression.getType());
+            newAssignments.putIfAbsent(projectedColumnName, newAssignment);
+
+            newVariablesBuilder.put(expression, projectedColumnVariable);
+            projectedColumnsBuilder.add(projectedColumnHandle);
+        }
+
+        // Modify projections to refer to new variables
+        Map<ConnectorExpression, Variable> newVariables = newVariablesBuilder.buildOrThrow();
+        List<ConnectorExpression> newProjections = projections.stream()
+                .map(expression -> replaceWithNewVariables(expression, newVariables))
+                .collect(toImmutableList());
+
+        List<Assignment> outputAssignments = newAssignments.values().stream().collect(toImmutableList());
+        return Optional.of(new ProjectionApplicationResult<>(
+                openSearchTableHandle.withProjectedColumns(projectedColumnsBuilder.build()),
+                newProjections,
+                outputAssignments,
+                false));
+    }
+
+    private static boolean isSupportedForPushdown(ConnectorExpression connectorExpression)
+    {
+        if (connectorExpression instanceof Variable) {
+            return true;
+        }
+        if (connectorExpression instanceof FieldDereference fieldDereference) {
+            RowType rowType = (RowType) fieldDereference.getTarget().getType();
+            RowType.Field field = rowType.getFields().get(fieldDereference.getField());
+            if (field.getName().isEmpty()) {
+                return false;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    private static OpenSearchColumnHandle projectColumn(OpenSearchColumnHandle baseColumn, List<Integer> indices, Type projectedColumnType)
+    {
+        if (indices.isEmpty()) {
+            return baseColumn;
+        }
+        ImmutableList.Builder<String> dereferenceNamesBuilder = ImmutableList.builder();
+        dereferenceNamesBuilder.addAll(baseColumn.dereferenceNames());
+
+        DecoderDescriptor decoderDescriptor = baseColumn.decoderDescriptor();
+
+        Type type = baseColumn.type();
+        RowType parentType = null;
+        for (int index : indices) {
+            checkArgument(type instanceof RowType, "type should be Row type");
+            RowType rowType = (RowType) type;
+            RowType.Field field = rowType.getFields().get(index);
+            dereferenceNamesBuilder.add(field.getName()
+                    .orElseThrow(() -> new TrinoException(NOT_SUPPORTED, "ROW type does not have field names declared: " + rowType)));
+            parentType = rowType;
+            type = field.getType();
+
+            // to be checked
+            checkArgument(decoderDescriptor instanceof RowDecoder.Descriptor, "decoderDescriptor should be RowDecoder.Descriptor type");
+            decoderDescriptor = ((RowDecoder.Descriptor) decoderDescriptor).getFields().get(index).getDescriptor();
+//            decoderDescriptor = ((RowDecoder.Descriptor) baseColumn.decoderDescriptor()).getFields().get(index).getDescriptor();
+        }
+
+        return new OpenSearchColumnHandle(
+                baseColumn.baseName(),
+                dereferenceNamesBuilder.build(),
+                projectedColumnType,
+//                baseColumn.decoderDescriptor(), // TODO how to pass correct descriptor
+//                new SmallintDecoder.Descriptor("object_field.int_field"),
+//                new BigintDecoder.Descriptor("object_field.int_field"),
+                decoderDescriptor,
+//                supportsPredicates(projectedColumnType)
+                baseColumn.supportsPredicates());
+//                baseColumn.hidden(),
+//                isDBRefField(parentType),
+//                baseColumn.comment()
     }
 
     @Override

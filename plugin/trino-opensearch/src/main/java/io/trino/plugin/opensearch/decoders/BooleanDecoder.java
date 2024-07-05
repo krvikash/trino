@@ -20,8 +20,12 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.block.BlockBuilder;
 import org.opensearch.search.SearchHit;
 
+import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
+import static com.google.common.base.Preconditions.checkState;
+import static io.trino.plugin.opensearch.ScanQueryPageSource.getField;
 import static io.trino.spi.StandardErrorCode.TYPE_MISMATCH;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static java.lang.String.format;
@@ -38,7 +42,7 @@ public class BooleanDecoder
     }
 
     @Override
-    public void decode(SearchHit hit, Supplier<Object> getter, BlockBuilder output)
+    public void decode(SearchHit hit, Supplier<Object> getter, BlockBuilder output, List<String> dereferenceName)
     {
         Object value = getter.get();
         if (value == null) {
@@ -57,6 +61,11 @@ public class BooleanDecoder
             else {
                 throw new TrinoException(TYPE_MISMATCH, format("Cannot parse value for field '%s' as BOOLEAN: %s", path, value));
             }
+        }
+        else if (value instanceof Map nestedFields) {
+            checkState(!dereferenceName.isEmpty(), "dereferenceName is empty");
+            String nextLevel = dereferenceName.getFirst();
+            this.decode(hit, () -> getField(nestedFields, nextLevel), output, dereferenceName.subList(1, dereferenceName.size()));
         }
         else {
             throw new TrinoException(TYPE_MISMATCH, format("Expected a boolean value for field %s of type BOOLEAN: %s [%s]", path, value, value.getClass().getSimpleName()));

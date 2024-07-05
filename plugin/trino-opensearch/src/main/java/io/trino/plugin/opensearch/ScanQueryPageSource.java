@@ -76,7 +76,7 @@ public class ScanQueryPageSource
 
         // When the _source field is requested, we need to bypass column pruning when fetching the document
         boolean needAllFields = columns.stream()
-                .map(OpenSearchColumnHandle::name)
+                .map(OpenSearchColumnHandle::baseName)
                 .anyMatch(isEqual(SOURCE.getName()));
 
         // Columns to fetch as doc_fields instead of pulling them out of the JSON source
@@ -93,7 +93,8 @@ public class ScanQueryPageSource
                 .toArray(BlockBuilder[]::new);
 
         List<String> requiredFields = columns.stream()
-                .map(OpenSearchColumnHandle::name)
+//                .map(OpenSearchColumnHandle::baseName)
+                .map(OpenSearchColumnHandle::getQualifiedName)
                 .filter(name -> !isBuiltinColumn(name))
                 .collect(toList());
 
@@ -158,8 +159,9 @@ public class ScanQueryPageSource
             Map<String, Object> document = hit.getSourceAsMap();
 
             for (int i = 0; i < decoders.size(); i++) {
-                String field = columns.get(i).name();
-                decoders.get(i).decode(hit, () -> getField(document, field), columnBuilders[i]);
+                String field = columns.get(i).baseName();
+                List<String> dereferenceNames = columns.get(i).dereferenceNames();
+                decoders.get(i).decode(hit, () -> getField(document, field), columnBuilders[i], dereferenceNames);
             }
 
             if (hit.getSourceRef() != null) {
@@ -206,7 +208,7 @@ public class ScanQueryPageSource
         Map<String, Type> result = new HashMap<>();
 
         for (OpenSearchColumnHandle column : columns) {
-            flattenFields(result, column.name(), column.type());
+            flattenFields(result, column.getQualifiedName(), column.type());
         }
 
         return result;

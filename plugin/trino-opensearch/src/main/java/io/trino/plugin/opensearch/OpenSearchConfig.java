@@ -59,6 +59,7 @@ public class OpenSearchConfig
     private String truststorePassword;
     private boolean ignorePublishAddress;
     private boolean verifyHostnames = true;
+    private boolean projectionPushDownEnabled;
 
     private Security security;
 
@@ -336,6 +337,19 @@ public class OpenSearchConfig
     public OpenSearchConfig setSecurity(Security security)
     {
         this.security = security;
+        return this;
+    }
+
+    public boolean isProjectionPushdownEnabled()
+    {
+        return projectionPushDownEnabled;
+    }
+
+    @Config("opensearch.projection-pushdown-enabled")
+    @ConfigDescription("Read only required fields from a row type")
+    public OpenSearchConfig setProjectionPushdownEnabled(boolean projectionPushDownEnabled)
+    {
+        this.projectionPushDownEnabled = projectionPushDownEnabled;
         return this;
     }
 }

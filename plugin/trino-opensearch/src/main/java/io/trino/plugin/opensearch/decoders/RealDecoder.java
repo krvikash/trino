@@ -20,8 +20,12 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.block.BlockBuilder;
 import org.opensearch.search.SearchHit;
 
+import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
+import static com.google.common.base.Preconditions.checkState;
+import static io.trino.plugin.opensearch.ScanQueryPageSource.getField;
 import static io.trino.spi.StandardErrorCode.TYPE_MISMATCH;
 import static io.trino.spi.type.RealType.REAL;
 import static java.lang.String.format;
@@ -38,7 +42,7 @@ public class RealDecoder
     }
 
     @Override
-    public void decode(SearchHit hit, Supplier<Object> getter, BlockBuilder output)
+    public void decode(SearchHit hit, Supplier<Object> getter, BlockBuilder output, List<String> dereferenceName)
     {
         Object value = getter.get();
         if (value == null) {
@@ -49,6 +53,7 @@ public class RealDecoder
         float decoded;
         if (value instanceof Number number) {
             decoded = number.floatValue();
+            REAL.writeLong(output, Float.floatToRawIntBits(decoded));
         }
         else if (value instanceof String stringValue) {
             if (stringValue.isEmpty()) {
@@ -61,12 +66,18 @@ public class RealDecoder
             catch (NumberFormatException e) {
                 throw new TrinoException(TYPE_MISMATCH, format("Cannot parse value for field '%s' as REAL: %s", path, value));
             }
+            REAL.writeLong(output, Float.floatToRawIntBits(decoded));
+        }
+        else if (value instanceof Map nestedFields) {
+            checkState(!dereferenceName.isEmpty(), "dereferenceName is empty");
+            String nextLevel = dereferenceName.getFirst();
+            this.decode(hit, () -> getField(nestedFields, nextLevel), output, dereferenceName.subList(1, dereferenceName.size()));
         }
         else {
             throw new TrinoException(TYPE_MISMATCH, format("Expected a numeric value for field %s of type REAL: %s [%s]", path, value, value.getClass().getSimpleName()));
         }
 
-        REAL.writeLong(output, Float.floatToRawIntBits(decoded));
+//        REAL.writeLong(output, Float.floatToRawIntBits(decoded));
     }
 
     public static class Descriptor

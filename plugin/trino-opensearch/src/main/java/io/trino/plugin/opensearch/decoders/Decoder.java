@@ -16,9 +16,10 @@ package io.trino.plugin.opensearch.decoders;
 import io.trino.spi.block.BlockBuilder;
 import org.opensearch.search.SearchHit;
 
+import java.util.List;
 import java.util.function.Supplier;
 
 public interface Decoder
 {
-    void decode(SearchHit hit, Supplier<Object> getter, BlockBuilder output);
+    void decode(SearchHit hit, Supplier<Object> getter, BlockBuilder output, List<String> dereferenceName);
 }

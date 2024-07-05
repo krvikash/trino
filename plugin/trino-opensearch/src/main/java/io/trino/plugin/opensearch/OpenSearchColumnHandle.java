@@ -13,13 +13,19 @@
  */
 package io.trino.plugin.opensearch;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.type.Type;
+
+import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
 public record OpenSearchColumnHandle(
-        String name,
+        String baseName,
+        List<String> dereferenceNames,
         Type type,
         DecoderDescriptor decoderDescriptor,
         boolean supportsPredicates)
@@ -27,14 +33,24 @@ public record OpenSearchColumnHandle(
 {
     public OpenSearchColumnHandle
     {
-        requireNonNull(name, "name is null");
+        requireNonNull(baseName, "baseName is null");
         requireNonNull(type, "type is null");
         requireNonNull(decoderDescriptor, "decoderDescriptor is null");
+    }
+
+    @JsonIgnore
+    public String getQualifiedName()
+    {
+        return Joiner.on('.')
+                .join(ImmutableList.<String>builder()
+                        .add(baseName)
+                        .addAll(dereferenceNames)
+                        .build());
     }
 
     @Override
     public String toString()
     {
-        return name() + "::" + type();
+        return baseName() + "::" + type();
     }
 }

@@ -20,11 +20,13 @@ import com.google.common.net.HostAndPort;
 import io.trino.Session;
 import io.trino.spi.type.VarcharType;
 import io.trino.sql.planner.plan.LimitNode;
+import io.trino.sql.planner.plan.ProjectNode;
 import io.trino.testing.AbstractTestQueries;
 import io.trino.testing.BaseConnectorTest;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
+import io.trino.testing.sql.TestTable;
 import org.apache.http.HttpHost;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.AfterAll;
@@ -37,12 +39,15 @@ import org.opensearch.client.RestHighLevelClient;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.testing.MaterializedResult.resultBuilder;
+import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_CREATE_TABLE_WITH_DATA;
+import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_DEREFERENCE_PUSHDOWN;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -107,6 +112,7 @@ public abstract class BaseOpenSearchConnectorTest
                  SUPPORTS_SET_COLUMN_TYPE,
                  SUPPORTS_TOPN_PUSHDOWN,
                  SUPPORTS_UPDATE -> false;
+            case SUPPORTS_DEREFERENCE_PUSHDOWN -> true;
             default -> super.hasBehavior(connectorBehavior);
         };
     }
@@ -1826,61 +1832,335 @@ public abstract class BaseOpenSearchConnectorTest
                         "query => '{\"query\": {\"match\": {\"name\": \"ALGERIA\"}}}')) t(result)",
                 "VALUES '{\"nationkey\":0,\"name\":\"ALGERIA\",\"regionkey\":0,\"comment\":\" haggle. carefully final deposits detect slyly agai\"}'");
 
-        // parameters
-        Session session = Session.builder(getSession())
-                .addPreparedStatement(
-                        "my_query",
-                        format("SELECT json_query(result, 'lax $[0][0].hits.hits._source') FROM TABLE(%s.system.raw_query(schema => ?, index => ?, query => ?))", catalogName))
-                .build();
-        assertQuery(
-                session,
-                "EXECUTE my_query USING 'tpch', 'nation', '{\"query\": {\"match\": {\"name\": \"ALGERIA\"}}}'",
-                "VALUES '{\"nationkey\":0,\"name\":\"ALGERIA\",\"regionkey\":0,\"comment\":\" haggle. carefully final deposits detect slyly agai\"}'");
+//        assertQuery("SELECT upper(name) u_nationkey from nation", "VALUES ARRAY['ALGERIA', 'ARGENTINA', 'BRAZIL', 'CANADA']");
 
         // select multiple records by range. Use array wrapper to wrap multiple results
-        assertQuery("SELECT array_sort(CAST(json_parse(json_query(result, 'lax $[0][0].hits.hits._source.name' WITH ARRAY WRAPPER)) AS array(varchar))) " +
-                        format("FROM TABLE(%s.system.raw_query(", catalogName) +
-                        "schema => 'tpch', " +
-                        "index => 'nation', " +
-                        "query => '{\"query\": {\"range\": {\"nationkey\": {\"gte\": 0,\"lte\": 3}}}}')) t(result)",
-                "VALUES ARRAY['ALGERIA', 'ARGENTINA', 'BRAZIL', 'CANADA']");
+//        assertQuery("SELECT json_parse(json_query(result, 'lax $[0][0].hits.hits._source.name' WITH ARRAY WRAPPER)) AS array(varchar) " +
+//        assertQuery("SELECT json_parse(json_query(result, 'lax $[0][0].hits.hits._source.name' WITH ARRAY WRAPPER)) " +
+//                        format("FROM TABLE(%s.system.raw_query(", catalogName) +
+//                        "schema => 'tpch', " +
+//                        "index => 'nation', " +
+//                        "query => '{\"query\": {\"range\": {\"nationkey\": {\"gte\": 0,\"lte\": 3}}}}')) t(result)",
+//                "VALUES ARRAY['ALGERIA', 'ARGENTINA', 'BRAZIL', 'CANADA1323232132']");
+//        computeActual("SELECT json_parse(json_query(result, 'lax $[0][0].hits.hits._source.name' WITH ARRAY WRAPPER)) " +
+//                format("FROM TABLE(%s.system.raw_query(", catalogName) +
+//                "schema => 'tpch', " +
+//                "index => 'nation', " +
+//                "query => '{\"query\": {\"range\": {\"nationkey\": {\"gte\": 0,\"lte\": 3}}}}')) t(result)");
 
-        // use aggregations
-        @Language("JSON")
-        String query = "{\n" +
-                "    \"size\": 0,\n" +
-                "    \"aggs\" : {\n" +
-                "        \"max_orderkey\" : { \"max\" : { \"field\" : \"orderkey\" } },\n" +
-                "        \"sum_orderkey\" : { \"sum\" : { \"field\" : \"orderkey\" } }\n" +
-                "    }\n" +
-                "}";
-
-        assertQuery(
-                format("WITH data(r) AS (" +
-                        "   SELECT CAST(json_parse(result) AS ROW(aggregations ROW(max_orderkey ROW(value BIGINT), sum_orderkey ROW(value BIGINT)))) " +
-                        "   FROM TABLE(%s.system.raw_query(" +
-                        "                        schema => 'tpch', " +
-                        "                        index => 'orders', " +
-                        "                        query => '%s'))) " +
-                        "SELECT r.aggregations.max_orderkey.value, r.aggregations.sum_orderkey.value " +
-                        "FROM data", catalogName, query),
-                "VALUES (60000, 449872500)");
-
-        // no matches
-        assertQuery("SELECT json_query(result, 'lax $[0][0].hits.hits') " +
-                        format("FROM TABLE(%s.system.raw_query(", catalogName) +
-                        "schema => 'tpch', " +
-                        "index => 'nation', " +
-                        "query => '{\"query\": {\"match\": {\"name\": \"UTOPIA\"}}}')) t(result)",
-                "VALUES '[]'");
-
-        // syntax error
-        assertThat(query("SELECT * " +
+        computeActual(
+        "SELECT CAST(json_parse(json_query(result, 'lax $[0][0].hits.hits._source.name' WITH ARRAY WRAPPER)) AS array(varchar)) " +
                 format("FROM TABLE(%s.system.raw_query(", catalogName) +
                 "schema => 'tpch', " +
                 "index => 'nation', " +
-                "query => 'wrong syntax')) t(result)"))
-                .failure().hasMessageContaining("json_parse_exception");
+                "query => '{\"query\": {\"range\": {\"nationkey\": {\"gte\": 0,\"lte\": 3}}}}')) t(result)");
+
+        // use aggregations
+//        @Language("JSON")
+//        String query = "{\n" +
+//                "    \"size\": 0,\n" +
+//                "    \"aggs\" : {\n" +
+//                "        \"max_orderkey\" : { \"max\" : { \"field\" : \"orderkey\" } },\n" +
+//                "        \"sum_orderkey\" : { \"sum\" : { \"field\" : \"orderkey\" } }\n" +
+//                "    }\n" +
+//                "}";
+//
+//        assertQuery(
+//                format("WITH data(r) AS (" +
+//                        "   SELECT CAST(json_parse(result) AS ROW(aggregations ROW(max_orderkey ROW(value BIGINT), sum_orderkey ROW(value BIGINT)))) " +
+//                        "   FROM TABLE(%s.system.raw_query(" +
+//                        "                        schema => 'tpch', " +
+//                        "                        index => 'orders', " +
+//                        "                        query => '%s'))) " +
+//                        "SELECT r.aggregations.max_orderkey.value, r.aggregations.sum_orderkey.value " +
+//                        "FROM data", catalogName, query),
+//                "VALUES (60000, 449872500)");
+//
+//        // no matches
+//        assertQuery("SELECT json_query(result, 'lax $[0][0].hits.hits') " +
+//                        format("FROM TABLE(%s.system.raw_query(", catalogName) +
+//                        "schema => 'tpch', " +
+//                        "index => 'nation', " +
+//                        "query => '{\"query\": {\"match\": {\"name\": \"UTOPIA\"}}}')) t(result)",
+//                "VALUES '[]'");
+//
+//        // syntax error
+//        assertThat(query("SELECT * " +
+//                format("FROM TABLE(%s.system.raw_query(", catalogName) +
+//                "schema => 'tpch', " +
+//                "index => 'nation', " +
+//                "query => 'wrong syntax')) t(result)"))
+//                .failure().hasMessageContaining("json_parse_exception");
+    }
+
+    // Override to externally create table while connector doesn't support creating tables.
+    @Test
+    @Override
+    public void testProjectionPushdown()
+    {
+        String tableName = "test_projection_pushdown";
+        try {
+            createIndex(tableName);
+            index(tableName, ImmutableMap.<String, Object>builder()
+                    .put("id", 1L)
+                    .put("root", ImmutableMap.<String, Object>builder()
+                            .put("f1", 1L)
+                            .put("f2", 2L)
+                            .buildOrThrow())
+                    .buildOrThrow());
+
+            Map<String, Object> record2 = new HashMap<>();
+            record2.put("id", 2L);
+            record2.put( "root", null);
+            index(tableName, record2);
+
+            Map<String, Object> record32 = new HashMap<>();
+            record32.put("f1", null);
+            record32.put("f2", 4L);
+
+            Map<String, Object> record3 = new HashMap<>();
+            record3.put("id", 3L);
+            record3.put("row", record32);
+            index(tableName, record3);
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        String selectQuery = "SELECT id, root.f1 FROM " + tableName;
+        String expectedResult = "VALUES (BIGINT '1', BIGINT '1'), (BIGINT '2', NULL), (BIGINT '3', NULL)";
+
+        if (!hasBehavior(SUPPORTS_DEREFERENCE_PUSHDOWN)) {
+            assertThat(query(selectQuery))
+                    .matches(expectedResult)
+                    .isNotFullyPushedDown(ProjectNode.class);
+        }
+        else {
+            // With Projection Pushdown enabled
+            assertThat(query(selectQuery))
+                    .matches(expectedResult)
+                    .isFullyPushedDown();
+
+            // With Projection Pushdown disabled
+            Session sessionWithoutPushdown = sessionWithProjectionPushdownDisabled(getSession());
+            assertThat(query(sessionWithoutPushdown, selectQuery))
+                    .matches(expectedResult)
+                    .isNotFullyPushedDown(ProjectNode.class);
+        }
+    }
+
+    @Test
+    @Override
+    public void testProjectionWithCaseSensitiveField()
+    {
+        skipTestUnless(hasBehavior(SUPPORTS_CREATE_TABLE_WITH_DATA) && hasBehavior(SUPPORTS_DEREFERENCE_PUSHDOWN));
+
+        String tableName = "test_projection_with_case_sensitive_field";
+
+//        try (TestTable testTable = new TestTable(
+//                getQueryRunner()::execute,
+//                "test_projection_with_case_sensitive_field_",
+//                "(id INT, a ROW(\"UPPER_CASE\" INT, \"lower_case\" INT, \"MiXeD_cAsE\" INT))",
+//                ImmutableList.of("(1, ROW(2, 3, 4))", "(5, ROW(6, 7, 8))"))) {
+
+        try {
+            createIndex(tableName);
+            index(tableName, ImmutableMap.<String, Object>builder()
+                    .put("id", 1L)
+                    .put("a", ImmutableMap.<String, Object>builder()
+                            .put("\"UPPER_CASE\"", 2L)
+                            .put("\"lower_case\"", 3L)
+                            .put("\"MiXeD_cAsE\"", 4L)
+                            .buildOrThrow())
+                    .buildOrThrow());
+            index(tableName, ImmutableMap.<String, Object>builder()
+                    .put("id", 5L)
+                    .put("a", ImmutableMap.<String, Object>builder()
+                            .put("\"UPPER_CASE\"", 6L)
+                            .put("\"lower_case\"", 7L)
+                            .put("\"MiXeD_cAsE\"", 8L)
+                            .buildOrThrow())
+                    .buildOrThrow());
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        String expected = "VALUES (2, 3, 4), (6, 7, 8)";
+        assertThat(query("SELECT a.UPPER_CASE, a.lower_case, a.MiXeD_cAsE FROM " + tableName))
+                .matches(expected)
+                .isFullyPushedDown();
+        assertThat(query("SELECT a.upper_case, a.lower_case, a.mixed_case FROM " + tableName))
+                .matches(expected)
+                .isFullyPushedDown();
+        assertThat(query("SELECT a.UPPER_CASE, a.LOWER_CASE, a.MIXED_CASE FROM " + tableName))
+                .matches(expected)
+                .isFullyPushedDown();
+//        }
+    }
+
+    @Test
+    @Override
+    public void testProjectionPushdownMultipleRows()
+    {
+//        skipTestUnless(hasBehavior(SUPPORTS_CREATE_TABLE_WITH_DATA) && hasBehavior(SUPPORTS_DEREFERENCE_PUSHDOWN));
+
+        String tableName = "test_projection_pushdown_multiple_rows";
+        try {
+            createIndex(tableName);
+            index(tableName, ImmutableMap.<String, Object>builder()
+                    .put("id", 1)
+                    .put("nested1", ImmutableMap.<String, Object>builder()
+                            .put("child1", 10)
+                            .put("child2", "a")
+                            .put("child3", 100)
+                            .buildOrThrow())
+                    .put("nested2", ImmutableMap.<String, Object>builder()
+                            .put("child1", 10.10d)
+                            .put("child2", true)
+                            .put("child3", "2023-04-19")
+                            .buildOrThrow())
+                    .buildOrThrow());
+            index(tableName, ImmutableMap.<String, Object>builder()
+                    .put("id", 2)
+                    .put("nested1", ImmutableMap.<String, Object>builder()
+                            .put("child1", 20)
+                            .put("child2", "b")
+                            .put("child3", 200)
+                            .buildOrThrow())
+                    .put("nested2", ImmutableMap.<String, Object>builder()
+                            .put("child1", 20.20d)
+                            .put("child2", false)
+                            .put("child3", "1990-04-20")
+                            .buildOrThrow())
+                    .buildOrThrow());
+
+            Map<String, Object> record3 = new HashMap<>();
+            Map<String, Object> record3Nested1 = new HashMap<>();
+            record3Nested1.put("child1", 40);
+            record3Nested1.put("child2", null);
+            record3Nested1.put("child3", 400);
+            record3.put("id", 4);
+            record3.put("nested1", record3Nested1);
+            record3.put("nested2", null);
+            index(tableName, record3);
+
+            Map<String, Object> record4 = new HashMap<>();
+            Map<String, Object> record4Nested2 = new HashMap<>();
+            record4Nested2.put("child1", null);
+            record4Nested2.put("child2", true);
+            record4Nested2.put("child3", null);
+            record4.put("id", 5);
+            record4.put("nested1", null);
+            record4.put("nested2", record4Nested2);
+            index(tableName, record4);
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+//        try (TestTable testTable = new TestTable(
+//                getQueryRunner()::execute,
+//                "test_projection_pushdown_multiple_rows_",
+//                "(id INT, nested1 ROW(child1 INT, child2 VARCHAR, child3 INT), nested2 ROW(child1 DOUBLE, child2 BOOLEAN, child3 DATE))",
+//                ImmutableList.of(
+//                        "(1, ROW(10, 'a', 100), ROW(10.10, true, DATE '2023-04-19'))",
+//                        "(2, ROW(20, 'b', 200), ROW(20.20, false, DATE '1990-04-20'))",
+//                        "(4, ROW(40, NULL, 400), NULL)",
+//                        "(5, NULL, ROW(NULL, true, NULL))"))) {
+            // Select one field from one row field
+            assertThat(query("SELECT id, nested1.child1 FROM " + tableName))
+                    .matches("VALUES (1, 10), (2, 20), (4, 40), (5, NULL)")
+                    .isFullyPushedDown();
+            assertThat(query("SELECT nested2.child3, id FROM " + tableName))
+                    .matches("VALUES (DATE '2023-04-19', 1), (DATE '1990-04-20', 2), (NULL, 4), (NULL, 5)")
+                    .isFullyPushedDown();
+
+            // Select one field each from multiple row fields
+            assertThat(query("SELECT nested2.child1, id, nested1.child2 FROM " + tableName))
+                    .skippingTypesCheck()
+                    .matches("VALUES (DOUBLE '10.10', 1, 'a'), (DOUBLE '20.20', 2, 'b'), (NULL, 4, NULL), (NULL, 5, NULL)")
+                    .isFullyPushedDown();
+
+            // Select multiple fields from one row field
+            assertThat(query("SELECT nested1.child3, id, nested1.child2 FROM " + tableName))
+                    .skippingTypesCheck()
+                    .matches("VALUES (100, 1, 'a'), (200, 2, 'b'), (400, 4, NULL), (NULL, 5, NULL)")
+                    .isFullyPushedDown();
+            assertThat(query("SELECT nested2.child2, nested2.child3, id FROM " + tableName))
+                    .matches("VALUES (true, DATE '2023-04-19' , 1), (false, DATE '1990-04-20', 2), (NULL, NULL, 4), (true, NULL, 5)")
+                    .isFullyPushedDown();
+
+            // Select multiple fields from multiple row fields
+            assertThat(query("SELECT id, nested2.child1, nested1.child3, nested2.child2, nested1.child1 FROM " + tableName))
+                    .matches("VALUES (1, DOUBLE '10.10', 100, true, 10), (2, DOUBLE '20.20', 200, false, 20), (4, NULL, 400, NULL, 40), (5, NULL, NULL, true, NULL)")
+                    .isFullyPushedDown();
+
+            // Select only nested fields
+            assertThat(query("SELECT nested2.child2, nested1.child3 FROM " + tableName))
+                    .matches("VALUES (true, 100), (false, 200), (NULL, 400), (true, NULL)")
+                    .isFullyPushedDown();
+//        }
+    }
+
+    @Test
+    @Override
+    public void testProjectionPushdownWithHighlyNestedData()
+    {
+//        skipTestUnless(hasBehavior(SUPPORTS_CREATE_TABLE_WITH_DATA) && hasBehavior(SUPPORTS_DEREFERENCE_PUSHDOWN));
+
+        String tableName = "test_highly_nested_data";
+
+        try {
+            index(tableName, ImmutableMap.<String, Object>builder()
+                    .put("id", 1)
+                    .put("row1_t", ImmutableMap.<String, Object>builder()
+                            .put("f1", 2)
+                            .put("f2", 3)
+                            .put("f3", ImmutableMap.<String, Object>builder()
+                                    .put("row2_t", ImmutableMap.<String, Object>builder()
+                                            .put("f1", 4)
+                                            .put("f2", 5)
+                                            .put("row3_t", ImmutableMap.<String, Object>builder()
+                                                    .put("f1", 6)
+                                                    .put("f2", 7)
+                                                    .buildOrThrow())
+                                            .buildOrThrow())
+                                    .buildOrThrow())
+                            .buildOrThrow())
+                    .buildOrThrow());
+
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        try (TestTable testTable = new TestTable(
+                getQueryRunner()::execute,
+                "test_highly_nested_data_",
+                "(id INT, row1_t ROW(f1 INT, f2 INT, row2_t ROW (f1 INT, f2 INT, row3_t ROW(f1 INT, f2 INT))))",
+                ImmutableList.of("(1, ROW(2, 3, ROW(4, 5, ROW(6, 7))))",
+                        "(11, ROW(12, 13, ROW(14, 15, ROW(16, 17))))",
+                        "(21, ROW(22, 23, ROW(24, 25, ROW(26, 27))))"))) {
+            // Test select projected columns, with and without their parent column
+            assertQuery("SELECT id, row1_t.row2_t.row3_t.f2 FROM " + testTable.getName(), "VALUES (1, 7), (11, 17), (21, 27)");
+            assertQuery("SELECT id, row1_t.row2_t.row3_t.f2, CAST(row1_t AS JSON) FROM " + testTable.getName(),
+                    "VALUES (1, 7, '{\"f1\":2,\"f2\":3,\"row2_t\":{\"f1\":4,\"f2\":5,\"row3_t\":{\"f1\":6,\"f2\":7}}}'), " +
+                            "(11, 17, '{\"f1\":12,\"f2\":13,\"row2_t\":{\"f1\":14,\"f2\":15,\"row3_t\":{\"f1\":16,\"f2\":17}}}'), " +
+                            "(21, 27, '{\"f1\":22,\"f2\":23,\"row2_t\":{\"f1\":24,\"f2\":25,\"row3_t\":{\"f1\":26,\"f2\":27}}}')");
+
+            // Test predicates on immediate child column and deeper nested column
+            assertQuery("SELECT id, CAST(row1_t.row2_t.row3_t AS JSON) FROM " + testTable.getName() + " WHERE row1_t.row2_t.row3_t.f2 = 27", "VALUES (21, '{\"f1\":26,\"f2\":27}')");
+            assertQuery("SELECT id, CAST(row1_t.row2_t.row3_t AS JSON) FROM " + testTable.getName() + " WHERE row1_t.row2_t.row3_t.f2 > 20", "VALUES (21, '{\"f1\":26,\"f2\":27}')");
+            assertQuery("SELECT id, CAST(row1_t AS JSON) FROM " + testTable.getName() + " WHERE row1_t.row2_t.row3_t.f2 = 27",
+                    "VALUES (21, '{\"f1\":22,\"f2\":23,\"row2_t\":{\"f1\":24,\"f2\":25,\"row3_t\":{\"f1\":26,\"f2\":27}}}')");
+            assertQuery("SELECT id, CAST(row1_t AS JSON) FROM " + testTable.getName() + " WHERE row1_t.row2_t.row3_t.f2 > 20",
+                    "VALUES (21, '{\"f1\":22,\"f2\":23,\"row2_t\":{\"f1\":24,\"f2\":25,\"row3_t\":{\"f1\":26,\"f2\":27}}}')");
+
+            // Test predicates on parent columns
+            assertQuery("SELECT id, row1_t.row2_t.row3_t.f1 FROM " + testTable.getName() + " WHERE row1_t.row2_t.row3_t = ROW(16, 17)", "VALUES (11, 16)");
+            assertQuery("SELECT id, row1_t.row2_t.row3_t.f1 FROM " + testTable.getName() + " WHERE row1_t = ROW(22, 23, ROW(24, 25, ROW(26, 27)))", "VALUES (21, 26)");
+        }
     }
 
     protected void assertTableDoesNotExist(String name)

@@ -34,7 +34,7 @@ public record IndexMetadata(ObjectType schema)
         {
             checkArgument(!asRawJson || !isArray,
                     format("A column, (%s) cannot be declared as a Trino array and also be rendered as json.", name));
-            requireNonNull(name, "name is null");
+            requireNonNull(name, "baseName is null");
             requireNonNull(type, "type is null");
         }
     }
@@ -46,7 +46,7 @@ public record IndexMetadata(ObjectType schema)
     {
         public PrimitiveType
         {
-            requireNonNull(name, "name is null");
+            requireNonNull(name, "baseName is null");
         }
     }
 

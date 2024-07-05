@@ -20,8 +20,11 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.block.BlockBuilder;
 import org.opensearch.search.SearchHit;
 
+import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
+import static io.trino.plugin.opensearch.ScanQueryPageSource.getField;
 import static io.trino.spi.StandardErrorCode.TYPE_MISMATCH;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static java.lang.String.format;
@@ -38,7 +41,7 @@ public class BigintDecoder
     }
 
     @Override
-    public void decode(SearchHit hit, Supplier<Object> getter, BlockBuilder output)
+    public void decode(SearchHit hit, Supplier<Object> getter, BlockBuilder output, List<String> dereferenceName)
     {
         Object value = getter.get();
         if (value == null) {
@@ -46,6 +49,10 @@ public class BigintDecoder
         }
         else if (value instanceof Number) {
             BIGINT.writeLong(output, ((Number) value).longValue());
+        }
+        else if (value instanceof Map nestedFields) {
+            String nextLevel = dereferenceName.getFirst();
+            this.decode(hit, () -> getField((Map<String, Object>) nestedFields, nextLevel), output, dereferenceName.subList(1, dereferenceName.size()));
         }
         else if (value instanceof String stringValue) {
             if (stringValue.isEmpty()) {

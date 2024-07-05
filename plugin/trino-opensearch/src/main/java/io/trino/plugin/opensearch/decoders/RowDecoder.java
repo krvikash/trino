@@ -42,11 +42,11 @@ public class RowDecoder
     {
         this.path = requireNonNull(path, "path is null");
         this.fieldNames = fieldNames;
-        this.decoders = decoders;
+        this.decoders = decoders; // pass only required sub field decoders
     }
 
     @Override
-    public void decode(SearchHit hit, Supplier<Object> getter, BlockBuilder output)
+    public void decode(SearchHit hit, Supplier<Object> getter, BlockBuilder output, List<String> dereferenceName)
     {
         Object data = getter.get();
 
@@ -57,7 +57,7 @@ public class RowDecoder
             ((RowBlockBuilder) output).buildEntry(fieldBuilders -> {
                 for (int i = 0; i < decoders.size(); i++) {
                     String field = fieldNames.get(i);
-                    decoders.get(i).decode(hit, () -> ScanQueryPageSource.getField((Map<String, Object>) data, field), fieldBuilders.get(i));
+                    decoders.get(i).decode(hit, () -> ScanQueryPageSource.getField((Map<String, Object>) data, field), fieldBuilders.get(i), dereferenceName);
                 }
             });
         }
