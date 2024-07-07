@@ -407,7 +407,7 @@ public class WarpCacheTask
         }
         this.localMemoryContext = memoryContextService.poll();
         if (localMemoryContext == null) {
-            logger.error("failed to locate memory context size=%s", memoryContextService.getRunningSize());
+            shapingLogger.error("failed to locate memory context size=%s", memoryContextService.getRunningSize());
             if (!taskStarted) {
                 shapingLogger.info("clear memory of Task since it not started yet but hold memory");
                 warmupCacheData.clear();
