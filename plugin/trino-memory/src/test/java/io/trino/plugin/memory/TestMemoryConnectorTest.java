@@ -88,13 +88,13 @@ public class TestMemoryConnectorTest
     {
         return switch (connectorBehavior) {
             case SUPPORTS_TRUNCATE -> true;
-            case SUPPORTS_ADD_COLUMN,
-                 SUPPORTS_ADD_COLUMN_WITH_POSITION,
+            case SUPPORTS_ADD_COLUMN_WITH_POSITION,
                  SUPPORTS_ADD_FIELD,
                  SUPPORTS_AGGREGATION_PUSHDOWN,
                  SUPPORTS_CREATE_MATERIALIZED_VIEW,
                  SUPPORTS_DELETE,
                  SUPPORTS_DEREFERENCE_PUSHDOWN,
+                 SUPPORTS_DROP_COLUMN,
                  SUPPORTS_LIMIT_PUSHDOWN,
                  SUPPORTS_MERGE,
                  SUPPORTS_PREDICATE_PUSHDOWN,
@@ -622,5 +622,11 @@ public class TestMemoryConnectorTest
     protected String errorMessageForInsertIntoNotNullColumn(String columnName)
     {
         return "NULL value not allowed for NOT NULL column: " + columnName;
+    }
+
+    @Override
+    protected void verifyAddNotNullColumnToNonEmptyTableFailurePermissible(Throwable e)
+    {
+        assertThat(e).hasMessageMatching("Unable to add NOT NULL column '.*' for non-empty table: .*");
     }
 }
