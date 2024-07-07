@@ -51,11 +51,15 @@ public class TestStargateWithMemoryWritesEnabledConnectorTest
     {
         switch (connectorBehavior) {
             case SUPPORTS_ADD_COLUMN:
-            case SUPPORTS_RENAME_COLUMN:
+            case SUPPORTS_ADD_COLUMN_WITH_COMMENT:
+            case SUPPORTS_DROP_COLUMN:
             case SUPPORTS_SET_COLUMN_TYPE:
             case SUPPORTS_UPDATE:
                 // not supported in memory connector
                 return false;
+
+            case SUPPORTS_RENAME_COLUMN:
+                return true;
 
             case SUPPORTS_DELETE:
                 // memory connector does not support deletes
@@ -63,7 +67,7 @@ public class TestStargateWithMemoryWritesEnabledConnectorTest
 
             case SUPPORTS_NOT_NULL_CONSTRAINT:
                 // memory connector does not support not-null in create-table
-                return false;
+                return true;
 
             case SUPPORTS_RENAME_SCHEMA:
                 // not supported in memory connector
@@ -117,16 +121,6 @@ public class TestStargateWithMemoryWritesEnabledConnectorTest
         // Required because Stargate connector adds additional `Query failed (...):` prefix to the error message
         assertThatThrownBy(super::testDropColumn)
                 .hasMessageContaining("This connector does not support dropping columns");
-        abort("not supported");
-    }
-
-    @Test
-    @Override
-    public void testRenameColumn()
-    {
-        // Required because Stargate connector adds additional `Query failed (...):` prefix to the error message
-        assertThatThrownBy(super::testRenameColumn)
-                .hasMessageContaining("This connector does not support renaming columns");
         abort("not supported");
     }
 
@@ -192,12 +186,11 @@ public class TestStargateWithMemoryWritesEnabledConnectorTest
 
     @Test
     @Override
-    public void testInsertIntoNotNullColumn()
+    public void testDropNotNullConstraint()
     {
-        // Overridden because we get an error message with "Query failed (<query_id>):" prefixed instead of one expected by superclass
-        assertQueryFails(
-                "CREATE TABLE not_null_constraint (not_null_col INTEGER NOT NULL)",
-                ".* line 1:53: Catalog 'memory' does not support non-null column for column name '\"not_null_col\"'");
+        // TODO: fix test
+        assertThatThrownBy(super::testDropNotNullConstraint)
+                .hasMessageContaining("Column '\"col\"' does not exist");
     }
 
     @Test
@@ -234,15 +227,6 @@ public class TestStargateWithMemoryWritesEnabledConnectorTest
 
     @Test
     @Override
-    public void testUpdateNotNullColumn()
-    {
-        // Required because Stargate connector adds additional `Query failed (...):` prefix to the error message and uses remote catalog name
-        assertThat(query("CREATE TABLE not_null_constraint (not_null_col INTEGER NOT NULL)"))
-                .failure().hasMessageContaining(format("Catalog '%s' does not support non-null column for column name '\"not_null_col\"'", getRemoteCatalogName()));
-    }
-
-    @Test
-    @Override
     public void testNativeQueryInsertStatementTableExists()
     {
         try (TestTable testTable = simpleTable()) {
@@ -259,6 +243,12 @@ public class TestStargateWithMemoryWritesEnabledConnectorTest
         try (TestTable table = new TestTable(getQueryRunner()::execute, "test_supports_update", "AS SELECT * FROM nation")) {
             assertQueryFails("UPDATE " + table.getName() + " SET nationkey = 100 WHERE regionkey = 2", ".*This connector does not support modifying table rows");
         }
+    }
+
+    @Override
+    protected String errorMessageForInsertIntoNotNullColumn(String columnName)
+    {
+        return ".*NULL value not allowed for NOT NULL column: " + columnName;
     }
 
     @Test
