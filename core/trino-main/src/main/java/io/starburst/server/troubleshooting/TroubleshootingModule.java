@@ -13,6 +13,10 @@ import com.google.inject.Binder;
 import com.google.inject.Key;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
+import io.starburst.server.troubleshooting.configdump.ConfigDumpProvider;
+import io.starburst.server.troubleshooting.configdump.ConfigDumpResource;
+import io.starburst.server.troubleshooting.configdump.ConfigDumper;
+import io.starburst.server.troubleshooting.configdump.RemoteConfigDumpClient;
 import io.starburst.server.troubleshooting.jfr.FlightRecorderConfig;
 import io.starburst.server.troubleshooting.jfr.FlightRecorderModule;
 import io.starburst.server.troubleshooting.jmx.JmxTroubleshootingProvider;
@@ -63,6 +67,8 @@ public class TroubleshootingModule
         binder.bind(SpanInterceptor.class).in(Scopes.SINGLETON);
         newSetBinder(binder, SpanProcessor.class).addBinding().to(TroubleshootingSpanProcessor.class).in(Scopes.SINGLETON);
         jaxrsBinder(binder).bind(TroubleshootingTraceResource.class);
+        binder.bind(ConfigDumper.class).in(Scopes.SINGLETON);
+        jaxrsBinder(binder).bind(ConfigDumpResource.class);
 
         if (!buildConfigObject(ServerConfig.class).isCoordinator()) {
             return;
@@ -79,6 +85,7 @@ public class TroubleshootingModule
         binder.bind(FullQueryInfoProvider.class).to(FullQueryInfoProviderDispatchManager.class).in(Scopes.SINGLETON);
         binder.bind(TroubleshootingArchiver.class).in(Scopes.SINGLETON);
         binder.bind(RemoteTroubleshootingTraceClient.class).in(Scopes.SINGLETON);
+        binder.bind(RemoteConfigDumpClient.class).in(Scopes.SINGLETON);
 
         Multibinder<TroubleshootingProvider> setBinder = newSetBinder(binder, TroubleshootingProvider.class);
         setBinder.addBinding().to(QueryPlanProvider.class);
@@ -86,6 +93,7 @@ public class TroubleshootingModule
         setBinder.addBinding().to(JmxTroubleshootingProvider.class);
         setBinder.addBinding().to(QueryJsonProvider.class);
         setBinder.addBinding().to(OpenTelemetryTraceProvider.class);
+        setBinder.addBinding().to(ConfigDumpProvider.class);
 
         closingBinder(binder)
                 .registerExecutor(Key.get(ScheduledExecutorService.class, ForTroubleshooting.class));

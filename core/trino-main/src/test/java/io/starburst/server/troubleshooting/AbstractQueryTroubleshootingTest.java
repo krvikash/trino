@@ -46,10 +46,13 @@ import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.management.ManagementFactory;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -183,6 +186,11 @@ public abstract class AbstractQueryTroubleshootingTest
                 .hasEntrySatisfying(getPath(data, "recordings/coordinator.jfr"), value -> softly.assertThat(value).isNotEmpty())
                 .hasEntrySatisfying(getPath(data, "traces/opentelemetry-coordinator.grpc.gz"), value -> softly.assertThat(value).isNotEmpty());
 
+        Unzipped coordinatorConfigs = zipInputStreamToMap(new ByteArrayInputStream(inputsMap.contents().get(getPath(data, "configs/coordinator.zip"))), tmpDir);
+        softly.assertThat(coordinatorConfigs.contents())
+                .hasEntrySatisfying("coordinator/config.properties", value -> softly.assertThat(byteToString(value)).contains("coordinator=true"))
+                .hasEntrySatisfying("coordinator/jvm.config", value -> softly.assertThat(byteToString(value)).isEqualTo(getJvmConfig()));
+
         ObjectMapper mapper = new ObjectMapper();
         mapper.readValue(inputsMap.contents().get(getPath(data, "jmx/metrics-before.json")), new TypeReference<>() {});
         mapper.readValue(inputsMap.contents().get(getPath(data, "jmx/metrics-after.json")), new TypeReference<>() {});
@@ -192,12 +200,28 @@ public abstract class AbstractQueryTroubleshootingTest
         softly.assertThat(queryInfo.get("session").get("systemProperties").get("query_max_memory_per_node").asText()).isEqualTo("10MB");
         softly.assertThat(queryInfo.get("outputStage").get("plan")).isNotEmpty();
 
-        for (String workerId : getNodesProcessingQuery(data.getQueryId())) {
+        Set<String> nodesProcessingQuery = getNodesProcessingQuery(data.getQueryId());
+        for (String workerId : nodesProcessingQuery) {
             softly.assertThat(inputsMap.contents()).hasEntrySatisfying(
                     getPath(data, "recordings/worker-%s.jfr").formatted(workerId),
                     value -> softly.assertThat(value)
                             .describedAs("worker %s recording", workerId)
                             .isNotEmpty());
+        }
+        List<Unzipped> workerConfigs = inputsMap.contents().entrySet().stream()
+                .filter(entry -> entry.getKey().contains("configs/worker-"))
+                .map(Map.Entry::getValue)
+                .map(zipBytes -> zipInputStreamToMap(new ByteArrayInputStream(zipBytes), tmpDir))
+                .toList();
+        if (nodesProcessingQuery.size() > 1) {
+            softly.assertThat(workerConfigs.size()).isEqualTo(1);
+            Map<String, byte[]> workerUnzippedConfigs = workerConfigs.getFirst().contents();
+            softly.assertThat(workerUnzippedConfigs)
+                    .hasEntrySatisfying(new Condition<>(entry -> entry.getKey().contains("/config.properties") && byteToString(entry.getValue()).contains("coordinator=false"), "worker config"))
+                    .hasEntrySatisfying(new Condition<>(entry -> entry.getKey().contains("/jvm.config") && byteToString(entry.getValue()).equals(getJvmConfig()), "jvm config"));
+        }
+        else {
+            softly.assertThat(workerConfigs.size()).isEqualTo(0);
         }
 
         try (TestingJaegerService testingJaegerService = TestingJaegerService.createStarted()) {
@@ -465,5 +489,10 @@ public abstract class AbstractQueryTroubleshootingTest
                 .findFirst()
                 .map(BasicQueryInfo::getQueryId)
                 .orElse(null);
+    }
+
+    private String getJvmConfig()
+    {
+        return String.join("\n", ManagementFactory.getRuntimeMXBean().getInputArguments()) + "\n";
     }
 }
