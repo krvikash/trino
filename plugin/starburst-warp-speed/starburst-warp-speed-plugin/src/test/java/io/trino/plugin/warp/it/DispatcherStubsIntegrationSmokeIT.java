@@ -81,6 +81,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
     protected static final String PREFILLED_COLUMNS_STAT = "warp_prefilled_collect_columns";
     protected static final String EXTERNAL_MATCH_STAT = "external_match_columns";
     protected static final String EXTERNAL_COLLECT_STAT = "external_collect_columns";
+    protected static final String WARP_MATCH_ON_SIMPLIFIED_DOMAIN_STAT = "warp_match_on_simplified_domain";
     protected static final String CACHED_TOTAL_ROWS = "cached_total_rows";
     protected static final String C1 = "int1";
     protected static final String C2 = "v1";

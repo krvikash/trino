@@ -117,10 +117,9 @@ class PrefilledCollectClassifier
                             .blockIndex(blockIndex)
                             .singleValue(prefilledMatchToValue.getValue())
                             .build();
-                    if (prefilledMatchToValue.getKey().isPresent() && queryContext.getMatchData().isPresent()) {
+                    if (prefilledMatchToValue.getKey().isPresent() && matchData.isPresent()) {
                         QueryMatchData elementToUpdate = prefilledMatchToValue.getKey().get();
-                        MatchData currentMatchData = queryContext.getMatchData().get();
-                        matchData = Optional.of(updateMatchElementWithTightness(currentMatchData, elementToUpdate));
+                        matchData = Optional.of(updateMatchElementWithTightness(matchData.get(), elementToUpdate));
                     }
                     prefilledQueryCollectDataByBlockIndex.put(blockIndex, prefilledQueryCollectdata);
                     remainingCollectColumnByBlockIndex.remove(blockIndex);

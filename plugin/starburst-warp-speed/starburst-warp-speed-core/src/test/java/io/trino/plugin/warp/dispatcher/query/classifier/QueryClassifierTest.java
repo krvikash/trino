@@ -1048,7 +1048,7 @@ public class QueryClassifierTest
                 .type(matchCollectIntColumn.type())
                 .domain(Optional.of(domain))
                 .nativeExpression(createExpectedNativeExpression(domain))
-                .tightnessRequired(false)
+                .tightnessRequired(true)
                 .build();
         BasicQueryMatchData expectedMatchData2 = BasicQueryMatchData
                 .builder()

@@ -48,6 +48,7 @@ import java.util.OptionalInt;
 import java.util.Set;
 import java.util.stream.IntStream;
 
+import static io.trino.plugin.warp.WarpSessionProperties.DEBUG_NO_PREDICATE_BUFFER;
 import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_DEFAULT_WARMING;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.ICEBERG_CONNECTOR_NAME;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
@@ -123,6 +124,37 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
                 "warp_prefilled_collect_columns", 1L,
                 WARP_COLLECT_COLUMNS_STAT, 2L);
         validateQueryStats(query, getSession(), expectedQueryStats);
+    }
+
+    @Test
+    public void testTwoPrefillsWithNoPredicateBuffer()
+    {
+        String table = "twoprefillswithnopredicatebuffer";
+        createTable(DEFAULT_SCHEMA,
+                table,
+                "(\n" +
+                        "    id INTEGER,\n" +
+                        "    a VARCHAR\n" +
+                        ")");
+        assertUpdate("INSERT INTO %s(id, a) VALUES(1, 'bla')".formatted(table), 1);
+        assertUpdate("INSERT INTO %s(id, a) VALUES(2, 'bla')".formatted(table), 1);
+
+        Session warmSession = Session.builder(getSession())
+                .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "true")
+                .build();
+        @Language("SQL") String query = "SELECT * FROM %s WHERE id=1 AND a='bla'".formatted(table);
+        warmAndValidate(query, warmSession, 4, 1, 0);
+        Map<String, Long> expectedQueryStats = Map.of(
+                WARP_MATCH_COLUMNS_STAT, 2L,
+                WARP_MATCH_ON_SIMPLIFIED_DOMAIN_STAT, 2L, // we switch the predicate to "predicate all"
+                PREFILLED_COLUMNS_STAT, 0L, // we can't prefill because we don't do a tight matching
+                WARP_COLLECT_COLUMNS_STAT, 0L,
+                EXTERNAL_COLLECT_STAT, 2L); // when bail out to external collect
+
+        Session querySession = Session.builder(getSession())
+                .setSystemProperty(catalog + "." + DEBUG_NO_PREDICATE_BUFFER, "true")
+                .build();
+        validateQueryStats(query, querySession, expectedQueryStats);
     }
 
     @Test
