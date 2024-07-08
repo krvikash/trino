@@ -252,6 +252,7 @@ public class StorageReader
         return collectOpenResult;
     }
 
+    @SuppressWarnings("Finally")
     @NativeInterrupt
     private void matchIfNeeded()
     {

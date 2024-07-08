@@ -64,7 +64,6 @@ import java.util.stream.IntStream;
 
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.mockBufferAllocator;
 import static io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService.INVALID_FILE_COOKIE_FD;
-import static io.trino.spi.block.ColumnarTestUtils.createTestDictionaryBlock;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
@@ -557,35 +556,6 @@ public class StorageWriterServiceTest
         return storageWriterContext;
     }
 
-    private Page createBigPageVarchar()
-    {
-        VarcharType unboundedVarcharType = createUnboundedVarcharType();
-        VariableWidthBlockBuilder blockBuilder = new VariableWidthBlockBuilder(null, 100, 100);
-        for (int i = 0; i < 100000; i++) {
-            unboundedVarcharType.writeString(blockBuilder, "values " + i);
-        }
-        Block block = blockBuilder.build();
-
-        return new Page(block);
-    }
-
-    private Page createBigVarcharArrayPage(Boolean toDictBlock)
-    {
-        int totalRows = 65537;
-        int elementsInRow = 1;
-        ArrayBlockBuilder blockBuilder = new ArrayBlockBuilder(VarcharType.VARCHAR, null, totalRows);
-        for (int i = 0; i < totalRows; i++) {
-            BlockBuilder elementBlockBuilder = VarcharType.VARCHAR.createBlockBuilder(null, elementsInRow);
-            for (int j = 0; j < elementsInRow; j++) {
-                VarcharType.VARCHAR.writeString(elementBlockBuilder, " " + j);
-            }
-            VarcharType.VARCHAR.writeObject(blockBuilder, elementBlockBuilder);
-        }
-        Block block = toDictBlock ? createTestDictionaryBlock(blockBuilder.build()) : blockBuilder.build();
-
-        return new Page(block);
-    }
-
     private Page buildArrayType_VarcharPage(String[][] values)
     {
         ArrayBlockBuilder blockBuilder = new ArrayBlockBuilder(VARCHAR, null, 100);
@@ -671,20 +641,6 @@ public class StorageWriterServiceTest
             LazyBlock lazyBlock = new LazyBlock(valuesOnEachBlock, block::build);
             blocks.add(lazyBlock);
         }
-        return blocks;
-    }
-
-    private List<Block> buildVarcharBlocks(int numberOfBlocks, int valuesOnEachBlock, int recordLength)
-    {
-        VarcharType unboundedVarcharType = VarcharType.createVarcharType(recordLength);
-        List<Block> blocks = new ArrayList<>(numberOfBlocks);
-        String value = "c".repeat(recordLength);
-
-        IntStream.range(0, numberOfBlocks).forEach(_ -> {
-            VariableWidthBlockBuilder blockBuilder = new VariableWidthBlockBuilder(null, valuesOnEachBlock, valuesOnEachBlock * recordLength);
-            IntStream.range(0, valuesOnEachBlock).forEach(_ -> unboundedVarcharType.writeString(blockBuilder, value));
-            blocks.add(blockBuilder.build());
-        });
         return blocks;
     }
 }

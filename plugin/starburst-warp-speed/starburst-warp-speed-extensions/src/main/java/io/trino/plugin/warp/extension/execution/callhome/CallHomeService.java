@@ -38,6 +38,7 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.StringJoiner;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -176,7 +177,7 @@ public class CallHomeService
                 return Optional.of(callHomeJob.getNumberOfUploaded());
             }
             else {
-                scheduledExecutorService.schedule(callHomeJob, 0, TimeUnit.SECONDS);
+                Future<?> unused = scheduledExecutorService.schedule(callHomeJob, 0, TimeUnit.SECONDS);
             }
         }
         return Optional.empty();

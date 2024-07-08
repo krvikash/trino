@@ -32,6 +32,7 @@ import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -104,7 +105,7 @@ public class PredicatesCacheServiceTest
     public void testMetricsPoolSmall(PredicateBufferPoolType predicateBufferPoolType)
     {
         PredicateData predicateData = buildMockedPredicateData(MemorySegment.NULL, predicateBufferPoolType, 1);
-        PredicateData predicateData2 = buildMockedPredicateData(MemorySegment.NULL, predicateBufferPoolType, 1);
+        PredicateData predicateData2 = buildMockedPredicateData(MemorySegment.NULL, predicateBufferPoolType, 2);
         ArgumentCaptor<PredicateCacheData> argument = ArgumentCaptor.forClass(PredicateCacheData.class);
         Domain domain = Domain.singleValue(IntegerType.INTEGER, (long) 1);
         Domain domain2 = Domain.singleValue(IntegerType.INTEGER, (long) 2);
@@ -135,8 +136,9 @@ public class PredicatesCacheServiceTest
         when(bufferAllocator.getRequiredPredicateBufferType(eq(size))).thenReturn(predicateBufferPoolType);
         when(bufferAllocator.allocPredicateBuffer(eq(size))).thenReturn(predicateBufferInfo);
         when(predicateData.getPredicateSize()).thenReturn(size);
-        when(predicateData.getPredicateInfo()).thenReturn(new PredicateInfo(PredicateType.PREDICATE_TYPE_VALUES, FunctionType.FUNCTION_TYPE_NONE, size, Collections.emptyList(), 8));
-        when(predicateData.getPredicateHashCode()).thenReturn(predicateData.hashCode());
+        PredicateInfo predicateInfo = new PredicateInfo(PredicateType.PREDICATE_TYPE_VALUES, FunctionType.FUNCTION_TYPE_NONE, size, Collections.emptyList(), 8);
+        when(predicateData.getPredicateInfo()).thenReturn(predicateInfo);
+        when(predicateData.getPredicateHashCode()).thenReturn(Objects.hash(predicateInfo, predicateInfo.hashCode(), size));
         return predicateData;
     }
 }

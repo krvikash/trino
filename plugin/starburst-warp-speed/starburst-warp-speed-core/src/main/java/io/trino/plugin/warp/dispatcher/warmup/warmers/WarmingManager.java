@@ -33,7 +33,6 @@ import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WarmupProperties;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.WarmupImportServiceStats;
-import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.tools.util.StopWatch;
 import io.trino.spi.connector.ColumnHandle;
@@ -66,7 +65,6 @@ public class WarmingManager
     private final DictionaryCacheService dictionaryCacheService;
     private final WeGroupWarmer weGroupWarmer;
     private final StorageWarmerService storageWarmerService;
-    private final ShapingLogger shapingLogger;
 
     @Inject
     public WarmingManager(
@@ -90,12 +88,6 @@ public class WarmingManager
         this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
         this.weGroupWarmer = requireNonNull(weGroupWarmer);
         this.storageWarmerService = requireNonNull(storageWarmerService);
-
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
-                globalConfig.getShapingLoggerThreshold(),
-                globalConfig.getShapingLoggerDuration(),
-                globalConfig.getShapingLoggerNumberOfSamples());
     }
 
     public Optional<RowGroupData> importWeGroup(ConnectorSession session, RowGroupKey rowGroupKey, List<WarmUpElement> warmWarmUpElements)
@@ -134,12 +126,7 @@ public class WarmingManager
             storageWarmerService.lockRowGroup(rowGroupData);
             locked = true;
             // get latest row group data in case it was updated
-            final RowGroupData newRowGroupData = rowGroupDataService.getOrCreateRowGroupData(rowGroupKey, partitionKeys);
-            if (newRowGroupData != rowGroupData) {
-                final RowGroupData oldRowGroupData = rowGroupData;
-                shapingLogger.warn("RowGroupData changed while under the lock, old %s, new %s", oldRowGroupData, newRowGroupData);
-                rowGroupData = newRowGroupData;
-            }
+            rowGroupData = rowGroupDataService.getOrCreateRowGroupData(rowGroupKey, partitionKeys);
 
             try {
                 //TODO add logic of rowGroupDataService.verifyUpdatedRowGroupData
