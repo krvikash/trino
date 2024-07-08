@@ -30,7 +30,7 @@ package io.trino.plugin.warp.gen.stats;
 
 import io.trino.plugin.warp.metrics.MetricsManager;
 
-@SuppressWarnings({"checkstyle:MemberName", "checkstyle:ParameterName"})
+@SuppressWarnings({"checkstyle:MemberName", "checkstyle:ParameterName", "unused"})
 public final class WarpStatsMgr
 {
     /* This class file is auto-generated from xml file for statistics and counters */

@@ -28,7 +28,7 @@ import java.util.StringJoiner;
 import java.util.concurrent.atomic.LongAdder;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY, getterVisibility = JsonAutoDetect.Visibility.ANY, setterVisibility = JsonAutoDetect.Visibility.ANY)
-@SuppressWarnings({"checkstyle:MemberName", "checkstyle:ParameterName"})
+@SuppressWarnings({"checkstyle:MemberName", "checkstyle:ParameterName", "unused"})
 public final class TestStats
         extends WarpStatsBase
 {

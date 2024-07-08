@@ -27,7 +27,7 @@ import java.nio.LongBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
-@SuppressWarnings({"checkstyle:MemberName", "checkstyle:ParameterName"})
+@SuppressWarnings({"checkstyle:MemberName", "checkstyle:ParameterName", "unused"})
 public final class BtreeStats
         extends WarpStatsBase
 {
