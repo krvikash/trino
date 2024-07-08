@@ -25,7 +25,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class TestsStats
+public class TestStatsWrapper
 {
     private static ObjectMapper objectMapper;
 

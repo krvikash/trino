@@ -46,7 +46,7 @@ public class CollectTxService
     private final StorageEngine storageEngine;
     private final ChunksQueueService chunksQueueService;
     private final RangeFillerService rangeFillerService;
-    private ArrayBlockingQueue<MemorySegment> matchBitmapsQueue;
+    private final ArrayBlockingQueue<MemorySegment> matchBitmapsQueue;
 
     @Inject
     public CollectTxService(StorageEngine storageEngine,

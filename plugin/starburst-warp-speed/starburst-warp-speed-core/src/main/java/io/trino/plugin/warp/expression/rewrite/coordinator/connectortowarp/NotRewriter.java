@@ -45,7 +45,7 @@ class NotRewriter
     @Override
     public Optional<WarpExpression> rewrite(Call expression, Captures captures, RewriteContext<WarpExpression> context)
     {
-        Optional<WarpExpression> warpExpression = context.defaultRewrite(expression.getChildren().get(0));
+        Optional<WarpExpression> warpExpression = context.defaultRewrite(expression.getChildren().getFirst());
         return warpExpression.map(value -> new WarpCall(NOT_FUNCTION_NAME.getName(), List.of(value), expression.getType()));
     }
 }

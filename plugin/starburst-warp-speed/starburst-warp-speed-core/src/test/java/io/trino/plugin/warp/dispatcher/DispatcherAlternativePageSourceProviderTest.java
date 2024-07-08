@@ -325,7 +325,7 @@ public class DispatcherAlternativePageSourceProviderTest
         Type columnType = IntegerType.INTEGER;
         ImmutableList<Pair<String, Type>> columnsMetadata = ImmutableList.of(Pair.of("c1", columnType));
         List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer, columnsMetadata);
-        ColumnHandle columnHandle = columns.get(0);
+        ColumnHandle columnHandle = columns.getFirst();
         TupleDomain<ColumnHandle> proxiedPredicate = TupleDomain.withColumnDomains(Map.of(columnHandle, Domain.singleValue(columnType, 3L)));
         TupleDomain<ColumnHandle> predicate = proxiedPredicate.transformKeys(ColumnHandle.class::cast);
 
@@ -357,10 +357,10 @@ public class DispatcherAlternativePageSourceProviderTest
     {
         List<Pair<String, Type>> columnsMetadata = List.of(Pair.of("c1", VarcharType.VARCHAR),
                 Pair.of("c2", IntegerType.INTEGER));
-        Type columnType = columnsMetadata.get(0).getRight();
+        Type columnType = columnsMetadata.getFirst().getRight();
         List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer, columnsMetadata);
 
-        ColumnHandle connectorColumnHandle = columns.get(0);
+        ColumnHandle connectorColumnHandle = columns.getFirst();
         TupleDomain<ColumnHandle> proxiedPredicate = TupleDomain.withColumnDomains(
                 Map.of(connectorColumnHandle,
                         Domain.singleValue(columnType, Slices.wrappedBuffer("value".getBytes(Charset.defaultCharset())))));
@@ -438,7 +438,7 @@ public class DispatcherAlternativePageSourceProviderTest
                         Pair.of("c2", VarcharType.VARCHAR)));
 
         TupleDomain<ColumnHandle> predicate = TupleDomain.withColumnDomains(
-                Map.of(columns.get(0), Domain.singleValue(columnType, 3L)));
+                Map.of(columns.getFirst(), Domain.singleValue(columnType, 3L)));
 
         RowGroupData rowGroupData = generateRowGroupData(rowGroupKey, columns.subList(0, 1));
         when(rowGroupDataService.get(rowGroupKey)).thenReturn(rowGroupData);

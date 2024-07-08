@@ -224,7 +224,7 @@ class NativeCollectClassifier
 
             // if we reached the string list we need to sort it since we want to take shorter string first for better performance
             // we delay the sort as much as possible in order to avoid it if not required eventually since no string has been taken
-            if ((collectCategory == CollectCategory.STRING) && (nativeQueryCollectDataCategoryList.size() > 0)) {
+            if ((collectCategory == CollectCategory.STRING) && !nativeQueryCollectDataCategoryList.isEmpty()) {
                 Collections.sort(nativeQueryCollectDataCategoryList);
                 logger.debug("sorted collect strings list %s", nativeQueryCollectDataCategoryList);
             }

@@ -168,7 +168,7 @@ public class StubsStorageEngine
     public long match(int txId, int nextState, short[] outMatchedChunksIndexes, int[] outMatchBitmapResetPoints)
     {
         if (!matchResults.isEmpty()) {
-            return matchResults.remove(0);
+            return matchResults.removeFirst();
         }
         return 0L;
     }
@@ -183,7 +183,7 @@ public class StubsStorageEngine
     public void collect(int txId, int startWeIx, int endWeIx, int chunkIndex, int numToCollect, int[] outResultTypes)
     {
         if (!throwOnColletRuntimeExceptionList.isEmpty()) {
-            throw throwOnColletRuntimeExceptionList.remove(0);
+            throw throwOnColletRuntimeExceptionList.removeFirst();
         }
     }
 

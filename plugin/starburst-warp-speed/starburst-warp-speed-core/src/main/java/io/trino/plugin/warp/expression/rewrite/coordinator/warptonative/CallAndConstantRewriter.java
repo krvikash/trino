@@ -71,6 +71,6 @@ class CallAndConstantRewriter
         nativeExpressionBuilder.domain(domain)
                 .predicateType(predicateType)
                 .collectNulls(domain.isNullAllowed());
-        return nativeExpressionRulesHandler.rewrite(warpExpression.getChildren().get(0), rewriteContext);
+        return nativeExpressionRulesHandler.rewrite(warpExpression.getChildren().getFirst(), rewriteContext);
     }
 }

@@ -402,7 +402,7 @@ public class WarmingManagerTest
             List<WarmUpElement> oldWarmUpElement = rowGroupData.getWarmUpElements().stream()
                     .filter(we -> we.isSameColNameAndWarmUpType(newWarmUpElement)).toList();
             assertThat(oldWarmUpElement.size()).isEqualTo(1);
-            WarmUpElementState oldWarmUpElementState = oldWarmUpElement.get(0).getState();
+            WarmUpElementState oldWarmUpElementState = oldWarmUpElement.getFirst().getState();
             if (oldWarmUpElementState.state().equals(WarmUpElementState.State.FAILED_TEMPORARILY)) {
                 int oldRetriesCount = oldWarmUpElementState.temporaryFailureCount();
                 int newRetriesCount = newWarmUpElement.getState().temporaryFailureCount();

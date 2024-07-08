@@ -30,7 +30,7 @@ class PredicateBufferPool
     private final PredicateBufferPoolType poolType;
     private final int poolSize;
     private final int bufSize;
-    private ArrayBlockingQueue<MemorySegment> queue;
+    private final ArrayBlockingQueue<MemorySegment> queue;
 
     PredicateBufferPool(PredicateBufferPoolType poolType, int bufSize, int poolSize, SegmentAllocator poolSlicer)
     {

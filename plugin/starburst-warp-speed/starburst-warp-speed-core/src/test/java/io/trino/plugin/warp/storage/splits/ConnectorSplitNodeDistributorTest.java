@@ -49,7 +49,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-@SuppressWarnings("UnstableApiUsage")
 public class ConnectorSplitNodeDistributorTest
 {
     private static final Logger logger = Logger.get(ConnectorSplitNodeDistributorTest.class);
@@ -262,25 +261,25 @@ public class ConnectorSplitNodeDistributorTest
         connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
 
         //add one node each time
-        Map<String, Set<String>> nodeToKeysMap1 = assertAddNode(nodesMap, nodeIds.remove(0), Map.of());
-        Map<String, Set<String>> nodeToKeysMap2 = assertAddNode(nodesMap, nodeIds.remove(0), nodeToKeysMap1);
-        Map<String, Set<String>> nodeToKeysMap3 = assertAddNode(nodesMap, nodeIds.remove(0), nodeToKeysMap2);
-        Map<String, Set<String>> nodeToKeysMap4 = assertAddNode(nodesMap, nodeIds.remove(0), nodeToKeysMap3);
-        Map<String, Set<String>> nodeToKeysMap5 = assertAddNode(nodesMap, nodeIds.remove(0), nodeToKeysMap4);
+        Map<String, Set<String>> nodeToKeysMap1 = assertAddNode(nodesMap, nodeIds.removeFirst(), Map.of());
+        Map<String, Set<String>> nodeToKeysMap2 = assertAddNode(nodesMap, nodeIds.removeFirst(), nodeToKeysMap1);
+        Map<String, Set<String>> nodeToKeysMap3 = assertAddNode(nodesMap, nodeIds.removeFirst(), nodeToKeysMap2);
+        Map<String, Set<String>> nodeToKeysMap4 = assertAddNode(nodesMap, nodeIds.removeFirst(), nodeToKeysMap3);
+        Map<String, Set<String>> nodeToKeysMap5 = assertAddNode(nodesMap, nodeIds.removeFirst(), nodeToKeysMap4);
 
         //remove one node each time
         nodeIds = new ArrayList<>(List.of("c", "e", "a", "b", "d"));
 
-        Map<String, Set<String>> nodeToKeysMap6 = assertRemoveNode(nodesMap, nodeIds.remove(0), nodeToKeysMap5);
+        Map<String, Set<String>> nodeToKeysMap6 = assertRemoveNode(nodesMap, nodeIds.removeFirst(), nodeToKeysMap5);
         nodeToKeysMap6.forEach((nodeIdentifier, keySet) -> assertThat(keySet).containsAll(nodeToKeysMap5.get(nodeIdentifier)));
 
-        Map<String, Set<String>> nodeToKeysMap7 = assertRemoveNode(nodesMap, nodeIds.remove(0), nodeToKeysMap6);
+        Map<String, Set<String>> nodeToKeysMap7 = assertRemoveNode(nodesMap, nodeIds.removeFirst(), nodeToKeysMap6);
         nodeToKeysMap7.forEach((nodeIdentifier, keySet) -> assertThat(keySet).containsAll(nodeToKeysMap6.get(nodeIdentifier)));
 
-        Map<String, Set<String>> nodeToKeysMap8 = assertRemoveNode(nodesMap, nodeIds.remove(0), nodeToKeysMap7);
+        Map<String, Set<String>> nodeToKeysMap8 = assertRemoveNode(nodesMap, nodeIds.removeFirst(), nodeToKeysMap7);
         nodeToKeysMap8.forEach((nodeIdentifier, keySet) -> assertThat(keySet).containsAll(nodeToKeysMap7.get(nodeIdentifier)));
 
-        Map<String, Set<String>> nodeToKeysMap9 = assertRemoveNode(nodesMap, nodeIds.remove(0), nodeToKeysMap8);
+        Map<String, Set<String>> nodeToKeysMap9 = assertRemoveNode(nodesMap, nodeIds.removeFirst(), nodeToKeysMap8);
         nodeToKeysMap9.forEach((nodeIdentifier, keySet) -> assertThat(keySet).containsAll(nodeToKeysMap8.get(nodeIdentifier)));
     }
 

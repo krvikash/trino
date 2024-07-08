@@ -29,7 +29,7 @@ public class NodeUtils
         return node(String.valueOf(nodeId), isCoordinator);
     }
 
-    @SuppressWarnings({"DeprecatedApi", "deprecation"})
+    @SuppressWarnings("DeprecatedApi")
     public static Node node(String nodeId, boolean isCoordinator)
     {
         HostAddress hostAddress = HostAddress.fromString("aaa-" + nodeId + ".com:8088");

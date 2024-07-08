@@ -318,15 +318,9 @@ public class PredicatesCacheService
         }
         else {
             switch (predicateBufferPoolType) {
-                case SMALL -> {
-                    activePredicatesSmall.decrementAndGet();
-                }
-                case MEDIUM -> {
-                    activePredicatesMedium.decrementAndGet();
-                }
-                case LARGE -> {
-                    activePredicatesLarge.decrementAndGet();
-                }
+                case SMALL -> activePredicatesSmall.decrementAndGet();
+                case MEDIUM -> activePredicatesMedium.decrementAndGet();
+                case LARGE -> activePredicatesLarge.decrementAndGet();
                 default -> throw new TrinoException(WarpErrorCode.WARP_ILLEGAL_PARAMETER, "Uknown predicateBufferPoolType " + predicateBufferPoolType);
             }
         }

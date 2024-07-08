@@ -509,8 +509,8 @@ public class LuceneMatcherTest
     private void assertExpressionConversion(MatchContext result, BooleanQuery expectedQuery, boolean expectedNullAllowed)
     {
         assertThat(result.matchDataList().size()).isEqualTo(1);
-        assertThat(result.matchDataList().get(0)).isInstanceOf(QueryMatchData.class);
-        QueryMatchData queryMatchData = result.matchDataList().get(0);
+        assertThat(result.matchDataList().getFirst()).isInstanceOf(QueryMatchData.class);
+        QueryMatchData queryMatchData = result.matchDataList().getFirst();
         assertThat(queryMatchData).isInstanceOf(LuceneQueryMatchData.class);
         LuceneQueryMatchData luceneQueryMatchData = (LuceneQueryMatchData) queryMatchData;
         assertThat(luceneQueryMatchData.getQuery()).isEqualTo(expectedQuery);

@@ -86,7 +86,7 @@ public class PredicateUtil
         if (nativeExpression.functionParams().size() == 1 && functionType == FunctionType.FUNCTION_TYPE_CAST) {
             predicateSize += Integer.BYTES;
         }
-        else if (nativeExpression.functionParams().size() >= 1) {
+        else if (!nativeExpression.functionParams().isEmpty()) {
             throw new UnsupportedOperationException(format("unfamiliar function params nativeExpression=%s", nativeExpression));
         }
 
@@ -260,7 +260,7 @@ public class PredicateUtil
         }
         List<Range> orderedRanges = sortedRangeSet.getOrderedRanges();
 
-        if (!(orderedRanges.get(0).isLowUnbounded() && orderedRanges.get(rangeCount - 1).isHighUnbounded())) {
+        if (!(orderedRanges.getFirst().isLowUnbounded() && orderedRanges.get(rangeCount - 1).isHighUnbounded())) {
             return false;
         }
 

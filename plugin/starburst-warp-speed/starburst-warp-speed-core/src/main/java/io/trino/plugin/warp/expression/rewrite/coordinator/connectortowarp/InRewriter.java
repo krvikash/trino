@@ -89,7 +89,7 @@ class InRewriter
             }
         }
 
-        WarpExpression valuesExpression = new WarpCall(ARRAY_CONSTRUCTOR_FUNCTION_NAME.getName(), inValues, new ArrayType(inValues.get(0).getType()));
+        WarpExpression valuesExpression = new WarpCall(ARRAY_CONSTRUCTOR_FUNCTION_NAME.getName(), inValues, new ArrayType(inValues.getFirst().getType()));
 
         return Optional.of(new WarpCall(IN_PREDICATE_FUNCTION_NAME.getName(), List.of(valueExpression.get(), valuesExpression), expression.getType()));
     }

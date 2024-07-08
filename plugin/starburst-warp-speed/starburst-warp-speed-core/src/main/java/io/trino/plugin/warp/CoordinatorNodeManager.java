@@ -130,6 +130,6 @@ public class CoordinatorNodeManager
                 isCoordinatorReady(),
                 nodeManager.getWorkerNodes());
         return isCoordinatorReady() &&
-                (nodeManager.getWorkerNodes().size() != 0 || globalConfig.getIsSingle());
+                (!nodeManager.getWorkerNodes().isEmpty() || globalConfig.getIsSingle());
     }
 }

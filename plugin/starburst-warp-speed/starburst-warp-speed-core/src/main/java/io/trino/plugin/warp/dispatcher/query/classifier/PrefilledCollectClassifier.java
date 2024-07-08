@@ -171,7 +171,7 @@ class PrefilledCollectClassifier
                 result = Optional.empty();
             }
             else if (newTerms.size() == 1) {
-                result = Optional.of(newTerms.get(0));
+                result = Optional.of(newTerms.getFirst());
             }
             else {
                 result = Optional.of(new LogicalMatchData(logicalMatchData.getOperator(), newTerms));

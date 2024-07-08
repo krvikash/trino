@@ -72,7 +72,7 @@ public class QueryParamsConverterTest
                                         List.of(
                                                 convertLuceneMatchDataToMatchParams(luceneQueryMatchData1, 1),
                                                 convertLuceneMatchDataToMatchParams(luceneQueryMatchData2, 2))))));
-        assertThat(queryParams.getRootMatchNode().orElseThrow()).isEqualTo(es.get(0));
+        assertThat(queryParams.getRootMatchNode().orElseThrow()).isEqualTo(es.getFirst());
         assertThat(queryParams.getNumLucene()).isEqualTo(3);
     }
 

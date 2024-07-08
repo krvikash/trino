@@ -24,7 +24,6 @@ import java.time.Instant;
 
 import static java.util.Objects.requireNonNull;
 
-@SuppressWarnings("UnstableApiUsage")
 @Singleton
 public class CoordinatorInitializedEventHandler
 {

@@ -35,6 +35,7 @@ public class NativeConfig
     public static final int DEFAULT_GENERAL_RESERVED_MEMORY_IN_GB = 8;
     public static final int DEFAULT_STORAGE_CACHE_SIZE_IN_PAGES = 4 * 1024 * 1024;
     public static final String EXCEPTIONAL_LIST_COMPRESSION = "enable.compression.exceptional-list";
+    private static final int TASK_MIN_WORKER_THREADS = 4;
     private static final Logger logger = Logger.get(NativeConfig.class);
 
     private int predicateBundleSizeInMegaBytes = 110;
@@ -46,7 +47,6 @@ public class NativeConfig
     private int storageCacheSizeInPages;
     private int skipIndexPercent = 80;
     private int taskMaxWorkerThreads = Runtime.getRuntime().availableProcessors() * 2;
-    private int taskMinWorkerThreads = 4; // used for configuring reduced resources catalogs
     private int taskMinWarmingThreads; // used for limiting number of warming threads running in paralle to query
     private int debugPanicHaltPolicy;
     private int clusterLevel = -1;
@@ -254,7 +254,7 @@ public class NativeConfig
 
     public int getTaskMinWorkerThreads()
     {
-        return Math.min(taskMinWorkerThreads, taskMaxWorkerThreads);
+        return Math.min(TASK_MIN_WORKER_THREADS, taskMaxWorkerThreads);
     }
 
     @Config("warp-speed." + EXCEPTIONAL_LIST_COMPRESSION)

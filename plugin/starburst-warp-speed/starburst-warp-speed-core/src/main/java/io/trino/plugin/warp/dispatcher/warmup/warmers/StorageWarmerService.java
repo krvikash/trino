@@ -93,7 +93,6 @@ public class StorageWarmerService
     }
 
     public long[] fileOpen(RowGroupKey rowGroupKey)
-            throws IOException
     {
         String rowGroupFilePath = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
         long[] fileCookie = new long[FILE_COOKIE_PARAMS_NUM_OF.ordinal()];
@@ -177,7 +176,7 @@ public class StorageWarmerService
         long[] fileCookie = new long[FILE_COOKIE_PARAMS_NUM_OF.ordinal()];
         fileCookie[FILE_COOKIE_PARAMS_FD.ordinal()] = INVALID_FILE_COOKIE_FD;
         try {
-            if ((validWarmUpElements.size() > 0) && (validWarmUpElements.get(0).getTotalRecords() < 32 * 1024)) {
+            if (!validWarmUpElements.isEmpty() && (validWarmUpElements.getFirst().getTotalRecords() < 32 * 1024)) {
                 fileCookie = fileOpen(rowGroupKey);
                 for (WarmUpElement warmUpElement : validWarmUpElements) {
                     int queryOffset = warmUpElement.getQueryOffset();

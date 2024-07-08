@@ -72,7 +72,7 @@ class InNativeRewriter
 
     boolean convertIn(WarpExpression warpExpression, RewriteContext rewriteContext)
     {
-        WarpExpression child0 = warpExpression.getChildren().get(0);
+        WarpExpression child0 = warpExpression.getChildren().getFirst();
         boolean validValue;
         if (child0 instanceof WarpVariable) {
             rewriteContext.nativeExpressionBuilder().functionType(FunctionType.FUNCTION_TYPE_NONE);
@@ -100,7 +100,7 @@ class InNativeRewriter
                 domainType = mapType.getValueType();
             }
             else {
-                Type castType = inConstantValues.get(0).getType();
+                Type castType = inConstantValues.getFirst().getType();
                 boolean isCastExpression = columnType != castType;
                 if (isCastExpression) {
                     boolean isCastToVarchar = castType instanceof VarcharType;
@@ -112,7 +112,7 @@ class InNativeRewriter
                                 return Optional.empty();
                             }
                             else {
-                                return Optional.of(singleValueDomain.getValues().getRanges().getOrderedRanges().get(0));
+                                return Optional.of(singleValueDomain.getValues().getRanges().getOrderedRanges().getFirst());
                             }
                         };
                         domainType = columnType;

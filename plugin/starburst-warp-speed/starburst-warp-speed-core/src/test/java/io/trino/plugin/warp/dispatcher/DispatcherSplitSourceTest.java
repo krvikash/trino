@@ -51,7 +51,7 @@ public class DispatcherSplitSourceTest
     private List<Node> workers;
     private DispatcherSplitSource dispatcherSplitSource;
 
-    @SuppressWarnings({"UnstableApiUsage", "MockNotUsedInProduction"})
+    @SuppressWarnings("MockNotUsedInProduction")
     @BeforeEach
     public void before()
     {

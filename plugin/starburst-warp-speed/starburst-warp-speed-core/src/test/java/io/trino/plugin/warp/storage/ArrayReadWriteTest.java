@@ -287,7 +287,7 @@ public class ArrayReadWriteTest
         ShortBuffer lenBuff = nullBuff.asShortBuffer();
 
         // set the lengths in the null buffer and fix the reocrd buffer to be without the lengths
-        // NOTE: this is probably the ugliest code ever, but its here since this test assumes wrongly the record/null buffer have
+        // NOTE: this is probably the ugliest code ever, but it's here since this test assumes wrongly the record/null buffer have
         // the same format in read and write flows
         int recPos = 0;
         int newRecPos = 0;

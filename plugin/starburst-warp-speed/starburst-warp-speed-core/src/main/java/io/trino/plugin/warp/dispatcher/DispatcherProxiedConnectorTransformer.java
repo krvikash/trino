@@ -123,7 +123,7 @@ public interface DispatcherProxiedConnectorTransformer
                 return Optional.empty();
             }
             if (partitionValue.equals(nullPartitionValue.orElse(null))) {
-                return Optional.ofNullable(null);
+                return Optional.empty();
             }
             return getPartitionValue(columnHandle, regularColumn.getName(), partitionValue);
         }

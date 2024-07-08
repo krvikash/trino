@@ -51,7 +51,6 @@ public class WorkerNodeManagerTest
         assertWorkerInitialized();
     }
 
-    @SuppressWarnings("deprecation")
     private void assertWorkerInitialized()
     {
         Node coordinator = NodeUtils.node(nodeId, true);

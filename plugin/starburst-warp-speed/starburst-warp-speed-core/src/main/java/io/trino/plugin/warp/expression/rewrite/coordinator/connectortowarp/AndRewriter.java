@@ -64,7 +64,7 @@ public class AndRewriter
                                 warpCall.getFunctionName().equals(OR_FUNCTION_NAME.getName())))
                 .collect(Collectors.toList());
         if (children.size() == 1) {
-            res = Optional.of(children.get(0));
+            res = Optional.of(children.getFirst());
         }
         else {
             res = Optional.of(new WarpCall(AND_FUNCTION_NAME.getName(), children, expression.getType()));

@@ -27,7 +27,6 @@ import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
-@SuppressWarnings("deprecation")
 @Singleton
 public class WorkerNodeManager
         implements WarpInitializedServiceMarker

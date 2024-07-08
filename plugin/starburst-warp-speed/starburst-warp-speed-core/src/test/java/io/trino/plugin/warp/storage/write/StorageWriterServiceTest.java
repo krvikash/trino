@@ -80,7 +80,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-@SuppressWarnings("deprecation")
 public class StorageWriterServiceTest
 {
     private static final int SHOULD_BE_NULL = -1;

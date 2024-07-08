@@ -75,7 +75,7 @@ class EqualityRewriter
         else {
             res = context.occur();
         }
-        WarpCall innerCall = (WarpCall) expression.getChildren().get(0);
+        WarpCall innerCall = (WarpCall) expression.getChildren().getFirst();
         LuceneRewriteContext insideContext = createContext(context, res);
         return luceneRulesHandler.rewrite(innerCall, insideContext);
     }

@@ -72,7 +72,7 @@ public class WarmUpElement
     private final WarmUpElementState state;
     private transient long lastUsedTimestamp;
     private long firstUsedTimestamp;
-    private long creationTime;
+    private final long creationTime;
     private final ExportState exportState;
     private final boolean isImported;
     private final WarmState warmState;

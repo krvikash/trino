@@ -85,7 +85,6 @@ public class MetricsRegistry
         }
     }
 
-    @SuppressWarnings("unchecked")
     public WarpStatsBase get(String key)
     {
         return metricsRegistry.get(getKey(key));

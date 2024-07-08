@@ -73,7 +73,7 @@ public class WarpCacheFilesMerger
                     try {
                         List<WarmUpElement> validWarmUpElements = tmpRowGroupData.getValidWarmUpElements();
                         checkArgument(validWarmUpElements.size() == 1, "only one WarmUpElement is supported");
-                        WarmUpElement warmUpElement = validWarmUpElements.get(0);
+                        WarmUpElement warmUpElement = validWarmUpElements.getFirst();
                         checkArgument(warmUpElement.getStartOffset() == 0, "start offset must be zero but wasn't warmUpElement=%s", warmUpElement);
                         int relativeStartOffset = maxOffset;
                         int relativeEndOffset = maxOffset + (warmUpElement.getEndOffset() - warmUpElement.getStartOffset());

@@ -140,7 +140,7 @@ public class BlockAppenderFactory
                         type,
                         false,
                         transformedJsonScalarFunction,
-                        transformFunction.transformParams().get(0).getValueAsString());
+                        transformFunction.transformParams().getFirst().getValueAsString());
             }
             else {
                 throw new IllegalStateException("can't create block appender for WE: " + warmUpElement);

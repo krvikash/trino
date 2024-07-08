@@ -401,9 +401,7 @@ public class DispatcherPageSourceFactory
     private void updateUsageForEmptyRowGroupData(RowGroupData rowGroupData)
     {
         long lastUsedTimestamp = Instant.now().toEpochMilli();
-        rowGroupData.getWarmUpElements().forEach(warmUpElement -> {
-            warmUpElement.setUsedTimestamp(lastUsedTimestamp);
-        });
+        rowGroupData.getWarmUpElements().forEach(warmUpElement -> warmUpElement.setUsedTimestamp(lastUsedTimestamp));
     }
 
     private ConnectorPageSource createProxiedConnectorPageSource(
@@ -774,6 +772,6 @@ public class DispatcherPageSourceFactory
     {
         long count = rowGroupData.getValidWarmUpElements().stream().map(WarmUpElement::getTotalRecords).distinct().count();
         checkArgument(count == 1, "total records must be distinct");
-        return rowGroupData.getValidWarmUpElements().get(0).getTotalRecords();
+        return rowGroupData.getValidWarmUpElements().getFirst().getTotalRecords();
     }
 }

@@ -133,12 +133,6 @@ public class DispatcherSplit
         return proxyConnectorSplit;
     }
 
-    @Override
-    public boolean isRemotelyAccessible()
-    {
-        return true;
-    }
-
     // do not serialize addresses as they are not needed on workers
     @Override
     @JsonIgnore

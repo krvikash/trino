@@ -64,23 +64,18 @@ public class HdfsCloudStorageModule
         }
 
         Injector injector = Guice.createInjector(
-                new Module()
-                {
-                    @Override
-                    public void configure(Binder binder)
-                    {
-                        binder.bind(ConfigurationFactory.class).toInstance(configFactory);
-                        binder.bind(CatalogHandle.class).toInstance(context.getCatalogHandle());
-                        OpenTelemetry openTelemetry = context.getOpenTelemetry();
-                        binder.bind(OpenTelemetry.class).toInstance(openTelemetry);
-                        binder.bind(Tracer.class).toInstance(openTelemetry.getTracer("warp.cloud-vendor"));
+                binder1 -> {
+                    binder1.bind(ConfigurationFactory.class).toInstance(configFactory);
+                    binder1.bind(CatalogHandle.class).toInstance(context.getCatalogHandle());
+                    OpenTelemetry openTelemetry = context.getOpenTelemetry();
+                    binder1.bind(OpenTelemetry.class).toInstance(openTelemetry);
+                    binder1.bind(Tracer.class).toInstance(openTelemetry.getTracer("warp.cloud-vendor"));
 
-                        binder.install(new LifeCycleModule());
+                    binder1.install(new LifeCycleModule());
 
-                        FileSystemModule fileSystemModule = new FileSystemModule(catalogName, context.getNodeManager(), openTelemetry);
-                        fileSystemModule.setConfigurationFactory(configFactory);
-                        binder.install(fileSystemModule);
-                    }
+                    FileSystemModule fileSystemModule = new FileSystemModule(catalogName, context.getNodeManager(), openTelemetry);
+                    fileSystemModule.setConfigurationFactory(configFactory);
+                    binder1.install(fileSystemModule);
                 });
 
         TrinoFileSystemFactory fileSystemFactory = injector.getInstance(Key.get(TrinoFileSystemFactory.class));

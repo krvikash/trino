@@ -74,7 +74,7 @@ public class InRewriter
             String val = SliceUtils.serializeSlice(sliceValue);
             likeValues.add(Slices.utf8Slice("%" + val + "%"));
         }
-        if (likeValues.size() > 0) {
+        if (!likeValues.isEmpty()) {
             Query listOfLikeQuery = createOrOfLikesQuery(likeValues);
             context.queryBuilder().add(listOfLikeQuery, context.occur());
             res = true;

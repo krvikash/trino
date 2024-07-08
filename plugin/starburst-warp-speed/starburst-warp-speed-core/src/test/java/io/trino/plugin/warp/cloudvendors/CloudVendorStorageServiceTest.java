@@ -190,7 +190,6 @@ public class CloudVendorStorageServiceTest
 
         @Override
         public FileEntry next()
-                throws IOException
         {
             return iterator.next();
         }

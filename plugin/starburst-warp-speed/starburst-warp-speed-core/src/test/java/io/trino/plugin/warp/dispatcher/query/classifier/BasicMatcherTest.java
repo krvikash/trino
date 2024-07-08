@@ -67,8 +67,8 @@ class BasicMatcherTest
         MatchContext result = executeMatch(columnHandle, tupleDomain);
 
         assertThat(result.matchDataList().size()).isEqualTo(1);
-        assertThat(result.matchDataList().get(0)).isInstanceOf(QueryMatchData.class);
-        MatchData queryMatchData = result.matchDataList().get(0);
+        assertThat(result.matchDataList().getFirst()).isInstanceOf(QueryMatchData.class);
+        MatchData queryMatchData = result.matchDataList().getFirst();
         assertThat(queryMatchData).isInstanceOf(BasicQueryMatchData.class);
         BasicQueryMatchData basicQueryMatchData = (BasicQueryMatchData) queryMatchData;
         assertThat(basicQueryMatchData.getType()).isEqualTo(IntegerType.INTEGER);

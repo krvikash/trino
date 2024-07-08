@@ -35,7 +35,7 @@ class AllProxyDecisionClassifier
     public QueryContext classify(ClassifyArgs classifyArgs, QueryContext queryContext)
     {
         if (queryContext.getMatchData().isEmpty() &&
-                queryContext.getPredicateContextData().getRemainingColumns().size() > 0 &&
+                !queryContext.getPredicateContextData().getRemainingColumns().isEmpty() &&
                 transformer.proxyHasPushedDownFilter(classifyArgs.getDispatcherTableHandle()) &&
                 !queryContext.getRemainingCollectColumnByBlockIndex().isEmpty()) {
             // Since there are no matches in Warp while there are matches in proxy, and we must go to proxy for collect,

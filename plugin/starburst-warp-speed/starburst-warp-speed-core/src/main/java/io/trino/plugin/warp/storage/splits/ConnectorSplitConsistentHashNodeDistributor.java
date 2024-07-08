@@ -94,7 +94,6 @@ public class ConnectorSplitConsistentHashNodeDistributor
         logger.debug("consistentHashing is ready for workers [%d]", workers.size());
     }
 
-    @SuppressWarnings("UnstableApiUsage")
     int getBucket(String key)
     {
         HashCode hc = Hashing.murmur3_128().hashString(requireNonNull(key), StandardCharsets.UTF_8);

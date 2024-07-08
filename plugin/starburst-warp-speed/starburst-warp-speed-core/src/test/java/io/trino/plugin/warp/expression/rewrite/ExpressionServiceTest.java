@@ -196,7 +196,7 @@ public class ExpressionServiceTest
                 List.of(doubleVariable1));
         List<WarpExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().warpExpressionDataLeaves();
         assertThat(actual.size()).isEqualTo(1);
-        assertThat(actual.get(0).getExpression()).isEqualTo(expectedResult);
+        assertThat(actual.getFirst().getExpression()).isEqualTo(expectedResult);
         assertPushdownStatsSum(0);
     }
 
@@ -282,7 +282,7 @@ public class ExpressionServiceTest
 
         List<WarpExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, ceilExpression.getKey(), assignments, customStats).orElseThrow().warpExpressionDataLeaves();
         assertThat(actual.size()).isEqualTo(1);
-        assertThat(actual.get(0).getExpression()).isEqualTo(ceilExpression.getValue());
+        assertThat(actual.getFirst().getExpression()).isEqualTo(ceilExpression.getValue());
         assertPushdownStatsSum(0);
     }
 
@@ -987,7 +987,7 @@ public class ExpressionServiceTest
                 List.of(expectedCastCall, new WarpSliceConstant(slice, VarcharType.VARCHAR)),
                 BOOLEAN);
         List<WarpExpressionData> result = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().warpExpressionDataLeaves();
-        assertThat(result.get(0).getExpression()).isEqualTo(expectedResult);
+        assertThat(result.getFirst().getExpression()).isEqualTo(expectedResult);
         assertPushdownStatsSum(0);
     }
 
@@ -1007,7 +1007,7 @@ public class ExpressionServiceTest
                 List.of(expectedCastCall, new WarpPrimitiveConstant(10L, RealType.REAL)),
                 BOOLEAN);
         List<WarpExpressionData> result = expressionService.convertToWarpExpression(connectorSession, warpExpression, assignments, customStats).orElseThrow().warpExpressionDataLeaves();
-        assertThat(result.get(0).getExpression()).isEqualTo(expectedResult);
+        assertThat(result.getFirst().getExpression()).isEqualTo(expectedResult);
         assertPushdownStatsSum(0);
     }
 
@@ -1034,7 +1034,7 @@ public class ExpressionServiceTest
                 false,
                 false,
                 List.of(RecTypeCode.REC_TYPE_REAL.ordinal()), TransformFunction.NONE));
-        assertThat(result.get(0).getNativeExpressionOptional()).isEqualTo(expectedResult);
+        assertThat(result.getFirst().getNativeExpressionOptional()).isEqualTo(expectedResult);
         assertPushdownStatsSum(0);
     }
 
@@ -1067,7 +1067,7 @@ public class ExpressionServiceTest
                 .build();
         List<WarpExpressionData> result = expressionService.convertToWarpExpression(connectorSession, warpExpression, assignments, customStats).orElseThrow().warpExpressionDataLeaves();
         assertPushdownStatsSum(0);
-        assertThat(result.get(0).getNativeExpressionOptional().orElseThrow()).isEqualTo(expectedResult);
+        assertThat(result.getFirst().getNativeExpressionOptional().orElseThrow()).isEqualTo(expectedResult);
     }
 
     /**

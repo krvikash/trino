@@ -593,13 +593,13 @@ public class WarmupDemoterServiceTest
 
         List<RowGroupData> rowGroupDataList = List.of(buildRowGroupData(defaultSchemaName, defaultTableName, elements, Map.of(), 0, true));
         when(rowGroupDataService.getAll()).thenReturn(rowGroupDataList);
-        when(rowGroupDataService.get(eq(rowGroupDataList.get(0).getRowGroupKey()))).thenReturn(rowGroupDataList.get(0));
+        when(rowGroupDataService.get(eq(rowGroupDataList.getFirst().getRowGroupKey()))).thenReturn(rowGroupDataList.getFirst());
         when(workerCapacityManager.getFractionCurrentUsageFromTotal()).thenReturn(10d);
 
         warmupDemoterService.tryDemoteStart();
         warmupDemoterService.connectorSyncStartDemote(warmupDemoterService.getCurrentRunSequence());
         warmupDemoterService.connectorSyncStartDemoteCycle(10, true);
-        verify(rowGroupDataService, times(1)).deleteData(eq(rowGroupDataList.get(0)), eq(true));
+        verify(rowGroupDataService, times(1)).deleteData(eq(rowGroupDataList.getFirst()), eq(true));
 
         verify(connectorSync, times(1))
                 .syncDemoteCycleEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_NO_ELEMENTS_TO_DEMOTE));
@@ -631,7 +631,7 @@ public class WarmupDemoterServiceTest
         verify(rowGroupDataService, times(1))
                 .updateEmptyRowGroup(eq(rowGroupData),
                         eq(List.of()),
-                        eq(List.of(elements.get(0))));
+                        eq(List.of(elements.getFirst())));
 
         verify(connectorSync, times(2))
                 .syncDemoteCycleEnd(anyInt(), anyDouble(), anyDouble(), eq(DemoteStatus.DEMOTE_STATUS_NO_ELEMENTS_TO_DEMOTE));

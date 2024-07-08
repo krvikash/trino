@@ -48,7 +48,7 @@ public class FunctionsWithCastRewriter
 
     public boolean dayOfWeek(WarpExpression warpExpression, RewriteContext parentContext)
     {
-        WarpCall castFunction = (WarpCall) warpExpression.getChildren().get(0);
+        WarpCall castFunction = (WarpCall) warpExpression.getChildren().getFirst();
         parentContext.nativeExpressionBuilder().functionType(FunctionType.FUNCTION_TYPE_DAY_OF_WEEK);
         return nativeExpressionRulesHandler.rewrite(castFunction, parentContext);
     }
@@ -56,28 +56,28 @@ public class FunctionsWithCastRewriter
     public boolean day(WarpExpression warpExpression, RewriteContext parentContext)
     {
         parentContext.nativeExpressionBuilder().functionType(FunctionType.FUNCTION_TYPE_DAY);
-        WarpCall castFunction = (WarpCall) warpExpression.getChildren().get(0);
+        WarpCall castFunction = (WarpCall) warpExpression.getChildren().getFirst();
         return nativeExpressionRulesHandler.rewrite(castFunction, parentContext);
     }
 
     public boolean dayOfYear(WarpExpression warpExpression, RewriteContext parentContext)
     {
         parentContext.nativeExpressionBuilder().functionType(FunctionType.FUNCTION_TYPE_DAY_OF_YEAR);
-        WarpCall castFunction = (WarpCall) warpExpression.getChildren().get(0);
+        WarpCall castFunction = (WarpCall) warpExpression.getChildren().getFirst();
         return nativeExpressionRulesHandler.rewrite(castFunction, parentContext);
     }
 
     public boolean week(WarpExpression warpExpression, RewriteContext parentContext)
     {
         parentContext.nativeExpressionBuilder().functionType(FunctionType.FUNCTION_TYPE_WEEK);
-        WarpCall castFunction = (WarpCall) warpExpression.getChildren().get(0);
+        WarpCall castFunction = (WarpCall) warpExpression.getChildren().getFirst();
         return nativeExpressionRulesHandler.rewrite(castFunction, parentContext);
     }
 
     public boolean yearOfWeek(WarpExpression warpExpression, RewriteContext parentContext)
     {
         parentContext.nativeExpressionBuilder().functionType(FunctionType.FUNCTION_TYPE_YEAR_OF_WEEK);
-        WarpCall castFunction = (WarpCall) warpExpression.getChildren().get(0);
+        WarpCall castFunction = (WarpCall) warpExpression.getChildren().getFirst();
         return nativeExpressionRulesHandler.rewrite(castFunction, parentContext);
     }
 }

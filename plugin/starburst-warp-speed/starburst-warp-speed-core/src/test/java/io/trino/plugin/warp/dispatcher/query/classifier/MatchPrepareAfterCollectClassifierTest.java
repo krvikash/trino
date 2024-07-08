@@ -207,7 +207,7 @@ public class MatchPrepareAfterCollectClassifierTest
         QueryContext result = matchPrepareAfterCollectClassifier.classify(classifyArgs, queryContext);
 
         assertThat(result.getMatchData()).isEqualTo(Optional.of(matchCollect1));
-        NativeQueryCollectData correspondingCollect = collectColumns.get(0).asBuilder().matchCollectId(matchCollectId).build();
+        NativeQueryCollectData correspondingCollect = collectColumns.getFirst().asBuilder().matchCollectId(matchCollectId).build();
         assertThat(result.getNativeQueryCollectDataList()).containsExactly(correspondingCollect);
         assertThat(result.getRemainingCollectColumns()).containsExactly(matchCollect2Handle);
         assertThat(result.isCanBeTight()).isFalse();
@@ -342,8 +342,8 @@ public class MatchPrepareAfterCollectClassifierTest
         QueryMatchData basicMatchData1 = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
         QueryMatchData basicMatchData2 = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
 
-        NativeQueryCollectData nativeQueryCollectData1 = createCollectColumns(basicMatchData1).get(0);
-        NativeQueryCollectData nativeQueryCollectData2 = createCollectColumns(basicMatchData2).get(0);
+        NativeQueryCollectData nativeQueryCollectData1 = createCollectColumns(basicMatchData1).getFirst();
+        NativeQueryCollectData nativeQueryCollectData2 = createCollectColumns(basicMatchData2).getFirst();
         NativeQueryCollectData nativeQueryCollectDataResult1 = nativeQueryCollectData1.asBuilder()
                 .matchCollectId(0)
                 .build();

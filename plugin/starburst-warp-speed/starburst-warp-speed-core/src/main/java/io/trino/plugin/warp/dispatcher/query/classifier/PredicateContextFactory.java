@@ -123,7 +123,7 @@ public class PredicateContextFactory
         }));
         WarpExpression rootExpression = WarpPrimitiveConstant.TRUE;
 
-        if (warpExpression.isPresent() && domainExpressions.size() > 0) {
+        if (warpExpression.isPresent() && !domainExpressions.isEmpty()) {
             WarpExpression warpRootExpression = warpExpression.get().rootExpression();
             if (warpRootExpression instanceof WarpCall warpCall && warpCall.getFunctionName().equals(AND_FUNCTION_NAME.getName())) {
                 domainExpressions.addAll(warpRootExpression.getChildren());
@@ -136,9 +136,9 @@ public class PredicateContextFactory
         else if (warpExpression.isPresent()) {
             rootExpression = warpExpression.get().rootExpression();
         }
-        else if (domainExpressions.size() > 0) {
+        else if (!domainExpressions.isEmpty()) {
             if (domainExpressions.size() == 1) {
-                rootExpression = domainExpressions.get(0);
+                rootExpression = domainExpressions.getFirst();
             }
             else {
                 rootExpression = new WarpCall(AND_FUNCTION_NAME.getName(), domainExpressions, BOOLEAN);

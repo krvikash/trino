@@ -101,7 +101,6 @@ public class InternalDispatcherConnectorFactory
         optionalModules.ifPresent(modules::addAll);
         Bootstrap app = new Bootstrap(modules);
 
-        @SuppressWarnings("removal")
         Injector injector = app
                 .doNotInitializeLogging()
                 .setRequiredConfigurationProperties(Collections.emptyMap())

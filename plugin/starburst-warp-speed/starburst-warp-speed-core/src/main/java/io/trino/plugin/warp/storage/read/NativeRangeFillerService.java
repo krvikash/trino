@@ -135,13 +135,13 @@ public class NativeRangeFillerService
     }
 
     @Override
-    public WarpPageSource.RowRanges reset(RangeData rangeData)
+    public WarpStoragePageSource.RowRanges reset(RangeData rangeData)
     {
         long[] lowerInclusive = rangeData.getLowerInclusiveAsArray();
         rangeData.clearLowerInclusive();
         long[] upperExclusive = rangeData.getUpperExclusiveAsArray();
         rangeData.clearUpperExclusive();
-        return new WarpPageSource.RowRanges(lowerInclusive, upperExclusive, false);
+        return new WarpStoragePageSource.RowRanges(lowerInclusive, upperExclusive, false);
     }
 
     @Override
@@ -289,9 +289,9 @@ public class NativeRangeFillerService
      * @return rangesCount - ranges in juffer
      */
     @Override
-    public WarpPageSource.RowRanges collectRanges(RangeData rangeData, int rowsLimit)
+    public WarpStoragePageSource.RowRanges collectRanges(RangeData rangeData, int rowsLimit)
     {
-        WarpPageSource.RowRanges ranges = reset(rangeData);
+        WarpStoragePageSource.RowRanges ranges = reset(rangeData);
         if (rowsLimit == Integer.MAX_VALUE) {
             return ranges;
         }
@@ -313,6 +313,6 @@ public class NativeRangeFillerService
             limitedUpperExclusive.add(max);
             currRange++;
         }
-        return new WarpPageSource.RowRanges(limitedLowerInclusive.toLongArray(), limitedUpperExclusive.toLongArray(), false);
+        return new WarpStoragePageSource.RowRanges(limitedLowerInclusive.toLongArray(), limitedUpperExclusive.toLongArray(), false);
     }
 }

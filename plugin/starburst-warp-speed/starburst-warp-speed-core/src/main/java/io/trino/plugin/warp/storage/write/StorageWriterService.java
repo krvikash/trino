@@ -459,12 +459,8 @@ public class StorageWriterService
                     if (outFileParams[WeProperties.WE_PROPERTIES_END_OFFSET.ordinal()] == -1) {
                         aborted = true;
                     }
-                    if (aborted) {
-                        storageWriterContext.setFailed();
-                        updateToFailedState(storageWriterContext.getWarmupElementBuilder(), storageWriterContext.getWarmupElementWriteMetadata());
-                    }
                 }
-                else if (aborted) {
+                if (aborted) {
                     storageWriterContext.setFailed();
                     updateToFailedState(storageWriterContext.getWarmupElementBuilder(), storageWriterContext.getWarmupElementWriteMetadata());
                 }

@@ -231,8 +231,7 @@ public class StorageReader
             }
             if (matchTxId < 0) {
                 collectTxService.freeCollectOpenResources(collectOpenResult);
-                TrinoException te = new TrinoException(WARP_TX_ALLOCATION_FAILED, "failed to allocate tx for match");
-                throw te;
+                throw new TrinoException(WARP_TX_ALLOCATION_FAILED, "failed to allocate tx for match");
             }
             matchedChunksIndexes = new short[storageEngineConstants.getMaxChunksInRange()];
             matchBitmapResetPoints = new int[storageEngineConstants.getMaxChunksInRange()];

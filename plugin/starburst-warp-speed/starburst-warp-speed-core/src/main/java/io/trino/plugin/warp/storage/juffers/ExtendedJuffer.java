@@ -81,7 +81,7 @@ public class ExtendedJuffer
                     warmUpType,
                     fileCookieParams,
                     buffAddresses);
-            fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFF;
+            fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFFL;
             fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX.ordinal()] = res >> 32;
             resetExtBuf();
         }
@@ -98,7 +98,7 @@ public class ExtendedJuffer
                     warmUpType,
                     fileCookieParams,
                     buffAddresses);
-            fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFF;
+            fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFFL;
             fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX.ordinal()] = res >> 32;
         }
         resetExtBuf();

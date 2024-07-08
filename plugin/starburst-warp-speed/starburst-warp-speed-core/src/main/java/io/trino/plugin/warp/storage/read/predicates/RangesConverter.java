@@ -350,7 +350,6 @@ class RangesConverter
             stringPredicateData = stringPredicateDataFactory.create(convertedLowSlice, recLength, false, lowSlice);
             lowBuf.putLong(stringPredicateData.comperationValue());
             lowBuf.put(inclusive[posIx] ? INCLUSIVE : EXCLUSIVE); // ABOVE is the '0' case
-            posIx++;
             highBuf.putLong(LONG_UPPER_UNBOUNDED);
             highBuf.put(INCLUSIVE); // inclusive
         }

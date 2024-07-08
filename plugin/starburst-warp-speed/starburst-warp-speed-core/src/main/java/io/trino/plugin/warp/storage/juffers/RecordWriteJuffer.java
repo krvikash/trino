@@ -123,7 +123,7 @@ public class RecordWriteJuffer
                 buffAddresses,
                 null,
                 warmEvents);
-        fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFF;
+        fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFFL;
         fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX.ordinal()] = res >> 32;
         fileCookieParams[FILE_COOKIE_PARAMS_WARM_EVENTS.ordinal()] |= warmEvents[0];
         resetSingleRecordBufferPos();

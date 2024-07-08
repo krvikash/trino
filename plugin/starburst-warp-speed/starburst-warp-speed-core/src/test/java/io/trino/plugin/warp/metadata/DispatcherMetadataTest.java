@@ -167,22 +167,22 @@ public class DispatcherMetadataTest
                 session, dispatcherTableHandle, constraint1);
 
         assertThat(result1.isPresent()).isTrue();
-        assertThat(((TestingConnectorTableHandle) result1.orElseThrow().getAlternatives().get(0).handle()).getSchemaName()).isEqualTo(schemaName);
-        assertThat(((TestingConnectorTableHandle) result1.orElseThrow().getAlternatives().get(0).handle()).getTableName()).isEqualTo(tableName);
-        assertThat(((TestingConnectorTableHandle) result1.orElseThrow().getAlternatives().get(0).handle()).getCompactEffectivePredicate()).isEqualTo(predicate1);
+        assertThat(((TestingConnectorTableHandle) result1.orElseThrow().getAlternatives().getFirst().handle()).getSchemaName()).isEqualTo(schemaName);
+        assertThat(((TestingConnectorTableHandle) result1.orElseThrow().getAlternatives().getFirst().handle()).getTableName()).isEqualTo(tableName);
+        assertThat(((TestingConnectorTableHandle) result1.orElseThrow().getAlternatives().getFirst().handle()).getCompactEffectivePredicate()).isEqualTo(predicate1);
 
         // Predicate is not pushed down when Hive doesn't push down
         when(hiveMetadata.applyFilter(any(), any(), any())).thenReturn(Optional.empty());
-        assertThat(dispatcherMetadata.applyFilter(session, result1.orElseThrow().getAlternatives().get(0).handle(), constraint1)).isEmpty();
+        assertThat(dispatcherMetadata.applyFilter(session, result1.orElseThrow().getAlternatives().getFirst().handle(), constraint1)).isEmpty();
 
         // Pushdown another predicate into the resulting table from above (to test the intersection with existing predicate).
         mockHiveApplyFilter(hiveMetadata, predicate1.intersect(predicate2));
 
         Optional<ConstraintApplicationResult<ConnectorTableHandle>> result2 = dispatcherMetadata.applyFilter(
-                session, result1.orElseThrow().getAlternatives().get(0).handle(), constraint2);
+                session, result1.orElseThrow().getAlternatives().getFirst().handle(), constraint2);
 
         assertThat(result2).isPresent();
-        assertThat(((TestingConnectorTableHandle) result2.orElseThrow().getAlternatives().get(0).handle()).getCompactEffectivePredicate()).isEqualTo(predicate1.intersect(predicate2));
+        assertThat(((TestingConnectorTableHandle) result2.orElseThrow().getAlternatives().getFirst().handle()).getCompactEffectivePredicate()).isEqualTo(predicate1.intersect(predicate2));
 
         // Pushing down a more generic predicate should not restrict the scan result.
         when(hiveMetadata.applyFilter(any(), any(), any())).thenReturn(Optional.empty());
@@ -190,7 +190,7 @@ public class DispatcherMetadataTest
                 columnHandleCol1, Domain.multipleValues(BIGINT, List.of(1L, 2L, 3L))));
 
         Optional<ConstraintApplicationResult<ConnectorTableHandle>> result3 = dispatcherMetadata.applyFilter(
-                session, result2.orElseThrow().getAlternatives().get(0).handle(), new Constraint(predicate3));
+                session, result2.orElseThrow().getAlternatives().getFirst().handle(), new Constraint(predicate3));
 
         assertThat(result3).isEmpty();
 
@@ -200,10 +200,10 @@ public class DispatcherMetadataTest
                 columnHandleCol2, Domain.singleValue(BOOLEAN, false)));
 
         Optional<ConstraintApplicationResult<ConnectorTableHandle>> result4 = dispatcherMetadata.applyFilter(
-                session, result2.orElseThrow().getAlternatives().get(0).handle(), new Constraint(predicate4));
+                session, result2.orElseThrow().getAlternatives().getFirst().handle(), new Constraint(predicate4));
 
         assertThat(result4).isPresent();
-        assertThat(((TestingConnectorTableHandle) result4.orElseThrow().getAlternatives().get(0).handle()).getEnforcedConstraint()).isEqualTo(TupleDomain.none());
+        assertThat(((TestingConnectorTableHandle) result4.orElseThrow().getAlternatives().getFirst().handle()).getEnforcedConstraint()).isEqualTo(TupleDomain.none());
     }
 
     @Test
@@ -342,7 +342,7 @@ public class DispatcherMetadataTest
         expectedWarpExpressionCol1 = andWarpExpressions(expectedWarpExpressionCol1,
                 createLikeWarpCall(columnHandleCol1, pattern2));
         expectedWarpExpressions = List.of(new WarpExpressionData(expectedWarpExpressionCol1, VarcharType.VARCHAR, false, Optional.empty(), regularColumn1));
-        DispatcherTableHandle tableHandle = (DispatcherTableHandle) constraintApplicationResult.orElseThrow().getAlternatives().get(0).handle();
+        DispatcherTableHandle tableHandle = (DispatcherTableHandle) constraintApplicationResult.orElseThrow().getAlternatives().getFirst().handle();
         constraintApplicationResult = runApplyFilterWarpExpressionTestCase(predicate2,
                 connectorExpression2,
                 assignments,
@@ -360,7 +360,7 @@ public class DispatcherMetadataTest
         RegularColumn regularColumn2 = new RegularColumn(columnHandleCol2.name());
         expectedWarpExpressions = List.of(new WarpExpressionData(expectedWarpExpressionCol1, VarcharType.VARCHAR, false, Optional.empty(), regularColumn1),
                 new WarpExpressionData(expectedWarpExpressionCol2, VarcharType.VARCHAR, false, Optional.empty(), regularColumn2));
-        tableHandle = (DispatcherTableHandle) constraintApplicationResult.orElseThrow().getAlternatives().get(0).handle();
+        tableHandle = (DispatcherTableHandle) constraintApplicationResult.orElseThrow().getAlternatives().getFirst().handle();
         runApplyFilterWarpExpressionTestCase(predicate3, connectorExpression3, assignments, expectedPredicate, expectedWarpExpressions, tableHandle);
     }
 
@@ -419,14 +419,14 @@ public class DispatcherMetadataTest
                 session, dispatcherTableHandle, constraint);
 
         assertThat(result.isPresent()).isTrue();
-        assertThat(((DispatcherTableHandle) result.orElseThrow().getAlternatives().get(0).handle()).getSchemaName()).isEqualTo(schemaName);
-        assertThat(((DispatcherTableHandle) result.orElseThrow().getAlternatives().get(0).handle()).getTableName()).isEqualTo(tableName);
-        assertThat(((DispatcherTableHandle) result.orElseThrow().getAlternatives().get(0).handle()).getFullPredicate()).isEqualTo(expectedPredicate);
+        assertThat(((DispatcherTableHandle) result.orElseThrow().getAlternatives().getFirst().handle()).getSchemaName()).isEqualTo(schemaName);
+        assertThat(((DispatcherTableHandle) result.orElseThrow().getAlternatives().getFirst().handle()).getTableName()).isEqualTo(tableName);
+        assertThat(((DispatcherTableHandle) result.orElseThrow().getAlternatives().getFirst().handle()).getFullPredicate()).isEqualTo(expectedPredicate);
         if (expectedWarpExpressions.isEmpty()) {
-            assertThat(((DispatcherTableHandle) result.orElseThrow().getAlternatives().get(0).handle()).getWarpExpression()).isEmpty();
+            assertThat(((DispatcherTableHandle) result.orElseThrow().getAlternatives().getFirst().handle()).getWarpExpression()).isEmpty();
         }
         else {
-            assertThat(((DispatcherTableHandle) result.orElseThrow().getAlternatives().get(0).handle()).getWarpExpression().orElseThrow().warpExpressionDataLeaves()).containsExactlyInAnyOrderElementsOf(expectedWarpExpressions);
+            assertThat(((DispatcherTableHandle) result.orElseThrow().getAlternatives().getFirst().handle()).getWarpExpression().orElseThrow().warpExpressionDataLeaves()).containsExactlyInAnyOrderElementsOf(expectedWarpExpressions);
         }
         return result;
     }

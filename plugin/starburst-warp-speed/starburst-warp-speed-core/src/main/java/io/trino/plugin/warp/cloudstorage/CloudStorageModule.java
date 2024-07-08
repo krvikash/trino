@@ -74,31 +74,26 @@ public class CloudStorageModule
         logger.info("annotation %s isHadoopEnabled %s isNativeS3Enabled %s", annotation.toString(), config.isHadoopEnabled(), config.isNativeS3Enabled());
         Injector injector = Guice.createInjector(
                 new HdfsCloudStorageModule(catalogName, context, configFactory, annotation, config.isHadoopEnabled()),
-                new Module()
-                {
-                    @Override
-                    public void configure(Binder binder)
-                    {
-                        MapBinder<String, CloudStorage> cloudStorageMap = newMapBinder(binder, String.class, CloudStorage.class, annotation);
+                binder1 -> {
+                    MapBinder<String, CloudStorage> cloudStorageMap = newMapBinder(binder1, String.class, CloudStorage.class, annotation);
 
-                        if (config.isNativeS3Enabled()) {
-                            binder.install(new S3CloudStorageModule(context, configFactory, annotation));
-                            Key<S3CloudStorage> s3CloudStorageKey = Key.get(S3CloudStorage.class, annotation);
-                            cloudStorageMap.addBinding("s3").to(s3CloudStorageKey);
-                            cloudStorageMap.addBinding("s3a").to(s3CloudStorageKey);
-                            cloudStorageMap.addBinding("s3n").to(s3CloudStorageKey);
-                        }
-                        if (config.isNativeAzureEnabled()) {
-                            binder.install(new AzureCloudStorageModule(context, configFactory, annotation));
-                            Key<AzureCloudStorage> azureCloudStorageKey = Key.get(AzureCloudStorage.class, annotation);
-                            cloudStorageMap.addBinding("abfs").to(azureCloudStorageKey);
-                            cloudStorageMap.addBinding("abfss").to(azureCloudStorageKey);
-                        }
-                        if (config.isNativeGcsEnabled()) {
-                            binder.install(new GcsCloudStorageModule(context, configFactory, annotation));
-                            Key<GcsCloudStorage> gcsCloudStorageKey = Key.get(GcsCloudStorage.class, annotation);
-                            cloudStorageMap.addBinding("gs").to(gcsCloudStorageKey);
-                        }
+                    if (config.isNativeS3Enabled()) {
+                        binder1.install(new S3CloudStorageModule(context, configFactory, annotation));
+                        Key<S3CloudStorage> s3CloudStorageKey = Key.get(S3CloudStorage.class, annotation);
+                        cloudStorageMap.addBinding("s3").to(s3CloudStorageKey);
+                        cloudStorageMap.addBinding("s3a").to(s3CloudStorageKey);
+                        cloudStorageMap.addBinding("s3n").to(s3CloudStorageKey);
+                    }
+                    if (config.isNativeAzureEnabled()) {
+                        binder1.install(new AzureCloudStorageModule(context, configFactory, annotation));
+                        Key<AzureCloudStorage> azureCloudStorageKey = Key.get(AzureCloudStorage.class, annotation);
+                        cloudStorageMap.addBinding("abfs").to(azureCloudStorageKey);
+                        cloudStorageMap.addBinding("abfss").to(azureCloudStorageKey);
+                    }
+                    if (config.isNativeGcsEnabled()) {
+                        binder1.install(new GcsCloudStorageModule(context, configFactory, annotation));
+                        Key<GcsCloudStorage> gcsCloudStorageKey = Key.get(GcsCloudStorage.class, annotation);
+                        cloudStorageMap.addBinding("gs").to(gcsCloudStorageKey);
                     }
                 });
 

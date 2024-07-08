@@ -29,7 +29,6 @@ public class TestingTxService
         return new StorageEngineTxService(new NativeConfig(), createMetricsManager());
     }
 
-    @SuppressWarnings("UnstableApiUsage")
     public static MetricsManager createMetricsManager()
     {
         MetricsConfig metricsConfig = new MetricsConfig();

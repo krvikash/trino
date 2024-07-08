@@ -159,13 +159,13 @@ public class WarmupRuleServiceTest
 
         WarmupRuleResult warmupRuleResult = warmupRuleService.save(List.of(warmupRuleNew1));
         assertThat(warmupRuleResult.appliedRules().size()).isEqualTo(1);
-        assertThat(warmupRuleResult.appliedRules().get(0).getWarmUpType()).isEqualTo(WarmUpType.WARM_UP_TYPE_LUCENE);
+        assertThat(warmupRuleResult.appliedRules().getFirst().getWarmUpType()).isEqualTo(WarmUpType.WARM_UP_TYPE_LUCENE);
         when(warmupRuleDao.getAll()).thenReturn(List.of(warmupRuleSaved1));
 
         WarmupRule warmupRule2 = WarmupRule.builder(createRule(WarmUpType.WARM_UP_TYPE_DATA)).id(1).build();
         warmupRuleResult = warmupRuleService.save(List.of(warmupRule2));
         assertThat(warmupRuleResult.appliedRules().size()).isEqualTo(1);
-        assertThat(warmupRuleResult.appliedRules().get(0).getWarmUpType()).isEqualTo(WarmUpType.WARM_UP_TYPE_DATA);
+        assertThat(warmupRuleResult.appliedRules().getFirst().getWarmUpType()).isEqualTo(WarmUpType.WARM_UP_TYPE_DATA);
         when(warmupRuleDao.getAll()).thenReturn(List.of(warmupRule2));
 
         WarmupRule warmupRule3 = WarmupRule.builder(createRule(WarmUpType.WARM_UP_TYPE_BASIC)).id(2).build();

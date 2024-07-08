@@ -101,7 +101,7 @@ class MatchPrepareAfterCollectClassifier
                 // TODO: Return the removed predicate back to queryContext.predicateContextData
                 //  if there's no other tight QueryMatchData for the removed columns.
                 //  For now, it's ok not to do it because we mark the queryContext as non-tight
-                MatchData deletedMatchData = sortedMatchDatas.get(sortedMatchDatas.size() - 1);
+                MatchData deletedMatchData = sortedMatchDatas.getLast();
                 sortedMatchDatas = sortedMatchDatas.subList(0, sortedMatchDatas.size() - 1);
 
                 List<QueryMatchData> removedMatchedData = deletedMatchData.getLeavesDFS();
@@ -146,7 +146,7 @@ class MatchPrepareAfterCollectClassifier
         Optional<MatchData> sortedMatchData = sortedMatchDatas.isEmpty() ?
                 Optional.empty() :
                 Optional.of(sortedMatchDatas.size() == 1 ?
-                        sortedMatchDatas.get(0) :
+                        sortedMatchDatas.getFirst() :
                         new LogicalMatchData(LogicalMatchData.Operator.AND, sortedMatchDatas));
 
         int matchCollectId = updateMatchCollectIds(sortedMatchData, classifyArgs, nativeQueryCollectDataQueue, remainingCollectColumnByBlockIndex);
@@ -191,7 +191,7 @@ class MatchPrepareAfterCollectClassifier
                 List<NativeQueryCollectData> matchCollects = nativeQueryCollectDataQueue.stream()
                         .filter(collectData -> MatchCollectUtils.canStillBeMatchCollected(collectData, sortedMatchData.get().getLeavesDFS()))
                         .toList();
-                if (matchCollects.size() > 0) {
+                if (!matchCollects.isEmpty()) {
                     matchCollectId = matchCollectIdService.allocMatchCollectId();
                     failedMatchCollectIdAllocation = (matchCollectId == MatchCollectIdService.INVALID_ID);
                 }

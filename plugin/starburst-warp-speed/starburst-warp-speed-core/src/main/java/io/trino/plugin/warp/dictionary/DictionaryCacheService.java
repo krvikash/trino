@@ -135,11 +135,6 @@ public class DictionaryCacheService
         }
     }
 
-    public ReadDictionary getReadDictionaryIfPresent(DictionaryKey dictionaryKey)
-    {
-        return dictionariesCache.getReadDictionaryIfPresent(dictionaryKey);
-    }
-
     public Map<DebugDictionaryKey, DebugDictionaryMetadata> getWorkerDictionaryMetadata()
     {
         return dictionariesCache.getWriteDictionaryMetadata();

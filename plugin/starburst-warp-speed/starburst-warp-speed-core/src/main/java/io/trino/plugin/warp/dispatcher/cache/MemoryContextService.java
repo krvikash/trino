@@ -113,7 +113,7 @@ public class MemoryContextService
     public boolean add(WarpCacheTask warpCacheTask)
     {
         if (localMemoryContexts.isEmpty()) {
-            logger.info("localMemoryContexts is empty. LOCAL_MEMORY_COUNT=%s runningTasks.size()=%s, localMemoryContexts.size()=%s", LOCAL_MEMORY_COUNT, runningTasks.size(), localMemoryContexts.size());
+            logger.info("localMemoryContexts is empty. LOCAL_MEMORY_COUNT=%s runningTasks.size()=%s, localMemoryContexts is empty", LOCAL_MEMORY_COUNT, runningTasks.size());
             return false;
         }
         return runningTasks.add(warpCacheTask);

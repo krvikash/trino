@@ -173,7 +173,7 @@ class MatchClassifier
             res = Optional.empty();
         }
         else if (terms.size() == 1) {
-            res = Optional.of(terms.get(0));
+            res = Optional.of(terms.getFirst());
         }
         else {
             res = Optional.of(new LogicalMatchData(LogicalMatchData.Operator.AND, terms));
@@ -240,7 +240,7 @@ class MatchClassifier
             result = Optional.empty();
         }
         else if (terms.size() == 1) {
-            return new MatchResult(Optional.of(terms.get(0)), canBeTight);
+            return new MatchResult(Optional.of(terms.getFirst()), canBeTight);
         }
         else {
             result = Optional.of(new LogicalMatchData(LogicalMatchData.Operator.AND, terms));
@@ -307,7 +307,7 @@ class MatchClassifier
                     break;
                 }
                 else {
-                    terms.add(matchContext.matchDataList().get(0));
+                    terms.add(matchContext.matchDataList().getFirst());
                 }
             }
         }
@@ -323,7 +323,7 @@ class MatchClassifier
                 result = Optional.of(new NoneMatchData());
             }
             else if (terms.size() == 1) {
-                result = Optional.of(terms.get(0));
+                result = Optional.of(terms.getFirst());
             }
             else {
                 result = Optional.of(new LogicalMatchData(LogicalMatchData.Operator.OR, terms));

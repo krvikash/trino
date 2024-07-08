@@ -14,7 +14,6 @@
 package io.trino.plugin.warp.type.cast;
 
 import io.trino.spi.type.LongTimestamp;
-import io.trino.spi.type.TimestampType;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -24,11 +23,9 @@ import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static io.trino.spi.type.TimestampType.MAX_SHORT_PRECISION;
 import static java.lang.Math.floorMod;
 import static java.lang.Math.multiplyExact;
 import static java.lang.String.format;
-import static java.time.temporal.ChronoField.MICRO_OF_SECOND;
 
 public final class DateTimes
 {
@@ -143,14 +140,6 @@ public final class DateTimes
         zoneIdFormatter.accept(builder);
 
         return builder.toString();
-    }
-
-    public static LongTimestamp longTimestamp(long precision, Instant start)
-    {
-        checkArgument(precision > MAX_SHORT_PRECISION && precision <= TimestampType.MAX_PRECISION, "Precision is out of range");
-        return new LongTimestamp(
-                start.getEpochSecond() * MICROSECONDS_PER_SECOND + start.getLong(MICRO_OF_SECOND),
-                (int) round((start.getNano() % PICOSECONDS_PER_NANOSECOND) * ((long) PICOSECONDS_PER_NANOSECOND), (int) (TimestampType.MAX_PRECISION - precision)));
     }
 
     public static LongTimestamp longTimestamp(long epochSecond, long fractionInPicos)

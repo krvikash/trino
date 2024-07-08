@@ -418,7 +418,7 @@ public class RowGroupDataService
 
         RowGroupData newRowGroupData = RowGroupData.builder(rowGroupData)
                 .warmUpElements(updatedWarmUpElements)
-                .sparseFile(toDeleteWarmUpElements.size() > 0)
+                .sparseFile(!toDeleteWarmUpElements.isEmpty())
                 .build();
         save(newRowGroupData);
         flush(newRowGroupData.getRowGroupKey());

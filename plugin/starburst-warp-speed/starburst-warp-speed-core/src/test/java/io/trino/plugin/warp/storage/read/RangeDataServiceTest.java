@@ -60,7 +60,7 @@ public class RangeDataServiceTest
         when(storageCollectorArgs.queryParams()).thenReturn(queryParams);
         when(storageCollectorArgs.chunkSize()).thenReturn(64);
         rangeFillerService.add(0, 1, storageCollectorArgs, true, rangeData);
-        WarpPageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
+        WarpStoragePageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
         assertThat(ranges.getRangesCount()).isEqualTo(1);
         assertThat(ranges.getLowerInclusive(0)).isEqualTo(0);
         assertThat(ranges.getUpperExclusive(0)).isEqualTo(64);
@@ -78,7 +78,7 @@ public class RangeDataServiceTest
         when(storageCollectorArgs.queryParams()).thenReturn(queryParams);
         when(storageCollectorArgs.chunkSize()).thenReturn(1);
         rangeFillerService.add(0, 5, storageCollectorArgs, true, rangeData);
-        WarpPageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
+        WarpStoragePageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
         assertThat(ranges.getRangesCount()).isEqualTo(1);
         assertThat(ranges.getLowerInclusive(0)).isEqualTo(3);
         assertThat(ranges.getUpperExclusive(0)).isEqualTo(8);
@@ -102,7 +102,7 @@ public class RangeDataServiceTest
         rowsBuffer.put((short) 18); // first row is 8 and we add the size
         rangeFillerService.add(0, 10, storageCollectorArgs, true, rangeData);
 
-        WarpPageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
+        WarpStoragePageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
         assertThat(ranges.getRangesCount()).isEqualTo(1);
         assertThat(ranges.getLowerInclusive(0)).isEqualTo(3);
         assertThat(ranges.getUpperExclusive(0)).isEqualTo(18);
@@ -134,7 +134,7 @@ public class RangeDataServiceTest
         rowsBuffer.put((short) 63);
         rangeFillerService.add(0, 10, storageCollectorArgs, true, rangeData);
 
-        WarpPageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
+        WarpStoragePageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
         assertThat(ranges.getRangesCount()).isEqualTo(4);
         assertThat(ranges.getLowerInclusive(0)).isEqualTo(3);
         assertThat(ranges.getUpperExclusive(0)).isEqualTo(6);
@@ -177,7 +177,7 @@ public class RangeDataServiceTest
         rowsBuffer.put((short) 63);
         rangeFillerService.add(0, 4, storageCollectorArgs, true, rangeData);
 
-        WarpPageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
+        WarpStoragePageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
         assertThat(ranges.getRangesCount()).isEqualTo(4);
         assertThat(ranges.getLowerInclusive(0)).isEqualTo(3);
         assertThat(ranges.getUpperExclusive(0)).isEqualTo(6);
@@ -216,7 +216,7 @@ public class RangeDataServiceTest
         rowsBuffer.put((short) 15);
         rangeFillerService.add(0, 3, storageCollectorArgs, true, rangeData);
 
-        WarpPageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
+        WarpStoragePageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
         assertThat(ranges.getRangesCount()).isEqualTo(2);
         assertThat(ranges.getLowerInclusive(0)).isEqualTo(3);
         assertThat(ranges.getUpperExclusive(0)).isEqualTo(10);
@@ -258,7 +258,7 @@ public class RangeDataServiceTest
         rowsBuffer.put((short) 60);
         rangeFillerService.add(0, 1, storageCollectorArgs, true, rangeData);
 
-        WarpPageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
+        WarpStoragePageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
         assertThat(ranges.getRangesCount()).isEqualTo(2);
         assertThat(ranges.getLowerInclusive(0)).isEqualTo(25);
         assertThat(ranges.getUpperExclusive(0)).isEqualTo(51);

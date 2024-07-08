@@ -227,49 +227,49 @@ public class ExpressionService
             Map<String, Long> customStats)
     {
         Optional<WarpExpression> res;
-        if (expression instanceof Variable variable && isSupportedColumnType(variable.getType())) {
-            ColumnHandle columnHandle = assignments.get(variable.getName());
-            Type type = variable.getType();
-            res = Optional.of(new WarpVariable(columnHandle, type));
-        }
-        else if (expression instanceof Call call) {
-            FunctionName functionName = call.getFunctionName();
-            if (unsupportedFunctions.contains(functionName.getName())) {
-                logger.debug("%s function is listed in unsupportedFunctions list. skip", functionName.getName());
-                res = Optional.empty();
+        switch (expression) {
+            case Variable variable when isSupportedColumnType(variable.getType()) -> {
+                ColumnHandle columnHandle = assignments.get(variable.getName());
+                Type type = variable.getType();
+                res = Optional.of(new WarpVariable(columnHandle, type));
             }
-            else {
-                Set<ConnectorExpressionRule<Call, WarpExpression>> rule = supportedFunctions.getRule(functionName);
-                if (rule.isEmpty()) {
+            case Call call -> {
+                FunctionName functionName = call.getFunctionName();
+                if (unsupportedFunctions.contains(functionName.getName())) {
+                    logger.debug("%s function is listed in unsupportedFunctions list. skip", functionName.getName());
                     res = Optional.empty();
-                    pushdownPredicatesStats.incunsupported_functions();
-                    customStats.compute("unsupported_functions", (key, value) -> value == null ? 1L : value + 1);
                 }
                 else {
-                    ConnectorExpressionRule.RewriteContext<WarpExpression> context = createContext(assignments, session, unsupportedFunctions, customStats);
-                    res = rewrite(rule, expression, context, customStats);
+                    Set<ConnectorExpressionRule<Call, WarpExpression>> rule = supportedFunctions.getRule(functionName);
+                    if (rule.isEmpty()) {
+                        res = Optional.empty();
+                        pushdownPredicatesStats.incunsupported_functions();
+                        customStats.compute("unsupported_functions", (key, value) -> value == null ? 1L : value + 1);
+                    }
+                    else {
+                        ConnectorExpressionRule.RewriteContext<WarpExpression> context = createContext(assignments, session, unsupportedFunctions, customStats);
+                        res = rewrite(rule, expression, context, customStats);
+                    }
                 }
             }
-        }
-        else if (expression instanceof Constant constant) {
-            if (constant.getValue() instanceof Slice) {
-                // value of the constant must be typed so a valid serializer/deserializer will be used
-                res = Optional.of(new WarpSliceConstant((Slice) constant.getValue(), constant.getType()));
-            }
-            else {
-                // workaround: cannot use instanceof since JsonPathType is not part of the trino-spi module (different classloader)
-                if (constant.getType().getClass().getName().endsWith("JsonPathType")) {
-                    // no need to convert the JsonPath object, it's enough to convert only the pattern
-                    // use varchar for the type since JsonPath is not part of the trino-spi module
-                    res = Optional.of(new WarpPrimitiveConstant(constant.getValue().toString(), VarcharType.VARCHAR));
+            case Constant constant -> {
+                if (constant.getValue() instanceof Slice) {
+                    // value of the constant must be typed so a valid serializer/deserializer will be used
+                    res = Optional.of(new WarpSliceConstant((Slice) constant.getValue(), constant.getType()));
                 }
                 else {
-                    res = Optional.of(new WarpPrimitiveConstant(constant.getValue(), constant.getType()));
+                    // workaround: cannot use instanceof since JsonPathType is not part of the trino-spi module (different classloader)
+                    if (constant.getType().getClass().getName().endsWith("JsonPathType")) {
+                        // no need to convert the JsonPath object, it's enough to convert only the pattern
+                        // use varchar for the type since JsonPath is not part of the trino-spi module
+                        res = Optional.of(new WarpPrimitiveConstant(constant.getValue().toString(), VarcharType.VARCHAR));
+                    }
+                    else {
+                        res = Optional.of(new WarpPrimitiveConstant(constant.getValue(), constant.getType()));
+                    }
                 }
             }
-        }
-        else {
-            res = Optional.empty();
+            default -> res = Optional.empty();
         }
         return res;
     }
@@ -391,7 +391,7 @@ public class ExpressionService
                 }
             }
             else if (functionName.equals(IN_PREDICATE_FUNCTION_NAME.getName()) &&
-                    warpCall.getArguments().get(0) instanceof WarpCall) {
+                    warpCall.getArguments().getFirst() instanceof WarpCall) {
                 TransformedColumn transformedColumn = new TransformedColumn(regularColumn.getName(), regularColumn.getColumnId(), transformFunction);
                 res = Optional.of(transformedColumn);
             }

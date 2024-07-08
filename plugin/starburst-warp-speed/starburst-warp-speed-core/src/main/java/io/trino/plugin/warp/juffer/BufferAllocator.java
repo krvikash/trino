@@ -303,9 +303,9 @@ public class BufferAllocator
             loadWriteBufferQueue.clear();
         }
         if (predicateBufferPools != null) {
-            for (int i = 0; i < predicateBufferPools.length; i++) {
-                if (predicateBufferPools[i] != null) {
-                    predicateBufferPools[i].clear();
+            for (PredicateBufferPool predicateBufferPool : predicateBufferPools) {
+                if (predicateBufferPool != null) {
+                    predicateBufferPool.clear();
                 }
             }
         }

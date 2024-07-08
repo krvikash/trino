@@ -265,28 +265,26 @@ public class TypeUtils
     public static int getTypeLength(Type type, int maxVarlenLength)
     {
         int ret;
-        if (type instanceof CharType) {
-            return ((CharType) type).getLength();
-        }
-        else if (type instanceof VarcharType) {
-            if (((VarcharType) type).isUnbounded()) {
-                ret = 0;
+        switch (type) {
+            case CharType charType -> {
+                return charType.getLength();
             }
-            else {
-                ret = ((VarcharType) type).getBoundedLength();
+            case VarcharType varcharType -> {
+                if (varcharType.isUnbounded()) {
+                    ret = 0;
+                }
+                else {
+                    ret = ((VarcharType) type).getBoundedLength();
+                }
             }
-        }
-        else if (type instanceof FixedWidthType) {
-            return ((FixedWidthType) type).getFixedSize();
-        }
-        else if (type instanceof ArrayType) {
-            ret = maxVarlenLength;
-        }
-        else if (type instanceof MapType mapType) {
-            return getTypeLength(mapType.getValueType(), maxVarlenLength);
-        }
-        else {
-            throw new TrinoException(WARP_CONTROL, "Unsupported record type " + type.toString());
+            case FixedWidthType fixedWidthType -> {
+                return fixedWidthType.getFixedSize();
+            }
+            case ArrayType _ -> ret = maxVarlenLength;
+            case MapType mapType -> {
+                return getTypeLength(mapType.getValueType(), maxVarlenLength);
+            }
+            default -> throw new TrinoException(WARP_CONTROL, "Unsupported record type " + type);
         }
         return ret != 0 ? ret : maxVarlenLength;
     }

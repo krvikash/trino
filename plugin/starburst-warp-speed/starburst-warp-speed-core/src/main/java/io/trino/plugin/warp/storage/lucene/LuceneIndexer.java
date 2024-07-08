@@ -211,7 +211,7 @@ public class LuceneIndexer
                     if (res < 0) {
                         throw new TrinoException(WARP_LUCENE_WRITER_ERROR, "lucene commit failed, file too big");
                     }
-                    fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFF;
+                    fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFFL;
                     fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX.ordinal()] = res >> 32;
                 }
             }

@@ -162,7 +162,7 @@ public class RowGroupDataServiceTest
         RowGroupData updatedRowGroupData = rowGroupDataCapture.getValue();
         assertThat(updatedRowGroupData.getRowGroupKey()).isEqualTo(rowGroupKey);
         assertThat(updatedRowGroupData.getPartitionKeys()).isEqualTo(rowGroupData.getPartitionKeys());
-        assertThat(rowGroupData.getValidWarmUpElements().stream().allMatch(x -> x.getTotalRecords() == existingWarmUpElements.get(0).getTotalRecords())).isTrue();
+        assertThat(rowGroupData.getValidWarmUpElements().stream().allMatch(x -> x.getTotalRecords() == existingWarmUpElements.getFirst().getTotalRecords())).isTrue();
         // warmUpElements 3-5 were already exist and should be updated to FAILED_TEMPORARILY. warmUpElements 6-7 are new FAILED_TEMPORARILY
         assertThat(updatedRowGroupData.getWarmUpElements().stream()
                 .filter(we -> we.getState().state().equals(WarmUpElementState.State.FAILED_TEMPORARILY) &&
@@ -218,7 +218,7 @@ public class RowGroupDataServiceTest
         ArgumentCaptor<RowGroupData> captor = ArgumentCaptor.forClass(RowGroupData.class);
         rowGroupDataService.save(rg1);
         verify(rowGroupDataDao, times(1)).save(captor.capture());
-        assertThat(captor.getAllValues().get(0).getRowGroupKey()).isEqualTo(k1);
+        assertThat(captor.getAllValues().getFirst().getRowGroupKey()).isEqualTo(k1);
         rowGroupDataService.save(rg2);
         verify(rowGroupDataDao, times(2)).save(captor.capture());
         assertThat(captor.getAllValues().get(1).getRowGroupKey()).isEqualTo(k1); // validate that both tables stored with same shared key
@@ -252,7 +252,7 @@ public class RowGroupDataServiceTest
         ArgumentCaptor<RowGroupData> captor = ArgumentCaptor.forClass(RowGroupData.class);
         verify(rowGroupDataDao, times(1)).save(captor.capture());
 
-        RowGroupData outRowGroupData = captor.getAllValues().get(0);
+        RowGroupData outRowGroupData = captor.getAllValues().getFirst();
         assertThat(outRowGroupData.isSparseFile()).isTrue();
 
         List<WarmUpElement> outWarmUpElements = (List<WarmUpElement>) outRowGroupData.getWarmUpElements();
@@ -291,7 +291,7 @@ public class RowGroupDataServiceTest
         ArgumentCaptor<RowGroupData> captor = ArgumentCaptor.forClass(RowGroupData.class);
         verify(rowGroupDataDao, times(1)).save(captor.capture());
 
-        RowGroupData outRowGroupData = captor.getAllValues().get(0);
+        RowGroupData outRowGroupData = captor.getAllValues().getFirst();
         assertThat(outRowGroupData.isSparseFile()).isTrue();
 
         List<WarmUpElement> outWarmUpElements = (List<WarmUpElement>) outRowGroupData.getWarmUpElements();

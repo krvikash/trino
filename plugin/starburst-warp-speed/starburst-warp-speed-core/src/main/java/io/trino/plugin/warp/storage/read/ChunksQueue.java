@@ -83,7 +83,7 @@ class ChunksQueue
                 chunksRemaining.add(matchChunkResult.chunkIndex());
             }
         }
-        return (chunksRemaining.size() > 0) ? Optional.of(chunksRemaining.stream().mapToInt(x -> x).toArray()) : Optional.empty();
+        return !chunksRemaining.isEmpty() ? Optional.of(chunksRemaining.stream().mapToInt(x -> x).toArray()) : Optional.empty();
     }
 
     // get total number of chunks

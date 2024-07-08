@@ -90,9 +90,9 @@ public class QueryParamsConverter
         if (matchNodes.isEmpty()) {
             rootMatchNode = Optional.empty();
         }
-        else if (matchNodes.size() == 1 && matchNodes.get(0) instanceof LogicalMatchNode) {
+        else if (matchNodes.size() == 1 && matchNodes.getFirst() instanceof LogicalMatchNode) {
             // root node must be logical
-            rootMatchNode = Optional.of(matchNodes.get(0));
+            rootMatchNode = Optional.of(matchNodes.getFirst());
         }
         else {
             rootMatchNode = Optional.of(new LogicalMatchNode(MatchNodeType.MATCH_NODE_TYPE_AND, matchNodes));

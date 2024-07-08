@@ -24,7 +24,6 @@ import io.trino.plugin.warp.dispatcher.query.classifier.QueryClassifier;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.storage.read.PrefilledPageSource;
-import io.trino.plugin.warp.storage.read.WarpPageSource;
 import io.trino.plugin.warp.storage.read.WarpStoragePageSource;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
@@ -478,7 +477,7 @@ public class DispatcherPageSource
         currentWarpPagePosition = 0;
         // WarpPageSource#getSortedRowRanges always returns row ranges for the Page returned from previous call of WarpPageSource#getNextPage
         // It may return a smaller Page than the row ranges when LIMIT is reached
-        WarpPageSource.RowRanges warpRowRanges = warpPageSource.getSortedRowRanges();
+        WarpStoragePageSource.RowRanges warpRowRanges = warpPageSource.getSortedRowRanges();
         if (warpPageSource.isRowsLimitReached()) {
             validateRanges(
                     warpRowRanges.getRowCount() >= currentWarpPage.getPositionCount(),

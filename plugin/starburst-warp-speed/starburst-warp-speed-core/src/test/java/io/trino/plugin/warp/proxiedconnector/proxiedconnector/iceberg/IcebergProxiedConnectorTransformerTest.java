@@ -27,7 +27,6 @@ import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.CatalogHandle;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.predicate.TupleDomain;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
@@ -62,60 +61,6 @@ public class IcebergProxiedConnectorTransformerTest
                             return columnHandle;
                         }, Function.identity())),
                 columnHandle -> ((IcebergColumnHandle) columnHandle).getName());
-    }
-
-    @Test
-    @Disabled // too complex to mock this flow due to getPartitionKeysMap
-    public void testCreateDispatcherSplit()
-    {
-//        IcebergSplit icebergSplit = mock(IcebergSplit.class);
-//        when(icebergSplit.getPath()).thenReturn("path");
-//        when(icebergSplit.getStart()).thenReturn(1L);
-//        when(icebergSplit.getLength()).thenReturn(2L);
-//        when(icebergSplit.getPartitionSpecJson()).thenReturn("{}");
-//
-//        DeleteFile deleteFile = new DeleteFile(
-//                FileContent.DATA,
-//                "path1111",
-//                FileFormat.ORC,
-//                1L,
-//                2L,
-//                List.of(),
-//                Map.of(),
-//                Map.of());
-//        when(icebergSplit.getDeletes()).thenReturn(List.of(deleteFile));
-//
-//        IcebergTableHandle icebergTableHandle = mock(IcebergTableHandle.class);
-//        when(icebergTableHandle.getTableSchemaJson()).thenReturn("{}");
-//
-//        DispatcherTableHandle dispatcherTableHandle = new DispatcherTableHandle(
-//                "schemaName",
-//                "tableName",
-//                1L,
-//                TupleDomain.all(),
-//                Map.of(),
-//                "JSON",
-//                Set.of("col1"),
-//                Map.of("expr1", mock(WarpExpressionData.class)),
-//                icebergTableHandle);
-//
-//        DispatcherSplit expectedDispatcherSplit = new DispatcherSplit(dispatcherTableHandle.getSchemaName(),
-//                dispatcherTableHandle.getTableName(),
-//                icebergSplit.getPath(),
-//                icebergSplit.getStart(),
-//                icebergSplit.getLength(),
-//                0,
-//                List.of(node.getHostAndPort()),
-//                Map.of(),
-//                "deleteFile",
-//                false,
-//                icebergSplit);
-//
-//        super.testCreateDispatcherSplit(
-//                new IcebergProxyConnectorTransformer(),
-//                icebergSplit,
-//                dispatcherTableHandle,
-//                expectedDispatcherSplit);
     }
 
     @Test

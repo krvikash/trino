@@ -41,9 +41,9 @@ public class StubsRangeFillerService
     }
 
     @Override
-    public WarpPageSource.RowRanges reset(RangeData rangeData)
+    public WarpStoragePageSource.RowRanges reset(RangeData rangeData)
     {
-        return WarpPageSource.RowRanges.EMPTY;
+        return WarpStoragePageSource.RowRanges.EMPTY;
     }
 
     @Override
@@ -67,8 +67,8 @@ public class StubsRangeFillerService
     }
 
     @Override
-    public WarpPageSource.RowRanges collectRanges(RangeData rangeData, int rowsLimit)
+    public WarpStoragePageSource.RowRanges collectRanges(RangeData rangeData, int rowsLimit)
     {
-        return WarpPageSource.RowRanges.EMPTY;
+        return WarpStoragePageSource.RowRanges.EMPTY;
     }
 }

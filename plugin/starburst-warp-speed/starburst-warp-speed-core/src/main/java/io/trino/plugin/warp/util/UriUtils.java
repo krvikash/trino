@@ -22,7 +22,7 @@ public abstract class UriUtils
 {
     private UriUtils() {}
 
-    @SuppressWarnings({"DeprecatedApi", "deprecation"})
+    @SuppressWarnings("DeprecatedApi")
     public static URI getHttpUri(Node node)
     {
         String schema = node.getHostAndPort().getPortOrDefault(8080) == 443 ? "https" : "http"; // UGLY UGLY UGLY - node URI is not available since trino 434
