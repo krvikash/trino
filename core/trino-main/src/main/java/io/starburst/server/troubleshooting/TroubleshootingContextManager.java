@@ -160,15 +160,16 @@ public class TroubleshootingContextManager
         Session session = queryInfo.getSession().toSession(sessionPropertyManager);
         int maxCollectedWorkersTrace = getMaxCollectedWorkersTrace(session);
         int maxCollectedWorkersJfr = getMaxCollectedWorkersJfr(session);
+        Set<String> queryCollectedNodes = getProcessingNodesForQuery(queryInfo);
         if (maxCollectedWorkersTrace >= maxCollectedWorkersJfr) {
-            traceNodes = limitWorkerNodes(internalNodeManager, getProcessingNodesForQuery(queryInfo), maxCollectedWorkersTrace);
+            traceNodes = limitWorkerNodes(internalNodeManager, queryCollectedNodes, maxCollectedWorkersTrace);
             jfrNodes = limitWorkerNodes(internalNodeManager, traceNodes, maxCollectedWorkersJfr);
         }
         else {
-            jfrNodes = limitWorkerNodes(internalNodeManager, getProcessingNodesForQuery(queryInfo), maxCollectedWorkersJfr);
+            jfrNodes = limitWorkerNodes(internalNodeManager, queryCollectedNodes, maxCollectedWorkersJfr);
             traceNodes = limitWorkerNodes(internalNodeManager, jfrNodes, maxCollectedWorkersTrace);
         }
-        context.setCollectedNodes(jfrNodes, traceNodes);
+        context.setCollectedNodes(queryCollectedNodes, jfrNodes, traceNodes);
     }
 
     public static Set<String> limitWorkerNodes(InternalNodeManager nodeManager, Set<String> nodes, int maxCollectedWorkers)

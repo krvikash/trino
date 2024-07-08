@@ -34,6 +34,8 @@ public class TroubleshootingContext
     private final StateMachine<State> state;
     private final Map<String, Object> values = new ConcurrentHashMap<>();
     // available only once the query is finished
+    private Optional<Set<String>> queryCollectedNodes = Optional.empty();
+    // available only once the query is finished
     private Optional<Set<String>> jfrCollectedNodes = Optional.empty();
     // available only once the query is finished
     private Optional<Set<String>> traceCollectedNodes = Optional.empty();
@@ -98,11 +100,17 @@ public class TroubleshootingContext
         return errors;
     }
 
-    public void setCollectedNodes(Set<String> jfrCollectedNodes, Set<String> traceCollectedNodes)
+    public void setCollectedNodes(Set<String> queryCollectedNodes, Set<String> jfrCollectedNodes, Set<String> traceCollectedNodes)
     {
         checkArgument(jfrCollectedNodes.containsAll(traceCollectedNodes) || traceCollectedNodes.containsAll(jfrCollectedNodes));
+        this.queryCollectedNodes = Optional.of(queryCollectedNodes);
         this.jfrCollectedNodes = Optional.of(jfrCollectedNodes);
         this.traceCollectedNodes = Optional.of(traceCollectedNodes);
+    }
+
+    public Set<String> getQueryCollectedNodes()
+    {
+        return queryCollectedNodes.orElseThrow(() -> new NoSuchElementException("queryCollectedNodes not available"));
     }
 
     public Set<String> getTraceCollectedNodes()
