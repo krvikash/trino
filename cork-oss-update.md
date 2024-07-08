@@ -152,12 +152,16 @@ If the CI fails on the Update PR, make relevant fixes, updating the fixup commit
 
 ### Run benchmarks on the Update PR
 
-Run this workflow: https://github.com/starburstdata/benchmarks-gha/actions/workflows/benchmark-pr.yaml 
-
-Pass into it link to the Update PR and choose type of test you want to run. Run those:
-
+Run this workflow https://github.com/starburstdata/benchmarks-gha/actions/workflows/benchmark-pr.yaml on update PR
+using following benchmarks:
 - `iceberg/sf1000_parquet_unpart`
 - `iceberg/sf1000_parquet_part_c5`
+
+```shell
+PR_LINK=$(gh pr list -H update/cork/trino-${NEW} --json url --jq .[].url)
+gh workflow run --repo starburstdata/benchmarks-gha benchmark-pr.yaml -f PrLink=${PR_LINK} -fTestType="iceberg/sf1000_parquet_unpart"
+gh workflow run --repo starburstdata/benchmarks-gha benchmark-pr.yaml -f PrLink=${PR_LINK} -fTestType="iceberg/sf1000_parquet_part_c5"
+```
 
 Above workflow on completion will add a comment to the PR with status of benchmark run, and a link to Tableau
 dashboard comparing results to the closest run of same config from the master branch. Tableau dashboard will
