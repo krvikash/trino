@@ -20,6 +20,7 @@ import com.google.common.io.Closer;
 import com.starburstdata.dataframe.expression.Attribute;
 import com.starburstdata.dataframe.type.LongType;
 import com.starburstdata.dataframe.type.StringType;
+import io.airlift.configuration.secrets.SecretsResolver;
 import io.opentelemetry.api.OpenTelemetry;
 import io.trino.Session;
 import io.trino.client.NodeVersion;
@@ -100,6 +101,7 @@ public class TestDataframeMetadataProvider
                 emptyEventListenerManager(),
                 new AccessControlConfig(),
                 OpenTelemetry.noop(),
+                new SecretsResolver(ImmutableMap.of()),
                 DefaultSystemAccessControl.NAME);
         accessControlManager.setSystemAccessControls(List.of(AllowAllSystemAccessControl.INSTANCE));
         this.accessControl = accessControlManager;
