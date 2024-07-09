@@ -7,7 +7,7 @@ cd ${BASH_SOURCE%/*}
 projectName=""
 imageRepositories=()
 projectVersion=""
-jdkVersion=21
+jdkVersion=22
 mainBuild=true
 archTypes=""
 pushImages=0
