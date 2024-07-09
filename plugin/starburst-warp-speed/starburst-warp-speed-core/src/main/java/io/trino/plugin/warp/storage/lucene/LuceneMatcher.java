@@ -87,7 +87,7 @@ public class LuceneMatcher
         }
         if (query.isEmpty()) {
             shapingLogger.error("query is not present returning JAVA_NON_HACK_PREDICATE. nativeCookie %d isValidIndex %b allOrNothing %b resultBufferOffset %d file lengths [%d,%d,%d,%d]",
-                    nativeCookie, isValidIndex, allOrNothing, resultBufferOffset, siFileLength, cfeFileLength, segmentsFileLength, cfsFileLength);
+                    nativeCookie, true, allOrNothing, resultBufferOffset, siFileLength, cfeFileLength, segmentsFileLength, cfsFileLength);
             return JAVA_NON_HACK_PREDICATE;
         }
 

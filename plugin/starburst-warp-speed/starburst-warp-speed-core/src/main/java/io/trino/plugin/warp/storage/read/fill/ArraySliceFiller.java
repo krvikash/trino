@@ -65,7 +65,7 @@ public abstract class ArraySliceFiller
     protected Block createSingleValueBlock(Type spiType, Block value, int rowsToFill)
     {
         if (value == null) {
-            return super.createSingleValueBlock(spiType, value, rowsToFill);
+            return super.createSingleValueBlock(spiType, null, rowsToFill);
         }
         return RunLengthEncodedBlock.create(value, rowsToFill);
     }
