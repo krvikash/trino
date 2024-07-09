@@ -75,6 +75,7 @@ public class GlobalConfig
 
     private boolean debugWarmingSingleThreaded;
     private boolean debugWarming;
+    private boolean debugNoPredicateBuffer;
 
     private boolean enableImportExport;
     private boolean enableExportAppendOnCloud = true;
@@ -456,6 +457,17 @@ public class GlobalConfig
         this.debugWarmingSingleThreaded = debugWarmingSingleThreaded;
     }
 
+    public boolean isDebugNoPredicateBuffer()
+    {
+        return debugNoPredicateBuffer;
+    }
+
+    @Config("warp-speed.debug.no-predicate-buffer")
+    public void setDebugNoPredicateBuffer(boolean debugNoPredicateBuffer)
+    {
+        this.debugNoPredicateBuffer = debugNoPredicateBuffer;
+    }
+
     public boolean isFailureGeneratorEnabled()
     {
         return failureGeneratorEnabled;
@@ -583,6 +595,7 @@ public class GlobalConfig
                 ", dataOnlyWarming=" + dataOnlyWarming +
                 ", debugWarming=" + debugWarming +
                 ", debugWarmingSingleThreaded=" + debugWarmingSingleThreaded +
+                ", debugNoPredicateBuffer=" + debugNoPredicateBuffer +
                 ", cacheManagerMaxParallelWarmupElements=" + cacheManagerMaxParallelWarmupElements +
                 '}';
     }

@@ -178,7 +178,8 @@ public class DispatcherAlternativeChooserTest
                         globalConfig),
                 connectorSync,
                 matchCollectIdService,
-                predicateContextFactory);
+                predicateContextFactory,
+                globalConfig);
         connectorPageSourceProvider = new TestingConnectorPageSourceProvider();
         dispatcherAlternativeChooser = createAlternativeChooser(queryClassifier);
     }

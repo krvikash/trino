@@ -57,6 +57,7 @@ public final class WarpSessionProperties
     public static final String ENABLE_VARCHAR_MAPPED_MATCH_COLLECT = "enable_varchar_mapped_match_collect";
     public static final String ENABLE_INVERSE_WITH_NULLS = "enable_inverse_with_nulls";
     public static final String MIN_MAX_FILTER = "min_max_filter";
+    public static final String DEBUG_NO_PREDICATE_BUFFER = "debug_no_predicate_buffer";
 
     private static final Logger logger = Logger.get(WarpSessionProperties.class);
     private final List<PropertyMetadata<?>> sessionProperties;
@@ -154,6 +155,11 @@ public final class WarpSessionProperties
                         MIN_MAX_FILTER,
                         "Use min and max values stored in warmUpElements for filtering",
                         true,
+                        true),
+                booleanProperty(
+                        DEBUG_NO_PREDICATE_BUFFER,
+                        "This is for debugging / crisis mitigation only. Won't create predicates in the cache, so Warp won't be able to apply filters on BASIC index",
+                        false,
                         true));
     }
 
@@ -260,6 +266,12 @@ public final class WarpSessionProperties
     {
         Boolean res = getProperty(session, MIN_MAX_FILTER, Boolean.class);
         return (res != null) ? res : false;
+    }
+
+    public static boolean isDebugNoPredicateBuffer(ConnectorSession session, GlobalConfig globalConfig)
+    {
+        Boolean res = getProperty(session, DEBUG_NO_PREDICATE_BUFFER, Boolean.class);
+        return (res != null) ? res : globalConfig.isDebugNoPredicateBuffer();
     }
 
     public static String getS3ImportExportPath(

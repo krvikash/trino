@@ -217,6 +217,7 @@ public class NativeCollectClassifierTest
                 false,
                 true,
                 true,
+                false,
                 false);
         QueryContext queryContext = createQueryContext(collectColumnsByBlockIndex, withMatchCollect);
 

@@ -108,6 +108,7 @@ public class MatchPrepareAfterCollectClassifierTest
                 false,
                 true,
                 true,
+                false,
                 false);
         QueryContext queryContext = baseContext.asBuilder()
                 .matchData(Optional.of(matchData))
@@ -148,6 +149,7 @@ public class MatchPrepareAfterCollectClassifierTest
                 false,
                 true,
                 true,
+                false,
                 false);
         QueryContext queryContext = baseContext.asBuilder()
                 .matchData(Optional.of(matchData))
@@ -193,6 +195,7 @@ public class MatchPrepareAfterCollectClassifierTest
                 false,
                 true,
                 true,
+                false,
                 false);
         QueryContext queryContext = baseContext.asBuilder()
                 .matchData(Optional.of(matchData))
@@ -233,6 +236,7 @@ public class MatchPrepareAfterCollectClassifierTest
                 false,
                 true,
                 true,
+                false,
                 false);
         MatchData matchData = new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(luceneCollectIndexMatchData, basicCollectIndexMatchData, basicMatchData));
         QueryContext queryContext = baseContext.asBuilder()
@@ -262,6 +266,7 @@ public class MatchPrepareAfterCollectClassifierTest
                 false,
                 true,
                 true,
+                false,
                 false);
         LogicalMatchData matchData = new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(
                 new LogicalMatchData(LogicalMatchData.Operator.OR, List.of(dataColumn, basicColumn)),
@@ -295,6 +300,7 @@ public class MatchPrepareAfterCollectClassifierTest
                 false,
                 true,
                 true,
+                false,
                 false);
         LogicalMatchData matchData = new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(
                 new LogicalMatchData(LogicalMatchData.Operator.OR, List.of(dataColumn, basicMatchCollectColumn)),
@@ -324,6 +330,7 @@ public class MatchPrepareAfterCollectClassifierTest
                 false,
                 true,
                 true,
+                false,
                 false);
         LogicalMatchData matchData = new LogicalMatchData(LogicalMatchData.Operator.OR, List.of(
                 new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(dataColumn, basicMatchCollectColumn)),
@@ -359,6 +366,7 @@ public class MatchPrepareAfterCollectClassifierTest
                 false,
                 true,
                 true,
+                false,
                 false);
         LogicalMatchData matchData = new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(basicMatchData1, basicMatchData2));
         QueryContext queryContext = baseContext.asBuilder()

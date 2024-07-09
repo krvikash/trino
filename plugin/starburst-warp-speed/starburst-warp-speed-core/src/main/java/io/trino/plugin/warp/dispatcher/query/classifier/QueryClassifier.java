@@ -19,6 +19,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.WarpSessionProperties;
+import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
@@ -55,17 +56,20 @@ public class QueryClassifier
     private final ConnectorSync connectorSync;
     private final MatchCollectIdService matchCollectIdService;
     private final PredicateContextFactory predicateContextFactory;
+    private final GlobalConfig globalConfig;
 
     @Inject
     public QueryClassifier(ClassifierFactory classifierFactory,
             ConnectorSync connectorSync,
             MatchCollectIdService matchCollectIdService,
-            PredicateContextFactory predicateContextFactory)
+            PredicateContextFactory predicateContextFactory,
+            GlobalConfig globalConfig)
     {
         this.classifierFactory = requireNonNull(classifierFactory);
         this.connectorSync = requireNonNull(connectorSync);
         this.matchCollectIdService = requireNonNull(matchCollectIdService);
         this.predicateContextFactory = requireNonNull(predicateContextFactory);
+        this.globalConfig = requireNonNull(globalConfig);
     }
 
     public QueryContext classifyCache(ImmutableList<ColumnHandle> projectColumns, Optional<UUID> storeIdOpt, RowGroupData rowGroupData)
@@ -110,12 +114,14 @@ public class QueryClassifier
             boolean mappedMatchCollect = false;
             boolean varcharMappedMatchCollect = false;
             boolean enableInverseWithNulls = false;
+            boolean debugNoPredicateBuffer = false;
             if (session.isPresent()) {
                 //in cacheManager we don't have session
                 minMaxFilter = WarpSessionProperties.isMinMaxFilter(session.get());
                 mappedMatchCollect = WarpSessionProperties.getEnabledMappedMatchCollect(session.get());
                 varcharMappedMatchCollect = WarpSessionProperties.getEnabledVarcharMappedMatchCollect(session.get());
                 enableInverseWithNulls = WarpSessionProperties.getEnabledInverseWithNulls(session.get());
+                debugNoPredicateBuffer = WarpSessionProperties.isDebugNoPredicateBuffer(session.get(), globalConfig);
             }
             WarmedWarmupTypes warmedWarmupTypes = createColumnToWarmUpElementPerType(rowGroupData, storeIdOpt);
             ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
@@ -126,7 +132,8 @@ public class QueryClassifier
                     minMaxFilter,
                     mappedMatchCollect,
                     varcharMappedMatchCollect,
-                    enableInverseWithNulls);
+                    enableInverseWithNulls,
+                    debugNoPredicateBuffer);
             queryContext = baseQueryContext;
             if (classificationType == ClassificationType.QUERY ||
                     classificationType == ClassificationType.CHOOSING_ALTERNATIVE ||

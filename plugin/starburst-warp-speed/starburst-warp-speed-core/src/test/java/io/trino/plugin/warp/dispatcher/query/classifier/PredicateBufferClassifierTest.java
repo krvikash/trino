@@ -130,6 +130,7 @@ class PredicateBufferClassifierTest
                 false,
                 true,
                 true,
+                false,
                 false);
         QueryContext currentQueryContext = baseQueryContext.asBuilder()
                 .matchData(Optional.of(queryMatchData))

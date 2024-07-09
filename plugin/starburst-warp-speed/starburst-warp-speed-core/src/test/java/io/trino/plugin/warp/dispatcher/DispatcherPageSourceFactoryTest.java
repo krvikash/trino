@@ -208,7 +208,8 @@ public class DispatcherPageSourceFactoryTest
         QueryClassifier queryClassifier = new QueryClassifier(classifierFactory,
                 connectorSync,
                 matchCollectIdService,
-                predicateContextFactory);
+                predicateContextFactory,
+                globalConfig);
 
         nativeStorageStateHandler = mock(NativeStorageStateHandler.class);
         when(nativeStorageStateHandler.isStorageAvailable()).thenReturn(true);

@@ -35,18 +35,21 @@ class ClassifyArgs
     private final boolean mappedMatchCollect;
     private final boolean varcharMappedMatchCollect;
     private final boolean enableInverseWithNulls;
+    private final boolean debugNoPredicateBuffer;
 
     private final Map<Domain, PredicateType> predicateTypeCache = new HashMap<>();
 
-    ClassifyArgs(DispatcherTableHandle dispatcherTableHandle,
-                 RowGroupData rowGroupData,
-                 PredicateContextData predicateContextData,
-                 ImmutableMap<Integer, ColumnHandle> collectColumnsByBlockIndex,
-                 WarmedWarmupTypes warmedWarmupTypes,
-                 boolean minMaxFilter,
-                 boolean mappedMatchCollect,
-                 boolean varcharMappedMatchCollect,
-                 boolean enableInverseWithNulls)
+    ClassifyArgs(
+            DispatcherTableHandle dispatcherTableHandle,
+            RowGroupData rowGroupData,
+            PredicateContextData predicateContextData,
+            ImmutableMap<Integer, ColumnHandle> collectColumnsByBlockIndex,
+            WarmedWarmupTypes warmedWarmupTypes,
+            boolean minMaxFilter,
+            boolean mappedMatchCollect,
+            boolean varcharMappedMatchCollect,
+            boolean enableInverseWithNulls,
+            boolean debugNoPredicateBuffer)
     {
         this.dispatcherTableHandle = dispatcherTableHandle;
         this.rowGroupData = rowGroupData;
@@ -57,6 +60,7 @@ class ClassifyArgs
         this.mappedMatchCollect = mappedMatchCollect;
         this.varcharMappedMatchCollect = varcharMappedMatchCollect;
         this.enableInverseWithNulls = enableInverseWithNulls;
+        this.debugNoPredicateBuffer = debugNoPredicateBuffer;
     }
 
     DispatcherTableHandle getDispatcherTableHandle()
@@ -114,5 +118,10 @@ class ClassifyArgs
     public boolean isEnableInverseWithNulls()
     {
         return enableInverseWithNulls;
+    }
+
+    public boolean isDebugNoPredicateBuffer()
+    {
+        return debugNoPredicateBuffer;
     }
 }

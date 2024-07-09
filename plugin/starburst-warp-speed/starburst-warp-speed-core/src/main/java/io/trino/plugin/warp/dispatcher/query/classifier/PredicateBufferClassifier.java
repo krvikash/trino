@@ -174,7 +174,9 @@ class PredicateBufferClassifier
     {
         PredicateCacheData predicateCacheData;
         boolean allocatedBuffer;
-        Optional<PredicateCacheData> predicateCacheDataOpt = predicatesCacheService.getOrCreatePredicateBufferId(predicateData, value);
+        Optional<PredicateCacheData> predicateCacheDataOpt = classifyArgs.isDebugNoPredicateBuffer() ?
+                Optional.empty() :
+                predicatesCacheService.getOrCreatePredicateBufferId(predicateData, value);
         if (predicateCacheDataOpt.isPresent()) {
             predicateCacheData = predicateCacheDataOpt.get();
             allocatedBuffer = true;
