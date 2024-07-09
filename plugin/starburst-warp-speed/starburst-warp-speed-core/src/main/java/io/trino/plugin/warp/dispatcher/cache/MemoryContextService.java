@@ -87,12 +87,10 @@ public class MemoryContextService
     public void releaseMemory(LocalMemoryContext localMemoryContext)
     {
         try {
+            //localMemoryContext is null when revoke triggered before setting localMemoryContext
             if (localMemoryContext != null) {
                 localMemoryContext.trySetBytes(0); //warming finished
                 localMemoryContexts.put(localMemoryContext);
-            }
-            else {
-                shapingLogger.warn("revoked but localMemoryContexts is null.");
             }
         }
         catch (Exception e) {
@@ -106,14 +104,14 @@ public class MemoryContextService
             runningTasks.remove(warpCacheTask);
         }
         catch (Exception e) {
-            logger.error("failed to remove task from running tasks. runningTasksSize=%s error=%s", runningTasks.size(), e.getMessage());
+            shapingLogger.error("failed to remove task from running tasks. runningTasksSize=%s error=%s", runningTasks.size(), e.getMessage());
         }
     }
 
-    public boolean add(WarpCacheTask warpCacheTask)
+    public synchronized boolean add(WarpCacheTask warpCacheTask)
     {
         if (localMemoryContexts.isEmpty()) {
-            logger.info("localMemoryContexts is empty. LOCAL_MEMORY_COUNT=%s runningTasks.size()=%s, localMemoryContexts is empty", LOCAL_MEMORY_COUNT, runningTasks.size());
+            shapingLogger.info("localMemoryContexts is empty. LOCAL_MEMORY_COUNT=%s runningTasks.size()=%s", LOCAL_MEMORY_COUNT, runningTasks.size());
             return false;
         }
         return runningTasks.add(warpCacheTask);
@@ -135,12 +133,7 @@ public class MemoryContextService
                 }
                 WarpCacheTask warpCacheTask = warpCacheTaskOpt.get();
                 revokedMemory += warpCacheTask.getUsedMemory();
-                if (warpCacheTask.isWarmStarted()) {
-                    warpCacheTask.setEngineAbort();
-                }
-                else {
-                    warpCacheTask.revoke();
-                }
+                warpCacheTask.revoke();
                 iteration++;
             }
             logger.info("revoked memory=%s of bytesToRevoke=%s, runningTasksSize=%s, totalRevokedTasks=%s", revokedMemory, bytesToRevoke, runningTasks.size(), iteration);
@@ -191,11 +184,9 @@ public class MemoryContextService
 
             synchronized (MemoryContextService.this) {
                 if (!revocableMemoryAllocator.trySetBytes(allocatedMemory + delta)) {
-                    logger.info("failed to locate WarpCacheManager memory. delta=%s, allocatedMemory=%s", delta, allocatedMemory);
                     return false;
                 }
                 allocatedMemory += delta;
-                logger.debug("allocatedMemory=%s delta=%s", allocatedMemory, delta);
                 return true;
             }
         }

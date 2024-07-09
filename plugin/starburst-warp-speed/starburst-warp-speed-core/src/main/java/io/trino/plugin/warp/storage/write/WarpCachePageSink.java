@@ -14,7 +14,6 @@
 
 package io.trino.plugin.warp.storage.write;
 
-import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.trino.plugin.warp.dispatcher.warmup.WarpCacheTask;
 import io.trino.plugin.warp.dispatcher.warmup.WorkerTaskExecutorService;
@@ -28,7 +27,6 @@ import java.util.concurrent.CompletableFuture;
 public class WarpCachePageSink
         implements ConnectorPageSink
 {
-    private static final Logger logger = Logger.get(WarpCachePageSink.class);
     private final WarpCacheTask warpCacheTask;
     private final WorkerTaskExecutorService workerTaskExecutorService;
     private long memoryUsage;
@@ -59,7 +57,7 @@ public class WarpCachePageSink
         if (firstTime) {
             WorkerTaskExecutorService.SubmissionResult submissionResult = workerTaskExecutorService.submitTask(warpCacheTask, false);
             if (submissionResult != WorkerTaskExecutorService.SubmissionResult.SCHEDULED) {
-                logger.info("submissionResult=%s. SHOULD NOT HAPPENED", submissionResult);
+                warpCacheTask.clean();
                 abort = true;
             }
             firstTime = false;

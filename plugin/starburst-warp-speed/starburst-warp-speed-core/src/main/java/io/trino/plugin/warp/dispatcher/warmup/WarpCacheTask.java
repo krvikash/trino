@@ -139,7 +139,7 @@ public class WarpCacheTask
         taskStarted = true;
         CacheWarmState cacheWarmState = CacheWarmState.ABORT_ON_INIT_PROCESS;
         boolean loadFromWarmingThread = false;
-        if (revoked) {
+        if (isRevoked()) {
             //all resources already released by @revoke
             return;
         }
@@ -181,9 +181,7 @@ public class WarpCacheTask
             catch (Exception e) {
                 logger.error(e, "failed on finish cache warming %s. key=%s", storageWriterSplitConfig, rowGroupKey);
             }
-            if (localMemoryContext != null) {
-                memoryContextService.releaseMemory(localMemoryContext);
-            }
+            memoryContextService.releaseMemory(localMemoryContext);
             if (loadFromWarmingThread) {
                 storageWarmerService.releaseLoaderThread(true);
             }
@@ -382,10 +380,35 @@ public class WarpCacheTask
         return warmStarted;
     }
 
-    public void revoke()
+    /**
+     * in case failed to schedule WarpCacheTask we need to clear locks and memory.
+     */
+    public synchronized void clean()
     {
+        if (!isAborted()) {
+            blocksToProcess.clear();
+            warmupCacheData.clear();
+            memoryContextService.remove(this);
+        }
+    }
+
+    private synchronized boolean isRevoked()
+    {
+        return revoked;
+    }
+
+    public synchronized void revoke()
+    {
+        if (revoked) {
+            return;
+        }
         revoked = true;
-        setEngineAbort();
+        if (isWarmStarted()) {
+            //let flow to clean the data
+            setEngineAbort();
+            return;
+        }
+        engineAbort = true;
         blocksToProcess.clear();
         blocksToProcess.add(STOP_TRIGGER);
         warmupCacheData.clear();
@@ -439,7 +462,6 @@ public class WarpCacheTask
     public synchronized void setEngineAbort()
     {
         if (isAborted()) {
-            logger.info("already aborted but got abort again");
             return;
         }
         this.engineAbort = true;
