@@ -147,22 +147,22 @@ public final class FlowSequencerStats
     }
 
     @Override
-    public Map<String, Object> statsCounterMapper()
+    public Map<String, Long> statsCounterMapper()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put(getJmxKey() + ":flow_started", flow_started.longValue());
         res.put(getJmxKey() + ":flow_finished", flow_finished.longValue());
         return res;
     }
 
     @Override
-    protected Map<String, Object> deltaPrintFields()
+    protected Map<String, Long> deltaPrintFields()
     {
         return new HashMap<>();
     }
 
     @Override
-    protected Map<String, Object> statePrintFields()
+    protected Map<String, Long> statePrintFields()
     {
         return new HashMap<>();
     }

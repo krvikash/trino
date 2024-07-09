@@ -300,9 +300,9 @@ public final class BufferAllocatorStats
     }
 
     @Override
-    public Map<String, Object> statsCounterMapper()
+    public Map<String, Long> statsCounterMapper()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put(getJmxKey() + ":available_load_bundles", available_load_bundles.longValue());
         res.put(getJmxKey() + ":reader_taken", reader_taken.longValue());
         res.put(getJmxKey() + ":writer_taken", writer_taken.longValue());
@@ -315,13 +315,13 @@ public final class BufferAllocatorStats
     }
 
     @Override
-    protected Map<String, Object> deltaPrintFields()
+    protected Map<String, Long> deltaPrintFields()
     {
         return new HashMap<>();
     }
 
     @Override
-    protected Map<String, Object> statePrintFields()
+    protected Map<String, Long> statePrintFields()
     {
         return new HashMap<>();
     }

@@ -287,9 +287,9 @@ public final class LuceneIndexerStats
     }
 
     @Override
-    public Map<String, Object> statsCounterMapper()
+    public Map<String, Long> statsCounterMapper()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put(getJmxKey() + ":failedAddDoc", failedAddDoc.longValue());
         res.put(getJmxKey() + ":failedReset", failedReset.longValue());
         res.put(getJmxKey() + ":local_fs", local_fs.longValue());
@@ -304,13 +304,13 @@ public final class LuceneIndexerStats
     }
 
     @Override
-    protected Map<String, Object> deltaPrintFields()
+    protected Map<String, Long> deltaPrintFields()
     {
         return new HashMap<>();
     }
 
     @Override
-    protected Map<String, Object> statePrintFields()
+    protected Map<String, Long> statePrintFields()
     {
         return new HashMap<>();
     }

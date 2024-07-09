@@ -85,13 +85,13 @@ public final class IndexcompressionStats
     }
 
     @Override
-    protected Map<String, Object> deltaPrintFields()
+    protected Map<String, Long> deltaPrintFields()
     {
         return new HashMap<>();
     }
 
     @Override
-    protected Map<String, Object> statePrintFields()
+    protected Map<String, Long> statePrintFields()
     {
         return new HashMap<>();
     }

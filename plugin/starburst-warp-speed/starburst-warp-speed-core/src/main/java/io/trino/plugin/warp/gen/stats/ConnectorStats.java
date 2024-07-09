@@ -85,15 +85,15 @@ public final class ConnectorStats
     }
 
     @Override
-    protected Map<String, Object> deltaPrintFields()
+    protected Map<String, Long> deltaPrintFields()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put("connector_stats_loader_in_use", getconnector_stats_loader_in_use());
         return res;
     }
 
     @Override
-    protected Map<String, Object> statePrintFields()
+    protected Map<String, Long> statePrintFields()
     {
         return new HashMap<>();
     }

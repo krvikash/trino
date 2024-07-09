@@ -66,17 +66,17 @@ public class WarpStatsBase
         throw new UnsupportedOperationException();
     }
 
-    public <K, V> Map<K, V> statsCounterMapper()
+    public Map<String, Long> statsCounterMapper()
     {
         return Collections.emptyMap();
     }
 
-    protected <K, V> Map<K, V> deltaPrintFields()
+    protected Map<String, Long> deltaPrintFields()
     {
         return Collections.emptyMap();
     }
 
-    protected <K, V> Map<K, V> statePrintFields()
+    protected Map<String, Long> statePrintFields()
     {
         return Collections.emptyMap();
     }

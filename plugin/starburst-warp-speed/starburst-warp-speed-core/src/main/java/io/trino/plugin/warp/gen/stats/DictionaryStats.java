@@ -408,9 +408,9 @@ public final class DictionaryStats
     }
 
     @Override
-    public Map<String, Object> statsCounterMapper()
+    public Map<String, Long> statsCounterMapper()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put(getJmxKey() + ":dictionary_read_elements_count", dictionary_read_elements_count.longValue());
         res.put(getJmxKey() + ":dictionary_loaded_elements_count", dictionary_loaded_elements_count.longValue());
         res.put(getJmxKey() + ":dictionary_active_size", dictionary_active_size.longValue());
@@ -419,9 +419,9 @@ public final class DictionaryStats
     }
 
     @Override
-    protected Map<String, Object> deltaPrintFields()
+    protected Map<String, Long> deltaPrintFields()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put("dictionary_max_exception_count", getdictionary_max_exception_count());
         res.put("dictionary_rejected_elements_count", getdictionary_rejected_elements_count());
         res.put("dictionary_success_elements_count", getdictionary_success_elements_count());
@@ -438,7 +438,7 @@ public final class DictionaryStats
     }
 
     @Override
-    protected Map<String, Object> statePrintFields()
+    protected Map<String, Long> statePrintFields()
     {
         return new HashMap<>();
     }

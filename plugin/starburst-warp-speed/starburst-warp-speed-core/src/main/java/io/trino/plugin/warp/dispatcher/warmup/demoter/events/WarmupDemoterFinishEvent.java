@@ -18,7 +18,7 @@ import java.util.Map;
 public record WarmupDemoterFinishEvent(
         int demoteSequence,
         boolean success,
-        Map<String, Object> runResults)
+        Map<String, Long> runResults)
 {
     @Override
     public String toString()

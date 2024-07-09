@@ -138,25 +138,25 @@ public final class ExceptionThrowerStats
     }
 
     @Override
-    public Map<String, Object> statsCounterMapper()
+    public Map<String, Long> statsCounterMapper()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put(getJmxKey() + ":recoverable", recoverable.longValue());
         res.put(getJmxKey() + ":nonRecoverable", nonRecoverable.longValue());
         return res;
     }
 
     @Override
-    protected Map<String, Object> deltaPrintFields()
+    protected Map<String, Long> deltaPrintFields()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put("recoverable", getrecoverable());
         res.put("nonRecoverable", getnonRecoverable());
         return res;
     }
 
     @Override
-    protected Map<String, Object> statePrintFields()
+    protected Map<String, Long> statePrintFields()
     {
         return new HashMap<>();
     }

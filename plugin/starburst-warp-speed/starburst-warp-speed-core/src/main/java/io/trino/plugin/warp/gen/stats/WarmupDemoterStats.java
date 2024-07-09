@@ -559,9 +559,9 @@ public final class WarmupDemoterStats
     }
 
     @Override
-    public Map<String, Object> statsCounterMapper()
+    public Map<String, Long> statsCounterMapper()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put(getJmxKey() + ":number_of_runs", number_of_runs.longValue());
         res.put(getJmxKey() + ":number_of_runs_fail", number_of_runs_fail.longValue());
         res.put(getJmxKey() + ":number_of_calls", number_of_calls.longValue());
@@ -585,9 +585,9 @@ public final class WarmupDemoterStats
     }
 
     @Override
-    protected Map<String, Object> deltaPrintFields()
+    protected Map<String, Long> deltaPrintFields()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put("number_of_runs", getnumber_of_runs());
         res.put("number_of_runs_fail", getnumber_of_runs_fail());
         res.put("number_of_calls", getnumber_of_calls());
@@ -606,9 +606,9 @@ public final class WarmupDemoterStats
     }
 
     @Override
-    protected Map<String, Object> statePrintFields()
+    protected Map<String, Long> statePrintFields()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put("waiting_for_lock_nano", getwaiting_for_lock_nano());
         res.put("waiting_for_lock_nano_Count", getwaiting_for_lock_nano_Count());
         res.put("execution_time_nano", getexecution_time_nano());

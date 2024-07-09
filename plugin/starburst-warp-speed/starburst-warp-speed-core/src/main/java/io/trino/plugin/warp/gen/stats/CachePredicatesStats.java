@@ -678,9 +678,9 @@ public final class CachePredicatesStats
     }
 
     @Override
-    public Map<String, Object> statsCounterMapper()
+    public Map<String, Long> statsCounterMapper()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put(getJmxKey() + ":in_use_small", in_use_small.longValue());
         res.put(getJmxKey() + ":in_use_medium", in_use_medium.longValue());
         res.put(getJmxKey() + ":in_use_large", in_use_large.longValue());
@@ -707,9 +707,9 @@ public final class CachePredicatesStats
     }
 
     @Override
-    protected Map<String, Object> deltaPrintFields()
+    protected Map<String, Long> deltaPrintFields()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put("in_use_small", getin_use_small());
         res.put("in_use_medium", getin_use_medium());
         res.put("in_use_large", getin_use_large());
@@ -736,7 +736,7 @@ public final class CachePredicatesStats
     }
 
     @Override
-    protected Map<String, Object> statePrintFields()
+    protected Map<String, Long> statePrintFields()
     {
         return new HashMap<>();
     }

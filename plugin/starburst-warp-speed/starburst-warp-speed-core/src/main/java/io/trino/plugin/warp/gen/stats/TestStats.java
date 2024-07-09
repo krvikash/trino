@@ -165,9 +165,9 @@ public final class TestStats
     }
 
     @Override
-    public Map<String, Object> statsCounterMapper()
+    public Map<String, Long> statsCounterMapper()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put(getJmxKey() + ":param1", param1.longValue());
         res.put(getJmxKey() + ":param2", param2.longValue());
         res.put(getJmxKey() + ":param3", param3.longValue());
@@ -175,13 +175,13 @@ public final class TestStats
     }
 
     @Override
-    protected Map<String, Object> deltaPrintFields()
+    protected Map<String, Long> deltaPrintFields()
     {
         return new HashMap<>();
     }
 
     @Override
-    protected Map<String, Object> statePrintFields()
+    protected Map<String, Long> statePrintFields()
     {
         return new HashMap<>();
     }

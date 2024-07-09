@@ -1018,9 +1018,9 @@ public final class WarmingServiceStats
     }
 
     @Override
-    public Map<String, Object> statsCounterMapper()
+    public Map<String, Long> statsCounterMapper()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put(getJmxKey() + ":warming_disabled", warming_disabled.longValue());
         res.put(getJmxKey() + ":empty_column_list", empty_column_list.longValue());
         res.put(getJmxKey() + ":warm_scheduled", warm_scheduled.longValue());
@@ -1061,9 +1061,9 @@ public final class WarmingServiceStats
     }
 
     @Override
-    protected Map<String, Object> deltaPrintFields()
+    protected Map<String, Long> deltaPrintFields()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put("warming_disabled", getwarming_disabled());
         res.put("warm_started", getwarm_started());
         res.put("warm_accomplished", getwarm_accomplished());
@@ -1095,9 +1095,9 @@ public final class WarmingServiceStats
     }
 
     @Override
-    protected Map<String, Object> statePrintFields()
+    protected Map<String, Long> statePrintFields()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put("execution_time_nano", getexecution_time_nano());
         res.put("execution_time_nano_Count", getexecution_time_nano_Count());
         return res;

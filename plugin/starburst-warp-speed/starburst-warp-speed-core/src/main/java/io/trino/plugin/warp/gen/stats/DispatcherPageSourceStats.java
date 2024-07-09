@@ -937,9 +937,9 @@ public final class DispatcherPageSourceStats
     }
 
     @Override
-    public Map<String, Object> statsCounterMapper()
+    public Map<String, Long> statsCounterMapper()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put(getJmxKey() + ":cached_files", cached_files.longValue());
         res.put(getJmxKey() + ":df_splits", df_splits.longValue());
         res.put(getJmxKey() + ":cached_warp_success_files", cached_warp_success_files.longValue());
@@ -977,9 +977,9 @@ public final class DispatcherPageSourceStats
     }
 
     @Override
-    protected Map<String, Object> deltaPrintFields()
+    protected Map<String, Long> deltaPrintFields()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put("cached_files", getcached_files());
         res.put("df_splits", getdf_splits());
         res.put("cached_warp_success_files", getcached_warp_success_files());
@@ -1008,7 +1008,7 @@ public final class DispatcherPageSourceStats
     }
 
     @Override
-    protected Map<String, Object> statePrintFields()
+    protected Map<String, Long> statePrintFields()
     {
         return new HashMap<>();
     }

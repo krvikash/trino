@@ -470,9 +470,9 @@ public final class WarmupImportServiceStats
     }
 
     @Override
-    public Map<String, Object> statsCounterMapper()
+    public Map<String, Long> statsCounterMapper()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put(getJmxKey() + ":import_row_group_count_started", import_row_group_count_started.longValue());
         res.put(getJmxKey() + ":import_row_group_count_accomplished", import_row_group_count_accomplished.longValue());
         res.put(getJmxKey() + ":import_row_group_count_failed", import_row_group_count_failed.longValue());
@@ -492,9 +492,9 @@ public final class WarmupImportServiceStats
     }
 
     @Override
-    protected Map<String, Object> deltaPrintFields()
+    protected Map<String, Long> deltaPrintFields()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put("import_row_group_count_started", getimport_row_group_count_started());
         res.put("import_row_group_count_accomplished", getimport_row_group_count_accomplished());
         res.put("import_row_group_count_failed", getimport_row_group_count_failed());
@@ -511,7 +511,7 @@ public final class WarmupImportServiceStats
     }
 
     @Override
-    protected Map<String, Object> statePrintFields()
+    protected Map<String, Long> statePrintFields()
     {
         return new HashMap<>();
     }

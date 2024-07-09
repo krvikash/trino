@@ -192,9 +192,9 @@ public final class PageSourceProviderStats
     }
 
     @Override
-    public Map<String, Object> statsCounterMapper()
+    public Map<String, Long> statsCounterMapper()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put(getJmxKey() + ":total_splits", total_splits.longValue());
         res.put(getJmxKey() + ":static_filtered_splits", static_filtered_splits.longValue());
         res.put(getJmxKey() + ":dynamic_filtered_splits", dynamic_filtered_splits.longValue());
@@ -203,13 +203,13 @@ public final class PageSourceProviderStats
     }
 
     @Override
-    protected Map<String, Object> deltaPrintFields()
+    protected Map<String, Long> deltaPrintFields()
     {
         return new HashMap<>();
     }
 
     @Override
-    protected Map<String, Object> statePrintFields()
+    protected Map<String, Long> statePrintFields()
     {
         return new HashMap<>();
     }

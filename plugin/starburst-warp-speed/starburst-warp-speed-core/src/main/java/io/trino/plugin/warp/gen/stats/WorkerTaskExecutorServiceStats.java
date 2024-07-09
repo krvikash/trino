@@ -246,9 +246,9 @@ public final class WorkerTaskExecutorServiceStats
     }
 
     @Override
-    public Map<String, Object> statsCounterMapper()
+    public Map<String, Long> statsCounterMapper()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put(getJmxKey() + ":task_scheduled", task_scheduled.longValue());
         res.put(getJmxKey() + ":task_finished", task_finished.longValue());
         res.put(getJmxKey() + ":task_skipped_due_queue_size", task_skipped_due_queue_size.longValue());
@@ -259,9 +259,9 @@ public final class WorkerTaskExecutorServiceStats
     }
 
     @Override
-    protected Map<String, Object> deltaPrintFields()
+    protected Map<String, Long> deltaPrintFields()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put("task_scheduled", gettask_scheduled());
         res.put("task_finished", gettask_finished());
         res.put("task_skipped_due_queue_size", gettask_skipped_due_queue_size());
@@ -272,7 +272,7 @@ public final class WorkerTaskExecutorServiceStats
     }
 
     @Override
-    protected Map<String, Object> statePrintFields()
+    protected Map<String, Long> statePrintFields()
     {
         return new HashMap<>();
     }

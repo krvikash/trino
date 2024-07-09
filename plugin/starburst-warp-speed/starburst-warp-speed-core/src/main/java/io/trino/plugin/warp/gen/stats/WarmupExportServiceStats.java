@@ -470,9 +470,9 @@ public final class WarmupExportServiceStats
     }
 
     @Override
-    public Map<String, Object> statsCounterMapper()
+    public Map<String, Long> statsCounterMapper()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put(getJmxKey() + ":empty_column_list", empty_column_list.longValue());
         res.put(getJmxKey() + ":export_row_group_scheduled", export_row_group_scheduled.longValue());
         res.put(getJmxKey() + ":export_row_group_started", export_row_group_started.longValue());
@@ -492,9 +492,9 @@ public final class WarmupExportServiceStats
     }
 
     @Override
-    protected Map<String, Object> deltaPrintFields()
+    protected Map<String, Long> deltaPrintFields()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put("empty_column_list", getempty_column_list());
         res.put("export_row_group_scheduled", getexport_row_group_scheduled());
         res.put("export_row_group_started", getexport_row_group_started());
@@ -512,9 +512,9 @@ public final class WarmupExportServiceStats
     }
 
     @Override
-    protected Map<String, Object> statePrintFields()
+    protected Map<String, Long> statePrintFields()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put("export_time", getexport_time());
         res.put("export_time_Count", getexport_time_Count());
         return res;

@@ -273,9 +273,9 @@ public final class TxServiceStats
     }
 
     @Override
-    public Map<String, Object> statsCounterMapper()
+    public Map<String, Long> statsCounterMapper()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put(getJmxKey() + ":currently_used", currently_used.longValue());
         res.put(getJmxKey() + ":allocated", allocated.longValue());
         res.put(getJmxKey() + ":failed_allocated", failed_allocated.longValue());
@@ -287,16 +287,16 @@ public final class TxServiceStats
     }
 
     @Override
-    protected Map<String, Object> deltaPrintFields()
+    protected Map<String, Long> deltaPrintFields()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put("running_page_source", getrunning_page_source());
         res.put("blocking_warmings", getblocking_warmings());
         return res;
     }
 
     @Override
-    protected Map<String, Object> statePrintFields()
+    protected Map<String, Long> statePrintFields()
     {
         return new HashMap<>();
     }

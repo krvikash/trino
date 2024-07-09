@@ -273,9 +273,9 @@ public final class PushdownPredicatesStats
     }
 
     @Override
-    public Map<String, Object> statsCounterMapper()
+    public Map<String, Long> statsCounterMapper()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put(getJmxKey() + ":failed_rewrite_expression", failed_rewrite_expression.longValue());
         res.put(getJmxKey() + ":failed_rewrite_to_native_expression", failed_rewrite_to_native_expression.longValue());
         res.put(getJmxKey() + ":unsupported_or_functions", unsupported_or_functions.longValue());
@@ -287,9 +287,9 @@ public final class PushdownPredicatesStats
     }
 
     @Override
-    protected Map<String, Object> deltaPrintFields()
+    protected Map<String, Long> deltaPrintFields()
     {
-        Map<String, Object> res = new HashMap<>();
+        Map<String, Long> res = new HashMap<>();
         res.put("failed_rewrite_expression", getfailed_rewrite_expression());
         res.put("failed_rewrite_to_native_expression", getfailed_rewrite_to_native_expression());
         res.put("unsupported_or_functions", getunsupported_or_functions());
@@ -301,7 +301,7 @@ public final class PushdownPredicatesStats
     }
 
     @Override
-    protected Map<String, Object> statePrintFields()
+    protected Map<String, Long> statePrintFields()
     {
         return new HashMap<>();
     }
