@@ -34,7 +34,7 @@ import static io.trino.plugin.warp.gen.constants.WECollectJparams.WE_COLLECT_JPA
 import static io.trino.plugin.warp.gen.constants.WECollectJparams.WE_COLLECT_JPARAMS_WARM_ID;
 import static io.trino.plugin.warp.gen.constants.WECollectJparams.WE_COLLECT_JPARAMS_WARM_UP_TYPE;
 
-class WarmupElementCollectParams
+public class WarmupElementCollectParams
 {
     private final int fileOffset;
     private final int fileReadSize;

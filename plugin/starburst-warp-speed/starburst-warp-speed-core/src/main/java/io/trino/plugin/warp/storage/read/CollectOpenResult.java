@@ -16,7 +16,7 @@ package io.trino.plugin.warp.storage.read;
 import java.lang.foreign.MemorySegment;
 import java.util.List;
 
-record CollectOpenResult(int collectTxId,
+public record CollectOpenResult(int collectTxId,
                          int[] outResultType,
                          int rowsLimit,
                          RangeData rangeData,

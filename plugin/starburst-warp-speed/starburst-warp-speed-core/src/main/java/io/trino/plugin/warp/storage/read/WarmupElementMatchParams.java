@@ -41,7 +41,7 @@ import static io.trino.plugin.warp.gen.constants.WEMatchJparams.WE_MATCH_JPARAMS
 import static io.trino.plugin.warp.gen.constants.WEMatchJparams.WE_MATCH_JPARAMS_WARM_ID;
 import static io.trino.plugin.warp.gen.constants.WEMatchJparams.WE_MATCH_JPARAMS_WARM_UP_TYPE;
 
-class WarmupElementMatchParams
+public class WarmupElementMatchParams
         implements MatchNode
 {
     private static final long PRED_BUF_ADDRESS_LOW_MASK = 0x00000000ffffffffL;

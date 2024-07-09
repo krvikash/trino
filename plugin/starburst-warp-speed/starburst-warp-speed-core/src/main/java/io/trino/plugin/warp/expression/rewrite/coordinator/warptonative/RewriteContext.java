@@ -19,7 +19,7 @@ import io.trino.spi.type.Type;
 import java.util.Map;
 import java.util.Set;
 
-record RewriteContext(
+public record RewriteContext(
         NativeExpression.Builder nativeExpressionBuilder,
         Type columnType,
         Set<String> unsupportedNativeFunctions,

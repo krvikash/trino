@@ -24,7 +24,7 @@ import io.trino.spi.type.Type;
 import java.util.HashMap;
 import java.util.Map;
 
-class ClassifyArgs
+public class ClassifyArgs
 {
     private final DispatcherTableHandle dispatcherTableHandle;
     private final RowGroupData rowGroupData;

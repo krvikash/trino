@@ -15,7 +15,7 @@ package io.trino.plugin.warp.storage.read;
 
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 
-class RangeData
+public class RangeData
 {
     private final long rowsBuffId;
     private int numChunkRowsCollected;

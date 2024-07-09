@@ -110,7 +110,7 @@ class FlowPriorityQueue
         return flowType + "___" + id;
     }
 
-    private static class Flow
+    protected static class Flow
             implements Comparable<Flow>
     {
         private final CompletableFuture<Boolean> waitingFuture;

@@ -20,6 +20,6 @@ import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
 import java.util.List;
 import java.util.Map;
 
-record MatchContext(List<QueryMatchData> matchDataList, Map<WarpColumn, PredicateContext> remainingPredicateContext, boolean validRange)
+public record MatchContext(List<QueryMatchData> matchDataList, Map<WarpColumn, PredicateContext> remainingPredicateContext, boolean validRange)
 {
 }

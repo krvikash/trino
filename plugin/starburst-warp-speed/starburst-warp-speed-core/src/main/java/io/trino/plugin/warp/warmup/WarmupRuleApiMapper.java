@@ -198,7 +198,7 @@ public class WarmupRuleApiMapper
             List<? extends WarpConstant> transformParams = apiTransformFunction.transformParams().stream()
                     .filter(param -> (param instanceof WarpPrimitiveConstantData))
                     .map(param -> convertApiWarpPrimitiveConstant((WarpPrimitiveConstantData) param))
-                    .collect(Collectors.toList());
+                    .toList();
             transformFunction = new TransformFunction(transformType, transformParams);
         }
         return transformFunction;

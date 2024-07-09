@@ -15,4 +15,4 @@ package io.trino.plugin.warp.storage.read;
 
 import io.trino.plugin.warp.dispatcher.query.data.match.LuceneQueryMatchData;
 
-record WarmupElementLuceneParams(LuceneQueryMatchData luceneQueryMatchData, int luceneIx) {}
+public record WarmupElementLuceneParams(LuceneQueryMatchData luceneQueryMatchData, int luceneIx) {}

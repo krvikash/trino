@@ -43,7 +43,7 @@ class ChunksQueue
             if (matchBitmapResetPoints[i] < 0) {
                 throw new TrinoException(WARP_UNRECOVERABLE_MATCH_FAILED, "match got to error state at chunk " + matchedChunksIndexes[i]);
             }
-            chunksToCollect.add(new MatchChunkResult((int) matchedChunksIndexes[i], matchBitmapResetPoints[i]));
+            chunksToCollect.add(new MatchChunkResult(matchedChunksIndexes[i], matchBitmapResetPoints[i]));
         }
         this.totalNumChunks = totalNumChunks;
     }
