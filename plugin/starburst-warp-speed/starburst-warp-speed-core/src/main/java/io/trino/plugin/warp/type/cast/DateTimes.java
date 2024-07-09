@@ -35,7 +35,6 @@ public final class DateTimes
             "\\s*(?<timezone>.+)?");
     public static final int MICROSECONDS_PER_SECOND = 1_000_000;
     public static final int PICOSECONDS_PER_MICROSECOND = 1_000_000;
-    public static final int PICOSECONDS_PER_NANOSECOND = 1000;
     private static final long[] POWERS_OF_TEN = {
             1L,
             10L,
@@ -54,21 +53,6 @@ public final class DateTimes
 
     private DateTimes() {}
 
-    private static long roundDiv(long value, long factor)
-    {
-        checkArgument(factor > 0, "factor must be positive");
-
-        if (factor == 1) {
-            return value;
-        }
-
-        if (value >= 0) {
-            return (value + (factor / 2)) / factor;
-        }
-
-        return (value + 1 - (factor / 2)) / factor;
-    }
-
     public static long scaleEpochMicrosToSeconds(long epochMicros)
     {
         return Math.floorDiv(epochMicros, MICROSECONDS_PER_SECOND);
@@ -77,16 +61,6 @@ public final class DateTimes
     public static int getMicrosOfSecond(long epochMicros)
     {
         return floorMod(epochMicros, MICROSECONDS_PER_SECOND);
-    }
-
-    public static long round(long value, int magnitude)
-    {
-        return roundToNearest(value, POWERS_OF_TEN[magnitude]);
-    }
-
-    public static long roundToNearest(long value, long bound)
-    {
-        return roundDiv(value, bound) * bound;
     }
 
     public static long scaleFactor(int fromPrecision, int toPrecision)

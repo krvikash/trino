@@ -13,14 +13,11 @@
  */
 package io.trino.plugin.warp.tools.util;
 
-import org.apache.commons.io.IOUtils;
-
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.ObjectInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -53,42 +50,6 @@ public class CompressionUtil
                 outStr.append(line);
             }
             return outStr.toString();
-        }
-    }
-
-    public static Object readCompress(byte[] bytes)
-            throws IOException, ClassNotFoundException
-    {
-        try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes)) {
-            try (GZIPInputStream gzip = new GZIPInputStream(bais)) {
-                try (ObjectInputStream obj = new ObjectInputStream(gzip)) {
-                    Object ret = obj.readObject();
-                    obj.close();
-                    return ret;
-                }
-            }
-        }
-    }
-
-    public static byte[] compress(byte[] bytes)
-            throws IOException
-    {
-        try (ByteArrayOutputStream obj = new ByteArrayOutputStream()) {
-            try (GZIPOutputStream gzip = new GZIPOutputStream(obj)) {
-                gzip.write(bytes);
-                gzip.close();
-                return obj.toByteArray();
-            }
-        }
-    }
-
-    public static byte[] decompress(byte[] bytes)
-            throws IOException
-    {
-        try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes)) {
-            try (GZIPInputStream gis = new GZIPInputStream(bais)) {
-                return IOUtils.toByteArray(gis);
-            }
         }
     }
 }

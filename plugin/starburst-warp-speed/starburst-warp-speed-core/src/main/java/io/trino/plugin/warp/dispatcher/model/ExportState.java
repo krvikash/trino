@@ -39,7 +39,6 @@ public record ExportState(
     {
         NOT_EXPORTED,
         EXPORTED,
-        FAILED_PERMANENTLY,
-        FAILED_TEMPORARILY
+        FAILED_PERMANENTLY
     }
 }

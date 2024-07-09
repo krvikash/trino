@@ -40,11 +40,6 @@ public interface ConnectorSync
         throw new UnsupportedOperationException();
     }
 
-    default void tryAcquireAllocation()
-    {
-        throw new UnsupportedOperationException();
-    }
-
     default int getCatalogSequence()
     {
         return 0;

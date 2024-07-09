@@ -307,22 +307,6 @@ public class DictionariesCache
         return value;
     }
 
-    /**
-     * get readDataValueDictionary from cache if not present will throw Exception
-     * param dictionaryKey - key for cache
-     */
-    protected ReadDictionary getReadDictionaryIfPresent(DictionaryKey dictionaryKey)
-    {
-        ReadDictionary value = cache.getIfPresent(dictionaryKey);
-
-        if (value == null) {
-            logger.error("dictionaryKey %s, was not found in cache", dictionaryKey);
-            throw new RuntimeException("dictionaryKey was not found in cache");
-        }
-
-        return value;
-    }
-
     protected void releaseDictionary(DictionaryKey dictionaryKey)
     {
         DictionaryId dictionaryId = DictionaryId.of(dictionaryKey);

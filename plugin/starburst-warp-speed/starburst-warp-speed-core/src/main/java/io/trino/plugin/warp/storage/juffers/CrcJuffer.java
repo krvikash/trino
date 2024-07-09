@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.warp.storage.juffers;
 
-import io.airlift.log.Logger;
 import io.trino.plugin.warp.juffer.BlockPosHolder;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.spi.type.Int128;
@@ -28,8 +27,6 @@ import static java.lang.Double.doubleToLongBits;
 public class CrcJuffer
         extends BaseWriteJuffer
 {
-    protected static final Logger logger = Logger.get(CrcJuffer.class);
-
     public CrcJuffer(BufferAllocator bufferAllocator)
     {
         super(bufferAllocator, JuffersType.CRC);
@@ -90,12 +87,10 @@ public class CrcJuffer
     }
 
     // return the original position in the crc juffer where we put the value
-    public int put(double val, int startPos, BlockPosHolder blockPos)
+    public void put(double val, int startPos, BlockPosHolder blockPos)
     {
-        int crcJufferPos = baseBuffer.position();
         baseBuffer.putLong(doubleToLongBits(val));
         appendPosition((short) (startPos + blockPos.getPos()));
-        return crcJufferPos;
     }
 
     private void appendPosition(short value)

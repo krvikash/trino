@@ -51,9 +51,9 @@ public class DispatcherTransactionManager
         return transactions.get(transactionHandle);
     }
 
-    public DispatcherMetadata remove(ConnectorTransactionHandle transactionHandle)
+    public void remove(ConnectorTransactionHandle transactionHandle)
     {
-        return transactions.remove(transactionHandle);
+        transactions.remove(transactionHandle);
     }
 
     public void put(ConnectorTransactionHandle transactionHandle, DispatcherMetadata metadata)

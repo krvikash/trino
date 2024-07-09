@@ -74,10 +74,10 @@ public class ArrayUtils
      * @param valToReplace - value to replace
      * @param valToPut - value to put instead
      */
-    public static boolean replaceSuffix(Slice value, byte valToReplace, byte valToPut)
+    public static void replaceSuffix(Slice value, byte valToReplace, byte valToPut)
     {
         if (value.length() == 0) {
-            return false;
+            return;
         }
 
         ByteBuffer byteBuffer = value.toByteBuffer();
@@ -92,9 +92,7 @@ public class ArrayUtils
         }
         if (shouldTrim) {
             logger.debug("trim slice to slice=%s", value.toStringUtf8());
-            return true;
         }
-        return false;
     }
 
     public static void intFill(int[] array, byte value)

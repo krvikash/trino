@@ -77,7 +77,6 @@ public class DataValueDictionary
 
     @Override
     public Short get(Object key)
-            throws DictionaryExecutionException
     {
         Short index = writeDictionary.get(key);
         if (index == null) {
@@ -258,9 +257,9 @@ public class DataValueDictionary
         return usingTransactions.get();
     }
 
-    public int incUsingTransactions()
+    public void incUsingTransactions()
     {
-        return this.usingTransactions.incrementAndGet();
+        this.usingTransactions.incrementAndGet();
     }
 
     public int decUsingTransactions()

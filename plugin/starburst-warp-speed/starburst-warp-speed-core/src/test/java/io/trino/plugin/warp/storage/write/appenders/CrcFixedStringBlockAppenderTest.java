@@ -19,7 +19,6 @@ import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
-import io.trino.spi.block.VariableWidthBlockBuilder;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
 import org.junit.jupiter.api.BeforeEach;
@@ -89,14 +88,5 @@ class CrcFixedStringBlockAppenderTest
                 runTest(block, blockType, expectedResult, getWriteDictionary(recTypeCode));
             }).isInstanceOf(UnsupportedOperationException.class);
         }
-    }
-
-    public static VariableWidthBlockBuilder buildVarcharBlockBuilder(String... values)
-    {
-        VariableWidthBlockBuilder blockBuilder = new VariableWidthBlockBuilder(null, values.length + 1, values.length + 1);
-        for (String value : values) {
-            VARCHAR_TYPE.writeString(blockBuilder, value);
-        }
-        return blockBuilder;
     }
 }

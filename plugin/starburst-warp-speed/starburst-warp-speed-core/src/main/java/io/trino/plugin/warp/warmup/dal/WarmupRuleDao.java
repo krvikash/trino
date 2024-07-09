@@ -54,7 +54,7 @@ public class WarmupRuleDao
         ids.forEach(cache::remove);
     }
 
-    public Collection<WarmupRule> save(Collection<WarmupRule> entities)
+    public void save(Collection<WarmupRule> entities)
     {
         entities.forEach(warmupRule -> {
             if (warmupRule.getId() == 0) {
@@ -62,6 +62,5 @@ public class WarmupRuleDao
             }
             cache.put(warmupRule.getId(), warmupRule);
         });
-        return getAll();
     }
 }

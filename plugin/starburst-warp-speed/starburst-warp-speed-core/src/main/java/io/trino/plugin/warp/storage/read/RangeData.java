@@ -73,9 +73,9 @@ class RangeData
         return this.lowerInclusive.removeLong(value);
     }
 
-    public long removeUpperExclusive(int value)
+    public void removeUpperExclusive(int value)
     {
-        return this.upperExclusive.removeLong(value);
+        this.upperExclusive.removeLong(value);
     }
 
     public void addUpperExclusive(int value)
