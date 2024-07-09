@@ -680,7 +680,9 @@ public class OpenSearchMetadata
             Map<String, ColumnHandle> assignments)
     {
 //        if (!isProjectionPushdownEnabled(session)) {
-        if (false) {
+//            return Optional.empty();
+//        }
+        if (projections.stream().map(ConnectorExpression::getType).anyMatch(OpenSearchMetadata::isArrayType)) {
             return Optional.empty();
         }
         // Create projected column representations for supported sub expressions. Simple column references and chain of
@@ -748,6 +750,11 @@ public class OpenSearchMetadata
                 newProjections,
                 outputAssignments,
                 false));
+    }
+
+    private static boolean isArrayType(Type type)
+    {
+        return type instanceof ArrayType;
     }
 
     private static boolean isSupportedForPushdown(ConnectorExpression connectorExpression)
