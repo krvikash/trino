@@ -60,7 +60,7 @@ public class WarpSemaphore
         int over = availablePermits() - maxPermits;
         while (over > 0) {
             logger.error("semaphore exceeded max permits %d by %d", maxPermits, over);
-            super.tryAcquire(over);
+            boolean unused = super.tryAcquire(over);
             over = availablePermits() - maxPermits;
         }
     }

@@ -101,7 +101,7 @@ public class VarcharArrayBlockFiller
                 valueIsNull[i] = false;
                 valueLengths[i] = byteBufferInputStream.readInt();
                 nativePositions[i] = byteBufferInputStream.position();
-                byteBufferInputStream.skip(valueLengths[i]); // we mark the position of the value to be copied to slice below in the second loop, now we skip it to read the next one
+                long unused = byteBufferInputStream.skip(valueLengths[i]); // we mark the position of the value to be copied to slice below in the second loop, now we skip it to read the next one
             }
             outputPosition += valueLengths[i];
         }

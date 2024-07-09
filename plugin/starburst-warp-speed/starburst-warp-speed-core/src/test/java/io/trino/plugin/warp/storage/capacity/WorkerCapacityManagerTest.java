@@ -74,13 +74,13 @@ public class WorkerCapacityManagerTest
 
         String catalogLocalStorePath = PathUtils.getUriPath(globalConfig.getLocalStorePath(), catalogNameProvider.get());
         File catalogLocalStore = new File(catalogLocalStorePath);
-        catalogLocalStore.mkdirs();
+        boolean unused = catalogLocalStore.mkdirs();
 
         try {
             int numFiles = 10;
             for (int i = 0; i < numFiles; i++) {
                 String tempFileName = String.format(catalogLocalStorePath + "/test/case-%d/bucket/schema/table/part-%05d-7a144fa0-52b0-473d-b1ab-a5dbbadd01ae-c000.snappy.parquet/0/110606/", i, i);
-                new File(tempFileName).mkdirs();
+                unused = new File(tempFileName).mkdirs();
                 File tempFile = new File(tempFileName + "1549797223000-" + i);
 
                 if (tempFile.createNewFile()) {
@@ -133,11 +133,11 @@ public class WorkerCapacityManagerTest
 
         String catalogLocalStorePath = PathUtils.getUriPath(globalConfig.getLocalStorePath(), catalogNameProvider.get());
         File catalogLocalStore = new File(catalogLocalStorePath);
-        catalogLocalStore.mkdirs();
+        boolean unused = catalogLocalStore.mkdirs();
 
         try {
             String tempFileName = String.format(catalogLocalStorePath + "/test/bucket/schema/table/part-7a144fa0-52b0-473d-b1ab-a5dbbadd01ae-c000.snappy.parquet/0/110606/");
-            new File(tempFileName).mkdirs();
+            unused = new File(tempFileName).mkdirs();
             File tempFile = new File(tempFileName + "1549797223000");
 
             if (tempFile.createNewFile()) {

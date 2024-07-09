@@ -223,8 +223,8 @@ public class WeGroupWarmerTest
         File localTmpFile = new File(localFileName + ".tmp");
 
         FileUtils.createParentDirectories(localFile);
-        localFile.createNewFile();
-        localTmpFile.createNewFile();
+        boolean unused = localFile.createNewFile();
+        unused = localTmpFile.createNewFile();
 
         StorageObjectMetadata storageObjectMetadata = new StorageObjectMetadata();
         storageObjectMetadata.setLastModified(Instant.now().toEpochMilli());
@@ -245,8 +245,8 @@ public class WeGroupWarmerTest
         Assertions.assertEquals(0, warmupImportServiceStats.getimport_we_group_download_failed());
         Assertions.assertEquals(1, warmupImportServiceStats.getimport_we_group_download_accomplished());
 
-        localFile.delete();
-        localTmpFile.delete();
+        unused = localFile.delete();
+        unused = localTmpFile.delete();
     }
 
     @Test
@@ -259,8 +259,8 @@ public class WeGroupWarmerTest
         File localTmpFile = new File(localFileName + ".tmp");
 
         FileUtils.createParentDirectories(localFile);
-        localFile.createNewFile();
-        localTmpFile.createNewFile();
+        boolean unused = localFile.createNewFile();
+        unused = localTmpFile.createNewFile();
 
         StorageObjectMetadata storageObjectMetadata = new StorageObjectMetadata();
         storageObjectMetadata.setLastModified(Instant.now().toEpochMilli());
@@ -273,7 +273,7 @@ public class WeGroupWarmerTest
                 .build();
         when(rowGroupDataService.get(eq(rowGroupKey))).thenReturn(rowGroupData);
         when(rowGroupDataService.reload(eq(rowGroupKey), eq(rowGroupData))).thenAnswer(invocation -> {
-            localFile.delete();
+            boolean unusedDelete = localFile.delete();
             return null;
         });
 
@@ -284,8 +284,8 @@ public class WeGroupWarmerTest
         Assertions.assertEquals(0, warmupImportServiceStats.getimport_we_group_download_failed());
         Assertions.assertEquals(1, warmupImportServiceStats.getimport_we_group_download_accomplished());
 
-        localFile.delete();
-        localTmpFile.delete();
+        unused = localFile.delete();
+        unused = localTmpFile.delete();
     }
 
     @Test
@@ -297,7 +297,7 @@ public class WeGroupWarmerTest
         File localFile = new File(localFileName);
 
         FileUtils.createParentDirectories(localFile);
-        localFile.createNewFile();
+        boolean unused = localFile.createNewFile();
 
         long lastModified = Instant.now().toEpochMilli();
         long contentLength = 123456789;
@@ -351,7 +351,7 @@ public class WeGroupWarmerTest
         Assertions.assertEquals(4, savedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.HOT.equals(warmUpElement.getWarmState())).count());
         Assertions.assertEquals(0, savedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.WARM.equals(warmUpElement.getWarmState())).count());
 
-        localFile.delete();
+        unused = localFile.delete();
     }
 
     @Test
@@ -419,7 +419,7 @@ public class WeGroupWarmerTest
         File localFile = new File(localFileName);
 
         FileUtils.createParentDirectories(localFile);
-        localFile.createNewFile();
+        boolean unused = localFile.createNewFile();
 
         long lastModified = Instant.now().toEpochMilli();
         long contentLength = 123456789;
@@ -475,7 +475,7 @@ public class WeGroupWarmerTest
         Assertions.assertEquals(3, savedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.HOT.equals(warmUpElement.getWarmState())).count());
         Assertions.assertEquals(1, savedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.WARM.equals(warmUpElement.getWarmState())).count());
 
-        localFile.delete();
+        unused = localFile.delete();
     }
 
     @Test
@@ -529,7 +529,7 @@ public class WeGroupWarmerTest
         File localFile = new File(localFileName);
 
         FileUtils.createParentDirectories(localFile);
-        localFile.createNewFile();
+        boolean unused = localFile.createNewFile();
 
         long lastModified = Instant.now().toEpochMilli();
         long contentLength = 123456789;
@@ -578,6 +578,6 @@ public class WeGroupWarmerTest
         Assertions.assertEquals(1, warmupImportServiceStats.getimport_elements_failed());
         Assertions.assertEquals(1, warmupImportServiceStats.getimport_elements_accomplished());
 
-        localFile.delete();
+        unused = localFile.delete();
     }
 }

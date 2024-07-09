@@ -497,7 +497,7 @@ public class TestCheckpointEntryIterator
         targetFile.deleteOnExit();
 
         String targetPath = "file://" + targetFile.getAbsolutePath();
-        targetFile.delete(); // file must not exist when writer is called
+        boolean unused = targetFile.delete(); // file must not exist when writer is called
         writer.write(entries, createOutputFile(targetPath));
 
         MetadataEntry readMetadataEntry = readMetadataEntry(URI.create(targetPath));
@@ -684,7 +684,7 @@ public class TestCheckpointEntryIterator
         targetFile.deleteOnExit();
 
         String targetPath = "file://" + targetFile.getAbsolutePath();
-        targetFile.delete(); // file must not exist when writer is called
+        boolean unused = targetFile.delete(); // file must not exist when writer is called
         writer.write(entries, createOutputFile(targetPath));
 
         CheckpointEntryIterator metadataAndProtocolEntryIterator = createCheckpointEntryIterator(
@@ -813,7 +813,7 @@ public class TestCheckpointEntryIterator
         targetFile.deleteOnExit();
 
         String targetPath = "file://" + targetFile.getAbsolutePath();
-        targetFile.delete(); // file must not exist when writer is called
+        boolean unused = targetFile.delete(); // file must not exist when writer is called
         writer.write(entries, createOutputFile(targetPath));
 
         CheckpointEntryIterator metadataAndProtocolEntryIterator = createCheckpointEntryIterator(
@@ -948,7 +948,7 @@ public class TestCheckpointEntryIterator
         targetFile.deleteOnExit();
 
         String targetPath = "file://" + targetFile.getAbsolutePath();
-        targetFile.delete(); // file must not exist when writer is called
+        boolean unused = targetFile.delete(); // file must not exist when writer is called
         writer.write(entries, createOutputFile(targetPath));
 
         CheckpointEntryIterator metadataAndProtocolEntryIterator =

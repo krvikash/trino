@@ -178,7 +178,7 @@ public class WeGroupWarmer
             if (!localTmpFile.renameTo(new File(localFileName))) {
                 // delete localTmpFile
                 //noinspection ResultOfMethodCallIgnored
-                localTmpFile.delete();
+                boolean unused = localTmpFile.delete();
                 throw new RuntimeException("failed renaming file " + localTmpFileName + " => " + localFileName);
             }
 

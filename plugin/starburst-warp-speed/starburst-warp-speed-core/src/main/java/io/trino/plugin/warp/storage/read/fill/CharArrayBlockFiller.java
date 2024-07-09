@@ -109,7 +109,7 @@ public class CharArrayBlockFiller
                 valueIsNull[i] = false;
                 int currentValueSize = byteBufferInputStream.readInt();
                 nativePositions[i] = byteBufferInputStream.position();
-                byteBufferInputStream.skip(currentValueSize);
+                long unused = byteBufferInputStream.skip(currentValueSize);
                 valueLengths[i] = currentValueSize; // fixed size
             }
             outputPosition += valueLengths[i];

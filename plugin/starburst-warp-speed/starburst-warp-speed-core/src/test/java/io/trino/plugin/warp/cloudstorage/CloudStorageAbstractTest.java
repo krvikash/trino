@@ -68,7 +68,7 @@ public abstract class CloudStorageAbstractTest
         Assertions.assertTrue(inputFile.exists());
         Assertions.assertEquals(localFile.length(), inputFile.length());
 
-        localFile.delete();
+        boolean unused = localFile.delete();
         cloudStorage.deleteFile(target);
     }
 
@@ -88,8 +88,8 @@ public abstract class CloudStorageAbstractTest
         Assertions.assertTrue(targetFile.exists());
         Assertions.assertEquals(localFile.length(), targetFile.length());
 
-        localFile.delete();
-        targetFile.delete();
+        boolean unused = localFile.delete();
+        unused = targetFile.delete();
         cloudStorage.deleteFile(source);
     }
 
@@ -113,7 +113,7 @@ public abstract class CloudStorageAbstractTest
         Assertions.assertTrue(destinationFile.exists());
         Assertions.assertEquals(sourceFile.length(), destinationFile.length());
 
-        localFile.delete();
+        boolean unused = localFile.delete();
         cloudStorage.deleteFile(source);
         cloudStorage.deleteFile(destination);
     }
@@ -142,7 +142,7 @@ public abstract class CloudStorageAbstractTest
         Assertions.assertTrue(destinationFile.exists());
         Assertions.assertEquals(9 * MB, destinationFile.length());
 
-        localFile.delete();
+        boolean unused = localFile.delete();
         cloudStorage.deleteFile(source);
         cloudStorage.deleteFile(destination);
     }
@@ -166,7 +166,7 @@ public abstract class CloudStorageAbstractTest
         Assertions.assertTrue(targetFile.exists());
         Assertions.assertEquals(localFile.length(), targetFile.length());
 
-        localFile.delete();
+        boolean unused = localFile.delete();
         cloudStorage.deleteFile(target);
     }
 

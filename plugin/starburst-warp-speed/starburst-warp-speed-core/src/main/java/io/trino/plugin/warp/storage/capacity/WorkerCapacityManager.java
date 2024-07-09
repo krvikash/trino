@@ -176,7 +176,7 @@ public class WorkerCapacityManager
             Writer writer = Files.newBufferedWriter(tempFile.toPath(), StandardCharsets.UTF_8);
             writer.write(tempFile.getName());
             writer.close();
-            tempFile.delete();
+            boolean unused = tempFile.delete();
             return true;
         }
         catch (Exception e) {

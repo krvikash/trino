@@ -199,7 +199,7 @@ public class TestCheckpointWriter
         targetFile.deleteOnExit();
 
         String targetPath = "file://" + targetFile.getAbsolutePath();
-        targetFile.delete(); // file must not exist when writer is called
+        boolean unused = targetFile.delete(); // file must not exist when writer is called
         writer.write(entries, createOutputFile(targetPath));
 
         CheckpointEntries readEntries = readCheckpoint(targetPath, metadataEntry, protocolEntry, true);
@@ -340,7 +340,7 @@ public class TestCheckpointWriter
         targetFile.deleteOnExit();
 
         String targetPath = "file://" + targetFile.getAbsolutePath();
-        targetFile.delete(); // file must not exist when writer is called
+        boolean unused = targetFile.delete(); // file must not exist when writer is called
         writer.write(entries, createOutputFile(targetPath));
 
         CheckpointEntries readEntries = readCheckpoint(targetPath, metadataEntry, protocolEntry, true);
@@ -415,7 +415,7 @@ public class TestCheckpointWriter
         targetFile.deleteOnExit();
 
         String targetPath = "file://" + targetFile.getAbsolutePath();
-        targetFile.delete(); // file must not exist when writer is called
+        boolean unused = targetFile.delete(); // file must not exist when writer is called
         writer.write(entries, createOutputFile(targetPath));
 
         CheckpointEntries readEntries = readCheckpoint(targetPath, metadataEntry, protocolEntry, false);
