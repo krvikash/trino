@@ -51,11 +51,6 @@ record GcsLocation(Location location)
         return location.path();
     }
 
-    public String getBase()
-    {
-        return "%s://%s/".formatted(scheme(), bucket());
-    }
-
     @Override
     public String toString()
     {

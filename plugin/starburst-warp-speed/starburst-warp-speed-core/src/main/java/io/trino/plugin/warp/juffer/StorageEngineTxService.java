@@ -125,9 +125,4 @@ public class StorageEngineTxService
     {
         return runningLoaders.get();
     }
-
-    public boolean tryToUsePageSource()
-    {
-        return runningPageSources.get() < nativeConfig.getMaxPageSourcesWithoutWarmingLimit();
-    }
 }

@@ -14,8 +14,6 @@
 package io.trino.plugin.warp;
 
 import io.trino.plugin.warp.config.MetricsConfig;
-import io.trino.plugin.warp.config.NativeConfig;
-import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.metrics.MetricsRegistry;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
@@ -23,11 +21,6 @@ import io.trino.plugin.warp.tools.CatalogNameProvider;
 public class TestingTxService
 {
     private TestingTxService() {}
-
-    public static StorageEngineTxService create()
-    {
-        return new StorageEngineTxService(new NativeConfig(), createMetricsManager());
-    }
 
     public static MetricsManager createMetricsManager()
     {

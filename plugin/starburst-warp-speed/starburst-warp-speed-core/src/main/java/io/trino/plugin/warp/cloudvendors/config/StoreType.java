@@ -71,9 +71,4 @@ public enum StoreType
             throw new RuntimeException("Unsupported storeType: " + storePathProtocol);
         }
     }
-
-    public String getConfigName()
-    {
-        return configName;
-    }
 }

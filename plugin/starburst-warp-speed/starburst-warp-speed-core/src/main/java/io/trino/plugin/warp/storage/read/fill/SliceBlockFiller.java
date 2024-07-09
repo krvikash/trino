@@ -35,7 +35,6 @@ import java.util.Optional;
 public abstract class SliceBlockFiller
         extends BlockFiller<Slice>
 {
-    protected final StorageEngineConstants storageEngineConstants;
     protected final NativeConfig nativeConfig;
     protected final int queryStringNullValueSize;
 
@@ -45,7 +44,6 @@ public abstract class SliceBlockFiller
             NativeConfig nativeConfig)
     {
         super(spiBuilderType, BlockFillerType.SLICE);
-        this.storageEngineConstants = storageEngineConstants;
         this.nativeConfig = nativeConfig;
         this.queryStringNullValueSize = storageEngineConstants.getQueryStringNullValueSize();
     }

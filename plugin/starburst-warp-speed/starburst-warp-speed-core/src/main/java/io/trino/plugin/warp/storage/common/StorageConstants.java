@@ -21,7 +21,6 @@ public final class StorageConstants
     public static final int MAY_HAVE_NULL = 1;
     public static final int NOT_NULL_MARKER_VALUE = 0;
     public static final int NULL_MARKER_VALUE = 1;
-    public static final int INDEX_PADDING_SIZE = 32;
 
     private StorageConstants()
     {

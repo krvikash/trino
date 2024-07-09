@@ -35,7 +35,7 @@ public class WarpModules
     private final ConnectorContext context;
     private Optional<Module> storageEngineModule = Optional.empty();
     private Optional<Module> cloudVendorModule = Optional.empty();
-    private Optional<List<ExtraModule>> extraModules = Optional.empty();
+    private final Optional<List<ExtraModule>> extraModules = Optional.empty();
 
     public WarpModules(String connectorId, Map<String, String> config, ConnectorContext context)
     {
@@ -61,12 +61,6 @@ public class WarpModules
     public WarpModules withStorageEngineModule(Module module)
     {
         this.storageEngineModule = Optional.ofNullable(module);
-        return this;
-    }
-
-    public WarpModules withExtraModules(List<ExtraModule> extraModules)
-    {
-        this.extraModules = Optional.ofNullable(extraModules);
         return this;
     }
 

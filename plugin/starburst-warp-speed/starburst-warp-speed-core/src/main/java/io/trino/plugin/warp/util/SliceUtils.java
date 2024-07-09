@@ -112,11 +112,6 @@ public class SliceUtils
         return result;
     }
 
-    public static long calcCrc(Slice currBytes)
-    {
-        return calcCrc(currBytes.toByteBuffer(), currBytes.length());
-    }
-
     public static long calcCrc(ByteBuffer byteBuffer, int length)
     {
         // NOTE - this functions has a duplication in C layer, if you decide to change it be sure to change the C one also (calc_crc in vrd_primitives.h)

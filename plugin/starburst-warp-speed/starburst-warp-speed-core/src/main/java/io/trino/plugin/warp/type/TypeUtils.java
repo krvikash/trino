@@ -289,13 +289,6 @@ public class TypeUtils
         return ret != 0 ? ret : maxVarlenLength;
     }
 
-    public static int getIndexTypeLength(Type type, int strIndexLength)
-    {
-        int recTypeLength = getTypeLength(type, strIndexLength);
-
-        return getIndexTypeLength(convertToRecTypeCode(type, recTypeLength, strIndexLength), recTypeLength, strIndexLength);
-    }
-
     public static int getIndexTypeLength(RecTypeCode recTypeCode, int recTypeLength, int strIndexLength)
     {
         return (isStr(recTypeCode) && !isStrOptimizedLength(recTypeLength)) ? strIndexLength : recTypeLength;

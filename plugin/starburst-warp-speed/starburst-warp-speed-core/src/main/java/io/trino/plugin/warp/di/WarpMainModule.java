@@ -41,7 +41,6 @@ import io.trino.plugin.warp.metrics.ScheduledMetricsHandler;
 import io.trino.plugin.warp.node.CoordinatorInitializedEventHandler;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
-import io.trino.plugin.warp.type.WarpTypeDeserializer;
 import io.trino.plugin.warp.warmup.WarmupRuleService;
 import io.trino.spi.block.Block;
 import io.trino.spi.connector.ConnectorContext;
@@ -105,8 +104,6 @@ public class WarpMainModule
         binder.bind(OpenTelemetry.class).toInstance(context.getOpenTelemetry());
 
         binder.bind(MetricsManager.class);
-
-        binder.bind(WarpTypeDeserializer.class).asEagerSingleton();
 
         binder.bind(FlowsSequencer.class);
 
