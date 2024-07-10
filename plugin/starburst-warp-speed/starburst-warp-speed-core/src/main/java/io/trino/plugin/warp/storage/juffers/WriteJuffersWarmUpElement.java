@@ -439,6 +439,13 @@ public class WriteJuffersWarmUpElement
         recordBufferSingleLongDec = null;
     }
 
+    public void resetSingleValueIfNeeded(ByteBuffer byteBuffer, int length)
+    {
+        if ((recordBufferSingleCrc != 0) && (recordBufferSingleCrc != SliceUtils.calcCrc(byteBuffer, length))) {
+            resetSingleValue();
+        }
+    }
+
     // getters
     public int getActualRecTypeLength()
     {

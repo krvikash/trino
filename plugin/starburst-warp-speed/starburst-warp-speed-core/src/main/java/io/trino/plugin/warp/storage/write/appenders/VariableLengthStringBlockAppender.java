@@ -168,6 +168,12 @@ public class VariableLengthStringBlockAppender
                 int addedNV = nullsCount - nullsCountCommitted;
                 int position = recordBuff.position();
 
+                // handle the corner case where the current entry that pushed us over the buffer size is also the one that "breaks"
+                // the fact that this chunk will be single chunk
+                if (!isNull) {
+                    juffersWE.resetSingleValueIfNeeded(value.toByteBuffer(0, att.recLen), att.recLen);
+                }
+
                 juffersWE.commitAndResetWE(numRecs, addedNV, position, numExtBytes);
                 nullsCountCommitted = nullsCount;
             }
