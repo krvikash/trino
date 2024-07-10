@@ -11019,6 +11019,35 @@
         }
       }
     ]
-  }
+  },
+    {
+        "name": "single_chunk_22783_rollback",
+        "structure": [
+            {
+                "name": "col_varchar",
+                "type": "varchar"
+            }
+        ],
+        "queries_data": [
+            {
+                "query": "select count(*) from single_chunk_22783_rollback",
+                "expected_result": [
+                    22983
+                ],
+                "query_id": "single_chunk_22783_rollback_1",
+                "expected_counters": {
+                    "warp_match_columns": 0,
+                    "warp_collect_columns": 0,
+                    "empty_collect_columns": 1,
+                    "external_match_columns": 0,
+                    "external_collect_columns": 0
+                }
+            }
+        ],
+        "session_properties": {
+            "enable_dictionary": false
+        },
+        "data": "resources/synthetic/single_chunk_22783_rollback.jsonl"
+    }
 ]
 
