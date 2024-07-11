@@ -16,6 +16,7 @@ import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import io.airlift.concurrent.BoundedExecutor;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.airlift.http.server.HttpServerConfig;
 import io.airlift.json.JsonBinder;
 import io.airlift.tracing.SpanSerialization;
 import io.opentelemetry.api.trace.Span;
@@ -110,6 +111,10 @@ public class MainModule
                 DataServerConfig.class,
                 DataServerConfig::isTestingEnableStatsLogging,
                 innerBinder -> innerBinder.bind(DataServerStatsLogger.class).in(SINGLETON)));
+
+        configBinder(binder).bindConfigDefaults(HttpServerConfig.class, config -> {
+            config.setProcessForwarded(true);
+        });
     }
 
     @Provides

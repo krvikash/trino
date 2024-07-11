@@ -11,8 +11,10 @@ package io.starburst.stargate.buffer.discovery.server;
 
 import com.google.inject.Binder;
 import com.google.inject.Module;
+import io.airlift.http.server.HttpServerConfig;
 import io.starburst.stargate.buffer.discovery.server.failures.FailureTrackingResource;
 
+import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
 
 public class ServerModule
@@ -23,5 +25,9 @@ public class ServerModule
     {
         jaxrsBinder(binder).bind(DiscoveryResource.class);
         jaxrsBinder(binder).bind(FailureTrackingResource.class);
+
+        configBinder(binder).bindConfigDefaults(HttpServerConfig.class, config -> {
+            config.setProcessForwarded(true);
+        });
     }
 }
