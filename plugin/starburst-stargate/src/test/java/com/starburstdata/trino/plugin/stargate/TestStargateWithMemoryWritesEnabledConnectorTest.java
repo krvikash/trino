@@ -58,6 +58,7 @@ public class TestStargateWithMemoryWritesEnabledConnectorTest
                 // not supported in memory connector
                 return false;
 
+            case SUPPORTS_RENAME_SCHEMA:
             case SUPPORTS_RENAME_COLUMN:
                 return true;
 
@@ -68,10 +69,6 @@ public class TestStargateWithMemoryWritesEnabledConnectorTest
             case SUPPORTS_NOT_NULL_CONSTRAINT:
                 // memory connector does not support not-null in create-table
                 return true;
-
-            case SUPPORTS_RENAME_SCHEMA:
-                // not supported in memory connector
-                return false;
 
             case SUPPORTS_TRUNCATE:
                 return false;
@@ -191,17 +188,6 @@ public class TestStargateWithMemoryWritesEnabledConnectorTest
         // TODO: fix test
         assertThatThrownBy(super::testDropNotNullConstraint)
                 .hasMessageContaining("Column '\"col\"' does not exist");
-    }
-
-    @Test
-    @Override
-    public void testRenameSchema()
-    {
-        // Overridden because we get an error message with "Query failed (<query_id>):" prefixed instead of one expected by superclass
-        String schemaName = getSession().getSchema().orElseThrow();
-        assertQueryFails(
-                format("ALTER SCHEMA %s RENAME TO %s", schemaName, schemaName + randomNameSuffix()),
-                ".*This connector does not support renaming schemas");
     }
 
     @Test
