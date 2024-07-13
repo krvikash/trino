@@ -25,6 +25,8 @@ import io.trino.plugin.base.session.SessionPropertiesProvider;
 import io.trino.plugin.hive.FileFormatDataSourceStats;
 import io.trino.plugin.hive.LocationAccessControlModule;
 import io.trino.plugin.hive.SortingFileWriterConfig;
+import io.trino.plugin.hive.metastore.HiveMetastoreFactory;
+import io.trino.plugin.hive.metastore.RawHiveMetastoreFactory;
 import io.trino.plugin.hive.metastore.thrift.TranslateHiveViews;
 import io.trino.plugin.hive.orc.OrcReaderConfig;
 import io.trino.plugin.hive.orc.OrcWriterConfig;
@@ -37,6 +39,8 @@ import io.trino.plugin.iceberg.catalog.rest.DefaultIcebergFileSystemFactory;
 import io.trino.plugin.iceberg.functions.IcebergFunctionProvider;
 import io.trino.plugin.iceberg.functions.tablechanges.TableChangesFunctionProcessorProviderFactory;
 import io.trino.plugin.iceberg.functions.tablechanges.TableChangesFunctionProvider;
+import io.trino.plugin.iceberg.procedure.AddFilesTableFromTableProcedure;
+import io.trino.plugin.iceberg.procedure.AddFilesTableProcedure;
 import io.trino.plugin.iceberg.procedure.DropExtendedStatsTableProcedure;
 import io.trino.plugin.iceberg.procedure.ExpireSnapshotsTableProcedure;
 import io.trino.plugin.iceberg.procedure.OptimizeTableProcedure;
@@ -102,6 +106,7 @@ public class IcebergModule
 
         binder.bind(TableStatisticsWriter.class).in(Scopes.SINGLETON);
         binder.bind(IcebergMetadataFactory.class).in(Scopes.SINGLETON);
+        newOptionalBinder(binder, Key.get(HiveMetastoreFactory.class, RawHiveMetastoreFactory.class));
 
         jsonCodecBinder(binder).bindJsonCodec(CommitTaskData.class);
 
@@ -133,6 +138,8 @@ public class IcebergModule
         tableProcedures.addBinding().toProvider(DropExtendedStatsTableProcedure.class).in(Scopes.SINGLETON);
         tableProcedures.addBinding().toProvider(ExpireSnapshotsTableProcedure.class).in(Scopes.SINGLETON);
         tableProcedures.addBinding().toProvider(RemoveOrphanFilesTableProcedure.class).in(Scopes.SINGLETON);
+        tableProcedures.addBinding().toProvider(AddFilesTableProcedure.class).in(Scopes.SINGLETON);
+        tableProcedures.addBinding().toProvider(AddFilesTableFromTableProcedure.class).in(Scopes.SINGLETON);
 
         newSetBinder(binder, ConnectorTableFunction.class).addBinding().toProvider(TableChangesFunctionProvider.class).in(Scopes.SINGLETON);
         binder.bind(FunctionProvider.class).to(IcebergFunctionProvider.class).in(Scopes.SINGLETON);

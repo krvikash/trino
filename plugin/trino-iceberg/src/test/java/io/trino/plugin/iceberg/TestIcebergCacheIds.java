@@ -101,6 +101,14 @@ public class TestIcebergCacheIds
         tempDir = Files.createTempDirectory(null).toFile();
         FileMetastoreTableOperationsProvider tableOperationsProvider = new FileMetastoreTableOperationsProvider(HDFS_FILE_SYSTEM_FACTORY);
         IcebergConfig icebergConfig = new IcebergConfig();
+        FileHiveMetastoreFactory metastoreFactory = new FileHiveMetastoreFactory(
+                new NodeVersion("test_version"),
+                HDFS_FILE_SYSTEM_FACTORY,
+                true,
+                new FileHiveMetastoreConfig()
+                        .setCatalogDirectory(tempDir.toURI().toString())
+                        .setMetastoreUser("user"),
+                Tracing.noopTracer());
         IcebergMetadataFactory icebergMetadataFactory = new IcebergMetadataFactory(
                 LocationAccessControl.ALLOW_ALL,
                 TESTING_TYPE_MANAGER,
@@ -109,21 +117,16 @@ public class TestIcebergCacheIds
                 new TrinoHiveCatalogFactory(
                         icebergConfig,
                         new CatalogName("iceberg"),
-                        new FileHiveMetastoreFactory(
-                                new NodeVersion("test_version"),
-                                HDFS_FILE_SYSTEM_FACTORY,
-                                true,
-                                new FileHiveMetastoreConfig()
-                                        .setCatalogDirectory(tempDir.toURI().toString())
-                                        .setMetastoreUser("user"),
-                                Tracing.noopTracer()),
+                        metastoreFactory,
                         HDFS_FILE_SYSTEM_FACTORY,
                         TESTING_TYPE_MANAGER,
                         tableOperationsProvider,
                         new NodeVersion("test_version"),
                         new IcebergSecurityConfig()),
                 new DefaultIcebergFileSystemFactory(HDFS_FILE_SYSTEM_FACTORY),
-                new TableStatisticsWriter(new NodeVersion("test-version")));
+                new TableStatisticsWriter(new NodeVersion("test-version")),
+                Optional.of(metastoreFactory),
+                icebergConfig);
         icebergMetadata = new IcebergCacheMetadata(
                 createJsonCodec(IcebergCacheTableId.class),
                 createJsonCodec(IcebergColumnHandle.class));
