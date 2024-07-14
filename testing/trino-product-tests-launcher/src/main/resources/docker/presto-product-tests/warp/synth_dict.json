@@ -403,9 +403,9 @@
       },
       {
         "query_id": "dict_single_file_random_values_data_min_max_not_supported_q01",
-        "query": "select count(cDecimal) from dict_single_file_random_values where cDecimal < -10000000000",
+        "query": "select count(cDecimal) from dict_single_file_random_values where cDecimal <= 1.68",
         "expected_result": [
-          0
+          1
         ],
         "expected_counters": {
           "filtered_by_predicate": 0,
@@ -417,9 +417,9 @@
       },
       {
         "query_id": "dict_single_file_random_values_data_min_max_not_supported_q02",
-        "query": "select count(cDecimal) from dict_single_file_random_values where cDecimal > 10000000000",
+        "query": "select count(cDecimal) from dict_single_file_random_values where cDecimal >= 9999998.78",
         "expected_result": [
-          0
+          1
         ],
         "expected_counters": {
           "filtered_by_predicate": 0,

@@ -1966,7 +1966,7 @@
         }
       },
       {
-        "query": "select int_1 from integer_more where int_1 in (1000000001, 1000000002)",
+        "query": "select int_1 from integer_more where int_1 in (1000000001, 1000000003)",
         "session_properties":
         {
           "enable_mapped_match_collect": true
@@ -1974,7 +1974,7 @@
         "expected_result":
         [
           [1000000001],
-          [1000000002]
+          [1000000003]
         ],
         "query_id": "integer_more_11",
         "expected_counters": {
@@ -2004,8 +2004,8 @@
           "warp_match_columns": 1,
           "warp_collect_columns": 1,
           "warp_prefilled_collect_columns": 0,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
+          "warp_match_collect_columns": 0,
+          "warp_mapped_match_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2027,8 +2027,8 @@
           "warp_match_columns": 1,
           "warp_collect_columns": 1,
           "warp_prefilled_collect_columns": 0,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
+          "warp_match_collect_columns": 0,
+          "warp_mapped_match_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -2049,7 +2049,7 @@
           "warp_match_columns": 1,
           "warp_collect_columns": 1,
           "warp_prefilled_collect_columns": 0,
-          "warp_match_collect_columns": 1,
+          "warp_match_collect_columns": 0,
           "warp_mapped_match_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -2059,12 +2059,34 @@
           "warp_match_columns": 1,
           "warp_collect_columns": 1,
           "warp_prefilled_collect_columns": 0,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
+          "warp_match_collect_columns": 0,
+          "warp_mapped_match_collect_columns": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
-      }
+      },
+      {
+            "query": "select int_1 from integer_more where int_1 in (1000000001, 1000000002)",
+            "session_properties":
+            {
+                "enable_mapped_match_collect": true
+            },
+            "expected_result":
+            [
+                [1000000001],
+                [1000000002]
+            ],
+            "query_id": "integer_more_15",
+            "expected_counters": {
+                "warp_match_columns": 1,
+                "warp_collect_columns": 1,
+                "warp_prefilled_collect_columns": 0,
+                "warp_match_collect_columns": 0,
+                "warp_mapped_match_collect_columns": 0,
+                "external_match_columns": 0,
+                "external_collect_columns": 0
+            }
+        }
     ]
   },
   {
@@ -7878,8 +7900,8 @@
         "expected_counters": {
           "warp_match_columns": 3,
           "warp_collect_columns": 3,
-          "warp_match_collect_columns": 2,
-          "warp_mapped_match_collect_columns": 2,
+          "warp_match_collect_columns": 0,
+          "warp_mapped_match_collect_columns": 0,
           "filtered_by_predicate": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -7887,8 +7909,8 @@
         "iceberg_expected_counters": {
           "warp_match_columns": 1,
           "warp_collect_columns": 1,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
+          "warp_match_collect_columns": 0,
+          "warp_mapped_match_collect_columns": 0,
           "filtered_by_predicate": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -7896,8 +7918,8 @@
         "dl_expected_counters": {
           "warp_match_columns": 1,
           "warp_collect_columns": 1,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
+          "warp_match_collect_columns": 0,
+          "warp_mapped_match_collect_columns": 0,
           "filtered_by_predicate": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -8054,8 +8076,8 @@
         "expected_counters": {
           "warp_match_columns": 3,
           "warp_collect_columns": 3,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
+          "warp_match_collect_columns": 0,
+          "warp_mapped_match_collect_columns": 0,
           "filtered_by_predicate": 2,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -8063,8 +8085,8 @@
         "iceberg_expected_counters": {
           "warp_match_columns": 1,
           "warp_collect_columns": 1,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
+          "warp_match_collect_columns": 0,
+          "warp_mapped_match_collect_columns": 0,
           "filtered_by_predicate": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
@@ -8072,8 +8094,8 @@
         "dl_expected_counters": {
           "warp_match_columns": 1,
           "warp_collect_columns": 1,
-          "warp_match_collect_columns": 1,
-          "warp_mapped_match_collect_columns": 1,
+          "warp_match_collect_columns": 0,
+          "warp_mapped_match_collect_columns": 0,
           "filtered_by_predicate": 0,
           "external_match_columns": 0,
           "external_collect_columns": 0
