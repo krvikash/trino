@@ -19,6 +19,7 @@ import com.starburstdata.presto.biac.model.Grant;
 import com.starburstdata.presto.biac.storage.BiacStorage;
 import com.starburstdata.presto.server.StarburstQueryRunner;
 import com.starburstdata.presto.testing.testcontainers.TestingEventLoggerPostgreSqlServer;
+import io.trino.plugin.postgresql.PostgreSqlPlugin;
 import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.spi.security.Identity;
 import io.trino.testing.DistributedQueryRunner;
@@ -48,7 +49,9 @@ public class TestQueryTroubleshootingWithBiac
                 .build();
 
         queryRunner.installPlugin(new TpchPlugin());
+        queryRunner.installPlugin(new PostgreSqlPlugin());
         queryRunner.createCatalog("tpch", "tpch");
+        queryRunner.createCatalog("postgres", "postgresql", POSTGRES_CATALOG_PROPERTIES);
 
         RbacBiacService rbacBiacService = queryRunner.getCoordinator().getInstance(Key.get(RbacBiacService.class));
         BiacStorage biacStorage = queryRunner.getCoordinator().getInstance(Key.get(BiacStorage.class));

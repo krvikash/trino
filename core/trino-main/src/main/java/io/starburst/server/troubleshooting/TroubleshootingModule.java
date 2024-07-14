@@ -13,10 +13,14 @@ import com.google.inject.Binder;
 import com.google.inject.Key;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
+import io.starburst.server.troubleshooting.configdump.CatalogConfigProvider;
 import io.starburst.server.troubleshooting.configdump.ConfigDumpProvider;
 import io.starburst.server.troubleshooting.configdump.ConfigDumpResource;
 import io.starburst.server.troubleshooting.configdump.ConfigDumper;
+import io.starburst.server.troubleshooting.configdump.CoordinatorDynamicCatalogConfigProvider;
+import io.starburst.server.troubleshooting.configdump.EmptyConfigProvider;
 import io.starburst.server.troubleshooting.configdump.RemoteConfigDumpClient;
+import io.starburst.server.troubleshooting.configdump.StaticCatalogConfigProvider;
 import io.starburst.server.troubleshooting.jfr.FlightRecorderConfig;
 import io.starburst.server.troubleshooting.jfr.FlightRecorderModule;
 import io.starburst.server.troubleshooting.jmx.JmxTroubleshootingProvider;
@@ -34,6 +38,8 @@ import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.units.DataSize;
 import io.opentelemetry.sdk.trace.SpanProcessor;
 import io.trino.SystemSessionPropertiesProvider;
+import io.trino.connector.CatalogManagerConfig;
+import io.trino.connector.CatalogManagerConfig.CatalogMangerKind;
 import io.trino.server.ServerConfig;
 import jdk.jfr.FlightRecorder;
 
@@ -70,8 +76,20 @@ public class TroubleshootingModule
         binder.bind(ConfigDumper.class).in(Scopes.SINGLETON);
         jaxrsBinder(binder).bind(ConfigDumpResource.class);
 
+        CatalogManagerConfig catalogManagerConfig = buildConfigObject(CatalogManagerConfig.class);
+        CatalogMangerKind catalogMangerKind = catalogManagerConfig.getCatalogMangerKind();
+
         if (!buildConfigObject(ServerConfig.class).isCoordinator()) {
+            switch (catalogMangerKind) {
+                case STATIC -> binder.bind(CatalogConfigProvider.class).to(StaticCatalogConfigProvider.class).in(Scopes.SINGLETON);
+                case DYNAMIC -> binder.bind(CatalogConfigProvider.class).to(EmptyConfigProvider.class).in(Scopes.SINGLETON);
+            }
             return;
+        }
+
+        switch (catalogMangerKind) {
+            case STATIC -> binder.bind(CatalogConfigProvider.class).to(StaticCatalogConfigProvider.class).in(Scopes.SINGLETON);
+            case DYNAMIC -> binder.bind(CatalogConfigProvider.class).to(CoordinatorDynamicCatalogConfigProvider.class).in(Scopes.SINGLETON);
         }
 
         configBinder(binder).bindConfig(TroubleshootingConfig.class);

@@ -39,11 +39,13 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -86,6 +88,11 @@ public abstract class AbstractQueryTroubleshootingTest
 
     protected static final String AUTHORIZED_USER = "bob";
     protected static final String NOT_AUTHORIZED_USER = "john";
+
+    protected static final Map<String, String> POSTGRES_CATALOG_PROPERTIES = ImmutableMap.of(
+            "connection-url", "jdbc:postgresql://localhost:5432/postgres",
+            "connection-user", "root",
+            "connection-password", "secret");
 
     protected static final Session SESSION = testSessionBuilder()
             .build();
@@ -228,7 +235,13 @@ public abstract class AbstractQueryTroubleshootingTest
         assertThat(coordinatorConfigs.size()).isEqualTo(1);
         assertThat(coordinatorConfigs.getFirst().contents())
                 .hasEntrySatisfying("coordinator/config.properties", value -> assertPropertyExists(value, "coordinator=true"))
-                .hasEntrySatisfying("coordinator/jvm.config", TroubleshootingTestHelper::assertJvmConfig);
+                .hasEntrySatisfying("coordinator/jvm.config", TroubleshootingTestHelper::assertJvmConfig)
+                .hasEntrySatisfying("coordinator/catalog/tpch.properties", value -> softly.assertThat(value).isEmpty())
+                .hasEntrySatisfying("coordinator/catalog/postgres.properties", value -> {
+                    assertPropertyExists(value, "connection-url=jdbc:postgresql://localhost:5432/postgres");
+                    assertPropertyExists(value, "connection-user=root");
+                    assertPropertyExists(value, "connection-password=[REDACTED]");
+                });
 
         List<Unzipped> workerConfigs = findConfigZips(inputsMap, "worker-", tmpDir);
         if (!nodesProcessingQuery.isEmpty()) {
@@ -236,7 +249,9 @@ public abstract class AbstractQueryTroubleshootingTest
             String workerConfigDirectory = findWorkerConfigDirectoryName(workerConfigs.getFirst());
             assertThat(workerConfigs.getFirst().contents())
                     .hasEntrySatisfying(workerConfigDirectory + "config.properties", value -> assertPropertyExists(value, "coordinator=false"))
-                    .hasEntrySatisfying(workerConfigDirectory + "jvm.config", TroubleshootingTestHelper::assertJvmConfig);
+                    .hasEntrySatisfying(workerConfigDirectory + "jvm.config", TroubleshootingTestHelper::assertJvmConfig)
+                    .doesNotContainKey(workerConfigDirectory + "catalog/tpch.properties")
+                    .doesNotContainKey(workerConfigDirectory + "catalog/postgres.properties");
         }
         else {
             softly.assertThat(workerConfigs.size()).isEqualTo(0);

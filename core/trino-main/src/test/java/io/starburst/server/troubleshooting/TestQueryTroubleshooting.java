@@ -10,6 +10,7 @@
 package io.starburst.server.troubleshooting;
 
 import com.starburstdata.presto.server.StarburstQueryRunner;
+import io.trino.plugin.postgresql.PostgreSqlPlugin;
 import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
@@ -29,7 +30,9 @@ public class TestQueryTroubleshooting
                 .build();
 
         queryRunner.installPlugin(new TpchPlugin());
+        queryRunner.installPlugin(new PostgreSqlPlugin());
         queryRunner.createCatalog("tpch", "tpch");
+        queryRunner.createCatalog("postgres", "postgresql", POSTGRES_CATALOG_PROPERTIES);
 
         return queryRunner;
     }
