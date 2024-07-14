@@ -12,11 +12,13 @@ package com.starburstdata.presto.connector;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.configuration.ConfigurationLoader;
+import io.airlift.log.Logger;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +30,8 @@ import static java.util.Objects.requireNonNull;
 
 public final class CatalogConfigurationReader
 {
+    private static final Logger log = Logger.get(CatalogConfigurationReader.class);
+
     public static final String CONNECTOR_NAME_PROPERTY = "connector.name";
 
     private CatalogConfigurationReader() {}
@@ -63,7 +67,11 @@ public final class CatalogConfigurationReader
                     .filter(file -> file.getFileName().toString().endsWith(".properties"))
                     .collect(toImmutableList());
         }
+        catch (NoSuchFileException e) {
+            return ImmutableList.of();
+        }
         catch (IOException e) {
+            log.warn(e, "Error listing catalog configurations from the directory: %s", catalogsDirectory);
             return ImmutableList.of();
         }
     }
