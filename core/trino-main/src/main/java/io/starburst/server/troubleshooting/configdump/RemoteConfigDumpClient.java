@@ -30,6 +30,7 @@ import static com.google.common.net.HttpHeaders.CONTENT_TYPE;
 import static com.google.common.net.MediaType.JSON_UTF_8;
 import static io.airlift.http.client.HttpUriBuilder.uriBuilderFrom;
 import static io.airlift.http.client.Request.Builder.prepareGet;
+import static io.airlift.http.client.ResponseHandlerUtils.propagate;
 import static java.util.Objects.requireNonNull;
 
 public class RemoteConfigDumpClient
@@ -65,7 +66,7 @@ public class RemoteConfigDumpClient
         @Override
         public InputStream handleException(Request request, Exception exception)
         {
-            throw new RuntimeException("Request failed " + request, exception);
+            throw propagate(request, exception);
         }
 
         @Override

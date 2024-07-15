@@ -164,7 +164,7 @@ public class RemoteTroubleshootingTraceClient
         @Override
         public InputStream handleException(Request request, Exception exception)
         {
-            throw new RuntimeException("Request failed " + request, exception);
+            throw propagate(request, exception);
         }
 
         @Override
