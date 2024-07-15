@@ -11,9 +11,9 @@ package io.starburst.server.troubleshooting.tracing;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
+import io.starburst.server.troubleshooting.DownloadResult;
 import io.starburst.server.troubleshooting.TroubleshootingContext;
 import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
-import io.starburst.server.troubleshooting.tracing.RemoteTroubleshootingTraceClient.DownloadResult;
 import io.trino.spi.Node;
 
 import java.io.InputStream;

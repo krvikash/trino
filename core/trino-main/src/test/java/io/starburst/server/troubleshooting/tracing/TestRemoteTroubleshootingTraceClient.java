@@ -11,7 +11,7 @@ package io.starburst.server.troubleshooting.tracing;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableSet;
-import io.starburst.server.troubleshooting.tracing.RemoteTroubleshootingTraceClient.DownloadResult;
+import io.starburst.server.troubleshooting.DownloadResult;
 import io.airlift.http.client.HttpStatus;
 import io.airlift.http.client.testing.TestingHttpClient;
 import io.airlift.http.client.testing.TestingHttpClient.Processor;

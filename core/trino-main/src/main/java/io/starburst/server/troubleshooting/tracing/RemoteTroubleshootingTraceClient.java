@@ -11,6 +11,7 @@ package io.starburst.server.troubleshooting.tracing;
 
 import com.google.common.util.concurrent.Futures;
 import com.google.inject.Inject;
+import io.starburst.server.troubleshooting.DownloadResult;
 import io.starburst.server.troubleshooting.ForTroubleshooting;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.HttpStatus;
@@ -24,9 +25,7 @@ import io.trino.spi.Node;
 import io.trino.spi.QueryId;
 import io.trino.spi.StandardErrorCode;
 import io.trino.spi.TrinoException;
-import jakarta.annotation.Nullable;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
@@ -37,7 +36,6 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.net.HttpHeaders.CONTENT_TYPE;
@@ -48,9 +46,7 @@ import static io.airlift.http.client.Request.Builder.prepareDelete;
 import static io.airlift.http.client.Request.Builder.prepareGet;
 import static io.airlift.http.client.Request.Builder.preparePost;
 import static io.airlift.http.client.ResponseHandlerUtils.propagate;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
-import static org.apache.commons.lang3.exception.ExceptionUtils.getStackTrace;
 
 public class RemoteTroubleshootingTraceClient
 {
@@ -218,44 +214,6 @@ public class RemoteTroubleshootingTraceClient
         {
             return (response.getStatusCode() == HttpStatus.OK.code()) ||
                     (response.getStatusCode() == HttpStatus.NO_CONTENT.code());
-        }
-    }
-
-    public static class DownloadResult
-    {
-        @Nullable
-        private final InputStream inputStream;
-        @Nullable
-        private final Exception exception;
-
-        private DownloadResult(@Nullable InputStream inputStream, @Nullable Exception exception)
-        {
-            checkArgument(inputStream != null ^ exception != null, "either inputStream or exception must be not null bot not both");
-            this.inputStream = inputStream;
-            this.exception = exception;
-        }
-
-        public static DownloadResult ofInputStream(InputStream inputStream)
-        {
-            return new DownloadResult(inputStream, null);
-        }
-
-        public static DownloadResult ofException(Exception e)
-        {
-            return new DownloadResult(null, e);
-        }
-
-        public boolean isSuccessful()
-        {
-            return inputStream != null;
-        }
-
-        public InputStream inputStream()
-        {
-            if (isSuccessful()) {
-                return requireNonNull(inputStream, "inputStream is null");
-            }
-            return new ByteArrayInputStream(getStackTrace(requireNonNull(exception, "exception is null")).getBytes(UTF_8));
         }
     }
 }
