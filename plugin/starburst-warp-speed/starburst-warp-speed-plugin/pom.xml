@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.trino</groupId>
         <artifactId>starburst-warp-speed</artifactId>
-        <version>451-cork-1-SNAPSHOT</version>
+        <version>452-cork-1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
