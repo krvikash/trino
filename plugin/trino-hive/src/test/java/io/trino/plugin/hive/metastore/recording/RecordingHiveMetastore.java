@@ -14,7 +14,6 @@
 package io.trino.plugin.hive.metastore.recording;
 
 import io.trino.plugin.hive.HiveType;
-import io.trino.plugin.hive.PartitionStatistics;
 import io.trino.plugin.hive.acid.AcidTransaction;
 import io.trino.plugin.hive.metastore.Database;
 import io.trino.plugin.hive.metastore.DatabaseFunctionKey;
@@ -27,6 +26,7 @@ import io.trino.plugin.hive.metastore.HivePrivilegeInfo;
 import io.trino.plugin.hive.metastore.HivePrivilegeInfo.HivePrivilege;
 import io.trino.plugin.hive.metastore.HiveTableName;
 import io.trino.plugin.hive.metastore.Partition;
+import io.trino.plugin.hive.metastore.PartitionStatistics;
 import io.trino.plugin.hive.metastore.PartitionWithStatistics;
 import io.trino.plugin.hive.metastore.PrincipalPrivileges;
 import io.trino.plugin.hive.metastore.StatisticsUpdateMode;
