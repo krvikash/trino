@@ -32,7 +32,7 @@ public class SnowflakeParallelSessionProperties
     public static final String CLIENT_RESULT_CHUNK_SIZE = "client_result_chunk_size";
     public static final String QUOTED_IDENTIFIERS_IGNORE_CASE = "quoted_identifiers_ignore_case";
     private static final String TARGET_SPLIT_SIZE = "target_split_size";
-    private static final DataSize DEFAULT_TARGET_SPLIT_SIZE = DataSize.of(256, MEGABYTE);
+    private static final DataSize DEFAULT_TARGET_SPLIT_SIZE = DataSize.of(32, MEGABYTE);
 
     private final MappingConfig mappingConfig;
 
