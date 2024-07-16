@@ -10,14 +10,14 @@
 package io.starburst.schema.discovery.internal;
 
 import com.google.common.collect.ImmutableList;
-import io.trino.plugin.hive.type.DecimalTypeInfo;
-import io.trino.plugin.hive.type.ListTypeInfo;
-import io.trino.plugin.hive.type.MapTypeInfo;
-import io.trino.plugin.hive.type.StructTypeInfo;
-import io.trino.plugin.hive.type.TypeConstants;
-import io.trino.plugin.hive.type.TypeInfo;
-import io.trino.plugin.hive.type.TypeInfoFactory;
-import io.trino.plugin.hive.type.VarcharTypeInfo;
+import io.trino.metastore.type.DecimalTypeInfo;
+import io.trino.metastore.type.ListTypeInfo;
+import io.trino.metastore.type.MapTypeInfo;
+import io.trino.metastore.type.StructTypeInfo;
+import io.trino.metastore.type.TypeConstants;
+import io.trino.metastore.type.TypeInfo;
+import io.trino.metastore.type.TypeInfoFactory;
+import io.trino.metastore.type.VarcharTypeInfo;
 
 import java.util.AbstractMap.SimpleEntry;
 import java.util.Collection;
@@ -31,8 +31,8 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.starburst.schema.discovery.infer.NullType.isNullType;
 import static io.starburst.schema.discovery.models.LowerCaseString.toLowerCase;
-import static io.trino.plugin.hive.type.TypeInfoFactory.getVarcharTypeInfo;
-import static io.trino.plugin.hive.type.TypeInfoUtils.getTypeInfoFromTypeString;
+import static io.trino.metastore.type.TypeInfoFactory.getVarcharTypeInfo;
+import static io.trino.metastore.type.TypeInfoUtils.getTypeInfoFromTypeString;
 
 //Here is all trino supported types with type='hive' create table
 

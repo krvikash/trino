@@ -9,7 +9,7 @@
  */
 package io.starburst.schema.discovery.generation;
 
-import io.trino.plugin.hive.type.ListTypeInfo;
+import io.trino.metastore.type.ListTypeInfo;
 
 import static java.util.Objects.requireNonNull;
 

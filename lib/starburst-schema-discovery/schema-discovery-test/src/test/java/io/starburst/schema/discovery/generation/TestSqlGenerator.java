@@ -47,9 +47,9 @@ import java.util.Optional;
 
 import static io.starburst.schema.discovery.models.LowerCaseString.toLowerCase;
 import static io.starburst.schema.discovery.models.SlashEndedPath.ensureEndsWithSlash;
-import static io.trino.plugin.hive.type.TypeInfoFactory.getListTypeInfo;
-import static io.trino.plugin.hive.type.TypeInfoFactory.getMapTypeInfo;
-import static io.trino.plugin.hive.type.TypeInfoFactory.getStructTypeInfo;
+import static io.trino.metastore.type.TypeInfoFactory.getListTypeInfo;
+import static io.trino.metastore.type.TypeInfoFactory.getMapTypeInfo;
+import static io.trino.metastore.type.TypeInfoFactory.getStructTypeInfo;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SuppressWarnings("checkstyle:RegexpMultiline")

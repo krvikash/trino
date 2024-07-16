@@ -15,7 +15,7 @@ import io.starburst.schema.discovery.formats.csv.CsvFlags;
 import io.starburst.schema.discovery.formats.csv.CsvOptions;
 import io.starburst.schema.discovery.formats.csv.CsvSchemaDiscovery;
 import io.starburst.schema.discovery.models.DiscoveredColumns;
-import io.trino.plugin.hive.type.DecimalTypeInfo;
+import io.trino.metastore.type.DecimalTypeInfo;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;

@@ -11,8 +11,8 @@ package io.starburst.schema.discovery.infer;
 
 import com.google.common.collect.ImmutableSet;
 import io.starburst.schema.discovery.internal.HiveTypes;
+import io.trino.metastore.type.TypeInfo;
 import io.trino.plugin.hive.projection.ProjectionType;
-import io.trino.plugin.hive.type.TypeInfo;
 
 import java.util.Set;
 

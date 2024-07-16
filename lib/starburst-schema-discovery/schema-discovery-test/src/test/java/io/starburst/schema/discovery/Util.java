@@ -27,11 +27,11 @@ import io.starburst.schema.discovery.io.DiscoveryTrinoInput;
 import io.starburst.schema.discovery.models.TableFormat;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.local.LocalFileSystem;
+import io.trino.metastore.type.TypeInfo;
 import io.trino.parquet.ParquetReaderOptions;
 import io.trino.plugin.hive.FileFormatDataSourceStats;
 import io.trino.plugin.hive.orc.HdfsOrcDataSource;
 import io.trino.plugin.hive.parquet.TrinoParquetDataSource;
-import io.trino.plugin.hive.type.TypeInfo;
 
 import java.net.URL;
 import java.nio.file.Paths;
@@ -41,7 +41,7 @@ import java.util.Map;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.starburst.schema.discovery.models.LowerCaseString.toLowerCase;
-import static io.trino.plugin.hive.type.TypeInfoFactory.getStructTypeInfo;
+import static io.trino.metastore.type.TypeInfoFactory.getStructTypeInfo;
 
 public class Util
 {

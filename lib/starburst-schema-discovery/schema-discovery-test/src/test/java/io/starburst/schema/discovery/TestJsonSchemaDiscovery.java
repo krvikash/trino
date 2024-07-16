@@ -15,8 +15,8 @@ import io.starburst.schema.discovery.formats.json.JsonSchemaDiscovery;
 import io.starburst.schema.discovery.internal.HiveType;
 import io.starburst.schema.discovery.models.DiscoveredColumns;
 import io.starburst.schema.discovery.options.GeneralOptions;
-import io.trino.plugin.hive.type.DecimalTypeInfo;
-import io.trino.plugin.hive.type.TypeInfo;
+import io.trino.metastore.type.DecimalTypeInfo;
+import io.trino.metastore.type.TypeInfo;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;

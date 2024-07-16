@@ -13,8 +13,8 @@ import com.google.common.collect.ImmutableSet;
 import io.starburst.schema.discovery.infer.InferType;
 import io.starburst.schema.discovery.internal.Column;
 import io.starburst.schema.discovery.models.DiscoveredColumns;
-import io.trino.plugin.hive.type.Category;
-import io.trino.plugin.hive.type.TypeInfo;
+import io.trino.metastore.type.Category;
+import io.trino.metastore.type.TypeInfo;
 
 import java.util.List;
 import java.util.stream.IntStream;

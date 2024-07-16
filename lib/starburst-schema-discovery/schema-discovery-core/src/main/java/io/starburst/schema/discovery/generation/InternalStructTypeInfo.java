@@ -9,8 +9,8 @@
  */
 package io.starburst.schema.discovery.generation;
 
-import io.trino.plugin.hive.type.StructTypeInfo;
-import io.trino.plugin.hive.type.TypeInfo;
+import io.trino.metastore.type.StructTypeInfo;
+import io.trino.metastore.type.TypeInfo;
 
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;

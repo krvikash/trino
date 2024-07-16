@@ -48,8 +48,8 @@ import io.starburst.schema.discovery.options.OptionsMap;
 import io.starburst.schema.discovery.processor.filetracker.FileTracker;
 import io.starburst.schema.discovery.processor.filetracker.FileTrackerFactory;
 import io.trino.filesystem.Location;
+import io.trino.metastore.type.TypeInfo;
 import io.trino.plugin.hive.projection.ProjectionType;
-import io.trino.plugin.hive.type.TypeInfo;
 import io.trino.spi.TrinoException;
 
 import java.util.AbstractMap.SimpleEntry;

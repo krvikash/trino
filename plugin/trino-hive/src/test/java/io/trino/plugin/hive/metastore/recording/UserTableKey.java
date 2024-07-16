@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.hive.metastore.recording;
 
-import io.trino.plugin.hive.metastore.HivePrincipal;
+import io.trino.metastore.HivePrincipal;
 
 import java.util.Optional;
 

@@ -9,7 +9,7 @@
  */
 package io.starburst.schema.discovery.generation;
 
-import io.trino.plugin.hive.type.TypeInfo;
+import io.trino.metastore.type.TypeInfo;
 import io.trino.spi.type.Type;
 
 public interface SqlType

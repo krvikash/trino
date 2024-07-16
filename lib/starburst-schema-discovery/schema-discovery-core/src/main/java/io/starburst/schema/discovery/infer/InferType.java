@@ -16,8 +16,8 @@ import com.google.common.collect.Streams;
 import io.starburst.schema.discovery.internal.Column;
 import io.starburst.schema.discovery.internal.HiveTypes;
 import io.starburst.schema.discovery.options.GeneralOptions;
-import io.trino.plugin.hive.type.DecimalTypeInfo;
-import io.trino.plugin.hive.type.TypeInfo;
+import io.trino.metastore.type.DecimalTypeInfo;
+import io.trino.metastore.type.TypeInfo;
 
 import java.math.BigDecimal;
 import java.time.format.DateTimeParseException;

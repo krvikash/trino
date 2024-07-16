@@ -9,7 +9,7 @@
  */
 package io.starburst.schema.discovery.generation;
 
-import io.trino.plugin.hive.type.MapTypeInfo;
+import io.trino.metastore.type.MapTypeInfo;
 
 import static java.util.Objects.requireNonNull;
 

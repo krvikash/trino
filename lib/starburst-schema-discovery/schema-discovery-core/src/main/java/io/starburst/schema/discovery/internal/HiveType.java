@@ -11,9 +11,9 @@ package io.starburst.schema.discovery.internal;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
-import io.trino.plugin.hive.type.TypeInfo;
+import io.trino.metastore.type.TypeInfo;
 
-import static io.trino.plugin.hive.type.TypeInfoUtils.getTypeInfoFromTypeString;
+import static io.trino.metastore.type.TypeInfoUtils.getTypeInfoFromTypeString;
 import static java.util.Objects.requireNonNull;
 
 public record HiveType(TypeInfo typeInfo)

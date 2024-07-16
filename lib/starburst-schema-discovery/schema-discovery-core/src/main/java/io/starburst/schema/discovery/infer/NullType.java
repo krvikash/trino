@@ -9,9 +9,9 @@
  */
 package io.starburst.schema.discovery.infer;
 
-import io.trino.plugin.hive.type.TypeConstants;
-import io.trino.plugin.hive.type.TypeInfo;
-import io.trino.plugin.hive.type.TypeInfoUtils;
+import io.trino.metastore.type.TypeConstants;
+import io.trino.metastore.type.TypeInfo;
+import io.trino.metastore.type.TypeInfoUtils;
 
 import static io.starburst.schema.discovery.internal.HiveTypes.STRING_TYPE;
 

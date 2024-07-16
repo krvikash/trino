@@ -15,11 +15,11 @@ import com.google.common.collect.Sets;
 import com.google.common.collect.Sets.SetView;
 import io.starburst.schema.discovery.SchemaDiscoveryErrorCode;
 import io.starburst.schema.discovery.internal.HiveTypes;
-import io.trino.plugin.hive.type.DecimalTypeInfo;
-import io.trino.plugin.hive.type.ListTypeInfo;
-import io.trino.plugin.hive.type.MapTypeInfo;
-import io.trino.plugin.hive.type.StructTypeInfo;
-import io.trino.plugin.hive.type.TypeInfo;
+import io.trino.metastore.type.DecimalTypeInfo;
+import io.trino.metastore.type.ListTypeInfo;
+import io.trino.metastore.type.MapTypeInfo;
+import io.trino.metastore.type.StructTypeInfo;
+import io.trino.metastore.type.TypeInfo;
 import io.trino.spi.TrinoException;
 
 import java.util.List;

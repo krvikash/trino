@@ -13,11 +13,11 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.starburst.schema.discovery.SchemaDiscoveryErrorCode;
 import io.starburst.schema.discovery.internal.HiveTypes;
+import io.trino.metastore.type.TypeInfo;
+import io.trino.metastore.type.TypeInfoFactory;
 import io.trino.orc.OrcColumn;
 import io.trino.orc.metadata.OrcColumnId;
 import io.trino.orc.metadata.OrcType;
-import io.trino.plugin.hive.type.TypeInfo;
-import io.trino.plugin.hive.type.TypeInfoFactory;
 import io.trino.spi.TrinoException;
 
 import java.util.List;
@@ -37,7 +37,7 @@ import static io.starburst.schema.discovery.internal.HiveTypes.HIVE_LONG;
 import static io.starburst.schema.discovery.internal.HiveTypes.HIVE_SHORT;
 import static io.starburst.schema.discovery.internal.HiveTypes.HIVE_TIMESTAMP;
 import static io.starburst.schema.discovery.internal.HiveTypes.STRING_TYPE;
-import static io.trino.plugin.hive.type.TypeInfoFactory.getDecimalTypeInfo;
+import static io.trino.metastore.type.TypeInfoFactory.getDecimalTypeInfo;
 
 class Converter
 {

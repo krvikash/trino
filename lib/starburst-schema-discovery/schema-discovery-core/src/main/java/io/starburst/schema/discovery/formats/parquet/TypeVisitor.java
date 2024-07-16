@@ -10,8 +10,8 @@
 package io.starburst.schema.discovery.formats.parquet;
 
 import io.starburst.schema.discovery.internal.HiveTypes;
-import io.trino.plugin.hive.type.DecimalTypeInfo;
-import io.trino.plugin.hive.type.TypeInfo;
+import io.trino.metastore.type.DecimalTypeInfo;
+import io.trino.metastore.type.TypeInfo;
 import io.trino.spi.TrinoException;
 import org.apache.parquet.schema.GroupType;
 import org.apache.parquet.schema.LogicalTypeAnnotation.DateLogicalTypeAnnotation;

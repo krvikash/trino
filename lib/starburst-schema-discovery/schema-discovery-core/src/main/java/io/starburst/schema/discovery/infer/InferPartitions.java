@@ -17,7 +17,7 @@ import io.starburst.schema.discovery.models.LowerCaseString;
 import io.starburst.schema.discovery.options.DiscoveryMode;
 import io.starburst.schema.discovery.options.GeneralOptions;
 import io.trino.filesystem.Location;
-import io.trino.plugin.hive.type.TypeInfo;
+import io.trino.metastore.type.TypeInfo;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;

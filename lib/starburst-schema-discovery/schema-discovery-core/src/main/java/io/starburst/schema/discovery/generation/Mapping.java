@@ -16,10 +16,10 @@ import io.starburst.schema.discovery.internal.HiveTypes;
 import io.starburst.schema.discovery.models.DiscoveredPartitionValues;
 import io.starburst.schema.discovery.models.DiscoveredTable;
 import io.starburst.schema.discovery.models.TableFormat;
-import io.trino.plugin.hive.type.ListTypeInfo;
-import io.trino.plugin.hive.type.MapTypeInfo;
-import io.trino.plugin.hive.type.StructTypeInfo;
-import io.trino.plugin.hive.type.TypeInfo;
+import io.trino.metastore.type.ListTypeInfo;
+import io.trino.metastore.type.MapTypeInfo;
+import io.trino.metastore.type.StructTypeInfo;
+import io.trino.metastore.type.TypeInfo;
 import io.trino.spi.type.RealType;
 import io.trino.spi.type.VarbinaryType;
 

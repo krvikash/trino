@@ -13,7 +13,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.starburst.schema.discovery.internal.HiveTypes;
 import io.starburst.schema.discovery.models.DiscoveredColumns;
-import io.trino.plugin.hive.type.TypeInfo;
+import io.trino.metastore.type.TypeInfo;
 import org.junit.jupiter.api.Test;
 
 import static io.starburst.schema.discovery.Util.column;
@@ -34,8 +34,8 @@ import static io.starburst.schema.discovery.internal.HiveTypes.HIVE_TIMESTAMP;
 import static io.starburst.schema.discovery.internal.HiveTypes.arrayType;
 import static io.starburst.schema.discovery.internal.HiveTypes.mapType;
 import static io.starburst.schema.discovery.internal.HiveTypes.structType;
-import static io.trino.plugin.hive.type.TypeInfoFactory.getCharTypeInfo;
-import static io.trino.plugin.hive.type.TypeInfoFactory.getDecimalTypeInfo;
+import static io.trino.metastore.type.TypeInfoFactory.getCharTypeInfo;
+import static io.trino.metastore.type.TypeInfoFactory.getDecimalTypeInfo;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestOrcSchemaDiscovery

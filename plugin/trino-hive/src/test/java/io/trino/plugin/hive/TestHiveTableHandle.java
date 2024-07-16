@@ -24,9 +24,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
 
+import static io.trino.metastore.HiveType.HIVE_STRING;
 import static io.trino.plugin.hive.HiveColumnHandle.ColumnType.PARTITION_KEY;
 import static io.trino.plugin.hive.HiveColumnHandle.createBaseColumn;
-import static io.trino.plugin.hive.metastore.HiveType.HIVE_STRING;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static org.assertj.core.api.Assertions.assertThat;
 

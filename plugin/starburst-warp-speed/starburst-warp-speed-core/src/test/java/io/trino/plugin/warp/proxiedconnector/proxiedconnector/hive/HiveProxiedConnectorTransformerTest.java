@@ -13,14 +13,14 @@
  */
 package io.trino.plugin.warp.proxiedconnector.proxiedconnector.hive;
 
+import io.trino.metastore.HivePartition;
+import io.trino.metastore.HiveType;
 import io.trino.plugin.hive.HiveColumnHandle;
 import io.trino.plugin.hive.HivePartitionKey;
 import io.trino.plugin.hive.HivePartitioningHandle;
 import io.trino.plugin.hive.HiveSplit;
 import io.trino.plugin.hive.HiveTableHandle;
 import io.trino.plugin.hive.acid.AcidTransaction;
-import io.trino.plugin.hive.metastore.HivePartition;
-import io.trino.plugin.hive.metastore.HiveType;
 import io.trino.plugin.warp.config.ProxiedConnectorConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherSplit;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
@@ -57,8 +57,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static io.trino.metastore.HiveType.HIVE_INT;
 import static io.trino.plugin.hive.HiveColumnHandle.ColumnType.REGULAR;
-import static io.trino.plugin.hive.metastore.HiveType.HIVE_INT;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;

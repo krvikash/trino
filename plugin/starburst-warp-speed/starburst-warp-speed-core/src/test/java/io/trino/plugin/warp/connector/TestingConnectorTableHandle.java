@@ -15,7 +15,7 @@ package io.trino.plugin.warp.connector;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.trino.plugin.hive.metastore.HivePartition;
+import io.trino.metastore.HivePartition;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.predicate.TupleDomain;

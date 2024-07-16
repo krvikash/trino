@@ -15,7 +15,7 @@ import com.google.common.collect.ImmutableList;
 import io.airlift.json.ObjectMapperProvider;
 import io.starburst.schema.discovery.internal.HiveType;
 import io.starburst.schema.discovery.internal.HiveTypes;
-import io.trino.plugin.hive.type.TypeInfo;
+import io.trino.metastore.type.TypeInfo;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;

@@ -12,8 +12,8 @@ package io.starburst.schema.discovery;
 import com.google.common.collect.ImmutableMap;
 import io.starburst.schema.discovery.internal.HiveTypes;
 import io.starburst.schema.discovery.models.DiscoveredColumns;
-import io.trino.plugin.hive.type.DecimalTypeInfo;
-import io.trino.plugin.hive.type.TypeInfo;
+import io.trino.metastore.type.DecimalTypeInfo;
+import io.trino.metastore.type.TypeInfo;
 import org.junit.jupiter.api.Test;
 
 import static io.starburst.schema.discovery.Util.arrayType;

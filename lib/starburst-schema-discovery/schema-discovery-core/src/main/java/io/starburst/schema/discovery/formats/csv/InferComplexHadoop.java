@@ -11,9 +11,9 @@ package io.starburst.schema.discovery.formats.csv;
 
 import io.starburst.schema.discovery.infer.NullType;
 import io.starburst.schema.discovery.internal.HiveTypes;
-import io.trino.plugin.hive.type.ListTypeInfo;
-import io.trino.plugin.hive.type.MapTypeInfo;
-import io.trino.plugin.hive.type.TypeInfo;
+import io.trino.metastore.type.ListTypeInfo;
+import io.trino.metastore.type.MapTypeInfo;
+import io.trino.metastore.type.TypeInfo;
 
 import java.util.function.BiFunction;
 
