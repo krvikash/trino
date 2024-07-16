@@ -5627,9 +5627,9 @@ class StatementAnalyzer
 
         private ResolvedFunction getResolvedFunction(FunctionCall functionCall)
         {
-            ResolvedFunction resolvedFunction = analysis.getResolvedFunction(functionCall);
-            verify(resolvedFunction != null, "function has not been analyzed yet: %s", functionCall);
-            return resolvedFunction;
+            Optional<ResolvedFunction> resolvedFunction = analysis.getResolvedFunction(functionCall);
+            verify(resolvedFunction.isPresent(), "function has not been analyzed yet: %s", functionCall);
+            return resolvedFunction.get();
         }
 
         private List<Expression> analyzeOrderBy(Node node, List<SortItem> sortItems, Scope orderByScope)
