@@ -25,9 +25,13 @@ import java.util.concurrent.TimeUnit;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
 
-public final class GrpcReplay
+/**
+ * This is an application for importing OpenTelemetry traces produced by Run&Troubleshoot to a local Jaeger instance.
+ * For more information, see [project root directory]/architecture/performance/troubleshooting.md
+ */
+public final class JeagerTraceImporter
 {
-    private GrpcReplay() {}
+    private JeagerTraceImporter() {}
 
     public static void main(String[] args)
     {
