@@ -54,7 +54,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.trino.plugin.hive.HiveColumnHandle.ColumnType.REGULAR;
-import static io.trino.plugin.hive.HiveType.HIVE_INT;
+import static io.trino.plugin.hive.metastore.HiveType.HIVE_INT;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static org.mockito.Mockito.mock;
 

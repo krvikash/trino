@@ -19,7 +19,7 @@ import io.trino.plugin.hive.HiveColumnHandle;
 import io.trino.plugin.hive.HivePartitionKey;
 import io.trino.plugin.hive.HivePartitioningHandle;
 import io.trino.plugin.hive.HiveTableHandle;
-import io.trino.plugin.hive.HiveType;
+import io.trino.plugin.hive.metastore.HiveType;
 import io.trino.plugin.hudi.HudiSplit;
 import io.trino.plugin.hudi.HudiTableHandle;
 import io.trino.plugin.hudi.model.HudiTableType;

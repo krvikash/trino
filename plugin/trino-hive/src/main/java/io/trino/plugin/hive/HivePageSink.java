@@ -23,6 +23,7 @@ import io.airlift.json.JsonCodec;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.trino.plugin.hive.HiveWritableTableHandle.BucketInfo;
+import io.trino.plugin.hive.metastore.HiveType;
 import io.trino.plugin.hive.util.HiveBucketing;
 import io.trino.spi.Page;
 import io.trino.spi.PageIndexer;
