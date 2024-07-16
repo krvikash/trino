@@ -11028,17 +11028,18 @@
                 "type": "varchar"
             }
         ],
+        "warm_query": "select col_varchar from single_chunk_22783_rollback",
         "queries_data": [
             {
-                "query": "select count(*) from single_chunk_22783_rollback",
+                "query": "select count(col_varchar) from single_chunk_22783_rollback",
                 "expected_result": [
                     22983
                 ],
                 "query_id": "single_chunk_22783_rollback_1",
                 "expected_counters": {
                     "warp_match_columns": 0,
-                    "warp_collect_columns": 0,
-                    "empty_collect_columns": 1,
+                    "warp_collect_columns": 1,
+                    "empty_collect_columns": 0,
                     "external_match_columns": 0,
                     "external_collect_columns": 0
                 }
