@@ -85,7 +85,7 @@ import static io.trino.plugin.hive.HiveMetadata.CSV_SEPARATOR_KEY;
 import static io.trino.plugin.hive.HiveMetadata.SKIP_HEADER_COUNT_KEY;
 import static io.trino.plugin.hive.HiveMetadata.TEXT_FIELD_SEPARATOR_KEY;
 import static io.trino.plugin.hive.HiveMetadata.verifyHiveColumnName;
-import static io.trino.plugin.hive.metastore.HiveType.toHiveType;
+import static io.trino.plugin.hive.util.HiveTypeTranslator.toHiveType;
 import static io.trino.plugin.hive.util.HiveWriteUtils.directoryExists;
 import static io.trino.plugin.hive.util.SerdeConstants.LIST_COLUMNS;
 import static io.trino.plugin.hive.util.SerdeConstants.LIST_COLUMN_TYPES;
