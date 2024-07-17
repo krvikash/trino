@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.hive.metastore.recording;
 
-import io.trino.plugin.hive.acid.AcidTransaction;
 import io.trino.plugin.hive.metastore.Database;
 import io.trino.plugin.hive.metastore.DatabaseFunctionKey;
 import io.trino.plugin.hive.metastore.DatabaseFunctionSignatureKey;
@@ -41,6 +40,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.Set;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -117,12 +117,12 @@ public class RecordingHiveMetastore
     @Override
     public void updateTableStatistics(String databaseName,
             String tableName,
-            AcidTransaction transaction,
+            OptionalLong acidWriteId,
             StatisticsUpdateMode mode,
             PartitionStatistics update)
     {
         verifyRecordingMode();
-        delegate.updateTableStatistics(databaseName, tableName, transaction, mode, update);
+        delegate.updateTableStatistics(databaseName, tableName, acidWriteId, mode, update);
     }
 
     @Override

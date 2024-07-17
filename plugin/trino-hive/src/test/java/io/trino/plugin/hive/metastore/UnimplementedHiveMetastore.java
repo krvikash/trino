@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.hive.metastore;
 
-import io.trino.plugin.hive.acid.AcidTransaction;
 import io.trino.plugin.hive.metastore.HivePrivilegeInfo.HivePrivilege;
 import io.trino.spi.function.LanguageFunction;
 import io.trino.spi.predicate.TupleDomain;
@@ -23,6 +22,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.Set;
 
 public class UnimplementedHiveMetastore
@@ -65,7 +65,7 @@ public class UnimplementedHiveMetastore
     @Override
     public void updateTableStatistics(String databaseName,
             String tableName,
-            AcidTransaction transaction,
+            OptionalLong acidWriteId,
             StatisticsUpdateMode mode,
             PartitionStatistics update)
     {
