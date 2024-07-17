@@ -71,6 +71,7 @@ import static io.trino.plugin.hive.coercions.CoercionUtils.createTypeFromCoercer
 import static io.trino.plugin.hive.coercions.CoercionUtils.extractHiveStorageFormat;
 import static io.trino.plugin.hive.util.HiveBucketing.HiveBucketFilter;
 import static io.trino.plugin.hive.util.HiveBucketing.getHiveBucketFilter;
+import static io.trino.plugin.hive.util.HiveTypeUtil.getHiveTypeForDereferences;
 import static io.trino.plugin.hive.util.HiveUtil.getDeserializerClassName;
 import static io.trino.plugin.hive.util.HiveUtil.getInputFormatName;
 import static io.trino.plugin.hive.util.HiveUtil.getPrefilledColumnValue;
@@ -524,7 +525,7 @@ public class HivePageSourceProvider
         private static boolean projectionValidForType(HiveType baseType, Optional<HiveColumnProjectionInfo> projection)
         {
             List<Integer> dereferences = projection.map(HiveColumnProjectionInfo::getDereferenceIndices).orElse(ImmutableList.of());
-            Optional<HiveType> targetType = baseType.getHiveTypeForDereferences(dereferences);
+            Optional<HiveType> targetType = getHiveTypeForDereferences(baseType, dereferences);
             return targetType.isPresent();
         }
 
@@ -546,7 +547,7 @@ public class HivePageSourceProvider
                         HiveType fromHiveTypeBase = columnMapping.getBaseTypeCoercionFrom().get();
 
                         Optional<HiveColumnProjectionInfo> newColumnProjectionInfo = columnHandle.getHiveColumnProjectionInfo().map(projectedColumn -> {
-                            HiveType fromHiveType = fromHiveTypeBase.getHiveTypeForDereferences(projectedColumn.getDereferenceIndices()).get();
+                            HiveType fromHiveType = getHiveTypeForDereferences(fromHiveTypeBase, projectedColumn.getDereferenceIndices()).get();
                             return new HiveColumnProjectionInfo(
                                     projectedColumn.getDereferenceIndices(),
                                     projectedColumn.getDereferenceNames(),
