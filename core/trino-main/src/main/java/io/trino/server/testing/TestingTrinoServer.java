@@ -48,6 +48,7 @@ import io.trino.SystemSessionPropertiesProvider;
 import io.trino.cache.CacheManagerModule;
 import io.trino.cache.CacheManagerRegistry;
 import io.trino.cache.CacheMetadata;
+import io.trino.connector.CatalogManagerConfig.CatalogMangerKind;
 import io.trino.connector.CatalogManagerModule;
 import io.trino.connector.ConnectorServicesProvider;
 import io.trino.cost.StatsCalculator;
@@ -255,7 +256,8 @@ public class TestingTrinoServer
             Optional<FactoryConfiguration> systemAccessControlConfiguration,
             Optional<List<SystemAccessControl>> systemAccessControls,
             List<EventListener> eventListeners,
-            Consumer<TestingTrinoServer> additionalConfiguration)
+            Consumer<TestingTrinoServer> additionalConfiguration,
+            CatalogMangerKind catalogMangerKind)
     {
         this.coordinator = coordinator;
 
@@ -268,7 +270,7 @@ public class TestingTrinoServer
         ImmutableMap.Builder<String, String> serverProperties = ImmutableMap.<String, String>builder()
                 .putAll(properties)
                 .put("coordinator", String.valueOf(coordinator))
-                .put("catalog.management", "dynamic")
+                .put("catalog.management", catalogMangerKind.name())
                 .put("task.concurrency", "4")
                 .put("task.max-worker-threads", "4")
                 // Use task.min-writer-count > 1, as this allows to expose writer-concurrency related bugs.
@@ -279,7 +281,9 @@ public class TestingTrinoServer
                 .put("internal-communication.shared-secret", "internal-shared-secret");
 
         if (coordinator) {
-            serverProperties.put("catalog.store", "memory");
+            if (catalogMangerKind == CatalogMangerKind.DYNAMIC) {
+                serverProperties.put("catalog.store", "memory");
+            }
             serverProperties.put("failure-detector.enabled", "false");
 
             // Reduce memory footprint in tests
@@ -764,6 +768,7 @@ public class TestingTrinoServer
         private Optional<List<SystemAccessControl>> systemAccessControls = Optional.of(ImmutableList.of());
         private List<EventListener> eventListeners = ImmutableList.of();
         private Consumer<TestingTrinoServer> additionalConfiguration = _ -> {};
+        private CatalogMangerKind catalogMangerKind = CatalogMangerKind.DYNAMIC;
 
         public Builder setCoordinator(boolean coordinator)
         {
@@ -845,6 +850,12 @@ public class TestingTrinoServer
             return this;
         }
 
+        public Builder setCatalogMangerKind(CatalogMangerKind catalogMangerKind)
+        {
+            this.catalogMangerKind = requireNonNull(catalogMangerKind, "catalogMangerKind is null");
+            return this;
+        }
+
         public TestingTrinoServer build()
         {
             return new TestingTrinoServer(
@@ -858,7 +869,8 @@ public class TestingTrinoServer
                     systemAccessControlConfiguration,
                     systemAccessControls,
                     eventListeners,
-                    additionalConfiguration);
+                    additionalConfiguration,
+                    catalogMangerKind);
         }
     }
 
