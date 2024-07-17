@@ -356,7 +356,7 @@ public class WeGroupWarmer
                             .warmState(WarmState.HOT)
                             .build();
 
-                    Optional<WarmUpElement> weToOverride = warmUpElements.stream().filter(warmWarmUpElement::isSameColNameAndWarmUpType).findFirst();
+                    Optional<WarmUpElement> weToOverride = warmUpElements.stream().filter(warmWarmUpElement::isRepresentTheSameElement).findFirst();
                     weToOverride.ifPresent(warmUpElements::remove);
                     warmUpElements.add(warmUpElement);
                     isDownloadDone = true;

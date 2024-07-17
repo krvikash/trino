@@ -250,9 +250,11 @@ public class WarmUpElement
     }
 
     @JsonIgnore
-    public boolean isSameColNameAndWarmUpType(WarmUpElement other)
+    public boolean isRepresentTheSameElement(WarmUpElement other)
     {
-        return warpColumn.equals(other.getWarpColumn()) && warmUpType.equals(other.getWarmUpType());
+        return warpColumn.equals(other.getWarpColumn()) &&
+                warmUpType.equals(other.getWarmUpType()) &&
+                Objects.equals(storeId, other.getStoreId());    // storeId might be null
     }
 
     @JsonIgnore

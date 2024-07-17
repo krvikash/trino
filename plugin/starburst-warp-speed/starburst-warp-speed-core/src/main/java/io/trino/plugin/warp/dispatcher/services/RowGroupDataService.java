@@ -266,7 +266,7 @@ public class RowGroupDataService
         }
         warmUpElement = warmupElementBuilder.build();
 
-        Optional<WarmUpElement> weToOverride = existingWarmUpElements.stream().filter(warmUpElement::isSameColNameAndWarmUpType).findFirst();
+        Optional<WarmUpElement> weToOverride = existingWarmUpElements.stream().filter(warmUpElement::isRepresentTheSameElement).findFirst();
         Collection<WarmUpElement> updatedWarmUpElements = new ArrayList<>(existingWarmUpElements);
 
         weToOverride.ifPresent(updatedWarmUpElements::remove);
@@ -398,7 +398,7 @@ public class RowGroupDataService
         String fileName = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
 
         for (WarmUpElement existingWarmUpElement : existingWarmUpElements) {
-            if (deletedWarmUpElements.stream().noneMatch(we -> we.isSameColNameAndWarmUpType(existingWarmUpElement))) {
+            if (deletedWarmUpElements.stream().noneMatch(we -> we.isRepresentTheSameElement(existingWarmUpElement))) {
                 updatedWarmUpElements.add(existingWarmUpElement);
             }
             else {

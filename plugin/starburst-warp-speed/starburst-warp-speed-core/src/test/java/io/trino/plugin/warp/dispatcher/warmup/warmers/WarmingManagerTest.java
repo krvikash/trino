@@ -400,7 +400,7 @@ public class WarmingManagerTest
 
         for (WarmUpElement newWarmUpElement : newRowGroupData.getWarmUpElements()) {
             List<WarmUpElement> oldWarmUpElement = rowGroupData.getWarmUpElements().stream()
-                    .filter(we -> we.isSameColNameAndWarmUpType(newWarmUpElement)).toList();
+                    .filter(we -> we.isRepresentTheSameElement(newWarmUpElement)).toList();
             assertThat(oldWarmUpElement.size()).isEqualTo(1);
             WarmUpElementState oldWarmUpElementState = oldWarmUpElement.getFirst().getState();
             if (oldWarmUpElementState.state().equals(WarmUpElementState.State.FAILED_TEMPORARILY)) {
