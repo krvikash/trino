@@ -42,7 +42,6 @@ import static io.trino.plugin.hive.HiveErrorCode.HIVE_UNSUPPORTED_FORMAT;
 import static io.trino.plugin.hive.HiveWriterFactory.getFileExtension;
 import static io.trino.plugin.hive.WriterKind.INSERT;
 import static io.trino.plugin.hive.acid.AcidTransaction.NO_ACID_TRANSACTION;
-import static io.trino.plugin.hive.metastore.StorageFormat.fromHiveStorageFormat;
 import static io.trino.plugin.hive.util.HiveUtil.makePartName;
 import static io.trino.plugin.hive.util.HiveWriteUtils.createPartitionValues;
 import static java.util.Objects.requireNonNull;
@@ -103,13 +102,13 @@ public class UnloadWriterFactory
             partitionName = Optional.empty();
         }
 
-        String fileName = session.getQueryId() + "_" + UUID.randomUUID() + getFileExtension(compression, fromHiveStorageFormat(format));
+        String fileName = session.getQueryId() + "_" + UUID.randomUUID() + getFileExtension(compression, format.toStorageFormat());
         FileWriter hiveFileWriter = null;
         for (HiveFileWriterFactory fileWriterFactory : fileWriterFactories) {
             Optional<FileWriter> fileWriter = fileWriterFactory.createFileWriter(
                     location.appendPath(fileName),
                     columnNames,
-                    fromHiveStorageFormat(format),
+                    format.toStorageFormat(),
                     compression,
                     schema,
                     session,

@@ -182,7 +182,7 @@ public class TestBackgroundHiveSplitLoader
                 List.of(),
                 Optional.empty(),
                 Map.copyOf(tableProperties),
-                StorageFormat.fromHiveStorageFormat(CSV));
+                CSV.toStorageFormat());
 
         TrinoFileSystemFactory fileSystemFactory = new ListSingleFileFileSystemFactory(file);
         BackgroundHiveSplitLoader backgroundHiveSplitLoader = backgroundHiveSplitLoader(
@@ -1306,7 +1306,7 @@ public class TestBackgroundHiveSplitLoader
                 partitionColumns,
                 bucketProperty,
                 tableParameters,
-                StorageFormat.fromHiveStorageFormat(ORC));
+                ORC.toStorageFormat());
     }
 
     private static Table table(
