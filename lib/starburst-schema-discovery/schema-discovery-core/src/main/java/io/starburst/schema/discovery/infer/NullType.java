@@ -9,15 +9,15 @@
  */
 package io.starburst.schema.discovery.infer;
 
+import io.trino.plugin.hive.type.TypeConstants;
 import io.trino.plugin.hive.type.TypeInfo;
 import io.trino.plugin.hive.type.TypeInfoUtils;
-import io.trino.plugin.hive.util.SerdeConstants;
 
 import static io.starburst.schema.discovery.internal.HiveTypes.STRING_TYPE;
 
 public class NullType
 {
-    public static final TypeInfo NULL_TYPE = TypeInfoUtils.getTypeInfoFromTypeString(SerdeConstants.VOID_TYPE_NAME);
+    public static final TypeInfo NULL_TYPE = TypeInfoUtils.getTypeInfoFromTypeString(TypeConstants.VOID_TYPE_NAME);
 
     public static boolean isNullType(TypeInfo type)
     {

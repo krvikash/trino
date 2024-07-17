@@ -14,10 +14,10 @@ import io.trino.plugin.hive.type.DecimalTypeInfo;
 import io.trino.plugin.hive.type.ListTypeInfo;
 import io.trino.plugin.hive.type.MapTypeInfo;
 import io.trino.plugin.hive.type.StructTypeInfo;
+import io.trino.plugin.hive.type.TypeConstants;
 import io.trino.plugin.hive.type.TypeInfo;
 import io.trino.plugin.hive.type.TypeInfoFactory;
 import io.trino.plugin.hive.type.VarcharTypeInfo;
-import io.trino.plugin.hive.util.SerdeConstants;
 
 import java.util.AbstractMap.SimpleEntry;
 import java.util.Collection;
@@ -64,20 +64,20 @@ import static io.trino.plugin.hive.type.TypeInfoUtils.getTypeInfoFromTypeString;
 public class HiveTypes
 {
     // string, converted to varchar in io.starburst.schema.discovery.generation.Mapping
-    public static final TypeInfo STRING_TYPE = getTypeInfoFromTypeString(SerdeConstants.STRING_TYPE_NAME);
+    public static final TypeInfo STRING_TYPE = getTypeInfoFromTypeString(TypeConstants.STRING_TYPE_NAME);
     // varchar(65535)
     public static final TypeInfo STRING_TYPE_ALT = getVarcharTypeInfo(VarcharTypeInfo.MAX_VARCHAR_LENGTH);
-    public static final TypeInfo HIVE_BOOLEAN = getTypeInfoFromTypeString(SerdeConstants.BOOLEAN_TYPE_NAME);
-    public static final TypeInfo HIVE_BYTE = getTypeInfoFromTypeString(SerdeConstants.TINYINT_TYPE_NAME);
-    public static final TypeInfo HIVE_SHORT = getTypeInfoFromTypeString(SerdeConstants.SMALLINT_TYPE_NAME);
-    public static final TypeInfo HIVE_INT = getTypeInfoFromTypeString(SerdeConstants.INT_TYPE_NAME);
-    public static final TypeInfo HIVE_LONG = getTypeInfoFromTypeString(SerdeConstants.BIGINT_TYPE_NAME);
-    public static final TypeInfo HIVE_FLOAT = getTypeInfoFromTypeString(SerdeConstants.FLOAT_TYPE_NAME);
-    public static final TypeInfo HIVE_DOUBLE = getTypeInfoFromTypeString(SerdeConstants.DOUBLE_TYPE_NAME);
-    public static final TypeInfo HIVE_STRING = getTypeInfoFromTypeString(SerdeConstants.STRING_TYPE_NAME);
-    public static final TypeInfo HIVE_TIMESTAMP = getTypeInfoFromTypeString(SerdeConstants.TIMESTAMP_TYPE_NAME);
-    public static final TypeInfo HIVE_DATE = getTypeInfoFromTypeString(SerdeConstants.DATE_TYPE_NAME);
-    public static final TypeInfo HIVE_BINARY = getTypeInfoFromTypeString(SerdeConstants.BINARY_TYPE_NAME);
+    public static final TypeInfo HIVE_BOOLEAN = getTypeInfoFromTypeString(TypeConstants.BOOLEAN_TYPE_NAME);
+    public static final TypeInfo HIVE_BYTE = getTypeInfoFromTypeString(TypeConstants.TINYINT_TYPE_NAME);
+    public static final TypeInfo HIVE_SHORT = getTypeInfoFromTypeString(TypeConstants.SMALLINT_TYPE_NAME);
+    public static final TypeInfo HIVE_INT = getTypeInfoFromTypeString(TypeConstants.INT_TYPE_NAME);
+    public static final TypeInfo HIVE_LONG = getTypeInfoFromTypeString(TypeConstants.BIGINT_TYPE_NAME);
+    public static final TypeInfo HIVE_FLOAT = getTypeInfoFromTypeString(TypeConstants.FLOAT_TYPE_NAME);
+    public static final TypeInfo HIVE_DOUBLE = getTypeInfoFromTypeString(TypeConstants.DOUBLE_TYPE_NAME);
+    public static final TypeInfo HIVE_STRING = getTypeInfoFromTypeString(TypeConstants.STRING_TYPE_NAME);
+    public static final TypeInfo HIVE_TIMESTAMP = getTypeInfoFromTypeString(TypeConstants.TIMESTAMP_TYPE_NAME);
+    public static final TypeInfo HIVE_DATE = getTypeInfoFromTypeString(TypeConstants.DATE_TYPE_NAME);
+    public static final TypeInfo HIVE_BINARY = getTypeInfoFromTypeString(TypeConstants.BINARY_TYPE_NAME);
     // inspired by https://github.com/apache/hive/blob/85f6162becb8723ff6c9f85875048ced6ca7ae89/storage-api/src/java/org/apache/hadoop/hive/common/type/HiveDecimal.java
     public static final DecimalTypeInfo HIVE_DECIMAL = new DecimalTypeInfo(DecimalTypeInfo.MAX_PRECISION, 18);
 
