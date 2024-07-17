@@ -43,6 +43,8 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
 import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
+import static com.google.common.util.concurrent.Futures.transform;
+import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
 import static io.starburst.stargate.buffer.mocking.MockBufferNodeState.DRAINED;
 import static io.starburst.stargate.buffer.mocking.MockBufferNodeState.GONE;
@@ -166,10 +168,10 @@ class MockDataNode
     }
 
     @Override
-    public synchronized ListenableFuture<List<DataPage>> getChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId)
+    public synchronized ListenableFuture<ChunkDataResponse> getChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId)
     {
         throwIfNodeGone();
-        return getExchangeData(exchangeId).getChunkData(bufferNodeId, exchangeId, partitionId, chunkId);
+        return transform(getExchangeData(exchangeId).getChunkData(bufferNodeId, exchangeId, partitionId, chunkId), dataPages -> new ChunkDataResponse(dataPages, false), directExecutor());
     }
 
     public synchronized MockDataNodeStats getStats()

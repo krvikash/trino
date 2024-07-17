@@ -10,7 +10,9 @@
 package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Stopwatch;
 import com.google.common.base.Ticker;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ListMultimap;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.FutureCallback;
@@ -56,6 +58,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -65,6 +68,7 @@ import static com.google.common.util.concurrent.MoreExecutors.listeningDecorator
 import static io.airlift.units.Duration.succinctDuration;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 @ThreadSafe
 public class DataApiFacade
@@ -161,7 +165,7 @@ public class DataApiFacade
                 // catch all so we are not unscheduled
                 log.error(e, "Unexpected error caught in cleanUp");
             }
-        }, CLEANUP_DELAY.toMillis(), CLEANUP_DELAY.toMillis(), TimeUnit.MILLISECONDS);
+        }, CLEANUP_DELAY.toMillis(), CLEANUP_DELAY.toMillis(), MILLISECONDS);
         destroyCloser.register(() -> future.cancel(true));
     }
 
@@ -324,7 +328,7 @@ public class DataApiFacade
                 ListenableScheduledFuture<Boolean> ignored = listeningScheduledExecutor.schedule(
                         () -> ((SettableFuture<Optional<RateLimitInfo>>) requestFuture).setFuture(internalAddDataPages(bufferNodeId, exchangeId, taskId, attemptId, dataPagesId, dataPagesByPartition)),
                         requestDelayInMillis,
-                        TimeUnit.MILLISECONDS);
+                        MILLISECONDS);
             }
 
             SettableFuture<Void> resultFuture = SettableFuture.create();
@@ -388,12 +392,48 @@ public class DataApiFacade
         }
     }
 
-    public ListenableFuture<List<DataPage>> getChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId, long chunkBufferNodeId)
+    public ListenableFuture<ChunkDataResponse> getChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId, long chunkBufferNodeId)
     {
-        return runWithRetry(bufferNodeId, () -> internalGetChunkData(bufferNodeId, exchangeId, partitionId, chunkId, chunkBufferNodeId));
+        AtomicLong retryCount = new AtomicLong();
+        Stopwatch stopwatch = Stopwatch.createStarted();
+        Stopwatch successRequseStopwatch = Stopwatch.createStarted();
+        CompletableFuture<DataApi.ChunkDataResponse> finalFuture = ((Function<Long, FailsafeExecutor<Object>>) this::getDefaultRetryExecutor).apply(bufferNodeId)
+                .getAsyncExecution(execution -> {
+                    ListenableFuture<DataApi.ChunkDataResponse> future = ((Callable<ListenableFuture<DataApi.ChunkDataResponse>>) () -> internalGetChunkData(bufferNodeId, exchangeId, partitionId, chunkId, chunkBufferNodeId)).call();
+                    Futures.addCallback(future, new FutureCallback<>()
+                    {
+                        @Override
+                        public void onSuccess(DataApi.ChunkDataResponse result)
+                        {
+                            execution.recordResult(result);
+                        }
+
+                        @Override
+                        public void onFailure(Throwable t)
+                        {
+                            execution.recordException(t);
+                            retryCount.incrementAndGet();
+                            successRequseStopwatch.reset().start();
+                        }
+                    }, directExecutor());
+                });
+
+        return Futures.transform(
+                MoreFutures.toListenableFuture(finalFuture),
+                dataApiResult -> new ChunkDataResponse(dataApiResult.pages(), dataApiResult.readFromSpoolingStorage(), retryCount.intValue(), stopwatch.elapsed(MILLISECONDS), successRequseStopwatch.elapsed(MILLISECONDS)),
+                directExecutor());
     }
 
-    private ListenableFuture<List<DataPage>> internalGetChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId, long chunkBufferNodeId)
+    public record ChunkDataResponse(List<DataPage> pages, boolean readFromSpoolingStorage, int retryCount, long processingTimeMillis, long successRequestTimeMillis)
+    {
+        public ChunkDataResponse
+        {
+            requireNonNull(pages, "pages is null");
+            pages = ImmutableList.copyOf(pages);
+        }
+    }
+
+    private ListenableFuture<DataApi.ChunkDataResponse> internalGetChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId, long chunkBufferNodeId)
     {
         try {
             return getDataApi(bufferNodeId).getChunkData(chunkBufferNodeId, exchangeId, partitionId, chunkId);
@@ -477,7 +517,7 @@ public class DataApiFacade
                 .withMaxRetries(config.maxRetries())
                 .withJitter(config.backoffJitter())
                 .onFailedAttempt(event -> {
-                    rateLimitingLogger.warn(event.getLastException(), "failed DataApi request attempt (%s, +%s)".formatted(event.getAttemptCount(), succinctDuration(event.getElapsedTime().toMillis(), TimeUnit.MILLISECONDS)));
+                    rateLimitingLogger.warn(event.getLastException(), "failed DataApi request attempt (%s, +%s)".formatted(event.getAttemptCount(), succinctDuration(event.getElapsedTime().toMillis(), MILLISECONDS)));
                     lifecycleListener.ifPresent(listener -> listener.onRetry(event.getLastException(), event.getElapsedAttemptTime().toNanos()));
                 })
                 .onFailure(event -> {

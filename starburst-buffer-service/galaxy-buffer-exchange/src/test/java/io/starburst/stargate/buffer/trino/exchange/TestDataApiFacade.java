@@ -24,7 +24,6 @@ import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataApi;
 import io.starburst.stargate.buffer.data.client.DataApiException;
-import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.starburst.stargate.buffer.data.client.RateLimitInfo;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
@@ -630,7 +629,7 @@ public class TestDataApiFacade
         }
 
         @Override
-        public synchronized ListenableFuture<List<DataPage>> getChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId)
+        public synchronized ListenableFuture<DataApi.ChunkDataResponse> getChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId)
         {
             throw new RuntimeException("not implemented");
         }

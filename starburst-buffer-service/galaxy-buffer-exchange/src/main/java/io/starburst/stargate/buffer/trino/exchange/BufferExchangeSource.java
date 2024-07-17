@@ -22,6 +22,7 @@ import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeState;
 import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.client.DataPage;
+import io.starburst.stargate.buffer.trino.exchange.DataApiFacade.ChunkDataResponse;
 import io.trino.spi.exchange.ExchangeId;
 import io.trino.spi.exchange.ExchangeSource;
 import io.trino.spi.exchange.ExchangeSourceHandle;
@@ -523,7 +524,7 @@ public class BufferExchangeSource
 
         private final SourceChunk sourceChunk;
         private final AtomicBoolean closed = new AtomicBoolean();
-        private final AtomicReference<ListenableFuture<List<DataPage>>> getChunkDataFutureReference = new AtomicReference<>();
+        private final AtomicReference<ListenableFuture<ChunkDataResponse>> getChunkDataFutureReference = new AtomicReference<>();
         private final Set<Long> excludedNodes = ConcurrentHashMap.newKeySet();
         private final AtomicBoolean finished = new AtomicBoolean();
 
@@ -560,7 +561,7 @@ public class BufferExchangeSource
                 return;
             }
 
-            ListenableFuture<List<DataPage>> future = dataApi.getChunkData(
+            ListenableFuture<ChunkDataResponse> future = dataApi.getChunkData(
                     sourceBufferNodeId,
                     sourceChunk.externalExchangeId(),
                     sourceChunk.partitionId(),
@@ -574,12 +575,12 @@ public class BufferExchangeSource
             }
             Futures.addCallback(future, new FutureCallback<>() {
                 @Override
-                public void onSuccess(List<DataPage> dataPages)
+                public void onSuccess(ChunkDataResponse chunkData)
                 {
                     try {
                         getChunkDataFutureReference.set(null);
 
-                        receivedNewDataPages(sourceChunk.externalExchangeId(), dataPages);
+                        receivedNewDataPages(sourceChunk.externalExchangeId(), chunkData.pages());
                         finish();
                         scheduleReadChunks();
                     }
@@ -642,7 +643,7 @@ public class BufferExchangeSource
                 return;
             }
 
-            ListenableFuture<List<DataPage>> future = getChunkDataFutureReference.get();
+            ListenableFuture<ChunkDataResponse> future = getChunkDataFutureReference.get();
             if (future != null) {
                 future.cancel(true);
             }

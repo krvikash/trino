@@ -9,6 +9,7 @@
  */
 package io.starburst.stargate.buffer.data.client;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ListMultimap;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.slice.Slice;
@@ -18,6 +19,8 @@ import io.starburst.stargate.buffer.BufferNodeInfo;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalLong;
+
+import static java.util.Objects.requireNonNull;
 
 public interface DataApi
 {
@@ -117,5 +120,14 @@ public interface DataApi
      *
      * In case of failure returned future will wrap {@link DataApiException}
      */
-    ListenableFuture<List<DataPage>> getChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId);
+    ListenableFuture<ChunkDataResponse> getChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId);
+
+    record ChunkDataResponse(List<DataPage> pages, boolean readFromSpoolingStorage)
+    {
+        public ChunkDataResponse
+        {
+            requireNonNull(pages, "pages is null");
+            pages = ImmutableList.copyOf(pages);
+        }
+    }
 }

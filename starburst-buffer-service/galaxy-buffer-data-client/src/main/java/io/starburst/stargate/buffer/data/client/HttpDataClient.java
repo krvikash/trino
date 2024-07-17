@@ -346,7 +346,7 @@ public class HttpDataClient
     }
 
     @Override
-    public ListenableFuture<List<DataPage>> getChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId)
+    public ListenableFuture<DataApi.ChunkDataResponse> getChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId)
     {
         requireNonNull(exchangeId, "exchangeId is null");
 
@@ -362,10 +362,13 @@ public class HttpDataClient
 
         return transformAsync(responseFuture, chunkDataResponse -> {
             if (chunkDataResponse.getPages().isPresent()) {
-                return immediateFuture(chunkDataResponse.getPages().get());
+                return immediateFuture(new DataApi.ChunkDataResponse(chunkDataResponse.getPages().get(), false));
             }
             verify(chunkDataResponse.getSpooledChunk().isPresent(), "Either pages or spooledChunk should be present");
-            return spooledChunkReader.getDataPages(chunkDataResponse.getSpooledChunk().get());
+            return transform(
+                    spooledChunkReader.getDataPages(chunkDataResponse.getSpooledChunk().get()),
+                    dataPages -> new DataApi.ChunkDataResponse(dataPages, true),
+                    directExecutor());
         }, directExecutor());
     }
 

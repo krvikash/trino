@@ -448,7 +448,7 @@ public class TestDataServer
 
     private List<DataPage> getChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId)
     {
-        return getFutureValue(dataClient.getChunkData(bufferNodeId, exchangeId, partitionId, chunkId));
+        return getFutureValue(dataClient.getChunkData(bufferNodeId, exchangeId, partitionId, chunkId)).pages();
     }
 
     private void registerExchange(String exchangeId, ChunkDeliveryMode chunkDeliveryMode)
