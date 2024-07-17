@@ -12,7 +12,7 @@ remote exchange (GATHER, SINGLE, [])
                                             partial aggregation over (c_first_name, c_last_name, ca_state, i_color, i_current_price, i_manager_id, i_size, i_units, s_state, s_store_name)
                                                 join (INNER, PARTITIONED):
                                                     remote exchange (REPARTITION, HASH, [ca_zip, upper])
-                                                        dynamic filter (await [ca_zip::char(10)])
+                                                        dynamic filter ([ca_zip::char(10)])
                                                             scan customer_address
                                                     local exchange (GATHER, SINGLE, [])
                                                         remote exchange (REPARTITION, HASH, [c_birth_country, s_zip])

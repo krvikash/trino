@@ -12,20 +12,20 @@ local exchange (GATHER, SINGLE, [])
                                             partial aggregation over (cs_item_sk)
                                                 join (INNER, REPLICATED):
                                                     alternatives
-                                                        dynamic filter ([cs_item_sk::bigint], await [cs_sold_date_sk::bigint])
+                                                        dynamic filter ([cs_item_sk::bigint, cs_sold_date_sk::bigint])
                                                             scan catalog_sales
                                                         cache data
-                                                            dynamic filter ([cs_item_sk::bigint], await [cs_sold_date_sk::bigint])
+                                                            dynamic filter ([cs_item_sk::bigint, cs_sold_date_sk::bigint])
                                                                 scan catalog_sales
                                                         load from cache
                                                     local exchange (GATHER, SINGLE, [])
                                                         remote exchange (REPLICATE, BROADCAST, [])
                                                             join (INNER, REPLICATED):
                                                                 alternatives
-                                                                    dynamic filter (await [d_date_100::date])
+                                                                    dynamic filter ([d_date_100::date])
                                                                         scan date_dim
                                                                     cache data
-                                                                        dynamic filter (await [d_date_100::date])
+                                                                        dynamic filter ([d_date_100::date])
                                                                             scan date_dim
                                                                     load from cache
                                                                 local exchange (GATHER, SINGLE, [])
@@ -69,20 +69,20 @@ local exchange (GATHER, SINGLE, [])
                                             partial aggregation over (ss_item_sk)
                                                 join (INNER, REPLICATED):
                                                     alternatives
-                                                        dynamic filter ([ss_item_sk::bigint], await [ss_sold_date_sk::bigint])
+                                                        dynamic filter ([ss_item_sk::bigint, ss_sold_date_sk::bigint])
                                                             scan store_sales
                                                         cache data
-                                                            dynamic filter ([ss_item_sk::bigint], await [ss_sold_date_sk::bigint])
+                                                            dynamic filter ([ss_item_sk::bigint, ss_sold_date_sk::bigint])
                                                                 scan store_sales
                                                         load from cache
                                                     local exchange (GATHER, SINGLE, [])
                                                         remote exchange (REPLICATE, BROADCAST, [])
                                                             join (INNER, REPLICATED):
                                                                 alternatives
-                                                                    dynamic filter (await [d_date::date])
+                                                                    dynamic filter ([d_date::date])
                                                                         scan date_dim
                                                                     cache data
-                                                                        dynamic filter (await [d_date::date])
+                                                                        dynamic filter ([d_date::date])
                                                                             scan date_dim
                                                                     load from cache
                                                                 local exchange (GATHER, SINGLE, [])
@@ -126,20 +126,20 @@ local exchange (GATHER, SINGLE, [])
                                                 partial aggregation over (ws_item_sk)
                                                     join (INNER, REPLICATED):
                                                         alternatives
-                                                            dynamic filter ([ws_item_sk::bigint], await [ws_sold_date_sk::bigint])
+                                                            dynamic filter ([ws_item_sk::bigint, ws_sold_date_sk::bigint])
                                                                 scan web_sales
                                                             cache data
-                                                                dynamic filter ([ws_item_sk::bigint], await [ws_sold_date_sk::bigint])
+                                                                dynamic filter ([ws_item_sk::bigint, ws_sold_date_sk::bigint])
                                                                     scan web_sales
                                                             load from cache
                                                         local exchange (GATHER, SINGLE, [])
                                                             remote exchange (REPLICATE, BROADCAST, [])
                                                                 join (INNER, REPLICATED):
                                                                     alternatives
-                                                                        dynamic filter (await [d_date_226::date])
+                                                                        dynamic filter ([d_date_226::date])
                                                                             scan date_dim
                                                                         cache data
-                                                                            dynamic filter (await [d_date_226::date])
+                                                                            dynamic filter ([d_date_226::date])
                                                                                 scan date_dim
                                                                         load from cache
                                                                     local exchange (GATHER, SINGLE, [])

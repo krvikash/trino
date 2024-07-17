@@ -9,7 +9,7 @@ final aggregation over ()
                                 remote exchange (REPARTITION, HASH, [cs_item_sk_20])
                                     partial aggregation over (cs_item_sk_20)
                                         join (INNER, REPLICATED):
-                                            dynamic filter (await [cs_item_sk_20::bigint, cs_sold_date_sk_39::bigint])
+                                            dynamic filter ([cs_item_sk_20::bigint], await [cs_sold_date_sk_39::bigint])
                                                 scan catalog_sales
                                             local exchange (GATHER, SINGLE, [])
                                                 remote exchange (REPLICATE, BROADCAST, [])

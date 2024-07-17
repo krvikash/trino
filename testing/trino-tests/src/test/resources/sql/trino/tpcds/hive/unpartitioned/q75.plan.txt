@@ -20,7 +20,7 @@ local exchange (GATHER, SINGLE, [])
                                                                 scan catalog_sales
                                                             local exchange (GATHER, SINGLE, [])
                                                                 remote exchange (REPLICATE, BROADCAST, [])
-                                                                    dynamic filter ([i_brand_id_7::integer, i_manufact_id_10::integer], await [i_category_id_9::integer, i_class_id_8::integer])
+                                                                    dynamic filter ([i_brand_id_7::integer, i_category_id_9::integer, i_class_id_8::integer, i_manufact_id_10::integer])
                                                                         scan item
                                                         local exchange (GATHER, SINGLE, [])
                                                             remote exchange (REPLICATE, BROADCAST, [])
@@ -39,7 +39,7 @@ local exchange (GATHER, SINGLE, [])
                                                                 scan store_sales
                                                             local exchange (GATHER, SINGLE, [])
                                                                 remote exchange (REPLICATE, BROADCAST, [])
-                                                                    dynamic filter ([i_brand_id_32::integer, i_manufact_id_38::integer], await [i_category_id_36::integer, i_class_id_34::integer])
+                                                                    dynamic filter ([i_brand_id_32::integer, i_category_id_36::integer, i_class_id_34::integer, i_manufact_id_38::integer])
                                                                         scan item
                                                         local exchange (GATHER, SINGLE, [])
                                                             remote exchange (REPLICATE, BROADCAST, [])
@@ -58,7 +58,7 @@ local exchange (GATHER, SINGLE, [])
                                                                 scan web_sales
                                                             local exchange (GATHER, SINGLE, [])
                                                                 remote exchange (REPLICATE, BROADCAST, [])
-                                                                    dynamic filter ([i_brand_id_96::integer, i_manufact_id_102::integer], await [i_category_id_100::integer, i_class_id_98::integer])
+                                                                    dynamic filter ([i_brand_id_96::integer, i_category_id_100::integer, i_class_id_98::integer, i_manufact_id_102::integer])
                                                                         scan item
                                                         local exchange (GATHER, SINGLE, [])
                                                             remote exchange (REPLICATE, BROADCAST, [])

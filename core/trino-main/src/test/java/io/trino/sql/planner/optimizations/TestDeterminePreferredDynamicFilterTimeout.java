@@ -235,7 +235,6 @@ public class TestDeterminePreferredDynamicFilterTimeout
                 "SELECT table_small_a.a_1 from table_small_a, table_small_b where table_small_a.a_1 = table_small_b.b_2",
                 Session.builder(getPlanTester().getDefaultSession())
                         .setSystemProperty(SMALL_DYNAMIC_FILTER_MAX_ROW_COUNT, "1")
-                        .setSystemProperty(SMALL_DYNAMIC_FILTER_MAX_NDV_COUNT, "500")
                         .build(),
                 anyTree(
                         join(INNER, builder -> builder

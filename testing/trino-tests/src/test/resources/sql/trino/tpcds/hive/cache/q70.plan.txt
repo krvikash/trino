@@ -28,10 +28,10 @@ local exchange (GATHER, SINGLE, [])
                                                 local exchange (GATHER, SINGLE, [])
                                                     remote exchange (REPLICATE, BROADCAST, [])
                                                         alternatives
-                                                            dynamic filter (await [s_state::char(2)])
+                                                            dynamic filter ([s_state::char(2)])
                                                                 scan store
                                                             cache data
-                                                                dynamic filter (await [s_state::char(2)])
+                                                                dynamic filter ([s_state::char(2)])
                                                                     scan store
                                                             load from cache
                                             local exchange (GATHER, SINGLE, [])
