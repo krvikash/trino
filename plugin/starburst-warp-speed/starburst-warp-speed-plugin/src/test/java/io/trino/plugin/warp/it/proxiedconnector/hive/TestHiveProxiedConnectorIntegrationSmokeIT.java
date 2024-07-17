@@ -57,6 +57,7 @@ import io.trino.plugin.warp.expression.WarpSliceConstant;
 import io.trino.plugin.warp.expression.WarpVariable;
 import io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions;
 import io.trino.plugin.warp.extension.execution.debugtools.FailureGeneratorResource;
+import io.trino.plugin.warp.extension.execution.debugtools.NativeStorageStateResource;
 import io.trino.plugin.warp.extension.execution.debugtools.PredicateCacheTask;
 import io.trino.plugin.warp.extension.execution.debugtools.RowGroupCountResult;
 import io.trino.plugin.warp.extension.execution.debugtools.RowGroupTask;
@@ -436,6 +437,63 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         createTable(DEFAULT_SCHEMA, "evolve_test", "(dummy bigint, a row(b bigint, c varchar), d bigint)");
         computeActual("INSERT INTO evolve_test values (1, row(1, 'abc'), 1)");
         computeActual(getSession(), "select * from evolve_test where a[1] > 1");
+    }
+
+    @Test
+    public void testSimpleWarmWithErrorInStorage()
+            throws IOException
+    {
+        computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomi')");
+
+        createWarmupRules(DEFAULT_SCHEMA,
+                "t",
+                Map.of(C1, Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL)),
+                        C2, Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL),
+                                    new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))));
+        warmAndValidate("select * from t", false, 3, 1);
+
+        Map<String, Long> expectedQueryStats = Map.of(
+                "warp_collect_columns", 2L,
+                "warp_match_columns", 1L,
+                "external_collect_columns", 0L,
+                "external_match_columns", 0L);
+        validateQueryStats("select * from t where v1 <> 'afsa'",
+                getSession(),
+                expectedQueryStats);
+
+        // now test failure
+        executeWorkerRestCommand(
+                NativeStorageStateResource.PATH,
+                "",
+                new NativeStorageStateResource.NativeStorageState(0, 0, true, false),
+                HttpMethod.POST,
+                HttpURLConnection.HTTP_NO_CONTENT);
+
+        expectedQueryStats = Map.of(
+                "warp_collect_columns", 0L,
+                "warp_match_columns", 0L,
+                "external_collect_columns", 2L,
+                "external_match_columns", 1L);
+        validateQueryStats("select * from t where v1 <> 'afsa'",
+                getSession(),
+                expectedQueryStats);
+
+        // reset storage state
+        executeWorkerRestCommand(
+                NativeStorageStateResource.PATH,
+                "",
+                new NativeStorageStateResource.NativeStorageState(0, 0, false, false),
+                HttpMethod.POST,
+                HttpURLConnection.HTTP_NO_CONTENT);
+
+        expectedQueryStats = Map.of(
+                "warp_collect_columns", 2L,
+                "warp_match_columns", 1L,
+                "external_collect_columns", 0L,
+                "external_match_columns", 0L);
+        validateQueryStats("select * from t where v1 <> 'afsa'",
+                getSession(),
+                expectedQueryStats);
     }
 
     @Test

@@ -211,13 +211,21 @@ public class TestWarpSpeedNative
                 QUERY.formatted("name", tableName),
                 Map.of(WARP_COLLECT, 0L,
                         WARP_MATCH, 0L,
-                        EXTERNAL_COLLECT, 1L,
+                        EXTERNAL_COLLECT, 2L,
                         EXTERNAL_MATCH, 1L),
                 testName);
-
         restUtils.validateNativeState(false, true);
+
+        // reset storage state
+        restUtils.executeWorkerRestCommand(
+                NativeStorageStateResource.PATH,
+                "",
+                new NativeStorageStateResource.NativeStorageState(0, 0, false, false),
+                HttpMethod.POST,
+                HttpURLConnection.HTTP_NO_CONTENT);
         logger.info("testRead::before additional queryAndValidate");
-        //now we succeed since no more storage exceptions
+
+        //now we succeed
         queryUtils.queryAndValidate(
                 QUERY.formatted("name", tableName),
                 Map.of(WARP_COLLECT, 2L,
@@ -225,6 +233,7 @@ public class TestWarpSpeedNative
                         EXTERNAL_COLLECT, 0L,
                         EXTERNAL_MATCH, 0L),
                 testName);
+        restUtils.validateNativeState(false, false);
     }
 
     private void testWrite(
@@ -259,6 +268,14 @@ public class TestWarpSpeedNative
                         EXTERNAL_COLLECT, 2L,
                         EXTERNAL_MATCH, 1L),
                 testName);
+
+        // reset storage state
+        restUtils.executeWorkerRestCommand(
+                NativeStorageStateResource.PATH,
+                "",
+                new NativeStorageStateResource.NativeStorageState(0, 0, false, false),
+                HttpMethod.POST,
+                HttpURLConnection.HTTP_NO_CONTENT);
 
         logger.info("testWrite::before third queryAndValidate");
         //now we succeed since no more storage exceptions
