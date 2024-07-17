@@ -13,18 +13,12 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.google.inject.Key;
 import io.starburst.server.troubleshooting.TroubleshootingTestHelper.Unzipped;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
 import io.trino.Session;
-import io.trino.execution.QueryInfo;
 import io.trino.execution.QueryManager;
-import io.trino.execution.StageInfo;
-import io.trino.execution.TaskInfo;
-import io.trino.execution.TaskStatus;
-import io.trino.metadata.InternalNodeManager;
 import io.trino.server.BasicQueryInfo;
 import io.trino.spi.QueryId;
 import io.trino.spi.security.Identity;
@@ -46,13 +40,10 @@ import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.management.ManagementFactory;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -65,8 +56,11 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.starburstdata.presto.server.StarburstClientCapabilities.QUERY_TROUBLESHOOTING;
+import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.assertPropertyExists;
+import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.findConfigZips;
+import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.findWorkerConfigDirectoryName;
+import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.getNodesProcessingQuery;
 import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.zipInputStreamToMap;
 import static io.trino.SystemSessionProperties.QUERY_MAX_MEMORY_PER_NODE;
 import static io.trino.testing.DataProviders.toDataProvider;
@@ -110,7 +104,6 @@ public abstract class AbstractQueryTroubleshootingTest
 
     private TroubleshootingContextManager troubleshootingContextManager;
     private QueryManager queryManager;
-    private String coordinatorId;
     @TempDir
     private Path tmpDir;
 
@@ -119,7 +112,6 @@ public abstract class AbstractQueryTroubleshootingTest
     {
         troubleshootingContextManager = getDistributedQueryRunner().getCoordinator().getInstance(Key.get(TroubleshootingContextManager.class));
         queryManager = getDistributedQueryRunner().getCoordinator().getQueryManager();
-        coordinatorId = getDistributedQueryRunner().getCoordinator().getInstance(Key.get(InternalNodeManager.class)).getCurrentNode().getNodeIdentifier();
     }
 
     @Override
@@ -186,11 +178,6 @@ public abstract class AbstractQueryTroubleshootingTest
                 .hasEntrySatisfying(getPath(data, "recordings/coordinator.jfr"), value -> softly.assertThat(value).isNotEmpty())
                 .hasEntrySatisfying(getPath(data, "traces/opentelemetry-coordinator.grpc.gz"), value -> softly.assertThat(value).isNotEmpty());
 
-        Unzipped coordinatorConfigs = zipInputStreamToMap(new ByteArrayInputStream(inputsMap.contents().get(getPath(data, "configs/coordinator.zip"))), tmpDir);
-        softly.assertThat(coordinatorConfigs.contents())
-                .hasEntrySatisfying("coordinator/config.properties", value -> softly.assertThat(byteToString(value)).contains("coordinator=true"))
-                .hasEntrySatisfying("coordinator/jvm.config", value -> softly.assertThat(byteToString(value)).isEqualTo(getJvmConfig()));
-
         ObjectMapper mapper = new ObjectMapper();
         mapper.readValue(inputsMap.contents().get(getPath(data, "jmx/metrics-before.json")), new TypeReference<>() {});
         mapper.readValue(inputsMap.contents().get(getPath(data, "jmx/metrics-after.json")), new TypeReference<>() {});
@@ -200,7 +187,7 @@ public abstract class AbstractQueryTroubleshootingTest
         softly.assertThat(queryInfo.get("session").get("systemProperties").get("query_max_memory_per_node").asText()).isEqualTo("10MB");
         softly.assertThat(queryInfo.get("outputStage").get("plan")).isNotEmpty();
 
-        Set<String> nodesProcessingQuery = getNodesProcessingQuery(data.getQueryId());
+        Set<String> nodesProcessingQuery = getNodesProcessingQuery(getDistributedQueryRunner(), data.getQueryId());
         for (String workerId : nodesProcessingQuery) {
             softly.assertThat(inputsMap.contents()).hasEntrySatisfying(
                     getPath(data, "recordings/worker-%s.jfr").formatted(workerId),
@@ -208,21 +195,8 @@ public abstract class AbstractQueryTroubleshootingTest
                             .describedAs("worker %s recording", workerId)
                             .isNotEmpty());
         }
-        List<Unzipped> workerConfigs = inputsMap.contents().entrySet().stream()
-                .filter(entry -> entry.getKey().contains("configs/worker-"))
-                .map(Map.Entry::getValue)
-                .map(zipBytes -> zipInputStreamToMap(new ByteArrayInputStream(zipBytes), tmpDir))
-                .toList();
-        if (nodesProcessingQuery.size() > 1) {
-            softly.assertThat(workerConfigs.size()).isEqualTo(1);
-            Map<String, byte[]> workerUnzippedConfigs = workerConfigs.getFirst().contents();
-            softly.assertThat(workerUnzippedConfigs)
-                    .hasEntrySatisfying(new Condition<>(entry -> entry.getKey().contains("/config.properties") && byteToString(entry.getValue()).contains("coordinator=false"), "worker config"))
-                    .hasEntrySatisfying(new Condition<>(entry -> entry.getKey().contains("/jvm.config") && byteToString(entry.getValue()).equals(getJvmConfig()), "jvm config"));
-        }
-        else {
-            softly.assertThat(workerConfigs.size()).isEqualTo(0);
-        }
+
+        assertCompleteConfigDirectory(softly, inputsMap, nodesProcessingQuery);
 
         try (TestingJaegerService testingJaegerService = TestingJaegerService.createStarted()) {
             boolean exportSuccessful = testingJaegerService.exportOpenTelemetryData(inputsMap.contents().get(getPath(data, "traces/opentelemetry-coordinator.grpc.gz")));
@@ -245,6 +219,27 @@ public abstract class AbstractQueryTroubleshootingTest
                     // split (leaf) span is executed on a worker
                     .anyMatch(span -> "split (leaf)".equals(span.get("operationName").asText()));
             assertThat(workerSpansIncluded).isTrue();
+        }
+    }
+
+    private void assertCompleteConfigDirectory(SoftAssertions softly, Unzipped inputsMap, Set<String> nodesProcessingQuery)
+    {
+        List<Unzipped> coordinatorConfigs = findConfigZips(inputsMap, "coordinator", tmpDir);
+        assertThat(coordinatorConfigs.size()).isEqualTo(1);
+        assertThat(coordinatorConfigs.getFirst().contents())
+                .hasEntrySatisfying("coordinator/config.properties", value -> assertPropertyExists(value, "coordinator=true"))
+                .hasEntrySatisfying("coordinator/jvm.config", TroubleshootingTestHelper::assertJvmConfig);
+
+        List<Unzipped> workerConfigs = findConfigZips(inputsMap, "worker-", tmpDir);
+        if (!nodesProcessingQuery.isEmpty()) {
+            softly.assertThat(workerConfigs.size()).isEqualTo(1);
+            String workerConfigDirectory = findWorkerConfigDirectoryName(workerConfigs.getFirst());
+            assertThat(workerConfigs.getFirst().contents())
+                    .hasEntrySatisfying(workerConfigDirectory + "config.properties", value -> assertPropertyExists(value, "coordinator=false"))
+                    .hasEntrySatisfying(workerConfigDirectory + "jvm.config", TroubleshootingTestHelper::assertJvmConfig);
+        }
+        else {
+            softly.assertThat(workerConfigs.size()).isEqualTo(0);
         }
     }
 
@@ -394,43 +389,6 @@ public abstract class AbstractQueryTroubleshootingTest
                 }));
     }
 
-    private Set<String> getNodesProcessingQuery(QueryId queryId)
-    {
-        try {
-            QueryInfo queryInfo = queryManager.getFullQueryInfo(queryId);
-            return queryInfo.getOutputStage().map(this::getNodeIdsProcessingQuery).orElse(ImmutableSet.of());
-        }
-        catch (Exception e) {
-            return Set.of();
-        }
-    }
-
-    private List<TaskInfo> gatherAllTasks(StageInfo stageInfo)
-    {
-        ImmutableList.Builder<TaskInfo> builder = ImmutableList.builder();
-        builder.addAll(stageInfo.getTasks());
-        for (StageInfo subStage : stageInfo.getSubStages()) {
-            builder.addAll(gatherAllTasks(subStage));
-        }
-        return builder.build();
-    }
-
-    private Set<String> getNodeIdsProcessingQuery(StageInfo outputStage)
-    {
-        List<TaskInfo> tasks = gatherAllTasks(outputStage);
-
-        return tasks.stream()
-                .map(TaskInfo::taskStatus)
-                .map(TaskStatus::getNodeId)
-                .filter(this::isNotCoordinator)
-                .collect(toImmutableSet());
-    }
-
-    private boolean isNotCoordinator(String nodeId)
-    {
-        return !nodeId.equalsIgnoreCase(coordinatorId);
-    }
-
     private static class TroubleshootingData
     {
         private final QueryId queryId;
@@ -489,10 +447,5 @@ public abstract class AbstractQueryTroubleshootingTest
                 .findFirst()
                 .map(BasicQueryInfo::getQueryId)
                 .orElse(null);
-    }
-
-    private String getJvmConfig()
-    {
-        return String.join("\n", ManagementFactory.getRuntimeMXBean().getInputArguments()) + "\n";
     }
 }
