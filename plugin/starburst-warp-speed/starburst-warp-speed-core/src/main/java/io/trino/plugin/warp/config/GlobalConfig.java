@@ -81,7 +81,7 @@ public class GlobalConfig
     private boolean enableExportAppendOnCloud = true;
     private boolean enableMatchCollect = true;
     private boolean enableMappedMatchCollect = true;
-    private boolean enableVarcharMappedMatchCollect = true;
+    private boolean enableVarcharMappedMatchCollect;
     private boolean enableOrPushdown = true;
     private boolean enableRangeFilter = true;
     private int shapingLoggerThreshold = 1000;

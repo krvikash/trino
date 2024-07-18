@@ -3933,6 +3933,9 @@
       },
       {
         "query": "select count(some_varchar) from varchar_100_64k where some_varchar = 'Jennifer C' or some_varchar = 'Christopher W'",
+        "session_properties": {
+          "enable_varchar_mapped_match_collect": true
+        },
         "query_id": "varchar_100_64k_05",
         "expected_result": [
           [
@@ -3951,6 +3954,9 @@
       {
         "query": "select count(some_char) from varchar_100_64k where some_char = 'Randall S' or some_char = 'Kathleen '",
         "query_id": "varchar_100_64k_06",
+        "session_properties": {
+          "enable_varchar_mapped_match_collect": true
+        },
         "expected_result": [
           [
             154
