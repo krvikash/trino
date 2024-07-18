@@ -97,7 +97,6 @@ public class TestHiveDynamicPartitionPruningTestWithPlanAlternatives
     }
 
     @Override
-    @Test
     protected OperatorStats searchScanFilterAndProjectOperatorStats(QueryId queryId, QualifiedObjectName catalogSchemaTableName)
     {
         DistributedQueryRunner runner = getDistributedQueryRunner();
@@ -164,6 +163,7 @@ public class TestHiveDynamicPartitionPruningTestWithPlanAlternatives
         long dynamicFilterSplitsProcessed = left.getDynamicFilterSplitsProcessed() + operator.getDynamicFilterSplitsProcessed();
         Metrics.Accumulator metricsAccumulator = Metrics.accumulator().add(left.getMetrics()).add(operator.getMetrics());
         Metrics.Accumulator connectorMetricsAccumulator = Metrics.accumulator().add(left.getConnectorMetrics()).add(operator.getConnectorMetrics());
+        Metrics.Accumulator pipelineMetricsAccumulator = Metrics.accumulator().add(left.getPipelineMetrics()).add(operator.getPipelineMetrics());
 
         long physicalWrittenDataSize = left.getPhysicalWrittenDataSize().toBytes();
 
@@ -226,6 +226,7 @@ public class TestHiveDynamicPartitionPruningTestWithPlanAlternatives
                 dynamicFilterSplitsProcessed,
                 metricsAccumulator.get(),
                 connectorMetricsAccumulator.get(),
+                pipelineMetricsAccumulator.get(),
 
                 DataSize.ofBytes(physicalWrittenDataSize),
 
