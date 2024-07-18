@@ -2011,7 +2011,7 @@
         }
       },
       {
-        "query": "select smallint_3 from integer_more where smallint_3 in (10000, 10001)",
+        "query": "select smallint_3 from integer_more where smallint_3 in (10000, 10001) order by smallint_3",
         "session_properties":
         {
           "enable_mapped_match_collect": true
@@ -2033,7 +2033,7 @@
           "external_collect_columns": 0
         }
       },
-      {  "query": "select tinyint_4 from integer_more where tinyint_4 in (103, 104)",
+      {  "query": "select tinyint_4 from integer_more where tinyint_4 in (103, 104) order by tinyint_4",
         "session_properties":
         {
           "enable_mapped_match_collect": true
@@ -2066,27 +2066,105 @@
         }
       },
       {
-            "query": "select int_1 from integer_more where int_1 in (1000000001, 1000000002)",
-            "session_properties":
-            {
-                "enable_mapped_match_collect": true
-            },
-            "expected_result":
-            [
-                [1000000001],
-                [1000000002]
-            ],
-            "query_id": "integer_more_15",
-            "expected_counters": {
-                "warp_match_columns": 1,
-                "warp_collect_columns": 1,
-                "warp_prefilled_collect_columns": 0,
-                "warp_match_collect_columns": 0,
-                "warp_mapped_match_collect_columns": 0,
-                "external_match_columns": 0,
-                "external_collect_columns": 0
-            }
+        "query": "select int_1 from integer_more where int_1 in (1000000001, 1000000002) order by int_1",
+        "session_properties":
+        {
+          "enable_mapped_match_collect": true
+        },
+        "expected_result":
+        [
+          [1000000001],
+          [1000000002]
+        ],
+        "query_id": "integer_more_15",
+        "expected_counters": {
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
+          "warp_match_collect_columns": 0,
+          "warp_mapped_match_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
         }
+      },
+      {
+        "query": "select bigint_2 from integer_more where bigint_2 in (100000000000000003, 100000000000000005) order by bigint_2",
+        "session_properties":
+        {
+          "enable_mapped_match_collect": true
+        },
+        "expected_result":
+        [
+          [100000000000000003],
+          [100000000000000005]
+        ],
+        "query_id": "integer_more_16",
+        "expected_counters":
+        {
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
+          "warp_match_collect_columns": 1,
+          "warp_mapped_match_collect_columns": 1,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
+      },
+      {
+        "query": "select smallint_3 from integer_more where smallint_3 in (10000, 10002) order by smallint_3",
+        "session_properties":
+        {
+          "enable_mapped_match_collect": true
+        },
+        "expected_result":
+        [
+          [10000],
+          [10002]
+        ],
+        "query_id": "integer_more_17",
+        "expected_counters":
+        {
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
+          "warp_match_collect_columns": 1,
+          "warp_mapped_match_collect_columns": 1,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
+      },
+      {  "query": "select tinyint_4 from integer_more where tinyint_4 in (103, 105) order by tinyint_4",
+        "session_properties":
+        {
+          "enable_mapped_match_collect": true
+        },
+        "expected_result":
+        [
+          [103],
+          [105]
+        ],
+        "query_id": "integer_more_14",
+        "expected_counters":
+        {
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
+          "warp_match_collect_columns": 1,
+          "warp_mapped_match_collect_columns": 0,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        },
+        "iceberg_expected_counters":
+        {
+          "warp_match_columns": 1,
+          "warp_collect_columns": 1,
+          "warp_prefilled_collect_columns": 0,
+          "warp_match_collect_columns": 1,
+          "warp_mapped_match_collect_columns": 1,
+          "external_match_columns": 0,
+          "external_collect_columns": 0
+        }
+      }
     ]
   },
   {
