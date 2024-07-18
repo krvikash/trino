@@ -363,7 +363,7 @@
             <!-- this is needed by aws credentials -->
             <groupId>software.amazon.awssdk.crt</groupId>
             <artifactId>aws-crt</artifactId>
-            <version>0.29.13</version>
+            <version>0.30.0</version>
             <scope>runtime</scope>
         </dependency>
 
