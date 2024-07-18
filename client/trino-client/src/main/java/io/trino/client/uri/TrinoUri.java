@@ -481,7 +481,7 @@ public class TrinoUri
         return uri.getScheme().equals("https") || (uri.getScheme().equals("trino") && uri.getPort() == 443);
     }
 
-    public ClientSession toClientSession()
+    public ClientSession.Builder toClientSessionBuilder()
     {
         return ClientSession.builder()
                 .server(getHttpUri())
@@ -501,8 +501,7 @@ public class TrinoUri
                 .credentials(getExtraCredentials())
                 .transactionId(null)
                 .resourceEstimates(getResourceEstimates())
-                .compressionDisabled(isCompressionDisabled())
-                .build();
+                .compressionDisabled(isCompressionDisabled());
     }
 
     protected static Set<ConnectionProperty<?, ?>> allProperties()
