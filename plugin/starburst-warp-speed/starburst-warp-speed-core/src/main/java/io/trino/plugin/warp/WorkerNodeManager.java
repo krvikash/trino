@@ -16,6 +16,7 @@ package io.trino.plugin.warp;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
+import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.util.UriUtils;
 import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
@@ -38,10 +39,12 @@ public class WorkerNodeManager
 
     @Inject
     public WorkerNodeManager(NodeManager nodeManager,
+            WarpInitializedServiceRegistry warpInitializedServiceRegistry,
             WorkerCapacityManager workerCapacityManager)
     {
         this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
         this.workerCapacityManager = requireNonNull(workerCapacityManager, "workerCapacityManager is null");
+        warpInitializedServiceRegistry.addService(this);
     }
 
     @Override

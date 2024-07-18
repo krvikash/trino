@@ -14,6 +14,7 @@
 package io.trino.plugin.warp;
 
 import io.airlift.http.client.HttpUriBuilder;
+import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.util.NodeUtils;
 import io.trino.plugin.warp.util.UriUtils;
@@ -41,6 +42,7 @@ public class WorkerNodeManagerTest
         Node node = NodeUtils.node(nodeId, true);
         when(nodeManager.getCurrentNode()).thenReturn(node);
         workerNodeManager = new WorkerNodeManager(nodeManager,
+                mock(WarpInitializedServiceRegistry.class),
                 mock(WorkerCapacityManager.class));
         nodeId = 0;
     }
