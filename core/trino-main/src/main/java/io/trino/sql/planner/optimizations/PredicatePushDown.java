@@ -1565,8 +1565,15 @@ public class PredicatePushDown
                     .forEach(postAggregationConjuncts::add);
             inheritedPredicate = filterDeterministicConjuncts(inheritedPredicate);
 
-            // Sort non-equality predicates by those that can be pushed down and those that cannot
             Set<Symbol> groupingKeys = ImmutableSet.copyOf(node.getGroupingKeys());
+
+            // Add the equality predicates back in
+            EqualityInference.EqualityPartition equalityPartition = equalityInference.generateEqualitiesPartitionedBy(groupingKeys);
+            pushdownConjuncts.addAll(equalityPartition.getScopeEqualities());
+            postAggregationConjuncts.addAll(equalityPartition.getScopeComplementEqualities());
+            postAggregationConjuncts.addAll(equalityPartition.getScopeStraddlingEqualities());
+
+            // Sort non-equality predicates by those that can be pushed down and those that cannot
             EqualityInference.nonInferrableConjuncts(inheritedPredicate).forEach(conjunct -> {
                 if (node.getGroupIdSymbol().isPresent() && extractUnique(conjunct).contains(node.getGroupIdSymbol().get())) {
                     // aggregation operator synthesizes outputs for group ids corresponding to the global grouping set (i.e., ()), so we
@@ -1585,12 +1592,6 @@ public class PredicatePushDown
                     }
                 }
             });
-
-            // Add the equality predicates back in
-            EqualityInference.EqualityPartition equalityPartition = equalityInference.generateEqualitiesPartitionedBy(groupingKeys);
-            pushdownConjuncts.addAll(equalityPartition.getScopeEqualities());
-            postAggregationConjuncts.addAll(equalityPartition.getScopeComplementEqualities());
-            postAggregationConjuncts.addAll(equalityPartition.getScopeStraddlingEqualities());
 
             PlanNode rewrittenSource = context.rewrite(node.getSource(), combineConjuncts(pushdownConjuncts));
 
@@ -1627,8 +1628,15 @@ public class PredicatePushDown
                     .forEach(postUnnestConjuncts::add);
             inheritedPredicate = filterDeterministicConjuncts(inheritedPredicate);
 
-            // Sort non-equality predicates by those that can be pushed down and those that cannot
             Set<Symbol> replicatedSymbols = ImmutableSet.copyOf(node.getReplicateSymbols());
+
+            // Add the equality predicates back in
+            EqualityInference.EqualityPartition equalityPartition = equalityInference.generateEqualitiesPartitionedBy(replicatedSymbols);
+            pushdownConjuncts.addAll(equalityPartition.getScopeEqualities());
+            postUnnestConjuncts.addAll(equalityPartition.getScopeComplementEqualities());
+            postUnnestConjuncts.addAll(equalityPartition.getScopeStraddlingEqualities());
+
+            // Sort non-equality predicates by those that can be pushed down and those that cannot
             EqualityInference.nonInferrableConjuncts(inheritedPredicate).forEach(conjunct -> {
                 Expression rewrittenConjunct = equalityInference.rewrite(conjunct, replicatedSymbols);
                 if (rewrittenConjunct != null) {
@@ -1638,12 +1646,6 @@ public class PredicatePushDown
                     postUnnestConjuncts.add(conjunct);
                 }
             });
-
-            // Add the equality predicates back in
-            EqualityInference.EqualityPartition equalityPartition = equalityInference.generateEqualitiesPartitionedBy(replicatedSymbols);
-            pushdownConjuncts.addAll(equalityPartition.getScopeEqualities());
-            postUnnestConjuncts.addAll(equalityPartition.getScopeComplementEqualities());
-            postUnnestConjuncts.addAll(equalityPartition.getScopeStraddlingEqualities());
 
             PlanNode rewrittenSource = context.rewrite(node.getSource(), combineConjuncts(pushdownConjuncts));
 
