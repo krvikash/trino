@@ -16,6 +16,7 @@ import com.google.inject.Key;
 import com.google.inject.Provider;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
+import com.google.inject.multibindings.ProvidesIntoOptional;
 import com.starburstdata.trino.plugin.jdbc.JdbcConnectionPoolConfig;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeConfig;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeConnectorFlavour;
@@ -142,7 +143,7 @@ public class SnowflakeJdbcClientModule
         return new SnowflakeClient(config, snowflakeConfig, statisticsConfig, connectionFactory, connectorFlavour, queryBuilder, typeManager, identifierMapping, queryModifier);
     }
 
-    @Provides
+    @ProvidesIntoOptional(ProvidesIntoOptional.Type.ACTUAL)
     @Singleton
     public IdentityCacheMapping getIdentityCacheMapping(@ForWarehouseAware IdentityCacheMapping delegate)
     {
