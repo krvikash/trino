@@ -119,7 +119,8 @@ public class SchemaDiscoveryController
 
     public GeneratedOperations generateOperationDifferences(GenerateOperationDifferencesRequest difference)
     {
-        Location rootPath = Location.of(difference.uri().toString());
+        URI uri = normalizeUri(difference.uri());
+        Location rootPath = Location.of(uri.toString());
         TableChangesBuilder builder = new TableChangesBuilder(ensureEndsWithSlash(rootPath));
         difference.oldTables().forEach(builder::addPreviousTable);
         difference.updatedTables().forEach(builder::addCurrentTable);
