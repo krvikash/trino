@@ -3,21 +3,22 @@ name: security
 # The results are aggregated and triaged to help determine what vulnerabilities need to be addressed to meet customer obligations and internal goals.
 # For more information on AppSec @ Starburst, see https://starburstdata.atlassian.net/wiki/spaces/STARBURST/pages/3453419644.
 on:
-  push:
-    branches:
-      - master
   pull_request:
     branches:
       - master
     paths-ignore:
       - "docs/**"
+  schedule:
+    - cron: "5 14 * * 4" # 14:05 every Thursday.
   workflow_dispatch:
-
+# test
 env:
   BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
-  ENDORCTL_CHECKSUM: "04f1196ed44f29d7a2da6248a94c120fd6f635456d04cb35703af2dc6d312a84"
+  ENDORCTL_CHECKSUM: "df5bbdeeaf2f23d3df66d445d06afa24354bed2e9aed63edff04814c911723be"
   ENDORCTL_NAMESPACE: "starburst"
-  ENDORCTL_VERSION: "v1.6.367"
+  ENDORCTL_VERSION: "v1.6.411"
+  ENDOR_SCAN_CALLGRAPH_LANGUAGES: "[java, python]"
+  ENDOR_SCAN_PYTHON_GLOBAL_SITE_PACKAGES: true
   MAVEN_OPTS: "-Xmx3G -XX:+ExitOnOutOfMemoryError"
   mavenReleaseUsername: ${{ vars.CODE_ARTIFACT_USERNAME }}
   mavenReleasePassword: ${{ secrets.CODE_ARTIFACT_PASSWORD }}
@@ -36,7 +37,7 @@ jobs:
     permissions:
       contents: read # Used to check out a private repository with actions/checkout.
       id-token: write # Used for keyless authentication to Endor Labs.
-    runs-on: [self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest]
+    runs-on: [self-hosted, gha-fleet-ec2-4cpu-16gb-amd64-on-demand, latest]
     steps:
       - name: Checkout
         uses: actions/checkout@8459bc0c7e3759cdf591f513d9f141a95fef0a8f # v4.1.4
@@ -65,7 +66,7 @@ jobs:
         uses: sdkman/sdkman-action@b1f9b696c79148b66d3d3a06f7ea801820318d0f # v1
         with:
           candidate: maven
-          version: 3.9.8 # Always match the project default
+          version: 3.9.8 # Always match the project default. If this does not match, submit a PR.
       - name: Maven Build
         run: ./mvnw clean install -s .github/settings.xml -V -B --quiet -T 1C -DskipTests -Dmaven.source.skip=true -Dair.check.skip-all
       - name: Don't Skip Deps
@@ -74,23 +75,22 @@ jobs:
       - name: Endor Labs Pull Request Scan
         if: github.event_name == 'pull_request'
         env:
-          ENDOR_SCAN_PYTHON_GLOBAL_SITE_PACKAGES: true
           MAVEN_ARGS: "-s ${{ github.workspace }}/.github/settings.xml"
         uses: endorlabs/github-action@802fa65ba7c140405ee52d1c806cfdb647f8f743 # v1.1.4
         with:
-          additional_args: '--exclude="testing/" --bypass-host-check'
+          additional_args: '--exclude="testing/" --bypass-host-check --quick-scan'
           enable_pr_comments: false
           endorctl_checksum: ${{ env.ENDORCTL_CHECKSUM }}
           endorctl_version: ${{ env.ENDORCTL_VERSION }}
           namespace: ${{ env.ENDORCTL_NAMESPACE }}
           pr: true
+          pr_baseline: "master"
           scan_dependencies: true
           scan_secrets: true
           tags: "actor=${{ github.actor }},branch=${{ env.BRANCH_NAME }},pr=${{ github.event.number }},run-id=${{ github.run_id }}"
-      - name: Endor Labs Merge Scan
-        if: github.event_name == 'push'
+      - name: Endor Labs Scheduled Scan
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         env:
-          ENDOR_SCAN_PYTHON_GLOBAL_SITE_PACKAGES: true
           MAVEN_ARGS: "-s ${{ github.workspace }}/.github/settings.xml"
         uses: endorlabs/github-action@802fa65ba7c140405ee52d1c806cfdb647f8f743 # v1.1.4
         with:
