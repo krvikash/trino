@@ -45,6 +45,7 @@ final class StorageWriterContext
     private final int warmUpType;
     private final long[] fileCookieParams;
     private final long[] buffAddresses;
+    private final byte[] compressionStats;
     private final BlockAppender blockAppender;
     private boolean weSuccess;
     private final Optional<WriteDictionary> writeDictionary;
@@ -61,6 +62,7 @@ final class StorageWriterContext
             int warmUpType,
             long[] fileCookieParams,
             long[] buffAddresses,
+            byte[] compressionStats,
             BlockAppender blockAppender,
             Optional<WriteDictionary> writeDictionary,
             Optional<LuceneIndexer> luceneIndexer)
@@ -77,6 +79,7 @@ final class StorageWriterContext
         this.warmUpType = warmUpType;
         this.fileCookieParams = fileCookieParams;
         this.buffAddresses = buffAddresses;
+        this.compressionStats = compressionStats;
         this.blockAppender = blockAppender;
         this.weSuccess = true;
         this.writeDictionary = writeDictionary;
@@ -134,6 +137,11 @@ final class StorageWriterContext
     public long[] getBuffAddresses()
     {
         return buffAddresses;
+    }
+
+    public byte[] getCompressionStats()
+    {
+        return compressionStats;
     }
 
     int getRecordBufferSize()

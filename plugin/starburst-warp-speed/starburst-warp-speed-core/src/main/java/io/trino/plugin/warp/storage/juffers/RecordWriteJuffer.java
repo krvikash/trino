@@ -38,6 +38,7 @@ public class RecordWriteJuffer
     private final int warmUpType;
     private final long[] fileCookieParams;
     private final long[] buffAddresses;
+    private final byte[] compressionStats;
     private int recordBufferEntrySize;            // size of one record, one if its a byte buffer
     private boolean isDictionaryValid;
 
@@ -49,7 +50,8 @@ public class RecordWriteJuffer
             int recTypeLength,
             int warmUpType,
             long[] fileCookieParams,
-            long[] buffAddresses)
+            long[] buffAddresses,
+            byte[] compressionStats)
     {
         super(bufferAllocator, JuffersType.RECORD);
         this.allocParams = allocParams;
@@ -60,6 +62,7 @@ public class RecordWriteJuffer
         this.warmUpType = warmUpType;
         this.fileCookieParams = fileCookieParams;
         this.buffAddresses = buffAddresses;
+        this.compressionStats = compressionStats;
     }
 
     @Override
@@ -121,6 +124,7 @@ public class RecordWriteJuffer
                 warmUpType,
                 fileCookieParams,
                 buffAddresses,
+                compressionStats,
                 null,
                 warmEvents);
         fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFFL;

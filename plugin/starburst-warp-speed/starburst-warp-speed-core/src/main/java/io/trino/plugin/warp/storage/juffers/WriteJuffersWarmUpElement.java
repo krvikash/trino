@@ -53,6 +53,7 @@ public class WriteJuffersWarmUpElement
     private final int warmUpType;
     private final long[] fileCookieParams;
     private final long[] buffAddresses;
+    private final byte[] compressionStats;
     private final int chunkHeaderSize;
     private final List<ChunkMap> chunkMapList;
     private final MemorySegment[] buffs;
@@ -76,7 +77,8 @@ public class WriteJuffersWarmUpElement
             int warmUpType,
             WarmUpElementAllocationParams allocParams,
             long[] fileCookieParams,
-            long[] buffAddresses)
+            long[] buffAddresses,
+            byte[] compressionStats)
     {
         super();
 
@@ -91,6 +93,7 @@ public class WriteJuffersWarmUpElement
         this.warmUpType = warmUpType;
         this.fileCookieParams = fileCookieParams;
         this.buffAddresses = buffAddresses;
+        this.compressionStats = compressionStats;
         this.chunkHeaderSize = storageEngineConstants.getChunkHeaderMaxSize();
 
         // we always have an invalid cookie at the end of the list for a case we aborted the last chunk in the middle
@@ -108,7 +111,8 @@ public class WriteJuffersWarmUpElement
                     recTypeLength,
                     warmUpType,
                     fileCookieParams,
-                    buffAddresses);
+                    buffAddresses,
+                    compressionStats);
             juffers.put(recordJuffers.getJufferType(), recordJuffers);
 
             if (allocParams.isExtBufferNeeded()) {
@@ -213,6 +217,7 @@ public class WriteJuffersWarmUpElement
                 warmUpType,
                 fileCookieParams,
                 buffAddresses,
+                compressionStats,
                 outChunkCookies,
                 outWarmEvents);
         fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFFL;

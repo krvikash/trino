@@ -150,7 +150,8 @@ public class StorageWriterService
                 allocParams);
 
         // set up buffers
-        WriteJuffersWarmUpElement writeJuffersWarmUpElement = getWriteJuffersWarmUpElement(storageOpenResult, hasDictionary, allocParams, fileCookieParams);
+        byte[] compressionStats = new byte[35];
+        WriteJuffersWarmUpElement writeJuffersWarmUpElement = getWriteJuffersWarmUpElement(storageOpenResult, hasDictionary, allocParams, fileCookieParams, compressionStats);
         if (hasDictionary) {
             WriteDictionary writeDictionary = dictionaryCacheService.computeWriteIfAbsent(dictionaryKey, warmUpElement.getRecTypeCode());
             dictionaryKey = writeDictionary.getDictionaryKey(); //in order to be aligned with createdTimestamp
@@ -184,6 +185,7 @@ public class StorageWriterService
                 storageOpenResult.warmUpType(),
                 fileCookieParams,
                 storageOpenResult.buffAddresses(),
+                compressionStats,
                 blockAppender,
                 writeDictionaryOpt,
                 luceneIndexerOpt);
@@ -192,7 +194,8 @@ public class StorageWriterService
     private WriteJuffersWarmUpElement getWriteJuffersWarmUpElement(StorageOpenResult storageOpenResult,
             boolean dictionaryValid,
             WarmUpElementAllocationParams allocParams,
-            long[] fileCookieParams)
+            long[] fileCookieParams,
+            byte[] compressionStats)
     {
         WriteJuffersWarmUpElement juffersWE = new WriteJuffersWarmUpElement(storageEngine,
                 storageEngineConstants,
@@ -204,7 +207,8 @@ public class StorageWriterService
                 storageOpenResult.warmUpType(),
                 allocParams,
                 fileCookieParams,
-                storageOpenResult.buffAddresses());
+                storageOpenResult.buffAddresses(),
+                compressionStats);
         juffersWE.createBuffers(dictionaryValid);
         return juffersWE;
     }

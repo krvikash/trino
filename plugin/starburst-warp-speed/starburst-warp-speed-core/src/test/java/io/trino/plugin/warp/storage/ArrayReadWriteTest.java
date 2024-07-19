@@ -267,7 +267,8 @@ public class ArrayReadWriteTest
                 0,
                 warmUpElementAllocationParams,
                 new long[] {0, 0, 0, 0, 0},
-                new long[] {0});
+                new long[] {0},
+                new byte[] {0});
         juffersWE.createBuffers(false);
         BlockTransformerFactory blockTransformerFactory = new BlockTransformerFactory();
         appender = new ArrayBlockAppender(blockTransformerFactory, juffersWE,

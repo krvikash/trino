@@ -136,7 +136,8 @@ public class NativeStorageEngine
 
     @Override
     public native long warmupChunk(long weCookie, int addedNumRows, int addedNV, int addedBytes, long valueMin, long valueMax, int singleValOffset,
-            boolean close, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams, long[] buffAddresses, byte[] outChunkCookies, int[] outWarmEvents);
+            boolean close, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams, long[] buffAddresses,
+            byte[] inOutCompressionStats, byte[] outChunkCookies, int[] outWarmEvents);
 
     @Override
     public native long warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams, long[] buffAddresses);
