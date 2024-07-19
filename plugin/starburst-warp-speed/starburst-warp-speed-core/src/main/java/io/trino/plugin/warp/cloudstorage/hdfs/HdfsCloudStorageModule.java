@@ -73,7 +73,7 @@ public class HdfsCloudStorageModule
 
                     binder1.install(new LifeCycleModule());
 
-                    FileSystemModule fileSystemModule = new FileSystemModule(catalogName, context.getNodeManager(), openTelemetry);
+                    FileSystemModule fileSystemModule = new FileSystemModule(catalogName, context.getNodeManager(), openTelemetry, false);
                     fileSystemModule.setConfigurationFactory(configFactory);
                     binder1.install(fileSystemModule);
                 });
