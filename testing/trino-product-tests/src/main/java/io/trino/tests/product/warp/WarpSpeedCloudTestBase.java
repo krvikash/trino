@@ -113,7 +113,7 @@ public abstract class WarpSpeedCloudTestBase
                     Map.of();
             warmUtils.setSessions(sessionProperties);
 
-            boolean fastWarming = (boolean) sessionProperties.getOrDefault(CATALOG_NAME + ".enable_import_export", false);
+            boolean fastWarming = (boolean) sessionProperties.getOrDefault(CATALOG_NAME + ".enable_import_export", true);
             if (fastWarming) {
                 warmUtils.warmAndValidate(testFormat, FastWarming.EXPORT);
                 demoterUtils.demote(schema, table, testFormat);
