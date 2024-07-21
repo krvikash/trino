@@ -56,7 +56,8 @@ public class CrcStringBlockAppender
             int jufferPos,
             BlockPosHolder blockPos,
             WarmUpElement warmUpElement,
-            WarmupElementStatsBuilder warmupElementStatsBuilder)
+            WarmupElementStatsBuilder warmupElementStatsBuilder,
+            byte[] chunkHeader)
     {
         int nullsCount = 0;
         // string length must be taken form type since the warm up type length represents the index length (maximum is 8)

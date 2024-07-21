@@ -111,7 +111,11 @@ public class VariableLengthStringBlockAppender
     }
 
     @Override
-    public AppendResult appendWithoutDictionary(int jufferPos, BlockPosHolder blockPos, WarmUpElement warmUpElement, WarmupElementStatsBuilder warmupElementStatsBuilder)
+    public AppendResult appendWithoutDictionary(int jufferPos,
+            BlockPosHolder blockPos,
+            WarmUpElement warmUpElement,
+            WarmupElementStatsBuilder warmupElementStatsBuilder,
+            byte[] chunkHeader)
     {
         ByteBuffer recordBuff = (ByteBuffer) juffersWE.getRecordBuffer();
         int recBuffSize = juffersWE.getRecBuffSize();
@@ -196,7 +200,7 @@ public class VariableLengthStringBlockAppender
 
                     // first check if we have space in the buffer, if not commit and reset
                     if (extendedBuff.position() + att.extLen >= extendedJuffers.getExtWESize()) {
-                        extendedJuffers.commitAndResetExtRecordBuffer();
+                        extendedJuffers.commitAndResetExtRecordBuffer(chunkHeader);
                     }
                     // remember the first one
                     extendedJuffers.updateExtRecordFirstOffset(varlenMdBaseOffset + recStartPos);

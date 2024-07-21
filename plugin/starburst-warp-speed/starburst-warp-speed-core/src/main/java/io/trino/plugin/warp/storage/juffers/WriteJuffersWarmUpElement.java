@@ -60,6 +60,7 @@ public class WriteJuffersWarmUpElement
     private final WarmUpElementAllocationParams allocParams;
 
     // min/max and single value per chunk
+    private byte[] chunkHeader;
     private long recordBufferMin;
     private long recordBufferMax;
     private int recordBufferSingleOffset;
@@ -101,6 +102,7 @@ public class WriteJuffersWarmUpElement
         byte[] defaultChunkCookies = new byte[chunkHeaderSize];
         Arrays.fill(defaultChunkCookies, (byte) -1);
         this.chunkMapList.add(new ChunkMap(defaultChunkCookies));
+        this.chunkHeader = new byte[chunkHeaderSize];
 
         if (allocParams.isRecBufferNeeded()) {
             RecordWriteJuffer recordJuffers = new RecordWriteJuffer(bufferAllocator,
@@ -198,11 +200,10 @@ public class WriteJuffersWarmUpElement
             boolean prepareMdBuffer = allocParams.isMdBufferNeeded() && !recordJuffer.isDictionaryValid();
             numBytesWritten = calcNumBytesWritten(recordJuffer.getRecordBufferEntrySize(), recordJuffer.getWrappedBuffer(), prepareMdBuffer ? getVarlenMdBuffer() : null);
             if (allocParams.isExtBufferNeeded()) {
-                getExtRecordJuffer().commitAndResetExtRecordBuffer();
+                getExtRecordJuffer().commitAndResetExtRecordBuffer(chunkHeader);
             }
         }
 
-        byte[] outChunkCookies = new byte[chunkHeaderSize];
         int[] outWarmEvents = new int[1];
         long res = storageEngine.warmupChunk(weCookie,
                 recordBufferPos,
@@ -218,12 +219,13 @@ public class WriteJuffersWarmUpElement
                 fileCookieParams,
                 buffAddresses,
                 compressionStats,
-                outChunkCookies,
+                chunkHeader,
                 outWarmEvents);
         fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFFL;
         fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX.ordinal()] = res >> 32;
         fileCookieParams[FILE_COOKIE_PARAMS_WARM_EVENTS.ordinal()] |= outWarmEvents[0];
-        chunkMapList.add(chunkMapList.size() - 1, new ChunkMap(outChunkCookies));
+        chunkMapList.add(chunkMapList.size() - 1, new ChunkMap(chunkHeader));
+        chunkHeader = new byte[chunkHeaderSize];
     }
 
     private int calcNumBytesWritten(int bufferEntrySize, Buffer recordJuffer, IntBuffer mdBuffer)
@@ -243,9 +245,10 @@ public class WriteJuffersWarmUpElement
     public void commitAndResetWE(int numRecs, int addedNV, int numBytes, int numExtBytes)
     {
         if (allocParams.isExtBufferNeeded()) {
-            getExtRecordJuffer().commitAndResetExtRecordBuffer(numExtBytes);
+            getExtRecordJuffer().commitAndResetExtRecordBuffer(chunkHeader, numExtBytes);
         }
-        getRecordJuffer().commitAndResetWE(numRecs,
+        getRecordJuffer().commitAndResetWE(chunkHeader,
+                numRecs,
                 getNullJuffer().getNullsCount() + addedNV,
                 numBytes,
                 recordBufferMin,
@@ -282,6 +285,11 @@ public class WriteJuffersWarmUpElement
     public void updateLuceneProps(Slice val)
     {
         getLuceneJuffer().updateLuceneProps(val);
+    }
+
+    public byte[] getCurrentChunkHeader()
+    {
+        return chunkHeader;
     }
 
     // min/max and single value

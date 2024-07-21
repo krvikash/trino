@@ -31,7 +31,11 @@ public class LongBlockAppender
     }
 
     @Override
-    public AppendResult appendWithoutDictionary(int jufferPos, BlockPosHolder blockPos, WarmUpElement warmUpElement, WarmupElementStatsBuilder warmupElementStatsBuilder)
+    public AppendResult appendWithoutDictionary(int jufferPos,
+            BlockPosHolder blockPos,
+            WarmUpElement warmUpElement,
+            WarmupElementStatsBuilder warmupElementStatsBuilder,
+            byte[] chunkHeader)
     {
         LongBuffer longBuffer = (LongBuffer) juffersWE.getRecordBuffer();
         int nullsCount = 0;

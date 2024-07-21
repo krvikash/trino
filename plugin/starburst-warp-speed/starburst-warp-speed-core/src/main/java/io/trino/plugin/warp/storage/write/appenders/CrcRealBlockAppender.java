@@ -33,7 +33,8 @@ public class CrcRealBlockAppender
             int jufferPos,
             BlockPosHolder blockPos,
             WarmUpElement warmUpElement,
-            WarmupElementStatsBuilder warmupElementStatsBuilder)
+            WarmupElementStatsBuilder warmupElementStatsBuilder,
+            byte[] chunkHeader)
     {
         int nullsCount = 0;
         if (blockPos.mayHaveNull()) {

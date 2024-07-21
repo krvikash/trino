@@ -117,13 +117,14 @@ public class StubsStorageEngine
     @Override
     public long warmupChunk(long weCookie, int addedNumRows, int addedNV, int addedBytes, long valueMin, long valueMax, int singleValOffset,
             boolean close, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams, long[] buffAddresses,
-            byte[] inOutCompressionStats, byte[] outChunkCookies, int[] outWarmEvents)
+            byte[] inOutCompressionStats, byte[] inOutChunkHeader, int[] outWarmEvents)
     {
         return 0;
     }
 
     @Override
-    public long warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams, long[] buffAddresses)
+    public long warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, int recTypeCode, int recTypeLength, int warmUpType,
+            long[] fileCookieParams, long[] buffAddresses, byte[] inOutChunkHeader)
     {
         return 0;
     }

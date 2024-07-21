@@ -29,7 +29,11 @@ public class SmallIntBlockAppender
     }
 
     @Override
-    public AppendResult appendWithoutDictionary(int jufferPos, BlockPosHolder blockPos, WarmUpElement warmUpElement, WarmupElementStatsBuilder warmupElementStatsBuilder)
+    public AppendResult appendWithoutDictionary(int jufferPos,
+            BlockPosHolder blockPos,
+            WarmUpElement warmUpElement,
+            WarmupElementStatsBuilder warmupElementStatsBuilder,
+            byte[] chunkHeader)
     {
         ShortBuffer buff = (ShortBuffer) juffersWE.getRecordBuffer();
 

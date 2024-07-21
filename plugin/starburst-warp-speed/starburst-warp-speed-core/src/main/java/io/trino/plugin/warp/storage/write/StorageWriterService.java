@@ -503,7 +503,8 @@ public class StorageWriterService
                     storageWriterContext.getRecTypeLength(),
                     storageWriterContext.getWarmUpType(),
                     storageWriterContext.getFileCookieParams(),
-                    storageWriterContext.getBuffAddresses());
+                    storageWriterContext.getBuffAddresses(),
+                    storageWriterContext.getWriteJuffersWarmUpElement().getCurrentChunkHeader());
         }
 
         if (storageWriterContext.weSuccess()) {
@@ -572,7 +573,8 @@ public class StorageWriterService
                     blockPos,
                     storageWriterContext.getWriteDictionary(),
                     warmUpElement,
-                    storageWriterContext.getWarmupElementStatsBuilder());
+                    storageWriterContext.getWarmupElementStatsBuilder(),
+                    storageWriterContext.getWriteJuffersWarmUpElement().getCurrentChunkHeader());
             storageWriterContext.getWriteJuffersWarmUpElement().increaseNullsCount(appendResult.nullsCount());
         }
         catch (WarmupException e) {

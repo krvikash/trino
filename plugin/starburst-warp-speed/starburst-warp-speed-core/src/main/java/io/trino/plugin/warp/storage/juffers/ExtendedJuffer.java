@@ -70,7 +70,7 @@ public class ExtendedJuffer
         this.extWESize = allocParams.extRecBuffSize();
     }
 
-    protected void commitAndResetExtRecordBuffer(int numExtBytes)
+    protected void commitAndResetExtRecordBuffer(byte[] chunkHeader, int numExtBytes)
     {
         if (numExtBytes > 0) {
             long res = storageEngine.warmupChunkExtRec(weCookie,
@@ -80,14 +80,15 @@ public class ExtendedJuffer
                     recTypeLength,
                     warmUpType,
                     fileCookieParams,
-                    buffAddresses);
+                    buffAddresses,
+                    chunkHeader);
             fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFFL;
             fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX.ordinal()] = res >> 32;
             resetExtBuf();
         }
     }
 
-    public void commitAndResetExtRecordBuffer()
+    public void commitAndResetExtRecordBuffer(byte[] chunkHeader)
     {
         if (wrappedBuffer.position() > 0) {
             long res = storageEngine.warmupChunkExtRec(weCookie,
@@ -97,7 +98,8 @@ public class ExtendedJuffer
                     recTypeLength,
                     warmUpType,
                     fileCookieParams,
-                    buffAddresses);
+                    buffAddresses,
+                    chunkHeader);
             fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFFL;
             fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX.ordinal()] = res >> 32;
         }

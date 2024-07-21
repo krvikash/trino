@@ -39,6 +39,7 @@ public class WarpOutputDirectory
     private final long weCookie;
     private final long[] fileCookieParams;
     private final long[] buffAddresses;
+    private final byte[] chunkHeader;
     private final ByteBuffersDirectory byteBuffersDirectory;
 
     protected WarpOutputDirectory(StorageEngine storageEngine,
@@ -49,7 +50,8 @@ public class WarpOutputDirectory
             int recTypeLength,
             int warmUpType,
             long[] fileCookieParams,
-            long[] buffAddresses)
+            long[] buffAddresses,
+            byte[] chunkHeader)
     {
         super(NoLockFactory.INSTANCE);
         this.byteBuffersDirectory = new ByteBuffersDirectory(NoLockFactory.INSTANCE);
@@ -62,6 +64,7 @@ public class WarpOutputDirectory
         this.warmUpType = warmUpType;
         this.fileCookieParams = fileCookieParams;
         this.buffAddresses = buffAddresses;
+        this.chunkHeader = chunkHeader;
     }
 
     @Override
@@ -77,7 +80,7 @@ public class WarpOutputDirectory
                 warmUpType,
                 fileCookieParams,
                 buffAddresses,
-                true);
+                chunkHeader);
     }
 
     @Override

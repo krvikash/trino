@@ -33,7 +33,11 @@ public class CrcMapBlockAppender
     }
 
     @Override
-    AppendResult appendWithoutDictionary(int jufferPos, BlockPosHolder blockPos, WarmUpElement warmUpElement, WarmupElementStatsBuilder warmupElementStatsBuilder)
+    AppendResult appendWithoutDictionary(int jufferPos,
+            BlockPosHolder blockPos,
+            WarmUpElement warmUpElement,
+            WarmupElementStatsBuilder warmupElementStatsBuilder,
+            byte[] chunkHeader)
     {
         TransformedColumn transformedColumn = (TransformedColumn) warmUpElement.getWarpColumn();
         WarpConstant key = transformedColumn.getTransformFunction().transformParams().getFirst();

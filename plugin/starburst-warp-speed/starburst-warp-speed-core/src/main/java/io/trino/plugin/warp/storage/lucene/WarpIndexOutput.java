@@ -35,7 +35,6 @@ public class WarpIndexOutput
 {
     private static final Logger logger = Logger.get(WarpIndexOutput.class);
     private final StorageEngine storageEngine;
-    private final boolean forwardToNative;
     private final LuceneFileType luceneFileType;
     private final StorageEngineConstants storageEngineConstants;
     private final WriteJuffersWarmUpElement juffersWE;
@@ -45,6 +44,7 @@ public class WarpIndexOutput
     private final int warmUpType;
     private final long[] fileCookieParams;
     private final long[] buffAddresses;
+    private final byte[] chunkHeader;
     private final ByteBuffersIndexOutput byteBuffersIndexOutput;
 
     public WarpIndexOutput(String fileName,
@@ -57,11 +57,10 @@ public class WarpIndexOutput
             int warmUpType,
             long[] fileCookieParams,
             long[] buffAddresses,
-            boolean forwardToNative)
+            byte[] chunkHeader)
     {
         super("WarpLuceneIndex", "warpLucene");
         this.storageEngine = storageEngine;
-        this.forwardToNative = forwardToNative;
         this.luceneFileType = LuceneFileType.getType(fileName);
         this.storageEngineConstants = storageEngineConstants;
         this.weCookie = weCookie;
@@ -70,6 +69,7 @@ public class WarpIndexOutput
         this.warmUpType = warmUpType;
         this.fileCookieParams = fileCookieParams;
         this.buffAddresses = buffAddresses;
+        this.chunkHeader = chunkHeader;
         this.juffersWE = juffersWE;
         this.byteBuffersIndexOutput = new ByteBuffersIndexOutput(new ByteBuffersDataOutput(), "WarpLuceneIndex", "warpLucene");
     }
@@ -82,7 +82,7 @@ public class WarpIndexOutput
             throw new RuntimeException("too large copy of " + numBytes + " bytes");
         }
 
-        if (forwardToNative && (luceneFileType != LuceneFileType.UNKNOWN)) {
+        if (luceneFileType != LuceneFileType.UNKNOWN) {
             logger.debug("weCookie %x, LUCENE INDEX %s before copyBytes called %d", weCookie, super.getName(), numBytes);
             int bufferSize = luceneFileType.isSmallFile() ? storageEngineConstants.getLuceneSmallJufferSize() : storageEngineConstants.getLuceneBigJufferSize();
             writeToJuffer(bufferSize, input, (int) numBytes); // we enter this if only if number of bytes is lower than max integer
@@ -115,7 +115,8 @@ public class WarpIndexOutput
                         recTypeLength,
                         warmUpType,
                         fileCookieParams,
-                        buffAddresses);
+                        buffAddresses,
+                        chunkHeader);
                 fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFFL;
                 fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX.ordinal()] = res >> 32;
             }

@@ -102,7 +102,8 @@ public class RecordWriteJuffer
         return 1;
     }
 
-    public void commitAndResetWE(int numRecs,
+    public void commitAndResetWE(byte[] chunkHeader,
+            int numRecs,
             int nullsCount,
             int numBytes,
             long min,
@@ -125,7 +126,7 @@ public class RecordWriteJuffer
                 fileCookieParams,
                 buffAddresses,
                 compressionStats,
-                null,
+                chunkHeader,
                 warmEvents);
         fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFFL;
         fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX.ordinal()] = res >> 32;

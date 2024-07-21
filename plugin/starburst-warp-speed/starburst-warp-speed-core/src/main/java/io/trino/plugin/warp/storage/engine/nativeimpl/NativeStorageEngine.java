@@ -137,16 +137,19 @@ public class NativeStorageEngine
     @Override
     public native long warmupChunk(long weCookie, int addedNumRows, int addedNV, int addedBytes, long valueMin, long valueMax, int singleValOffset,
             boolean close, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams, long[] buffAddresses,
-            byte[] inOutCompressionStats, byte[] outChunkCookies, int[] outWarmEvents);
+            byte[] inOutCompressionStats, byte[] inOutChunkHeader, int[] outWarmEvents);
 
     @Override
-    public native long warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams, long[] buffAddresses);
+    public native long warmupChunkExtRec(long weCookie, int extRecordFirstOffset, int addedExtBytes, int recTypeCode, int recTypeLength, int warmUpType,
+            long[] fileCookieParams, long[] buffAddresses, byte[] inOutChunkHeader);
 
     @Override
-    public native long warmupLucene(long weCookie, int fileId, int offset, int len, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams, long[] buffAddresses);
+    public native long warmupLucene(long weCookie, int fileId, int offset, int len, int recTypeCode, int recTypeLength, int warmUpType,
+            long[] fileCookieParams, long[] buffAddresses, byte[] inOutChunkHeader);
 
     @Override
-    public native long warmupLuceneChunk(long weCookie, boolean singleVal, int[] fileLengths, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookieParams, long[] buffAddresses);
+    public native long warmupLuceneChunk(long weCookie, boolean singleVal, int[] fileLengths, int recTypeCode, int recTypeLength, int warmUpType,
+            long[] fileCookieParams, long[] buffAddresses, byte[] inOutChunkHeader);
 
     @Override
     public native int queryGetCollect2MatchSize();

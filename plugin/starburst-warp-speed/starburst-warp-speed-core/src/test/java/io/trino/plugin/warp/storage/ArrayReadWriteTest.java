@@ -123,7 +123,7 @@ public class ArrayReadWriteTest
         WarmUpElement warmUpElement = mock(WarmUpElement.class);
         when(warmUpElement.getRecTypeCode()).thenReturn(RecTypeCode.REC_TYPE_ARRAY_BOOLEAN);
         when(warmUpElement.getWarmUpType()).thenReturn(WarmUpType.WARM_UP_TYPE_DATA);
-        appender.appendWithoutDictionary(jufferPos, blockPosHolder, warmUpElement, warmupElementStatsBuilder);
+        appender.appendWithoutDictionary(jufferPos, blockPosHolder, warmUpElement, warmupElementStatsBuilder, null);
 
         prepareBuffersForRead();
 
@@ -163,7 +163,7 @@ public class ArrayReadWriteTest
         WarmUpElement warmUpElement = mock(WarmUpElement.class);
         when(warmUpElement.getRecTypeCode()).thenReturn(RecTypeCode.REC_TYPE_ARRAY_TIMESTAMP);
         when(warmUpElement.getWarmUpType()).thenReturn(WarmUpType.WARM_UP_TYPE_DATA);
-        appender.appendWithoutDictionary(jufferPos, blockPosHolder, warmUpElement, warmupElementStatsBuilder);
+        appender.appendWithoutDictionary(jufferPos, blockPosHolder, warmUpElement, warmupElementStatsBuilder, null);
 
         prepareBuffersForRead();
 
@@ -202,7 +202,7 @@ public class ArrayReadWriteTest
         WarmUpElement warmUpElement = mock(WarmUpElement.class);
         when(warmUpElement.getRecTypeCode()).thenReturn(RecTypeCode.REC_TYPE_ARRAY_DATE);
         when(warmUpElement.getWarmUpType()).thenReturn(WarmUpType.WARM_UP_TYPE_DATA);
-        appender.appendWithoutDictionary(jufferPos, blockPosHolder, warmUpElement, warmupElementStatsBuilder);
+        appender.appendWithoutDictionary(jufferPos, blockPosHolder, warmUpElement, warmupElementStatsBuilder, null);
 
         prepareBuffersForRead();
 
@@ -240,7 +240,7 @@ public class ArrayReadWriteTest
         WarmUpElement warmUpElement = mock(WarmUpElement.class);
         when(warmUpElement.getRecTypeCode()).thenReturn(RecTypeCode.REC_TYPE_ARRAY_INT);
         when(warmUpElement.getWarmUpType()).thenReturn(WarmUpType.WARM_UP_TYPE_DATA);
-        appender.appendWithoutDictionary(jufferPos, blockPosHolder, warmUpElement, warmupElementStatsBuilder);
+        appender.appendWithoutDictionary(jufferPos, blockPosHolder, warmUpElement, warmupElementStatsBuilder, null);
 
         prepareBuffersForRead();
 

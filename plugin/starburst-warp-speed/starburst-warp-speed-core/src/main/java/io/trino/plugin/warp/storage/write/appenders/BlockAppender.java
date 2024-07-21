@@ -52,11 +52,12 @@ public abstract class BlockAppender
             BlockPosHolder blockPos,
             Optional<WriteDictionary> writeDictionary,
             WarmUpElement warmUpElement,
-            WarmupElementStatsBuilder warmupElementStatsBuilder)
+            WarmupElementStatsBuilder warmupElementStatsBuilder,
+            byte[] chunkHeader)
     {
         AppendResult result;
         if (writeDictionary.isEmpty()) {
-            result = appendWithoutDictionary(jufferPos, blockPos, warmUpElement, warmupElementStatsBuilder);
+            result = appendWithoutDictionary(jufferPos, blockPos, warmUpElement, warmupElementStatsBuilder, chunkHeader);
         }
         else {
             result = appendWithDictionary(blockPos, writeDictionary.get(), warmupElementStatsBuilder);
@@ -65,7 +66,11 @@ public abstract class BlockAppender
         return result;
     }
 
-    abstract AppendResult appendWithoutDictionary(int jufferPos, BlockPosHolder blockPos, WarmUpElement warmUpElement, WarmupElementStatsBuilder warmupElementStatsBuilder);
+    abstract AppendResult appendWithoutDictionary(int jufferPos,
+            BlockPosHolder blockPos,
+            WarmUpElement warmUpElement,
+            WarmupElementStatsBuilder warmupElementStatsBuilder,
+            byte[] chunkHeader);
 
     public void writeChunkMapValuesIntoChunkMapJuffer(List<ChunkMap> chunkMapList)
     {

@@ -45,11 +45,15 @@ public class CrcArrayBlockAppender
     }
 
     @Override
-    public AppendResult appendWithoutDictionary(int jufferPos, BlockPosHolder blockPos, WarmUpElement warmUpElement, WarmupElementStatsBuilder warmupElementStatsBuilder)
+    public AppendResult appendWithoutDictionary(int jufferPos,
+            BlockPosHolder blockPos,
+            WarmUpElement warmUpElement,
+            WarmupElementStatsBuilder warmupElementStatsBuilder,
+            byte[] chunkHeader)
     {
         Optional<BlockTransformer> blockTransformer = blockTransformerFactory.getBlockTransformer(WarmUpType.WARM_UP_TYPE_DATA, warmUpElement.getRecTypeCode());
         checkArgument(blockTransformer.isPresent());
         BlockPosHolder blockAsVarchar = blockTransformer.get().transformBlock(blockPos, filterType);
-        return stringBlockAppender.appendWithoutDictionary(jufferPos, blockAsVarchar, warmUpElement, warmupElementStatsBuilder);
+        return stringBlockAppender.appendWithoutDictionary(jufferPos, blockAsVarchar, warmUpElement, warmupElementStatsBuilder, chunkHeader);
     }
 }
