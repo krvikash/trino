@@ -23,13 +23,10 @@ import io.starburst.stargate.buffer.BufferNodeState;
 import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.trino.exchange.DataApiFacade.ChunkDataResponse;
-import io.starburst.stargate.buffer.trino.exchange.MetricsBuilder.CounterMetricBuilder;
-import io.starburst.stargate.buffer.trino.exchange.MetricsBuilder.DistributionMetricBuilder;
 import io.trino.spi.exchange.ExchangeId;
 import io.trino.spi.exchange.ExchangeSource;
 import io.trino.spi.exchange.ExchangeSourceHandle;
 import io.trino.spi.exchange.ExchangeSourceOutputSelector;
-import io.trino.spi.metrics.Metrics;
 import jakarta.annotation.Nullable;
 import sun.misc.Unsafe;
 
@@ -38,7 +35,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -97,13 +93,6 @@ public class BufferExchangeSource
     // needs to be ConcurrentHashMap as it is used in non-synchronized context for performance reasons
     private final Set<ChunkReader> currentReaders = ConcurrentHashMap.newKeySet();
 
-    private final MetricsBuilder metricsBuilder = new MetricsBuilder();
-    private final DistributionMetricBuilder chunkSizeMetric = metricsBuilder.getDistributionMetric("BufferExchangeSource.chunkSize");
-    private final DistributionMetricBuilder getChunkDataProcessingTimeMetric = metricsBuilder.getDistributionMetric("BufferExchangeSource.getChunkDataProcessingTime");
-    private final DistributionMetricBuilder getChunkDataSuccessRequestTimeMetric = metricsBuilder.getDistributionMetric("BufferExchangeSource.getChunkDataSuccessRequestTime");
-    private final CounterMetricBuilder getChunkDataDirectCountMetric = metricsBuilder.getCounterMetric("BufferExchangeSource.getChunkDataDirectCount");
-    private final CounterMetricBuilder getChunkDataSpoolingCount = metricsBuilder.getCounterMetric("BufferExchangeSource.getChunkDataSpoolingCount");
-
     public BufferExchangeSource(
             DataApiFacade dataApi,
             BufferNodeDiscoveryManager discoveryManager,
@@ -159,7 +148,6 @@ public class BufferExchangeSource
             if (chunk == null) {
                 return newReaders.build();
             }
-            chunkSizeMetric.add(chunk.chunkDataSize());
             increaseReservedChunksMemory(chunk.chunkDataSize());
             ChunkReader reader = new ChunkReader(chunk);
             newReaders.add(reader);
@@ -508,12 +496,6 @@ public class BufferExchangeSource
     }
 
     @Override
-    public Optional<Metrics> getMetrics()
-    {
-        return Optional.of(metricsBuilder.buildMetrics());
-    }
-
-    @Override
     public void close()
     {
         SettableFuture<Void> memoryFutureToUnblock;
@@ -596,10 +578,6 @@ public class BufferExchangeSource
                 public void onSuccess(ChunkDataResponse chunkData)
                 {
                     try {
-                        getChunkDataProcessingTimeMetric.add(chunkData.processingTimeMillis());
-                        getChunkDataSuccessRequestTimeMetric.add(chunkData.successRequestTimeMillis());
-                        (chunkData.readFromSpoolingStorage() ? getChunkDataSpoolingCount : getChunkDataDirectCountMetric).increment();
-
                         getChunkDataFutureReference.set(null);
 
                         receivedNewDataPages(sourceChunk.externalExchangeId(), chunkData.pages());
