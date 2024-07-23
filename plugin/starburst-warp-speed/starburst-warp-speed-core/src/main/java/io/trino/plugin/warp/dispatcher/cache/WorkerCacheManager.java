@@ -54,6 +54,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import static io.trino.plugin.base.cache.CacheUtils.normalizeTupleDomain;
 import static io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory.STATS_DISPATCHER_KEY;
 import static io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService.WARMING_SERVICE_STAT_GROUP;
 import static java.util.Objects.requireNonNull;
@@ -237,8 +238,8 @@ public class WorkerCacheManager
         {
             String key = splitId.toString() + "_" +
                     planSignature.getKey().toString() + "_" +
-                    objectMapper.writeValueAsString(predicate + "_" +
-                            objectMapper.writeValueAsString(unenforcedPredicate));
+                    objectMapper.writeValueAsString(normalizeTupleDomain(predicate) + "_" +
+                            objectMapper.writeValueAsString(normalizeTupleDomain(unenforcedPredicate)));
             if (planSignature.getGroupByColumns().isPresent()) {
                 key = key + "_" + planSignature.getGroupByColumns().get();
             }
