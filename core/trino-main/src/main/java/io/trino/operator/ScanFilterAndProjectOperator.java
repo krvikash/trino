@@ -91,7 +91,7 @@ public class ScanFilterAndProjectOperator
             Session session,
             MemoryTrackingContext memoryTrackingContext,
             DriverYieldSignal yieldSignal,
-            WorkProcessor<Split> splits,
+            WorkProcessor<Split> split,
             TableAwarePageSourceProvider pageSourceProvider,
             CursorProcessor cursorProcessor,
             PageProcessor pageProcessor,
@@ -101,7 +101,7 @@ public class ScanFilterAndProjectOperator
             DataSize minOutputPageSize,
             int minOutputPageRowCount)
     {
-        pages = splits.flatTransform(
+        pages = split.flatTransform(
                 new SplitToPages(
                         session,
                         yieldSignal,
@@ -492,14 +492,14 @@ public class ScanFilterAndProjectOperator
                 OperatorContext operatorContext,
                 MemoryTrackingContext memoryTrackingContext,
                 DriverYieldSignal yieldSignal,
-                WorkProcessor<Split> splits)
+                WorkProcessor<Split> split)
         {
             DynamicFilter splitDynamicFilter = CacheDriverContext.getDynamicFilter(operatorContext, dynamicFilter);
             return new ScanFilterAndProjectOperator(
                     operatorContext.getSession(),
                     memoryTrackingContext,
                     yieldSignal,
-                    splits,
+                    split,
                     TableAwarePageSourceProvider.create(operatorContext, table, pageSourceProvider),
                     cursorProcessor.get(),
                     pageProcessor.apply(splitDynamicFilter),
