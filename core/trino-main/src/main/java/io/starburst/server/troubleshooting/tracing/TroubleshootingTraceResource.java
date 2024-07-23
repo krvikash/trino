@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import static io.trino.server.security.ResourceSecurity.AccessType.INTERNAL_ONLY;
+import static jakarta.ws.rs.core.HttpHeaders.CONTENT_DISPOSITION;
 import static java.util.Objects.requireNonNull;
 
 @ResourceSecurity(INTERNAL_ONLY)
@@ -62,7 +63,7 @@ public class TroubleshootingTraceResource
         log.info("download queryId: %s", queryId);
         InputStream is = spanInterceptor.getSpans(queryId);
         return Response.ok(is)
-                .header("Content-disposition", "attachment; filename=\"opentelemetry-worker.grpc.gz\"")
+                .header(CONTENT_DISPOSITION, "attachment; filename=\"opentelemetry-worker.grpc.gz\"")
                 .build();
     }
 }

@@ -45,6 +45,8 @@ import static com.google.common.util.concurrent.Futures.transform;
 import static io.starburst.server.troubleshooting.TroubleshootingCoordinatorResource.BASE_PATH_API_V1;
 import static io.airlift.jaxrs.AsyncResponseHandler.bindAsyncResponse;
 import static io.trino.server.security.ResourceSecurity.AccessType.WEB_UI;
+import static jakarta.ws.rs.core.HttpHeaders.CONTENT_DISPOSITION;
+import static jakarta.ws.rs.core.HttpHeaders.CONTENT_TYPE;
 import static jakarta.ws.rs.core.Response.Status.BAD_REQUEST;
 import static jakarta.ws.rs.core.Response.Status.FORBIDDEN;
 import static jakarta.ws.rs.core.Response.Status.NOT_FOUND;
@@ -163,8 +165,8 @@ public class TroubleshootingCoordinatorResource
     private static Response renderResponse(InputStream inputStream, QueryId queryId)
     {
         return Response.ok(inputStream)
-                .header("Content-Type", "application/zip")
-                .header("Content-disposition", "attachment; filename=\"starburst-query-troubleshooting-%s.zip\"".formatted(queryId))
+                .header(CONTENT_TYPE, "application/zip")
+                .header(CONTENT_DISPOSITION, "attachment; filename=\"starburst-query-troubleshooting-%s.zip\"".formatted(queryId))
                 .build();
     }
 

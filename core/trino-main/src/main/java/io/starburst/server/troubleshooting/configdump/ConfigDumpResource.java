@@ -19,6 +19,8 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import static io.trino.server.security.ResourceSecurity.AccessType.INTERNAL_ONLY;
+import static jakarta.ws.rs.core.HttpHeaders.CONTENT_DISPOSITION;
+import static jakarta.ws.rs.core.HttpHeaders.CONTENT_TYPE;
 import static java.util.Objects.requireNonNull;
 
 @ResourceSecurity(INTERNAL_ONLY)
@@ -39,8 +41,8 @@ public class ConfigDumpResource
     {
         InputStream localConfigInputStream = configDumper.dumpLocalConfig();
         return Response.ok(localConfigInputStream)
-                .header("Content-Type", "application/zip")
-                .header("Content-disposition", "attachment; filename=\"config-worker.zip\"")
+                .header(CONTENT_TYPE, "application/zip")
+                .header(CONTENT_DISPOSITION, "attachment; filename=\"config-worker.zip\"")
                 .build();
     }
 }

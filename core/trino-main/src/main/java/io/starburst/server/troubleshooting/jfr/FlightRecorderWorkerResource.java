@@ -26,6 +26,7 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.starburst.server.troubleshooting.jfr.FlightRecorderWorkerResource.BASE_PATH_API_V1;
 import static io.starburst.server.troubleshooting.jfr.LocalRecordingFactory.RECORDING_FILENAME;
 import static io.trino.server.security.ResourceSecurity.AccessType.INTERNAL_ONLY;
+import static jakarta.ws.rs.core.HttpHeaders.CONTENT_DISPOSITION;
 import static jakarta.ws.rs.core.Response.accepted;
 import static jakarta.ws.rs.core.Response.serverError;
 import static java.util.Objects.requireNonNull;
@@ -87,6 +88,6 @@ public class FlightRecorderWorkerResource
 
     private static Response.ResponseBuilder responseFromInputStreams(Map<String, InputStream> streams)
     {
-        return Response.ok(getOnlyElement(streams.values())).header("Content-disposition", "attachment; filename=\"%s\"".formatted(RECORDING_FILENAME));
+        return Response.ok(getOnlyElement(streams.values())).header(CONTENT_DISPOSITION, "attachment; filename=\"%s\"".formatted(RECORDING_FILENAME));
     }
 }
