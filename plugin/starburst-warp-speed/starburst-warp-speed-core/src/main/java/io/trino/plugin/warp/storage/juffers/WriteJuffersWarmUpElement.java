@@ -62,6 +62,7 @@ public class WriteJuffersWarmUpElement
     // min/max and single value per chunk
     private byte[] chunkHeader;
     private boolean chunkOpened;
+    private int numChunks;
     private long recordBufferMin;
     private long recordBufferMax;
     private int recordBufferSingleOffset;
@@ -301,8 +302,16 @@ public class WriteJuffersWarmUpElement
     public boolean closeCurrentChunk()
     {
         boolean res = chunkOpened;
+        if (chunkOpened) {
+            numChunks++; // counting the chunk we just closed
+        }
         chunkOpened = false;
         return res;
+    }
+
+    public int getNumChunks()
+    {
+        return numChunks;
     }
 
     // min/max and single value

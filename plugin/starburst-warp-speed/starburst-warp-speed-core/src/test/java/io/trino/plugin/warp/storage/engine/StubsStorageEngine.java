@@ -102,7 +102,14 @@ public class StubsStorageEngine
     }
 
     @Override
-    public long warmupElementClose(long weCookie, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookie, long[] buffAddresses, int[] outQueryFileParams)
+    public long warmupElementClose(long weCookie,
+            int recTypeCode,
+            int recTypeLength,
+            int warmUpType,
+            int numChunks,
+            long[] fileCookie,
+            long[] buffAddresses,
+            int[] outQueryFileParams)
     {
         outQueryFileParams[0] = 0;
         outQueryFileParams[1] = 1;

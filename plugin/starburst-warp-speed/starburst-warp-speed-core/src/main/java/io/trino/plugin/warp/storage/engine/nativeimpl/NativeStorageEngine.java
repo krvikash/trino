@@ -129,7 +129,14 @@ public class NativeStorageEngine
     public native long warmupElementOpen(long context, int recTypeCode, int recTypeLength, int warmUpType);
 
     @Override
-    public native long warmupElementClose(long weCookie, int recTypeCode, int recTypeLength, int warmUpType, long[] fileCookie, long[] buffAddresses, int[] outQueryFileParams);
+    public native long warmupElementClose(long weCookie,
+            int recTypeCode,
+            int recTypeLength,
+            int warmUpType,
+            int numChunks,
+            long[] fileCookie,
+            long[] buffAddresses,
+            int[] outQueryFileParams);
 
     @Override
     public native void warmupVerifyQueryOffset(int queryOffset, long[] fileCookie);
