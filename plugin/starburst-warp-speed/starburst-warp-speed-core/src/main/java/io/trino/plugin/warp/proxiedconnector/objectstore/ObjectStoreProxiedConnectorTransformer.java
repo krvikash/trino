@@ -217,4 +217,10 @@ public class ObjectStoreProxiedConnectorTransformer
         }
         return UNKNOWN;
     }
+
+    @Override
+    public long getDeletedRowsCount(ConnectorSplit connectorSplit)
+    {
+        return transformerMap.get(getTransformerKey(connectorSplit)).getDeletedRowsCount(connectorSplit);
+    }
 }

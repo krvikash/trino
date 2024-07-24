@@ -60,6 +60,7 @@ public class DispatcherPageSource
     protected final WarpStoragePageSource warpPageSource;
     private final DispatcherSplit dispatcherSplit;
     private final DispatcherTableHandle dispatcherTableHandle;
+    private final long maxEmptyPageSourceIterations;
     private final PrefilledPageSource prefilledPageSource;
     private final QueryContext queryContext;
     private final RowGroupData rowGroupData;
@@ -94,6 +95,7 @@ public class DispatcherPageSource
             RowGroupCloseHandler closeHandler,
             DispatcherSplit dispatcherSplit,
             DispatcherTableHandle dispatcherTableHandle,
+            long deletedRowsCount,
             ReadErrorHandler readErrorHandler,
             GlobalConfig globalConfig)
     {
@@ -102,6 +104,7 @@ public class DispatcherPageSource
         this.warpPageSource = warpPageSource;
         this.dispatcherSplit = dispatcherSplit;
         this.dispatcherTableHandle = dispatcherTableHandle;
+        this.maxEmptyPageSourceIterations = Math.max(deletedRowsCount, globalConfig.getEmptyPageIterations());
         this.prefilledPageSource = new PrefilledPageSource(
                 queryContext.getPrefilledQueryCollectDataByBlockIndex(),
                 stats,
@@ -130,7 +133,7 @@ public class DispatcherPageSource
     @Override
     public Page getNextPage()
     {
-        if (emptyPagesCounter == 5000) {
+        if (emptyPagesCounter == maxEmptyPageSourceIterations) {
             String info = String.format("queryId=%s, pageSourceDecision=%s, currentProxiedPagePosition=%s, proxiedConnectorPageSource.isFinished=%s, proxiedPageRanges=%s, warpPageRanges.size=%s, currentWarpPagePosition=%s, " +
                             "currentProxiedPage.getPositionCount()=%s, currentWarpPage.getPositionCount()=%s, warpWithoutPrefilledAndProxiedCollectTypes=%s, proxiedPagePositionsRead=%s, proxiedConnectorPageSource=%s, " +
                             "wasProxiedPagedLoaded=%s, dispatcherTableHandle=%s, dispatcherSplit=%s, rowGroupKey=%s",

@@ -43,6 +43,7 @@ public class GlobalConfig
     public static final String STATS_COLLECTION_ENABLED = "warp-speed.config.stats-collection-enabled";
     public static final String FAILURE_GENERATOR_ENABLED = "warp-speed.config.failure-generator-enabled";
     public static final String DATA_ONLY_WARMING = "warp-speed.data-only-warming";
+    public static final String EMPTY_PAGE_ITERATIONS = "warp-speed.config-empty-page-iterations";
     public static final String CACHE_MANAGER_MAX_PARALLEL_WARMUP_ELEMENTS = "warp-speed.cache-manager.max-parallel-warmup-elements";
     public static final int MAX_NUMBER_OF_MAPPED_MATCH_COLLECT_ELEMENTS = 1 << Byte.SIZE; //256
     private static final Logger logger = Logger.get(GlobalConfig.class);
@@ -71,6 +72,7 @@ public class GlobalConfig
     private String deviceIdentifier;
     private String azureConnectionString;
     private boolean failureGeneratorEnabled;
+    private long emptyPageIterations = 5000;
     private SwaggerExposingLevel swaggerExposingLevel = SwaggerExposingLevel.DEBUG;
 
     private boolean debugWarmingSingleThreaded;
@@ -556,6 +558,17 @@ public class GlobalConfig
         this.cacheManagerMaxParallelWarmupElements = cacheManagerMaxParallelWarmupElements;
     }
 
+    @Config(EMPTY_PAGE_ITERATIONS)
+    public void setEmptyPageIterations(long emptyPageIterations)
+    {
+        this.emptyPageIterations = emptyPageIterations;
+    }
+
+    public long getEmptyPageIterations()
+    {
+        return emptyPageIterations;
+    }
+
     @Override
     public String toString()
     {
@@ -596,6 +609,7 @@ public class GlobalConfig
                 ", debugWarming=" + debugWarming +
                 ", debugWarmingSingleThreaded=" + debugWarmingSingleThreaded +
                 ", debugNoPredicateBuffer=" + debugNoPredicateBuffer +
+                ", emptyPageIterations=" + emptyPageIterations +
                 ", cacheManagerMaxParallelWarmupElements=" + cacheManagerMaxParallelWarmupElements +
                 '}';
     }

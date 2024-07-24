@@ -152,10 +152,10 @@ public class DispatcherPageSourceFactory
                 globalConfig.getShapingLoggerDuration(),
                 globalConfig.getShapingLoggerNumberOfSamples());
         this.readErrorHandler = requireNonNull(readErrorHandler);
-        this.collectTxService = collectTxService;
-        this.chunksQueueService = chunksQueueService;
-        this.storageCollectorService = storageCollectorService;
-        this.rangeFillerService = rangeFillerService;
+        this.collectTxService = requireNonNull(collectTxService);
+        this.chunksQueueService = requireNonNull(chunksQueueService);
+        this.storageCollectorService = requireNonNull(storageCollectorService);
+        this.rangeFillerService = requireNonNull(rangeFillerService);
         metricsManager.registerMetric(DispatcherPageSourceStats.create(STATS_DISPATCHER_KEY));
         this.statsDispatcherPageSource = metricsManager.registerMetric(DispatcherPageSourceStats.create(STATS_DISPATCHER_KEY));
     }
@@ -504,6 +504,7 @@ public class DispatcherPageSourceFactory
                         queryContext.getRemainingCollectColumns().stream().map(dispatcherProxiedConnectorTransformer::getColumnType),
                         queryContext.getNativeQueryCollectDataList().stream().map(QueryColumn::getType))
                 .collect(toImmutableList());
+        long deletedRowsCount = dispatcherProxiedConnectorTransformer.getDeletedRowsCount(dispatcherSplit.getProxyConnectorSplit());
         return new DispatcherPageSource(proxiedConnectorPageSourceProvider,
                 queryClassifier,
                 warpWithoutPrefilledAndProxiedCollectTypes,
@@ -515,6 +516,7 @@ public class DispatcherPageSourceFactory
                 closeHandler,
                 dispatcherSplit,
                 dispatcherTableHandle,
+                deletedRowsCount,
                 readErrorHandler,
                 globalConfig);
     }
@@ -760,6 +762,7 @@ public class DispatcherPageSourceFactory
                     closeHandler,
                     null, //used for debug for mixed case, unused in CM
                     null,
+                    0, // no proxied in case of cache
                     readErrorHandler,
                     globalConfig);
             statsDispatcherPageSource.addwarp_collect_columns(planSignature.getColumns().size());

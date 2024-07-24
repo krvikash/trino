@@ -791,6 +791,7 @@ public class DispatcherPageSourceTest
                 closeHandler,
                 null,
                 null,
+                0,
                 readErrorHandler,
                 new GlobalConfig());
     }

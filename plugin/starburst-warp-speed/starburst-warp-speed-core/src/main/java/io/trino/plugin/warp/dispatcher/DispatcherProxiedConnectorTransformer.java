@@ -192,4 +192,9 @@ public interface DispatcherProxiedConnectorTransformer
     {
         return Optional.empty();
     }
+
+    default long getDeletedRowsCount(ConnectorSplit connectorSplit)
+    {
+        return 0;
+    }
 }

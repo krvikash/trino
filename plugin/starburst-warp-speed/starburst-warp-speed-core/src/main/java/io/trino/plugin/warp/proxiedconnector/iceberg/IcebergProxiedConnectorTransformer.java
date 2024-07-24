@@ -266,4 +266,11 @@ public class IcebergProxiedConnectorTransformer
         IcebergSplit icebergSplit = (IcebergSplit) connectorSplit;
         return Optional.of(icebergSplit.getFileRecordCount());
     }
+
+    @Override
+    public long getDeletedRowsCount(ConnectorSplit connectorSplit)
+    {
+        IcebergSplit icebergSplit = (IcebergSplit) connectorSplit;
+        return icebergSplit.getDeletes().stream().mapToLong(DeleteFile::recordCount).sum();
+    }
 }
