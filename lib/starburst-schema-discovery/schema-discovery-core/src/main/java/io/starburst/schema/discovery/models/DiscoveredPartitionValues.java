@@ -10,8 +10,10 @@
 package io.starburst.schema.discovery.models;
 
 import com.google.common.collect.ImmutableMap;
+import io.starburst.schema.discovery.internal.Column;
 
 import java.util.Map;
+import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
@@ -21,5 +23,10 @@ public record DiscoveredPartitionValues(SlashEndedPath path, Map<LowerCaseString
     {
         requireNonNull(path, "path cannot be null");
         values = ImmutableMap.copyOf(values);
+    }
+
+    public Optional<String> getValueForColumn(Column column)
+    {
+        return Optional.ofNullable(values.get(column.name()));
     }
 }

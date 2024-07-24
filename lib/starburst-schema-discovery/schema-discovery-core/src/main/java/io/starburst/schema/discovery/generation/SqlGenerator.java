@@ -316,11 +316,19 @@ class SqlGenerator
                 SyncPartitionMetadataProcedure.SyncMode.ADD);
     }
 
-    private void writePartitionValues(TableName tableName, boolean register, List<Column> partitionColumns, DiscoveredPartitionValues partitionValues)
+    private void writePartitionValues(TableName tableName, boolean register, List<Column> partitionColumns, DiscoveredPartitionValues discoveredPartitionValues)
     {
-        String partitionValuesList = partitionColumns.stream()
-                .map(column -> Mapping.partitionValue(column, partitionValues.values().get(column.name())))
-                .collect(Collectors.joining(", "));
+        List<String> partitionValues = Mapping.computeColumnPartitionValues(partitionColumns, discoveredPartitionValues);
+        if (partitionValues.size() != partitionColumns.size()) {
+            writer.println(
+                    "-- Partition values: [%s], length mismatch for given columns: [%s], in location: [%s].",
+                    String.join(", ", partitionValues),
+                    partitionColumns.stream().map(Column::name).map(LowerCaseString::toString).collect(Collectors.joining(", ")),
+                    discoveredPartitionValues.path().toString());
+            writer.println();
+            return;
+        }
+
         if (options.catalogName().isPresent()) {
             writer.println("CALL %s.system.%s(", options.catalogName().get(), register ? "register_partition" : "unregister_partition");
         }
@@ -332,9 +340,9 @@ class SqlGenerator
         writer.addToList("schema_name => '%s'", tableName.schemaName().orElse(schemaName));
         writer.addToList("table_name => '%s'", tableName.tableName());
         writer.addToList("partition_columns => ARRAY[%s]", Mapping.commaList(partitionColumns.stream(), c -> c.name().string()));
-        writer.addToList("partition_values => ARRAY[%s]", partitionValuesList);
+        writer.addToList("partition_values => ARRAY[%s]", String.join(", ", partitionValues));
         if (register) {
-            writer.addToList("location => '%s'", partitionValues.path());
+            writer.addToList("location => '%s'", discoveredPartitionValues.path());
         }
         writer.endList();
         writer.outdent();

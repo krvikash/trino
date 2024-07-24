@@ -573,19 +573,39 @@ public class TestSqlGenerator
     {
         AddPartitionValue operation = new AddPartitionValue(
                 new TableName(Optional.empty(), toLowerCase("table4")),
-                ImmutableList.of(new Column(toLowerCase("country"), new HiveType(HiveTypes.STRING_TYPE))),
-                new DiscoveredPartitionValues(ensureEndsWithSlash("s3://dummy2/country=poland"), ImmutableMap.of(toLowerCase("country"), "poland")));
+                ImmutableList.of(new Column(toLowerCase("country"), new HiveType(HiveTypes.STRING_TYPE)), new Column(toLowerCase("year"), new HiveType(HiveTypes.HIVE_INT))),
+                new DiscoveredPartitionValues(ensureEndsWithSlash("s3://dummy2/country=poland/year=2024"), ImmutableMap.of(toLowerCase("country"), "poland", toLowerCase("year"), "2024")));
         String expectedSql = """
                 CALL catalog123.system.register_partition(
                     schema_name => 'schema123',
                     table_name => 'table4',
-                    partition_columns => ARRAY['country'],
-                    partition_values => ARRAY['poland'],
-                    location => 's3://dummy2/country=poland/'
+                    partition_columns => ARRAY['country', 'year'],
+                    partition_values => ARRAY['poland', '2024'],
+                    location => 's3://dummy2/country=poland/year=2024/'
                 );
 
                 """;
-        String expectedSummary = "Added [1] partition values from path: [s3://dummy2/country=poland/], to table: [table4]";
+        String expectedSummary = "Added [2] partition values from path: [s3://dummy2/country=poland/year=2024/], to table: [table4]";
+
+        testOperation(CATALOG_NAME, operation, expectedSql, expectedSummary, dialect);
+    }
+
+    @ParameterizedTest
+    @EnumSource(Dialect.class)
+    public void testAddPartitionValueMissingValues(Dialect dialect)
+    {
+        AddPartitionValue operation = new AddPartitionValue(
+                new TableName(Optional.empty(), toLowerCase("table4")),
+                ImmutableList.of(
+                        new Column(toLowerCase("country"), new HiveType(HiveTypes.STRING_TYPE)),
+                        new Column(toLowerCase("year"), new HiveType(HiveTypes.HIVE_INT)),
+                        new Column(toLowerCase("missing_value"), new HiveType(HiveTypes.STRING_TYPE))),
+                new DiscoveredPartitionValues(ensureEndsWithSlash("s3://dummy2/country=poland/year=2024"), ImmutableMap.of(toLowerCase("country"), "poland", toLowerCase("year"), "2024")));
+        String expectedSql = """
+                -- Partition values: ['poland', '2024'], length mismatch for given columns: [country, year, missing_value], in location: [s3://dummy2/country=poland/year=2024/].
+
+                """;
+        String expectedSummary = "Added [2] partition values from path: [s3://dummy2/country=poland/year=2024/], to table: [table4]";
 
         testOperation(CATALOG_NAME, operation, expectedSql, expectedSummary, dialect);
     }

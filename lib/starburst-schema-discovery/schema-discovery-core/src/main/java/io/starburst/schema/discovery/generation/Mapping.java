@@ -11,9 +11,9 @@ package io.starburst.schema.discovery.generation;
 
 import com.google.common.collect.ImmutableMap;
 import io.starburst.schema.discovery.formats.csv.CsvFlags;
-import io.starburst.schema.discovery.infer.TypeCoercion;
 import io.starburst.schema.discovery.internal.Column;
 import io.starburst.schema.discovery.internal.HiveTypes;
+import io.starburst.schema.discovery.models.DiscoveredPartitionValues;
 import io.starburst.schema.discovery.models.DiscoveredTable;
 import io.starburst.schema.discovery.models.TableFormat;
 import io.trino.plugin.hive.type.ListTypeInfo;
@@ -23,11 +23,14 @@ import io.trino.plugin.hive.type.TypeInfo;
 import io.trino.spi.type.RealType;
 import io.trino.spi.type.VarbinaryType;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.starburst.schema.discovery.generation.SqlType.sqlType;
 
 class Mapping
@@ -81,14 +84,12 @@ class Mapping
         return "\"" + s + "\"";
     }
 
-    static String partitionValue(Column column, String value)
+    static List<String> computeColumnPartitionValues(List<Column> partitionColumns, DiscoveredPartitionValues partitionValues)
     {
-        if (value == null) {
-            return "null";
-        }
-        if (TypeCoercion.isNumericType(column.type().typeInfo())) {
-            return value;
-        }
-        return quote(value);
+        return partitionColumns.stream()
+                .map(partitionValues::getValueForColumn)
+                .flatMap(Optional::stream)
+                .map(Mapping::quote)
+                .collect(toImmutableList());
     }
 }
