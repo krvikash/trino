@@ -61,6 +61,7 @@ public class WriteJuffersWarmUpElement
 
     // min/max and single value per chunk
     private byte[] chunkHeader;
+    private boolean chunkOpened;
     private long recordBufferMin;
     private long recordBufferMax;
     private int recordBufferSingleOffset;
@@ -195,6 +196,7 @@ public class WriteJuffersWarmUpElement
     {
         int numBytesWritten = 0; // if record buffer exist, we will get a positive value in the if below if varlen md exists
 
+        chunkOpened = true; // in case we will fail in the middle of this call
         if (allocParams.isRecBufferNeeded()) {
             RecordWriteJuffer recordJuffer = getRecordJuffer();
             boolean prepareMdBuffer = allocParams.isMdBufferNeeded() && !recordJuffer.isDictionaryValid();
@@ -226,6 +228,7 @@ public class WriteJuffersWarmUpElement
         fileCookieParams[FILE_COOKIE_PARAMS_WARM_EVENTS.ordinal()] |= outWarmEvents[0];
         chunkMapList.add(chunkMapList.size() - 1, new ChunkMap(chunkHeader));
         chunkHeader = new byte[chunkHeaderSize];
+        closeCurrentChunk();
     }
 
     private int calcNumBytesWritten(int bufferEntrySize, Buffer recordJuffer, IntBuffer mdBuffer)
@@ -244,6 +247,7 @@ public class WriteJuffersWarmUpElement
 
     public void commitAndResetWE(int numRecs, int addedNV, int numBytes, int numExtBytes)
     {
+        chunkOpened = true;
         if (allocParams.isExtBufferNeeded()) {
             getExtRecordJuffer().commitAndResetExtRecordBuffer(chunkHeader, numExtBytes);
         }
@@ -289,7 +293,16 @@ public class WriteJuffersWarmUpElement
 
     public byte[] getCurrentChunkHeader()
     {
+        chunkOpened = true;
         return chunkHeader;
+    }
+
+    // updates the current opened/closed state of current chunk to closed and returns the previous state
+    public boolean closeCurrentChunk()
+    {
+        boolean res = chunkOpened;
+        chunkOpened = false;
+        return res;
     }
 
     // min/max and single value

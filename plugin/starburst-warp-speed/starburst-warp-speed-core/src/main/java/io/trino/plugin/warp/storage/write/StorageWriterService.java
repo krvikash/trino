@@ -497,6 +497,7 @@ public class StorageWriterService
      */
     private void flushRecordBuffer(StorageWriterContext storageWriterContext)
     {
+        WriteJuffersWarmUpElement writeJuffersWarmUpElement = storageWriterContext.getWriteJuffersWarmUpElement();
         if (storageWriterContext.getLuceneIndexer().isPresent()) {
             storageWriterContext.getLuceneIndexer().get().closeLuceneIndex(storageWriterContext.getWeCookie(),
                     storageWriterContext.getRecTypeCode(),
@@ -504,11 +505,12 @@ public class StorageWriterService
                     storageWriterContext.getWarmUpType(),
                     storageWriterContext.getFileCookieParams(),
                     storageWriterContext.getBuffAddresses(),
-                    storageWriterContext.getWriteJuffersWarmUpElement().getCurrentChunkHeader());
+                    writeJuffersWarmUpElement.getCurrentChunkHeader());
+            writeJuffersWarmUpElement.closeCurrentChunk();
         }
 
         if (storageWriterContext.weSuccess()) {
-            storageWriterContext.getWriteJuffersWarmUpElement().commitWE(storageWriterContext.getRecordBufferPos());
+            writeJuffersWarmUpElement.commitWE(storageWriterContext.getRecordBufferPos());
         }
         storageWriterContext.resetRecords();
     }
@@ -519,14 +521,21 @@ public class StorageWriterService
         if (!storageWriterContext.isWeClosed()) {
             storageWriterContext.getBlockAppender().writeChunkMapValuesIntoChunkMapJuffer(storageWriterContext.getWriteJuffersWarmUpElement().getChunkMapList());
             long[] fileCookieParams = storageWriterContext.getFileCookieParams();
-            outFileParams[WeProperties.WE_PROPERTIES_END_OFFSET.ordinal()] = (int) storageEngine.warmupElementClose(
-                    storageWriterContext.getWeCookie(),
-                    storageWriterContext.getRecTypeCode(),
-                    storageWriterContext.getRecTypeLength(),
-                    storageWriterContext.getWarmUpType(),
-                    fileCookieParams,
-                    storageWriterContext.getBuffAddresses(),
-                    outFileParams);
+            // if current chunk is still opened it means there was an exception and we warm up elememt is aborted
+            boolean currentChunkIsOpened = storageWriterContext.getWriteJuffersWarmUpElement().closeCurrentChunk();
+            if (currentChunkIsOpened) {
+                outFileParams[WeProperties.WE_PROPERTIES_END_OFFSET.ordinal()] = -1;
+            }
+            else {
+                outFileParams[WeProperties.WE_PROPERTIES_END_OFFSET.ordinal()] = (int) storageEngine.warmupElementClose(
+                        storageWriterContext.getWeCookie(),
+                        storageWriterContext.getRecTypeCode(),
+                        storageWriterContext.getRecTypeLength(),
+                        storageWriterContext.getWarmUpType(),
+                        fileCookieParams,
+                        storageWriterContext.getBuffAddresses(),
+                        outFileParams);
+            }
             fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = outFileParams[WeProperties.WE_PROPERTIES_END_OFFSET.ordinal()];
             storageWriterContext.setWeClosed();
         }
