@@ -234,6 +234,7 @@
                         <configuration>
                             <excludes>
                                 <exclude>**/TestRedshiftAutomaticJoinPushdown.java</exclude>
+                                <exclude>**/TestRedshiftCastPushdown.java</exclude>
                                 <exclude>**/TestRedshiftConnectorTest.java</exclude>
                                 <exclude>**/TestRedshiftConnectorSmokeTest.java</exclude>
                                 <exclude>**/TestRedshiftTableStatisticsReader.java</exclude>
@@ -262,6 +263,7 @@
                                 <include>**/TestRedshiftAutomaticJoinPushdown.java</include>
                                 <include>**/TestRedshiftConnectorTest.java</include>
                                 <include>**/TestRedshiftConnectorSmokeTest.java</include>
+                                <include>**/TestRedshiftCastPushdown.java</include>
                                 <include>**/TestRedshiftTableStatisticsReader.java</include>
                                 <include>**/TestRedshiftTypeMapping.java</include>
                             </includes>
