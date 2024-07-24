@@ -94,9 +94,9 @@ public class TestSqlGenerator
                     bucketed_by = ARRAY['s3://dummy'],
                     bucket_count = 10
                 );
-                                        
+
                 CALL catalog123.system.sync_partition_metadata('schema123', 'table123', 'ADD');
-                                        
+
                 """;
             case GALAXY -> """
                 CREATE TABLE "catalog123"."schema123"."table123" (
@@ -114,9 +114,9 @@ public class TestSqlGenerator
                     bucketed_by = ARRAY['s3://dummy'],
                     bucket_count = 10
                 );
-                                        
+
                 CALL catalog123.system.sync_partition_metadata('schema123', 'table123', 'ADD');
-                                        
+
                 """;
         };
         String expectedSummary = "Created table: [table123], with location: [s3://dummy/]";
@@ -158,9 +158,9 @@ public class TestSqlGenerator
                     bucketed_by = ARRAY['s3://dummy'],
                     bucket_count = 10
                 );
-                                        
+
                 CALL catalog123.system.sync_partition_metadata('schema123456', 'table123', 'ADD');
-                                        
+
                 """;
             case GALAXY -> """
                 CREATE TABLE "catalog123"."schema123456"."table123" (
@@ -178,9 +178,9 @@ public class TestSqlGenerator
                     bucketed_by = ARRAY['s3://dummy'],
                     bucket_count = 10
                 );
-                                        
+
                 CALL catalog123.system.sync_partition_metadata('schema123456', 'table123', 'ADD');
-                                        
+
                 """;
         };
         String expectedSummary = "Created table: [schema123456.table123], with location: [s3://dummy/]";
@@ -222,9 +222,9 @@ public class TestSqlGenerator
                     bucketed_by = ARRAY['s3://dummy'],
                     bucket_count = 10
                 );
-                                        
+
                 CALL system.sync_partition_metadata('schema123456', 'table123', 'ADD');
-                                        
+
                 """;
             case GALAXY -> """
                 USE "schema123456";
@@ -243,9 +243,9 @@ public class TestSqlGenerator
                     bucketed_by = ARRAY['s3://dummy'],
                     bucket_count = 10
                 );
-                                        
+
                 CALL system.sync_partition_metadata('schema123456', 'table123', 'ADD');
-                                        
+
                 """;
         };
         String expectedSummary = "Created table: [schema123456.table123], with location: [s3://dummy/]";
@@ -329,7 +329,7 @@ public class TestSqlGenerator
                     bucketed_by = ARRAY['s3://dummy'],
                     bucket_count = 10
                 );
-                                            
+
                     """;
             case GALAXY -> """
                 USE "schema123456";
@@ -412,7 +412,7 @@ public class TestSqlGenerator
                     bucketed_by = ARRAY['s3://dummy'],
                     bucket_count = 10
                 );
-                                            
+
                 """;
             case GALAXY -> """
                 CREATE TABLE "catalog123"."schema123456"."non_primitive_type_table" (
@@ -430,7 +430,7 @@ public class TestSqlGenerator
                     bucketed_by = ARRAY['s3://dummy'],
                     bucket_count = 10
                 );
-                                            
+
                 """;
         };
         String expectedSummary = "Created table: [schema123456.non_primitive_type_table], with location: [s3://dummy/]";
@@ -445,7 +445,7 @@ public class TestSqlGenerator
         AddPartitionColumn operation = new AddPartitionColumn(new TableName(Optional.empty(), toLowerCase("table2")), new Column(toLowerCase("column2"), new HiveType(HiveTypes.STRING_TYPE)));
         String expectedSql = """
                 -- Partition column adds not supported. ["catalog123"."schema123"."table2"."column2"] will not be added.
-                                        
+
                 """;
         String expectedSummary = "Added partition column: [column2], of type: [string], to table: [table2]";
 
@@ -459,7 +459,7 @@ public class TestSqlGenerator
         AddPartitionColumn operation = new AddPartitionColumn(new TableName(Optional.of(toLowerCase(OTHER_SCHEMA_NAME)), toLowerCase("table2")), new Column(toLowerCase("column2"), new HiveType(HiveTypes.STRING_TYPE)));
         String expectedSql = """
                 -- Partition column adds not supported. ["catalog123"."schema123456"."table2"."column2"] will not be added.
-                                        
+
                 """;
         String expectedSummary = "Added partition column: [column2], of type: [string], to table: [schema123456.table2]";
 
@@ -473,7 +473,7 @@ public class TestSqlGenerator
         AddPartitionColumn operation = new AddPartitionColumn(new TableName(Optional.of(toLowerCase(OTHER_SCHEMA_NAME)), toLowerCase("table2")), new Column(toLowerCase("column2"), new HiveType(HiveTypes.STRING_TYPE)));
         String expectedSql = """
                 -- Partition column adds not supported. ["schema123456"."table2"."column2"] will not be added.
-                                        
+
                 """;
         String expectedSummary = "Added partition column: [column2], of type: [string], to table: [schema123456.table2]";
 
@@ -488,7 +488,7 @@ public class TestSqlGenerator
         String expectedSql = """
                 ALTER TABLE "catalog123"."schema123"."table3"
                     DROP COLUMN "column3";
-                                        
+
                 """;
         String expectedSummary = "Dropped partition column: [column3], from table: [table3]";
 
@@ -503,7 +503,7 @@ public class TestSqlGenerator
         String expectedSql = """
                 ALTER TABLE "catalog123"."schema123456"."table3"
                     DROP COLUMN "column3";
-                                        
+
                 """;
         String expectedSummary = "Dropped partition column: [column3], from table: [schema123456.table3]";
 
@@ -518,7 +518,7 @@ public class TestSqlGenerator
         String expectedSql = """
                 ALTER TABLE "schema123456"."table3"
                     DROP COLUMN "column3";
-                                        
+
                 """;
         String expectedSummary = "Dropped partition column: [column3], from table: [schema123456.table3]";
 
@@ -532,7 +532,7 @@ public class TestSqlGenerator
         RenamePartitionColumn operation = new RenamePartitionColumn(new TableName(Optional.empty(), toLowerCase("table3")), toLowerCase("rename_me"), toLowerCase("new_name"));
         String expectedSql = """
                 -- Partition column renames not supported. ["catalog123"."schema123"."table3"."rename_me"] will not be renamed.
-                                        
+
                 """;
         String expectedSummary = "Nothing changed, partition column renames not supported";
 
@@ -546,7 +546,7 @@ public class TestSqlGenerator
         RenamePartitionColumn operation = new RenamePartitionColumn(new TableName(Optional.of(toLowerCase(OTHER_SCHEMA_NAME)), toLowerCase("table3")), toLowerCase("rename_me"), toLowerCase("new_name"));
         String expectedSql = """
                 -- Partition column renames not supported. ["catalog123"."schema123456"."table3"."rename_me"] will not be renamed.
-                                        
+
                 """;
         String expectedSummary = "Nothing changed, partition column renames not supported";
 
@@ -560,7 +560,7 @@ public class TestSqlGenerator
         RenamePartitionColumn operation = new RenamePartitionColumn(new TableName(Optional.of(toLowerCase(OTHER_SCHEMA_NAME)), toLowerCase("table3")), toLowerCase("rename_me"), toLowerCase("new_name"));
         String expectedSql = """
                 -- Partition column renames not supported. ["schema123456"."table3"."rename_me"] will not be renamed.
-                                        
+
                 """;
         String expectedSummary = "Nothing changed, partition column renames not supported";
 
@@ -583,7 +583,7 @@ public class TestSqlGenerator
                     partition_values => ARRAY['poland'],
                     location => 's3://dummy2/country=poland/'
                 );
-                                        
+
                 """;
         String expectedSummary = "Added [1] partition values from path: [s3://dummy2/country=poland/], to table: [table4]";
 
@@ -606,7 +606,7 @@ public class TestSqlGenerator
                     partition_values => ARRAY['poland'],
                     location => 's3://dummy2/country=poland/'
                 );
-                                        
+
                 """;
         String expectedSummary = "Added [1] partition values from path: [s3://dummy2/country=poland/], to table: [schema123456.table4]";
 
@@ -629,7 +629,7 @@ public class TestSqlGenerator
                     partition_values => ARRAY['poland'],
                     location => 's3://dummy2/country=poland/'
                 );
-                                        
+
                 """;
         String expectedSummary = "Added [1] partition values from path: [s3://dummy2/country=poland/], to table: [schema123456.table4]";
 
@@ -651,7 +651,7 @@ public class TestSqlGenerator
                     partition_columns => ARRAY['date'],
                     partition_values => ARRAY['2022-03']
                 );
-                                        
+
                 """;
         String expectedSummary = "Dropped [1] partition values from path: [s3://dummy2/date=2022-03/], from table: [table5]";
 
@@ -673,7 +673,7 @@ public class TestSqlGenerator
                     partition_columns => ARRAY['date'],
                     partition_values => ARRAY['2022-03']
                 );
-                                        
+
                 """;
         String expectedSummary = "Dropped [1] partition values from path: [s3://dummy2/date=2022-03/], from table: [schema123456.table5]";
 
@@ -696,7 +696,7 @@ public class TestSqlGenerator
                     partition_columns => ARRAY['date'],
                     partition_values => ARRAY['2022-03']
                 );
-                                        
+
                 """;
         String expectedSummary = "Dropped [1] partition values from path: [s3://dummy2/date=2022-03/], from table: [schema123456.table5]";
         testOperation(NO_CATALOG_NAME, operation, expectedSql, expectedSummary, dialect);
