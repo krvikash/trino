@@ -65,12 +65,13 @@ public class TestAggregationsWithPlanAlternatives
                 memorySession,
                 "SELECT " +
                         "sum(CASE WHEN sequence = 0 THEN value END), " +
+                        "sum(CASE WHEN sequence = 2 THEN value END), " +
                         "min(CASE WHEN sequence = 1 THEN value ELSE null END), " +
                         "max(CASE WHEN sequence = 0 THEN value END), " +
                         "sum(CASE WHEN sequence = 1 THEN value * 2 ELSE 0 END) " +
                         "FROM test_table " +
                         "WHERE sequence = 42",
-                "VALUES (null, null, null, null)",
+                "VALUES (null, null, null, null, null)",
                 plan -> assertAggregationNodeCount(plan, 5)); // 5 instead of 4 because the bottom partial aggregation has 2 alternatives
     }
 }
