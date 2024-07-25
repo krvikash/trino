@@ -1346,7 +1346,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         //now warm with transform column - expected to fail
         @Language("SQL") String query = "select var_date_col from transform_data where day_of_week(CAST(var_date_col as date)) = 2012";
-        warmAndValidate(query, warmSession, 0, 1, 1);
+        warmAndValidate(query, warmSession, 0, 2, 2);
         Map<String, Long> expectedQueryStats = Map.of(
                 "transformed_column", 0L,
                 "warp_collect_columns", 1L,
@@ -2547,8 +2547,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         warmAndValidate("select * from varchar_max_table",
                 getSession(),
                 3,
-                2,
-                Optional.of(1));
+                3,
+                Optional.of(2));
 
         @Language("SQL") String query = "select * from varchar_max_table";
         Map<String, Long> expectedQueryStats = Map.of(
