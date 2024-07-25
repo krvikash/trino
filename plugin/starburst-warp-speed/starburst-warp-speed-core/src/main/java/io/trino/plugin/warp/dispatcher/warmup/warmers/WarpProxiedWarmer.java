@@ -44,6 +44,7 @@ import io.trino.plugin.warp.storage.write.StorageWriterService;
 import io.trino.plugin.warp.storage.write.StorageWriterSplitConfig;
 import io.trino.plugin.warp.storage.write.WarpPageSinkFactory;
 import io.trino.plugin.warp.tools.util.Pair;
+import io.trino.plugin.warp.util.ExceptionUtils;
 import io.trino.spi.NodeManager;
 import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
@@ -58,6 +59,7 @@ import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.type.Type;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -206,7 +208,9 @@ public class WarpProxiedWarmer
                 }
             }
             catch (Exception e) {
-                logger.error(e, "unexpected error in warm up file %s", rowGroupFilePath);
+                if (!ExceptionUtils.isCausedBy(e, FileNotFoundException.class)) {
+                    logger.error(e, "unexpected error in warm up file %s", rowGroupFilePath);
+                }
                 throw e;
             }
             finally {
