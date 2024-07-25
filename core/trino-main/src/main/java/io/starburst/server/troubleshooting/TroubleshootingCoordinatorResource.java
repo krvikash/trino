@@ -42,6 +42,7 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.Futures.transform;
+import static com.starburstdata.presto.insights.util.Constants.WEBUI_PREFIX;
 import static io.starburst.server.troubleshooting.TroubleshootingCoordinatorResource.BASE_PATH_API_V1;
 import static io.airlift.jaxrs.AsyncResponseHandler.bindAsyncResponse;
 import static io.trino.server.security.ResourceSecurity.AccessType.WEB_UI;
@@ -60,7 +61,7 @@ import static java.util.Objects.requireNonNull;
 public class TroubleshootingCoordinatorResource
 {
     private static final Duration MAX_POOL_TIME_MS = Duration.valueOf("5s");
-    public static final String BASE_PATH_API_V1 = "/ui/troubleshooting";
+    public static final String BASE_PATH_API_V1 = WEBUI_PREFIX + "/troubleshooting";
     private final WebUiAccessControl accessControl;
     private final TroubleshootingContextManager troubleshootingContextManager;
     private final ScheduledExecutorService executorService;
