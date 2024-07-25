@@ -17,8 +17,6 @@ import com.google.inject.Inject;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 
-import static com.google.common.base.Preconditions.checkState;
-
 public class LazyCollectTxService
         extends BaseCollectTxService
 {
@@ -28,14 +26,18 @@ public class LazyCollectTxService
         super(storageEngine, globalConfig);
     }
 
-    LazyCollectOpenResult collectOpen(int rowsLimit, StorageCollectorArgs storageCollectorArgs)
+    LazyCollectOpenResult collectOpen(int rowsLimit, LazyCollectorArgs lazyCollectorArgs)
     {
-        int numCollectElements = storageCollectorArgs.collectParamsList().size();
-        checkState(numCollectElements == 1, "lazy collector should collect only one WE at a time");
         long[] metadataBuffIds = new long[2];
-        int[] outResultType = new int[numCollectElements];
-        int collectTxId = collectOpen(storageCollectorArgs, 0, metadataBuffIds, outResultType);
+        int[] outResultType = new int[1];
+        int collectTxId = collectOpen(lazyCollectorArgs.collectTxArgs(), 0, metadataBuffIds, outResultType);
 
+        WarmupElementCollectParams collectParams = lazyCollectorArgs.collectParams();
+        lazyCollectorArgs.collectJufferWE().createBuffers(
+                collectParams.getRecTypeCode(),
+                collectParams.getRecTypeLength(),
+                collectParams.hasDictionary(),
+                lazyCollectorArgs.collectTxArgs().collectBuffIds()[0]);
         logger.debug("collectOpen collectTxId %d rowsLimit %d", collectTxId, rowsLimit);
         return new LazyCollectOpenResult(collectTxId, outResultType);
     }

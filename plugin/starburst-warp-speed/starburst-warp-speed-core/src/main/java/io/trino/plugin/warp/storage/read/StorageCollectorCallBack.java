@@ -35,7 +35,7 @@ public class StorageCollectorCallBack
     void collectStoreStateCB(long stateBuffId, int size)
     {
         ByteBuffer bufferToCopy = bufferAllocator.id2ByteBuff(stateBuffId).slice();
-        bufferToCopy.get(storageCollectorArgs.collectStoreBuff(), 0, size);
+        bufferToCopy.get(storageCollectorArgs.collectTxArgs().collectStoreBuff(), 0, size);
         collectStoreCurrSize = size;
     }
 
@@ -46,7 +46,7 @@ public class StorageCollectorCallBack
     {
         if (collectStoreCurrSize > 0) {
             ByteBuffer targetByteBuffer = bufferAllocator.id2ByteBuff(stateBuffId);
-            targetByteBuffer.put(storageCollectorArgs.collectStoreBuff(), 0, collectStoreCurrSize);
+            targetByteBuffer.put(storageCollectorArgs.collectTxArgs().collectStoreBuff(), 0, collectStoreCurrSize);
         }
         return collectStoreCurrSize;
     }

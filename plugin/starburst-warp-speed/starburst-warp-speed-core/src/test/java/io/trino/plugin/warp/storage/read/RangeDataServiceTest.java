@@ -32,8 +32,7 @@ public class RangeDataServiceTest
 {
     private ShortBuffer rowsBuffer;
     private RangeFillerService rangeFillerService;
-
-    private QueryParams queryParams;
+    private StorageCollectorArgs storageCollectorArgs;
 
     @BeforeEach
     public void before()
@@ -44,10 +43,14 @@ public class RangeDataServiceTest
         BufferAllocator bufferAllocator = mock(BufferAllocator.class);
         when(bufferAllocator.ids2RowsBuff(anyLong())).thenReturn(rowsBuffer);
 
-        queryParams = mock(QueryParams.class);
+        storageCollectorArgs = mock(StorageCollectorArgs.class);
+        CollectTxArgs collectTxArgs = mock(CollectTxArgs.class);
+        QueryParams queryParams = mock(QueryParams.class);
         when(queryParams.getTotalNumRecords()).thenReturn(80);
         when(queryParams.getNumCollectElements()).thenReturn(1);
         when(queryParams.getCollectElementsParamsList()).thenReturn(Collections.emptyList());
+        when(collectTxArgs.queryParams()).thenReturn(queryParams);
+        when(storageCollectorArgs.collectTxArgs()).thenReturn(collectTxArgs);
         rangeFillerService = new NativeRangeFillerService(bufferAllocator);
     }
 
@@ -56,8 +59,6 @@ public class RangeDataServiceTest
     {
         rowsBuffer.put(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal(), (short) RecordIndexListType.RECORD_INDEX_LIST_TYPE_FULL.ordinal());
         RangeData rangeData = new RangeData(0L);
-        StorageCollectorArgs storageCollectorArgs = mock(StorageCollectorArgs.class);
-        when(storageCollectorArgs.queryParams()).thenReturn(queryParams);
         when(storageCollectorArgs.chunkSize()).thenReturn(64);
         rangeFillerService.add(0, 1, storageCollectorArgs, true, rangeData);
         WarpStoragePageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
@@ -74,8 +75,6 @@ public class RangeDataServiceTest
         rowsBuffer.put((short) 8); // first row is 3 and we add the size
 
         RangeData rangeData = new RangeData(0L);
-        StorageCollectorArgs storageCollectorArgs = mock(StorageCollectorArgs.class);
-        when(storageCollectorArgs.queryParams()).thenReturn(queryParams);
         when(storageCollectorArgs.chunkSize()).thenReturn(1);
         rangeFillerService.add(0, 5, storageCollectorArgs, true, rangeData);
         WarpStoragePageSource.RowRanges ranges = rangeFillerService.reset(rangeData);
@@ -92,8 +91,6 @@ public class RangeDataServiceTest
         rowsBuffer.position(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_NUM_OF.ordinal());
         rowsBuffer.put((short) 8); // first row is 3 and we add the size
         RangeData rangeData = new RangeData(0L);
-        StorageCollectorArgs storageCollectorArgs = mock(StorageCollectorArgs.class);
-        when(storageCollectorArgs.queryParams()).thenReturn(queryParams);
         when(storageCollectorArgs.chunkSize()).thenReturn(1);
         rangeFillerService.add(0, 5, storageCollectorArgs, true, rangeData);
 
@@ -112,8 +109,6 @@ public class RangeDataServiceTest
     public void testValuesOneShot()
     {
         RangeData rangeData = new RangeData(0L);
-        StorageCollectorArgs storageCollectorArgs = mock(StorageCollectorArgs.class);
-        when(storageCollectorArgs.queryParams()).thenReturn(queryParams);
         when(storageCollectorArgs.chunkSize()).thenReturn(1);
 
         rowsBuffer.put(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal(), (short) RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES.ordinal());
@@ -150,8 +145,6 @@ public class RangeDataServiceTest
     public void testValuesTwoShots()
     {
         RangeData rangeData = new RangeData(0L);
-        StorageCollectorArgs storageCollectorArgs = mock(StorageCollectorArgs.class);
-        when(storageCollectorArgs.queryParams()).thenReturn(queryParams);
         when(storageCollectorArgs.chunkSize()).thenReturn(1);
         int pos;
         rowsBuffer.put(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal(), (short) RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES.ordinal());
@@ -193,8 +186,6 @@ public class RangeDataServiceTest
     public void testAllAndThenValues()
     {
         RangeData rangeData = new RangeData(0L);
-        StorageCollectorArgs storageCollectorArgs = mock(StorageCollectorArgs.class);
-        when(storageCollectorArgs.queryParams()).thenReturn(queryParams);
         int pos = 5;
         rowsBuffer.put(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal(), (short) RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL.ordinal());
         rowsBuffer.position(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_NUM_OF.ordinal());
@@ -227,8 +218,6 @@ public class RangeDataServiceTest
     public void testValuesAndThenAllAndThenValues()
     {
         RangeData rangeData = new RangeData(0L);
-        StorageCollectorArgs storageCollectorArgs = mock(StorageCollectorArgs.class);
-        when(storageCollectorArgs.queryParams()).thenReturn(queryParams);
         when(storageCollectorArgs.chunkSize()).thenReturn(1);
         int pos;
         rowsBuffer.put(RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal(), (short) RecordIndexListType.RECORD_INDEX_LIST_TYPE_VALUES.ordinal());

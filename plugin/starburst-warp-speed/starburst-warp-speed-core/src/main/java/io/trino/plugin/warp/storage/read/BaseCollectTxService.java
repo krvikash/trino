@@ -15,7 +15,6 @@ package io.trino.plugin.warp.storage.read;
 
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
-import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.spi.TrinoException;
@@ -42,37 +41,27 @@ public abstract class BaseCollectTxService
     }
 
     // LazyCollect collects 1 WE at a time, therefore not using queryParams.getCollectElementsParamsList()
-    int collectOpen(StorageCollectorArgs storageCollectorArgs, long matchBmAddr, long[] metadataBuffIds, int[] outResultType)
+    int collectOpen(CollectTxArgs collectTxArgs, long matchBmAddr, long[] metadataBuffIds, int[] outResultType)
     {
-        int numCollectElements = storageCollectorArgs.collectParamsList().size();
+        int numCollectElements = outResultType.length;
         metadataBuffIds[0] = -1;
         metadataBuffIds[1] = -1;
-        QueryParams queryParams = storageCollectorArgs.queryParams();
+        QueryParams queryParams = collectTxArgs.queryParams();
 
         int collectTxId = (int) storageEngine.collectOpen(queryParams.getTotalNumRecords(),
-                storageCollectorArgs.fileCookie(),
-                storageCollectorArgs.collectStoreBuff(),
-                storageCollectorArgs.collect2MatchParams(),
+                collectTxArgs.fileCookie(),
+                collectTxArgs.collectStoreBuff(),
+                collectTxArgs.collect2MatchParams(),
                 numCollectElements,
-                storageCollectorArgs.weCollectParams(),
+                collectTxArgs.weCollectParams(),
                 queryParams.getCatalogSequence(),
                 matchBmAddr,
                 queryParams.getMinCollectOffset(),
-                storageCollectorArgs.collectBuffIds(),
+                collectTxArgs.collectBuffIds(),
                 metadataBuffIds,
                 outResultType);
         if (collectTxId < 0) {
             throw new TrinoException(WARP_TX_ALLOCATION_FAILED, "failed to allocate tx for collect");
-        }
-
-        int collectIx = 0;
-        for (WarmupElementCollectParams collectParams : storageCollectorArgs.collectParamsList()) {
-            storageCollectorArgs.collectJuffersWE().get(collectIx).createBuffers(
-                    collectParams.mappedMatchCollect() ? RecTypeCode.REC_TYPE_TINYINT : collectParams.getRecTypeCode(),
-                    collectParams.mappedMatchCollect() ? 1 : collectParams.getRecTypeLength(),
-                    collectParams.hasDictionary(),
-                    storageCollectorArgs.collectBuffIds()[collectIx]);
-            collectIx++;
         }
         return collectTxId;
     }

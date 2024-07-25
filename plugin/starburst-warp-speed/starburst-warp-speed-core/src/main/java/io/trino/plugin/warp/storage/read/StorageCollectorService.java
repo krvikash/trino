@@ -118,7 +118,7 @@ public class StorageCollectorService
                 break;
             }
 
-            QueryParams queryParams = storageCollectorArgs.queryParams();
+            QueryParams queryParams = storageCollectorArgs.collectTxArgs().queryParams();
             if (queryParams.getNumCollectElements() > 0) {
                 int numCollectedFromCurrentChunk = rangeFillerService.getNumCollectedFromCurrentChunk(chunkIndex, collectOpenResult.rangeData());
                 numToCollect = getNumToCollect(storageCollectorArgs, numCollectedFromCurrentChunk, collectOpenResult, numCollectedRows);
@@ -173,15 +173,14 @@ public class StorageCollectorService
 
     void fillBlocks(Block[] blocks, StorageCollectorArgs storageCollectorArgs, int rowsToFill, int lazyChunkIx, DispatcherPageSourceStats stats)
     {
-        List<WarmupElementCollectParams> collectElementsParamsList = storageCollectorArgs.queryParams().getCollectElementsParamsList();
+        List<WarmupElementCollectParams> collectElementsParamsList = storageCollectorArgs.collectTxArgs().queryParams().getCollectElementsParamsList();
 
         for (int weIx = 0; weIx < collectElementsParamsList.size(); weIx++) {
             WarmupElementCollectParams collectParams = collectElementsParamsList.get(weIx);
-            StorageCollectorArgs lazyCollectorArgs = getLazyCollectorArgs(storageCollectorArgs, weIx, lazyChunkIx);
+            LazyCollectorArgs lazyCollectorArgs = getLazyCollectorArgs(storageCollectorArgs, weIx, lazyChunkIx, rowsToFill);
             blocks[collectParams.getBlockIndex()] = new LazyBlock(rowsToFill, new LazyCollectorLoader(
                     lazyCollectTxService,
                     lazyCollectorArgs,
-                    rowsToFill,
                     dictionaryStats,
                     stats));
         }
@@ -190,7 +189,7 @@ public class StorageCollectorService
 
     void fillBlocks(Block[] blocks, StorageCollectorArgs storageCollectorArgs, CollectOpenResult collectOpenResult, int rowsToFill)
     {
-        List<WarmupElementCollectParams> collectElementsParamsList = storageCollectorArgs.queryParams().getCollectElementsParamsList();
+        List<WarmupElementCollectParams> collectElementsParamsList = storageCollectorArgs.collectTxArgs().queryParams().getCollectElementsParamsList();
 
         for (int weIx = 0; weIx < collectElementsParamsList.size(); weIx++) {
             WarmupElementCollectParams collectParams = collectElementsParamsList.get(weIx);
@@ -263,105 +262,98 @@ public class StorageCollectorService
         return (total > 0) ? total : storageCollectorArgs.chunkSize();
     }
 
-    StorageCollectorArgs getStorageCollectorArgs(QueryParams queryParams)
+    CollectTxArgs getCollectTxArgs(QueryParams queryParams)
     {
-        ArrayList<BlockFiller<?>> blockFillers = new ArrayList<>(queryParams.getNumCollectElements());
-        for (WarmupElementCollectParams collectParams : queryParams.getCollectElementsParamsList()) {
-            blockFillers.add(blockFillersFactory.getBlockFiller(collectParams.getBlockRecTypeCode().ordinal()));
-        }
-        int numChunksInRange = storageEngineConstants.getMaxChunksInRange();
-        int fixedLengthStringLimit = storageEngineConstants.getFixedLengthStringLimit();
         int[] weCollectParams = queryParams.dumpCollectParams();
         long[][] collectBuffIds = new long[queryParams.getNumCollectElements()][];
         for (int collectIx = 0; collectIx < queryParams.getNumCollectElements(); collectIx++) {
             collectBuffIds[collectIx] = bufferAllocator.getQueryIdsArray(false);
         }
-        List<ReadJuffersWarmUpElement> collectJuffersWE = queryParams.getCollectElementsParamsList()
-                .stream()
-                .map(we -> new ReadJuffersWarmUpElement(bufferAllocator, true, false))
-                .collect(Collectors.toList());
-        int chunkSize = 1 << storageEngineConstants.getChunkSizeShift();
+
         byte[] collectStoreBuff = new byte[(int) storageEngine.queryGetCollectStateSize(queryParams.getNumMatchCollect())];
-        byte[] storeRowListBuff = new byte[(chunkSize + RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal()) * Short.BYTES];
         byte[] collect2MatchParams = new byte[storageEngine.queryGetCollect2MatchSize()];
-        // number of chunks is number of records divided by the chunk size which is fixed. we round it up in case the last chunk is not full.
-        int numChunks = (int) Math.ceil((double) queryParams.getTotalNumRecords() / (double) chunkSize);
-        if (numChunks == 0) {
-            throw new RuntimeException("no chunks");
-        }
+
         //  file
         long[] fileCookieParams = new long[FILE_COOKIE_PARAMS_NUM_OF.ordinal()];
         fileCookieParams[FILE_COOKIE_PARAMS_FD.ordinal()] = INVALID_FILE_COOKIE_FD;
         fileCookieParams[FILE_COOKIE_PARAMS_FD.ordinal()] = storageEngine.fileOpen(queryParams.getFilePath());
         fileCookieParams[FILE_COOKIE_PARAMS_FILE_HASH.ordinal()] = StorageUtils.fileHash64(queryParams.getFilePath());
         fileCookieParams[FILE_COOKIE_PARAMS_FILE_MOD_TIME.ordinal()] = queryParams.getFileModTime();
+
+        return new CollectTxArgs(
+                weCollectParams,
+                collectBuffIds,
+                collectStoreBuff,
+                collect2MatchParams,
+                queryParams,
+                fileCookieParams);
+    }
+
+    StorageCollectorArgs getStorageCollectorArgs(QueryParams queryParams)
+    {
+        CollectTxArgs collectTxArgs = getCollectTxArgs(queryParams);
+        ArrayList<BlockFiller<?>> blockFillers = new ArrayList<>(queryParams.getNumCollectElements());
+        for (WarmupElementCollectParams collectParams : queryParams.getCollectElementsParamsList()) {
+            blockFillers.add(blockFillersFactory.getBlockFiller(collectParams.getBlockRecTypeCode().ordinal()));
+        }
+        List<ReadJuffersWarmUpElement> collectJuffersWE = queryParams.getCollectElementsParamsList()
+                .stream()
+                .map(we -> new ReadJuffersWarmUpElement(bufferAllocator, true, false))
+                .collect(Collectors.toList());
+        int numChunksInRange = storageEngineConstants.getMaxChunksInRange();
+        int fixedLengthStringLimit = storageEngineConstants.getFixedLengthStringLimit();
+        int chunkSize = 1 << storageEngineConstants.getChunkSizeShift();
+        byte[] storeRowListBuff = new byte[(chunkSize + RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal()) * Short.BYTES];
+
+        // number of chunks is number of records divided by the chunk size which is fixed. we round it up in case the last chunk is not full.
+        int numChunks = (int) Math.ceil((double) queryParams.getTotalNumRecords() / (double) chunkSize);
+        if (numChunks == 0) {
+            throw new RuntimeException("no chunks");
+        }
         ChunksQueue chunksQueue = new ChunksQueue(numChunksInRange, storageEngineConstants.getPageSize());
+
         boolean isLazyCollect = useLazyCollect(queryParams);
+
         return new StorageCollectorArgs(
+                collectTxArgs,
                 blockFillers,
                 numChunksInRange,
                 fixedLengthStringLimit,
-                weCollectParams,
-                collectBuffIds,
                 collectJuffersWE,
-                collectStoreBuff,
                 storeRowListBuff,
-                collect2MatchParams,
-                queryParams,
-                queryParams.getCollectElementsParamsList(),
                 chunkSize,
                 numChunks,
-                fileCookieParams,
                 chunksQueue,
                 isLazyCollect);
     }
 
-    StorageCollectorArgs getLazyCollectorArgs(StorageCollectorArgs storageCollectorArgs, int weIx, int chunkIndex)
+    LazyCollectorArgs getLazyCollectorArgs(StorageCollectorArgs storageCollectorArgs, int weIx, int chunkIndex, int numRows)
     {
-        QueryParams queryParams = storageCollectorArgs.queryParams();
-
-        ArrayList<WarmupElementCollectParams> singleCollectParamsList = new ArrayList<>();
+        QueryParams queryParams = storageCollectorArgs.collectTxArgs().queryParams();
         WarmupElementCollectParams collectParams = queryParams.getCollectElementsParamsList().get(weIx);
-        singleCollectParamsList.add(collectParams);
-        ArrayList<BlockFiller<?>> blockFillers = new ArrayList<>();
-        blockFillers.add(storageCollectorArgs.blockFillers().get(weIx));
-
-        int numChunksInRange = 1;
-        int fixedLengthStringLimit = storageCollectorArgs.fixedLengthStringLimit();
 
         int[] weCollectParams = queryParams.dumpSingleCollectParams(collectParams);
         long[][] collectBuffIds = new long[1][];
         collectBuffIds[0] = bufferAllocator.getQueryIdsArray(false);
-
-        List<ReadJuffersWarmUpElement> singleElementList = new ArrayList<>();
-        singleElementList.add(new ReadJuffersWarmUpElement(bufferAllocator, true, false));
-
-        int chunkSize = storageCollectorArgs.chunkSize();
         byte[] collectStoreBuff = new byte[(int) storageEngine.queryGetCollectStateSize(0)];
-        byte[] storeRowListBuff = new byte[(chunkSize + RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal()) * Short.BYTES];
         byte[] collect2MatchParams = new byte[storageEngine.queryGetCollect2MatchSize()];
-        int numChunks = 1;
+        long[] fileCookieParams = storageCollectorArgs.collectTxArgs().fileCookie();
 
-        long[] fileCookieParams = storageCollectorArgs.fileCookie();
-
-        ChunksQueue chunksQueue = new ChunksQueue(1, storageEngineConstants.getPageSize());
-        chunksQueue.add(chunkIndex, chunkIndex + 1);
-        return new StorageCollectorArgs(
-                blockFillers,
-                numChunksInRange,
-                fixedLengthStringLimit,
+        CollectTxArgs collectTxArgs = new CollectTxArgs(
                 weCollectParams,
                 collectBuffIds,
-                singleElementList,
                 collectStoreBuff,
-                storeRowListBuff,
                 collect2MatchParams,
                 queryParams,
-                singleCollectParamsList,
-                chunkSize,
-                numChunks,
-                fileCookieParams,
-                chunksQueue,
-                false);
+                fileCookieParams);
+
+        ReadJuffersWarmUpElement juffersWE = new ReadJuffersWarmUpElement(bufferAllocator, true, false);
+        return new LazyCollectorArgs(
+                collectTxArgs,
+                collectParams,
+                juffersWE,
+                storageCollectorArgs.blockFillers().get(weIx),
+                chunkIndex,
+                numRows);
     }
 }

@@ -16,6 +16,7 @@ package io.trino.plugin.warp.storage.read;
 import com.google.inject.Inject;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
+import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.RecordBufferState;
 import io.trino.plugin.warp.gen.constants.RecordIndexListType;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
@@ -90,8 +91,9 @@ public class CollectTxService
             RecordIndexListType storeRowListType,
             StorageCollectorCallBack storageCollectorCallBack)
     {
-        int numCollectElements = storageCollectorArgs.collectParamsList().size();
-        QueryParams queryParams = storageCollectorArgs.queryParams();
+        QueryParams queryParams = storageCollectorArgs.collectTxArgs().queryParams();
+        List<WarmupElementCollectParams> collectParamsList = queryParams.getCollectElementsParamsList();
+        int numCollectElements = collectParamsList.size();
         long[] metadataBuffIds = new long[2];
 
         int[] outResultType = new int[numCollectElements];
@@ -103,7 +105,17 @@ public class CollectTxService
             matchBmAddr = bmSeg.address();
         }
 
-        int collectTxId = collectOpen(storageCollectorArgs, matchBmAddr, metadataBuffIds, outResultType);
+        int collectTxId = collectOpen(storageCollectorArgs.collectTxArgs(), matchBmAddr, metadataBuffIds, outResultType);
+
+        int collectIx = 0;
+        for (WarmupElementCollectParams collectParams : collectParamsList) {
+            storageCollectorArgs.collectJuffersWE().get(collectIx).createBuffers(
+                    collectParams.mappedMatchCollect() ? RecTypeCode.REC_TYPE_TINYINT : collectParams.getRecTypeCode(),
+                    collectParams.mappedMatchCollect() ? 1 : collectParams.getRecTypeLength(),
+                    collectParams.hasDictionary(),
+                    storageCollectorArgs.collectTxArgs().collectBuffIds()[collectIx]);
+            collectIx++;
+        }
 
         RangeData rangeData = new RangeData(metadataBuffIds[0]);
         List<WarmupElementRecordBufferState> warmupElementRecordBufferStates = Collections.emptyList();

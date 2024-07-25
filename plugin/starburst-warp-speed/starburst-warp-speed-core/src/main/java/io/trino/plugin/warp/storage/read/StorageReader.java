@@ -148,7 +148,7 @@ public class StorageReader
 
     void close()
     {
-        storageEngine.fileClose(storageCollectorArgs.fileCookie()[FILE_COOKIE_PARAMS_FD.ordinal()]);
+        storageEngine.fileClose(storageCollectorArgs.collectTxArgs().fileCookie()[FILE_COOKIE_PARAMS_FD.ordinal()]);
     }
 
     private void createLuceneMatchers(GlobalConfig globalConfig)
@@ -215,10 +215,10 @@ public class StorageReader
         if (queryParams.getNumMatchElements() > 0) {
             try {
                 matchTxId = (int) storageEngine.matchOpen(queryParams.getTotalNumRecords(),
-                        storageCollectorArgs.fileCookie(),
+                        storageCollectorArgs.collectTxArgs().fileCookie(),
                         collectOpenResult.collectTxId(),
-                        storageCollectorArgs.collectStoreBuff(),
-                        storageCollectorArgs.collect2MatchParams(),
+                        storageCollectorArgs.collectTxArgs().collectStoreBuff(),
+                        storageCollectorArgs.collectTxArgs().collect2MatchParams(),
                         queryParams.getNumMatchElements(),
                         weMatchTree,
                         luceneMatchers.length,

@@ -60,7 +60,7 @@ public class NativeRangeFillerService
         ShortBuffer rowsBuff = bufferAllocator.ids2RowsBuff(rangeData.getRowsBuffId());
 
         int numRows;
-        if (storageCollectorArgs.queryParams().getNumCollectElements() > 0) {
+        if (storageCollectorArgs.collectTxArgs().queryParams().getNumCollectElements() > 0) {
             numRows = currentNumCollectedRows;
         }
         else {

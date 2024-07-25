@@ -18,20 +18,14 @@ import io.trino.plugin.warp.storage.read.fill.BlockFiller;
 
 import java.util.List;
 
-public record StorageCollectorArgs(List<BlockFiller<?>> blockFillers,
+public record StorageCollectorArgs(CollectTxArgs collectTxArgs,
+                                   List<BlockFiller<?>> blockFillers,
                                    int numChunksInRange,
                                    int fixedLengthStringLimit,
-                                   int[] weCollectParams,
-                                   long[][] collectBuffIds,
                                    List<ReadJuffersWarmUpElement> collectJuffersWE,
-                                   byte[] collectStoreBuff,
                                    byte[] storeRowListBuff,
-                                   byte[] collect2MatchParams,
-                                   QueryParams queryParams,
-                                   List<WarmupElementCollectParams> collectParamsList,
                                    int chunkSize,
                                    int numChunks,
-                                   long[] fileCookie,
                                    ChunksQueue chunksQueue,
                                    boolean isLazyCollect)
 {

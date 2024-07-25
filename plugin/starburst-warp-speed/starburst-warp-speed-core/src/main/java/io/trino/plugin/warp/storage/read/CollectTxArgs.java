@@ -13,18 +13,12 @@
  */
 package io.trino.plugin.warp.storage.read;
 
-import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
-
-import java.util.List;
-
 public record CollectTxArgs(
         int[] weCollectParams,
         long[][] collectBuffIds,
-        List<ReadJuffersWarmUpElement> collectJuffersWE,
         byte[] collectStoreBuff,
         byte[] collect2MatchParams,
         QueryParams queryParams,
-        List<WarmupElementCollectParams> collectParamsList,
         long[] fileCookie)
 {
 }
