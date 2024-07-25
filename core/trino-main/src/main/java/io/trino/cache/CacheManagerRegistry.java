@@ -113,7 +113,7 @@ public class CacheManagerRegistry
         this.executor = executor;
         this.blockEncodingSerde = blockEncodingSerde;
         this.cacheStats = cacheStats;
-        this.internalNodeManager = requireNonNull(internalNodeManager);
+        this.internalNodeManager = requireNonNull(internalNodeManager, "internalNodeManager is null");
     }
 
     public void addCacheManagerFactory(CacheManagerFactory factory)

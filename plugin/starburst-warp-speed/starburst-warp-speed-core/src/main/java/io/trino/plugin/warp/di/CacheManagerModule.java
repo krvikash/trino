@@ -21,6 +21,7 @@ import io.trino.plugin.warp.dispatcher.cache.AbortAction;
 import io.trino.plugin.warp.dispatcher.cache.AbortOnEngineAction;
 import io.trino.plugin.warp.dispatcher.cache.AbortOnInitAction;
 import io.trino.plugin.warp.dispatcher.cache.CacheAction;
+import io.trino.plugin.warp.dispatcher.cache.CoordinatorCacheManager;
 import io.trino.plugin.warp.dispatcher.cache.EmptyPageAction;
 import io.trino.plugin.warp.dispatcher.cache.FinishAction;
 import io.trino.plugin.warp.dispatcher.cache.MemoryContextService;
@@ -35,15 +36,21 @@ public class CacheManagerModule
         implements Module
 {
     private final CacheManagerContext context;
+    private final boolean isCoordinator;
 
-    public CacheManagerModule(CacheManagerContext context)
+    public CacheManagerModule(CacheManagerContext context, boolean isCoordinator)
     {
         this.context = context;
+        this.isCoordinator = isCoordinator;
     }
 
     @Override
     public void configure(Binder binder)
     {
+        if (isCoordinator) {
+            binder.bind(CacheManager.class).to(CoordinatorCacheManager.class);
+            return;
+        }
         binder.bind(CacheManager.class).to(WorkerCacheManager.class);
         binder.bind(CacheWarmer.class);
         binder.bind(WarpCacheFilesMerger.class);

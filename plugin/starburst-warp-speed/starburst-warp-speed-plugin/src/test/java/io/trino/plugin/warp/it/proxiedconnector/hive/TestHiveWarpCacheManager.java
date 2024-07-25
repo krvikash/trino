@@ -26,8 +26,6 @@ import io.trino.testing.QueryRunner.MaterializedResultWithPlan;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -69,25 +67,12 @@ public class TestHiveWarpCacheManager
                 new WarpPlugin(),
                 Map.of("cache.enabled", "true"));
 
-        Path cacheStorePath = Files.createTempDirectory("cache_");
         ImmutableMap.Builder<String, String> cacheConfigBuilder = ImmutableMap.builder();
         ((DistributedQueryRunner) queryRunner).getServers()
                 .forEach(server -> server.getCacheManagerRegistry(
                         "warp_cache",
                         cacheConfigBuilder
-                                .put("node.environment", "warp_speed_cache")
-                                .put("warp-speed.config.is-single", Boolean.valueOf(numNodes > 1).toString())
-//                                .put("cache.enabled", "true")
-                                .put("warp-speed.config.is-cache", "true")
-                                .put("warp-speed.metrics.dump.interval", "5s")
-                                .put("warp-speed.cluster-uuid", "test")
-                                .put("http-rest-port", "8098")
-                                .put("warp-speed.use-http-server-port", "false")
-                                .put("warp-speed.config.http-rest-port-enabled", "true")
-                                .put("warp-speed.config.extensions.enabled", "true")
-                                .put("warp-speed.call-home.enable", "false")
-                                .put("warp-speed.store.path", "file://" + cacheStorePath.toString())
-                                .put("warp-speed.local-store.path", cacheStorePath.toString())
+                                .put("warp-speed.config.is-single", Boolean.valueOf(numNodes == 1).toString())
                                 .buildOrThrow()));
         return queryRunner;
     }

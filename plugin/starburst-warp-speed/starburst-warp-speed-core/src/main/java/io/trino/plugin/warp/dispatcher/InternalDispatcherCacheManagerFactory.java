@@ -20,6 +20,7 @@ import io.airlift.event.client.EventModule;
 import io.airlift.log.Logger;
 import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.plugin.warp.di.CacheManagerModule;
+import io.trino.plugin.warp.di.WarpBaseModule;
 import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.di.dispatcher.DispatcherCacheManagerModule;
 import io.trino.spi.cache.CacheManager;
@@ -49,12 +50,14 @@ public class InternalDispatcherCacheManagerFactory
             Module cloudVendorModule,
             CacheManagerContext context)
     {
-        List<Module> modules = new ArrayList<>(asList(
+        List<Module> modules;
+        boolean isCoordinator = context.isCoordinator() && !WarpBaseModule.isSingle(config);
+        modules = new ArrayList<>(asList(
                 new EventModule(),
                 new MBeanServerModule(),
                 new MBeanModule(),
-                new DispatcherCacheManagerModule(cacheManagerName, config, storageEngineModule, cloudVendorModule, context),
-                new CacheManagerModule(context)));
+                new DispatcherCacheManagerModule(cacheManagerName, config, storageEngineModule, cloudVendorModule, isCoordinator),
+                new CacheManagerModule(context, isCoordinator)));
         optionalModules.ifPresent(modules::addAll);
 
         Bootstrap app = new Bootstrap(modules);

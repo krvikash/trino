@@ -82,7 +82,6 @@ import io.trino.plugin.warp.storage.write.dictionary.DictionaryWriterFactory;
 import io.trino.plugin.warp.util.FailureGeneratorInvocationHandler;
 import io.trino.spi.NodeManager;
 import io.trino.spi.block.Block;
-import io.trino.spi.cache.CacheManagerContext;
 
 import java.util.Map;
 import java.util.Optional;
@@ -97,6 +96,7 @@ public class DispatcherCacheManagerModule
         implements ExtraModule
 {
     private final String cacheManagerName;
+    private final boolean isCoordinator;
     private Map<String, String> config;
     private final Optional<Module> storageEngineModule;
     private final Optional<Module> cloudVendorModule;
@@ -105,9 +105,10 @@ public class DispatcherCacheManagerModule
             Map<String, String> config,
             Module storageEngineModule,
             Module cloudVendorModule,
-            CacheManagerContext context)
+            boolean isCoordinator)
     {
         this.cacheManagerName = cacheManagerName;
+        this.isCoordinator = isCoordinator;
         withConfig(config);
         this.storageEngineModule = Optional.ofNullable(storageEngineModule);
         this.cloudVendorModule = Optional.ofNullable(cloudVendorModule);
@@ -116,10 +117,16 @@ public class DispatcherCacheManagerModule
     @Override
     public void configure(Binder binder)
     {
+        binder.install(new MetricsModule(cacheManagerName));
+        binder.bind(MetricsManager.class);
+        configBinder(binder).bindConfig(MetricsConfig.class);
+        binder.bind(WarpInitializedServiceRegistry.class);
+        if (isCoordinator) {
+            return;
+        }
         configBinder(binder).bindConfig(CloudVendorConfig.class, ForWarp.class);
         configBinder(binder).bindConfig(DictionaryConfig.class);
         configBinder(binder).bindConfig(GlobalConfig.class);
-        configBinder(binder).bindConfig(MetricsConfig.class);
         configBinder(binder).bindConfig(NativeConfig.class);
         configBinder(binder).bindConfig(WarmupDemoterConfig.class);
 
@@ -133,11 +140,6 @@ public class DispatcherCacheManagerModule
         jsonBinder(binder).addSerializerBinding(Block.class).to(BlockJsonSerde.Serializer.class);
         jsonBinder(binder).addDeserializerBinding(Block.class).to(BlockJsonSerde.Deserializer.class);
         binder.bind(ObjectMapperProvider.class);
-
-        binder.install(new MetricsModule(cacheManagerName));
-        binder.bind(MetricsManager.class);
-
-        binder.bind(WarpInitializedServiceRegistry.class);
         binder.install(storageEngineModule.orElseGet(() -> new WarpNativeStorageEngineModule(context, config)));
         binder.install(cloudVendorModule.orElse(CloudVendorModule.getModule(context, ForWarp.class, cacheManagerName, config)));
 

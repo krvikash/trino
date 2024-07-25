@@ -66,8 +66,6 @@ public abstract class MultinodeWarpBase
 
     protected void copyTestResources(DockerContainer container)
     {
-        container.withCopyFileToContainer(forHostPath(Path.of(".", "/docker/presto-product-tests/warp/cache.json"), 493),
-                "/docker/cache.json");
         container.withCopyFileToContainer(forHostPath(Path.of(".", "/docker/presto-product-tests/warp/synthetic.json"), 493),
                 "/docker/synthetic.json");
         container.withCopyFileToContainer(forHostPath(Path.of(".", "/docker/presto-product-tests/warp/lucene.json"), 493),

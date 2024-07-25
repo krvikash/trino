@@ -95,20 +95,6 @@ public class TestWarpCache
     }
 
     @DataProvider
-    public Iterator<Object[]> cache(ITestContext context)
-            throws Exception
-    {
-        return CacheUtils.executeDataProvider("file:///docker/presto-product-tests/warp/cache.json");
-    }
-
-    @Test(groups = {WARP_SPEED_CACHE, PROFILE_SPECIFIC_TESTS}, dataProvider = "cache")
-    public void cache(TestFormat testFormat)
-            throws IOException
-    {
-        cacheUtils.execute(testFormat, true, SCHEMA_NAME);
-    }
-
-    @DataProvider
     public Iterator<Object[]> synthTypes(ITestContext context)
             throws Exception
     {

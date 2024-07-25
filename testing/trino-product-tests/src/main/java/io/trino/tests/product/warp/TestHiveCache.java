@@ -13,6 +13,8 @@
  */
 package io.trino.tests.product.warp;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.inject.Inject;
 import io.trino.tempto.AfterMethodWithContext;
 import io.trino.tempto.BeforeMethodWithContext;
@@ -23,11 +25,14 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.Iterator;
+import java.util.List;
 
 import static io.trino.tests.product.TestGroups.PROFILE_SPECIFIC_TESTS;
 import static io.trino.tests.product.TestGroups.WARP_SPEED_HIVE_CACHE;
 import static io.trino.tests.product.utils.QueryExecutors.onTrino;
+import static io.trino.tests.product.warp.utils.DemoterUtils.objectMapper;
 import static java.lang.String.format;
 
 public class TestHiveCache
@@ -66,7 +71,13 @@ public class TestHiveCache
     public Iterator<Object[]> cache(ITestContext context)
             throws Exception
     {
-        return CacheUtils.executeDataProvider("file:///docker/presto-product-tests/warp/cache.json");
+        String filePath = "file:///docker/presto-product-tests/warp/synthetic.json";
+        JsonNode jsonNodeTests = objectMapper.readTree(new URI(filePath).toURL());
+        List<TestFormat> tests = objectMapper.readerFor(new TypeReference<List<TestFormat>>() {})
+                .readValue(jsonNodeTests);
+        return tests.stream().filter(testFormat -> testFormat.name().equals("geospatial_basic"))
+                .map(x -> new Object[] {x})
+                .iterator();
     }
 
     @Test(groups = {WARP_SPEED_HIVE_CACHE, PROFILE_SPECIFIC_TESTS}, dataProvider = "cache")

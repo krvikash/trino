@@ -38,8 +38,6 @@ public class CacheUtils
 
     @Inject
     QueryUtils queryUtils;
-    @Inject
-    DemoterUtils demoterUtils;
 
     public CacheUtils()
     {
@@ -68,8 +66,6 @@ public class CacheUtils
             logger.info("test %s is skipped. description=%s", testFormat.name(), testFormat.description());
             throw new SkipException("Skipping this test");
         }
-        demoterUtils.resetToDefaultDemoterConfiguration(true);
-        int ranQueries = 0;
         try {
             logger.info("starting run test %s", testFormat.name());
             if (isWarp) {
@@ -78,19 +74,12 @@ public class CacheUtils
                 onTrino().executeQuery("set session warp.enable_import_export = true");
                 onTrino().executeQuery(format("USE warp.%s", schemaName));
             }
-            ranQueries = queryUtils.runCacheQueries(testFormat, isWarp);
+            queryUtils.runCacheQueries(testFormat, isWarp);
             logger.info("successfully finish run test %s", testFormat.name());
         }
         catch (Exception e) {
             logger.error(e, "failed on test=%s", testFormat.name());
             throw e;
-        }
-        finally {
-            if (ranQueries > 0) {
-                logger.info("run demoter after running %s queries on test %s", ranQueries, testFormat.name());
-                demoterUtils.demoteAllByMaxUsage();
-                demoterUtils.resetToDefaultDemoterConfiguration(true);
-            }
         }
     }
 }
