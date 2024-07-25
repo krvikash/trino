@@ -26,6 +26,8 @@ import io.trino.hdfs.HdfsConfiguration;
 import io.trino.hdfs.HdfsEnvironment;
 import io.trino.hdfs.authentication.NoHdfsAuthentication;
 import io.trino.plugin.base.TypeDeserializer;
+import io.trino.plugin.deltalake.metastore.DeltaLakeTableMetadataScheduler;
+import io.trino.plugin.deltalake.metastore.file.DeltaLakeFileMetastoreTableOperationsProvider;
 import io.trino.plugin.deltalake.statistics.CachingExtendedStatisticsAccess;
 import io.trino.plugin.deltalake.statistics.ExtendedStatistics;
 import io.trino.plugin.deltalake.statistics.MetaDirStatisticsAccess;
@@ -77,6 +79,7 @@ import static io.trino.plugin.hive.HiveTestUtils.HDFS_FILE_SYSTEM_STATS;
 import static io.trino.spi.predicate.Domain.singleValue;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.IntegerType.INTEGER;
+import static io.trino.type.InternalTypeManager.TESTING_TYPE_MANAGER;
 import static java.util.concurrent.Executors.newScheduledThreadPool;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -119,8 +122,10 @@ public class TestDeltaLakeCacheIds
                 new FileFormatDataSourceStats(),
                 JsonCodec.jsonCodec(LastCheckpoint.class));
 
+        HiveMetastoreFactory hiveMetastoreFactory = HiveMetastoreFactory.ofInstance(new UnimplementedHiveMetastore());
+        TestingNodeManager nodeManager = new TestingNodeManager();
         DeltaLakeMetadataFactory metadataFactory = new DeltaLakeMetadataFactory(
-                HiveMetastoreFactory.ofInstance(new UnimplementedHiveMetastore()),
+                hiveMetastoreFactory,
                 hdfsFileSystemFactory,
                 LocationAccessControl.ALLOW_ALL,
                 transactionLogAccess,
@@ -131,12 +136,13 @@ public class TestDeltaLakeCacheIds
                 JsonCodec.jsonCodec(DeltaLakeMergeResult.class),
                 new TransactionLogWriterFactory(
                         new TransactionLogSynchronizerManager(ImmutableMap.of(), new NoIsolationSynchronizer(hdfsFileSystemFactory))),
-                new TestingNodeManager(),
+                nodeManager,
                 checkpointWriterManager,
                 DeltaLakeRedirectionsProvider.NOOP,
                 new CachingExtendedStatisticsAccess(new MetaDirStatisticsAccess(HDFS_FILE_SYSTEM_FACTORY, new JsonCodecFactory().jsonCodec(ExtendedStatistics.class))),
                 true,
-                new NodeVersion("test_version"));
+                new NodeVersion("test_version"),
+                new DeltaLakeTableMetadataScheduler(nodeManager, TESTING_TYPE_MANAGER, new DeltaLakeFileMetastoreTableOperationsProvider(hiveMetastoreFactory), Integer.MAX_VALUE, config));
         metadata = new DeltaLakeCacheMetadata(
                 createJsonCodec(DeltaLakeCacheTableId.class),
                 createJsonCodec(DeltaLakeColumnHandle.class));

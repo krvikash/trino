@@ -16,6 +16,7 @@ package io.trino.plugin.deltalake;
 import com.google.inject.Inject;
 import io.airlift.json.JsonCodec;
 import io.trino.filesystem.TrinoFileSystemFactory;
+import io.trino.plugin.deltalake.metastore.DeltaLakeTableMetadataScheduler;
 import io.trino.plugin.deltalake.metastore.HiveMetastoreBackedDeltaLakeMetastore;
 import io.trino.plugin.deltalake.statistics.CachingExtendedStatisticsAccess;
 import io.trino.plugin.deltalake.statistics.FileBasedTableStatisticsProvider;
@@ -58,6 +59,7 @@ public class DeltaLakeMetadataFactory
     private final long perTransactionMetastoreCacheMaximumSize;
     private final boolean deleteSchemaLocationsFallback;
     private final boolean useUniqueTableLocation;
+    private final DeltaLakeTableMetadataScheduler metadataScheduler;
 
     private final boolean allowManagedTableRename;
     private final String trinoVersion;
@@ -79,7 +81,8 @@ public class DeltaLakeMetadataFactory
             DeltaLakeRedirectionsProvider deltaLakeRedirectionsProvider,
             CachingExtendedStatisticsAccess statisticsAccess,
             @AllowDeltaLakeManagedTableRename boolean allowManagedTableRename,
-            NodeVersion nodeVersion)
+            NodeVersion nodeVersion,
+            DeltaLakeTableMetadataScheduler metadataScheduler)
     {
         this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
         this.hiveMetastoreFactory = requireNonNull(hiveMetastoreFactory, "hiveMetastore is null");
@@ -102,6 +105,7 @@ public class DeltaLakeMetadataFactory
         this.useUniqueTableLocation = deltaLakeConfig.isUniqueTableLocation();
         this.allowManagedTableRename = allowManagedTableRename;
         this.trinoVersion = requireNonNull(nodeVersion, "nodeVersion is null").toString();
+        this.metadataScheduler = requireNonNull(metadataScheduler, "metadataScheduler is null");
     }
 
     public DeltaLakeMetadata create(ConnectorIdentity identity)
@@ -140,6 +144,7 @@ public class DeltaLakeMetadataFactory
                 deleteSchemaLocationsFallback,
                 deltaLakeRedirectionsProvider,
                 statisticsAccess,
+                metadataScheduler,
                 useUniqueTableLocation,
                 allowManagedTableRename);
     }
