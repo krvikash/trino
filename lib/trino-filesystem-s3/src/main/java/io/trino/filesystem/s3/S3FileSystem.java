@@ -18,6 +18,7 @@ import com.google.common.collect.SetMultimap;
 import io.trino.filesystem.FileIterator;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
+import io.trino.filesystem.TrinoFileSystemException;
 import io.trino.filesystem.TrinoInputFile;
 import io.trino.filesystem.TrinoOutputFile;
 import software.amazon.awssdk.core.exception.SdkException;
@@ -101,7 +102,7 @@ public final class S3FileSystem
             client.deleteObject(request);
         }
         catch (SdkException e) {
-            throw new IOException("Failed to delete file: " + location, e);
+            throw new TrinoFileSystemException("Failed to delete file: " + location, e);
         }
     }
 
@@ -159,7 +160,7 @@ public final class S3FileSystem
                     }
                 }
                 catch (SdkException e) {
-                    throw new IOException("Error while batch deleting files", e);
+                    throw new TrinoFileSystemException("Error while batch deleting files", e);
                 }
             }
         }
@@ -207,7 +208,7 @@ public final class S3FileSystem
             return new S3FileIterator(s3Location, s3ObjectStream.iterator());
         }
         catch (SdkException e) {
-            throw new IOException("Failed to list location: " + location, e);
+            throw new TrinoFileSystemException("Failed to list location: " + location, e);
         }
     }
 
@@ -263,7 +264,7 @@ public final class S3FileSystem
                     .collect(toImmutableSet());
         }
         catch (SdkException e) {
-            throw new IOException("Failed to list location: " + location, e);
+            throw new TrinoFileSystemException("Failed to list location: " + location, e);
         }
     }
 
