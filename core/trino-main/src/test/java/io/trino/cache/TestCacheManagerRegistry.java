@@ -20,6 +20,7 @@ import io.trino.execution.StageId;
 import io.trino.execution.TaskId;
 import io.trino.memory.LocalMemoryManager;
 import io.trino.memory.NodeMemoryConfig;
+import io.trino.metadata.InMemoryNodeManager;
 import io.trino.spi.block.TestingBlockEncodingSerde;
 import io.trino.spi.cache.CacheManager;
 import io.trino.spi.cache.CacheManagerContext;
@@ -60,7 +61,7 @@ public class TestCacheManagerRegistry
                 .setMaxQueryMemoryPerNode(DataSize.of(100, MEGABYTE));
 
         memoryManager = new LocalMemoryManager(config, DataSize.of(110, MEGABYTE).toBytes());
-        registry = new CacheManagerRegistry(new CacheConfig(), memoryManager, newDirectExecutorService(), new TestingBlockEncodingSerde(), new CacheStats());
+        registry = new CacheManagerRegistry(new CacheConfig(), memoryManager, newDirectExecutorService(), new TestingBlockEncodingSerde(), new CacheStats(), new InMemoryNodeManager());
         registry.addCacheManagerFactory(new TestCacheManagerFactory());
         registry.loadCacheManager(TEST_CACHE_MANAGER, ImmutableMap.of());
     }

@@ -198,7 +198,7 @@ public final class TaskTestUtils
                 PLANNER_CONTEXT.getTypeOperators(),
                 new TableExecuteContextManager(),
                 new ExchangeManagerRegistry(OpenTelemetry.noop(), Tracing.noopTracer()),
-                new CacheManagerRegistry(new CacheConfig(), new LocalMemoryManager(new NodeMemoryConfig()), new TestingBlockEncodingSerde(), cacheStats),
+                new CacheManagerRegistry(new CacheConfig(), new LocalMemoryManager(new NodeMemoryConfig()), new TestingBlockEncodingSerde(), cacheStats, new InMemoryNodeManager()),
                 new JsonCodecFactory(new ObjectMapperProvider()).jsonCodec(TupleDomain.class),
                 new NodeVersion("test"),
                 new CompilerConfig());

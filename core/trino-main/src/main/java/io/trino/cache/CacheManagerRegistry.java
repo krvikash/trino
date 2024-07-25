@@ -24,6 +24,7 @@ import io.trino.memory.LocalMemoryManager;
 import io.trino.memory.MemoryPool;
 import io.trino.memory.context.LocalMemoryContext;
 import io.trino.memory.context.MemoryReservationHandler;
+import io.trino.metadata.InternalNodeManager;
 import io.trino.plugin.memory.MemoryCacheManagerFactory;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.BlockEncodingSerde;
@@ -82,18 +83,24 @@ public class CacheManagerRegistry
     private final Distribution sizeOfRevokedMemoryDistribution = new Distribution();
     private final AtomicInteger nonEmptyRevokeCount = new AtomicInteger();
     private final CacheStats cacheStats;
+    private final InternalNodeManager internalNodeManager;
 
     private volatile CacheManager cacheManager;
     private volatile LocalMemoryContext revocableMemoryContext;
 
     @Inject
-    public CacheManagerRegistry(CacheConfig cacheConfig, LocalMemoryManager localMemoryManager, BlockEncodingSerde blockEncodingSerde, CacheStats cacheStats)
+    public CacheManagerRegistry(CacheConfig cacheConfig, LocalMemoryManager localMemoryManager, BlockEncodingSerde blockEncodingSerde, CacheStats cacheStats, InternalNodeManager internalNodeManager)
     {
-        this(cacheConfig, localMemoryManager, newSingleThreadExecutor(daemonThreadsNamed("cache-manager-registry")), blockEncodingSerde, cacheStats);
+        this(cacheConfig, localMemoryManager, newSingleThreadExecutor(daemonThreadsNamed("cache-manager-registry")), blockEncodingSerde, cacheStats, internalNodeManager);
     }
 
     @VisibleForTesting
-    CacheManagerRegistry(CacheConfig cacheConfig, LocalMemoryManager localMemoryManager, ExecutorService executor, BlockEncodingSerde blockEncodingSerde, CacheStats cacheStats)
+    CacheManagerRegistry(CacheConfig cacheConfig,
+            LocalMemoryManager localMemoryManager,
+            ExecutorService executor,
+            BlockEncodingSerde blockEncodingSerde,
+            CacheStats cacheStats,
+            InternalNodeManager internalNodeManager)
     {
         requireNonNull(cacheConfig, "cacheConfig is null");
         requireNonNull(localMemoryManager, "localMemoryManager is null");
@@ -106,6 +113,7 @@ public class CacheManagerRegistry
         this.executor = executor;
         this.blockEncodingSerde = blockEncodingSerde;
         this.cacheStats = cacheStats;
+        this.internalNodeManager = requireNonNull(internalNodeManager);
     }
 
     public void addCacheManagerFactory(CacheManagerFactory factory)
@@ -173,6 +181,12 @@ public class CacheManagerRegistry
             public BlockEncodingSerde blockEncodingSerde()
             {
                 return blockEncodingSerde;
+            }
+
+            @Override
+            public boolean isCoordinator()
+            {
+                return internalNodeManager.getCurrentNode().isCoordinator();
             }
         };
         CacheManager cacheManager;

@@ -24,6 +24,7 @@ import io.trino.execution.ScheduledSplit;
 import io.trino.memory.LocalMemoryManager;
 import io.trino.memory.NodeMemoryConfig;
 import io.trino.metadata.BlockEncodingManager;
+import io.trino.metadata.InMemoryNodeManager;
 import io.trino.metadata.InternalBlockEncodingSerde;
 import io.trino.metadata.Split;
 import io.trino.metadata.TableHandle;
@@ -106,7 +107,7 @@ public class TestCacheDataOperator
         LocalMemoryManager memoryManager = new LocalMemoryManager(config, DataSize.of(110, MEGABYTE).toBytes());
         CacheConfig cacheConfig = new CacheConfig();
         cacheConfig.setEnabled(true);
-        registry = new CacheManagerRegistry(cacheConfig, memoryManager, new TestingBlockEncodingSerde(), new CacheStats());
+        registry = new CacheManagerRegistry(cacheConfig, memoryManager, new TestingBlockEncodingSerde(), new CacheStats(), new InMemoryNodeManager());
         registry.loadCacheManager();
         TypeManager typeManager = new TestingTypeManager();
         tupleDomainCodec = getTupleDomainJsonCodec(new InternalBlockEncodingSerde(new BlockEncodingManager(), typeManager), typeManager);

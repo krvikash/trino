@@ -24,6 +24,7 @@ import io.trino.execution.ScheduledSplit;
 import io.trino.memory.LocalMemoryManager;
 import io.trino.memory.NodeMemoryConfig;
 import io.trino.metadata.BlockEncodingManager;
+import io.trino.metadata.InMemoryNodeManager;
 import io.trino.metadata.InternalBlockEncodingSerde;
 import io.trino.metadata.Split;
 import io.trino.metadata.TableHandle;
@@ -132,7 +133,7 @@ public class TestCacheDriverFactory
                 .setMaxQueryMemoryPerNode(DataSize.of(32, MEGABYTE));
         CacheConfig cacheConfig = new CacheConfig();
         cacheConfig.setEnabled(true);
-        registry = new CacheManagerRegistry(cacheConfig, new LocalMemoryManager(config, DataSize.of(1024, MEGABYTE).toBytes()), new TestingBlockEncodingSerde(), new CacheStats());
+        registry = new CacheManagerRegistry(cacheConfig, new LocalMemoryManager(config, DataSize.of(1024, MEGABYTE).toBytes()), new TestingBlockEncodingSerde(), new CacheStats(), new InMemoryNodeManager());
         TestCacheManagerFactory cacheManagerFactory = new TestCacheManagerFactory();
         registry.loadCacheManager(cacheManagerFactory, ImmutableMap.of());
         splitCache = cacheManagerFactory.getCacheManager().getSplitCache();

@@ -27,4 +27,9 @@ public interface CacheManagerContext
      * @return {@link BlockEncodingSerde} that {@link CacheManager} can use to compress cached data.
      */
     BlockEncodingSerde blockEncodingSerde();
+
+    default boolean isCoordinator()
+    {
+        return false;
+    }
 }
