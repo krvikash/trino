@@ -251,6 +251,7 @@ public class TestSynthetic
         List<TestFormat> tests = objectMapper.readerFor(new TypeReference<List<TestFormat>>() {})
                 .readValue(new URI(filePath).toURL());
         return tests.stream()
+                .map(testFormat -> TestFormat.builder(testFormat).build(tableType.name()))
                 .filter(TestFormat::pt_enable)
                 .filter(testFormat -> !testFormat.skip())
                 .filter(testFormat -> (testFormat.skip_type() == null) || !testFormat.skip_type().contains(tableType))

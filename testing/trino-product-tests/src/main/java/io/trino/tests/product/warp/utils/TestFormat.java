@@ -17,17 +17,20 @@ import io.trino.plugin.warp.api.warmup.WarmUpType;
 import io.trino.tests.product.warp.utils.syntheticconfig.TableType;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public record TestFormat(String name, int lines, String table_name, List<Column> structure, String data_format, List<WarmupRule> warmup_rules,
                          Map<String, Object> session_properties, String warm_query, boolean skip, boolean pt_enable, boolean skip_caching,
                          List<QueryData> queries_data, WarmTypeForStrings warm_type_for_strings, String description,
                          int expected_warm_failures, Map<String, Long> expected_dictionary_counters, Set<TableType> skip_type,
                          Map<String, Long> iceberg_expected_dictionary_counters, Map<String, Long> dl_expected_dictionary_counters, int split_count,
-                         List<Object> partition_by, List<Object> bucketed_by, int bucket_count, Optional<String> orig_table_name)
+                         List<Object> partition_by, List<Object> bucketed_by, int bucket_count, Optional<String> orig_table_name, Map<String, TestFormat> overriding)
 {
     public record Column(String name, String type, List<Object> args) {}
 
@@ -74,6 +77,7 @@ public record TestFormat(String name, int lines, String table_name, List<Column>
                 .skipType(testFormat.skip_type())
                 .expectedIcebergDictionaryCounters(testFormat.iceberg_expected_dictionary_counters())
                 .expectedDLDictionaryCounters(testFormat.dl_expected_dictionary_counters())
+                .overriding(testFormat.overriding())
                 .origTableName(testFormat.orig_table_name());
     }
 
@@ -168,6 +172,7 @@ public record TestFormat(String name, int lines, String table_name, List<Column>
         private List<Object> bucketedBy;
         private int bucketCount;
         private Optional<String> origTableName = Optional.empty();
+        private Map<String, TestFormat> overriding = new HashMap<>();
 
         private Builder() {}
 
@@ -315,12 +320,71 @@ public record TestFormat(String name, int lines, String table_name, List<Column>
             return this;
         }
 
+        public Builder overriding(Map<String, TestFormat> overriding)
+        {
+            this.overriding = overriding;
+            return this;
+        }
+
         public TestFormat build()
         {
             return new TestFormat(name, lines, tableName, structure, dataFormat, warmupRules, sessionProperties, warmQuery,
                     skip, ptEnable, skipCaching, queriesData, warmTypeForStrings, description,
                     expectedWarmFailures, expectedDictionaryCounters, skipType, expectedIcebergDictionaryCounters,
-                    expectedDLDictionaryCounters, splitCount, partitionBy, bucketedBy, bucketCount, origTableName);
+                    expectedDLDictionaryCounters, splitCount, partitionBy, bucketedBy, bucketCount, origTableName, overriding);
+        }
+
+        public TestFormat build(String overridingKey)
+        {
+            TestFormat testFormat = new TestFormat(name, lines, tableName, structure, dataFormat, warmupRules, sessionProperties, warmQuery,
+                    skip, ptEnable, skipCaching, queriesData, warmTypeForStrings, description,
+                    expectedWarmFailures, expectedDictionaryCounters, skipType, expectedIcebergDictionaryCounters,
+                    expectedDLDictionaryCounters, splitCount, partitionBy, bucketedBy, bucketCount, origTableName, overriding);
+            if (overriding != null) {
+                TestFormat overridingTestFormat = overriding.get(overridingKey);
+                testFormat = mergeTestFormat(testFormat, overridingTestFormat);
+            }
+            return testFormat;
+        }
+
+        private TestFormat mergeTestFormat(TestFormat baseTestFormat, TestFormat overridingTestFormat)
+        {
+            if (overridingTestFormat == null) {
+                return baseTestFormat;
+            }
+            String calculatedName = overridingTestFormat.name == null ? baseTestFormat.name : overridingTestFormat.name;
+            String calculatedWarmQuery = overridingTestFormat.warm_query == null ? baseTestFormat.warm_query : overridingTestFormat.warm_query;
+            int calculatedLines = overridingTestFormat.lines != 0 ? baseTestFormat.lines : overridingTestFormat.lines;
+            String calculatedTableName = overridingTestFormat.table_name == null ? baseTestFormat.table_name : overridingTestFormat.table_name;
+            String calculatedDataFormat = overridingTestFormat.data_format == null ? baseTestFormat.data_format : overridingTestFormat.data_format;
+            Map<String, Object> calculatedSessionProperties = overridingTestFormat.session_properties == null ? baseTestFormat.session_properties : overridingTestFormat.session_properties;
+            Map<String, Long> calculatedExpectedDictionaryCounters = overridingTestFormat.expected_dictionary_counters == null ? baseTestFormat.expected_dictionary_counters : overridingTestFormat.expected_dictionary_counters;
+            int calculatedExpectedWarmFailures = overridingTestFormat.expected_warm_failures != 0 ? baseTestFormat.expected_warm_failures : overridingTestFormat.expected_warm_failures;
+            List<QueryData> queriesData = baseTestFormat.queries_data;
+            if (overridingTestFormat.queries_data != null && !overridingTestFormat.queries_data.isEmpty()) {
+                queriesData = mergeQueriesWithOverrding(queriesData, overridingTestFormat.queries_data);
+            }
+            return new TestFormat(calculatedName, calculatedLines, calculatedTableName, structure, calculatedDataFormat, warmupRules, calculatedSessionProperties, calculatedWarmQuery,
+                    overridingTestFormat.skip, overridingTestFormat.pt_enable, skipCaching, queriesData, warmTypeForStrings, description,
+                    calculatedExpectedWarmFailures, calculatedExpectedDictionaryCounters, skipType, expectedIcebergDictionaryCounters,
+                    expectedDLDictionaryCounters, splitCount, partitionBy, bucketedBy, bucketCount, origTableName, new HashMap<>());
+        }
+
+        private List<QueryData> mergeQueriesWithOverrding(List<QueryData> queriesData, List<QueryData> overridingQueries)
+        {
+            List<QueryData> ret = new ArrayList<>();
+            Map<String, QueryData> overridingQueriesData = overridingQueries.stream().collect(Collectors.toMap(QueryData::query_id, Function.identity()));
+            queriesData.forEach(queryData -> {
+                QueryData overridingQuery = overridingQueriesData.remove(queryData.query_id);
+                if (overridingQuery != null) {
+                    ret.add(overridingQuery);
+                }
+                else {
+                    ret.add(queryData);
+                }
+            });
+            ret.addAll(overridingQueriesData.values());
+            return ret;
         }
     }
 }

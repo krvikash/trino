@@ -2651,8 +2651,18 @@
   },
   {
     "name": "tuples_40keys",
-    "pt_enable": false,
     "lines": 60000000,
+    "overriding": {
+        "warp": {
+            "skip" : true
+        },
+        "warp_iceberg": {
+            "skip" : true
+        },
+        "warp_delta_lake": {
+            "skip" : true
+        }
+    },
     "structure": [
       {
         "name": "int_1",
@@ -10983,7 +10993,17 @@
   },
   {
     "name": "int_array_with_nulls",
-    "pt_enable": false,
+    "overriding": {
+        "warp": {
+            "skip" : true
+        },
+        "warp_iceberg": {
+            "skip" : true
+        },
+        "warp_delta_lake": {
+            "skip" : true
+        }
+    },
     "structure": [
       {
         "name": "genre_id",

@@ -1,0 +1,156 @@
+[
+    {
+        "name": "check_limit",
+        "lines": 100000,
+        "structure": [
+            {
+                "name": "col1_val_0_1",
+                "type": "smallint"
+            },
+            {
+                "name": "col2_val_0_2",
+                "type": "tinyint"
+            },
+            {
+                "name": "col3_val_0_2",
+                "type": "tinyint"
+            }
+        ],
+        "warmup_rules": [
+            {
+                "colNameId": "col1_val_0_1",
+                "predicates": [],
+                "warmUpTypes": [
+                    "WARM_UP_TYPE_DATA",
+                    "WARM_UP_TYPE_BASIC"
+                ]
+            },
+            {
+                "colNameId": "col2_val_0_2",
+                "predicates": [],
+                "warmUpTypes": [
+                    "WARM_UP_TYPE_DATA",
+                    "WARM_UP_TYPE_BASIC"
+                ]
+            },
+            {
+                "colNameId": "col3_val_0_2",
+                "predicates": [],
+                "warmUpTypes": [
+                    "WARM_UP_TYPE_DATA",
+                    "WARM_UP_TYPE_BASIC"
+                ]
+            }
+        ],
+        "overriding": {
+            "iceberg" :{
+                "name" : "overriding-name",
+                "skip": true,
+                "session_properties": {
+                    "enable_import_export": true
+                }
+            },
+            "delta-lake" : {
+                "warm_query": "this is an overriding warm_query",
+                "queries_data": [
+                    {
+                        "query": "this is an overriding query",
+                        "skip_caching": true,
+                        "expected_result": [
+                            1.0
+                        ],
+                        "query_id": "check_limit_1",
+                        "expected_counters": {
+                            "warp_match_columns": 3,
+                            "warp_collect_columns": 0,
+                            "warp_prefilled_collect_columns": 3,
+                            "external_match_columns": 0,
+                            "external_collect_columns": 0
+                        }
+                    },
+                    {
+                        "query": "this is another overriding query",
+                        "skip_caching": true,
+                        "expected_result": [
+                            1.0
+                        ],
+                        "query_id": "additional_query",
+                        "expected_counters": {
+                            "warp_match_columns": 3,
+                            "warp_collect_columns": 0,
+                            "warp_prefilled_collect_columns": 3,
+                            "external_match_columns": 0,
+                            "external_collect_columns": 0
+                        }
+                    }
+                ]
+            }
+        },
+        "session_properties": {
+            "enable_import_export": false
+        },
+        "skip_type": [
+            "warp_iceberg",
+            "warp_delta_lake"
+        ],
+        "warm_query": "select * from check_limit where col1_val_0_1=1 and col2_val_0_2=2 and col3_val_0_2=1",
+        "data": "resources/synthetic/check_limit.jsonl",
+        "pt_enable": true,
+        "queries_data": [
+            {
+                "query": "select avg(I.col1_val_0_1),avg(I.col2_val_0_2),avg(I.col3_val_0_2) from (select * from check_limit where col1_val_0_1=1 and col2_val_0_2=2 and col3_val_0_2=2 limit 1000) as I",
+                "skip_caching": true,
+                "expected_result": [
+                    1.0,
+                    2.0,
+                    2.0
+                ],
+                "query_id": "check_limit_1",
+                "expected_counters": {
+                    "warp_match_columns": 3,
+                    "warp_collect_columns": 0,
+                    "warp_prefilled_collect_columns": 3,
+                    "external_match_columns": 0,
+                    "external_collect_columns": 0
+                }
+            },
+            {
+                "query": "select count(*) from check_limit",
+                "skip_caching": true,
+                "expected_result": [
+                    100000
+                ],
+                "query_id": "check_limit_2",
+                "expected_counters": {
+                    "warp_match_columns": 0,
+                    "warp_collect_columns": 0,
+                    "empty_collect_columns": 1,
+                    "external_match_columns": 0,
+                    "external_collect_columns": 0
+                }
+            }
+        ],
+        "view_properties": {
+            "view_name": "view_check_limit",
+            "create_view_query": "select avg(col1_val_0_1) / 2 as col_1, min(col2_val_0_2) as col_2 from check_limit where col3_val_0_2 <= 10",
+            "queries_data": [
+                {
+                    "query": "select * from view_check_limit",
+                    "query_id": "view_check_limit_01",
+                    "expected_result": [
+                        [
+                            0.250835,
+                            0
+                        ]
+                    ],
+                    "expected_counters": {
+                        "warp_match_columns": 1,
+                        "warp_collect_columns": 2,
+                        "external_match_columns": 0,
+                        "external_collect_columns": 0
+                    }
+                }
+            ]
+        }
+    }
+]
