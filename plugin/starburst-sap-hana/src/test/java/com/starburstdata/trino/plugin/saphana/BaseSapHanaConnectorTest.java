@@ -11,7 +11,10 @@ package com.starburstdata.trino.plugin.saphana;
 
 import com.google.common.collect.ImmutableList;
 import io.trino.Session;
+import io.trino.operator.OperatorStats;
 import io.trino.plugin.jdbc.BaseJdbcConnectorTest;
+import io.trino.spi.QueryId;
+import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
 import io.trino.testing.sql.SqlExecutor;
 import io.trino.testing.sql.TestTable;
@@ -21,6 +24,8 @@ import java.util.Optional;
 import java.util.OptionalInt;
 
 import static com.google.common.base.Verify.verify;
+import static com.google.common.collect.MoreCollectors.onlyElement;
+import static io.trino.testing.QueryAssertions.assertEqualsIgnoreOrder;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static java.lang.String.format;
 import static java.util.Locale.ENGLISH;
@@ -384,6 +389,57 @@ public abstract class BaseSapHanaConnectorTest
     public void testInsertIntoNotNullColumn()
     {
         abort("https://starburstdata.atlassian.net/browse/SEP-9684");
+    }
+
+    @Test
+    void testPartitionsParallelism()
+    {
+        String tableName = "tpch.test_partitions_parallelism_" + randomNameSuffix();
+
+        server.execute("CREATE COLUMN TABLE " + tableName + "(a INT) PARTITION BY ROUNDROBIN PARTITIONS 2");
+
+        // TODO The number of partitions is always 2 regardless of the number of rows. Investigate if there is a way to skip empty partitions.
+        verifySplitCount("SELECT * FROM " + tableName, 2);
+
+        server.execute("INSERT INTO " + tableName + " VALUES (1)");
+        verifySplitCount("SELECT * FROM " + tableName, 2);
+
+        server.execute("INSERT INTO " + tableName + " VALUES (2)");
+        verifySplitCount("SELECT * FROM " + tableName, 2);
+
+        server.execute("INSERT INTO " + tableName + " VALUES (3)");
+        verifySplitCount("SELECT * FROM " + tableName, 2);
+
+        server.execute("DROP TABLE " + tableName);
+    }
+
+    private void verifySplitCount(String query, int expectedSplitCount)
+    {
+        Session partitionsParallelism = Session.builder(getSession())
+                .setCatalogSessionProperty("saphana", "parallelism_type", "PARTITIONS")
+                .build();
+
+        Session noParallelism = Session.builder(getSession())
+                .setCatalogSessionProperty("saphana", "parallelism_type", "NO_PARALLELISM")
+                .build();
+
+        QueryRunner.MaterializedResultWithPlan partitionsParallelismResult = getDistributedQueryRunner().executeWithPlan(partitionsParallelism, query);
+        assertEqualsIgnoreOrder(partitionsParallelismResult.result().getMaterializedRows(), computeActual(noParallelism, query).getMaterializedRows());
+
+        OperatorStats operatorStats = getTableScanOperatorStats(partitionsParallelismResult.queryId());
+        assertThat(operatorStats.getTotalDrivers()).isEqualTo(expectedSplitCount);
+    }
+
+    private OperatorStats getTableScanOperatorStats(QueryId queryId)
+    {
+        return getDistributedQueryRunner().getCoordinator()
+                .getQueryManager()
+                .getFullQueryInfo(queryId)
+                .getQueryStats()
+                .getOperatorSummaries()
+                .stream()
+                .filter(summary -> summary.getOperatorType().startsWith("TableScan"))
+                .collect(onlyElement());
     }
 
     @Override

@@ -12,6 +12,7 @@ package com.starburstdata.trino.plugin.saphana;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import io.airlift.json.JsonCodec;
@@ -24,11 +25,14 @@ import io.trino.plugin.jdbc.BaseJdbcClient;
 import io.trino.plugin.jdbc.BaseJdbcConfig;
 import io.trino.plugin.jdbc.ColumnMapping;
 import io.trino.plugin.jdbc.ConnectionFactory;
+import io.trino.plugin.jdbc.DefaultQueryBuilder;
 import io.trino.plugin.jdbc.DoubleWriteFunction;
+import io.trino.plugin.jdbc.JdbcClient;
 import io.trino.plugin.jdbc.JdbcColumnHandle;
 import io.trino.plugin.jdbc.JdbcExpression;
 import io.trino.plugin.jdbc.JdbcJoinCondition;
 import io.trino.plugin.jdbc.JdbcSortItem;
+import io.trino.plugin.jdbc.JdbcSplit;
 import io.trino.plugin.jdbc.JdbcStatisticsConfig;
 import io.trino.plugin.jdbc.JdbcTableHandle;
 import io.trino.plugin.jdbc.JdbcTypeHandle;
@@ -410,6 +414,25 @@ public class SapHanaClient
     protected boolean isSupportedJoinCondition(ConnectorSession session, JdbcJoinCondition joinCondition)
     {
         return joinCondition.getOperator() != JoinCondition.Operator.IDENTICAL;
+    }
+
+    @Override
+    public PreparedStatement buildSql(ConnectorSession session, Connection connection, JdbcSplit split, JdbcTableHandle table, List<JdbcColumnHandle> columns)
+            throws SQLException
+    {
+        SapHanaQueryBuilder queryBuilder = new SapHanaQueryBuilder(queryModifier, ((SapHanaSplit) split).getPartitionId());
+        PreparedQuery preparedQuery = queryBuilder.prepareSelectQuery(
+                this,
+                session,
+                connection,
+                table.getRelationHandle(),
+                Optional.empty(),
+                columns,
+                ImmutableMap.of(),
+                table.getConstraint(),
+                getAdditionalPredicate(table.getConstraintExpressions(), split.getAdditionalPredicate()));
+        preparedQuery = applyQueryTransformations(table, preparedQuery);
+        return queryBuilder.prepareStatement(this, session, connection, preparedQuery, Optional.empty());
     }
 
     @Override
@@ -1171,5 +1194,25 @@ public class SapHanaClient
     protected Optional<List<String>> getTableTypes()
     {
         return Optional.of(ImmutableList.of("TABLE", "VIEW", "CALC VIEW", "JOIN VIEW", "OLAP VIEW"));
+    }
+
+    private static class SapHanaQueryBuilder
+            extends DefaultQueryBuilder
+    {
+        private final Optional<Integer> partitionId;
+
+        private SapHanaQueryBuilder(RemoteQueryModifier queryModifier, Optional<Integer> partitionId)
+        {
+            super(queryModifier);
+            this.partitionId = requireNonNull(partitionId, "partitionId is null");
+        }
+
+        @Override
+        protected String getRelation(JdbcClient client, RemoteTableName remoteTableName)
+        {
+            String quotedTableName = super.getRelation(client, remoteTableName);
+            return partitionId.map(partition -> "(SELECT * FROM %s PARTITION (%s))".formatted(quotedTableName, partition)) // wrap subquery in parentheses
+                    .orElse(quotedTableName);
+        }
     }
 }
