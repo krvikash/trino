@@ -108,7 +108,8 @@ public class PrintMetricsTimerTask
         metricsManager.getAll().forEach((statsGroup, stats) -> {
             Map<Object, Object> statsMap = stats.printStatsMap();
             if (!statsMap.isEmpty()) {
-                res.put(statsGroup, statsMap);
+                String statsGroupName = statsGroup.replace("_" + catalogNameProvider.get(), "");
+                res.put(statsGroupName, statsMap);
             }
         });
         return res;
