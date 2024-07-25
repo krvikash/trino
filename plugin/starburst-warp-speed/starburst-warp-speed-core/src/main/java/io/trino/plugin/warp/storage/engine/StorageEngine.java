@@ -78,8 +78,7 @@ public interface StorageEngine
         throw new UnsupportedOperationException();
     }
 
-    default long warmupElementClose(long weCookie,
-            int recTypeCode,
+    default long warmupElementClose(int recTypeCode,
             int recTypeLength,
             int warmUpType,
             int numChunks,

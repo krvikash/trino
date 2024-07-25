@@ -529,7 +529,6 @@ public class StorageWriterService
             }
             else {
                 outFileParams[WeProperties.WE_PROPERTIES_END_OFFSET.ordinal()] = (int) storageEngine.warmupElementClose(
-                        storageWriterContext.getWeCookie(),
                         storageWriterContext.getRecTypeCode(),
                         storageWriterContext.getRecTypeLength(),
                         storageWriterContext.getWarmUpType(),

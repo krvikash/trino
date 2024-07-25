@@ -129,8 +129,7 @@ public class NativeStorageEngine
     public native long warmupElementOpen(long context, int recTypeCode, int recTypeLength, int warmUpType);
 
     @Override
-    public native long warmupElementClose(long weCookie,
-            int recTypeCode,
+    public native long warmupElementClose(int recTypeCode,
             int recTypeLength,
             int warmUpType,
             int numChunks,

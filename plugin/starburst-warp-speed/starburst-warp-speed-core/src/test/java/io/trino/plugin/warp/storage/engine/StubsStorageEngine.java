@@ -102,8 +102,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public long warmupElementClose(long weCookie,
-            int recTypeCode,
+    public long warmupElementClose(int recTypeCode,
             int recTypeLength,
             int warmUpType,
             int numChunks,
