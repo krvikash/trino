@@ -43,6 +43,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
@@ -596,6 +597,27 @@ public class TestDynamicPageFilter
         public OptionalLong getPreferredDynamicFilterTimeout()
         {
             return OptionalLong.empty();
+        }
+
+        @Override
+        public boolean equals(Object o)
+        {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            TestingDynamicFilter that = (TestingDynamicFilter) o;
+            return futuresLeft == that.futuresLeft
+                    && Objects.equals(isBlocked, that.isBlocked)
+                    && Objects.equals(currentPredicate, that.currentPredicate);
+        }
+
+        @Override
+        public int hashCode()
+        {
+            return Objects.hash(isBlocked, currentPredicate, futuresLeft);
         }
     }
 }
