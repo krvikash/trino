@@ -427,7 +427,7 @@ public class LocalExecutionPlanner
     private final PlannerContext plannerContext;
     private final Metadata metadata;
     private final Optional<ExplainAnalyzeContext> explainAnalyzeContext;
-    private final PageSourceManager pageSourceProvider;
+    private final PageSourceManager pageSourceManager;
     private final CacheManagerRegistry cacheManagerRegistry;
     private final JsonCodec<TupleDomain> tupleDomainCodec;
     private final AlternativeChooser alternativeChooser;
@@ -486,7 +486,7 @@ public class LocalExecutionPlanner
     public LocalExecutionPlanner(
             PlannerContext plannerContext,
             Optional<ExplainAnalyzeContext> explainAnalyzeContext,
-            PageSourceManager pageSourceProvider,
+            PageSourceManager pageSourceManager,
             AlternativeChooser alternativeChooser,
             IndexManager indexManager,
             NodePartitioningManager nodePartitioningManager,
@@ -518,7 +518,7 @@ public class LocalExecutionPlanner
         this.plannerContext = requireNonNull(plannerContext, "plannerContext is null");
         this.metadata = plannerContext.getMetadata();
         this.explainAnalyzeContext = requireNonNull(explainAnalyzeContext, "explainAnalyzeContext is null");
-        this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
+        this.pageSourceManager = requireNonNull(pageSourceManager, "pageSourceManager is null");
         this.alternativeChooser = requireNonNull(alternativeChooser, "alternativeChooser is null");
         this.indexManager = requireNonNull(indexManager, "indexManager is null");
         this.nodePartitioningManager = requireNonNull(nodePartitioningManager, "nodePartitioningManager is null");
@@ -772,7 +772,7 @@ public class LocalExecutionPlanner
                 Optional<CacheDriverFactory> cacheDriverFactory = context.getCacheContext()
                         .map(cacheContext -> new CacheDriverFactory(
                                 taskContext.getSession(),
-                                pageSourceProvider,
+                                pageSourceManager,
                                 cacheManagerRegistry,
                                 tupleDomainCodec,
                                 cacheContext.getOriginalTableHandle(),
@@ -2148,7 +2148,7 @@ public class LocalExecutionPlanner
                             context.getNextOperatorId(),
                             planNodeId,
                             sourceNode.getId(),
-                            pageSourceProvider,
+                            pageSourceManager,
                             cursorProcessor,
                             pageProcessor,
                             table,
@@ -2282,7 +2282,7 @@ public class LocalExecutionPlanner
             }
 
             DynamicFilter dynamicFilter = getDynamicFilter(node, filterExpression, context);
-            OperatorFactory operatorFactory = new TableScanOperatorFactory(context.getNextOperatorId(), planNodeId, node.getId(), pageSourceProvider, node.getTable(), columns, dynamicFilter);
+            OperatorFactory operatorFactory = new TableScanOperatorFactory(context.getNextOperatorId(), planNodeId, node.getId(), pageSourceManager, node.getTable(), columns, dynamicFilter);
             return new PhysicalOperation(operatorFactory, makeLayout(node));
         }
 
