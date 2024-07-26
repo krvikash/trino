@@ -10,9 +10,9 @@ ARG CHOWN="${PROJECT_NAME}:${PROJECT_NAME}"
 RUN \
     set -xeu && \
     apt-get update -q && \
-    apt-get install -q -y python2 && \
+    apt-get install -q -y python3 && \
     apt-get install -q -y curl && \
-    update-alternatives --install /usr/bin/python python /usr/bin/python2 1 && \
+    update-alternatives --install /usr/bin/python python /usr/bin/python3 1 && \
     rm -rf /var/lib/apt/lists/*
 
 # Add project files
