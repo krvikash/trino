@@ -17,8 +17,8 @@ RUN \
 # Add project files
 ADD target/${MODULE_NAME}-${PROJECT_VERSION}.tar.gz /tmp/${PROJECT_NAME}
 RUN \
-    groupadd ${PROJECT_NAME} --gid 1000 && \
-    useradd ${PROJECT_NAME} --uid 1000 --gid 1000 && \
+    groupadd ${PROJECT_NAME} --gid 1100 && \
+    useradd ${PROJECT_NAME} --uid 1100 --gid 1100 && \
     mkdir -p /opt/app && \
     chown -R "${CHOWN}" /opt/app && \
     mv /tmp/${PROJECT_NAME}/${MODULE_NAME}-${PROJECT_VERSION}/* /opt/app && \
