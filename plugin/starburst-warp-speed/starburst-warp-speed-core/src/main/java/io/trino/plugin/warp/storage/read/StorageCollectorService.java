@@ -15,6 +15,7 @@ package io.trino.plugin.warp.storage.read;
 
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
+import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.gen.constants.QueryResultType;
 import io.trino.plugin.warp.gen.constants.RecordBufferState;
 import io.trino.plugin.warp.gen.constants.RecordIndexListHeader;
@@ -62,6 +63,7 @@ public class StorageCollectorService
     private final StorageEngineConstants storageEngineConstants;
     private final BlockFillersFactory blockFillersFactory;
     private final LazyCollectTxService lazyCollectTxService;
+    private final GlobalConfig globalConfig;
 
     @Inject
     StorageCollectorService(
@@ -73,7 +75,8 @@ public class StorageCollectorService
             CollectTxService collectTxService,
             LazyCollectTxService lazyCollectTxService,
             StorageEngineConstants storageEngineConstants,
-            BlockFillersFactory blockFillersFactory)
+            BlockFillersFactory blockFillersFactory,
+            GlobalConfig globalConfig)
     {
         this.storageEngine = requireNonNull(storageEngine);
         this.collectTxService = requireNonNull(collectTxService);
@@ -85,6 +88,7 @@ public class StorageCollectorService
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.blockFillersFactory = requireNonNull(blockFillersFactory);
         this.lazyCollectMaxLenSupported = storageEngineConstants.getFixedLengthStringLimit();
+        this.globalConfig = globalConfig;
     }
 
     // returns indication if anything is collected in the buffer and if the buffer is full
@@ -182,7 +186,8 @@ public class StorageCollectorService
                     lazyCollectTxService,
                     lazyCollectorArgs,
                     dictionaryStats,
-                    stats));
+                    stats,
+                    globalConfig));
         }
         stats.addlazy_collect_total_blocks(collectElementsParamsList.size());
     }

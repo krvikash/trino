@@ -15,9 +15,11 @@
 package io.trino.plugin.warp.storage.read;
 
 import io.airlift.log.Logger;
+import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.gen.constants.QueryResultType;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
+import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.LazyBlockLoader;
@@ -32,18 +34,25 @@ public class LazyCollectorLoader
     private final LazyCollectorArgs lazyCollectorArgs;
     private final DispatcherPageSourceStats dispatcherPageSourceStats;
     private final DictionaryStats dictionaryStats;
+    private final ShapingLogger shapingLogger;
     private boolean loaded;
 
     public LazyCollectorLoader(
             LazyCollectTxService collectTxService,
             LazyCollectorArgs lazyCollectorArgs,
             DictionaryStats varadaStatsDictionary,
-            DispatcherPageSourceStats dispatcherPageSourceStats)
+            DispatcherPageSourceStats dispatcherPageSourceStats,
+            GlobalConfig globalConfig)
     {
         this.collectTxService = collectTxService;
         this.dispatcherPageSourceStats = dispatcherPageSourceStats;
         this.dictionaryStats = varadaStatsDictionary;
         this.lazyCollectorArgs = lazyCollectorArgs;
+        this.shapingLogger = ShapingLogger.getInstance(
+                logger,
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
     }
 
     @Override
@@ -55,8 +64,9 @@ public class LazyCollectorLoader
         Block retBlock;
         int chunkToCollect = lazyCollectorArgs.chunkIx();
         int rowsToCollect = lazyCollectorArgs.numToCollect();
+        LazyCollectOpenResult collectOpenResult = null;
         try {
-            LazyCollectOpenResult collectOpenResult = collectTxService.collectOpen(rowsToCollect, lazyCollectorArgs);
+            collectOpenResult = collectTxService.collectOpen(rowsToCollect, lazyCollectorArgs);
             collectTxService.prepareNextChunk(chunkToCollect,
                     rowsToCollect,
                     false,
@@ -74,7 +84,8 @@ public class LazyCollectorLoader
             dispatcherPageSourceStats.addlazy_collect_loaded_blocks(1);
         }
         catch (Exception e) {
-            logger.error(e, "lazy collect failed chunkIndex %d numToCollect %d", chunkToCollect, rowsToCollect);
+            shapingLogger.error(e, "lazy collect failed LazyCollectorArgs %s collectParams %s, collectOpenResults %s",
+                    lazyCollectorArgs, lazyCollectorArgs.collectParams(), collectOpenResult);
             throw e;
         }
         return retBlock;
