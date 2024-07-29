@@ -31,7 +31,7 @@ import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MILLIS;
 public class CachingPlugin
 {
     protected Module storageEngineModule;
-    protected Module cloudVendorModule;
+    protected Module proxyModule;
 
     private static void verifyTypeSizes()
     {
@@ -66,18 +66,25 @@ public class CachingPlugin
 
     public DispatcherConnectorFactory getConnectorFactory()
     {
-        return new DispatcherConnectorFactory(storageEngineModule, cloudVendorModule);
+        return new DispatcherConnectorFactory(storageEngineModule, proxyModule);
     }
 
     public DispatcherCacheManagerFactory getCacheManagerFactory()
     {
-        return new DispatcherCacheManagerFactory(storageEngineModule, cloudVendorModule);
+        return new DispatcherCacheManagerFactory(storageEngineModule);
     }
 
     @VisibleForTesting
     public CachingPlugin withStorageEngineModule(Module module)
     {
         this.storageEngineModule = module;
+        return this;
+    }
+
+    @VisibleForTesting
+    public CachingPlugin withProxyModule(Module module)
+    {
+        this.proxyModule = module;
         return this;
     }
 

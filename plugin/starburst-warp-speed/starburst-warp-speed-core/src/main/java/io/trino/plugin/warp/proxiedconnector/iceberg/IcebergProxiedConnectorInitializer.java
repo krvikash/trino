@@ -41,7 +41,7 @@ public class IcebergProxiedConnectorInitializer
     }
 
     @Override
-    public Connector create(String catalogName, Map<String, String> config, ConnectorContext context)
+    public Connector create(String catalogName, Map<String, String> config, ConnectorContext context, Optional<Module> optionalProxyModule)
     {
         try {
             Map<String, String> icebergConfig = getIcebergFilteredConfig(config);

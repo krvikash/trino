@@ -99,19 +99,16 @@ public class DispatcherCacheManagerModule
     private final boolean isCoordinator;
     private Map<String, String> config;
     private final Optional<Module> storageEngineModule;
-    private final Optional<Module> cloudVendorModule;
 
     public DispatcherCacheManagerModule(String cacheManagerName,
             Map<String, String> config,
             Module storageEngineModule,
-            Module cloudVendorModule,
             boolean isCoordinator)
     {
         this.cacheManagerName = cacheManagerName;
         this.isCoordinator = isCoordinator;
         withConfig(config);
         this.storageEngineModule = Optional.ofNullable(storageEngineModule);
-        this.cloudVendorModule = Optional.ofNullable(cloudVendorModule);
     }
 
     @Override
@@ -141,7 +138,7 @@ public class DispatcherCacheManagerModule
         jsonBinder(binder).addDeserializerBinding(Block.class).to(BlockJsonSerde.Deserializer.class);
         binder.bind(ObjectMapperProvider.class);
         binder.install(storageEngineModule.orElseGet(() -> new WarpNativeStorageEngineModule(context, config)));
-        binder.install(cloudVendorModule.orElse(CloudVendorModule.getModule(context, ForWarp.class, cacheManagerName, config)));
+        binder.install(CloudVendorModule.getModule(context, ForWarp.class, cacheManagerName, config));
 
         binder.bind(AttachDictionaryService.class);
         binder.bind(BlockAppenderFactory.class);

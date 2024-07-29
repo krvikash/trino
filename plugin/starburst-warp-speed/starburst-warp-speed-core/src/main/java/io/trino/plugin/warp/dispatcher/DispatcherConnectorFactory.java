@@ -31,12 +31,12 @@ public class DispatcherConnectorFactory
 {
     public static final String DISPATCHER_CONNECTOR_NAME = "warp_speed";
     private final Module storageEngineModule;
-    private final Module amazonModule;
+    private final Module proxyModule;
 
-    public DispatcherConnectorFactory(Module storageEngineModule, Module amazonModule)
+    public DispatcherConnectorFactory(Module storageEngineModule, Module proxyModule)
     {
         this.storageEngineModule = storageEngineModule;
-        this.amazonModule = amazonModule;
+        this.proxyModule = proxyModule;
     }
 
     public Connector create(
@@ -50,6 +50,7 @@ public class DispatcherConnectorFactory
             ClassLoader classLoader = this.getClass().getClassLoader();
             // use the class instance from InternalDispatcherConnectorFactory's classloader
             Class<?> moduleClass = classLoader.loadClass(Module.class.getName());
+            Class<?> optionalClass = classLoader.loadClass(Optional.class.getName());
 
             Optional<List<Object>> optionalModuleInstances =
                     optionalModules.map(classes -> classes.stream()
@@ -73,7 +74,7 @@ public class DispatcherConnectorFactory
                             Optional.class,
                             Map.class,
                             moduleClass,
-                            moduleClass,
+                            optionalClass,
                             ConnectorContext.class)
                     .invoke(null,
                             catalogName,
@@ -90,7 +91,7 @@ public class DispatcherConnectorFactory
                                         }
                                     })),
                             storageEngineModule,
-                            amazonModule,
+                            Optional.ofNullable(proxyModule),
                             context);
         }
         catch (InvocationTargetException e) {

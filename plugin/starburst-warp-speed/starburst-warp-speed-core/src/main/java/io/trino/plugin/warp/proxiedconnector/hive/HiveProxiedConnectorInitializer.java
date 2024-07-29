@@ -41,7 +41,7 @@ public class HiveProxiedConnectorInitializer
     }
 
     @Override
-    public Connector create(String catalogName, Map<String, String> config, ConnectorContext context)
+    public Connector create(String catalogName, Map<String, String> config, ConnectorContext context, Optional<Module> optionalProxyModule)
     {
         try {
             // copy from HiveConnectorFactory::create - hive create a new classloader when calling the create method. we want to use the same classloader as the dispatcher

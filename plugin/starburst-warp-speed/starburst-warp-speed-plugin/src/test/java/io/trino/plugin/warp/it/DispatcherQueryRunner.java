@@ -48,7 +48,7 @@ public class DispatcherQueryRunner
     private DispatcherQueryRunner() {}
 
     public static QueryRunner createQueryRunner(Module storageEngineModule,
-            Optional<Module> additionalModule,
+            Optional<Module> optionalProxyModule,
             int numOfNodes,
             Map<String, String> coordinatorProperties,
             Map<String, String> warpConfig,
@@ -91,18 +91,18 @@ public class DispatcherQueryRunner
                 .buildOrThrow();
         QueryRunner queryRunner;
         try {
-            queryRunner = createQueryRunner(storageEngineModule, additionalModule, additionalCatalogConfig, connectorName, catalogName, numOfNodes, coordinatorProperties, proxiedPlugin, extraConfigProperties);
+            queryRunner = createQueryRunner(storageEngineModule, optionalProxyModule, additionalCatalogConfig, connectorName, catalogName, numOfNodes, coordinatorProperties, proxiedPlugin, extraConfigProperties);
         }
         catch (Exception io) {
             logger.error(io, "probably port already in use");
-            queryRunner = createQueryRunner(storageEngineModule, additionalModule, additionalCatalogConfig, connectorName, catalogName, numOfNodes, coordinatorProperties, proxiedPlugin, extraConfigProperties);
+            queryRunner = createQueryRunner(storageEngineModule, optionalProxyModule, additionalCatalogConfig, connectorName, catalogName, numOfNodes, coordinatorProperties, proxiedPlugin, extraConfigProperties);
             logger.info("GOOD FOR US - MANAGED TO RETRY AFTER 'Failed to bind' exception");
         }
         return queryRunner;
     }
 
     private static QueryRunner createQueryRunner(Module storageEngineModule,
-            Optional<Module> additionalModule,
+            Optional<Module> optionalProxyModule,
             Map<String, String> additionalCatalogConfig,
             String connectorName,
             String catalogName,
@@ -122,12 +122,13 @@ public class DispatcherQueryRunner
                         .put("query.min-schedule-split-batch-size", "2")
                         .putAll(extraConfigProperties)
                         .buildKeepingLast());
-        additionalModule.ifPresent(queryRunnerBuilder::setAdditionalModule);
+
         DistributedQueryRunner queryRunner = queryRunnerBuilder.build();
 
         try {
-            CachingPlugin cachingPlugin = (CachingPlugin) proxiedPlugin;
-            cachingPlugin.withStorageEngineModule(storageEngineModule);
+            ((CachingPlugin) proxiedPlugin)
+                    .withStorageEngineModule(storageEngineModule)
+                    .withProxyModule(optionalProxyModule.orElse(null));
 
             queryRunner.installPlugin(proxiedPlugin);
 

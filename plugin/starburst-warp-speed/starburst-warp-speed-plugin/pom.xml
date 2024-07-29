@@ -133,6 +133,18 @@
 
         <dependency>
             <groupId>io.trino</groupId>
+            <artifactId>trino-delta-lake</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-filesystem</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
             <artifactId>trino-hive</artifactId>
             <scope>runtime</scope>
         </dependency>
@@ -178,6 +190,13 @@
             <artifactId>starburst-warp-speed-core</artifactId>
             <version>${project.version}</version>
             <classifier>tests</classifier>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-delta-lake</artifactId>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>

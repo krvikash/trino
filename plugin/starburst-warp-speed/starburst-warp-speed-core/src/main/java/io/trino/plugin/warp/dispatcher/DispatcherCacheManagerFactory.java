@@ -30,12 +30,10 @@ public class DispatcherCacheManagerFactory
 {
     public static final String DISPATCHER_CACHE_MANAGER_NAME = "warp_cache";
     private final Module storageEngineModule;
-    private final Module cloudVendorModule;
 
-    public DispatcherCacheManagerFactory(Module storageEngineModule, Module cloudVendorModule)
+    public DispatcherCacheManagerFactory(Module storageEngineModule)
     {
         this.storageEngineModule = storageEngineModule;
-        this.cloudVendorModule = cloudVendorModule;
     }
 
     public CacheManager create(Map<String, String> config,
@@ -68,9 +66,8 @@ public class DispatcherCacheManagerFactory
                             Map.class,
                             Optional.class,
                             moduleClass,
-                            moduleClass,
                             CacheManagerContext.class)
-                    .invoke(null, DISPATCHER_CACHE_MANAGER_NAME, config, optionalModuleInstances, storageEngineModule, cloudVendorModule, context);
+                    .invoke(null, DISPATCHER_CACHE_MANAGER_NAME, config, optionalModuleInstances, storageEngineModule, context);
         }
         catch (InvocationTargetException e) {
             Throwable targetException = e.getTargetException();

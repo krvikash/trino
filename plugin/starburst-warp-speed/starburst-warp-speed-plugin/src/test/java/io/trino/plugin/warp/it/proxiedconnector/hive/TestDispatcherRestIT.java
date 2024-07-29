@@ -108,7 +108,8 @@ public class TestDispatcherRestIT
             throws Exception
     {
         return DispatcherQueryRunner.createQueryRunner(new WarpStubsStorageEngineModule(),
-                Optional.empty(), 2,
+                Optional.empty(),
+                2,
                 Map.of(),
                 Map.of("http-server.log.enabled", "false",
                         USE_HTTP_SERVER_PORT, "false",

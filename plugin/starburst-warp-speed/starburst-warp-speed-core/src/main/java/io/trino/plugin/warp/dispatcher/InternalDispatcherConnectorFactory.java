@@ -62,7 +62,7 @@ public class InternalDispatcherConnectorFactory
             Optional<List<Module>> optionalModules,
             Map<String, ProxiedConnectorInitializer> proxiedConnectorInitializerMap,
             Module storageEngineModule,
-            Module cloudVendorModule,
+            Optional<Module> optionalProxyModule,
             ConnectorContext context)
     {
         config = ConfigurationUtils.replaceEnvironmentVariables(config);
@@ -81,12 +81,11 @@ public class InternalDispatcherConnectorFactory
 
         String proxiedConnectorName = warpConfig.get(ProxiedConnectorConfig.PROXIED_CONNECTOR);
         ProxiedConnectorInitializer proxiedConnectorInitializer = getProxiedConnectorInitializer(proxiedConnectorName, proxiedConnectorInitializerMap);
-        Connector proxiedConnector = proxiedConnectorInitializer.create(catalogName, config, context);
+        Connector proxiedConnector = proxiedConnectorInitializer.create(catalogName, config, context, optionalProxyModule);
         List<Module> modules = new ArrayList<>();
         modules.addAll(asList(
                 new WarpModules(catalogName, warpConfig, context)
-                        .withStorageEngineModule(storageEngineModule)
-                        .withCloudVendorModule(cloudVendorModule),
+                        .withStorageEngineModule(storageEngineModule),
                 new EventModule(),
                 new MBeanServerModule(),
                 new MBeanModule(),

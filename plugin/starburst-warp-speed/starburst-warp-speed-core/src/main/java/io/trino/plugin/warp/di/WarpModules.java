@@ -63,10 +63,4 @@ public class WarpModules
         this.storageEngineModule = Optional.ofNullable(module);
         return this;
     }
-
-    public WarpModules withCloudVendorModule(Module module)
-    {
-        this.cloudVendorModule = Optional.ofNullable(module);
-        return this;
-    }
 }

@@ -47,7 +47,6 @@ public class InternalDispatcherCacheManagerFactory
             Map<String, String> config,
             Optional<List<Module>> optionalModules,
             Module storageEngineModule,
-            Module cloudVendorModule,
             CacheManagerContext context)
     {
         List<Module> modules;
@@ -56,7 +55,7 @@ public class InternalDispatcherCacheManagerFactory
                 new EventModule(),
                 new MBeanServerModule(),
                 new MBeanModule(),
-                new DispatcherCacheManagerModule(cacheManagerName, config, storageEngineModule, cloudVendorModule, isCoordinator),
+                new DispatcherCacheManagerModule(cacheManagerName, config, storageEngineModule, isCoordinator),
                 new CacheManagerModule(context, isCoordinator)));
         optionalModules.ifPresent(modules::addAll);
 
