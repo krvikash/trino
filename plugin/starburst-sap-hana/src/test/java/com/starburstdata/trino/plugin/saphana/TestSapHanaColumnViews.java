@@ -10,7 +10,6 @@
 package com.starburstdata.trino.plugin.saphana;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.MaterializedResult;
@@ -22,7 +21,6 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
 
-import static com.starburstdata.trino.plugin.saphana.SapHanaQueryRunner.createSapHanaQueryRunner;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.VarcharType.createVarcharType;
@@ -40,16 +38,13 @@ public class TestSapHanaColumnViews
             throws Exception
     {
         server = closeAfterClass(TestingSapHanaServer.create());
-        return createSapHanaQueryRunner(
-                server,
-                ImmutableMap.<String, String>builder()
-                        .put("metadata.cache-ttl", "0m")
-                        .put("metadata.cache-missing", "false")
-                        // SAP Hana creates mixed case names for column views by default
-                        .put("case-insensitive-name-matching", "true")
-                        .buildOrThrow(),
-                ImmutableMap.of(),
-                ImmutableList.of(NATION));
+        return SapHanaQueryRunner.builder(server)
+                .addConnectorProperty("metadata.cache-ttl", "0m")
+                .addConnectorProperty("metadata.cache-missing", "false")
+                // SAP Hana creates mixed case names for column views by default
+                .addConnectorProperty("case-insensitive-name-matching", "true")
+                .setInitialTables(ImmutableList.of(NATION))
+                .build();
     }
 
     @Test

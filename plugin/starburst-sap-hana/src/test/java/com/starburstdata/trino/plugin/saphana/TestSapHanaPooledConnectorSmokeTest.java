@@ -9,13 +9,9 @@
  */
 package com.starburstdata.trino.plugin.saphana;
 
-import com.google.common.collect.ImmutableMap;
 import io.trino.testing.BaseConnectorSmokeTest;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
-import io.trino.tpch.TpchTable;
-
-import static com.starburstdata.trino.plugin.saphana.SapHanaQueryRunner.createSapHanaQueryRunner;
 
 public class TestSapHanaPooledConnectorSmokeTest
         extends BaseConnectorSmokeTest
@@ -25,16 +21,12 @@ public class TestSapHanaPooledConnectorSmokeTest
             throws Exception
     {
         TestingSapHanaServer server = closeAfterClass(TestingSapHanaServer.create());
-        return createSapHanaQueryRunner(
-                server,
-                ImmutableMap.<String, String>builder()
-                        .put("connection-pool.enabled", "true")
-                        .buildOrThrow(),
-                ImmutableMap.<String, String>builder()
-                        .put("scale-writers", "false")
-                        .put("task.scale-writers.enabled", "false")
-                        .buildOrThrow(),
-                TpchTable.getTables());
+        return SapHanaQueryRunner.builder(server)
+                .addConnectorProperty("connection-pool.enabled", "true")
+                .addExtraProperty("scale-writers", "false")
+                .addExtraProperty("task.scale-writers.enabled", "false")
+                .setInitialTables(REQUIRED_TPCH_TABLES)
+                .build();
     }
 
     @Override

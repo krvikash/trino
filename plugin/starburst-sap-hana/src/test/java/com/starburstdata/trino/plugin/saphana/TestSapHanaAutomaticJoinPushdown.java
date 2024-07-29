@@ -12,10 +12,6 @@ package com.starburstdata.trino.plugin.saphana;
 import io.trino.plugin.jdbc.BaseAutomaticJoinPushdownTest;
 import io.trino.testing.QueryRunner;
 
-import java.util.List;
-import java.util.Map;
-
-import static com.starburstdata.trino.plugin.saphana.SapHanaQueryRunner.createSapHanaQueryRunner;
 import static java.lang.String.format;
 
 public class TestSapHanaAutomaticJoinPushdown
@@ -28,11 +24,7 @@ public class TestSapHanaAutomaticJoinPushdown
             throws Exception
     {
         server = closeAfterClass(TestingSapHanaServer.create());
-        return createSapHanaQueryRunner(
-                server,
-                Map.of(),
-                Map.of(),
-                List.of());
+        return SapHanaQueryRunner.builder(server).build();
     }
 
     @Override

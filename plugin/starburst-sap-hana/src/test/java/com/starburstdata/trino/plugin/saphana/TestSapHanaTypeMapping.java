@@ -10,7 +10,6 @@
 package com.starburstdata.trino.plugin.saphana;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
 import io.trino.spi.type.CharType;
 import io.trino.spi.type.TimeZoneKey;
@@ -38,7 +37,6 @@ import java.util.List;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
-import static com.starburstdata.trino.plugin.saphana.SapHanaQueryRunner.createSapHanaQueryRunner;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.CharType.createCharType;
@@ -90,11 +88,7 @@ public class TestSapHanaTypeMapping
             throws Exception
     {
         server = closeAfterClass(TestingSapHanaServer.create());
-        return createSapHanaQueryRunner(
-                server,
-                ImmutableMap.of(),
-                ImmutableMap.of(),
-                ImmutableList.of());
+        return SapHanaQueryRunner.builder(server).build();
     }
 
     @BeforeAll

@@ -9,11 +9,7 @@
  */
 package com.starburstdata.trino.plugin.saphana;
 
-import com.google.common.collect.ImmutableMap;
 import io.trino.testing.QueryRunner;
-import io.trino.tpch.TpchTable;
-
-import static com.starburstdata.trino.plugin.saphana.SapHanaQueryRunner.createSapHanaQueryRunner;
 
 public class TestSapHanaConnectorTest
         extends BaseSapHanaConnectorTest
@@ -23,13 +19,10 @@ public class TestSapHanaConnectorTest
             throws Exception
     {
         server = closeAfterClass(TestingSapHanaServer.create());
-        return createSapHanaQueryRunner(
-                server,
-                ImmutableMap.<String, String>builder()
-                        .put("metadata.cache-ttl", "0m")
-                        .put("metadata.cache-missing", "false")
-                        .buildOrThrow(),
-                ImmutableMap.of(),
-                TpchTable.getTables());
+        return SapHanaQueryRunner.builder(server)
+                .addConnectorProperty("metadata.cache-ttl", "0m")
+                .addConnectorProperty("metadata.cache-missing", "false")
+                .setInitialTables(REQUIRED_TPCH_TABLES)
+                .build();
     }
 }

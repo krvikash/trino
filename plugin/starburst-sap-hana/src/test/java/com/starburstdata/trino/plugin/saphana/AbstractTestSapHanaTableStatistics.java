@@ -19,7 +19,6 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Locale;
 
-import static com.starburstdata.trino.plugin.saphana.SapHanaQueryRunner.createSapHanaQueryRunner;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.sql.TestTable.fromColumns;
 import static io.trino.tpch.TpchTable.ORDERS;
@@ -36,13 +35,10 @@ public abstract class AbstractTestSapHanaTableStatistics
             throws Exception
     {
         sapHanaServer = closeAfterClass(TestingSapHanaServer.create());
-        return createSapHanaQueryRunner(
-                sapHanaServer,
-                ImmutableMap.<String, String>builder()
-                        .put("case-insensitive-name-matching", "true")
-                        .buildOrThrow(),
-                ImmutableMap.of(),
-                ImmutableList.of(ORDERS));
+        return SapHanaQueryRunner.builder(sapHanaServer)
+                .addConnectorProperty("case-insensitive-name-matching", "true")
+                .setInitialTables(ImmutableList.of(ORDERS))
+                .build();
     }
 
     @Override
