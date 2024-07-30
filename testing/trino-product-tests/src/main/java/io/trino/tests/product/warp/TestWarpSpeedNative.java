@@ -29,6 +29,7 @@ import io.trino.tests.product.warp.utils.QueryUtils;
 import io.trino.tests.product.warp.utils.RestUtils;
 import io.trino.tests.product.warp.utils.WarmUtils;
 import jakarta.ws.rs.HttpMethod;
+import org.intellij.lang.annotations.Language;
 import org.testng.ITestContext;
 import org.testng.annotations.Test;
 
@@ -44,6 +45,8 @@ import static io.trino.tests.product.TestGroups.WARP_SPEED_MINIO;
 import static io.trino.tests.product.utils.QueryExecutors.onTrino;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.EXTERNAL_COLLECT;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.EXTERNAL_MATCH;
+import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.LAZY_COLLECT_LOADED;
+import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.LAZY_COLLECT_TOTAL;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.WARP_COLLECT;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.Columns.WARP_MATCH;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.WarmingService.ROW_GROUP_COUNT;
@@ -285,6 +288,70 @@ public class TestWarpSpeedNative
                         WARP_MATCH, 1L,
                         EXTERNAL_COLLECT, 0L,
                         EXTERNAL_MATCH, 0L),
+                testName);
+    }
+
+    @Test(groups = {WARP_SPEED_MINIO, PROFILE_SPECIFIC_TESTS}, priority = 10)
+    public void testWarpGenerateNativePanicLazyCollect(ITestContext iTestContext)
+            throws IOException
+    {
+        testLazyCollectFailure(List.of(new FailureGeneratorResource.FailureGeneratorData(
+                        null,
+                        "1323", // generates panic id 1323 in function collect_data
+                        FailureRepetitionMode.REP_MODE_ONCE,
+                        FailureGeneratorInvocationHandler.FailureType.NATIVE_PANIC,
+                        0)),
+                iTestContext.getName());
+    }
+
+    private void testLazyCollectFailure(
+            List<FailureGeneratorResource.FailureGeneratorData> failureGeneratorDataList,
+            String testName)
+            throws IOException
+    {
+        @Language("SQL") String query = "SELECT nationkey FROM %s".formatted(tableName);
+        Map<String, Long> expectedCounters = Map.of(WARP_COLLECT, 1L,
+                WARP_MATCH, 0L,
+                LAZY_COLLECT_TOTAL, 1L,
+                LAZY_COLLECT_LOADED, 1L,
+                EXTERNAL_COLLECT, 0L,
+                EXTERNAL_MATCH, 0L);
+        onTrino().executeQuery("set session warp.enable_lazy_collect = true");
+        logger.info("testLazyCollectFailure::before warmAndValidate");
+
+        //check that it works before setting failures
+        warmUtils.warmAndValidate(
+                query,
+                Map.of(
+                        WARM_ACCOMPLISHED, 1L,
+                        ROW_GROUP_COUNT, 1L),
+                Duration.valueOf("30s"));
+
+        logger.info("testLazyCollectFailure::before queryAndValidate");
+        queryUtils.queryAndValidate(
+                query,
+                expectedCounters,
+                testName);
+
+        //now test failure
+        restUtils.executeWorkerRestCommand(
+                FailureGeneratorResource.TASK_NAME,
+                "",
+                failureGeneratorDataList,
+                HttpMethod.POST,
+                HttpURLConnection.HTTP_NO_CONTENT);
+
+        logger.info("testLazyCollectFailure::before assertQueryFailure");
+        assertQueryFailure(() -> onTrino().executeQuery(query))
+                .isInstanceOf(SQLException.class)
+                .hasMessageContaining("native storage engine");
+
+        logger.info("testLazyCollectFailure::before additional queryAndValidate");
+
+        //now we succeed
+        queryUtils.queryAndValidate(
+                query,
+                expectedCounters,
                 testName);
     }
 }

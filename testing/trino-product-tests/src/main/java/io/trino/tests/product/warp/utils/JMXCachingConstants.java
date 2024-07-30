@@ -33,6 +33,9 @@ public class JMXCachingConstants
         public static final String WARP_MATCH_ON_SIMPLIFIED_DOMAIN = "warp_match_on_simplified_domain";
         public static final String WARP_COLLECT = "warp_collect_columns";
         public static final String WARP_MATCH_COLLECT = "warp_match_collect_columns";
+        public static final String LAZY_COLLECT_TOTAL = "lazy_collect_total_blocks";
+        public static final String LAZY_COLLECT_LOADED = "lazy_collect_loaded_blocks";
+        public static final String LAZY_COLLECT_FAILED = "lazy_collect_failed_load";
         public static final String PREFILLED_COLLECT = "warp_prefilled_collect_columns";
         public static final String EXTERNAL_MATCH = "external_match_columns";
         public static final String EXTERNAL_COLLECT = "external_collect_columns";

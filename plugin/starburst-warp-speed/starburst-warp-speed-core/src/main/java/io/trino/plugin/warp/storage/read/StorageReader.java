@@ -389,9 +389,7 @@ public class StorageReader
 
     void abortCollect(Exception e, CollectOpenResult collectOpenResult)
     {
-        if (collectTxId != INVALID_TX_ID) {
-            collectTxService.collectAbort(e, collectOpenResult, collectTxId);
-        }
+        collectTxService.collectAbort(e, collectOpenResult, collectTxId);
         collectTxId = INVALID_TX_ID;
     }
 

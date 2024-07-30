@@ -64,28 +64,32 @@ public class LazyCollectorLoader
         Block retBlock;
         int chunkToCollect = lazyCollectorArgs.chunkIx();
         int rowsToCollect = lazyCollectorArgs.numToCollect();
+        int collectTxId = BaseCollectTxService.INVALID_TX_ID;
         LazyCollectOpenResult collectOpenResult = null;
         try {
             collectOpenResult = collectTxService.collectOpen(rowsToCollect, lazyCollectorArgs);
+            collectTxId = collectOpenResult.collectTxId();
             collectTxService.prepareNextChunk(chunkToCollect,
                     rowsToCollect,
                     false,
-                    collectOpenResult.collectTxId(),
+                    collectTxId,
                     rowsToCollect,
                     0,
                     collectOpenResult.outResultType());
 
-            collectTxService.collect(collectOpenResult.collectTxId(), collectOpenResult.outResultType(), 1, chunkToCollect, rowsToCollect);
+            collectTxService.collect(collectTxId, collectOpenResult.outResultType(), 1, chunkToCollect, rowsToCollect);
             WarmupElementCollectParams collectParams = lazyCollectorArgs.collectParams();
             ReadJuffersWarmUpElement readJuffersWarmUpElement = lazyCollectorArgs.collectJufferWE();
             QueryResultType queryResultType = QueryResultType.values()[collectOpenResult.outResultType()[0]];
             retBlock = lazyCollectorArgs.blockFiller().fillBlockWithRecords(collectParams, readJuffersWarmUpElement, rowsToCollect, queryResultType, dictionaryStats);
-            collectTxService.collectClose(collectOpenResult.collectTxId());
-            dispatcherPageSourceStats.addlazy_collect_loaded_blocks(1);
+            collectTxService.collectClose(collectTxId);
+            dispatcherPageSourceStats.inclazy_collect_loaded_blocks();
         }
         catch (Exception e) {
             shapingLogger.error(e, "lazy collect failed LazyCollectorArgs %s collectParams %s, collectOpenResults %s",
                     lazyCollectorArgs, lazyCollectorArgs.collectParams(), collectOpenResult);
+            dispatcherPageSourceStats.inclazy_collect_failed_load();
+            collectTxService.collectAbort(e, collectTxId);
             throw e;
         }
         return retBlock;

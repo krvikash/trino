@@ -19,7 +19,6 @@ import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.RecordBufferState;
 import io.trino.plugin.warp.gen.constants.RecordIndexListType;
-import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.spi.TrinoException;
@@ -181,13 +180,7 @@ public class CollectTxService
 
     void collectAbort(Exception e, CollectOpenResult collectOpenResult, int collectTxId)
     {
-        boolean nativeThrowed = false;
-        if (e instanceof TrinoException) {
-            nativeThrowed = ExceptionThrower.isNativeException((TrinoException) e);
-        }
-        if (!nativeThrowed) {
-            storageEngine.collectClose(collectTxId, null, 0, null);
-        }
+        collectAbort(e, collectTxId);
         freeCollectOpenResources(collectOpenResult);
     }
 }

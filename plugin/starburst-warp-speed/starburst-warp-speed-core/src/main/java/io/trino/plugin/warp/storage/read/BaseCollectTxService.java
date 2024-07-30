@@ -16,6 +16,7 @@ package io.trino.plugin.warp.storage.read;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.spi.TrinoException;
 
@@ -106,6 +107,19 @@ public abstract class BaseCollectTxService
         catch (Exception e) {
             shapingLogger.error(e, "collect failed chunkIndex %d rowsLimit %d numToCollect %d", chunkIndex, numToCollect, numToCollect);
             throw e;
+        }
+    }
+
+    void collectAbort(Exception e, int collectTxId)
+    {
+        if (collectTxId != BaseCollectTxService.INVALID_TX_ID) {
+            boolean nativeThrowed = false;
+            if (e instanceof TrinoException) {
+                nativeThrowed = ExceptionThrower.isNativeException((TrinoException) e);
+            }
+            if (!nativeThrowed) {
+                storageEngine.collectClose(collectTxId, null, 0, null);
+            }
         }
     }
 }

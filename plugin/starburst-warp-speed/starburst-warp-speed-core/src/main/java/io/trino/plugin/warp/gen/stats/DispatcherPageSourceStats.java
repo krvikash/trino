@@ -66,6 +66,7 @@ public final class DispatcherPageSourceStats
     private final LongAdder proxied_loaded_pages_bytes = new LongAdder();
     private final LongAdder lazy_collect_total_blocks = new LongAdder();
     private final LongAdder lazy_collect_loaded_blocks = new LongAdder();
+    private final LongAdder lazy_collect_failed_load = new LongAdder();
     private final LongAdder lucene_execution_time_Count = new LongAdder();
     private final LongAdder lucene_execution_time = new LongAdder();
     private final LongAdder execution_time_Count = new LongAdder();
@@ -801,6 +802,29 @@ public final class DispatcherPageSourceStats
 
     @JsonIgnore
     @Managed
+    public long getlazy_collect_failed_load()
+    {
+        return lazy_collect_failed_load.longValue();
+    }
+
+    public void inclazy_collect_failed_load()
+    {
+        lazy_collect_failed_load.increment();
+    }
+
+    public void addlazy_collect_failed_load(long val)
+    {
+        lazy_collect_failed_load.add(val);
+    }
+
+    public void setlazy_collect_failed_load(long val)
+    {
+        lazy_collect_failed_load.reset();
+        addlazy_collect_failed_load(val);
+    }
+
+    @JsonIgnore
+    @Managed
     public long getlucene_execution_time_Count()
     {
         return lucene_execution_time_Count.longValue();
@@ -902,6 +926,7 @@ public final class DispatcherPageSourceStats
         ret.put("proxied_loaded_pages_bytes", proxied_loaded_pages_bytes);
         ret.put("lazy_collect_total_blocks", lazy_collect_total_blocks);
         ret.put("lazy_collect_loaded_blocks", lazy_collect_loaded_blocks);
+        ret.put("lazy_collect_failed_load", lazy_collect_failed_load);
 
         return ret;
     }
@@ -944,6 +969,7 @@ public final class DispatcherPageSourceStats
         this.proxied_loaded_pages_bytes.add(other.proxied_loaded_pages_bytes.longValue());
         this.lazy_collect_total_blocks.add(other.lazy_collect_total_blocks.longValue());
         this.lazy_collect_loaded_blocks.add(other.lazy_collect_loaded_blocks.longValue());
+        this.lazy_collect_failed_load.add(other.lazy_collect_failed_load.longValue());
         this.lucene_execution_time.add(other.lucene_execution_time.longValue());
         this.lucene_execution_time_Count.add(other.lucene_execution_time_Count.longValue());
         this.execution_time.add(other.execution_time.longValue());
@@ -984,6 +1010,7 @@ public final class DispatcherPageSourceStats
         proxied_loaded_pages_bytes.reset();
         lazy_collect_total_blocks.reset();
         lazy_collect_loaded_blocks.reset();
+        lazy_collect_failed_load.reset();
         lucene_execution_time.reset();
         lucene_execution_time_Count.reset();
         execution_time.reset();
@@ -1062,6 +1089,7 @@ public final class DispatcherPageSourceStats
         res.put("skip_warp_cache_manager", getskip_warp_cache_manager());
         res.put("lazy_collect_total_blocks", getlazy_collect_total_blocks());
         res.put("lazy_collect_loaded_blocks", getlazy_collect_loaded_blocks());
+        res.put("lazy_collect_failed_load", getlazy_collect_failed_load());
         return res;
     }
 
