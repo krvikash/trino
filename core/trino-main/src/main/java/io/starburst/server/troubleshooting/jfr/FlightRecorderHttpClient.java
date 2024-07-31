@@ -33,7 +33,8 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 
@@ -50,6 +51,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.time.temporal.ChronoUnit.MILLIS;
 import static java.time.temporal.ChronoUnit.SECONDS;
 import static java.util.Objects.requireNonNull;
+import static java.util.function.Function.identity;
 
 class FlightRecorderHttpClient
 {
@@ -77,7 +79,7 @@ class FlightRecorderHttpClient
 
     public void start(Set<String> nodeIds)
     {
-        HttpResponses<String, RuntimeException> results = paralellExecute(nodeIds, this::startRequest, createStatusCheckingHandler());
+        HttpResponses<String> results = parallelExecute(nodeIds, this::startRequest, createStatusCheckingHandler());
         if (!results.exceptions().isEmpty()) {
             throw new RuntimeException("Could not start recordings on nodes: %s due to: %s".formatted(results.exceptions().keySet(), results.exceptions.values()));
         }
@@ -85,7 +87,7 @@ class FlightRecorderHttpClient
 
     public void remove(Set<String> nodeIds)
     {
-        HttpResponses<String, RuntimeException> results = paralellExecute(nodeIds, this::removeRequest, createStatusCheckingHandler());
+        HttpResponses<String> results = parallelExecute(nodeIds, this::removeRequest, createStatusCheckingHandler());
         if (!results.exceptions().isEmpty()) {
             throw new RuntimeException("Could not remove recordings on nodes: %s due to: %s".formatted(results.exceptions().keySet(), results.exceptions.values()));
         }
@@ -93,7 +95,7 @@ class FlightRecorderHttpClient
 
     public void finish(Set<String> nodeIds)
     {
-        HttpResponses<String, RuntimeException> results = paralellExecute(nodeIds, this::finishRequest, createStatusCheckingHandler());
+        HttpResponses<String> results = parallelExecute(nodeIds, this::finishRequest, createStatusCheckingHandler());
         if (!results.exceptions().isEmpty()) {
             throw new RuntimeException("Could not finish recordings on nodes: %s due to: %s".formatted(results.exceptions().keySet(), results.exceptions.values()));
         }
@@ -101,7 +103,7 @@ class FlightRecorderHttpClient
 
     public Map<String, InputStream> getInputStreams(Set<String> nodeIds)
     {
-        HttpResponses<InputStreamResponseHandler.InputStreamResponse, HttpStatusException> results = paralellExecute(nodeIds, this::inputStreamRequest, createInputStreamResponseHandler());
+        HttpResponses<InputStreamResponseHandler.InputStreamResponse> results = parallelExecute(nodeIds, this::inputStreamRequest, createInputStreamResponseHandler());
         if (!results.exceptions().isEmpty()) {
             throw new RuntimeException("Could not get recordings from nodes: %s due to: %s".formatted(results.exceptions().keySet(), results.exceptions.values()));
         }
@@ -153,55 +155,54 @@ class FlightRecorderHttpClient
         return false;
     }
 
-    private <R, E extends RuntimeException> HttpResponses<R, E> paralellExecute(Set<String> nodeIds, Function<String, Request> requestFactory, ResponseHandler<R, E> handler)
+    private <R> HttpResponses<R> parallelExecute(Set<String> nodeIds, Function<String, Request> requestFactory, ResponseHandler<R, ?> handler)
     {
+        ImmutableMap<String, CompletableFuture<R>> nodeIdToFutureMap = nodeIds.stream()
+                .collect(toImmutableMap(identity(), nodeId -> callOnNode(nodeId, requestFactory, handler)));
         ImmutableMap.Builder<String, R> responses = ImmutableMap.builder();
-        ImmutableMap.Builder<String, E> exceptions = ImmutableMap.builder();
-        CountDownLatch latch = new CountDownLatch(nodeIds.size()); // wait for all nodes to either respond or fail
-
-        for (String nodeId : nodeIds) {
-            Request request = requestFactory.apply(nodeId);
-            final String currentNodeId = nodeId;
-
-            failsafeExecutor.getAsyncExecution(execution -> {
-                addCallback(client.executeAsync(request, handler), new FutureCallback<>() {
-                    @Override
-                    public void onSuccess(R result)
-                    {
-                        execution.recordResult(result);
-                        execution.complete();
-                    }
-
-                    @Override
-                    public void onFailure(Throwable throwable)
-                    {
-                        execution.recordException(throwable);
-                    }
-                }, executorService);
-            }).whenCompleteAsync((result, exception) -> {
-                if (result != null) {
-                    responses.put(currentNodeId, (R) result);
-                }
-                if (exception != null) {
-                    exceptions.put(currentNodeId, (E) exception);
-                }
-
-                latch.countDown();
-            });
+        ImmutableMap.Builder<String, Throwable> exceptions = ImmutableMap.builder();
+        for (Map.Entry<String, CompletableFuture<R>> nodeIdToFuture : nodeIdToFutureMap.entrySet()) {
+            String nodeId = nodeIdToFuture.getKey();
+            CompletableFuture<R> future = nodeIdToFuture.getValue();
+            try {
+                R response = future.get();
+                responses.put(nodeId, requireNonNull(response, "response is null"));
+            }
+            catch (ExecutionException e) {
+                Throwable cause = e.getCause();
+                exceptions.put(nodeId, requireNonNull(cause, "cause is null"));
+            }
+            catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(e);
+            }
         }
-
-        try {
-            latch.await();
-        }
-        catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException(e);
-        }
-
         return new HttpResponses<>(responses.buildOrThrow(), exceptions.buildKeepingLast());
     }
 
-    private record HttpResponses<T, E extends Throwable>(Map<String, T> responses, Map<String, E> exceptions)
+    private <R> CompletableFuture<R> callOnNode(String nodeId, Function<String, Request> requestFactory, ResponseHandler<R, ?> handler)
+    {
+        Request request = requestFactory.apply(nodeId);
+        return failsafeExecutor.getAsyncExecution(execution -> {
+            addCallback(client.executeAsync(request, handler), new FutureCallback<>()
+            {
+                @Override
+                public void onSuccess(R result)
+                {
+                    execution.recordResult(result);
+                    execution.complete();
+                }
+
+                @Override
+                public void onFailure(Throwable throwable)
+                {
+                    execution.recordException(throwable);
+                }
+            }, executorService);
+        });
+    }
+
+    private record HttpResponses<T>(Map<String, T> responses, Map<String, Throwable> exceptions)
     {
     }
 
