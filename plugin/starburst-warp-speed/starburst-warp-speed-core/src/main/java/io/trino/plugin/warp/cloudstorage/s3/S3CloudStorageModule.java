@@ -25,10 +25,15 @@ import io.trino.filesystem.s3.S3FileSystemFactory;
 import io.trino.spi.connector.CatalogHandle;
 import io.trino.spi.connector.ConnectorContext;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.awscore.endpoint.DefaultServiceEndpointBuilder;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3CrtAsyncClientBuilder;
+import software.amazon.awssdk.services.s3.crt.S3CrtHttpConfiguration;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.StsClientBuilder;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
@@ -84,27 +89,20 @@ public class S3CloudStorageModule
     private S3AsyncClient createS3AsyncClient(S3FileSystemConfig config)
     {
         S3CrtAsyncClientBuilder s3 = S3AsyncClient.crtBuilder();
+        Region region = getRegion(config);
 
-        Optional<StaticCredentialsProvider> staticCredentialsProvider = getStaticCredentialsProvider(config);
-        staticCredentialsProvider.ifPresent(s3::credentialsProvider);
-        if (staticCredentialsProvider.isPresent()) {
-            logger.info("annotation %s using StaticCredentialsProvider for S3 client", annotation.toString());
-        }
-        else {
-            logger.info("annotation %s no StaticCredentials provided for S3 client", annotation.toString());
-        }
-
-        Optional.ofNullable(config.getRegion()).map(Region::of).ifPresent(s3::region);
-        Optional.ofNullable(config.getEndpoint()).map(URI::create).ifPresent(s3::endpointOverride);
+        s3.credentialsProvider(getAwsCredentialsProvider(config, annotation));
+        s3.region(region);
+        s3.endpointOverride(Optional.ofNullable(config.getEndpoint()).map(URI::create)
+                .orElseGet(() -> new DefaultServiceEndpointBuilder("s3", "http")
+                        .withRegion(region)
+                        .getServiceEndpoint()));
         s3.forcePathStyle(config.isPathStyleAccess());
 
-        if (config.getIamRole() != null) {
-            s3.credentialsProvider(getStsAssumeRoleCredentialsProvider(config, annotation));
-            logger.info("annotation %s using StsAssumeRoleCredentialsProvider for STS refresh", annotation.toString());
-        }
-        else {
-            logger.info("annotation %s no AssumeRoleCredentials provided for STS refresh", annotation.toString());
-        }
+        S3CrtHttpConfiguration httpConfiguration = S3CrtHttpConfiguration.builder()
+                .trustAllCertificatesEnabled(true)
+                .build();
+        s3.httpConfiguration(httpConfiguration);
 
         return s3.build();
     }
@@ -133,7 +131,7 @@ public class S3CloudStorageModule
             logger.info("annotation %s using StaticCredentialsProvider for STS client", annotation.toString());
         }
         else {
-            logger.info("annotation %s no StaticCredentials provided for STS client", annotation.toString());
+            logger.info("annotation %s no StaticCredentials provided for STS client, using DefaultCredentialsProvider chain", annotation.toString());
         }
 
         return StsAssumeRoleCredentialsProvider.builder()
@@ -144,5 +142,35 @@ public class S3CloudStorageModule
                 .stsClient(sts.build())
                 .asyncCredentialUpdateEnabled(true)
                 .build();
+    }
+
+    private static AwsCredentialsProvider getAwsCredentialsProvider(S3FileSystemConfig config, Class<? extends Annotation> annotation)
+    {
+        AwsCredentialsProvider credentialsProvider;
+
+        if (config.getIamRole() != null) {
+            logger.info("annotation %s using StsAssumeRoleCredentialsProvider for STS refresh", annotation.toString());
+            credentialsProvider = getStsAssumeRoleCredentialsProvider(config, annotation);
+        }
+        else {
+            logger.info("annotation %s no AssumeRoleCredentials provided for STS refresh", annotation.toString());
+            Optional<StaticCredentialsProvider> staticCredentialsProvider = getStaticCredentialsProvider(config);
+
+            if (staticCredentialsProvider.isPresent()) {
+                logger.info("annotation %s using StaticCredentialsProvider for S3 client", annotation.toString());
+                credentialsProvider = staticCredentialsProvider.orElseThrow(() -> new IllegalArgumentException("cannot use static credentials"));
+            }
+            else {
+                logger.info("annotation %s no StaticCredentials provided for S3 client, using DefaultCredentialsProvider chain", annotation.toString());
+                credentialsProvider = DefaultCredentialsProvider.create();
+            }
+        }
+
+        return credentialsProvider;
+    }
+
+    private static Region getRegion(S3FileSystemConfig config)
+    {
+        return (config.getRegion() != null) ? Region.of(config.getRegion()) : DefaultAwsRegionProviderChain.builder().build().getRegion();
     }
 }
