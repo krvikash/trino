@@ -57,7 +57,9 @@ public class InternalDispatcherCacheManagerFactory
                 new MBeanModule(),
                 new DispatcherCacheManagerModule(cacheManagerName, config, storageEngineModule, isCoordinator),
                 new CacheManagerModule(context, isCoordinator)));
-        optionalModules.ifPresent(modules::addAll);
+        if (!isCoordinator) {
+            optionalModules.ifPresent(modules::addAll);
+        }
 
         Bootstrap app = new Bootstrap(modules);
         Injector injector = app
