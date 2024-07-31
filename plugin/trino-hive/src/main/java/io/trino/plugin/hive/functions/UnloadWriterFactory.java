@@ -39,11 +39,11 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
 
+import static io.trino.metastore.Partitions.makePartName;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_UNSUPPORTED_FORMAT;
 import static io.trino.plugin.hive.HiveWriterFactory.getFileExtension;
 import static io.trino.plugin.hive.WriterKind.INSERT;
 import static io.trino.plugin.hive.acid.AcidTransaction.NO_ACID_TRANSACTION;
-import static io.trino.plugin.hive.util.HiveUtil.makePartName;
 import static io.trino.plugin.hive.util.HiveWriteUtils.createPartitionValues;
 import static java.util.Objects.requireNonNull;
 
