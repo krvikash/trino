@@ -38,6 +38,7 @@
         <module>core/trino-server-main</module>
         <module>core/trino-server-rpm</module>
         <module>core/trino-spi</module>
+        <module>core/trino-web-ui</module>
         <module>docs</module>
         <module>lib/starburst-license</module>
         <module>lib/starburst-schema-discovery</module>
@@ -1607,6 +1608,12 @@
             <dependency>
                 <groupId>io.trino</groupId>
                 <artifactId>trino-tpch</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.trino</groupId>
+                <artifactId>trino-web-ui</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
