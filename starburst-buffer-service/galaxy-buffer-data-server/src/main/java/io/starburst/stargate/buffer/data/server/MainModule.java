@@ -40,6 +40,7 @@ import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
+import static io.airlift.http.server.HttpServerConfig.ProcessForwardedMode.ACCEPT;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
 import static io.airlift.json.JsonCodecBinder.jsonCodecBinder;
 import static java.lang.Runtime.getRuntime;
@@ -113,7 +114,7 @@ public class MainModule
                 innerBinder -> innerBinder.bind(DataServerStatsLogger.class).in(SINGLETON)));
 
         configBinder(binder).bindConfigDefaults(HttpServerConfig.class, config -> {
-            config.setProcessForwarded(true);
+            config.setProcessForwarded(ACCEPT);
         });
     }
 
