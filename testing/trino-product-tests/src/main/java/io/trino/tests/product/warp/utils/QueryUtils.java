@@ -239,6 +239,11 @@ public class QueryUtils
         }
     }
 
+    public void validateLoadByCacheDataOperator(String queryId)
+    {
+        ruleUtils.validateLoadByCacheDataOperator(queryId);
+    }
+
     private void verifyQueryCounters(String queryId, Map<String, Long> expectedCounters, CachingType cachingType, String testName, SoftAssertions softAssert)
     {
         if (cachingType == CachingType.ACCORDING_TO_COUNTERS) {

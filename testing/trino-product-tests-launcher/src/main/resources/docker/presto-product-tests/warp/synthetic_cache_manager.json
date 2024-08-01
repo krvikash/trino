@@ -1,0 +1,157 @@
+[
+    {
+        "name": "test_store_id",
+        "lines": 4,
+        "expected_row_group": 1,
+        "expected_warmup_elements":  7,
+        "structure": [
+            {
+                "name": "Id",
+                "type": "integer"
+            },
+            {
+                "name": "Model",
+                "type": "varchar",
+                "args": [
+                    65535
+                ]
+            },
+            {
+                "name": "Year",
+                "type": "bigint"
+            },
+            {
+                "name": "ScreenSize",
+                "type": "varchar",
+                "args": [
+                    20
+                ]
+            },
+            {
+                "name": "RAM",
+                "type": "varchar",
+                "args": [
+                    5
+                ]
+            },
+            {
+                "name": "HDD",
+                "type": "varchar",
+                "args": [
+                    10
+                ]
+            },
+            {
+                "name": "W",
+                "type": "double"
+            },
+            {
+                "name": "D",
+                "type": "double"
+            },
+            {
+                "name": "H",
+                "type": "double"
+            },
+            {
+                "name": "Weight",
+                "type": "double"
+            }
+        ],
+        "queries_data": [
+            {
+                "query": "select ram, sum(w) from mac_paramsj group by ram  order by ram asc",
+                "query_id": "mac_paramsj_cache_manager_1",
+                "expected_result": [
+                    [
+                        "16GB",
+                        13.75
+                    ],
+                    [
+                        "64GB",
+                        25.6
+                    ],
+                    [
+                        "8GB",
+                        23.84
+                    ]
+                ]
+            },
+            {
+                "query": "select ram, sum(w) from mac_paramsj group by ram  order by ram desc",
+                "query_id": "mac_paramsj_cache_manager_2",
+                "expected_result": [
+                    [
+                        "8GB",
+                        23.84
+                    ],
+                    [
+                        "64GB",
+                        25.6
+                    ],
+                    [
+                        "16GB",
+                        13.75
+                    ]
+                ]
+            },
+            {
+                "query": "select ram, max(w) from mac_paramsj group by ram  order by ram asc",
+                "query_id": "mac_paramsj_cache_manager_2",
+                "expected_result": [
+                    [
+                        "16GB",
+                        13.75
+                    ],
+                    [
+                        "64GB",
+                        25.6
+                    ],
+                    [
+                        "8GB",
+                        12.8
+                    ]
+                ]
+            },
+            {
+                "query": "select ram, max(w) from mac_paramsj group by ram  order by ram desc",
+                "query_id": "mac_paramsj_cache_manager_3",
+                "expected_result": [
+                    [
+                        "8GB",
+                        12.8
+                    ],
+                    [
+                        "64GB",
+                        25.6
+                    ],
+                    [
+                        "16GB",
+                        13.75
+                    ]
+                ]
+            },
+            {
+                "query": "select sum(w), ram, max(w) from mac_paramsj group by ram  order by ram asc",
+                "query_id": "mac_paramsj_cache_manager_4",
+                "expected_result": [
+                    [
+                        13.75,
+                        "16GB",
+                        13.75
+                    ],
+                    [
+                        25.6,
+                        "64GB",
+                        25.6
+                    ],
+                    [
+                        23.84,
+                        "8GB",
+                        12.8
+                    ]
+                ]
+            }
+        ]
+    }
+]

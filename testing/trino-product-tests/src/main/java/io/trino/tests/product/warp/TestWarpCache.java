@@ -26,8 +26,11 @@ import io.trino.tempto.BeforeMethodWithContext;
 import io.trino.tempto.query.QueryResult;
 import io.trino.tests.product.warp.utils.CacheUtils;
 import io.trino.tests.product.warp.utils.DemoterUtils;
+import io.trino.tests.product.warp.utils.JMXCachingConstants;
+import io.trino.tests.product.warp.utils.JMXCachingManager;
 import io.trino.tests.product.warp.utils.RestUtils;
 import io.trino.tests.product.warp.utils.RuleUtils;
+import io.trino.tests.product.warp.utils.TestCacheFormat;
 import io.trino.tests.product.warp.utils.TestFormat;
 import io.trino.tests.product.warp.utils.syntheticconfig.ExcludeStrategy;
 import jakarta.ws.rs.HttpMethod;
@@ -49,6 +52,7 @@ import static io.trino.tests.product.TestGroups.PROFILE_SPECIFIC_TESTS;
 import static io.trino.tests.product.TestGroups.WARP_SPEED_CACHE;
 import static io.trino.tests.product.utils.QueryExecutors.onTrino;
 import static io.trino.tests.product.warp.utils.DemoterUtils.objectMapper;
+import static io.trino.tests.product.warp.utils.JMXCachingManager.getDiffFromInitial;
 import static io.trino.tests.product.warp.utils.syntheticconfig.TestConfiguration.QUERY_ID;
 import static io.trino.tests.product.warp.utils.syntheticconfig.TestConfiguration.TEST_NAME;
 import static java.lang.String.format;
@@ -129,6 +133,41 @@ public class TestWarpCache
     {
         onTrino().executeQuery("set session cache_aggregations_enabled = false");
         cacheUtils.execute(testFormat, true, SCHEMA_NAME);
+    }
+
+    @DataProvider
+    public Iterator<Object[]> storeId(ITestContext context)
+            throws Exception
+    {
+        String filePath = "file:///docker/presto-product-tests/warp/synthetic_cache_manager.json";
+        JsonNode jsonNodeTests = objectMapper.readTree(new URI(filePath).toURL());
+        List<TestCacheFormat> tests = objectMapper.readerFor(new TypeReference<List<TestCacheFormat>>() {})
+                .readValue(jsonNodeTests);
+        return tests.stream()
+                .map(x -> new Object[] {x})
+                .iterator();
+    }
+
+    @Test(groups = {WARP_SPEED_CACHE, PROFILE_SPECIFIC_TESTS}, dataProvider = "storeId")
+    public void storeId(TestCacheFormat testFormat)
+            throws IOException
+    {
+        try {
+            onTrino().executeQuery("USE warp.synthetic");
+            onTrino().executeQuery("set session warp.enable_default_warming=False");
+            QueryResult warmingStatsBefore = JMXCachingManager.getWarmingStats();
+            cacheUtils.runQueries(testFormat.queries_data(), false);
+            cacheUtils.runQueries(testFormat.queries_data(), true);
+            QueryResult warmingStatsAfter = JMXCachingManager.getWarmingStats();
+            long rowGroupCount = getDiffFromInitial(warmingStatsAfter, warmingStatsBefore, JMXCachingConstants.WarmingService.ROW_GROUP_COUNT);
+            long warmupElementCount = getDiffFromInitial(warmingStatsAfter, warmingStatsBefore, JMXCachingConstants.WarmingService.WARMUP_ELEMENTS_COUNT);
+            assertThat(rowGroupCount).isEqualTo(testFormat.expected_row_group());
+            assertThat(warmupElementCount).isEqualTo(testFormat.expected_warmup_elements());
+        }
+        finally {
+            demoterUtils.demoteAllByMaxUsage();
+            demoterUtils.resetToDefaultDemoterConfiguration(true);
+        }
     }
 
     @DataProvider

@@ -45,7 +45,7 @@ public class InternalDispatcherCacheManagerFactory
 
     public static CacheManager createCacheManager(String cacheManagerName,
             Map<String, String> config,
-            Optional<List<Module>> optionalModules,
+            Optional<List<Module>> optionalWorkerModule,
             Module storageEngineModule,
             CacheManagerContext context)
     {
@@ -58,7 +58,7 @@ public class InternalDispatcherCacheManagerFactory
                 new DispatcherCacheManagerModule(cacheManagerName, config, storageEngineModule, isCoordinator),
                 new CacheManagerModule(context, isCoordinator)));
         if (!isCoordinator) {
-            optionalModules.ifPresent(modules::addAll);
+            optionalWorkerModule.ifPresent(modules::addAll);
         }
 
         Bootstrap app = new Bootstrap(modules);
