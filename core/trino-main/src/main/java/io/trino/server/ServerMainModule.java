@@ -302,7 +302,6 @@ public class ServerMainModule
         newOptionalBinder(binder, VersionEmbedder.class).setDefault().to(EmbedVersion.class).in(Scopes.SINGLETON);
         newExporter(binder).export(SqlTaskManager.class).withGeneratedName();
 
-        newExporter(binder).export(TaskExecutor.class).withGeneratedName();
         binder.bind(MultilevelSplitQueue.class).in(Scopes.SINGLETON);
         newExporter(binder).export(MultilevelSplitQueue.class).withGeneratedName();
         jsonCodecBinder(binder).bindJsonCodec(TupleDomain.class);
