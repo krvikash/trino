@@ -220,6 +220,7 @@ public class StorageReader
                         storageCollectorArgs.collectTxArgs().collectStoreBuff(),
                         storageCollectorArgs.collectTxArgs().collect2MatchParams(),
                         queryParams.getNumMatchElements(),
+                        storageCollectorArgs.numChunksInRange(),
                         weMatchTree,
                         luceneMatchers.length,
                         luceneMatchers,
@@ -234,8 +235,8 @@ public class StorageReader
                 collectTxService.freeCollectOpenResources(collectOpenResult);
                 throw new TrinoException(WARP_TX_ALLOCATION_FAILED, "failed to allocate tx for match");
             }
-            matchedChunksIndexes = new short[storageEngineConstants.getMaxChunksInRange()];
-            matchBitmapResetPoints = new int[storageEngineConstants.getMaxChunksInRange()];
+            matchedChunksIndexes = new short[storageCollectorArgs.numChunksInRange()];
+            matchBitmapResetPoints = new int[storageCollectorArgs.numChunksInRange()];
         }
 
         int matchIx = 0;

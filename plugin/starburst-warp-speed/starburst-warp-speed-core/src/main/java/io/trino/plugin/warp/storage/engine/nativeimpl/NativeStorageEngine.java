@@ -165,12 +165,12 @@ public class NativeStorageEngine
 
     @Override
     public native long collectOpen(int totalNumRecords, long[] fileCookie, byte[] parsingBuff, byte[] collect2MatchParams, int numCollectWes,
-            int[] weCollectParams, int connectorId, long matchBitmapAddress, int minOffset,
+            int numChunksInRange, int[] weCollectParams, int connectorId, long matchBitmapAddress, int minOffset,
             long[][] outCollectColBuffIds, long[] outMetadataBuffIds, int[] outResultType);
 
     @Override
-    public native long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams,
-            int numMatchWes, int[] weMatchTree, int numLucenes, LuceneMatcher[] luceneMatchers, long matchBitmapAddress, int minOffset, long[][] outMatchColBuffIds);
+    public native long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams, int numMatchWes,
+            int numChunksInRange, int[] weMatchTree, int numLucenes, LuceneMatcher[] luceneMatchers, long matchBitmapAddress, int minOffset, long[][] outMatchColBuffIds);
 
     @Override
     public native long collectRestoreState(int txId, int chunkIndex, StorageCollectorCallBack collectStateObj);

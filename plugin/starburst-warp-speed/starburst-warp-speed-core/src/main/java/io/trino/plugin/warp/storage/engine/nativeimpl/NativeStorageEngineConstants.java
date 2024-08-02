@@ -57,6 +57,7 @@ public class NativeStorageEngineConstants
     private final int maxChunksInRange;
     private final int matchCollectNumIds;
     private final int maxMatchColumns;
+    private final int maxLuceneColumnsInBundle;
     private final int matchTxSize;
     // lucene
     private final int luceneSmallJufferSize;
@@ -102,6 +103,7 @@ public class NativeStorageEngineConstants
         maxChunksInRange = getMaxChunksInRangeImpl();
         matchCollectNumIds = getMatchCollectNumIdsImpl();
         maxMatchColumns = getMaxMatchColumnsImpl();
+        maxLuceneColumnsInBundle = getMaxLuceneColumnsInBundleImpl();
         matchTxSize = getMatchTxSizeImpl();
 
         // lucene
@@ -144,6 +146,8 @@ public class NativeStorageEngineConstants
     private native int getMatchCollectNumIdsImpl();
 
     private native int getMaxMatchColumnsImpl();
+
+    private native int getMaxLuceneColumnsInBundleImpl();
 
     private native int getMatchTxSizeImpl();
 
@@ -325,6 +329,12 @@ public class NativeStorageEngineConstants
     public int getMaxMatchColumns()
     {
         return maxMatchColumns;
+    }
+
+    @Override
+    public int getMaxLuceneColumnsInBundle()
+    {
+        return maxLuceneColumnsInBundle;
     }
 
     @Override

@@ -41,7 +41,7 @@ public abstract class BaseCollectTxService
     }
 
     // LazyCollect collects 1 WE at a time, therefore not using queryParams.getCollectElementsParamsList()
-    int collectOpen(CollectTxArgs collectTxArgs, long matchBmAddr, long[] metadataBuffIds, int[] outResultType)
+    int collectOpen(CollectTxArgs collectTxArgs, int numChunksInRange, long matchBmAddr, long[] metadataBuffIds, int[] outResultType)
     {
         int numCollectElements = outResultType.length;
         metadataBuffIds[0] = -1;
@@ -53,6 +53,7 @@ public abstract class BaseCollectTxService
                 collectTxArgs.collectStoreBuff(),
                 collectTxArgs.collect2MatchParams(),
                 numCollectElements,
+                numChunksInRange,
                 collectTxArgs.weCollectParams(),
                 queryParams.getCatalogSequence(),
                 matchBmAddr,

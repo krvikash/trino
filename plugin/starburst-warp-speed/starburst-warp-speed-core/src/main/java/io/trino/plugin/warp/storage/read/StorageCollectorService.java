@@ -305,7 +305,7 @@ public class StorageCollectorService
                 .stream()
                 .map(we -> new ReadJuffersWarmUpElement(bufferAllocator, true, false))
                 .collect(Collectors.toList());
-        int numChunksInRange = storageEngineConstants.getMaxChunksInRange();
+        int numChunksInRange = getNumChunksInRange(queryParams);
         int fixedLengthStringLimit = storageEngineConstants.getFixedLengthStringLimit();
         int chunkSize = 1 << storageEngineConstants.getChunkSizeShift();
         byte[] storeRowListBuff = new byte[(chunkSize + RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal()) * Short.BYTES];
@@ -359,6 +359,23 @@ public class StorageCollectorService
                 juffersWE,
                 storageCollectorArgs.blockFillers().get(weIx),
                 chunkIndex,
-                numRows);
+                numRows,
+                storageCollectorArgs.numChunksInRange());
+    }
+
+    private int getNumChunksInRange(QueryParams queryParams)
+    {
+        int numChunksInRange = storageEngineConstants.getMaxChunksInRange();
+        if (queryParams.getNumMatchElements() == 0) {
+            return numChunksInRange;
+        }
+
+        int numLucene = queryParams.getNumLucene();
+        int numLuceneLimit = storageEngineConstants.getMaxLuceneColumnsInBundle();
+        while ((numChunksInRange > 1) && (numLucene > numLuceneLimit)) {
+            numLuceneLimit <<= 1;
+            numChunksInRange >>= 1;
+        }
+        return numChunksInRange;
     }
 }

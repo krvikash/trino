@@ -105,7 +105,7 @@ public class CollectTxService
             matchBmAddr = bmSeg.address();
         }
 
-        int collectTxId = collectOpen(storageCollectorArgs.collectTxArgs(), matchBmAddr, metadataBuffIds, outResultType);
+        int collectTxId = collectOpen(storageCollectorArgs.collectTxArgs(), storageCollectorArgs.numChunksInRange(), matchBmAddr, metadataBuffIds, outResultType);
 
         int collectIx = 0;
         for (WarmupElementCollectParams collectParams : collectParamsList) {

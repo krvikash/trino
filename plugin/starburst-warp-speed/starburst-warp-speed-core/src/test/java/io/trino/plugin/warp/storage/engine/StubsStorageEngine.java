@@ -149,7 +149,7 @@ public class StubsStorageEngine
 
     @Override
     public long collectOpen(int totalNumRecords, long[] fileCookie, byte[] parsingBuff, byte[] collect2MatchParams, int numCollectWes,
-            int[] weCollectParams, int connectorId, long matchBitmapAddress, int minOffset,
+            int numChunksInRange, int[] weCollectParams, int connectorId, long matchBitmapAddress, int minOffset,
             long[][] outCollectColBuffIds, long[] outMetadataBuffIds, int[] outResultType)
     {
         Arrays.fill(outMetadataBuffIds, 0);
@@ -159,8 +159,8 @@ public class StubsStorageEngine
     }
 
     @Override
-    public long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams,
-            int numMatchWes, int[] weMatchTree, int numLucenes, LuceneMatcher[] luceneMatchers, long matchBitmapAddress, int minOffset, long[][] outMatchColBuffIds)
+    public long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams, int numMatchWes,
+            int numChunksInRange, int[] weMatchTree, int numLucenes, LuceneMatcher[] luceneMatchers, long matchBitmapAddress, int minOffset, long[][] outMatchColBuffIds)
     {
         luceneColumns.addAndGet(luceneMatchers.length);
         return 0;

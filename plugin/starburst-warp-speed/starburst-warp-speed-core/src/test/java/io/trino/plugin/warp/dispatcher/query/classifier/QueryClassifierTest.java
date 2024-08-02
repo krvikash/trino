@@ -173,6 +173,7 @@ public class QueryClassifierTest
         when(storageEngineConstants.getMaxChunksInRange()).thenReturn(1);
         when(storageEngineConstants.getMatchCollectNumIds()).thenReturn(100);
         when(storageEngineConstants.getMaxMatchColumns()).thenReturn(128);
+        when(storageEngineConstants.getMaxLuceneColumnsInBundle()).thenReturn(8);
         when(storageEngineConstants.getBundleNonCollectSize()).thenReturn(0);
         predicatesCacheService = mock(PredicatesCacheService.class);
         PredicateBufferInfo predicateBufferInfo = new PredicateBufferInfo(null, PredicateBufferPoolType.INVALID);

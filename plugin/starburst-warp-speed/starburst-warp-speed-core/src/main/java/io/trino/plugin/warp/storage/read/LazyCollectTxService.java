@@ -30,7 +30,7 @@ public class LazyCollectTxService
     {
         long[] metadataBuffIds = new long[2];
         int[] outResultType = new int[1];
-        int collectTxId = collectOpen(lazyCollectorArgs.collectTxArgs(), 0, metadataBuffIds, outResultType);
+        int collectTxId = collectOpen(lazyCollectorArgs.collectTxArgs(), lazyCollectorArgs.numChunksInRange(), 0, metadataBuffIds, outResultType);
 
         WarmupElementCollectParams collectParams = lazyCollectorArgs.collectParams();
         lazyCollectorArgs.collectJufferWE().createBuffers(

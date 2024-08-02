@@ -21,6 +21,7 @@ public record LazyCollectorArgs(CollectTxArgs collectTxArgs,
                                 ReadJuffersWarmUpElement collectJufferWE,
                                 BlockFiller<?> blockFiller,
                                 int chunkIx,
-                                int numToCollect)
+                                int numToCollect,
+                                int numChunksInRange)
 {
 }
