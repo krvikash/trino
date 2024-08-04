@@ -67,6 +67,8 @@ public final class DispatcherPageSourceStats
     private final LongAdder lazy_collect_total_blocks = new LongAdder();
     private final LongAdder lazy_collect_loaded_blocks = new LongAdder();
     private final LongAdder lazy_collect_failed_load = new LongAdder();
+    private final LongAdder wrapped_collect_total_lazy_blocks = new LongAdder();
+    private final LongAdder wrapped_collect_loaded_lazy_blocks = new LongAdder();
     private final LongAdder lucene_execution_time_Count = new LongAdder();
     private final LongAdder lucene_execution_time = new LongAdder();
     private final LongAdder execution_time_Count = new LongAdder();
@@ -825,6 +827,52 @@ public final class DispatcherPageSourceStats
 
     @JsonIgnore
     @Managed
+    public long getwrapped_collect_total_lazy_blocks()
+    {
+        return wrapped_collect_total_lazy_blocks.longValue();
+    }
+
+    public void incwrapped_collect_total_lazy_blocks()
+    {
+        wrapped_collect_total_lazy_blocks.increment();
+    }
+
+    public void addwrapped_collect_total_lazy_blocks(long val)
+    {
+        wrapped_collect_total_lazy_blocks.add(val);
+    }
+
+    public void setwrapped_collect_total_lazy_blocks(long val)
+    {
+        wrapped_collect_total_lazy_blocks.reset();
+        addwrapped_collect_total_lazy_blocks(val);
+    }
+
+    @JsonIgnore
+    @Managed
+    public long getwrapped_collect_loaded_lazy_blocks()
+    {
+        return wrapped_collect_loaded_lazy_blocks.longValue();
+    }
+
+    public void incwrapped_collect_loaded_lazy_blocks()
+    {
+        wrapped_collect_loaded_lazy_blocks.increment();
+    }
+
+    public void addwrapped_collect_loaded_lazy_blocks(long val)
+    {
+        wrapped_collect_loaded_lazy_blocks.add(val);
+    }
+
+    public void setwrapped_collect_loaded_lazy_blocks(long val)
+    {
+        wrapped_collect_loaded_lazy_blocks.reset();
+        addwrapped_collect_loaded_lazy_blocks(val);
+    }
+
+    @JsonIgnore
+    @Managed
     public long getlucene_execution_time_Count()
     {
         return lucene_execution_time_Count.longValue();
@@ -927,6 +975,8 @@ public final class DispatcherPageSourceStats
         ret.put("lazy_collect_total_blocks", lazy_collect_total_blocks);
         ret.put("lazy_collect_loaded_blocks", lazy_collect_loaded_blocks);
         ret.put("lazy_collect_failed_load", lazy_collect_failed_load);
+        ret.put("wrapped_collect_total_lazy_blocks", wrapped_collect_total_lazy_blocks);
+        ret.put("wrapped_collect_loaded_lazy_blocks", wrapped_collect_loaded_lazy_blocks);
 
         return ret;
     }
@@ -970,6 +1020,8 @@ public final class DispatcherPageSourceStats
         this.lazy_collect_total_blocks.add(other.lazy_collect_total_blocks.longValue());
         this.lazy_collect_loaded_blocks.add(other.lazy_collect_loaded_blocks.longValue());
         this.lazy_collect_failed_load.add(other.lazy_collect_failed_load.longValue());
+        this.wrapped_collect_total_lazy_blocks.add(other.wrapped_collect_total_lazy_blocks.longValue());
+        this.wrapped_collect_loaded_lazy_blocks.add(other.wrapped_collect_loaded_lazy_blocks.longValue());
         this.lucene_execution_time.add(other.lucene_execution_time.longValue());
         this.lucene_execution_time_Count.add(other.lucene_execution_time_Count.longValue());
         this.execution_time.add(other.execution_time.longValue());
@@ -1011,6 +1063,8 @@ public final class DispatcherPageSourceStats
         lazy_collect_total_blocks.reset();
         lazy_collect_loaded_blocks.reset();
         lazy_collect_failed_load.reset();
+        wrapped_collect_total_lazy_blocks.reset();
+        wrapped_collect_loaded_lazy_blocks.reset();
         lucene_execution_time.reset();
         lucene_execution_time_Count.reset();
         execution_time.reset();
@@ -1052,6 +1106,8 @@ public final class DispatcherPageSourceStats
         res.put(getJmxKey() + ":proxied_loaded_pages_bytes", proxied_loaded_pages_bytes.longValue());
         res.put(getJmxKey() + ":lazy_collect_total_blocks", lazy_collect_total_blocks.longValue());
         res.put(getJmxKey() + ":lazy_collect_loaded_blocks", lazy_collect_loaded_blocks.longValue());
+        res.put(getJmxKey() + ":wrapped_collect_total_lazy_blocks", wrapped_collect_total_lazy_blocks.longValue());
+        res.put(getJmxKey() + ":wrapped_collect_loaded_lazy_blocks", wrapped_collect_loaded_lazy_blocks.longValue());
         res.put(getJmxKey() + ":lucene_execution_time", lucene_execution_time.longValue());
         res.put(getJmxKey() + ":lucene_execution_time_Count", lucene_execution_time_Count.longValue());
         res.put(getJmxKey() + ":execution_time", execution_time.longValue());
@@ -1090,6 +1146,8 @@ public final class DispatcherPageSourceStats
         res.put("lazy_collect_total_blocks", getlazy_collect_total_blocks());
         res.put("lazy_collect_loaded_blocks", getlazy_collect_loaded_blocks());
         res.put("lazy_collect_failed_load", getlazy_collect_failed_load());
+        res.put("wrapped_collect_total_lazy_blocks", getwrapped_collect_total_lazy_blocks());
+        res.put("wrapped_collect_loaded_lazy_blocks", getwrapped_collect_loaded_lazy_blocks());
         return res;
     }
 

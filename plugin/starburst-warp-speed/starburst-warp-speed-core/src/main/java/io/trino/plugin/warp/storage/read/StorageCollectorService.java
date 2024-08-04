@@ -192,7 +192,7 @@ public class StorageCollectorService
         stats.addlazy_collect_total_blocks(collectElementsParamsList.size());
     }
 
-    void fillBlocks(Block[] blocks, StorageCollectorArgs storageCollectorArgs, CollectOpenResult collectOpenResult, int rowsToFill)
+    void fillBlocks(Block[] blocks, StorageCollectorArgs storageCollectorArgs, CollectOpenResult collectOpenResult, int rowsToFill, DispatcherPageSourceStats stats)
     {
         List<WarmupElementCollectParams> collectElementsParamsList = storageCollectorArgs.collectTxArgs().queryParams().getCollectElementsParamsList();
 
@@ -201,8 +201,13 @@ public class StorageCollectorService
             QueryResultType queryResultType = QueryResultType.values()[collectOpenResult.outResultType()[weIx]];
             BlockFiller<?> blockFiller = storageCollectorArgs.blockFillers().get(weIx);
             ReadJuffersWarmUpElement readJuffersWarmUpElement = storageCollectorArgs.collectJuffersWE().get(weIx);
-            blocks[collectParams.getBlockIndex()] = blockFiller.fillBlockWithRecords(collectParams, readJuffersWarmUpElement, rowsToFill, queryResultType, dictionaryStats);
+            Block block = blockFiller.fillBlockWithRecords(collectParams, readJuffersWarmUpElement, rowsToFill, queryResultType, dictionaryStats);
+            blocks[collectParams.getBlockIndex()] = new LazyBlock(rowsToFill, () -> {
+                stats.incwrapped_collect_loaded_lazy_blocks();
+                return block;
+            });
         }
+        stats.addwrapped_collect_total_lazy_blocks(collectElementsParamsList.size());
     }
 
     int getNumToCollect(StorageCollectorArgs storageCollectorArgs,

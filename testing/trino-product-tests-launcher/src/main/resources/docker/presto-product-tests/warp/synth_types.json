@@ -2282,6 +2282,134 @@
             }
           }
         ]
+      },
+      {
+        "case_name": "integer_more wrapped collect",
+        "warmup_rules": [
+          {
+            "colNameId": "int_1",
+            "predicates": [],
+            "warmUpTypes": [
+              "WARM_UP_TYPE_DATA",
+              "WARM_UP_TYPE_BASIC"
+
+            ]
+          },
+          {
+            "colNameId": "bigint_2",
+            "predicates": [],
+            "warmUpTypes": [
+              "WARM_UP_TYPE_DATA",
+              "WARM_UP_TYPE_BASIC"
+            ]
+          },
+          {
+            "colNameId": "smallint_3",
+            "predicates": [],
+            "warmUpTypes": [
+              "WARM_UP_TYPE_DATA",
+              "WARM_UP_TYPE_BASIC"
+
+            ]
+          },
+          {
+            "colNameId": "tinyint_4",
+            "predicates": [],
+            "warmUpTypes": [
+              "WARM_UP_TYPE_DATA",
+              "WARM_UP_TYPE_BASIC"
+
+            ]
+          }
+        ],
+        "warm_query": "select * from integer_more",
+        "queries_data": [
+          {
+            "query": "select count(*) from integer_more",
+            "expected_result": [
+              6
+            ],
+            "query_id": "integer_more_case_3_1",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "empty_collect_columns": 1,
+              "wrapped_collect_total_lazy_blocks": 0,
+              "wrapped_collect_total_loaded_blocks": 0,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select int_1 from integer_more where int_1=1000000001 or int_1 = 1000000004 order by int_1",
+            "expected_result": [
+              [
+                1000000001
+              ],
+              [
+                1000000004
+              ]
+            ],
+            "query_id": "integer_more_case_3_2",
+            "expected_counters": {
+              "warp_match_columns": 1,
+              "warp_collect_columns": 1,
+              "empty_collect_columns": 0,
+              "wrapped_collect_total_lazy_blocks": 1,
+              "wrapped_collect_total_loaded_blocks": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select count(bigint_2) from integer_more where sqrt(smallint_3) = 1000",
+            "expected_result": [
+              0
+            ],
+            "query_id": "integer_more_case_3_3",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 2,
+              "empty_collect_columns": 0,
+              "wrapped_collect_total_lazy_blocks": 2,
+              "wrapped_collect_total_loaded_blocks": 1,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select int_1, bigint_2 from integer_more where sqrt(smallint_3) = 100",
+            "expected_result": [
+              1000000000, 100000000000000000
+            ],
+            "query_id": "integer_more_case_3_4",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 3,
+              "empty_collect_columns": 0,
+              "wrapped_collect_total_lazy_blocks": 3,
+              "wrapped_collect_total_loaded_blocks": 3,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          },
+          {
+            "query": "select count(bigint_2) from integer_more where smallint_3 > int_1",
+            "expected_result": [
+              0
+            ],
+            "query_id": "integer_more_case_3_5",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 3,
+              "empty_collect_columns": 0,
+              "wrapped_collect_total_lazy_blocks": 3,
+              "wrapped_collect_total_loaded_blocks": 2,
+              "external_match_columns": 0,
+              "external_collect_columns": 0
+            }
+          }
+        ]
       }
     ]
   },

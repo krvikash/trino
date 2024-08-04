@@ -401,7 +401,7 @@ public class StorageReader
             storageCollectorService.fillBlocks(blocks, storageCollectorArgs, rowsToFill, lazyChunkIx, statsDispatcherPageSource);
         }
         else {
-            storageCollectorService.fillBlocks(blocks, storageCollectorArgs, collectOpenResult, rowsToFill);
+            storageCollectorService.fillBlocks(blocks, storageCollectorArgs, collectOpenResult, rowsToFill, statsDispatcherPageSource);
         }
         return rowsToFill;
     }
