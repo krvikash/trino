@@ -22,6 +22,7 @@ import com.google.errorprone.annotations.ThreadSafe;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import com.google.inject.Inject;
 import io.airlift.slice.Slice;
+import io.trino.plugin.memory.MemoryInsertTableHandle.InsertMode;
 import io.trino.spi.HostAddress;
 import io.trino.spi.Node;
 import io.trino.spi.NodeManager;
@@ -277,7 +278,7 @@ public class MemoryMetadata
         long tableId = handle.id();
 
         TableInfo oldInfo = tables.get(tableId);
-        tables.put(tableId, new TableInfo(tableId, newTableName.getSchemaName(), newTableName.getTableName(), oldInfo.columns(), oldInfo.dataFragments(), oldInfo.comment()));
+        tables.put(tableId, new TableInfo(tableId, newTableName.getSchemaName(), newTableName.getTableName(), oldInfo.columns(), oldInfo.truncated(), oldInfo.dataFragments(), oldInfo.comment()));
 
         tableIds.remove(oldInfo.getSchemaTableName());
         tableIds.put(newTableName, tableId);
@@ -311,6 +312,7 @@ public class MemoryMetadata
                 tableMetadata.getTable().getSchemaName(),
                 tableMetadata.getTable().getTableName(),
                 columns.build(),
+                false,
                 new HashMap<>(),
                 tableMetadata.getComment()));
 
@@ -350,7 +352,10 @@ public class MemoryMetadata
     public synchronized MemoryInsertTableHandle beginInsert(ConnectorSession session, ConnectorTableHandle tableHandle, List<ColumnHandle> columns, RetryMode retryMode)
     {
         MemoryTableHandle memoryTableHandle = (MemoryTableHandle) tableHandle;
-        return new MemoryInsertTableHandle(memoryTableHandle.id(), ImmutableSet.copyOf(tableIds.values()));
+        TableInfo tableInfo = tables.get(memoryTableHandle.id());
+        InsertMode mode = tableInfo.truncated() ? InsertMode.OVERWRITE : InsertMode.APPEND;
+        tables.put(tableInfo.id(), new TableInfo(tableInfo.id(), tableInfo.schemaName(), tableInfo.tableName(), tableInfo.columns(), false, tableInfo.dataFragments(), tableInfo.comment()));
+        return new MemoryInsertTableHandle(memoryTableHandle.id(), mode, ImmutableSet.copyOf(tableIds.values()));
     }
 
     @Override
@@ -374,7 +379,7 @@ public class MemoryMetadata
         MemoryTableHandle handle = (MemoryTableHandle) tableHandle;
         long tableId = handle.id();
         TableInfo info = tables.get(handle.id());
-        tables.put(tableId, new TableInfo(tableId, info.schemaName(), info.tableName(), info.columns(), ImmutableMap.of(), info.comment()));
+        tables.put(tableId, new TableInfo(tableId, info.schemaName(), info.tableName(), info.columns(), true, ImmutableMap.of(), info.comment()));
     }
 
     @Override
@@ -389,7 +394,7 @@ public class MemoryMetadata
         ColumnInfo columnInfo = columns.get(column.columnIndex());
         columns.set(column.columnIndex(), new ColumnInfo(columnInfo.handle(), target, columnInfo.type(), columnInfo.nullable(), columnInfo.comment()));
 
-        tables.put(tableId, new TableInfo(tableId, table.schemaName(), table.tableName(), ImmutableList.copyOf(columns), table.dataFragments(), table.comment()));
+        tables.put(tableId, new TableInfo(tableId, table.schemaName(), table.tableName(), ImmutableList.copyOf(columns), table.truncated(), table.dataFragments(), table.comment()));
     }
 
     @Override
@@ -404,7 +409,7 @@ public class MemoryMetadata
         ColumnInfo columnInfo = columns.get(column.columnIndex());
         columns.set(column.columnIndex(), new ColumnInfo(columnInfo.handle(), columnInfo.name(), columnInfo.type(), true, columnInfo.comment()));
 
-        tables.put(tableId, new TableInfo(tableId, table.schemaName(), table.tableName(), ImmutableList.copyOf(columns), table.dataFragments(), table.comment()));
+        tables.put(tableId, new TableInfo(tableId, table.schemaName(), table.tableName(), ImmutableList.copyOf(columns), table.truncated(), table.dataFragments(), table.comment()));
     }
 
     @Override
@@ -519,7 +524,7 @@ public class MemoryMetadata
             dataFragments.merge(memoryDataFragment.hostAddress(), memoryDataFragment, MemoryDataFragment::merge);
         }
 
-        tables.put(tableId, new TableInfo(tableId, info.schemaName(), info.tableName(), info.columns(), dataFragments, info.comment()));
+        tables.put(tableId, new TableInfo(tableId, info.schemaName(), info.tableName(), info.columns(), info.truncated(), dataFragments, info.comment()));
     }
 
     public synchronized List<MemoryDataFragment> getDataFragments(long tableId)
@@ -586,7 +591,7 @@ public class MemoryMetadata
         MemoryTableHandle table = (MemoryTableHandle) tableHandle;
         TableInfo info = tables.get(table.id());
         checkArgument(info != null, "Table not found");
-        tables.put(table.id(), new TableInfo(table.id(), info.schemaName(), info.tableName(), info.columns(), info.dataFragments(), comment));
+        tables.put(table.id(), new TableInfo(table.id(), info.schemaName(), info.tableName(), info.columns(), info.truncated(), info.dataFragments(), comment));
     }
 
     @Override
@@ -604,6 +609,7 @@ public class MemoryMetadata
                         info.columns().stream()
                                 .map(tableColumn -> Objects.equals(tableColumn.handle(), columnHandle) ? new ColumnInfo(tableColumn.handle(), tableColumn.name(), tableColumn.getMetadata().getType(), tableColumn.nullable(), comment) : tableColumn)
                                 .collect(toImmutableList()),
+                        info.truncated(),
                         info.dataFragments(),
                         info.comment()));
     }
