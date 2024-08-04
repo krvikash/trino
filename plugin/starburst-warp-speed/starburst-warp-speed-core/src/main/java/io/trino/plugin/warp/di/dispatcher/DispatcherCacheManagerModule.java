@@ -39,6 +39,7 @@ import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.ReadErrorHandler;
+import io.trino.plugin.warp.dispatcher.cache.PredicateHashCalculator;
 import io.trino.plugin.warp.dispatcher.dal.RowGroupDataDao;
 import io.trino.plugin.warp.dispatcher.query.MatchCollectIdService;
 import io.trino.plugin.warp.dispatcher.query.classifier.ClassifierFactory;
@@ -181,7 +182,7 @@ public class DispatcherCacheManagerModule
         binder.bind(WorkerTaskExecutorService.class);
         binder.bind(WorkerWarmingService.class);
         binder.bind(WorkerWarmupRuleService.class);
-
+        binder.bind(PredicateHashCalculator.class);
         bindMetricsServices(binder);
     }
 
