@@ -15,7 +15,6 @@ package io.trino.memory;
 
 import com.google.common.collect.ImmutableMap;
 import io.airlift.units.DataSize;
-import io.airlift.units.Duration;
 import io.trino.memory.MemoryManagerConfig.LowMemoryQueryKillerPolicy;
 import io.trino.memory.MemoryManagerConfig.LowMemoryTaskKillerPolicy;
 import org.junit.jupiter.api.Test;
@@ -27,7 +26,6 @@ import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDe
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
 import static io.airlift.units.DataSize.Unit.GIGABYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
-import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class TestMemoryManagerConfig
 {
@@ -49,8 +47,7 @@ public class TestMemoryManagerConfig
                 .setFaultTolerantTaskSplitMemoryThreshold(DataSize.of(5, GIGABYTE))
                 .setFaultTolerantTaskSplitFactor(10)
                 .setLowMemoryQueryKillerPolicy(LowMemoryQueryKillerPolicy.TOTAL_RESERVATION_ON_BLOCKED_NODES)
-                .setLowMemoryTaskKillerPolicy(LowMemoryTaskKillerPolicy.TOTAL_RESERVATION_ON_BLOCKED_NODES)
-                .setKillOnOutOfMemoryDelay(new Duration(30, SECONDS)));
+                .setLowMemoryTaskKillerPolicy(LowMemoryTaskKillerPolicy.TOTAL_RESERVATION_ON_BLOCKED_NODES));
     }
 
     @Test
@@ -72,7 +69,6 @@ public class TestMemoryManagerConfig
                 .put("fault-tolerant-execution-task-split-factor", "11")
                 .put("query.low-memory-killer.policy", "none")
                 .put("task.low-memory-killer.policy", "none")
-                .put("query.low-memory-killer.delay", "20s")
                 .buildOrThrow();
 
         MemoryManagerConfig expected = new MemoryManagerConfig()
@@ -90,8 +86,7 @@ public class TestMemoryManagerConfig
                 .setFaultTolerantTaskSplitMemoryThreshold(DataSize.of(6, GIGABYTE))
                 .setFaultTolerantTaskSplitFactor(11)
                 .setLowMemoryQueryKillerPolicy(LowMemoryQueryKillerPolicy.NONE)
-                .setLowMemoryTaskKillerPolicy(LowMemoryTaskKillerPolicy.NONE)
-                .setKillOnOutOfMemoryDelay(new Duration(20, SECONDS));
+                .setLowMemoryTaskKillerPolicy(LowMemoryTaskKillerPolicy.NONE);
 
         assertFullMapping(properties, expected);
     }
