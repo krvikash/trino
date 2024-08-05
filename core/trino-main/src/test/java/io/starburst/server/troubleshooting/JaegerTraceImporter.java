@@ -29,9 +29,9 @@ import static java.util.Objects.requireNonNull;
  * This is an application for importing OpenTelemetry traces produced by Run&Troubleshoot to a local Jaeger instance.
  * For more information, see [project root directory]/architecture/performance/troubleshooting.md
  */
-public final class JeagerTraceImporter
+public final class JaegerTraceImporter
 {
-    private JeagerTraceImporter() {}
+    private JaegerTraceImporter() {}
 
     public static void main(String[] args)
     {
