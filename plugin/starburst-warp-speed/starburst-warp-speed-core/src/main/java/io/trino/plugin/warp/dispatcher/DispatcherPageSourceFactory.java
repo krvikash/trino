@@ -733,6 +733,7 @@ public class DispatcherPageSourceFactory
         initializeCustomStats(customStatsContext);
         String filePath = rowGroupData.getRowGroupKey().stringFileNameRepresentation(globalConfig.getLocalStorePath());
         long fileModTime = rowGroupData.getRowGroupKey().fileModifiedTime();
+        // Caching manager always returns tight results, so lazy collect is set to false.
         QueryParams queryParams = createQueryParams(queryContext, filePath, fileModTime, false);
         WarpPageSource warpPageSource = new WarpPageSource(storageEngine,
                 storageEngineConstants,

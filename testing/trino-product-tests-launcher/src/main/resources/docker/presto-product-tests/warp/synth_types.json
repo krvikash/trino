@@ -2172,9 +2172,6 @@
       },
       {
         "case_name": "integer_more lazy collect",
-        "session_properties": {
-          "enable_lazy_collect": true
-        },
         "warmup_rules": [
           {
             "colNameId": "int_1",
