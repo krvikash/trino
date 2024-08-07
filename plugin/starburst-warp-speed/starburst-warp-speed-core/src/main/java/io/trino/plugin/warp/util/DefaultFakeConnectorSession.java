@@ -87,6 +87,9 @@ public class DefaultFakeConnectorSession
         if ("allow_legacy_snapshot_syntax".equals(name)) {
             return (T) Boolean.FALSE;
         }
+        if (Boolean.class.equals(type)) {
+            return (T) Boolean.FALSE;
+        }
         return null;
     }
 }
