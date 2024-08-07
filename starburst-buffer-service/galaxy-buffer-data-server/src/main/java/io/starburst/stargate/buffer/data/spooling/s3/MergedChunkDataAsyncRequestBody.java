@@ -30,6 +30,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.CHUNK_FILE_HEADER_SIZE;
@@ -48,7 +49,7 @@ public class MergedChunkDataAsyncRequestBody
 
     private final String location;
     private final ImmutableList<Map.Entry<Chunk, ChunkDataLease>> chunkDataLeaseList;
-    private final ImmutableMap.Builder<Long, SpooledChunk> spooledChunkMap;
+    private final AtomicReference<Map<Long, SpooledChunk>> spooledChunkMapRef;
     private final String mimetype;
     private final long contentLength;
 
@@ -56,13 +57,13 @@ public class MergedChunkDataAsyncRequestBody
             String location,
             Map<Chunk, ChunkDataLease> chunkDataLeaseMap,
             long contentLength,
-            ImmutableMap.Builder<Long, SpooledChunk> spooledChunkMap,
+            AtomicReference<Map<Long, SpooledChunk>> spooledChunkMapRef,
             String mimetype)
     {
         this.location = requireNonNull(location, "location is null");
         requireNonNull(chunkDataLeaseMap, "chunkDataLeaseMap is null");
         this.chunkDataLeaseList = chunkDataLeaseMap.entrySet().stream().collect(toImmutableList());
-        this.spooledChunkMap = requireNonNull(spooledChunkMap, "spooledChunkMap is null");
+        this.spooledChunkMapRef = requireNonNull(spooledChunkMapRef, "spooledChunkMap is null");
         this.mimetype = requireNonNull(mimetype, "mimeType is null");
         this.contentLength = contentLength;
     }
@@ -95,6 +96,7 @@ public class MergedChunkDataAsyncRequestBody
                         private final AtomicInteger chunkOffset = new AtomicInteger(0);
                         private final AtomicInteger sliceOffset = new AtomicInteger(0);
                         private final AtomicBoolean done = new AtomicBoolean(false);
+                        private final ImmutableMap.Builder<Long, SpooledChunk> spooledChunkMap = ImmutableMap.builder();
 
                         // As per 3.2, it should be possible to call request() from onNext(). This implies that offsets need to be advanced before calls to onNext().
                         @Override
@@ -142,6 +144,7 @@ public class MergedChunkDataAsyncRequestBody
                                 }
                             }
                             if (chunkOffset.get() == chunkDataLeaseList.size() && done.compareAndSet(false, true)) {
+                                spooledChunkMapRef.set(spooledChunkMap.buildOrThrow());
                                 s.onComplete();
                             }
                         }
@@ -150,6 +153,7 @@ public class MergedChunkDataAsyncRequestBody
                         public void cancel()
                         {
                             done.compareAndSet(false, true);
+                            log.info("Subscription canceled for spooling to %s", location);
                         }
                     });
         }
@@ -162,7 +166,7 @@ public class MergedChunkDataAsyncRequestBody
             String location,
             Map<Chunk, ChunkDataLease> chunkDataLeaseMap,
             long contentLength,
-            ImmutableMap.Builder<Long, SpooledChunk> spooledChunkMap)
+            AtomicReference<Map<Long, SpooledChunk>> spooledChunkMap)
     {
         return new MergedChunkDataAsyncRequestBody(location, chunkDataLeaseMap, contentLength, spooledChunkMap, Mimetype.MIMETYPE_OCTET_STREAM);
     }

@@ -58,6 +58,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
@@ -140,7 +141,7 @@ public class S3SpoolingStorage
                 .key(fileName)
                 .checksumAlgorithm(ChecksumAlgorithm.CRC32_C)
                 .build();
-        ImmutableMap.Builder<Long, SpooledChunk> spooledChunkMap = ImmutableMap.builder();
+        AtomicReference<Map<Long, SpooledChunk>> spooledChunkMap = new AtomicReference<>();
         return Futures.transform(
                 toListenableFuture(s3AsyncClient.putObject(putObjectRequest,
                         MergedChunkDataAsyncRequestBody.fromChunks(
@@ -148,7 +149,7 @@ public class S3SpoolingStorage
                                 chunkDataLeaseMap,
                                 contentLength,
                                 spooledChunkMap))),
-                ignored -> spooledChunkMap.buildOrThrow(),
+                ignored -> Optional.ofNullable(spooledChunkMap.get()).orElseGet(ImmutableMap::of),
                 directExecutor());
     }
 

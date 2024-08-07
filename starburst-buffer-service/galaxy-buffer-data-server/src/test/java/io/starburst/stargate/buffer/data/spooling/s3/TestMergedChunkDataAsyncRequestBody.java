@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
@@ -92,22 +93,30 @@ public class TestMergedChunkDataAsyncRequestBody
         private int onNextCounter;
         private int requestCounter;
         private boolean onCompleteCalled;
+        private boolean cancelCalled;
         private Subscription subscription;
         private final int onNextsPerRequest;
         private final boolean nestedRequests;
+        private final boolean abortSubscription;
         private final ByteBuffer outputBuffer = ByteBuffer.allocate(1000);
 
         MockSubscriber(int onNextsPerRequest, boolean nestedRequests)
         {
+            this(onNextsPerRequest, nestedRequests, false);
+        }
+
+        MockSubscriber(int onNextsPerRequest, boolean nestedRequests, boolean abortSubscription)
+        {
             this.onNextsPerRequest = onNextsPerRequest;
             this.nestedRequests = nestedRequests;
+            this.abortSubscription = abortSubscription;
         }
 
         @Override
         public void onSubscribe(Subscription subscription)
         {
             this.subscription = subscription;
-            while (!onCompleteCalled) {
+            while (!onCompleteCalled && !cancelCalled) {
                 requestCounter++;
                 subscription.request(onNextsPerRequest);
             }
@@ -118,7 +127,11 @@ public class TestMergedChunkDataAsyncRequestBody
         {
             outputBuffer.put(byteBuffer);
             onNextCounter++;
-            if (nestedRequests && !onCompleteCalled && onNextCounter % onNextsPerRequest == 0) {
+            if (abortSubscription && onNextCounter == onNextsPerRequest - 1) {
+                cancelCalled = true;
+                subscription.cancel();
+            }
+            else if (nestedRequests && !onCompleteCalled && onNextCounter % onNextsPerRequest == 0) {
                 requestCounter++;
                 subscription.request(onNextsPerRequest);
             }
@@ -195,7 +208,7 @@ public class TestMergedChunkDataAsyncRequestBody
     {
         final int numSlices = 1;
         final int consumerCallLimit = 2;
-        ImmutableMap.Builder<Long, SpooledChunk> spooledChunkMap = ImmutableMap.builder();
+        AtomicReference<Map<Long, SpooledChunk>> spooledChunkMap = new AtomicReference<>();
         // This test may fail for multiple chunks because the key ordering will be different with HashMaps (Chunk vs Long).
         Map<Chunk, Set<List<DataPage>>> dataToWrite = ImmutableMap.of(new Chunk(0L), createDataPageList(0L, numSlices));
         Map<Chunk, Set<List<DataPage>>> dataWithDifferentTestString = ImmutableMap.of(new Chunk(0L), createDataPageList(0L, numSlices, 1));
@@ -207,7 +220,7 @@ public class TestMergedChunkDataAsyncRequestBody
         MockSubscriber subscriber = new MockSubscriber(consumerCallLimit, false);
         testBody.subscribe(subscriber);
         byte[] writtenRawData = subscriber.getWrittenRawData();
-        Map<Long, SpooledChunk> spooledChunks = spooledChunkMap.buildOrThrow();
+        Map<Long, SpooledChunk> spooledChunks = spooledChunkMap.get();
         verifyExpectedOutput(dataToWrite, spooledChunks, writtenRawData);
         verifyUnexpectedOutput(dataWithDifferentTestString, spooledChunks, writtenRawData);
     }
@@ -217,7 +230,7 @@ public class TestMergedChunkDataAsyncRequestBody
     {
         final int numSlices = 2;
         final int consumerCallLimit = 1;
-        ImmutableMap.Builder<Long, SpooledChunk> spooledChunkMap = ImmutableMap.builder();
+        AtomicReference<Map<Long, SpooledChunk>> spooledChunkMap = new AtomicReference<>();
         Map<Chunk, Set<List<DataPage>>> dataToWrite = ImmutableMap.of(new Chunk(0L), createDataPageList(0L, numSlices));
         AsyncRequestBody testBody = fromChunks(
                 "test",
@@ -229,7 +242,29 @@ public class TestMergedChunkDataAsyncRequestBody
         assertThat(subscriber.isOnCompleteCalled()).isTrue();
         assertThat(subscriber.getOnNextCounter()).isEqualTo(numSlices + 1);
         assertThat(subscriber.getRequestCounter()).isEqualTo(numSlices + 1);
-        verifyExpectedOutput(dataToWrite, spooledChunkMap.buildOrThrow(), subscriber.getWrittenRawData());
+        verifyExpectedOutput(dataToWrite, spooledChunkMap.get(), subscriber.getWrittenRawData());
+    }
+
+    @Test
+    public void testAbortSubscription()
+    {
+        final int numSlices = 5;
+        final int consumerCallLimit = 3;
+        AtomicReference<Map<Long, SpooledChunk>> spooledChunkMap = new AtomicReference<>();
+        Map<Chunk, Set<List<DataPage>>> dataToWrite = ImmutableMap.of(new Chunk(0L), createDataPageList(0L, numSlices));
+        AsyncRequestBody testBody = fromChunks(
+                "test",
+                dataToWrite.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> toChunkDataLease(e.getValue()))),
+                100,
+                spooledChunkMap);
+        MockSubscriber subscriber = new MockSubscriber(consumerCallLimit, false, true);
+        testBody.subscribe(subscriber);
+        assertThat(spooledChunkMap.get()).isNull();
+        subscriber = new MockSubscriber(consumerCallLimit, false, false);
+        testBody.subscribe(subscriber);
+        assertThat(subscriber.getOnNextCounter()).isEqualTo(numSlices + 1);
+        assertThat(subscriber.getRequestCounter()).isEqualTo(2);
+        verifyExpectedOutput(dataToWrite, spooledChunkMap.get(), subscriber.getWrittenRawData());
     }
 
     @Test
@@ -237,7 +272,7 @@ public class TestMergedChunkDataAsyncRequestBody
     {
         final int numSlices = 2;
         final int consumerCallLimit = 1;
-        ImmutableMap.Builder<Long, SpooledChunk> spooledChunkMap = ImmutableMap.builder();
+        AtomicReference<Map<Long, SpooledChunk>> spooledChunkMap = new AtomicReference<>();
         Map<Chunk, Set<List<DataPage>>> dataToWrite = ImmutableMap.of(new Chunk(0L), createDataPageList(0L, numSlices));
         AsyncRequestBody testBody = fromChunks(
                 "test",
@@ -250,7 +285,7 @@ public class TestMergedChunkDataAsyncRequestBody
         assertThat(subscriber.getOnNextCounter()).isEqualTo(numSlices + 1);
         // This has an extra call to request because of nested calls to request() from onNext()
         assertThat(subscriber.getRequestCounter()).isEqualTo(numSlices + 2);
-        verifyExpectedOutput(dataToWrite, spooledChunkMap.buildOrThrow(), subscriber.getWrittenRawData());
+        verifyExpectedOutput(dataToWrite, spooledChunkMap.get(), subscriber.getWrittenRawData());
     }
 
     @Test
@@ -273,7 +308,7 @@ public class TestMergedChunkDataAsyncRequestBody
         final int consumerCallLimit = 2;
         // Use sorted maps to ensure that verifier has dataToWrite (chunk key) and spooledChunkMap (long key) in the same order.
         // This is needed because the ordering with HashMaps will not be the same when the key types are different.
-        ImmutableMap.Builder<Long, SpooledChunk> spooledChunkMap = new ImmutableSortedMap.Builder<>(Ordering.natural());
+        AtomicReference<Map<Long, SpooledChunk>> spooledChunkMap = new AtomicReference<>();
         Map<Chunk, Set<List<DataPage>>> dataToWrite = createChunkToSliceMap(List.of(chunk0NumSlices, chunk1NumSlices, chunk2NumSlices));
         AsyncRequestBody testBody = fromChunks(
                 "test",
@@ -285,7 +320,7 @@ public class TestMergedChunkDataAsyncRequestBody
         assertThat(subscriber.isOnCompleteCalled()).isTrue();
         assertThat(subscriber.getOnNextCounter()).isEqualTo(chunk0NumSlices + chunk1NumSlices + chunk2NumSlices + 3);
         assertThat(subscriber.getRequestCounter()).isEqualTo((chunk0NumSlices + chunk1NumSlices + chunk2NumSlices + 3 + consumerCallLimit - 1) / consumerCallLimit);
-        verifyExpectedOutput(dataToWrite, spooledChunkMap.buildOrThrow(), subscriber.getWrittenRawData());
+        verifyExpectedOutput(dataToWrite, spooledChunkMap.get(), subscriber.getWrittenRawData());
     }
 
     @Test
@@ -307,7 +342,8 @@ public class TestMergedChunkDataAsyncRequestBody
         final int consumerCallLimit = 2;
         // Use sorted maps to ensure that verifier has dataToWrite (chunk key) and spooledChunkMap (long key) in the same order.
         // This is needed because the ordering with HashMaps will not be the same when the key types are different.
-        ImmutableMap.Builder<Long, SpooledChunk> spooledChunkMap = new ImmutableSortedMap.Builder<>(Ordering.natural());
+        ImmutableMap.Builder<Long, SpooledChunk> sortedSpooledChunkMap = new ImmutableSortedMap.Builder<>(Ordering.natural());
+        AtomicReference<Map<Long, SpooledChunk>> spooledChunkMap = new AtomicReference();
         Map<Chunk, Set<List<DataPage>>> dataToWrite = createChunkToSliceMap(List.of(chunk0NumSlices, chunk1NumSlices));
         AsyncRequestBody testBody = fromChunks(
                 "test",
@@ -319,7 +355,7 @@ public class TestMergedChunkDataAsyncRequestBody
         assertThat(subscriber.isOnCompleteCalled()).isTrue();
         assertThat(subscriber.getOnNextCounter()).isEqualTo(chunk0NumSlices + chunk1NumSlices + 2);
         assertThat(subscriber.getRequestCounter()).isEqualTo((chunk0NumSlices + chunk1NumSlices + 2 + consumerCallLimit - 1) / consumerCallLimit);
-        verifyExpectedOutput(dataToWrite, spooledChunkMap.buildOrThrow(), subscriber.getWrittenRawData());
+        verifyExpectedOutput(dataToWrite, sortedSpooledChunkMap.putAll(spooledChunkMap.get()).buildOrThrow(), subscriber.getWrittenRawData());
     }
 
     @Test
@@ -341,7 +377,8 @@ public class TestMergedChunkDataAsyncRequestBody
         final int consumerCallLimit = 2;
         // Use sorted maps to ensure that verifier has dataToWrite (chunk key) and spooledChunkMap (long key) in the same order.
         // This is needed because the ordering with HashMaps will not be the same when the key types are different.
-        ImmutableMap.Builder<Long, SpooledChunk> spooledChunkMap = new ImmutableSortedMap.Builder<>(Ordering.natural());
+        ImmutableMap.Builder<Long, SpooledChunk> sortedSpooledChunkMap = new ImmutableSortedMap.Builder<>(Ordering.natural());
+        AtomicReference<Map<Long, SpooledChunk>> spooledChunkMap = new AtomicReference();
         Map<Chunk, Set<List<DataPage>>> dataToWrite = createChunkToSliceMap(List.of(chunk0NumSlices, chunk1NumSlices));
         AsyncRequestBody testBody = fromChunks(
                 "test",
@@ -353,6 +390,6 @@ public class TestMergedChunkDataAsyncRequestBody
         assertThat(subscriber.isOnCompleteCalled()).isTrue();
         assertThat(subscriber.getOnNextCounter()).isEqualTo(chunk0NumSlices + chunk1NumSlices + 2);
         assertThat(subscriber.getRequestCounter()).isEqualTo((chunk0NumSlices + chunk1NumSlices + 2 + consumerCallLimit - 1) / consumerCallLimit);
-        verifyExpectedOutput(dataToWrite, spooledChunkMap.buildOrThrow(), subscriber.getWrittenRawData());
+        verifyExpectedOutput(dataToWrite, sortedSpooledChunkMap.putAll(spooledChunkMap.get()).buildOrThrow(), subscriber.getWrittenRawData());
     }
 }
