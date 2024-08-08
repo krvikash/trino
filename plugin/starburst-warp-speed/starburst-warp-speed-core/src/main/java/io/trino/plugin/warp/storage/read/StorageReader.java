@@ -81,7 +81,7 @@ public class StorageReader
     private boolean dictionariesLoaded;
     private RecordIndexListType storeRowListType;
     private int storeRowListSize;
-    private int lazyChunkIx;
+    private int lazyCollectEndRowIndex;
 
     // time measures
     private long lastReportTime;
@@ -210,6 +210,7 @@ public class StorageReader
         }
 
         CollectOpenResult collectOpenResult = collectTxService.collectOpenAndRestore(rowsLimit,
+                lazyCollectEndRowIndex,
                 storageCollectorArgs,
                 storeRowListSize,
                 storeRowListType,
@@ -323,7 +324,7 @@ public class StorageReader
             collectBufferState = collectFromStorageResult.collectBufferState();
             chunkPrepared = collectFromStorageResult.chunkPrepared();
             numCollectedRows = collectFromStorageResult.numCollectedRows();
-            lazyChunkIx = collectFromStorageResult.lazyChunkIx();
+            lazyCollectEndRowIndex = collectFromStorageResult.lazyCollectEndRowIndex();
             matchExhausted = chunksQueueService.isChunkRangeCompleted(storageCollectorArgs.chunksQueue());
             matchIfNeeded();
         }
@@ -402,7 +403,7 @@ public class StorageReader
         int rowsToFill = Math.min(numCollectedRows, collectOpenResult.rowsLimit());
 
         if (storageCollectorArgs.isLazyCollect()) {
-            storageCollectorService.fillBlocks(blocks, storageCollectorArgs, rowsToFill, lazyChunkIx, statsDispatcherPageSource);
+            storageCollectorService.fillBlocks(blocks, storageCollectorArgs, lazyCollectEndRowIndex - rowsToFill, rowsToFill, statsDispatcherPageSource);
         }
         else {
             storageCollectorService.fillBlocks(blocks, storageCollectorArgs, collectOpenResult, rowsToFill, statsDispatcherPageSource);

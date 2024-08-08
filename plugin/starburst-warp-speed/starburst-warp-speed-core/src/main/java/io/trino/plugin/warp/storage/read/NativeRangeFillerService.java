@@ -87,7 +87,7 @@ public class NativeRangeFillerService
                 if (rangesRequired) {
                     int min;
                     if (storageCollectorArgs.isLazyCollect()) {
-                        min = baseRow;
+                        min = baseRow + collectOpenResult.lazyCollectAlreadyCollectedFromFirstChunk();
                     }
                     else {
                         // start row index lies in the first position in the list

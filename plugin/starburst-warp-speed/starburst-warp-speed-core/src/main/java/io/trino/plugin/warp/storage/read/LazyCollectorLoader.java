@@ -62,7 +62,8 @@ public class LazyCollectorLoader
         loaded = true;
 
         Block retBlock;
-        int chunkIndexToCollect = lazyCollectorArgs.chunkIx();
+        int chunkIndexToCollect = lazyCollectorArgs.lazyCollectStartRowIndex() / lazyCollectorArgs.chunkSize();
+        int startRowIndexInChunk = lazyCollectorArgs.lazyCollectStartRowIndex() % lazyCollectorArgs.chunkSize();
         int numRowsToCollect = lazyCollectorArgs.numToCollect();
         int collectTxId = BaseCollectTxService.INVALID_TX_ID;
         LazyCollectOpenResult collectOpenResult = null;
@@ -72,7 +73,7 @@ public class LazyCollectorLoader
             collectTxId = collectOpenResult.collectTxId();
 
             // prepare and collect
-            collectTxService.prepareChunk(collectTxId, chunkIndexToCollect, numRowsToCollect, 0 /* start row index */);
+            collectTxService.prepareChunk(collectTxId, chunkIndexToCollect, numRowsToCollect, startRowIndexInChunk);
             collectTxService.collect(collectTxId, collectOpenResult.outResultType(), 1, chunkIndexToCollect, numRowsToCollect);
 
             // fill block

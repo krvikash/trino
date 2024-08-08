@@ -20,7 +20,7 @@ public record LazyCollectorArgs(CollectTxArgs collectTxArgs,
                                 WarmupElementCollectParams collectParams,
                                 ReadJuffersWarmUpElement collectJufferWE,
                                 BlockFiller<?> blockFiller,
-                                int chunkIx,
+                                int lazyCollectStartRowIndex,
                                 int numToCollect,
                                 int numChunksInRange,
                                 int chunkSize)

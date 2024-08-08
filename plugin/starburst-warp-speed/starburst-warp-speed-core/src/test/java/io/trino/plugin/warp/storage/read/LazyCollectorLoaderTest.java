@@ -57,6 +57,7 @@ class LazyCollectorLoaderTest
     public void testCollectOpenFailureStats()
     {
         LazyCollectorArgs lazyCollectorArgs = mock(LazyCollectorArgs.class);
+        when(lazyCollectorArgs.chunkSize()).thenReturn(65536);
         LazyCollectorLoader lazyCollectorLoader = new LazyCollectorLoader(
                 lazyCollectTxService,
                 lazyCollectorArgs,
