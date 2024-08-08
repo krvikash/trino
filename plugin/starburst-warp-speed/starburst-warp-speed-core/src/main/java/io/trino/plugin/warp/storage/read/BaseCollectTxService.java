@@ -68,35 +68,33 @@ public abstract class BaseCollectTxService
         return collectTxId;
     }
 
-    // returns > 0 if buffer is exhausted and we need to stop collecting, 0 if not, -1 for error
-    int prepareNextChunk(int chunkIx,
-            int curResetPoint,
-            boolean chunkPrepared,
-            int collectTxId,
-            int rowsLimit,
-            int numCollectedRows,
-            int[] outResultType)
+    // prepare chunk with match result
+    // returns true if buffer is exhausted and we need to stop collecting, false if not, error throws and exception
+    boolean prepareChunk(int collectTxId, int chunkIndex, int numRowsToCollect, int matchBitmapResetPoint, int[] outResultType)
     {
-        int ret = 0;
-        if (!chunkPrepared) {
-            logger.debug("collectFromStorage process match chunkIndex %d bitmapResetPoint %d rowsLimit %d numCollectedRows %d",
-                    chunkIx, curResetPoint, rowsLimit, numCollectedRows);
-            ret = (int) storageEngine.processMatchResult(collectTxId,
-                    chunkIx,
-                    curResetPoint,
-                    rowsLimit - numCollectedRows,
-                    outResultType);
-            if (ret == -1) {
-                throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED,
-                        String.format("prepareNextChunk failed unexpectedly collectTxId %d chunkIx %d resetPoint %d numCollectedRows %d rowsLimit %d",
-                                collectTxId,
-                                chunkIx,
-                                curResetPoint,
-                                numCollectedRows,
-                                rowsLimit));
-            }
+        logger.debug("prepareChunk chunkIndex %d numRowsToCollect %d matchBitmapResetPoint %d", chunkIndex, numRowsToCollect, matchBitmapResetPoint);
+        int ret = (int) storageEngine.processMatchResult(collectTxId,
+                chunkIndex,
+                matchBitmapResetPoint,
+                numRowsToCollect,
+                outResultType);
+        if (ret == -1) {
+            throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED,
+                    String.format("prepareChunk failed unexpectedly collectTxId %d chunkIndex %d matchBitmapResetPoint %d numRowsToCollect %d",
+                            collectTxId, chunkIndex, matchBitmapResetPoint, numRowsToCollect));
         }
-        return ret;
+        return (ret > 0);
+    }
+
+    // prepare chunk for full scan case, also used by lazy collect, throws exception if error
+    void prepareChunk(int collectTxId, int chunkIndex, int numRowsToCollect, int startRowIndex)
+    {
+        logger.debug("prepareChunk chunkIndex %d numRowsToCollect %d startRowIndex %d", chunkIndex, numRowsToCollect, startRowIndex);
+        if (storageEngine.processFullScanChunk(collectTxId, chunkIndex, startRowIndex, numRowsToCollect) < 0) {
+            throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED,
+                    String.format("prepareChunk failed unexpectedly collectTxId %d chunkIndex %d startRowIndex %d numRowsToCollect %d",
+                            collectTxId, chunkIndex, startRowIndex, numRowsToCollect));
+        }
     }
 
     void collect(int txId, int[] outResultType, int numWes, int chunkIndex, int numToCollect)

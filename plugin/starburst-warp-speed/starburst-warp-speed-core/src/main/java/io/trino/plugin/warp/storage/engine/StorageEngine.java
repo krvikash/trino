@@ -206,6 +206,21 @@ public interface StorageEngine
     }
 
     /**
+     * process full scan chunk before collect
+     *
+     * @param txId - identifies tx, passed from native to java during import_create
+     * @param chunkIndex - chunk to collect from
+     * @param startRowIx - start row in chunk
+     * @param rowsLimit - optional limit on the number of rows to collect from this chunk
+     *
+     * @return > 0 if buffer is full and we need to close collect, 0 if not, -1 for error
+     */
+    default long processFullScanChunk(int txId, int chunkIndex, int startRowIx, int rowsLimit)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
      * Collect from the provided chunk according to the processMatchResult result
      *
      * @param txId - identifies tx, passed from native to java during import_create

@@ -108,15 +108,16 @@ public class StorageCollectorService
         while (!chunksQueueService.isChunkRangeCompleted(storageCollectorArgs.chunksQueue()) && numToCollect > 0) {
             // get next chunk to collect and check if its already done on buffer
             int chunkIndex = storageCollectorArgs.chunksQueue().getCurrent();
-            int ret = collectTxService.prepareNextChunk(storageCollectorArgs.chunksQueue().getCurrent(),
-                    storageCollectorArgs.chunksQueue().getCurrentResetPoint(),
-                    chunkPrepared,
-                    collectOpenResult.collectTxId(),
-                    collectOpenResult.rowsLimit(),
-                    numCollectedRows,
-                    collectOpenResult.outResultType());
-            boolean bufferIsFull = (ret > 0);
-            chunkPrepared = true;
+            boolean bufferIsFull = false;
+            if (!chunkPrepared) {
+                bufferIsFull = collectTxService.prepareChunk(collectOpenResult.collectTxId(),
+                        storageCollectorArgs.chunksQueue().getCurrent(),
+                        collectOpenResult.rowsLimit() - numCollectedRows,
+                        storageCollectorArgs.chunksQueue().getCurrentResetPoint(),
+                        collectOpenResult.outResultType());
+                chunkPrepared = true;
+            }
+
             if (bufferIsFull) { // if returns true we need to stop for query result optimization
                 numToCollect = 0;
                 break;

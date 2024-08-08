@@ -163,15 +163,14 @@ public class CollectTxService
         boolean bufferIsFull = false;
         Optional<int[]> chunksWithBitmapsToStoreOpt = Optional.empty();
         if (chunksQueueService.storeRestoreRequired(storageCollectorArgs.chunksQueue())) {
-            int ret = prepareNextChunk(storageCollectorArgs.chunksQueue().getCurrent(),
-                    storageCollectorArgs.chunksQueue().getCurrentResetPoint(),
-                    chunkPrepared,
-                    collectOpenResult.collectTxId(),
-                    collectOpenResult.rowsLimit(),
-                    numCollectedRows,
-                    collectOpenResult.outResultType()); // will be done only if needed
+            if (!chunkPrepared) {
+                bufferIsFull = prepareChunk(collectOpenResult.collectTxId(),
+                        storageCollectorArgs.chunksQueue().getCurrent(),
+                        collectOpenResult.rowsLimit() - numCollectedRows,
+                        storageCollectorArgs.chunksQueue().getCurrentResetPoint(),
+                        collectOpenResult.outResultType());
+            }
 
-            bufferIsFull = (ret > 0);
             chunksWithBitmapsToStoreOpt = storageCollectorArgs.chunksQueue().getChunkIndexesWithBitmap();
             storeRowListResult = rangeFillerService.storeRowList(storageCollectorArgs, collectOpenResult.rangeData());
         }

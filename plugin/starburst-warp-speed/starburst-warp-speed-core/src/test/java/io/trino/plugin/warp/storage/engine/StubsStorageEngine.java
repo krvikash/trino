@@ -188,6 +188,12 @@ public class StubsStorageEngine
     }
 
     @Override
+    public long processFullScanChunk(int txId, int chunkIndex, int startRowIx, int rowsLimit)
+    {
+        return 0;
+    }
+
+    @Override
     public void collect(int txId, int numWes, int chunkIndex, int numToCollect, int[] outResultTypes)
     {
         if (!throwOnColletRuntimeExceptionList.isEmpty()) {

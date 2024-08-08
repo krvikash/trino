@@ -67,21 +67,21 @@ public class LazyCollectorLoader
         int collectTxId = BaseCollectTxService.INVALID_TX_ID;
         LazyCollectOpenResult collectOpenResult = null;
         try {
+            // open
             collectOpenResult = collectTxService.collectOpen(numRowsToCollect, lazyCollectorArgs);
             collectTxId = collectOpenResult.collectTxId();
-            collectTxService.prepareNextChunk(chunkIndexToCollect,
-                    numRowsToCollect,
-                    false,
-                    collectTxId,
-                    numRowsToCollect,
-                    0,
-                    collectOpenResult.outResultType());
 
+            // prepare and collect
+            collectTxService.prepareChunk(collectTxId, chunkIndexToCollect, numRowsToCollect, 0 /* start row index */);
             collectTxService.collect(collectTxId, collectOpenResult.outResultType(), 1, chunkIndexToCollect, numRowsToCollect);
+
+            // fill block
             WarmupElementCollectParams collectParams = lazyCollectorArgs.collectParams();
             ReadJuffersWarmUpElement readJuffersWarmUpElement = lazyCollectorArgs.collectJufferWE();
             QueryResultType queryResultType = QueryResultType.values()[collectOpenResult.outResultType()[0]];
             retBlock = lazyCollectorArgs.blockFiller().fillBlockWithRecords(collectParams, readJuffersWarmUpElement, numRowsToCollect, queryResultType, dictionaryStats);
+
+            // close
             collectTxService.collectClose(collectTxId);
             dispatcherPageSourceStats.inclazy_collect_loaded_blocks();
         }
