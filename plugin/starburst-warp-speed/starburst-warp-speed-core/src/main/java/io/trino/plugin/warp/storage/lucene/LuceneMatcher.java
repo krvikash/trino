@@ -75,7 +75,7 @@ public class LuceneMatcher
      * @return - 0 for success and JAVA_RC_ERR/JAVA_RC_STOP_EXECUTION for error
      */
     @SuppressWarnings("unused")
-    int luceneMatch(long nativeCookie, boolean isValidIndex, boolean allOrNothing, int resultBufferOffset,
+    int luceneMatch(long nativeCookie, int indexUniqueIdInRowGroup, boolean isValidIndex, boolean allOrNothing, int resultBufferOffset,
             int siFileLength, int cfeFileLength, int segmentsFileLength, int cfsFileLength)
     {
         logger.debug("nativeCookie %d isValidIndex %b allOrNothing %b resultBufferOffset %d queryPresent %b",
