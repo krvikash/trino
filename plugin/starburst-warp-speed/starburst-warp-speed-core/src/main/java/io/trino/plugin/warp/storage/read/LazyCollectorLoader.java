@@ -62,26 +62,26 @@ public class LazyCollectorLoader
         loaded = true;
 
         Block retBlock;
-        int chunkToCollect = lazyCollectorArgs.chunkIx();
-        int rowsToCollect = lazyCollectorArgs.numToCollect();
+        int chunkIndexToCollect = lazyCollectorArgs.chunkIx();
+        int numRowsToCollect = lazyCollectorArgs.numToCollect();
         int collectTxId = BaseCollectTxService.INVALID_TX_ID;
         LazyCollectOpenResult collectOpenResult = null;
         try {
-            collectOpenResult = collectTxService.collectOpen(rowsToCollect, lazyCollectorArgs);
+            collectOpenResult = collectTxService.collectOpen(numRowsToCollect, lazyCollectorArgs);
             collectTxId = collectOpenResult.collectTxId();
-            collectTxService.prepareNextChunk(chunkToCollect,
-                    rowsToCollect,
+            collectTxService.prepareNextChunk(chunkIndexToCollect,
+                    numRowsToCollect,
                     false,
                     collectTxId,
-                    rowsToCollect,
+                    numRowsToCollect,
                     0,
                     collectOpenResult.outResultType());
 
-            collectTxService.collect(collectTxId, collectOpenResult.outResultType(), 1, chunkToCollect, rowsToCollect);
+            collectTxService.collect(collectTxId, collectOpenResult.outResultType(), 1, chunkIndexToCollect, numRowsToCollect);
             WarmupElementCollectParams collectParams = lazyCollectorArgs.collectParams();
             ReadJuffersWarmUpElement readJuffersWarmUpElement = lazyCollectorArgs.collectJufferWE();
             QueryResultType queryResultType = QueryResultType.values()[collectOpenResult.outResultType()[0]];
-            retBlock = lazyCollectorArgs.blockFiller().fillBlockWithRecords(collectParams, readJuffersWarmUpElement, rowsToCollect, queryResultType, dictionaryStats);
+            retBlock = lazyCollectorArgs.blockFiller().fillBlockWithRecords(collectParams, readJuffersWarmUpElement, numRowsToCollect, queryResultType, dictionaryStats);
             collectTxService.collectClose(collectTxId);
             dispatcherPageSourceStats.inclazy_collect_loaded_blocks();
         }

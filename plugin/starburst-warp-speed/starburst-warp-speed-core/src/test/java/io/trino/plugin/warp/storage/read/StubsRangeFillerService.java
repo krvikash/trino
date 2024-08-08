@@ -35,12 +35,7 @@ public class StubsRangeFillerService
 
     // return the number of rows collected in this round
     @Override
-    public int add(int chunkIndex, int currentNumCollectedRows, StorageCollectorArgs storageCollectorArgs, boolean rangesRequired, RangeData rangeData)
-    {
-        return 0;
-    }
-
-    public int add(int chunkIndex, int currentNumCollectedRows, StorageCollectorArgs storageCollectorArgs, boolean rangesRequired, RangeData rangeData, boolean isLazy)
+    public int add(int chunkIndex, int currentNumCollectedRows, StorageCollectorArgs storageCollectorArgs, boolean rangesRequired, CollectOpenResult collectOpenResult)
     {
         return 0;
     }
@@ -67,7 +62,7 @@ public class StubsRangeFillerService
     }
 
     @Override
-    public void restoreRowList(RangeData rangeData, int storeRowListSize, RecordIndexListType storeRowListType, byte[] storeRowListBuff)
+    public void restoreRowList(long rowsBuffId, int storeRowListSize, RecordIndexListType storeRowListType, byte[] storeRowListBuff)
     {
     }
 

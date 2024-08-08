@@ -209,7 +209,11 @@ public class StorageReader
             dictionariesLoaded = true;
         }
 
-        CollectOpenResult collectOpenResult = collectTxService.collectOpenAndRestore(rowsLimit, storageCollectorArgs, storeRowListSize, storeRowListType, storageCollectorCallBack);
+        CollectOpenResult collectOpenResult = collectTxService.collectOpenAndRestore(rowsLimit,
+                storageCollectorArgs,
+                storeRowListSize,
+                storeRowListType,
+                storageCollectorCallBack);
         collectTxId = collectOpenResult.collectTxId();
 
         if (queryParams.getNumMatchElements() > 0) {

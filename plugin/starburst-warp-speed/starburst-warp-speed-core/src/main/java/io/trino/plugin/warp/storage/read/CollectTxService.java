@@ -126,7 +126,7 @@ public class CollectTxService
 
         int restoredChunkIndex = -1;
         if (chunksQueueService.storeRestoreRequired(storageCollectorArgs.chunksQueue())) {
-            rangeFillerService.restoreRowList(rangeData, storeRowListSize, storeRowListType, storageCollectorArgs.storeRowListBuff());
+            rangeFillerService.restoreRowList(rangeData.getRowsBuffId(), storeRowListSize, storeRowListType, storageCollectorArgs.storeRowListBuff());
             restoredChunkIndex = storageCollectorArgs.chunksQueue().getCurrent();
             if (storageEngine.collectRestoreState(collectTxId, restoredChunkIndex, storageCollectorCallBack) < 0) {
                 throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED,
@@ -138,7 +138,12 @@ public class CollectTxService
 
         logger.debug("collectOpen collectTxId %d rowsLimit %d numChunks %d numCollectElements %d restoredChunkIndex %d",
                 collectTxId, rowsLimit, storageCollectorArgs.numChunks(), queryParams.getNumCollectElements(), restoredChunkIndex);
-        return new CollectOpenResult(collectTxId, outResultType, rowsLimit, rangeData, warmupElementRecordBufferStates, bmSeg, restoredChunkIndex);
+        return new CollectOpenResult(collectTxId,
+                outResultType,
+                rowsLimit,
+                rangeData,
+                warmupElementRecordBufferStates,
+                bmSeg);
     }
 
     CollectCloseResult collectStoreAndClose(CollectOpenResult collectOpenResult,

@@ -21,7 +21,6 @@ public record CollectOpenResult(int collectTxId,
                          int rowsLimit,
                          RangeData rangeData,
                          List<WarmupElementRecordBufferState> warmupElementRecordBufferStates,
-                         MemorySegment matchResultBitmaps,
-                         int restoredChunkIndex)
+                         MemorySegment matchResultBitmaps)
 {
 }

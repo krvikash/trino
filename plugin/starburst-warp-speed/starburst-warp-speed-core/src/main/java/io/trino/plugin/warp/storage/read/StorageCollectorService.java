@@ -132,10 +132,10 @@ public class StorageCollectorService
                 else {
                     lazyChunkIndex = storageCollectorArgs.chunksQueue().getCurrent();
                 }
-                numCollectedRows += rangeFillerService.add(chunkIndex, numToCollect, storageCollectorArgs, isMatchGetNumRanges, collectOpenResult.rangeData());
+                numCollectedRows += rangeFillerService.add(chunkIndex, numToCollect, storageCollectorArgs, isMatchGetNumRanges, collectOpenResult);
             }
             else {
-                numCollectedRows += rangeFillerService.add(chunkIndex, 0, storageCollectorArgs, isMatchGetNumRanges, collectOpenResult.rangeData());
+                numCollectedRows += rangeFillerService.add(chunkIndex, 0, storageCollectorArgs, isMatchGetNumRanges, collectOpenResult);
             }
             logger.debug("collectFromStorage after native collect chunkIndex %d numToCollect %d numCollectedRows %d", chunkIndex, numToCollect, numCollectedRows);
 
@@ -320,9 +320,6 @@ public class StorageCollectorService
         if (numChunks == 0) {
             throw new RuntimeException("no chunks");
         }
-        ChunksQueue chunksQueue = new ChunksQueue(numChunksInRange, storageEngineConstants.getPageSize());
-
-        boolean isLazyCollect = useLazyCollect(queryParams);
 
         return new StorageCollectorArgs(
                 collectTxArgs,
@@ -333,8 +330,8 @@ public class StorageCollectorService
                 storeRowListBuff,
                 chunkSize,
                 numChunks,
-                chunksQueue,
-                isLazyCollect);
+                new ChunksQueue(numChunksInRange, storageEngineConstants.getPageSize()),
+                useLazyCollect(queryParams));
     }
 
     LazyCollectorArgs getLazyCollectorArgs(StorageCollectorArgs storageCollectorArgs, int weIx, int chunkIndex, int numRows)
@@ -365,7 +362,8 @@ public class StorageCollectorService
                 storageCollectorArgs.blockFillers().get(weIx),
                 chunkIndex,
                 numRows,
-                storageCollectorArgs.numChunksInRange());
+                storageCollectorArgs.numChunksInRange(),
+                storageCollectorArgs.chunkSize());
     }
 
     private int getNumChunksInRange(QueryParams queryParams)

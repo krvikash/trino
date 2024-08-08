@@ -22,6 +22,7 @@ public record LazyCollectorArgs(CollectTxArgs collectTxArgs,
                                 BlockFiller<?> blockFiller,
                                 int chunkIx,
                                 int numToCollect,
-                                int numChunksInRange)
+                                int numChunksInRange,
+                                int chunkSize)
 {
 }

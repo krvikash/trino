@@ -53,8 +53,9 @@ public class NativeRangeFillerService
 
     // return the number of rows collected in this round
     @Override
-    public int add(int chunkIndex, int currentNumCollectedRows, StorageCollectorArgs storageCollectorArgs, boolean rangesRequired, RangeData rangeData)
+    public int add(int chunkIndex, int currentNumCollectedRows, StorageCollectorArgs storageCollectorArgs, boolean rangesRequired, CollectOpenResult collectOpenResult)
     {
+        RangeData rangeData = collectOpenResult.rangeData();
         advanceChunkIfNeeded(chunkIndex, rangeData);
 
         ShortBuffer rowsBuff = bufferAllocator.ids2RowsBuff(rangeData.getRowsBuffId());
@@ -213,9 +214,9 @@ public class NativeRangeFillerService
     }
 
     @Override
-    public void restoreRowList(RangeData rangeData, int storeRowListSize, RecordIndexListType storeRowListType, byte[] storeRowListBuff)
+    public void restoreRowList(long rowsBuffId, int storeRowListSize, RecordIndexListType storeRowListType, byte[] storeRowListBuff)
     {
-        ShortBuffer rowsBuff = bufferAllocator.ids2RowsBuff(rangeData.getRowsBuffId());
+        ShortBuffer rowsBuff = bufferAllocator.ids2RowsBuff(rowsBuffId);
         // list type and size was store as a member, we put it in the buffer
         // in case of all type we store in the buffer the first row
         // in case of values type we copy all the values to the buffer
@@ -226,20 +227,20 @@ public class NativeRangeFillerService
                 setTotalNumCollected(rowsBuff, storeRowListSize);
                 break;
             case RECORD_INDEX_LIST_TYPE_ALL:
-                restoreRowListCommon(rowsBuff, Short.BYTES, rangeData, storeRowListSize, storeRowListBuff);
+                restoreRowListCommon(rowsBuff, Short.BYTES, rowsBuffId, storeRowListSize, storeRowListBuff);
                 break;
             case RECORD_INDEX_LIST_TYPE_VALUES:
-                restoreRowListCommon(rowsBuff, storeRowListSize * Short.BYTES, rangeData, storeRowListSize, storeRowListBuff);
+                restoreRowListCommon(rowsBuff, storeRowListSize * Short.BYTES, rowsBuffId, storeRowListSize, storeRowListBuff);
                 break;
             default:
                 throw new RuntimeException("unknown list type " + storeRowListType);
         }
     }
 
-    private void restoreRowListCommon(ShortBuffer rowsBuff, int sizeInBytes, RangeData rangeData, int storeRowListSize, byte[] storeRowListBuff)
+    private void restoreRowListCommon(ShortBuffer rowsBuff, int sizeInBytes, long rowsBuffId, int storeRowListSize, byte[] storeRowListBuff)
     {
         setTotalNumCollected(rowsBuff, storeRowListSize);
-        ByteBuffer targetByteBuffer = bufferAllocator.id2ByteBuff(rangeData.getRowsBuffId()).slice().position(getFirstIndexPosition() * Short.BYTES);
+        ByteBuffer targetByteBuffer = bufferAllocator.id2ByteBuff(rowsBuffId).slice().position(getFirstIndexPosition() * Short.BYTES);
         targetByteBuffer.put(storeRowListBuff, 0, sizeInBytes);
     }
 
