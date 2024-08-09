@@ -14,6 +14,7 @@
 package io.trino.plugin.warp.storage.lucene;
 
 import io.airlift.log.Logger;
+import io.trino.plugin.warp.gen.stats.LucenePageCacheStats;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
@@ -24,16 +25,35 @@ import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.store.NoLockFactory;
 
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Set;
 
 public class WarpInputDirectory
         extends BaseDirectory
 {
     private static final Logger logger = Logger.get(WarpInputDirectory.class);
+
+    public static final int NUM_SMALL_FILES = LuceneFileType.values().length - 2;
+    private static final int MAX_PAGE_CACHE_ENTRIES = 128;
+
+    private final ByteBuffer[] smallFilePageCache = new ByteBuffer[NUM_SMALL_FILES];
+    private final Map<LucenePageCacheKey, ByteBuffer> bigFilePageCache = new LinkedHashMap<>()
+    {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<LucenePageCacheKey, ByteBuffer> eldest)
+        {
+            return size() > MAX_PAGE_CACHE_ENTRIES;
+        }
+    };
+
     private final StorageEngine storageEngine;
     private final StorageEngineConstants storageEngineConstants;
+    private final LucenePageCacheStats lucenePageCacheStats;
+    private final int indexUniqueIdInRowGroup;
     private final ReadJuffersWarmUpElement juffersWE;
     private final long nativeCookie;
     private final int[] fileLengths;
@@ -41,6 +61,8 @@ public class WarpInputDirectory
 
     protected WarpInputDirectory(StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
+            LucenePageCacheStats lucenePageCacheStats,
+            int indexUniqueIdInRowGroup,
             ReadJuffersWarmUpElement juffersWE,
             long nativeCookie,
             String filePrefix,
@@ -49,6 +71,8 @@ public class WarpInputDirectory
         super(NoLockFactory.INSTANCE);
         this.storageEngine = storageEngine;
         this.storageEngineConstants = storageEngineConstants;
+        this.lucenePageCacheStats = lucenePageCacheStats;
+        this.indexUniqueIdInRowGroup = indexUniqueIdInRowGroup;
         this.juffersWE = juffersWE;
         this.nativeCookie = nativeCookie;
         this.filePrefix = filePrefix;
@@ -123,7 +147,18 @@ public class WarpInputDirectory
     {
         logger.debug("nativeCookie=%s, openInput file %s while input", nativeCookie, fileName);
         LuceneFileType luceneFileType = LuceneFileType.getType(fileName);
-        return new WarpReadIndexInput(storageEngine, storageEngineConstants, juffersWE, luceneFileType, nativeCookie, 0, fileLengths[luceneFileType.getNativeId()], "root");
+        return new WarpReadIndexInput(storageEngine,
+                storageEngineConstants,
+                lucenePageCacheStats,
+                smallFilePageCache,
+                bigFilePageCache,
+                indexUniqueIdInRowGroup,
+                juffersWE,
+                luceneFileType,
+                nativeCookie,
+                0,
+                fileLengths[luceneFileType.getNativeId()],
+                "root");
     }
 
     @Override
@@ -131,7 +166,18 @@ public class WarpInputDirectory
     {
         logger.debug("nativeCookie=%s, openChecksumInput file %s while input", nativeCookie, name);
         LuceneFileType luceneFileType = LuceneFileType.getType(name);
-        return new WarpReadIndexInput(storageEngine, storageEngineConstants, juffersWE, luceneFileType, nativeCookie, 0, fileLengths[luceneFileType.getNativeId()], "root");
+        return new WarpReadIndexInput(storageEngine,
+                storageEngineConstants,
+                lucenePageCacheStats,
+                smallFilePageCache,
+                bigFilePageCache,
+                indexUniqueIdInRowGroup,
+                juffersWE,
+                luceneFileType,
+                nativeCookie,
+                0,
+                fileLengths[luceneFileType.getNativeId()],
+                "root");
     }
 
     @Override

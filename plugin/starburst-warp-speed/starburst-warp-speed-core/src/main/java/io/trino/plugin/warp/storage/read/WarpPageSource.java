@@ -19,6 +19,7 @@ import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
+import io.trino.plugin.warp.gen.stats.LucenePageCacheStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.log.ShapingLogger;
@@ -45,6 +46,7 @@ public class WarpPageSource
     private final DictionaryCacheService dictionaryCacheService;
     private final DispatcherPageSourceStats stats;
     private final DictionaryStats dictionaryStats;
+    private final LucenePageCacheStats lucenePageCacheStats;
     private final CollectTxService collectTxService;
     private final ChunksQueueService chunksQueueService;
     private final StorageCollectorService storageCollectorService;
@@ -90,6 +92,7 @@ public class WarpPageSource
         this.globalConfig = requireNonNull(globalConfig);
         this.stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
         this.dictionaryStats = (DictionaryStats) customStatsContext.getStat(DictionaryCacheService.DICTIONARY_STAT_GROUP);
+        this.lucenePageCacheStats = (LucenePageCacheStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_LUCENE_PAGE_CACHE_KEY);
         this.collectTxService = collectTxService;
         this.chunksQueueService = chunksQueueService;
         this.storageCollectorService = storageCollectorService;
@@ -170,6 +173,7 @@ public class WarpPageSource
                             queryParams,
                             dictionaryStats,
                             stats,
+                            lucenePageCacheStats,
                             storageCollectorArgs,
                             collectTxService,
                             chunksQueueService,

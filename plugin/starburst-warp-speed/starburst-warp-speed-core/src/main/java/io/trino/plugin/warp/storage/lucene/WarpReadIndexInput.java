@@ -15,6 +15,7 @@ package io.trino.plugin.warp.storage.lucene;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.airlift.log.Logger;
+import io.trino.plugin.warp.gen.stats.LucenePageCacheStats;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
@@ -25,10 +26,11 @@ import org.apache.lucene.store.IndexInput;
 import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.zip.CRC32;
 import java.util.zip.Checksum;
-
-import static java.lang.Math.toIntExact;
 
 public class WarpReadIndexInput
         extends ChecksumIndexInput
@@ -38,6 +40,10 @@ public class WarpReadIndexInput
 
     private final StorageEngine storageEngine;
     private final StorageEngineConstants storageEngineConstants;
+    private final LucenePageCacheStats lucenePageCacheStats;
+    private final ByteBuffer[] smallFilePageCache;
+    private final Map<LucenePageCacheKey, ByteBuffer> bigFilePageCache;
+    private final int indexUniqueIdInRowGroup;
     private final ReadJuffersWarmUpElement dataRecordJuffer;
     private final LuceneFileType luceneFileType;
     private final long nativeCookie;
@@ -47,14 +53,18 @@ public class WarpReadIndexInput
     private final long length;
     private final String sliceDescription;
     private final long sliceOffset;
-    // concurrent slices of the same file modifying the position of the juffer so we must have local copy
-    private final ByteBuffer localCopyBuffer;
     private final ByteBuffer nativeJuffer;
+    // concurrent slices of the same file modifying the position of the juffer so we must have local copy
+    private ByteBuffer localCopyBuffer;
     private int currentPageIndex;
     private int bufferLength;
 
     WarpReadIndexInput(StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
+            LucenePageCacheStats lucenePageCacheStats,
+            ByteBuffer[] smallFilePageCache,
+            Map<LucenePageCacheKey, ByteBuffer> bigFilePageCache,
+            int indexUniqueIdInRowGroup,
             ReadJuffersWarmUpElement juffersWE,
             LuceneFileType luceneFileType,
             long nativeCookie,
@@ -65,6 +75,10 @@ public class WarpReadIndexInput
         super("WarpReadIndexInput_" + nativeCookie + "_" + luceneFileType);
         this.storageEngine = storageEngine;
         this.storageEngineConstants = storageEngineConstants;
+        this.lucenePageCacheStats = lucenePageCacheStats;
+        this.smallFilePageCache = smallFilePageCache;
+        this.bigFilePageCache = bigFilePageCache;
+        this.indexUniqueIdInRowGroup = indexUniqueIdInRowGroup;
         this.dataRecordJuffer = juffersWE;
         this.luceneFileType = luceneFileType;
         this.nativeCookie = nativeCookie;
@@ -76,8 +90,6 @@ public class WarpReadIndexInput
 
         this.pageSize = luceneFileType.isSmallFile() ? storageEngineConstants.getLuceneSmallJufferSize() : storageEngineConstants.getPageSize();
         this.nativeJuffer = juffersWE.getLuceneFileBuffer(luceneFileType);
-        int size = Math.min(pageSize, toIntExact((sliceOffset % pageSize) + length));
-        this.localCopyBuffer = ByteBuffer.allocate(size);
         currentPageIndex = (int) (sliceOffset / pageSize);
         setCurrentBuffer();
         localCopyBuffer.position((int) sliceOffset % pageSize);
@@ -140,20 +152,24 @@ public class WarpReadIndexInput
 
     private void loadPage()
     {
-        // read upto one page
+        // read up to one page
         int pageAlignOffset = currentPageIndex * pageSize;
         int fetchedBytes = (int) Math.min(pageSize, (sliceOffset + length - pageAlignOffset));
-        storageEngine.luceneReadBuffer(nativeCookie, luceneFileType.getNativeId(), pageAlignOffset, fetchedBytes);
+        LucenePageCacheKey key = new LucenePageCacheKey(indexUniqueIdInRowGroup, luceneFileType, pageAlignOffset);
+        Optional<ByteBuffer> page = get(key);
 
-        // copy the content
-        localCopyBuffer.position(0);
-        nativeJuffer.position(0);
-        int oldLimit = nativeJuffer.limit();
-        nativeJuffer.limit(fetchedBytes);
-        localCopyBuffer.put(nativeJuffer); // copy fetchedBytes bytes from buff to buff
-        nativeJuffer.limit(oldLimit);
-        nativeJuffer.position(0);
-        localCopyBuffer.position(0);
+        if (page.isEmpty() || (page.get().limit() < fetchedBytes)) {
+            storageEngine.luceneReadBuffer(nativeCookie, luceneFileType.getNativeId(), pageAlignOffset, fetchedBytes);
+
+            // copy the content
+            nativeJuffer.position(0);
+            int oldLimit = nativeJuffer.limit();
+            nativeJuffer.limit(fetchedBytes);
+            page = Optional.of(put(key, nativeJuffer));
+            nativeJuffer.limit(oldLimit);
+            nativeJuffer.position(0);
+        }
+        localCopyBuffer = page.orElseThrow(() -> new NoSuchElementException("LucenePageCache not found for key " + key));
     }
 
     /**
@@ -198,16 +214,35 @@ public class WarpReadIndexInput
     @Override
     public IndexInput slice(String sliceDescription, final long offset, final long sliceLength)
     {
-        return new WarpReadIndexInput(WarpReadIndexInput.this.storageEngine, WarpReadIndexInput.this.storageEngineConstants, WarpReadIndexInput.this.dataRecordJuffer,
-                WarpReadIndexInput.this.luceneFileType, WarpReadIndexInput.this.nativeCookie, offset + sliceOffset,
-                sliceLength, sliceDescription);
+        return new WarpReadIndexInput(storageEngine,
+                storageEngineConstants,
+                lucenePageCacheStats,
+                smallFilePageCache,
+                bigFilePageCache,
+                indexUniqueIdInRowGroup,
+                dataRecordJuffer,
+                luceneFileType,
+                nativeCookie,
+                offset + sliceOffset,
+                sliceLength,
+                sliceDescription);
     }
 
     @Override
     public IndexInput clone()
     {
-        IndexInput ret = new WarpReadIndexInput(storageEngine, storageEngineConstants, dataRecordJuffer, luceneFileType,
-                nativeCookie, sliceOffset, length, sliceDescription);
+        IndexInput ret = new WarpReadIndexInput(storageEngine,
+                storageEngineConstants,
+                lucenePageCacheStats,
+                smallFilePageCache,
+                bigFilePageCache,
+                indexUniqueIdInRowGroup,
+                dataRecordJuffer,
+                luceneFileType,
+                nativeCookie,
+                sliceOffset,
+                length,
+                sliceDescription);
         try {
             ret.seek(getFilePointer());
         }
@@ -222,5 +257,55 @@ public class WarpReadIndexInput
     int getBufferPosition()
     {
         return localCopyBuffer.position();
+    }
+
+    @VisibleForTesting
+    ByteBuffer put(LucenePageCacheKey key, ByteBuffer value)
+    {
+        value.position(0); // sanity
+        ByteBuffer page = ByteBuffer.allocate(value.limit());
+
+        page.put(value);
+        value.position(0);
+        page.position(0);
+
+        if (key.isSmallFile()) {
+            smallFilePageCache[key.getNativeId()] = page;
+            lucenePageCacheStats.inclucene_page_cache_small_file_size();
+        }
+        else {
+            bigFilePageCache.put(key, page);
+            lucenePageCacheStats.setlucene_page_cache_big_file_size(bigFilePageCache.size());
+        }
+        return page.duplicate();
+    }
+
+    @VisibleForTesting
+    Optional<ByteBuffer> get(LucenePageCacheKey key)
+    {
+        Optional<ByteBuffer> value = Optional.empty();
+        ByteBuffer page;
+
+        if (key.isSmallFile()) {
+            page = smallFilePageCache[key.getNativeId()];
+            if (page != null) {
+                value = Optional.of(page.duplicate());
+                lucenePageCacheStats.inclucene_page_cache_small_file_hit();
+            }
+            else {
+                lucenePageCacheStats.inclucene_page_cache_small_file_miss();
+            }
+        }
+        else {
+            page = bigFilePageCache.get(key);
+            if (page != null) {
+                value = Optional.of(page.duplicate());
+                lucenePageCacheStats.inclucene_page_cache_big_file_hit();
+            }
+            else {
+                lucenePageCacheStats.inclucene_page_cache_big_file_miss();
+            }
+        }
+        return value;
     }
 }

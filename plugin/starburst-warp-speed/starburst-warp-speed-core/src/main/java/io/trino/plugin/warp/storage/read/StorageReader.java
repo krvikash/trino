@@ -19,6 +19,7 @@ import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.gen.constants.RecordIndexListType;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
+import io.trino.plugin.warp.gen.stats.LucenePageCacheStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
@@ -56,6 +57,7 @@ public class StorageReader
     private final DictionaryStats dictionaryStats;
     private final DispatcherPageSourceStats statsDispatcherPageSource;
     private final DictionaryCacheService dictionaryCacheService;
+    private final LucenePageCacheStats lucenePageCacheStats;
 
     // parameters
     private final QueryParams queryParams;
@@ -97,6 +99,7 @@ public class StorageReader
             QueryParams queryParams,
             DictionaryStats dictionaryStats,
             DispatcherPageSourceStats statsDispatcherPageSource,
+            LucenePageCacheStats lucenePageCacheStats,
             StorageCollectorArgs storageCollectorArgs,
             CollectTxService collectTxService,
             ChunksQueueService chunksQueueService,
@@ -109,6 +112,7 @@ public class StorageReader
         this.statsDispatcherPageSource = statsDispatcherPageSource;
         this.storageCollectorService = requireNonNull(storageCollectorService);
         this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
+        this.lucenePageCacheStats = requireNonNull(lucenePageCacheStats);
 
         this.queryParams = queryParams;
         this.matchBuffIds = new long[queryParams.getNumMatchElements()][];
@@ -164,6 +168,7 @@ public class StorageReader
                         storageEngineConstants,
                         matchJuffersWE.get(matchIx),
                         matchParams.getLuceneQueryMatchData(),
+                        lucenePageCacheStats,
                         statsDispatcherPageSource,
                         globalConfig);
             }

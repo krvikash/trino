@@ -37,6 +37,7 @@ import io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
+import io.trino.plugin.warp.gen.stats.LucenePageCacheStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.log.ShapingLogger;
@@ -93,6 +94,8 @@ public class DispatcherPageSourceFactory
     public static final String EXTERNAL_MATCH = "external-match";
     public static final String PREFILLED = "prefilled";
     public static final String STATS_DISPATCHER_KEY = "dispatcherPageSource";
+    public static final String STATS_LUCENE_PAGE_CACHE_KEY = "lucenePageCache";
+
     private static final Logger logger = Logger.get(DispatcherPageSourceFactory.class);
     private final ShapingLogger shapingLogger;
     private final ReadErrorHandler readErrorHandler;
@@ -157,6 +160,7 @@ public class DispatcherPageSourceFactory
         this.storageCollectorService = requireNonNull(storageCollectorService);
         this.rangeFillerService = requireNonNull(rangeFillerService);
         metricsManager.registerMetric(DispatcherPageSourceStats.create(STATS_DISPATCHER_KEY));
+        metricsManager.registerMetric(LucenePageCacheStats.create(STATS_LUCENE_PAGE_CACHE_KEY));
         this.statsDispatcherPageSource = metricsManager.registerMetric(DispatcherPageSourceStats.create(STATS_DISPATCHER_KEY));
     }
 
@@ -688,6 +692,7 @@ public class DispatcherPageSourceFactory
     {
         customStatsContext.getOrRegister(new DispatcherPageSourceStats(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY));
         customStatsContext.getOrRegister(new DictionaryStats(DictionaryCacheService.DICTIONARY_STAT_GROUP));
+        customStatsContext.getOrRegister(LucenePageCacheStats.create(STATS_LUCENE_PAGE_CACHE_KEY));
     }
 
     /**

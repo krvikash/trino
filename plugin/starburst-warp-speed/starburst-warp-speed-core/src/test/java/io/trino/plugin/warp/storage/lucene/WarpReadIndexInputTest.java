@@ -15,19 +15,26 @@ package io.trino.plugin.warp.storage.lucene;
 
 import io.trino.plugin.warp.gen.constants.JbufType;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
+import io.trino.plugin.warp.gen.stats.LucenePageCacheStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.read.StorageReaderTestUtils;
 import org.apache.lucene.store.IndexInput;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Optional;
 import java.util.stream.IntStream;
 
+import static io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory.STATS_LUCENE_PAGE_CACHE_KEY;
+import static io.trino.plugin.warp.storage.lucene.WarpInputDirectory.NUM_SMALL_FILES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -43,6 +50,7 @@ public class WarpReadIndexInputTest
     private static final int SMALL_FILE_SIZE = 20;
     private WarpReadIndexInput warpReadIndexInput;
     private StorageEngine storageEngine;
+    private LucenePageCacheStats lucenePageCacheStats;
 
     @BeforeEach
     public void before()
@@ -60,11 +68,16 @@ public class WarpReadIndexInputTest
         ReadJuffersWarmUpElement dataRecordJuffer = new ReadJuffersWarmUpElement(bufferAllocator, false, true);
         dataRecordJuffer.createBuffers(RecTypeCode.REC_TYPE_VARCHAR, 10, false, outColBuffIds);
         storageEngine = readerTestUtils.getStorageEngine();
-        when(storageEngineConstants.getLuceneSmallJufferSize()).thenReturn(SMALL_FILE_SIZE);
+        when(storageEngineConstants.getPageSize()).thenReturn(SMALL_FILE_SIZE);
+        lucenePageCacheStats = LucenePageCacheStats.create(STATS_LUCENE_PAGE_CACHE_KEY);
         warpReadIndexInput = new WarpReadIndexInput(storageEngine,
                 storageEngineConstants,
+                lucenePageCacheStats,
+                new ByteBuffer[NUM_SMALL_FILES],
+                new HashMap<>(),
+                -1,
                 dataRecordJuffer,
-                LuceneFileType.SEGMENTS,
+                LuceneFileType.CFS,
                 1,
                 0,
                 100,
@@ -240,5 +253,22 @@ public class WarpReadIndexInputTest
     ByteBuffer[] allocateLuceneByteBuffers()
     {
         return IntStream.range(0, 4).mapToObj((i) -> allocateByteBuffer()).toList().toArray(new ByteBuffer[0]);
+    }
+
+    @Test
+    void testLucenePageCache()
+    {
+        LucenePageCacheKey keyIn = new LucenePageCacheKey(-1, LuceneFileType.SI, 0);
+        ByteBuffer valueIn = ByteBuffer.wrap("234567".getBytes(StandardCharsets.UTF_8));
+
+        warpReadIndexInput.put(keyIn, valueIn);
+
+        LucenePageCacheKey keyOut = new LucenePageCacheKey(-1, LuceneFileType.SI, 0);
+        Optional<ByteBuffer> valueOut = warpReadIndexInput.get(keyOut);
+
+        Assertions.assertTrue(valueOut.isPresent());
+        Assertions.assertEquals(valueIn, valueOut.get());
+        Assertions.assertEquals(0, valueOut.get().position());
+        Assertions.assertEquals(1, lucenePageCacheStats.getlucene_page_cache_small_file_hit());
     }
 }

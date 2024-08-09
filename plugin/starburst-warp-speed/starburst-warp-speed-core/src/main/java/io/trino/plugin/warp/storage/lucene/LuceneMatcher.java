@@ -17,6 +17,7 @@ import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.query.data.match.LuceneQueryMatchData;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
+import io.trino.plugin.warp.gen.stats.LucenePageCacheStats;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
@@ -44,6 +45,7 @@ public class LuceneMatcher
     private final StorageEngine storageEngine;
     private final StorageEngineConstants storageEngineConstants;
     private final DispatcherPageSourceStats statsDispatcherPageSource;
+    private final LucenePageCacheStats lucenePageCacheStats;
     private final ReadJuffersWarmUpElement juffersWE;
     private final Optional<Query> query; // when query is empty it means that the predicate is from Domain
     private final ShapingLogger shapingLogger;
@@ -52,11 +54,13 @@ public class LuceneMatcher
             StorageEngineConstants storageEngineConstants,
             ReadJuffersWarmUpElement juffersWE,
             LuceneQueryMatchData luceneQueryMatchData,
+            LucenePageCacheStats lucenePageCacheStats,
             DispatcherPageSourceStats statsDispatcherPageSource,
             GlobalConfig globalConfig)
     {
         this.storageEngine = storageEngine;
         this.storageEngineConstants = storageEngineConstants;
+        this.lucenePageCacheStats = lucenePageCacheStats;
         this.juffersWE = juffersWE;
         this.query = Optional.of(luceneQueryMatchData.getQuery());
         this.statsDispatcherPageSource = statsDispatcherPageSource;
@@ -78,8 +82,8 @@ public class LuceneMatcher
     int luceneMatch(long nativeCookie, int indexUniqueIdInRowGroup, boolean isValidIndex, boolean allOrNothing, int resultBufferOffset,
             int siFileLength, int cfeFileLength, int segmentsFileLength, int cfsFileLength)
     {
-        logger.debug("nativeCookie %d isValidIndex %b allOrNothing %b resultBufferOffset %d queryPresent %b",
-                nativeCookie, isValidIndex, allOrNothing, resultBufferOffset, query.isPresent());
+        logger.debug("nativeCookie %d indexUniqueIdInRowGroup %d isValidIndex %b allOrNothing %b resultBufferOffset %d queryPresent %b",
+                nativeCookie, indexUniqueIdInRowGroup, isValidIndex, allOrNothing, resultBufferOffset, query.isPresent());
         if (!isValidIndex) {
             shapingLogger.error("index is invalid returning JAVA_RC_ERR. nativeCookie %d allOrNothing %b resultBufferOffset %d queryPresent %b file lengths [%d,%d,%d,%d]",
                     nativeCookie, allOrNothing, resultBufferOffset, query.isPresent(), siFileLength, cfeFileLength, segmentsFileLength, cfsFileLength);
@@ -105,9 +109,14 @@ public class LuceneMatcher
             logger.debug("nativeCookie=%d, filesLength=%s", nativeCookie, Arrays.toString(filesLength));
         }
         try {
-            WarpInputDirectory warpInputDirectory = new WarpInputDirectory(storageEngine, storageEngineConstants,
+            WarpInputDirectory warpInputDirectory = new WarpInputDirectory(storageEngine,
+                    storageEngineConstants,
+                    lucenePageCacheStats,
+                    indexUniqueIdInRowGroup,
                     juffersWE,
-                    nativeCookie, FILE_PREFIX, filesLength);
+                    nativeCookie,
+                    FILE_PREFIX,
+                    filesLength);
             IndexReader reader = DirectoryReader.open(warpInputDirectory);
             IndexSearcher indexSearcher = new IndexSearcher(reader);
             ByteBuffer luceneBMResultBuffer = juffersWE.getLuceneBMResultBuffer();
