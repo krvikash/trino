@@ -26,8 +26,6 @@ public class StubsStorageEngine
         implements StorageEngine
 {
     private final List<RuntimeException> throwOnColletRuntimeExceptionList = new ArrayList<>();
-    private final List<Integer> matchResults = new ArrayList<>();
-
     private final AtomicInteger luceneColumns = new AtomicInteger(0);
     ByteBuffer firstBundle;
 
@@ -173,11 +171,20 @@ public class StubsStorageEngine
     }
 
     @Override
-    public long match(int txId, int nextState, short[] outMatchedChunksIndexes, int[] outMatchBitmapResetPoints)
+    public long matchAgg(int txId, int startChunkIndex)
     {
-        if (!matchResults.isEmpty()) {
-            return matchResults.removeFirst();
-        }
+        return 0L;
+    }
+
+    @Override
+    public long matchLucene(int txId, int startChunkIndex, int numChunks)
+    {
+        return 0L;
+    }
+
+    @Override
+    public long match(int txId, int startChunkIndex, int numChunks, short[] outMatchedChunksIndexes, int[] outMatchBitmapResetPoints)
+    {
         return 0L;
     }
 
@@ -236,17 +243,11 @@ public class StubsStorageEngine
     public synchronized void clear()
     {
         throwOnColletRuntimeExceptionList.clear();
-        matchResults.clear();
     }
 
     public void setThrowOnCollect(RuntimeException... e)
     {
         throwOnColletRuntimeExceptionList.addAll(Arrays.asList(e));
-    }
-
-    public void setMatchResults(Integer... matchResult)
-    {
-        matchResults.addAll(Arrays.asList(matchResult));
     }
 
     public int getLuceneReadColumns()

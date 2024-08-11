@@ -109,7 +109,9 @@ public class WarpPageSourceTest
                 mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
                 new StubsRangeFillerService());
-        when(storageEngine.match(anyInt(), anyInt(), any(), any())).thenReturn(mockMatch(rowsBuff)).thenReturn(0L);
+        when(storageEngine.matchAgg(anyInt(), anyInt())).thenReturn(1L).thenReturn(0L);
+        when(storageEngine.matchLucene(anyInt(), anyInt(), anyInt())).thenReturn(0L);
+        when(storageEngine.match(anyInt(), anyInt(), anyInt(), any(), any())).thenReturn(mockMatch(rowsBuff));
         Page nextPage = warpPageSource.getNextPage();
         assertThat(nextPage).isNotNull();
         assertThat(warpPageSource.isFinished()).isFalse();
@@ -166,7 +168,9 @@ public class WarpPageSourceTest
                 mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
                 new StubsRangeFillerService());
-        when(storageEngine.match(anyInt(), anyInt(), any(), any())).thenReturn(mockMatch(rowsBuff)).thenReturn(0L);
+        when(storageEngine.matchAgg(anyInt(), anyInt())).thenReturn(1L).thenReturn(0L);
+        when(storageEngine.matchLucene(anyInt(), anyInt(), anyInt())).thenReturn(0L);
+        when(storageEngine.match(anyInt(), anyInt(), anyInt(), any(), any())).thenReturn(mockMatch(rowsBuff));
         assertThat(warpPageSource.getNextPage()).isNotNull();
         assertThat(warpPageSource.isFinished()).isFalse();
     }
@@ -215,7 +219,9 @@ public class WarpPageSourceTest
                 mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
                 new StubsRangeFillerService());
-        when(storageEngine.match(anyInt(), anyInt(), any(), any())).thenReturn(mockMatch(rowsBuff)).thenReturn(0L);
+        when(storageEngine.matchAgg(anyInt(), anyInt())).thenReturn(1L).thenReturn(0L);
+        when(storageEngine.matchLucene(anyInt(), anyInt(), anyInt())).thenReturn(0L);
+        when(storageEngine.match(anyInt(), anyInt(), anyInt(), any(), any())).thenReturn(mockMatch(rowsBuff));
         assertThat(warpPageSource.getNextPage()).isNotNull();
         assertThat(warpPageSource.isFinished()).isFalse();
     }
@@ -255,7 +261,9 @@ public class WarpPageSourceTest
                 mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
                 new StubsRangeFillerService());
-        when(storageEngine.match(anyInt(), anyInt(), any(), any())).thenReturn(mockMatch(rowsBuff)).thenReturn(0L);
+        when(storageEngine.matchAgg(anyInt(), anyInt())).thenReturn(1L).thenReturn(0L);
+        when(storageEngine.matchLucene(anyInt(), anyInt(), anyInt())).thenReturn(0L);
+        when(storageEngine.match(anyInt(), anyInt(), anyInt(), any(), any())).thenReturn(mockMatch(rowsBuff));
         Page nextPage = warpPageSource.getNextPage();
         assertThat(nextPage).isNotNull();
         assertThat(nextPage.getPositionCount()).isEqualTo(10);
@@ -318,7 +326,9 @@ public class WarpPageSourceTest
                 mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
                 new StubsRangeFillerService());
-        when(storageEngine.match(anyInt(), anyInt(), any(), any())).thenReturn(mockMatch(rowsBuff)).thenReturn(0L);
+        when(storageEngine.matchAgg(anyInt(), anyInt())).thenReturn(1L).thenReturn(0L);
+        when(storageEngine.matchLucene(anyInt(), anyInt(), anyInt())).thenReturn(0L);
+        when(storageEngine.match(anyInt(), anyInt(), anyInt(), any(), any())).thenReturn(mockMatch(rowsBuff));
         assertThat(warpPageSource.getNextPage()).isNotNull();
         assertThat(warpPageSource.isFinished()).isFalse();
     }

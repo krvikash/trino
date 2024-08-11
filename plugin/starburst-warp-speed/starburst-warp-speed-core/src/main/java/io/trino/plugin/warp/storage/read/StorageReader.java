@@ -267,20 +267,49 @@ public class StorageReader
             ChunksQueue chunksQueue = storageCollectorArgs.chunksQueue();
             if (matchTxId == INVALID_TX_ID) {
                 matchExhausted = chunksQueueService.updateChunkRangeFullScan(chunksQueue, storageCollectorArgs.numChunks(), storageCollectorArgs.numChunksInRange());
-                logger.debug("matchIfNeeded matchExhausted %b after full scan update", matchExhausted);
+                logger.debug("matchIfNeeded matchExhausted %b after full scan update numChunks %d range %d", matchExhausted, storageCollectorArgs.numChunks(), storageCollectorArgs.numChunksInRange());
             }
             else {
                 long matchResult = 0;
+                long numChunks = 0;
+                long luceneSuccess = 0;
+                int numMatchedChunks = 0;
                 int chunkIndex = chunksQueueService.getChunkIndexForMatch(chunksQueue);
+                // we loop until either agg result returnes 0 which  means no more chunks (break under if inside the loop)
+                // or if numMatchedChunks returned positive from match call which means at least one chunk has a match
+                // in addition, on every call to storage engine we check for error
                 try {
-                    matchResult = storageEngine.match(matchTxId, chunkIndex, matchedChunksIndexes, matchBitmapResetPoints);
+                    while (numMatchedChunks == 0) { // no match so far
+                        numChunks = storageEngine.matchAgg(matchTxId, chunkIndex);
+                        if (numChunks < 0) {
+                            break;
+                        }
+                        matchExhausted = numChunks == 0;
+                        if (matchExhausted) {
+                            break;
+                        }
+
+                        if (queryParams.getNumLucene() > 0) {
+                            luceneSuccess = storageEngine.matchLucene(matchTxId, chunkIndex, (int) numChunks);
+                            if (luceneSuccess < 0) {
+                                break;
+                            }
+                        }
+
+                        matchResult = storageEngine.match(matchTxId, chunkIndex, (int) numChunks, matchedChunksIndexes, matchBitmapResetPoints);
+                        if (matchResult < 0) {
+                            break;
+                        }
+                        chunkIndex = (int) (matchResult & MATCH_RESULT_MASK);
+                        numMatchedChunks = (int) (matchResult >> 32);
+                        logger.debug("matchResult %x chunkIndex %d numMatchedChunks %d", matchResult, chunkIndex, numMatchedChunks);
+                    }
                 }
                 catch (Exception e) {
                     abortMatch(Optional.of(e)); // will close only the match tx here. the caller will close the collect tx
                     // We can't throw the original exception cause it will skip closing the collect TX.
                     // But we do need to preserve the recoverable notion from native.
-                    if (e instanceof TrinoException trinoException &&
-                            trinoException.getErrorCode().equals(WARP_NATIVE_UNRECOVERABLE_ERROR.toErrorCode())) {
+                    if (e instanceof TrinoException trinoException && trinoException.getErrorCode().equals(WARP_NATIVE_UNRECOVERABLE_ERROR.toErrorCode())) {
                         throw new TrinoException(WARP_UNRECOVERABLE_MATCH_FAILED, "failed to match: " + e.getMessage());
                     }
                     else {
@@ -288,19 +317,17 @@ public class StorageReader
                     }
                 }
                 finally {
-                    if (matchResult == -1) {
+                    if ((numChunks < 0) || (luceneSuccess < 0) || (matchResult < 0)) {
                         abortMatch(Optional.empty()); // will close only the match tx here. the caller will close the collect tx
-                        throw new TrinoException(WARP_UNRECOVERABLE_MATCH_FAILED, "storage engine failed to match. chunkIndex " + chunkIndex);
+                        throw new TrinoException(WARP_UNRECOVERABLE_MATCH_FAILED,
+                                "match failed chunkIndex " + chunkIndex + " numChunks " + numChunks + " lucene " + luceneSuccess + " match " + matchResult);
                     }
                 }
 
-                matchExhausted = matchResult == 0;
                 if (!matchExhausted) {
-                    int matchEndChunkIndex = (int) (matchResult & MATCH_RESULT_MASK);
-                    int numMatchedChunks = (int) (matchResult >> 32);
                     logger.debug("matchIfNeeded matchStartChunkIndex %d matchEndChunkIndex %d numMatchedChunks %d",
-                            chunksQueueService.getChunkIndexForMatch(chunksQueue), matchEndChunkIndex, numMatchedChunks);
-                    chunksQueueService.updateChunkRangeAfterMatch(chunksQueue, matchEndChunkIndex, numMatchedChunks, matchedChunksIndexes, matchBitmapResetPoints);
+                            chunksQueueService.getChunkIndexForMatch(chunksQueue), chunkIndex, numMatchedChunks);
+                    chunksQueueService.updateChunkRangeAfterMatch(chunksQueue, chunkIndex, numMatchedChunks, matchedChunksIndexes, matchBitmapResetPoints);
                 }
             }
         }

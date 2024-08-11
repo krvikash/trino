@@ -176,7 +176,13 @@ public class NativeStorageEngine
     public native long collectRestoreState(int txId, int chunkIndex, StorageCollectorCallBack collectStateObj);
 
     @Override
-    public native long match(int txId, int nextState, short[] outMatchedChunksIndexes, int[] outMatchBitmapResetPoints);
+    public native long matchAgg(int txId, int startChunkIndex);
+
+    @Override
+    public native long matchLucene(int txId, int startChunkIndex, int numChunks);
+
+    @Override
+    public native long match(int txId, int startChunkIndex, int numChunks, short[] outMatchedChunksIndexes, int[] outMatchBitmapResetPoints);
 
     @Override
     public native long processMatchResult(int txId, int chunkIndex, int bitmapResetPoint, int rowsLimit, int[] resultTypes);

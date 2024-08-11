@@ -174,17 +174,46 @@ public interface StorageEngine
     }
 
     /**
-     * Perform the match part
+     * match aggregates on a chunk range starting from the given chunk index
      *
      * @param txId - identifies tx, passed from native to java during import_create
      * @param startChunkIndex - chunk to start match from
-     * @param outMatchedChunksIndexes - indexes of chunks that have at least one match
      *
-     * @return MSB 32 bits number of matched chuks as filled in the output array
-     *    LSB 32 bits end chunk index of the range matched
-     *    0 if we complmeted all chunks
+     * @return 0 for no more chunks, >0 for success giving the number of chunks in range, -1 for error (to throw exception)
      */
-    default long match(int txId, int startChunkIndex, short[] outMatchedChunksIndexes, int[] outMatchBitmapResetPoints)
+    default long matchAgg(int txId, int startChunkIndex)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+     /**
+     * match lucene on a chunk range starting from the given chunk index
+     *
+     * @param txId - identifies tx, passed from native to java during import_create
+     * @param startChunkIndex - chunk to start match from
+     * @param numChunks - number of chunks to match
+     *
+     * @return 0 for success, -1 for error (to throw exception)
+     */
+    default long matchLucene(int txId, int startChunkIndex, int numChunks)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * match on a chunk range starting from the given chunk index, filling the match bitmaps as output
+     *
+     * @param txId - identifies tx, passed from native to java during import_create
+     * @param startChunkIndex - chunk to start match from
+     * @param numChunks - number of chunks to match
+     * @param outMatchedChunksIndexes - indexes of chunks that have at least one match
+     * @param outMatchBitmapResetPoints - reset points for those chunks bitmaps
+     *
+     * @return MSB 32 bits number of matched chuks as filled in the output array, LSB 32 bits end chunk index of the range matched
+     *         -1 for error (to rhow exception)
+     *         0 is not a valid result
+     */
+    default long match(int txId, int startChunkIndex, int numChunks, short[] outMatchedChunksIndexes, int[] outMatchBitmapResetPoints)
     {
         throw new UnsupportedOperationException();
     }
