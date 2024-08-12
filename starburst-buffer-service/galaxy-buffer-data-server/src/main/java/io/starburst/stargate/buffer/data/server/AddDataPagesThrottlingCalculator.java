@@ -82,7 +82,7 @@ public class AddDataPagesThrottlingCalculator
                     String remoteHost = entry.getKey();
                     long lastUpdatedTime = entry.getValue().getLastUpdateTimeMillis();
                     if (lastUpdatedTime < cleanupThreshold) {
-                        log.info("Forgetting remote host %s, inactive for %s", remoteHost, succinctDuration(now - lastUpdatedTime, MILLISECONDS));
+                        log.debug("Forgetting remote host %s, inactive for %s", remoteHost, succinctDuration(now - lastUpdatedTime, MILLISECONDS));
                         iterator.remove();
                     }
                 }
