@@ -285,10 +285,12 @@ public class StorageReader
                         }
 
                         if (queryParams.getNumLucene() > 0) {
-                            luceneSuccess = storageEngine.matchLucene(matchTxId, chunkIndex, (int) numChunks);
+                            luceneSuccess = storageEngine.matchLucenePrepare(matchTxId, chunkIndex, (int) numChunks);
                             if (luceneSuccess < 0) {
                                 break;
                             }
+                            storageEngine.matchLucene(matchTxId, chunkIndex, (int) numChunks); // @TODO do this in java without native
+                            storageEngine.matchLuceneCompleted(matchTxId, chunkIndex, (int) numChunks);
                         }
 
                         matchResult = storageEngine.match(matchTxId, chunkIndex, (int) numChunks, matchedChunksIndexes, matchBitmapResetPoints);

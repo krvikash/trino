@@ -186,8 +186,8 @@ public interface StorageEngine
         throw new UnsupportedOperationException();
     }
 
-     /**
-     * match lucene on a chunk range starting from the given chunk index
+    /**
+     * prepare for match lucene on a chunk range starting from the given chunk index
      *
      * @param txId - identifies tx, passed from native to java during import_create
      * @param startChunkIndex - chunk to start match from
@@ -195,7 +195,31 @@ public interface StorageEngine
      *
      * @return 0 for success, -1 for error (to throw exception)
      */
-    default long matchLucene(int txId, int startChunkIndex, int numChunks)
+    default long matchLucenePrepare(int txId, int startChunkIndex, int numChunks)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * match lucene on a chunk range starting from the given chunk index
+     *
+     * @param txId - identifies tx, passed from native to java during import_create
+     * @param startChunkIndex - chunk to start match from
+     * @param numChunks - number of chunks to match
+     */
+    default void matchLucene(int txId, int startChunkIndex, int numChunks)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * cleanup after match lucene on a chunk range starting from the given chunk index
+     *
+     * @param txId - identifies tx, passed from native to java during import_create
+     * @param startChunkIndex - chunk to start match from
+     * @param numChunks - number of chunks to match
+     */
+    default void matchLuceneCompleted(int txId, int startChunkIndex, int numChunks)
     {
         throw new UnsupportedOperationException();
     }
