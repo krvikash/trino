@@ -101,10 +101,9 @@ public class WarpStatsBase
         return res;
     }
 
-    private String formatDeltaValue(Long newVal, Long prevVal)
+    private Map<String, Long> formatDeltaValue(Long newVal, Long prevVal)
     {
         long diff = prevVal == null ? newVal : newVal - prevVal;
-        String sign = diff >= 0 ? "+" : "-";
-        return String.format("%s%d (%d)", sign, Math.abs(diff), newVal);
+        return Map.of("d", diff, "t", newVal);
     }
 }

@@ -75,8 +75,12 @@ public class PrintMetricsTimerTaskTest
         metrics = printMetricsTimerTask.getMetricsDump();
         assertThat(metrics.containsKey(metricsRegistry.getKey(WARMING_SERVICE_STAT_GROUP))).isTrue();
         Map m = (Map) metrics.get(metricsRegistry.getKey(WARMING_SERVICE_STAT_GROUP));
-        assertThat(m.get("deleted_row_group_count").equals("+1 (2)")).isTrue();
-        assertThat(m.get("deleted_warmup_elements_count").equals("-5 (-5)")).isTrue();
+        Map diffPositive = (Map) m.get("deleted_row_group_count");
+        assertThat(diffPositive.get("d").equals(1L)).isTrue();
+        assertThat(diffPositive.get("t").equals(2L)).isTrue();
+        Map diffNegative = (Map) m.get("deleted_warmup_elements_count");
+        assertThat(diffNegative.get("d").equals(-5L)).isTrue();
+        assertThat(diffNegative.get("t").equals(-5L)).isTrue();
         assertThat(metrics.containsKey(metricsRegistry.getKey(WARMUP_EXPORTER_STAT_GROUP))).isTrue();
     }
 }
