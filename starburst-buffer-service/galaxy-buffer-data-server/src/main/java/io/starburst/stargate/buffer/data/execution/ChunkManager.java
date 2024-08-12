@@ -656,7 +656,7 @@ public class ChunkManager
                 }
             }
             else {
-                log.info("Memory allocation ratio %.2f%%, starting to spool closed chunks",
+                log.debug("Memory allocation ratio %.2f%%, starting to spool closed chunks",
                         memoryAllocator.getAllocationPercentage());
 
                 // blocking call here to make sure:
