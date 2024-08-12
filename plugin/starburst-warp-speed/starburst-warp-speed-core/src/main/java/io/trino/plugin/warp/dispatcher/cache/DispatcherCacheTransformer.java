@@ -13,6 +13,8 @@
  */
 package io.trino.plugin.warp.dispatcher.cache;
 
+import com.google.inject.Inject;
+import com.google.inject.Singleton;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.DispatcherSplit;
 import io.trino.plugin.warp.dispatcher.DispatcherStatisticsProvider;
@@ -32,9 +34,15 @@ import io.trino.spi.type.Type;
 import java.util.Map;
 import java.util.Optional;
 
+@Singleton
 public class DispatcherCacheTransformer
         implements DispatcherProxiedConnectorTransformer
 {
+    @Inject
+    public DispatcherCacheTransformer()
+    {
+    }
+
     @Override
     public Map<String, Integer> calculateColumnsStatisticsBucketPriority(DispatcherStatisticsProvider statisticsProvider, Map<ColumnHandle, ColumnStatistics> columnStatistics)
     {

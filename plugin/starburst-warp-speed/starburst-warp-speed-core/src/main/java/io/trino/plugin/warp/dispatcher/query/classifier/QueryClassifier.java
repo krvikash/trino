@@ -56,6 +56,7 @@ public class QueryClassifier
     private final ConnectorSync connectorSync;
     private final MatchCollectIdService matchCollectIdService;
     private final PredicateContextFactory predicateContextFactory;
+    private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
     private final GlobalConfig globalConfig;
 
     @Inject
@@ -63,12 +64,14 @@ public class QueryClassifier
             ConnectorSync connectorSync,
             MatchCollectIdService matchCollectIdService,
             PredicateContextFactory predicateContextFactory,
+            DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
             GlobalConfig globalConfig)
     {
         this.classifierFactory = requireNonNull(classifierFactory);
         this.connectorSync = requireNonNull(connectorSync);
         this.matchCollectIdService = requireNonNull(matchCollectIdService);
         this.predicateContextFactory = requireNonNull(predicateContextFactory);
+        this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
         this.globalConfig = requireNonNull(globalConfig);
     }
 
@@ -138,8 +141,7 @@ public class QueryClassifier
             if (classificationType == ClassificationType.QUERY ||
                     classificationType == ClassificationType.CHOOSING_ALTERNATIVE ||
                     classificationType == ClassificationType.CACHE) {
-                DispatcherProxiedConnectorTransformer transformer = classifierFactory.getTransformerByType(classificationType);
-                int totalRecords = getTotalRecords(classifyArgs, queryContext, transformer);
+                int totalRecords = getTotalRecords(classifyArgs, queryContext, dispatcherProxiedConnectorTransformer);
                 queryContext = queryContext.asBuilder()
                         .totalRecords(totalRecords)
                         .build();

@@ -209,6 +209,7 @@ public class DispatcherPageSourceFactoryTest
                 connectorSync,
                 matchCollectIdService,
                 predicateContextFactory,
+                dispatcherProxiedConnectorTransformer,
                 globalConfig);
 
         nativeStorageStateHandler = mock(NativeStorageStateHandler.class);

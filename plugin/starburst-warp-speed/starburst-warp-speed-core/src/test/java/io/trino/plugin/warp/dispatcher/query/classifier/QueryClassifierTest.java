@@ -246,6 +246,7 @@ public class QueryClassifierTest
                 mock(ConnectorSync.class),
                 matchCollectIdService,
                 predicateContextFactory,
+                dispatcherProxiedConnectorTransformer,
                 globalConfig);
     }
 
@@ -384,6 +385,7 @@ public class QueryClassifierTest
                 mock(ConnectorSync.class),
                 matchCollectIdService,
                 predicateContextFactory,
+                dispatcherProxiedConnectorTransformer,
                 globalConfig);
         QueryContext queryContext = queryClassifier.classify(new QueryContext(predicateContextData, ImmutableList.of(matchCollectIntColumn), 0, true, "query-id"),
                 rowGroupData,
@@ -444,6 +446,7 @@ public class QueryClassifierTest
                 mock(ConnectorSync.class),
                 matchCollectIdService,
                 predicateContextFactory,
+                dispatcherProxiedConnectorTransformer,
                 globalConfig);
 
         QueryContext queryContext = queryClassifier.classify(new QueryContext(predicateContextData, ImmutableList.of(matchCollectIntColumn), 0, true, "query-id"),

@@ -20,7 +20,6 @@ import com.google.inject.Singleton;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
-import io.trino.plugin.warp.dispatcher.cache.DispatcherCacheTransformer;
 import io.trino.plugin.warp.dispatcher.query.MatchCollectIdService;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
@@ -41,7 +40,6 @@ public class ClassifierFactory
     private final NativeConfig nativeConfig;
     private final BufferAllocator bufferAllocator;
     private ImmutableMap<ClassificationType, List<Classifier>> classificationTypeToClassifiers;
-    private ImmutableMap<ClassificationType, DispatcherProxiedConnectorTransformer> classificationTypeToConnectorTransformer;
 
     @Inject
     public ClassifierFactory(StorageEngineConstants storageEngineConstants,
@@ -64,7 +62,6 @@ public class ClassifierFactory
     private void buildClassifiers()
     {
         ImmutableMap.Builder<ClassificationType, List<Classifier>> classificationTypeToClassifiersBuilder = ImmutableMap.builder();
-        ImmutableMap.Builder<ClassificationType, DispatcherProxiedConnectorTransformer> classificationTypeToConnectorTransformerBuilder = ImmutableMap.builder();
         MatchClassifier matchClassifier = getMatchClassifier();
         PrefilledCollectClassifier prefilledCollectClassifier = new PrefilledCollectClassifier(
                 dispatcherProxiedConnectorTransformer,
@@ -78,16 +75,6 @@ public class ClassifierFactory
                 storageEngineConstants.getMaxMatchColumns(),
                 bufferAllocator,
                 dispatcherProxiedConnectorTransformer);
-        DispatcherCacheTransformer dispatcherCacheTransformer = new DispatcherCacheTransformer();
-        NativeCollectClassifier nativeCacheCollectClassifier = new NativeCollectClassifier(
-                storageEngineConstants.getMatchCollectBufferSize(),
-                storageEngineConstants.getMaxChunksInRange(),
-                nativeConfig.getBundleSize() - storageEngineConstants.getBundleNonCollectSize(),
-                nativeConfig.getCollectTxSize(),
-                storageEngineConstants.getMatchTxSize(),
-                storageEngineConstants.getMaxMatchColumns(),
-                bufferAllocator,
-                dispatcherCacheTransformer);
         MatchPrepareAfterCollectClassifier matchPrepareAfterCollectClassifier = new MatchPrepareAfterCollectClassifier(matchCollectIdService,
                 storageEngineConstants.getMaxMatchColumns());
         PredicateBufferClassifier predicateBufferClassifier = new PredicateBufferClassifier(predicatesCacheService);
@@ -110,11 +97,7 @@ public class ClassifierFactory
                 matchPrepareAfterCollectClassifier,
                 allProxyDecisionClassifier);
         classificationTypeToClassifiersBuilder.put(ClassificationType.WARMING, warmingClassifiers);
-        classificationTypeToClassifiersBuilder.put(ClassificationType.CACHE, List.of(nativeCacheCollectClassifier));
-        classificationTypeToConnectorTransformerBuilder.put(ClassificationType.QUERY, dispatcherProxiedConnectorTransformer);
-        classificationTypeToConnectorTransformerBuilder.put(ClassificationType.CHOOSING_ALTERNATIVE, dispatcherProxiedConnectorTransformer);
-        classificationTypeToConnectorTransformerBuilder.put(ClassificationType.CACHE, dispatcherCacheTransformer);
-        this.classificationTypeToConnectorTransformer = classificationTypeToConnectorTransformerBuilder.buildOrThrow();
+        classificationTypeToClassifiersBuilder.put(ClassificationType.CACHE, List.of(nativeCollectClassifier));
         this.classificationTypeToClassifiers = classificationTypeToClassifiersBuilder.buildOrThrow();
     }
 
@@ -136,13 +119,5 @@ public class ClassifierFactory
             buildClassifiers();
         }
         return classificationTypeToClassifiers.get(classificationType);
-    }
-
-    DispatcherProxiedConnectorTransformer getTransformerByType(ClassificationType classificationType)
-    {
-        if (classificationTypeToConnectorTransformer == null) {
-            buildClassifiers();
-        }
-        return classificationTypeToConnectorTransformer.get(classificationType);
     }
 }
