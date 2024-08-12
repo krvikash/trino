@@ -22,6 +22,9 @@ import com.google.inject.Module;
 import com.google.inject.TypeLiteral;
 import io.airlift.bootstrap.ApplicationConfigurationException;
 import io.airlift.bootstrap.Bootstrap;
+import io.airlift.compress.v3.lz4.Lz4NativeCompressor;
+import io.airlift.compress.v3.snappy.SnappyNativeCompressor;
+import io.airlift.compress.v3.zstd.ZstdNativeCompressor;
 import io.airlift.discovery.client.Announcer;
 import io.airlift.discovery.client.DiscoveryModule;
 import io.airlift.discovery.client.ServiceAnnouncement;
@@ -147,6 +150,10 @@ public class Server
             Injector injector = app.initialize();
 
             log.info("Trino version: %s", injector.getInstance(NodeVersion.class).getVersion());
+            log.info("Zstandard native compression: %s", formatEnabled(ZstdNativeCompressor.isEnabled()));
+            log.info("Lz4 native compression: %s", formatEnabled(Lz4NativeCompressor.isEnabled()));
+            log.info("Snappy native compression: %s", formatEnabled(SnappyNativeCompressor.isEnabled()));
+
             logLocation(log, "Working directory", Paths.get("."));
             logLocation(log, "Etc directory", Paths.get("etc"));
 
@@ -194,7 +201,6 @@ public class Server
             injector.getInstance(Announcer.class).start();
 
             injector.getInstance(StartupStatus.class).startupComplete();
-
             log.info("Server startup completed in %s", Duration.nanosSince(startTime).convertToMostSuccinctTimeUnit());
             log.info("======== SERVER STARTED ========");
         }
@@ -295,5 +301,10 @@ public class Server
             return;
         }
         log.info("%s: %s", name, path);
+    }
+
+    private static String formatEnabled(boolean flag)
+    {
+        return flag ? "enabled" : "disabled";
     }
 }
