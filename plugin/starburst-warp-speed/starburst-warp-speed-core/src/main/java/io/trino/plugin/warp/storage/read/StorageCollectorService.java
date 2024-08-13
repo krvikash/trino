@@ -16,6 +16,7 @@ package io.trino.plugin.warp.storage.read;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.gen.constants.QueryResultType;
 import io.trino.plugin.warp.gen.constants.RecordBufferState;
 import io.trino.plugin.warp.gen.constants.RecordIndexListHeader;
@@ -61,6 +62,7 @@ public class StorageCollectorService
     private final StorageEngineConstants storageEngineConstants;
     private final BlockFillersFactory blockFillersFactory;
     private final LazyCollectTxService lazyCollectTxService;
+    private final NativeConfig nativeConfig;
     private final GlobalConfig globalConfig;
 
     @Inject
@@ -74,6 +76,7 @@ public class StorageCollectorService
             LazyCollectTxService lazyCollectTxService,
             StorageEngineConstants storageEngineConstants,
             BlockFillersFactory blockFillersFactory,
+            NativeConfig nativeConfig,
             GlobalConfig globalConfig)
     {
         this.storageEngine = requireNonNull(storageEngine);
@@ -85,6 +88,7 @@ public class StorageCollectorService
         this.chunksQueueService = requireNonNull(chunksQueueService);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.blockFillersFactory = requireNonNull(blockFillersFactory);
+        this.nativeConfig = nativeConfig;
         this.globalConfig = globalConfig;
     }
 
@@ -262,7 +266,14 @@ public class StorageCollectorService
             logger.debug("getNumToCollect fixed size basePos %d numToCollect %d maxToCollect %d", warmupElementRecordBufferState.getBasePos(), numToCollect, maxToCollect);
             return numToCollect;
         }
-        int freeBytes = recordBufferStateBuff.get(warmupElementRecordBufferState.getBasePos() + RecordBufferState.RECORD_BUFFER_STATE_TOTAL_BYTES.ordinal()) - recordBufferStateBuff.get(warmupElementRecordBufferState.getBasePos() + RecordBufferState.RECORD_BUFFER_STATE_USED_BYTES.ordinal());
+        int freeBytes;
+        if (storageCollectorArgs.isLazyCollect()) {
+            // for lazy collect we can use the whole juffer size as we are collecting only one we each cycle
+            freeBytes = nativeConfig.getMaxRecJufferSize();
+        }
+        else {
+            freeBytes = recordBufferStateBuff.get(warmupElementRecordBufferState.getBasePos() + RecordBufferState.RECORD_BUFFER_STATE_TOTAL_BYTES.ordinal()) - recordBufferStateBuff.get(warmupElementRecordBufferState.getBasePos() + RecordBufferState.RECORD_BUFFER_STATE_USED_BYTES.ordinal());
+        }
         int actualNumToCollect = Math.min(freeBytes / maxRecordLength, numToCollect);
         logger.debug("getNumToCollect var size basePos %d actualNumToCollect %d numToCollect %d maxToCollect %d", warmupElementRecordBufferState.getBasePos(), actualNumToCollect, numToCollect, maxToCollect);
         return actualNumToCollect;
