@@ -24,6 +24,7 @@ public class IcebergSecurityConfig
         READ_ONLY,
         SYSTEM,
         FILE,
+        LAKE_FORMATION,
     }
 
     private IcebergSecurity securitySystem = IcebergSecurity.ALLOW_ALL;
