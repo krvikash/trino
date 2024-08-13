@@ -1490,8 +1490,6 @@ public class EventDrivenFaultTolerantQueryScheduler
                         sinkPartitioningScheme.getPartitionCount(),
                         preserveOrderWithinPartition));
 
-                boolean coordinatorStage = stage.getFragment().getPartitioning().equals(COORDINATOR_DISTRIBUTION);
-
                 if (eager) {
                     sourceExchanges.values().forEach(sourceExchange -> sourceExchange.setSourceHandlesDeliveryMode(EAGER));
                 }
@@ -1519,7 +1517,7 @@ public class EventDrivenFaultTolerantQueryScheduler
                         outputStatsEstimator,
                         schedulingQueue,
                         // do not retry coordinator only tasks
-                        coordinatorStage ? 1 : maxTaskExecutionAttempts,
+                        shouldRetry(stage) ? maxTaskExecutionAttempts : 1,
                         schedulingPriority,
                         eager,
                         taskSplitMemoryThreshold,
@@ -1544,6 +1542,12 @@ public class EventDrivenFaultTolerantQueryScheduler
                 }
                 throw t;
             }
+        }
+
+        private static boolean shouldRetry(SqlStage stage)
+        {
+            boolean coordinatorStage = stage.getFragment().getPartitioning().equals(COORDINATOR_DISTRIBUTION);
+            return !coordinatorStage;
         }
 
         private StageId getStageId(PlanFragmentId fragmentId)
