@@ -154,13 +154,13 @@ public class DeltaLakePageSourceProvider
                 .collect(toImmutableList());
 
         List<DeltaLakeColumnHandle> regularColumns = deltaLakeColumns.stream()
-                .filter(column -> (column.getColumnType() == REGULAR) || column.getBaseColumnName().equals(ROW_ID_COLUMN_NAME))
+                .filter(column -> (column.columnType() == REGULAR) || column.baseColumnName().equals(ROW_ID_COLUMN_NAME))
                 .collect(toImmutableList());
 
         Map<String, Optional<String>> partitionKeys = split.getPartitionKeys();
         ColumnMappingMode columnMappingMode = getColumnMappingMode(table.getMetadataEntry(), table.getProtocolEntry());
         Optional<List<String>> partitionValues = Optional.empty();
-        if (deltaLakeColumns.stream().anyMatch(column -> column.getBaseColumnName().equals(ROW_ID_COLUMN_NAME))) {
+        if (deltaLakeColumns.stream().anyMatch(column -> column.baseColumnName().equals(ROW_ID_COLUMN_NAME))) {
             // using ArrayList because partition values can be null
             partitionValues = Optional.of(new ArrayList<>());
             Map<String, DeltaLakeColumnMetadata> columnsMetadataByName = extractSchema(table.getMetadataEntry(), table.getProtocolEntry(), typeManager).stream()
@@ -229,13 +229,13 @@ public class DeltaLakePageSourceProvider
         ImmutableSet.Builder<String> missingColumnNames = ImmutableSet.builder();
         ImmutableList.Builder<HiveColumnHandle> hiveColumnHandles = ImmutableList.builder();
         for (DeltaLakeColumnHandle column : regularColumns) {
-            if (column.getBaseColumnName().equals(ROW_ID_COLUMN_NAME)) {
+            if (column.baseColumnName().equals(ROW_ID_COLUMN_NAME)) {
                 hiveColumnHandles.add(PARQUET_ROW_INDEX_COLUMN);
                 continue;
             }
             toHiveColumnHandle(column, columnMappingMode, parquetFieldIdToName).ifPresentOrElse(
                     hiveColumnHandles::add,
-                    () -> missingColumnNames.add(column.getBaseColumnName()));
+                    () -> missingColumnNames.add(column.baseColumnName()));
         }
         if (split.getDeletionVector().isPresent() && !regularColumns.contains(rowPositionColumnHandle())) {
             hiveColumnHandles.add(PARQUET_ROW_INDEX_COLUMN);
@@ -333,13 +333,13 @@ public class DeltaLakePageSourceProvider
 
         TupleDomain<DeltaLakeColumnHandle> predicateOnPartitioningColumn = predicate
                 .transformKeys(DeltaLakeColumnHandle.class::cast)
-                .filter((columnHandle, domain) -> columnHandle.getColumnType() == PARTITION_KEY);
+                .filter((columnHandle, domain) -> columnHandle.columnType() == PARTITION_KEY);
 
         if (predicateOnPartitioningColumn.getDomains().isPresent() && !partitionMatchesPredicate(split.getPartitionKeys(), predicateOnPartitioningColumn.getDomains().get())) {
             return TupleDomain.none();
         }
 
-        return predicate.filter((columnHandle, domain) -> ((DeltaLakeColumnHandle) columnHandle).getColumnType() != PARTITION_KEY)
+        return predicate.filter((columnHandle, domain) -> ((DeltaLakeColumnHandle) columnHandle).columnType() != PARTITION_KEY)
                 // remove domains from predicate that fully contain split data because they are irrelevant for filtering
                 .filter((handle, domain) -> !domain.contains(split.getStatisticsPredicate().getDomain((DeltaLakeColumnHandle) handle, domain.getType())));
     }
@@ -368,7 +368,7 @@ public class DeltaLakePageSourceProvider
 
         ImmutableMap.Builder<HiveColumnHandle, Domain> predicate = ImmutableMap.builder();
         effectivePredicate.getDomains().get().forEach((columnHandle, domain) -> {
-            String baseType = columnHandle.getBaseType().getTypeSignature().getBase();
+            String baseType = columnHandle.baseType().getTypeSignature().getBase();
             // skip looking up predicates for complex types as Parquet only stores stats for primitives
             if (!baseType.equals(StandardTypes.MAP) && !baseType.equals(StandardTypes.ARRAY) && !baseType.equals(StandardTypes.ROW)) {
                 Optional<HiveColumnHandle> hiveColumnHandle = toHiveColumnHandle(columnHandle, columnMapping, fieldIdToName);
@@ -382,20 +382,20 @@ public class DeltaLakePageSourceProvider
     {
         switch (columnMapping) {
             case ID:
-                Integer fieldId = deltaLakeColumnHandle.getBaseFieldId().orElseThrow(() -> new IllegalArgumentException("Field ID must exist"));
+                Integer fieldId = deltaLakeColumnHandle.baseFieldId().orElseThrow(() -> new IllegalArgumentException("Field ID must exist"));
                 if (!fieldIdToName.containsKey(fieldId)) {
                     return Optional.empty();
                 }
                 String fieldName = fieldIdToName.get(fieldId);
-                Optional<HiveColumnProjectionInfo> hiveColumnProjectionInfo = deltaLakeColumnHandle.getProjectionInfo()
+                Optional<HiveColumnProjectionInfo> hiveColumnProjectionInfo = deltaLakeColumnHandle.projectionInfo()
                         .map(DeltaLakeColumnProjectionInfo::toHiveColumnProjectionInfo);
                 return Optional.of(new HiveColumnHandle(
                         fieldName,
                         0,
-                        toHiveType(deltaLakeColumnHandle.getBasePhysicalType()),
-                        deltaLakeColumnHandle.getBasePhysicalType(),
+                        toHiveType(deltaLakeColumnHandle.basePhysicalType()),
+                        deltaLakeColumnHandle.basePhysicalType(),
                         hiveColumnProjectionInfo,
-                        deltaLakeColumnHandle.getColumnType().toHiveColumnType(),
+                        deltaLakeColumnHandle.columnType().toHiveColumnType(),
                         Optional.empty()));
             case NAME:
             case NONE:
@@ -409,7 +409,7 @@ public class DeltaLakePageSourceProvider
 
     private static boolean onlyRowIdColumn(List<DeltaLakeColumnHandle> columns)
     {
-        return columns.size() == 1 && getOnlyElement(columns).getBaseColumnName().equals(ROW_ID_COLUMN_NAME);
+        return columns.size() == 1 && getOnlyElement(columns).baseColumnName().equals(ROW_ID_COLUMN_NAME);
     }
 
     private static ConnectorPageSource generatePages(long totalRowCount, boolean projectRowNumber)

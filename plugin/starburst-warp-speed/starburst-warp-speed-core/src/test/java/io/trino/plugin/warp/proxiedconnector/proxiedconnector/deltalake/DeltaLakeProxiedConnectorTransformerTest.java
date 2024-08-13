@@ -59,10 +59,10 @@ public class DeltaLakeProxiedConnectorTransformerTest
                         .collect(Collectors.toMap(doubleVal ->
                         {
                             DeltaLakeColumnHandle columnHandle = mock(DeltaLakeColumnHandle.class);
-                            when(columnHandle.getColumnName()).thenReturn("name-" + doubleVal);
+                            when(columnHandle.columnName()).thenReturn("name-" + doubleVal);
                             return columnHandle;
                         }, Function.identity())),
-                columnHandle -> ((DeltaLakeColumnHandle) columnHandle).getColumnName());
+                columnHandle -> ((DeltaLakeColumnHandle) columnHandle).columnName());
     }
 
     @Test

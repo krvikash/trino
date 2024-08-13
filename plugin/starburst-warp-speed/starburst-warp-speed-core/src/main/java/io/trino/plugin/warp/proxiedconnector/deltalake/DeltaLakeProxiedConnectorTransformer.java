@@ -95,14 +95,14 @@ public class DeltaLakeProxiedConnectorTransformer
         return columnStatistics.entrySet()
                 .stream()
                 .collect(Collectors.toMap(
-                        entry -> ((DeltaLakeColumnHandle) entry.getKey()).getColumnName(),
+                        entry -> ((DeltaLakeColumnHandle) entry.getKey()).columnName(),
                         entry -> statisticsProvider.getColumnCardinalityBucket(entry.getValue().getDistinctValuesCount())));
     }
 
     @Override
     public RegularColumn getWarpRegularColumn(ColumnHandle columnHandle)
     {
-        String name = ((DeltaLakeColumnHandle) columnHandle).getQualifiedPhysicalName();
+        String name = ((DeltaLakeColumnHandle) columnHandle).qualifiedPhysicalName();
         return new RegularColumn(name);
     }
 
@@ -111,7 +111,7 @@ public class DeltaLakeProxiedConnectorTransformer
     {
         DeltaLakeColumnHandle deltaLakeColumnHandle = (DeltaLakeColumnHandle) columnHandle;
 
-        return deltaLakeColumnHandle.getProjectionInfo().isPresent() ? ((DeltaLakeColumnHandle) columnHandle).getProjectionInfo().orElseThrow().getType() : ((DeltaLakeColumnHandle) columnHandle).getBaseType();
+        return deltaLakeColumnHandle.projectionInfo().isPresent() ? ((DeltaLakeColumnHandle) columnHandle).projectionInfo().orElseThrow().getType() : ((DeltaLakeColumnHandle) columnHandle).baseType();
     }
 
     @Override
