@@ -731,7 +731,6 @@ public class EventDrivenFaultTolerantQueryScheduler
         private final Queue<Map.Entry<TaskId, RuntimeException>> taskFailures = new ArrayDeque<>(TASK_FAILURES_LOG_SIZE);
 
         private boolean started;
-        private boolean runtimeAdaptivePartitioningApplied;
 
         private SubPlan plan;
         private List<SubPlan> planInTopologicalOrder;
@@ -1013,7 +1012,6 @@ public class EventDrivenFaultTolerantQueryScheduler
                     .add("runtimeAdaptivePartitioningMaxTaskSizeInBytes", runtimeAdaptivePartitioningMaxTaskSizeInBytes)
                     .add("stageEstimationForEagerParentEnabled", stageEstimationForEagerParentEnabled)
                     .add("started", started)
-                    .add("runtimeAdaptivePartitioningApplied", runtimeAdaptivePartitioningApplied)
                     .add("nextSchedulingPriority", nextSchedulingPriority)
                     .add("preSchedulingTaskContexts", preSchedulingTaskContexts)
                     .add("schedulingDelayer", schedulingDelayer)
@@ -1299,13 +1297,6 @@ public class EventDrivenFaultTolerantQueryScheduler
                 if (sourceStageExecution.getState() != StageState.FINISHED) {
                     if (!exchangeManager.supportsConcurrentReadAndWrite()) {
                         // speculative execution not supported by Exchange implementation
-                        return IsReadyForExecutionResult.notReady();
-                    }
-                    if (runtimeAdaptivePartitioningApplied) {
-                        // Do not start a speculative stage after partition count has been changed at runtime, as when we estimate
-                        // by progress, repartition tasks will produce very uneven output for different output partitions, which
-                        // will result in very bad task bin-packing results; also the fact that runtime adaptive partitioning
-                        // happened already suggests that there is plenty work ahead.
                         return IsReadyForExecutionResult.notReady();
                     }
 
