@@ -81,6 +81,8 @@ import static io.starburst.stargate.buffer.data.client.ChunkDeliveryMode.STANDAR
 import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.EXCHANGE_NOT_FOUND;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.INTERNAL_ERROR;
+import static io.starburst.stargate.buffer.data.execution.ChunkManager.ExchangeRemovalReason.ABANDONED;
+import static io.starburst.stargate.buffer.data.execution.ChunkManager.ExchangeRemovalReason.EXPLICIT;
 import static io.starburst.stargate.buffer.data.execution.ExchangeState.CREATED;
 import static io.starburst.stargate.buffer.data.execution.ExchangeState.SOURCE_STREAMING;
 import static io.starburst.stargate.buffer.data.execution.SpooledChunksByExchange.decodeMetadataSlice;
@@ -126,6 +128,11 @@ public class ChunkManager
     private final Tracer tracer;
     private final ExecutorService executor;
 
+    enum ExchangeRemovalReason {
+        EXPLICIT,
+        ABANDONED
+    }
+
     // exchangeId -> exchange
     private final Map<String, Exchange> exchanges = new ConcurrentHashMap<>();
     private final ChunkIdGenerator chunkIdGenerator = new ChunkIdGenerator();
@@ -135,7 +142,7 @@ public class ChunkManager
     private final ScheduledExecutorService exchangeTimeoutExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("chunk-manager-exchange-timeout-%s"));
     private final ScheduledExecutorService eagerDeliveryModeExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("chunk-manager-eager-delivery-%s"));
     private final ScheduledExecutorService traceResourceReportExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("chunk-manager-trace-resource-report-%s"));
-    private final Cache<String, Object> recentlyRemovedExchanges = buildNonEvictableCache(CacheBuilder.newBuilder().expireAfterWrite(5, MINUTES));
+    private final Cache<String, ExchangeRemovalReason> recentlyRemovedExchanges = buildNonEvictableCache(CacheBuilder.newBuilder().expireAfterWrite(5, MINUTES));
     private final LoadingCache<Long, Map<Long, SpooledChunk>> drainedSpooledChunkMap;
     private final Set<String> exchangesBeingReleased = ConcurrentHashMap.newKeySet();
     private final Duration traceResourceReportInterval;
@@ -345,8 +352,9 @@ public class ChunkManager
     private Exchange internalRegisterExchange(String exchangeId, ExchangeState initialState, ChunkDeliveryMode chunkDeliveryMode)
     {
         return exchanges.computeIfAbsent(exchangeId, ignored -> {
-            if (recentlyRemovedExchanges.getIfPresent(exchangeId) != null) {
-                throw new DataServerException(EXCHANGE_NOT_FOUND, "exchange %s already removed".formatted(exchangeId));
+            ExchangeRemovalReason removalReason = recentlyRemovedExchanges.getIfPresent(exchangeId);
+            if (removalReason != null) {
+                throw new DataServerException(EXCHANGE_NOT_FOUND, "exchange %s already removed (%s)".formatted(exchangeId, removalReason));
             }
 
             return new Exchange(
@@ -387,7 +395,7 @@ public class ChunkManager
     public void removeExchange(String exchangeId)
     {
         spooledChunksByExchange.removeExchange(exchangeId);
-        recentlyRemovedExchanges.put(exchangeId, "marker");
+        recentlyRemovedExchanges.put(exchangeId, EXPLICIT);
         Exchange exchange = exchanges.remove(exchangeId);
         if (exchange != null) {
             releaseChunks(exchange);
@@ -536,6 +544,7 @@ public class ChunkManager
             long lastUpdateTime = exchange.getLastUpdateTime();
             if (lastUpdateTime < cleanupThreshold) {
                 log.info("forgetting exchange %s; no update for %s", entry.getKey(), succinctDuration(now - lastUpdateTime, MILLISECONDS));
+                recentlyRemovedExchanges.put(exchange.getExchangeId(), ABANDONED);
                 iterator.remove();
                 spooledChunksByExchange.removeExchange(exchange.getExchangeId());
                 releaseChunks(exchange);
