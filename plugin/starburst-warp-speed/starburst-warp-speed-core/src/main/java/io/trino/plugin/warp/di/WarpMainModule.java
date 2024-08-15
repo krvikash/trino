@@ -15,7 +15,9 @@ package io.trino.plugin.warp.di;
 
 import com.google.common.eventbus.EventBus;
 import com.google.inject.Binder;
+import com.google.inject.Provides;
 import com.google.inject.Scopes;
+import com.google.inject.Singleton;
 import com.google.inject.multibindings.Multibinder;
 import io.airlift.json.ObjectMapperProvider;
 import io.opentelemetry.api.OpenTelemetry;
@@ -41,6 +43,7 @@ import io.trino.plugin.warp.metrics.ScheduledMetricsHandler;
 import io.trino.plugin.warp.node.CoordinatorInitializedEventHandler;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
+import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.warmup.WarmupRuleService;
 import io.trino.spi.block.Block;
 import io.trino.spi.connector.ConnectorContext;
@@ -130,5 +133,13 @@ public class WarpMainModule
         Multibinder<MetricsTimerTask> multibinder = Multibinder.newSetBinder(binder, MetricsTimerTask.class);
         multibinder.addBinding().to(PrintMetricsTimerTask.class);
         binder.bind(PrintMetricsTimerTask.class);
+    }
+
+    @SuppressWarnings("unused")
+    @Provides
+    @Singleton
+    public CatalogNameProvider provideCatalogName()
+    {
+        return new CatalogNameProvider(context.getCatalogHandle().getCatalogName() + "_" + context.getCatalogHandle().getVersion());
     }
 }

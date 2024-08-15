@@ -443,7 +443,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                 "warmup_elements_count",
                 "warm_failed",
                 "warm_started");
-        String warmStatsTableName = "%s:catalog=%s,name=%s_%s,type=%s".formatted(
+        String warmStatsTableName = "%s:catalog=%s,name=%s_%s_*,type=%s".formatted(
                 WarmingServiceStats.class.getPackageName(),
                 catalog,
                 WARMING_SERVICE_STAT_GROUP,
@@ -631,7 +631,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
 
     protected int getWarmingServiceStats(Session jmxSession, String statColName)
     {
-        String warmStatsTableName = "%s:catalog=%s,name=%s_%s,type=%s".formatted(
+        String warmStatsTableName = "%s:catalog=%s,name=%s_%s_*,type=%s".formatted(
                 WarmingServiceStats.class.getPackageName(),
                 catalog,
                 WARMING_SERVICE_STAT_GROUP,

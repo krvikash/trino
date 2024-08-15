@@ -15,31 +15,13 @@ package io.trino.plugin.warp.metrics;
 
 import com.google.inject.Binder;
 import com.google.inject.Module;
-import com.google.inject.Provides;
-import com.google.inject.Singleton;
-import io.trino.plugin.warp.tools.CatalogNameProvider;
 
 public class MetricsModule
         implements Module
 {
-    private final String catalogName;
-
-    public MetricsModule(String catalogName)
-    {
-        this.catalogName = catalogName;
-    }
-
     @Override
     public void configure(Binder binder)
     {
         binder.bind(MetricsRegistry.class);
-    }
-
-    @SuppressWarnings("unused")
-    @Provides
-    @Singleton
-    public CatalogNameProvider provideCatalogName()
-    {
-        return new CatalogNameProvider(catalogName);
     }
 }

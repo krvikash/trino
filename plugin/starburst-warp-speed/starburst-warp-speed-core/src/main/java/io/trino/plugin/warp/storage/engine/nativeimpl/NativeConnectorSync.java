@@ -22,7 +22,7 @@ import io.trino.plugin.warp.gen.constants.DemoteStatus;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.ConnectorSyncInitializedEvent;
 import io.trino.plugin.warp.storage.read.StorageCollectorCallBack;
-import io.trino.plugin.warp.tools.CatalogNameProvider;
+import io.trino.spi.catalog.CatalogName;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -36,18 +36,17 @@ public class NativeConnectorSync
         implements ConnectorSync
 {
     private static final Logger logger = Logger.get(NativeConnectorSync.class);
-    private final CatalogNameProvider catalogNameProvider;
+    private final CatalogName catalogName;
     private final EventBus eventBus;
     private final ExecutorService executorService = Executors.newSingleThreadExecutor(daemonThreadsNamed("warp-speed-native-connector-sync-%s"));
     private WarmupDemoterService warmupDemoterService;
     private Integer catalogSequence;
-    private String catalogName;
 
     @Inject
-    public NativeConnectorSync(CatalogNameProvider catalogNameProvider,
+    public NativeConnectorSync(CatalogName catalogName,
                                EventBus eventBus)
     {
-        this.catalogNameProvider = catalogNameProvider;
+        this.catalogName = catalogName;
         this.eventBus = requireNonNull(eventBus);
     }
 
@@ -62,8 +61,7 @@ public class NativeConnectorSync
     {
         try {
             logger.debug("nativeConnectorSync from init, %d", System.identityHashCode(this));
-            catalogName = catalogNameProvider.get();
-            catalogSequence = register(catalogName, StorageCollectorCallBack.class, 1800);
+            catalogSequence = register(catalogName.toString(), StorageCollectorCallBack.class, 1800);
             logger.info("catalog name %s sequence %d", catalogName, catalogSequence);
             eventBus.post(new ConnectorSyncInitializedEvent(catalogSequence));
         }
@@ -80,7 +78,7 @@ public class NativeConnectorSync
     public void callback_GetLowestPriority(int demoteSequence)
     {
         logger.debug("%s - callback_GetLowestPriority, demoteSequence = %d",
-                catalogNameProvider.get(), demoteSequence);
+                catalogName, demoteSequence);
         if (warmupDemoterService == null) {
             logger.error("warmupDemoterCatalogService == null");
             return;
@@ -91,7 +89,7 @@ public class NativeConnectorSync
     public void callback_DemoteStart(int demoteSequence, double maxPriorityToDemote, boolean isSingleConnector)
     {
         logger.debug("%s - callback_DemoteStart, demoteSequence=%d, maxPriorityToDemote=%f, isSingleConnector=%b",
-                catalogNameProvider.get(), demoteSequence, maxPriorityToDemote, isSingleConnector);
+                catalogName, demoteSequence, maxPriorityToDemote, isSingleConnector);
         if (warmupDemoterService == null) {
             logger.error("warmupDemoterCatalogService == null");
             return;
@@ -102,9 +100,9 @@ public class NativeConnectorSync
     public void callback_DemoteEnd(int demoteSequence, double highestPriority)
     {
         logger.debug("%s - callback_demoteEnd, demoteSequence=%d, highestPriority=%f",
-                catalogNameProvider.get(), demoteSequence, highestPriority);
+                catalogName, demoteSequence, highestPriority);
         if (warmupDemoterService == null) {
-            logger.error("%s - warmupDemoterCatalogService == null", catalogNameProvider.get());
+            logger.error("%s - warmupDemoterCatalogService == null", catalogName);
             return;
         }
         Future<?> unused = executorService.submit(() -> warmupDemoterService.connectorSyncDemoteEnd(demoteSequence, highestPriority));
@@ -115,7 +113,7 @@ public class NativeConnectorSync
     @Override
     public void startDemote(int demoteSequence)
     {
-        logger.debug("%s - call syncDemoteStart with demoteSequence =%d", catalogNameProvider.get(), demoteSequence);
+        logger.debug("%s - call syncDemoteStart with demoteSequence =%d", catalogName, demoteSequence);
         syncDemoteStart(catalogSequence, demoteSequence);
     }
 
@@ -123,7 +121,7 @@ public class NativeConnectorSync
     public void syncDemoteCycleEnd(int demoteSequence, double lowestPriorityExist, double highestPriorityDemoted, DemoteStatus demoteStatus)
     {
         logger.debug("%s -call syncDemoteCycleEnd with demoteSequence=%d, lowestPriorityExist=%f, highestPriorityDemoted=%f, demoteStatus=%s, demoteStatusOrdinal=%d",
-                catalogNameProvider.get(), demoteSequence, lowestPriorityExist, highestPriorityDemoted, demoteStatus.name(), demoteStatus.ordinal());
+                catalogName, demoteSequence, lowestPriorityExist, highestPriorityDemoted, demoteStatus.name(), demoteStatus.ordinal());
         syncDemoteCycleEnd(catalogSequence, demoteSequence, lowestPriorityExist, highestPriorityDemoted, demoteStatus.ordinal());
     }
 
@@ -131,7 +129,7 @@ public class NativeConnectorSync
     public int syncDemotePrepare(double epsilon)
     {
         logger.debug("%s -call syncDemotePrepare with epsilon=%f",
-                catalogNameProvider.get(), epsilon);
+                catalogName, epsilon);
         return syncDemotePrepare(catalogSequence, epsilon);
     }
 
@@ -150,7 +148,7 @@ public class NativeConnectorSync
     @Override
     public String getCatalogName()
     {
-        return catalogName;
+        return catalogName.toString();
     }
 
     @Override

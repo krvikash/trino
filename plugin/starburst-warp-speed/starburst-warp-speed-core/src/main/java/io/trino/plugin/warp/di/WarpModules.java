@@ -47,7 +47,7 @@ public class WarpModules
     @Override
     protected void configure()
     {
-        install(new MetricsModule(connectorId));
+        install(new MetricsModule());
         install(storageEngineModule.orElseGet(() -> new WarpNativeStorageEngineModule(context, config)));
         install(cloudVendorModule.orElse(CloudVendorModule.getModule(context, ForWarp.class, connectorId, config)));
         install(new WarpMainModule(context, config));

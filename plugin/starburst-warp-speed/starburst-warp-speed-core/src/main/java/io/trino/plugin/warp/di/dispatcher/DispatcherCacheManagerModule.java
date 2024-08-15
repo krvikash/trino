@@ -16,7 +16,9 @@ package io.trino.plugin.warp.di.dispatcher;
 import com.google.common.eventbus.EventBus;
 import com.google.inject.Binder;
 import com.google.inject.Module;
+import com.google.inject.Provides;
 import com.google.inject.Scopes;
+import com.google.inject.Singleton;
 import com.google.inject.multibindings.Multibinder;
 import io.airlift.json.ObjectMapperProvider;
 import io.trino.plugin.hive.util.BlockJsonSerde;
@@ -81,6 +83,7 @@ import io.trino.plugin.warp.storage.write.WarmupElementStatsService;
 import io.trino.plugin.warp.storage.write.WarpPageSinkFactory;
 import io.trino.plugin.warp.storage.write.appenders.BlockAppenderFactory;
 import io.trino.plugin.warp.storage.write.dictionary.DictionaryWriterFactory;
+import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.util.FailureGeneratorInvocationHandler;
 import io.trino.spi.NodeManager;
 import io.trino.spi.block.Block;
@@ -116,7 +119,7 @@ public class DispatcherCacheManagerModule
     @Override
     public void configure(Binder binder)
     {
-        binder.install(new MetricsModule(cacheManagerName));
+        binder.install(new MetricsModule());
         binder.bind(MetricsManager.class);
         configBinder(binder).bindConfig(MetricsConfig.class);
         binder.bind(WarpInitializedServiceRegistry.class);
@@ -201,5 +204,13 @@ public class DispatcherCacheManagerModule
     {
         this.config = config;
         return this;
+    }
+
+    @SuppressWarnings("unused")
+    @Provides
+    @Singleton
+    public CatalogNameProvider provideCatalogName()
+    {
+        return new CatalogNameProvider(cacheManagerName);
     }
 }

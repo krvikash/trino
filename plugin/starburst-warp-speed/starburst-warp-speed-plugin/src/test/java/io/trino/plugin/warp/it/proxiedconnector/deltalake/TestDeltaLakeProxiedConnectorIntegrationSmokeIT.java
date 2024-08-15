@@ -110,7 +110,7 @@ public class TestDeltaLakeProxiedConnectorIntegrationSmokeIT
         assertThat(result.getRowCount()).isEqualTo(1); // collect from hive
         assertThat(result.getMaterializedRows().getFirst().getField(0)).isEqualTo(1L);
 
-        String jmxTable = "io.trino.plugin.warp.gen.stats:*,name=dispatcherpagesource_" + catalog + ",type=dispatcherpagesourcestats";
+        String jmxTable = "io.trino.plugin.warp.gen.stats:*,name=dispatcherpagesource_" + catalog + "_*,type=dispatcherpagesourcestats";
         computeActual(createJmxSession(), "show tables");
         MaterializedRow statsMaterializedRow = getServiceStats(createJmxSession(),
                 jmxTable,
