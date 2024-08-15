@@ -19,13 +19,14 @@ import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.PredicateHeaderFlags;
 import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.juffer.BufferAllocator;
+import io.trino.spi.predicate.Domain;
 import io.trino.spi.type.TimestampType;
 
 import java.nio.ByteBuffer;
 
 import static java.lang.String.format;
 
-public abstract class PredicateFiller<T>
+public abstract class PredicateFiller
 {
     protected static final byte BOOLEAN_TRUE_VALUE = 1;
     protected static final byte BOOLEAN_FALSE_VALUE = 0;
@@ -46,7 +47,7 @@ public abstract class PredicateFiller<T>
      * STRING - crcs and then lexicographic (str2int) min max for all values
      * LUCENE - constant buffer is allocated
      */
-    public abstract void fillPredicate(T value, ByteBuffer predicateBuffer, PredicateData predicateData);
+    public abstract void fillPredicate(Domain domain, ByteBuffer predicateBuffer, PredicateData predicateData);
 
     public abstract PredicateType getPredicateType();
 
@@ -81,5 +82,5 @@ public abstract class PredicateFiller<T>
         return bufferAllocator.createBuffView(predicateBuffer.slice());
     }
 
-    public abstract void convertValues(T value, ByteBuffer predicateBuffer);
+    public abstract void convertValues(Domain domain, ByteBuffer predicateBuffer);
 }

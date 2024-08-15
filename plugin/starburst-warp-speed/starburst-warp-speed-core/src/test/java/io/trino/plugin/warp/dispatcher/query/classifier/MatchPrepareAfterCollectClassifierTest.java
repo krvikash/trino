@@ -21,7 +21,6 @@ import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.MatchCollectIdService;
 import io.trino.plugin.warp.dispatcher.query.MatchCollectUtils;
-import io.trino.plugin.warp.dispatcher.query.MatchCollectUtils.MatchCollectType;
 import io.trino.plugin.warp.dispatcher.query.QueryContext;
 import io.trino.plugin.warp.dispatcher.query.data.collect.NativeQueryCollectData;
 import io.trino.plugin.warp.dispatcher.query.data.match.LogicalMatchData;
@@ -35,13 +34,15 @@ import io.trino.spi.type.IntegerType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 
+import static io.trino.plugin.warp.dispatcher.query.MatchCollectUtils.MatchCollectType.DISABLED;
+import static io.trino.plugin.warp.dispatcher.query.MatchCollectUtils.MatchCollectType.ORDINARY;
+import static io.trino.plugin.warp.dispatcher.query.classifier.ClassifierTest.createCollectColumnsForMatchCollect;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -67,22 +68,6 @@ public class MatchPrepareAfterCollectClassifierTest
         rowGroupData = mock(RowGroupData.class);
     }
 
-    private static List<NativeQueryCollectData> createCollectColumns(QueryMatchData... collectColumns)
-    {
-        List<NativeQueryCollectData> result = new ArrayList<>();
-        for (int i = 0; i < collectColumns.length; i++) {
-            QueryMatchData matchData = collectColumns[i];
-            result.add(NativeQueryCollectData
-                    .builder()
-                    .blockIndex(i)
-                    .warmUpElement(matchData.getWarmUpElement())
-                    .matchCollectType(MatchCollectType.ORDINARY)
-                    .type(matchData.getType())
-                    .build());
-        }
-        return result;
-    }
-
     @Test
     public void testExceededLimitRootIsOr()
     {
@@ -91,7 +76,7 @@ public class MatchPrepareAfterCollectClassifierTest
         QueryMatchData basicWithCollectLowestPriority = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC, true);
         QueryMatchData onlyMatch = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
         QueryMatchData lucene = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_LUCENE);
-        List<NativeQueryCollectData> collectColumns = createCollectColumns(data, basicWithCollectLowestPriority);
+        List<NativeQueryCollectData> collectColumns = createCollectColumnsForMatchCollect(ORDINARY, data, basicWithCollectLowestPriority);
         ImmutableMap<Integer, ColumnHandle> collectColumnsByBlockIndex = ImmutableMap.of(0, new TestingColumnHandle(data.getWarpColumn().getName()),
                 1, new TestingColumnHandle(basicWithCollectLowestPriority.getWarpColumn().getName()));
         LogicalMatchData matchData = new LogicalMatchData(LogicalMatchData.Operator.OR,
@@ -131,7 +116,7 @@ public class MatchPrepareAfterCollectClassifierTest
         QueryMatchData basicWithCollectLowestPriority = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC, true);
         QueryMatchData onlyMatch = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
 
-        List<NativeQueryCollectData> collectColumns = createCollectColumns(data, basicWithCollectLowestPriority);
+        List<NativeQueryCollectData> collectColumns = createCollectColumnsForMatchCollect(ORDINARY, data, basicWithCollectLowestPriority);
         ImmutableMap<Integer, ColumnHandle> collectColumnsByBlockIndex = ImmutableMap.of(
                 0, new TestingColumnHandle(data.getWarpColumn().getName()),
                 1, new TestingColumnHandle(basicWithCollectLowestPriority.getWarpColumn().getName()));
@@ -175,7 +160,7 @@ public class MatchPrepareAfterCollectClassifierTest
         QueryMatchData matchCollect1 = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC, true);
         QueryMatchData matchCollect2 = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC, true);
 
-        List<NativeQueryCollectData> collectColumns = createCollectColumns(matchCollect1, matchCollect2);
+        List<NativeQueryCollectData> collectColumns = createCollectColumnsForMatchCollect(ORDINARY, matchCollect1, matchCollect2);
 
         TestingColumnHandle matchCollect1Handle = new TestingColumnHandle(matchCollect1.getWarpColumn().getName());
         TestingColumnHandle matchCollect2Handle = new TestingColumnHandle(matchCollect2.getWarpColumn().getName());
@@ -349,8 +334,8 @@ public class MatchPrepareAfterCollectClassifierTest
         QueryMatchData basicMatchData1 = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
         QueryMatchData basicMatchData2 = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
 
-        NativeQueryCollectData nativeQueryCollectData1 = createCollectColumns(basicMatchData1).getFirst();
-        NativeQueryCollectData nativeQueryCollectData2 = createCollectColumns(basicMatchData2).getFirst();
+        NativeQueryCollectData nativeQueryCollectData1 = createCollectColumnsForMatchCollect(ORDINARY, basicMatchData1).getFirst();
+        NativeQueryCollectData nativeQueryCollectData2 = createCollectColumnsForMatchCollect(ORDINARY, basicMatchData2).getFirst();
         NativeQueryCollectData nativeQueryCollectDataResult1 = nativeQueryCollectData1.asBuilder()
                 .matchCollectId(0)
                 .build();
@@ -409,7 +394,7 @@ public class MatchPrepareAfterCollectClassifierTest
         when(collectWarmUpElement.getWarpColumn()).thenReturn(warpColumn);
         return NativeQueryCollectData.builder()
                 .warmUpElement(collectWarmUpElement)
-                .matchCollectType(isMatchCollect ? MatchCollectType.ORDINARY : MatchCollectType.DISABLED)
+                .matchCollectType(isMatchCollect ? ORDINARY : DISABLED)
                 .matchCollectId(MatchCollectIdService.INVALID_ID)
                 .type(IntegerType.INTEGER)
                 .blockIndex(blockIndex)

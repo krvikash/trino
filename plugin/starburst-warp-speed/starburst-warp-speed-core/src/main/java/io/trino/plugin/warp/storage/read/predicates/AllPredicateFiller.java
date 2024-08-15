@@ -21,7 +21,7 @@ import io.trino.spi.predicate.Domain;
 import java.nio.ByteBuffer;
 
 public class AllPredicateFiller
-        extends PredicateFiller<Domain>
+        extends PredicateFiller
 {
     public AllPredicateFiller(BufferAllocator bufferAllocator)
     {
@@ -29,13 +29,13 @@ public class AllPredicateFiller
     }
 
     @Override
-    public void fillPredicate(Domain value, ByteBuffer predicateBuffer, PredicateData predicateData)
+    public void fillPredicate(Domain domain, ByteBuffer predicateBuffer, PredicateData predicateData)
     {
         writePredicateInfoToBuffer(predicateBuffer, predicateData);
     }
 
     @Override
-    public void convertValues(Domain value, ByteBuffer predicateBuffer)
+    public void convertValues(Domain domain, ByteBuffer predicateBuffer)
     {
     }
 

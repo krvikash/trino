@@ -29,7 +29,7 @@ import java.nio.ByteBuffer;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_CONTROL;
 
 public class RangesPredicateFiller
-        extends PredicateFiller<Domain>
+        extends PredicateFiller
 {
     private static final Logger logger = Logger.get(RangesPredicateFiller.class);
     private final RangesConverter rangesConverter;
@@ -44,18 +44,18 @@ public class RangesPredicateFiller
     }
 
     @Override
-    public void fillPredicate(Domain value, ByteBuffer predicateBuffer, PredicateData predicateData)
+    public void fillPredicate(Domain domain, ByteBuffer predicateBuffer, PredicateData predicateData)
     {
         predicateBuffer = writePredicateInfoToBuffer(predicateBuffer, predicateData);
-        convertValues(value, predicateBuffer);
+        convertValues(domain, predicateBuffer);
     }
 
     @Override
-    public void convertValues(Domain value, ByteBuffer predicateBuffer)
+    public void convertValues(Domain domain, ByteBuffer predicateBuffer)
     {
         ByteBuffer predicateBufferLow = bufferAllocator.createBuffView(predicateBuffer);
         ByteBuffer predicateBufferHigh = bufferAllocator.createBuffView(predicateBuffer);
-        convertRanges(value, predicateBufferLow, predicateBufferHigh);
+        convertRanges(domain, predicateBufferLow, predicateBufferHigh);
     }
 
     @Override

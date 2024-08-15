@@ -27,7 +27,7 @@ import java.nio.ByteBuffer;
 import java.util.List;
 
 public class StringValuesPredicateFiller
-        extends PredicateFiller<Domain>
+        extends PredicateFiller
 {
     private static final Logger logger = Logger.get(StringValuesPredicateFiller.class);
     final StorageEngineConstants storageEngineConstants;
@@ -39,19 +39,19 @@ public class StringValuesPredicateFiller
     }
 
     @Override
-    public void fillPredicate(Domain value, ByteBuffer predicateBuffer, PredicateData predicateData)
+    public void fillPredicate(Domain domain, ByteBuffer predicateBuffer, PredicateData predicateData)
     {
         predicateBuffer = writePredicateInfoToBuffer(predicateBuffer, predicateData);
-        convertValues(value, predicateBuffer);
+        convertValues(domain, predicateBuffer);
     }
 
     @Override
-    public void convertValues(Domain value, ByteBuffer predicateBuffer)
+    public void convertValues(Domain domain, ByteBuffer predicateBuffer)
     {
         ByteBuffer predicateBufferLow = bufferAllocator.createBuffView(predicateBuffer);
         ByteBuffer predicateBufferHigh = bufferAllocator.createBuffView(predicateBuffer);
         // this predicate order MUST be kept !!!
-        convertString(value, predicateBufferLow, predicateBufferHigh);
+        convertString(domain, predicateBufferLow, predicateBufferHigh);
     }
 
     @Override

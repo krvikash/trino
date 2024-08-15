@@ -129,16 +129,16 @@ public class PredicatesCacheService
         predicateTypeToFiller.put(predicateFiller.getPredicateType(), predicateFiller);
     }
 
-    private static boolean canMapMatchCollect(PredicateData predicateData, Domain values)
+    private static boolean canMapMatchCollect(PredicateData predicateData, Domain domain)
     {
-        if (values == null) {
+        if (domain == null) {
             return false;
         }
 
-        return PredicateUtil.canMapMatchCollect(values.getType(),
+        return PredicateUtil.canMapMatchCollect(domain.getType(),
                 predicateData.getPredicateInfo().predicateType(),
                 predicateData.getPredicateInfo().functionType(),
-                values.getValues().getRanges().getRangeCount());
+                domain.getValues().getRanges().getRangeCount());
     }
 
     private void updatePredicateSizeStats(int size)
@@ -175,32 +175,32 @@ public class PredicatesCacheService
         }
     }
 
-    public Optional<PredicateCacheData> createPredicateCacheData(PredicateData predicateData, Domain values)
+    public Optional<PredicateCacheData> createPredicateCacheData(PredicateData predicateData, Domain domain)
     {
         Optional<PredicateCacheData> ret = Optional.empty();
         PredicateBufferInfo predicateBufferInfo = bufferAllocator.allocPredicateBuffer(predicateData.getPredicateSize());
         if (predicateBufferInfo != null) {
             // The dictionary is generated for each predicate and cached with other predicate data, but its utilization is decided per split in createMatchCollect().
-            Optional<Block> valuesDict = canMapMatchCollect(predicateData, values) ? domainToMapBlockConvertor.convert(values) : Optional.empty();
+            Optional<Block> valuesDict = canMapMatchCollect(predicateData, domain) ? domainToMapBlockConvertor.convert(domain) : Optional.empty();
             ret = Optional.of(new PredicateCacheData(predicateBufferInfo, valuesDict));
         }
         return ret;
     }
 
     // utility function that allocates and fills the buffer but does not store it in cache
-    public Optional<PredicateCacheData> predicateDataToBuffer(PredicateData predicateData, Object values)
+    public Optional<PredicateCacheData> predicateDataToBuffer(PredicateData predicateData, Domain domain)
     {
-        Optional<PredicateCacheData> predicateCacheData = createPredicateCacheData(predicateData, (Domain) values);
+        Optional<PredicateCacheData> predicateCacheData = createPredicateCacheData(predicateData, domain);
         if (predicateCacheData.isPresent()) {
             PredicateInfo predicateInfo = predicateData.getPredicateInfo();
             ByteBuffer predicateBuffer = bufferAllocator.memorySegment2PredicateBuff(predicateCacheData.get().getPredicateBufferInfo().buff());
             PredicateType predicateType = predicateInfo.predicateType();
-            predicateTypeToFiller.get(predicateType).fillPredicate(values, predicateBuffer, predicateData);
+            predicateTypeToFiller.get(predicateType).fillPredicate(domain, predicateBuffer, predicateData);
         }
         return predicateCacheData;
     }
 
-    public Optional<PredicateCacheData> getOrCreatePredicateBufferId(PredicateData predicateData, Object value)
+    public Optional<PredicateCacheData> getOrCreatePredicateBufferId(PredicateData predicateData, Domain domain)
     {
         Optional<PredicateCacheData> predicateCacheDataOpt = Optional.empty();
         PredicateBufferPoolType predicateBufferPoolType = bufferAllocator.getRequiredPredicateBufferType(predicateData.getPredicateSize());
@@ -228,7 +228,7 @@ public class PredicatesCacheService
             readLock.unlock();
         }
         if (predicateCacheDataOpt.isEmpty()) {
-            predicateCacheDataOpt = createPredicate(predicateData, value, predicateBufferPoolType);
+            predicateCacheDataOpt = createPredicate(predicateData, domain, predicateBufferPoolType);
         }
         return predicateCacheDataOpt; // can be empty if allocation failed since there are no buffers in the pool
     }
@@ -373,7 +373,7 @@ public class PredicatesCacheService
     }
 
     private Optional<PredicateCacheData> createPredicate(PredicateData predicateData,
-            Object value,
+            Domain domain,
             PredicateBufferPoolType predicateBufferPoolType)
     {
         Optional<PredicateCacheData> predicateCacheDataOpt;
@@ -389,7 +389,7 @@ public class PredicatesCacheService
                     freeCache(predicateCachePool.get(predicateBufferPoolType), predicateBufferPoolType);
                 }
                 // allocate and fill the buffer
-                predicateCacheDataOpt = predicateDataToBuffer(predicateData, value);
+                predicateCacheDataOpt = predicateDataToBuffer(predicateData, domain);
                 if (predicateCacheDataOpt.isPresent()) {
                     predicateCacheData = predicateCacheDataOpt.get();
                     // put in cache

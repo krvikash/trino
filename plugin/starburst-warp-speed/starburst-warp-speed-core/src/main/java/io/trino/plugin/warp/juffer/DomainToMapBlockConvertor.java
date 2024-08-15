@@ -50,18 +50,18 @@ public class DomainToMapBlockConvertor
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
     }
 
-    Optional<Block> convert(Domain values)
+    Optional<Block> convert(Domain domain)
     {
-        Block sortedRangesBlock = ((SortedRangeSet) values.getValues()).getSortedRanges();
-        SortedRangeSet sortedRangeSet = (SortedRangeSet) values.getValues();
+        Block sortedRangesBlock = ((SortedRangeSet) domain.getValues()).getSortedRanges();
+        SortedRangeSet sortedRangeSet = (SortedRangeSet) domain.getValues();
         int numValues = sortedRangeSet.getRangeCount();
-        Type type = values.getType();
+        Type type = domain.getType();
         boolean[] nulls = null;
         Optional<Block> ret;
         int buffIx;
         int arrIx;
 
-        if (values.isNullAllowed()) {
+        if (domain.isNullAllowed()) {
             numValues++;
             nulls = new boolean[numValues];
             nulls[numValues - 1] = true;
@@ -69,7 +69,7 @@ public class DomainToMapBlockConvertor
 
         if (TypeUtils.isStrType(type)) {
             List<Slice> slices = SliceUtils.getOrderedStringPredicateValues(sortedRangeSet, sortedRangeSet.getRangeCount(), storageEngineConstants);
-            Pair<Slice, int[]> slicePair = combineSlices(slices, numValues, values.isNullAllowed());
+            Pair<Slice, int[]> slicePair = combineSlices(slices, numValues, domain.isNullAllowed());
             ret = Optional.of(new VariableWidthBlock(numValues, slicePair.getLeft(), slicePair.getRight(), Optional.ofNullable(nulls)));
         }
         else if (TypeUtils.isSmallIntType(type)) {

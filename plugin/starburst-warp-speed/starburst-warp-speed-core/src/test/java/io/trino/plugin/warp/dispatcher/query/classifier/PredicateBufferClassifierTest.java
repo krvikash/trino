@@ -21,8 +21,10 @@ import io.trino.plugin.warp.dispatcher.SimplifiedColumns;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.query.QueryContext;
+import io.trino.plugin.warp.dispatcher.query.data.collect.NativeQueryCollectData;
 import io.trino.plugin.warp.dispatcher.query.data.collect.PrefilledQueryCollectData;
 import io.trino.plugin.warp.dispatcher.query.data.match.BasicQueryMatchData;
+import io.trino.plugin.warp.dispatcher.query.data.match.LogicalMatchData;
 import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
 import io.trino.plugin.warp.expression.NativeExpression;
 import io.trino.plugin.warp.gen.constants.FunctionType;
@@ -35,8 +37,9 @@ import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
+import io.trino.spi.block.Block;
+import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.connector.ColumnHandle;
-import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.TupleDomain;
@@ -45,13 +48,16 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static io.trino.plugin.warp.dispatcher.query.MatchCollectUtils.MatchCollectType.MAPPED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -78,16 +84,16 @@ class PredicateBufferClassifierTest
                 metricsManager,
                 domainToMapBlockConvertor));
         doReturn(Optional.of(mock(PredicateCacheData.class))).when(predicatesCacheService).predicateDataToBuffer(any(), any());
-        predicateBufferClassifier = new PredicateBufferClassifier(predicatesCacheService);
+        GlobalConfig globalConfig = new GlobalConfig();
+        predicateBufferClassifier = new PredicateBufferClassifier(predicatesCacheService, globalConfig);
 
         rowGroupData = mock(RowGroupData.class);
-        GlobalConfig globalConfig = new GlobalConfig();
         DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer = new TestingConnectorProxiedConnectorTransformer();
         predicateContextFactory = new PredicateContextFactory(globalConfig, dispatcherProxiedConnectorTransformer);
     }
 
     @Test
-    public void testNoBufferAvailable()
+    public void testNoBufferAvailableWithPrefilled()
     {
         doReturn(Optional.empty()).when(predicatesCacheService).getOrCreatePredicateBufferId(any(), any());
 
@@ -99,7 +105,6 @@ class PredicateBufferClassifierTest
         TupleDomain<ColumnHandle> tupleDomain = TupleDomain.withColumnDomains(Map.of(columnHandle, domain));
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(tupleDomain);
         when(dispatcherTableHandle.getSimplifiedColumns()).thenReturn(new SimplifiedColumns(Set.of()));
-        ConnectorSession session = mock(ConnectorSession.class);
 
         PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
 
@@ -143,6 +148,144 @@ class PredicateBufferClassifierTest
         assertThat(queryContext.getNativeQueryCollectDataList()).isEmpty();
         assertThat(queryContext.getMatchData().orElseThrow()).isInstanceOf(QueryMatchData.class);
         assertThat(((QueryMatchData) queryContext.getMatchData().orElseThrow()).getWarmUpElement()).isEqualTo(warmUpElement);
+        assertThat(queryContext.getPrefilledQueryCollectDataByBlockIndex()).isEmpty();
+    }
+
+    @Test
+    public void testNoBufferAvailableWithMappedMatchCollect()
+    {
+        ImmutableMap<Integer, ColumnHandle> collectColumnsByBlockIndex = createCollectColumnsByBlockIndexMap(1, 0);
+
+        WarmedWarmupTypes warmedWarmupTypes = createColumnToWarmUpElementByType(collectColumnsByBlockIndex.values(), WarmUpType.WARM_UP_TYPE_BASIC);
+        ColumnHandle columnHandle = collectColumnsByBlockIndex.values().stream().findAny().orElseThrow();
+        WarmUpElement warmUpElement = warmedWarmupTypes.basicWarmedElements().values().stream().findAny().orElseThrow();
+        Domain domain = Domain.singleValue(IntegerType.INTEGER, 1L);
+
+        TupleDomain<ColumnHandle> tupleDomain = TupleDomain.withColumnDomains(Map.of(columnHandle, domain));
+        when(dispatcherTableHandle.getFullPredicate()).thenReturn(tupleDomain);
+        when(dispatcherTableHandle.getSimplifiedColumns()).thenReturn(new SimplifiedColumns(Set.of())); // maybe can remove
+
+        PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
+        QueryContext baseQueryContext = new QueryContext(predicateContextData, collectColumnsByBlockIndex, "query-id");
+
+        QueryMatchData matchForMatchCollect = BasicQueryMatchData.builder()
+                .warpColumn(warmUpElement.getWarpColumn())
+                .type(IntegerType.INTEGER)
+                .domain(Optional.of(domain))
+                .warmUpElement(warmUpElement)
+                .tightnessRequired(true)
+                .nativeExpression(NativeExpression.builder()
+                        .predicateType(PredicateType.PREDICATE_TYPE_VALUES)
+                        .functionType(FunctionType.FUNCTION_TYPE_NONE)
+                        .domain(domain)
+                        .collectNulls(domain.isNullAllowed())
+                        .build())
+                .build();
+        List<NativeQueryCollectData> collectForMatchCollect = createCollectColumnsForMatchCollect(MAPPED, matchForMatchCollect);
+        QueryContext currentQueryContext = baseQueryContext.asBuilder()
+                .matchData(Optional.of(matchForMatchCollect))
+                .nativeQueryCollectDataList(collectForMatchCollect)
+                .remainingCollectColumnByBlockIndex(Map.of())
+                .build();
+
+        ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
+                rowGroupData,
+                predicateContextData,
+                collectColumnsByBlockIndex,
+                warmedWarmupTypes,
+                false,
+                true,
+                true,
+                false,
+                true);
+
+        QueryContext queryContext = predicateBufferClassifier.classify(classifyArgs, currentQueryContext);
+
+        // Tests
+        assertThat(queryContext.getPredicateContextData().getRemainingColumns().size()).isEqualTo(1);
+        assertThat(queryContext.getRemainingCollectColumnByBlockIndex()).isEqualTo(baseQueryContext.getRemainingCollectColumnByBlockIndex());
+        assertThat(queryContext.getNativeQueryCollectDataList()).isEmpty();
+        assertThat(queryContext.getMatchData().orElseThrow()).isInstanceOf(QueryMatchData.class);
+        assertThat(((QueryMatchData) queryContext.getMatchData().orElseThrow()).getWarmUpElement()).isEqualTo(warmUpElement);
+        assertThat(queryContext.getPrefilledQueryCollectDataByBlockIndex()).isEmpty();
+    }
+
+    @Test
+    public void testNoMapForMappedMatchCollect()
+    {
+        ImmutableMap<Integer, ColumnHandle> collectColumnsByBlockIndex = createCollectColumnsByBlockIndexMap(2, 0);
+        WarmedWarmupTypes warmedWarmupTypes = createColumnToWarmUpElementByType(collectColumnsByBlockIndex.values(), WarmUpType.WARM_UP_TYPE_BASIC);
+
+        ColumnHandle columnHandle1 = collectColumnsByBlockIndex.values().stream().toList().getFirst();
+        WarmUpElement warmUpElement1 = warmedWarmupTypes.basicWarmedElements().values().stream().toList().getFirst();
+        Domain domain1 = Domain.singleValue(IntegerType.INTEGER, 1L);
+        PredicateCacheData predicateCacheData1 = mock(PredicateCacheData.class);
+        Block dictBlock = mock(DictionaryBlock.class);
+        when(predicateCacheData1.getValuesDict()).thenReturn(Optional.of(dictBlock));
+        doReturn(Optional.of(predicateCacheData1)).when(predicatesCacheService).getOrCreatePredicateBufferId(any(), eq(domain1));
+
+        ColumnHandle columnHandle2 = collectColumnsByBlockIndex.values().stream().toList().get(1);
+        WarmUpElement warmUpElement2 = warmedWarmupTypes.basicWarmedElements().values().stream().toList().get(1);
+        Domain domain2 = Domain.singleValue(IntegerType.INTEGER, 2L);
+        PredicateCacheData predicateCacheData2 = mock(PredicateCacheData.class);
+        when(predicateCacheData2.getValuesDict()).thenReturn(Optional.empty());
+        doReturn(Optional.of(predicateCacheData2)).when(predicatesCacheService).getOrCreatePredicateBufferId(any(), eq(domain2));
+
+        TupleDomain<ColumnHandle> tupleDomain = TupleDomain.withColumnDomains(Map.of(columnHandle1, domain1, columnHandle2, domain2));
+        when(dispatcherTableHandle.getFullPredicate()).thenReturn(tupleDomain);
+        when(dispatcherTableHandle.getSimplifiedColumns()).thenReturn(new SimplifiedColumns(Set.of()));
+        PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
+        QueryContext baseQueryContext = new QueryContext(predicateContextData, collectColumnsByBlockIndex, "query-id");
+
+        QueryMatchData matchForMatchCollect1 = BasicQueryMatchData.builder()
+                .warpColumn(warmUpElement1.getWarpColumn())
+                .type(IntegerType.INTEGER)
+                .domain(Optional.of(domain1))
+                .warmUpElement(warmUpElement1)
+                .tightnessRequired(true)
+                .nativeExpression(NativeExpression.builder()
+                        .predicateType(PredicateType.PREDICATE_TYPE_VALUES)
+                        .functionType(FunctionType.FUNCTION_TYPE_NONE)
+                        .domain(domain1)
+                        .collectNulls(domain1.isNullAllowed())
+                        .build())
+                .build();
+        QueryMatchData matchForMatchCollect2 = BasicQueryMatchData.builder()
+                .warpColumn(warmUpElement2.getWarpColumn())
+                .type(IntegerType.INTEGER)
+                .domain(Optional.of(domain2))
+                .warmUpElement(warmUpElement2)
+                .tightnessRequired(true)
+                .nativeExpression(NativeExpression.builder()
+                        .predicateType(PredicateType.PREDICATE_TYPE_VALUES)
+                        .functionType(FunctionType.FUNCTION_TYPE_NONE)
+                        .domain(domain2)
+                        .collectNulls(domain2.isNullAllowed())
+                        .build())
+                .build();
+        List<NativeQueryCollectData> collectsForMatchCollect = createCollectColumnsForMatchCollect(MAPPED, matchForMatchCollect1, matchForMatchCollect2);
+        LogicalMatchData matchData = new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(matchForMatchCollect1, matchForMatchCollect2));
+
+        ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
+                rowGroupData,
+                mock(PredicateContextData.class),
+                collectColumnsByBlockIndex,
+                warmedWarmupTypes,
+                false,
+                true,
+                true,
+                false,
+                false);
+
+        QueryContext currentQueryContext = baseQueryContext.asBuilder()
+                .matchData(Optional.of(matchData))
+                .nativeQueryCollectDataList(collectsForMatchCollect)
+                .remainingCollectColumnByBlockIndex(Map.of())
+                .build();
+        QueryContext queryContext = predicateBufferClassifier.classify(classifyArgs, currentQueryContext);
+        assertThat(queryContext.getRemainingCollectColumns().size()).isEqualTo(1);
+        assertThat(queryContext.getNativeQueryCollectDataList().size()).isEqualTo(1);
+        assertThat(queryContext.getRemainingCollectColumns()).isEqualTo(List.of(columnHandle2));
         assertThat(queryContext.getPrefilledQueryCollectDataByBlockIndex()).isEmpty();
     }
 }

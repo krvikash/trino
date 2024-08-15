@@ -29,7 +29,7 @@ import java.nio.ByteBuffer;
 import java.util.function.Function;
 
 public class StringRangesPredicateFiller
-        extends PredicateFiller<Domain>
+        extends PredicateFiller
 {
     private final StorageEngineConstants storageEngineConstants;
     private final RangesConverter rangesConverter;
@@ -48,16 +48,16 @@ public class StringRangesPredicateFiller
     }
 
     @Override
-    public void fillPredicate(Domain value, ByteBuffer predicateBuffer, PredicateData predicateData)
+    public void fillPredicate(Domain domain, ByteBuffer predicateBuffer, PredicateData predicateData)
     {
         predicateBuffer = writePredicateInfoToBuffer(predicateBuffer, predicateData);
-        convertValues(value, predicateBuffer);
+        convertValues(domain, predicateBuffer);
     }
 
     @Override
-    public void convertValues(Domain value, ByteBuffer predicateBuffer)
+    public void convertValues(Domain domain, ByteBuffer predicateBuffer)
     {
-        Type type = value.getType();
+        Type type = domain.getType();
         int typeLength = TypeUtils.getTypeLength(type, storageEngineConstants.getVarcharMaxLen());
         Function<Slice, Slice> sliceConverter =
                 SliceUtils.getSliceConverter(type, typeLength, typeLength <= storageEngineConstants.getFixedLengthStringLimit(), true);
@@ -65,7 +65,7 @@ public class StringRangesPredicateFiller
         ByteBuffer predicateBufferLow = bufferAllocator.createBuffView(predicateBuffer);
         ByteBuffer predicateBufferHigh = bufferAllocator.createBuffView(predicateBuffer);
 
-        SortedRangeSet sortedRangeSet = (SortedRangeSet) value.getValues();
+        SortedRangeSet sortedRangeSet = (SortedRangeSet) domain.getValues();
         int numRanges = sortedRangeSet.getRangeCount();
         int highBufStartPos = numRanges * (Long.BYTES + 1); // +1 for the inclusive
         predicateBufferLow.position(0);

@@ -33,7 +33,7 @@ import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TinyintType.TINYINT;
 
 public class ValuesPredicateFiller
-        extends PredicateFiller<Domain>
+        extends PredicateFiller
 {
     private static final Logger logger = Logger.get(ValuesPredicateFiller.class);
 
@@ -43,10 +43,10 @@ public class ValuesPredicateFiller
     }
 
     @Override
-    public void fillPredicate(Domain value, ByteBuffer predicateBuffer, PredicateData predicateData)
+    public void fillPredicate(Domain domain, ByteBuffer predicateBuffer, PredicateData predicateData)
     {
         predicateBuffer = writePredicateInfoToBuffer(predicateBuffer, predicateData);
-        convertValues(predicateBuffer, value);
+        convertValues(predicateBuffer, domain);
     }
 
     @Override
@@ -56,10 +56,10 @@ public class ValuesPredicateFiller
     }
 
     @Override
-    public void convertValues(Domain value, ByteBuffer predicateBuffer)
+    public void convertValues(Domain domain, ByteBuffer predicateBuffer)
     {
         ByteBuffer predicateBufferVals = bufferAllocator.createBuffView(predicateBuffer);
-        convertValues(predicateBufferVals, value);
+        convertValues(predicateBufferVals, domain);
     }
 
     //lower value and high value are equal in valuesPredicate (singleValue), so it enough to take only one value

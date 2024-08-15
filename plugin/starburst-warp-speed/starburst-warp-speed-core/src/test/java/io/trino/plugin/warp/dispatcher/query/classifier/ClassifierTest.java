@@ -22,6 +22,9 @@ import io.trino.plugin.warp.dispatcher.SimplifiedColumns;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarpColumn;
+import io.trino.plugin.warp.dispatcher.query.MatchCollectUtils.MatchCollectType;
+import io.trino.plugin.warp.dispatcher.query.data.collect.NativeQueryCollectData;
+import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
@@ -31,8 +34,10 @@ import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -115,5 +120,21 @@ public abstract class ClassifierTest
         when(dispatcherProxiedConnectorTransformer.getWarpRegularColumn(eq(columnHandle))).thenReturn(new RegularColumn(columnName));
         when(dispatcherProxiedConnectorTransformer.getColumnType(eq(columnHandle))).thenReturn(type);
         return columnHandle;
+    }
+
+    protected static List<NativeQueryCollectData> createCollectColumnsForMatchCollect(MatchCollectType matchCollectType, QueryMatchData... matchColumns)
+    {
+        List<NativeQueryCollectData> result = new ArrayList<>();
+        for (int i = 0; i < matchColumns.length; i++) {
+            QueryMatchData matchData = matchColumns[i];
+            result.add(NativeQueryCollectData
+                    .builder()
+                    .blockIndex(i)
+                    .warmUpElement(matchData.getWarmUpElement())
+                    .matchCollectType(matchCollectType)
+                    .type(matchData.getType())
+                    .build());
+        }
+        return result;
     }
 }

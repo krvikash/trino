@@ -14,10 +14,12 @@
 package io.trino.plugin.warp.dispatcher.query.classifier;
 
 import io.airlift.log.Logger;
+import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.query.MatchCollectUtils;
 import io.trino.plugin.warp.dispatcher.query.PredicateData;
 import io.trino.plugin.warp.dispatcher.query.PredicateInfo;
 import io.trino.plugin.warp.dispatcher.query.QueryContext;
+import io.trino.plugin.warp.dispatcher.query.data.collect.NativeQueryCollectData;
 import io.trino.plugin.warp.dispatcher.query.data.collect.PrefilledQueryCollectData;
 import io.trino.plugin.warp.dispatcher.query.data.match.BasicQueryMatchData;
 import io.trino.plugin.warp.dispatcher.query.data.match.LogicalMatchData;
@@ -30,19 +32,24 @@ import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.juffer.PredicateCacheData;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
+import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.Type;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static com.google.common.base.Preconditions.checkState;
+import static io.trino.plugin.warp.dispatcher.query.MatchCollectUtils.canMatchForMatchCollect;
 import static io.trino.plugin.warp.dispatcher.query.classifier.PredicateUtil.calcPredicateData;
 import static io.trino.plugin.warp.gen.constants.PredicateType.PREDICATE_TYPE_ALL;
 import static io.trino.plugin.warp.gen.constants.PredicateType.PREDICATE_TYPE_LUCENE;
@@ -54,6 +61,7 @@ class PredicateBufferClassifier
 {
     private static final Logger logger = Logger.get(PredicateBufferClassifier.class);
 
+    private final ShapingLogger shapingLogger;
     private final PredicatesCacheService predicatesCacheService;
     private final PredefinedPredicate noneWithNulls;
     private final PredefinedPredicate noneWithoutNulls;
@@ -62,7 +70,7 @@ class PredicateBufferClassifier
     private final PredefinedPredicate luceneWithNulls;
     private final PredefinedPredicate luceneWithoutNulls;
 
-    PredicateBufferClassifier(PredicatesCacheService predicatesCacheService)
+    PredicateBufferClassifier(PredicatesCacheService predicatesCacheService, GlobalConfig globalConfig)
     {
         this.predicatesCacheService = predicatesCacheService;
         this.noneWithNulls = buildPredicateDataWithoutBuffer(PREDICATE_TYPE_NONE, true);
@@ -71,6 +79,11 @@ class PredicateBufferClassifier
         this.allWithoutNulls = buildPredicateDataWithoutBuffer(PREDICATE_TYPE_ALL, false);
         this.luceneWithNulls = buildPredicateDataWithoutBuffer(PREDICATE_TYPE_LUCENE, true);
         this.luceneWithoutNulls = buildPredicateDataWithoutBuffer(PREDICATE_TYPE_LUCENE, false);
+        this.shapingLogger = ShapingLogger.getInstance(
+                logger,
+                globalConfig.getShapingLoggerThreshold(),
+                globalConfig.getShapingLoggerDuration(),
+                globalConfig.getShapingLoggerNumberOfSamples());
     }
 
     @Override
@@ -78,6 +91,7 @@ class PredicateBufferClassifier
     {
         Map<Integer, PrefilledQueryCollectData> newPrefilledQueryCollectDataByBlockIndex = new HashMap<>(queryContext.getPrefilledQueryCollectDataByBlockIndex());
         Map<Integer, ColumnHandle> newRemainingCollectColumnByBlockIndex = new HashMap<>(queryContext.getRemainingCollectColumnByBlockIndex());
+        Deque<NativeQueryCollectData> newNativeQueryCollectDataQueue = new ArrayDeque<>(queryContext.getNativeQueryCollectDataList());
         int columnIx = 0;
 
         Optional<MatchData> matchDataWithPredicateBuffers = queryContext.getMatchData().map(matchData -> calcMatchDataWithLogical(classifyArgs,
@@ -85,19 +99,23 @@ class PredicateBufferClassifier
                 queryContext,
                 columnIx,
                 newRemainingCollectColumnByBlockIndex,
-                newPrefilledQueryCollectDataByBlockIndex));
+                newPrefilledQueryCollectDataByBlockIndex,
+                newNativeQueryCollectDataQueue));
 
         return queryContext.asBuilder()
                 .matchData(matchDataWithPredicateBuffers)
                 .prefilledQueryCollectDataByBlockIndex(newPrefilledQueryCollectDataByBlockIndex)
                 .remainingCollectColumnByBlockIndex(newRemainingCollectColumnByBlockIndex)
+                .nativeQueryCollectDataList(newNativeQueryCollectDataQueue.stream().toList())
                 .build();
     }
 
     private QueryMatchData createPredicateBuffer(QueryContext queryContext,
             ClassifyArgs classifyArgs,
             QueryMatchData queryMatchData,
-            Map<Integer, ColumnHandle> newRemainingCollectColumnByBlockIndex, Map<Integer, PrefilledQueryCollectData> newPrefilledQueryCollectDataByBlockIndex)
+            Map<Integer, ColumnHandle> newRemainingCollectColumnByBlockIndex,
+            Map<Integer, PrefilledQueryCollectData> newPrefilledQueryCollectDataByBlockIndex,
+            Deque<NativeQueryCollectData> newNativeQueryCollectDataQueue)
     {
         boolean simplifiedDomain = queryMatchData.isSimplifiedDomain();
         boolean tightnessRequired = queryMatchData.isTightnessRequired();
@@ -143,7 +161,7 @@ class PredicateBufferClassifier
                         columnType);
             }
             collectNulls = predicateData.isCollectNulls();
-            queryMatch = calculatePredicateBuffer(predicateData, queryMatchData, newPrefilledQueryCollectDataByBlockIndex, newRemainingCollectColumnByBlockIndex, classifyArgs, domain, queryContext, tightnessRequired, domain.isNullAllowed());
+            queryMatch = calculatePredicateBuffer(predicateData, queryMatchData, newPrefilledQueryCollectDataByBlockIndex, newRemainingCollectColumnByBlockIndex, newNativeQueryCollectDataQueue, classifyArgs, domain, queryContext, tightnessRequired, domain.isNullAllowed());
             if (!queryMatch.getRight()) {
                 tightnessRequired = false;
                 simplifiedDomain = true;  // A simplified domain will cause the entire queryContext to be marked with canBeTight = false
@@ -166,8 +184,9 @@ class PredicateBufferClassifier
             QueryMatchData queryMatchData,
             Map<Integer, PrefilledQueryCollectData> newPrefilledQueryCollectDataByBlockIndex,
             Map<Integer, ColumnHandle> newRemainingCollectColumnByBlockIndex,
+            Deque<NativeQueryCollectData> newNativeQueryCollectDataQueue,
             ClassifyArgs classifyArgs,
-            Object value,
+            Domain domain,
             QueryContext queryContext,
             boolean tightnessRequired,
             boolean isNullAllowed)
@@ -176,9 +195,14 @@ class PredicateBufferClassifier
         boolean allocatedBuffer;
         Optional<PredicateCacheData> predicateCacheDataOpt = classifyArgs.isDebugNoPredicateBuffer() ?
                 Optional.empty() :
-                predicatesCacheService.getOrCreatePredicateBufferId(predicateData, value);
+                predicatesCacheService.getOrCreatePredicateBufferId(predicateData, domain);
         if (predicateCacheDataOpt.isPresent()) {
             predicateCacheData = predicateCacheDataOpt.get();
+            if (queryMatchData.canMapMatchCollect() && predicateCacheData.getValuesDict().isEmpty()) {
+                rollbackMapMatchCollect(queryContext, queryMatchData, classifyArgs, newNativeQueryCollectDataQueue, newRemainingCollectColumnByBlockIndex);
+                shapingLogger.warn("didnt get mapping for mappedMatchCollect. PredicateData %s queryMatchData %s domain %s queryContext %s", predicateData, queryMatchData, domain, queryContext);
+            }
+
             allocatedBuffer = true;
         }
         else {
@@ -202,9 +226,34 @@ class PredicateBufferClassifier
                             newRemainingCollectColumnByBlockIndex.put(blockIndex, classifyArgs.getCollectColumn(blockIndex));
                         });
             }
+
+            if (queryMatchData.canMapMatchCollect()) {
+                rollbackMapMatchCollect(queryContext, queryMatchData, classifyArgs, newNativeQueryCollectDataQueue, newRemainingCollectColumnByBlockIndex);
+            }
             allocatedBuffer = false;
         }
         return Pair.of(predicateCacheData, allocatedBuffer);
+    }
+
+    private void rollbackMapMatchCollect(QueryContext queryContext,
+            QueryMatchData queryMatchData,
+            ClassifyArgs classifyArgs,
+            Deque<NativeQueryCollectData> newNativeQueryCollectDataQueue,
+            Map<Integer, ColumnHandle> newRemainingCollectColumnByBlockIndex)
+    {
+        List<NativeQueryCollectData> mappedMatchCollects = queryContext.getNativeQueryCollectDataList().stream()
+                .filter(collectData -> collectData.getMatchCollectType().equals(MatchCollectUtils.MatchCollectType.MAPPED) &&
+                        canMatchForMatchCollect(queryMatchData, collectData)).toList();
+
+        // Map match collect is not supported with predicate functions, so there can be at most one pair of mappedMatchCollects
+        // for a single match element or collect element.
+        checkState(mappedMatchCollects.size() <= 1, "Should not have more then 1 collect for a single match. got %s", mappedMatchCollects.size());
+        if (!mappedMatchCollects.isEmpty()) {
+            NativeQueryCollectData collectData = mappedMatchCollects.getFirst();
+            int blockIndex = collectData.getBlockIndex();
+            newRemainingCollectColumnByBlockIndex.put(blockIndex, classifyArgs.getCollectColumn(blockIndex));
+            newNativeQueryCollectDataQueue.remove(collectData);
+        }
     }
 
     private MatchData calcMatchDataWithLogical(ClassifyArgs classifyArgs,
@@ -212,7 +261,8 @@ class PredicateBufferClassifier
             QueryContext queryContext,
             int columnIx,
             Map<Integer, ColumnHandle> newRemainingCollectColumnByBlockIndex,
-            Map<Integer, PrefilledQueryCollectData> newPrefilledQueryCollectDataByBlockIndex)
+            Map<Integer, PrefilledQueryCollectData> newPrefilledQueryCollectDataByBlockIndex,
+            Deque<NativeQueryCollectData> newNativeQueryCollectDataQueue)
     {
         MatchData res;
         if (matchData instanceof LogicalMatchData logicalMatchData) {
@@ -224,7 +274,8 @@ class PredicateBufferClassifier
                         queryContext,
                         columnIx,
                         newRemainingCollectColumnByBlockIndex,
-                        newPrefilledQueryCollectDataByBlockIndex);
+                        newPrefilledQueryCollectDataByBlockIndex,
+                        newNativeQueryCollectDataQueue);
                 newTerms.add(newTerm);
                 columnIx += newTerm.getLeavesDFS().size();
             }
@@ -235,7 +286,8 @@ class PredicateBufferClassifier
                     classifyArgs,
                     queryMatchData,
                     newRemainingCollectColumnByBlockIndex,
-                    newPrefilledQueryCollectDataByBlockIndex);
+                    newPrefilledQueryCollectDataByBlockIndex,
+                    newNativeQueryCollectDataQueue);
         }
         else {
             throw new UnsupportedOperationException(format("unsupported MatchData type %s", matchData));

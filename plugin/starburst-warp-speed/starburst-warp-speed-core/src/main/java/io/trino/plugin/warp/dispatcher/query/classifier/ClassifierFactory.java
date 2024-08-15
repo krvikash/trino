@@ -77,7 +77,7 @@ public class ClassifierFactory
                 dispatcherProxiedConnectorTransformer);
         MatchPrepareAfterCollectClassifier matchPrepareAfterCollectClassifier = new MatchPrepareAfterCollectClassifier(matchCollectIdService,
                 storageEngineConstants.getMaxMatchColumns());
-        PredicateBufferClassifier predicateBufferClassifier = new PredicateBufferClassifier(predicatesCacheService);
+        PredicateBufferClassifier predicateBufferClassifier = new PredicateBufferClassifier(predicatesCacheService, globalConfig);
         AllProxyDecisionClassifier allProxyDecisionClassifier = new AllProxyDecisionClassifier(dispatcherProxiedConnectorTransformer);
         List<Classifier> classifiers = List.of(
                 matchClassifier,
