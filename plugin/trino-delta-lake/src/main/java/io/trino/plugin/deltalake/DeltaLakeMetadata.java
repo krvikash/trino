@@ -238,6 +238,7 @@ import static io.trino.plugin.deltalake.DeltaLakeTableProperties.LOCATION_PROPER
 import static io.trino.plugin.deltalake.DeltaLakeTableProperties.PARTITIONED_BY_PROPERTY;
 import static io.trino.plugin.deltalake.DeltaLakeTableProperties.getChangeDataFeedEnabled;
 import static io.trino.plugin.deltalake.DeltaLakeTableProperties.getCheckpointInterval;
+import static io.trino.plugin.deltalake.DeltaLakeTableProperties.getColumnMappingMode;
 import static io.trino.plugin.deltalake.DeltaLakeTableProperties.getLocation;
 import static io.trino.plugin.deltalake.DeltaLakeTableProperties.getPartitionedBy;
 import static io.trino.plugin.deltalake.metastore.DeltaLakeTableMetadataScheduler.containsSchemaString;
@@ -1160,7 +1161,7 @@ public class DeltaLakeMetadata
         Location deltaLogDirectory = Location.of(getTransactionLogDir(location));
         Optional<Long> checkpointInterval = getCheckpointInterval(tableMetadata.getProperties());
         Optional<Boolean> changeDataFeedEnabled = getChangeDataFeedEnabled(tableMetadata.getProperties());
-        ColumnMappingMode columnMappingMode = DeltaLakeTableProperties.getColumnMappingMode(tableMetadata.getProperties());
+        ColumnMappingMode columnMappingMode = getColumnMappingMode(tableMetadata.getProperties());
         AtomicInteger fieldId = new AtomicInteger();
 
         validateTableColumns(tableMetadata);
@@ -1348,7 +1349,7 @@ public class DeltaLakeMetadata
         else {
             locationAccessControl.checkCanUseLocation(session.getIdentity(), location);
         }
-        ColumnMappingMode columnMappingMode = DeltaLakeTableProperties.getColumnMappingMode(tableMetadata.getProperties());
+        ColumnMappingMode columnMappingMode = getColumnMappingMode(tableMetadata.getProperties());
         AtomicInteger fieldId = new AtomicInteger();
 
         Location finalLocation = Location.of(location);
@@ -2901,7 +2902,7 @@ public class DeltaLakeMetadata
             // Enabling cdf (change data feed) requires setting the writer version to 4
             writerVersion = CDF_SUPPORTED_WRITER_VERSION;
         }
-        ColumnMappingMode columnMappingMode = DeltaLakeTableProperties.getColumnMappingMode(properties);
+        ColumnMappingMode columnMappingMode = getColumnMappingMode(properties);
         if (columnMappingMode == ID || columnMappingMode == NAME) {
             readerVersion = max(readerVersion, COLUMN_MAPPING_MODE_SUPPORTED_READER_VERSION);
             writerVersion = max(writerVersion, COLUMN_MAPPING_MODE_SUPPORTED_WRITER_VERSION);
