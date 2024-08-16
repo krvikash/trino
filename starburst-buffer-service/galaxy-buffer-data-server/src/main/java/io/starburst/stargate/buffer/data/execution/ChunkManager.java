@@ -279,6 +279,12 @@ public class ChunkManager
         }
     }
 
+    public void logAddDataPagesInProgressDebugInfo()
+    {
+        LOG.info("In progress addDataPages debug info:");
+        exchanges.values().forEach(Exchange::logAddDataPagesInProgressDebugInfo);
+    }
+
     public AddDataPagesResult addDataPages(
             String exchangeId,
             int partitionId,

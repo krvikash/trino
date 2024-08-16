@@ -25,6 +25,7 @@ import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 
+import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Deque;
@@ -326,6 +327,19 @@ public class Partition
         exchangeResourceUsage.updateTotalChunkResources(closedChunks.size(), closedChunkBytes);
     }
 
+    public void logAddDataPagesInProgressDebugInfo()
+    {
+        synchronized (this) {
+            if (addDataPagesFutures.isEmpty()) {
+                return;
+            }
+
+            addDataPagesFutures.forEach(future -> {
+                log.info("AddDataFuture in progress; partition=%s.%s; taskId=%s, attemptId=%s; creation=%s", exchangeId, partitionId, future.taskId, future.attemptId, future.createTimestamp);
+            });
+        }
+    }
+
     private record TaskAttemptId(
             int taskId,
             int attemptId)
@@ -342,6 +356,7 @@ public class Partition
         private final int taskId;
         private final int attemptId;
         private final Iterator<Slice> pages;
+        private final Instant createTimestamp;
 
         @GuardedBy("Partition.this")
         private ListenableFuture<Void> currentChunkWriteFuture = immediateVoidFuture();
@@ -354,6 +369,7 @@ public class Partition
             this.taskId = taskId;
             this.attemptId = attemptId;
             this.pages = requireNonNull(pages, "pages is null").iterator();
+            this.createTimestamp = Instant.now();
             checkArgument(!pages.isEmpty(), "empty pages");
         }
 

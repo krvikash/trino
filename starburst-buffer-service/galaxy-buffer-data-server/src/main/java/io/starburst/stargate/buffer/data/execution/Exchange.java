@@ -540,6 +540,11 @@ public class Exchange
         spooledBytes.addAndGet(chunkHandle.dataSizeInBytes());
     }
 
+    public void logAddDataPagesInProgressDebugInfo()
+    {
+        partitions.values().forEach(Partition::logAddDataPagesInProgressDebugInfo);
+    }
+
     public static class ExchangeResourceUsage
     {
         private static final AttributeKey<Long> EXCHANGE_PARTITIONS = longKey("exchange_partitions");

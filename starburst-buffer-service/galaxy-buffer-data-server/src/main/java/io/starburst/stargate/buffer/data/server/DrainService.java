@@ -93,6 +93,7 @@ public class DrainService
                 break;
             }
             if (System.currentTimeMillis() > waitStart + MAX_WAIT_NO_IN_PROGRESS_ADD_DATA_PAGES_REQUESTS.toMillis()) {
+                chunkManager.logAddDataPagesInProgressDebugInfo();
                 throw new RuntimeException("Still %s in flight addData requests after waiting %s".formatted(inProgressAddDataPagesRequests, MAX_WAIT_NO_IN_PROGRESS_ADD_DATA_PAGES_REQUESTS));
             }
             LOG.info("Waiting until remaining %s in flight addData requests complete", inProgressAddDataPagesRequests);
