@@ -52,7 +52,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class DiscoveryManager
 {
-    private static final Logger LOG = Logger.get(DiscoveryManager.class);
+    private static final Logger log = Logger.get(DiscoveryManager.class);
 
     @VisibleForTesting
     static final Duration STALE_BUFFER_NODE_INFO_CLEANUP_THRESHOLD = succinctDuration(24, HOURS);
@@ -117,7 +117,7 @@ public class DiscoveryManager
     {
         long now = tickerReadMillis();
         BufferNodeInfoHolder holder = nodeInfoHolders.computeIfAbsent(nodeInfo.nodeId(), ignored -> {
-            LOG.info("discovered new node %s", nodeInfo.nodeId());
+            log.info("discovered new node %s", nodeInfo.nodeId());
             return new BufferNodeInfoHolder(nodeInfo, now);
         });
 
@@ -167,7 +167,7 @@ public class DiscoveryManager
                 // Buffer nodes in drained state needs to be kept longer for the lifetime of a query,
                 // to make sure that new workers will not read from a drained node
                 if (!bufferNodeState.equals(DRAINED) || lastUpdateTime < drainedNodesMarkStaleThreshold) {
-                    LOG.info("marking entry for node %s as stale; no update for %s; last state %s",
+                    log.info("marking entry for node %s as stale; no update for %s; last state %s",
                             entry.getKey(),
                             succinctDuration(now - lastUpdateTime, MILLISECONDS),
                             infoHolder.getLastNodeInfo().state());
@@ -175,7 +175,7 @@ public class DiscoveryManager
                 }
             }
             if (lastUpdateTime < cleanupThreshold) {
-                LOG.info("deleting stale entry for node %s ; no update for %s", entry.getKey(), succinctDuration(now - lastUpdateTime, MILLISECONDS));
+                log.info("deleting stale entry for node %s ; no update for %s", entry.getKey(), succinctDuration(now - lastUpdateTime, MILLISECONDS));
                 iterator.remove();
             }
         }

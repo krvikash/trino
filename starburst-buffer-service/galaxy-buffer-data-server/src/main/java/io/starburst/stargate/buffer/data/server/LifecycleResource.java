@@ -25,7 +25,7 @@ import static java.util.Objects.requireNonNull;
 @Path("/api/v1/buffer/data")
 public class LifecycleResource
 {
-    private static final Logger LOG = Logger.get(LifecycleResource.class);
+    private static final Logger log = Logger.get(LifecycleResource.class);
     private final BufferNodeId bufferNodeId;
     private final DrainService drainService;
     private final BufferNodeStateManager bufferNodeStateManager;
@@ -45,7 +45,7 @@ public class LifecycleResource
     @Path("drain")
     public Response drain()
     {
-        LOG.info("/drain called for data node %s; state=%s", bufferNodeId.getLongValue(), bufferNodeStateManager.getState());
+        log.info("/drain called for data node %s; state=%s", bufferNodeId.getLongValue(), bufferNodeStateManager.getState());
         try {
             drainService.drain();
         }
@@ -76,7 +76,7 @@ public class LifecycleResource
     @Path("preShutdown")
     public Response preShutdown()
     {
-        LOG.info("/preShutdown called for data node %s; state=%s", bufferNodeId.getLongValue(), bufferNodeStateManager.getState());
+        log.info("/preShutdown called for data node %s; state=%s", bufferNodeId.getLongValue(), bufferNodeStateManager.getState());
         try {
             bufferNodeStateManager.preShutdownCleanup();
         }

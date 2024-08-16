@@ -17,7 +17,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 public class BufferNodeStateManager
 {
-    private static final Logger LOG = Logger.get(BufferNodeStateManager.class);
+    private static final Logger log = Logger.get(BufferNodeStateManager.class);
 
     @GuardedBy("this")
     private BufferNodeState state = BufferNodeState.STARTING;
@@ -29,7 +29,7 @@ public class BufferNodeStateManager
             return;
         }
         checkState(targetState.canTransitionFrom(state), "can't transition from %s to %s".formatted(state, targetState));
-        LOG.info("Transition node state from %s to %s", state, targetState);
+        log.info("Transition node state from %s to %s", state, targetState);
         state = targetState;
     }
 

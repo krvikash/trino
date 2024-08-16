@@ -100,7 +100,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 @ThreadSafe
 public class ChunkManager
 {
-    private static final Logger LOG = Logger.get(ChunkManager.class);
+    private static final Logger log = Logger.get(ChunkManager.class);
     private static final HashFunction HASH_FUNC = murmur3_32_fixed();
 
     private final long bufferNodeId;
@@ -193,7 +193,7 @@ public class ChunkManager
                     {
                         try {
                             Slice slice = getFutureValue(spoolingStorage.readMetadataFile(key));
-                            LOG.info("reading spooled chunk map for buffer node " + key + "; serialized size=" + slice.length());
+                            log.info("reading spooled chunk map for buffer node " + key + "; serialized size=" + slice.length());
                             return decodeMetadataSlice(slice);
                         }
                         catch (Throwable t) {
@@ -212,7 +212,7 @@ public class ChunkManager
                 cleanupStaleExchanges();
             }
             catch (Throwable e) {
-                LOG.error(e, "Error cleaning up stale exchanges");
+                log.error(e, "Error cleaning up stale exchanges");
             }
         }, exchangeCleanupInterval, exchangeCleanupInterval, MILLISECONDS);
         statsReportingExecutor.scheduleWithFixedDelay(this::reportStats, 0, 1, SECONDS);
@@ -222,7 +222,7 @@ public class ChunkManager
                 spoolIfNecessary();
             }
             catch (Throwable e) {
-                LOG.error(e, "Error spooling chunks");
+                log.error(e, "Error spooling chunks");
             }
         }, spoolInterval, spoolInterval, MILLISECONDS);
 
@@ -232,7 +232,7 @@ public class ChunkManager
                 eagerDeliveryModeCloseChunksIfNeeded();
             }
             catch (Throwable e) {
-                LOG.error(e, "Error calling eagerDeliveryModeCloseChunksIfNeeded");
+                log.error(e, "Error calling eagerDeliveryModeCloseChunksIfNeeded");
             }
         }, eagerDeliveryModeCloseChunksInterval, eagerDeliveryModeCloseChunksInterval, MILLISECONDS);
 
@@ -247,11 +247,11 @@ public class ChunkManager
                     writeResourceReportToExchangeSpans();
                 }
                 else {
-                    LOG.warn("New resource report started before the prior report completed");
+                    log.warn("New resource report started before the prior report completed");
                 }
             }
             catch (Throwable e) {
-                LOG.error(e, "Error calling writeResourceReportToExchangeSpans");
+                log.error(e, "Error calling writeResourceReportToExchangeSpans");
             }
             finally {
                 resourceReportInProgress.set(false);
@@ -281,7 +281,7 @@ public class ChunkManager
 
     public void logAddDataPagesInProgressDebugInfo()
     {
-        LOG.info("In progress addDataPages debug info:");
+        log.info("In progress addDataPages debug info:");
         exchanges.values().forEach(Exchange::logAddDataPagesInProgressDebugInfo);
     }
 
@@ -422,7 +422,7 @@ public class ChunkManager
         checkState(!startedDraining, "already started draining");
         startedDraining = true;
 
-        LOG.info("Start draining all chunks");
+        log.info("Start draining all chunks");
         long drainingStart = System.currentTimeMillis();
         chunkSpoolExecutor.shutdownNow(); // deschedule background spooling
 
@@ -447,7 +447,7 @@ public class ChunkManager
                 break;
             }
             catch (Throwable e) {
-                LOG.warn(e, "spooling all chunks failed, retrying in %d milliseconds", backoff);
+                log.warn(e, "spooling all chunks failed, retrying in %d milliseconds", backoff);
                 try {
                     Thread.sleep(backoff);
                 }
@@ -461,12 +461,12 @@ public class ChunkManager
         verify(getOpenChunks() == 0, "open chunks exist after spooling all chunks");
         verify(getClosedChunks() == 0, "closed chunks exist after spooling all chunks");
 
-        LOG.info("Finished draining all chunks");
+        log.info("Finished draining all chunks");
 
         // persist spooledChunkMapByExchange to S3
         if (spooledChunksByExchange.size() > 0) {
             getFutureValue(spoolingStorage.writeMetadataFile(bufferNodeId, spooledChunksByExchange.encodeMetadataSlice()));
-            LOG.info("Finished writing metadata of spooled chunks");
+            log.info("Finished writing metadata of spooled chunks");
         }
 
         long remainingDrainingWaitMillis = minDrainingDuration.toMillis() - (System.currentTimeMillis() - drainingStart);
@@ -477,14 +477,14 @@ public class ChunkManager
             // we are past that phase. If some exchanges are returned after that it does not impose correctness errors but queries which would use those
             // will fail eventually, when data node is shut down.
 
-            LOG.info("Sleeping for %s so buffer node is kept in DRAINING state for at least %s", succinctDuration(remainingDrainingWaitMillis, MILLISECONDS), minDrainingDuration);
+            log.info("Sleeping for %s so buffer node is kept in DRAINING state for at least %s", succinctDuration(remainingDrainingWaitMillis, MILLISECONDS), minDrainingDuration);
             sleepUninterruptibly(remainingDrainingWaitMillis, MILLISECONDS);
         }
 
-        LOG.info("Waiting for Trino to acknowledge all closed chunks of all exchanges");
+        log.info("Waiting for Trino to acknowledge all closed chunks of all exchanges");
         for (int i = 0; i < 1000; ++i) {
             if (exchanges.values().stream().allMatch(Exchange::isAllClosedChunksReceived)) {
-                LOG.info("All closed chunks of all exchanges have been consumed by Trino");
+                log.info("All closed chunks of all exchanges have been consumed by Trino");
                 return;
             }
             List<Exchange> pendingExchanges = exchanges.values().stream().filter(exchange -> !exchange.isAllClosedChunksReceived()).toList();
@@ -507,13 +507,13 @@ public class ChunkManager
             String exchangeId = entry.getKey();
             Exchange exchange = entry.getValue();
             if (!exchange.isAllClosedChunksReceived()) {
-                LOG.warn("Failed to receive acknowledgement of receiving all closed chunks from exchange " + exchangeId);
+                log.warn("Failed to receive acknowledgement of receiving all closed chunks from exchange " + exchangeId);
             }
         }
 
         int remainingExchangesBeingReleased = exchangesBeingReleased.size();
         if (remainingExchangesBeingReleased > 0) {
-            LOG.warn("%s exchanges did not finish releasing spooled chunks", remainingExchangesBeingReleased);
+            log.warn("%s exchanges did not finish releasing spooled chunks", remainingExchangesBeingReleased);
         }
     }
 
@@ -535,7 +535,7 @@ public class ChunkManager
             Exchange exchange = entry.getValue();
             long lastUpdateTime = exchange.getLastUpdateTime();
             if (lastUpdateTime < cleanupThreshold) {
-                LOG.info("forgetting exchange %s; no update for %s", entry.getKey(), succinctDuration(now - lastUpdateTime, MILLISECONDS));
+                log.info("forgetting exchange %s; no update for %s", entry.getKey(), succinctDuration(now - lastUpdateTime, MILLISECONDS));
                 iterator.remove();
                 spooledChunksByExchange.removeExchange(exchange.getExchangeId());
                 releaseChunks(exchange);
@@ -593,7 +593,7 @@ public class ChunkManager
 
             List<Chunk> spoolCandidates = chunks.build();
             if (spoolCandidates.isEmpty()) {
-                LOG.info("Memory allocation ratio %.2f%%, starting to close open chunks",
+                log.info("Memory allocation ratio %.2f%%, starting to close open chunks",
                         memoryAllocator.getAllocationPercentage());
 
                 requiredMemory = memoryAllocator.getRequiredMemoryToRelease();
@@ -621,7 +621,7 @@ public class ChunkManager
                 }
             }
             else {
-                LOG.info("Memory allocation ratio %.2f%%, starting to spool closed chunks",
+                log.info("Memory allocation ratio %.2f%%, starting to spool closed chunks",
                         memoryAllocator.getAllocationPercentage());
 
                 // blocking call here to make sure:

@@ -31,7 +31,7 @@ import static java.util.Objects.requireNonNull;
  */
 public class DrainService
 {
-    private static final Logger LOG = Logger.get(DrainService.class);
+    private static final Logger log = Logger.get(DrainService.class);
     private static final Duration MAX_WAIT_NO_IN_PROGRESS_ADD_DATA_PAGES_REQUESTS = Duration.succinctDuration(2, TimeUnit.MINUTES);
 
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(daemonThreadsNamed("data-server-drain-service"));
@@ -73,7 +73,7 @@ public class DrainService
                 chunkManager.drainAllChunks();
             }
             catch (Exception e) {
-                LOG.error(e, "Unexpected failure while draining node");
+                log.error(e, "Unexpected failure while draining node");
             }
 
             // we mark node as DRAINED even on failure. It is not great but leaving node in DRAINING state
@@ -89,14 +89,14 @@ public class DrainService
         while (true) {
             int inProgressAddDataPagesRequests = dataResource.getInProgressAddDataPagesRequests();
             if (inProgressAddDataPagesRequests == 0) {
-                LOG.info("No more remaining in flight addData requests");
+                log.info("No more remaining in flight addData requests");
                 break;
             }
             if (System.currentTimeMillis() > waitStart + MAX_WAIT_NO_IN_PROGRESS_ADD_DATA_PAGES_REQUESTS.toMillis()) {
                 chunkManager.logAddDataPagesInProgressDebugInfo();
                 throw new RuntimeException("Still %s in flight addData requests after waiting %s".formatted(inProgressAddDataPagesRequests, MAX_WAIT_NO_IN_PROGRESS_ADD_DATA_PAGES_REQUESTS));
             }
-            LOG.info("Waiting until remaining %s in flight addData requests complete", inProgressAddDataPagesRequests);
+            log.info("Waiting until remaining %s in flight addData requests complete", inProgressAddDataPagesRequests);
             // busy looping is fine here as we expect in flight requests to finish fast
             try {
                 Thread.sleep(500);
