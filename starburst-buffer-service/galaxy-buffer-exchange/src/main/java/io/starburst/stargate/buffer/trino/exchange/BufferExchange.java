@@ -427,6 +427,9 @@ public class BufferExchange
     public void triggerExchangeRemove()
     {
         // Aborting of sinks is asynchronous. Adding some delay to wait for abortion signals to be sent to sinks.
+
+        // capture caller stack for diagnostics
+        RuntimeException callerStack = new RuntimeException("caller");
         executorService.schedule(() -> {
             Set<Long> bufferNodeIds;
             synchronized (this) {
@@ -447,7 +450,10 @@ public class BufferExchange
                             throw dataApiException;
                         },
                         directExecutor());
-                addExceptionCallback(future, (t) -> log.warn(t, "Could not remove exchange %s on node %d", externalExchangeId, nodeId));
+                addExceptionCallback(future, (t) -> {
+                    callerStack.addSuppressed(t);
+                    log.warn(callerStack, "Could not remove exchange %s on node %d", externalExchangeId, nodeId);
+                });
             }
         }, 1000, MILLISECONDS);
     }
