@@ -360,6 +360,18 @@ public class Partition
         @GuardedBy("Partition.this")
         public void process()
         {
+            try {
+                processInternal();
+            }
+            catch (Exception e) {
+                log.error(e, "Unexpected exception thrown from processInternal");
+                setException(e);
+            }
+        }
+
+        @GuardedBy("Partition.this")
+        private void processInternal()
+        {
             if (currentChunkWriteFuture == null) {
                 checkState(isCancelled(), "PartitionAddDataPagesFuture should be in cancelled state");
                 return;
@@ -382,8 +394,7 @@ public class Partition
                 }
                 else {
                     openChunk = null;
-                    setException(new IllegalArgumentException("requiredStorageSize %d larger than chunkMaxSizeInBytes %d".formatted(requiredStorageSize, chunkMaxSizeInBytes)));
-                    return;
+                    throw new IllegalArgumentException("requiredStorageSize %d larger than chunkMaxSizeInBytes %d".formatted(requiredStorageSize, chunkMaxSizeInBytes));
                 }
             }
 
