@@ -48,7 +48,6 @@ public class StorageReader
     private static final Logger logger = Logger.get(StorageReader.class);
     private static final int INVALID_TX_ID = -1;
     private static final long MATCH_RESULT_MASK = 0x00000000ffffffffL;
-    private static final long TIME_REPORT_INTERVAL_MILLIS = 1000 * 60; // 1 minute
     private final ShapingLogger shapingLogger;
 
     // services
@@ -61,6 +60,7 @@ public class StorageReader
 
     // parameters
     private final QueryParams queryParams;
+    private final ReadTimeMeasurement readTimeMeasurement;
 
     // match
     private final int[] weMatchTree;
@@ -84,13 +84,6 @@ public class StorageReader
     private RecordIndexListType storeRowListType;
     private int storeRowListSize;
     private int lazyCollectEndRowIndex;
-
-    // time measures
-    private long lastReportTime;
-    private long wallTime;
-    private long runTime;
-    private long minRoundTime;
-    private long maxRoundTime;
 
     StorageReader(StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
@@ -141,13 +134,12 @@ public class StorageReader
 
         createLuceneMatchers(globalConfig); // this call must be after creating the matchJuffersWE
 
-        this.lastReportTime = System.currentTimeMillis();
-        this.minRoundTime = Long.MAX_VALUE;
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
                 globalConfig.getShapingLoggerThreshold(),
                 globalConfig.getShapingLoggerDuration(),
                 globalConfig.getShapingLoggerNumberOfSamples());
+        readTimeMeasurement = new ReadTimeMeasurement();
     }
 
     void close()
@@ -343,7 +335,7 @@ public class StorageReader
      */
     boolean matchAndCollect(StorageCollectorArgs storageCollectorArgs, CollectOpenResult collectOpenResult, boolean isMatchGetNumRanges)
     {
-        long inTime = System.currentTimeMillis();
+        long startTime = readTimeMeasurement.getStartTime();
 
         if (collectOpenResult.collectTxId() == INVALID_TX_ID) {
             throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED, "no collect tx available, probably a secondary error");
@@ -361,27 +353,8 @@ public class StorageReader
             matchIfNeeded();
         }
 
-        updateRuntimeMeasurements(inTime);
+        readTimeMeasurement.updateRuntimeMeasurements(startTime, storageCollectorArgs);
         return collectBufferState != CollectBufferState.COLLECT_BUFFER_STATE_EMPTY;
-    }
-
-    private void updateRuntimeMeasurements(long inTime)
-    {
-        long outTime = System.currentTimeMillis();
-        long roundTime = outTime - inTime;
-        if (roundTime < minRoundTime) {
-            minRoundTime = roundTime;
-        }
-        if (roundTime > maxRoundTime) {
-            maxRoundTime = roundTime;
-        }
-        runTime += roundTime;
-        wallTime += roundTime;
-        if (outTime - lastReportTime >= TIME_REPORT_INTERVAL_MILLIS) {
-            logger.info("wallTime %d runTime %d minRoundTime %d maxRoundTime %d processed %d chunks out of %d",
-                    wallTime, runTime, minRoundTime, maxRoundTime, storageCollectorArgs.chunksQueue().getTotalNumChunks(), storageCollectorArgs.numChunks());
-            lastReportTime = outTime;
-        }
     }
 
     @NativeInterrupt
