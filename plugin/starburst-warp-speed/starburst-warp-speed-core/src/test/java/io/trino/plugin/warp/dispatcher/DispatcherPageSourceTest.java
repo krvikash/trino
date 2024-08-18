@@ -80,6 +80,7 @@ public class DispatcherPageSourceTest
     protected final DispatcherPageSourceStats stats = new DispatcherPageSourceStats("test");
     protected final Map<Integer, Type> proxiedCollectTypeByBlockIndex = Map.of(1, BIGINT);
     private DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
+    private final GlobalConfig globalConfig = new GlobalConfig();
 
     private RowGroupCloseHandler closeHandler;
     private ReadErrorHandler readErrorHandler;
@@ -730,6 +731,21 @@ public class DispatcherPageSourceTest
         mixedQuery_2ProxiedPages_singleRange_simulateLimit();
     }
 
+    @Test
+    public void testForceFinish()
+    {
+        prepareMock(
+                List.of(new TestPage(buildLongPage(100, 101), createRowRanges(0, 2))),
+                List.of(buildLongPage(1, 2)));
+        DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
+        for (int i = 0; i < globalConfig.getEmptyPageIterations() + 1; i++) {
+            dispatcherPageSource.getNextPage();
+            assertThat(dispatcherPageSource.isFinished()).isFalse();
+        }
+        dispatcherPageSource.getNextPage();
+        assertThat(dispatcherPageSource.isFinished()).isTrue();
+    }
+
     private DispatcherPageSource getDispatcherPageSource(int totalCollectColumns, Map<Integer, Type> proxiedCollectTypeByBlockIndex)
     {
         return getDispatcherPageSource(totalCollectColumns, proxiedCollectTypeByBlockIndex, Collections.emptyMap());
@@ -793,7 +809,7 @@ public class DispatcherPageSourceTest
                 null,
                 0,
                 readErrorHandler,
-                new GlobalConfig());
+                globalConfig);
     }
 
     private Page buildPageLong(long[] values)
@@ -820,7 +836,7 @@ public class DispatcherPageSourceTest
             Optional<Long> prefilled)
     {
         int totalMatchesPosition = 0;
-        while (!dispatcherPageSource.isFinished()) {
+        while (!dispatcherPageSource.isFinished() && totalMatchesPosition < warpMatches.length) {
             Page resultPage = dispatcherPageSource.getNextPage(); //act
             int positionCount = resultPage.getPositionCount();
             for (int i = 0; i < positionCount; i++) {

@@ -133,11 +133,14 @@ public class DispatcherPageSource
     @Override
     public Page getNextPage()
     {
+        boolean finishedOnPractice = warpPageRanges.isEmpty() && warpPageSource.isFinished();
+
         if (emptyPagesCounter == maxEmptyPageSourceIterations) {
-            String info = String.format("queryId=%s, pageSourceDecision=%s, currentProxiedPagePosition=%s, proxiedConnectorPageSource.isFinished=%s, proxiedPageRanges=%s, warpPageRanges.size=%s, currentWarpPagePosition=%s, " +
+            String info = String.format("queryId=%s, finishedOnPractice=%b, pageSourceDecision=%s, currentProxiedPagePosition=%s, proxiedConnectorPageSource.isFinished=%s, proxiedPageRanges=%s, warpPageRanges.size=%s, currentWarpPagePosition=%s, " +
                             "currentProxiedPage.getPositionCount()=%s, currentWarpPage.getPositionCount()=%s, warpWithoutPrefilledAndProxiedCollectTypes=%s, proxiedPagePositionsRead=%s, proxiedConnectorPageSource=%s, " +
                             "wasProxiedPagedLoaded=%s, dispatcherTableHandle=%s, dispatcherSplit=%s, rowGroupKey=%s",
                     queryContext.getQueryId(),
+                    finishedOnPractice,
                     pageSourceDecision,
                     currentProxiedPagePosition,
                     proxiedConnectorPageSource.isFinished(),
@@ -156,6 +159,16 @@ public class DispatcherPageSource
             shapingLogger.info("returned more than emptyPagesCounter=%s emptyPages, set forced finished. info=%s", emptyPagesCounter, info);
             forceFinish = true;
         }
+
+        if (finishedOnPractice) {
+            // TODO: We return an empty page here because isFinished() might return false even when the page source is actually finished
+            //  (we count on Trino to close the page source after reaching the required limit).
+            //  This is due to a bug in SubqueryCache. After fixing the bug- please revert the commit that introduced this change
+            //  (see https://github.com/trinodb/trino/pull/22827#discussion_r1716813795).
+            emptyPagesCounter++;
+            return new Page(0);
+        }
+
         Page dispatcherPage = getDispatcherPage();
         if (dispatcherPage.getPositionCount() == 0 && !isFinished()) {
             emptyPagesCounter++;
@@ -421,7 +434,10 @@ public class DispatcherPageSource
     @Override
     public boolean isFinished()
     {
-        return forceFinish || (warpPageRanges.isEmpty() && warpPageSource.isFinished());
+        return forceFinish ||
+                (warpPageRanges.isEmpty() &&
+                        warpPageSource.isFinished() &&
+                        !warpPageSource.isRowsLimitReached());  // TODO: this line was added due to a bug in SubqueryCache. After fixing the bug- please revert the commit that introduced this change (see https://github.com/trinodb/trino/pull/22827#discussion_r1716813795).
     }
 
     @Override
