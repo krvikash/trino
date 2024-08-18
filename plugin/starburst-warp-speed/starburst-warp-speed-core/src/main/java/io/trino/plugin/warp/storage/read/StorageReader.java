@@ -158,6 +158,7 @@ public class StorageReader
                         storageEngineConstants,
                         matchJuffersWE.get(matchIx),
                         matchParams.getLuceneQueryMatchData(),
+                        matchIx,
                         lucenePageCacheStats,
                         statsDispatcherPageSource,
                         globalConfig);
@@ -267,7 +268,7 @@ public class StorageReader
             else {
                 long matchResult = 0;
                 long numChunks = 0;
-                long luceneSuccess = 0;
+                boolean luceneSuccess = true;
                 int numMatchedChunks = 0;
                 int chunkIndex = chunksQueueService.getChunkIndexForMatch(chunksQueue);
                 // we loop until either agg result returnes 0 which  means no more chunks (break under if inside the loop)
@@ -285,12 +286,15 @@ public class StorageReader
                         }
 
                         if (queryParams.getNumLucene() > 0) {
-                            luceneSuccess = storageEngine.matchLucenePrepare(matchTxId, chunkIndex, (int) numChunks);
-                            if (luceneSuccess < 0) {
+                            for (int luceneMatcherIx = 0; luceneMatcherIx < luceneMatchers.length; luceneMatcherIx++) {
+                                if (!luceneMatchers[luceneMatcherIx].match(matchTxId, chunkIndex, (int) numChunks)) {
+                                    luceneSuccess = false;
+                                    break;
+                                }
+                            }
+                            if (!luceneSuccess) {
                                 break;
                             }
-                            storageEngine.matchLucene(matchTxId, chunkIndex, (int) numChunks); // @TODO do this in java without native
-                            storageEngine.matchLuceneCompleted(matchTxId, chunkIndex, (int) numChunks);
                         }
 
                         matchResult = storageEngine.match(matchTxId, chunkIndex, (int) numChunks, matchedChunksIndexes, matchBitmapResetPoints);
@@ -314,7 +318,7 @@ public class StorageReader
                     }
                 }
                 finally {
-                    if ((numChunks < 0) || (luceneSuccess < 0) || (matchResult < 0)) {
+                    if ((numChunks < 0) || !luceneSuccess || (matchResult < 0)) {
                         abortMatch(Optional.empty()); // will close only the match tx here. the caller will close the collect tx
                         throw new TrinoException(WARP_UNRECOVERABLE_MATCH_FAILED,
                                 "match failed chunkIndex " + chunkIndex + " numChunks " + numChunks + " lucene " + luceneSuccess + " match " + matchResult);

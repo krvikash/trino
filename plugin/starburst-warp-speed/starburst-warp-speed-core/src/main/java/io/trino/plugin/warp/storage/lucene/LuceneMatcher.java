@@ -48,12 +48,14 @@ public class LuceneMatcher
     private final LucenePageCacheStats lucenePageCacheStats;
     private final ReadJuffersWarmUpElement juffersWE;
     private final Optional<Query> query; // when query is empty it means that the predicate is from Domain
+    private final int matchWeIx;
     private final ShapingLogger shapingLogger;
 
     public LuceneMatcher(StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
             ReadJuffersWarmUpElement juffersWE,
             LuceneQueryMatchData luceneQueryMatchData,
+            int matchWeIx,
             LucenePageCacheStats lucenePageCacheStats,
             DispatcherPageSourceStats statsDispatcherPageSource,
             GlobalConfig globalConfig)
@@ -63,6 +65,7 @@ public class LuceneMatcher
         this.lucenePageCacheStats = lucenePageCacheStats;
         this.juffersWE = juffersWE;
         this.query = Optional.of(luceneQueryMatchData.getQuery());
+        this.matchWeIx = matchWeIx;
         this.statsDispatcherPageSource = statsDispatcherPageSource;
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
@@ -70,6 +73,16 @@ public class LuceneMatcher
                 globalConfig.getShapingLoggerDuration(),
                 globalConfig.getShapingLoggerNumberOfSamples());
         logger.debug("lucene matcher for luceneQueryMatchData %s", luceneQueryMatchData);
+    }
+
+    public boolean match(int matchTxId, int startChunkIndex, int numChunks)
+    {
+        if (storageEngine.matchLucenePrepare(matchTxId, matchWeIx, startChunkIndex, (int) numChunks) < 0) {
+            return false;
+        }
+        storageEngine.matchLucene(matchTxId, matchWeIx, startChunkIndex, (int) numChunks); // @TODO do this in java without native
+        storageEngine.matchLuceneCompleted(matchTxId, matchWeIx, startChunkIndex, (int) numChunks);
+        return true;
     }
 
     /**

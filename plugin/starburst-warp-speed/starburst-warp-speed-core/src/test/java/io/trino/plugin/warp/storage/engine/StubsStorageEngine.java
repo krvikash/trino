@@ -177,18 +177,18 @@ public class StubsStorageEngine
     }
 
     @Override
-    public long matchLucenePrepare(int txId, int startChunkIndex, int numChunks)
+    public long matchLucenePrepare(int matchTxId, int matchWeIx, int startChunkIndex, int numChunks)
     {
         return 0L;
     }
 
     @Override
-    public void matchLucene(int txId, int startChunkIndex, int numChunks)
+    public void matchLucene(int matchTxId, int matchWeIx, int startChunkIndex, int numChunks)
     {
     }
 
     @Override
-    public void matchLuceneCompleted(int txId, int startChunkIndex, int numChunks)
+    public void matchLuceneCompleted(int matchTxId, int matchWeIx, int startChunkIndex, int numChunks)
     {
     }
 

@@ -179,13 +179,13 @@ public class NativeStorageEngine
     public native long matchAgg(int txId, int startChunkIndex);
 
     @Override
-    public native long matchLucenePrepare(int txId, int startChunkIndex, int numChunks);
+    public native long matchLucenePrepare(int matchTxId, int matchWeIx, int startChunkIndex, int numChunks);
 
     @Override
-    public native void matchLucene(int txId, int startChunkIndex, int numChunks);
+    public native void matchLucene(int matchTxId, int matchWeIx, int startChunkIndex, int numChunks);
 
     @Override
-    public native void matchLuceneCompleted(int txId, int startChunkIndex, int numChunks);
+    public native void matchLuceneCompleted(int matchTxId, int matchWeIx, int startChunkIndex, int numChunks);
 
     @Override
     public native long match(int txId, int startChunkIndex, int numChunks, short[] outMatchedChunksIndexes, int[] outMatchBitmapResetPoints);

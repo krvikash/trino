@@ -189,13 +189,14 @@ public interface StorageEngine
     /**
      * prepare for match lucene on a chunk range starting from the given chunk index
      *
-     * @param txId - identifies tx, passed from native to java during import_create
+     * @param matchTxId - identifies tx, passed from native to java in match_open
+     * @param matchWeIx - identifies warmup element within the tx
      * @param startChunkIndex - chunk to start match from
      * @param numChunks - number of chunks to match
      *
      * @return 0 for success, -1 for error (to throw exception)
      */
-    default long matchLucenePrepare(int txId, int startChunkIndex, int numChunks)
+    default long matchLucenePrepare(int matchTxId, int matchWeIx, int startChunkIndex, int numChunks)
     {
         throw new UnsupportedOperationException();
     }
@@ -203,11 +204,12 @@ public interface StorageEngine
     /**
      * match lucene on a chunk range starting from the given chunk index
      *
-     * @param txId - identifies tx, passed from native to java during import_create
+     * @param matchTxId - identifies tx, passed from native to java in match_open
+     * @param matchWeIx - identifies warmup element within the tx
      * @param startChunkIndex - chunk to start match from
      * @param numChunks - number of chunks to match
      */
-    default void matchLucene(int txId, int startChunkIndex, int numChunks)
+    default void matchLucene(int matchTxId, int matchWeIx, int startChunkIndex, int numChunks)
     {
         throw new UnsupportedOperationException();
     }
@@ -215,11 +217,12 @@ public interface StorageEngine
     /**
      * cleanup after match lucene on a chunk range starting from the given chunk index
      *
-     * @param txId - identifies tx, passed from native to java during import_create
+     * @param matchTxId - identifies tx, passed from native to java in match_open
+     * @param matchWeIx - identifies warmup element within the tx
      * @param startChunkIndex - chunk to start match from
      * @param numChunks - number of chunks to match
      */
-    default void matchLuceneCompleted(int txId, int startChunkIndex, int numChunks)
+    default void matchLuceneCompleted(int matchTxId, int matchWeIx, int startChunkIndex, int numChunks)
     {
         throw new UnsupportedOperationException();
     }
