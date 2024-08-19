@@ -2,6 +2,9 @@ name: security
 # The security workflow performs static analysis for SCA/SAST and secret detection. It complements open source tooling that developers may already have in place.
 # The results are aggregated and triaged to help determine what vulnerabilities need to be addressed to meet customer obligations and internal goals.
 # For more information on AppSec @ Starburst, see https://starburstdata.atlassian.net/wiki/spaces/STARBURST/pages/3453419644.
+
+# Note that this is is currently an optional check. You are not blocked from merging if this check fails. If you believe this check is faulty, reach out to the security team via Slack or email.
+
 on:
   pull_request:
     branches:
@@ -14,9 +17,10 @@ on:
 # test
 env:
   BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
-  ENDORCTL_CHECKSUM: "df5bbdeeaf2f23d3df66d445d06afa24354bed2e9aed63edff04814c911723be"
+  ENDORCTL_CHECKSUM: "4a99bb830682aba729838624b8c92cbc4c40d110a045d6afc3479499e5d1e744"
+  ENDOR_MVN_USE_WRAPPER: true
   ENDORCTL_NAMESPACE: "starburst"
-  ENDORCTL_VERSION: "v1.6.411"
+  ENDORCTL_VERSION: "v1.6.466"
   ENDOR_SCAN_CALLGRAPH_LANGUAGES: "[java, python]"
   ENDOR_SCAN_PYTHON_GLOBAL_SITE_PACKAGES: true
   MAVEN_OPTS: "-Xmx3G -XX:+ExitOnOutOfMemoryError"
@@ -29,7 +33,7 @@ env:
 concurrency:
   # Cancel all workflow runs except latest within a concurrency group. This is achieved by defining a concurrency group for the PR.
   # Non-PR builds have singleton concurrency groups.
-  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.number || github.sha }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.number || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -61,12 +65,6 @@ jobs:
         uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
         with:
           python-version: "3.12"
-      - name: Install mvn
-        # There is currently no way of pointing Endor Labs to the mvn wrapper, so we install mvn
-        uses: sdkman/sdkman-action@b1f9b696c79148b66d3d3a06f7ea801820318d0f # v1
-        with:
-          candidate: maven
-          version: 3.9.8 # Always match the project default. If this does not match, submit a PR.
       - name: Maven Build
         run: ./mvnw clean install -s .github/settings.xml -V -B --quiet -T 1C -DskipTests -Dmaven.source.skip=true -Dair.check.skip-all
       - name: Don't Skip Deps
@@ -78,7 +76,7 @@ jobs:
           MAVEN_ARGS: "-s ${{ github.workspace }}/.github/settings.xml"
         uses: endorlabs/github-action@802fa65ba7c140405ee52d1c806cfdb647f8f743 # v1.1.4
         with:
-          additional_args: '--exclude="testing/" --bypass-host-check --quick-scan'
+          additional_args: '--exclude-path="testing/**" --bypass-host-check --quick-scan'
           enable_pr_comments: false
           endorctl_checksum: ${{ env.ENDORCTL_CHECKSUM }}
           endorctl_version: ${{ env.ENDORCTL_VERSION }}
@@ -94,7 +92,7 @@ jobs:
           MAVEN_ARGS: "-s ${{ github.workspace }}/.github/settings.xml"
         uses: endorlabs/github-action@802fa65ba7c140405ee52d1c806cfdb647f8f743 # v1.1.4
         with:
-          additional_args: '--exclude="testing/" --bypass-host-check'
+          additional_args: '--exclude-path="testing/**" --bypass-host-check'
           endorctl_checksum: ${{ env.ENDORCTL_CHECKSUM }}
           endorctl_version: ${{ env.ENDORCTL_VERSION }}
           namespace: ${{ env.ENDORCTL_NAMESPACE }}
