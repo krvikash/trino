@@ -159,6 +159,7 @@ public class StorageReader
                         matchJuffersWE.get(matchIx),
                         matchParams.getLuceneQueryMatchData(),
                         matchIx,
+                        storageCollectorArgs.numChunksInRange(),
                         lucenePageCacheStats,
                         statsDispatcherPageSource,
                         globalConfig);

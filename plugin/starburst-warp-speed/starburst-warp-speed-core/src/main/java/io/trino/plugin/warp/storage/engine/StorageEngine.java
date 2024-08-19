@@ -196,7 +196,7 @@ public interface StorageEngine
      *
      * @return 0 for success, -1 for error (to throw exception)
      */
-    default long matchLucenePrepare(int matchTxId, int matchWeIx, int startChunkIndex, int numChunks)
+    default long matchLucenePrepare(int matchTxId, int matchWeIx, int startChunkIndex, int numChunks, long[] outParams)
     {
         throw new UnsupportedOperationException();
     }

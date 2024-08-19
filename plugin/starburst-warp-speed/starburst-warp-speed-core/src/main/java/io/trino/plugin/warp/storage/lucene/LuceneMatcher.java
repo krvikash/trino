@@ -33,13 +33,22 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Optional;
 
+import static io.trino.plugin.warp.gen.constants.LuceneMatchJParams.LUCENE_MATCH_JPARAMS_ALL_OR_NOTHING;
+import static io.trino.plugin.warp.gen.constants.LuceneMatchJParams.LUCENE_MATCH_JPARAMS_CFE_FILE_LENGTH;
+import static io.trino.plugin.warp.gen.constants.LuceneMatchJParams.LUCENE_MATCH_JPARAMS_CFS_FILE_LENGTH;
+import static io.trino.plugin.warp.gen.constants.LuceneMatchJParams.LUCENE_MATCH_JPARAMS_INDEX_UNIQUE_ID;
+import static io.trino.plugin.warp.gen.constants.LuceneMatchJParams.LUCENE_MATCH_JPARAMS_IS_VALID_INDEX;
+import static io.trino.plugin.warp.gen.constants.LuceneMatchJParams.LUCENE_MATCH_JPARAMS_NATIVE_COOKIE;
+import static io.trino.plugin.warp.gen.constants.LuceneMatchJParams.LUCENE_MATCH_JPARAMS_NUM_OF;
+import static io.trino.plugin.warp.gen.constants.LuceneMatchJParams.LUCENE_MATCH_JPARAMS_SEGMENTS_FILE_LENGTH;
+import static io.trino.plugin.warp.gen.constants.LuceneMatchJParams.LUCENE_MATCH_JPARAMS_SI_FILE_LENGTH;
+
 @SuppressWarnings("deprecation")
 public class LuceneMatcher
 {
     private static final Logger logger = Logger.get(LuceneMatcher.class);
 
     private static final String FILE_PREFIX = "_0";
-    private static final int JAVA_RC_ERR = -1; // predicate got from Domain. in case of error presto can handle
     private static final int JAVA_RC_STOP_EXECUTION = -2; // predicate got from hack
     private static final int JAVA_NON_HACK_PREDICATE = -3; // predicate got from non-hack
     private final StorageEngine storageEngine;
@@ -49,13 +58,16 @@ public class LuceneMatcher
     private final ReadJuffersWarmUpElement juffersWE;
     private final Optional<Query> query; // when query is empty it means that the predicate is from Domain
     private final int matchWeIx;
+    private long[] matchParams;
     private final ShapingLogger shapingLogger;
+    private int currChunkInRange;
 
     public LuceneMatcher(StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
             ReadJuffersWarmUpElement juffersWE,
             LuceneQueryMatchData luceneQueryMatchData,
             int matchWeIx,
+            int numChunksInRange,
             LucenePageCacheStats lucenePageCacheStats,
             DispatcherPageSourceStats statsDispatcherPageSource,
             GlobalConfig globalConfig)
@@ -66,9 +78,9 @@ public class LuceneMatcher
         this.juffersWE = juffersWE;
         this.query = Optional.of(luceneQueryMatchData.getQuery());
         this.matchWeIx = matchWeIx;
+        this.matchParams = new long[LUCENE_MATCH_JPARAMS_NUM_OF.ordinal() * numChunksInRange];
         this.statsDispatcherPageSource = statsDispatcherPageSource;
-        this.shapingLogger = ShapingLogger.getInstance(
-                logger,
+        this.shapingLogger = ShapingLogger.getInstance(logger,
                 globalConfig.getShapingLoggerThreshold(),
                 globalConfig.getShapingLoggerDuration(),
                 globalConfig.getShapingLoggerNumberOfSamples());
@@ -77,11 +89,12 @@ public class LuceneMatcher
 
     public boolean match(int matchTxId, int startChunkIndex, int numChunks)
     {
-        if (storageEngine.matchLucenePrepare(matchTxId, matchWeIx, startChunkIndex, (int) numChunks) < 0) {
+        if (storageEngine.matchLucenePrepare(matchTxId, matchWeIx, startChunkIndex, numChunks, matchParams) < 0) {
             return false;
         }
-        storageEngine.matchLucene(matchTxId, matchWeIx, startChunkIndex, (int) numChunks); // @TODO do this in java without native
-        storageEngine.matchLuceneCompleted(matchTxId, matchWeIx, startChunkIndex, (int) numChunks);
+        currChunkInRange = 0;
+        storageEngine.matchLucene(matchTxId, matchWeIx, startChunkIndex, numChunks); // @TODO do this in java without native
+        storageEngine.matchLuceneCompleted(matchTxId, matchWeIx, startChunkIndex, numChunks);
         return true;
     }
 
@@ -92,35 +105,46 @@ public class LuceneMatcher
      * @return - 0 for success and JAVA_RC_ERR/JAVA_RC_STOP_EXECUTION for error
      */
     @SuppressWarnings("unused")
-    int luceneMatch(long nativeCookie, int indexUniqueIdInRowGroup, boolean isValidIndex, boolean allOrNothing, int resultBufferOffset,
-            int siFileLength, int cfeFileLength, int segmentsFileLength, int cfsFileLength)
+    int luceneMatch()
     {
-        logger.debug("nativeCookie %d indexUniqueIdInRowGroup %d isValidIndex %b allOrNothing %b resultBufferOffset %d queryPresent %b",
-                nativeCookie, indexUniqueIdInRowGroup, isValidIndex, allOrNothing, resultBufferOffset, query.isPresent());
-        if (!isValidIndex) {
-            shapingLogger.error("index is invalid returning JAVA_RC_ERR. nativeCookie %d allOrNothing %b resultBufferOffset %d queryPresent %b file lengths [%d,%d,%d,%d]",
-                    nativeCookie, allOrNothing, resultBufferOffset, query.isPresent(), siFileLength, cfeFileLength, segmentsFileLength, cfsFileLength);
-            return JAVA_RC_ERR;
+        int baseMatchParams = currChunkInRange * LUCENE_MATCH_JPARAMS_NUM_OF.ordinal();
+        long nativeCookie = matchParams[baseMatchParams + LUCENE_MATCH_JPARAMS_NATIVE_COOKIE.ordinal()];
+        // in case native decided to skip a chunk in the range it will mark the cookie as zero and we need to jump to the next one
+        // this code is temporary until we create an index for the entire range in one shot
+        while (nativeCookie == 0) {
+            currChunkInRange++;
+            baseMatchParams += LUCENE_MATCH_JPARAMS_NUM_OF.ordinal();
+            nativeCookie = matchParams[baseMatchParams + LUCENE_MATCH_JPARAMS_NATIVE_COOKIE.ordinal()];
         }
+
+        if (matchParams[baseMatchParams + LUCENE_MATCH_JPARAMS_IS_VALID_INDEX.ordinal()] == 0) {
+            currChunkInRange++;
+            return 0; // return no match
+        }
+
         if (query.isEmpty()) {
-            shapingLogger.error("query is not present returning JAVA_NON_HACK_PREDICATE. nativeCookie %d isValidIndex %b allOrNothing %b resultBufferOffset %d file lengths [%d,%d,%d,%d]",
-                    nativeCookie, true, allOrNothing, resultBufferOffset, siFileLength, cfeFileLength, segmentsFileLength, cfsFileLength);
+            shapingLogger.error("query is not present returning JAVA_NON_HACK_PREDICATE. nativeCookie %x", nativeCookie);
+            currChunkInRange++;
             return JAVA_NON_HACK_PREDICATE;
         }
 
         long startTime = System.currentTimeMillis();
-        int maxDocsToFind = allOrNothing ? 1 : (1 << storageEngineConstants.getChunkSizeShift());
+        int maxDocsToFind = (matchParams[baseMatchParams + LUCENE_MATCH_JPARAMS_ALL_OR_NOTHING.ordinal()] != 0) ? 1 : (1 << storageEngineConstants.getChunkSizeShift());
 
         int[] filesLength = new int[4];
-        filesLength[LuceneFileType.SI.getNativeId()] = siFileLength;
-        filesLength[LuceneFileType.CFE.getNativeId()] = cfeFileLength;
-        filesLength[LuceneFileType.SEGMENTS.getNativeId()] = segmentsFileLength;
-        filesLength[LuceneFileType.CFS.getNativeId()] = cfsFileLength;
+        filesLength[LuceneFileType.SI.getNativeId()] = (int) matchParams[baseMatchParams + LUCENE_MATCH_JPARAMS_SI_FILE_LENGTH.ordinal()];
+        filesLength[LuceneFileType.CFE.getNativeId()] = (int) matchParams[baseMatchParams + LUCENE_MATCH_JPARAMS_CFE_FILE_LENGTH.ordinal()];
+        filesLength[LuceneFileType.SEGMENTS.getNativeId()] = (int) matchParams[baseMatchParams + LUCENE_MATCH_JPARAMS_SEGMENTS_FILE_LENGTH.ordinal()];
+        filesLength[LuceneFileType.CFS.getNativeId()] = (int) matchParams[baseMatchParams + LUCENE_MATCH_JPARAMS_CFS_FILE_LENGTH.ordinal()];
+
+        int indexUniqueIdInRowGroup = (int) matchParams[baseMatchParams + LUCENE_MATCH_JPARAMS_INDEX_UNIQUE_ID.ordinal()];
+        int resultBufferOffset = (int) (currChunkInRange * storageEngineConstants.getPageSize());
+        if (logger.isDebugEnabled()) {
+            logger.debug("nativeCookie %x indexUniqueIdInRowGroup %d maxDocsToFind %d resultBufferOffset %d filesLength %s",
+                    nativeCookie, indexUniqueIdInRowGroup, maxDocsToFind, resultBufferOffset, Arrays.toString(filesLength));
+        }
 
         int result = JAVA_RC_STOP_EXECUTION;
-        if (logger.isDebugEnabled()) {
-            logger.debug("nativeCookie=%d, filesLength=%s", nativeCookie, Arrays.toString(filesLength));
-        }
         try {
             WarpInputDirectory warpInputDirectory = new WarpInputDirectory(storageEngine,
                     storageEngineConstants,
@@ -137,17 +161,18 @@ public class LuceneMatcher
             indexSearcher.search(query.get(), warpCollector);
 
             result = warpCollector.getCount();
-            logger.debug("nativeCookie=%d - found %d match results", nativeCookie, result);
+            logger.debug("nativeCookie %x found %d match results", nativeCookie, result);
         }
         catch (IOException e) {
-            shapingLogger.error(e, "I/O error returning JAVA_RC_STOP_EXECUTION. nativeCookie %d maxDocsToFind %d resultBufferOffset %d file lengths [%d,%d,%d,%d]",
-                    nativeCookie, maxDocsToFind, resultBufferOffset, siFileLength, cfeFileLength, segmentsFileLength, cfsFileLength);
+            shapingLogger.error(e, "I/O error returning JAVA_RC_STOP_EXECUTION. nativeCookie %d maxDocsToFind %d resultBufferOffset %d filesLength %s",
+                    nativeCookie, maxDocsToFind, resultBufferOffset, Arrays.toString(filesLength));
         }
         catch (Exception e) {
-            shapingLogger.error(e, "general error returning JAVA_RC_STOP_EXECUTION. nativeCookie %d maxDocsToFind %d resultBufferOffset %d file lengths [%d,%d,%d,%d]",
-                    nativeCookie, maxDocsToFind, resultBufferOffset, siFileLength, cfeFileLength, segmentsFileLength, cfsFileLength);
+            shapingLogger.error(e, "general error returning JAVA_RC_STOP_EXECUTION. nativeCookie %d maxDocsToFind %d resultBufferOffset %d filesLength %s",
+                    nativeCookie, maxDocsToFind, resultBufferOffset, Arrays.toString(filesLength));
         }
         statsDispatcherPageSource.addlucene_execution_time(System.currentTimeMillis() - startTime);
+        currChunkInRange++;
         return result;
     }
 
