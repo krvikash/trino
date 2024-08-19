@@ -150,7 +150,6 @@ public class CollectTxService
 
     CollectCloseResult collectStoreAndClose(CollectOpenResult collectOpenResult,
             StorageCollectorArgs storageCollectorArgs,
-            boolean chunkPrepared,
             int numCollectedRows,
             int storeRowListSize,
             RecordIndexListType storeRowListType,
@@ -165,7 +164,7 @@ public class CollectTxService
         boolean bufferIsFull = false;
         Optional<int[]> chunksWithBitmapsToStoreOpt = Optional.empty();
         if (chunksQueueService.storeRestoreRequired(storageCollectorArgs.chunksQueue())) {
-            if (!chunkPrepared) {
+            if (chunksQueueService.isChunkPreparationNeeded(storageCollectorArgs.chunksQueue())) {
                 bufferIsFull = prepareChunk(collectOpenResult.collectTxId(),
                         storageCollectorArgs.chunksQueue().getCurrent(),
                         collectOpenResult.rowsLimit() - numCollectedRows,

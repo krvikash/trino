@@ -29,6 +29,7 @@ class ChunksQueue
     private final int allSet;
     private final Deque<MatchChunkResult> chunksToCollect;
     private int totalNumChunks; // in case queue is empty we return the total number of chunks
+    private boolean firstChunkPrepared;
 
     ChunksQueue(int maxChunks, int pageSize)
     {
@@ -96,6 +97,17 @@ class ChunksQueue
     void currentCompleted()
     {
         chunksToCollect.poll();
+        setFirstChunkPrepared(false);
+    }
+
+    public void setFirstChunkPrepared(boolean firstChunkPrepared)
+    {
+        this.firstChunkPrepared = firstChunkPrepared;
+    }
+
+    public boolean isFirstChunkPrepared()
+    {
+        return firstChunkPrepared;
     }
 
     // are there chunks to collect

@@ -78,7 +78,6 @@ public class StorageReader
     private final ChunksQueueService chunksQueueService;
     private final StorageCollectorService storageCollectorService;
     private int collectTxId;
-    private boolean chunkPrepared;
     private int numCollectedRows;
     private boolean dictionariesLoaded;
     private RecordIndexListType storeRowListType;
@@ -113,7 +112,6 @@ public class StorageReader
         this.storageCollectorArgs = storageCollectorArgs;
         this.collectTxService = collectTxService;
         this.chunksQueueService = chunksQueueService;
-        this.chunkPrepared = false;
         this.storeRowListSize = 0;
         this.storeRowListType = RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL;
         //  match
@@ -344,9 +342,8 @@ public class StorageReader
         matchIfNeeded();
         // we continue as long as buffer is not full and we have more chunks to match and collect
         while (!matchExhausted && (collectBufferState != CollectBufferState.COLLECT_BUFFER_STATE_FULL)) {
-            CollectFromStorageResult collectFromStorageResult = storageCollectorService.collectFromStorage(collectOpenResult, isMatchGetNumRanges, chunkPrepared, numCollectedRows, storageCollectorArgs);
+            CollectFromStorageResult collectFromStorageResult = storageCollectorService.collectFromStorage(collectOpenResult, isMatchGetNumRanges, numCollectedRows, storageCollectorArgs);
             collectBufferState = collectFromStorageResult.collectBufferState();
-            chunkPrepared = collectFromStorageResult.chunkPrepared();
             numCollectedRows = collectFromStorageResult.numCollectedRows();
             lazyCollectEndRowIndex = collectFromStorageResult.lazyCollectEndRowIndex();
             matchExhausted = chunksQueueService.isChunkRangeCompleted(storageCollectorArgs.chunksQueue());
@@ -372,7 +369,6 @@ public class StorageReader
 
         CollectCloseResult collectCloseResult = collectTxService.collectStoreAndClose(collectOpenResult,
                 storageCollectorArgs,
-                chunkPrepared,
                 numCollectedRows,
                 storeRowListSize,
                 storeRowListType,

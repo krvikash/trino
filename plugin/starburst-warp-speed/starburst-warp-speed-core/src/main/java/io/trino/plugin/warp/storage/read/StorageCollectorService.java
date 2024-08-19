@@ -92,11 +92,24 @@ public class StorageCollectorService
         this.globalConfig = globalConfig;
     }
 
+    boolean prepareChunk(StorageCollectorArgs storageCollectorArgs, CollectOpenResult collectOpenResult, int numCollectedRows)
+    {
+        boolean bufferIsFull = false;
+        if (chunksQueueService.isChunkPreparationNeeded(storageCollectorArgs.chunksQueue())) {
+            bufferIsFull = collectTxService.prepareChunk(collectOpenResult.collectTxId(),
+                    storageCollectorArgs.chunksQueue().getCurrent(),
+                    collectOpenResult.rowsLimit() - numCollectedRows,
+                    storageCollectorArgs.chunksQueue().getCurrentResetPoint(),
+                    collectOpenResult.outResultType());
+            chunksQueueService.setFirstChunkPrepared(storageCollectorArgs.chunksQueue());
+        }
+        return bufferIsFull;
+    }
+
     // returns indication if anything is collected in the buffer and if the buffer is full
     @NativeInterrupt
     CollectFromStorageResult collectFromStorage(CollectOpenResult collectOpenResult,
             boolean isMatchGetNumRanges,
-            boolean chunkPrepared,
             int numCollectedRows,
             StorageCollectorArgs storageCollectorArgs)
     {
@@ -107,24 +120,15 @@ public class StorageCollectorService
         int lazyCollectEndRowIndex = 0;
 
         if (chunksQueueService.isCompletelyFinished(storageCollectorArgs.chunksQueue(), storageCollectorArgs.numChunks())) {
-            return new CollectFromStorageResult(CollectBufferState.COLLECT_BUFFER_STATE_EMPTY, chunkPrepared, numCollectedRows, lazyCollectEndRowIndex);
+            return new CollectFromStorageResult(CollectBufferState.COLLECT_BUFFER_STATE_EMPTY, numCollectedRows, lazyCollectEndRowIndex);
         }
 
         int numToCollect = 1; // Not a real value, just making sure to enter the loop in the first iteration
         while (!chunksQueueService.isChunkRangeCompleted(storageCollectorArgs.chunksQueue()) && numToCollect > 0) {
             // get next chunk to collect and check if its already done on buffer
             int chunkIndex = storageCollectorArgs.chunksQueue().getCurrent();
-            boolean bufferIsFull = false;
-            if (!chunkPrepared) {
-                bufferIsFull = collectTxService.prepareChunk(collectOpenResult.collectTxId(),
-                        storageCollectorArgs.chunksQueue().getCurrent(),
-                        collectOpenResult.rowsLimit() - numCollectedRows,
-                        storageCollectorArgs.chunksQueue().getCurrentResetPoint(),
-                        collectOpenResult.outResultType());
-                chunkPrepared = true;
-            }
 
-            if (bufferIsFull) { // if returns true we need to stop for query result optimization
+            if (prepareChunk(storageCollectorArgs, collectOpenResult, numCollectedRows)) { // if returns true we need to stop for query result optimization
                 numToCollect = 0;
                 break;
             }
@@ -151,7 +155,6 @@ public class StorageCollectorService
             if (currentChunkCompleted || numCollectedRows == 0) {
                 storageCollectorArgs.chunksQueue().currentCompleted();
                 logger.debug("collectFromStorage advance numCollectedRows %d", numCollectedRows);
-                chunkPrepared = false;
             }
             else {
                 numToCollect = 0; // We do not collect from one chunk twice in one round
@@ -171,7 +174,7 @@ public class StorageCollectorService
             collectBufferState = (numCollectedRows > 0) ? CollectBufferState.COLLECT_BUFFER_STATE_PARTIAL : CollectBufferState.COLLECT_BUFFER_STATE_EMPTY;
         }
 
-        return new CollectFromStorageResult(collectBufferState, chunkPrepared, numCollectedRows, lazyCollectEndRowIndex);
+        return new CollectFromStorageResult(collectBufferState, numCollectedRows, lazyCollectEndRowIndex);
     }
 
     private boolean useLazyCollect(QueryParams queryParams)

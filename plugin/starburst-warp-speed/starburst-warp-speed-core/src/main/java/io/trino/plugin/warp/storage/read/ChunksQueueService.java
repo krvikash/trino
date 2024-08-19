@@ -59,4 +59,14 @@ public class ChunksQueueService
     {
         return isChunkRangeCompleted(chunksQueue) && (chunksQueue.getTotalNumChunks() >= numChunks);
     }
+
+    boolean isChunkPreparationNeeded(ChunksQueue chunksQueue)
+    {
+        return !chunksQueue.isFirstChunkPrepared();
+    }
+
+    void setFirstChunkPrepared(ChunksQueue chunksQueue)
+    {
+        chunksQueue.setFirstChunkPrepared(true);
+    }
 }
