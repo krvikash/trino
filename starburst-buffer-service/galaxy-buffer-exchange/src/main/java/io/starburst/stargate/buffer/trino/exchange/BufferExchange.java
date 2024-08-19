@@ -24,6 +24,7 @@ import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.trino.spi.QueryId;
+import io.trino.spi.TrinoException;
 import io.trino.spi.exchange.Exchange;
 import io.trino.spi.exchange.ExchangeId;
 import io.trino.spi.exchange.ExchangeSinkHandle;
@@ -51,6 +52,10 @@ import static com.google.common.collect.ImmutableList.sortedCopyOf;
 import static com.google.common.util.concurrent.Futures.addCallback;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.addExceptionCallback;
+import static io.starburst.stargate.buffer.BufferServiceLimits.validateAttemptId;
+import static io.starburst.stargate.buffer.BufferServiceLimits.validateTaskId;
+import static io.starburst.stargate.buffer.trino.exchange.BufferServiceExchangeErrorCode.INVALID_ATTEMPT_ID;
+import static io.starburst.stargate.buffer.trino.exchange.BufferServiceExchangeErrorCode.INVALID_TASK_ID;
 import static io.starburst.stargate.buffer.trino.exchange.ExternalExchangeIds.externalExchangeId;
 import static io.trino.spi.exchange.Exchange.SourceHandlesDeliveryMode.EAGER;
 import static io.trino.spi.exchange.Exchange.SourceHandlesDeliveryMode.STANDARD;
@@ -145,6 +150,14 @@ public class BufferExchange
         throwIfFailed();
         checkState(!closed.get(), "already closed");
         checkState(!noMoreSinks, "no more sinks can be added");
+
+        try {
+            validateTaskId(taskPartitionId);
+        }
+        catch (RuntimeException e) {
+            throw new TrinoException(INVALID_TASK_ID, e);
+        }
+
         return new BufferExchangeSinkHandle(
                 externalExchangeId,
                 taskPartitionId,
@@ -157,6 +170,13 @@ public class BufferExchange
     {
         throwIfFailed();
         checkState(!closed.get(), "already closed");
+
+        try {
+            validateAttemptId(taskAttemptId);
+        }
+        catch (RuntimeException e) {
+            throw new TrinoException(INVALID_ATTEMPT_ID, e);
+        }
 
         BufferExchangeSinkHandle bufferExchangeSinkHandle = (BufferExchangeSinkHandle) sinkHandle;
         return handleMappingFuture(taskAttemptId, bufferExchangeSinkHandle, partitionNodeMapper.getMapping(bufferExchangeSinkHandle.getTaskPartitionId()));
