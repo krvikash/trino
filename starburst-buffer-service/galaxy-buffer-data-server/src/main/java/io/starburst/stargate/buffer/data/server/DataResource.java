@@ -513,7 +513,7 @@ public class DataResource
                                     @Override
                                     public void onFailure(Throwable throwable)
                                     {
-                                        logger.error(throwable, "error on POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId));
+                                        logger.warn(throwable, "error on POST /%s/addDataPages/%s/%s/%s".formatted(exchangeId, taskId, attemptId, dataPagesId));
                                         if (!asyncResponse.isDone()) {
                                             asyncResponse.resume(errorResponse(throwable));
                                         }
