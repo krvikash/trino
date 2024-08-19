@@ -45,9 +45,9 @@ public final class TestingBufferServiceExchangeMemoryRunner
 
         Map<String, String> properties = new HashMap<>();
         properties.putAll(FaultTolerantExecutionConnectorTestHelper.getExtraProperties());
-        properties.put("http-server.http.port", "8080");
         MemoryQueryRunner.builder()
                 .setExtraProperties(properties)
+                .addCoordinatorProperty("http-server.http.port", "8080")
                 .setAdditionalSetup(runner -> {
                     runner.installPlugin(new BufferExchangePlugin());
                     runner.loadExchangeManager("buffer", exchangeManagerProperties);
