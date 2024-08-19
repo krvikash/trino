@@ -91,6 +91,8 @@ import static com.google.common.util.concurrent.Futures.withTimeout;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.addExceptionCallback;
 import static io.airlift.units.Duration.succinctDuration;
+import static io.starburst.stargate.buffer.BufferServiceLimits.validateAttemptId;
+import static io.starburst.stargate.buffer.BufferServiceLimits.validateTaskId;
 import static io.starburst.stargate.buffer.data.client.ChunkDeliveryMode.STANDARD;
 import static io.starburst.stargate.buffer.data.client.DataClientHeaders.MAX_WAIT;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.DRAINING;
@@ -308,6 +310,8 @@ public class DataResource
 
         try {
             checkTargetBufferNodeId(targetBufferNodeId);
+            validateTaskId(taskId);
+            validateAttemptId(attemptId);
         }
         catch (RuntimeException e) {
             logger.warn(e, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
