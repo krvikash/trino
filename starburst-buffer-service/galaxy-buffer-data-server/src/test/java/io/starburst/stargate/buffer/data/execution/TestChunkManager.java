@@ -594,7 +594,7 @@ public class TestChunkManager
         assertThatThrownBy(() -> getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("000_0"))).addDataPagesFuture()))
                 .isInstanceOf(DataServerException.class)
                 .matches(t -> ((DataServerException) t).getErrorCode() == ErrorCode.EXCHANGE_NOT_FOUND)
-                .hasMessage("exchange %s already removed".formatted(EXCHANGE_0));
+                .hasMessage("exchange %s already removed (EXPLICIT)".formatted(EXCHANGE_0));
         assertThat(chunkManager.getTrackedExchanges()).isEqualTo(0);
     }
 
