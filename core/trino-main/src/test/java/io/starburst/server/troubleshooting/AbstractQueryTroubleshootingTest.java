@@ -96,10 +96,9 @@ public abstract class AbstractQueryTroubleshootingTest
     protected static final Session SESSION = testSessionBuilder()
             .build();
 
-    private final Session troubleshootedSession = testSessionBuilder()
+    private static final Session TROUBLESHOOTED_SESSION_AUTHORIZED_TEMPLATE = testSessionBuilder()
             .setClientCapabilities(Set.of(QUERY_TROUBLESHOOTING.name()))
             .setSystemProperty(QUERY_MAX_MEMORY_PER_NODE, "10MB")
-            .setIdentity(getIdentityOfAuthorizedUser())
             .setCatalog("tpch")
             .build();
 
@@ -124,9 +123,9 @@ public abstract class AbstractQueryTroubleshootingTest
     protected abstract QueryRunner createQueryRunner()
             throws Exception;
 
-    protected Identity getIdentityOfAuthorizedUser()
+    protected List<Identity> getIdentitiesOfAuthorizedUsers()
     {
-        return Identity.ofUser(AUTHORIZED_USER);
+        return ImmutableList.of(Identity.ofUser(AUTHORIZED_USER));
     }
 
     protected List<Identity> getIdentitiesOfUnauthorizedUsers()
@@ -152,12 +151,14 @@ public abstract class AbstractQueryTroubleshootingTest
         assertThat(data.getStream()).isEmpty();
     }
 
-    @Test
-    public void testTroubleshootingDataAvailableForAuthorizedUser(SoftAssertions softly)
+    @ParameterizedTest
+    @MethodSource("getIdentitiesOfAuthorizedUsers")
+    public void testTroubleshootingDataAvailableForAuthorizedUser(Identity authorizedUserIdentity, SoftAssertions softly)
             throws Exception
     {
         String troubleshootedQuery = "select linenumber, count(*) from tpch.tiny.lineitem l group by 1;";
-        TroubleshootingData data = getTroubleshootingDataForQuery(troubleshootedSession, troubleshootedQuery);
+        Session session = authorizedSession(authorizedUserIdentity);
+        TroubleshootingData data = getTroubleshootingDataForQuery(session, troubleshootedQuery);
         assertCompleteTroubleshootingData(softly, data, troubleshootedQuery);
 
         TroubleshootingData dataReadAgain = awaitForTroubleshootingData(data.getQueryId());
@@ -249,14 +250,16 @@ public abstract class AbstractQueryTroubleshootingTest
         }
     }
 
-    @Test
-    public void testTroubleshootingDataAvailableForFailedQuery(SoftAssertions softly)
+    @ParameterizedTest
+    @MethodSource("getIdentitiesOfAuthorizedUsers")
+    public void testTroubleshootingDataAvailableForFailedQuery(Identity authorizedUserIdentity, SoftAssertions softly)
             throws IOException
     {
         String troubleshootedQuery = "SELECT * FROM table_does_not_exist";
         QueryId queryId = null;
 
-        try (TestingTrinoClient client = new TestingTrinoClient(getDistributedQueryRunner().getCoordinator(), troubleshootedSession)) {
+        Session session = authorizedSession(authorizedUserIdentity);
+        try (TestingTrinoClient client = new TestingTrinoClient(getDistributedQueryRunner().getCoordinator(), session)) {
             client.execute(troubleshootedQuery);
             fail("Query should fail");
         }
@@ -281,15 +284,16 @@ public abstract class AbstractQueryTroubleshootingTest
         softly.assertThat(queryInfo.get("failureInfo").get("stack").size()).isEqualTo(34);
     }
 
-    @Test
-    public void testTroubleshootingQueryCollectsOnlyItsOwnTrace(SoftAssertions softly)
+    @ParameterizedTest
+    @MethodSource("getIdentitiesOfAuthorizedUsers")
+    public void testTroubleshootingQueryCollectsOnlyItsOwnTrace(Identity authorizedUserIdentity, SoftAssertions softly)
             throws Exception
     {
         ExecutorService executorService = Executors.newFixedThreadPool(2);
         Session session = testSessionBuilder()
                 .setClientCapabilities(Set.of(QUERY_TROUBLESHOOTING.name()))
                 .setSystemProperty(QUERY_MAX_MEMORY_PER_NODE, "100MB")
-                .setIdentity(getIdentityOfAuthorizedUser())
+                .setIdentity(authorizedUserIdentity)
                 .setCatalog("tpch")
                 .build();
         // random number added to SELECT clause, to have a unique query string
@@ -348,11 +352,13 @@ public abstract class AbstractQueryTroubleshootingTest
         }
     }
 
-    @Test
-    public void testTroubleshootingIsRemovedAfterDuration()
+    @ParameterizedTest
+    @MethodSource("getIdentitiesOfAuthorizedUsers")
+    public void testTroubleshootingIsRemovedAfterDuration(Identity authorizedUserIdentity)
     {
         String exampleQuery = "SELECT count(comment) FROM tpch.tiny.lineitem";
-        try (TestingTrinoClient client = new TestingTrinoClient(getDistributedQueryRunner().getCoordinator(), troubleshootedSession)) {
+        Session session = authorizedSession(authorizedUserIdentity);
+        try (TestingTrinoClient client = new TestingTrinoClient(getDistributedQueryRunner().getCoordinator(), session)) {
             ResultWithQueryId<MaterializedResult> result = client.execute(exampleQuery);
             assertThat(awaitForTroubleshootingData(result.getQueryId()).getStream()).isPresent();
 
@@ -393,6 +399,13 @@ public abstract class AbstractQueryTroubleshootingTest
                         return null;
                     }
                 }));
+    }
+
+    private Session authorizedSession(Identity identity)
+    {
+        return Session.builder(TROUBLESHOOTED_SESSION_AUTHORIZED_TEMPLATE)
+                .setIdentity(identity)
+                .build();
     }
 
     private Session unauthorizedSession(Identity identity)

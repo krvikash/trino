@@ -63,11 +63,12 @@ public class TestQueryTroubleshootingWithBiac
     }
 
     @Override
-    protected Identity getIdentityOfAuthorizedUser()
+    protected List<Identity> getIdentitiesOfAuthorizedUsers()
     {
-        return Identity.forUser(AUTHORIZED_USER)
-                .withEnabledRoles(ImmutableSet.of(SYSTEM_ROLE.get().getName()))
-                .build();
+        return ImmutableList.of(
+                Identity.forUser(AUTHORIZED_USER)
+                        .withEnabledRoles(ImmutableSet.of(SYSTEM_ROLE.get().getName()))
+                        .build());
     }
 
     @Override

@@ -76,6 +76,7 @@ public class TroubleshootingEventListener
         }
         return accessControl.isPrivilegedUser(forUser(context.getUser())
                 .withEnabledRoles(context.getEnabledRoles())
+                .withGroups(context.getGroups())
                 .build());
     }
 
