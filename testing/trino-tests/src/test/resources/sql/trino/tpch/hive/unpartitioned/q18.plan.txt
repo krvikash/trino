@@ -17,12 +17,11 @@ local exchange (GATHER, SINGLE, [])
                                                 remote exchange (REPARTITION, HASH, [orderkey])
                                                     dynamic filter ([custkey_0::bigint, orderkey::bigint])
                                                         scan orders
-                                                single aggregation over (orderkey_10)
-                                                    final aggregation over (orderkey_10)
-                                                        local exchange (GATHER, SINGLE, [])
-                                                            remote exchange (REPARTITION, HASH, [orderkey_10])
-                                                                partial aggregation over (orderkey_10)
-                                                                    scan lineitem
+                                                final aggregation over (orderkey_10)
+                                                    local exchange (GATHER, SINGLE, [])
+                                                        remote exchange (REPARTITION, HASH, [orderkey_10])
+                                                            partial aggregation over (orderkey_10)
+                                                                scan lineitem
                                         local exchange (GATHER, SINGLE, [])
                                             remote exchange (REPARTITION, HASH, [custkey])
                                                 scan customer

@@ -18,12 +18,11 @@ local exchange (GATHER, SINGLE, [])
                                                         scan orders
                                                     local exchange (GATHER, SINGLE, [])
                                                         remote exchange (REPLICATE, BROADCAST, [])
-                                                            single aggregation over (orderkey_11)
-                                                                final aggregation over (orderkey_11)
-                                                                    local exchange (GATHER, SINGLE, [])
-                                                                        remote exchange (REPARTITION, HASH, [orderkey_11])
-                                                                            partial aggregation over (orderkey_11)
-                                                                                scan lineitem
+                                                            final aggregation over (orderkey_11)
+                                                                local exchange (GATHER, SINGLE, [])
+                                                                    remote exchange (REPARTITION, HASH, [orderkey_11])
+                                                                        partial aggregation over (orderkey_11)
+                                                                            scan lineitem
                                             local exchange (GATHER, SINGLE, [])
                                                 remote exchange (REPARTITION, HASH, [custkey])
                                                     scan customer

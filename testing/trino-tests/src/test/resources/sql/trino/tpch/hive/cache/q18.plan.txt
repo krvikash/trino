@@ -28,17 +28,16 @@ local exchange (GATHER, SINGLE, [])
                                                             dynamic filter ([custkey_0::bigint, orderkey::bigint])
                                                                 scan orders
                                                         load from cache
-                                                single aggregation over (orderkey_10)
-                                                    final aggregation over (orderkey_10)
-                                                        local exchange (GATHER, SINGLE, [])
-                                                            remote exchange (REPARTITION, HASH, [orderkey_10])
-                                                                alternatives
+                                                final aggregation over (orderkey_10)
+                                                    local exchange (GATHER, SINGLE, [])
+                                                        remote exchange (REPARTITION, HASH, [orderkey_10])
+                                                            alternatives
+                                                                partial aggregation over (orderkey_10)
+                                                                    scan lineitem
+                                                                cache data
                                                                     partial aggregation over (orderkey_10)
                                                                         scan lineitem
-                                                                    cache data
-                                                                        partial aggregation over (orderkey_10)
-                                                                            scan lineitem
-                                                                    load from cache
+                                                                load from cache
                                         local exchange (GATHER, SINGLE, [])
                                             remote exchange (REPARTITION, HASH, [custkey])
                                                 alternatives
