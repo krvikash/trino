@@ -21,7 +21,6 @@ import java.util.List;
 public record StorageCollectorArgs(CollectTxArgs collectTxArgs,
                                    List<BlockFiller<?>> blockFillers,
                                    int numChunksInRange,
-                                   int fixedLengthStringLimit,
                                    List<ReadJuffersWarmUpElement> collectJuffersWE,
                                    byte[] storeRowListBuff,
                                    int chunkSize,

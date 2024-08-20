@@ -265,7 +265,7 @@ public class StorageCollectorService
         }
 
         int maxRecordLength = recordBufferStateBuff.get(warmupElementRecordBufferState.getBasePos() + RecordBufferState.RECORD_BUFFER_STATE_MAX_RECORD_LENGTH.ordinal());
-        if (maxRecordLength <= storageCollectorArgs.fixedLengthStringLimit()) {
+        if (maxRecordLength <= storageEngineConstants.getFixedLengthStringLimit()) {
             logger.debug("getNumToCollect fixed size basePos %d numToCollect %d maxToCollect %d", warmupElementRecordBufferState.getBasePos(), numToCollect, maxToCollect);
             return numToCollect;
         }
@@ -328,7 +328,6 @@ public class StorageCollectorService
                 .map(we -> new ReadJuffersWarmUpElement(bufferAllocator, true, false))
                 .collect(Collectors.toList());
         int numChunksInRange = getNumChunksInRange(queryParams);
-        int fixedLengthStringLimit = storageEngineConstants.getFixedLengthStringLimit();
         int chunkSize = 1 << storageEngineConstants.getChunkSizeShift();
         byte[] storeRowListBuff = new byte[(chunkSize + RecordIndexListHeader.RECORD_INDEX_LIST_HEADER_TYPE.ordinal()) * Short.BYTES];
 
@@ -342,7 +341,6 @@ public class StorageCollectorService
                 collectTxArgs,
                 blockFillers,
                 numChunksInRange,
-                fixedLengthStringLimit,
                 collectJuffersWE,
                 storeRowListBuff,
                 chunkSize,
