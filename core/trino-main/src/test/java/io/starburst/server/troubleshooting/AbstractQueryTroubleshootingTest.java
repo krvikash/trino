@@ -65,7 +65,6 @@ import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.find
 import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.getNodesProcessingQuery;
 import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.zipInputStreamToMap;
 import static io.trino.SystemSessionProperties.QUERY_MAX_MEMORY_PER_NODE;
-import static io.trino.testing.DataProviders.toDataProvider;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static io.trino.testing.assertions.Assert.assertEventually;
 import static java.lang.Math.toIntExact;
@@ -144,21 +143,13 @@ public abstract class AbstractQueryTroubleshootingTest
     }
 
     @ParameterizedTest
-    @MethodSource("unauthorizedSessionsProvider")
-    public void testTroubleshootingDataNotAvailableForUnauthorizedUser(Session sessionUnauthorized)
+    @MethodSource("getIdentitiesOfUnauthorizedUsers")
+    public void testTroubleshootingDataNotAvailableForUnauthorizedUser(Identity unauthorizedUserIdentity)
     {
         String troubleshootedQuery = "SHOW CATALOGS";
-        TroubleshootingData data = getTroubleshootingDataForQuery(sessionUnauthorized, troubleshootedQuery);
+        Session session = unauthorizedSession(unauthorizedUserIdentity);
+        TroubleshootingData data = getTroubleshootingDataForQuery(session, troubleshootedQuery);
         assertThat(data.getStream()).isEmpty();
-    }
-
-    public Object[][] unauthorizedSessionsProvider()
-    {
-        return getIdentitiesOfUnauthorizedUsers().stream()
-                .map(unauthorizedIdentity -> Session.builder(TROUBLESHOOTED_SESSION_UNAUTHORIZED_TEMPLATE)
-                        .setIdentity(unauthorizedIdentity)
-                        .build())
-                .collect(toDataProvider());
     }
 
     @Test
@@ -402,6 +393,13 @@ public abstract class AbstractQueryTroubleshootingTest
                         return null;
                     }
                 }));
+    }
+
+    private Session unauthorizedSession(Identity identity)
+    {
+        return Session.builder(TROUBLESHOOTED_SESSION_UNAUTHORIZED_TEMPLATE)
+                .setIdentity(identity)
+                .build();
     }
 
     private static class TroubleshootingData
