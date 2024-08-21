@@ -403,12 +403,7 @@ public class StorageReader
     {
         int rowsToFill = Math.min(numCollectedRows, collectOpenResult.rowsLimit());
 
-        if (storageCollectorArgs.isLazyCollect()) {
-            storageCollectorService.fillBlocks(blocks, storageCollectorArgs, lazyCollectEndRowIndex - rowsToFill, rowsToFill, statsDispatcherPageSource);
-        }
-        else {
-            storageCollectorService.fillBlocks(blocks, storageCollectorArgs, collectOpenResult, rowsToFill, statsDispatcherPageSource);
-        }
+        storageCollectorService.fillBlocks(blocks, storageCollectorArgs, collectOpenResult, rowsToFill, statsDispatcherPageSource, lazyCollectEndRowIndex - rowsToFill);
         return rowsToFill;
     }
 }

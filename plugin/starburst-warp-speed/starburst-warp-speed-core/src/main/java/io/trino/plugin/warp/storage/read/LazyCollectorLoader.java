@@ -29,9 +29,9 @@ import static com.google.common.base.Preconditions.checkState;
 public class LazyCollectorLoader
         implements LazyBlockLoader
 {
-    private static final Logger logger = Logger.get(StorageCollectorService.class);
+    private static final Logger logger = Logger.get(LazyCollectorLoader.class);
     private final LazyCollectTxService collectTxService;
-    private final LazyCollectorArgs lazyCollectorArgs;
+    private final LazyCollectorLoaderArgs lazyCollectorLoaderArgs;
     private final DispatcherPageSourceStats dispatcherPageSourceStats;
     private final DictionaryStats dictionaryStats;
     private final ShapingLogger shapingLogger;
@@ -39,7 +39,7 @@ public class LazyCollectorLoader
 
     public LazyCollectorLoader(
             LazyCollectTxService collectTxService,
-            LazyCollectorArgs lazyCollectorArgs,
+            LazyCollectorLoaderArgs lazyCollectorLoaderArgs,
             DictionaryStats varadaStatsDictionary,
             DispatcherPageSourceStats dispatcherPageSourceStats,
             GlobalConfig globalConfig)
@@ -47,7 +47,7 @@ public class LazyCollectorLoader
         this.collectTxService = collectTxService;
         this.dispatcherPageSourceStats = dispatcherPageSourceStats;
         this.dictionaryStats = varadaStatsDictionary;
-        this.lazyCollectorArgs = lazyCollectorArgs;
+        this.lazyCollectorLoaderArgs = lazyCollectorLoaderArgs;
         this.shapingLogger = ShapingLogger.getInstance(
                 logger,
                 globalConfig.getShapingLoggerThreshold(),
@@ -62,14 +62,14 @@ public class LazyCollectorLoader
         loaded = true;
 
         Block retBlock;
-        int chunkIndexToCollect = lazyCollectorArgs.lazyCollectStartRowIndex() / lazyCollectorArgs.chunkSize();
-        int startRowIndexInChunk = lazyCollectorArgs.lazyCollectStartRowIndex() % lazyCollectorArgs.chunkSize();
-        int numRowsToCollect = lazyCollectorArgs.numToCollect();
+        int chunkIndexToCollect = lazyCollectorLoaderArgs.lazyCollectStartRowIndex() / lazyCollectorLoaderArgs.chunkSize();
+        int startRowIndexInChunk = lazyCollectorLoaderArgs.lazyCollectStartRowIndex() % lazyCollectorLoaderArgs.chunkSize();
+        int numRowsToCollect = lazyCollectorLoaderArgs.numToCollect();
         int collectTxId = BaseCollectTxService.INVALID_TX_ID;
         LazyCollectOpenResult collectOpenResult = null;
         try {
             // open
-            collectOpenResult = collectTxService.collectOpen(numRowsToCollect, lazyCollectorArgs);
+            collectOpenResult = collectTxService.collectOpen(numRowsToCollect, lazyCollectorLoaderArgs);
             collectTxId = collectOpenResult.collectTxId();
 
             // prepare and collect
@@ -77,10 +77,10 @@ public class LazyCollectorLoader
             collectTxService.collect(collectTxId, collectOpenResult.outResultType(), 1, chunkIndexToCollect, numRowsToCollect);
 
             // fill block
-            WarmupElementCollectParams collectParams = lazyCollectorArgs.collectParams();
-            ReadJuffersWarmUpElement readJuffersWarmUpElement = lazyCollectorArgs.collectJufferWE();
+            WarmupElementCollectParams collectParams = lazyCollectorLoaderArgs.collectParams();
+            ReadJuffersWarmUpElement readJuffersWarmUpElement = lazyCollectorLoaderArgs.collectJufferWE();
             QueryResultType queryResultType = QueryResultType.values()[collectOpenResult.outResultType()[0]];
-            retBlock = lazyCollectorArgs.blockFiller().fillBlockWithRecords(collectParams, readJuffersWarmUpElement, numRowsToCollect, queryResultType, dictionaryStats);
+            retBlock = lazyCollectorLoaderArgs.blockFiller().fillBlockWithRecords(collectParams, readJuffersWarmUpElement, numRowsToCollect, queryResultType, dictionaryStats);
 
             // close
             collectTxService.collectClose(collectTxId);
@@ -88,7 +88,7 @@ public class LazyCollectorLoader
         }
         catch (Exception e) {
             shapingLogger.error(e, "lazy collect failed LazyCollectorArgs %s collectParams %s, collectOpenResults %s",
-                    lazyCollectorArgs, lazyCollectorArgs.collectParams(), collectOpenResult);
+                    lazyCollectorLoaderArgs, lazyCollectorLoaderArgs.collectParams(), collectOpenResult);
             dispatcherPageSourceStats.inclazy_collect_failed_load();
             collectTxService.collectAbort(e, collectTxId);
             throw e;

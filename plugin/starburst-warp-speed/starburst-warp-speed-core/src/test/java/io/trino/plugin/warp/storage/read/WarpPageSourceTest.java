@@ -108,6 +108,7 @@ public class WarpPageSourceTest
                 mock(CollectTxService.class),
                 mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
+                mock(LazyCollectorService.class),
                 new StubsRangeFillerService());
         when(storageEngine.matchAgg(anyInt(), anyInt())).thenReturn(1L).thenReturn(0L);
         when(storageEngine.matchLucene(anyInt(), anyInt(), anyInt())).thenReturn(0L);
@@ -167,6 +168,7 @@ public class WarpPageSourceTest
                 mock(CollectTxService.class),
                 mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
+                mock(LazyCollectorService.class),
                 new StubsRangeFillerService());
         when(storageEngine.matchAgg(anyInt(), anyInt())).thenReturn(1L).thenReturn(0L);
         when(storageEngine.matchLucene(anyInt(), anyInt(), anyInt())).thenReturn(0L);
@@ -218,6 +220,7 @@ public class WarpPageSourceTest
                 mock(CollectTxService.class),
                 mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
+                mock(LazyCollectorService.class),
                 new StubsRangeFillerService());
         when(storageEngine.matchAgg(anyInt(), anyInt())).thenReturn(1L).thenReturn(0L);
         when(storageEngine.matchLucene(anyInt(), anyInt(), anyInt())).thenReturn(0L);
@@ -260,6 +263,7 @@ public class WarpPageSourceTest
                 mock(CollectTxService.class),
                 mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
+                mock(LazyCollectorService.class),
                 new StubsRangeFillerService());
         when(storageEngine.matchAgg(anyInt(), anyInt())).thenReturn(1L).thenReturn(0L);
         when(storageEngine.matchLucene(anyInt(), anyInt(), anyInt())).thenReturn(0L);
@@ -325,6 +329,7 @@ public class WarpPageSourceTest
                 mock(CollectTxService.class),
                 mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
+                mock(LazyCollectorService.class),
                 new StubsRangeFillerService());
         when(storageEngine.matchAgg(anyInt(), anyInt())).thenReturn(1L).thenReturn(0L);
         when(storageEngine.matchLucene(anyInt(), anyInt(), anyInt())).thenReturn(0L);

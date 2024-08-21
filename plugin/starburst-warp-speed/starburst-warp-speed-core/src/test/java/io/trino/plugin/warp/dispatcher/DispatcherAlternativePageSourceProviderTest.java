@@ -46,6 +46,7 @@ import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.storage.read.ChunksQueueService;
 import io.trino.plugin.warp.storage.read.CollectTxService;
+import io.trino.plugin.warp.storage.read.LazyCollectorService;
 import io.trino.plugin.warp.storage.read.PrefilledPageSource;
 import io.trino.plugin.warp.storage.read.RangeFillerService;
 import io.trino.plugin.warp.storage.read.StorageCollectorService;
@@ -520,6 +521,7 @@ public class DispatcherAlternativePageSourceProviderTest
                 mock(CollectTxService.class),
                 mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
+                mock(LazyCollectorService.class),
                 mock(RangeFillerService.class));
 
         return new DispatcherAlternativePageSourceProvider(proxiedPageSourceProvider,

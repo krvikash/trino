@@ -56,11 +56,11 @@ class LazyCollectorLoaderTest
     @Test
     public void testCollectOpenFailureStats()
     {
-        LazyCollectorArgs lazyCollectorArgs = mock(LazyCollectorArgs.class);
-        when(lazyCollectorArgs.chunkSize()).thenReturn(65536);
+        LazyCollectorLoaderArgs lazyCollectorLoaderArgs = mock(LazyCollectorLoaderArgs.class);
+        when(lazyCollectorLoaderArgs.chunkSize()).thenReturn(65536);
         LazyCollectorLoader lazyCollectorLoader = new LazyCollectorLoader(
                 lazyCollectTxService,
-                lazyCollectorArgs,
+                lazyCollectorLoaderArgs,
                 dictionaryStats,
                 dispatcherPageSourceStats,
                 globalConfig);

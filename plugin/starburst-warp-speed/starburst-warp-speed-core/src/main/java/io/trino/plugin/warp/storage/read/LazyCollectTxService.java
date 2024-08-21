@@ -26,18 +26,18 @@ public class LazyCollectTxService
         super(storageEngine, globalConfig);
     }
 
-    LazyCollectOpenResult collectOpen(int rowsLimit, LazyCollectorArgs lazyCollectorArgs)
+    LazyCollectOpenResult collectOpen(int rowsLimit, LazyCollectorLoaderArgs lazyCollectorLoaderArgs)
     {
         long[] metadataBuffIds = new long[2];
         int[] outResultType = new int[1];
-        int collectTxId = collectOpen(lazyCollectorArgs.collectTxArgs(), lazyCollectorArgs.numChunksInRange(), 0, metadataBuffIds, outResultType);
+        int collectTxId = collectOpen(lazyCollectorLoaderArgs.collectTxArgs(), lazyCollectorLoaderArgs.numChunksInRange(), 0, metadataBuffIds, outResultType);
 
-        WarmupElementCollectParams collectParams = lazyCollectorArgs.collectParams();
-        lazyCollectorArgs.collectJufferWE().createBuffers(
+        WarmupElementCollectParams collectParams = lazyCollectorLoaderArgs.collectParams();
+        lazyCollectorLoaderArgs.collectJufferWE().createBuffers(
                 collectParams.getRecTypeCode(),
                 collectParams.getRecTypeLength(),
                 collectParams.hasDictionary(),
-                lazyCollectorArgs.collectTxArgs().collectBuffIds()[0]);
+                lazyCollectorLoaderArgs.collectTxArgs().collectBuffIds()[0]);
         logger.debug("collectOpen collectTxId %d rowsLimit %d", collectTxId, rowsLimit);
         return new LazyCollectOpenResult(collectTxId, outResultType);
     }

@@ -52,6 +52,7 @@ import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.storage.read.ChunksQueueService;
 import io.trino.plugin.warp.storage.read.CollectTxService;
 import io.trino.plugin.warp.storage.read.LazyCollectTxService;
+import io.trino.plugin.warp.storage.read.LazyCollectorService;
 import io.trino.plugin.warp.storage.read.StorageCollectorService;
 import io.trino.plugin.warp.storage.read.fill.BlockFillersFactory;
 import io.trino.plugin.warp.storage.write.StorageWriterService;
@@ -119,6 +120,7 @@ public class DispatcherMainModule
             binder.bind(LazyCollectTxService.class);
             binder.bind(ChunksQueueService.class);
             binder.bind(StorageCollectorService.class);
+            binder.bind(LazyCollectorService.class);
             binder.bind(StorageWriterService.class);
             binder.bind(WarmupElementStatsService.class);
             binder.bind(BlockAppenderFactory.class);

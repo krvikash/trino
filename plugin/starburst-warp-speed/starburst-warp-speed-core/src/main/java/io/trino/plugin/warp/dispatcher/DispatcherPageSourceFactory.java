@@ -48,6 +48,7 @@ import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.storage.read.ChunksQueueService;
 import io.trino.plugin.warp.storage.read.CollectTxService;
+import io.trino.plugin.warp.storage.read.LazyCollectorService;
 import io.trino.plugin.warp.storage.read.PrefilledPageSource;
 import io.trino.plugin.warp.storage.read.QueryParams;
 import io.trino.plugin.warp.storage.read.RangeFillerService;
@@ -117,6 +118,7 @@ public class DispatcherPageSourceFactory
     private final GlobalConfig globalConfig;
     private final NativeStorageStateHandler nativeStorageStateHandler;
     private final DispatcherPageSourceStats statsDispatcherPageSource;
+    private final LazyCollectorService lazyCollectorService;
 
     @Inject
     public DispatcherPageSourceFactory(StorageEngine storageEngine,
@@ -135,6 +137,7 @@ public class DispatcherPageSourceFactory
             CollectTxService collectTxService,
             ChunksQueueService chunksQueueService,
             StorageCollectorService storageCollectorService,
+            LazyCollectorService lazyCollectorService,
             RangeFillerService rangeFillerService)
     {
         this.storageEngine = requireNonNull(storageEngine);
@@ -158,6 +161,7 @@ public class DispatcherPageSourceFactory
         this.collectTxService = requireNonNull(collectTxService);
         this.chunksQueueService = requireNonNull(chunksQueueService);
         this.storageCollectorService = requireNonNull(storageCollectorService);
+        this.lazyCollectorService = requireNonNull(lazyCollectorService);
         this.rangeFillerService = requireNonNull(rangeFillerService);
         metricsManager.registerMetric(DispatcherPageSourceStats.create(STATS_DISPATCHER_KEY));
         metricsManager.registerMetric(LucenePageCacheStats.create(STATS_LUCENE_PAGE_CACHE_KEY));
@@ -501,6 +505,7 @@ public class DispatcherPageSourceFactory
                 collectTxService,
                 chunksQueueService,
                 storageCollectorService,
+                lazyCollectorService,
                 rangeFillerService);
 
         DispatcherPageSourceStats pageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
@@ -753,6 +758,7 @@ public class DispatcherPageSourceFactory
                 collectTxService,
                 chunksQueueService,
                 storageCollectorService,
+                lazyCollectorService,
                 rangeFillerService);
         RowGroupCloseHandler closeHandler = new RowGroupCloseHandler();
         try {

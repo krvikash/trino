@@ -50,6 +50,7 @@ public class WarpPageSource
     private final CollectTxService collectTxService;
     private final ChunksQueueService chunksQueueService;
     private final StorageCollectorService storageCollectorService;
+    private final LazyCollectorService lazyCollectorService;
     private final RangeFillerService rangeFillerService;
     private final StorageEngine storageEngine;
     private final StorageEngineConstants storageEngineConstants;
@@ -81,6 +82,7 @@ public class WarpPageSource
             CollectTxService collectTxService,
             ChunksQueueService chunksQueueService,
             StorageCollectorService storageCollectorService,
+            LazyCollectorService lazyCollectorService,
             RangeFillerService rangeFillerService)
     {
         this.bufferAllocator = requireNonNull(bufferAllocator);
@@ -96,6 +98,7 @@ public class WarpPageSource
         this.collectTxService = collectTxService;
         this.chunksQueueService = chunksQueueService;
         this.storageCollectorService = storageCollectorService;
+        this.lazyCollectorService = lazyCollectorService;
         this.rangeFillerService = rangeFillerService;
         this.sortedRowRanges = RowRanges.EMPTY;
         this.rowsLimit = rowsLimit;
@@ -164,7 +167,9 @@ public class WarpPageSource
         if (!closed) {
             try {
                 if (reader == null) { // first time
-                    this.storageCollectorArgs = storageCollectorService.getStorageCollectorArgs(queryParams);
+                    boolean useLazyCollect = lazyCollectorService.useLazyCollect(queryParams);
+                    this.storageCollectorArgs = storageCollectorService.getStorageCollectorArgs(queryParams, useLazyCollect);
+                    StorageCollectorService collectorService = useLazyCollect ? lazyCollectorService : storageCollectorService;
                     this.storageCollectorCallBack = new StorageCollectorCallBack(storageCollectorArgs, bufferAllocator);
                     reader = new StorageReader(storageEngine,
                             storageEngineConstants,
@@ -177,7 +182,7 @@ public class WarpPageSource
                             storageCollectorArgs,
                             collectTxService,
                             chunksQueueService,
-                            storageCollectorService,
+                            collectorService,
                             globalConfig);
                 }
                 return pipe(blocks);
