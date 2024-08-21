@@ -654,11 +654,9 @@ public class SnowflakeClient
     {
         JdbcOutputTableHandle outputTableHandle = super.createTable(session, tableMetadata, targetTableName, pageSinkIdColumn);
         if (databasePrefixForSchemaEnabled) {
-            DatabaseSchemaName databaseSchema = parseDatabaseSchemaName(outputTableHandle.getSchemaName());
+            DatabaseSchemaName databaseSchema = parseDatabaseSchemaName(outputTableHandle.getRemoteTableName().getSchemaName().orElseThrow());
             return new JdbcOutputTableHandle(
-                    databaseSchema.getDatabaseName(),
-                    databaseSchema.getSchemaName(),
-                    outputTableHandle.getTableName(),
+                    new RemoteTableName(Optional.of(databaseSchema.getDatabaseName()), Optional.of(databaseSchema.getSchemaName()), outputTableHandle.getRemoteTableName().getTableName()),
                     outputTableHandle.getColumnNames(),
                     outputTableHandle.getColumnTypes(),
                     outputTableHandle.getJdbcColumnTypes(),
@@ -689,11 +687,9 @@ public class SnowflakeClient
     {
         JdbcOutputTableHandle outputTableHandle = super.beginInsertTable(session, tableHandle, columns);
         if (databasePrefixForSchemaEnabled) {
-            DatabaseSchemaName databaseSchema = parseDatabaseSchemaName(outputTableHandle.getSchemaName());
+            DatabaseSchemaName databaseSchema = parseDatabaseSchemaName(outputTableHandle.getRemoteTableName().getSchemaName().orElseThrow());
             return new JdbcOutputTableHandle(
-                    databaseSchema.getDatabaseName(),
-                    databaseSchema.getSchemaName(),
-                    outputTableHandle.getTableName(),
+                    new RemoteTableName(Optional.of(databaseSchema.getDatabaseName()), Optional.of(databaseSchema.getSchemaName()), outputTableHandle.getRemoteTableName().getTableName()),
                     outputTableHandle.getColumnNames(),
                     outputTableHandle.getColumnTypes(),
                     outputTableHandle.getJdbcColumnTypes(),

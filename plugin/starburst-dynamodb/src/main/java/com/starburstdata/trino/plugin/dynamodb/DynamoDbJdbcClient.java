@@ -28,6 +28,7 @@ import io.trino.plugin.jdbc.LongWriteFunction;
 import io.trino.plugin.jdbc.PredicatePushdownController;
 import io.trino.plugin.jdbc.PredicatePushdownController.DomainPushdownResult;
 import io.trino.plugin.jdbc.QueryBuilder;
+import io.trino.plugin.jdbc.RemoteTableName;
 import io.trino.plugin.jdbc.SliceReadFunction;
 import io.trino.plugin.jdbc.SliceWriteFunction;
 import io.trino.plugin.jdbc.WriteMapping;
@@ -273,9 +274,8 @@ public class DynamoDbJdbcClient
 
         invalidateDriverCache(session);
 
-        return new JdbcOutputTableHandle("dynamodb",
-                "amazondynamodb",
-                tableName,
+        return new JdbcOutputTableHandle(
+                new RemoteTableName(Optional.of("dynamodb"), Optional.of("amazondynamodb"), tableName),
                 tableMetadata.getColumns().stream().map(ColumnMetadata::getName).collect(Collectors.toList()),
                 tableMetadata.getColumns().stream().map(ColumnMetadata::getType).collect(Collectors.toList()),
                 Optional.empty(),
@@ -411,9 +411,7 @@ public class DynamoDbJdbcClient
             }
 
             return new JdbcOutputTableHandle(
-                    connection.getCatalog(),
-                    remoteSchema,
-                    remoteTable,
+                    new RemoteTableName(Optional.ofNullable(connection.getCatalog()), Optional.ofNullable(remoteSchema), remoteTable),
                     columnNames.build(),
                     columnTypes.build(),
                     Optional.of(jdbcColumnTypes.build()),

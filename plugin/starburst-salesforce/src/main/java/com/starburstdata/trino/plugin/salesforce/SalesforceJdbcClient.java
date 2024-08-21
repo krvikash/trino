@@ -184,8 +184,8 @@ public class SalesforceJdbcClient
     public void rollbackCreateTable(ConnectorSession session, JdbcOutputTableHandle handle)
     {
         dropTable(session, new JdbcTableHandle(
-                new SchemaTableName(handle.getSchemaName(), handle.getTableName()),
-                new RemoteTableName(Optional.ofNullable(handle.getCatalogName()), Optional.ofNullable(handle.getSchemaName()), handle.getTableName()),
+                handle.getRemoteTableName().getSchemaTableName(),
+                handle.getRemoteTableName(),
                 Optional.empty()));
     }
 
@@ -230,12 +230,13 @@ public class SalesforceJdbcClient
 
         // For CTAS the table name and columns do not end with __c and we must append it to make Salesforce happy
         // For normal INSERTs the names already have __c
+        RemoteTableName remoteTableName = handle.getRemoteTableName();
         String tableName;
-        if (handle.getTemporaryTableName().orElseGet(handle::getTableName).endsWith("__c")) {
-            tableName = quoted(handle.getCatalogName(), handle.getSchemaName(), handle.getTemporaryTableName().orElseGet(handle::getTableName));
+        if (handle.getTemporaryTableName().orElseGet(remoteTableName::getTableName).endsWith("__c")) {
+            tableName = quoted(remoteTableName.getCatalogName().orElse(null), remoteTableName.getSchemaName().orElse(null), handle.getTemporaryTableName().orElseGet(remoteTableName::getTableName));
         }
         else {
-            tableName = quoted(handle.getCatalogName(), handle.getSchemaName(), handle.getTemporaryTableName().orElseGet(handle::getTableName) + "__c");
+            tableName = quoted(remoteTableName.getCatalogName().orElse(null), remoteTableName.getSchemaName().orElse(null), handle.getTemporaryTableName().orElseGet(remoteTableName::getTableName) + "__c");
         }
 
         String columnNames = handle.getColumnNames().stream()
