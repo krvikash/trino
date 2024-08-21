@@ -91,14 +91,14 @@ public class WarmupRuleService
 
     @Inject
     public WarmupRuleService(@ForWarp Connector proxiedConnector,
-                             StorageEngineConstants storageEngineConstants,
-                             WarmupDemoterConfig warmupDemoterConfig,
-                             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
-                             FakeConnectorSessionProvider fakeConnectorSessionProvider,
-                             WarmupRuleDao warmupRuleDao,
-                             EventBus eventBus,
-                             WarpInitializedServiceRegistry warpInitializedServiceRegistry,
-                             GlobalConfig globalConfig)
+            StorageEngineConstants storageEngineConstants,
+            WarmupDemoterConfig warmupDemoterConfig,
+            DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
+            FakeConnectorSessionProvider fakeConnectorSessionProvider,
+            WarmupRuleDao warmupRuleDao,
+            EventBus eventBus,
+            WarpInitializedServiceRegistry warpInitializedServiceRegistry,
+            GlobalConfig globalConfig)
     {
         this.proxiedConnector = requireNonNull(proxiedConnector);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
@@ -137,11 +137,10 @@ public class WarmupRuleService
         readWriteLock.writeLock().lock();
         try {
             WarmupRuleResult warmupRuleResult = validate(getAll(), newWarmupRules);
-            List<WarmupRule> appliedRules = Collections.emptyList();
+            List<WarmupRule> appliedRules = warmupRuleResult.appliedRules();
             if (!warmupRuleResult.appliedRules().isEmpty()) {
-                warmupRuleDao.save(warmupRuleResult.appliedRules());
+                appliedRules = warmupRuleDao.save(warmupRuleResult.appliedRules());
                 notifyWarmRulesChangedEvent();
-                appliedRules = warmupRuleResult.appliedRules();
             }
             return new WarmupRuleResult(appliedRules, warmupRuleResult.rejectedRules());
         }

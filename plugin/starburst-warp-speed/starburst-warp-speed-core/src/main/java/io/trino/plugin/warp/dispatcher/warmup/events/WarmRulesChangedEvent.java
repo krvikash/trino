@@ -13,7 +13,4 @@
  */
 package io.trino.plugin.warp.dispatcher.warmup.events;
 
-public class WarmRulesChangedEvent
-{
-    public WarmRulesChangedEvent() {}
-}
+public record WarmRulesChangedEvent() {}

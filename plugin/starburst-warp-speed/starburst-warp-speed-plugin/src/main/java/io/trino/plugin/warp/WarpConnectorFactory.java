@@ -14,6 +14,7 @@
 package io.trino.plugin.warp;
 
 import com.starburstdata.trino.plugin.license.LicenseManager;
+import io.airlift.configuration.ConfigurationFactory;
 import io.trino.plugin.warp.config.ProxiedConnectorConfig;
 import io.trino.plugin.warp.di.InitializationModule;
 import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
@@ -27,7 +28,6 @@ import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -64,8 +64,12 @@ public class WarpConnectorFactory
         requireNonNull(licenseManager, "licenseManager is null");
         Map<String, String> configMap = new HashMap<>(config);
 
-        if (!Boolean.parseBoolean(configMap.getOrDefault(WarpExtensionConfig.USE_HTTP_SERVER_PORT, Boolean.TRUE.toString()))) {
-            String httpRestPortStr = WarpClient.getRestHttpPortStr(configMap,
+        ConfigurationFactory configFactory = new ConfigurationFactory(config);
+        WarpExtensionConfig warpExtensionConfig = configFactory.build(WarpExtensionConfig.class);
+
+        if (!warpExtensionConfig.isUseHttpServerPort()) {
+            String httpRestPortStr = WarpClient.getRestHttpPortStr(
+                    warpExtensionConfig,
                     UriUtils.getHttpUri(context.getNodeManager().getCurrentNode()).getPort());
 
             configMap.put("http-server.http.port", httpRestPortStr);
@@ -75,8 +79,8 @@ public class WarpConnectorFactory
         }
 
         List<Class<? extends InitializationModule>> extraModules = !this.extraModules.isEmpty() ?
-                new ArrayList<>(this.extraModules) :
-                new ArrayList<>(List.of(WarpModule.class));
+                this.extraModules :
+                List.of(WarpModule.class);
         return new StarburstWarpConnector(dispatcherConnectorFactory.create(
                 catalogName,
                 configMap,

@@ -911,6 +911,7 @@ public class WorkerWarmingServiceTest
         return act(columns, rowGroupData, warmupDemoterService, defaultWarmingTestState, warmupRules, queryContext, batchSize);
     }
 
+    @SuppressWarnings("unchecked")
     private WarmData act(List<ColumnHandle> columns,
             RowGroupData rowGroupData,
             WarmupDemoterService warmupDemoterService,
@@ -919,7 +920,7 @@ public class WorkerWarmingServiceTest
             QueryContext queryContext,
             int batchSize)
     {
-        WarmupRuleFetcher warmupRuleFetcher = mock(WarmupRuleFetcher.class);
+        WarmupRuleFetcher<WarmupRule> warmupRuleFetcher = (WarmupRuleFetcher<WarmupRule>) mock(WarmupRuleFetcher.class);
         when(warmupRuleFetcher.getWarmupRules()).thenReturn(warmupRules);
         RowGroupDataService rowGroupDataService = mock(RowGroupDataService.class);
         ConnectorSession connectorSession = mock(ConnectorSession.class);

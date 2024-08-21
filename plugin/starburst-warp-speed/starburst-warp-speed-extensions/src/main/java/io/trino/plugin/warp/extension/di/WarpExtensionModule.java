@@ -16,6 +16,7 @@ package io.trino.plugin.warp.extension.di;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.AbstractModule;
 import com.google.inject.Module;
+import com.google.inject.TypeLiteral;
 import io.airlift.configuration.ConfigurationFactory;
 import io.airlift.http.server.HttpServerModule;
 import io.airlift.jaxrs.JaxrsModule;
@@ -36,6 +37,7 @@ import io.trino.plugin.warp.extension.execution.WorkerReadyTaskExecutionIsAllowe
 import io.trino.plugin.warp.extension.execution.callhome.CallHomeService;
 import io.trino.plugin.warp.extension.warmup.WorkerWarmupRuleFetcher;
 import io.trino.plugin.warp.tools.util.StringUtils;
+import io.trino.plugin.warp.warmup.model.WarmupRule;
 import io.trino.spi.connector.ConnectorContext;
 
 import java.util.Map;
@@ -89,8 +91,10 @@ public class WarpExtensionModule
 
         ConfigurationFactory configFactory = new ConfigurationFactory(config);
         WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig = configFactory.build(WarmupRuleCloudFetcherConfig.class);
-        if (!WarpBaseModule.isCache(config) && WarpBaseModule.isWorker(connectorContext, config) && StringUtils.isEmpty(warmupRuleCloudFetcherConfig.getStorePath())) {
-            binder().bind(WarmupRuleFetcher.class).to(WorkerWarmupRuleFetcher.class);
+        if (WarpBaseModule.isWorker(connectorContext, config) &&
+                !WarpBaseModule.isCache(config) &&
+                StringUtils.isEmpty(warmupRuleCloudFetcherConfig.getStorePath())) {
+            binder().bind(new TypeLiteral<WarmupRuleFetcher<WarmupRule>>() {}).to(WorkerWarmupRuleFetcher.class);
             configBinder(binder()).bindConfig(WarmupRuleCloudFetcherConfig.class, ForWarmupRuleCloudFetcher.class);
         }
         else {

@@ -104,7 +104,7 @@ public class WarmupDemoterServiceTest
     private WorkerCapacityManager workerCapacityManager;
     private RowGroupDataService rowGroupDataService;
     private WarmupDemoterService warmupDemoterService;
-    private WarmupRuleFetcher warmupRuleFetcher;
+    private WarmupRuleFetcher<WarmupRule> warmupRuleFetcher;
     private WarmupDemoterConfig warmupDemoterConfig;
     private ConnectorSync connectorSync;
     private CatalogNameProvider catalogNameProvider;
@@ -137,6 +137,7 @@ public class WarmupDemoterServiceTest
                 .build();
     }
 
+    @SuppressWarnings("unchecked")
     @BeforeEach
     public void before()
     {
@@ -144,7 +145,7 @@ public class WarmupDemoterServiceTest
 
         workerCapacityManager = mock(WorkerCapacityManager.class);
         rowGroupDataService = mock(RowGroupDataService.class);
-        warmupRuleFetcher = mock(WarmupRuleFetcher.class);
+        warmupRuleFetcher = (WarmupRuleFetcher<WarmupRule>) mock(WarmupRuleFetcher.class);
         EventBus eventBus = mock(EventBus.class);
         when(warmupRuleFetcher.getWarmupRules()).thenReturn(warmupRules);
         metricsManager = TestingTxService.createMetricsManager();

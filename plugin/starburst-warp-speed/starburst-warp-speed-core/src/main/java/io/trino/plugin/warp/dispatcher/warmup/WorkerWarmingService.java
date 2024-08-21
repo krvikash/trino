@@ -97,7 +97,7 @@ public class WorkerWarmingService
     private final WarmExecutionTaskFactory warmExecutionTaskFactory;
     private final WorkerTaskExecutorService workerTaskExecutorService;
     private final WarmupDemoterService warmupDemoterService;
-    private final WarmupRuleFetcher warmupRuleFetcher;
+    private final WarmupRuleFetcher<WarmupRule> warmupRuleFetcher;
     private final RowGroupDataService rowGroupDataService;
     private final WarmupDemoterConfig warmupDemoterConfig;
     private final GlobalConfig globalConfig;
@@ -112,7 +112,7 @@ public class WorkerWarmingService
             WorkerTaskExecutorService workerTaskExecutorService,
             WarmExecutionTaskFactory warmExecutionTaskFactory,
             WarmupDemoterService warmupDemoterService,
-            WarmupRuleFetcher warmupRuleFetcher,
+            WarmupRuleFetcher<WarmupRule> warmupRuleFetcher,
             RowGroupDataService rowGroupDataService,
             WarmupDemoterConfig warmupDemoterConfig,
             GlobalConfig globalConfig,
@@ -137,7 +137,7 @@ public class WorkerWarmingService
             WorkerTaskExecutorService workerTaskExecutorService,
             WarmExecutionTaskFactory warmExecutionTaskFactory,
             WarmupDemoterService warmupDemoterService,
-            WarmupRuleFetcher warmupRuleFetcher,
+            WarmupRuleFetcher<WarmupRule> warmupRuleFetcher,
             RowGroupDataService rowGroupDataService,
             WarmupDemoterConfig warmupDemoterConfig,
             GlobalConfig globalConfig,
@@ -681,7 +681,7 @@ public class WorkerWarmingService
 
     private List<ColumnHandle> getColumnHandleList(List<ColumnHandle> columnHandleList, Set<WarpColumn> columnSet)
     {
-        Map<RegularColumn, ColumnHandle> columnNameHandleMap = columnHandleList.stream()
+        Map<WarpColumn, ColumnHandle> columnNameHandleMap = columnHandleList.stream()
                 .collect(Collectors.toMap(dispatcherProxiedConnectorTransformer::getWarpRegularColumn, Function.identity()));
 
         List<ColumnHandle> dispatcherColumnsToWarm = new ArrayList<>();

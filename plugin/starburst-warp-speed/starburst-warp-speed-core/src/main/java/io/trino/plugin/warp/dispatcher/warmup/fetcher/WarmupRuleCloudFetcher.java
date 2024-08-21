@@ -31,6 +31,7 @@ import io.trino.plugin.warp.dispatcher.warmup.events.WarmRulesChangedEvent;
 import io.trino.plugin.warp.gen.stats.WarmupRuleFetcherStats;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.MetricsManager;
+import io.trino.plugin.warp.tools.util.StringUtils;
 import io.trino.plugin.warp.warmup.WarmupRuleApiMapper;
 import io.trino.plugin.warp.warmup.WarmupRuleService;
 import io.trino.plugin.warp.warmup.model.WarmupRule;
@@ -49,7 +50,7 @@ import static java.util.Objects.requireNonNull;
 
 @Singleton
 public class WarmupRuleCloudFetcher
-        implements WarmupRuleFetcher
+        implements WarmupRuleFetcher<WarmupRule>
 {
     private static final Logger logger = Logger.get(WarmupRuleCloudFetcher.class);
     public static final String WARM_FETCHER_STAT_GROUP = "WarmupRuleCloudFetcher";
@@ -155,16 +156,17 @@ public class WarmupRuleCloudFetcher
     @VisibleForTesting
     void fetch()
     {
+        if (StringUtils.isEmpty(warmupRuleCloudFetcherConfig.getStorePath())) {
+            logger.debug("rules path is null, storePath %s connectorName %s", warmupRuleCloudFetcherConfig.getStorePath(), catalogName);
+            return;
+        }
+
         String path = CloudVendorService.concatenatePath(
                 warmupRuleCloudFetcherConfig.getStorePath(),
                 catalogName.toString());
 
         if (writeLock.tryLock()) {
             try {
-                if (path == null) {
-                    logger.debug("rules path is null, storePath %s connectorName %s", warmupRuleCloudFetcherConfig.getStorePath(), catalogName.toString());
-                    return;
-                }
                 StorageObjectMetadata storageObjectMetadata = Failsafe.with(RetryPolicy.builder()
                                 .withMaxRetries(warmupRuleCloudFetcherConfig.getDownloadRetries())
                                 .withDelay(warmupRuleCloudFetcherConfig.getDownloadDuration())
@@ -183,6 +185,7 @@ public class WarmupRuleCloudFetcher
                                     .withDelay(warmupRuleCloudFetcherConfig.getDownloadDuration())
                                     .build())
                             .get(() -> cloudVendorService.downloadCompressedFromCloud(path, true));
+
                     logger.debug("fetching from %s -> %s", path, optionalJson.orElse(""));
 
                     WarmupRuleResult warmupRuleResult = warmupRuleService.replaceAll(optionalJson

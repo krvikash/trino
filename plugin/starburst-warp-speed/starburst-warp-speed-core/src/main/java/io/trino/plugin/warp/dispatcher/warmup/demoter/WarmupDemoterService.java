@@ -104,7 +104,7 @@ public class WarmupDemoterService
     private final WarmupDemoterStats globalStatsDemoter;
     private final ExecutorService rowGroupExecutorService;
     private final FlowsSequencer flowsSequencer;
-    private final WarmupRuleFetcher warmupRuleFetcher;
+    private final WarmupRuleFetcher<WarmupRule> warmupRuleFetcher;
     private WarmupProperties defaultWarmupProperties;
     private AtomicDouble highestPriority = new AtomicDouble(0);
     private AtomicBoolean isExecuting = new AtomicBoolean(false);
@@ -123,7 +123,7 @@ public class WarmupDemoterService
     @Inject
     public WarmupDemoterService(WorkerCapacityManager workerCapacityManager,
             RowGroupDataService rowGroupDataService,
-            WarmupRuleFetcher warmupRuleFetcher,
+            WarmupRuleFetcher<WarmupRule> warmupRuleFetcher,
             WarmupDemoterConfig warmupDemoterConfig,
             NativeConfig nativeConfig,
             MetricsManager metricsManager,

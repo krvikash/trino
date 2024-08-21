@@ -28,8 +28,8 @@ public class WarpExtensionConfig
 
     private String clusterUUID;
     private int restHttpPort = HTTP_REST_DEFAULT_PORT;
-    private boolean useHttpServerPort;
-    private boolean restHttpDefaultPortEnabled;
+    private boolean useHttpServerPort = true;
+    private boolean restHttpDefaultPortEnabled = true;
     private String internalCommunicationSharedSecret;
     private boolean enabled;
 

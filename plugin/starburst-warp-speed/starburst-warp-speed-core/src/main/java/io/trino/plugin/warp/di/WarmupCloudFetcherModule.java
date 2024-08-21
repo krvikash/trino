@@ -14,14 +14,20 @@
 package io.trino.plugin.warp.di;
 
 import com.google.inject.Binder;
+import com.google.inject.TypeLiteral;
 import io.airlift.configuration.ConfigurationFactory;
 import io.trino.plugin.warp.annotation.ForWarmupRuleCloudFetcher;
 import io.trino.plugin.warp.cloudvendors.CloudVendorModule;
+import io.trino.plugin.warp.dispatcher.cache.CacheMgrWarmupRuleService;
+import io.trino.plugin.warp.dispatcher.warmup.fetcher.CacheMgrWarmupRuleCloudFetcher;
+import io.trino.plugin.warp.dispatcher.warmup.fetcher.EmptyCacheMgrWarmupRuleFetcher;
 import io.trino.plugin.warp.dispatcher.warmup.fetcher.EmptyWarmupRuleFetcher;
 import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleCloudFetcher;
 import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleCloudFetcherConfig;
 import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleFetcher;
 import io.trino.plugin.warp.tools.util.StringUtils;
+import io.trino.plugin.warp.warmup.model.CacheManagerRule;
+import io.trino.plugin.warp.warmup.model.WarmupRule;
 import io.trino.spi.connector.ConnectorContext;
 
 import java.util.Map;
@@ -32,12 +38,9 @@ import static java.util.Objects.requireNonNull;
 public class WarmupCloudFetcherModule
         implements InitializationModule
 {
-    private Map<String, String> config;
-    private ConnectorContext context;
-    private String catalogName;
-
-    @SuppressWarnings("unused")
-    public WarmupCloudFetcherModule() {}
+    private final Map<String, String> config;
+    private final ConnectorContext context;
+    private final String catalogName;
 
     @SuppressWarnings("unused")
     public WarmupCloudFetcherModule(
@@ -67,23 +70,37 @@ public class WarmupCloudFetcherModule
 
         ConfigurationFactory configFactory = new ConfigurationFactory(config);
         WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig = configFactory.build(WarmupRuleCloudFetcherConfig.class);
-        if (!StringUtils.isEmpty(warmupRuleCloudFetcherConfig.getStorePath()) &&
-                WarpBaseModule.isWorker(context, config)) {
-            binder.install(
-                    CloudVendorModule.getModule(
-                            context,
-                            WarmupRuleCloudFetcherConfig.PREFIX,
-                            ForWarmupRuleCloudFetcher.class,
-                            catalogName,
-                            config,
-                            WarmupRuleCloudFetcherConfig.STORE_PATH,
-                            WarmupRuleCloudFetcherConfig.STORE_TYPE,
-                            WarmupRuleCloudFetcherConfig.class));
+        if (WarpBaseModule.isWorker(context, config)) {
+            if (StringUtils.isEmpty(warmupRuleCloudFetcherConfig.getStorePath())) {
+                binder.bind(new TypeLiteral<WarmupRuleFetcher<WarmupRule>>() {}).to(EmptyWarmupRuleFetcher.class);
+                binder.bind(new TypeLiteral<WarmupRuleFetcher<CacheManagerRule>>() {}).to(EmptyCacheMgrWarmupRuleFetcher.class);
+            }
+            else {
+                binder.install(
+                        CloudVendorModule.getModule(
+                                context,
+                                WarmupRuleCloudFetcherConfig.PREFIX,
+                                ForWarmupRuleCloudFetcher.class,
+                                catalogName,
+                                config,
+                                WarmupRuleCloudFetcherConfig.STORE_PATH,
+                                WarmupRuleCloudFetcherConfig.STORE_TYPE,
+                                WarmupRuleCloudFetcherConfig.class));
 
-            binder.bind(WarmupRuleFetcher.class).to(WarmupRuleCloudFetcher.class);
+                if (WarpBaseModule.isCache(config)) {
+                    binder.bind(CacheMgrWarmupRuleService.class);
+                    binder.bind(new TypeLiteral<WarmupRuleFetcher<CacheManagerRule>>() {}).to(CacheMgrWarmupRuleCloudFetcher.class);
+                    binder.bind(new TypeLiteral<WarmupRuleFetcher<WarmupRule>>() {}).to(EmptyWarmupRuleFetcher.class);
+                }
+                else {
+                    binder.bind(new TypeLiteral<WarmupRuleFetcher<WarmupRule>>() {}).to(WarmupRuleCloudFetcher.class);
+                    binder.bind(new TypeLiteral<WarmupRuleFetcher<CacheManagerRule>>() {}).to(EmptyCacheMgrWarmupRuleFetcher.class);
+                }
+            }
         }
         else {
-            binder.bind(WarmupRuleFetcher.class).to(EmptyWarmupRuleFetcher.class);
+            binder.bind(new TypeLiteral<WarmupRuleFetcher<WarmupRule>>() {}).to(EmptyWarmupRuleFetcher.class);
+            binder.bind(new TypeLiteral<WarmupRuleFetcher<CacheManagerRule>>() {}).to(EmptyCacheMgrWarmupRuleFetcher.class);
         }
     }
 }

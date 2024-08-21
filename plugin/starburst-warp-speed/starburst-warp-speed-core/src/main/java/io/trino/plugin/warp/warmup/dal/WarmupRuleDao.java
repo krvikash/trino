@@ -18,7 +18,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.trino.plugin.warp.warmup.model.WarmupRule;
 
-import java.util.Collection;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -54,13 +54,16 @@ public class WarmupRuleDao
         ids.forEach(cache::remove);
     }
 
-    public void save(Collection<WarmupRule> entities)
+    public List<WarmupRule> save(List<WarmupRule> entities)
     {
+        List<WarmupRule> result = new ArrayList<>();
         entities.forEach(warmupRule -> {
             if (warmupRule.getId() == 0) {
                 warmupRule = WarmupRule.builder(warmupRule).id(idGen.getAndIncrement()).build();
             }
             cache.put(warmupRule.getId(), warmupRule);
+            result.add(warmupRule);
         });
+        return result;
     }
 }

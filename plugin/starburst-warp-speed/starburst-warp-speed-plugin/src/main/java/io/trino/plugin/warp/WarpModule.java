@@ -35,6 +35,7 @@ public class WarpModule
     private ConnectorContext connectorContext;
     private String catalogName;
 
+    @SuppressWarnings("unused")
     public WarpModule() {}
 
     public WarpModule(Map<String, String> config, ConnectorContext connectorContext, String catalogName)

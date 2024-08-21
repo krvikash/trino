@@ -20,6 +20,7 @@ import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleFetcher;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
 import io.trino.plugin.warp.warmup.WarmupRuleService;
+import io.trino.plugin.warp.warmup.model.WarmupRule;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -39,10 +40,10 @@ public class WorkerWarmupRulesChangedTask
 {
     public static final String TASK_NAME = "worker-warmup-rules-changed";
 
-    private final WarmupRuleFetcher warmupRuleFetcher;
+    private final WarmupRuleFetcher<WarmupRule> warmupRuleFetcher;
 
     @Inject
-    public WorkerWarmupRulesChangedTask(WarmupRuleFetcher warmupRuleFetcher)
+    public WorkerWarmupRulesChangedTask(WarmupRuleFetcher<WarmupRule> warmupRuleFetcher)
     {
         this.warmupRuleFetcher = requireNonNull(warmupRuleFetcher);
     }

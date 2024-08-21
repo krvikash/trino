@@ -60,7 +60,7 @@ import static org.mockito.Mockito.when;
 public class WarmupTaskTest
 {
     private WarmupRuleService warmupRuleService;
-    private WarmupRuleFetcher warmupRuleFetcher;
+    private WarmupRuleFetcher<WarmupRule> warmupRuleFetcher;
     private CoordinatorNodeManager coordinatorNodeManager;
     private WarpClient warpClient;
     private WarmupTask task;

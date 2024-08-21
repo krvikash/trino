@@ -52,12 +52,12 @@ import io.trino.type.JsonType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -78,14 +78,12 @@ public class WarmupRuleServiceTest
     private ConnectorTableHandle tableHandle;
     private ConnectorMetadata connectorMetadata;
     private StorageEngineConstants storageEngineConstants;
-    private WarmupRuleDao warmupRuleDao;
     private GlobalConfig globalConfig;
 
     @BeforeEach
     public void before()
     {
         columnMap = new HashMap<>();
-        warmupRuleDao = mock(WarmupRuleDao.class);
 
         this.storageEngineConstants = spy(new StubsStorageEngineConstants(1000));
         DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer = mock(DispatcherProxiedConnectorTransformer.class);
@@ -103,7 +101,7 @@ public class WarmupRuleServiceTest
                 new WarmupDemoterConfig(),
                 dispatcherProxiedConnectorTransformer,
                 new DefaultFakeConnectorSessionProvider(),
-                warmupRuleDao,
+                new WarmupRuleDao(),
                 mock(EventBus.class),
                 new WarpInitializedServiceRegistry(),
                 globalConfig);
@@ -113,17 +111,20 @@ public class WarmupRuleServiceTest
     public void testSimpleCRUD()
     {
         createColumn(VarcharType.createVarcharType(10));
-        WarmupRule warmupRule = createRule(WarmUpType.WARM_UP_TYPE_LUCENE);
-        warmupRuleService.save(List.of(warmupRule));
 
-        when(warmupRuleDao.getAll()).thenReturn(List.of(warmupRule));
-        Collection<WarmupRule> allRules = warmupRuleService.getAll();
+        WarmupRule warmupRule = warmupRuleService.save(List.of(createRule(WarmUpType.WARM_UP_TYPE_LUCENE)))
+                .appliedRules()
+                .getFirst();
+
+        List<WarmupRule> allRules = warmupRuleService.getAll();
         assertThat(allRules).containsExactly(warmupRule);
 
         warmupRuleService.delete(allRules.stream().map(WarmupRule::getId).collect(Collectors.toList()));
+        assertThat(warmupRuleService.getAll()).isEmpty();
 
-        when(warmupRuleDao.getAll()).thenReturn(List.of());
-        assertThat(warmupRuleService.getAll().size()).isEqualTo(0);
+        assertThat(warmupRuleService.save(List.of(createRule(WarmUpType.WARM_UP_TYPE_LUCENE))).appliedRules())
+                .hasSize(1);
+        assertThat(warmupRuleService.replaceAll(List.of()).appliedRules()).isEmpty();
     }
 
     @Test
@@ -154,26 +155,46 @@ public class WarmupRuleServiceTest
     public void testWarmupRuleId()
     {
         createColumn(VarcharType.createVarcharType(10));
-        WarmupRule warmupRuleNew1 = createRule(WarmUpType.WARM_UP_TYPE_LUCENE);
-        WarmupRule warmupRuleSaved1 = WarmupRule.builder(warmupRuleNew1).id(1).build();
+        WarmupRule warmupRule1 = createRule(WarmUpType.WARM_UP_TYPE_LUCENE);
 
-        WarmupRuleResult warmupRuleResult = warmupRuleService.save(List.of(warmupRuleNew1));
+        WarmupRuleResult warmupRuleResult = warmupRuleService.save(List.of(warmupRule1));
         assertThat(warmupRuleResult.appliedRules().size()).isEqualTo(1);
         assertThat(warmupRuleResult.appliedRules().getFirst().getWarmUpType()).isEqualTo(WarmUpType.WARM_UP_TYPE_LUCENE);
-        when(warmupRuleDao.getAll()).thenReturn(List.of(warmupRuleSaved1));
 
-        WarmupRule warmupRule2 = WarmupRule.builder(createRule(WarmUpType.WARM_UP_TYPE_DATA)).id(1).build();
-        warmupRuleResult = warmupRuleService.save(List.of(warmupRule2));
+        //update existing rule
+        WarmupRule updatedWarmupRule1 = WarmupRule.builder(warmupRule1)
+                .warmUpType(WarmUpType.WARM_UP_TYPE_DATA)
+                .build();
+        warmupRuleResult = warmupRuleService.save(List.of(updatedWarmupRule1));
         assertThat(warmupRuleResult.appliedRules().size()).isEqualTo(1);
         assertThat(warmupRuleResult.appliedRules().getFirst().getWarmUpType()).isEqualTo(WarmUpType.WARM_UP_TYPE_DATA);
-        when(warmupRuleDao.getAll()).thenReturn(List.of(warmupRule2));
 
-        WarmupRule warmupRule3 = WarmupRule.builder(createRule(WarmUpType.WARM_UP_TYPE_BASIC)).id(2).build();
+        //now try to save a new rule with non-existing id
+        WarmupRule warmupRule3 = WarmupRule.builder(warmupRule1)
+                .warmUpType(WarmUpType.WARM_UP_TYPE_BASIC)
+                .id(new Random().nextInt(10000, 100000))
+                .build();
         warmupRuleResult = warmupRuleService.save(List.of(warmupRule3));
         assertThat(warmupRuleResult.appliedRules().size()).isEqualTo(0);
         assertThat(warmupRuleResult.rejectedRules().size()).isEqualTo(1);
-        assertThat(warmupRuleResult.rejectedRules().keySet().stream().findAny().orElseThrow().getWarmUpType()).isEqualTo(WarmUpType.WARM_UP_TYPE_BASIC);
-        assertThat(warmupRuleResult.rejectedRules().entrySet().stream().findFirst().orElseThrow().getValue().stream().findAny().orElseThrow().contains(Integer.toString(WarpErrorCode.WARP_WARMUP_RULE_ID_NOT_VALID.getCode()))).isTrue();
+        assertThat(warmupRuleResult.rejectedRules()
+                .keySet()
+                .stream()
+                .findAny()
+                .orElseThrow()
+                .getWarmUpType())
+                .isEqualTo(warmupRule3.getWarmUpType());
+        assertThat(warmupRuleResult.rejectedRules()
+                .entrySet()
+                .stream()
+                .findFirst()
+                .orElseThrow()
+                .getValue()
+                .stream()
+                .findAny()
+                .orElseThrow()
+                .contains(Integer.toString(WarpErrorCode.WARP_WARMUP_RULE_ID_NOT_VALID.getCode())))
+                .isTrue();
     }
 
     @Test

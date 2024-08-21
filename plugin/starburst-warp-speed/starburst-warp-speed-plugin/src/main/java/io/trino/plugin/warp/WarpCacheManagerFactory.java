@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.warp;
 
+import io.airlift.configuration.ConfigurationFactory;
 import io.trino.plugin.warp.dispatcher.DispatcherCacheManagerFactory;
 import io.trino.plugin.warp.execution.WarpClient;
 import io.trino.plugin.warp.extension.config.WarpExtensionConfig;
@@ -20,11 +21,12 @@ import io.trino.spi.cache.CacheManager;
 import io.trino.spi.cache.CacheManagerContext;
 import io.trino.spi.cache.CacheManagerFactory;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
+import static io.trino.plugin.warp.config.GlobalConfig.CONFIG_IS_CACHE;
 
 public class WarpCacheManagerFactory
         implements CacheManagerFactory
@@ -47,8 +49,11 @@ public class WarpCacheManagerFactory
     {
         Map<String, String> configMap = new HashMap<>(config);
 
-        if (!Boolean.parseBoolean(configMap.getOrDefault(WarpExtensionConfig.USE_HTTP_SERVER_PORT, Boolean.TRUE.toString()))) {
-            String httpRestPortStr = WarpClient.getRestHttpPortStr(configMap, -1);
+        ConfigurationFactory configFactory = new ConfigurationFactory(config);
+        WarpExtensionConfig warpExtensionConfig = configFactory.build(WarpExtensionConfig.class);
+
+        if (!warpExtensionConfig.isUseHttpServerPort()) {
+            String httpRestPortStr = WarpClient.getRestHttpPortStr(warpExtensionConfig, -1);
 
             configMap.put("http-server.http.port", httpRestPortStr);
             if (!configMap.containsKey(WarpExtensionConfig.HTTP_REST_PORT)) {
@@ -56,6 +61,8 @@ public class WarpCacheManagerFactory
             }
         }
 
-        return dispatcherCacheManagerFactory.create(configMap, context, Optional.of(new ArrayList<>(List.of(WarpModule.class))));
+        configMap.put(CONFIG_IS_CACHE, "true");
+
+        return dispatcherCacheManagerFactory.create(configMap, context, Optional.of(List.of(WarpModule.class)));
     }
 }

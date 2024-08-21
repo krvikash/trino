@@ -65,13 +65,13 @@ public class WorkerWarmupTask
 
     private final RowGroupDataService rowGroupDataService;
     private final WarmupDemoterService warmupDemoterService;
-    private final WarmupRuleFetcher warmupRuleFetcher;
+    private final WarmupRuleFetcher<WarmupRule> warmupRuleFetcher;
 
     @Inject
     public WorkerWarmupTask(
             RowGroupDataService rowGroupDataService,
             WarmupDemoterService warmupDemoterService,
-            WarmupRuleFetcher warmupRuleFetcher)
+            WarmupRuleFetcher<WarmupRule> warmupRuleFetcher)
     {
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.warmupDemoterService = requireNonNull(warmupDemoterService);

@@ -53,15 +53,16 @@ public class WorkerWarmupTaskTest
 {
     private RowGroupDataService rowGroupDataService;
     private WarmupDemoterService warmupDemoterService;
-    private WarmupRuleFetcher warmupRuleFetcher;
+    private WarmupRuleFetcher<WarmupRule> warmupRuleFetcher;
     private WorkerWarmupTask task;
 
+    @SuppressWarnings("unchecked")
     @BeforeEach
     public void before()
     {
         rowGroupDataService = mock(RowGroupDataService.class);
         warmupDemoterService = mock(WarmupDemoterService.class);
-        warmupRuleFetcher = mock(WarmupRuleFetcher.class);
+        warmupRuleFetcher = (WarmupRuleFetcher<WarmupRule>) mock(WarmupRuleFetcher.class);
         task = new WorkerWarmupTask(
                 rowGroupDataService,
                 warmupDemoterService,

@@ -43,15 +43,12 @@ import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Date;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.function.Supplier;
 
 import static io.jsonwebtoken.security.Keys.hmacShaKeyFor;
-import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.HTTP_REST_PORT_ENABLED;
-import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP_SERVER_PORT;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 
@@ -177,11 +174,7 @@ public class WarpClient
             throw new RuntimeException(e);
         }
         if (!warpExtensionConfig.isUseHttpServerPort()) {
-            restPort = getRestHttpPort(
-                    Map.of(USE_HTTP_SERVER_PORT, Boolean.toString(warpExtensionConfig.isUseHttpServerPort()),
-                            HTTP_REST_PORT_ENABLED, Boolean.toString(warpExtensionConfig.isRestHttpDefaultPortEnabled()),
-                            WarpExtensionConfig.HTTP_REST_PORT, Integer.toString(warpExtensionConfig.getRestHttpPort())),
-                    nodeUri.getPort());
+            restPort = getRestHttpPort(warpExtensionConfig, nodeUri.getPort());
         }
         HttpUriBuilder uriBuilder = HttpUriBuilder.uriBuilderFrom(nodeUri)
                 .port(restPort);
@@ -200,18 +193,17 @@ public class WarpClient
         jwtBuilder.ifPresent(jwtBuilderSupplier -> builder.addHeader("X-Trino-Internal-Bearer", jwtBuilderSupplier.get().compact()));
     }
 
-    public static int getRestHttpPort(Map<String, String> config, int nodePort)
+    public static int getRestHttpPort(WarpExtensionConfig warpExtensionConfig, int nodePort)
     {
-        return Integer.parseInt(getRestHttpPortStr(config, nodePort));
+        return Integer.parseInt(getRestHttpPortStr(warpExtensionConfig, nodePort));
     }
 
-    public static String getRestHttpPortStr(Map<String, String> config, int nodePort)
+    public static String getRestHttpPortStr(WarpExtensionConfig warpExtensionConfig, int nodePort)
     {
-        String restPort = config.getOrDefault(
-                WarpExtensionConfig.HTTP_REST_PORT,
-                String.valueOf(WarpExtensionConfig.HTTP_REST_DEFAULT_PORT));
-        if (!Boolean.parseBoolean(config.getOrDefault(USE_HTTP_SERVER_PORT, Boolean.TRUE.toString()))) {
-            if (!Boolean.parseBoolean(config.getOrDefault(HTTP_REST_PORT_ENABLED, Boolean.TRUE.toString()))) {
+        String restPort = String.valueOf(warpExtensionConfig.getRestHttpPort());
+
+        if (!warpExtensionConfig.isUseHttpServerPort()) {
+            if (!warpExtensionConfig.isRestHttpDefaultPortEnabled()) {
                 restPort = String.valueOf(nodePort + 1);
             }
         }

@@ -92,14 +92,14 @@ public class WarmupTask
     private static final JsonCodec<WarmupRulesUsageData> USAGE_RESULT_CODEC = JsonCodec.jsonCodec(WarmupRulesUsageData.class);
 
     private final WarmupRuleService warmupRuleService;
-    private final WarmupRuleFetcher warmupRuleFetcher;
+    private final WarmupRuleFetcher<WarmupRule> warmupRuleFetcher;
     private final CoordinatorNodeManager coordinatorNodeManager;
     private final WarpClient warpClient;
     private final WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig;
 
     @Inject
     public WarmupTask(WarmupRuleService warmupRuleService,
-            WarmupRuleFetcher warmupRuleFetcher,
+            WarmupRuleFetcher<WarmupRule> warmupRuleFetcher,
             CoordinatorNodeManager coordinatorNodeManager,
             WarpClient warpClient,
             EventBus eventBus,

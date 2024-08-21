@@ -44,6 +44,7 @@ public class InternalDispatcherCacheManagerFactory
     {
     }
 
+    @SuppressWarnings("unused")
     public static CacheManager createCacheManager(String cacheManagerName,
             Map<String, String> config,
             Optional<List<Module>> optionalWorkerModule,

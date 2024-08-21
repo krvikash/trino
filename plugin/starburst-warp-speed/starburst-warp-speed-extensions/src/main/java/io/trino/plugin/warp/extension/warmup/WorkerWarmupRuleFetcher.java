@@ -42,7 +42,7 @@ import static java.util.Objects.requireNonNull;
 
 @Singleton
 public class WorkerWarmupRuleFetcher
-        implements WarmupRuleFetcher
+        implements WarmupRuleFetcher<WarmupRule>
 {
     private static final Logger logger = Logger.get(WorkerWarmupRuleFetcher.class);
 
