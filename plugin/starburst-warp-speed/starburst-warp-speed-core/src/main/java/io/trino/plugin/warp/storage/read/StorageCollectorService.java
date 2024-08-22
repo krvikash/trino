@@ -147,7 +147,7 @@ public class StorageCollectorService
                 int numCollectedFromCurrentChunk = rangeFillerService.getNumCollectedFromCurrentChunk(chunkIndex, collectOpenResult.rangeData());
                 numToCollect = getNumToCollect(storageCollectorArgs, numCollectedFromCurrentChunk, collectOpenResult, numCollectedRows);
                 if (numToCollect > 0) {
-                    collect(collectOpenResult, queryParams.getNumCollectElements(), numCollectedRows, numToCollect);
+                    collect(collectOpenResult, queryParams.getNumCollectElements(), chunkIndex, numToCollect);
                     lazyCollectEndRowIndex = getLazyCollectEndRowIndex(chunkIndex, storageCollectorArgs.chunkSize(), collectOpenResult, numToCollect);
                 }
                 numCollectedRows += rangeFillerService.add(chunkIndex, numToCollect, storageCollectorArgs, isMatchGetNumRanges, collectOpenResult);
