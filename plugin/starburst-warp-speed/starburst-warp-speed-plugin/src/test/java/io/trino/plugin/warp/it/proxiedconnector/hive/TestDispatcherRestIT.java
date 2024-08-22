@@ -63,6 +63,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -126,8 +127,8 @@ public class TestDispatcherRestIT
     public void testWarmupApi()
             throws IOException
     {
-        List<WarmupColRuleData> result = getWarmupRules();
-        assertThat(result).isEmpty();
+        List<WarmupColRuleData> warmupColRuleDataListResult = getWarmupRules();
+        assertThat(warmupColRuleDataListResult).isEmpty();
         createSchemaAndTable("s1", "t1", format("(%s integer, %s varchar(20))", "col1", "col2"));
 
         WarmupColRuleData warmupColRuleDataLucene = new WarmupColRuleData(0,
@@ -160,9 +161,9 @@ public class TestDispatcherRestIT
 
         executeRestCommand(WarmupRuleService.WARMUP_PATH, WarmupTask.TASK_NAME_SET, List.of(warmupColRuleDataLucene, warmupColRuleDataData, basicWarmupColRuleDataData), HttpMethod.POST, HttpURLConnection.HTTP_OK);
 
-        result = getWarmupRules();
+        warmupColRuleDataListResult = getWarmupRules();
 
-        assertThat(result).hasSize(3);
+        assertThat(warmupColRuleDataListResult).hasSize(3);
 
         WarmupColRuleData warmupColRuleDataError = new WarmupColRuleData(10,
                 "s1",
@@ -176,28 +177,40 @@ public class TestDispatcherRestIT
         RuleResultDTO ruleResultDTO = objectMapper.readerFor(RuleResultDTO.class).readValue(restResult);
         assertThat(ruleResultDTO.appliedRules().isEmpty()).isTrue();
         assertThat(ruleResultDTO.rejectedRules().isEmpty()).isFalse();
-        result = getWarmupRules();
+        warmupColRuleDataListResult = getWarmupRules();
 
-        assertThat(result).hasSize(3);
+        assertThat(warmupColRuleDataListResult).hasSize(3);
 
-        WarmupColRuleData luceneWarmupColRuleDataResult = result.stream().filter(warmupColRuleData -> warmupColRuleData.getWarmUpType() == WarmUpType.WARM_UP_TYPE_LUCENE).findFirst().orElseThrow();
+        WarmupColRuleData luceneWarmupColRuleDataResult = warmupColRuleDataListResult.stream().filter(warmupColRuleData -> warmupColRuleData.getWarmUpType() == WarmUpType.WARM_UP_TYPE_LUCENE).findFirst().orElseThrow();
         assertThat(luceneWarmupColRuleDataResult.getId()).isGreaterThan(0);
         assertThat(luceneWarmupColRuleDataResult.getColumn()).isEqualTo(warmupColRuleDataLucene.getColumn());
         assertThat(luceneWarmupColRuleDataResult.getSchema()).isEqualTo(warmupColRuleDataLucene.getSchema());
         assertThat(luceneWarmupColRuleDataResult.getTable()).isEqualTo(warmupColRuleDataLucene.getTable());
         assertThat(luceneWarmupColRuleDataResult.getPredicates()).isEqualTo(warmupColRuleDataLucene.getPredicates());
 
-        WarmupColRuleData basicWarmupColRuleDataResult = result.stream().filter(warmupColRuleData -> warmupColRuleData.getWarmUpType() == WarmUpType.WARM_UP_TYPE_BASIC).findFirst().orElseThrow();
+        WarmupColRuleData basicWarmupColRuleDataResult = warmupColRuleDataListResult.stream().filter(warmupColRuleData -> warmupColRuleData.getWarmUpType() == WarmUpType.WARM_UP_TYPE_BASIC).findFirst().orElseThrow();
         assertThat(basicWarmupColRuleDataResult.getId()).isGreaterThan(0);
         assertThat(basicWarmupColRuleDataResult.getColumn()).isEqualTo(warmupColRuleDataLucene.getColumn());
         assertThat(basicWarmupColRuleDataResult.getSchema()).isEqualTo(warmupColRuleDataLucene.getSchema());
         assertThat(basicWarmupColRuleDataResult.getTable()).isEqualTo(warmupColRuleDataLucene.getTable());
         assertThat(basicWarmupColRuleDataResult.getPredicates()).isEqualTo(basicWarmupColRuleDataData.getPredicates());
 
-        executeRestCommand(WarmupRuleService.WARMUP_PATH, WarmupTask.TASK_NAME_DELETE, result.stream().map(WarmupColRuleData::getId).collect(toList()), HttpMethod.DELETE, HttpURLConnection.HTTP_NO_CONTENT);
-        result = getWarmupRules();
+        restResult = executeRestCommand(
+                WarmupRuleService.WARMUP_PATH,
+                WarmupTask.TASK_NAME_FETCH,
+                null,
+                HttpMethod.GET,
+                HttpURLConnection.HTTP_OK);
+        Map<String, List<WarmupColRuleData>> workerWarmupColRuleDatasMap = objectMapper.readerFor(new TypeReference<Map<String, List<WarmupColRuleData>>>() {})
+                .readValue(restResult);
+        assertThat(workerWarmupColRuleDatasMap).hasSize(1);
+        final List<WarmupColRuleData> result = new ArrayList<>(warmupColRuleDataListResult);
+        workerWarmupColRuleDatasMap.forEach((_, value) -> assertThat(value).isEqualTo(result));
 
-        assertThat(result).isEmpty();
+        executeRestCommand(WarmupRuleService.WARMUP_PATH, WarmupTask.TASK_NAME_DELETE, warmupColRuleDataListResult.stream().map(WarmupColRuleData::getId).collect(toList()), HttpMethod.DELETE, HttpURLConnection.HTTP_NO_CONTENT);
+        warmupColRuleDataListResult = getWarmupRules();
+
+        assertThat(warmupColRuleDataListResult).isEmpty();
     }
 
     private static Stream<Arguments> provideTransformedColumnDataTestParams()

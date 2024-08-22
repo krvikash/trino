@@ -50,7 +50,6 @@ import io.trino.plugin.warp.dispatcher.query.classifier.PredicateContextFactory;
 import io.trino.plugin.warp.dispatcher.query.classifier.QueryClassifier;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WorkerTaskExecutorService;
-import io.trino.plugin.warp.dispatcher.warmup.WorkerWarmupRuleService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.dispatcher.warmup.transform.BlockTransformerFactory;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.EmptyRowGroupWarmer;
@@ -180,7 +179,6 @@ public class DispatcherCacheManagerModule
         binder.bind(WorkerCapacityManager.class);
         binder.bind(WorkerNodeManager.class);
         binder.bind(WorkerTaskExecutorService.class);
-        binder.bind(WorkerWarmupRuleService.class);
         binder.bind(PredicateHashCalculator.class);
         bindMetricsServices(binder);
     }

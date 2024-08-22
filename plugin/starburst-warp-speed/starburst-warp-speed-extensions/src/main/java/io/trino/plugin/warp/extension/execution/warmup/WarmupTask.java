@@ -26,6 +26,7 @@ import io.airlift.json.JsonCodec;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.CoordinatorNodeManager;
 import io.trino.plugin.warp.annotation.Audit;
+import io.trino.plugin.warp.annotation.ForWarmupRuleCloudFetcher;
 import io.trino.plugin.warp.api.warmup.RuleResultDTO;
 import io.trino.plugin.warp.api.warmup.WarmUpType;
 import io.trino.plugin.warp.api.warmup.WarmupColRuleData;
@@ -34,10 +35,13 @@ import io.trino.plugin.warp.api.warmup.WarmupColRuleUsageData;
 import io.trino.plugin.warp.api.warmup.WarmupDefaultRuleUsageData;
 import io.trino.plugin.warp.api.warmup.WarmupRulesUsageData;
 import io.trino.plugin.warp.dispatcher.warmup.events.WarmRulesChangedEvent;
+import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleCloudFetcherConfig;
 import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleFetcher;
 import io.trino.plugin.warp.execution.WarpClient;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
+import io.trino.plugin.warp.tools.util.Pair;
+import io.trino.plugin.warp.tools.util.StringUtils;
 import io.trino.plugin.warp.util.UriUtils;
 import io.trino.plugin.warp.warmup.WarmupRuleApiMapper;
 import io.trino.plugin.warp.warmup.WarmupRuleService;
@@ -91,18 +95,22 @@ public class WarmupTask
     private final WarmupRuleFetcher warmupRuleFetcher;
     private final CoordinatorNodeManager coordinatorNodeManager;
     private final WarpClient warpClient;
+    private final WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig;
 
     @Inject
     public WarmupTask(WarmupRuleService warmupRuleService,
             WarmupRuleFetcher warmupRuleFetcher,
             CoordinatorNodeManager coordinatorNodeManager,
             WarpClient warpClient,
-            EventBus eventBus)
+            EventBus eventBus,
+            @ForWarmupRuleCloudFetcher WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig)
     {
         this.warmupRuleService = requireNonNull(warmupRuleService);
         this.warmupRuleFetcher = requireNonNull(warmupRuleFetcher);
         this.coordinatorNodeManager = requireNonNull(coordinatorNodeManager);
         this.warpClient = requireNonNull(warpClient);
+        this.warmupRuleCloudFetcherConfig = requireNonNull(warmupRuleCloudFetcherConfig);
+
         requireNonNull(eventBus).register(this);
     }
 
@@ -111,10 +119,39 @@ public class WarmupTask
     @Audit
     public List<WarmupColRuleData> warmupRuleGet()
     {
-        return warmupRuleService.getAll()
+        if (StringUtils.isEmpty(warmupRuleCloudFetcherConfig.getStorePath())) {
+            return warmupRuleService.getAll()
+                    .stream()
+                    .map(WarmupRuleApiMapper::fromModel)
+                    .collect(Collectors.toList());
+        }
+
+        //in case we're working with cloud rule list flow
+        Map<String, List<WarmupColRuleData>> workersRulesMap = coordinatorNodeManager.getWorkerNodes()
                 .stream()
-                .map(WarmupRuleApiMapper::fromModel)
-                .collect(Collectors.toList());
+                .parallel()
+                .map(node -> {
+                    HttpUriBuilder uriBuilder = warpClient.getRestEndpoint(UriUtils.getHttpUri(node));
+                    uriBuilder.appendPath(WorkerWarmupTask.WORKER_WARMUP_PATH).appendPath(WorkerWarmupTask.TASK_NAME_FETCH);
+
+                    Request request = prepareGet()
+                            .setUri(uriBuilder.build())
+                            .setHeader(CONTENT_TYPE, JSON_UTF_8.toString())
+                            .build();
+                    List<WarmupColRuleData> warmupRules = warpClient.sendWithRetry(request, createFullJsonResponseHandler(JsonCodec.listJsonCodec(WarmupColRuleData.class)));
+                    return Pair.of(node.getNodeIdentifier(), warmupRules);
+                }).collect(Collectors.toMap(Pair::getKey, Pair::getValue));
+
+        //validate all workers have the same rules size
+        if (workersRulesMap.values().stream().map(List::size).distinct().count() > 1) {
+            throw new RuntimeException("not all workers have the same rules [%s]".formatted(workersRulesMap));
+        }
+        if (workersRulesMap.values().stream().map(List::size).distinct().reduce(0, Integer::sum) != 0) {
+            return workersRulesMap.values().stream().findFirst().orElseThrow();
+        }
+        else {
+            return List.of();
+        }
     }
 
     @Path(TASK_NAME_SET)
@@ -147,13 +184,13 @@ public class WarmupTask
     @Path(TASK_NAME_FETCH)
     @GET
     @Audit
-    public void fetch()
+    public Map<String, List<WarmupColRuleData>> fetch()
     {
         warmupRuleFetcher.getWarmupRules(true);
         List<Node> workers = coordinatorNodeManager.getWorkerNodes();
-        workers.stream()
+        return workers.stream()
                 .parallel()
-                .forEach(node -> {
+                .map(node -> {
                     HttpUriBuilder uriBuilder = warpClient.getRestEndpoint(UriUtils.getHttpUri(node));
                     uriBuilder.appendPath(WorkerWarmupTask.WORKER_WARMUP_PATH).appendPath(WorkerWarmupTask.TASK_NAME_FETCH);
 
@@ -161,8 +198,9 @@ public class WarmupTask
                             .setUri(uriBuilder.build())
                             .setHeader(CONTENT_TYPE, JSON_UTF_8.toString())
                             .build();
-                    warpClient.sendWithRetry(request, createFullJsonResponseHandler(VOID_RESULTS_CODEC));
-                });
+                    List<WarmupColRuleData> warmupRules = warpClient.sendWithRetry(request, createFullJsonResponseHandler(JsonCodec.listJsonCodec(WarmupColRuleData.class)));
+                    return Pair.of(node.getNodeIdentifier(), warmupRules);
+                }).collect(Collectors.toMap(Pair::getKey, Pair::getValue));
     }
 
     @Path(TASK_NAME_DELETE)

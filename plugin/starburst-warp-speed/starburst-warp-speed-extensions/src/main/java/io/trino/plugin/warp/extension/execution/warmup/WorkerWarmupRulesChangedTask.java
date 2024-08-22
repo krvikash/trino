@@ -16,7 +16,7 @@ package io.trino.plugin.warp.extension.execution.warmup;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.trino.plugin.warp.annotation.Audit;
-import io.trino.plugin.warp.dispatcher.warmup.WorkerWarmupRuleService;
+import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleFetcher;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
 import io.trino.plugin.warp.warmup.WarmupRuleService;
@@ -39,12 +39,12 @@ public class WorkerWarmupRulesChangedTask
 {
     public static final String TASK_NAME = "worker-warmup-rules-changed";
 
-    private final WorkerWarmupRuleService workerWarmupRuleService;
+    private final WarmupRuleFetcher warmupRuleFetcher;
 
     @Inject
-    public WorkerWarmupRulesChangedTask(WorkerWarmupRuleService workerWarmupRuleService)
+    public WorkerWarmupRulesChangedTask(WarmupRuleFetcher warmupRuleFetcher)
     {
-        this.workerWarmupRuleService = requireNonNull(workerWarmupRuleService);
+        this.warmupRuleFetcher = requireNonNull(warmupRuleFetcher);
     }
 
     @POST
@@ -53,6 +53,6 @@ public class WorkerWarmupRulesChangedTask
     //@ApiOperation(value = "rules changed", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public void rulesChanged()
     {
-        workerWarmupRuleService.fetchRulesFromCoordinator();
+        warmupRuleFetcher.getWarmupRules();
     }
 }

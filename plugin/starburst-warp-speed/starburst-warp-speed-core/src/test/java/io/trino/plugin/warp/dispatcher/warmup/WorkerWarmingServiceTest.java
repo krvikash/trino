@@ -34,6 +34,7 @@ import io.trino.plugin.warp.dispatcher.query.classifier.PredicateContextData;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.AcquireWarmupStatus;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
+import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleFetcher;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService;
 import io.trino.plugin.warp.expression.TransformFunction;
 import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
@@ -918,8 +919,8 @@ public class WorkerWarmingServiceTest
             QueryContext queryContext,
             int batchSize)
     {
-        WorkerWarmupRuleService workerWarmupRuleService = mock(WorkerWarmupRuleService.class);
-        when(workerWarmupRuleService.getWarmupRules(any())).thenReturn(warmupRules);
+        WarmupRuleFetcher warmupRuleFetcher = mock(WarmupRuleFetcher.class);
+        when(warmupRuleFetcher.getWarmupRules()).thenReturn(warmupRules);
         RowGroupDataService rowGroupDataService = mock(RowGroupDataService.class);
         ConnectorSession connectorSession = mock(ConnectorSession.class);
         when(connectorSession.getProperty(eq(ENABLE_DEFAULT_WARMING_INDEX), any())).thenReturn(globalConfig.isCreateIndexInDefaultWarming());
@@ -934,7 +935,7 @@ public class WorkerWarmingServiceTest
                 workerTaskExecutorService,
                 warmExecutionTaskFactory,
                 warmupDemoterService,
-                workerWarmupRuleService,
+                warmupRuleFetcher,
                 rowGroupDataService,
                 warmupDemoterConfig,
                 globalConfig,

@@ -21,6 +21,7 @@ import io.airlift.http.server.HttpServerModule;
 import io.airlift.jaxrs.JaxrsModule;
 import io.airlift.json.JsonModule;
 import io.airlift.node.NodeModule;
+import io.trino.plugin.warp.annotation.ForWarmupRuleCloudFetcher;
 import io.trino.plugin.warp.di.InitializationModule;
 import io.trino.plugin.warp.di.WarmupCloudFetcherModule;
 import io.trino.plugin.warp.di.WarpBaseModule;
@@ -90,6 +91,7 @@ public class WarpExtensionModule
         WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig = configFactory.build(WarmupRuleCloudFetcherConfig.class);
         if (!WarpBaseModule.isCache(config) && WarpBaseModule.isWorker(connectorContext, config) && StringUtils.isEmpty(warmupRuleCloudFetcherConfig.getStorePath())) {
             binder().bind(WarmupRuleFetcher.class).to(WorkerWarmupRuleFetcher.class);
+            configBinder(binder()).bindConfig(WarmupRuleCloudFetcherConfig.class, ForWarmupRuleCloudFetcher.class);
         }
         else {
             binder().install(new WarmupCloudFetcherModule(config, connectorContext, catalogName));

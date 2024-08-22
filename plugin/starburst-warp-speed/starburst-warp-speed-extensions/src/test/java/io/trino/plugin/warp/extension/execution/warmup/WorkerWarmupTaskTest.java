@@ -21,9 +21,8 @@ import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.model.SchemaTableColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
-import io.trino.plugin.warp.dispatcher.warmup.WorkerWarmupRuleService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
-import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleCloudFetcher;
+import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleFetcher;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
@@ -54,7 +53,7 @@ public class WorkerWarmupTaskTest
 {
     private RowGroupDataService rowGroupDataService;
     private WarmupDemoterService warmupDemoterService;
-    private WorkerWarmupRuleService workerWarmupRuleService;
+    private WarmupRuleFetcher warmupRuleFetcher;
     private WorkerWarmupTask task;
 
     @BeforeEach
@@ -62,12 +61,11 @@ public class WorkerWarmupTaskTest
     {
         rowGroupDataService = mock(RowGroupDataService.class);
         warmupDemoterService = mock(WarmupDemoterService.class);
-        workerWarmupRuleService = mock(WorkerWarmupRuleService.class);
+        warmupRuleFetcher = mock(WarmupRuleFetcher.class);
         task = new WorkerWarmupTask(
                 rowGroupDataService,
                 warmupDemoterService,
-                workerWarmupRuleService,
-                mock(WarmupRuleCloudFetcher.class));
+                warmupRuleFetcher);
     }
 
     @Test
@@ -114,7 +112,7 @@ public class WorkerWarmupTaskTest
                             .warmupElementStats(new WarmupElementStats(0, Long.MIN_VALUE, Long.MAX_VALUE))
                             .build());
         });
-        when(workerWarmupRuleService.fetchRulesFromCoordinator()).thenReturn(new ArrayList<>(warmupRulesMap.values()));
+        when(warmupRuleFetcher.getWarmupRules()).thenReturn(new ArrayList<>(warmupRulesMap.values()));
 
         RowGroupData rowGroupData = RowGroupData.builder()
                 .rowGroupKey(new RowGroupKey("schema1", "table1", "file_path", 0, 1L, 0, "", ""))

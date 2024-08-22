@@ -36,7 +36,6 @@ import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WarmExecutionTaskFactory;
 import io.trino.plugin.warp.dispatcher.warmup.WorkerTaskExecutorService;
 import io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService;
-import io.trino.plugin.warp.dispatcher.warmup.WorkerWarmupRuleService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.dispatcher.warmup.export.WarmupElementsCloudExporter;
 import io.trino.plugin.warp.dispatcher.warmup.export.WarmupExportingService;
@@ -96,7 +95,6 @@ public class DispatcherMainModule
             binder.bind(StorageWarmerService.class);
             binder.bind(WarmupDemoterService.class);
             binder.bind(WorkerWarmingService.class);
-            binder.bind(WorkerWarmupRuleService.class);
             binder.bind(PredicatesCacheService.class);
             binder.bind(ClassifierFactory.class);
             binder.bind(PredicateContextFactory.class);

@@ -44,6 +44,7 @@ import io.trino.plugin.warp.dispatcher.query.classifier.PredicateContextData;
 import io.trino.plugin.warp.dispatcher.query.classifier.WarmedWarmupTypes;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
+import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleFetcher;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService;
 import io.trino.plugin.warp.expression.TransformFunction;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
@@ -62,6 +63,7 @@ import io.trino.spi.type.Type;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -95,7 +97,7 @@ public class WorkerWarmingService
     private final WarmExecutionTaskFactory warmExecutionTaskFactory;
     private final WorkerTaskExecutorService workerTaskExecutorService;
     private final WarmupDemoterService warmupDemoterService;
-    private final WorkerWarmupRuleService workerWarmupRuleService;
+    private final WarmupRuleFetcher warmupRuleFetcher;
     private final RowGroupDataService rowGroupDataService;
     private final WarmupDemoterConfig warmupDemoterConfig;
     private final GlobalConfig globalConfig;
@@ -110,7 +112,7 @@ public class WorkerWarmingService
             WorkerTaskExecutorService workerTaskExecutorService,
             WarmExecutionTaskFactory warmExecutionTaskFactory,
             WarmupDemoterService warmupDemoterService,
-            WorkerWarmupRuleService workerWarmupRuleService,
+            WarmupRuleFetcher warmupRuleFetcher,
             RowGroupDataService rowGroupDataService,
             WarmupDemoterConfig warmupDemoterConfig,
             GlobalConfig globalConfig,
@@ -121,7 +123,7 @@ public class WorkerWarmingService
                 workerTaskExecutorService,
                 warmExecutionTaskFactory,
                 warmupDemoterService,
-                workerWarmupRuleService,
+                warmupRuleFetcher,
                 rowGroupDataService,
                 warmupDemoterConfig,
                 globalConfig,
@@ -135,7 +137,7 @@ public class WorkerWarmingService
             WorkerTaskExecutorService workerTaskExecutorService,
             WarmExecutionTaskFactory warmExecutionTaskFactory,
             WarmupDemoterService warmupDemoterService,
-            WorkerWarmupRuleService workerWarmupRuleService,
+            WarmupRuleFetcher warmupRuleFetcher,
             RowGroupDataService rowGroupDataService,
             WarmupDemoterConfig warmupDemoterConfig,
             GlobalConfig globalConfig,
@@ -147,7 +149,7 @@ public class WorkerWarmingService
         this.statsWarmingService = metricsManager.registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
         this.workerTaskExecutorService = requireNonNull(workerTaskExecutorService);
         this.warmupDemoterService = requireNonNull(warmupDemoterService);
-        this.workerWarmupRuleService = requireNonNull(workerWarmupRuleService);
+        this.warmupRuleFetcher = requireNonNull(warmupRuleFetcher);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.warmupDemoterConfig = requireNonNull(warmupDemoterConfig);
         this.globalConfig = requireNonNull(globalConfig);
@@ -520,7 +522,7 @@ public class WorkerWarmingService
             Map<RegularColumn, ColumnHandle> warpColumnToColumnHandle)
     {
         Map<RegularColumn, String> partitionKeysMap = dispatcherSplit.getPartitionKeys().stream().collect(Collectors.toMap(PartitionKey::regularColumn, PartitionKey::partitionValue));
-        List<WarmupRule> schemaAndTableRules = workerWarmupRuleService.getWarmupRules(new SchemaTableName(dispatcherSplit.getSchemaName(), dispatcherSplit.getTableName()));
+        List<WarmupRule> schemaAndTableRules = getWarmupRules(new SchemaTableName(dispatcherSplit.getSchemaName(), dispatcherSplit.getTableName()));
         Map<WarpColumn, Map<WarmUpType, WarmupProperties>> matchingRules = new HashMap<>();
         Map<String, ColumnHandle> columnNameToColumnHandle = warpColumnToColumnHandle.entrySet().stream().collect(Collectors.toMap(x -> x.getKey().getName(), Map.Entry::getValue));
 
@@ -692,6 +694,14 @@ public class WorkerWarmingService
             }
         });
         return dispatcherColumnsToWarm;
+    }
+
+    private List<WarmupRule> getWarmupRules(SchemaTableName schemaTableName)
+    {
+        return warmupRuleFetcher.getWarmupRules()
+                .stream()
+                .collect(Collectors.groupingBy(warmupRule -> new SchemaTableName(warmupRule.getSchema(), warmupRule.getTable())))
+                .getOrDefault(schemaTableName, Collections.emptyList());
     }
 
     private record WarmDataState(

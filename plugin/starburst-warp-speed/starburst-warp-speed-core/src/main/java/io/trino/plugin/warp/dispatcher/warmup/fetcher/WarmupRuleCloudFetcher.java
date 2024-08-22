@@ -70,7 +70,7 @@ public class WarmupRuleCloudFetcher
     private final Timer timer;
     private final WarmupRuleFetcherStats warmupRuleFetcherStats;
     private StorageObjectMetadata currentStorageObjectMetadata;
-    private final Lock readLock;
+    private final Lock writeLock;
 
     @SuppressWarnings("unused")
     @Inject
@@ -111,7 +111,7 @@ public class WarmupRuleCloudFetcher
         this.catalogName = requireNonNull(catalogName);
         this.objectMapperProvider = requireNonNull(objectMapperProvider);
         this.timer = requireNonNull(timer);
-        this.readLock = new ReentrantReadWriteLock().readLock();
+        this.writeLock = new ReentrantReadWriteLock().writeLock();
         currentStorageObjectMetadata = null;
 
         this.timer.scheduleAtFixedRate(
@@ -133,14 +133,15 @@ public class WarmupRuleCloudFetcher
     public List<WarmupRule> getWarmupRules(boolean force)
     {
         if (force) {
-            if (readLock.tryLock()) {
+            if (writeLock.tryLock()) {
                 try {
                     currentStorageObjectMetadata = null;
                 }
                 finally {
-                    readLock.unlock();
+                    writeLock.unlock();
                 }
             }
+            fetch();
         }
         return getWarmupRules();
     }
@@ -148,7 +149,6 @@ public class WarmupRuleCloudFetcher
     @Override
     public List<WarmupRule> getWarmupRules()
     {
-        fetch();
         return warmupRuleService.getAll();
     }
 
@@ -159,7 +159,7 @@ public class WarmupRuleCloudFetcher
                 warmupRuleCloudFetcherConfig.getStorePath(),
                 catalogName.toString());
 
-        if (readLock.tryLock()) {
+        if (writeLock.tryLock()) {
             try {
                 if (path == null) {
                     logger.debug("rules path is null, storePath %s connectorName %s", warmupRuleCloudFetcherConfig.getStorePath(), catalogName.toString());
@@ -217,7 +217,7 @@ public class WarmupRuleCloudFetcher
                 shapingLogger.error(e, "failed fetching rules from %s", path);
             }
             finally {
-                readLock.unlock();
+                writeLock.unlock();
             }
         }
     }

@@ -25,7 +25,6 @@ import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.SchemaTableColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
-import io.trino.plugin.warp.dispatcher.warmup.WorkerWarmupRuleService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleFetcher;
 import io.trino.plugin.warp.extension.execution.TaskResource;
@@ -66,18 +65,16 @@ public class WorkerWarmupTask
 
     private final RowGroupDataService rowGroupDataService;
     private final WarmupDemoterService warmupDemoterService;
-    private final WorkerWarmupRuleService workerWarmupRuleService;
     private final WarmupRuleFetcher warmupRuleFetcher;
 
     @Inject
-    public WorkerWarmupTask(RowGroupDataService rowGroupDataService,
+    public WorkerWarmupTask(
+            RowGroupDataService rowGroupDataService,
             WarmupDemoterService warmupDemoterService,
-            WorkerWarmupRuleService workerWarmupRuleService,
             WarmupRuleFetcher warmupRuleFetcher)
     {
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.warmupDemoterService = requireNonNull(warmupDemoterService);
-        this.workerWarmupRuleService = requireNonNull(workerWarmupRuleService);
         this.warmupRuleFetcher = requireNonNull(warmupRuleFetcher);
     }
 
@@ -86,7 +83,7 @@ public class WorkerWarmupTask
     //@ApiOperation(value = "get", nickname = "workerWarmupGet", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public WarmupRulesUsageData get()
     {
-        List<WarmupRule> warmupRules = workerWarmupRuleService.fetchRulesFromCoordinator();
+        List<WarmupRule> warmupRules = warmupRuleFetcher.getWarmupRules();
         Map<Integer, AtomicLong> warmupIdUsageMap = new HashMap<>();
         Map<WarmUpType, AtomicLong> defaultRulesMap = new HashMap<>();
 
@@ -116,9 +113,12 @@ public class WorkerWarmupTask
     @Path(TASK_NAME_FETCH)
     @GET
     @Audit
-    public void fetch()
+    public List<WarmupColRuleData> fetch()
     {
-        warmupRuleFetcher.getWarmupRules(true);
+        return warmupRuleFetcher.getWarmupRules(true)
+                .stream()
+                .map(WarmupRuleApiMapper::fromModel)
+                .toList();
     }
 
     private void getRowGroupDataUsage(List<WarmupRule> warmupRules, Map<Integer, AtomicLong> warmupIdUsageMap, Map<WarmUpType, AtomicLong> defaultRulesMap)

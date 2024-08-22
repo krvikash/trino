@@ -27,6 +27,7 @@ import io.trino.plugin.warp.api.warmup.WarmupColRuleUsageData;
 import io.trino.plugin.warp.api.warmup.WarmupDefaultRuleUsageData;
 import io.trino.plugin.warp.api.warmup.WarmupRulesUsageData;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
+import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleCloudFetcherConfig;
 import io.trino.plugin.warp.dispatcher.warmup.fetcher.WarmupRuleFetcher;
 import io.trino.plugin.warp.execution.WarpClient;
 import io.trino.plugin.warp.util.NodeUtils;
@@ -76,7 +77,8 @@ public class WarmupTaskTest
                 warmupRuleFetcher,
                 coordinatorNodeManager,
                 warpClient,
-                mock(EventBus.class));
+                mock(EventBus.class),
+                new WarmupRuleCloudFetcherConfig());
     }
 
     @Test
