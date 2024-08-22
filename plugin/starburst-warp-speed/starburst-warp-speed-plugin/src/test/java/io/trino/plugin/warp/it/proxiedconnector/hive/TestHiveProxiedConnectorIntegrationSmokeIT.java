@@ -982,8 +982,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                     "warp_prefilled_collect_columns", prefilledCollectColumns,
                     "warp_match_columns", 1L,
                     "warp_collect_columns", collectColumns);
-            int expectedLuceneReadColumns = 0;
-            validateQueryStats(query, session, expectedQueryStats, expectedLuceneReadColumns);
+            validateQueryStats(query, session, expectedQueryStats);
             executeRestCommand(RowGroupTask.ROW_GROUP_PATH, RowGroupTask.ROW_GROUP_RESET_TASK_NAME, null, HttpMethod.POST, HttpURLConnection.HTTP_NO_CONTENT);
             warmedElementTypes = getWarmedElements();
             assertThat(warmedElementTypes).isEmpty();
@@ -1006,8 +1005,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                     "warp_prefilled_collect_columns", 0L,
                     "warp_match_columns", 1L,
                     "warp_collect_columns", 1L);
-            int expectedLuceneReadColumns = 1;
-            validateQueryStats(query, session, expectedQueryStats, expectedLuceneReadColumns);
+            validateQueryStats(query, session, expectedQueryStats);
 
             executeRestCommand(RowGroupTask.ROW_GROUP_PATH, RowGroupTask.ROW_GROUP_RESET_TASK_NAME, null, HttpMethod.POST, HttpURLConnection.HTTP_NO_CONTENT);
             warmedElementTypes = getWarmedElements();
@@ -1175,8 +1173,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "warp_prefilled_collect_columns", 1L,
                 "warp_match_columns", 1L,
                 "warp_collect_columns", 0L);
-        int expectedLuceneReadColumns = 0;
-        validateQueryStats(nativeQuery, session, expectedQueryStats, expectedLuceneReadColumns);
+        validateQueryStats(nativeQuery, session, expectedQueryStats);
         @Language("SQL") String luceneQuery = "select v1 from t where v1 like '%shlomi%'";
         expectedQueryStats = Map.of(
                 "external_match_columns", 1L,
@@ -1184,7 +1181,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "warp_prefilled_collect_columns", 0L,
                 "warp_match_columns", 0L,
                 "warp_collect_columns", 1L);
-        validateQueryStats(luceneQuery, session, expectedQueryStats, expectedLuceneReadColumns);
+        validateQueryStats(luceneQuery, session, expectedQueryStats);
 
         warmAndValidate(luceneQuery, true, 1, 1);
         warmedElementTypes = getWarmedElements();
@@ -1201,8 +1198,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "warp_prefilled_collect_columns", 0L,
                 "warp_match_columns", 1L,
                 "warp_collect_columns", 1L);
-        expectedLuceneReadColumns = 1;
-        validateQueryStats(luceneQuery, session, expectedQueryStats, expectedLuceneReadColumns);
+        validateQueryStats(luceneQuery, session, expectedQueryStats);
 
         expectedQueryStats = Map.of(
                 "external_match_columns", 0L,
@@ -1210,10 +1206,9 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "warp_prefilled_collect_columns", 1L,
                 "warp_match_columns", 1L,
                 "warp_collect_columns", 0L);
-        expectedLuceneReadColumns = 0;
-        validateQueryStats(nativeQuery, session, expectedQueryStats, expectedLuceneReadColumns);
+        validateQueryStats(nativeQuery, session, expectedQueryStats);
 
-        validateQueryStats("select v1 from t where v1 = 'shlomi'", session, expectedQueryStats, expectedLuceneReadColumns);
+        validateQueryStats("select v1 from t where v1 = 'shlomi'", session, expectedQueryStats);
 
         List<String> valuesQueries = List.of(
                 "select v1 from t where v1 = 'shlomi' or int1 > 5",
@@ -1225,7 +1220,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                     "warp_prefilled_collect_columns", 0L,
                     "warp_match_columns", 2L,
                     "warp_collect_columns", 2L);
-            validateQueryStats(query, session, expectedQueryStats, expectedLuceneReadColumns);
+            validateQueryStats(query, session, expectedQueryStats);
         }
 
         @Language("SQL") String query = "select v1 from t where int1 > 5 and (v1 = 'shlomi' or v1 = 'tzachi')";
@@ -1235,7 +1230,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "warp_prefilled_collect_columns", 0L,
                 "warp_match_columns", 2L,
                 "warp_collect_columns", 1L);
-        validateQueryStats(query, session, expectedQueryStats, 0);
+        validateQueryStats(query, session, expectedQueryStats);
 
         List<String> rangeQueries = List.of(
                 // "select v1 from t where v1 <> 'shlomi' or int1 > 5", //todo: fix not equal
@@ -1250,8 +1245,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                     "warp_prefilled_collect_columns", 0L,
                     "warp_match_columns", 1L,
                     "warp_collect_columns", 1L);
-            expectedLuceneReadColumns = 1;
-            validateQueryStats(rangeQuery, session, expectedQueryStats, expectedLuceneReadColumns);
+            validateQueryStats(rangeQuery, session, expectedQueryStats);
         }
     }
 
@@ -1642,8 +1636,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 "warp_collect_columns", 1L,
                 "external_match_columns", 0L);
         for (@Language("SQL") String query : queries) {
-            int expectedLuceneReadColumns = query.contains("or") || query.contains("and") ? 2 : 1;
-            validateQueryStats(query, getSession(), expectedJmxQueryStats, expectedLuceneReadColumns);
+            validateQueryStats(query, getSession(), expectedJmxQueryStats);
         }
         expectedJmxQueryStats = Map.of(
                 "warp_match_columns", 1L,

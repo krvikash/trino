@@ -56,6 +56,7 @@ public class WarpInputDirectory
     private final int indexUniqueIdInRowGroup;
     private final ReadJuffersWarmUpElement juffersWE;
     private final long nativeCookie;
+    private final int matchTxId;
     private final int[] fileLengths;
     private final String filePrefix;
 
@@ -65,6 +66,7 @@ public class WarpInputDirectory
             int indexUniqueIdInRowGroup,
             ReadJuffersWarmUpElement juffersWE,
             long nativeCookie,
+            int matchTxId,
             String filePrefix,
             int[] fileLengths)
     {
@@ -75,6 +77,7 @@ public class WarpInputDirectory
         this.indexUniqueIdInRowGroup = indexUniqueIdInRowGroup;
         this.juffersWE = juffersWE;
         this.nativeCookie = nativeCookie;
+        this.matchTxId = matchTxId;
         this.filePrefix = filePrefix;
         this.fileLengths = fileLengths;
     }
@@ -156,6 +159,7 @@ public class WarpInputDirectory
                 juffersWE,
                 luceneFileType,
                 nativeCookie,
+                matchTxId,
                 0,
                 fileLengths[luceneFileType.getNativeId()],
                 "root");
@@ -175,6 +179,7 @@ public class WarpInputDirectory
                 juffersWE,
                 luceneFileType,
                 nativeCookie,
+                matchTxId,
                 0,
                 fileLengths[luceneFileType.getNativeId()],
                 "root");

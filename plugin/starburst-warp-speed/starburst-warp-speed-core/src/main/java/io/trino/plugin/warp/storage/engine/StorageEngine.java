@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.warp.storage.engine;
 
-import io.trino.plugin.warp.storage.lucene.LuceneMatcher;
 import io.trino.plugin.warp.storage.read.StorageCollectorCallBack;
 
 import java.nio.ByteBuffer;
@@ -154,7 +153,7 @@ public interface StorageEngine
     }
 
     default long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams, int numMatchWes,
-            int numChunksInRange, int[] weMatchTree, int numLucenes, LuceneMatcher[] luceneMatchers, long matchBitmapAddress, int minOffset, long[][] outMatchColBuffIds)
+            int numChunksInRange, int[] weMatchTree, long matchBitmapAddress, int minOffset, long[][] outMatchColBuffIds)
     {
         throw new UnsupportedOperationException();
     }
@@ -202,27 +201,15 @@ public interface StorageEngine
     }
 
     /**
-     * match lucene on a chunk range starting from the given chunk index
-     *
-     * @param matchTxId - identifies tx, passed from native to java in match_open
-     * @param matchWeIx - identifies warmup element within the tx
-     * @param startChunkIndex - chunk to start match from
-     * @param numChunks - number of chunks to match
-     */
-    default void matchLucene(int matchTxId, int matchWeIx, int startChunkIndex, int numChunks)
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
      * cleanup after match lucene on a chunk range starting from the given chunk index
      *
      * @param matchTxId - identifies tx, passed from native to java in match_open
      * @param matchWeIx - identifies warmup element within the tx
      * @param startChunkIndex - chunk to start match from
      * @param numChunks - number of chunks to match
+     * @param matchResult - passing the result of match on numChunks in an array, the result is number of matching records
      */
-    default void matchLuceneCompleted(int matchTxId, int matchWeIx, int startChunkIndex, int numChunks)
+    default void matchLuceneCompleted(int matchTxId, int matchWeIx, int startChunkIndex, int numChunks, int[] matchResult)
     {
         throw new UnsupportedOperationException();
     }
@@ -300,7 +287,7 @@ public interface StorageEngine
         throw new UnsupportedOperationException();
     }
 
-    default int luceneReadBuffer(long nativeCookie, int fileId, int offset, int length)
+    default int luceneReadBuffer(int txId, long nativeCookie, int fileId, int offset, int length)
     {
         return -1;
     }

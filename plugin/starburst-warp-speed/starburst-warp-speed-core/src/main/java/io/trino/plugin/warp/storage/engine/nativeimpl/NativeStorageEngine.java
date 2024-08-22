@@ -23,7 +23,6 @@ import io.trino.plugin.warp.gen.stats.WarpStatsMgr;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
-import io.trino.plugin.warp.storage.lucene.LuceneMatcher;
 import io.trino.plugin.warp.storage.read.StorageCollectorCallBack;
 
 import java.nio.ByteBuffer;
@@ -170,7 +169,7 @@ public class NativeStorageEngine
 
     @Override
     public native long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams, int numMatchWes,
-            int numChunksInRange, int[] weMatchTree, int numLucenes, LuceneMatcher[] luceneMatchers, long matchBitmapAddress, int minOffset, long[][] outMatchColBuffIds);
+            int numChunksInRange, int[] weMatchTree, long matchBitmapAddress, int minOffset, long[][] outMatchColBuffIds);
 
     @Override
     public native long collectRestoreState(int txId, int chunkIndex, StorageCollectorCallBack collectStateObj);
@@ -182,10 +181,7 @@ public class NativeStorageEngine
     public native long matchLucenePrepare(int matchTxId, int matchWeIx, int startChunkIndex, int numChunks, long[] outParams);
 
     @Override
-    public native void matchLucene(int matchTxId, int matchWeIx, int startChunkIndex, int numChunks);
-
-    @Override
-    public native void matchLuceneCompleted(int matchTxId, int matchWeIx, int startChunkIndex, int numChunks);
+    public native void matchLuceneCompleted(int matchTxId, int matchWeIx, int startChunkIndex, int numChunks, int[] matchResult);
 
     @Override
     public native long match(int txId, int startChunkIndex, int numChunks, short[] outMatchedChunksIndexes, int[] outMatchBitmapResetPoints);
@@ -215,5 +211,5 @@ public class NativeStorageEngine
     public native String executeDebugCommand(String commandName, int numParams, String[] paramNames, String[] paramValues);
 
     @Override
-    public native int luceneReadBuffer(long nativeCookie, int fileId, int offset, int length);
+    public native int luceneReadBuffer(int txId, long nativeCookie, int fileId, int offset, int length);
 }

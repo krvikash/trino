@@ -13,20 +13,17 @@
  */
 package io.trino.plugin.warp.storage.engine;
 
-import io.trino.plugin.warp.storage.lucene.LuceneMatcher;
 import io.trino.plugin.warp.storage.read.StorageCollectorCallBack;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class StubsStorageEngine
         implements StorageEngine
 {
     private final List<RuntimeException> throwOnColletRuntimeExceptionList = new ArrayList<>();
-    private final AtomicInteger luceneColumns = new AtomicInteger(0);
     ByteBuffer firstBundle;
 
     public StubsStorageEngine()
@@ -158,9 +155,8 @@ public class StubsStorageEngine
 
     @Override
     public long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams, int numMatchWes,
-            int numChunksInRange, int[] weMatchTree, int numLucenes, LuceneMatcher[] luceneMatchers, long matchBitmapAddress, int minOffset, long[][] outMatchColBuffIds)
+            int numChunksInRange, int[] weMatchTree, long matchBitmapAddress, int minOffset, long[][] outMatchColBuffIds)
     {
-        luceneColumns.addAndGet(luceneMatchers.length);
         return 0;
     }
 
@@ -183,12 +179,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public void matchLucene(int matchTxId, int matchWeIx, int startChunkIndex, int numChunks)
-    {
-    }
-
-    @Override
-    public void matchLuceneCompleted(int matchTxId, int matchWeIx, int startChunkIndex, int numChunks)
+    public void matchLuceneCompleted(int matchTxId, int matchWeIx, int startChunkIndex, int numChunks, int[] matchResult)
     {
     }
 
@@ -258,10 +249,5 @@ public class StubsStorageEngine
     public void setThrowOnCollect(RuntimeException... e)
     {
         throwOnColletRuntimeExceptionList.addAll(Arrays.asList(e));
-    }
-
-    public int getLuceneReadColumns()
-    {
-        return luceneColumns.get();
     }
 }

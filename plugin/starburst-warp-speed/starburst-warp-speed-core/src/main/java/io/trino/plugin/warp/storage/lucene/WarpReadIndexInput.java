@@ -47,6 +47,7 @@ public class WarpReadIndexInput
     private final ReadJuffersWarmUpElement dataRecordJuffer;
     private final LuceneFileType luceneFileType;
     private final long nativeCookie;
+    private final int matchTxId;
     private final int pageSize;
     private final Checksum digest;
     private final String logPrefix;
@@ -68,6 +69,7 @@ public class WarpReadIndexInput
             ReadJuffersWarmUpElement juffersWE,
             LuceneFileType luceneFileType,
             long nativeCookie,
+            int matchTxId,
             long sliceOffset,
             long length,
             String sliceDescription)
@@ -82,6 +84,7 @@ public class WarpReadIndexInput
         this.dataRecordJuffer = juffersWE;
         this.luceneFileType = luceneFileType;
         this.nativeCookie = nativeCookie;
+        this.matchTxId = matchTxId;
         this.length = length;
         this.sliceOffset = sliceOffset;
         this.sliceDescription = sliceDescription;
@@ -159,7 +162,7 @@ public class WarpReadIndexInput
         Optional<ByteBuffer> page = get(key);
 
         if (page.isEmpty() || (page.get().limit() < fetchedBytes)) {
-            storageEngine.luceneReadBuffer(nativeCookie, luceneFileType.getNativeId(), pageAlignOffset, fetchedBytes);
+            storageEngine.luceneReadBuffer(matchTxId, nativeCookie, luceneFileType.getNativeId(), pageAlignOffset, fetchedBytes);
 
             // copy the content
             nativeJuffer.position(0);
@@ -223,6 +226,7 @@ public class WarpReadIndexInput
                 dataRecordJuffer,
                 luceneFileType,
                 nativeCookie,
+                matchTxId,
                 offset + sliceOffset,
                 sliceLength,
                 sliceDescription);
@@ -240,6 +244,7 @@ public class WarpReadIndexInput
                 dataRecordJuffer,
                 luceneFileType,
                 nativeCookie,
+                matchTxId,
                 sliceOffset,
                 length,
                 sliceDescription);

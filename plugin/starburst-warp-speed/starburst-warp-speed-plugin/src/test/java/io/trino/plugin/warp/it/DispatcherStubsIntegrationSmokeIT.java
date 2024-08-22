@@ -275,14 +275,6 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                 .build();
     }
 
-    protected void validateQueryStats(@Language("SQL") String query, Session session, Map<String, Long> expectedQueryStats, int expectedLuceneReadColumns)
-    {
-        int beforeLuceneReadColumns = ((StubsStorageEngine) storageEngineModule.getStorageEngine()).getLuceneReadColumns();
-        validateQueryStats(query, session, expectedQueryStats, Collections.emptyList(), OptionalInt.empty(), OptionalInt.empty(), false);
-        int actualLuceneReadColumns = ((StubsStorageEngine) storageEngineModule.getStorageEngine()).getLuceneReadColumns() - beforeLuceneReadColumns;
-        assertThat(actualLuceneReadColumns).as("different result for actualLuceneReadColumns").isEqualTo(expectedLuceneReadColumns);
-    }
-
     protected void validateQueryStats(@Language("SQL") String query, Session session, Map<String, Long> expectedQueryStats, boolean filterRange)
     {
         validateQueryStats(query, session, expectedQueryStats, Collections.emptyList(), OptionalInt.empty(), OptionalInt.empty(), filterRange);

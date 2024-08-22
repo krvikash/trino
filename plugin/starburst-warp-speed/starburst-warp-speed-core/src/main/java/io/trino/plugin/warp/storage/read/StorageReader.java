@@ -224,8 +224,6 @@ public class StorageReader
                         queryParams.getNumMatchElements(),
                         storageCollectorArgs.numChunksInRange(),
                         weMatchTree,
-                        luceneMatchers.length,
-                        luceneMatchers,
                         collectOpenResult.matchResultBitmaps().address(),
                         queryParams.getMinMatchOffset(),
                         matchBuffIds);

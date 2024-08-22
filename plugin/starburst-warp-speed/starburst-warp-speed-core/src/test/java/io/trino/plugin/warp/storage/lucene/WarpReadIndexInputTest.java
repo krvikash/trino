@@ -80,6 +80,7 @@ public class WarpReadIndexInputTest
                 LuceneFileType.CFS,
                 1,
                 0,
+                0,
                 100,
                 "root");
     }
@@ -90,7 +91,7 @@ public class WarpReadIndexInputTest
         for (int i = 0; i < SMALL_FILE_SIZE - 1; i++) {
             warpReadIndexInput.readByte();
         }
-        verify(storageEngine, times(1)).luceneReadBuffer(anyLong(), anyInt(), eq(0), eq(SMALL_FILE_SIZE));
+        verify(storageEngine, times(1)).luceneReadBuffer(anyInt(), anyLong(), anyInt(), eq(0), eq(SMALL_FILE_SIZE));
         assertThat(warpReadIndexInput.getBufferPosition()).isEqualTo(SMALL_FILE_SIZE - 1);
     }
 
@@ -100,10 +101,10 @@ public class WarpReadIndexInputTest
         for (int i = 0; i < SMALL_FILE_SIZE; i++) {
             warpReadIndexInput.readByte();
         }
-        verify(storageEngine, times(1)).luceneReadBuffer(anyLong(), anyInt(), eq(0), eq(SMALL_FILE_SIZE));
+        verify(storageEngine, times(1)).luceneReadBuffer(anyInt(), anyLong(), anyInt(), eq(0), eq(SMALL_FILE_SIZE));
 
         warpReadIndexInput.readByte();
-        verify(storageEngine, times(1)).luceneReadBuffer(anyLong(), anyInt(), eq(SMALL_FILE_SIZE), eq(SMALL_FILE_SIZE));
+        verify(storageEngine, times(1)).luceneReadBuffer(anyInt(), anyLong(), anyInt(), eq(SMALL_FILE_SIZE), eq(SMALL_FILE_SIZE));
         assertThat(warpReadIndexInput.getBufferPosition()).isEqualTo(1);
     }
 
@@ -118,7 +119,7 @@ public class WarpReadIndexInputTest
 
         byte[] readBytes = new byte[numOfBytesToRead];
         warpReadIndexInput.readBytes(readBytes, 0, numOfBytesToRead);
-        verify(storageEngine, times(1)).luceneReadBuffer(anyLong(), anyInt(), eq(0), eq(SMALL_FILE_SIZE));
+        verify(storageEngine, times(1)).luceneReadBuffer(anyInt(), anyLong(), anyInt(), eq(0), eq(SMALL_FILE_SIZE));
         assertThat(warpReadIndexInput.getFilePointer()).isEqualTo(Integer.BYTES + numOfBytesToRead);
         assertThat(warpReadIndexInput.getBufferPosition()).isEqualTo(Integer.BYTES + numOfBytesToRead);
     }
@@ -132,10 +133,10 @@ public class WarpReadIndexInputTest
         }
         assertThat(warpReadIndexInput.getBufferPosition()).isEqualTo(SMALL_FILE_SIZE);
 
-        verify(storageEngine, times(1)).luceneReadBuffer(anyLong(), anyInt(), eq(0), eq(SMALL_FILE_SIZE));
+        verify(storageEngine, times(1)).luceneReadBuffer(anyInt(), anyLong(), anyInt(), eq(0), eq(SMALL_FILE_SIZE));
 
         warpReadIndexInput.readInt();
-        verify(storageEngine, times(1)).luceneReadBuffer(anyLong(), anyInt(), eq(SMALL_FILE_SIZE), eq(SMALL_FILE_SIZE));
+        verify(storageEngine, times(1)).luceneReadBuffer(anyInt(), anyLong(), anyInt(), eq(SMALL_FILE_SIZE), eq(SMALL_FILE_SIZE));
         assertThat(warpReadIndexInput.getBufferPosition()).isEqualTo(4);
         assertThat(warpReadIndexInput.getFilePointer()).isEqualTo(SMALL_FILE_SIZE + Integer.BYTES);
     }
@@ -148,7 +149,7 @@ public class WarpReadIndexInputTest
         assertThat(warpReadIndexInput.getBufferPosition()).isEqualTo(10);
         assertThat(warpReadIndexInput.getFilePointer()).isEqualTo(10);
 
-        verify(storageEngine, times(1)).luceneReadBuffer(anyLong(), anyInt(), anyInt(), anyInt());
+        verify(storageEngine, times(1)).luceneReadBuffer(anyInt(), anyLong(), anyInt(), anyInt(), anyInt());
     }
 
     @Test
@@ -161,7 +162,7 @@ public class WarpReadIndexInputTest
         assertThat(warpReadIndexInput.getBufferPosition()).isEqualTo(bytesToSkip + Integer.BYTES);
         assertThat(warpReadIndexInput.getFilePointer()).isEqualTo(bytesToSkip + Integer.BYTES);
 
-        verify(storageEngine, times(1)).luceneReadBuffer(anyLong(), anyInt(), eq(0), eq(SMALL_FILE_SIZE));
+        verify(storageEngine, times(1)).luceneReadBuffer(anyInt(), anyLong(), anyInt(), eq(0), eq(SMALL_FILE_SIZE));
     }
 
     @Test
@@ -174,7 +175,7 @@ public class WarpReadIndexInputTest
         assertThat(warpReadIndexInput.getBufferPosition()).isEqualTo((skipSize + Integer.BYTES) % SMALL_FILE_SIZE);
         assertThat(warpReadIndexInput.getFilePointer()).isEqualTo(skipSize + Integer.BYTES);
 
-        verify(storageEngine, times(2)).luceneReadBuffer(anyLong(), anyInt(), anyInt(), anyInt());
+        verify(storageEngine, times(2)).luceneReadBuffer(anyInt(), anyLong(), anyInt(), anyInt(), anyInt());
     }
 
     @Test
