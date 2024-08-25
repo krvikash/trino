@@ -51,9 +51,19 @@ public class NativeRangeFillerService
         return getTotalNumCollected(rowsBuff, chunkSize) <= rangeData.getNumChunkRowsCollected();
     }
 
+    @Override
+    public int getMinForTypeAll(int baseRow, CollectOpenResult collectOpenResult, int currentNumCollectedRows)
+    {
+        ShortBuffer rowsBuff = bufferAllocator.ids2RowsBuff(collectOpenResult.rangeData().getRowsBuffId());
+        // start row index lies in the first position in the list
+        rowsBuff.position(getFirstIndexPosition());
+        // calculate the first row in the all list is done in short and then transfer to int. its the diff between the last list reached (exclustive) and the size of the list collected
+        return baseRow + Short.toUnsignedInt((short) (rowsBuff.get() - currentNumCollectedRows));
+    }
+
     // return the number of rows collected in this round
     @Override
-    public int add(int chunkIndex, int currentNumCollectedRows, StorageCollectorArgs storageCollectorArgs, boolean rangesRequired, CollectOpenResult collectOpenResult)
+    public int add(int chunkIndex, int currentNumCollectedRows, StorageCollectorArgs storageCollectorArgs, boolean rangesRequired, CollectOpenResult collectOpenResult, StorageCollectorService storageCollectorService)
     {
         RangeData rangeData = collectOpenResult.rangeData();
         advanceChunkIfNeeded(chunkIndex, rangeData);
@@ -85,17 +95,7 @@ public class NativeRangeFillerService
             }
             case RECORD_INDEX_LIST_TYPE_ALL -> {
                 if (rangesRequired) {
-                    int min;
-                    if (storageCollectorArgs.isLazyCollect()) {
-                        min = baseRow + collectOpenResult.lazyCollectAlreadyCollectedFromFirstChunk();
-                    }
-                    else {
-                        // start row index lies in the first position in the list
-                        rowsBuff.position(getFirstIndexPosition());
-                        // calculate the first row in the all list is done in short and then transfer to int. its the diff between the last list reached (exclustive) and the size of the list collected
-                        // in lazy collect the rowsBuff isn't full so rowsBuff.get() will be 0
-                        min = baseRow + Short.toUnsignedInt((short) (rowsBuff.get() - currentNumCollectedRows));
-                    }
+                    int min = storageCollectorService.getMinForTypeAll(baseRow, collectOpenResult, storageCollectorArgs, currentNumCollectedRows);
                     long minValue = mergeRanges(min, rangeData);
                     rangeData.addLowerInclusive(minValue);
                     rangeData.addUpperExclusive(min + numRows);

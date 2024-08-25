@@ -85,7 +85,7 @@ public class CollectTxService
      * prepare buffers for filling
      */
     CollectOpenResult collectOpenAndRestore(int rowsLimit,
-            int lazyCollectEndRowIndex,
+            int numCollectedInPrevRounds,
             StorageCollectorArgs storageCollectorArgs,
             int storeRowListSize,
             RecordIndexListType storeRowListType,
@@ -142,7 +142,7 @@ public class CollectTxService
         return new CollectOpenResult(collectTxId,
                 outResultType,
                 rowsLimit,
-                lazyCollectEndRowIndex % storageCollectorArgs.chunkSize(), // remember number of records already taken in lazy collect from current chunk
+                numCollectedInPrevRounds,
                 rangeData,
                 warmupElementRecordBufferStates,
                 bmSeg);

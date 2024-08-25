@@ -112,13 +112,6 @@ public class StorageCollectorService
         collectTxService.collect(collectOpenResult.collectTxId(), collectOpenResult.outResultType(), numWes, chunkIndex, numToCollect);
     }
 
-    int getLazyCollectEndRowIndex(int chunkIndex, int chunkSize, CollectOpenResult collectOpenResult, int numToCollect)
-    {
-        // in case its not lazy collect it should be 0 since in getNumToCollect we update the numCollectedRows parameter with this value modulo chunk size
-        // without a check if this is lazy to avoid another place to check. IMHO it makes the code simpler and with less logic by using zero here.
-        return 0;
-    }
-
     // returns indication if anything is collected in the buffer and if the buffer is full
     @NativeInterrupt
     CollectFromStorageResult collectFromStorage(CollectOpenResult collectOpenResult,
@@ -126,10 +119,8 @@ public class StorageCollectorService
             int numCollectedRows,
             StorageCollectorArgs storageCollectorArgs)
     {
-        int lazyCollectEndRowIndex = 0;
-
         if (chunksQueueService.isCompletelyFinished(storageCollectorArgs.chunksQueue(), storageCollectorArgs.numChunks())) {
-            return new CollectFromStorageResult(CollectBufferState.COLLECT_BUFFER_STATE_EMPTY, numCollectedRows, lazyCollectEndRowIndex);
+            return new CollectFromStorageResult(CollectBufferState.COLLECT_BUFFER_STATE_EMPTY, numCollectedRows);
         }
 
         int numToCollect = 1; // Not a real value, just making sure to enter the loop in the first iteration
@@ -148,12 +139,11 @@ public class StorageCollectorService
                 numToCollect = getNumToCollect(storageCollectorArgs, numCollectedFromCurrentChunk, collectOpenResult, numCollectedRows);
                 if (numToCollect > 0) {
                     collect(collectOpenResult, queryParams.getNumCollectElements(), chunkIndex, numToCollect);
-                    lazyCollectEndRowIndex = getLazyCollectEndRowIndex(chunkIndex, storageCollectorArgs.chunkSize(), collectOpenResult, numToCollect);
                 }
-                numCollectedRows += rangeFillerService.add(chunkIndex, numToCollect, storageCollectorArgs, isMatchGetNumRanges, collectOpenResult);
+                numCollectedRows += rangeFillerService.add(chunkIndex, numToCollect, storageCollectorArgs, isMatchGetNumRanges, collectOpenResult, this);
             }
             else {
-                numCollectedRows += rangeFillerService.add(chunkIndex, 0, storageCollectorArgs, isMatchGetNumRanges, collectOpenResult);
+                numCollectedRows += rangeFillerService.add(chunkIndex, 0, storageCollectorArgs, isMatchGetNumRanges, collectOpenResult, this);
             }
             logger.debug("collectFromStorage after native collect chunkIndex %d numToCollect %d numCollectedRows %d", chunkIndex, numToCollect, numCollectedRows);
 
@@ -175,10 +165,10 @@ public class StorageCollectorService
             collectBufferState = (numCollectedRows > 0) ? CollectBufferState.COLLECT_BUFFER_STATE_PARTIAL : CollectBufferState.COLLECT_BUFFER_STATE_EMPTY;
         }
 
-        return new CollectFromStorageResult(collectBufferState, numCollectedRows, lazyCollectEndRowIndex);
+        return new CollectFromStorageResult(collectBufferState, numCollectedRows);
     }
 
-    void fillBlocks(Block[] blocks, StorageCollectorArgs storageCollectorArgs, CollectOpenResult collectOpenResult, int rowsToFill, DispatcherPageSourceStats stats, int lazyCollectStartRowIndex)
+    void fillBlocks(Block[] blocks, StorageCollectorArgs storageCollectorArgs, CollectOpenResult collectOpenResult, int rowsToFill, DispatcherPageSourceStats stats, int numRowsCollectedInPrevRounds)
     {
         List<WarmupElementCollectParams> collectElementsParamsList = storageCollectorArgs.collectTxArgs().queryParams().getCollectElementsParamsList();
 
@@ -201,9 +191,6 @@ public class StorageCollectorService
             CollectOpenResult collectOpenResult,
             int numCollectedRows)
     {
-        // in case this is the full scan chunk (always one chunk) and it starts in the middle, we need to change the parameters for this calculation
-        numCollectedRows += collectOpenResult.lazyCollectAlreadyCollectedFromFirstChunk();
-
         List<WarmupElementRecordBufferState> warmupElementRecordBufferStates = collectOpenResult.warmupElementRecordBufferStates();
         if (warmupElementRecordBufferStates.isEmpty()) {
             logger.debug("getNumToCollect no wes %d", storageCollectorArgs.chunkSize() - numCollectedRows);
@@ -291,7 +278,7 @@ public class StorageCollectorService
                 fileCookieParams);
     }
 
-    StorageCollectorArgs getStorageCollectorArgs(QueryParams queryParams, boolean useLazyCollect)
+    StorageCollectorArgs getStorageCollectorArgs(QueryParams queryParams)
     {
         CollectTxArgs collectTxArgs = getCollectTxArgs(queryParams);
         ArrayList<BlockFiller<?>> blockFillers = new ArrayList<>(queryParams.getNumCollectElements());
@@ -320,8 +307,7 @@ public class StorageCollectorService
                 storeRowListBuff,
                 chunkSize,
                 numChunks,
-                new ChunksQueue(numChunksInRange, storageEngineConstants.getPageSize()),
-                useLazyCollect);
+                new ChunksQueue(numChunksInRange, storageEngineConstants.getPageSize()));
     }
 
     private int getNumChunksInRange(QueryParams queryParams)
@@ -338,5 +324,10 @@ public class StorageCollectorService
             numChunksInRange >>= 1;
         }
         return numChunksInRange;
+    }
+
+    public int getMinForTypeAll(int baseRow, CollectOpenResult collectOpenResult, StorageCollectorArgs storageCollectorArgs, int currentNumCollectedRows)
+    {
+        return rangeFillerService.getMinForTypeAll(baseRow, collectOpenResult, currentNumCollectedRows);
     }
 }

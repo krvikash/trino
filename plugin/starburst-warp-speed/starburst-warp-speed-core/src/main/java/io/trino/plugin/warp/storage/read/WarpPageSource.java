@@ -153,9 +153,7 @@ public class WarpPageSource
         Block[] blocks = new Block[queryParams.getCollectElementsParamsList().size()];
         int currentPositionsCount = fillPage(blocks);
 
-        if (shouldClose()) {
-            close(); // release any resources now (dictionaries)
-        }
+        markFinishedIfDone();
 
         // blocks.length can be 0 in case we just match in Warp when collect is done in external/prefilled
         return ((blocks.length > 0) && blocks[0] != null) ? new Page(currentPositionsCount, blocks) : new Page(currentPositionsCount);
@@ -167,8 +165,8 @@ public class WarpPageSource
         if (!closed) {
             try {
                 if (reader == null) { // first time
+                    this.storageCollectorArgs = storageCollectorService.getStorageCollectorArgs(queryParams);
                     boolean useLazyCollect = lazyCollectorService.useLazyCollect(queryParams);
-                    this.storageCollectorArgs = storageCollectorService.getStorageCollectorArgs(queryParams, useLazyCollect);
                     StorageCollectorService collectorService = useLazyCollect ? lazyCollectorService : storageCollectorService;
                     this.storageCollectorCallBack = new StorageCollectorCallBack(storageCollectorArgs, bufferAllocator);
                     reader = new StorageReader(storageEngine,
@@ -198,12 +196,11 @@ public class WarpPageSource
         return filledRows;
     }
 
-    private boolean shouldClose()
+    private void markFinishedIfDone()
     {
         if (isRowsLimitReached()) {
             finished = true;
         }
-        return finished && !storageCollectorArgs.isLazyCollect();
     }
 
     private int pipe(Block[] blocks)

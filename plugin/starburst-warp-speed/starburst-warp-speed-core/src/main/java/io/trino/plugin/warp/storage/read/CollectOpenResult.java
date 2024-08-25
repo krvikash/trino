@@ -19,7 +19,7 @@ import java.util.List;
 public record CollectOpenResult(int collectTxId,
                          int[] outResultType,
                          int rowsLimit,
-                         int lazyCollectAlreadyCollectedFromFirstChunk,
+                         int numCollectedInPreviousRounds,
                          RangeData rangeData,
                          List<WarmupElementRecordBufferState> warmupElementRecordBufferStates,
                          MemorySegment matchResultBitmaps)

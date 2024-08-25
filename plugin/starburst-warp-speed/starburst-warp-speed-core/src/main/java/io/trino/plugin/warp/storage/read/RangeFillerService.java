@@ -21,11 +21,13 @@ public interface RangeFillerService
     boolean isCurrentChunkCompleted(RangeData rangeData, int chunkSize);
 
     // return the number of rows collected in this round
-    int add(int chunkIndex, int currentNumCollectedRows, StorageCollectorArgs storageCollectorArgs, boolean rangesRequired, CollectOpenResult collectOpenResult);
+    int add(int chunkIndex, int currentNumCollectedRows, StorageCollectorArgs storageCollectorArgs, boolean rangesRequired, CollectOpenResult collectOpenResult, StorageCollectorService storageCollectorService);
 
     WarpStoragePageSource.RowRanges reset(RangeData rangeData);
 
     int getNumCollectedFromCurrentChunk(int chunkIndex, RangeData rangeData);
+
+    int getMinForTypeAll(int baseRow, CollectOpenResult collectOpenResult, int currentNumCollectedRows);
 
     // list type and size are kept as memebers
     // in type all we store the first row index in the byte array

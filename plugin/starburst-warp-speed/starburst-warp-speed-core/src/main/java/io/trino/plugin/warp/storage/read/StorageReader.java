@@ -78,11 +78,11 @@ public class StorageReader
     private final ChunksQueueService chunksQueueService;
     private final StorageCollectorService storageCollectorService;
     private int collectTxId;
-    private int numCollectedRows;
+    private int numRowsCollectedInCurRound; // num rows collected in this getNextPage
+    private int numRowsCollectedInPrevRounds; // num rows collected in all previous getNextPages
     private boolean dictionariesLoaded;
     private RecordIndexListType storeRowListType;
     private int storeRowListSize;
-    private int lazyCollectEndRowIndex;
 
     StorageReader(StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
@@ -207,7 +207,7 @@ public class StorageReader
         }
 
         CollectOpenResult collectOpenResult = collectTxService.collectOpenAndRestore(rowsLimit,
-                lazyCollectEndRowIndex,
+                numRowsCollectedInPrevRounds,
                 storageCollectorArgs,
                 storeRowListSize,
                 storeRowListType,
@@ -251,7 +251,7 @@ public class StorageReader
                     matchBuffIds[matchIx]);
             matchIx++;
         }
-        numCollectedRows = 0;
+        numRowsCollectedInCurRound = 0;
 
         return collectOpenResult;
     }
@@ -349,10 +349,9 @@ public class StorageReader
         matchIfNeeded();
         // we continue as long as buffer is not full and we have more chunks to match and collect
         while (!matchExhausted && (collectBufferState != CollectBufferState.COLLECT_BUFFER_STATE_FULL)) {
-            CollectFromStorageResult collectFromStorageResult = storageCollectorService.collectFromStorage(collectOpenResult, isMatchGetNumRanges, numCollectedRows, storageCollectorArgs);
+            CollectFromStorageResult collectFromStorageResult = storageCollectorService.collectFromStorage(collectOpenResult, isMatchGetNumRanges, numRowsCollectedInCurRound, storageCollectorArgs);
             collectBufferState = collectFromStorageResult.collectBufferState();
-            numCollectedRows = collectFromStorageResult.numCollectedRows();
-            lazyCollectEndRowIndex = collectFromStorageResult.lazyCollectEndRowIndex();
+            numRowsCollectedInCurRound = collectFromStorageResult.numCollectedRows();
             matchExhausted = chunksQueueService.isChunkRangeCompleted(storageCollectorArgs.chunksQueue());
             matchIfNeeded();
         }
@@ -374,9 +373,10 @@ public class StorageReader
             return 0;
         }
 
+        numRowsCollectedInPrevRounds += numRowsCollectedInCurRound;
         CollectCloseResult collectCloseResult = collectTxService.collectStoreAndClose(collectOpenResult,
                 storageCollectorArgs,
-                numCollectedRows,
+                numRowsCollectedInCurRound,
                 storeRowListSize,
                 storeRowListType,
                 storageCollectorCallBack);
@@ -408,9 +408,9 @@ public class StorageReader
 
     int fillBlocks(Block[] blocks, CollectOpenResult collectOpenResult)
     {
-        int rowsToFill = Math.min(numCollectedRows, collectOpenResult.rowsLimit());
+        int rowsToFill = Math.min(numRowsCollectedInCurRound, collectOpenResult.rowsLimit());
 
-        storageCollectorService.fillBlocks(blocks, storageCollectorArgs, collectOpenResult, rowsToFill, statsDispatcherPageSource, lazyCollectEndRowIndex - rowsToFill);
+        storageCollectorService.fillBlocks(blocks, storageCollectorArgs, collectOpenResult, rowsToFill, statsDispatcherPageSource, numRowsCollectedInPrevRounds);
         return rowsToFill;
     }
 }

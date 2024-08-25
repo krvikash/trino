@@ -101,19 +101,21 @@ public class LazyCollectorService
     }
 
     @Override
-    int getLazyCollectEndRowIndex(int chunkIndex, int chunkSize, CollectOpenResult collectOpenResult, int numToCollect)
+    public int getMinForTypeAll(int baseRow, CollectOpenResult collectOpenResult, StorageCollectorArgs storageCollectorArgs, int currentNumCollectedRows)
     {
-        return chunkIndex * chunkSize + collectOpenResult.lazyCollectAlreadyCollectedFromFirstChunk() + numToCollect;
+        // assuming lazy collect is only in full scan and that we have only 1 round per getNextPage so can get numCollectedFromCurrentChunk from numCollectedInPreviousRounds
+        int numCollectedFromCurrentChunk = collectOpenResult.numCollectedInPreviousRounds() % storageCollectorArgs.chunkSize();
+        return baseRow + numCollectedFromCurrentChunk;
     }
 
     @Override
-    void fillBlocks(Block[] blocks, StorageCollectorArgs storageCollectorArgs, CollectOpenResult collectOpenResult, int rowsToFill, DispatcherPageSourceStats stats, int lazyCollectStartRowIndex)
+    void fillBlocks(Block[] blocks, StorageCollectorArgs storageCollectorArgs, CollectOpenResult collectOpenResult, int rowsToFill, DispatcherPageSourceStats stats, int numRowsCollectedInPrevRounds)
     {
         List<WarmupElementCollectParams> collectElementsParamsList = storageCollectorArgs.collectTxArgs().queryParams().getCollectElementsParamsList();
 
         for (int weIx = 0; weIx < collectElementsParamsList.size(); weIx++) {
             WarmupElementCollectParams collectParams = collectElementsParamsList.get(weIx);
-            LazyCollectorLoaderArgs lazyCollectorLoaderArgs = getLazyLoaderArgs(storageCollectorArgs, weIx, lazyCollectStartRowIndex, rowsToFill);
+            LazyCollectorLoaderArgs lazyCollectorLoaderArgs = getLazyLoaderArgs(storageCollectorArgs, weIx, numRowsCollectedInPrevRounds, rowsToFill);
             blocks[collectParams.getBlockIndex()] = new LazyBlock(rowsToFill, new LazyCollectorLoader(
                     lazyCollectTxService,
                     lazyCollectorLoaderArgs,

@@ -35,7 +35,7 @@ public class StubsRangeFillerService
 
     // return the number of rows collected in this round
     @Override
-    public int add(int chunkIndex, int currentNumCollectedRows, StorageCollectorArgs storageCollectorArgs, boolean rangesRequired, CollectOpenResult collectOpenResult)
+    public int add(int chunkIndex, int currentNumCollectedRows, StorageCollectorArgs storageCollectorArgs, boolean rangesRequired, CollectOpenResult collectOpenResult, StorageCollectorService storageCollectorService)
     {
         return 0;
     }
@@ -48,6 +48,12 @@ public class StubsRangeFillerService
 
     @Override
     public int getNumCollectedFromCurrentChunk(int chunkIndex, RangeData rangeData)
+    {
+        return 0;
+    }
+
+    @Override
+    public int getMinForTypeAll(int baseRow, CollectOpenResult collectOpenResult, int currentNumCollectedRows)
     {
         return 0;
     }

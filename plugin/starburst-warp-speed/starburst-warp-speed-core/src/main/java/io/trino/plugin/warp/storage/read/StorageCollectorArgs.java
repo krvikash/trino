@@ -25,7 +25,6 @@ public record StorageCollectorArgs(CollectTxArgs collectTxArgs,
                                    byte[] storeRowListBuff,
                                    int chunkSize,
                                    int numChunks,
-                                   ChunksQueue chunksQueue,
-                                   boolean isLazyCollect)
+                                   ChunksQueue chunksQueue)
 {
 }
