@@ -1310,7 +1310,8 @@ public class DispatcherMetadata
     @Override
     public boolean allowSplittingReadIntoMultipleSubQueries(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
-        return proxiedConnectorMetadata.allowSplittingReadIntoMultipleSubQueries(session, tableHandle);
+        DispatcherTableHandle dispatcherTableHandle = (DispatcherTableHandle) tableHandle;
+        return proxiedConnectorMetadata.allowSplittingReadIntoMultipleSubQueries(session, dispatcherTableHandle.getProxyConnectorTableHandle());
     }
 
     @Override
