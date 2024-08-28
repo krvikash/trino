@@ -50,6 +50,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -195,16 +196,34 @@ public class ChunkManager
                 CacheBuilder.newBuilder().softValues(),
                 new CacheLoader<>()
                 {
+                    private final Set<Long> decodingFailures = ConcurrentHashMap.newKeySet();
+
                     @Override
                     public Map<Long, SpooledChunk> load(Long key)
                     {
+                        Slice slice = null;
                         try {
-                            Slice slice = getFutureValue(spoolingStorage.readMetadataFile(key));
+                            slice = getFutureValue(spoolingStorage.readMetadataFile(key));
                             log.info("reading spooled chunk map for buffer node " + key + "; serialized size=" + slice.length());
                             return decodeMetadataSlice(slice);
                         }
                         catch (Throwable t) {
+                            if (slice != null && !decodingFailures.contains(key)) {
+                                dumpMetadataFile(key, slice);
+                                // ensure we log only once to not overwhelm logging system
+                                decodingFailures.add(key);
+                            }
                             throw new DataServerException(INTERNAL_ERROR, "Error decoding metadata from file " + getMetadataFileName(key), t);
+                        }
+                    }
+
+                    private void dumpMetadataFile(Long key, Slice slice)
+                    {
+                        String sliceBase64 = Base64.getEncoder().encodeToString(slice.getBytes());
+                        int parts = (sliceBase64.length() - 1) / 1000 + 1;
+                        log.warn("Error decoding metadata from file " + getMetadataFileName(key));
+                        for (int i = 0; i < parts; ++i) {
+                            log.warn("metadata contents (%s/%s): %s", i + 1, parts, sliceBase64.substring(i * 1000, Math.min(sliceBase64.length(), (i + 1) * 1000)));
                         }
                     }
                 });
