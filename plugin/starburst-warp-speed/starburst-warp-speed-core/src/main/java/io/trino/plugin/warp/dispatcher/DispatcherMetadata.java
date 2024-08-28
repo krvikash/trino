@@ -1310,8 +1310,10 @@ public class DispatcherMetadata
     @Override
     public boolean allowSplittingReadIntoMultipleSubQueries(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
-        DispatcherTableHandle dispatcherTableHandle = (DispatcherTableHandle) tableHandle;
-        return proxiedConnectorMetadata.allowSplittingReadIntoMultipleSubQueries(session, dispatcherTableHandle.getProxyConnectorTableHandle());
+        // when this optimization is enabled there is a different in the offset when the query is of aggregate of select count(col) Vs select col.
+        // one of them is creating a split with offset 0 (when the metadata needs to be used) and the other is created with offset 4.
+        // in warp this will endup duplicating the data stored on the disk so we prefer to remove the optimization and keep a single copy
+        return false;
     }
 
     @Override
