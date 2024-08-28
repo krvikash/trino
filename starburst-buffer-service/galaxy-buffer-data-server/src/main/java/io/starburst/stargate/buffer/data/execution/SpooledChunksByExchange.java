@@ -18,7 +18,6 @@ import io.airlift.slice.SliceOutput;
 import io.airlift.slice.Slices;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,6 +25,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 @ThreadSafe
 public class SpooledChunksByExchange
@@ -110,7 +111,7 @@ public class SpooledChunksByExchange
                 metadataFileSize += Long.BYTES;
                 SpooledChunk spooledChunk = secondaryEntry.getValue();
                 metadataFileSize += Integer.BYTES;
-                metadataFileSize += spooledChunk.location().length();
+                metadataFileSize += spooledChunk.location().getBytes(UTF_8).length;
                 metadataFileSize += Long.BYTES;
                 metadataFileSize += Integer.BYTES;
             }
@@ -124,7 +125,7 @@ public class SpooledChunksByExchange
                 sliceOutput.writeLong(chunkId);
                 SpooledChunk spooledChunk = secondaryEntry.getValue();
                 sliceOutput.writeInt(spooledChunk.location().length());
-                sliceOutput.writeBytes(spooledChunk.location().getBytes(StandardCharsets.UTF_8));
+                sliceOutput.writeBytes(spooledChunk.location().getBytes(UTF_8));
                 sliceOutput.writeLong(spooledChunk.offset());
                 sliceOutput.writeInt(spooledChunk.length());
             }
@@ -139,7 +140,7 @@ public class SpooledChunksByExchange
         while (sliceInput.isReadable()) {
             long chunkId = sliceInput.readLong();
             int locationLength = sliceInput.readInt();
-            String location = sliceInput.readSlice(locationLength).toStringAscii();
+            String location = sliceInput.readSlice(locationLength).toStringUtf8();
             long offset = sliceInput.readLong();
             int length = sliceInput.readInt();
 
