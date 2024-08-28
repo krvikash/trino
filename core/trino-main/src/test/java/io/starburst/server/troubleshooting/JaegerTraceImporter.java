@@ -40,8 +40,8 @@ public final class JaegerTraceImporter
     public static void main(String[] args)
             throws IOException
     {
-        GrpcExporterBuilder grpcExporterBuilder = new GrpcExporterBuilder("otlp", "span", 10L, URI.create("http://localhost:4317"), () -> null, "/opentelemetry.proto.collector.trace.v1.TraceService/Export");
-        GrpcExporter exporter = grpcExporterBuilder.build();
+        GrpcExporterBuilder<FileBasedMarshaller> grpcExporterBuilder = new GrpcExporterBuilder<>("otlp", "span", 10L, URI.create("http://localhost:4317"), () -> null, "/opentelemetry.proto.collector.trace.v1.TraceService/Export");
+        GrpcExporter<FileBasedMarshaller> exporter = grpcExporterBuilder.build();
         Path tracesDirectory = Paths.get(System.getProperty("user.home")).resolve("Downloads/traces");
         Path decompressedDirectory = tracesDirectory.resolve("decompressed");
         try (Stream<Path> traceFiles = Files.list(tracesDirectory)) {
@@ -77,7 +77,7 @@ public final class JaegerTraceImporter
         }
     }
 
-    private static void exportTrace(GrpcExporter exporter, Path file)
+    private static void exportTrace(GrpcExporter<FileBasedMarshaller> exporter, Path file)
     {
         CompletableResultCode resultCode = exporter.export(new FileBasedMarshaller(file), 1);
         CompletableResultCode joinResult = resultCode.join(10, TimeUnit.SECONDS);
