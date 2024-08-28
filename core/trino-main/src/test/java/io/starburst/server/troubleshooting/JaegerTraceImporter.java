@@ -21,6 +21,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
@@ -34,15 +35,29 @@ public final class JaegerTraceImporter
     private JaegerTraceImporter() {}
 
     public static void main(String[] args)
+            throws IOException
     {
         GrpcExporterBuilder grpcExporterBuilder = new GrpcExporterBuilder("otlp", "span", 10L, URI.create("http://localhost:4317"), () -> null, "/opentelemetry.proto.collector.trace.v1.TraceService/Export");
         GrpcExporter exporter = grpcExporterBuilder.build();
-        Path file = Paths.get(System.getProperty("user.home")).resolve("Downloads/opentelemetry-coordinator.grpc");
+        Path tracesDirectory = Paths.get(System.getProperty("user.home")).resolve("Downloads/traces");
+        try (Stream<Path> traceFiles = Files.list(tracesDirectory)) {
+            traceFiles.forEach(traceFile -> {
+                if (traceFile.getFileName().toString().endsWith(".grpc")) {
+                    exportTrace(exporter, traceFile);
+                }
+                else {
+                    System.out.println("skipped path: " + traceFile + ", it's not a .grpc file");
+                }
+            });
+        }
+        exporter.shutdown();
+    }
+
+    private static void exportTrace(GrpcExporter exporter, Path file)
+    {
         CompletableResultCode resultCode = exporter.export(new FileBasedMarshaller(file), 1);
         CompletableResultCode joinResult = resultCode.join(10, TimeUnit.SECONDS);
         System.out.println("done: " + joinResult.isDone() + ", success: " + joinResult.isSuccess() + ", path: " + file);
-
-        exporter.shutdown();
     }
 
     private static class FileBasedMarshaller
