@@ -1,7 +1,124 @@
 [
     {
+        "name": "validate_SIC-2417",
+        "lines": 4,
+        "default_warming": true,
+        "expected_row_group": 2,
+        "expected_warmup_elements":  2,
+        "description": "This test makes sure SIC-2417 doesn't reproduce. 2 row groups are expected because 1 is in Warp connector and 1 is in Warp cache manager",
+        "structure": [
+            {
+                "name": "Id",
+                "type": "integer"
+            },
+            {
+                "name": "Model",
+                "type": "varchar",
+                "args": [
+                    65535
+                ]
+            },
+            {
+                "name": "Year",
+                "type": "bigint"
+            },
+            {
+                "name": "ScreenSize",
+                "type": "varchar",
+                "args": [
+                    20
+                ]
+            },
+            {
+                "name": "RAM",
+                "type": "varchar",
+                "args": [
+                    5
+                ]
+            },
+            {
+                "name": "HDD",
+                "type": "varchar",
+                "args": [
+                    10
+                ]
+            },
+            {
+                "name": "W",
+                "type": "double"
+            },
+            {
+                "name": "D",
+                "type": "double"
+            },
+            {
+                "name": "H",
+                "type": "double"
+            },
+            {
+                "name": "Weight",
+                "type": "double"
+            }
+        ],
+        "queries_data": [
+            {
+                "query": "select year / 1000 from mac_paramsj limit 1",
+                "comment": "Before SIC-2417, this query triggered a warmup in Warp connector while warmup in cache manager was aborted. We only want to warm 1 line, so we don't use ORDER BY. year / 1000 is for consistency - the result of all lines is 2",
+                "query_id": "warm_in_warp_connector",
+                "expected_result": [
+                    [
+                        2
+                    ]
+                ]
+            },
+            {
+                "query": "select year / 1000 from mac_paramsj limit 1",
+                "comment": "Before SIC-2417, this query triggered a warmup in cache manager which was successful",
+                "query_id": "warm_in_warp_cache_manager",
+                "expected_result": [
+                    [
+                        2
+                    ]
+                ]
+            },
+            {
+                "query": "select year / 1000 from mac_paramsj limit 2",
+                "comment": "Before SIC-2417, this query caused cache manager to return the cached results of the previous query, hence, 1 line instead of 2",
+                "query_id": "test_warp_cache_manager_1",
+                "expected_result": [
+                    [
+                        2
+                    ],
+                    [
+                        2
+                    ]
+                ]
+            },
+            {
+                "query": "select year from mac_paramsj ORDER BY year",
+                "comment": "No limit - should triggered a warmup in cache manager",
+                "query_id": "test_warp_cache_manager_2",
+                "expected_result": [
+                    [
+                        2015
+                    ],
+                    [
+                        2016
+                    ],
+                    [
+                        2016
+                    ],
+                    [
+                        2017
+                    ]
+                ]
+            }
+        ]
+    },
+    {
         "name": "test_store_id",
         "lines": 4,
+        "default_warming": false,
         "expected_row_group": 1,
         "expected_warmup_elements":  7,
         "structure": [

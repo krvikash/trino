@@ -136,7 +136,7 @@ public class TestWarpCache
     }
 
     @DataProvider
-    public Iterator<Object[]> storeId(ITestContext context)
+    public Iterator<Object[]> syntheticCacheManager(ITestContext context)
             throws Exception
     {
         String filePath = "file:///docker/presto-product-tests/warp/synthetic_cache_manager.json";
@@ -148,13 +148,14 @@ public class TestWarpCache
                 .iterator();
     }
 
-    @Test(groups = {WARP_SPEED_CACHE, PROFILE_SPECIFIC_TESTS}, dataProvider = "storeId")
-    public void storeId(TestCacheFormat testFormat)
+    // Note: This test contains cases in which all queries are required to reproduce the desired scenario
+    @Test(groups = {WARP_SPEED_CACHE, PROFILE_SPECIFIC_TESTS}, dataProvider = "syntheticCacheManager")
+    public void syntheticCacheManager(TestCacheFormat testFormat)
             throws IOException
     {
         try {
             onTrino().executeQuery("USE warp.synthetic");
-            onTrino().executeQuery("set session warp.enable_default_warming=False");
+            onTrino().executeQuery(format("set session warp.enable_default_warming=%s", testFormat.default_warming()));
             QueryResult warmingStatsBefore = JMXCachingManager.getWarmingStats();
             cacheUtils.runQueries(testFormat.queries_data(), false);
             cacheUtils.runQueries(testFormat.queries_data(), true);
@@ -165,6 +166,15 @@ public class TestWarpCache
             assertThat(warmupElementCount).isEqualTo(testFormat.expected_warmup_elements());
         }
         finally {
+            if (testFormat.default_warming()) {
+                // TODO: for some reason, demoteAllByMaxUsage() doesn't actually demote all,
+                //  and will only demote Warp connector's rowGroupData if it exists.
+                //  So we explicitly demote it here, and that causes demoteAllByMaxUsage()
+                //  to demote CacheManager's rowGroupData (otherwise an assertion will fail)
+                List<String> columnNames = testFormat.structure().stream().map(TestFormat.Column::name).toList();
+                demoterUtils.demote("synthetic", testFormat.table_name(), columnNames);
+            }
+
             demoterUtils.demoteAllByMaxUsage(true);
             demoterUtils.resetToDefaultDemoterConfiguration(true);
         }

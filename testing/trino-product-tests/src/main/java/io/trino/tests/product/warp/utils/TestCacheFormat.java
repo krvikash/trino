@@ -15,6 +15,14 @@ package io.trino.tests.product.warp.utils;
 
 import java.util.List;
 
-public record TestCacheFormat(String name, int lines, String table_name, List<TestFormat.Column> structure, List<TestFormat.QueryData> queries_data, int expected_row_group, int expected_warmup_elements)
+public record TestCacheFormat(
+        String name,
+        int lines,
+        String table_name,
+        List<TestFormat.Column> structure,
+        List<TestFormat.QueryData> queries_data,
+        boolean default_warming,
+        int expected_row_group,
+        int expected_warmup_elements)
 {
 }
