@@ -146,7 +146,9 @@ public class StorageReader
 
     void close()
     {
-        storageEngine.fileClose(storageCollectorArgs.collectTxArgs().fileCookie()[FILE_COOKIE_PARAMS_FD.ordinal()]);
+        if (storageCollectorArgs != null) {
+            storageEngine.fileClose(storageCollectorArgs.collectTxArgs().fileCookie()[FILE_COOKIE_PARAMS_FD.ordinal()]);
+        }
     }
 
     private void createLuceneMatchers(GlobalConfig globalConfig)

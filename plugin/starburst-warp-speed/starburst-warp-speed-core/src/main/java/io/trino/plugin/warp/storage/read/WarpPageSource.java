@@ -37,21 +37,12 @@ public class WarpPageSource
     public static final int INVALID_COL_IX = -1;
     private final ShapingLogger shapingLogger;
 
-    private final DictionaryCacheService dictionaryCacheService;
-    private final CollectTxService collectTxService;
-    private final ChunksQueueService chunksQueueService;
-    private final StorageCollectorService storageCollectorService;
-    private final LazyCollectorService lazyCollectorService;
     private final RangeFillerService rangeFillerService;
-    private final StorageEngine storageEngine;
     private final StorageEngineConstants storageEngineConstants;
     private final boolean isMatchGetNumRanges;
     private final PredicatesCacheService predicatesCacheService;
-    private final BufferAllocator bufferAllocator;
-    private final GlobalConfig globalConfig;
     private final QueryParams queryParams;
-    private final CustomStatsContext customStatsContext;
-    private StorageReader reader;
+    private final StorageReader reader;
     private long rowsLimit;
     private boolean finished;
     private boolean closed; // May be set explicitly by someone calling {@link #close()} or if we finished reading all available data from the table
@@ -75,18 +66,9 @@ public class WarpPageSource
             LazyCollectorService lazyCollectorService,
             RangeFillerService rangeFillerService)
     {
-        this.bufferAllocator = requireNonNull(bufferAllocator);
-        this.storageEngine = requireNonNull(storageEngine);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.isMatchGetNumRanges = isMatchGetNumRanges;
         this.predicatesCacheService = predicatesCacheService;
-        this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
-        this.globalConfig = requireNonNull(globalConfig);
-        this.customStatsContext = customStatsContext;
-        this.collectTxService = collectTxService;
-        this.chunksQueueService = chunksQueueService;
-        this.storageCollectorService = storageCollectorService;
-        this.lazyCollectorService = lazyCollectorService;
         this.rangeFillerService = rangeFillerService;
         this.sortedRowRanges = RowRanges.EMPTY;
         this.rowsLimit = rowsLimit;
@@ -96,6 +78,20 @@ public class WarpPageSource
                 globalConfig.getShapingLoggerThreshold(),
                 globalConfig.getShapingLoggerDuration(),
                 globalConfig.getShapingLoggerNumberOfSamples());
+        StorageCollectorArgs storageCollectorArgs = storageCollectorService.getStorageCollectorArgs(queryParams);
+        boolean useLazyCollect = lazyCollectorService.useLazyCollect(queryParams);
+        StorageCollectorService collectorService = useLazyCollect ? lazyCollectorService : storageCollectorService;
+        reader = new StorageReader(storageEngine,
+                storageEngineConstants,
+                bufferAllocator,
+                dictionaryCacheService,
+                queryParams,
+                customStatsContext,
+                storageCollectorArgs,
+                collectTxService,
+                chunksQueueService,
+                collectorService,
+                globalConfig);
     }
 
     @Override
@@ -139,35 +135,10 @@ public class WarpPageSource
     public Page getNextPage()
     {
         Block[] blocks = new Block[queryParams.getCollectElementsParamsList().size()];
-        int currentPositionsCount = fillPage(blocks);
-
-        markFinishedIfDone();
-
-        // blocks.length can be 0 in case we just match in Warp when collect is done in external/prefilled
-        return ((blocks.length > 0) && blocks[0] != null) ? new Page(currentPositionsCount, blocks) : new Page(currentPositionsCount);
-    }
-
-    private int fillPage(Block[] blocks)
-    {
+        int currentPositionsCount = 0;
         if (!isFinished()) {
             try {
-                if (reader == null) { // first time
-                    StorageCollectorArgs storageCollectorArgs = storageCollectorService.getStorageCollectorArgs(queryParams);
-                    boolean useLazyCollect = lazyCollectorService.useLazyCollect(queryParams);
-                    StorageCollectorService collectorService = useLazyCollect ? lazyCollectorService : storageCollectorService;
-                    reader = new StorageReader(storageEngine,
-                            storageEngineConstants,
-                            bufferAllocator,
-                            dictionaryCacheService,
-                            queryParams,
-                            customStatsContext,
-                            storageCollectorArgs,
-                            collectTxService,
-                            chunksQueueService,
-                            collectorService,
-                            globalConfig);
-                }
-                return pipe(blocks);
+                currentPositionsCount = fillPage(blocks);
             }
             catch (Exception e) {
                 close();
@@ -177,17 +148,20 @@ public class WarpPageSource
                 throw e;
             }
         }
-        return 0;
+
+        // blocks.length can be 0 in case we just match in Warp when collect is done in external/prefilled
+        return ((blocks.length > 0) && blocks[0] != null) ? new Page(currentPositionsCount, blocks) : new Page(currentPositionsCount);
     }
 
-    private void markFinishedIfDone()
+    private void updateRowsLimit(int collectedRows)
     {
+        rowsLimit -= collectedRows;
         if (isRowsLimitReached()) {
             finished = true;
         }
     }
 
-    private int pipe(Block[] blocks)
+    private int fillPage(Block[] blocks)
     {
         int limit = (int) Math.min(rowsLimit, Integer.MAX_VALUE);
         int collectedRows = 0;
@@ -204,7 +178,7 @@ public class WarpPageSource
                 if (isMatchGetNumRanges) {
                     sortedRowRanges = rangeFillerService.collectRanges(collectOpenResult.rangeData(), collectOpenResult.rowsLimit());
                 }
-                rowsLimit -= collectedRows;
+                updateRowsLimit(collectedRows);
             }
             long readPagesResult = reader.queryClose(collectOpenResult);
             completedBytes += (readPagesResult << storageEngineConstants.getPageSizeShift());
