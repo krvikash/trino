@@ -165,6 +165,10 @@ public class TestWarpCache
             assertThat(rowGroupCount).isEqualTo(testFormat.expected_row_group());
             assertThat(warmupElementCount).isEqualTo(testFormat.expected_warmup_elements());
         }
+        catch (Throwable e) {
+            logger.error(e, "Failed to run queries");
+            throw e;
+        }
         finally {
             if (testFormat.default_warming()) {
                 // TODO: for some reason, demoteAllByMaxUsage() doesn't actually demote all,
@@ -293,7 +297,7 @@ public class TestWarpCache
             queryId = ((TrinoResultSet) queryResult.getJdbcResultSet().orElseThrow()).getQueryId();
             ruleUtils.validateLoadByCacheDataOperator(queryId);
         }
-        catch (Exception e) {
+        catch (Throwable e) {
             logger.error(e, "failed on testPanicOnWrite");
             throw e;
         }

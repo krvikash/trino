@@ -67,7 +67,7 @@ public class CacheUtils
             ranQueries = queryUtils.runCacheQueries(testFormat, isWarp);
             logger.info("successfully finish run test %s", testFormat.name());
         }
-        catch (Exception e) {
+        catch (Throwable e) {
             logger.error(e, "failed on test=%s", testFormat.name());
             throw e;
         }
