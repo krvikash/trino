@@ -10,6 +10,7 @@
 package io.starburst.stargate.buffer.data.execution;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableMap;
 import com.google.errorprone.annotations.ThreadSafe;
 import io.airlift.slice.Slice;
 import io.airlift.slice.SliceInput;
@@ -21,12 +22,20 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+
+import static com.google.common.base.Preconditions.checkState;
 
 @ThreadSafe
 public class SpooledChunksByExchange
 {
     // exchangeId -> chunkId -> spooledChunk
     private final Map<String, Map<Long, SpooledChunk>> mapping = new ConcurrentHashMap<>();
+    private final AtomicBoolean frozen = new AtomicBoolean();
+    private final ReadWriteLock freezeLock = new ReentrantReadWriteLock();
 
     public Optional<SpooledChunk> getSpooledChunk(String exchangeId, long chunkId)
     {
@@ -37,14 +46,48 @@ public class SpooledChunksByExchange
         return Optional.empty();
     }
 
+    public Map<String, Map<Long, SpooledChunk>> freeze()
+    {
+        Lock lock = freezeLock.writeLock();
+        lock.lock();
+        try {
+            checkState(frozen.compareAndSet(false, true), "Spooled chunks map already frozen");
+            ImmutableMap.Builder<String, Map<Long, SpooledChunk>> frozenMapping = ImmutableMap.builder();
+
+            mapping.forEach((k, v) -> {
+                frozenMapping.put(k, ImmutableMap.copyOf(v));
+            });
+            return frozenMapping.buildOrThrow();
+        }
+        finally {
+            lock.unlock();
+        }
+    }
+
     public void update(String exchangeId, Map<Long, SpooledChunk> spooledChunkMap)
     {
-        mapping.computeIfAbsent(exchangeId, ignored -> new ConcurrentHashMap<>()).putAll(spooledChunkMap);
+        Lock lock = freezeLock.readLock();
+        lock.lock();
+        try {
+            checkState(!frozen.get(), "Spooled chunks map already frozen");
+            mapping.computeIfAbsent(exchangeId, ignored -> new ConcurrentHashMap<>()).putAll(spooledChunkMap);
+        }
+        finally {
+            lock.unlock();
+        }
     }
 
     public void removeExchange(String exchangeId)
     {
-        mapping.remove(exchangeId);
+        Lock lock = freezeLock.readLock();
+        lock.lock();
+        try {
+            checkState(!frozen.get(), "Spooled chunks map already frozen");
+            mapping.remove(exchangeId);
+        }
+        finally {
+            lock.unlock();
+        }
     }
 
     public int getSpooledChunksCount()
@@ -52,7 +95,7 @@ public class SpooledChunksByExchange
         return mapping.values().stream().mapToInt(Map::size).sum();
     }
 
-    public Slice encodeMetadataSlice()
+    public static Slice encodeMetadataSlice(Map<String, Map<Long, SpooledChunk>> mapping)
     {
         int metadataFileSize = 0;
         for (Map.Entry<String, Map<Long, SpooledChunk>> entry : mapping.entrySet()) {

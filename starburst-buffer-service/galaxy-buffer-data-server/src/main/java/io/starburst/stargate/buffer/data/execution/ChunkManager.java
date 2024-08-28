@@ -473,7 +473,8 @@ public class ChunkManager
 
         // persist spooledChunkMapByExchange to S3
         if (spooledChunksByExchange.size() > 0) {
-            getFutureValue(spoolingStorage.writeMetadataFile(bufferNodeId, spooledChunksByExchange.encodeMetadataSlice()));
+            Map<String, Map<Long, SpooledChunk>> spooledChunksMap = spooledChunksByExchange.freeze();
+            getFutureValue(spoolingStorage.writeMetadataFile(bufferNodeId, SpooledChunksByExchange.encodeMetadataSlice(spooledChunksMap)));
             log.info("Finished writing metadata of spooled chunks");
         }
 

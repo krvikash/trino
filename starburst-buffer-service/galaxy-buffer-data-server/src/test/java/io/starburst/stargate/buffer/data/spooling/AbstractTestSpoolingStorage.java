@@ -164,9 +164,23 @@ public abstract class AbstractTestSpoolingStorage
         expectedSpooledChunkMap.put(2L, new SpooledChunk("location", 30L, 30));
         expectedSpooledChunkMap.put(3L, new SpooledChunk("anotherlocation", 0L, 88));
         spooledChunksByExchange.update(EXCHANGE_ID, expectedSpooledChunkMap);
-        getFutureValue(spoolingStorage.writeMetadataFile(BUFFER_NODE_ID, spooledChunksByExchange.encodeMetadataSlice()));
+        Map<String, Map<Long, SpooledChunk>> mapping = spooledChunksByExchange.freeze();
+        getFutureValue(spoolingStorage.writeMetadataFile(BUFFER_NODE_ID, SpooledChunksByExchange.encodeMetadataSlice(mapping)));
 
         assertThat(decodeMetadataSlice(getFutureValue(spoolingStorage.readMetadataFile(BUFFER_NODE_ID)))).isEqualTo(expectedSpooledChunkMap);
+    }
+
+    @Test
+    public void testNoOperationsAfterFreeze()
+    {
+        SpooledChunksByExchange spooledChunksByExchange = new SpooledChunksByExchange();
+        Map<Long, SpooledChunk> mapping = new HashMap<>();
+        mapping.put(0L, new SpooledChunk("location", 0L, 10));
+        spooledChunksByExchange.update(EXCHANGE_ID, mapping);
+        Map<String, Map<Long, SpooledChunk>> _ = spooledChunksByExchange.freeze();
+        assertThatThrownBy(spooledChunksByExchange::freeze).hasMessageContaining("Spooled chunks map already frozen");
+        assertThatThrownBy(() -> spooledChunksByExchange.update(EXCHANGE_ID, ImmutableMap.of())).hasMessageContaining("Spooled chunks map already frozen");
+        assertThatThrownBy(() -> spooledChunksByExchange.removeExchange(EXCHANGE_ID)).hasMessageContaining("Spooled chunks map already frozen");
     }
 
     private static String getRandomLargeString()
