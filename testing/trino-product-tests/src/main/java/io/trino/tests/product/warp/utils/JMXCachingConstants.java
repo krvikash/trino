@@ -58,6 +58,7 @@ public class JMXCachingConstants
         public static final String CACHE_WARM_ACCOMPLISHED = "warm_warp_cache_accomplished";
 
         public static final String CACHE_WARM_FAILED = "warm_warp_cache_failed";
+        public static final String CACHE_WARM_ENGINE_ABORTED = "warm_warp_cache_engine_aborted";
         public static final String CACHE_INVALID_TYPE = "warm_warp_cache_invalid_type";
     }
 
