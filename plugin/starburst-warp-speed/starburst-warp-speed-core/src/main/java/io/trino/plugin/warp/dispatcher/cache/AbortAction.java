@@ -16,6 +16,7 @@ package io.trino.plugin.warp.dispatcher.cache;
 
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
+import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
@@ -41,15 +42,18 @@ public class AbortAction
     private final RowGroupDataService rowGroupDataService;
     private final StorageWarmerService storageWarmerService;
     private final WarpCacheFilesMerger warpCacheFilesMerger;
+    private final DictionaryCacheService dictionaryCacheService;
 
     @Inject
     public AbortAction(RowGroupDataService rowGroupDataService,
             StorageWarmerService storageWarmerService,
-            WarpCacheFilesMerger warpCacheFilesMerger)
+            WarpCacheFilesMerger warpCacheFilesMerger,
+            DictionaryCacheService dictionaryCacheService)
     {
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.storageWarmerService = requireNonNull(storageWarmerService);
         this.warpCacheFilesMerger = requireNonNull(warpCacheFilesMerger);
+        this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
     }
 
     @Override
@@ -92,6 +96,9 @@ public class AbortAction
                 }
                 catch (Exception e) {
                     logger.error(e, "failed to cleanStorage for warmingCandidate=%s", warmingCandidate);
+                }
+                finally {
+                    dictionaryCacheService.releaseActiveDictionaries(warmingCandidate.outDictionaryWarmInfos());
                 }
             }
 

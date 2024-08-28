@@ -24,14 +24,12 @@ import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dictionary.DictionaryWarmInfo;
 import io.trino.plugin.warp.dispatcher.DispatcherSplit;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
-import io.trino.plugin.warp.dispatcher.model.DictionaryState;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WarmupProperties;
-import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.WarmupImportServiceStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.tools.util.StopWatch;
@@ -45,7 +43,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_STAT_GROUP;
 import static io.trino.plugin.warp.dispatcher.warmup.WarmUtils.isImportExportEnabled;
 import static io.trino.plugin.warp.dispatcher.warmup.warmers.WeGroupWarmer.WARMUP_IMPORTER_STAT_GROUP;
 import static java.util.Objects.requireNonNull;
@@ -55,7 +52,6 @@ public class WarmingManager
 {
     private static final Logger logger = Logger.get(WarmingManager.class);
 
-    private final DictionaryStats dictionaryStats;
     private final WarpProxiedWarmer warpProxiedWarmer;
     private final EmptyRowGroupWarmer emptyRowGroupWarmer;
     private final GlobalConfig globalConfig;
@@ -84,7 +80,7 @@ public class WarmingManager
         this.cloudVendorConfig = requireNonNull(cloudVendorConfig);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.warmupImportServiceStats = requireNonNull(metricsManager).registerMetric(new WarmupImportServiceStats(WARMUP_IMPORTER_STAT_GROUP));
-        this.dictionaryStats = requireNonNull(metricsManager).registerMetric(DictionaryStats.create(DICTIONARY_STAT_GROUP));
+
         this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
         this.weGroupWarmer = requireNonNull(weGroupWarmer);
         this.storageWarmerService = requireNonNull(storageWarmerService);
@@ -156,7 +152,7 @@ public class WarmingManager
                 throw e;
             }
             finally {
-                releaseActiveDictionaries(outDictionariesWarmInfos);
+                dictionaryCacheService.releaseActiveDictionaries(outDictionariesWarmInfos);
             }
         }
         catch (InterruptedException e) {
@@ -176,18 +172,5 @@ public class WarmingManager
     public void saveEmptyRowGroup(RowGroupKey rowGroupKey, List<WarmUpElement> newWarmUpElements, Map<WarpColumn, String> partitionKeys)
     {
         emptyRowGroupWarmer.saveImportedEmptyRowGroup(newWarmUpElements, rowGroupKey, partitionKeys);
-    }
-
-    private void releaseActiveDictionaries(List<DictionaryWarmInfo> dictionariesWarmInfos)
-    {
-        for (DictionaryWarmInfo dictionaryWarmInfo : dictionariesWarmInfos) {
-            if (dictionaryWarmInfo.dictionaryState() == DictionaryState.DICTIONARY_REJECTED) {
-                dictionaryStats.incdictionary_rejected_elements_count();
-            }
-            else if (dictionaryWarmInfo.dictionaryState() == DictionaryState.DICTIONARY_VALID) {
-                dictionaryCacheService.releaseActiveDictionary(dictionaryWarmInfo.dictionaryKey());
-                dictionaryStats.incdictionary_success_elements_count();
-            }
-        }
     }
 }

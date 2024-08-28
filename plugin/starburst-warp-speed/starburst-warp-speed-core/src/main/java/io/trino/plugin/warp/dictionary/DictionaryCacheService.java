@@ -25,9 +25,11 @@ import io.trino.plugin.warp.dispatcher.model.SchemaTableColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
+import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.spi.TrinoException;
 
+import java.util.List;
 import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
@@ -35,6 +37,7 @@ import static java.util.Objects.requireNonNull;
 @Singleton
 public class DictionaryCacheService
 {
+    private final DictionaryStats dictionaryStats;
     public static final String DICTIONARY_STAT_GROUP = "dictionary";
     public static final int MINIMUM_LEN_FOR_DICTIONARY = 4;
     public static final RecTypeCode DICTIONARY_REC_TYPE_CODE = RecTypeCode.REC_TYPE_SMALLINT;
@@ -55,6 +58,7 @@ public class DictionaryCacheService
         this.attachDictionaryService = requireNonNull(attachDictionaryService);
         this.dictionaryConfig = dictionaryConfig;
         this.dictionariesCache = new DictionariesCache(dictionaryConfig, metricsManager, attachDictionaryService);
+        this.dictionaryStats = requireNonNull(metricsManager).registerMetric(DictionaryStats.create(DICTIONARY_STAT_GROUP));
     }
 
     public WriteDictionary computeWriteIfAbsent(DictionaryKey dictionaryKey, RecTypeCode recTypeCode)
@@ -197,6 +201,19 @@ public class DictionaryCacheService
     public Map<String, Integer> getDictionaryCachedKeys()
     {
         return dictionariesCache.getDictionaryCachedKeys();
+    }
+
+    public void releaseActiveDictionaries(List<DictionaryWarmInfo> dictionariesWarmInfos)
+    {
+        for (DictionaryWarmInfo dictionaryWarmInfo : dictionariesWarmInfos) {
+            if (dictionaryWarmInfo.dictionaryState() == DictionaryState.DICTIONARY_REJECTED) {
+                dictionaryStats.incdictionary_rejected_elements_count();
+            }
+            else if (dictionaryWarmInfo.dictionaryState() == DictionaryState.DICTIONARY_VALID) {
+                releaseActiveDictionary(dictionaryWarmInfo.dictionaryKey());
+                dictionaryStats.incdictionary_success_elements_count();
+            }
+        }
     }
 
     public record DictionaryCacheConfig(

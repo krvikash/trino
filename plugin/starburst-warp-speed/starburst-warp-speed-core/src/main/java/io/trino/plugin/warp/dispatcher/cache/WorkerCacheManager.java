@@ -239,16 +239,17 @@ public class WorkerCacheManager
             long unenforcedPredicateMap = predicateHashCalculator.getHash(normalizeTupleDomain(unenforcedPredicate));
 
             String key = splitId.toString() + "_" +
-                    planSignature.getKey().toString() + "_" +
                     predicateMap + "_" +
                     unenforcedPredicateMap;
             if (planSignature.getGroupByColumns().isPresent()) {
                 key = key + "_" + planSignature.getGroupByColumns().get();
             }
             String uniqueKey = Hashing.sha256().hashUnencodedChars(key).toString();
-            return new RowGroupKey("WarpCache",
+            String planKey = Hashing.sha256().hashUnencodedChars(planSignature.getKey().toString()).toString();
+            String schema = "WarpCache";
+            return new RowGroupKey(schema,
+                    planKey,
                     uniqueKey,
-                    "",
                     0,
                     0,
                     0,

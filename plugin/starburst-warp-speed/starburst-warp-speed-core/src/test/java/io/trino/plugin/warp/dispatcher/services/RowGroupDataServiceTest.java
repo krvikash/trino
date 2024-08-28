@@ -310,7 +310,7 @@ public class RowGroupDataServiceTest
                 .recTypeLength(4)
                 .totalRecords(7)
                 .colName(colName)
-                .state(isValid ? WarmUpElementState.VALID : WarmUpElementState.FAILED_PERMANENTLY)
+                .state(isValid ? WarmUpElementState.VALID : new WarmUpElementState(WarmUpElementState.State.FAILED_TEMPORARILY))
                 .warmupElementStats(new WarmupElementStats(0, Long.MIN_VALUE, Long.MAX_VALUE))
                 .build();
     }

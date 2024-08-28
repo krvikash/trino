@@ -16,6 +16,7 @@ package io.trino.plugin.warp.dispatcher.cache;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
+import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
@@ -43,15 +44,18 @@ public class FinishAction
     private final RowGroupDataService rowGroupDataService;
     private final StorageWarmerService storageWarmerService;
     private final WarpCacheFilesMerger warpCacheFilesMerger;
+    private final DictionaryCacheService dictionaryCacheService;
 
     @Inject
     public FinishAction(RowGroupDataService rowGroupDataService,
             StorageWarmerService storageWarmerService,
-            WarpCacheFilesMerger warpCacheFilesMerger)
+            WarpCacheFilesMerger warpCacheFilesMerger,
+            DictionaryCacheService dictionaryCacheService)
     {
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.storageWarmerService = requireNonNull(storageWarmerService);
         this.warpCacheFilesMerger = requireNonNull(warpCacheFilesMerger);
+        this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
     }
 
     @Override
@@ -62,7 +66,6 @@ public class FinishAction
         for (WarmingCandidate warmingCandidate : warmingCandidates) {
             try {
                 WarmupElementWriteMetadata warmupElementWriteMetadata = warmingCandidate.warmupElementWriteMetadata();
-                checkArgument(warmupElementWriteMetadata.warmUpElement().isValid(), "we %s must be valid", warmupElementWriteMetadata);
                 RowGroupData tmpRowGroupData = rowGroupDataService.getOrCreateTmpRowGroupData(warmingCandidate.tmpRowGroupKey());
                 WarmSinkResult warmSinkResult = storageWarmerService.sinkClose(
                         warmingCandidate.pageSink(),
@@ -100,6 +103,9 @@ public class FinishAction
                 }
                 catch (Exception e) {
                     logger.error(e, "failed to cleanStorage for warmingCandidate=%s", warmingCandidate);
+                }
+                finally {
+                    dictionaryCacheService.releaseActiveDictionaries(warmingCandidate.outDictionaryWarmInfos());
                 }
             }
 

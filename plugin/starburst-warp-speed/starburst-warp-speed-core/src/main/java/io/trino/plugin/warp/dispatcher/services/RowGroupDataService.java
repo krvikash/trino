@@ -266,10 +266,21 @@ public class RowGroupDataService
         }
         warmUpElement = warmupElementBuilder.build();
 
-        Optional<WarmUpElement> weToOverride = existingWarmUpElements.stream().filter(warmUpElement::isRepresentTheSameElement).findFirst();
         Collection<WarmUpElement> updatedWarmUpElements = new ArrayList<>(existingWarmUpElements);
-
-        weToOverride.ifPresent(updatedWarmUpElements::remove);
+        Optional<WarmUpElement> weToOverride = Optional.empty();
+        //override temporary failed WE
+        for (WarmUpElement we : existingWarmUpElements) {
+            if (we.getState().state() == WarmUpElementState.State.FAILED_TEMPORARILY &&
+                    we.getWarpColumn().equals(warmUpElement.getWarpColumn()) &&
+                    we.getWarmUpType().equals(warmUpElement.getWarmUpType())) {
+                weToOverride = Optional.of(we);
+                break;
+            }
+        }
+        if (weToOverride.isPresent()) {
+            updatedWarmUpElements.remove(weToOverride.get());
+            warmingServiceStats.addwarm_success_retry_warmup_element(warmUpElement.isValid() && !weToOverride.get().isValid() ? 1 : 0);
+        }
         updatedWarmUpElements.add(warmUpElement);
 
         FastWarmingState fastWarmingState = warmUpElement.isValid() ?
@@ -297,10 +308,6 @@ public class RowGroupDataService
         else {
             logger.debug("updateRowGroupData failure, row groupKey = %s, warmupElement=%s", rowGroupData.getRowGroupKey().stringFileNameRepresentation(globalConfig.getLocalStorePath()), warmUpElement);
             warmingServiceStats.incwarm_failed();
-        }
-
-        if (weToOverride.isPresent()) {
-            warmingServiceStats.addwarm_success_retry_warmup_element(warmUpElement.isValid() && !weToOverride.get().isValid() ? 1 : 0);
         }
 
         if (warmUpElement.isValid() && totalRecords == 0) {

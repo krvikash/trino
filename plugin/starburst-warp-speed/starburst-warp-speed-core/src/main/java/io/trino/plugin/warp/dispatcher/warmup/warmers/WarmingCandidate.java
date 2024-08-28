@@ -13,12 +13,16 @@
  */
 package io.trino.plugin.warp.dispatcher.warmup.warmers;
 
+import io.trino.plugin.warp.dictionary.DictionaryWarmInfo;
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.storage.write.PageSink;
+
+import java.util.List;
 
 public record WarmingCandidate(long[] fileCookie,
                                PageSink pageSink,
                                int fileOffset,
                                WarmupElementWriteMetadata warmupElementWriteMetadata,
+                               List<DictionaryWarmInfo> outDictionaryWarmInfos,
                                RowGroupKey tmpRowGroupKey) {}
