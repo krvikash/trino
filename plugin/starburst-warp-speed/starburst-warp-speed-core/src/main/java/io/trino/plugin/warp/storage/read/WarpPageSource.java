@@ -66,7 +66,6 @@ public class WarpPageSource
     private RowRanges sortedRowRanges;
     private long completedBytes;
     private long completedPositions;
-    private StorageCollectorCallBack storageCollectorCallBack;
 
     public WarpPageSource(StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
@@ -167,7 +166,6 @@ public class WarpPageSource
                     StorageCollectorArgs storageCollectorArgs = storageCollectorService.getStorageCollectorArgs(queryParams);
                     boolean useLazyCollect = lazyCollectorService.useLazyCollect(queryParams);
                     StorageCollectorService collectorService = useLazyCollect ? lazyCollectorService : storageCollectorService;
-                    this.storageCollectorCallBack = new StorageCollectorCallBack(storageCollectorArgs, bufferAllocator);
                     reader = new StorageReader(storageEngine,
                             storageEngineConstants,
                             bufferAllocator,
@@ -211,7 +209,7 @@ public class WarpPageSource
         try {
             bufferAllocator.readerOnAllocBundle();
 
-            collectOpenResult = reader.queryOpen(limit, storageCollectorCallBack);
+            collectOpenResult = reader.queryOpen(limit);
             if (!reader.matchAndCollect(collectOpenResult, isMatchGetNumRanges)) {
                 finished = true;
             }
@@ -238,7 +236,7 @@ public class WarpPageSource
             throw e;
         }
         finally {
-            long readPagesResult = reader.queryClose(collectOpenResult, storageCollectorCallBack);
+            long readPagesResult = reader.queryClose(collectOpenResult);
             completedBytes += (readPagesResult << storageEngineConstants.getPageSizeShift());
             completedPositions += collectedRows;
             bufferAllocator.readerOnFreeBundle();

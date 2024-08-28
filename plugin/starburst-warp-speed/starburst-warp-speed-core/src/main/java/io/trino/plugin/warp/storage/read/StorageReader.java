@@ -201,7 +201,7 @@ public class StorageReader
      * prepare buffers for filling
      */
     @NativeInterrupt
-    CollectOpenResult queryOpen(int rowsLimit, StorageCollectorCallBack storageCollectorCallBack)
+    CollectOpenResult queryOpen(int rowsLimit)
     {
         if (!dictionariesLoaded) {
             loadDictionaries();
@@ -212,8 +212,7 @@ public class StorageReader
                 numRowsCollectedInPrevRounds,
                 storageCollectorArgs,
                 storeRowListSize,
-                storeRowListType,
-                storageCollectorCallBack);
+                storeRowListType);
         collectTxId = collectOpenResult.collectTxId();
 
         if (queryParams.getNumMatchElements() > 0) {
@@ -365,7 +364,7 @@ public class StorageReader
     }
 
     @NativeInterrupt
-    long queryClose(CollectOpenResult collectOpenResult, StorageCollectorCallBack storageCollectorCallBack)
+    long queryClose(CollectOpenResult collectOpenResult)
     {
         // match
         if (matchTxId != INVALID_TX_ID) {
@@ -382,8 +381,7 @@ public class StorageReader
                 storageCollectorArgs,
                 numRowsCollectedInCurRound,
                 storeRowListSize,
-                storeRowListType,
-                storageCollectorCallBack);
+                storeRowListType);
         storeRowListSize = collectCloseResult.storeRowListResult().storeRowListSize();
         storeRowListType = collectCloseResult.storeRowListResult().storeRowListType();
         collectTxId = INVALID_TX_ID;

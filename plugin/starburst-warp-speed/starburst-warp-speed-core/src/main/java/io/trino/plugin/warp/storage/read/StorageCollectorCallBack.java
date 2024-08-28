@@ -19,13 +19,13 @@ import java.nio.ByteBuffer;
 
 public class StorageCollectorCallBack
 {
-    private final StorageCollectorArgs storageCollectorArgs;
+    private final CollectTxArgs collectTxArgs;
     private final BufferAllocator bufferAllocator;
     private int collectStoreCurrSize;
 
-    public StorageCollectorCallBack(StorageCollectorArgs storageCollectorArgs, BufferAllocator bufferAllocator)
+    public StorageCollectorCallBack(CollectTxArgs collectTxArgs, BufferAllocator bufferAllocator)
     {
-        this.storageCollectorArgs = storageCollectorArgs;
+        this.collectTxArgs = collectTxArgs;
         this.bufferAllocator = bufferAllocator;
         this.collectStoreCurrSize = 0;
     }
@@ -35,7 +35,7 @@ public class StorageCollectorCallBack
     void collectStoreStateCB(long stateBuffId, int size)
     {
         ByteBuffer bufferToCopy = bufferAllocator.id2ByteBuff(stateBuffId).slice();
-        bufferToCopy.get(storageCollectorArgs.collectTxArgs().collectStoreBuff(), 0, size);
+        bufferToCopy.get(collectTxArgs.collectStoreBuff(), 0, size);
         collectStoreCurrSize = size;
     }
 
@@ -46,7 +46,7 @@ public class StorageCollectorCallBack
     {
         if (collectStoreCurrSize > 0) {
             ByteBuffer targetByteBuffer = bufferAllocator.id2ByteBuff(stateBuffId);
-            targetByteBuffer.put(storageCollectorArgs.collectTxArgs().collectStoreBuff(), 0, collectStoreCurrSize);
+            targetByteBuffer.put(collectTxArgs.collectStoreBuff(), 0, collectStoreCurrSize);
         }
         return collectStoreCurrSize;
     }

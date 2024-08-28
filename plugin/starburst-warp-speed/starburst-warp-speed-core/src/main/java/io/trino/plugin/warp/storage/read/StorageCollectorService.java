@@ -280,6 +280,8 @@ public class StorageCollectorService
     StorageCollectorArgs getStorageCollectorArgs(QueryParams queryParams)
     {
         CollectTxArgs collectTxArgs = getCollectTxArgs(queryParams);
+        StorageCollectorCallBack storageCollectorCallBack = new StorageCollectorCallBack(collectTxArgs, bufferAllocator);
+
         ArrayList<BlockFiller<?>> blockFillers = new ArrayList<>(queryParams.getNumCollectElements());
         for (WarmupElementCollectParams collectParams : queryParams.getCollectElementsParamsList()) {
             blockFillers.add(blockFillersFactory.getBlockFiller(collectParams.getBlockRecTypeCode().ordinal()));
@@ -300,6 +302,7 @@ public class StorageCollectorService
 
         return new StorageCollectorArgs(
                 collectTxArgs,
+                storageCollectorCallBack,
                 blockFillers,
                 numChunksInRange,
                 collectJuffersWE,

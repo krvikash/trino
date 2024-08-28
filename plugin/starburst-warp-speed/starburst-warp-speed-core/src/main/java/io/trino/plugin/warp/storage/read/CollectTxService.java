@@ -88,8 +88,7 @@ public class CollectTxService
             int numCollectedInPrevRounds,
             StorageCollectorArgs storageCollectorArgs,
             int storeRowListSize,
-            RecordIndexListType storeRowListType,
-            StorageCollectorCallBack storageCollectorCallBack)
+            RecordIndexListType storeRowListType)
     {
         QueryParams queryParams = storageCollectorArgs.collectTxArgs().queryParams();
         List<WarmupElementCollectParams> collectParamsList = queryParams.getCollectElementsParamsList();
@@ -128,7 +127,7 @@ public class CollectTxService
         if (chunksQueueService.storeRestoreRequired(storageCollectorArgs.chunksQueue())) {
             rangeFillerService.restoreRowList(rangeData.getRowsBuffId(), storeRowListSize, storeRowListType, storageCollectorArgs.storeRowListBuff());
             restoredChunkIndex = storageCollectorArgs.chunksQueue().getCurrent();
-            if (storageEngine.collectRestoreState(collectTxId, restoredChunkIndex, storageCollectorCallBack) < 0) {
+            if (storageEngine.collectRestoreState(collectTxId, restoredChunkIndex, storageCollectorArgs.storageCollectorCallBack()) < 0) {
                 throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED,
                         String.format("failed to restore collect state restoredChunkIndex %d numChunks %d",
                         restoredChunkIndex,
@@ -150,8 +149,7 @@ public class CollectTxService
             StorageCollectorArgs storageCollectorArgs,
             int numCollectedRows,
             int storeRowListSize,
-            RecordIndexListType storeRowListType,
-            StorageCollectorCallBack storageCollectorCallBack)
+            RecordIndexListType storeRowListType)
     {
         // idiom potent case
         if (collectOpenResult == null || collectOpenResult.collectTxId() == INVALID_TX_ID) {
@@ -173,7 +171,7 @@ public class CollectTxService
         }
         int[] chunksWithBitmaps = chunksWithBitmapsToStoreOpt.orElse(null);
         int numChunksWithBitmap = (chunksWithBitmaps != null) ? chunksWithBitmaps.length : 0;
-        long readPages = storageEngine.collectClose(collectOpenResult.collectTxId(), chunksWithBitmaps, numChunksWithBitmap, storageCollectorCallBack);
+        long readPages = storageEngine.collectClose(collectOpenResult.collectTxId(), chunksWithBitmaps, numChunksWithBitmap, storageCollectorArgs.storageCollectorCallBack());
         freeCollectOpenResources(collectOpenResult);
         logger.debug("collectClose collectTxId %d readPages %d", collectOpenResult.collectTxId(), readPages);
         return new CollectCloseResult(storeRowListResult, readPages);
