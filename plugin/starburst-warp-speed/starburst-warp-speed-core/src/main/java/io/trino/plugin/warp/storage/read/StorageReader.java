@@ -16,12 +16,14 @@ package io.trino.plugin.warp.storage.read;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
+import io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory;
 import io.trino.plugin.warp.gen.constants.RecordIndexListType;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.LucenePageCacheStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.log.ShapingLogger;
+import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
@@ -90,9 +92,7 @@ public class StorageReader
             BufferAllocator bufferAllocator,
             DictionaryCacheService dictionaryCacheService,
             QueryParams queryParams,
-            DictionaryStats dictionaryStats,
-            DispatcherPageSourceStats statsDispatcherPageSource,
-            LucenePageCacheStats lucenePageCacheStats,
+            CustomStatsContext customStatsContext,
             StorageCollectorArgs storageCollectorArgs,
             CollectTxService collectTxService,
             ChunksQueueService chunksQueueService,
@@ -101,11 +101,11 @@ public class StorageReader
     {
         this.storageEngine = requireNonNull(storageEngine);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
-        this.dictionaryStats = dictionaryStats;
-        this.statsDispatcherPageSource = statsDispatcherPageSource;
         this.storageCollectorService = requireNonNull(storageCollectorService);
         this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
-        this.lucenePageCacheStats = requireNonNull(lucenePageCacheStats);
+        this.statsDispatcherPageSource = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
+        this.dictionaryStats = (DictionaryStats) customStatsContext.getStat(DictionaryCacheService.DICTIONARY_STAT_GROUP);
+        this.lucenePageCacheStats = (LucenePageCacheStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_LUCENE_PAGE_CACHE_KEY);
 
         this.queryParams = queryParams;
         this.matchBuffIds = new long[queryParams.getNumMatchElements()][];
@@ -418,6 +418,7 @@ public class StorageReader
                 numRowsCollectedInPrevRounds,
                 queryResultType,
                 statsDispatcherPageSource);
+        statsDispatcherPageSource.addcached_read_rows(rowsToFill);
         return rowsToFill;
     }
 }

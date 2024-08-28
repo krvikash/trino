@@ -16,10 +16,6 @@ package io.trino.plugin.warp.storage.read;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
-import io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory;
-import io.trino.plugin.warp.gen.stats.DictionaryStats;
-import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
-import io.trino.plugin.warp.gen.stats.LucenePageCacheStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.log.ShapingLogger;
@@ -44,9 +40,6 @@ public class WarpPageSource
     private final ShapingLogger shapingLogger;
 
     private final DictionaryCacheService dictionaryCacheService;
-    private final DispatcherPageSourceStats stats;
-    private final DictionaryStats dictionaryStats;
-    private final LucenePageCacheStats lucenePageCacheStats;
     private final CollectTxService collectTxService;
     private final ChunksQueueService chunksQueueService;
     private final StorageCollectorService storageCollectorService;
@@ -59,6 +52,7 @@ public class WarpPageSource
     private final BufferAllocator bufferAllocator;
     private final GlobalConfig globalConfig;
     private final QueryParams queryParams;
+    private final CustomStatsContext customStatsContext;
     private StorageReader reader;
     private long rowsLimit;
     private boolean finished;
@@ -90,9 +84,7 @@ public class WarpPageSource
         this.predicatesCacheService = predicatesCacheService;
         this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
         this.globalConfig = requireNonNull(globalConfig);
-        this.stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
-        this.dictionaryStats = (DictionaryStats) customStatsContext.getStat(DictionaryCacheService.DICTIONARY_STAT_GROUP);
-        this.lucenePageCacheStats = (LucenePageCacheStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_LUCENE_PAGE_CACHE_KEY);
+        this.customStatsContext = customStatsContext;
         this.collectTxService = collectTxService;
         this.chunksQueueService = chunksQueueService;
         this.storageCollectorService = storageCollectorService;
@@ -159,8 +151,7 @@ public class WarpPageSource
 
     private int fillPage(Block[] blocks)
     {
-        int filledRows = 0;
-        if (!closed) {
+        if (!isFinished()) {
             try {
                 if (reader == null) { // first time
                     StorageCollectorArgs storageCollectorArgs = storageCollectorService.getStorageCollectorArgs(queryParams);
@@ -171,9 +162,7 @@ public class WarpPageSource
                             bufferAllocator,
                             dictionaryCacheService,
                             queryParams,
-                            dictionaryStats,
-                            stats,
-                            lucenePageCacheStats,
+                            customStatsContext,
                             storageCollectorArgs,
                             collectTxService,
                             chunksQueueService,
@@ -190,7 +179,7 @@ public class WarpPageSource
                 throw e;
             }
         }
-        return filledRows;
+        return 0;
     }
 
     private void markFinishedIfDone()
@@ -227,7 +216,6 @@ public class WarpPageSource
                     }
                 }
                 rowsLimit -= collectedRows;
-                stats.addcached_read_rows(collectedRows);
             }
         }
         catch (Exception e) {
