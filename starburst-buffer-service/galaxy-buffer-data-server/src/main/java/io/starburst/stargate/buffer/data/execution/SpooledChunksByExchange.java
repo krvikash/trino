@@ -92,6 +92,7 @@ public class SpooledChunksByExchange
 
     public int getSpooledChunksCount()
     {
+        // no synchronization needed approximate value
         return mapping.values().stream().mapToInt(Map::size).sum();
     }
 
