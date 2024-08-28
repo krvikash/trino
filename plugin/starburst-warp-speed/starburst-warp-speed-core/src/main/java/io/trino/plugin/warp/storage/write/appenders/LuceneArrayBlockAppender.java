@@ -30,7 +30,7 @@ import static io.trino.plugin.warp.storage.lucene.LuceneIndexer.LUCENE_NULL_STRI
 import static io.trino.spi.type.VarcharType.VARCHAR;
 
 public class LuceneArrayBlockAppender
-        extends CrcBlockAppender
+        extends DataBlockAppender // since it does not use aggregates in the chunk header, it acts like data
 {
     private final LuceneIndexer luceneIndexer;
 

@@ -25,7 +25,7 @@ import io.trino.plugin.warp.warmup.exceptions.WarmupException;
 import java.io.IOException;
 
 public class LuceneBlockAppender
-        extends CrcBlockAppender
+        extends DataBlockAppender // since it does not use aggregates in the chunk header, it acts like data
 {
     private final LuceneIndexer luceneIndexer;
 
