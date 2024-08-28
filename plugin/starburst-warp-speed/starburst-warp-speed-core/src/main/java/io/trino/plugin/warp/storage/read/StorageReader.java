@@ -59,6 +59,7 @@ public class StorageReader
     private final DispatcherPageSourceStats statsDispatcherPageSource;
     private final DictionaryCacheService dictionaryCacheService;
     private final LucenePageCacheStats lucenePageCacheStats;
+    private final BufferAllocator bufferAllocator;
 
     // parameters
     private final QueryParams queryParams;
@@ -106,6 +107,7 @@ public class StorageReader
         this.statsDispatcherPageSource = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
         this.dictionaryStats = (DictionaryStats) customStatsContext.getStat(DictionaryCacheService.DICTIONARY_STAT_GROUP);
         this.lucenePageCacheStats = (LucenePageCacheStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_LUCENE_PAGE_CACHE_KEY);
+        this.bufferAllocator = bufferAllocator;
 
         this.queryParams = queryParams;
         this.matchBuffIds = new long[queryParams.getNumMatchElements()][];
@@ -203,6 +205,8 @@ public class StorageReader
     @NativeInterrupt
     CollectOpenResult queryOpen(int rowsLimit)
     {
+        bufferAllocator.readerOnAllocBundle();
+
         if (!dictionariesLoaded) {
             loadDictionaries();
             dictionariesLoaded = true;
@@ -385,10 +389,13 @@ public class StorageReader
         storeRowListSize = collectCloseResult.storeRowListResult().storeRowListSize();
         storeRowListType = collectCloseResult.storeRowListResult().storeRowListType();
         collectTxId = INVALID_TX_ID;
+
+        bufferAllocator.readerOnFreeBundle();
+
         return collectCloseResult.readPages();
     }
 
-    void abortMatch(Optional<Exception> e)
+    private void abortMatch(Optional<Exception> e)
     {
         if (matchTxId != INVALID_TX_ID) {
             boolean nativeThrowed = false;
@@ -402,7 +409,7 @@ public class StorageReader
         }
     }
 
-    void abortCollect(Exception e, CollectOpenResult collectOpenResult)
+    private void abortCollect(Exception e, CollectOpenResult collectOpenResult)
     {
         collectTxService.collectAbort(e, collectOpenResult, collectTxId);
         collectTxId = INVALID_TX_ID;
@@ -420,5 +427,12 @@ public class StorageReader
                 statsDispatcherPageSource);
         statsDispatcherPageSource.addcached_read_rows(rowsToFill);
         return rowsToFill;
+    }
+
+    void queryAbort(Exception e, CollectOpenResult collectOpenResult)
+    {
+        abortMatch(Optional.of(e));
+        abortCollect(e, collectOpenResult);
+        bufferAllocator.readerOnFreeBundle();
     }
 }

@@ -321,6 +321,7 @@ public class NativeRangeFillerService
             limitedUpperExclusive.add(max);
             currRange++;
         }
+
         return new WarpStoragePageSource.RowRanges(limitedLowerInclusive.toLongArray(), limitedUpperExclusive.toLongArray(), false);
     }
 }

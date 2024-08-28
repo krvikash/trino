@@ -25,8 +25,6 @@ import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 
-import java.util.Optional;
-
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -191,13 +189,11 @@ public class WarpPageSource
 
     private int pipe(Block[] blocks)
     {
-        int limit = rowsLimit > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) rowsLimit;
+        int limit = (int) Math.min(rowsLimit, Integer.MAX_VALUE);
         int collectedRows = 0;
         sortedRowRanges = RowRanges.EMPTY; // Reset the row ranges before reading another page.
         CollectOpenResult collectOpenResult = null;
         try {
-            bufferAllocator.readerOnAllocBundle();
-
             collectOpenResult = reader.queryOpen(limit);
             if (!reader.matchAndCollect(collectOpenResult, isMatchGetNumRanges)) {
                 finished = true;
@@ -207,27 +203,16 @@ public class WarpPageSource
                 collectedRows = reader.fillBlocks(blocks, collectOpenResult);
                 if (isMatchGetNumRanges) {
                     sortedRowRanges = rangeFillerService.collectRanges(collectOpenResult.rangeData(), collectOpenResult.rowsLimit());
-                    logger.debug("collected %d row ranges", sortedRowRanges.getRangesCount());
-                    if (logger.isDebugEnabled() && sortedRowRanges.getRangesCount() > 0) {
-                        logger.debug("added matchRangesOfSize=%d, first.lower=%s, last.upper=%s",
-                                sortedRowRanges.getRangesCount(),
-                                sortedRowRanges.getLowerInclusive(0),
-                                sortedRowRanges.getUpperExclusive(sortedRowRanges.getRangesCount() - 1));
-                    }
                 }
                 rowsLimit -= collectedRows;
             }
-        }
-        catch (Exception e) {
-            reader.abortMatch(Optional.of(e));
-            reader.abortCollect(e, collectOpenResult);
-            throw e;
-        }
-        finally {
             long readPagesResult = reader.queryClose(collectOpenResult);
             completedBytes += (readPagesResult << storageEngineConstants.getPageSizeShift());
             completedPositions += collectedRows;
-            bufferAllocator.readerOnFreeBundle();
+        }
+        catch (Exception e) {
+            reader.queryAbort(e, collectOpenResult);
+            throw e;
         }
 
         return collectedRows;
