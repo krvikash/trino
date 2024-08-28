@@ -17,10 +17,8 @@ import io.trino.plugin.warp.gen.constants.JbufType;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.stats.LucenePageCacheStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
-import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
-import io.trino.plugin.warp.storage.read.StorageReaderTestUtils;
 import org.apache.lucene.store.IndexInput;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,11 +32,9 @@ import java.util.Optional;
 import java.util.stream.IntStream;
 
 import static io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory.STATS_LUCENE_PAGE_CACHE_KEY;
-import static io.trino.plugin.warp.storage.lucene.WarpInputDirectory.NUM_SMALL_FILES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -48,12 +44,14 @@ import static org.mockito.Mockito.when;
 public class WarpReadIndexInputTest
 {
     private static final int SMALL_FILE_SIZE = 20;
+
     private WarpReadIndexInput warpReadIndexInput;
-    private StorageEngine storageEngine;
+    private LuceneIndexReader luceneIndexReader;
     private LucenePageCacheStats lucenePageCacheStats;
 
     @BeforeEach
     public void before()
+            throws IOException
     {
         BufferAllocator bufferAllocator = mock(BufferAllocator.class);
         when(bufferAllocator.ids2NullBuff(any())).thenReturn(allocateByteBuffer());
@@ -62,24 +60,24 @@ public class WarpReadIndexInputTest
         when(bufferAllocator.ids2LuceneResultBM(any())).thenReturn(allocateByteBuffer());
 
         long[] outColBuffIds = new long[JbufType.JBUF_TYPE_NUM_OF.ordinal()];
-        StorageReaderTestUtils readerTestUtils = new StorageReaderTestUtils();
-        readerTestUtils.init();
-        StorageEngineConstants storageEngineConstants = mock(StorageEngineConstants.class);
         ReadJuffersWarmUpElement dataRecordJuffer = new ReadJuffersWarmUpElement(bufferAllocator, false, true);
         dataRecordJuffer.createBuffers(RecTypeCode.REC_TYPE_VARCHAR, 10, false, outColBuffIds);
-        storageEngine = readerTestUtils.getStorageEngine();
+
+        StorageEngineConstants storageEngineConstants = mock(StorageEngineConstants.class);
         when(storageEngineConstants.getPageSize()).thenReturn(SMALL_FILE_SIZE);
+
+        luceneIndexReader = mock(LuceneIndexReader.class);
+        when(luceneIndexReader.loadBigFilePage(anyInt())).thenReturn(allocateByteBuffer());
+
         lucenePageCacheStats = LucenePageCacheStats.create(STATS_LUCENE_PAGE_CACHE_KEY);
-        warpReadIndexInput = new WarpReadIndexInput(storageEngine,
+
+        warpReadIndexInput = new WarpReadIndexInput(luceneIndexReader,
                 storageEngineConstants,
                 lucenePageCacheStats,
-                new ByteBuffer[NUM_SMALL_FILES],
+                new ByteBuffer[LuceneFileType.numSmallFiles()],
                 new HashMap<>(),
                 -1,
-                dataRecordJuffer,
                 LuceneFileType.CFS,
-                1,
-                0,
                 0,
                 100,
                 "root");
@@ -87,24 +85,26 @@ public class WarpReadIndexInputTest
 
     @Test
     public void testReadBytesLessThenPageSizeShouldFetchOnce()
+            throws IOException
     {
         for (int i = 0; i < SMALL_FILE_SIZE - 1; i++) {
             warpReadIndexInput.readByte();
         }
-        verify(storageEngine, times(1)).luceneReadBuffer(anyInt(), anyLong(), anyInt(), eq(0), eq(SMALL_FILE_SIZE));
+        verify(luceneIndexReader, times(1)).loadBigFilePage(eq(0));
         assertThat(warpReadIndexInput.getBufferPosition()).isEqualTo(SMALL_FILE_SIZE - 1);
     }
 
     @Test
     public void testReadBytesMoreThenPageSizeShouldFetchWhenNeeded()
+            throws IOException
     {
         for (int i = 0; i < SMALL_FILE_SIZE; i++) {
             warpReadIndexInput.readByte();
         }
-        verify(storageEngine, times(1)).luceneReadBuffer(anyInt(), anyLong(), anyInt(), eq(0), eq(SMALL_FILE_SIZE));
+        verify(luceneIndexReader, times(1)).loadBigFilePage(eq(0));
 
         warpReadIndexInput.readByte();
-        verify(storageEngine, times(1)).luceneReadBuffer(anyInt(), anyLong(), anyInt(), eq(SMALL_FILE_SIZE), eq(SMALL_FILE_SIZE));
+        verify(luceneIndexReader, times(1)).loadBigFilePage(eq(1));
         assertThat(warpReadIndexInput.getBufferPosition()).isEqualTo(1);
     }
 
@@ -119,7 +119,7 @@ public class WarpReadIndexInputTest
 
         byte[] readBytes = new byte[numOfBytesToRead];
         warpReadIndexInput.readBytes(readBytes, 0, numOfBytesToRead);
-        verify(storageEngine, times(1)).luceneReadBuffer(anyInt(), anyLong(), anyInt(), eq(0), eq(SMALL_FILE_SIZE));
+        verify(luceneIndexReader, times(1)).loadBigFilePage(eq(0));
         assertThat(warpReadIndexInput.getFilePointer()).isEqualTo(Integer.BYTES + numOfBytesToRead);
         assertThat(warpReadIndexInput.getBufferPosition()).isEqualTo(Integer.BYTES + numOfBytesToRead);
     }
@@ -133,10 +133,10 @@ public class WarpReadIndexInputTest
         }
         assertThat(warpReadIndexInput.getBufferPosition()).isEqualTo(SMALL_FILE_SIZE);
 
-        verify(storageEngine, times(1)).luceneReadBuffer(anyInt(), anyLong(), anyInt(), eq(0), eq(SMALL_FILE_SIZE));
+        verify(luceneIndexReader, times(1)).loadBigFilePage(eq(0));
 
         warpReadIndexInput.readInt();
-        verify(storageEngine, times(1)).luceneReadBuffer(anyInt(), anyLong(), anyInt(), eq(SMALL_FILE_SIZE), eq(SMALL_FILE_SIZE));
+        verify(luceneIndexReader, times(1)).loadBigFilePage(eq(1));
         assertThat(warpReadIndexInput.getBufferPosition()).isEqualTo(4);
         assertThat(warpReadIndexInput.getFilePointer()).isEqualTo(SMALL_FILE_SIZE + Integer.BYTES);
     }
@@ -149,7 +149,7 @@ public class WarpReadIndexInputTest
         assertThat(warpReadIndexInput.getBufferPosition()).isEqualTo(10);
         assertThat(warpReadIndexInput.getFilePointer()).isEqualTo(10);
 
-        verify(storageEngine, times(1)).luceneReadBuffer(anyInt(), anyLong(), anyInt(), anyInt(), anyInt());
+        verify(luceneIndexReader, times(1)).loadBigFilePage(eq(0));
     }
 
     @Test
@@ -162,7 +162,7 @@ public class WarpReadIndexInputTest
         assertThat(warpReadIndexInput.getBufferPosition()).isEqualTo(bytesToSkip + Integer.BYTES);
         assertThat(warpReadIndexInput.getFilePointer()).isEqualTo(bytesToSkip + Integer.BYTES);
 
-        verify(storageEngine, times(1)).luceneReadBuffer(anyInt(), anyLong(), anyInt(), eq(0), eq(SMALL_FILE_SIZE));
+        verify(luceneIndexReader, times(1)).loadBigFilePage(eq(0));
     }
 
     @Test
@@ -175,7 +175,7 @@ public class WarpReadIndexInputTest
         assertThat(warpReadIndexInput.getBufferPosition()).isEqualTo((skipSize + Integer.BYTES) % SMALL_FILE_SIZE);
         assertThat(warpReadIndexInput.getFilePointer()).isEqualTo(skipSize + Integer.BYTES);
 
-        verify(storageEngine, times(2)).luceneReadBuffer(anyInt(), anyLong(), anyInt(), anyInt(), anyInt());
+        verify(luceneIndexReader, times(2)).loadBigFilePage(anyInt());
     }
 
     @Test

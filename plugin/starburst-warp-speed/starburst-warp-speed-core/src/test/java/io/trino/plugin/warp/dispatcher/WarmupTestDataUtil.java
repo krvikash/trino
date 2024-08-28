@@ -342,7 +342,7 @@ public class WarmupTestDataUtil
         ByteBuffer[] luceneBuffers = new ByteBuffer[LuceneFileType.values().length - 1];
         for (LuceneFileType luceneFileType : LuceneFileType.values()) {
             if (luceneFileType != LuceneFileType.UNKNOWN) {
-                luceneBuffers[luceneFileType.getNativeId()] = allocateByteBuffer(defaultSize);
+                luceneBuffers[luceneFileType.getFileId()] = allocateByteBuffer(defaultSize);
             }
         }
 

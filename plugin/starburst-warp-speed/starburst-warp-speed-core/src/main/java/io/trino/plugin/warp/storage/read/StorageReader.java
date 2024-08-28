@@ -154,6 +154,7 @@ public class StorageReader
                         matchParams.getLuceneQueryMatchData(),
                         matchIx,
                         storageCollectorArgs.numChunksInRange(),
+                        queryParams.getFilePath(),
                         lucenePageCacheStats,
                         statsDispatcherPageSource,
                         globalConfig);

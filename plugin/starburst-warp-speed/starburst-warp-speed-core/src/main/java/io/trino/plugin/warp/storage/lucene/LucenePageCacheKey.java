@@ -15,9 +15,9 @@ package io.trino.plugin.warp.storage.lucene;
 
 public record LucenePageCacheKey(int indexUniqueIdInRowGroup, LuceneFileType luceneFileType, int pageAlignOffset)
 {
-    public int getNativeId()
+    public int getFileId()
     {
-        return luceneFileType().getNativeId();
+        return luceneFileType().getFileId();
     }
 
     public boolean isSmallFile()

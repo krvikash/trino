@@ -279,7 +279,7 @@ public class WriteJuffersWarmUpElement
 
     public ByteBuffer getLuceneFileBuffer(LuceneFileType luceneFileType)
     {
-        return getLuceneJuffer().getLuceneByteBuffer(luceneFileType.getNativeId());
+        return getLuceneJuffer().getLuceneByteBuffer(luceneFileType.getFileId());
     }
 
     public boolean getSingleAndResetLuceneWE()

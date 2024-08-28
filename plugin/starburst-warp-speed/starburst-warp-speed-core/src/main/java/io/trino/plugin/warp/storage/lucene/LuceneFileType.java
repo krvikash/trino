@@ -23,12 +23,12 @@ public enum LuceneFileType
     CFS(3, false),
     UNKNOWN(-1, false);
 
-    private final int nativeId;
+    private final int fileId;
     private final boolean smallFile;
 
-    LuceneFileType(int nativeId, boolean isSmallFile)
+    LuceneFileType(int fileId, boolean isSmallFile)
     {
-        this.nativeId = nativeId;
+        this.fileId = fileId;
         this.smallFile = isSmallFile;
     }
 
@@ -56,13 +56,23 @@ public enum LuceneFileType
         };
     }
 
-    public int getNativeId()
+    public int getFileId()
     {
-        return nativeId;
+        return fileId;
     }
 
     public boolean isSmallFile()
     {
         return smallFile;
+    }
+
+    public static int numFiles()
+    {
+        return values().length - 1;
+    }
+
+    public static int numSmallFiles()
+    {
+        return values().length - 2;
     }
 }

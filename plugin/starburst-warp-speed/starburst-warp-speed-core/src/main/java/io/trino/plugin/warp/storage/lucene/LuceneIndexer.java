@@ -19,11 +19,10 @@ import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.gen.stats.LuceneIndexerStats;
-import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
-import io.trino.plugin.warp.storage.juffers.WriteJuffersWarmUpElement;
 import io.trino.plugin.warp.tools.util.StopWatch;
 import io.trino.spi.TrinoException;
+import org.apache.commons.io.FileUtils;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.core.KeywordAnalyzer;
 import org.apache.lucene.codecs.lucene99.Lucene99Codec;
@@ -33,49 +32,52 @@ import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.LogDocMergePolicy;
-import org.apache.lucene.store.ByteBuffersDirectory;
 import org.apache.lucene.store.Directory;
-import org.apache.lucene.store.IOContext;
-import org.apache.lucene.store.IndexInput;
-import org.apache.lucene.store.IndexOutput;
-import org.apache.lucene.util.IOUtils;
+import org.apache.lucene.store.FSDirectory;
 
+import java.io.Closeable;
+import java.io.File;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.Arrays;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
 import static com.google.common.io.BaseEncoding.base64;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_LUCENE_FAILURE;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_LUCENE_WRITER_ERROR;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_START_OFFSET;
-import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX;
 import static io.trino.plugin.warp.util.SliceUtils.serializeSlice;
 
 public class LuceneIndexer
+        implements Closeable
 {
     public static final Slice LUCENE_NULL_STRING = Slices.wrappedBuffer(base64().decode("27d52991a99c455789ed5e39b77226c8"));
     static final String VALUE_FIELD_NAME = "value";
+
     private static final Logger logger = Logger.get(LuceneIndexer.class);
+
     private final Analyzer analyzer = new KeywordAnalyzer();
-    private final StorageEngine storageEngine;
+    private final Document doc = new Document();
+    private final List<ChunkState> chunkStates = new ArrayList<>();
+
     private final StorageEngineConstants storageEngineConstants;
-    private final WriteJuffersWarmUpElement juffersWE;
-    private IndexWriter indexWriter;
+    private final String rowGroupFilePath;
+    private final Path path;
     private final LuceneIndexerStats stats;
     private final StopWatch stopWatch;
-    private final Document doc = new Document();
-    private boolean failedCommit;
-    private String failedDocumentError;
 
-    public LuceneIndexer(StorageEngine storageEngine,
-            StorageEngineConstants storageEngineConstants,
-            WriteJuffersWarmUpElement juffersWE,
-            LuceneIndexerStats luceneStats)
+    private IndexWriter indexWriter;
+    private String failedDocumentError;
+    private boolean failedCommit;
+
+    public LuceneIndexer(StorageEngineConstants storageEngineConstants, String rowGroupFilePath, LuceneIndexerStats stats)
     {
-        this.storageEngine = storageEngine;
         this.storageEngineConstants = storageEngineConstants;
-        this.juffersWE = juffersWE;
-        this.stats = luceneStats;
+        this.rowGroupFilePath = rowGroupFilePath;
+        this.path = Path.of(rowGroupFilePath.substring(0, rowGroupFilePath.lastIndexOf('/')),
+                rowGroupFilePath.substring(rowGroupFilePath.lastIndexOf('/') + 1) + "-lucene");
+        this.stats = stats;
         this.stopWatch = new StopWatch();
     }
 
@@ -116,12 +118,18 @@ public class LuceneIndexer
             logDocMergePolicy.setMaxCFSSegmentSizeMB(Double.POSITIVE_INFINITY);
             logDocMergePolicy.setNoCFSRatio(1.0);
             logDocMergePolicy.setMinMergeDocs(1_000_000);
+
             IndexWriterConfig config = new IndexWriterConfig(analyzer);
             config.setCodec(new Lucene99Codec(Lucene99Codec.Mode.BEST_SPEED));
             config.setUseCompoundFile(true);
             config.setMergePolicy(logDocMergePolicy);
 
-            indexWriter = new IndexWriter(new ByteBuffersDirectory(), config);
+            File dir = path.toFile();
+            if (dir.exists()) {
+                FileUtils.cleanDirectory(dir);
+            }
+            logger.debug("resetLuceneIndex path %s", path);
+            indexWriter = new IndexWriter(FSDirectory.open(path), config);
         }
         catch (Exception e) {
             logger.warn("Got exception when creating the indexWriter - %s", e);
@@ -130,45 +138,16 @@ public class LuceneIndexer
         }
     }
 
-    public void resetLuceneBufferPosition()
+    public void closeLuceneIndex(long[] fileCookieParams)
     {
-        for (ByteBuffer buffer : juffersWE.getLuceneFileBuffers()) {
-            if (buffer != null) {
-                buffer.position(0);
-            }
-        }
-    }
-
-    @SuppressWarnings("ThrowFromFinallyBlock")
-    public void closeLuceneIndex(long weCookie,
-            int recTypeCode,
-            int recTypeLength,
-            int warmUpType,
-            long[] fileCookieParams,
-            long[] buffAddresses,
-            byte[] chunkHeader)
-    {
-        IndexWriter weIndexWriter = indexWriter;
-        if (weIndexWriter == null) {
+        if (indexWriter == null) {
             return;
         }
-        logger.debug("weCookie %x, close index", weCookie);
-        Directory tempDirectory = weIndexWriter.getDirectory();
-        WarpOutputDirectory finalDirectory = new WarpOutputDirectory(storageEngine,
-                storageEngineConstants,
-                juffersWE,
-                weCookie,
-                recTypeCode,
-                recTypeLength,
-                warmUpType,
-                fileCookieParams,
-                buffAddresses,
-                chunkHeader);
-        int[] filesLength = new int[LuceneFileType.values().length - 1];
+        logger.debug("close index");
         try {
             stopWatch.reset();
             stopWatch.start();
-            weIndexWriter.forceMerge(1);
+            indexWriter.forceMerge(1);
             stopWatch.stop();
             stats.addmerge(stopWatch.getTime());
             indexWriter.close();
@@ -182,54 +161,32 @@ public class LuceneIndexer
                 }
             }
 
-            Directory lastDirectory = weIndexWriter.getDirectory();
-            String[] luceneFiles = lastDirectory.listAll();
-            for (String luceneFile : luceneFiles) {
-                LuceneFileType luceneFileType = LuceneFileType.getType(luceneFile);
-                if (luceneFileType != LuceneFileType.UNKNOWN) {
-                    stopWatch.reset();
-                    stopWatch.start();
-                    logger.debug("weCookie %x, start copy file %s", weCookie, luceneFile);
-                    String dest = LuceneFileType.getFixedFileName(luceneFileType);
-                    int fileLength = copyFromWithLength(finalDirectory, lastDirectory, luceneFile, dest);
-                    stopWatch.stop();
-                    stats.addcopy(stopWatch.getNanoTime());
-                    filesLength[luceneFileType.getNativeId()] = fileLength;
-                }
-            }
+            saveLuceneIndex(fileCookieParams);
         }
         catch (Exception e) {
-            filesLength = new int[0]; //zero size -  in order to mark it as failed in native
-            String error = String.format("weCookie %x, Got exception when creating the indexWriter", weCookie);
-            throw new TrinoException(WARP_LUCENE_WRITER_ERROR, error, e);
+            throw new TrinoException(WARP_LUCENE_WRITER_ERROR, "Got exception when closing the indexWriter", e);
         }
         finally {
-            try {
-                if (!failedCommit) {
-                    logger.debug("weCookie %x, committing lucene buffer: fileLengths %s", weCookie, Arrays.toString(filesLength));
-                    long res = storageEngine.warmupLuceneChunk(weCookie,
-                            juffersWE.getSingleAndResetLuceneWE(),
-                            filesLength,
-                            recTypeCode,
-                            recTypeLength,
-                            warmUpType,
-                            fileCookieParams,
-                            buffAddresses,
-                            chunkHeader);
-                    if (res < 0) {
-                        throw new TrinoException(WARP_LUCENE_WRITER_ERROR, "lucene commit failed, file too big");
-                    }
-                    fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = res & 0xFFFFFFFFL;
-                    fileCookieParams[FILE_COOKIE_PARAMS_WRITE_BUF_PAGE_IX.ordinal()] = res >> 32;
-                }
-            }
-            catch (Throwable t) {
-                logger.debug(t, "weCookie=%x, failed committing buffer", weCookie);
-                failedCommit = true;
-                throw t;
-            }
-            close(tempDirectory);
+            close(indexWriter.getDirectory());
         }
+    }
+
+    private void saveLuceneIndex(long[] fileCookieParams)
+    {
+        int startOffset = (int) fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()];
+        LuceneIndexWriter luceneIndexWriter = new LuceneIndexWriter(storageEngineConstants, indexWriter, rowGroupFilePath, startOffset);
+        Optional<ChunkState> chunkState = luceneIndexWriter.saveLuceneIndex();
+
+        chunkState.ifPresent(state -> {
+            fileCookieParams[FILE_COOKIE_PARAMS_START_OFFSET.ordinal()] = state.endOffset();
+            chunkStates.add(state);
+        });
+    }
+
+    public int saveLuceneIndexState(int startOffset)
+    {
+        ChunkStateHandler chunkStateHandler = new ChunkStateHandler(storageEngineConstants, rowGroupFilePath, startOffset);
+        return chunkStateHandler.save(chunkStates);
     }
 
     private void close(Directory directory)
@@ -245,24 +202,14 @@ public class LuceneIndexer
         stopWatch.stop();
     }
 
-    public int copyFromWithLength(Directory directory, Directory from, String src, String dest)
+    @Override
+    public void close()
             throws IOException
     {
-        IOContext context = IOContext.READONCE;
-        boolean success = false;
-        int fileLength;
-        try (IndexInput is = from.openInput(src, context);
-                IndexOutput os = directory.createOutput(dest, context)) {
-            os.copyBytes(is, is.length());
-            fileLength = (int) is.length();
-            success = true;
+        File dir = path.toFile();
+        if (dir.exists()) {
+            FileUtils.deleteDirectory(dir);
         }
-        finally {
-            if (!success) {
-                IOUtils.deleteFilesIgnoringExceptions(directory, dest);
-            }
-        }
-        return fileLength;
     }
 
     public void abort()

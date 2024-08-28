@@ -44,6 +44,8 @@ public class WarmUpElement
     public static final String QUERY_OFFSET = "queryOffset";
     public static final String QUERY_READ_SIZE = "queryReadSize";
     public static final String WARM_EVENTS = "warmEvents";
+    public static final String MATCH_OFFSET = "matchOffset";
+    public static final String MATCH_READ_SIZE = "matchReadSize";
     public static final String END_OFFSET = "endOffset";
     public static final String WARM_ID = "warmId";
     public static final String STATE = "state";
@@ -67,6 +69,8 @@ public class WarmUpElement
     private final int queryOffset;
     private final int queryReadSize;
     private final int warmEvents;
+    private final int matchOffset;   // start offset (in pages) of Lucene ChunkState list
+    private final int matchReadSize; // size (in pages) of Lucene ChunkState list
     private final int endOffset;
     private final int warmId;
     private final WarmUpElementState state;
@@ -96,6 +100,8 @@ public class WarmUpElement
             int queryOffset,
             int queryReadSize,
             int warmEvents,
+            int matchOffset,
+            int matchReadSize,
             int endOffset,
             int warmId,
             WarmUpElementState state,
@@ -119,6 +125,8 @@ public class WarmUpElement
         this.queryOffset = queryOffset;
         this.queryReadSize = queryReadSize;
         this.warmEvents = warmEvents;
+        this.matchOffset = matchOffset;
+        this.matchReadSize = matchReadSize;
         this.endOffset = endOffset;
         this.warmId = warmId;
         this.state = state;
@@ -147,6 +155,8 @@ public class WarmUpElement
                 .queryOffset(warmUpElement.getQueryOffset())
                 .queryReadSize(warmUpElement.getQueryReadSize())
                 .warmEvents(warmUpElement.getWarmEvents())
+                .matchOffset(warmUpElement.getMatchOffset())
+                .matchReadSize(warmUpElement.getMatchReadSize())
                 .endOffset(warmUpElement.getEndOffset())
                 .warmId(warmUpElement.getWarmId())
                 .state(warmUpElement.getState())
@@ -308,6 +318,18 @@ public class WarmUpElement
         return warmEvents;
     }
 
+    @JsonProperty(MATCH_OFFSET)
+    public int getMatchOffset()
+    {
+        return matchOffset;
+    }
+
+    @JsonProperty(MATCH_READ_SIZE)
+    public int getMatchReadSize()
+    {
+        return matchReadSize;
+    }
+
     @JsonProperty(END_OFFSET)
     public int getEndOffset()
     {
@@ -365,6 +387,8 @@ public class WarmUpElement
                 ", queryOffset=" + queryOffset +
                 ", queryReadSize=" + queryReadSize +
                 ", warmEvents=" + warmEvents +
+                ", matchOffset=" + matchOffset +
+                ", matchReadSize=" + matchReadSize +
                 ", endOffset=" + endOffset +
                 ", warmId=" + warmId +
                 ", warmState=" + warmState +
@@ -399,6 +423,8 @@ public class WarmUpElement
                 (warmId == warmUpElement.warmId) &&
                 Objects.equals(storeId, warmUpElement.storeId) &&
                 (totalRecords == warmUpElement.totalRecords) &&
+                (matchOffset == warmUpElement.matchOffset) &&
+                (matchReadSize == warmUpElement.matchReadSize) &&
                 (endOffset == warmUpElement.endOffset) &&
                 Objects.equals(state, warmUpElement.state) &&
                 Objects.equals(exportState, warmUpElement.exportState) &&
@@ -409,7 +435,7 @@ public class WarmUpElement
     @Override
     public int hashCode()
     {
-        return Objects.hash(warpColumn, warmUpType, recTypeCode, recTypeLength, warmUpContextSize, warmupElementStats, usedDictionarySize, dictionaryInfo, startOffset, queryOffset, queryReadSize, warmEvents, endOffset, state, exportState, isImported, warmState, storeId, totalRecords);
+        return Objects.hash(warpColumn, warmUpType, recTypeCode, recTypeLength, warmUpContextSize, warmupElementStats, usedDictionarySize, dictionaryInfo, startOffset, queryOffset, queryReadSize, warmEvents, matchOffset, matchReadSize, endOffset, state, exportState, isImported, warmState, storeId, totalRecords);
     }
 
     @JsonPOJOBuilder
@@ -430,6 +456,8 @@ public class WarmUpElement
         private int queryOffset;
         private int queryReadSize;
         private int warmEvents;
+        private int matchOffset;
+        private int matchReadSize;
         private int endOffset;
         private int warmId;
         private long creationTime;
@@ -551,6 +579,20 @@ public class WarmUpElement
             return this;
         }
 
+        @JsonProperty(MATCH_OFFSET)
+        public Builder matchOffset(int matchOffset)
+        {
+            this.matchOffset = matchOffset;
+            return this;
+        }
+
+        @JsonProperty(MATCH_READ_SIZE)
+        public Builder matchReadSize(int matchReadSize)
+        {
+            this.matchReadSize = matchReadSize;
+            return this;
+        }
+
         @JsonProperty(END_OFFSET)
         public Builder endOffset(int endOffset)
         {
@@ -621,6 +663,8 @@ public class WarmUpElement
                     queryOffset,
                     queryReadSize,
                     warmEvents,
+                    matchOffset,
+                    matchReadSize,
                     endOffset,
                     warmId,
                     state,

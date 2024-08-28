@@ -30,17 +30,13 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.QueryCachingPolicy;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
+import java.util.List;
 
 import static io.trino.plugin.warp.WarpErrorCode.WARP_MATCH_LUCENE_FAILED;
-import static io.trino.plugin.warp.gen.constants.LuceneMatchJParams.LUCENE_MATCH_JPARAMS_CFE_FILE_LENGTH;
-import static io.trino.plugin.warp.gen.constants.LuceneMatchJParams.LUCENE_MATCH_JPARAMS_CFS_FILE_LENGTH;
 import static io.trino.plugin.warp.gen.constants.LuceneMatchJParams.LUCENE_MATCH_JPARAMS_DOCS_TO_FIND;
 import static io.trino.plugin.warp.gen.constants.LuceneMatchJParams.LUCENE_MATCH_JPARAMS_INDEX_UNIQUE_ID;
 import static io.trino.plugin.warp.gen.constants.LuceneMatchJParams.LUCENE_MATCH_JPARAMS_NATIVE_COOKIE;
 import static io.trino.plugin.warp.gen.constants.LuceneMatchJParams.LUCENE_MATCH_JPARAMS_NUM_OF;
-import static io.trino.plugin.warp.gen.constants.LuceneMatchJParams.LUCENE_MATCH_JPARAMS_SEGMENTS_FILE_LENGTH;
-import static io.trino.plugin.warp.gen.constants.LuceneMatchJParams.LUCENE_MATCH_JPARAMS_SI_FILE_LENGTH;
 
 @SuppressWarnings("deprecation")
 public class LuceneMatcher
@@ -55,8 +51,10 @@ public class LuceneMatcher
     private final ReadJuffersWarmUpElement juffersWE;
     private final Query query;
     private final int matchWeIx;
-    private long[] matchParams;
-    private int[] matchResult;
+    private final long[] matchParams;
+    private final int[] matchResult;
+    private final String rowGroupFilePath;
+    private final int matchOffset;
     private final ShapingLogger shapingLogger;
     private int currChunkInRange;
 
@@ -66,6 +64,7 @@ public class LuceneMatcher
             LuceneQueryMatchData luceneQueryMatchData,
             int matchWeIx,
             int numChunksInRange,
+            String rowGroupFilePath,
             LucenePageCacheStats lucenePageCacheStats,
             DispatcherPageSourceStats statsDispatcherPageSource,
             GlobalConfig globalConfig)
@@ -78,6 +77,8 @@ public class LuceneMatcher
         this.matchWeIx = matchWeIx;
         this.matchParams = new long[LUCENE_MATCH_JPARAMS_NUM_OF.ordinal() * numChunksInRange];
         this.matchResult = new int[numChunksInRange];
+        this.rowGroupFilePath = rowGroupFilePath;
+        this.matchOffset = luceneQueryMatchData.getWarmUpElement().getMatchOffset();
         this.statsDispatcherPageSource = statsDispatcherPageSource;
         this.shapingLogger = ShapingLogger.getInstance(logger,
                 globalConfig.getShapingLoggerThreshold(),
@@ -93,10 +94,26 @@ public class LuceneMatcher
             return false;
         }
 
+        ChunkStateHandler chunkStateHandler = new ChunkStateHandler(storageEngineConstants, rowGroupFilePath, matchOffset);
+        List<ChunkState> chunkStates = null;
+        int loadedPageIndex = -1;
+
+        logger.debug("match rowGroupFilePath %s matchOffset %d matchTxId %d startChunkIndex %d numChunks %d",
+                rowGroupFilePath, matchOffset, matchTxId, startChunkIndex, numChunks);
+
         // loop to perform the match chunk by chunk
         currChunkInRange = 0;
         while (currChunkInRange < numChunks) {
-            luceneMatch(matchTxId);
+            int pageIndex = chunkStateHandler.getPageIndex(startChunkIndex + currChunkInRange);
+
+            if (pageIndex != loadedPageIndex) {
+                chunkStates = chunkStateHandler.load(pageIndex);
+                loadedPageIndex = pageIndex;
+            }
+
+            int chunkIndex = chunkStateHandler.getChunkIndexInPage(startChunkIndex + currChunkInRange);
+
+            luceneMatch(chunkStates.get(chunkIndex));
             currChunkInRange++;
         }
 
@@ -108,7 +125,7 @@ public class LuceneMatcher
     /**
      * do the actual match
      */
-    void luceneMatch(int matchTxId)
+    void luceneMatch(ChunkState chunkState)
     {
         int baseMatchParams = currChunkInRange * LUCENE_MATCH_JPARAMS_NUM_OF.ordinal();
         long nativeCookie = matchParams[baseMatchParams + LUCENE_MATCH_JPARAMS_NATIVE_COOKIE.ordinal()];
@@ -121,31 +138,24 @@ public class LuceneMatcher
         }
 
         long startTime = System.currentTimeMillis();
-        int docsToFind = (int) matchParams[baseMatchParams + LUCENE_MATCH_JPARAMS_DOCS_TO_FIND.ordinal()];
-
-        int[] filesLength = new int[4];
-        filesLength[LuceneFileType.SI.getNativeId()] = (int) matchParams[baseMatchParams + LUCENE_MATCH_JPARAMS_SI_FILE_LENGTH.ordinal()];
-        filesLength[LuceneFileType.CFE.getNativeId()] = (int) matchParams[baseMatchParams + LUCENE_MATCH_JPARAMS_CFE_FILE_LENGTH.ordinal()];
-        filesLength[LuceneFileType.SEGMENTS.getNativeId()] = (int) matchParams[baseMatchParams + LUCENE_MATCH_JPARAMS_SEGMENTS_FILE_LENGTH.ordinal()];
-        filesLength[LuceneFileType.CFS.getNativeId()] = (int) matchParams[baseMatchParams + LUCENE_MATCH_JPARAMS_CFS_FILE_LENGTH.ordinal()];
-
         int indexUniqueIdInRowGroup = (int) matchParams[baseMatchParams + LUCENE_MATCH_JPARAMS_INDEX_UNIQUE_ID.ordinal()];
+        int docsToFind = (int) matchParams[baseMatchParams + LUCENE_MATCH_JPARAMS_DOCS_TO_FIND.ordinal()];
         int resultBufferOffset = (int) (currChunkInRange * storageEngineConstants.getPageSize());
+
         if (logger.isDebugEnabled()) {
-            logger.debug("currChunkInRange %d nativeCookie %x indexUniqueIdInRowGroup %d docsToFind %d resultBufferOffset %d filesLength %s",
-                    currChunkInRange, nativeCookie, indexUniqueIdInRowGroup, docsToFind, resultBufferOffset, Arrays.toString(filesLength));
+            logger.debug("luceneMatch currChunkInRange %d nativeCookie %x indexUniqueIdInRowGroup %d docsToFind %d resultBufferOffset %d chunkState %s",
+                    currChunkInRange, nativeCookie, indexUniqueIdInRowGroup, docsToFind, resultBufferOffset, chunkState);
         }
 
         try {
-            WarpInputDirectory warpInputDirectory = new WarpInputDirectory(storageEngine,
+            LuceneIndexReader luceneIndexReader = new LuceneIndexReader(storageEngineConstants, rowGroupFilePath, chunkState);
+
+            WarpInputDirectory warpInputDirectory = new WarpInputDirectory(luceneIndexReader,
                     storageEngineConstants,
                     lucenePageCacheStats,
                     indexUniqueIdInRowGroup,
-                    juffersWE,
-                    nativeCookie,
-                    matchTxId,
                     FILE_PREFIX,
-                    filesLength);
+                    chunkState.filesLength());
             IndexReader reader = DirectoryReader.open(warpInputDirectory);
             IndexSearcher indexSearcher = new IndexSearcher(reader);
             ByteBuffer luceneBMResultBuffer = juffersWE.getLuceneBMResultBuffer();
@@ -154,8 +164,8 @@ public class LuceneMatcher
             matchResult[currChunkInRange] = warpCollector.getCount();
         }
         catch (Exception e) {
-            shapingLogger.error(e, "error in lucene search nativeCookie %d docsToFind %d resultBufferOffset %d filesLength %s",
-                    nativeCookie, docsToFind, resultBufferOffset, Arrays.toString(filesLength));
+            shapingLogger.error(e, "error in lucene search nativeCookie %d indexUniqueIdInRowGroup %d docsToFind %d resultBufferOffset %d chunkState %s",
+                    nativeCookie, indexUniqueIdInRowGroup, docsToFind, resultBufferOffset, chunkState);
             throw new TrinoException(WARP_MATCH_LUCENE_FAILED, e.getMessage());
         }
         finally {

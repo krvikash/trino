@@ -163,11 +163,9 @@ public class StorageWriterService
 
         if (warmUpElement.getWarmUpType() == WarmUpType.WARM_UP_TYPE_LUCENE) {
             // initialize lucene
-            LuceneIndexer luceneIndexer = new LuceneIndexer(storageEngine,
-                    storageEngineConstants,
-                    writeJuffersWarmUpElement,
+            LuceneIndexer luceneIndexer = new LuceneIndexer(storageEngineConstants,
+                    storageWriterSplitConfig.rowGroupFilePath(),
                     statsLuceneIndexer);
-            luceneIndexer.resetLuceneIndex();
             luceneIndexerOpt = Optional.of(luceneIndexer);
         }
 
@@ -175,6 +173,7 @@ public class StorageWriterService
                 warmupElementWriteMetadata.type(),
                 writeJuffersWarmUpElement,
                 luceneIndexerOpt);
+
         return new StorageWriterContext(warmupElementWriteMetadata,
                 warmupElementBuilder,
                 writeJuffersWarmUpElement,
@@ -327,6 +326,25 @@ public class StorageWriterService
                 warmupElementBuilder.dictionaryInfo(dictionaryInfo)
                         .usedDictionarySize(writeDictionary.getWriteSize());
                 offset += dictionarySize;
+            }
+        }
+        // write lucene info if needed
+        if (storageWriterContext.weSuccess() && storageWriterContext.getLuceneIndexer().isPresent()) {
+            int luceneSize = 0;
+
+            try {
+                luceneSize = storageWriterContext.getLuceneIndexer().get().saveLuceneIndexState(offset);
+            }
+            catch (Exception e) {
+                storageWriterContext.setFailed();
+                updateToFailedState(warmupElementBuilder, warmupElementWriteMetadata);
+            }
+            logger.debug("close fileOffsetsEnd (= luceneOffset) %d luceneSize %d", offset, luceneSize);
+
+            if (luceneSize != 0) {
+                warmupElementBuilder.matchOffset(offset)
+                        .matchReadSize(luceneSize);
+                offset += luceneSize;
             }
         }
         if (storageWriterContext.weSuccess()) {
@@ -499,13 +517,7 @@ public class StorageWriterService
     {
         WriteJuffersWarmUpElement writeJuffersWarmUpElement = storageWriterContext.getWriteJuffersWarmUpElement();
         if (storageWriterContext.getLuceneIndexer().isPresent()) {
-            storageWriterContext.getLuceneIndexer().get().closeLuceneIndex(storageWriterContext.getWeCookie(),
-                    storageWriterContext.getRecTypeCode(),
-                    storageWriterContext.getRecTypeLength(),
-                    storageWriterContext.getWarmUpType(),
-                    storageWriterContext.getFileCookieParams(),
-                    storageWriterContext.getBuffAddresses(),
-                    writeJuffersWarmUpElement.getCurrentChunkHeader());
+            storageWriterContext.getLuceneIndexer().get().closeLuceneIndex(storageWriterContext.getFileCookieParams());
         }
 
         if (storageWriterContext.weSuccess()) {
@@ -520,7 +532,7 @@ public class StorageWriterService
         if (!storageWriterContext.isWeClosed()) {
             storageWriterContext.getBlockAppender().writeChunkMapValuesIntoChunkMapJuffer(storageWriterContext.getWriteJuffersWarmUpElement().getChunkMapList());
             long[] fileCookieParams = storageWriterContext.getFileCookieParams();
-            // if current chunk is still opened it means there was an exception and we warm up elememt is aborted
+            // if current chunk is still opened it means there was an exception and we warm up element is aborted
             WriteJuffersWarmUpElement writeJuffersWarmUpElement = storageWriterContext.getWriteJuffersWarmUpElement();
             boolean currentChunkIsOpened = writeJuffersWarmUpElement.closeCurrentChunk();
             int numChunks = writeJuffersWarmUpElement.getNumChunks();
@@ -564,7 +576,7 @@ public class StorageWriterService
 
         storageWriterContext.getWriteJuffersWarmUpElement().resetAllBuffers();
         if (storageWriterContext.getLuceneIndexer().isPresent()) {
-            resetLucene(storageWriterContext.getLuceneIndexer().get());
+            storageWriterContext.getLuceneIndexer().get().resetLuceneIndex();
         }
         return flushed;
     }
@@ -609,11 +621,5 @@ public class StorageWriterService
             updateToFailedState(storageWriterContext.getWarmupElementBuilder(), warmupElementWriteMetadata);
             throw e;
         }
-    }
-
-    void resetLucene(LuceneIndexer luceneIndexer)
-    {
-        luceneIndexer.resetLuceneIndex();
-        luceneIndexer.resetLuceneBufferPosition();
     }
 }

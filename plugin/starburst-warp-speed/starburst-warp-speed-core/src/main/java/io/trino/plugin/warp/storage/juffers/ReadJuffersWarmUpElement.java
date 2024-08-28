@@ -52,7 +52,7 @@ public class ReadJuffersWarmUpElement
 
     public ByteBuffer getLuceneFileBuffer(LuceneFileType luceneFileType)
     {
-        return getLuceneJuffer().getLuceneByteBuffer(luceneFileType.getNativeId());
+        return getLuceneJuffer().getLuceneByteBuffer(luceneFileType.getFileId());
     }
 
     public LuceneReadJuffer getLuceneJuffer()

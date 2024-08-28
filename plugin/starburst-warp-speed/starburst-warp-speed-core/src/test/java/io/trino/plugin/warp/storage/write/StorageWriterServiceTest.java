@@ -33,7 +33,6 @@ import io.trino.plugin.warp.storage.engine.StubsStorageEngine;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.storage.juffers.BaseJuffer;
 import io.trino.plugin.warp.storage.juffers.WriteJuffersWarmUpElement;
-import io.trino.plugin.warp.storage.lucene.LuceneFileType;
 import io.trino.plugin.warp.storage.lucene.LuceneIndexer;
 import io.trino.plugin.warp.storage.write.appenders.BlockAppenderFactory;
 import io.trino.spi.Page;
@@ -48,12 +47,15 @@ import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.RealType;
 import io.trino.spi.type.VarcharType;
+import org.apache.commons.io.FileUtils;
 import org.apache.lucene.store.AlreadyClosedException;
-import org.apache.lucene.store.ByteBuffersDirectory;
+import org.apache.lucene.store.Directory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.File;
+import java.io.IOException;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
@@ -70,19 +72,16 @@ import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class StorageWriterServiceTest
 {
     private static final int SHOULD_BE_NULL = -1;
-    private StorageEngine storageEngine;
+
+    private final String rowGroupFilePath = "/tmp/testStorageWriterService/schema/table/column/offset/length/";
+
     private DictionaryCacheService dictionaryCacheService;
     private StorageWriterService storageWriterService;
     private BufferAllocator bufferAllocator;
@@ -122,13 +121,15 @@ public class StorageWriterServiceTest
 
     @AfterEach
     public void after()
+            throws IOException
     {
         bufferAllocator.clear();
+        FileUtils.deleteDirectory(new File("/tmp/test/StorageWriterService"));
     }
 
     private void initiate(StorageEngine storageEngineToSpy, StubsStorageEngineConstants storageEngineConstants)
     {
-        storageEngine = spy(storageEngineToSpy);
+        StorageEngine storageEngine = spy(storageEngineToSpy);
         //when(storageEngine.warmupElementOpen(anyInt(), new long[] {anyLong(), anyLong()}, anyInt(), anyInt(), anyInt(), anyInt(), anyLong(), any())).thenReturn(1L);
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
 
@@ -407,25 +408,16 @@ public class StorageWriterServiceTest
         String[] values = new String[] {"a", "b"};
         Page page = buildVarcharPage(values);
         List<DictionaryWarmInfo> outDictionaryWarmInfos = new ArrayList<>();
-        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", "rowGroupFilePath", true);
+        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", rowGroupFilePath + "writeVarcharWithLucene", true);
         StorageWriterContext storageWriterContext = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata, outDictionaryWarmInfos);
         storageWriterService.appendPage(page, storageWriterContext);
-        WriteJuffersWarmUpElement dataRecordJuffer = storageWriterContext.getWriteJuffersWarmUpElement();
 
         LuceneIndexer luceneIndexer = storageWriterContext.getLuceneIndexer().orElseThrow();
-        ByteBuffersDirectory directory = (ByteBuffersDirectory) luceneIndexer.getLuceneDirectory();
+        Directory directory = luceneIndexer.getLuceneDirectory();
         assertThat(directory).isNotNull();
+
         storageWriterService.close(page.getPositionCount(), storageWriterSplitConfig, storageWriterContext);
-
         assertThatThrownBy(directory::listAll).isInstanceOf(AlreadyClosedException.class); //since it finish will throw AlreadyClosedException.class
-
-        assertThat(dataRecordJuffer.getLuceneFileBuffer(LuceneFileType.SI).position()).isGreaterThan(0);
-        assertThat(dataRecordJuffer.getLuceneFileBuffer(LuceneFileType.CFE).position()).isGreaterThan(0);
-        assertThat(dataRecordJuffer.getLuceneFileBuffer(LuceneFileType.CFS).position()).isGreaterThan(0);
-        assertThat(dataRecordJuffer.getLuceneFileBuffer(LuceneFileType.SEGMENTS).position()).isGreaterThan(0);
-        //todo: check why failed
-        //verify(storageEngine, times(values.length * 4)).luceneWriteBuffer(anyLong(), anyInt(), anyInt(), anyInt());
-        //verify(storageEngine, times(values.length)).luceneCommitBuffers(anyLong(), anyBoolean(), any(int[].class));
     }
 
     @Test
@@ -439,26 +431,16 @@ public class StorageWriterServiceTest
         String[] values = new String[] {"a"};
         Page page = buildVarcharPage(values);
         List<DictionaryWarmInfo> outDictionaryWarmInfos = new ArrayList<>();
-        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", "rowGroupFilePath", true);
+        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", rowGroupFilePath + "abortVarcharWithLucene", true);
         StorageWriterContext storageWriterContext = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata, outDictionaryWarmInfos);
         storageWriterService.appendPage(page, storageWriterContext);
 
-        storageWriterService.abort(false, storageWriterContext, storageWriterSplitConfig);
-        WriteJuffersWarmUpElement juffersWE = storageWriterContext.getWriteJuffersWarmUpElement();
-
         LuceneIndexer luceneIndexer = storageWriterContext.getLuceneIndexer().orElseThrow();
-        ByteBuffersDirectory directory = (ByteBuffersDirectory) luceneIndexer.getLuceneDirectory();
+        Directory directory = luceneIndexer.getLuceneDirectory();
         assertThat(directory).isNotNull();
+
         storageWriterService.abort(false, storageWriterContext, storageWriterSplitConfig);
-
         assertThatThrownBy(directory::listAll).isInstanceOf(AlreadyClosedException.class); //since it finish will throw AlreadyClosedException.class
-
-        assertThat(juffersWE.getLuceneFileBuffer(LuceneFileType.SI).position()).isEqualTo(0);
-        assertThat(juffersWE.getLuceneFileBuffer(LuceneFileType.CFE).position()).isEqualTo(0);
-        assertThat(juffersWE.getLuceneFileBuffer(LuceneFileType.CFS).position()).isEqualTo(0);
-        assertThat(juffersWE.getLuceneFileBuffer(LuceneFileType.SEGMENTS).position()).isEqualTo(0);
-        verify(storageEngine, never()).warmupLucene(anyLong(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), any(), any(), any());
-        verify(storageEngine, never()).warmupLuceneChunk(anyLong(), anyBoolean(), any(int[].class), anyInt(), anyInt(), anyInt(), any(), any(), any());
     }
 
     @Test
@@ -473,7 +455,7 @@ public class StorageWriterServiceTest
                 WarmUpType.WARM_UP_TYPE_DATA);
 
         List<DictionaryWarmInfo> outDictionaryWarmInfos = new ArrayList<>();
-        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", "rowGroupFilePath", true);
+        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", rowGroupFilePath + "testAppendWarmupElementBlocksNotReady", true);
         StorageWriterContext storageWriterContext = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata, outDictionaryWarmInfos);
         storageWriterContext.setRecordBufferSize(chunkSize);
 
@@ -501,7 +483,7 @@ public class StorageWriterServiceTest
                 WarmUpType.WARM_UP_TYPE_DATA);
 
         List<DictionaryWarmInfo> outDictionaryWarmInfos = new ArrayList<>();
-        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", "rowGroupFilePath", true);
+        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", rowGroupFilePath + "testAppendWarmupElementBlocksReadyOnChunkSize", true);
         StorageWriterContext storageWriterContext = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata, outDictionaryWarmInfos);
         storageWriterContext.setRecordBufferSize(chunkSize);
 
@@ -528,7 +510,7 @@ public class StorageWriterServiceTest
                 WarmUpType.WARM_UP_TYPE_DATA);
 
         List<DictionaryWarmInfo> outDictionaryWarmInfos = new ArrayList<>();
-        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", "rowGroupFilePath", true);
+        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", rowGroupFilePath + "testAppendWarmupElementBlocksNumberOfRecordsEqualsChunkSize", true);
         StorageWriterContext storageWriterContext = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata, outDictionaryWarmInfos);
         storageWriterContext.setRecordBufferSize(chunkSize);
 
@@ -550,7 +532,7 @@ public class StorageWriterServiceTest
 
     private StorageWriterContext runTest(Page page, WarmupElementWriteMetadata warmupElementWriteMetadata, List<DictionaryWarmInfo> outDictionaryWarmInfos)
     {
-        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", "rowGroupFilePath", true);
+        StorageWriterSplitConfig storageWriterSplitConfig = storageWriterService.startWarming("nodeIdentifier", rowGroupFilePath + "runTest", true);
         StorageWriterContext storageWriterContext = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata, outDictionaryWarmInfos);
         storageWriterService.appendPage(page, storageWriterContext);
         return storageWriterContext;

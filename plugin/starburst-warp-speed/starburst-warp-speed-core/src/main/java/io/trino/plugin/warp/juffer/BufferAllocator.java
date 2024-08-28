@@ -495,10 +495,10 @@ public class BufferAllocator
     public ByteBuffer[] ids2LuceneBuffers(long[] idsByType)
     {
         ByteBuffer[] luceneBuffers = new ByteBuffer[4];
-        luceneBuffers[LuceneFileType.SI.getNativeId()] = ids2LuceneSmallSiBuff(idsByType);
-        luceneBuffers[LuceneFileType.CFE.getNativeId()] = ids2LuceneSmallCfeBuff(idsByType);
-        luceneBuffers[LuceneFileType.SEGMENTS.getNativeId()] = ids2LuceneSmallSegmentsBuff(idsByType);
-        luceneBuffers[LuceneFileType.CFS.getNativeId()] = ids2LuceneBigCfsBuff(idsByType);
+        luceneBuffers[LuceneFileType.SI.getFileId()] = ids2LuceneSmallSiBuff(idsByType);
+        luceneBuffers[LuceneFileType.CFE.getFileId()] = ids2LuceneSmallCfeBuff(idsByType);
+        luceneBuffers[LuceneFileType.SEGMENTS.getFileId()] = ids2LuceneSmallSegmentsBuff(idsByType);
+        luceneBuffers[LuceneFileType.CFS.getFileId()] = ids2LuceneBigCfsBuff(idsByType);
         return luceneBuffers;
     }
 
@@ -525,10 +525,10 @@ public class BufferAllocator
     public ByteBuffer[] memorySegment2LuceneBuffers(MemorySegment[] buffs)
     {
         ByteBuffer[] luceneBuffers = new ByteBuffer[4];
-        luceneBuffers[LuceneFileType.SI.getNativeId()] = memorySegment2LuceneSmallSiBuff(buffs);
-        luceneBuffers[LuceneFileType.CFE.getNativeId()] = memorySegment2LuceneSmallCfeBuff(buffs);
-        luceneBuffers[LuceneFileType.SEGMENTS.getNativeId()] = memorySegment2LuceneSmallSegmentsBuff(buffs);
-        luceneBuffers[LuceneFileType.CFS.getNativeId()] = memorySegment2LuceneBigCfsBuff(buffs);
+        luceneBuffers[LuceneFileType.SI.getFileId()] = memorySegment2LuceneSmallSiBuff(buffs);
+        luceneBuffers[LuceneFileType.CFE.getFileId()] = memorySegment2LuceneSmallCfeBuff(buffs);
+        luceneBuffers[LuceneFileType.SEGMENTS.getFileId()] = memorySegment2LuceneSmallSegmentsBuff(buffs);
+        luceneBuffers[LuceneFileType.CFS.getFileId()] = memorySegment2LuceneBigCfsBuff(buffs);
         return luceneBuffers;
     }
 

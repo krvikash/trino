@@ -23,7 +23,7 @@ import io.trino.spi.connector.ConnectorSession;
 
 public class WarmUtils
 {
-    public static final int FAST_WARMING_VERSION = 6;
+    public static final int FAST_WARMING_VERSION = 7;
 
     private static final Logger logger = Logger.get(WarmUtils.class);
 

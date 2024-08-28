@@ -15,9 +15,7 @@ package io.trino.plugin.warp.storage.lucene;
 
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.gen.stats.LucenePageCacheStats;
-import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
-import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
 import org.apache.lucene.store.BaseDirectory;
 import org.apache.lucene.store.ChecksumIndexInput;
 import org.apache.lucene.store.IOContext;
@@ -37,10 +35,9 @@ public class WarpInputDirectory
 {
     private static final Logger logger = Logger.get(WarpInputDirectory.class);
 
-    public static final int NUM_SMALL_FILES = LuceneFileType.values().length - 2;
     private static final int MAX_PAGE_CACHE_ENTRIES = 128;
 
-    private final ByteBuffer[] smallFilePageCache = new ByteBuffer[NUM_SMALL_FILES];
+    private final ByteBuffer[] smallFilePageCache = new ByteBuffer[LuceneFileType.numSmallFiles()];
     private final Map<LucenePageCacheKey, ByteBuffer> bigFilePageCache = new LinkedHashMap<>()
     {
         @Override
@@ -50,34 +47,25 @@ public class WarpInputDirectory
         }
     };
 
-    private final StorageEngine storageEngine;
+    private final LuceneIndexReader luceneIndexReader;
     private final StorageEngineConstants storageEngineConstants;
     private final LucenePageCacheStats lucenePageCacheStats;
     private final int indexUniqueIdInRowGroup;
-    private final ReadJuffersWarmUpElement juffersWE;
-    private final long nativeCookie;
-    private final int matchTxId;
     private final int[] fileLengths;
     private final String filePrefix;
 
-    protected WarpInputDirectory(StorageEngine storageEngine,
+    protected WarpInputDirectory(LuceneIndexReader luceneIndexReader,
             StorageEngineConstants storageEngineConstants,
             LucenePageCacheStats lucenePageCacheStats,
             int indexUniqueIdInRowGroup,
-            ReadJuffersWarmUpElement juffersWE,
-            long nativeCookie,
-            int matchTxId,
             String filePrefix,
             int[] fileLengths)
     {
         super(NoLockFactory.INSTANCE);
-        this.storageEngine = storageEngine;
+        this.luceneIndexReader = luceneIndexReader;
         this.storageEngineConstants = storageEngineConstants;
         this.lucenePageCacheStats = lucenePageCacheStats;
         this.indexUniqueIdInRowGroup = indexUniqueIdInRowGroup;
-        this.juffersWE = juffersWE;
-        this.nativeCookie = nativeCookie;
-        this.matchTxId = matchTxId;
         this.filePrefix = filePrefix;
         this.fileLengths = fileLengths;
     }
@@ -90,111 +78,105 @@ public class WarpInputDirectory
         // is this api used to get the list of files before the merge begin
 
         String[] fileNames = new String[LuceneFileType.values().length - 1];
-        fileNames[LuceneFileType.CFE.getNativeId()] = filePrefix + ".cfe";
-        fileNames[LuceneFileType.CFS.getNativeId()] = filePrefix + ".cfs";
-        fileNames[LuceneFileType.SI.getNativeId()] = filePrefix + ".si";
-        fileNames[LuceneFileType.SEGMENTS.getNativeId()] = "segments_1";
-        logger.debug("nativeCookie=%s, listAll %s", nativeCookie, Arrays.toString(fileNames));
+        fileNames[LuceneFileType.CFE.getFileId()] = filePrefix + ".cfe";
+        fileNames[LuceneFileType.CFS.getFileId()] = filePrefix + ".cfs";
+        fileNames[LuceneFileType.SI.getFileId()] = filePrefix + ".si";
+        fileNames[LuceneFileType.SEGMENTS.getFileId()] = "segments_1";
+        logger.debug("indexUniqueIdInRowGroup=%d, listAll %s", indexUniqueIdInRowGroup, Arrays.toString(fileNames));
         return fileNames;
     }
 
     @Override
     public void deleteFile(String fileName)
     {
-        logger.debug("nativeCookie=%s, delete file %s while input", nativeCookie, fileName);
+        logger.debug("indexUniqueIdInRowGroup=%d, delete file %s while input", indexUniqueIdInRowGroup, fileName);
     }
 
     @Override
     public long fileLength(String fileName)
     {
         LuceneFileType type = LuceneFileType.getType(fileName);
-        long len = fileLengths[type.getNativeId()];
-        logger.debug("nativeCookie=%s, fileLength = %d", nativeCookie, len);
+        long len = fileLengths[type.getFileId()];
+        logger.debug("indexUniqueIdInRowGroup=%d, fileLength = %d", indexUniqueIdInRowGroup, len);
         return len;
     }
 
     @Override
     public IndexOutput createOutput(String fileName, IOContext ioContext)
     {
-        logger.debug("nativeCookie=%s, createTempOutput file %s while input", nativeCookie, fileName);
+        logger.debug("indexUniqueIdInRowGroup=%d, createTempOutput file %s while input", indexUniqueIdInRowGroup, fileName);
         return null;
     }
 
     @Override
     public IndexOutput createTempOutput(String prefix, String suffix, IOContext ioContext)
     {
-        logger.debug("nativeCookie=%s, createTempOutput file %s while input", nativeCookie, prefix);
+        logger.debug("indexUniqueIdInRowGroup=%d, createTempOutput file %s while input", indexUniqueIdInRowGroup, prefix);
         return null;
     }
 
     @Override
     public void sync(Collection<String> collection)
     {
-        logger.debug("nativeCookie=%s, sync file while input", nativeCookie);
+        logger.debug("indexUniqueIdInRowGroup=%d, sync file while input", indexUniqueIdInRowGroup);
     }
 
     @Override
     public void syncMetaData()
     {
-        logger.debug("nativeCookie=%s, syncMetadata file while input", nativeCookie);
+        logger.debug("indexUniqueIdInRowGroup=%d, syncMetadata file while input", indexUniqueIdInRowGroup);
     }
 
     @Override
     public void rename(String source, String dest)
     {
-        logger.debug("nativeCookie=%s, rename file %s while input", nativeCookie, source);
+        logger.debug("indexUniqueIdInRowGroup=%d, rename file %s while input", indexUniqueIdInRowGroup, source);
     }
 
     @Override
     public IndexInput openInput(String fileName, IOContext ioContext)
     {
-        logger.debug("nativeCookie=%s, openInput file %s while input", nativeCookie, fileName);
+        logger.debug("indexUniqueIdInRowGroup=%d, openInput file %s while input", indexUniqueIdInRowGroup, fileName);
         LuceneFileType luceneFileType = LuceneFileType.getType(fileName);
-        return new WarpReadIndexInput(storageEngine,
+        return new WarpReadIndexInput(luceneIndexReader,
                 storageEngineConstants,
                 lucenePageCacheStats,
                 smallFilePageCache,
                 bigFilePageCache,
                 indexUniqueIdInRowGroup,
-                juffersWE,
                 luceneFileType,
-                nativeCookie,
-                matchTxId,
                 0,
-                fileLengths[luceneFileType.getNativeId()],
+                fileLengths[luceneFileType.getFileId()],
                 "root");
     }
 
     @Override
     public ChecksumIndexInput openChecksumInput(String name, IOContext context)
     {
-        logger.debug("nativeCookie=%s, openChecksumInput file %s while input", nativeCookie, name);
+        logger.debug("indexUniqueIdInRowGroup=%d, openChecksumInput file %s while input", indexUniqueIdInRowGroup, name);
         LuceneFileType luceneFileType = LuceneFileType.getType(name);
-        return new WarpReadIndexInput(storageEngine,
+        return new WarpReadIndexInput(luceneIndexReader,
                 storageEngineConstants,
                 lucenePageCacheStats,
                 smallFilePageCache,
                 bigFilePageCache,
                 indexUniqueIdInRowGroup,
-                juffersWE,
                 luceneFileType,
-                nativeCookie,
-                matchTxId,
                 0,
-                fileLengths[luceneFileType.getNativeId()],
+                fileLengths[luceneFileType.getFileId()],
                 "root");
     }
 
     @Override
     public void close()
     {
-        logger.debug("nativeCookie=%s, close while input", nativeCookie);
+        logger.debug("indexUniqueIdInRowGroup=%d, close while input", indexUniqueIdInRowGroup);
     }
 
     @Override
     public Set<String> getPendingDeletions()
     {
-        logger.debug("nativeCookie=%s, getPendingDeletions", nativeCookie);
+        logger.debug("indexUniqueIdInRowGroup=%d, getPendingDeletions", indexUniqueIdInRowGroup);
         return null;
     }
 }
