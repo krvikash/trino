@@ -27,8 +27,6 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import static com.google.common.base.Preconditions.checkState;
-
 @ThreadSafe
 public class SpooledChunksByExchange
 {
@@ -51,7 +49,10 @@ public class SpooledChunksByExchange
         Lock lock = freezeLock.writeLock();
         lock.lock();
         try {
-            checkState(frozen.compareAndSet(false, true), "Spooled chunks map already frozen");
+            boolean success = frozen.compareAndSet(false, true);
+            if (!success) {
+                throw new AlreadyFrozenException("Spooled chunks map already frozen");
+            }
             ImmutableMap.Builder<String, Map<Long, SpooledChunk>> frozenMapping = ImmutableMap.builder();
 
             mapping.forEach((k, v) -> {
@@ -69,7 +70,9 @@ public class SpooledChunksByExchange
         Lock lock = freezeLock.readLock();
         lock.lock();
         try {
-            checkState(!frozen.get(), "Spooled chunks map already frozen");
+            if (frozen.get()) {
+                throw new AlreadyFrozenException("Spooled chunks map already frozen");
+            }
             mapping.computeIfAbsent(exchangeId, ignored -> new ConcurrentHashMap<>()).putAll(spooledChunkMap);
         }
         finally {
@@ -82,7 +85,9 @@ public class SpooledChunksByExchange
         Lock lock = freezeLock.readLock();
         lock.lock();
         try {
-            checkState(!frozen.get(), "Spooled chunks map already frozen");
+            if (frozen.get()) {
+                throw new AlreadyFrozenException("Spooled chunks map already frozen");
+            }
             mapping.remove(exchangeId);
         }
         finally {
@@ -153,5 +158,14 @@ public class SpooledChunksByExchange
     void clear()
     {
         mapping.clear();
+    }
+
+    public static class AlreadyFrozenException
+            extends RuntimeException
+    {
+        public AlreadyFrozenException(String message)
+        {
+            super(message);
+        }
     }
 }

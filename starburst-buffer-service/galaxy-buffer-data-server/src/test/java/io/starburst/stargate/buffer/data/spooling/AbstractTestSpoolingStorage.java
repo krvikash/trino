@@ -18,6 +18,7 @@ import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
 import io.starburst.stargate.buffer.data.execution.Chunk;
 import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
 import io.starburst.stargate.buffer.data.execution.SpooledChunksByExchange;
+import io.starburst.stargate.buffer.data.execution.SpooledChunksByExchange.AlreadyFrozenException;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -178,9 +179,15 @@ public abstract class AbstractTestSpoolingStorage
         mapping.put(0L, new SpooledChunk("location", 0L, 10));
         spooledChunksByExchange.update(EXCHANGE_ID, mapping);
         Map<String, Map<Long, SpooledChunk>> _ = spooledChunksByExchange.freeze();
-        assertThatThrownBy(spooledChunksByExchange::freeze).hasMessageContaining("Spooled chunks map already frozen");
-        assertThatThrownBy(() -> spooledChunksByExchange.update(EXCHANGE_ID, ImmutableMap.of())).hasMessageContaining("Spooled chunks map already frozen");
-        assertThatThrownBy(() -> spooledChunksByExchange.removeExchange(EXCHANGE_ID)).hasMessageContaining("Spooled chunks map already frozen");
+        assertThatThrownBy(spooledChunksByExchange::freeze)
+                .isInstanceOf(AlreadyFrozenException.class)
+                .hasMessageContaining("Spooled chunks map already frozen");
+        assertThatThrownBy(() -> spooledChunksByExchange.update(EXCHANGE_ID, ImmutableMap.of()))
+                .isInstanceOf(AlreadyFrozenException.class)
+                .hasMessageContaining("Spooled chunks map already frozen");
+        assertThatThrownBy(() -> spooledChunksByExchange.removeExchange(EXCHANGE_ID))
+                .isInstanceOf(AlreadyFrozenException.class)
+                .hasMessageContaining("Spooled chunks map already frozen");
     }
 
     private static String getRandomLargeString()
