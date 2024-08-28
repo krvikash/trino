@@ -338,7 +338,7 @@ public class StorageReader
     /**
      * collect rows from native, return true if something was collected, false otherwise
      */
-    boolean matchAndCollect(StorageCollectorArgs storageCollectorArgs, CollectOpenResult collectOpenResult, boolean isMatchGetNumRanges)
+    boolean matchAndCollect(CollectOpenResult collectOpenResult, boolean isMatchGetNumRanges)
     {
         long startTime = readTimeMeasurement.getStartTime();
 
@@ -365,7 +365,7 @@ public class StorageReader
     }
 
     @NativeInterrupt
-    long queryClose(CollectOpenResult collectOpenResult, StorageCollectorArgs storageCollectorArgs, StorageCollectorCallBack storageCollectorCallBack)
+    long queryClose(CollectOpenResult collectOpenResult, StorageCollectorCallBack storageCollectorCallBack)
     {
         // match
         if (matchTxId != INVALID_TX_ID) {
