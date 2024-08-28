@@ -15,6 +15,7 @@ import io.opentelemetry.exporter.internal.marshal.Marshaler;
 import io.opentelemetry.exporter.internal.marshal.Serializer;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
@@ -22,8 +23,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
+import java.util.zip.GZIPInputStream;
 
 import static java.lang.Math.toIntExact;
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -40,17 +43,38 @@ public final class JaegerTraceImporter
         GrpcExporterBuilder grpcExporterBuilder = new GrpcExporterBuilder("otlp", "span", 10L, URI.create("http://localhost:4317"), () -> null, "/opentelemetry.proto.collector.trace.v1.TraceService/Export");
         GrpcExporter exporter = grpcExporterBuilder.build();
         Path tracesDirectory = Paths.get(System.getProperty("user.home")).resolve("Downloads/traces");
+        Path decompressedDirectory = tracesDirectory.resolve("decompressed");
         try (Stream<Path> traceFiles = Files.list(tracesDirectory)) {
-            traceFiles.forEach(traceFile -> {
-                if (traceFile.getFileName().toString().endsWith(".grpc")) {
+            for (Path traceFile : traceFiles.toList()) {
+                String traceFileName = traceFile.getFileName().toString();
+                if (traceFileName.endsWith(".grpc")) {
                     exportTrace(exporter, traceFile);
                 }
-                else {
-                    System.out.println("skipped path: " + traceFile + ", it's not a .grpc file");
+                else if (traceFileName.endsWith(".grpc.gz")) {
+                    Files.createDirectories(decompressedDirectory);
+                    Path decompressedTraceFile = decompressedDirectory
+                            .resolve(traceFile.getFileName())
+                            .resolveSibling(traceFileName.substring(0, traceFileName.lastIndexOf(".gz")));
+                    decompressGzip(traceFile, decompressedTraceFile);
+                    exportTrace(exporter, decompressedTraceFile);
                 }
-            });
+                else {
+                    System.out.println("skipped path: " + traceFile + ", it's not a .grpc or .grpc.gz file");
+                }
+            }
         }
         exporter.shutdown();
+    }
+
+    private static void decompressGzip(Path source, Path target)
+    {
+        try (GZIPInputStream gzipInputStream = new GZIPInputStream(
+                new FileInputStream(source.toFile()))) {
+            Files.copy(gzipInputStream, target, REPLACE_EXISTING);
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private static void exportTrace(GrpcExporter exporter, Path file)
