@@ -2995,6 +2995,7 @@
                 <!-- set as properties, not configuration, to allow overriding them -->
                 <gib.buildDownstream>true</gib.buildDownstream>
                 <gib.buildUpstream>true</gib.buildUpstream>
+                <gib.disableIfBranchMatches>master</gib.disableIfBranchMatches>
             </properties>
             <build>
                 <plugins>
@@ -3004,7 +3005,6 @@
                         <version>4.5.1</version>
                         <extensions>true</extensions>
                         <configuration>
-                            <disableIfBranchMatches>master</disableIfBranchMatches>
                             <compareToMergeBase>true</compareToMergeBase>
                             <uncommitted>true</uncommitted>
                             <untracked>true</untracked>
