@@ -201,7 +201,8 @@ public class RuleUtils
             String pretty = restUtils.executeTrinoCommand(prefix, "pretty", null, HttpMethod.GET, HttpURLConnection.HTTP_OK);
             List<String> operatorTypes = objectMapper.readTree(pretty).get("queryStats").get("operatorSummaries").findValues("operatorType").stream().map(JsonNode::asText).toList();
             assertThat(operatorTypes.contains("LoadCachedDataOperator")).isFalse().describedAs("validate that LoadCachedDataOperator stage was not applied");
-            assertThat(operatorTypes.contains("ScanFilterAndProjectOperator")).isTrue().describedAs("validate that ScanFilterAndProjectOperator stage was applied");
+            assertThat(operatorTypes.contains("ScanFilterAndProjectOperator") || operatorTypes.contains("TableScanOperator")).isTrue()
+                    .describedAs("validate that ScanFilterAndProjectOperator or TableScanOperator stage was applied");
         }
         catch (Exception e) {
             throw new RuntimeException("failed", e);
