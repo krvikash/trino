@@ -31,11 +31,11 @@ import io.trino.plugin.warp.dispatcher.warmup.events.WarmRulesChangedEvent;
 import io.trino.plugin.warp.gen.stats.WarmupRuleFetcherStats;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.metrics.MetricsManager;
-import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.warmup.WarmupRuleApiMapper;
 import io.trino.plugin.warp.warmup.WarmupRuleService;
 import io.trino.plugin.warp.warmup.model.WarmupRule;
 import io.trino.plugin.warp.warmup.model.WarmupRuleResult;
+import io.trino.spi.catalog.CatalogName;
 
 import java.time.Duration;
 import java.util.List;
@@ -64,7 +64,7 @@ public class WarmupRuleCloudFetcher
     private final CloudVendorService cloudVendorService;
     private final WarmupRuleService warmupRuleService;
     private final EventBus eventBus;
-    private final CatalogNameProvider catalogNameProvider;
+    private final CatalogName catalogName;
     private final ObjectMapperProvider objectMapperProvider;
     @SuppressWarnings("FieldCanBeLocal")
     private final Timer timer;
@@ -79,7 +79,7 @@ public class WarmupRuleCloudFetcher
             @ForWarmupRuleCloudFetcher CloudVendorService cloudVendorService,
             WarmupRuleService warmupRuleService,
             EventBus eventBus,
-            CatalogNameProvider catalogNameProvider,
+            CatalogName catalogName,
             MetricsManager metricsManager,
             ObjectMapperProvider objectMapperProvider)
     {
@@ -87,7 +87,7 @@ public class WarmupRuleCloudFetcher
                 cloudVendorService,
                 warmupRuleService,
                 eventBus,
-                catalogNameProvider,
+                catalogName,
                 metricsManager,
                 objectMapperProvider,
                 new Timer());
@@ -99,7 +99,7 @@ public class WarmupRuleCloudFetcher
             CloudVendorService cloudVendorService,
             WarmupRuleService warmupRuleService,
             EventBus eventBus,
-            CatalogNameProvider catalogNameProvider,
+            CatalogName catalogName,
             MetricsManager metricsManager,
             ObjectMapperProvider objectMapperProvider,
             Timer timer)
@@ -108,7 +108,7 @@ public class WarmupRuleCloudFetcher
         this.cloudVendorService = requireNonNull(cloudVendorService);
         this.warmupRuleService = requireNonNull(warmupRuleService);
         this.eventBus = requireNonNull(eventBus);
-        this.catalogNameProvider = requireNonNull(catalogNameProvider);
+        this.catalogName = requireNonNull(catalogName);
         this.objectMapperProvider = requireNonNull(objectMapperProvider);
         this.timer = requireNonNull(timer);
         this.readLock = new ReentrantReadWriteLock().readLock();
@@ -157,12 +157,12 @@ public class WarmupRuleCloudFetcher
     {
         String path = CloudVendorService.concatenatePath(
                 warmupRuleCloudFetcherConfig.getStorePath(),
-                catalogNameProvider.get());
+                catalogName.toString());
 
         if (readLock.tryLock()) {
             try {
                 if (path == null) {
-                    logger.debug("rules path is null, storePath %s connectorName %s", warmupRuleCloudFetcherConfig.getStorePath(), catalogNameProvider.get());
+                    logger.debug("rules path is null, storePath %s connectorName %s", warmupRuleCloudFetcherConfig.getStorePath(), catalogName.toString());
                     return;
                 }
                 StorageObjectMetadata storageObjectMetadata = Failsafe.with(RetryPolicy.builder()
