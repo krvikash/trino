@@ -78,6 +78,7 @@ public class DispatcherQueryRunner
 //                .put("hive.metastore.user", "presto")
                 .put("hive.metastore.disable-location-checks", "true")
                 .put("hive.metastore.catalog.dir", "file://" + hiveDir.toAbsolutePath())
+                .put("fs.hadoop.enabled", "true")
 //                .put("hive.metastore", "glue")
                 .put(DictionaryConfig.EXCEPTIONAL_LIST_DICTIONARY, "REC_TYPE_ARRAY_INT,REC_TYPE_ARRAY_BIGINT")
                 .put("warp-speed.config.dictionary.max-size", "3")

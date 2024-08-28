@@ -105,7 +105,8 @@ public final class StargateQueryRunner
             queryRunner.createCatalog("hive", "hive", ImmutableMap.of(
                     "hive.metastore", "file",
                     "hive.metastore.catalog.dir", "file:" + hiveCatalog.toRealPath(),
-                    "hive.security", "allow-all"));
+                    "hive.security", "allow-all",
+                    "fs.hadoop.enabled", "true"));
 
             queryRunner.execute("CREATE SCHEMA hive.tiny");
             Session tpchSetupSession = testSessionBuilder()

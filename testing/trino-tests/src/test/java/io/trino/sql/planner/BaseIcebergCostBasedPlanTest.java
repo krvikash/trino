@@ -120,6 +120,7 @@ public abstract class BaseIcebergCostBasedPlanTest
                 .put("iceberg.catalog.type", TESTING_FILE_METASTORE.name())
                 .put("hive.metastore.catalog.dir", temporaryMetastoreDirectory.toString())
                 .put("fs.native-s3.enabled", "true")
+                .put("fs.hadoop.enabled", "true")
                 .put("s3.aws-access-key", MINIO_ACCESS_KEY)
                 .put("s3.aws-secret-key", MINIO_SECRET_KEY)
                 .put("s3.region", MINIO_REGION)
