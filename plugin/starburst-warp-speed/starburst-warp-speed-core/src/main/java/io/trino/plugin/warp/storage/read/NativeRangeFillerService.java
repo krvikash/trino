@@ -214,8 +214,10 @@ public class NativeRangeFillerService
     }
 
     @Override
-    public void restoreRowList(long rowsBuffId, int storeRowListSize, RecordIndexListType storeRowListType, byte[] storeRowListBuff)
+    public void restoreRowList(long rowsBuffId, StoreRowListResult storeRowListResult, byte[] storeRowListBuff)
     {
+        int storeRowListSize = storeRowListResult.storeRowListSize();
+        RecordIndexListType storeRowListType = storeRowListResult.storeRowListType();
         ShortBuffer rowsBuff = bufferAllocator.ids2RowsBuff(rowsBuffId);
         // list type and size was store as a member, we put it in the buffer
         // in case of all type we store in the buffer the first row

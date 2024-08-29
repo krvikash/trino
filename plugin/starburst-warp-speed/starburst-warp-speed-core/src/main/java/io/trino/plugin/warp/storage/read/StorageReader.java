@@ -17,7 +17,6 @@ import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory;
-import io.trino.plugin.warp.gen.constants.RecordIndexListType;
 import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.LucenePageCacheStats;
@@ -85,8 +84,7 @@ public class StorageReader
     private int numRowsCollectedInPrevRounds; // num rows collected in all previous getNextPages
     private int[] queryResultType;
     private boolean dictionariesLoaded;
-    private RecordIndexListType storeRowListType;
-    private int storeRowListSize;
+    private Optional<StoreRowListResult> storeRowListResult;
     private CollectOpenResult collectOpenResult;
 
     StorageReader(StorageEngine storageEngine,
@@ -117,8 +115,7 @@ public class StorageReader
         this.collectTxService = collectTxService;
         this.chunksQueueService = chunksQueueService;
         this.queryResultType = new int[queryParams.getNumCollectElements()];
-        this.storeRowListSize = 0;
-        this.storeRowListType = RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL;
+        this.storeRowListResult = Optional.empty();
         //  match
         this.matchTxId = INVALID_TX_ID;
         this.collectTxId = INVALID_TX_ID;
@@ -218,8 +215,7 @@ public class StorageReader
         collectOpenResult = collectTxService.collectOpenAndRestore(rowsLimit,
                 numRowsCollectedInPrevRounds,
                 storageCollectorArgs,
-                storeRowListSize,
-                storeRowListType);
+                storeRowListResult);
         collectTxId = collectOpenResult.collectTxId();
 
         if (queryParams.getNumMatchElements() > 0) {
@@ -411,11 +407,8 @@ public class StorageReader
         numRowsCollectedInPrevRounds += numRowsCollectedInCurRound;
         CollectCloseResult collectCloseResult = collectTxService.collectStoreAndClose(collectOpenResult,
                 storageCollectorArgs,
-                numRowsCollectedInCurRound,
-                storeRowListSize,
-                storeRowListType);
-        storeRowListSize = collectCloseResult.storeRowListResult().storeRowListSize();
-        storeRowListType = collectCloseResult.storeRowListResult().storeRowListType();
+                numRowsCollectedInCurRound);
+        storeRowListResult = collectCloseResult.storeRowListResult();
         collectTxId = INVALID_TX_ID;
 
         bufferAllocator.readerOnFreeBundle();

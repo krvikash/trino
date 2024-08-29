@@ -13,6 +13,8 @@
  */
 package io.trino.plugin.warp.storage.read;
 
-record CollectCloseResult(StoreRowListResult storeRowListResult, long readPages)
+import java.util.Optional;
+
+record CollectCloseResult(Optional<StoreRowListResult> storeRowListResult, long readPages)
 {
 }

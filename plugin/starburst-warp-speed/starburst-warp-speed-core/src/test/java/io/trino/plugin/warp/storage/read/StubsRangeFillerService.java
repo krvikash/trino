@@ -14,7 +14,6 @@
 package io.trino.plugin.warp.storage.read;
 
 import com.google.inject.Singleton;
-import io.trino.plugin.warp.gen.constants.RecordIndexListType;
 
 import static io.trino.plugin.warp.gen.constants.RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL;
 
@@ -68,7 +67,7 @@ public class StubsRangeFillerService
     }
 
     @Override
-    public void restoreRowList(long rowsBuffId, int storeRowListSize, RecordIndexListType storeRowListType, byte[] storeRowListBuff)
+    public void restoreRowList(long rowsBuffId, StoreRowListResult storeRowListResult, byte[] storeRowListBuff)
     {
     }
 

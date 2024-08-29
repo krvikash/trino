@@ -13,8 +13,6 @@
  */
 package io.trino.plugin.warp.storage.read;
 
-import io.trino.plugin.warp.gen.constants.RecordIndexListType;
-
 public interface RangeFillerService
 {
     // check if the current chunk is done
@@ -34,7 +32,7 @@ public interface RangeFillerService
     // in type all we store the part of the list we have not collected yet in the byte array
     StoreRowListResult storeRowList(StorageCollectorArgs storageCollectorArgs, RangeData rangeData);
 
-    void restoreRowList(long rowsBuffId, int storeRowListSize, RecordIndexListType storeRowListType, byte[] storeRowListBuff);
+    void restoreRowList(long rowsBuffId, StoreRowListResult storeRowListResult, byte[] storeRowListBuff);
 
     WarpStoragePageSource.RowRanges collectRanges(RangeData rangeData, int rowsLimit);
 }

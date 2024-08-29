@@ -18,7 +18,6 @@ import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.RecordBufferState;
-import io.trino.plugin.warp.gen.constants.RecordIndexListType;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.spi.TrinoException;
@@ -34,6 +33,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.stream.IntStream;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_COLLECT_FAILED;
 
 public class CollectTxService
@@ -87,8 +87,7 @@ public class CollectTxService
     CollectOpenResult collectOpenAndRestore(int rowsLimit,
             int numCollectedInPrevRounds,
             StorageCollectorArgs storageCollectorArgs,
-            int storeRowListSize,
-            RecordIndexListType storeRowListType)
+            Optional<StoreRowListResult> storeRowListResult)
     {
         QueryParams queryParams = storageCollectorArgs.collectTxArgs().queryParams();
         List<WarmupElementCollectParams> collectParamsList = queryParams.getCollectElementsParamsList();
@@ -125,7 +124,8 @@ public class CollectTxService
 
         int restoredChunkIndex = -1;
         if (chunksQueueService.storeRestoreRequired(storageCollectorArgs.chunksQueue())) {
-            rangeFillerService.restoreRowList(rangeData.getRowsBuffId(), storeRowListSize, storeRowListType, storageCollectorArgs.storeRowListBuff());
+            checkState(storeRowListResult.isPresent(), "Restore needed but store data doesn't exists");
+            rangeFillerService.restoreRowList(rangeData.getRowsBuffId(), storeRowListResult.get(), storageCollectorArgs.storeRowListBuff());
             restoredChunkIndex = storageCollectorArgs.chunksQueue().getCurrent();
             if (storageEngine.collectRestoreState(collectTxId, restoredChunkIndex, storageCollectorArgs.storageCollectorCallBack()) < 0) {
                 throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED,
@@ -147,16 +147,14 @@ public class CollectTxService
 
     CollectCloseResult collectStoreAndClose(CollectOpenResult collectOpenResult,
             StorageCollectorArgs storageCollectorArgs,
-            int numCollectedRows,
-            int storeRowListSize,
-            RecordIndexListType storeRowListType)
+            int numCollectedRows)
     {
+        Optional<StoreRowListResult> storeRowListResult = Optional.empty();
         // idiom potent case
         if (collectOpenResult == null || collectOpenResult.collectTxId() == INVALID_TX_ID) {
-            return new CollectCloseResult(new StoreRowListResult(storeRowListType, storeRowListSize), 0);
+            return new CollectCloseResult(storeRowListResult, 0);
         }
 
-        StoreRowListResult storeRowListResult = new StoreRowListResult(storeRowListType, storeRowListSize);
         Optional<int[]> chunksWithBitmapsToStoreOpt = Optional.empty();
         if (chunksQueueService.storeRestoreRequired(storageCollectorArgs.chunksQueue())) {
             if (chunksQueueService.isChunkPreparationNeeded(storageCollectorArgs.chunksQueue())) {
@@ -167,7 +165,7 @@ public class CollectTxService
             }
 
             chunksWithBitmapsToStoreOpt = storageCollectorArgs.chunksQueue().getChunkIndexesWithBitmap();
-            storeRowListResult = rangeFillerService.storeRowList(storageCollectorArgs, collectOpenResult.rangeData());
+            storeRowListResult = Optional.of(rangeFillerService.storeRowList(storageCollectorArgs, collectOpenResult.rangeData()));
         }
         int[] chunksWithBitmaps = chunksWithBitmapsToStoreOpt.orElse(null);
         int numChunksWithBitmap = (chunksWithBitmaps != null) ? chunksWithBitmaps.length : 0;
