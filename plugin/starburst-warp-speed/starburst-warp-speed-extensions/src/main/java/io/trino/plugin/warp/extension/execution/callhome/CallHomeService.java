@@ -160,6 +160,11 @@ public class CallHomeService
 
     public synchronized Optional<Integer> triggerCallHome(String storePath, boolean collectThreadDump, boolean waitToFinish)
     {
+        if (cloudVendorConfig.getStoreType() == StoreType.LOCAL) {
+            logger.debug("call-home is disabled for this connector since it's using local store");
+            return Optional.empty();
+        }
+
         if ((scheduledFuture == null) || (scheduledFuture.getDelay(TimeUnit.SECONDS) > 0)) {
             if (connectorSync.getCatalogSequence() != DEFAULT_CATALOG) {
                 logger.debug("trigger non default catalog");
