@@ -14,7 +14,10 @@ on:
   schedule:
     - cron: "5 14 * * 4" # 14:05 every Thursday.
   workflow_dispatch:
-# test
+
+defaults:
+  run:
+    shell: bash
 env:
   BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
   ENDORCTL_CHECKSUM: "4a99bb830682aba729838624b8c92cbc4c40d110a045d6afc3479499e5d1e744"
@@ -22,6 +25,8 @@ env:
   ENDORCTL_NAMESPACE: "starburst"
   ENDORCTL_VERSION: "v1.6.466"
   ENDOR_SCAN_CALLGRAPH_LANGUAGES: "[java, python]"
+  JAVA_VERSION: "22"
+  JAVA_DISTRO: "temurin"
   ENDOR_SCAN_PYTHON_GLOBAL_SITE_PACKAGES: true
   MAVEN_OPTS: "-Xmx3G -XX:+ExitOnOutOfMemoryError"
   mavenReleaseUsername: ${{ vars.CODE_ARTIFACT_USERNAME }}
@@ -53,14 +58,13 @@ jobs:
           secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
           login-maven: true
       - name: ECR Login
-        shell: bash
         run: |
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 843985043183.dkr.ecr.us-east-1.amazonaws.com
       - name: Setup Java
         uses: actions/setup-java@99b8673ff64fbf99d8d325f52d9a5bdedb8483e9 # v4.2.1
         with:
-          distribution: "temurin" # use same JDK distro as in Trino docker images
-          java-version: "22"
+          distribution: ${{ env.JAVA_DISTRO }}
+          java-version: ${{ env.JAVA_VERSION }}
       - name: Setup Python
         uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
         with:
@@ -101,3 +105,44 @@ jobs:
           scan_secrets: true
           scan_tools: true
           tags: "actor=${{ github.actor }},branch=${{ env.BRANCH_NAME }},run-id=${{ github.run_id }}"
+
+  veracode-scan:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read # Used to check out a private repository with actions/checkout.
+    runs-on: [self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest] # spot runner
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8459bc0c7e3759cdf591f513d9f141a95fef0a8f # v4.1.4
+      - name: CodeArtifact Login
+        uses: ./.github/actions/starburst-setup
+        with:
+          aws-access-key-id: ${{ vars.ENG_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.ENG_AWS_SECRET_ACCESS_KEY }}
+          secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
+          login-maven: true
+      - name: ECR Login
+        run: |
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 843985043183.dkr.ecr.us-east-1.amazonaws.com
+      - name: Setup Java
+        uses: actions/setup-java@99b8673ff64fbf99d8d325f52d9a5bdedb8483e9 # v4.2.1
+        with:
+          distribution: ${{ env.JAVA_DISTRO }}
+          java-version: ${{ env.JAVA_VERSION }}
+      - name: Package
+        run: ./mvnw clean package -s .github/settings.xml -V -B --quiet -T 1C -DskipTests -Dmaven.source.skip=true -Dair.check.skip-all
+      - name: Fetch Project Version
+        run: echo "PROJECT_VERSION=$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
+      - name: Veracode Upload & Scan
+        uses: veracode/veracode-uploadandscan-action@f7e1fbf02c5c899fba9f12e3f537b62f2f1230e1 # v0.2.7
+        with:
+          appname: ${{ github.repository }}
+          createprofile: true
+          criticality: "medium"
+          deleteIncompleteScan: 2
+          filepath: "core/trino-server/target/trino-server-*.tar.gz"
+          teams: "Default Team"
+          toplevel: true
+          version: "${{ env.PROJECT_VERSION }}"
+          vid: "${{ secrets.VERACODE_KEY_ID }}"
+          vkey: "${{ secrets.VERACODE_ACCESS_KEY }}"
