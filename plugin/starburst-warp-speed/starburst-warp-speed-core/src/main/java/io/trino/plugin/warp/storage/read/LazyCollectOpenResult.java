@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.warp.storage.read;
 
-public record LazyCollectOpenResult(int collectTxId,
-                                    int[] outResultType)
+public record LazyCollectOpenResult(int collectTxId)
 {
 }

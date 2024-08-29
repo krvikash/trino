@@ -73,13 +73,14 @@ public class LazyCollectorLoader
             collectTxId = collectOpenResult.collectTxId();
 
             // prepare and collect
-            collectTxService.prepareChunk(collectTxId, chunkIndexToCollect, numRowsToCollect, startRowIndexInChunk);
-            collectTxService.collect(collectTxId, collectOpenResult.outResultType(), 1, chunkIndexToCollect, numRowsToCollect);
+            int[] queryResultTypes = new int[1];
+            collectTxService.prepareChunkFullScan(collectTxId, chunkIndexToCollect, numRowsToCollect, startRowIndexInChunk);
+            collectTxService.collect(collectTxId, 1, chunkIndexToCollect, numRowsToCollect, queryResultTypes);
 
             // fill block
             WarmupElementCollectParams collectParams = lazyCollectorLoaderArgs.collectParams();
             ReadJuffersWarmUpElement readJuffersWarmUpElement = lazyCollectorLoaderArgs.collectJufferWE();
-            QueryResultType queryResultType = QueryResultType.values()[collectOpenResult.outResultType()[0]];
+            QueryResultType queryResultType = QueryResultType.values()[queryResultTypes[0]];
             retBlock = lazyCollectorLoaderArgs.blockFiller().fillBlockWithRecords(collectParams, readJuffersWarmUpElement, numRowsToCollect, queryResultType, dictionaryStats);
 
             // close

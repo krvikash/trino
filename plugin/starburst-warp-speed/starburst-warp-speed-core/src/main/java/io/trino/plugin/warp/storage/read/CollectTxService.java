@@ -96,7 +96,6 @@ public class CollectTxService
         int numCollectElements = collectParamsList.size();
         long[] metadataBuffIds = new long[2];
 
-        int[] outResultType = new int[numCollectElements];
         long matchBmAddr = 0;
         MemorySegment bmSeg = null;
         boolean isFullScan = (queryParams.getNumMatchElements() == 0);
@@ -105,7 +104,7 @@ public class CollectTxService
             matchBmAddr = bmSeg.address();
         }
 
-        int collectTxId = collectOpen(storageCollectorArgs.collectTxArgs(), storageCollectorArgs.numChunksInRange(), matchBmAddr, metadataBuffIds, outResultType);
+        int collectTxId = collectOpen(storageCollectorArgs.collectTxArgs(), numCollectElements, storageCollectorArgs.numChunksInRange(), matchBmAddr, metadataBuffIds);
 
         int collectIx = 0;
         for (WarmupElementCollectParams collectParams : collectParamsList) {
@@ -140,7 +139,6 @@ public class CollectTxService
         logger.debug("collectOpen collectTxId %d rowsLimit %d numChunks %d numCollectElements %d restoredChunkIndex %d",
                 collectTxId, rowsLimit, storageCollectorArgs.numChunks(), queryParams.getNumCollectElements(), restoredChunkIndex);
         return new CollectOpenResult(collectTxId,
-                outResultType,
                 rowsLimit,
                 numCollectedInPrevRounds,
                 rangeData,
@@ -157,19 +155,17 @@ public class CollectTxService
     {
         // idiom potent case
         if (collectOpenResult == null || collectOpenResult.collectTxId() == INVALID_TX_ID) {
-            return new CollectCloseResult(new StoreRowListResult(storeRowListType, storeRowListSize), 0, false);
+            return new CollectCloseResult(new StoreRowListResult(storeRowListType, storeRowListSize), 0);
         }
 
         StoreRowListResult storeRowListResult = new StoreRowListResult(storeRowListType, storeRowListSize);
-        boolean bufferIsFull = false;
         Optional<int[]> chunksWithBitmapsToStoreOpt = Optional.empty();
         if (chunksQueueService.storeRestoreRequired(storageCollectorArgs.chunksQueue())) {
             if (chunksQueueService.isChunkPreparationNeeded(storageCollectorArgs.chunksQueue())) {
-                bufferIsFull = prepareChunk(collectOpenResult.collectTxId(),
+                prepareChunk(collectOpenResult.collectTxId(),
                         storageCollectorArgs.chunksQueue().getCurrent(),
                         collectOpenResult.rowsLimit() - numCollectedRows,
-                        storageCollectorArgs.chunksQueue().getCurrentResetPoint(),
-                        collectOpenResult.outResultType());
+                        storageCollectorArgs.chunksQueue().getCurrentResetPoint());
             }
 
             chunksWithBitmapsToStoreOpt = storageCollectorArgs.chunksQueue().getChunkIndexesWithBitmap();
@@ -180,7 +176,7 @@ public class CollectTxService
         long readPages = storageEngine.collectClose(collectOpenResult.collectTxId(), chunksWithBitmaps, numChunksWithBitmap, storageCollectorCallBack);
         freeCollectOpenResources(collectOpenResult);
         logger.debug("collectClose collectTxId %d readPages %d", collectOpenResult.collectTxId(), readPages);
-        return new CollectCloseResult(storeRowListResult, readPages, bufferIsFull);
+        return new CollectCloseResult(storeRowListResult, readPages);
     }
 
     void collectAbort(Exception e, CollectOpenResult collectOpenResult, int collectTxId)

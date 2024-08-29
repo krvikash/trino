@@ -29,8 +29,7 @@ public class LazyCollectTxService
     LazyCollectOpenResult collectOpen(int rowsLimit, LazyCollectorLoaderArgs lazyCollectorLoaderArgs)
     {
         long[] metadataBuffIds = new long[2];
-        int[] outResultType = new int[1];
-        int collectTxId = collectOpen(lazyCollectorLoaderArgs.collectTxArgs(), lazyCollectorLoaderArgs.numChunksInRange(), 0, metadataBuffIds, outResultType);
+        int collectTxId = collectOpen(lazyCollectorLoaderArgs.collectTxArgs(), 1, lazyCollectorLoaderArgs.numChunksInRange(), 0, metadataBuffIds);
 
         WarmupElementCollectParams collectParams = lazyCollectorLoaderArgs.collectParams();
         lazyCollectorLoaderArgs.collectJufferWE().createBuffers(
@@ -39,7 +38,7 @@ public class LazyCollectTxService
                 collectParams.hasDictionary(),
                 lazyCollectorLoaderArgs.collectTxArgs().collectBuffIds()[0]);
         logger.debug("collectOpen collectTxId %d rowsLimit %d", collectTxId, rowsLimit);
-        return new LazyCollectOpenResult(collectTxId, outResultType);
+        return new LazyCollectOpenResult(collectTxId);
     }
 
     // Lazy collect doesn't use store/restore mechanism, so store/restore params are not initialized

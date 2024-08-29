@@ -145,7 +145,7 @@ public class StubsStorageEngine
     @Override
     public long collectOpen(int totalNumRecords, long[] fileCookie, byte[] parsingBuff, byte[] collect2MatchParams, int numCollectWes,
             int numChunksInRange, int[] weCollectParams, int connectorId, long matchBitmapAddress, int minOffset,
-            long[][] outCollectColBuffIds, long[] outMetadataBuffIds, int[] outResultType)
+            long[][] outCollectColBuffIds, long[] outMetadataBuffIds)
     {
         Arrays.fill(outMetadataBuffIds, 0);
         Arrays.fill(firstBundle.array(), (byte) 0);
@@ -190,7 +190,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public long processMatchResult(int txId, int chunkIndex, int bitmapResetPoint, int rowsLimit, int[] resultTypes)
+    public long processMatchResult(int txId, int chunkIndex, int bitmapResetPoint, int rowsLimit)
     {
         return 0;
     }

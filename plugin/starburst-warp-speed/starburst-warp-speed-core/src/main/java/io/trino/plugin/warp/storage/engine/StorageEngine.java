@@ -141,13 +141,12 @@ public interface StorageEngine
      * @param connectorId - connector id
      * @param outCollectColBuffIds - buffer ids for data and nulls per warm up element
      * @param outMetadataBuffIds - buffer id for row numbers. buffer id for record buffer state. valid id is zero of positive, -1 for invalid.
-     * @param outResultType - buffer for result type optimization
      *
      * @return transaction id
      */
     default long collectOpen(int totalNumRecords, long[] fileCookie, byte[] parsingBuff, byte[] collect2MatchParams, int numCollectWes,
             int numChunksInRange, int[] weCollectParams, int connectorId, long matchBitmapAddress, int minOffset,
-            long[][] outCollectColBuffIds, long[] outMetadataBuffIds, int[] outResultType)
+            long[][] outCollectColBuffIds, long[] outMetadataBuffIds)
     {
         throw new UnsupportedOperationException();
     }
@@ -239,11 +238,10 @@ public interface StorageEngine
      * @param chunkIndex - chunk to collect from
      * @param bitmapResetPoint - reset point of the match bitmap
      * @param rowsLimit - optional limit on the number of rows to collect from this chunk
-     * @param resultTypes - array of result types for each collected WE for deciding if we should stop collect
      *
-     * @return > 0 if buffer is full and we need to close collect, 0 if not, -1 for error
+     * @return 0 for success, -1 for error
      */
-    default long processMatchResult(int txId, int chunkIndex, int bitmapResetPoint, int rowsLimit, int[] resultTypes)
+    default long processMatchResult(int txId, int chunkIndex, int bitmapResetPoint, int rowsLimit)
     {
         throw new UnsupportedOperationException();
     }

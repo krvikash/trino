@@ -13,6 +13,6 @@
  */
 package io.trino.plugin.warp.storage.read;
 
-record CollectCloseResult(StoreRowListResult storeRowListResult, long readPages, boolean bufferIsFull)
+record CollectCloseResult(StoreRowListResult storeRowListResult, long readPages)
 {
 }

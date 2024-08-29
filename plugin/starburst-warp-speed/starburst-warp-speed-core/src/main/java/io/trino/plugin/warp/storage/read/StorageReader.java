@@ -80,6 +80,7 @@ public class StorageReader
     private int collectTxId;
     private int numRowsCollectedInCurRound; // num rows collected in this getNextPage
     private int numRowsCollectedInPrevRounds; // num rows collected in all previous getNextPages
+    private int[] queryResultType;
     private boolean dictionariesLoaded;
     private RecordIndexListType storeRowListType;
     private int storeRowListSize;
@@ -112,6 +113,7 @@ public class StorageReader
         this.storageCollectorArgs = storageCollectorArgs;
         this.collectTxService = collectTxService;
         this.chunksQueueService = chunksQueueService;
+        this.queryResultType = new int[queryParams.getNumCollectElements()];
         this.storeRowListSize = 0;
         this.storeRowListType = RecordIndexListType.RECORD_INDEX_LIST_TYPE_ALL;
         //  match
@@ -347,7 +349,11 @@ public class StorageReader
         matchIfNeeded();
         // we continue as long as buffer is not full and we have more chunks to match and collect
         while (!matchExhausted && (collectBufferState != CollectBufferState.COLLECT_BUFFER_STATE_FULL)) {
-            CollectFromStorageResult collectFromStorageResult = storageCollectorService.collectFromStorage(collectOpenResult, isMatchGetNumRanges, numRowsCollectedInCurRound, storageCollectorArgs);
+            CollectFromStorageResult collectFromStorageResult = storageCollectorService.collectFromStorage(collectOpenResult,
+                    storageCollectorArgs,
+                    isMatchGetNumRanges,
+                    numRowsCollectedInCurRound,
+                    queryResultType);
             collectBufferState = collectFromStorageResult.collectBufferState();
             numRowsCollectedInCurRound = collectFromStorageResult.numCollectedRows();
             matchExhausted = chunksQueueService.isChunkRangeCompleted(storageCollectorArgs.chunksQueue());
@@ -408,7 +414,12 @@ public class StorageReader
     {
         int rowsToFill = Math.min(numRowsCollectedInCurRound, collectOpenResult.rowsLimit());
 
-        storageCollectorService.fillBlocks(blocks, storageCollectorArgs, collectOpenResult, rowsToFill, statsDispatcherPageSource, numRowsCollectedInPrevRounds);
+        storageCollectorService.fillBlocks(blocks,
+                storageCollectorArgs,
+                rowsToFill,
+                numRowsCollectedInPrevRounds,
+                queryResultType,
+                statsDispatcherPageSource);
         return rowsToFill;
     }
 }

@@ -15,6 +15,7 @@ package io.trino.plugin.warp.storage.read;
 
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.gen.constants.QueryResultType;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
@@ -42,9 +43,8 @@ public abstract class BaseCollectTxService
     }
 
     // LazyCollect collects 1 WE at a time, therefore not using queryParams.getCollectElementsParamsList()
-    int collectOpen(CollectTxArgs collectTxArgs, int numChunksInRange, long matchBmAddr, long[] metadataBuffIds, int[] outResultType)
+    int collectOpen(CollectTxArgs collectTxArgs, int numCollectElements, int numChunksInRange, long matchBmAddr, long[] metadataBuffIds)
     {
-        int numCollectElements = outResultType.length;
         metadataBuffIds[0] = -1;
         metadataBuffIds[1] = -1;
         QueryParams queryParams = collectTxArgs.queryParams();
@@ -60,34 +60,30 @@ public abstract class BaseCollectTxService
                 matchBmAddr,
                 queryParams.getMinCollectOffset(),
                 collectTxArgs.collectBuffIds(),
-                metadataBuffIds,
-                outResultType);
+                metadataBuffIds);
         if (collectTxId < 0) {
             throw new TrinoException(WARP_TX_ALLOCATION_FAILED, "failed to allocate tx for collect");
         }
         return collectTxId;
     }
 
-    // prepare chunk with match result
-    // returns true if buffer is exhausted and we need to stop collecting, false if not, error throws and exception
-    boolean prepareChunk(int collectTxId, int chunkIndex, int numRowsToCollect, int matchBitmapResetPoint, int[] outResultType)
+    // prepare chunk with match result, error throws and exception
+    void prepareChunk(int collectTxId, int chunkIndex, int numRowsToCollect, int matchBitmapResetPoint)
     {
         logger.debug("prepareChunk chunkIndex %d numRowsToCollect %d matchBitmapResetPoint %d", chunkIndex, numRowsToCollect, matchBitmapResetPoint);
         int ret = (int) storageEngine.processMatchResult(collectTxId,
                 chunkIndex,
                 matchBitmapResetPoint,
-                numRowsToCollect,
-                outResultType);
+                numRowsToCollect);
         if (ret == -1) {
             throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED,
                     String.format("prepareChunk failed unexpectedly collectTxId %d chunkIndex %d matchBitmapResetPoint %d numRowsToCollect %d",
                             collectTxId, chunkIndex, matchBitmapResetPoint, numRowsToCollect));
         }
-        return (ret > 0);
     }
 
     // prepare chunk for full scan case, also used by lazy collect, throws exception if error
-    void prepareChunk(int collectTxId, int chunkIndex, int numRowsToCollect, int startRowIndex)
+    void prepareChunkFullScan(int collectTxId, int chunkIndex, int numRowsToCollect, int startRowIndex)
     {
         logger.debug("prepareChunk chunkIndex %d numRowsToCollect %d startRowIndex %d", chunkIndex, numRowsToCollect, startRowIndex);
         if (storageEngine.processFullScanChunk(collectTxId, chunkIndex, startRowIndex, numRowsToCollect) < 0) {
@@ -97,10 +93,18 @@ public abstract class BaseCollectTxService
         }
     }
 
-    void collect(int txId, int[] outResultType, int numWes, int chunkIndex, int numToCollect)
+    void collect(int txId, int numWes, int chunkIndex, int numToCollect, int[] outQueryResultType)
     {
         try {
-            storageEngine.collect(txId, numWes, chunkIndex, numToCollect, outResultType);
+            storageEngine.collect(txId, numWes, chunkIndex, numToCollect, outQueryResultType);
+            for (int weIx = 0; weIx < outQueryResultType.length; weIx++) {
+                if (outQueryResultType[weIx] == QueryResultType.QUERY_RESULT_TYPE_SINGLE.ordinal()) {
+                    outQueryResultType[weIx] = QueryResultType.QUERY_RESULT_TYPE_RAW.ordinal();
+                }
+                if (outQueryResultType[weIx] == QueryResultType.QUERY_RESULT_TYPE_SINGLE_NO_NULL.ordinal()) {
+                    outQueryResultType[weIx] = QueryResultType.QUERY_RESULT_TYPE_RAW_NO_NULL.ordinal();
+                }
+            }
         }
         catch (Exception e) {
             shapingLogger.error(e, "collect failed chunkIndex %d rowsLimit %d numToCollect %d", chunkIndex, numToCollect, numToCollect);

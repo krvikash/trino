@@ -17,7 +17,6 @@ import java.lang.foreign.MemorySegment;
 import java.util.List;
 
 public record CollectOpenResult(int collectTxId,
-                         int[] outResultType,
                          int rowsLimit,
                          int numCollectedInPreviousRounds,
                          RangeData rangeData,

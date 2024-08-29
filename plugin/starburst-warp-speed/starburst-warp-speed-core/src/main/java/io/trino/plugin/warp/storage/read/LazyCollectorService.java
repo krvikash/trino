@@ -95,7 +95,7 @@ public class LazyCollectorService
     }
 
     @Override
-    void collect(CollectOpenResult collectOpenResult, int numCollectElements, int chunkIndex, int numToCollect)
+    void collect(CollectOpenResult collectOpenResult, int numCollectElements, int chunkIndex, int numToCollect, int[] outQueryResultType)
     {
         // collect is done in LazyCollectorLoader
     }
@@ -109,7 +109,12 @@ public class LazyCollectorService
     }
 
     @Override
-    void fillBlocks(Block[] blocks, StorageCollectorArgs storageCollectorArgs, CollectOpenResult collectOpenResult, int rowsToFill, DispatcherPageSourceStats stats, int numRowsCollectedInPrevRounds)
+    void fillBlocks(Block[] blocks,
+            StorageCollectorArgs storageCollectorArgs,
+            int rowsToFill,
+            int numRowsCollectedInPrevRounds,
+            int[] queryResultTypes, // was not filled since collect was not called yet
+            DispatcherPageSourceStats stats)
     {
         List<WarmupElementCollectParams> collectElementsParamsList = storageCollectorArgs.collectTxArgs().queryParams().getCollectElementsParamsList();
 

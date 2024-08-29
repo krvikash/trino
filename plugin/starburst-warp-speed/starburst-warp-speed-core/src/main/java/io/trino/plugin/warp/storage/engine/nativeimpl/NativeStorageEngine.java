@@ -165,7 +165,7 @@ public class NativeStorageEngine
     @Override
     public native long collectOpen(int totalNumRecords, long[] fileCookie, byte[] parsingBuff, byte[] collect2MatchParams, int numCollectWes,
             int numChunksInRange, int[] weCollectParams, int connectorId, long matchBitmapAddress, int minOffset,
-            long[][] outCollectColBuffIds, long[] outMetadataBuffIds, int[] outResultType);
+            long[][] outCollectColBuffIds, long[] outMetadataBuffIds);
 
     @Override
     public native long matchOpen(int totalNumRecords, long[] fileCookie, int collectTxId, byte[] parsingBuff, byte[] collect2MatchParams, int numMatchWes,
@@ -187,7 +187,7 @@ public class NativeStorageEngine
     public native long match(int txId, int startChunkIndex, int numChunks, short[] outMatchedChunksIndexes, int[] outMatchBitmapResetPoints);
 
     @Override
-    public native long processMatchResult(int txId, int chunkIndex, int bitmapResetPoint, int rowsLimit, int[] resultTypes);
+    public native long processMatchResult(int txId, int chunkIndex, int bitmapResetPoint, int rowsLimit);
 
     @Override
     public native long processFullScanChunk(int txId, int chunkIndex, int startRowIx, int rowsLimit);
