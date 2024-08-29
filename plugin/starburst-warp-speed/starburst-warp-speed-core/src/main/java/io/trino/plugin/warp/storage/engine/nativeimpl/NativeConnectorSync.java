@@ -23,6 +23,7 @@ import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.ConnectorSyncInitializedEvent;
 import io.trino.plugin.warp.storage.read.StorageCollectorCallBack;
 import io.trino.spi.catalog.CatalogName;
+import jakarta.annotation.PreDestroy;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -57,6 +58,25 @@ public class NativeConnectorSync
         init();
     }
 
+    @PreDestroy
+    public void shutdown()
+    {
+        try {
+            logger.debug("nativeConnectorSync from shutdown, %d", System.identityHashCode(this));
+            if (!unregister(catalogSequence)) {
+                logger.error("failed to unregister");
+                return;
+            }
+            logger.info("unregister catalog name %s sequence %d", catalogName, catalogSequence);
+        }
+        catch (Throwable e) {
+            logger.error(e, "failed to unregister");
+        }
+        finally {
+            logger.debug("unregister finally");
+        }
+    }
+
     public void init()
     {
         try {
@@ -66,8 +86,7 @@ public class NativeConnectorSync
             eventBus.post(new ConnectorSyncInitializedEvent(catalogSequence));
         }
         catch (Throwable e) {
-            logger.error("failed to register");
-            logger.error(e);
+            logger.error(e, "failed to register");
             throw new RuntimeException(e);
         }
         finally {
@@ -109,6 +128,8 @@ public class NativeConnectorSync
     }
 
     public native int register(String catalogName, Class<StorageCollectorCallBack> storageCollector, int timeoutSec);
+
+    public native boolean unregister(int connectorId);
 
     @Override
     public void startDemote(int demoteSequence)

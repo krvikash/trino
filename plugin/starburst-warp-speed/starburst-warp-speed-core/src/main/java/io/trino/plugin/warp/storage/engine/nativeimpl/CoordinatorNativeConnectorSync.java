@@ -21,7 +21,8 @@ import io.airlift.log.Logger;
 import io.trino.plugin.warp.node.CoordinatorInitializedEvent;
 import io.trino.plugin.warp.storage.engine.ConnectorSync;
 import io.trino.plugin.warp.storage.engine.ConnectorSyncInitializedEvent;
-import io.trino.plugin.warp.tools.CatalogNameProvider;
+import io.trino.spi.catalog.CatalogName;
+import jakarta.annotation.PreDestroy;
 
 import static java.util.Objects.requireNonNull;
 
@@ -30,17 +31,36 @@ public class CoordinatorNativeConnectorSync
         implements ConnectorSync
 {
     private static final Logger logger = Logger.get(CoordinatorNativeConnectorSync.class);
-    private final CatalogNameProvider catalogNameProvider;
+    private final CatalogName catalogName;
     private final EventBus eventBus;
     private Integer catalogSequence;
 
     @Inject
-    public CoordinatorNativeConnectorSync(CatalogNameProvider catalogNameProvider,
+    public CoordinatorNativeConnectorSync(CatalogName catalogName,
             EventBus eventBus)
     {
-        this.catalogNameProvider = catalogNameProvider;
+        this.catalogName = catalogName;
         this.eventBus = requireNonNull(eventBus);
         eventBus.register(this);
+    }
+
+    @PreDestroy
+    public void shutdown()
+    {
+        try {
+            logger.debug("nativeConnectorSync from shutdown, %d", System.identityHashCode(this));
+            if (!unregister(catalogSequence)) {
+                logger.error("failed to unregister");
+                return;
+            }
+            logger.info("unregister catalog name %s sequence %d", catalogName, catalogSequence);
+        }
+        catch (Throwable e) {
+            logger.error(e, "failed to unregister");
+        }
+        finally {
+            logger.debug("unregister finally");
+        }
     }
 
     @Subscribe
@@ -48,14 +68,12 @@ public class CoordinatorNativeConnectorSync
     {
         try {
             logger.debug("nativeConnectorSync from init, %d", System.identityHashCode(this));
-            String catalogName = catalogNameProvider.get();
-            catalogSequence = register(catalogName, 1800);
+            catalogSequence = register(catalogName.toString(), 1800);
             logger.info("catalog name %s sequence %d", catalogName, catalogSequence);
             eventBus.post(new ConnectorSyncInitializedEvent(catalogSequence));
         }
         catch (Throwable e) {
-            logger.error("failed to register");
-            logger.error(e);
+            logger.error(e, "failed to register");
             throw new RuntimeException(e);
         }
         finally {
@@ -70,4 +88,6 @@ public class CoordinatorNativeConnectorSync
     }
 
     public native int register(String catalogName, int timeoutSec);
+
+    public native boolean unregister(int connectorId);
 }
