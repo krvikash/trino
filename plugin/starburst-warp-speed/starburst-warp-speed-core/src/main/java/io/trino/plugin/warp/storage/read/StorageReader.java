@@ -369,6 +369,11 @@ public class StorageReader
         return collectBufferState != CollectBufferState.COLLECT_BUFFER_STATE_EMPTY;
     }
 
+    WarpStoragePageSource.RowRanges collectRanges(CollectOpenResult collectOpenResult)
+    {
+        return storageCollectorService.collectRanges(collectOpenResult);
+    }
+
     @NativeInterrupt
     long queryClose(CollectOpenResult collectOpenResult)
     {

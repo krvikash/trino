@@ -51,7 +51,6 @@ import io.trino.plugin.warp.storage.read.CollectTxService;
 import io.trino.plugin.warp.storage.read.LazyCollectorService;
 import io.trino.plugin.warp.storage.read.PrefilledPageSource;
 import io.trino.plugin.warp.storage.read.QueryParams;
-import io.trino.plugin.warp.storage.read.RangeFillerService;
 import io.trino.plugin.warp.storage.read.StorageCollectorService;
 import io.trino.plugin.warp.storage.read.WarpPageSource;
 import io.trino.spi.TrinoException;
@@ -103,7 +102,6 @@ public class DispatcherPageSourceFactory
     private final CollectTxService collectTxService;
     private final ChunksQueueService chunksQueueService;
     private final StorageCollectorService storageCollectorService;
-    private final RangeFillerService rangeFillerService;
     private final StorageEngine storageEngine;
     private final StorageEngineConstants storageEngineConstants;
     private final BufferAllocator bufferAllocator;
@@ -137,8 +135,7 @@ public class DispatcherPageSourceFactory
             CollectTxService collectTxService,
             ChunksQueueService chunksQueueService,
             StorageCollectorService storageCollectorService,
-            LazyCollectorService lazyCollectorService,
-            RangeFillerService rangeFillerService)
+            LazyCollectorService lazyCollectorService)
     {
         this.storageEngine = requireNonNull(storageEngine);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
@@ -162,7 +159,6 @@ public class DispatcherPageSourceFactory
         this.chunksQueueService = requireNonNull(chunksQueueService);
         this.storageCollectorService = requireNonNull(storageCollectorService);
         this.lazyCollectorService = requireNonNull(lazyCollectorService);
-        this.rangeFillerService = requireNonNull(rangeFillerService);
         metricsManager.registerMetric(DispatcherPageSourceStats.create(STATS_DISPATCHER_KEY));
         metricsManager.registerMetric(LucenePageCacheStats.create(STATS_LUCENE_PAGE_CACHE_KEY));
         this.statsDispatcherPageSource = metricsManager.registerMetric(DispatcherPageSourceStats.create(STATS_DISPATCHER_KEY));
@@ -505,8 +501,7 @@ public class DispatcherPageSourceFactory
                 collectTxService,
                 chunksQueueService,
                 storageCollectorService,
-                lazyCollectorService,
-                rangeFillerService);
+                lazyCollectorService);
 
         DispatcherPageSourceStats pageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
         List<Type> warpWithoutPrefilledAndProxiedCollectTypes = Stream.concat(
@@ -758,8 +753,7 @@ public class DispatcherPageSourceFactory
                 collectTxService,
                 chunksQueueService,
                 storageCollectorService,
-                lazyCollectorService,
-                rangeFillerService);
+                lazyCollectorService);
         RowGroupCloseHandler closeHandler = new RowGroupCloseHandler();
         try {
             PageSourceDecision pageSourceDecision = PageSourceDecision.WARP;

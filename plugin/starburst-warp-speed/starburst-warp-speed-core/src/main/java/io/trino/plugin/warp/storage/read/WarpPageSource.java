@@ -37,7 +37,6 @@ public class WarpPageSource
     public static final int INVALID_COL_IX = -1;
     private final ShapingLogger shapingLogger;
 
-    private final RangeFillerService rangeFillerService;
     private final StorageEngineConstants storageEngineConstants;
     private final boolean isMatchGetNumRanges;
     private final PredicatesCacheService predicatesCacheService;
@@ -63,13 +62,11 @@ public class WarpPageSource
             CollectTxService collectTxService,
             ChunksQueueService chunksQueueService,
             StorageCollectorService storageCollectorService,
-            LazyCollectorService lazyCollectorService,
-            RangeFillerService rangeFillerService)
+            LazyCollectorService lazyCollectorService)
     {
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.isMatchGetNumRanges = isMatchGetNumRanges;
         this.predicatesCacheService = predicatesCacheService;
-        this.rangeFillerService = rangeFillerService;
         this.sortedRowRanges = RowRanges.EMPTY;
         this.rowsLimit = rowsLimit;
         this.queryParams = queryParams;
@@ -175,10 +172,10 @@ public class WarpPageSource
             else {
                 // Get the current available rows - cannot be zero at this point since the reader has something
                 collectedRows = reader.fillBlocks(blocks, collectOpenResult);
-                if (isMatchGetNumRanges) {
-                    sortedRowRanges = rangeFillerService.collectRanges(collectOpenResult.rangeData(), collectOpenResult.rowsLimit());
-                }
                 updateRowsLimit(collectedRows);
+                if (isMatchGetNumRanges) {
+                    sortedRowRanges = reader.collectRanges(collectOpenResult);
+                }
             }
             long readPagesResult = reader.queryClose(collectOpenResult);
             completedBytes += (readPagesResult << storageEngineConstants.getPageSizeShift());

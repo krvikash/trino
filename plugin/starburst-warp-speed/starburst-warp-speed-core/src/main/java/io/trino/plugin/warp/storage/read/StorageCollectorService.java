@@ -332,4 +332,9 @@ public class StorageCollectorService
     {
         return rangeFillerService.getMinForTypeAll(baseRow, collectOpenResult, currentNumCollectedRows);
     }
+
+    public WarpStoragePageSource.RowRanges collectRanges(CollectOpenResult collectOpenResult)
+    {
+        return rangeFillerService.collectRanges(collectOpenResult.rangeData(), collectOpenResult.rowsLimit());
+    }
 }

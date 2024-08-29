@@ -58,7 +58,6 @@ import io.trino.plugin.warp.storage.read.CollectTxService;
 import io.trino.plugin.warp.storage.read.LazyCollectorService;
 import io.trino.plugin.warp.storage.read.PrefilledPageSource;
 import io.trino.plugin.warp.storage.read.StorageCollectorService;
-import io.trino.plugin.warp.storage.read.StubsRangeFillerService;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.plugin.warp.tools.util.WarpReadWriteLock;
@@ -232,8 +231,7 @@ public class DispatcherPageSourceFactoryTest
                 mock(CollectTxService.class),
                 mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
-                mock(LazyCollectorService.class),
-                new StubsRangeFillerService());
+                mock(LazyCollectorService.class));
     }
 
     @Test

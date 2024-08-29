@@ -108,8 +108,7 @@ public class WarpPageSourceTest
                 mock(CollectTxService.class),
                 mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
-                mock(LazyCollectorService.class),
-                new StubsRangeFillerService());
+                mock(LazyCollectorService.class));
         when(storageEngine.matchAgg(anyInt(), anyInt())).thenReturn(1L).thenReturn(0L);
         when(storageEngine.match(anyInt(), anyInt(), anyInt(), any(), any())).thenReturn(mockMatch(rowsBuff));
         Page nextPage = warpPageSource.getNextPage();
@@ -167,8 +166,7 @@ public class WarpPageSourceTest
                 mock(CollectTxService.class),
                 mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
-                mock(LazyCollectorService.class),
-                new StubsRangeFillerService());
+                mock(LazyCollectorService.class));
         when(storageEngine.matchAgg(anyInt(), anyInt())).thenReturn(1L).thenReturn(0L);
         when(storageEngine.match(anyInt(), anyInt(), anyInt(), any(), any())).thenReturn(mockMatch(rowsBuff));
         assertThat(warpPageSource.getNextPage()).isNotNull();
@@ -218,8 +216,7 @@ public class WarpPageSourceTest
                 mock(CollectTxService.class),
                 mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
-                mock(LazyCollectorService.class),
-                new StubsRangeFillerService());
+                mock(LazyCollectorService.class));
         when(storageEngine.matchAgg(anyInt(), anyInt())).thenReturn(1L).thenReturn(0L);
         when(storageEngine.match(anyInt(), anyInt(), anyInt(), any(), any())).thenReturn(mockMatch(rowsBuff));
         assertThat(warpPageSource.getNextPage()).isNotNull();
@@ -260,8 +257,7 @@ public class WarpPageSourceTest
                 mock(CollectTxService.class),
                 mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
-                mock(LazyCollectorService.class),
-                new StubsRangeFillerService());
+                mock(LazyCollectorService.class));
         when(storageEngine.matchAgg(anyInt(), anyInt())).thenReturn(1L).thenReturn(0L);
         when(storageEngine.match(anyInt(), anyInt(), anyInt(), any(), any())).thenReturn(mockMatch(rowsBuff));
         Page nextPage = warpPageSource.getNextPage();
@@ -325,8 +321,7 @@ public class WarpPageSourceTest
                 mock(CollectTxService.class),
                 mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
-                mock(LazyCollectorService.class),
-                new StubsRangeFillerService());
+                mock(LazyCollectorService.class));
         when(storageEngine.matchAgg(anyInt(), anyInt())).thenReturn(1L).thenReturn(0L);
         when(storageEngine.match(anyInt(), anyInt(), anyInt(), any(), any())).thenReturn(mockMatch(rowsBuff));
         assertThat(warpPageSource.getNextPage()).isNotNull();
