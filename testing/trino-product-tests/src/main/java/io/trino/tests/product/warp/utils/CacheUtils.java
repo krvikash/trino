@@ -92,7 +92,7 @@ public class CacheUtils
         finally {
             if (ranQueries > 0 && isWarp) {
                 logger.info("run demoter after running %s queries on test %s", ranQueries, testFormat.name());
-                demoterUtils.demoteAllByMaxUsage();
+                demoterUtils.demoteAllByMaxUsage(true);
                 demoterUtils.resetToDefaultDemoterConfiguration(true);
             }
         }

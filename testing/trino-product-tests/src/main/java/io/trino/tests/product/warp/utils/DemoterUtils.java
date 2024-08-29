@@ -203,7 +203,7 @@ public class DemoterUtils
         logger.debug("result demoter configuration: %s", result);
     }
 
-    public void demoteAllByMaxUsage()
+    public void demoteAllByMaxUsage(boolean useCachePort)
     {
         QueryResult demoterStatsBefore = JMXCachingManager.getDemoterStats();
 
@@ -217,7 +217,7 @@ public class DemoterUtils
                 .forceExecuteDeadObjects(true)
                 .forceDeleteFailedObjects(true)
                 .build();
-        Map<String, Object> demoteResultStats = demote(warmupDemoterData, true);
+        Map<String, Object> demoteResultStats = demote(warmupDemoterData, useCachePort);
 
         long deletedByLowPriority = (long) (Integer) demoteResultStats.get("warmupDemoter:" + JMXCachingConstants.WarmupDemoter.DELETED_BY_LOW_PRIORITY);
         logger.info("demote according to max usage: deletedByLowPriority=%s", deletedByLowPriority);

@@ -165,7 +165,7 @@ public class TestWarpCache
             assertThat(warmupElementCount).isEqualTo(testFormat.expected_warmup_elements());
         }
         finally {
-            demoterUtils.demoteAllByMaxUsage();
+            demoterUtils.demoteAllByMaxUsage(true);
             demoterUtils.resetToDefaultDemoterConfiguration(true);
         }
     }
@@ -288,7 +288,7 @@ public class TestWarpCache
             throw e;
         }
         finally {
-            demoterUtils.demoteAllByMaxUsage();
+            demoterUtils.demoteAllByMaxUsage(true);
             demoterUtils.resetToDefaultDemoterConfiguration(true);
         }
     }
