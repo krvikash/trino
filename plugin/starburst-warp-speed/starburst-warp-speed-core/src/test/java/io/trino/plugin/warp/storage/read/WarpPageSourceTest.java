@@ -105,7 +105,6 @@ public class WarpPageSourceTest
                 dictionaryCacheService,
                 customStatsContext,
                 globalConfig,
-                mock(CollectTxService.class),
                 mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
                 mock(LazyCollectorService.class));
@@ -163,7 +162,6 @@ public class WarpPageSourceTest
                 dictionaryCacheService,
                 customStatsContext,
                 globalConfig,
-                mock(CollectTxService.class),
                 mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
                 mock(LazyCollectorService.class));
@@ -213,7 +211,6 @@ public class WarpPageSourceTest
                 dictionaryCacheService,
                 customStatsContext,
                 globalConfig,
-                mock(CollectTxService.class),
                 mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
                 mock(LazyCollectorService.class));
@@ -254,7 +251,6 @@ public class WarpPageSourceTest
                 dictionaryCacheService,
                 customStatsContext,
                 globalConfig,
-                mock(CollectTxService.class),
                 mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
                 mock(LazyCollectorService.class));
@@ -318,7 +314,6 @@ public class WarpPageSourceTest
                 dictionaryCacheService,
                 customStatsContext,
                 globalConfig,
-                mock(CollectTxService.class),
                 mock(ChunksQueueService.class),
                 mock(StorageCollectorService.class),
                 mock(LazyCollectorService.class));

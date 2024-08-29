@@ -37,6 +37,7 @@ import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_STAT_GROUP;
@@ -81,6 +82,15 @@ public class StorageCollectorService
         this.chunksQueueService = requireNonNull(chunksQueueService);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.blockFillersFactory = requireNonNull(blockFillersFactory);
+    }
+
+    public CollectOpenResult open(StorageCollectorArgs storageCollectorArgs, int numRowsCollectedInPrevRounds, int rowsLimit, Optional<StoreRowListResult> storeRowListResult)
+    {
+        bufferAllocator.readerOnAllocBundle();
+        return collectTxService.collectOpenAndRestore(rowsLimit,
+                numRowsCollectedInPrevRounds,
+                storageCollectorArgs,
+                storeRowListResult);
     }
 
     // returns true if we should stop before this collect since query result type is now single, false otherwise
@@ -344,5 +354,26 @@ public class StorageCollectorService
     public WarpStoragePageSource.RowRanges collectRanges(CollectOpenResult collectOpenResult)
     {
         return rangeFillerService.collectRanges(collectOpenResult.rangeData(), collectOpenResult.rowsLimit());
+    }
+
+    public CollectCloseResult close(CollectOpenResult collectOpenResult, StorageCollectorArgs storageCollectorArgs, int numRowsCollectedInCurRound)
+    {
+        CollectCloseResult collectCloseResult = collectTxService.collectStoreAndClose(collectOpenResult,
+                storageCollectorArgs,
+                numRowsCollectedInCurRound);
+
+        bufferAllocator.readerOnFreeBundle();
+        return collectCloseResult;
+    }
+
+    public void abort(CollectOpenResult collectOpenResult, Exception e)
+    {
+        collectTxService.collectAbort(e, collectOpenResult);
+        bufferAllocator.readerOnFreeBundle();
+    }
+
+    public void terminate(StorageCollectorArgs storageCollectorArgs)
+    {
+        storageEngine.fileClose((int) storageCollectorArgs.collectTxArgs().fileCookie()[FILE_COOKIE_PARAMS_FD.ordinal()]);
     }
 }

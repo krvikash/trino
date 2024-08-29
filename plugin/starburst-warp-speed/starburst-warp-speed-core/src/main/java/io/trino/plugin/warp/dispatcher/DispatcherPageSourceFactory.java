@@ -94,7 +94,6 @@ public class DispatcherPageSourceFactory
     private static final Logger logger = Logger.get(DispatcherPageSourceFactory.class);
     private final ShapingLogger shapingLogger;
     private final ReadErrorHandler readErrorHandler;
-    private final CollectTxService collectTxService;
     private final ChunksQueueService chunksQueueService;
     private final StorageCollectorService storageCollectorService;
     private final StorageEngine storageEngine;
@@ -147,7 +146,7 @@ public class DispatcherPageSourceFactory
                 globalConfig.getShapingLoggerDuration(),
                 globalConfig.getShapingLoggerNumberOfSamples());
         this.readErrorHandler = requireNonNull(readErrorHandler);
-        this.collectTxService = requireNonNull(collectTxService);
+        requireNonNull(collectTxService);
         this.chunksQueueService = requireNonNull(chunksQueueService);
         this.storageCollectorService = requireNonNull(storageCollectorService);
         this.lazyCollectorService = requireNonNull(lazyCollectorService);
@@ -489,7 +488,6 @@ public class DispatcherPageSourceFactory
                 dictionaryCacheService,
                 customStatsContext,
                 globalConfig,
-                collectTxService,
                 chunksQueueService,
                 storageCollectorService,
                 lazyCollectorService);

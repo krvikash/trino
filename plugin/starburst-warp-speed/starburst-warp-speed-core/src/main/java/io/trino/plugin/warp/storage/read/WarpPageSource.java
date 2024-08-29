@@ -59,7 +59,6 @@ public class WarpPageSource
             DictionaryCacheService dictionaryCacheService,
             CustomStatsContext customStatsContext,
             GlobalConfig globalConfig,
-            CollectTxService collectTxService,
             ChunksQueueService chunksQueueService,
             StorageCollectorService storageCollectorService,
             LazyCollectorService lazyCollectorService)
@@ -85,7 +84,6 @@ public class WarpPageSource
                 queryParams,
                 customStatsContext,
                 storageCollectorArgs,
-                collectTxService,
                 chunksQueueService,
                 collectorService,
                 globalConfig);

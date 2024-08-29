@@ -40,7 +40,6 @@ import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.read.ChunksQueueService;
-import io.trino.plugin.warp.storage.read.CollectTxService;
 import io.trino.plugin.warp.storage.read.LazyCollectorService;
 import io.trino.plugin.warp.storage.read.QueryParams;
 import io.trino.plugin.warp.storage.read.StorageCollectorService;
@@ -66,7 +65,6 @@ public class WarpCachePageSourceFactory
     private static final Logger logger = Logger.get(WarpCachePageSourceFactory.class);
 
     private final ReadErrorHandler readErrorHandler;
-    private final CollectTxService collectTxService;
     private final ChunksQueueService chunksQueueService;
     private final StorageCollectorService storageCollectorService;
     private final StorageEngine storageEngine;
@@ -93,7 +91,6 @@ public class WarpCachePageSourceFactory
                                       DictionaryCacheService dictionaryCacheService,
                                       GlobalConfig globalConfig,
                                       ReadErrorHandler readErrorHandler,
-                                      CollectTxService collectTxService,
                                       ChunksQueueService chunksQueueService,
                                       StorageCollectorService storageCollectorService,
                                       LazyCollectorService lazyCollectorService)
@@ -108,7 +105,6 @@ public class WarpCachePageSourceFactory
         this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
         this.globalConfig = requireNonNull(globalConfig);
         this.readErrorHandler = requireNonNull(readErrorHandler);
-        this.collectTxService = requireNonNull(collectTxService);
         this.chunksQueueService = requireNonNull(chunksQueueService);
         this.storageCollectorService = requireNonNull(storageCollectorService);
         this.lazyCollectorService = requireNonNull(lazyCollectorService);
@@ -158,7 +154,6 @@ public class WarpCachePageSourceFactory
                 dictionaryCacheService,
                 customStatsContext,
                 globalConfig,
-                collectTxService,
                 chunksQueueService,
                 storageCollectorService,
                 lazyCollectorService);

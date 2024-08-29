@@ -41,7 +41,6 @@ import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_ERROR
 import static io.trino.plugin.warp.WarpErrorCode.WARP_TX_ALLOCATION_FAILED;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_COLLECT_FAILED;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_MATCH_FAILED;
-import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FD;
 import static java.util.Objects.requireNonNull;
 
 public class StorageReader
@@ -58,7 +57,6 @@ public class StorageReader
     private final DispatcherPageSourceStats statsDispatcherPageSource;
     private final DictionaryCacheService dictionaryCacheService;
     private final LucenePageCacheStats lucenePageCacheStats;
-    private final BufferAllocator bufferAllocator;
 
     // parameters
     private final QueryParams queryParams;
@@ -76,10 +74,8 @@ public class StorageReader
 
     // collect
     private final StorageCollectorArgs storageCollectorArgs;
-    private final CollectTxService collectTxService;
     private final ChunksQueueService chunksQueueService;
     private final StorageCollectorService storageCollectorService;
-    private int collectTxId;
     private int numRowsCollectedInCurRound; // num rows collected in this getNextPage
     private int numRowsCollectedInPrevRounds; // num rows collected in all previous getNextPages
     private int[] queryResultType;
@@ -94,7 +90,6 @@ public class StorageReader
             QueryParams queryParams,
             CustomStatsContext customStatsContext,
             StorageCollectorArgs storageCollectorArgs,
-            CollectTxService collectTxService,
             ChunksQueueService chunksQueueService,
             StorageCollectorService storageCollectorService,
             GlobalConfig globalConfig)
@@ -106,19 +101,16 @@ public class StorageReader
         this.statsDispatcherPageSource = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_DISPATCHER_KEY);
         this.dictionaryStats = (DictionaryStats) customStatsContext.getStat(DictionaryCacheService.DICTIONARY_STAT_GROUP);
         this.lucenePageCacheStats = (LucenePageCacheStats) customStatsContext.getStat(DispatcherPageSourceFactory.STATS_LUCENE_PAGE_CACHE_KEY);
-        this.bufferAllocator = bufferAllocator;
 
         this.queryParams = queryParams;
         this.matchBuffIds = new long[queryParams.getNumMatchElements()][];
         this.luceneMatchers = new LuceneMatcher[queryParams.getNumLucene()];
         this.storageCollectorArgs = storageCollectorArgs;
-        this.collectTxService = collectTxService;
         this.chunksQueueService = chunksQueueService;
         this.queryResultType = new int[queryParams.getNumCollectElements()];
         this.storeRowListResult = Optional.empty();
         //  match
         this.matchTxId = INVALID_TX_ID;
-        this.collectTxId = INVALID_TX_ID;
         this.matchExhausted = true; // we initialize as true, and at the first call it will be set by calling match
 
         this.weMatchTree = queryParams.dumpMatchParams();
@@ -144,9 +136,7 @@ public class StorageReader
 
     void close()
     {
-        if (storageCollectorArgs != null) {
-            storageEngine.fileClose((int) storageCollectorArgs.collectTxArgs().fileCookie()[FILE_COOKIE_PARAMS_FD.ordinal()]);
-        }
+        storageCollectorService.terminate(storageCollectorArgs);
     }
 
     private void createLuceneMatchers(GlobalConfig globalConfig)
@@ -205,18 +195,11 @@ public class StorageReader
     @NativeInterrupt
     void queryOpen(int rowsLimit)
     {
-        bufferAllocator.readerOnAllocBundle();
-
         if (!dictionariesLoaded) {
             loadDictionaries();
             dictionariesLoaded = true;
         }
-
-        collectOpenResult = collectTxService.collectOpenAndRestore(rowsLimit,
-                numRowsCollectedInPrevRounds,
-                storageCollectorArgs,
-                storeRowListResult);
-        collectTxId = collectOpenResult.collectTxId();
+        collectOpenResult = storageCollectorService.open(storageCollectorArgs, numRowsCollectedInPrevRounds, rowsLimit, storeRowListResult);
 
         if (queryParams.getNumMatchElements() > 0) {
             try {
@@ -236,8 +219,9 @@ public class StorageReader
                 shapingLogger.warn(e, "matchOpen failed"); // we dont re-throw, we will throw in the next if since matchTxId was not set
             }
             if (matchTxId < 0) {
-                collectTxService.freeCollectOpenResources(collectOpenResult);
-                throw new TrinoException(WARP_TX_ALLOCATION_FAILED, "failed to allocate tx for match");
+                TrinoException e = new TrinoException(WARP_TX_ALLOCATION_FAILED, "failed to allocate tx for match");
+                queryAbort(e);
+                throw e;
             }
             matchedChunksIndexes = new short[storageCollectorArgs.numChunksInRange()];
             matchBitmapResetPoints = new int[storageCollectorArgs.numChunksInRange()];
@@ -342,7 +326,7 @@ public class StorageReader
     {
         long startTime = readTimeMeasurement.getStartTime();
 
-        if (collectOpenResult.collectTxId() == INVALID_TX_ID) {
+        if (collectOpenResult == null) {
             throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED, "no collect tx available, probably a secondary error");
         }
         CollectBufferState collectBufferState = CollectBufferState.COLLECT_BUFFER_STATE_EMPTY;
@@ -400,19 +384,14 @@ public class StorageReader
             matchTxId = INVALID_TX_ID;
         }
 
-        if (collectTxId == INVALID_TX_ID) {
+        if (collectOpenResult == null) {
             return 0;
         }
 
         numRowsCollectedInPrevRounds += numRowsCollectedInCurRound;
-        CollectCloseResult collectCloseResult = collectTxService.collectStoreAndClose(collectOpenResult,
-                storageCollectorArgs,
-                numRowsCollectedInCurRound);
+        CollectCloseResult collectCloseResult = storageCollectorService.close(collectOpenResult, storageCollectorArgs, numRowsCollectedInCurRound);
+        collectOpenResult = null;
         storeRowListResult = collectCloseResult.storeRowListResult();
-        collectTxId = INVALID_TX_ID;
-
-        bufferAllocator.readerOnFreeBundle();
-
         return collectCloseResult.readPages();
     }
 
@@ -430,16 +409,12 @@ public class StorageReader
         }
     }
 
-    private void abortCollect(Exception e)
-    {
-        collectTxService.collectAbort(e, collectOpenResult, collectTxId);
-        collectTxId = INVALID_TX_ID;
-    }
-
     void queryAbort(Exception e)
     {
         abortMatch(Optional.of(e));
-        abortCollect(e);
-        bufferAllocator.readerOnFreeBundle();
+        if (collectOpenResult != null) {
+            storageCollectorService.abort(collectOpenResult, e);
+            collectOpenResult = null;
+        }
     }
 }

@@ -175,9 +175,9 @@ public class CollectTxService
         return new CollectCloseResult(storeRowListResult, readPages);
     }
 
-    void collectAbort(Exception e, CollectOpenResult collectOpenResult, int collectTxId)
+    void collectAbort(Exception e, CollectOpenResult collectOpenResult)
     {
-        collectAbort(e, collectTxId);
+        collectAbort(e, collectOpenResult.collectTxId());
         freeCollectOpenResources(collectOpenResult);
     }
 }
