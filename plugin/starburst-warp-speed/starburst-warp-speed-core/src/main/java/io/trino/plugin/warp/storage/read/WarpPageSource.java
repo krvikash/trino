@@ -44,7 +44,7 @@ public class WarpPageSource
     private final StorageReader reader;
     private long rowsLimit;
     private boolean finished;
-    private boolean closed; // May be set explicitly by someone calling {@link #close()} or if we finished reading all available data from the table
+    private boolean closed; // set explicitly by someone calling {@link #close()}
     private RowRanges sortedRowRanges;
     private long completedBytes;
     private long completedPositions;
@@ -163,26 +163,25 @@ public class WarpPageSource
         int limit = (int) Math.min(rowsLimit, Integer.MAX_VALUE);
         int collectedRows = 0;
         sortedRowRanges = RowRanges.EMPTY; // Reset the row ranges before reading another page.
-        CollectOpenResult collectOpenResult = null;
         try {
-            collectOpenResult = reader.queryOpen(limit);
-            if (!reader.matchAndCollect(collectOpenResult, isMatchGetNumRanges)) {
+            reader.queryOpen(limit);
+            if (!reader.matchAndCollect(isMatchGetNumRanges)) {
                 finished = true;
             }
             else {
                 // Get the current available rows - cannot be zero at this point since the reader has something
-                collectedRows = reader.fillBlocks(blocks, collectOpenResult);
+                collectedRows = reader.fillBlocks(blocks);
                 updateRowsLimit(collectedRows);
                 if (isMatchGetNumRanges) {
-                    sortedRowRanges = reader.collectRanges(collectOpenResult);
+                    sortedRowRanges = reader.collectRanges();
                 }
             }
-            long readPagesResult = reader.queryClose(collectOpenResult);
+            long readPagesResult = reader.queryClose();
             completedBytes += (readPagesResult << storageEngineConstants.getPageSizeShift());
             completedPositions += collectedRows;
         }
         catch (Exception e) {
-            reader.queryAbort(e, collectOpenResult);
+            reader.queryAbort(e);
             throw e;
         }
 

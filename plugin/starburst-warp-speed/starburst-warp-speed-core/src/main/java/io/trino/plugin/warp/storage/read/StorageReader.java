@@ -87,6 +87,7 @@ public class StorageReader
     private boolean dictionariesLoaded;
     private RecordIndexListType storeRowListType;
     private int storeRowListSize;
+    private CollectOpenResult collectOpenResult;
 
     StorageReader(StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
@@ -205,7 +206,7 @@ public class StorageReader
      * prepare buffers for filling
      */
     @NativeInterrupt
-    CollectOpenResult queryOpen(int rowsLimit)
+    void queryOpen(int rowsLimit)
     {
         bufferAllocator.readerOnAllocBundle();
 
@@ -214,7 +215,7 @@ public class StorageReader
             dictionariesLoaded = true;
         }
 
-        CollectOpenResult collectOpenResult = collectTxService.collectOpenAndRestore(rowsLimit,
+        collectOpenResult = collectTxService.collectOpenAndRestore(rowsLimit,
                 numRowsCollectedInPrevRounds,
                 storageCollectorArgs,
                 storeRowListSize,
@@ -257,8 +258,6 @@ public class StorageReader
             matchIx++;
         }
         numRowsCollectedInCurRound = 0;
-
-        return collectOpenResult;
     }
 
     @SuppressWarnings("Finally")
@@ -343,7 +342,7 @@ public class StorageReader
     /**
      * collect rows from native, return true if something was collected, false otherwise
      */
-    boolean matchAndCollect(CollectOpenResult collectOpenResult, boolean isMatchGetNumRanges)
+    boolean matchAndCollect(boolean isMatchGetNumRanges)
     {
         long startTime = readTimeMeasurement.getStartTime();
 
@@ -369,13 +368,13 @@ public class StorageReader
         return collectBufferState != CollectBufferState.COLLECT_BUFFER_STATE_EMPTY;
     }
 
-    WarpStoragePageSource.RowRanges collectRanges(CollectOpenResult collectOpenResult)
+    WarpStoragePageSource.RowRanges collectRanges()
     {
         return storageCollectorService.collectRanges(collectOpenResult);
     }
 
     @NativeInterrupt
-    long queryClose(CollectOpenResult collectOpenResult)
+    long queryClose()
     {
         // match
         if (matchTxId != INVALID_TX_ID) {
@@ -416,13 +415,13 @@ public class StorageReader
         }
     }
 
-    private void abortCollect(Exception e, CollectOpenResult collectOpenResult)
+    private void abortCollect(Exception e)
     {
         collectTxService.collectAbort(e, collectOpenResult, collectTxId);
         collectTxId = INVALID_TX_ID;
     }
 
-    int fillBlocks(Block[] blocks, CollectOpenResult collectOpenResult)
+    int fillBlocks(Block[] blocks)
     {
         int rowsToFill = Math.min(numRowsCollectedInCurRound, collectOpenResult.rowsLimit());
 
@@ -436,10 +435,10 @@ public class StorageReader
         return rowsToFill;
     }
 
-    void queryAbort(Exception e, CollectOpenResult collectOpenResult)
+    void queryAbort(Exception e)
     {
         abortMatch(Optional.of(e));
-        abortCollect(e, collectOpenResult);
+        abortCollect(e);
         bufferAllocator.readerOnFreeBundle();
     }
 }
