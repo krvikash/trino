@@ -27,6 +27,7 @@ import io.opentelemetry.api.OpenTelemetry;
 import io.trino.filesystem.azure.AzureAuth;
 import io.trino.filesystem.azure.AzureAuthAccessKey;
 import io.trino.filesystem.azure.AzureAuthAccessKeyConfig;
+import io.trino.filesystem.azure.AzureAuthDefault;
 import io.trino.filesystem.azure.AzureAuthOAuthConfig;
 import io.trino.filesystem.azure.AzureAuthOauth;
 import io.trino.filesystem.azure.AzureFileSystemConfig;
@@ -76,7 +77,7 @@ public class AzureCloudStorageModule
                 configBinder(binder).bindConfig(AzureAuthOAuthConfig.class);
                 binder.bind(AzureAuth.class).to(AzureAuthOauth.class);
             }
-            case DEFAULT -> {}
+            case DEFAULT -> binder.bind(AzureAuth.class).to(AzureAuthDefault.class);
         }
 
         binder.bind(AzureCloudStorage.class).annotatedWith(annotation).to(AzureCloudStorage.class);
