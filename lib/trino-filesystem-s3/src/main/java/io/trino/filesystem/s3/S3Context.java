@@ -90,6 +90,7 @@ public record S3Context(
         public S3SseContext
         {
             requireNonNull(sseType, "sseType is null");
+            requireNonNull(sseKmsKeyId, "sseKmsKeyId is null");
             checkArgument((sseType != KMS) || (sseKmsKeyId.isPresent()), "sseKmsKeyId is missing for SSE-KMS");
         }
 
