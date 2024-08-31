@@ -1053,7 +1053,7 @@ public class IcebergMetadata
                 return Optional.empty();
             }
 
-            return finishInsert(session, icebergTableHandle, fragments, computedStatistics);
+            return finishInsert(session, icebergTableHandle, ImmutableList.of(), fragments, computedStatistics);
         }
         catch (AlreadyExistsException e) {
             // May happen when table has been already created concurrently.
@@ -1181,7 +1181,12 @@ public class IcebergMetadata
     }
 
     @Override
-    public Optional<ConnectorOutputMetadata> finishInsert(ConnectorSession session, ConnectorInsertTableHandle insertHandle, Collection<Slice> fragments, Collection<ComputedStatistics> computedStatistics)
+    public Optional<ConnectorOutputMetadata> finishInsert(
+            ConnectorSession session,
+            ConnectorInsertTableHandle insertHandle,
+            List<ConnectorTableHandle> sourceTableHandles,
+            Collection<Slice> fragments,
+            Collection<ComputedStatistics> computedStatistics)
     {
         List<CommitTaskData> commitTasks = fragments.stream()
                 .map(slice -> commitTaskCodec.fromJson(slice.getBytes()))
