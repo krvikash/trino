@@ -457,13 +457,6 @@ public class DispatcherMetadata
                 computedStatistics);
     }
 
-    @SuppressWarnings("deprecation")
-    @Override
-    public ConnectorOutputTableHandle beginCreateTable(ConnectorSession session, ConnectorTableMetadata tableMetadata, Optional<ConnectorTableLayout> layout, RetryMode retryMode)
-    {
-        return proxiedConnectorMetadata.beginCreateTable(session, tableMetadata, layout, retryMode);
-    }
-
     @Override
     public ConnectorOutputTableHandle beginCreateTable(ConnectorSession session, ConnectorTableMetadata tableMetadata, Optional<ConnectorTableLayout> layout, RetryMode retryMode, boolean replace)
     {
