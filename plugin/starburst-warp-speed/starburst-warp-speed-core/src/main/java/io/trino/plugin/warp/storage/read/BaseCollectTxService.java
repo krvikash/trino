@@ -97,6 +97,8 @@ public abstract class BaseCollectTxService
     {
         try {
             storageEngine.collect(txId, numWes, chunkIndex, numToCollect, outQueryResultType);
+            // @TODO until we implement support for single value and single value no nulls we ignore the indication and act as if its raw
+            // storage engine currently fills raw values and only sends the indication. once java part is implement, we will change also native behavior
             for (int weIx = 0; weIx < outQueryResultType.length; weIx++) {
                 if (outQueryResultType[weIx] == QueryResultType.QUERY_RESULT_TYPE_SINGLE.ordinal()) {
                     outQueryResultType[weIx] = QueryResultType.QUERY_RESULT_TYPE_RAW.ordinal();
