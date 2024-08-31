@@ -257,13 +257,6 @@ public class DispatcherMetadata
         proxiedConnectorMetadata.setSchemaAuthorization(session, source, principal);
     }
 
-    @SuppressWarnings("deprecation")
-    @Override
-    public void createTable(ConnectorSession session, ConnectorTableMetadata tableMetadata, boolean ignoreExisting)
-    {
-        proxiedConnectorMetadata.createTable(session, tableMetadata, ignoreExisting);
-    }
-
     @Override
     public void dropTable(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
