@@ -820,17 +820,6 @@ public interface ConnectorMetadata
 
     /**
      * Finish insert query
-     *
-     * @deprecated use {@link #finishInsert(ConnectorSession, ConnectorInsertTableHandle, List, Collection, Collection)}
-     */
-    @Deprecated
-    default Optional<ConnectorOutputMetadata> finishInsert(ConnectorSession session, ConnectorInsertTableHandle insertHandle, Collection<Slice> fragments, Collection<ComputedStatistics> computedStatistics)
-    {
-        throw new TrinoException(GENERIC_INTERNAL_ERROR, "ConnectorMetadata beginInsert() is implemented without finishInsert()");
-    }
-
-    /**
-     * Finish insert query
      */
     default Optional<ConnectorOutputMetadata> finishInsert(
             ConnectorSession session,
@@ -839,8 +828,7 @@ public interface ConnectorMetadata
             Collection<Slice> fragments,
             Collection<ComputedStatistics> computedStatistics)
     {
-        // Delegate to deprecated SPI to not break existing connectors
-        return finishInsert(session, insertHandle, fragments, computedStatistics);
+        throw new TrinoException(GENERIC_INTERNAL_ERROR, "ConnectorMetadata beginInsert() is implemented without finishInsert()");
     }
 
     /**
