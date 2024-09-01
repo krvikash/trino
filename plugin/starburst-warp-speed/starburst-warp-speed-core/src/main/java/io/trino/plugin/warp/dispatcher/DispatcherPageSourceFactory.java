@@ -29,7 +29,6 @@ import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.query.MatchCollectUtils.MatchCollectType;
 import io.trino.plugin.warp.dispatcher.query.QueryContext;
 import io.trino.plugin.warp.dispatcher.query.classifier.QueryClassifier;
-import io.trino.plugin.warp.dispatcher.query.classifier.WarpCacheColumnHandle;
 import io.trino.plugin.warp.dispatcher.query.data.QueryColumn;
 import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
@@ -54,7 +53,6 @@ import io.trino.plugin.warp.storage.read.QueryParams;
 import io.trino.plugin.warp.storage.read.StorageCollectorService;
 import io.trino.plugin.warp.storage.read.WarpPageSource;
 import io.trino.spi.TrinoException;
-import io.trino.spi.cache.PlanSignature;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
@@ -68,14 +66,11 @@ import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.Type;
 
 import java.time.Instant;
-import java.util.Collections;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.StringJoiner;
-import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -107,7 +102,6 @@ public class DispatcherPageSourceFactory
     private final BufferAllocator bufferAllocator;
     private final RowGroupDataService rowGroupDataService;
     private final WorkerWarmingService workerWarmingService;
-    private final MetricsManager metricsManager;
     private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
     private final PredicatesCacheService predicatesCacheService;
     private final QueryClassifier queryClassifier;
@@ -115,7 +109,6 @@ public class DispatcherPageSourceFactory
 
     private final GlobalConfig globalConfig;
     private final NativeStorageStateHandler nativeStorageStateHandler;
-    private final DispatcherPageSourceStats statsDispatcherPageSource;
     private final LazyCollectorService lazyCollectorService;
 
     @Inject
@@ -142,7 +135,6 @@ public class DispatcherPageSourceFactory
         this.bufferAllocator = requireNonNull(bufferAllocator);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.workerWarmingService = requireNonNull(workerWarmingService);
-        this.metricsManager = requireNonNull(metricsManager);
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
         this.predicatesCacheService = requireNonNull(predicatesCacheService);
         this.queryClassifier = requireNonNull(queryClassifier);
@@ -161,7 +153,6 @@ public class DispatcherPageSourceFactory
         this.lazyCollectorService = requireNonNull(lazyCollectorService);
         metricsManager.registerMetric(DispatcherPageSourceStats.create(STATS_DISPATCHER_KEY));
         metricsManager.registerMetric(LucenePageCacheStats.create(STATS_LUCENE_PAGE_CACHE_KEY));
-        this.statsDispatcherPageSource = metricsManager.registerMetric(DispatcherPageSourceStats.create(STATS_DISPATCHER_KEY));
     }
 
     public static String createFixedStatKey(Object... parts)
@@ -706,81 +697,6 @@ public class DispatcherPageSourceFactory
         warpMatchColumns.forEach(regularColumn -> customStatsContext.addFixedStat(createFixedStatKey(WARP_MATCH, regularColumn.getName(), WarmUpType.WARM_UP_TYPE_BASIC), 1));
         dispatcherPageSourceStats.addwarp_collect_columns(columns.size());
         dispatcherPageSourceStats.addwarp_match_columns(warpMatchColumns.size());
-    }
-
-    public Optional<ConnectorPageSource> createConnectorPageSource(RowGroupKey rowGroupKey, PlanSignature planSignature, Optional<UUID> queryStoreId)
-    {
-        RowGroupData rowGroupData = rowGroupDataService.get(rowGroupKey);
-        if (rowGroupData == null) {
-            return Optional.empty();
-        }
-        if (rowGroupData.isEmpty()) {
-            statsDispatcherPageSource.incempty_page_source();
-            return Optional.of(new EmptyPageSource());
-        }
-
-        if (queryStoreId.isEmpty()) {
-            return Optional.empty();
-        }
-        ImmutableList.Builder<ColumnHandle> columns = ImmutableList.builder();
-        for (int i = 0; i < planSignature.getColumns().size(); i++) {
-            columns.add(new WarpCacheColumnHandle(
-                    planSignature.getColumns().get(i).toString().toLowerCase(Locale.ROOT),
-                    planSignature.getColumnsTypes().get(i)));
-        }
-        QueryContext queryContext = queryClassifier.classifyCache(columns.build(), queryStoreId, rowGroupData);
-        if (!queryContext.getRemainingCollectColumnByBlockIndex().isEmpty()) {
-            // might happen if there is not enough memory, see NativeCollectClassifier
-            logger.debug("RemainingCollectColumnByBlockIndex is not empty - exiting");
-            return Optional.empty();
-        }
-        CustomStatsContext customStatsContext = new CustomStatsContext(metricsManager, List.of());
-        initializeCustomStats(customStatsContext);
-        String filePath = rowGroupData.getRowGroupKey().stringFileNameRepresentation(globalConfig.getLocalStorePath());
-        long fileModTime = rowGroupData.getRowGroupKey().fileModifiedTime();
-        // Caching manager always returns tight results, so lazy collect is set to false.
-        QueryParams queryParams = createQueryParams(queryContext, filePath, fileModTime, false);
-        WarpPageSource warpPageSource = new WarpPageSource(storageEngine,
-                storageEngineConstants,
-                Long.MAX_VALUE,
-                bufferAllocator,
-                queryParams,
-                false,
-                predicatesCacheService,
-                dictionaryCacheService,
-                customStatsContext,
-                globalConfig,
-                collectTxService,
-                chunksQueueService,
-                storageCollectorService,
-                lazyCollectorService);
-        RowGroupCloseHandler closeHandler = new RowGroupCloseHandler();
-        try {
-            PageSourceDecision pageSourceDecision = PageSourceDecision.WARP;
-            DispatcherPageSource dispatcherPageSource = new DispatcherPageSource(EmptyPageSource::new,
-                    queryClassifier,
-                    Collections.emptyList(), // no proxied in case of cache
-                    warpPageSource,
-                    queryContext,
-                    rowGroupData,
-                    pageSourceDecision,
-                    statsDispatcherPageSource,
-                    closeHandler,
-                    null, //used for debug for mixed case, unused in CM
-                    null,
-                    0, // no proxied in case of cache
-                    readErrorHandler,
-                    globalConfig);
-            statsDispatcherPageSource.addwarp_collect_columns(planSignature.getColumns().size());
-            return Optional.of(dispatcherPageSource);
-        }
-        catch (Exception e) {
-            RowGroupData afterLockRowGroupData = rowGroupDataService.get(rowGroupKey);
-            if (afterLockRowGroupData != null) {
-                closeHandler.accept(afterLockRowGroupData);
-            }
-            throw e;
-        }
     }
 
     /**

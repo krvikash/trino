@@ -20,8 +20,8 @@ import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.CacheWarmState;
+import io.trino.plugin.warp.dispatcher.warmup.warmers.EmptyRowGroupWarmer;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmingCandidate;
-import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmingManager;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.write.StorageWriterSplitConfig;
@@ -37,16 +37,16 @@ public class EmptyPageAction
         implements CacheAction
 {
     private final WarmingServiceStats statsWarmingService;
-    private final WarmingManager warmingManager;
+    private final EmptyRowGroupWarmer emptyRowGroupWarmer;
     private final RowGroupDataService rowGroupDataService;
 
     @Inject
     public EmptyPageAction(MetricsManager metricsManager,
-            WarmingManager warmingManager,
-            RowGroupDataService rowGroupDataService)
+                           EmptyRowGroupWarmer emptyRowGroupWarmer,
+                           RowGroupDataService rowGroupDataService)
     {
         this.statsWarmingService = requireNonNull(metricsManager).registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
-        this.warmingManager = requireNonNull(warmingManager);
+        this.emptyRowGroupWarmer = requireNonNull(emptyRowGroupWarmer);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
     }
 
@@ -58,10 +58,10 @@ public class EmptyPageAction
 
         RowGroupData rowGroupData = rowGroupDataService.getIfPresent(permanentRowGroupKey);
         if (rowGroupData == null) {
-            warmingManager.saveEmptyRowGroup(permanentRowGroupKey, warmUpElementList, Collections.emptyMap());
+            emptyRowGroupWarmer.saveImportedEmptyRowGroup(warmUpElementList, permanentRowGroupKey, Collections.emptyMap());
         }
         else {
-            warmingManager.warmEmptyRowGroup(permanentRowGroupKey, warmUpElementList);
+            emptyRowGroupWarmer.warm(permanentRowGroupKey, warmUpElementList);
         }
         return CacheWarmState.EMPTY_PAGE;
     }

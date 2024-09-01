@@ -38,7 +38,7 @@ public class EmptyRowGroupWarmer
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
     }
 
-    void warm(RowGroupKey rowGroupKey, List<WarmUpElement> newWarmUpElements)
+    public void warm(RowGroupKey rowGroupKey, List<WarmUpElement> newWarmUpElements)
     {
         RowGroupData rowGroupData = rowGroupDataService.get(rowGroupKey);
         rowGroupDataService.updateEmptyRowGroup(rowGroupData, newWarmUpElements, Collections.emptyList());

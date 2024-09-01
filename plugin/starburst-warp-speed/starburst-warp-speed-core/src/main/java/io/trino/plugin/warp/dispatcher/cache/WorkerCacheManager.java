@@ -19,7 +19,6 @@ import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
-import io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory;
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
@@ -67,7 +66,7 @@ public class WorkerCacheManager
     private final Map<CacheWarmState, CacheAction> cacheActions;
     private final MemoryContextService memoryContextService;
     private final PredicateHashCalculator predicateHashCalculator;
-    private final DispatcherPageSourceFactory dispatcherPageSourceFactory;
+    private final WarpCachePageSourceFactory warpCachePageSourceFactory;
     private final WorkerTaskExecutorService workerTaskExecutorService;
     private final RowGroupDataService rowGroupDataService;
     private final WarmingServiceStats statsWarmingService;
@@ -78,20 +77,20 @@ public class WorkerCacheManager
     private final DispatcherPageSourceStats statsPageSource;
 
     @Inject
-    public WorkerCacheManager(DispatcherPageSourceFactory dispatcherPageSourceFactory,
-            WorkerTaskExecutorService workerTaskExecutorService,
-            RowGroupDataService rowGroupDataService,
-            MetricsManager metricsManager,
-            CacheWarmer cacheWarmer,
-            StorageWarmerService storageWarmerService,
-            StorageEngineConstants storageEngineConstants,
-            GlobalConfig globalConfig,
-            ConnectorSync connectorSync,
-            @Named("CacheActions") Map<CacheWarmState, CacheAction> cacheActions,
-            MemoryContextService memoryContextService,
-            PredicateHashCalculator predicateHashCalculator)
+    public WorkerCacheManager(WarpCachePageSourceFactory warpCachePageSourceFactory,
+                              WorkerTaskExecutorService workerTaskExecutorService,
+                              RowGroupDataService rowGroupDataService,
+                              MetricsManager metricsManager,
+                              CacheWarmer cacheWarmer,
+                              StorageWarmerService storageWarmerService,
+                              StorageEngineConstants storageEngineConstants,
+                              GlobalConfig globalConfig,
+                              ConnectorSync connectorSync,
+                              @Named("CacheActions") Map<CacheWarmState, CacheAction> cacheActions,
+                              MemoryContextService memoryContextService,
+                              PredicateHashCalculator predicateHashCalculator)
     {
-        this.dispatcherPageSourceFactory = requireNonNull(dispatcherPageSourceFactory);
+        this.warpCachePageSourceFactory = requireNonNull(warpCachePageSourceFactory);
         this.workerTaskExecutorService = requireNonNull(workerTaskExecutorService);
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.statsWarmingService = metricsManager.registerMetric(WarmingServiceStats.create(WARMING_SERVICE_STAT_GROUP));
@@ -152,7 +151,7 @@ public class WorkerCacheManager
                 }
                 RowGroupKey rowGroupKey = getRowGroupKey(splitId, predicate, unenforcedPredicate);
                 Optional<UUID> queryStoreId = commonStoreIdFinder.findAndCache(rowGroupKey);
-                result = dispatcherPageSourceFactory.createConnectorPageSource(rowGroupKey, planSignature, queryStoreId);
+                result = warpCachePageSourceFactory.createConnectorPageSource(rowGroupKey, planSignature, queryStoreId);
             }
             catch (Throwable e) {
                 shapingLogger.error(e, "failed to load pages splitId=%s, planSignature=%s", splitId, planSignature);
@@ -225,9 +224,7 @@ public class WorkerCacheManager
         }
 
         @Override
-        public void close()
-        {
-        }
+        public void close() {}
 
         private RowGroupKey getRowGroupKey(
                 CacheSplitId splitId,
