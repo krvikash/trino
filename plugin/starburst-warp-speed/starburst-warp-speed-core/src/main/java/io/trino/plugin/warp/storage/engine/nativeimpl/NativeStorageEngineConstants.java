@@ -15,16 +15,17 @@ package io.trino.plugin.warp.storage.engine.nativeimpl;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.airlift.log.Logger;
-import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+
+import java.lang.foreign.FunctionDescriptor;
+import java.lang.foreign.Linker;
+import java.lang.foreign.SymbolLookup;
+import java.lang.foreign.ValueLayout;
 
 @Singleton
 public class NativeStorageEngineConstants
         implements StorageEngineConstants
 {
-    private static final Logger logger = Logger.get(NativeStorageEngineConstants.class);
-
     // page size
     private final int pageSizeShift;                 // native layer page size shift
     private final int pageSize;                      // native layer page size
@@ -64,110 +65,64 @@ public class NativeStorageEngineConstants
     private final int luceneBigJufferSize;
 
     @Inject
-    public NativeStorageEngineConstants(StorageEngine storageEngine)
+    public NativeStorageEngineConstants()
     {
-        logger.debug("start loading storage engine constants");
-        // page size
-        pageSizeShift = getPageSizeShiftImpl();
-        pageSize = 1 << pageSizeShift;
-        pageOffsetMask = pageSize - 1;
-        pageSizeMask = ~pageOffsetMask;
+        try {
+            SymbolLookup libraryHandle = SymbolLookup.loaderLookup();
 
-        // buffers
-        recordBufferMaxSize = getRecordBufferMaxSizeImpl();
-        indexChunkMaxSize = getIndexChunkMaxSizeImpl();
-        queryStringNullValueSize = getQueryStringNullValueSizeImpl();
-        chunksMapSize = getChunksMapSizeImpl();
-        chunkHeaderMaxSize = getChunkHeaderMaxSizeImpl();
-        warmupDataTempBufferSize = getWarmupDataTempBufferSizeImpl();
-        warmupIndexTempBufferSize = getWarmupIndexTempBufferSizeImpl();
-        maxWeContextSize = getMaxWeContextSizeImpl();
+            // page size
+            pageSizeShift = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_page_size_shift");
+            pageSize = 1 << pageSizeShift;
+            pageOffsetMask = pageSize - 1;
+            pageSizeMask = ~pageOffsetMask;
 
-        // varchar
-        maxRecLen = getMaxRecLenImpl();
-        fixedLengthStringLimit = getFixedLengthStringLimitImpl();
-        varcharMaxLen = getVarlenMaxLenImpl();
-        varlenExtMark = getVarlenMarkExtImpl();
-        varlenMarkEnd = getVarlenMarkEndImpl();
-        varlenSkiplistGranularity = getVarlenMdGranularityImpl();
-        varlenExtLimit = getVarlenExtLimitImpl();
-        varlenExtRecordHeaderSize = getVarlenExtRecordHeaderSizeImpl();
+            // buffers
+            recordBufferMaxSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_record_buffer_max_size");
+            indexChunkMaxSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_index_chunk_max_size");
+            queryStringNullValueSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_query_string_null_value_size");
+            chunksMapSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_chunks_map_size");
+            chunkHeaderMaxSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_chunk_header_max_size");
+            warmupDataTempBufferSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_warmup_data_temp_buffer_size");
+            warmupIndexTempBufferSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_warmup_index_temp_buffer_size");
+            maxWeContextSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_max_we_context_size");
 
-        // tx and memory
-        numBundles = getNumBundlesImpl();
-        bundleNonCollectSize = getBundleNonCollectSizeImpl();
+            // varchar
+            maxRecLen = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_max_rec_len");
+            fixedLengthStringLimit = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_fixed_length_string_limit");
+            varcharMaxLen = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_varlen_max_len");
+            varlenExtMark = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_varlen_mark_ext");
+            varlenMarkEnd = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_varlen_mark_end");
+            varlenSkiplistGranularity = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_varlen_md_granularity");
+            varlenExtLimit = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_varlen_ext_limit");
+            varlenExtRecordHeaderSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_varlen_ext_record_header_size");
 
-        // chunk
-        chunkSizeShift = getChunkSizeShiftImpl();
-        matchCollectBufferSize = getMatchCollectBufferSizeImpl();
-        maxChunksInRange = getMaxChunksInRangeImpl();
-        matchCollectNumIds = getMatchCollectNumIdsImpl();
-        maxMatchColumns = getMaxMatchColumnsImpl();
-        maxLuceneColumnsInBundle = getMaxLuceneColumnsInBundleImpl();
-        matchTxSize = getMatchTxSizeImpl();
+            // tx and memory
+            numBundles = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_num_bundles");
+            bundleNonCollectSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_bundle_non_collect_size");
 
-        // lucene
-        luceneBigJufferSize = getLuceneBigJufferSizeImpl();
-        luceneSmallJufferSize = getLuceneSmallJufferSizeImpl();
+            // chunk
+            chunkSizeShift = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_chunk_size_shift");
+            matchCollectBufferSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_match_collect_buffer_size");
+            maxChunksInRange = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_max_chunks_in_range");
+            matchCollectNumIds = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_match_collect_num_ids");
+            maxMatchColumns = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_max_match_columns");
+            maxLuceneColumnsInBundle = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_max_lucene_columns_in_bundle");
+            matchTxSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_match_tx_size");
 
-        logger.debug("finished loading storage engine constants, extLimit=%d", varlenExtLimit);
+            // lucene
+            luceneBigJufferSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_lucene_big_juffer_size");
+            luceneSmallJufferSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_lucene_small_juffer_size");
+        }
+        catch (Throwable t) {
+            throw new RuntimeException("failed to retrieve constants from native library " + t);
+        }
     }
 
-    private native int getPageSizeShiftImpl();
-
-    private native int getRecordBufferMaxSizeImpl();
-
-    private native int getIndexChunkMaxSizeImpl();
-
-    private native int getMaxRecLenImpl();
-
-    private native int getVarlenMarkEndImpl();
-
-    private native int getVarlenMdGranularityImpl();
-
-    private native int getVarlenMaxLenImpl();
-
-    private native int getVarlenMarkExtImpl();
-
-    private native int getFixedLengthStringLimitImpl();
-
-    private native int getVarlenExtLimitImpl();
-
-    private native int getVarlenExtRecordHeaderSizeImpl();
-
-    private native int getNumBundlesImpl();
-
-    private native int getChunkSizeShiftImpl();
-
-    private native int getMatchCollectBufferSizeImpl();
-
-    private native int getMaxChunksInRangeImpl();
-
-    private native int getMatchCollectNumIdsImpl();
-
-    private native int getMaxMatchColumnsImpl();
-
-    private native int getMaxLuceneColumnsInBundleImpl();
-
-    private native int getMatchTxSizeImpl();
-
-    private native int getBundleNonCollectSizeImpl();
-
-    private native int getLuceneSmallJufferSizeImpl();
-
-    private native int getLuceneBigJufferSizeImpl();
-
-    private native int getQueryStringNullValueSizeImpl();
-
-    private native int getChunksMapSizeImpl();
-
-    private native int getChunkHeaderMaxSizeImpl();
-
-    private native int getWarmupDataTempBufferSizeImpl();
-
-    private native int getMaxWeContextSizeImpl();
-
-    private native int getWarmupIndexTempBufferSizeImpl();
+    private int getWarpSpeedConstant(SymbolLookup libraryHandle, String name)
+            throws Throwable
+    {
+        return (int) Linker.nativeLinker().downcallHandle(libraryHandle.find(name).orElseThrow(), FunctionDescriptor.of(ValueLayout.JAVA_INT)).invokeExact();
+    }
 
     @Override
     public int getMaxRecLen()
