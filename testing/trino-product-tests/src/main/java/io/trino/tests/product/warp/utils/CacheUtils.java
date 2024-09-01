@@ -13,8 +13,6 @@
  */
 package io.trino.tests.product.warp.utils;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.trino.jdbc.TrinoResultSet;
@@ -22,14 +20,11 @@ import io.trino.tempto.query.QueryResult;
 import org.testng.SkipException;
 
 import java.io.IOException;
-import java.net.URI;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Iterator;
 import java.util.List;
 
 import static io.trino.tests.product.utils.QueryExecutors.onTrino;
-import static io.trino.tests.product.warp.utils.DemoterUtils.objectMapper;
 import static java.lang.String.format;
 
 public class CacheUtils
@@ -48,19 +43,6 @@ public class CacheUtils
         LocalDateTime now = LocalDateTime.now();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyMMdd_HHmmss");
         formattedDateTime = now.format(formatter);
-    }
-
-    public static Iterator<Object[]> executeDataProvider(String filePath)
-            throws Exception
-    {
-        logger.info("running %s", filePath);
-        JsonNode jsonNodeTests = objectMapper.readTree(new URI(filePath).toURL());
-        List<TestFormat> tests = objectMapper.readerFor(new TypeReference<List<TestFormat>>() {})
-                .readValue(jsonNodeTests);
-        return tests.stream()
-                .filter(TestFormat::pt_enable)
-                .map(x -> new Object[] {x})
-                .iterator();
     }
 
     public void execute(TestFormat testFormat, boolean isWarp, String schemaName)
