@@ -21,6 +21,7 @@ public final class ConnectorSensitiveProperties
             .put("accumulo",
                     ImmutableSet.of(
                             "accumulo.password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -28,6 +29,7 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.truststore.password"))
             .put("atop",
                     ImmutableSet.of(
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -39,6 +41,7 @@ public final class ConnectorSensitiveProperties
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -62,6 +65,7 @@ public final class ConnectorSensitiveProperties
                             "bigquery.rpc-proxy.keystore-password",
                             "bigquery.rpc-proxy.password",
                             "bigquery.rpc-proxy.truststore-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -79,6 +83,7 @@ public final class ConnectorSensitiveProperties
                             "web-ui.shared-secret"))
             .put("blackhole",
                     ImmutableSet.of(
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -89,6 +94,7 @@ public final class ConnectorSensitiveProperties
                             "cassandra.password",
                             "cassandra.tls.keystore-password",
                             "cassandra.tls.truststore-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -97,6 +103,7 @@ public final class ConnectorSensitiveProperties
             .put("clickhouse",
                     ImmutableSet.of(
                             "connection-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -106,6 +113,7 @@ public final class ConnectorSensitiveProperties
             .put("cosmosdb",
                     ImmutableSet.of(
                             "cosmosdb.connection-key",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -116,6 +124,7 @@ public final class ConnectorSensitiveProperties
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -160,6 +169,7 @@ public final class ConnectorSensitiveProperties
                             "hive.s3.aws-secret-key",
                             "hive.s3.proxy.password",
                             "hive.s3.sse.customer-key",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -172,6 +182,7 @@ public final class ConnectorSensitiveProperties
             .put("druid",
                     ImmutableSet.of(
                             "connection-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -185,6 +196,7 @@ public final class ConnectorSensitiveProperties
                             "connection-password",
                             "dynamodb.aws-access-key",
                             "dynamodb.aws-secret-key",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -207,6 +219,7 @@ public final class ConnectorSensitiveProperties
                             "elasticsearch.aws.secret-key",
                             "elasticsearch.tls.keystore-password",
                             "elasticsearch.tls.truststore-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -224,6 +237,7 @@ public final class ConnectorSensitiveProperties
                             "web-ui.shared-secret"))
             .put("example_http",
                     ImmutableSet.of(
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -232,6 +246,7 @@ public final class ConnectorSensitiveProperties
             .put("exasol",
                     ImmutableSet.of(
                             "connection-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -243,6 +258,7 @@ public final class ConnectorSensitiveProperties
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -264,6 +280,7 @@ public final class ConnectorSensitiveProperties
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -283,6 +300,7 @@ public final class ConnectorSensitiveProperties
             .put("gsheets",
                     ImmutableSet.of(
                             "gsheets.credentials-key",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -291,6 +309,7 @@ public final class ConnectorSensitiveProperties
             .put("hbase",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -323,6 +342,7 @@ public final class ConnectorSensitiveProperties
                             "hive.s3.aws-secret-key",
                             "hive.s3.proxy.password",
                             "hive.s3.sse.customer-key",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -360,6 +380,7 @@ public final class ConnectorSensitiveProperties
                             "hive.metastore.http.client.bearer-token",
                             "hive.metastore.thrift.client.ssl.key-password",
                             "hive.metastore.thrift.client.ssl.trust-certificate-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -380,6 +401,7 @@ public final class ConnectorSensitiveProperties
                             "hive.metastore.http.client.bearer-token",
                             "hive.metastore.thrift.client.ssl.key-password",
                             "hive.metastore.thrift.client.ssl.trust-certificate-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -401,6 +423,7 @@ public final class ConnectorSensitiveProperties
             .put("ignite",
                     ImmutableSet.of(
                             "connection-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -409,6 +432,7 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.truststore.password"))
             .put("immuta",
                     ImmutableSet.of(
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -416,6 +440,7 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.truststore.password"))
             .put("jmx",
                     ImmutableSet.of(
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -425,6 +450,7 @@ public final class ConnectorSensitiveProperties
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -442,6 +468,7 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.truststore.password"))
             .put("kinesis",
                     ImmutableSet.of(
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -451,6 +478,7 @@ public final class ConnectorSensitiveProperties
             .put("kudu",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -468,6 +496,7 @@ public final class ConnectorSensitiveProperties
                             "web-ui.shared-secret"))
             .put("localfile",
                     ImmutableSet.of(
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -476,6 +505,7 @@ public final class ConnectorSensitiveProperties
             .put("mariadb",
                     ImmutableSet.of(
                             "connection-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -484,6 +514,7 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.truststore.password"))
             .put("maxcompute",
                     ImmutableSet.of(
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -503,6 +534,7 @@ public final class ConnectorSensitiveProperties
                             "web-ui.shared-secret"))
             .put("memory",
                     ImmutableSet.of(
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -513,6 +545,7 @@ public final class ConnectorSensitiveProperties
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -532,6 +565,7 @@ public final class ConnectorSensitiveProperties
             .put("mongodb",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -549,6 +583,7 @@ public final class ConnectorSensitiveProperties
                             "aws.session-token",
                             "cache-service.password",
                             "connection-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -568,6 +603,7 @@ public final class ConnectorSensitiveProperties
             .put("neo4j",
                     ImmutableSet.of(
                             "connection-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -579,6 +615,7 @@ public final class ConnectorSensitiveProperties
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -597,6 +634,7 @@ public final class ConnectorSensitiveProperties
                             "web-ui.shared-secret"))
             .put("opensearch",
                     ImmutableSet.of(
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -611,6 +649,7 @@ public final class ConnectorSensitiveProperties
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -630,6 +669,7 @@ public final class ConnectorSensitiveProperties
             .put("phoenix5",
                     ImmutableSet.of(
                             "connection-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -638,6 +678,7 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.truststore.password"))
             .put("pinot",
                     ImmutableSet.of(
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -655,6 +696,7 @@ public final class ConnectorSensitiveProperties
                             "aws.session-token",
                             "cache-service.password",
                             "connection-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -673,6 +715,7 @@ public final class ConnectorSensitiveProperties
                             "web-ui.shared-secret"))
             .put("prometheus",
                     ImmutableSet.of(
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -681,6 +724,7 @@ public final class ConnectorSensitiveProperties
                             "prometheus.auth.password"))
             .put("raptor_legacy",
                     ImmutableSet.of(
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -688,6 +732,7 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.truststore.password"))
             .put("redis",
                     ImmutableSet.of(
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -702,6 +747,7 @@ public final class ConnectorSensitiveProperties
                             "aws.session-token",
                             "cache-service.password",
                             "connection-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -723,6 +769,7 @@ public final class ConnectorSensitiveProperties
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -747,6 +794,7 @@ public final class ConnectorSensitiveProperties
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -768,6 +816,7 @@ public final class ConnectorSensitiveProperties
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -789,6 +838,7 @@ public final class ConnectorSensitiveProperties
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -812,6 +862,7 @@ public final class ConnectorSensitiveProperties
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -835,6 +886,7 @@ public final class ConnectorSensitiveProperties
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -857,6 +909,7 @@ public final class ConnectorSensitiveProperties
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -879,6 +932,7 @@ public final class ConnectorSensitiveProperties
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -901,6 +955,7 @@ public final class ConnectorSensitiveProperties
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -922,6 +977,7 @@ public final class ConnectorSensitiveProperties
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -944,6 +1000,7 @@ public final class ConnectorSensitiveProperties
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -966,6 +1023,7 @@ public final class ConnectorSensitiveProperties
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -985,6 +1043,7 @@ public final class ConnectorSensitiveProperties
                             "web-ui.shared-secret"))
             .put("tpcds",
                     ImmutableSet.of(
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -992,6 +1051,7 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.truststore.password"))
             .put("tpch",
                     ImmutableSet.of(
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -999,6 +1059,7 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.truststore.password"))
             .put("trino_thrift",
                     ImmutableSet.of(
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -1009,6 +1070,7 @@ public final class ConnectorSensitiveProperties
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
@@ -1054,6 +1116,7 @@ public final class ConnectorSensitiveProperties
                             "hive.s3.aws-secret-key",
                             "hive.s3.proxy.password",
                             "hive.s3.sse.customer-key",
+                            "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
