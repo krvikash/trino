@@ -10,6 +10,7 @@
 package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.inject.Module;
 import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
 import io.starburst.stargate.buffer.testing.TestingBufferService;
@@ -37,7 +38,7 @@ public class TestTestingBufferIcebergQueryFailureRecoveryTest
     private TestingBufferService bufferService;
 
     @Override
-    protected QueryRunner createQueryRunner(List<TpchTable<?>> requiredTpchTables, Map<String, String> configProperties, Map<String, String> coordinatorProperties)
+    protected QueryRunner createQueryRunner(List<TpchTable<?>> requiredTpchTables, Map<String, String> configProperties, Map<String, String> coordinatorProperties, Module failureInjectionModule)
             throws Exception
     {
         long maxMemory = Runtime.getRuntime().maxMemory();
@@ -69,6 +70,7 @@ public class TestTestingBufferIcebergQueryFailureRecoveryTest
                     runner.installPlugin(new BufferExchangePlugin());
                     runner.loadExchangeManager("buffer", exchangeManagerProperties);
                 })
+                .setAdditionalModule(failureInjectionModule)
                 .build();
     }
 
