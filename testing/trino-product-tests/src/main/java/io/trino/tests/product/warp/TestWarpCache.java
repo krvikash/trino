@@ -154,6 +154,7 @@ public class TestWarpCache
             throws IOException
     {
         try {
+            demoterUtils.resetToDefaultDemoterConfiguration(true);
             onTrino().executeQuery("USE warp.synthetic");
             onTrino().executeQuery(format("set session warp.enable_default_warming=%s", testFormat.default_warming()));
             QueryResult warmingStatsBefore = JMXCachingManager.getWarmingStats();
@@ -179,8 +180,12 @@ public class TestWarpCache
                 demoterUtils.demote("synthetic", testFormat.table_name(), columnNames);
             }
 
-            demoterUtils.demoteAllByMaxUsage(true);
-            demoterUtils.resetToDefaultDemoterConfiguration(true);
+            try {
+                demoterUtils.demoteAllByMaxUsage(true);
+            }
+            finally {
+                demoterUtils.resetToDefaultDemoterConfiguration(true);
+            }
         }
     }
 
