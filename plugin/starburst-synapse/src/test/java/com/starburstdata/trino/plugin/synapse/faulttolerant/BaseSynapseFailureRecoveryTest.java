@@ -10,6 +10,7 @@
 package com.starburstdata.trino.plugin.synapse.faulttolerant;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.inject.Module;
 import com.starburstdata.trino.plugin.synapse.SynapseServer;
 import io.trino.execution.FailureInjector;
 import io.trino.operator.RetryPolicy;
@@ -44,7 +45,8 @@ public abstract class BaseSynapseFailureRecoveryTest
     protected QueryRunner createQueryRunner(
             List<TpchTable<?>> requiredTpchTables,
             Map<String, String> configProperties,
-            Map<String, String> coordinatorProperties)
+            Map<String, String> coordinatorProperties,
+            Module failureInjectionModule)
             throws Exception
     {
         return createSynapseQueryRunner(
@@ -54,6 +56,7 @@ public abstract class BaseSynapseFailureRecoveryTest
                 Map.of(),
                 coordinatorProperties,
                 requiredTpchTables,
+                Optional.of(failureInjectionModule),
                 runner -> {
                     runner.installPlugin(new FileSystemExchangePlugin());
                     runner.loadExchangeManager("filesystem", ImmutableMap.of(

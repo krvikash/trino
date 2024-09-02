@@ -10,6 +10,7 @@
 package com.starburstdata.trino.plugin.synapse;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.inject.Module;
 import com.microsoft.sqlserver.jdbc.SQLServerException;
 import io.airlift.log.Logger;
 import io.airlift.log.Logging;
@@ -24,6 +25,7 @@ import io.trino.tpch.TpchTable;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 import static com.starburstdata.trino.plugin.synapse.SynapseServer.JDBC_URL;
@@ -76,7 +78,7 @@ public final class SynapseQueryRunner
             Iterable<TpchTable<?>> tables)
             throws Exception
     {
-        return createSynapseQueryRunner(extraProperties, synapseServer, catalogName, connectorProperties, Map.of(), tables, runner -> {});
+        return createSynapseQueryRunner(extraProperties, synapseServer, catalogName, connectorProperties, Map.of(), tables, Optional.empty(), runner -> {});
     }
 
     public static DistributedQueryRunner createSynapseQueryRunner(
@@ -86,15 +88,17 @@ public final class SynapseQueryRunner
             Map<String, String> connectorProperties,
             Map<String, String> coordinatorProperties,
             Iterable<TpchTable<?>> tables,
+            Optional<Module> failureInjectionModule,
             Consumer<QueryRunner> moreSetup)
             throws Exception
     {
         Session session = createSession(USERNAME, catalogName);
-        DistributedQueryRunner queryRunner = DistributedQueryRunner.builder(session)
+        DistributedQueryRunner.Builder<?> queryRunnerBuilder = DistributedQueryRunner.builder(session)
                 .setExtraProperties(extraProperties)
                 .setCoordinatorProperties(coordinatorProperties)
-                .setAdditionalSetup(moreSetup)
-                .build();
+                .setAdditionalSetup(moreSetup);
+        failureInjectionModule.ifPresent(queryRunnerBuilder::setAdditionalModule);
+        DistributedQueryRunner queryRunner = queryRunnerBuilder.build();
         try {
             queryRunner.installPlugin(new JmxPlugin());
             queryRunner.createCatalog("jmx", "jmx");

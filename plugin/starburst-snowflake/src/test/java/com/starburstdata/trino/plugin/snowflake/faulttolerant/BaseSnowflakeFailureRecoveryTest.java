@@ -11,6 +11,7 @@ package com.starburstdata.trino.plugin.snowflake.faulttolerant;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Closer;
+import com.google.inject.Module;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeServer;
 import com.starburstdata.trino.plugin.snowflake.TestDatabase;
@@ -51,7 +52,7 @@ public abstract class BaseSnowflakeFailureRecoveryTest
     }
 
     @Override
-    protected QueryRunner createQueryRunner(List<TpchTable<?>> requiredTpchTables, Map<String, String> configProperties, Map<String, String> coordinatorProperties)
+    protected QueryRunner createQueryRunner(List<TpchTable<?>> requiredTpchTables, Map<String, String> configProperties, Map<String, String> coordinatorProperties, Module failureInjectionModule)
             throws Exception
     {
         closer = Closer.create();
@@ -63,6 +64,7 @@ public abstract class BaseSnowflakeFailureRecoveryTest
                 .withSchema(Optional.of(TEST_SCHEMA))
                 .addCoordinatorProperties(coordinatorProperties)
                 .withTpchTables(requiredTpchTables)
+                .setAdditionalModule(failureInjectionModule)
                 .setAdditionalSetup(runner -> {
                     runner.installPlugin(new FileSystemExchangePlugin());
                     runner.loadExchangeManager("filesystem", ImmutableMap.of(
