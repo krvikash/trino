@@ -161,31 +161,28 @@ public class WarpPageSource
     private int fillPage(Block[] blocks)
     {
         int limit = (int) Math.min(rowsLimit, Integer.MAX_VALUE);
-        int collectedRows = 0;
-        sortedRowRanges = RowRanges.EMPTY; // Reset the row ranges before reading another page.
+        ReadResult readResult;
+        long numReadPages;
+
         try {
             reader.queryOpen(limit);
-            if (!reader.matchAndCollect(isMatchGetNumRanges)) {
-                finished = true;
-            }
-            else {
-                // Get the current available rows - cannot be zero at this point since the reader has something
-                collectedRows = reader.fillBlocks(blocks);
-                updateRowsLimit(collectedRows);
-                if (isMatchGetNumRanges) {
-                    sortedRowRanges = reader.collectRanges();
-                }
-            }
-            long readPagesResult = reader.queryClose();
-            completedBytes += (readPagesResult << storageEngineConstants.getPageSizeShift());
-            completedPositions += collectedRows;
+            readResult = reader.getPage(blocks, isMatchGetNumRanges);
+            numReadPages = reader.queryClose();
         }
         catch (Exception e) {
             reader.queryAbort(e);
             throw e;
         }
 
-        return collectedRows;
+        if (readResult.numCollectedRows() == 0) {
+            finished = true;
+        }
+
+        updateRowsLimit(readResult.numCollectedRows());
+        sortedRowRanges = readResult.ranges();
+        completedBytes += (numReadPages << storageEngineConstants.getPageSizeShift());
+        completedPositions += readResult.numCollectedRows();
+        return readResult.numCollectedRows();
     }
 
     @Override

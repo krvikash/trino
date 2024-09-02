@@ -342,7 +342,7 @@ public class StorageReader
     /**
      * collect rows from native, return true if something was collected, false otherwise
      */
-    boolean matchAndCollect(boolean isMatchGetNumRanges)
+    private boolean matchAndCollect(boolean isMatchGetNumRanges)
     {
         long startTime = readTimeMeasurement.getStartTime();
 
@@ -368,9 +368,31 @@ public class StorageReader
         return collectBufferState != CollectBufferState.COLLECT_BUFFER_STATE_EMPTY;
     }
 
-    WarpStoragePageSource.RowRanges collectRanges()
+    private int fillBlocks(Block[] blocks)
     {
-        return storageCollectorService.collectRanges(collectOpenResult);
+        int rowsToFill = Math.min(numRowsCollectedInCurRound, collectOpenResult.rowsLimit());
+
+        storageCollectorService.fillBlocks(blocks,
+                storageCollectorArgs,
+                rowsToFill,
+                numRowsCollectedInPrevRounds,
+                queryResultType,
+                statsDispatcherPageSource);
+        statsDispatcherPageSource.addcached_read_rows(rowsToFill);
+        return rowsToFill;
+    }
+
+    ReadResult getPage(Block[] blocks, boolean isMatchGetNumRanges)
+    {
+        int numCollectedRows = 0;
+        WarpStoragePageSource.RowRanges ranges = WarpStoragePageSource.RowRanges.EMPTY;
+        if (matchAndCollect(isMatchGetNumRanges)) {
+            numCollectedRows = fillBlocks(blocks);
+            if (isMatchGetNumRanges) {
+                ranges = storageCollectorService.collectRanges(collectOpenResult);
+            }
+        }
+        return new ReadResult(numCollectedRows, ranges);
     }
 
     @NativeInterrupt
@@ -419,20 +441,6 @@ public class StorageReader
     {
         collectTxService.collectAbort(e, collectOpenResult, collectTxId);
         collectTxId = INVALID_TX_ID;
-    }
-
-    int fillBlocks(Block[] blocks)
-    {
-        int rowsToFill = Math.min(numRowsCollectedInCurRound, collectOpenResult.rowsLimit());
-
-        storageCollectorService.fillBlocks(blocks,
-                storageCollectorArgs,
-                rowsToFill,
-                numRowsCollectedInPrevRounds,
-                queryResultType,
-                statsDispatcherPageSource);
-        statsDispatcherPageSource.addcached_read_rows(rowsToFill);
-        return rowsToFill;
     }
 
     void queryAbort(Exception e)
