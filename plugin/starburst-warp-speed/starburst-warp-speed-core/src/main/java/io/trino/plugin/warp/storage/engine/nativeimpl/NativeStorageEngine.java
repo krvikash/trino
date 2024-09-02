@@ -25,6 +25,12 @@ import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.read.StorageCollectorCallBack;
 
+import java.lang.foreign.Arena;
+import java.lang.foreign.FunctionDescriptor;
+import java.lang.foreign.Linker;
+import java.lang.foreign.SymbolLookup;
+import java.lang.foreign.ValueLayout;
+import java.lang.invoke.MethodHandle;
 import java.nio.ByteBuffer;
 
 import static java.util.Objects.requireNonNull;
@@ -36,6 +42,11 @@ public class NativeStorageEngine
     private static final Logger logger = Logger.get(NativeStorageEngine.class);
     @SuppressWarnings({"FieldCanBeLocal", "unused"})
     private final ExceptionThrower exceptionThrower; // we keep a reference to hold this object for native layer ref
+    private final MethodHandle mFileOpen;
+    private final MethodHandle mFileClose;
+    private final MethodHandle mFileTruncate;
+    private final MethodHandle mFilePunchHole;
+    private final MethodHandle mFileAboutToBeDeleted;
 
     public NativeStorageEngine(
             NativeConfig nativeConfig,
@@ -52,6 +63,21 @@ public class NativeStorageEngine
                 panicHaltPolicy,
                 nativeConfig.getBundleSize());
         try {
+            SymbolLookup libraryHandle = SymbolLookup.loaderLookup();
+            Linker linker = Linker.nativeLinker();
+
+            // file API
+            mFileOpen = linker.downcallHandle(libraryHandle.find("storage_file_open").orElseThrow(),
+                    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS));
+            mFileClose = linker.downcallHandle(libraryHandle.find("storage_file_close").orElseThrow(),
+                    FunctionDescriptor.ofVoid(ValueLayout.JAVA_INT));
+            mFileTruncate = linker.downcallHandle(libraryHandle.find("storage_file_truncate").orElseThrow(),
+                    FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
+            mFilePunchHole = linker.downcallHandle(libraryHandle.find("storage_file_punch_hole").orElseThrow(),
+                    FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
+            mFileAboutToBeDeleted = linker.downcallHandle(libraryHandle.find("warp_speed_file_is_about_to_be_deleted").orElseThrow(),
+                    FunctionDescriptor.ofVoid(ValueLayout.JAVA_LONG, ValueLayout.JAVA_LONG, ValueLayout.JAVA_INT));
+
             nativeInit(taskMaxWorkerThreads,
                     Runtime.getRuntime().maxMemory(),
                     nativeConfig.getGeneralReservedMemory(),
@@ -110,19 +136,72 @@ public class NativeStorageEngine
     public native long initWarmupTxSizes(int[] fixedWarmupDataTxSizes, int[] varlenWarmupDataTxSizes);
 
     @Override
-    public native long fileOpen(String fileName);
+    public int fileOpen(String fileName)
+    {
+        int fileDescriptor;
+        try (Arena arena = Arena.ofConfined()) {
+            fileDescriptor = (int) mFileOpen.invokeExact(arena.allocateFrom(fileName));
+            if (fileDescriptor >= 0) {
+                return fileDescriptor;
+            }
+        }
+        catch (Throwable t) {
+            logger.error(t, "failed to open file");
+        }
+        throw new RuntimeException("failed to open file " + fileName);
+    }
 
     @Override
-    public native void fileClose(long fileFd);
+    public void fileClose(int fileDescriptor)
+    {
+        try {
+            mFileClose.invokeExact(fileDescriptor);
+        }
+        catch (Throwable t) {
+            logger.error(t, "failed to close file");
+            throw new RuntimeException("failed to close file");
+        }
+    }
 
     @Override
-    public native void fileTruncate(long[] fileCookie, int offset);
+    public void fileTruncate(int fileDescriptor, int offset)
+    {
+        boolean success;
+        try {
+            success = (boolean) mFileTruncate.invokeExact(fileDescriptor, offset);
+            if (success) {
+                return;
+            }
+        }
+        catch (Throwable t) {
+            logger.error(t, "failed to truncate file");
+        }
+        throw new RuntimeException("failed to truncate file");
+    }
 
     @Override
-    public native void filePunchHole(String fileName, int startOffset, int endOffset);
+    public void filePunchHole(String fileName, int startOffset, int endOffset)
+    {
+        try (Arena arena = Arena.ofConfined()) {
+            mFilePunchHole.invokeExact(arena.allocateFrom(fileName), startOffset, endOffset);
+        }
+        catch (Throwable t) {
+            logger.error(t, "failed to punch hole file");
+            throw new RuntimeException("failed to punch hole file" + fileName);
+        }
+    }
 
     @Override
-    public native void fileIsAboutToBeDeleted(long fileHash, long fileModTime, int fileSizeInPages);
+    public void fileIsAboutToBeDeleted(long fileHash, long fileModTime, int fileSizeInPages)
+    {
+        try {
+            mFileAboutToBeDeleted.invokeExact(fileHash, fileModTime, fileSizeInPages);
+        }
+        catch (Throwable t) {
+            logger.error(t, "failed to clear native cache");
+            throw new RuntimeException("failed to clear native cache");
+        }
+    }
 
     @Override
     public native long warmupElementOpen(long context, int recTypeCode, int recTypeLength, int warmUpType);

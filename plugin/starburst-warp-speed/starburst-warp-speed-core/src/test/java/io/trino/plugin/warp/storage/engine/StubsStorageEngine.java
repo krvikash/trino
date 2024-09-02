@@ -65,18 +65,18 @@ public class StubsStorageEngine
     }
 
     @Override
-    public long fileOpen(String fileName)
+    public int fileOpen(String fileName)
     {
         return 0;
     }
 
     @Override
-    public void fileClose(long fileFd)
+    public void fileClose(int fileDescriptor)
     {
     }
 
     @Override
-    public void fileTruncate(long[] fileCookie, int offset)
+    public void fileTruncate(int fileDescriptor, int offset)
     {
     }
 

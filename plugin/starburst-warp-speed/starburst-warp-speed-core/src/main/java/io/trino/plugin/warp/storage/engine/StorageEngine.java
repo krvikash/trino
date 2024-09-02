@@ -45,17 +45,17 @@ public interface StorageEngine
     }
 
     //----------------------- file ----------------------------------------
-    default long fileOpen(String fileName)
+    default int fileOpen(String fileName)
     {
         throw new UnsupportedOperationException();
     }
 
-    default void fileClose(long fileFd)
+    default void fileClose(int fileDescriptor)
     {
         throw new UnsupportedOperationException();
     }
 
-    default void fileTruncate(long[] fileCookie, int offset)
+    default void fileTruncate(int fileDescriptor, int offset)
     {
         throw new UnsupportedOperationException();
     }

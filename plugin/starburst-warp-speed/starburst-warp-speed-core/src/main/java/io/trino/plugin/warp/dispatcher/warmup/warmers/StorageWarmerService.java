@@ -147,14 +147,14 @@ public class StorageWarmerService
 
     public void fileTruncate(long[] fileCookie, int currentOffset)
     {
-        storageEngine.fileTruncate(fileCookie, currentOffset);
+        storageEngine.fileTruncate((int) fileCookie[FILE_COOKIE_PARAMS_FD.ordinal()], currentOffset);
     }
 
     public void fileClose(long[] fileCookie, Optional<RowGroupData> rowGroupData)
     {
         if (fileCookie[FILE_COOKIE_PARAMS_FD.ordinal()] != INVALID_FILE_COOKIE_FD) {
             try {
-                storageEngine.fileClose(fileCookie[FILE_COOKIE_PARAMS_FD.ordinal()]);
+                storageEngine.fileClose((int) fileCookie[FILE_COOKIE_PARAMS_FD.ordinal()]);
             }
             catch (Exception e) {
                 if (rowGroupData.isPresent()) {

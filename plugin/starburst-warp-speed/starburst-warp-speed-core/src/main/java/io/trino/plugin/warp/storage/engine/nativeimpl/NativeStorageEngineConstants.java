@@ -15,6 +15,7 @@ package io.trino.plugin.warp.storage.engine.nativeimpl;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import io.airlift.log.Logger;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 
 import java.lang.foreign.FunctionDescriptor;
@@ -26,6 +27,8 @@ import java.lang.foreign.ValueLayout;
 public class NativeStorageEngineConstants
         implements StorageEngineConstants
 {
+    private static final Logger logger = Logger.get(NativeStorageEngineConstants.class);
+
     // page size
     private final int pageSizeShift;                 // native layer page size shift
     private final int pageSize;                      // native layer page size
@@ -114,7 +117,8 @@ public class NativeStorageEngineConstants
             luceneSmallJufferSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_lucene_small_juffer_size");
         }
         catch (Throwable t) {
-            throw new RuntimeException("failed to retrieve constants from native library " + t);
+            logger.error(t, "failed to retrieve constants from native library");
+            throw new RuntimeException("failed to initialize NativeStorageEngineConstants");
         }
     }
 

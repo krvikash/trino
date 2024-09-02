@@ -148,7 +148,7 @@ public class StorageReader
     void close()
     {
         if (storageCollectorArgs != null) {
-            storageEngine.fileClose(storageCollectorArgs.collectTxArgs().fileCookie()[FILE_COOKIE_PARAMS_FD.ordinal()]);
+            storageEngine.fileClose((int) storageCollectorArgs.collectTxArgs().fileCookie()[FILE_COOKIE_PARAMS_FD.ordinal()]);
         }
     }
 
