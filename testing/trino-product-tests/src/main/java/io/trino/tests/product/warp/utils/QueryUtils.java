@@ -270,6 +270,11 @@ public class QueryUtils
         List<JDBCType> columnTypes = queryResult.getColumnTypes();
         List<List<ValueNode>> expectedValuesAsListOfLists = convertExpectedValues(expectedResult);
         int rowsCount = queryResult.getRowsCount();
+
+        assertThat(rowsCount)
+                .as("Result contained %d rows while %d rows were expected", queryResult.getRowsCount(), expectedValuesAsListOfLists.size())
+                .isEqualTo(expectedValuesAsListOfLists.size());
+
         for (int rowNumber = 0; rowNumber < rowsCount && !expectedValuesAsListOfLists.isEmpty(); rowNumber++) {
             List<ValueNode> rowResults = expectedValuesAsListOfLists.get(rowNumber);
             for (int columnNumber = 0; columnNumber < columnTypes.size(); columnNumber++) {
